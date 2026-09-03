@@ -1,0 +1,3509 @@
+import { i as __toESM } from "../_runtime.mjs";
+import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
+import { n as Slot, s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
+import { A as Download, C as Image, D as FolderPlus, E as Folder, F as Bell, I as BellOff, M as Clock3, N as Clapperboard, O as Film, P as ChevronLeft, S as LayoutGrid, T as Heart, _ as Menu, a as Video, b as LockOpen, c as SkipForward, d as Radio, f as Play, g as Minimize, h as Monitor, i as Volume2, j as Cpu, k as FileText, l as SkipBack, m as Pause, n as X, o as Upload, p as PictureInPicture2, r as VolumeX, t as Youtube, u as Search, v as Maximize, w as History, x as List, y as Lock } from "../_libs/lucide-react.mjs";
+import { a as DialogPortal, i as DialogOverlay, n as DialogClose, o as DialogTitle, r as DialogContent, t as Dialog } from "../_libs/@radix-ui/react-dialog+[...].mjs";
+import { a as Trigger, i as Root2, n as Item2, r as Portal2, t as Content2 } from "../_libs/@radix-ui/react-dropdown-menu+[...].mjs";
+import { n as clsx, t as cva } from "../_libs/class-variance-authority+clsx.mjs";
+import { t as twMerge } from "../_libs/tailwind-merge.mjs";
+import { n as toast, t as Toaster } from "../_libs/sonner.mjs";
+import { n as useShallow, t as create } from "../_libs/zustand.mjs";
+import { t as Root } from "../_libs/radix-ui__react-separator.mjs";
+import { i as SliderTrack, n as SliderRange, r as SliderThumb, t as Slider$1 } from "../_libs/@radix-ui/react-slider+[...].mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-D-cXoJeY.js
+var import_react = /* @__PURE__ */ __toESM(require_react());
+var import_jsx_runtime = require_jsx_runtime();
+function cn(...inputs) {
+	return twMerge(clsx(inputs));
+}
+function formatTime(sec) {
+	if (!Number.isFinite(sec) || sec < 0) return "0:00";
+	const total = Math.floor(sec);
+	const s = total % 60;
+	const m = Math.floor(total / 60) % 60;
+	const h = Math.floor(total / 3600);
+	const pad = (n) => n.toString().padStart(2, "0");
+	return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+}
+function formatBytes(n) {
+	if (!Number.isFinite(n) || n < 0) return "—";
+	if (n < 1024) return `${n} B`;
+	if (n < 1024 ** 2) return `${Math.round(n / 1024)} KB`;
+	if (n < 1024 ** 3) {
+		const mb = n / 1024 ** 2;
+		return `${mb >= 10 ? mb.toFixed(0) : mb.toFixed(1)} MB`;
+	}
+	return `${(n / 1024 ** 3).toFixed(1)} GB`;
+}
+function extensionOf(name) {
+	const i = name.lastIndexOf(".");
+	if (i <= 0) return "";
+	return name.slice(i + 1).toLowerCase();
+}
+function formatAgo(at, now = Date.now()) {
+	const s = Math.max(0, Math.floor((now - at) / 1e3));
+	if (s < 45) return "Just now";
+	if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+	if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+	const d = Math.floor(s / 86400);
+	if (d === 1) return "Yesterday";
+	if (d < 7) return `${d}d ago`;
+	return new Date(at).toLocaleDateString(void 0, {
+		month: "short",
+		day: "numeric"
+	});
+}
+function Sheet(props) {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Dialog, { ...props });
+}
+function SheetContent({ className, children, side = "left", ...props }) {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogPortal, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogOverlay, { className: "fixed inset-0 z-50 bg-bg/70" }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogContent, {
+		className: cn("fixed z-50 flex h-full w-72 flex-col bg-surface p-4 shadow-lift outline-none", side === "left" ? "inset-y-0 left-0" : "inset-y-0 right-0", className),
+		...props,
+		children: [children, /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogClose, {
+			className: "absolute top-3 right-3 rounded-sm p-2 text-muted transition-colors duration-150 hover:bg-elevated hover:text-fg",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, { className: "size-4" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+				className: "sr-only",
+				children: "Close"
+			})]
+		})]
+	})] });
+}
+function SheetTitle({ className, ...props }) {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogTitle, {
+		className: cn("font-display text-xl text-fg", className),
+		...props
+	});
+}
+var buttonVariants = cva("inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-[var(--ease-out)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70 focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:pointer-events-none disabled:opacity-40 [&_svg]:pointer-events-none [&_svg]:shrink-0 active:not-disabled:scale-[0.96]", {
+	variants: {
+		variant: {
+			default: "bg-accent text-accent-fg hover:opacity-90",
+			secondary: "bg-elevated text-fg shadow-border hover:shadow-border-hover",
+			ghost: "text-muted hover:bg-elevated hover:text-fg",
+			outline: "text-fg shadow-border hover:bg-elevated",
+			danger: "bg-danger text-fg hover:opacity-90"
+		},
+		size: {
+			default: "h-11 rounded-md px-4 text-sm",
+			sm: "h-9 rounded-sm px-3 text-sm",
+			lg: "h-12 rounded-lg px-5 text-sm",
+			icon: "size-11 rounded-md",
+			"icon-sm": "size-9 rounded-sm"
+		}
+	},
+	defaultVariants: {
+		variant: "default",
+		size: "default"
+	}
+});
+function Button({ className, variant, size, asChild = false, ...props }) {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(asChild ? Slot : "button", {
+		"data-slot": "button",
+		className: cn(buttonVariants({
+			variant,
+			size,
+			className
+		})),
+		...props
+	});
+}
+function Separator({ className, orientation = "horizontal", decorative = true, ...props }) {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Root, {
+		decorative,
+		orientation,
+		className: cn("shrink-0 bg-border", orientation === "horizontal" ? "h-px w-full" : "h-full w-px", className),
+		...props
+	});
+}
+var DEMO_FOLDER_ID = "demo";
+var YT_FOLDER_ID = "youtube:featured";
+var DEMO_FOLDER = {
+	id: DEMO_FOLDER_ID,
+	name: "Classics",
+	kind: "demo",
+	videoCount: 4
+};
+var YT_FOLDER = {
+	id: YT_FOLDER_ID,
+	name: "YouTube",
+	kind: "youtube",
+	videoCount: 4
+};
+function ytFilm(opts) {
+	const videoId = opts.id;
+	return {
+		id: `yt:${videoId}`,
+		folderId: YT_FOLDER_ID,
+		name: opts.name,
+		path: `youtube/${opts.name}`,
+		extension: "yt",
+		mime: "video/youtube",
+		size: 0,
+		duration: opts.duration,
+		addedAt: 20 + opts.year,
+		year: opts.year,
+		genre: opts.genre,
+		tagline: opts.tagline,
+		poster: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+		src: `https://www.youtube-nocookie.com/embed/${videoId}`,
+		remote: {
+			kind: "youtube",
+			videoId,
+			channelName: opts.channel,
+			embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}`,
+			watchUrl: `https://www.youtube.com/watch?v=${videoId}`
+		}
+	};
+}
+var FEATURED_YOUTUBE = [
+	ytFilm({
+		id: "aqz-KE-bpKQ",
+		name: "Big Buck Bunny",
+		year: 2008,
+		duration: 596,
+		genre: "Animation",
+		tagline: "An open movie from the Blender Foundation.",
+		channel: "Blender"
+	}),
+	ytFilm({
+		id: "Y-rmzh0PI3c",
+		name: "Cosmos Laundromat",
+		year: 2015,
+		duration: 720,
+		genre: "Fantasy",
+		tagline: "A down-on-his-luck sheep, and a deal.",
+		channel: "Blender"
+	}),
+	ytFilm({
+		id: "R6MlUcmOul8",
+		name: "Tears of Steel",
+		year: 2012,
+		duration: 734,
+		genre: "Sci-Fi",
+		tagline: "Amsterdam, after the machines.",
+		channel: "Blender"
+	}),
+	ytFilm({
+		id: "UXqq0ZvbOnk",
+		name: "Charge",
+		year: 2022,
+		duration: 720,
+		genre: "Sci-Fi",
+		tagline: "A Blender Studio open movie.",
+		channel: "Blender Studio"
+	})
+];
+var SAMPLE_VIDEOS = [
+	{
+		id: "demo:night-rain",
+		folderId: DEMO_FOLDER_ID,
+		name: "Night Rain",
+		path: "Night Rain.mp4",
+		extension: "mp4",
+		mime: "video/mp4",
+		size: 6468106,
+		duration: 6,
+		addedAt: 1,
+		isSample: true,
+		src: "/samples/night-rain.mp4",
+		year: 1947,
+		genre: "Noir",
+		tagline: "The city never dries.",
+		collection: "classics",
+		poster: "/posters/night-rain.jpg"
+	},
+	{
+		id: "demo:empty-house",
+		folderId: DEMO_FOLDER_ID,
+		name: "Empty House",
+		path: "Empty House.mp4",
+		extension: "mp4",
+		mime: "video/mp4",
+		size: 3499342,
+		duration: 6,
+		addedAt: 2,
+		isSample: true,
+		src: "/samples/empty-house.mp4",
+		year: 1961,
+		genre: "Drama",
+		tagline: "Something stayed behind.",
+		collection: "classics",
+		poster: "/posters/empty-house.jpg"
+	},
+	{
+		id: "demo:golden-coast",
+		folderId: DEMO_FOLDER_ID,
+		name: "Golden Coast",
+		path: "Golden Coast.mp4",
+		extension: "mp4",
+		mime: "video/mp4",
+		size: 15807485,
+		duration: 6,
+		addedAt: 3,
+		isSample: true,
+		src: "/samples/golden-coast.mp4",
+		year: 1958,
+		genre: "Romance",
+		tagline: "Light on the water.",
+		collection: "classics",
+		poster: "/posters/golden-coast.jpg"
+	},
+	{
+		id: "demo:tungsten-reel",
+		folderId: DEMO_FOLDER_ID,
+		name: "Tungsten Reel",
+		path: "Tungsten Reel.mp4",
+		extension: "mp4",
+		mime: "video/mp4",
+		size: 4498613,
+		duration: 6,
+		addedAt: 4,
+		isSample: true,
+		src: "/samples/tungsten-reel.mp4",
+		year: 1932,
+		genre: "Studio",
+		tagline: "The lamp still burns.",
+		collection: "classics",
+		poster: "/posters/tungsten-reel.jpg"
+	}
+];
+var DB_NAME = "reelcase";
+var STORE = "dirs";
+var VIDEO_STORE = "videos";
+var PREFS_KEY = "reelcase.prefs.v4";
+var LEGACY_KEYS = [
+	"reelcase.prefs.v3",
+	"reelcase.prefs.v2",
+	"reelcase.prefs.v1"
+];
+function migrateSource(id) {
+	if (!id || id === "all" || id === "starred") {
+		if (id === "starred") return "favorites";
+		return "home";
+	}
+	return id;
+}
+function openDb() {
+	return new Promise((resolve, reject) => {
+		const req = indexedDB.open(DB_NAME, 2);
+		req.onupgradeneeded = () => {
+			const db = req.result;
+			if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: "id" });
+			if (!db.objectStoreNames.contains(VIDEO_STORE)) db.createObjectStore(VIDEO_STORE, { keyPath: "id" }).createIndex("folderId", "folderId", { unique: false });
+		};
+		req.onsuccess = () => resolve(req.result);
+		req.onerror = () => reject(req.error);
+	});
+}
+async function saveDirHandle(entry) {
+	const db = await openDb();
+	await new Promise((resolve, reject) => {
+		const tx = db.transaction(STORE, "readwrite");
+		tx.objectStore(STORE).put(entry);
+		tx.oncomplete = () => resolve();
+		tx.onerror = () => reject(tx.error);
+	});
+	db.close();
+}
+async function loadDirHandles() {
+	const db = await openDb();
+	const rows = await new Promise((resolve, reject) => {
+		const req = db.transaction(STORE, "readonly").objectStore(STORE).getAll();
+		req.onsuccess = () => resolve(req.result ?? []);
+		req.onerror = () => reject(req.error);
+	});
+	db.close();
+	return rows;
+}
+async function deleteDirHandle(id) {
+	const db = await openDb();
+	await new Promise((resolve, reject) => {
+		const tx = db.transaction([STORE, VIDEO_STORE], "readwrite");
+		tx.objectStore(STORE).delete(id);
+		const req = tx.objectStore(VIDEO_STORE).index("folderId").openCursor(IDBKeyRange.only(id));
+		req.onsuccess = () => {
+			const cursor = req.result;
+			if (cursor) {
+				cursor.delete();
+				cursor.continue();
+			}
+		};
+		tx.oncomplete = () => resolve();
+		tx.onerror = () => reject(tx.error);
+	});
+	db.close();
+}
+function normalize(raw) {
+	const starred = raw.starred ?? [];
+	const favorites = raw.favorites ?? starred;
+	const sort = raw.sort ?? "name";
+	return {
+		favorites,
+		progress: raw.progress ?? {},
+		history: raw.history ?? [],
+		view: raw.view ?? "grid",
+		sort,
+		sortDir: raw.sortDir ?? (sort === "name" ? "asc" : "desc"),
+		hideDemo: Boolean(raw.hideDemo),
+		sourceId: migrateSource(raw.sourceId),
+		hardwareAccel: raw.hardwareAccel !== false,
+		privateFolderIds: raw.privateFolderIds ?? [],
+		adultPinHash: raw.adultPinHash ?? null,
+		extFilter: typeof raw.extFilter === "string" ? raw.extFilter : "all",
+		sizeFilter: raw.sizeFilter ?? "any",
+		playableOnly: Boolean(raw.playableOnly),
+		groupBy: raw.groupBy ?? "none",
+		follows: Array.isArray(raw.follows) ? raw.follows : [],
+		notices: Array.isArray(raw.notices) ? raw.notices : [],
+		notifyPush: Boolean(raw.notifyPush)
+	};
+}
+function loadPrefs() {
+	if (typeof window === "undefined") return null;
+	try {
+		const raw = localStorage.getItem(PREFS_KEY);
+		if (raw) return normalize(JSON.parse(raw));
+		for (const key of LEGACY_KEYS) {
+			const legacy = localStorage.getItem(key);
+			if (legacy) return normalize(JSON.parse(legacy));
+		}
+		return null;
+	} catch {
+		return null;
+	}
+}
+function savePrefs(prefs) {
+	if (typeof window === "undefined") return;
+	try {
+		localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+	} catch {}
+}
+async function hashPin(pin) {
+	const data = new TextEncoder().encode(`reelcase.adults.v1:${pin}`);
+	const buf = await crypto.subtle.digest("SHA-256", data);
+	return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+function isPinShape(pin) {
+	return /^\d{4}$/.test(pin);
+}
+var VIDEO_EXTENSIONS = /* @__PURE__ */ new Set([
+	"mp4",
+	"webm",
+	"mkv",
+	"mov",
+	"m4v",
+	"avi",
+	"ogv",
+	"ogg",
+	"3gp",
+	"wmv",
+	"flv",
+	"ts",
+	"mts",
+	"m2ts",
+	"mpeg",
+	"mpg",
+	"mpe",
+	"asf",
+	"m2v",
+	"vob"
+]);
+var NATIVE_PLAYABLE = /* @__PURE__ */ new Set([
+	"mp4",
+	"webm",
+	"ogv",
+	"ogg",
+	"m4v",
+	"mov"
+]);
+var SKIP_DIRS = /* @__PURE__ */ new Set([
+	"node_modules",
+	".git",
+	".svn",
+	".hg",
+	".cache",
+	".next",
+	".nuxt",
+	"dist",
+	"build",
+	"__pycache__",
+	"system volume information",
+	"$recycle.bin",
+	"windows",
+	"windows.old",
+	"program files",
+	"program files (x86)",
+	"programdata",
+	"recovery",
+	"perflogs",
+	"boot",
+	"intel",
+	"amd",
+	"nvidia",
+	"nvidia corporation",
+	"msocache",
+	"config.msi",
+	"$windows.~bt",
+	"$windows.~ws",
+	"documents and settings",
+	"appdata",
+	"application data",
+	"local settings",
+	"library",
+	"system",
+	"applications",
+	"private",
+	"usr",
+	"proc",
+	"sys",
+	"dev",
+	"run",
+	"snap",
+	"var",
+	"cores",
+	"tmp",
+	"temp",
+	"cache"
+]);
+var RECOMMENDED_FOLDERS = [
+	{
+		id: "videos",
+		label: "Videos",
+		hint: "Movies & TV"
+	},
+	{
+		id: "downloads",
+		label: "Downloads",
+		hint: "Saved files"
+	},
+	{
+		id: "desktop",
+		label: "Desktop",
+		hint: "On the desktop"
+	},
+	{
+		id: "documents",
+		label: "Documents",
+		hint: "Docs folder"
+	},
+	{
+		id: "pictures",
+		label: "Pictures",
+		hint: "Camera rolls"
+	}
+];
+function isVideoFile(name, mime) {
+	const ext = name.includes(".") ? name.slice(name.lastIndexOf(".") + 1).toLowerCase() : "";
+	if (VIDEO_EXTENSIONS.has(ext)) return true;
+	return Boolean(mime && mime.startsWith("video/"));
+}
+function shouldSkipDir(name) {
+	if (name.startsWith(".")) return true;
+	return SKIP_DIRS.has(name.toLowerCase());
+}
+function isDriveName(name) {
+	const n = name.trim();
+	if (/^[a-z]:?$/i.test(n)) return true;
+	if (n === "/" || n === "\\") return true;
+	return /^(macintosh hd|local disk|os|windows|ubuntu|fedora|linux)$/i.test(n);
+}
+function mimeFromName(name) {
+	switch (name.slice(name.lastIndexOf(".") + 1).toLowerCase()) {
+		case "mp4":
+		case "m4v": return "video/mp4";
+		case "webm": return "video/webm";
+		case "ogv":
+		case "ogg": return "video/ogg";
+		case "mov": return "video/quicktime";
+		case "mkv": return "video/x-matroska";
+		case "avi": return "video/x-msvideo";
+		default: return "video/*";
+	}
+}
+function isLikelyPlayable(ext) {
+	return NATIVE_PLAYABLE.has(ext.toLowerCase());
+}
+function titleOf(video) {
+	return video.name.replace(/\.[^/.]+$/, "");
+}
+function isClassicVideo(video) {
+	if (video.collection === "classics") return true;
+	const blob = `${video.path} ${video.name} ${video.genre ?? ""}`.toLowerCase();
+	return /\b(classic|classics|noir|silent|golden.?age)\b/.test(blob);
+}
+var SYSTEM_SOURCES = /* @__PURE__ */ new Set([
+	"home",
+	"all",
+	"movies",
+	"favorites",
+	"history",
+	"adults",
+	"continue",
+	"youtube",
+	"twitch",
+	"live"
+]);
+var files = /* @__PURE__ */ new Map();
+var fileHandles = /* @__PURE__ */ new Map();
+var dirHandles = /* @__PURE__ */ new Map();
+var objectUrls = /* @__PURE__ */ new Map();
+function rememberFile(id, file) {
+	files.set(id, file);
+}
+function rememberFileHandle(id, handle) {
+	fileHandles.set(id, handle);
+}
+function rememberDirHandle(folderId, handle) {
+	dirHandles.set(folderId, handle);
+}
+function getDirHandle(folderId) {
+	return dirHandles.get(folderId);
+}
+function forgetFolder(folderId, videoIds) {
+	dirHandles.delete(folderId);
+	for (const id of videoIds) {
+		files.delete(id);
+		fileHandles.delete(id);
+		const url = objectUrls.get(id);
+		if (url) {
+			URL.revokeObjectURL(url);
+			objectUrls.delete(id);
+		}
+	}
+}
+async function resolvePlayUrl(video) {
+	if (video.src) return video.src;
+	const cached = objectUrls.get(video.id);
+	if (cached) return cached;
+	let file = files.get(video.id);
+	if (!file) {
+		const handle = fileHandles.get(video.id);
+		if (handle) file = await handle.getFile();
+	}
+	if (!file) throw new Error("This file is no longer available. Add the folder again.");
+	const url = URL.createObjectURL(file);
+	objectUrls.set(video.id, url);
+	return url;
+}
+var MAX_VIDEOS = 8e4;
+var MAX_DEPTH = 14;
+var MAX_DRIVE_DEPTH = 12;
+function asOpts(arg) {
+	if (typeof arg === "function") return { onProgress: arg };
+	return arg ?? {};
+}
+function aborted(signal) {
+	return Boolean(signal?.aborted);
+}
+async function yieldUi() {
+	await new Promise((r) => setTimeout(r, 0));
+}
+function maybeFlush(acc, flushed, onBatch) {
+	if (!onBatch) return;
+	if (acc.length - flushed.n < 80) return;
+	onBatch(acc.slice(flushed.n));
+	flushed.n = acc.length;
+}
+async function ingestDirectoryHandle(dir, folderId, arg) {
+	const opts = asOpts(arg);
+	const acc = [];
+	const flushed = { n: 0 };
+	const drive = opts.drive ?? isDriveName(dir.name);
+	await walkHandle(dir, "", folderId, acc, dir.name, opts, flushed, 0, drive);
+	if (opts.onBatch && acc.length > flushed.n) opts.onBatch(acc.slice(flushed.n));
+	return acc;
+}
+async function walkHandle(dir, prefix, folderId, acc, folderName, opts, flushed, depth, drive) {
+	if (depth > (drive ? MAX_DRIVE_DEPTH : MAX_DEPTH) || acc.length >= MAX_VIDEOS || aborted(opts.signal)) return;
+	const iterable = dir;
+	if (typeof iterable.entries !== "function") return;
+	let looked = 0;
+	for await (const [name, handle] of iterable.entries()) {
+		if (aborted(opts.signal) || acc.length >= MAX_VIDEOS) return;
+		looked += 1;
+		if (handle.kind === "directory") {
+			if (shouldSkipDir(name)) continue;
+			await walkHandle(handle, `${prefix}${name}/`, folderId, acc, folderName, opts, flushed, depth + 1, drive);
+		} else if (handle.kind === "file" && isVideoFile(name)) try {
+			const fileHandle = handle;
+			const file = await fileHandle.getFile();
+			pushVideo(acc, folderId, prefix + name, file, fileHandle);
+			opts.onProgress?.({
+				found: acc.length,
+				looked,
+				folderName,
+				current: prefix + name
+			});
+			maybeFlush(acc, flushed, opts.onBatch);
+			if (acc.length % 30 === 0) await yieldUi();
+		} catch {}
+		else if (looked % 200 === 0) {
+			opts.onProgress?.({
+				found: acc.length,
+				looked,
+				folderName,
+				current: prefix + name
+			});
+			await yieldUi();
+		}
+	}
+}
+async function ingestFileList(list, folderId, folderName, arg) {
+	const opts = asOpts(arg);
+	const files = Array.from(list);
+	const acc = [];
+	const flushed = { n: 0 };
+	let looked = 0;
+	for (const file of files) {
+		if (aborted(opts.signal) || acc.length >= MAX_VIDEOS) break;
+		looked += 1;
+		const rel = "webkitRelativePath" in file && file.webkitRelativePath ? file.webkitRelativePath : file.name;
+		const parts = rel.split("/").filter(Boolean);
+		if (parts.some((p, i) => i < parts.length - 1 && shouldSkipDir(p))) continue;
+		if (!isVideoFile(file.name, file.type)) continue;
+		pushVideo(acc, folderId, rel, file);
+		opts.onProgress?.({
+			found: acc.length,
+			looked,
+			folderName,
+			current: rel
+		});
+		maybeFlush(acc, flushed, opts.onBatch);
+		if (acc.length % 30 === 0) await yieldUi();
+	}
+	if (opts.onBatch && acc.length > flushed.n) opts.onBatch(acc.slice(flushed.n));
+	return acc;
+}
+function readAllEntries(reader) {
+	return new Promise((resolve, reject) => {
+		const out = [];
+		const pump = () => {
+			reader.readEntries((batch) => {
+				if (!batch.length) resolve(out);
+				else {
+					out.push(...batch);
+					pump();
+				}
+			}, reject);
+		};
+		pump();
+	});
+}
+function entryFile(entry) {
+	return new Promise((resolve, reject) => entry.file(resolve, reject));
+}
+async function ingestDataTransfer(dt, folderId, folderName, arg) {
+	const opts = asOpts(arg);
+	const acc = [];
+	const flushed = { n: 0 };
+	const items = dt.items;
+	const entries = [];
+	if (items && items.length) for (let i = 0; i < items.length; i++) {
+		const item = items[i];
+		const entry = item.webkitGetAsEntry?.call(item) ?? null;
+		if (entry) entries.push(entry);
+	}
+	if (entries.length) {
+		for (const entry of entries) await walkEntry(entry, "", folderId, acc, folderName, opts, flushed, 0);
+		if (opts.onBatch && acc.length > flushed.n) opts.onBatch(acc.slice(flushed.n));
+		if (acc.length) return acc;
+	}
+	if (dt.files?.length) return ingestFileList(dt.files, folderId, folderName, opts);
+	return acc;
+}
+async function walkEntry(entry, prefix, folderId, acc, folderName, opts, flushed, depth) {
+	if (depth > MAX_DEPTH || acc.length >= MAX_VIDEOS || aborted(opts.signal)) return;
+	if (entry.isDirectory) {
+		if (shouldSkipDir(entry.name)) return;
+		const children = await readAllEntries(entry.createReader());
+		const nextPrefix = prefix ? `${prefix}${entry.name}/` : "";
+		for (const child of children) await walkEntry(child, nextPrefix, folderId, acc, folderName, opts, flushed, depth + 1);
+		return;
+	}
+	if (entry.isFile && isVideoFile(entry.name)) try {
+		const file = await entryFile(entry);
+		const rel = prefix ? `${prefix}${entry.name}` : entry.name;
+		pushVideo(acc, folderId, rel, file);
+		opts.onProgress?.({
+			found: acc.length,
+			looked: acc.length,
+			folderName,
+			current: rel
+		});
+		maybeFlush(acc, flushed, opts.onBatch);
+		if (acc.length % 30 === 0) await yieldUi();
+	} catch {}
+}
+function pushVideo(acc, folderId, relPath, file, handle) {
+	const name = file.name;
+	const id = `${folderId}:${relPath}`;
+	rememberFile(id, file);
+	if (handle) rememberFileHandle(id, handle);
+	acc.push({
+		id,
+		folderId,
+		name,
+		path: relPath,
+		extension: extensionOf(name),
+		mime: file.type || mimeFromName(name),
+		size: file.size,
+		addedAt: Date.now()
+	});
+}
+async function pickDirectory(startIn) {
+	if (typeof window === "undefined") return "fallback";
+	const picker = window.showDirectoryPicker;
+	if (typeof picker !== "function") return "fallback";
+	try {
+		if (startIn === "drive") return await picker({
+			id: "reelcase-drive",
+			mode: "read"
+		});
+		return await picker({
+			id: startIn ? `reelcase-${startIn}` : "reelcase-videos",
+			mode: "read",
+			startIn: startIn ?? "videos"
+		});
+	} catch (err) {
+		if (err?.name === "AbortError") return "abort";
+		return "fallback";
+	}
+}
+async function queryDirPermission(handle) {
+	const h = handle;
+	if (typeof h.queryPermission !== "function") return "granted";
+	return h.queryPermission({ mode: "read" });
+}
+async function requestDirPermission(handle) {
+	const h = handle;
+	if (typeof h.queryPermission !== "function") return true;
+	if (await h.queryPermission({ mode: "read" }) === "granted") return true;
+	if (typeof h.requestPermission !== "function") return false;
+	return await h.requestPermission({ mode: "read" }) === "granted";
+}
+var HISTORY_CAP = 80;
+function persistNow(get) {
+	const s = get();
+	savePrefs({
+		favorites: Object.keys(s.favorites),
+		progress: s.progress,
+		history: s.history,
+		view: s.view,
+		sort: s.sort,
+		hideDemo: s.hideDemo,
+		sourceId: s.sourceId === "adults" ? "home" : s.sourceId,
+		hardwareAccel: s.hardwareAccel,
+		privateFolderIds: s.folders.filter((f) => f.adult).map((f) => f.id),
+		adultPinHash: s.adultPinHash,
+		sortDir: "asc",
+		extFilter: "all",
+		sizeFilter: "any",
+		playableOnly: false,
+		groupBy: "none",
+		follows: s.follows,
+		notices: s.notices.slice(0, 40),
+		notifyPush: s.notifyPush
+	});
+}
+function mergeVideos(existing, incoming) {
+	const map = new Map(existing.map((v) => [v.id, v]));
+	for (const v of incoming) map.set(v.id, v);
+	return Array.from(map.values());
+}
+function applyPrefs(partial) {
+	const prefs = loadPrefs();
+	if (!prefs) return partial;
+	const favorites = {};
+	for (const id of prefs.favorites ?? []) favorites[id] = true;
+	return {
+		...partial,
+		favorites,
+		progress: prefs.progress ?? {},
+		history: prefs.history ?? [],
+		view: prefs.view ?? "grid",
+		sort: prefs.sort ?? "name",
+		hideDemo: prefs.hideDemo ?? false,
+		sourceId: prefs.sourceId === "adults" ? "home" : prefs.sourceId ?? "home",
+		hardwareAccel: prefs.hardwareAccel ?? true,
+		adultPinHash: prefs.adultPinHash ?? null,
+		follows: prefs.follows ?? [],
+		notices: prefs.notices ?? [],
+		notifyPush: prefs.notifyPush ?? false
+	};
+}
+function adultIdSet(folders) {
+	return new Set(folders.filter((f) => f.adult).map((f) => f.id));
+}
+function isAdultVideo(video, folders) {
+	return adultIdSet(folders).has(video.folderId);
+}
+var useLibrary = create((set, get) => ({
+	folders: [DEMO_FOLDER, YT_FOLDER],
+	videos: [...SAMPLE_VIDEOS, ...FEATURED_YOUTUBE],
+	query: "",
+	sort: "name",
+	view: "grid",
+	sourceId: "home",
+	favorites: {},
+	progress: {},
+	history: [],
+	hideDemo: false,
+	hardwareAccel: true,
+	adultPinHash: null,
+	adultsUnlocked: false,
+	activeId: null,
+	scanning: null,
+	hydrated: false,
+	follows: [],
+	notices: [],
+	notifyPush: false,
+	remoteBusy: false,
+	setQuery: (query) => set({ query }),
+	setSort: (sort) => {
+		set({ sort });
+		persistNow(get);
+	},
+	setView: (view) => {
+		set({ view });
+		persistNow(get);
+	},
+	setSource: (sourceId) => {
+		set({ sourceId });
+		persistNow(get);
+	},
+	toggleFavorite: (id) => {
+		set((s) => {
+			const favorites = { ...s.favorites };
+			if (favorites[id]) delete favorites[id];
+			else favorites[id] = true;
+			return { favorites };
+		});
+		persistNow(get);
+	},
+	markProgress: (id, t, d) => {
+		set((s) => ({ progress: {
+			...s.progress,
+			[id]: {
+				t,
+				d,
+				at: Date.now()
+			}
+		} }));
+		persistNow(get);
+	},
+	recordPlay: (id) => {
+		set((s) => {
+			return { history: [{
+				id,
+				at: Date.now()
+			}, ...s.history.filter((h) => h.id !== id)].slice(0, HISTORY_CAP) };
+		});
+		persistNow(get);
+	},
+	clearHistory: () => {
+		set({ history: [] });
+		persistNow(get);
+	},
+	openVideo: (activeId) => {
+		const s = get();
+		const video = s.videos.find((v) => v.id === activeId);
+		if (video && isAdultVideo(video, s.folders) && !s.adultsUnlocked) {
+			set({ sourceId: "adults" });
+			persistNow(get);
+			return;
+		}
+		set({ activeId });
+		get().recordPlay(activeId);
+	},
+	closePlayer: () => set({ activeId: null }),
+	playRelative: (delta, playlist) => {
+		const { activeId } = get();
+		if (!activeId || !playlist.length) return;
+		const i = playlist.indexOf(activeId);
+		if (i < 0) return;
+		const next = playlist[i + delta];
+		if (next) get().openVideo(next);
+	},
+	setHideDemo: (hideDemo) => {
+		set((s) => ({
+			hideDemo,
+			sourceId: hideDemo && s.sourceId === "demo" ? "home" : s.sourceId
+		}));
+		persistNow(get);
+	},
+	setHardwareAccel: (hardwareAccel) => {
+		set({ hardwareAccel });
+		persistNow(get);
+	},
+	setFolderAdult: (folderId, adult) => {
+		if (folderId === "demo") return;
+		set((s) => ({
+			folders: s.folders.map((f) => f.id === folderId ? {
+				...f,
+				adult
+			} : f),
+			sourceId: adult ? "adults" : s.sourceId === folderId ? "home" : s.sourceId,
+			activeId: s.activeId && s.videos.some((v) => v.id === s.activeId && v.folderId === folderId) && adult && !s.adultsUnlocked ? null : s.activeId
+		}));
+		persistNow(get);
+	},
+	setAdultPin: async (pin) => {
+		if (!isPinShape(pin)) return false;
+		set({
+			adultPinHash: await hashPin(pin),
+			adultsUnlocked: true
+		});
+		persistNow(get);
+		return true;
+	},
+	unlockAdults: async (pin) => {
+		const { adultPinHash } = get();
+		if (!adultPinHash || !isPinShape(pin)) return false;
+		if (await hashPin(pin) !== adultPinHash) return false;
+		set({
+			adultsUnlocked: true,
+			sourceId: "adults"
+		});
+		return true;
+	},
+	lockAdults: () => {
+		set((s) => {
+			const current = s.videos.find((v) => v.id === s.activeId);
+			const hidePlayer = current ? isAdultVideo(current, s.folders) : false;
+			return {
+				adultsUnlocked: false,
+				sourceId: s.sourceId === "adults" ? "home" : s.sourceId,
+				activeId: hidePlayer ? null : s.activeId
+			};
+		});
+	},
+	resetAdultPin: () => {
+		set({
+			adultPinHash: null,
+			adultsUnlocked: false
+		});
+		persistNow(get);
+	},
+	addFolder: async (inputEl, startIn, opts) => {
+		const result = await pickDirectory(startIn);
+		if (result === "abort") return;
+		if (result === "fallback") {
+			inputEl?.click();
+			return;
+		}
+		const handle = result;
+		if (!await requestDirPermission(handle)) return;
+		const folderId = `folder:${handle.name}:${crypto.randomUUID().slice(0, 8)}`;
+		rememberDirHandle(folderId, handle);
+		set({ scanning: {
+			found: 0,
+			looked: 0,
+			folderName: handle.name
+		} });
+		try {
+			const videos = await ingestDirectoryHandle(handle, folderId, (p) => set({ scanning: p }));
+			const adult = Boolean(opts?.adult);
+			const folder = {
+				id: folderId,
+				name: handle.name,
+				kind: "directory",
+				videoCount: videos.length,
+				recommended: startIn,
+				adult
+			};
+			set((s) => ({
+				folders: [...s.folders.filter((f) => f.id !== folderId), folder],
+				videos: mergeVideos(s.videos, videos),
+				scanning: null,
+				sourceId: adult ? "adults" : videos.length ? folderId : s.sourceId
+			}));
+			persistNow(get);
+			await saveDirHandle({
+				id: folderId,
+				name: handle.name,
+				handle
+			});
+		} catch (err) {
+			set({ scanning: null });
+			throw err;
+		}
+	},
+	addFiles: async (inputEl) => {
+		inputEl?.click();
+	},
+	ingestFromInput: async (files, asDirectory, opts) => {
+		if (!files.length) return;
+		const rel = files[0].webkitRelativePath || "";
+		const folderName = asDirectory ? rel.split("/")[0] || "Folder" : "Added files";
+		const folderId = asDirectory ? `folder:${folderName}:${crypto.randomUUID().slice(0, 8)}` : `files:${crypto.randomUUID().slice(0, 8)}`;
+		set({ scanning: {
+			found: 0,
+			looked: 0,
+			folderName
+		} });
+		const videos = await ingestFileList(files, folderId, folderName, (p) => set({ scanning: p }));
+		const adult = Boolean(opts?.adult) || get().sourceId === "adults";
+		const folder = {
+			id: folderId,
+			name: folderName,
+			kind: asDirectory ? "directory" : "files",
+			videoCount: videos.length,
+			adult
+		};
+		set((s) => ({
+			folders: [...s.folders, folder],
+			videos: mergeVideos(s.videos, videos),
+			scanning: null,
+			sourceId: adult ? "adults" : videos.length ? folderId : s.sourceId
+		}));
+		persistNow(get);
+	},
+	ingestDrop: async (dt) => {
+		const nameGuess = dt.files?.[0]?.webkitRelativePath?.split("/")[0] || dt.files?.[0]?.name || "Dropped files";
+		const folderId = `drop:${crypto.randomUUID().slice(0, 8)}`;
+		set({ scanning: {
+			found: 0,
+			looked: 0,
+			folderName: nameGuess
+		} });
+		const videos = await ingestDataTransfer(dt, folderId, nameGuess, (p) => set({ scanning: p }));
+		const folderName = videos[0]?.path.includes("/") ? videos[0].path.split("/")[0] : "Dropped files";
+		const adult = get().sourceId === "adults";
+		const folder = {
+			id: folderId,
+			name: folderName,
+			kind: videos.some((v) => v.path.includes("/")) ? "directory" : "files",
+			videoCount: videos.length,
+			adult
+		};
+		set((s) => ({
+			folders: [...s.folders, folder],
+			videos: mergeVideos(s.videos, videos),
+			scanning: null,
+			sourceId: adult ? "adults" : videos.length ? folderId : s.sourceId
+		}));
+		persistNow(get);
+	},
+	restoreFolders: async () => {
+		const prefsState = applyPrefs({});
+		const adultIds = new Set(loadPrefs()?.privateFolderIds ?? []);
+		set({
+			...prefsState,
+			hydrated: true
+		});
+		let stored = [];
+		try {
+			stored = await loadDirHandles();
+		} catch {
+			return;
+		}
+		for (const row of stored) {
+			rememberDirHandle(row.id, row.handle);
+			let perm = "prompt";
+			try {
+				perm = await queryDirPermission(row.handle);
+			} catch {
+				perm = "prompt";
+			}
+			const adult = adultIds.has(row.id);
+			if (perm === "granted") {
+				set({ scanning: {
+					found: 0,
+					looked: 0,
+					folderName: row.name
+				} });
+				try {
+					const videos = await ingestDirectoryHandle(row.handle, row.id, (p) => set({ scanning: p }));
+					const folder = {
+						id: row.id,
+						name: row.name,
+						kind: "directory",
+						videoCount: videos.length,
+						adult
+					};
+					set((s) => ({
+						folders: [...s.folders.filter((f) => f.id !== row.id), folder],
+						videos: mergeVideos(s.videos, videos),
+						scanning: null
+					}));
+				} catch {
+					set((s) => ({
+						scanning: null,
+						folders: [...s.folders.filter((f) => f.id !== row.id), {
+							id: row.id,
+							name: row.name,
+							kind: "directory",
+							videoCount: 0,
+							needsPermission: true,
+							adult
+						}]
+					}));
+				}
+			} else set((s) => ({ folders: [...s.folders.filter((f) => f.id !== row.id), {
+				id: row.id,
+				name: row.name,
+				kind: "directory",
+				videoCount: 0,
+				needsPermission: true,
+				adult
+			}] }));
+		}
+	},
+	restoreOne: async (folderId) => {
+		const handle = getDirHandle(folderId);
+		if (!handle) return;
+		if (!await requestDirPermission(handle)) return;
+		const folder = get().folders.find((f) => f.id === folderId);
+		set({ scanning: {
+			found: 0,
+			looked: 0,
+			folderName: folder?.name ?? handle.name
+		} });
+		const videos = await ingestDirectoryHandle(handle, folderId, (p) => set({ scanning: p }));
+		set((s) => ({
+			folders: s.folders.map((f) => f.id === folderId ? {
+				...f,
+				videoCount: videos.length,
+				needsPermission: false
+			} : f),
+			videos: mergeVideos(s.videos, videos),
+			scanning: null,
+			sourceId: folder?.adult ? "adults" : folderId
+		}));
+	},
+	removeFolder: async (folderId) => {
+		if (folderId === "demo") {
+			get().setHideDemo(true);
+			return;
+		}
+		const ids = get().videos.filter((v) => v.folderId === folderId).map((v) => v.id);
+		forgetFolder(folderId, ids);
+		set((s) => {
+			const favorites = { ...s.favorites };
+			const progress = { ...s.progress };
+			for (const id of ids) {
+				delete favorites[id];
+				delete progress[id];
+			}
+			return {
+				folders: s.folders.filter((f) => f.id !== folderId),
+				videos: s.videos.filter((v) => v.folderId !== folderId),
+				favorites,
+				progress,
+				history: s.history.filter((h) => !ids.includes(h.id)),
+				sourceId: s.sourceId === folderId ? "home" : s.sourceId,
+				activeId: s.activeId && ids.includes(s.activeId) ? null : s.activeId
+			};
+		});
+		persistNow(get);
+		try {
+			await deleteDirHandle(folderId);
+		} catch {}
+	},
+	followRemoteQuery: async (query, kind = "auto") => {
+		set({ remoteBusy: true });
+		try {
+			const { followRemote } = await import("./api-CaddXIm6.mjs");
+			const result = await followRemote({ data: {
+				query,
+				kind
+			} });
+			set((s) => {
+				const follows = [result.channel, ...s.follows.filter((f) => f.id !== result.channel.id)];
+				const folder = {
+					id: result.channel.id,
+					name: result.channel.title,
+					kind: result.channel.kind,
+					videoCount: result.videos.length
+				};
+				return {
+					follows,
+					folders: [...s.folders.filter((f) => f.id !== folder.id), folder],
+					videos: mergeVideos(s.videos.filter((v) => v.folderId !== result.channel.id), result.videos),
+					sourceId: result.channel.kind,
+					remoteBusy: false
+				};
+			});
+			persistNow(get);
+			get().pushNotice({
+				title: `Following ${result.channel.title}`,
+				body: result.channel.kind === "twitch" ? result.channel.live ? "Live right now." : "You'll be notified when they go live." : `${result.videos.length} latest video${result.videos.length === 1 ? "" : "s"} pulled in.`,
+				kind: result.channel.kind
+			});
+		} catch (err) {
+			set({ remoteBusy: false });
+			throw err;
+		}
+	},
+	unfollow: (id) => {
+		set((s) => ({
+			follows: s.follows.filter((f) => f.id !== id),
+			folders: s.folders.filter((f) => f.id !== id),
+			videos: s.videos.filter((v) => v.folderId !== id),
+			sourceId: s.sourceId === id ? "home" : s.sourceId
+		}));
+		persistNow(get);
+	},
+	refreshFollows: async () => {
+		const current = get().follows;
+		if (!current.length) return {
+			wentLive: [],
+			newVideos: []
+		};
+		const beforeLive = new Set(get().videos.filter((v) => v.remote?.live).map((v) => v.id));
+		const beforeIds = new Set(get().videos.map((v) => v.id));
+		try {
+			const { refreshRemotes } = await import("./api-CaddXIm6.mjs");
+			const result = await refreshRemotes({ data: { channels: current } });
+			const followIds = new Set(result.channels.map((c) => c.id));
+			set((s) => ({
+				follows: result.channels,
+				folders: [
+					...s.folders.filter((f) => f.kind !== "youtube" && f.kind !== "twitch"),
+					YT_FOLDER,
+					...result.channels.map((c) => ({
+						id: c.id,
+						name: c.title,
+						kind: c.kind,
+						videoCount: result.videos.filter((v) => v.folderId === c.id).length
+					}))
+				],
+				videos: [...s.videos.filter((v) => !v.remote || v.folderId === "youtube:featured" || !followIds.has(v.folderId)), ...result.videos]
+			}));
+			persistNow(get);
+			return {
+				wentLive: result.channels.filter((c) => c.live && !beforeLive.has(`tw:${c.handle}:live`) && !beforeLive.has(`tw:${c.handle.toLowerCase()}:live`)),
+				newVideos: result.videos.filter((v) => !beforeIds.has(v.id) && v.remote?.kind === "youtube")
+			};
+		} catch {
+			return {
+				wentLive: [],
+				newVideos: []
+			};
+		}
+	},
+	pushNotice: (n) => {
+		const notice = {
+			id: `n:${Date.now()}:${Math.random().toString(16).slice(2, 6)}`,
+			at: Date.now(),
+			read: false,
+			...n
+		};
+		set((s) => ({ notices: [notice, ...s.notices].slice(0, 40) }));
+		persistNow(get);
+		if (get().notifyPush && typeof window !== "undefined" && "Notification" in window) {
+			if (Notification.permission === "granted") try {
+				new Notification(n.title, {
+					body: n.body,
+					silent: false
+				});
+			} catch {}
+		}
+	},
+	markNoticesRead: () => {
+		set((s) => ({ notices: s.notices.map((n) => ({
+			...n,
+			read: true
+		})) }));
+		persistNow(get);
+	},
+	setNotifyPush: (notifyPush) => {
+		set({ notifyPush });
+		persistNow(get);
+	}
+}));
+function publicList(state) {
+	const adult = adultIdSet(state.folders);
+	let list = state.videos.filter((v) => !adult.has(v.folderId));
+	if (state.hideDemo) list = list.filter((v) => !v.isSample);
+	return list;
+}
+function adultList(state) {
+	if (!state.adultsUnlocked) return [];
+	const adult = adultIdSet(state.folders);
+	return state.videos.filter((v) => adult.has(v.folderId));
+}
+function selectVisible(state) {
+	const q = state.query.trim().toLowerCase();
+	const inAdults = state.sourceId === "adults";
+	let list = inAdults ? adultList(state) : publicList(state);
+	if (state.sourceId === "favorites") list = list.filter((v) => state.favorites[v.id]);
+	else if (state.sourceId === "continue") list = list.filter((v) => {
+		const p = state.progress[v.id];
+		if (!p || p.d <= 0) return false;
+		const r = p.t / p.d;
+		return r > .04 && r < .96;
+	});
+	else if (state.sourceId === "history") {
+		const byId = new Map(list.map((v) => [v.id, v]));
+		list = state.history.map((h) => byId.get(h.id)).filter((v) => v != null);
+	} else if (state.sourceId === "movies") list = list.filter((v) => !v.remote);
+	else if (state.sourceId === "youtube") list = list.filter((v) => v.remote?.kind === "youtube");
+	else if (state.sourceId === "twitch") list = list.filter((v) => v.remote?.kind === "twitch");
+	else if (state.sourceId === "live") list = list.filter((v) => v.remote?.live);
+	else if (state.sourceId === "home" || state.sourceId === "all") {} else if (!SYSTEM_SOURCES.has(state.sourceId) && !inAdults) list = list.filter((v) => v.folderId === state.sourceId);
+	if (q) list = list.filter((v) => v.name.toLowerCase().includes(q) || v.path.toLowerCase().includes(q) || (v.genre ?? "").toLowerCase().includes(q) || (v.tagline ?? "").toLowerCase().includes(q));
+	if (state.sourceId === "history") return list;
+	const sorted = [...list];
+	sorted.sort((a, b) => {
+		switch (state.sort) {
+			case "added": return b.addedAt - a.addedAt;
+			case "size": return b.size - a.size;
+			case "duration": return (b.duration ?? 0) - (a.duration ?? 0);
+			case "recent": {
+				const ra = state.progress[a.id]?.at ?? 0;
+				return (state.progress[b.id]?.at ?? 0) - ra;
+			}
+			default: return a.name.localeCompare(b.name, void 0, { sensitivity: "base" });
+		}
+	});
+	return sorted;
+}
+function scoped(state, adult) {
+	return adult ? adultList(state) : publicList(state);
+}
+function selectContinue(state, adult = false) {
+	const items = scoped(state, adult).filter((v) => {
+		const p = state.progress[v.id];
+		if (!p || p.d <= 0) return false;
+		const r = p.t / p.d;
+		return r > .04 && r < .96;
+	});
+	items.sort((a, b) => (state.progress[b.id]?.at ?? 0) - (state.progress[a.id]?.at ?? 0));
+	return items.slice(0, 12);
+}
+function selectFavorites(state, adult = false) {
+	return scoped(state, adult).filter((v) => state.favorites[v.id]);
+}
+function selectHistory(state, adult = false) {
+	const list = scoped(state, adult);
+	const byId = new Map(list.map((v) => [v.id, v]));
+	return state.history.map((h) => byId.get(h.id)).filter((v) => v != null).slice(0, 12);
+}
+function selectYoutube(state) {
+	return publicList(state).filter((v) => v.remote?.kind === "youtube").sort((a, b) => b.addedAt - a.addedAt).slice(0, 18);
+}
+function selectTwitch(state) {
+	return publicList(state).filter((v) => v.remote?.kind === "twitch").sort((a, b) => Number(b.remote?.live) - Number(a.remote?.live) || b.addedAt - a.addedAt).slice(0, 18);
+}
+function selectLive(state) {
+	return publicList(state).filter((v) => v.remote?.live);
+}
+function selectClassics(state) {
+	return publicList(state).filter((v) => !v.remote && isClassicVideo(v));
+}
+function selectFeatured(state, adult = false) {
+	const cont = selectContinue(state, adult);
+	if (cont[0]) return cont[0];
+	if (!adult) {
+		const classics = selectClassics(state);
+		if (classics[0]) return classics[0];
+	}
+	return scoped(state, adult)[0];
+}
+function userFolderCount(folders) {
+	return folders.filter((f) => f.kind !== "demo").length;
+}
+function NavItem({ active, onClick, icon: Icon, label, count, trailing }) {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+		type: "button",
+		onClick,
+		className: cn("flex h-10 w-full items-center gap-2.5 rounded-md px-2.5 text-sm transition-[background-color,color] duration-150 ease-[var(--ease-out)]", active ? "bg-elevated text-fg" : "text-muted hover:bg-elevated/70 hover:text-fg"),
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Icon, { className: "size-4 shrink-0" }),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+				className: "min-w-0 flex-1 truncate text-left",
+				children: label
+			}),
+			typeof count === "number" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+				className: "font-mono text-xs tabular-nums text-subtle",
+				children: count
+			}),
+			trailing
+		]
+	});
+}
+function SidebarNav({ onAddFolder, onNavigate }) {
+	const folders = useLibrary((s) => s.folders);
+	const videos = useLibrary((s) => s.videos);
+	const sourceId = useLibrary((s) => s.sourceId);
+	const hideDemo = useLibrary((s) => s.hideDemo);
+	const setSource = useLibrary((s) => s.setSource);
+	const removeFolder = useLibrary((s) => s.removeFolder);
+	const restoreOne = useLibrary((s) => s.restoreOne);
+	const setFolderAdult = useLibrary((s) => s.setFolderAdult);
+	const unfollow = useLibrary((s) => s.unfollow);
+	const adultsUnlocked = useLibrary((s) => s.adultsUnlocked);
+	const lockAdults = useLibrary((s) => s.lockAdults);
+	const favCount = useLibrary((s) => Object.keys(s.favorites).filter((id) => {
+		const v = s.videos.find((x) => x.id === id);
+		return v && !isAdultVideo(v, s.folders);
+	}).length);
+	const continueCount = useLibrary((s) => {
+		return s.videos.filter((v) => {
+			if (isAdultVideo(v, s.folders)) return false;
+			const p = s.progress[v.id];
+			if (!p || p.d <= 0) return false;
+			const r = p.t / p.d;
+			return r > .04 && r < .96 && !(s.hideDemo && v.isSample);
+		}).length;
+	});
+	const historyCount = useLibrary((s) => {
+		return s.history.filter((h) => {
+			const v = s.videos.find((x) => x.id === h.id);
+			return v && !isAdultVideo(v, s.folders) && !(s.hideDemo && v.isSample);
+		}).length;
+	});
+	const adultCount = useLibrary((s) => {
+		if (!s.adultsUnlocked) return void 0;
+		return s.videos.filter((v) => isAdultVideo(v, s.folders)).length;
+	});
+	const ytCount = useLibrary((s) => s.videos.filter((v) => v.remote?.kind === "youtube").length);
+	const twitchCount = useLibrary((s) => s.videos.filter((v) => v.remote?.kind === "twitch").length);
+	const liveCount = useLibrary((s) => s.videos.filter((v) => v.remote?.live).length);
+	const go = (id) => {
+		setSource(id);
+		onNavigate?.();
+	};
+	const publicFolders = folders.filter((f) => f.kind !== "demo" && f.kind !== "youtube" && f.kind !== "twitch" && !f.adult);
+	const networkFolders = folders.filter((f) => (f.kind === "youtube" || f.kind === "twitch") && f.id !== "youtube:featured");
+	const adultFolders = folders.filter((f) => f.adult);
+	const demo = folders.find((f) => f.kind === "demo" && !hideDemo);
+	const publicCount = videos.filter((v) => !isAdultVideo(v, folders) && !(hideDemo && v.isSample)).length;
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "flex h-full flex-col",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "px-2 pt-1 pb-4",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "font-display text-2xl leading-none tracking-tight text-fg",
+					children: "Reelcase"
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "mt-1 text-xs text-muted",
+					children: "Vault · networks · live"
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("nav", {
+				className: "flex flex-col gap-0.5 px-1",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(NavItem, {
+						active: sourceId === "home",
+						onClick: () => go("home"),
+						icon: Clapperboard,
+						label: "Home",
+						count: publicCount
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(NavItem, {
+						active: sourceId === "movies",
+						onClick: () => go("movies"),
+						icon: Film,
+						label: "Movies"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(NavItem, {
+						active: sourceId === "youtube",
+						onClick: () => go("youtube"),
+						icon: Youtube,
+						label: "YouTube",
+						count: ytCount
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(NavItem, {
+						active: sourceId === "twitch",
+						onClick: () => go("twitch"),
+						icon: Radio,
+						label: "Twitch",
+						count: twitchCount
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(NavItem, {
+						active: sourceId === "live",
+						onClick: () => go("live"),
+						icon: Radio,
+						label: "Live",
+						count: liveCount
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(NavItem, {
+						active: sourceId === "favorites",
+						onClick: () => go("favorites"),
+						icon: Heart,
+						label: "Favorites",
+						count: favCount
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(NavItem, {
+						active: sourceId === "continue",
+						onClick: () => go("continue"),
+						icon: Clock3,
+						label: "Continue",
+						count: continueCount
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(NavItem, {
+						active: sourceId === "history",
+						onClick: () => go("history"),
+						icon: History,
+						label: "History",
+						count: historyCount
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(NavItem, {
+						active: sourceId === "adults",
+						onClick: () => go("adults"),
+						icon: adultsUnlocked ? LockOpen : Lock,
+						label: "Adults",
+						count: adultCount,
+						trailing: adultsUnlocked ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+							role: "button",
+							tabIndex: 0,
+							"aria-label": "Lock Adults",
+							onClick: (e) => {
+								e.stopPropagation();
+								lockAdults();
+								onNavigate?.();
+							},
+							onKeyDown: (e) => {
+								if (e.key === "Enter" || e.key === " ") {
+									e.preventDefault();
+									e.stopPropagation();
+									lockAdults();
+								}
+							},
+							className: "flex size-7 items-center justify-center rounded-sm text-subtle hover:bg-bg hover:text-fg",
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Lock, { className: "size-3.5" })
+						}) : void 0
+					})
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Separator, { className: "my-4" }),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				className: "px-3 pb-2 text-xs font-medium tracking-wide text-subtle uppercase",
+				children: "Sources"
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "flex flex-1 flex-col gap-0.5 overflow-y-auto px-1",
+				children: [
+					demo && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(NavItem, {
+						active: sourceId === demo.id,
+						onClick: () => go(demo.id),
+						icon: Film,
+						label: demo.name,
+						count: demo.videoCount
+					}),
+					publicFolders.map((folder) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FolderRow, {
+						folder,
+						active: sourceId === folder.id,
+						onClick: () => {
+							if (folder.needsPermission) restoreOne(folder.id);
+							else go(folder.id);
+						},
+						onRemove: () => void removeFolder(folder.id),
+						onToggleAdult: () => setFolderAdult(folder.id, true)
+					}, folder.id)),
+					networkFolders.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-3 px-2 pb-1 text-xs font-medium tracking-wide text-subtle uppercase",
+						children: "Following"
+					}), networkFolders.map((folder) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FolderRow, {
+						folder,
+						active: sourceId === folder.id,
+						onClick: () => go(folder.id),
+						onRemove: () => unfollow(folder.id),
+						onToggleAdult: () => {},
+						hideAdult: true
+					}, folder.id))] }),
+					adultsUnlocked && adultFolders.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-3 px-2 pb-1 text-xs font-medium tracking-wide text-subtle uppercase",
+						children: "Private"
+					}), adultFolders.map((folder) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FolderRow, {
+						folder,
+						active: sourceId === folder.id,
+						onClick: () => {
+							if (folder.needsPermission) restoreOne(folder.id);
+							else go("adults");
+						},
+						onRemove: () => void removeFolder(folder.id),
+						onToggleAdult: () => setFolderAdult(folder.id, false)
+					}, folder.id))] })
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "mt-3 flex flex-col gap-2 px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))]",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+					className: "w-full",
+					onClick: () => onAddFolder(false),
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FolderPlus, { className: "size-4" }), "Add folder"]
+				}), sourceId === "adults" && adultsUnlocked && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+					variant: "secondary",
+					className: "w-full",
+					onClick: () => onAddFolder(true),
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Lock, { className: "size-4" }), "Private folder"]
+				})]
+			})
+		]
+	});
+}
+function FolderRow({ folder, active, onClick, onRemove, onToggleAdult, hideAdult }) {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+		className: "group relative",
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(NavItem, {
+			active,
+			onClick,
+			icon: folder.adult ? Lock : Folder,
+			label: folder.needsPermission ? `${folder.name} (restore)` : folder.name,
+			count: folder.needsPermission ? void 0 : folder.videoCount,
+			trailing: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+				className: "flex items-center",
+				children: [!hideAdult && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+					role: "button",
+					tabIndex: 0,
+					"aria-label": folder.adult ? `Move ${folder.name} to library` : `Move ${folder.name} to Adults`,
+					onClick: (e) => {
+						e.stopPropagation();
+						onToggleAdult();
+					},
+					onKeyDown: (e) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.preventDefault();
+							e.stopPropagation();
+							onToggleAdult();
+						}
+					},
+					className: "flex size-7 items-center justify-center rounded-sm text-subtle opacity-0 transition-opacity duration-150 hover:bg-bg hover:text-fg group-hover:opacity-100 focus-visible:opacity-100",
+					children: folder.adult ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LockOpen, { className: "size-3.5" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Lock, { className: "size-3.5" })
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+					role: "button",
+					tabIndex: 0,
+					"aria-label": `Remove ${folder.name}`,
+					onClick: (e) => {
+						e.stopPropagation();
+						onRemove();
+					},
+					onKeyDown: (e) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.preventDefault();
+							e.stopPropagation();
+							onRemove();
+						}
+					},
+					className: "flex size-7 items-center justify-center rounded-sm text-subtle opacity-0 transition-opacity duration-150 hover:bg-bg hover:text-fg group-hover:opacity-100 focus-visible:opacity-100",
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, { className: "size-3.5" })
+				})]
+			})
+		})
+	});
+}
+function Input({ className, type, ...props }) {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+		type,
+		className: cn("h-11 w-full min-w-0 rounded-md bg-elevated px-3 text-sm text-fg shadow-border outline-none transition-[box-shadow] duration-150 placeholder:text-subtle", "focus-visible:shadow-border-hover focus-visible:ring-2 focus-visible:ring-ring/50", "disabled:cursor-not-allowed disabled:opacity-40", className),
+		...props
+	});
+}
+function DropdownMenu(props) {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Root2, { ...props });
+}
+function DropdownMenuTrigger(props) {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Trigger, { ...props });
+}
+function DropdownMenuContent({ className, sideOffset = 6, ...props }) {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Portal2, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Content2, {
+		sideOffset,
+		className: cn("z-50 min-w-40 overflow-hidden rounded-lg bg-elevated p-1 text-fg shadow-border shadow-lift", className),
+		...props
+	}) });
+}
+function DropdownMenuItem({ className, ...props }) {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Item2, {
+		className: cn("flex cursor-pointer items-center gap-2 rounded-sm px-2 py-2 text-sm outline-none select-none", "focus:bg-surface focus:text-fg data-[disabled]:pointer-events-none data-[disabled]:opacity-40", className),
+		...props
+	});
+}
+function NoticeBell() {
+	const notices = useLibrary((s) => s.notices);
+	const unread = notices.filter((n) => !n.read).length;
+	const markNoticesRead = useLibrary((s) => s.markNoticesRead);
+	const notifyPush = useLibrary((s) => s.notifyPush);
+	const setNotifyPush = useLibrary((s) => s.setNotifyPush);
+	const openVideo = useLibrary((s) => s.openVideo);
+	const enablePush = async () => {
+		if (!("Notification" in window)) return;
+		const perm = await Notification.requestPermission();
+		setNotifyPush(perm === "granted");
+	};
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenu, {
+		onOpenChange: (open) => {
+			if (open) markNoticesRead();
+		},
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DropdownMenuTrigger, {
+			asChild: true,
+			children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+				variant: "ghost",
+				size: "icon-sm",
+				"aria-label": "Notifications",
+				className: "relative",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bell, { className: "size-4" }), unread > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "absolute top-1 right-1 size-1.5 rounded-full bg-danger" })]
+			})
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuContent, {
+			align: "end",
+			className: "w-80 p-0",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "flex items-center justify-between border-b border-border px-3 py-2",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "text-sm font-medium text-fg",
+					children: "Notifications"
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+					type: "button",
+					onClick: () => notifyPush ? setNotifyPush(false) : void enablePush(),
+					className: "flex items-center gap-1 text-xs text-muted hover:text-fg",
+					children: [notifyPush ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bell, { className: "size-3.5" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BellOff, { className: "size-3.5" }), notifyPush ? "Alerts on" : "Enable alerts"]
+				})]
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "max-h-80 overflow-y-auto",
+				children: notices.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "px-3 py-6 text-center text-sm text-muted",
+					children: "Follow YouTube or Twitch to get live and upload alerts."
+				}) : notices.slice(0, 20).map((n) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+					type: "button",
+					onClick: () => n.videoId && openVideo(n.videoId),
+					className: cn("flex w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left hover:bg-elevated", !n.read && "bg-elevated/50"),
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+							className: "text-sm text-fg",
+							children: n.title
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+							className: "text-xs text-muted",
+							children: n.body
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+							className: "font-mono text-xs text-subtle",
+							children: formatAgo(n.at)
+						})
+					]
+				}, n.id))
+			})]
+		})]
+	});
+}
+var SORTS = [
+	{
+		key: "name",
+		label: "Name"
+	},
+	{
+		key: "added",
+		label: "Date added"
+	},
+	{
+		key: "recent",
+		label: "Recently played"
+	},
+	{
+		key: "size",
+		label: "Size"
+	},
+	{
+		key: "duration",
+		label: "Duration"
+	}
+];
+function TopBar({ onMenu, onAddFiles }) {
+	const query = useLibrary((s) => s.query);
+	const setQuery = useLibrary((s) => s.setQuery);
+	const view = useLibrary((s) => s.view);
+	const setView = useLibrary((s) => s.setView);
+	const sort = useLibrary((s) => s.sort);
+	const setSort = useLibrary((s) => s.setSort);
+	const scanning = useLibrary((s) => s.scanning);
+	const sourceId = useLibrary((s) => s.sourceId);
+	const sortLabel = SORTS.find((s) => s.key === sort)?.label ?? "Name";
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("header", {
+		className: "flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:px-6",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "flex items-center gap-2",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+					variant: "ghost",
+					size: "icon-sm",
+					className: "lg:hidden",
+					"aria-label": "Open menu",
+					onClick: onMenu,
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Menu, { className: "size-5" })
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "font-display text-lg leading-none lg:hidden",
+					children: "Reelcase"
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "relative min-w-0 flex-1",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Search, { className: "pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+					type: "search",
+					value: query,
+					onChange: (e) => setQuery(e.target.value),
+					placeholder: "Search titles, channels, paths",
+					className: "pl-9",
+					"aria-label": "Search videos"
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "flex items-center gap-1.5",
+				children: [
+					scanning && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+						className: "mr-2 hidden truncate text-xs text-muted sm:inline",
+						children: [
+							"Scanning ",
+							scanning.folderName,
+							" · ",
+							scanning.found
+						]
+					}),
+					sourceId !== "history" && sourceId !== "home" && sourceId !== "movies" && sourceId !== "adults" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenu, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DropdownMenuTrigger, {
+						asChild: true,
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							variant: "ghost",
+							size: "sm",
+							children: sortLabel
+						})
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DropdownMenuContent, {
+						align: "end",
+						children: SORTS.map((s) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuItem, {
+							onSelect: () => setSort(s.key),
+							children: [s.key === sort ? "· " : "  ", s.label]
+						}, s.key))
+					})] }),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(NoticeBell, {}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "flex rounded-md bg-elevated p-0.5 shadow-border",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							type: "button",
+							"aria-label": "Grid view",
+							onClick: () => setView("grid"),
+							className: cn("flex size-9 items-center justify-center rounded-sm transition-colors duration-150", view === "grid" ? "bg-surface text-fg" : "text-muted hover:text-fg"),
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LayoutGrid, { className: "size-4" })
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							type: "button",
+							"aria-label": "List view",
+							onClick: () => setView("list"),
+							className: cn("flex size-9 items-center justify-center rounded-sm transition-colors duration-150", view === "list" ? "bg-surface text-fg" : "text-muted hover:text-fg"),
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(List, { className: "size-4" })
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+						variant: "secondary",
+						size: "sm",
+						onClick: onAddFiles,
+						className: "hidden sm:inline-flex",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Upload, { className: "size-3.5" }), "Files"]
+					})
+				]
+			})
+		]
+	});
+}
+var ICONS = {
+	videos: Video,
+	downloads: Download,
+	desktop: Monitor,
+	documents: FileText,
+	pictures: Image,
+	music: Video
+};
+function InviteStrip({ onAddFolder, onAddFiles, onRecommended }) {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+		className: "mb-8 rounded-xl bg-surface px-5 py-5 shadow-border sm:px-6",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "max-w-xl",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+						className: "font-display text-2xl leading-tight text-fg",
+						children: "Pull in the rest of this computer"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-1 text-sm text-muted",
+						children: "Start with a recommended folder, or pick any drive. Files are read in the browser and never leave the machine."
+					})]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "flex shrink-0 flex-wrap gap-2",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+						onClick: onAddFolder,
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FolderPlus, { className: "size-4" }), "Add folder"]
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+						variant: "secondary",
+						onClick: onAddFiles,
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Upload, { className: "size-4" }), "Add files"]
+					})]
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				className: "mt-5 mb-2 text-xs font-medium tracking-wide text-subtle uppercase",
+				children: "Recommended folders"
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5",
+				children: RECOMMENDED_FOLDERS.map((folder) => {
+					const Icon = ICONS[folder.id];
+					return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+						type: "button",
+						onClick: () => onRecommended(folder.id),
+						className: "flex h-16 items-center gap-3 rounded-lg bg-elevated px-3 text-left shadow-border transition-[box-shadow,transform] duration-150 hover:shadow-border-hover active:scale-[0.96]",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+							className: "flex size-9 items-center justify-center rounded-sm bg-surface text-fg",
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Icon, { className: "size-4" })
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+							className: "min-w-0",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								className: "block truncate text-sm font-medium text-fg",
+								children: folder.label
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								className: "block truncate text-xs text-muted",
+								children: folder.hint
+							})]
+						})]
+					}, folder.id);
+				})
+			})
+		]
+	});
+}
+var cache = /* @__PURE__ */ new Map();
+async function probeHardwareDecode(mime, width = 1920, height = 1080) {
+	const key = `${mime}:${width}x${height}`;
+	const hit = cache.get(key);
+	if (hit) return hit;
+	const fallback = {
+		supported: true,
+		powerEfficient: false,
+		smooth: true
+	};
+	const mc = navigator.mediaCapabilities;
+	if (!mc?.decodingInfo) {
+		cache.set(key, fallback);
+		return fallback;
+	}
+	const contentType = mime.includes("codecs") ? mime : mime === "video/webm" ? "video/webm; codecs=\"vp09.00.10.08\"" : "video/mp4; codecs=\"avc1.640028\"";
+	try {
+		const hw = await mc.decodingInfo({
+			type: "file",
+			video: {
+				contentType,
+				width,
+				height,
+				bitrate: 8e6,
+				framerate: 30,
+				hardwareAcceleration: "prefer-hardware"
+			}
+		});
+		const info = {
+			supported: hw.supported,
+			powerEfficient: hw.powerEfficient,
+			smooth: hw.smooth
+		};
+		cache.set(key, info);
+		return info;
+	} catch {
+		cache.set(key, fallback);
+		return fallback;
+	}
+}
+function attachFrameCallback(video, onFrame) {
+	const el = video;
+	if (typeof el.requestVideoFrameCallback !== "function") {
+		const onTime = () => onFrame(video.currentTime);
+		video.addEventListener("timeupdate", onTime);
+		return () => video.removeEventListener("timeupdate", onTime);
+	}
+	let id = 0;
+	let alive = true;
+	const loop = (_now, meta) => {
+		if (!alive) return;
+		onFrame(meta.mediaTime);
+		id = el.requestVideoFrameCallback(loop);
+	};
+	id = el.requestVideoFrameCallback(loop);
+	return () => {
+		alive = false;
+		el.cancelVideoFrameCallback?.(id);
+	};
+}
+async function bitmapFromVideo(video) {
+	try {
+		if (typeof createImageBitmap === "function" && video.videoWidth) return await createImageBitmap(video);
+	} catch {
+		return null;
+	}
+	return null;
+}
+var inflight = /* @__PURE__ */ new Set();
+var active = 0;
+var waiting = [];
+var MAX = 2;
+async function acquire() {
+	if (active < MAX) {
+		active += 1;
+		return;
+	}
+	await new Promise((resolve) => waiting.push(resolve));
+	active += 1;
+}
+function release() {
+	active = Math.max(0, active - 1);
+	const next = waiting.shift();
+	if (next) next();
+}
+function capture(src) {
+	return new Promise((resolve) => {
+		const video = document.createElement("video");
+		video.muted = true;
+		video.playsInline = true;
+		video.preload = "metadata";
+		video.crossOrigin = "anonymous";
+		video.className = "hw-video";
+		let settled = false;
+		const finish = (thumb, duration) => {
+			if (settled) return;
+			settled = true;
+			window.clearTimeout(timer);
+			video.removeAttribute("src");
+			video.load();
+			resolve({
+				thumb,
+				duration
+			});
+		};
+		const timer = window.setTimeout(() => finish(null), 9e3);
+		video.addEventListener("loadedmetadata", () => {
+			const duration = Number.isFinite(video.duration) ? video.duration : void 0;
+			const t = duration && duration > 0 ? Math.min(Math.max(duration * .15, .35), 6) : .35;
+			try {
+				video.currentTime = t;
+			} catch {
+				finish(null, duration);
+			}
+		});
+		video.addEventListener("seeked", () => {
+			(async () => {
+				try {
+					const width = video.videoWidth;
+					const height = video.videoHeight;
+					if (!width || !height) {
+						finish(null, Number.isFinite(video.duration) ? video.duration : void 0);
+						return;
+					}
+					const w = 640;
+					const h = Math.round(height / width * w) || 360;
+					const canvas = document.createElement("canvas");
+					canvas.width = w;
+					canvas.height = h;
+					const ctx = canvas.getContext("2d", { alpha: false });
+					if (!ctx) {
+						finish(null);
+						return;
+					}
+					const bitmap = await bitmapFromVideo(video);
+					if (bitmap) {
+						ctx.drawImage(bitmap, 0, 0, w, h);
+						bitmap.close();
+					} else ctx.drawImage(video, 0, 0, w, h);
+					finish(canvas.toDataURL("image/jpeg", .74), Number.isFinite(video.duration) ? video.duration : void 0);
+				} catch {
+					finish(null);
+				}
+			})();
+		});
+		video.addEventListener("error", () => finish(null));
+		video.src = src;
+	});
+}
+var useThumbs = create((set, get) => ({
+	byId: {},
+	failed: {},
+	durations: {},
+	request: (video) => {
+		const { byId, failed } = get();
+		if (byId[video.id] || failed[video.id] || inflight.has(video.id)) return;
+		if (video.remote && video.poster) {
+			set((s) => ({ byId: {
+				...s.byId,
+				[video.id]: video.poster
+			} }));
+			return;
+		}
+		inflight.add(video.id);
+		(async () => {
+			await acquire();
+			try {
+				const { thumb, duration } = await capture(await resolvePlayUrl(video));
+				inflight.delete(video.id);
+				if (thumb) set((s) => ({
+					byId: {
+						...s.byId,
+						[video.id]: thumb
+					},
+					durations: duration && duration > 0 ? {
+						...s.durations,
+						[video.id]: duration
+					} : s.durations
+				}));
+				else set((s) => ({
+					failed: {
+						...s.failed,
+						[video.id]: true
+					},
+					durations: duration && duration > 0 ? {
+						...s.durations,
+						[video.id]: duration
+					} : s.durations
+				}));
+			} catch {
+				inflight.delete(video.id);
+				set((s) => ({ failed: {
+					...s.failed,
+					[video.id]: true
+				} }));
+			} finally {
+				release();
+			}
+		})();
+	}
+}));
+function VideoCard({ video, variant = "grid", index = 0, playedAt, className }) {
+	const ref = (0, import_react.useRef)(null);
+	const thumb = useThumbs((s) => s.byId[video.id]);
+	const failed = useThumbs((s) => s.failed[video.id]);
+	const capturedDur = useThumbs((s) => s.durations[video.id]);
+	const request = useThumbs((s) => s.request);
+	const progress = useLibrary((s) => s.progress[video.id]);
+	const fav = useLibrary((s) => Boolean(s.favorites[video.id]));
+	const openVideo = useLibrary((s) => s.openVideo);
+	const toggleFavorite = useLibrary((s) => s.toggleFavorite);
+	const duration = capturedDur ?? video.duration;
+	const ratio = progress && progress.d > 0 ? Math.min(1, progress.t / progress.d) : 0;
+	const playable = isLikelyPlayable(video.extension);
+	const art = variant === "poster" ? video.poster || thumb : thumb || video.poster;
+	const isPoster = variant === "poster";
+	const live = Boolean(video.remote?.live);
+	const preview = video.remote?.previewUrl;
+	const [hovered, setHovered] = (0, import_react.useState)(false);
+	(0, import_react.useEffect)(() => {
+		const el = ref.current;
+		if (!el) return;
+		const io = new IntersectionObserver((entries) => {
+			if (entries.some((e) => e.isIntersecting)) request(video);
+		}, { rootMargin: "160px" });
+		io.observe(el);
+		return () => io.disconnect();
+	}, [request, video]);
+	const poster = /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: cn("relative overflow-hidden bg-elevated", variant === "list" && "h-16 w-28 shrink-0 rounded-sm", variant === "poster" && "aspect-poster w-full rounded-md", (variant === "grid" || variant === "rail") && "aspect-video w-full rounded-md"),
+		children: [
+			art ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+				src: hovered && preview ? preview : art,
+				alt: "",
+				className: "size-full object-cover outline outline-1 -outline-offset-1 outline-fg/10"
+			}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "absolute inset-0 flex items-center justify-center bg-elevated outline outline-1 -outline-offset-1 outline-fg/10",
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+					className: cn("flex size-10 items-center justify-center rounded-full bg-bg/40 text-muted", !failed && "animate-pulse"),
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Play, { className: "ml-0.5 size-4 fill-current" })
+				})
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "absolute inset-0 bg-linear-to-t from-bg/80 via-transparent to-transparent opacity-90" }),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100",
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+					className: "flex size-11 items-center justify-center rounded-full bg-accent text-accent-fg shadow-lift",
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Play, { className: "ml-0.5 size-4 fill-current" })
+				})
+			}),
+			live && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+				className: "absolute top-2 left-2 flex items-center gap-1.5 rounded-xs bg-bg/80 px-1.5 py-0.5 text-xs font-medium tracking-wide text-fg uppercase",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "live-dot size-1.5 rounded-full bg-danger" }), "Live"]
+			}),
+			video.remote?.kind === "youtube" && !live && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+				className: "absolute top-2 left-2 rounded-xs bg-bg/75 px-1.5 py-0.5 text-xs text-muted",
+				children: "YouTube"
+			}),
+			video.remote?.kind === "twitch" && !live && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+				className: "absolute top-2 left-2 rounded-xs bg-bg/75 px-1.5 py-0.5 text-xs text-muted",
+				children: "Twitch"
+			}),
+			duration && !isPoster && !live ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+				className: "absolute right-2 bottom-2 rounded-xs bg-bg/75 px-1.5 py-0.5 font-mono text-xs tabular-nums text-fg",
+				children: formatTime(duration)
+			}) : null,
+			isPoster && video.year ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+				className: "absolute bottom-2 left-2 font-mono text-xs tabular-nums text-fg/90",
+				children: video.year
+			}) : null,
+			ratio > .02 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+				className: "absolute inset-x-0 bottom-0 h-0.5 bg-fg/20",
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+					className: "block h-full bg-accent",
+					style: { width: `${Math.round(ratio * 100)}%` }
+				})
+			})
+		]
+	});
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: cn("stagger-in group relative", isPoster && "poster-hit", className),
+		style: { ["--stagger-i"]: Math.min(index, 16) },
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+			ref,
+			type: "button",
+			onMouseEnter: () => setHovered(true),
+			onMouseLeave: () => setHovered(false),
+			onClick: () => openVideo(video.id),
+			className: cn("w-full text-left outline-none", variant === "list" && "flex items-center gap-3 rounded-lg p-2 hover:bg-elevated", variant === "grid" && "block", variant === "rail" && "block w-56 shrink-0", variant === "poster" && "block w-full"),
+			children: [
+				poster,
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: cn("min-w-0", variant === "list" ? "flex-1" : "mt-2.5"),
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "flex items-start gap-2",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
+							className: "min-w-0 flex-1 truncate text-sm font-medium text-fg",
+							children: titleOf(video)
+						}), fav && variant !== "list" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Heart, { className: "mt-0.5 size-3.5 shrink-0 fill-accent text-accent" })]
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-0.5 truncate text-xs text-muted",
+						children: playedAt ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_jsx_runtime.Fragment, { children: formatAgo(playedAt) }) : live ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [video.remote?.channelName ?? "Twitch", video.remote?.viewers ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								className: "text-subtle",
+								children: " · "
+							}),
+							video.remote.viewers.toLocaleString(),
+							" watching"
+						] }) : null] }) : video.remote ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_jsx_runtime.Fragment, { children: video.remote.channelName ?? video.remote.kind }) : video.year || video.genre ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [video.year ?? video.extension.toUpperCase(), video.genre && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+							className: "text-subtle",
+							children: " · "
+						}), video.genre] })] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+							video.extension.toUpperCase(),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								className: "text-subtle",
+								children: " · "
+							}),
+							formatBytes(video.size),
+							!playable && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								className: "text-subtle",
+								children: " · "
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "May not play" })] })
+						] })
+					})]
+				}),
+				variant === "list" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+					className: "hidden max-w-xs truncate text-xs text-subtle sm:block",
+					children: video.path
+				})
+			]
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+			type: "button",
+			"aria-label": fav ? "Remove from favorites" : "Add to favorites",
+			onClick: (e) => {
+				e.stopPropagation();
+				toggleFavorite(video.id);
+			},
+			className: cn("absolute top-2 right-2 flex size-9 items-center justify-center rounded-sm bg-bg/55 text-fg opacity-0 backdrop-blur-sm transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100", fav && "opacity-100", variant === "list" && "top-3 right-3"),
+			children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Heart, { className: cn("size-3.5", fav && "fill-accent text-accent") })
+		})]
+	});
+}
+function VideoGrid({ videos, playedAt }) {
+	const view = useLibrary((s) => s.view);
+	if (!videos.length) return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "rounded-xl bg-surface px-6 py-16 text-center shadow-border",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+			className: "font-display text-2xl text-fg",
+			children: "No videos here"
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+			className: "mx-auto mt-2 max-w-sm text-sm text-muted",
+			children: "Try another source, clear search, or add a folder from this computer."
+		})]
+	});
+	if (view === "list") return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+		className: "flex flex-col gap-1",
+		children: videos.map((video, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(VideoCard, {
+			video,
+			variant: "list",
+			index: i,
+			playedAt: playedAt?.[video.id]
+		}, video.id))
+	});
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+		className: "grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5",
+		children: videos.map((video, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(VideoCard, {
+			video,
+			variant: "grid",
+			index: i,
+			playedAt: playedAt?.[video.id]
+		}, video.id))
+	});
+}
+function Billboard({ video }) {
+	const thumb = useThumbs((s) => s.byId[video.id]);
+	const request = useThumbs((s) => s.request);
+	const openVideo = useLibrary((s) => s.openVideo);
+	const toggleFavorite = useLibrary((s) => s.toggleFavorite);
+	const fav = useLibrary((s) => Boolean(s.favorites[video.id]));
+	const art = thumb || video.poster;
+	(0, import_react.useEffect)(() => {
+		request(video);
+	}, [request, video]);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("section", {
+		className: "relative mb-8 overflow-hidden rounded-xl bg-elevated shadow-border",
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			className: "relative aspect-video max-h-[min(72vh,560px)] w-full min-h-64",
+			children: [
+				art ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+					src: art,
+					alt: "",
+					className: "absolute inset-0 size-full object-cover"
+				}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "absolute inset-0 bg-elevated" }),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "absolute inset-0 bg-linear-to-t from-bg via-bg/40 to-bg/10" }),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "absolute inset-0 bg-linear-to-r from-bg/80 via-bg/30 to-transparent" }),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "absolute inset-x-0 bottom-0 flex flex-col gap-3 px-5 py-5 sm:max-w-xl sm:px-8 sm:py-8",
+					children: [
+						video.genre || video.year ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+							className: "text-xs font-medium tracking-wide text-accent uppercase",
+							children: [video.genre ?? "Featured", video.year ? ` · ${video.year}` : ""]
+						}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-xs font-medium tracking-wide text-accent uppercase",
+							children: "Featured"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+							className: "font-display text-4xl leading-none tracking-tight text-fg sm:text-5xl",
+							children: titleOf(video)
+						}),
+						video.tagline && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "max-w-md text-sm text-muted sm:text-base",
+							children: video.tagline
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "mt-1 flex flex-wrap gap-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+								onClick: () => openVideo(video.id),
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Play, { className: "size-4 fill-current" }), "Play"]
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+								variant: "secondary",
+								onClick: () => toggleFavorite(video.id),
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Heart, { className: cn("size-4", fav && "fill-accent text-accent") }), fav ? "In My List" : "My List"]
+							})]
+						})
+					]
+				})
+			]
+		})
+	});
+}
+function TitleRail({ title, videos, variant = "poster", playedAt }) {
+	if (!videos.length) return null;
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+		className: "mb-8",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+			className: "mb-3 font-display text-xl text-fg sm:text-2xl",
+			children: title
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+			className: "rail-scroll flex gap-3 overflow-x-auto pb-3 sm:gap-4",
+			children: videos.map((video, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: cn(variant === "poster" && "w-32 shrink-0 sm:w-36 md:w-40", variant === "rail" && "shrink-0"),
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(VideoCard, {
+					video,
+					variant,
+					index: i,
+					playedAt: playedAt?.[video.id]
+				})
+			}, video.id))
+		})]
+	});
+}
+function PosterGrid({ videos }) {
+	if (!videos.length) return null;
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+		className: "grid grid-cols-3 gap-3 sm:grid-cols-4 sm:gap-4 md:grid-cols-5 lg:grid-cols-6",
+		children: videos.map((video, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(VideoCard, {
+			video,
+			variant: "poster",
+			index: i,
+			className: "w-full"
+		}, video.id))
+	});
+}
+function PinGate() {
+	const hasPin = useLibrary((s) => Boolean(s.adultPinHash));
+	const setAdultPin = useLibrary((s) => s.setAdultPin);
+	const unlockAdults = useLibrary((s) => s.unlockAdults);
+	const resetAdultPin = useLibrary((s) => s.resetAdultPin);
+	const setSource = useLibrary((s) => s.setSource);
+	const [pin, setPin] = (0, import_react.useState)("");
+	const [confirm, setConfirm] = (0, import_react.useState)("");
+	const [error, setError] = (0, import_react.useState)(null);
+	const [busy, setBusy] = (0, import_react.useState)(false);
+	const submit = async () => {
+		setError(null);
+		if (!isPinShape(pin)) {
+			setError("Use four digits.");
+			return;
+		}
+		setBusy(true);
+		try {
+			if (!hasPin) {
+				if (pin !== confirm) {
+					setError("Those PINs do not match.");
+					return;
+				}
+				await setAdultPin(pin);
+				return;
+			}
+			if (!await unlockAdults(pin)) setError("Wrong PIN.");
+		} finally {
+			setBusy(false);
+		}
+	};
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "mx-auto flex max-w-md flex-col items-center px-4 py-16 text-center",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+				className: "flex size-12 items-center justify-center rounded-lg bg-elevated text-fg shadow-border",
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Lock, { className: "size-5" })
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
+				className: "mt-5 font-display text-3xl text-fg",
+				children: "Adults"
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				className: "mt-2 text-sm text-muted",
+				children: hasPin ? "Enter your PIN. Private folders stay off the rest of the library." : "Set a 4-digit PIN. Folders you mark as private only open here."
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", {
+				className: "mt-6 flex w-full flex-col gap-3",
+				onSubmit: (e) => {
+					e.preventDefault();
+					submit();
+				},
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+						type: "password",
+						inputMode: "numeric",
+						autoComplete: "off",
+						maxLength: 4,
+						value: pin,
+						onChange: (e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4)),
+						"aria-label": "PIN",
+						placeholder: "••••",
+						className: "text-center font-mono text-lg tracking-[0.4em]"
+					}),
+					!hasPin && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+						type: "password",
+						inputMode: "numeric",
+						autoComplete: "off",
+						maxLength: 4,
+						value: confirm,
+						onChange: (e) => setConfirm(e.target.value.replace(/\D/g, "").slice(0, 4)),
+						"aria-label": "Confirm PIN",
+						placeholder: "Confirm",
+						className: "text-center font-mono text-lg tracking-[0.4em]"
+					}),
+					error && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-sm text-danger",
+						children: error
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						type: "submit",
+						disabled: busy,
+						className: "w-full",
+						children: hasPin ? "Unlock" : "Set PIN"
+					})
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "mt-4 flex flex-wrap items-center justify-center gap-2",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+					variant: "ghost",
+					size: "sm",
+					onClick: () => setSource("home"),
+					children: "Back to Home"
+				}), hasPin && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+					variant: "ghost",
+					size: "sm",
+					onClick: () => {
+						resetAdultPin();
+						setPin("");
+						setConfirm("");
+						setError(null);
+					},
+					children: "Reset PIN"
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				className: "mt-6 max-w-sm text-xs text-subtle",
+				children: "Nothing is uploaded. The PIN stays on this browser. Resetting it keeps private folders hidden until you set a new one."
+			})
+		]
+	});
+}
+function Slider({ className, ...props }) {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Slider$1, {
+		className: cn("relative flex h-4 w-full touch-none items-center select-none", className),
+		...props,
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SliderTrack, {
+			className: "relative h-1 w-full grow overflow-hidden rounded-full bg-fg/15",
+			children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SliderRange, { className: "absolute h-full bg-accent" })
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SliderThumb, { className: "block size-3 rounded-full bg-accent shadow-lift outline-none transition-transform duration-150 hover:scale-110 focus-visible:ring-2 focus-visible:ring-ring/70" })]
+	});
+}
+var SPEEDS = [
+	.5,
+	.75,
+	1,
+	1.25,
+	1.5,
+	2
+];
+function twitchEmbed(base) {
+	if (typeof window === "undefined") return base;
+	const qs = [.../* @__PURE__ */ new Set([
+		window.location.hostname,
+		window.location.hostname.replace(/^www\./, ""),
+		"grok.com",
+		"www.grok.com",
+		"x.com",
+		"localhost",
+		"127.0.0.1"
+	])].map((h) => `parent=${encodeURIComponent(h)}`).join("&");
+	return `${base}${base.includes("?") ? "&" : "?"}${qs}`;
+}
+function Player({ playlist }) {
+	const activeId = useLibrary((s) => s.activeId);
+	const video = useLibrary((s) => s.videos.find((v) => v.id === s.activeId));
+	const closePlayer = useLibrary((s) => s.closePlayer);
+	const playRelative = useLibrary((s) => s.playRelative);
+	const markProgress = useLibrary((s) => s.markProgress);
+	const toggleFavorite = useLibrary((s) => s.toggleFavorite);
+	const hardwareAccel = useLibrary((s) => s.hardwareAccel);
+	const setHardwareAccel = useLibrary((s) => s.setHardwareAccel);
+	const fav = useLibrary((s) => s.activeId ? Boolean(s.favorites[s.activeId]) : false);
+	const saved = useLibrary((s) => s.activeId ? s.progress[s.activeId] : void 0);
+	const wrapRef = (0, import_react.useRef)(null);
+	const mediaRef = (0, import_react.useRef)(null);
+	const hideTimer = (0, import_react.useRef)(0);
+	const [src, setSrc] = (0, import_react.useState)(null);
+	const [srcError, setSrcError] = (0, import_react.useState)(null);
+	const [playing, setPlaying] = (0, import_react.useState)(false);
+	const [current, setCurrent] = (0, import_react.useState)(0);
+	const [duration, setDuration] = (0, import_react.useState)(0);
+	const [volume, setVolume] = (0, import_react.useState)(1);
+	const [muted, setMuted] = (0, import_react.useState)(false);
+	const [speed, setSpeed] = (0, import_react.useState)(1);
+	const [chrome, setChrome] = (0, import_react.useState)(true);
+	const [fs, setFs] = (0, import_react.useState)(false);
+	const [scrub, setScrub] = (0, import_react.useState)(null);
+	const [loadError, setLoadError] = (0, import_react.useState)(null);
+	const [hw, setHw] = (0, import_react.useState)(null);
+	const capturedDur = useThumbs((s) => video ? s.durations[video.id] : void 0);
+	const scrubbing = (0, import_react.useRef)(false);
+	(0, import_react.useEffect)(() => {
+		if (!video) {
+			setSrc(null);
+			return;
+		}
+		if (video.remote) {
+			setSrc(null);
+			setSrcError(null);
+			setLoadError(null);
+			return;
+		}
+		let cancelled = false;
+		setSrcError(null);
+		setLoadError(null);
+		setPlaying(false);
+		setCurrent(0);
+		setHw(null);
+		resolvePlayUrl(video).then((url) => {
+			if (!cancelled) setSrc(url);
+		}).catch((err) => {
+			if (!cancelled) setSrcError(err instanceof Error ? err.message : "Could not open file");
+		});
+		probeHardwareDecode(video.mime).then((info) => {
+			if (!cancelled) setHw(info);
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [video]);
+	const reveal = (0, import_react.useCallback)(() => {
+		setChrome(true);
+		window.clearTimeout(hideTimer.current);
+		hideTimer.current = window.setTimeout(() => {
+			if (mediaRef.current && !mediaRef.current.paused) setChrome(false);
+		}, 2400);
+	}, []);
+	(0, import_react.useEffect)(() => {
+		reveal();
+		return () => window.clearTimeout(hideTimer.current);
+	}, [activeId, reveal]);
+	(0, import_react.useEffect)(() => {
+		const el = mediaRef.current;
+		if (!el || !src) return;
+		const onPlay = () => setPlaying(true);
+		const onPause = () => setPlaying(false);
+		const onMeta = () => {
+			setDuration(el.duration || 0);
+			const resume = saved;
+			if (resume && resume.t > 1 && resume.d > 0 && resume.t / resume.d < .95) {
+				el.currentTime = resume.t;
+				setCurrent(resume.t);
+			}
+		};
+		const onEnd = () => {
+			if (video && el.duration) markProgress(video.id, el.duration, el.duration);
+			playRelative(1, playlist);
+		};
+		const onErr = () => {
+			setLoadError(isLikelyPlayable(video?.extension ?? "") ? "This file could not be decoded." : `${(video?.extension ?? "this").toUpperCase()} often needs a desktop player.`);
+		};
+		const stopFrames = attachFrameCallback(el, (t) => {
+			if (scrubbing.current) return;
+			setCurrent(t);
+			if (video && el.duration) markProgress(video.id, t, el.duration);
+		});
+		el.addEventListener("play", onPlay);
+		el.addEventListener("pause", onPause);
+		el.addEventListener("loadedmetadata", onMeta);
+		el.addEventListener("ended", onEnd);
+		el.addEventListener("error", onErr);
+		el.play().catch(() => {});
+		return () => {
+			stopFrames();
+			el.removeEventListener("play", onPlay);
+			el.removeEventListener("pause", onPause);
+			el.removeEventListener("loadedmetadata", onMeta);
+			el.removeEventListener("ended", onEnd);
+			el.removeEventListener("error", onErr);
+		};
+	}, [src, video?.id]);
+	(0, import_react.useEffect)(() => {
+		const el = mediaRef.current;
+		if (el) el.playbackRate = speed;
+	}, [speed, src]);
+	(0, import_react.useEffect)(() => {
+		const el = mediaRef.current;
+		if (!el) return;
+		el.volume = volume;
+		el.muted = muted;
+	}, [
+		volume,
+		muted,
+		src
+	]);
+	(0, import_react.useEffect)(() => {
+		const onFs = () => setFs(Boolean(document.fullscreenElement));
+		document.addEventListener("fullscreenchange", onFs);
+		return () => document.removeEventListener("fullscreenchange", onFs);
+	}, []);
+	const togglePlay = (0, import_react.useCallback)(() => {
+		const el = mediaRef.current;
+		if (!el) return;
+		if (el.paused) el.play();
+		else el.pause();
+	}, []);
+	const seekBy = (0, import_react.useCallback)((delta) => {
+		const el = mediaRef.current;
+		if (!el) return;
+		el.currentTime = Math.max(0, Math.min(el.duration || 0, el.currentTime + delta));
+	}, []);
+	const toggleFs = (0, import_react.useCallback)(async () => {
+		const wrap = wrapRef.current;
+		if (!wrap) return;
+		if (document.fullscreenElement) await document.exitFullscreen();
+		else await wrap.requestFullscreen().catch(() => {});
+	}, []);
+	(0, import_react.useEffect)(() => {
+		const onKey = (e) => {
+			const tag = e.target?.tagName;
+			if (tag === "INPUT" || tag === "TEXTAREA") return;
+			switch (e.key) {
+				case " ":
+				case "k":
+				case "K":
+					e.preventDefault();
+					togglePlay();
+					break;
+				case "Escape":
+					if (document.fullscreenElement) document.exitFullscreen();
+					else closePlayer();
+					break;
+				case "ArrowLeft":
+					e.preventDefault();
+					seekBy(e.shiftKey ? -30 : -10);
+					break;
+				case "ArrowRight":
+					e.preventDefault();
+					seekBy(e.shiftKey ? 30 : 10);
+					break;
+				case "ArrowUp":
+					e.preventDefault();
+					setVolume((v) => Math.min(1, v + .05));
+					setMuted(false);
+					break;
+				case "ArrowDown":
+					e.preventDefault();
+					setVolume((v) => Math.max(0, v - .05));
+					break;
+				case "f":
+				case "F":
+					e.preventDefault();
+					toggleFs();
+					break;
+				case "m":
+				case "M":
+					setMuted((m) => !m);
+					break;
+				case "n":
+				case "N":
+					playRelative(1, playlist);
+					break;
+				case "p":
+				case "P": playRelative(-1, playlist);
+			}
+			reveal();
+		};
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
+	}, [
+		togglePlay,
+		seekBy,
+		toggleFs,
+		closePlayer,
+		playRelative,
+		playlist,
+		reveal
+	]);
+	if (!video) return null;
+	const remote = video.remote;
+	const embedSrc = remote ? remote.kind === "twitch" ? twitchEmbed(remote.embedUrl ?? "") : remote.embedUrl ? `${remote.embedUrl}${remote.embedUrl.includes("?") ? "&" : "?"}autoplay=1&rel=0&modestbranding=1` : null : null;
+	const shown = scrub ?? current;
+	const dur = duration || capturedDur || video.duration || 0;
+	const i = playlist.indexOf(video.id);
+	const hwLabel = hardwareAccel && hw?.powerEfficient ? "GPU decode" : hardwareAccel ? "Hardware on" : "Software";
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		ref: wrapRef,
+		className: "fixed inset-0 z-50 flex flex-col bg-bg",
+		onMouseMove: reveal,
+		onTouchStart: reveal,
+		children: [
+			embedSrc ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("iframe", {
+				title: video.name,
+				src: embedSrc,
+				className: "absolute inset-0 size-full border-0 bg-bg",
+				allow: "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen",
+				allowFullScreen: true
+			}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("video", {
+				ref: mediaRef,
+				src: src ?? void 0,
+				className: cn("absolute inset-0 size-full object-contain bg-bg", hardwareAccel && "hw-video"),
+				playsInline: true,
+				onClick: togglePlay,
+				onDoubleClick: () => void toggleFs()
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: cn("pointer-events-none absolute inset-0 bg-linear-to-t from-bg via-transparent to-bg/50 transition-opacity duration-200 ease-[var(--ease-out)]", chrome ? "opacity-100" : "opacity-0") }),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: cn("relative z-10 flex items-center justify-between gap-3 px-4 py-3 transition-[opacity,transform] duration-200 ease-[var(--ease-smooth-out)] sm:px-6", chrome ? "opacity-100" : "pointer-events-none opacity-0 -translate-y-1"),
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "flex min-w-0 items-center gap-2",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						variant: "ghost",
+						size: "icon",
+						"aria-label": "Back to library",
+						onClick: closePlayer,
+						children: fs ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, { className: "size-5" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChevronLeft, { className: "size-5" })
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "min-w-0",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+							className: "truncate font-display text-xl leading-tight text-fg sm:text-2xl",
+							children: video.name.replace(/\.[^/.]+$/, "")
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "truncate text-xs text-muted",
+							children: remote ? [
+								remote.live ? "Live" : remote.kind === "youtube" ? "YouTube" : "Twitch",
+								remote.channelName,
+								remote.viewers ? `${remote.viewers.toLocaleString()} watching` : null
+							].filter(Boolean).join(" · ") : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+								video.path,
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									className: "text-subtle",
+									children: " · "
+								}),
+								video.extension.toUpperCase(),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									className: "text-subtle",
+									children: " · "
+								}),
+								formatBytes(video.size)
+							] })
+						})]
+					})]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "flex items-center gap-1",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+							className: "mr-1 hidden items-center gap-1 rounded-full bg-elevated px-2 py-1 text-xs text-muted shadow-border sm:inline-flex",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Cpu, { className: "size-3" }), hwLabel]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							variant: "ghost",
+							size: "icon",
+							"aria-label": fav ? "Remove from favorites" : "Add to favorites",
+							onClick: () => toggleFavorite(video.id),
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Heart, { className: cn("size-4", fav && "fill-accent text-accent") })
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							variant: "ghost",
+							size: "icon",
+							"aria-label": "Close",
+							onClick: closePlayer,
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, { className: "size-5" })
+						})
+					]
+				})]
+			}),
+			(srcError || loadError) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "relative z-10 mx-auto mt-auto mb-auto max-w-md rounded-xl bg-surface px-6 py-5 text-center shadow-border",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "font-display text-xl text-fg",
+					children: "Can’t play this file"
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "mt-2 text-sm text-muted",
+					children: srcError || loadError
+				})]
+			}),
+			!remote && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: cn("relative z-10 mt-auto px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] transition-[opacity,transform] duration-200 ease-[var(--ease-smooth-out)] sm:px-6", chrome ? "opacity-100" : "pointer-events-none opacity-0 translate-y-1"),
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Slider, {
+						min: 0,
+						max: Math.max(dur, .01),
+						step: .05,
+						value: [shown],
+						onValueChange: (v) => {
+							scrubbing.current = true;
+							setScrub(v[0] ?? 0);
+						},
+						onValueCommit: (v) => {
+							const t = v[0] ?? 0;
+							const el = mediaRef.current;
+							if (el) el.currentTime = t;
+							setCurrent(t);
+							setScrub(null);
+							scrubbing.current = false;
+						},
+						"aria-label": "Seek"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-3 flex items-center gap-1 sm:gap-2",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								variant: "ghost",
+								size: "icon",
+								"aria-label": "Previous",
+								disabled: i <= 0,
+								onClick: () => playRelative(-1, playlist),
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SkipBack, { className: "size-4" })
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								variant: "secondary",
+								size: "icon",
+								"aria-label": playing ? "Pause" : "Play",
+								onClick: togglePlay,
+								children: playing ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Pause, { className: "size-4 fill-current" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Play, { className: "ml-0.5 size-4 fill-current" })
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								variant: "ghost",
+								size: "icon",
+								"aria-label": "Next",
+								disabled: i < 0 || i >= playlist.length - 1,
+								onClick: () => playRelative(1, playlist),
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SkipForward, { className: "size-4" })
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+								className: "ml-1 min-w-20 font-mono text-xs tabular-nums text-muted",
+								children: [
+									formatTime(shown),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "text-subtle",
+										children: " / "
+									}),
+									formatTime(dur)
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "ml-auto flex items-center gap-1",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										variant: "ghost",
+										size: "icon-sm",
+										"aria-label": muted ? "Unmute" : "Mute",
+										onClick: () => setMuted((m) => !m),
+										children: muted || volume === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(VolumeX, { className: "size-4" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Volume2, { className: "size-4" })
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "hidden w-24 sm:block",
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Slider, {
+											min: 0,
+											max: 1,
+											step: .01,
+											value: [muted ? 0 : volume],
+											onValueChange: (v) => {
+												setVolume(v[0] ?? 0);
+												setMuted((v[0] ?? 0) === 0);
+											},
+											"aria-label": "Volume"
+										})
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenu, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DropdownMenuTrigger, {
+										asChild: true,
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+											variant: "ghost",
+											size: "sm",
+											className: "tabular-nums",
+											children: speed === 1 ? "1×" : `${speed}×`
+										})
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuContent, {
+										align: "end",
+										children: [SPEEDS.map((s) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuItem, {
+											onSelect: () => setSpeed(s),
+											children: [
+												s === speed ? "· " : "  ",
+												s,
+												"×"
+											]
+										}, s)), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuItem, {
+											onSelect: () => setHardwareAccel(!hardwareAccel),
+											children: [hardwareAccel ? "· " : "  ", "Hardware accel"]
+										})]
+									})] }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										variant: "ghost",
+										size: "icon-sm",
+										"aria-label": "Picture in picture",
+										onClick: () => {
+											const el = mediaRef.current;
+											if (el && document.pictureInPictureEnabled) el.requestPictureInPicture().catch(() => {});
+										},
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PictureInPicture2, { className: "size-4" })
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										variant: "ghost",
+										size: "icon-sm",
+										"aria-label": fs ? "Exit fullscreen" : "Fullscreen",
+										onClick: () => void toggleFs(),
+										children: fs ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Minimize, { className: "size-4" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Maximize, { className: "size-4" })
+									})
+								]
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-2 hidden text-center text-xs text-subtle sm:block",
+						children: "Space play · ← → 10s · F full · M mute · N / P next · Esc close"
+					})
+				]
+			}),
+			remote && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "relative z-10 mt-auto flex items-center justify-between gap-3 px-4 py-4 sm:px-6",
+				children: [remote.watchUrl && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
+					href: remote.watchUrl,
+					target: "_blank",
+					rel: "noreferrer",
+					className: "text-sm text-muted hover:text-fg",
+					children: ["Open on ", remote.kind === "youtube" ? "YouTube" : "Twitch"]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+					variant: "ghost",
+					size: "icon-sm",
+					"aria-label": "Fullscreen",
+					onClick: () => void toggleFs(),
+					children: fs ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Minimize, { className: "size-4" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Maximize, { className: "size-4" })
+				})]
+			})
+		]
+	});
+}
+function ConnectPanel({ defaultKind = "youtube" }) {
+	const followRemoteQuery = useLibrary((s) => s.followRemoteQuery);
+	const remoteBusy = useLibrary((s) => s.remoteBusy);
+	const [kind, setKind] = (0, import_react.useState)(defaultKind);
+	const [query, setQuery] = (0, import_react.useState)("");
+	const submit = async () => {
+		const q = query.trim();
+		if (!q) return;
+		try {
+			await followRemoteQuery(q, kind);
+			setQuery("");
+			toast.success(kind === "twitch" ? "Twitch channel added" : "YouTube channel added");
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Could not add that source");
+		}
+	};
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+		className: "mb-8 rounded-xl bg-surface px-5 py-5 shadow-border sm:px-6",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			className: "flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+				className: "font-display text-2xl text-fg",
+				children: "Networks"
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				className: "mt-1 max-w-lg text-sm text-muted",
+				children: "Follow a YouTube channel or Twitch stream. New uploads and going-live alerts land in Notifications."
+			})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "mt-3 flex gap-1 rounded-md bg-elevated p-0.5 shadow-border sm:mt-0",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+					type: "button",
+					onClick: () => setKind("youtube"),
+					className: kind === "youtube" ? "flex h-9 items-center gap-1.5 rounded-sm bg-surface px-3 text-sm text-fg" : "flex h-9 items-center gap-1.5 rounded-sm px-3 text-sm text-muted hover:text-fg",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Youtube, { className: "size-3.5" }), "YouTube"]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+					type: "button",
+					onClick: () => setKind("twitch"),
+					className: kind === "twitch" ? "flex h-9 items-center gap-1.5 rounded-sm bg-surface px-3 text-sm text-fg" : "flex h-9 items-center gap-1.5 rounded-sm px-3 text-sm text-muted hover:text-fg",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Radio, { className: "size-3.5" }), "Twitch"]
+				})]
+			})]
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", {
+			className: "mt-4 flex flex-col gap-2 sm:flex-row",
+			onSubmit: (e) => {
+				e.preventDefault();
+				submit();
+			},
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+				value: query,
+				onChange: (e) => setQuery(e.target.value),
+				placeholder: kind === "twitch" ? "twitch.tv/channel or login" : "youtube.com/@channel, video URL, or @handle",
+				"aria-label": kind === "twitch" ? "Twitch channel" : "YouTube channel or URL"
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+				type: "submit",
+				disabled: remoteBusy || !query.trim(),
+				className: "sm:w-36",
+				children: remoteBusy ? "Adding…" : "Follow"
+			})]
+		})]
+	});
+}
+function LibraryApp() {
+	const dirInputRef = (0, import_react.useRef)(null);
+	const fileInputRef = (0, import_react.useRef)(null);
+	const pendingAdult = (0, import_react.useRef)(false);
+	const [menuOpen, setMenuOpen] = (0, import_react.useState)(false);
+	const [dragging, setDragging] = (0, import_react.useState)(false);
+	const restoreFolders = useLibrary((s) => s.restoreFolders);
+	const addFolder = useLibrary((s) => s.addFolder);
+	const ingestFromInput = useLibrary((s) => s.ingestFromInput);
+	const ingestDrop = useLibrary((s) => s.ingestDrop);
+	const clearHistory = useLibrary((s) => s.clearHistory);
+	const folders = useLibrary((s) => s.folders);
+	const sourceId = useLibrary((s) => s.sourceId);
+	const query = useLibrary((s) => s.query);
+	const scanning = useLibrary((s) => s.scanning);
+	const activeId = useLibrary((s) => s.activeId);
+	useLibrary((s) => s.hideDemo);
+	const history = useLibrary((s) => s.history);
+	const adultsUnlocked = useLibrary((s) => s.adultsUnlocked);
+	const videos = useLibrary(useShallow(selectVisible));
+	const continueVideos = useLibrary(useShallow((s) => selectContinue(s, false)));
+	const favoriteVideos = useLibrary(useShallow((s) => selectFavorites(s, false)));
+	const historyVideos = useLibrary(useShallow((s) => selectHistory(s, false)));
+	const classics = useLibrary(useShallow(selectClassics));
+	const featured = useLibrary((s) => selectFeatured(s, s.sourceId === "adults"));
+	const youtubeVideos = useLibrary(useShallow(selectYoutube));
+	const twitchVideos = useLibrary(useShallow(selectTwitch));
+	const liveVideos = useLibrary(useShallow(selectLive));
+	const adultContinue = useLibrary(useShallow((s) => selectContinue(s, true)));
+	const adultFavorites = useLibrary(useShallow((s) => selectFavorites(s, true)));
+	const adultHistory = useLibrary(useShallow((s) => selectHistory(s, true)));
+	const hasUserFolders = userFolderCount(folders) > 0;
+	const publicFolders = folders.filter((f) => f.kind !== "demo" && f.kind !== "youtube" && f.kind !== "twitch" && !f.adult);
+	const adultFolders = folders.filter((f) => f.adult);
+	(0, import_react.useEffect)(() => {
+		restoreFolders();
+	}, [restoreFolders]);
+	const refreshFollows = useLibrary((s) => s.refreshFollows);
+	const pushNotice = useLibrary((s) => s.pushNotice);
+	const follows = useLibrary((s) => s.follows);
+	(0, import_react.useEffect)(() => {
+		if (!follows.length) return;
+		let cancelled = false;
+		const tick = async () => {
+			const { wentLive, newVideos } = await refreshFollows();
+			if (cancelled) return;
+			for (const ch of wentLive) pushNotice({
+				title: `${ch.title} is live`,
+				body: "Tap to watch in Reelcase.",
+				kind: "twitch",
+				videoId: `tw:${ch.handle}:live`
+			});
+			for (const v of newVideos.slice(0, 3)) pushNotice({
+				title: v.name,
+				body: v.remote?.channelName ?? "New on YouTube",
+				kind: "youtube",
+				videoId: v.id
+			});
+		};
+		const id = window.setInterval(() => void tick(), 9e4);
+		const first = window.setTimeout(() => void tick(), 4e3);
+		return () => {
+			cancelled = true;
+			window.clearInterval(id);
+			window.clearTimeout(first);
+		};
+	}, [
+		follows.length,
+		refreshFollows,
+		pushNotice
+	]);
+	const prevScanning = (0, import_react.useRef)(null);
+	(0, import_react.useEffect)(() => {
+		const was = prevScanning.current;
+		prevScanning.current = scanning;
+		if (was && !scanning) {
+			const n = useLibrary.getState().folders.find((f) => f.name === was.folderName)?.videoCount ?? 0;
+			if (n === 0) toast.message(`No videos in ${was.folderName}`);
+			else toast.success(`Found ${n} video${n === 1 ? "" : "s"} in ${was.folderName}`);
+		}
+	}, [scanning]);
+	(0, import_react.useEffect)(() => {
+		let depth = 0;
+		const prevent = (e) => e.preventDefault();
+		const enter = (e) => {
+			e.preventDefault();
+			depth += 1;
+			setDragging(true);
+		};
+		const leave = (e) => {
+			e.preventDefault();
+			depth -= 1;
+			if (depth <= 0) {
+				depth = 0;
+				setDragging(false);
+			}
+		};
+		const drop = (e) => {
+			e.preventDefault();
+			depth = 0;
+			setDragging(false);
+			if (!e.dataTransfer) return;
+			ingestDrop(e.dataTransfer).catch((err) => {
+				toast.error(err instanceof Error ? err.message : "Could not read files");
+			});
+		};
+		window.addEventListener("dragenter", enter);
+		window.addEventListener("dragleave", leave);
+		window.addEventListener("dragover", prevent);
+		window.addEventListener("drop", drop);
+		return () => {
+			window.removeEventListener("dragenter", enter);
+			window.removeEventListener("dragleave", leave);
+			window.removeEventListener("dragover", prevent);
+			window.removeEventListener("drop", drop);
+		};
+	}, [ingestDrop]);
+	const heading = (0, import_react.useMemo)(() => {
+		if (sourceId === "continue") return "Continue watching";
+		if (sourceId === "favorites") return "Favorites";
+		if (sourceId === "history") return "History";
+		if (sourceId === "movies") return "Movies";
+		if (sourceId === "home") return "Home";
+		if (sourceId === "adults") return "Adults";
+		if (sourceId === "youtube") return "YouTube";
+		if (sourceId === "twitch") return "Twitch";
+		if (sourceId === "live") return "Live";
+		return folders.find((f) => f.id === sourceId)?.name ?? "Library";
+	}, [sourceId, folders]);
+	const onAddFolder = (startIn, adult) => {
+		pendingAdult.current = Boolean(adult);
+		addFolder(dirInputRef.current, startIn, { adult }).catch((err) => {
+			toast.error(err instanceof Error ? err.message : "Could not open folder");
+		});
+	};
+	const playlist = videos.map((v) => v.id);
+	const playedAt = (0, import_react.useMemo)(() => {
+		const map = {};
+		for (const h of history) map[h.id] = h.at;
+		return map;
+	}, [history]);
+	const browsing = !query && (sourceId === "home" || sourceId === "movies" || sourceId === "adults" || sourceId === "youtube" || sourceId === "twitch" || sourceId === "live");
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "flex min-h-dvh bg-bg text-fg",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("aside", {
+				className: "sticky top-0 hidden h-dvh w-60 shrink-0 border-r border-border bg-surface/80 px-3 py-5 lg:block",
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SidebarNav, { onAddFolder: (adult) => onAddFolder(void 0, adult) })
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Sheet, {
+				open: menuOpen,
+				onOpenChange: setMenuOpen,
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(SheetContent, {
+					side: "left",
+					className: "bg-surface p-4",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SheetTitle, {
+						className: "sr-only",
+						children: "Library menu"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SidebarNav, {
+						onAddFolder: (adult) => {
+							setMenuOpen(false);
+							onAddFolder(void 0, adult);
+						},
+						onNavigate: () => setMenuOpen(false)
+					})]
+				})
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "flex min-w-0 flex-1 flex-col",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TopBar, {
+					onMenu: () => setMenuOpen(true),
+					onAddFiles: () => fileInputRef.current?.click()
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("main", {
+					className: "mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6",
+					children: sourceId === "adults" && !adultsUnlocked ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PinGate, {}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+						!hasUserFolders && sourceId === "home" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(InviteStrip, {
+							onAddFolder: () => onAddFolder(),
+							onAddFiles: () => fileInputRef.current?.click(),
+							onRecommended: (id) => onAddFolder(id)
+						}),
+						(sourceId === "home" || sourceId === "youtube" || sourceId === "twitch") && !query && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ConnectPanel, { defaultKind: sourceId === "twitch" ? "twitch" : "youtube" }),
+						sourceId === "home" && !query && featured && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Billboard, { video: featured }),
+						sourceId === "movies" && !query && (classics[0] || featured) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Billboard, { video: classics[0] ?? featured }),
+						sourceId === "adults" && adultsUnlocked && featured && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Billboard, { video: featured }),
+						sourceId === "home" && browsing && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: "Live now",
+								videos: liveVideos,
+								variant: "rail"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: "Continue watching",
+								videos: continueVideos,
+								variant: "rail"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: "From YouTube",
+								videos: youtubeVideos,
+								variant: "rail"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: "Twitch",
+								videos: twitchVideos,
+								variant: "rail"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: "Favorites",
+								videos: favoriteVideos,
+								variant: "poster"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: "Classic movies",
+								videos: classics,
+								variant: "poster"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: "History",
+								videos: historyVideos,
+								variant: "rail",
+								playedAt
+							}),
+							publicFolders.map((folder) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: folder.name,
+								videos: videos.filter((v) => v.folderId === folder.id),
+								variant: "rail"
+							}, folder.id))
+						] }),
+						sourceId === "youtube" && browsing && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+							title: "Latest",
+							videos: youtubeVideos,
+							variant: "rail"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PosterGrid, { videos })] }),
+						sourceId === "twitch" && browsing && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: "Live",
+								videos: liveVideos,
+								variant: "rail"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: "Recent",
+								videos: twitchVideos.filter((v) => !v.remote?.live),
+								variant: "rail"
+							}),
+							!twitchVideos.length && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-sm text-muted",
+								children: "Follow a channel above to fill this shelf."
+							})
+						] }),
+						sourceId === "live" && browsing && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_jsx_runtime.Fragment, { children: liveVideos.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PosterGrid, { videos: liveVideos }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "rounded-xl bg-surface px-6 py-16 text-center shadow-border",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "font-display text-2xl text-fg",
+								children: "Nobody you follow is live"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mx-auto mt-2 max-w-sm text-sm text-muted",
+								children: "Add Twitch channels. Reelcase checks them and pings Notifications when they go live."
+							})]
+						}) }),
+						sourceId === "movies" && browsing && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: "Classic movies",
+								videos: classics,
+								variant: "poster"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: "All movies",
+								videos: videos.filter((v) => !isClassicVideo(v)),
+								variant: "poster"
+							}),
+							classics.length === 0 && videos.length === 0 ? null : null
+						] }),
+						sourceId === "adults" && adultsUnlocked && browsing && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: "Continue watching",
+								videos: adultContinue,
+								variant: "rail"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: "Favorites",
+								videos: adultFavorites,
+								variant: "poster"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: "History",
+								videos: adultHistory,
+								variant: "rail",
+								playedAt
+							}),
+							adultFolders.map((folder) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: folder.name,
+								videos: videos.filter((v) => v.folderId === folder.id),
+								variant: "rail"
+							}, folder.id)),
+							adultFolders.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rounded-xl bg-surface px-6 py-14 text-center shadow-border",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Lock, { className: "mx-auto size-6 text-muted" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "mt-3 font-display text-2xl text-fg",
+										children: "No private folders yet"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "mx-auto mt-2 max-w-sm text-sm text-muted",
+										children: "Add a private folder, or lock an existing source. Those titles stay off Home, Movies, and Favorites."
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										className: "mt-5",
+										onClick: () => onAddFolder(void 0, true),
+										children: "Add private folder"
+									})
+								]
+							})
+						] }),
+						sourceId === "favorites" && !query && favoriteVideos.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "mb-6",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
+								className: "font-display text-3xl leading-none tracking-tight text-fg sm:text-4xl",
+								children: "Favorites"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-2 text-sm text-muted",
+								children: "Your list, on this computer."
+							})]
+						}),
+						sourceId === "favorites" && !query ? favoriteVideos.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PosterGrid, { videos: favoriteVideos }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "rounded-xl bg-surface px-6 py-16 text-center shadow-border",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "font-display text-2xl text-fg",
+								children: "Nothing in Favorites"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mx-auto mt-2 max-w-sm text-sm text-muted",
+								children: "Heart a title or use My List on the billboard."
+							})]
+						}) : null,
+						(sourceId === "history" || sourceId === "continue" || query || !browsing && sourceId !== "favorites" && sourceId !== "home" && sourceId !== "movies" && sourceId !== "adults") && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "mb-4 flex items-end justify-between gap-3",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
+								className: "font-display text-3xl leading-none tracking-tight text-fg sm:text-4xl",
+								children: query ? "Search" : heading
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-2 text-sm text-muted",
+								children: scanning ? `Scanning ${scanning.folderName} · ${scanning.found} found` : `${videos.length} video${videos.length === 1 ? "" : "s"}`
+							})] }), sourceId === "history" && history.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								variant: "ghost",
+								size: "sm",
+								onClick: clearHistory,
+								children: "Clear history"
+							})]
+						}), sourceId === "history" || sourceId === "continue" || query ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(VideoGrid, {
+							videos,
+							playedAt: sourceId === "history" ? playedAt : void 0
+						}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PosterGrid, { videos })] }),
+						sourceId === "demo" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "mt-8 text-center text-xs text-subtle",
+							children: "Original shorts styled as classics. Add a folder to scan this computer."
+						})
+					] })
+				})]
+			}),
+			activeId && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Player, { playlist }),
+			dragging && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-bg/80",
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "rounded-xl bg-surface px-8 py-6 text-center shadow-border shadow-lift",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "font-display text-2xl text-fg",
+						children: "Drop to add"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-1 text-sm text-muted",
+						children: "Folders or video files"
+					})]
+				})
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+				ref: dirInputRef,
+				type: "file",
+				multiple: true,
+				className: "sr-only",
+				tabIndex: -1,
+				"aria-hidden": "true",
+				webkitdirectory: "",
+				directory: "",
+				onChange: (e) => {
+					const files = e.target.files;
+					const adult = pendingAdult.current;
+					pendingAdult.current = false;
+					if (files?.length) ingestFromInput(files, true, { adult }).catch((err) => {
+						toast.error(err instanceof Error ? err.message : "Could not read folder");
+					});
+					e.target.value = "";
+				}
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+				ref: fileInputRef,
+				type: "file",
+				multiple: true,
+				accept: "video/*",
+				className: "sr-only",
+				tabIndex: -1,
+				"aria-hidden": "true",
+				onChange: (e) => {
+					const files = e.target.files;
+					if (files?.length) ingestFromInput(files, false).catch((err) => {
+						toast.error(err instanceof Error ? err.message : "Could not read files");
+					});
+					e.target.value = "";
+				}
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Toaster, {
+				theme: "dark",
+				position: "bottom-right",
+				toastOptions: { classNames: {
+					toast: "bg-elevated text-fg shadow-border border-0",
+					title: "text-fg",
+					description: "text-muted"
+				} }
+			})
+		]
+	});
+}
+function Home() {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LibraryApp, {});
+}
+//#endregion
+export { Home as component };

@@ -1,0 +1,38 @@
+{
+  "url": "http://127.0.0.1:8081/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Reelcase",
+      "hasCanvas": false,
+      "bodyTextLen": 638,
+      "bodyTextHash": "479a7cbc0c025c920c244e15d6c84f369e6cbfbff94222891540014c983d6f80",
+      "bodyTextPrefix": "Reelcase Vault · networks · live Home 8 Movies YouTube 4 Twitch ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Reelcase",
+      "hasCanvas": false,
+      "bodyTextLen": 498,
+      "bodyTextHash": "63c6e05b72562bfd9067d3995ce538bff90f84a34f2f92289b5426c4dc3192a3",
+      "bodyTextPrefix": "Reelcase Networks Follow a YouTube channel or Twitch stream. New",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-built.json",
+  "divergesFromBaseline": false,
+  "baselineReasons": []
+}
