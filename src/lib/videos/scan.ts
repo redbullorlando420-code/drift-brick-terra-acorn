@@ -9,7 +9,7 @@ import {
 } from "./types";
 import { rememberFile, rememberFileHandle } from "./sources";
 
-const MAX_VIDEOS = 80000;
+const MAX_VIDEOS = 100000;
 const MAX_DEPTH = 14;
 const MAX_DRIVE_DEPTH = 12;
 
@@ -42,15 +42,37 @@ async function yieldUi() {
   await new Promise<void>((r) => setTimeout(r, 0));
 }
 
+const BATCH_SIZE = 250;
+
 function maybeFlush(
   acc: LibraryVideo[],
   flushed: { n: number },
   onBatch?: (videos: LibraryVideo[]) => void,
+  force = false,
 ) {
   if (!onBatch) return;
-  if (acc.length - flushed.n < 80) return;
+  if (!force && acc.length - flushed.n < BATCH_SIZE) return;
+  if (acc.length <= flushed.n) return;
   onBatch(acc.slice(flushed.n));
   flushed.n = acc.length;
+}
+
+function throttleProgress(
+  opts: ScanOpts,
+  state: { lastAt: number; lastFound: number },
+  progress: ScanProgress,
+) {
+  const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+  if (
+    progress.found - state.lastFound < 40 &&
+    now - state.lastAt < 150 &&
+    progress.found % 200 !== 0
+  ) {
+    return;
+  }
+  state.lastAt = now;
+  state.lastFound = progress.found;
+  opts.onProgress?.(progress);
 }
 
 export async function ingestDirectoryHandle(
@@ -77,6 +99,7 @@ async function walkHandle(
   flushed: { n: number },
   depth: number,
   drive: boolean,
+  progressState: { lastAt: number; lastFound: number } = { lastAt: 0, lastFound: 0 },
 ): Promise<void> {
   const maxDepth = drive ? MAX_DRIVE_DEPTH : MAX_DEPTH;
   if (depth > maxDepth || acc.length >= MAX_VIDEOS || aborted(opts.signal)) return;
@@ -102,25 +125,26 @@ async function walkHandle(
         flushed,
         depth + 1,
         drive,
+        progressState,
       );
     } else if (handle.kind === "file" && isVideoFile(name)) {
       try {
         const fileHandle = handle as FileSystemFileHandle;
         const file = await fileHandle.getFile();
         pushVideo(acc, folderId, prefix + name, file, fileHandle);
-        opts.onProgress?.({
+        throttleProgress(opts, progressState, {
           found: acc.length,
           looked,
           folderName,
           current: prefix + name,
         });
         maybeFlush(acc, flushed, opts.onBatch);
-        if (acc.length % 30 === 0) await yieldUi();
+        if (acc.length % 20 === 0) await yieldUi();
       } catch {
         // skip unreadable
       }
     } else if (looked % 200 === 0) {
-      opts.onProgress?.({
+      throttleProgress(opts, progressState, {
         found: acc.length,
         looked,
         folderName,
@@ -142,6 +166,7 @@ export async function ingestFileList(
   const acc: LibraryVideo[] = [];
   const flushed = { n: 0 };
   let looked = 0;
+  const progressState = { lastAt: 0, lastFound: 0 };
   for (const file of files) {
     if (aborted(opts.signal) || acc.length >= MAX_VIDEOS) break;
     looked += 1;
@@ -153,9 +178,14 @@ export async function ingestFileList(
     if (parts.some((p, i) => i < parts.length - 1 && shouldSkipDir(p))) continue;
     if (!isVideoFile(file.name, file.type)) continue;
     pushVideo(acc, folderId, rel, file);
-    opts.onProgress?.({ found: acc.length, looked, folderName, current: rel });
+    throttleProgress(opts, progressState, {
+      found: acc.length,
+      looked,
+      folderName,
+      current: rel,
+    });
     maybeFlush(acc, flushed, opts.onBatch);
-    if (acc.length % 30 === 0) await yieldUi();
+    if (acc.length % 20 === 0) await yieldUi();
   }
   if (opts.onBatch && acc.length > flushed.n) opts.onBatch(acc.slice(flushed.n));
   return acc;
@@ -267,9 +297,11 @@ async function walkEntry(
       const file = await entryFile(entry as FsFileEntry);
       const rel = prefix ? `${prefix}${entry.name}` : entry.name;
       pushVideo(acc, folderId, rel, file);
-      opts.onProgress?.({ found: acc.length, looked: acc.length, folderName, current: rel });
+      if (acc.length % 40 === 0 || acc.length < 5) {
+        opts.onProgress?.({ found: acc.length, looked: acc.length, folderName, current: rel });
+      }
       maybeFlush(acc, flushed, opts.onBatch);
-      if (acc.length % 30 === 0) await yieldUi();
+      if (acc.length % 20 === 0) await yieldUi();
     } catch {
       // skip
     }
@@ -285,8 +317,9 @@ function pushVideo(
 ) {
   const name = file.name;
   const id = `${folderId}:${relPath}`;
-  rememberFile(id, file);
+  // Keep File blobs only when we lack a durable handle (webkitdirectory / FileList).
   if (handle) rememberFileHandle(id, handle);
+  else rememberFile(id, file);
   acc.push({
     id,
     folderId,

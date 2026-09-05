@@ -1,16 +1,20 @@
 import { VideoCard } from "./video-card";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useLibrary } from "@/lib/videos/store";
 import type { LibraryVideo } from "@/lib/videos/types";
 
+const PAGE = 96;
+const RAIL_CAP = 24;
+
 export function ContinueRail({ videos }: { videos: LibraryVideo[] }) {
   if (!videos.length) return null;
+  const shown = videos.slice(0, RAIL_CAP);
   return (
     <section className="mb-8">
       <h2 className="mb-3 font-display text-xl text-fg">Continue watching</h2>
       <div className="rail-scroll flex gap-4 overflow-x-auto pb-2">
-        {videos.map((video, i) => (
+        {shown.map((video, i) => (
           <VideoCard key={video.id} video={video} variant="rail" index={i} />
         ))}
       </div>
@@ -20,11 +24,12 @@ export function ContinueRail({ videos }: { videos: LibraryVideo[] }) {
 
 export function FavoritesRail({ videos }: { videos: LibraryVideo[] }) {
   if (!videos.length) return null;
+  const shown = videos.slice(0, RAIL_CAP);
   return (
     <section className="mb-8">
       <h2 className="mb-3 font-display text-xl text-fg">Favorites</h2>
       <div className="rail-scroll flex gap-4 overflow-x-auto pb-2">
-        {videos.map((video, i) => (
+        {shown.map((video, i) => (
           <VideoCard key={video.id} video={video} variant="rail" index={i} />
         ))}
       </div>
@@ -40,11 +45,12 @@ export function HistoryRail({
   playedAt: Record<string, number>;
 }) {
   if (!videos.length) return null;
+  const shown = videos.slice(0, RAIL_CAP);
   return (
     <section className="mb-8">
       <h2 className="mb-3 font-display text-xl text-fg">History</h2>
       <div className="rail-scroll flex gap-4 overflow-x-auto pb-2">
-        {videos.map((video, i) => (
+        {shown.map((video, i) => (
           <VideoCard
             key={video.id}
             video={video}
@@ -66,8 +72,29 @@ export function VideoGrid({
   playedAt?: Record<string, number>;
 }) {
   const view = useLibrary((s) => s.view);
-  const [limit, setLimit] = useState(120);
-  useEffect(() => setLimit(120), [videos.length]);
+  const [limit, setLimit] = useState(PAGE);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const sourceKey = `${videos.length}:${videos[0]?.id ?? ""}:${videos[videos.length - 1]?.id ?? ""}`;
+
+  useEffect(() => {
+    setLimit(PAGE);
+  }, [sourceKey]);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || limit >= videos.length) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setLimit((value) => Math.min(videos.length, value + PAGE));
+        }
+      },
+      { rootMargin: "600px 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [limit, videos.length]);
+
   const visible = videos.slice(0, limit);
   if (!videos.length) {
     return (
@@ -79,38 +106,64 @@ export function VideoGrid({
       </div>
     );
   }
+
+  const more = limit < videos.length;
+
   if (view === "list") {
     return (
       <>
-      <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1">
+          {visible.map((video, i) => (
+            <VideoCard
+              key={video.id}
+              video={video}
+              variant="list"
+              index={i}
+              playedAt={playedAt?.[video.id]}
+            />
+          ))}
+        </div>
+        {more && (
+          <>
+            <div ref={sentinelRef} className="h-8" aria-hidden />
+            <Button
+              variant="secondary"
+              className="mt-5 w-full"
+              onClick={() => setLimit((value) => Math.min(videos.length, value + PAGE))}
+            >
+              Show more · {videos.length - limit} remaining
+            </Button>
+          </>
+        )}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {visible.map((video, i) => (
           <VideoCard
             key={video.id}
             video={video}
-            variant="list"
+            variant="grid"
             index={i}
             playedAt={playedAt?.[video.id]}
           />
         ))}
       </div>
-      {limit < videos.length && <Button variant="secondary" className="mt-5 w-full" onClick={() => setLimit((value) => value + 120)}>Show 120 more · {videos.length - limit} remaining</Button>}
-      </>
-    );
-  }
-  return (
-    <>
-    <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-      {visible.map((video, i) => (
-        <VideoCard
-          key={video.id}
-          video={video}
-          variant="grid"
-          index={i}
-          playedAt={playedAt?.[video.id]}
-        />
-      ))}
-    </div>
-    {limit < videos.length && <Button variant="secondary" className="mt-6 w-full" onClick={() => setLimit((value) => value + 120)}>Show 120 more · {videos.length - limit} remaining</Button>}
+      {more && (
+        <>
+          <div ref={sentinelRef} className="h-8" aria-hidden />
+          <Button
+            variant="secondary"
+            className="mt-6 w-full"
+            onClick={() => setLimit((value) => Math.min(videos.length, value + PAGE))}
+          >
+            Show more · {videos.length - limit} remaining
+          </Button>
+        </>
+      )}
     </>
   );
 }

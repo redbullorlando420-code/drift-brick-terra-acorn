@@ -1,10 +1,14 @@
 import { create } from "zustand";
 import { DEMO_FOLDER, FEATURED_YOUTUBE, SAMPLE_VIDEOS, YT_FOLDER } from "./samples";
 import {
+  appendCatalogVideos,
+  clearFolderVideos,
   deleteDirHandle,
+  loadCatalogVideos,
   loadDirHandles,
   loadPrefs,
   saveDirHandle,
+  saveFolderVideos,
   savePrefs,
   type Prefs,
 } from "./persist";
@@ -143,6 +147,29 @@ function persistNow(get: () => LibraryState) {
   savePrefs(prefs);
 }
 
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
+
+function persistSoon(get: () => LibraryState) {
+  if (typeof window === "undefined") {
+    persistNow(get);
+    return;
+  }
+  if (persistTimer != null) return;
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    persistNow(get);
+  }, 900);
+}
+
+function flushPersist(get: () => LibraryState) {
+  if (persistTimer != null) {
+    clearTimeout(persistTimer);
+    persistTimer = null;
+  }
+  persistNow(get);
+}
+
+
 function mergeVideos(existing: LibraryVideo[], incoming: LibraryVideo[]) {
   const map = new Map(existing.map((v) => [v.id, v]));
   for (const v of incoming) map.set(v.id, v);
@@ -261,7 +288,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     set((s) => ({
       progress: { ...s.progress, [id]: { t, d, at: Date.now() } },
     }));
-    persistNow(get);
+    persistSoon(get);
   },
   recordPlay: (id) => {
     set((s) => {
@@ -390,26 +417,49 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     if (!granted) return;
     const folderId = `folder:${handle.name}:${crypto.randomUUID().slice(0, 8)}`;
     rememberDirHandle(folderId, handle);
-    set({ scanning: { found: 0, looked: 0, folderName: handle.name } });
+    const adult = Boolean(opts?.adult);
+    const folder: Folder = {
+      id: folderId,
+      name: handle.name,
+      kind: "directory",
+      videoCount: 0,
+      recommended: startIn,
+      adult,
+    };
+    set((s) => ({
+      folders: [...s.folders.filter((f) => f.id !== folderId), folder],
+      scanning: { found: 0, looked: 0, folderName: handle.name },
+      sourceId: adult ? "adults" : folderId,
+    }));
+    let writeChain: Promise<void> = clearFolderVideos(folderId).catch(() => undefined);
     try {
-      const videos = await ingestDirectoryHandle(handle, folderId, (p) => set({ scanning: p }));
-      const adult = Boolean(opts?.adult);
-      const folder: Folder = {
-        id: folderId,
-        name: handle.name,
-        kind: "directory",
-        videoCount: videos.length,
-        recommended: startIn,
-        adult,
-      };
+      const videos = await ingestDirectoryHandle(handle, folderId, {
+        onProgress: (p) => set({ scanning: p }),
+        onBatch: (batch) => {
+          if (!batch.length) return;
+          set((s) => ({
+            videos: s.videos.concat(batch),
+            folders: s.folders.map((f) =>
+              f.id === folderId
+                ? { ...f, videoCount: (f.videoCount ?? 0) + batch.length }
+                : f,
+            ),
+          }));
+          writeChain = writeChain.then(() => appendCatalogVideos(batch)).catch(() => undefined);
+        },
+      });
+      await writeChain;
       set((s) => ({
-        folders: [...s.folders.filter((f) => f.id !== folderId), folder],
-        videos: mergeVideos(s.videos, videos),
+        folders: s.folders.map((f) =>
+          f.id === folderId ? { ...f, videoCount: videos.length } : f,
+        ),
         scanning: null,
         sourceId: adult ? "adults" : videos.length ? folderId : s.sourceId,
       }));
-      persistNow(get);
+      flushPersist(get);
       await saveDirHandle({ id: folderId, name: handle.name, handle });
+      // Final authoritative write in case batches were empty / partial.
+      if (videos.length) await saveFolderVideos(folderId, videos).catch(() => undefined);
     } catch (err) {
       set({ scanning: null });
       throw err;
@@ -426,53 +476,132 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     const folderId = asDirectory
       ? `folder:${folderName}:${crypto.randomUUID().slice(0, 8)}`
       : `files:${crypto.randomUUID().slice(0, 8)}`;
-    set({ scanning: { found: 0, looked: 0, folderName } });
-    const videos = await ingestFileList(files, folderId, folderName, (p) => set({ scanning: p }));
     const adult = Boolean(opts?.adult) || get().sourceId === "adults";
     const folder: Folder = {
       id: folderId,
       name: folderName,
       kind: asDirectory ? "directory" : "files",
-      videoCount: videos.length,
+      videoCount: 0,
       adult,
     };
     set((s) => ({
       folders: [...s.folders, folder],
-      videos: mergeVideos(s.videos, videos),
+      scanning: { found: 0, looked: 0, folderName },
+      sourceId: adult ? "adults" : folderId,
+    }));
+    let writeChain: Promise<void> = Promise.resolve();
+    const videos = await ingestFileList(files, folderId, folderName, {
+      onProgress: (p) => set({ scanning: p }),
+      onBatch: (batch) => {
+        if (!batch.length) return;
+        set((s) => ({
+          videos: s.videos.concat(batch),
+          folders: s.folders.map((f) =>
+            f.id === folderId
+              ? { ...f, videoCount: (f.videoCount ?? 0) + batch.length }
+              : f,
+          ),
+        }));
+        writeChain = writeChain.then(() => appendCatalogVideos(batch)).catch(() => undefined);
+      },
+    });
+    await writeChain;
+    set((s) => ({
+      folders: s.folders.map((f) =>
+        f.id === folderId ? { ...f, videoCount: videos.length } : f,
+      ),
       scanning: null,
       sourceId: adult ? "adults" : videos.length ? folderId : s.sourceId,
     }));
-    persistNow(get);
+    flushPersist(get);
+    if (videos.length) await saveFolderVideos(folderId, videos).catch(() => undefined);
   },
   ingestDrop: async (dt) => {
     const nameGuess =
       dt.files?.[0]?.webkitRelativePath?.split("/")[0] || dt.files?.[0]?.name || "Dropped files";
     const folderId = `drop:${crypto.randomUUID().slice(0, 8)}`;
-    set({ scanning: { found: 0, looked: 0, folderName: nameGuess } });
-    const videos = await ingestDataTransfer(dt, folderId, nameGuess, (p) => set({ scanning: p }));
+    const adult = get().sourceId === "adults";
+    set((s) => ({
+      folders: [
+        ...s.folders,
+        {
+          id: folderId,
+          name: nameGuess,
+          kind: "files",
+          videoCount: 0,
+          adult,
+        },
+      ],
+      scanning: { found: 0, looked: 0, folderName: nameGuess },
+    }));
+    let writeChain: Promise<void> = Promise.resolve();
+    const videos = await ingestDataTransfer(dt, folderId, nameGuess, {
+      onProgress: (p) => set({ scanning: p }),
+      onBatch: (batch) => {
+        if (!batch.length) return;
+        set((s) => ({
+          videos: s.videos.concat(batch),
+          folders: s.folders.map((f) =>
+            f.id === folderId
+              ? { ...f, videoCount: (f.videoCount ?? 0) + batch.length }
+              : f,
+          ),
+        }));
+        writeChain = writeChain.then(() => appendCatalogVideos(batch)).catch(() => undefined);
+      },
+    });
+    await writeChain;
     const folderName = videos[0]?.path.includes("/")
       ? videos[0].path.split("/")[0]
       : "Dropped files";
-    const adult = get().sourceId === "adults";
-    const folder: Folder = {
-      id: folderId,
-      name: folderName,
-      kind: videos.some((v) => v.path.includes("/")) ? "directory" : "files",
-      videoCount: videos.length,
-      adult,
-    };
     set((s) => ({
-      folders: [...s.folders, folder],
-      videos: mergeVideos(s.videos, videos),
+      folders: s.folders.map((f) =>
+        f.id === folderId
+          ? {
+              ...f,
+              name: folderName,
+              kind: videos.some((v) => v.path.includes("/")) ? "directory" : "files",
+              videoCount: videos.length,
+            }
+          : f,
+      ),
       scanning: null,
       sourceId: adult ? "adults" : videos.length ? folderId : s.sourceId,
     }));
-    persistNow(get);
+    flushPersist(get);
+    if (videos.length) await saveFolderVideos(folderId, videos).catch(() => undefined);
   },
   restoreFolders: async () => {
     const prefsState = applyPrefs({});
     const adultIds = new Set(loadPrefs()?.privateFolderIds ?? []);
     set({ ...prefsState, hydrated: true });
+    try {
+      const catalog = await loadCatalogVideos();
+      if (catalog.length) {
+        const counts = new Map<string, number>();
+        for (const v of catalog) counts.set(v.folderId, (counts.get(v.folderId) ?? 0) + 1);
+        set((s) => ({
+          videos: mergeVideos(s.videos, catalog),
+          folders: [
+            ...s.folders,
+            ...[...counts.entries()]
+              .filter(([id]) => !s.folders.some((f) => f.id === id))
+              .map(([id, videoCount]) => ({
+                id,
+                name: id.split(":")[1] || id,
+                kind: "directory" as const,
+                videoCount,
+                adult: adultIds.has(id),
+                needsPermission: true,
+              })),
+          ].map((f) =>
+            counts.has(f.id) ? { ...f, videoCount: counts.get(f.id) ?? f.videoCount } : f,
+          ),
+        }));
+      }
+    } catch {
+      // catalog optional
+    }
     let stored: Awaited<ReturnType<typeof loadDirHandles>> = [];
     try {
       stored = await loadDirHandles();
@@ -489,23 +618,49 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       }
       const adult = adultIds.has(row.id);
       if (perm === "granted") {
-        set({ scanning: { found: 0, looked: 0, folderName: row.name } });
+        set((s) => ({
+          scanning: { found: 0, looked: 0, folderName: row.name },
+          folders: [
+            ...s.folders.filter((f) => f.id !== row.id),
+            {
+              id: row.id,
+              name: row.name,
+              kind: "directory",
+              videoCount: 0,
+              adult,
+            },
+          ],
+          videos: s.videos.filter((v) => v.folderId !== row.id),
+        }));
+        let writeChain: Promise<void> = clearFolderVideos(row.id).catch(() => undefined);
         try {
-          const videos = await ingestDirectoryHandle(row.handle, row.id, (p) =>
-            set({ scanning: p }),
-          );
-          const folder: Folder = {
-            id: row.id,
-            name: row.name,
-            kind: "directory",
-            videoCount: videos.length,
-            adult,
-          };
+          const videos = await ingestDirectoryHandle(row.handle, row.id, {
+            onProgress: (p) => set({ scanning: p }),
+            onBatch: (batch) => {
+              if (!batch.length) return;
+              set((s) => ({
+                videos: s.videos.concat(batch),
+                folders: s.folders.map((f) =>
+                  f.id === row.id
+                    ? { ...f, videoCount: (f.videoCount ?? 0) + batch.length }
+                    : f,
+                ),
+              }));
+              writeChain = writeChain
+                .then(() => appendCatalogVideos(batch))
+                .catch(() => undefined);
+            },
+          });
+          await writeChain;
           set((s) => ({
-            folders: [...s.folders.filter((f) => f.id !== row.id), folder],
-            videos: mergeVideos(s.videos, videos),
+            folders: s.folders.map((f) =>
+              f.id === row.id
+                ? { ...f, videoCount: videos.length, needsPermission: false }
+                : f,
+            ),
             scanning: null,
           }));
+          if (videos.length) await saveFolderVideos(row.id, videos).catch(() => undefined);
         } catch {
           set((s) => ({
             scanning: null,
@@ -530,7 +685,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
               id: row.id,
               name: row.name,
               kind: "directory",
-              videoCount: 0,
+              videoCount: s.folders.find((f) => f.id === row.id)?.videoCount ?? 0,
               needsPermission: true,
               adult,
             },
@@ -546,16 +701,38 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     if (!ok) return;
     const folder = get().folders.find((f) => f.id === folderId);
     const name = folder?.name ?? handle.name;
-    set({ scanning: { found: 0, looked: 0, folderName: name } });
-    const videos = await ingestDirectoryHandle(handle, folderId, (p) => set({ scanning: p }));
+    set((s) => ({
+      scanning: { found: 0, looked: 0, folderName: name },
+      videos: s.videos.filter((v) => v.folderId !== folderId),
+      folders: s.folders.map((f) =>
+        f.id === folderId ? { ...f, videoCount: 0, needsPermission: false } : f,
+      ),
+    }));
+    let writeChain: Promise<void> = clearFolderVideos(folderId).catch(() => undefined);
+    const videos = await ingestDirectoryHandle(handle, folderId, {
+      onProgress: (p) => set({ scanning: p }),
+      onBatch: (batch) => {
+        if (!batch.length) return;
+        set((s) => ({
+          videos: s.videos.concat(batch),
+          folders: s.folders.map((f) =>
+            f.id === folderId
+              ? { ...f, videoCount: (f.videoCount ?? 0) + batch.length }
+              : f,
+          ),
+        }));
+        writeChain = writeChain.then(() => appendCatalogVideos(batch)).catch(() => undefined);
+      },
+    });
+    await writeChain;
     set((s) => ({
       folders: s.folders.map((f) =>
         f.id === folderId ? { ...f, videoCount: videos.length, needsPermission: false } : f,
       ),
-      videos: mergeVideos(s.videos, videos),
       scanning: null,
       sourceId: folder?.adult ? "adults" : folderId,
     }));
+    if (videos.length) await saveFolderVideos(folderId, videos).catch(() => undefined);
   },
   removeFolder: async (folderId) => {
     if (folderId === "demo") {

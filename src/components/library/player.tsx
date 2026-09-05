@@ -41,7 +41,27 @@ const TAG_PRESETS = ["watch-later", "favorite", "family", "4k", "short", "docume
 
 function twitchEmbed(base: string) {
   if (typeof window === "undefined") return base;
-  return `${base}${base.includes("?") ? "&" : "?"}parent=${encodeURIComponent(window.location.hostname)}`;
+  const hosts = new Set([
+    window.location.hostname,
+    window.location.hostname.replace(/^www\./, ""),
+    "localhost",
+    "127.0.0.1",
+  ]);
+  const qs = [...hosts].map((h) => `parent=${encodeURIComponent(h)}`).join("&");
+  return `${base}${base.includes("?") ? "&" : "?"}${qs}`;
+}
+
+function youtubeEmbed(base: string) {
+  if (!base) return null;
+  const url = new URL(base, "https://www.youtube-nocookie.com");
+  url.searchParams.set("autoplay", "1");
+  url.searchParams.set("rel", "0");
+  url.searchParams.set("modestbranding", "1");
+  url.searchParams.set("playsinline", "1");
+  if (typeof window !== "undefined") {
+    url.searchParams.set("origin", window.location.origin);
+  }
+  return url.toString();
 }
 
 export function Player({ playlist }: { playlist: string[] }) {
@@ -289,12 +309,14 @@ export function Player({ playlist }: { playlist: string[] }) {
 
   if (!video) return null;
   const remote = video.remote;
-  const embedSrc = remote && remote.kind !== "youtube"
+  const embedSrc = remote
     ? remote.kind === "twitch"
       ? twitchEmbed(remote.embedUrl ?? "")
-      : remote.embedUrl
-        ? `${remote.embedUrl}${remote.embedUrl.includes("?") ? "&" : "?"}autoplay=1&rel=0&modestbranding=1`
-        : null
+      : remote.kind === "youtube"
+        ? youtubeEmbed(remote.embedUrl ?? video.src ?? "")
+        : remote.embedUrl
+          ? `${remote.embedUrl}${remote.embedUrl.includes("?") ? "&" : "?"}autoplay=1&rel=0&modestbranding=1`
+          : null
     : null;
 
   const shown = scrub ?? current;
@@ -312,15 +334,32 @@ export function Player({ playlist }: { playlist: string[] }) {
     >
       {embedSrc ? (
         <iframe
+          key={embedSrc}
           title={video.name}
           src={embedSrc}
           className="absolute inset-0 size-full border-0 bg-bg"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
           allowFullScreen
+          referrerPolicy="strict-origin-when-cross-origin"
         />
       ) : remote?.kind === "youtube" ? (
         <div className="absolute inset-0 flex items-center justify-center bg-bg px-6 text-center">
-          <div><p className="font-display text-3xl text-fg">This title plays on YouTube</p><p className="mx-auto mt-3 max-w-md text-sm text-muted">YouTube sign-in and bot checks do not work reliably inside embedded players. Open the official player to watch with your account.</p>{remote.watchUrl && <a href={remote.watchUrl} target="_blank" rel="noreferrer" className="mt-5 inline-flex min-h-10 items-center rounded-sm bg-accent px-4 text-sm font-medium text-accent-fg">Open YouTube <ExternalLink className="ml-2 size-4" /></a>}</div>
+          <div>
+            <p className="font-display text-3xl text-fg">This title plays on YouTube</p>
+            <p className="mx-auto mt-3 max-w-md text-sm text-muted">
+              The embedded player could not be built for this title. Open it on YouTube instead.
+            </p>
+            {remote.watchUrl && (
+              <a
+                href={remote.watchUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-5 inline-flex min-h-10 items-center rounded-sm bg-accent px-4 text-sm font-medium text-accent-fg"
+              >
+                Open YouTube <ExternalLink className="ml-2 size-4" />
+              </a>
+            )}
+          </div>
         </div>
       ) : (
         <video
