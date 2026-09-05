@@ -63,7 +63,6 @@ export function LibraryApp() {
   const scanning = useLibrary((s) => s.scanning);
   const activeId = useLibrary((s) => s.activeId);
   const previewId = useLibrary((s) => s.previewId);
-  const hideDemo = useLibrary((s) => s.hideDemo);
   const history = useLibrary((s) => s.history);
   const adultsUnlocked = useLibrary((s) => s.adultsUnlocked);
   const videos = useLibrary(useShallow(selectVisible));

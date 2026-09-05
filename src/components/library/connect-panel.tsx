@@ -17,11 +17,12 @@ import { useLibrary } from "@/lib/videos/store";
 import type { RemoteKind } from "@/lib/videos/types";
 
 type ImportCandidate = { query: string; kind: "youtube" | "twitch" };
+/** Split pasted lists on newlines, commas, or whitespace (URLs never contain spaces). */
 function linesToCandidates(value: string, kind: RemoteKind): ImportCandidate[] {
   return [
     ...new Set(
       value
-        .split(/[\n,]+/)
+        .split(/[\s,]+/)
         .map((line) => line.trim())
         .filter(Boolean),
     ),
@@ -44,10 +45,15 @@ export function ConnectPanel({ defaultKind = "youtube" }: { defaultKind?: Remote
   const candidates = useMemo(() => linesToCandidates(bulk, kind), [bulk, kind]);
   const networkFollows = follows.filter((follow) => follow.kind === kind);
   const submit = async () => {
-    const value = query.trim();
-    if (!value) return;
+    const items = linesToCandidates(query, kind);
+    if (!items.length) return;
+    if (items.length > 1) {
+      await importItems(items);
+      setQuery("");
+      return;
+    }
     try {
-      await followRemoteQuery(value, kind);
+      await followRemoteQuery(items[0].query, kind);
       setQuery("");
       toast.success(kind === "twitch" ? "Twitch channel added" : "YouTube channel added");
     } catch (err) {
@@ -60,11 +66,18 @@ export function ConnectPanel({ defaultKind = "youtube" }: { defaultKind?: Remote
       const result = await importBatch(items);
       setBulk("");
       setFound([]);
-      toast.success(
-        result.failed
-          ? `${result.ok} added · ${result.failed} unavailable`
-          : `${result.ok} channel${result.ok === 1 ? "" : "s"} added`,
-      );
+      if (result.failed && result.failedQueries?.length) {
+        toast.message(
+          `${result.ok} added · ${result.failed} unavailable`,
+          { description: result.failedQueries.slice(0, 8).join(", ") + (result.failedQueries.length > 8 ? "…" : "") },
+        );
+      } else {
+        toast.success(
+          result.failed
+            ? `${result.ok} added · ${result.failed} unavailable`
+            : `${result.ok} channel${result.ok === 1 ? "" : "s"} added`,
+        );
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not import those channels");
     }
@@ -142,11 +155,11 @@ export function ConnectPanel({ defaultKind = "youtube" }: { defaultKind?: Remote
       </div>
       <div className="grid gap-6 px-5 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div>
-          <StepBadge number="01" label="Add one creator" />
+          <StepBadge number="01" label="Add creators" />
           <p className="mt-2 text-sm text-muted">
             {kind === "youtube"
-              ? "Paste a channel URL, @handle, channel ID, or a video link."
-              : "Paste a Twitch channel URL or username."}
+              ? "Paste a channel URL, @handle, channel ID, or a video link. Several at once is fine."
+              : "Paste one or more Twitch usernames or channel URLs (comma, space, or newline separated)."}
           </p>
           <form
             className="mt-3 flex flex-col gap-2 sm:flex-row"
@@ -161,9 +174,9 @@ export function ConnectPanel({ defaultKind = "youtube" }: { defaultKind?: Remote
               placeholder={
                 kind === "youtube"
                   ? "youtube.com/@creator or @creator"
-                  : "twitch.tv/creator or creator"
+                  : "ironmouse, zackrawrr  or  twitch.tv/creator"
               }
-              aria-label={kind === "youtube" ? "YouTube channel or video" : "Twitch channel"}
+              aria-label={kind === "youtube" ? "YouTube channel or video" : "Twitch channels"}
             />
             <Button type="submit" disabled={remoteBusy || !query.trim()} className="sm:w-32">
               {remoteBusy ? (
@@ -178,63 +191,30 @@ export function ConnectPanel({ defaultKind = "youtube" }: { defaultKind?: Remote
         <div className="border-t border-border pt-5 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6">
           <StepBadge
             number="02"
-            label={kind === "twitch" ? "Find public follows" : "Import several at once"}
+            label="Import several at once"
           />
-          {kind === "twitch" ? (
-            <>
+          <>
               <p className="mt-2 text-sm text-muted">
-                Enter a Twitch profile to look for its publicly visible follows, then choose what to
-                add.
-              </p>
-              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                <Input
-                  value={twitchName}
-                  onChange={(event) => setTwitchName(event.target.value)}
-                  placeholder="Twitch username"
-                  aria-label="Twitch username to inspect"
-                />
-                <Button
-                  variant="secondary"
-                  disabled={finding || !twitchName.trim()}
-                  onClick={() => void findTwitchFollows()}
-                  className="sm:w-40"
-                >
-                  {finding ? (
-                    <LoaderCircle className="size-4 animate-spin" />
-                  ) : (
-                    <ListPlus className="size-4" />
-                  )}{" "}
-                  Find follows
-                </Button>
-              </div>
-              {found.length > 0 && (
-                <ImportReview
-                  items={found}
-                  onImport={() => void importItems(found)}
-                  busy={remoteBusy}
-                />
-              )}
-            </>
-          ) : (
-            <>
-              <p className="mt-2 text-sm text-muted">
-                Paste one channel URL or @handle per line. This is the fastest way to move a saved
-                subscription list into Reelcase.
+                {kind === "twitch"
+                  ? "Paste a list of Twitch logins or channel URLs. You can also look up someone else's public follows below."
+                  : "Paste one channel URL or @handle per line. This is the fastest way to move a saved subscription list into Reelcase."}
               </p>
               <textarea
                 value={bulk}
                 onChange={(event) => setBulk(event.target.value)}
                 className="mt-3 min-h-28 w-full resize-y rounded-md bg-elevated px-3 py-2.5 text-sm text-fg shadow-border outline-none transition-[box-shadow] duration-150 placeholder:text-subtle focus-visible:ring-2 focus-visible:ring-ring/50"
                 placeholder={
-                  "@CreatorOne\nyoutube.com/@CreatorTwo\nhttps://youtube.com/channel/UC..."
+                  kind === "twitch"
+                    ? "ironmouse\nzackrawrr\ntwitch.tv/shroud, pokimane"
+                    : "@CreatorOne\nyoutube.com/@CreatorTwo\nhttps://youtube.com/channel/UC..."
                 }
-                aria-label="YouTube channels to import"
+                aria-label={kind === "twitch" ? "Twitch channels to import" : "YouTube channels to import"}
               />
               <div className="mt-2 flex items-center justify-between gap-3">
                 <p className="text-xs text-subtle">
                   {candidates.length
                     ? `${candidates.length} channels ready`
-                    : "Separate channels with a new line or comma."}
+                    : "Separate with spaces, commas, or new lines."}
                 </p>
                 <Button
                   size="sm"
@@ -249,8 +229,43 @@ export function ConnectPanel({ defaultKind = "youtube" }: { defaultKind?: Remote
                   Import list
                 </Button>
               </div>
+              {kind === "twitch" && (
+                <div className="mt-4 border-t border-border pt-4">
+                  <p className="text-sm text-muted">
+                    Or enter a Twitch profile to look for its publicly visible follows, then choose
+                    what to add.
+                  </p>
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                    <Input
+                      value={twitchName}
+                      onChange={(event) => setTwitchName(event.target.value)}
+                      placeholder="Twitch username"
+                      aria-label="Twitch username to inspect"
+                    />
+                    <Button
+                      variant="secondary"
+                      disabled={finding || !twitchName.trim()}
+                      onClick={() => void findTwitchFollows()}
+                      className="sm:w-40"
+                    >
+                      {finding ? (
+                        <LoaderCircle className="size-4 animate-spin" />
+                      ) : (
+                        <ListPlus className="size-4" />
+                      )}{" "}
+                      Find follows
+                    </Button>
+                  </div>
+                  {found.length > 0 && (
+                    <ImportReview
+                      items={found}
+                      onImport={() => void importItems(found)}
+                      busy={remoteBusy}
+                    />
+                  )}
+                </div>
+              )}
             </>
-          )}
         </div>
       </div>
       <div className="flex flex-col gap-3 border-t border-border bg-elevated/30 px-5 py-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">

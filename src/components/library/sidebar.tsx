@@ -26,7 +26,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { DEMO_FOLDER_ID } from "@/lib/videos/samples";
 import { isAdultVideo, useLibrary } from "@/lib/videos/store";
 import type { Folder, SourceId } from "@/lib/videos/types";
 

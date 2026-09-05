@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { LayoutGrid, List, Menu, Search, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,15 @@ export function TopBar({
 }) {
   const query = useLibrary((s) => s.query);
   const setQuery = useLibrary((s) => s.setQuery);
+  const [draft, setDraft] = useState(query);
+  useEffect(() => {
+    setDraft(query);
+  }, [query]);
+  useEffect(() => {
+    if (draft === query) return;
+    const t = window.setTimeout(() => setQuery(draft), 180);
+    return () => window.clearTimeout(t);
+  }, [draft, query, setQuery]);
   const view = useLibrary((s) => s.view);
   const setView = useLibrary((s) => s.setView);
   const sort = useLibrary((s) => s.sort);
@@ -55,8 +65,11 @@ export function TopBar({
         <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle" />
         <Input
           type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") setQuery(draft);
+          }}
           placeholder="Search titles, channels, paths"
           className="pl-9"
           aria-label="Search videos"

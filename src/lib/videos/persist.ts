@@ -113,28 +113,60 @@ export async function deleteDirHandle(id: string): Promise<void> {
   db.close();
 }
 
-export async function saveFolderVideos(folderId: string, videos: LibraryVideo[]): Promise<void> {
-  const db = await openDb();
+const IDB_WRITE_CHUNK = 400;
+
+async function clearFolderVideosTx(db: IDBDatabase, folderId: string): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(VIDEO_STORE, "readwrite");
-    const store = tx.objectStore(VIDEO_STORE);
-    const idx = store.index("folderId");
+    const idx = tx.objectStore(VIDEO_STORE).index("folderId");
     const req = idx.openCursor(IDBKeyRange.only(folderId));
     req.onsuccess = () => {
       const cursor = req.result;
       if (cursor) {
         cursor.delete();
         cursor.continue();
-      } else {
-        for (const video of videos) {
-          if (video.isSample) continue;
-          store.put(video);
-        }
       }
     };
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
+}
+
+async function putVideosChunked(db: IDBDatabase, videos: LibraryVideo[]): Promise<void> {
+  for (let i = 0; i < videos.length; i += IDB_WRITE_CHUNK) {
+    const slice = videos.slice(i, i + IDB_WRITE_CHUNK);
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(VIDEO_STORE, "readwrite");
+      const store = tx.objectStore(VIDEO_STORE);
+      for (const video of slice) {
+        if (video.isSample) continue;
+        store.put(video);
+      }
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+}
+
+/** Replace one folder's catalog rows in chunked IndexedDB writes. */
+export async function saveFolderVideos(folderId: string, videos: LibraryVideo[]): Promise<void> {
+  const db = await openDb();
+  await clearFolderVideosTx(db, folderId);
+  await putVideosChunked(db, videos);
+  db.close();
+}
+
+/** Append/upsert catalog rows without rewriting the whole folder (batched ingest). */
+export async function appendCatalogVideos(videos: LibraryVideo[]): Promise<void> {
+  if (!videos.length) return;
+  const db = await openDb();
+  await putVideosChunked(db, videos);
+  db.close();
+}
+
+export async function clearFolderVideos(folderId: string): Promise<void> {
+  const db = await openDb();
+  await clearFolderVideosTx(db, folderId);
   db.close();
 }
 
