@@ -5,8 +5,8 @@ import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[.
 import { u as TriangleAlert } from "../_libs/lucide-react.mjs";
 import { a as number, c as union, i as literal, l as unknown, n as _enum, o as object, r as discriminatedUnion, s as string, t as number$1 } from "../_libs/zod.mjs";
 import { t as Provider } from "../_libs/radix-ui__react-tooltip.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/router-CJZKLtWb.js
-var router_CJZKLtWb_exports = /* @__PURE__ */ __exportAll({ getRouter: () => getRouter });
+//#region node_modules/.nitro/vite/services/ssr/assets/router-BeJyEAlr.js
+var router_BeJyEAlr_exports = /* @__PURE__ */ __exportAll({ getRouter: () => getRouter });
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function AppErrorComponent({ error }) {
@@ -281,7 +281,7 @@ function TooltipProvider({ delayDuration = 250, ...props }) {
 		...props
 	});
 }
-var styles_default = "/assets/styles-CcJ-XudW.css";
+var styles_default = "/assets/styles-DbJMsUw-.css";
 var APP_NAME = "Reelcase";
 var Route$2 = createRootRoute({
 	head: () => ({
@@ -348,7 +348,7 @@ var Route$2 = createRootRoute({
 		})]
 	})
 });
-var $$splitComponentImporter = () => import("./routes-C-4VyxJs.mjs").then((n) => n.t);
+var $$splitComponentImporter = () => import("./routes-5G0itYQD.mjs").then((n) => n.t);
 var Route$1 = createFileRoute("/")({ component: lazyRouteComponent($$splitComponentImporter, "component") });
 /**
 * Migration bookkeeping shared by the two appliers — `scripts/migrate.mjs`
@@ -647,4 +647,4 @@ function getRouter() {
 	});
 }
 //#endregion
-export { getRouter, router_CJZKLtWb_exports as t };
+export { getRouter, router_BeJyEAlr_exports as t };

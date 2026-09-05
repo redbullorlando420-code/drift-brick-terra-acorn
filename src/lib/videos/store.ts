@@ -35,6 +35,7 @@ import type {
   ViewMode,
   WellKnownStart,
 } from "./types";
+import { librarySearchIndex } from "./search-index";
 import { isClassicVideo, SYSTEM_SOURCES } from "./types";
 
 const HISTORY_CAP = 80;
@@ -111,7 +112,7 @@ type LibraryState = {
   followRemoteQuery: (query: string, kind?: "auto" | "youtube" | "twitch") => Promise<void>;
   importBatch: (
     items: { query: string; kind: "youtube" | "twitch" }[],
-  ) => Promise<{ ok: number; failed: number }>;
+  ) => Promise<{ ok: number; failed: number; failedQueries: string[] }>;
   unfollow: (id: string) => void;
   refreshFollows: () => Promise<{ wentLive: FollowedChannel[]; newVideos: LibraryVideo[] }>;
   pushNotice: (n: Omit<AppNotice, "id" | "at" | "read">) => void;
@@ -821,7 +822,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     const unique = items
       .map((i) => ({ query: i.query.trim(), kind: i.kind }))
       .filter((i) => i.query);
-    if (!unique.length) return { ok: 0, failed: 0 };
+    if (!unique.length) return { ok: 0, failed: 0, failedQueries: [] };
     const existing = new Set(get().follows.map((f) => f.id));
     set({
       remoteBusy: true,
@@ -829,6 +830,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     });
     let ok = 0;
     let failed = 0;
+    const failedQueries: string[] = [];
     const chunk = 6;
     try {
       const { importChannels } = await import("@/lib/remote/api");
@@ -837,6 +839,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         const result = await importChannels({ data: { items: slice } });
         ok += result.ok.length;
         failed += result.failed;
+        if (result.failedQueries?.length) failedQueries.push(...result.failedQueries);
         set((s) => {
           let follows = s.follows;
           let folders = s.folders;
@@ -880,7 +883,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         sourceId: unique[0]?.kind === "twitch" ? "twitch" : "youtube",
       });
       persistNow(get);
-      return { ok, failed };
+      return { ok, failed, failedQueries };
     } catch (err) {
       set({ remoteBusy: false, importProgress: null });
       throw err;
@@ -1016,15 +1019,9 @@ export function selectVisible(state: LibraryState): LibraryVideo[] {
     list = list.filter((v) => v.folderId === state.sourceId);
   }
   if (q) {
-    list = list.filter(
-      (v) =>
-        v.name.toLowerCase().includes(q) ||
-        v.path.toLowerCase().includes(q) ||
-        (v.genre ?? "").toLowerCase().includes(q) ||
-        (v.tagline ?? "").toLowerCase().includes(q) ||
-        (state.categories[v.id] ?? "").toLowerCase().includes(q) ||
-        (state.tags[v.id] ?? []).some((tag) => tag.toLowerCase().includes(q)),
-    );
+    librarySearchIndex.sync(state.videos, state.tags, state.categories);
+    const hits = librarySearchIndex.search(q);
+    if (hits) list = list.filter((v) => hits.has(v.id));
   }
   if (state.sourceId === "history") return list;
   const sorted = [...list];

@@ -9,7 +9,6 @@ import {
 } from "./types";
 import { rememberFile, rememberFileHandle } from "./sources";
 
-const MAX_VIDEOS = 100000;
 const MAX_DEPTH = 14;
 const MAX_DRIVE_DEPTH = 12;
 
@@ -102,7 +101,7 @@ async function walkHandle(
   progressState: { lastAt: number; lastFound: number } = { lastAt: 0, lastFound: 0 },
 ): Promise<void> {
   const maxDepth = drive ? MAX_DRIVE_DEPTH : MAX_DEPTH;
-  if (depth > maxDepth || acc.length >= MAX_VIDEOS || aborted(opts.signal)) return;
+  if (depth > maxDepth || aborted(opts.signal)) return;
 
   const iterable = dir as FileSystemDirectoryHandle & {
     entries?: () => AsyncIterableIterator<[string, FileSystemHandle]>;
@@ -111,7 +110,7 @@ async function walkHandle(
 
   let looked = 0;
   for await (const [name, handle] of iterable.entries()) {
-    if (aborted(opts.signal) || acc.length >= MAX_VIDEOS) return;
+    if (aborted(opts.signal)) return;
     looked += 1;
     if (handle.kind === "directory") {
       if (shouldSkipDir(name)) continue;
@@ -168,7 +167,7 @@ export async function ingestFileList(
   let looked = 0;
   const progressState = { lastAt: 0, lastFound: 0 };
   for (const file of files) {
-    if (aborted(opts.signal) || acc.length >= MAX_VIDEOS) break;
+    if (aborted(opts.signal)) break;
     looked += 1;
     const rel =
       "webkitRelativePath" in file && file.webkitRelativePath
@@ -281,7 +280,7 @@ async function walkEntry(
   flushed: { n: number },
   depth: number,
 ): Promise<void> {
-  if (depth > MAX_DEPTH || acc.length >= MAX_VIDEOS || aborted(opts.signal)) return;
+  if (depth > MAX_DEPTH || aborted(opts.signal)) return;
   if (entry.isDirectory) {
     if (shouldSkipDir(entry.name)) return;
     const dir = entry as FsDirEntry;

@@ -2,7 +2,7 @@ import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { n as Slot, s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
 import { n as TSS_SERVER_FUNCTION, r as getServerFnById, t as createServerFn } from "./ssr.mjs";
-import { $ as Clock3, A as MessageCircle, B as Image, C as Play, D as Monitor, E as PackageSearch, F as LoaderCircle, G as Gamepad2, H as History, I as List, J as Film, K as Folder, L as ListPlus, M as Maximize, N as Lock, O as MonitorPlay, P as LockOpen, Q as Cpu, R as LayoutGrid, S as Radio, T as Pause, U as Heart, V as ImagePlus, W as Glasses, X as ExternalLink, Y as FileText, Z as Download, _ as Shuffle, a as VolumeX, at as Box, b as Search, c as Users, ct as BellOff, d as ThumbsUp, et as Clapperboard, f as Tag, g as SkipBack, h as SkipForward, i as WandSparkles, it as Check, j as Menu, k as Minimize, l as Upload, lt as ArrowLeft, m as Sparkles, n as X, nt as ChevronRight, o as Volume2, ot as Bot, p as Star, q as FolderPlus, r as Wifi, rt as ChevronLeft, s as Video, st as Bell, t as Youtube, tt as CircleAlert, v as ShoppingBag, w as PictureInPicture2, x as Rocket, y as Settings2, z as Images } from "../_libs/lucide-react.mjs";
+import { $ as Download, A as Minimize, B as LayoutGrid, C as Play, D as Music2, E as PackageSearch, F as LockOpen, G as Heart, H as Image, I as LoaderCircle, J as Folder, K as Glasses, L as List, M as Menu, N as Maximize, O as Monitor, P as Lock, Q as ExternalLink, R as ListPlus, S as Radio, T as Pause, U as ImagePlus, V as Images, W as History, X as Film, Y as FolderPlus, Z as FileText, _ as Shuffle, a as VolumeX, at as ChevronLeft, b as Search, c as Users, ct as Bot, d as ThumbsUp, dt as ArrowLeft, et as Cpu, f as Tag, g as SkipBack, h as SkipForward, i as WandSparkles, it as ChevronRight, j as MessageCircle, k as MonitorPlay, l as Upload, lt as Bell, m as Sparkles, n as X, nt as Clapperboard, o as Volume2, ot as Check, p as Star, q as Gamepad2, r as Wifi, rt as CircleAlert, s as Video, st as Box, t as Youtube, tt as Clock3, ut as BellOff, v as ShoppingBag, w as PictureInPicture2, x as Rocket, y as Settings2, z as Lightbulb } from "../_libs/lucide-react.mjs";
 import { n as clsx, t as cva } from "../_libs/class-variance-authority+clsx.mjs";
 import { t as twMerge } from "../_libs/tailwind-merge.mjs";
 import { n as toast, t as Toaster } from "../_libs/sonner.mjs";
@@ -11,7 +11,7 @@ import { a as DialogPortal, i as DialogOverlay, n as DialogClose, o as DialogTit
 import { t as Root } from "../_libs/radix-ui__react-separator.mjs";
 import { a as Trigger, i as Root2, n as Item2, r as Portal2, t as Content2 } from "../_libs/@radix-ui/react-dropdown-menu+[...].mjs";
 import { i as SliderTrack, n as SliderRange, r as SliderThumb, t as Slider$1 } from "../_libs/@radix-ui/react-slider+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-C-4VyxJs.js
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-5G0itYQD.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var __defProp = Object.defineProperty;
@@ -393,6 +393,66 @@ async function deleteDirHandle(id) {
 	});
 	db.close();
 }
+var IDB_WRITE_CHUNK = 400;
+async function clearFolderVideosTx(db, folderId) {
+	await new Promise((resolve, reject) => {
+		const tx = db.transaction(VIDEO_STORE, "readwrite");
+		const req = tx.objectStore(VIDEO_STORE).index("folderId").openCursor(IDBKeyRange.only(folderId));
+		req.onsuccess = () => {
+			const cursor = req.result;
+			if (cursor) {
+				cursor.delete();
+				cursor.continue();
+			}
+		};
+		tx.oncomplete = () => resolve();
+		tx.onerror = () => reject(tx.error);
+	});
+}
+async function putVideosChunked(db, videos) {
+	for (let i = 0; i < videos.length; i += IDB_WRITE_CHUNK) {
+		const slice = videos.slice(i, i + IDB_WRITE_CHUNK);
+		await new Promise((resolve, reject) => {
+			const tx = db.transaction(VIDEO_STORE, "readwrite");
+			const store = tx.objectStore(VIDEO_STORE);
+			for (const video of slice) {
+				if (video.isSample) continue;
+				store.put(video);
+			}
+			tx.oncomplete = () => resolve();
+			tx.onerror = () => reject(tx.error);
+		});
+	}
+}
+/** Replace one folder's catalog rows in chunked IndexedDB writes. */
+async function saveFolderVideos(folderId, videos) {
+	const db = await openDb();
+	await clearFolderVideosTx(db, folderId);
+	await putVideosChunked(db, videos);
+	db.close();
+}
+/** Append/upsert catalog rows without rewriting the whole folder (batched ingest). */
+async function appendCatalogVideos(videos) {
+	if (!videos.length) return;
+	const db = await openDb();
+	await putVideosChunked(db, videos);
+	db.close();
+}
+async function clearFolderVideos(folderId) {
+	const db = await openDb();
+	await clearFolderVideosTx(db, folderId);
+	db.close();
+}
+async function loadCatalogVideos() {
+	const db = await openDb();
+	const rows = await new Promise((resolve, reject) => {
+		const req = db.transaction(VIDEO_STORE, "readonly").objectStore(VIDEO_STORE).getAll();
+		req.onsuccess = () => resolve(req.result ?? []);
+		req.onerror = () => reject(req.error);
+	});
+	db.close();
+	return rows.filter((v) => !v.isSample);
+}
 function normalize(raw) {
 	const starred = raw.starred ?? [];
 	const favorites = raw.favorites ?? starred;
@@ -606,6 +666,8 @@ var SYSTEM_SOURCES = /* @__PURE__ */ new Set([
 	"twitch",
 	"live",
 	"prints",
+	"photos",
+	"spotify",
 	"games",
 	"shop",
 	"streaming",
@@ -617,11 +679,13 @@ var files = /* @__PURE__ */ new Map();
 var fileHandles = /* @__PURE__ */ new Map();
 var dirHandles = /* @__PURE__ */ new Map();
 var objectUrls = /* @__PURE__ */ new Map();
+var MAX_OBJECT_URLS = 48;
 function rememberFile(id, file) {
 	files.set(id, file);
 }
 function rememberFileHandle(id, handle) {
 	fileHandles.set(id, handle);
+	files.delete(id);
 }
 function rememberDirHandle(folderId, handle) {
 	dirHandles.set(folderId, handle);
@@ -641,10 +705,29 @@ function forgetFolder(folderId, videoIds) {
 		}
 	}
 }
+function rememberObjectUrl(id, url) {
+	if (objectUrls.has(id)) {
+		const prev = objectUrls.get(id);
+		if (prev && prev !== url) URL.revokeObjectURL(prev);
+		objectUrls.delete(id);
+	}
+	while (objectUrls.size >= MAX_OBJECT_URLS) {
+		const oldest = objectUrls.keys().next().value;
+		if (!oldest) break;
+		const prev = objectUrls.get(oldest);
+		if (prev) URL.revokeObjectURL(prev);
+		objectUrls.delete(oldest);
+	}
+	objectUrls.set(id, url);
+}
 async function resolvePlayUrl(video) {
 	if (video.src) return video.src;
 	const cached = objectUrls.get(video.id);
-	if (cached) return cached;
+	if (cached) {
+		objectUrls.delete(video.id);
+		objectUrls.set(video.id, cached);
+		return cached;
+	}
 	let file = files.get(video.id);
 	if (!file) {
 		const handle = fileHandles.get(video.id);
@@ -652,10 +735,9 @@ async function resolvePlayUrl(video) {
 	}
 	if (!file) throw new Error("This file is no longer available. Add the folder again.");
 	const url = URL.createObjectURL(file);
-	objectUrls.set(video.id, url);
+	rememberObjectUrl(video.id, url);
 	return url;
 }
-var MAX_VIDEOS = 8e4;
 var MAX_DEPTH = 14;
 var MAX_DRIVE_DEPTH = 12;
 function asOpts(arg) {
@@ -668,11 +750,20 @@ function aborted(signal) {
 async function yieldUi() {
 	await new Promise((r) => setTimeout(r, 0));
 }
-function maybeFlush(acc, flushed, onBatch) {
+var BATCH_SIZE = 250;
+function maybeFlush(acc, flushed, onBatch, force = false) {
 	if (!onBatch) return;
-	if (acc.length - flushed.n < 80) return;
+	if (!force && acc.length - flushed.n < BATCH_SIZE) return;
+	if (acc.length <= flushed.n) return;
 	onBatch(acc.slice(flushed.n));
 	flushed.n = acc.length;
+}
+function throttleProgress(opts, state, progress) {
+	const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+	if (progress.found - state.lastFound < 40 && now - state.lastAt < 150 && progress.found % 200 !== 0) return;
+	state.lastAt = now;
+	state.lastFound = progress.found;
+	opts.onProgress?.(progress);
 }
 async function ingestDirectoryHandle(dir, folderId, arg) {
 	const opts = asOpts(arg);
@@ -683,32 +774,35 @@ async function ingestDirectoryHandle(dir, folderId, arg) {
 	if (opts.onBatch && acc.length > flushed.n) opts.onBatch(acc.slice(flushed.n));
 	return acc;
 }
-async function walkHandle(dir, prefix, folderId, acc, folderName, opts, flushed, depth, drive) {
-	if (depth > (drive ? MAX_DRIVE_DEPTH : MAX_DEPTH) || acc.length >= MAX_VIDEOS || aborted(opts.signal)) return;
+async function walkHandle(dir, prefix, folderId, acc, folderName, opts, flushed, depth, drive, progressState = {
+	lastAt: 0,
+	lastFound: 0
+}) {
+	if (depth > (drive ? MAX_DRIVE_DEPTH : MAX_DEPTH) || aborted(opts.signal)) return;
 	const iterable = dir;
 	if (typeof iterable.entries !== "function") return;
 	let looked = 0;
 	for await (const [name, handle] of iterable.entries()) {
-		if (aborted(opts.signal) || acc.length >= MAX_VIDEOS) return;
+		if (aborted(opts.signal)) return;
 		looked += 1;
 		if (handle.kind === "directory") {
 			if (shouldSkipDir(name)) continue;
-			await walkHandle(handle, `${prefix}${name}/`, folderId, acc, folderName, opts, flushed, depth + 1, drive);
+			await walkHandle(handle, `${prefix}${name}/`, folderId, acc, folderName, opts, flushed, depth + 1, drive, progressState);
 		} else if (handle.kind === "file" && isVideoFile(name)) try {
 			const fileHandle = handle;
 			const file = await fileHandle.getFile();
 			pushVideo(acc, folderId, prefix + name, file, fileHandle);
-			opts.onProgress?.({
+			throttleProgress(opts, progressState, {
 				found: acc.length,
 				looked,
 				folderName,
 				current: prefix + name
 			});
 			maybeFlush(acc, flushed, opts.onBatch);
-			if (acc.length % 30 === 0) await yieldUi();
+			if (acc.length % 20 === 0) await yieldUi();
 		} catch {}
 		else if (looked % 200 === 0) {
-			opts.onProgress?.({
+			throttleProgress(opts, progressState, {
 				found: acc.length,
 				looked,
 				folderName,
@@ -724,22 +818,26 @@ async function ingestFileList(list, folderId, folderName, arg) {
 	const acc = [];
 	const flushed = { n: 0 };
 	let looked = 0;
+	const progressState = {
+		lastAt: 0,
+		lastFound: 0
+	};
 	for (const file of files) {
-		if (aborted(opts.signal) || acc.length >= MAX_VIDEOS) break;
+		if (aborted(opts.signal)) break;
 		looked += 1;
 		const rel = "webkitRelativePath" in file && file.webkitRelativePath ? file.webkitRelativePath : file.name;
 		const parts = rel.split("/").filter(Boolean);
 		if (parts.some((p, i) => i < parts.length - 1 && shouldSkipDir(p))) continue;
 		if (!isVideoFile(file.name, file.type)) continue;
 		pushVideo(acc, folderId, rel, file);
-		opts.onProgress?.({
+		throttleProgress(opts, progressState, {
 			found: acc.length,
 			looked,
 			folderName,
 			current: rel
 		});
 		maybeFlush(acc, flushed, opts.onBatch);
-		if (acc.length % 30 === 0) await yieldUi();
+		if (acc.length % 20 === 0) await yieldUi();
 	}
 	if (opts.onBatch && acc.length > flushed.n) opts.onBatch(acc.slice(flushed.n));
 	return acc;
@@ -782,7 +880,7 @@ async function ingestDataTransfer(dt, folderId, folderName, arg) {
 	return acc;
 }
 async function walkEntry(entry, prefix, folderId, acc, folderName, opts, flushed, depth) {
-	if (depth > MAX_DEPTH || acc.length >= MAX_VIDEOS || aborted(opts.signal)) return;
+	if (depth > MAX_DEPTH || aborted(opts.signal)) return;
 	if (entry.isDirectory) {
 		if (shouldSkipDir(entry.name)) return;
 		const children = await readAllEntries(entry.createReader());
@@ -794,21 +892,21 @@ async function walkEntry(entry, prefix, folderId, acc, folderName, opts, flushed
 		const file = await entryFile(entry);
 		const rel = prefix ? `${prefix}${entry.name}` : entry.name;
 		pushVideo(acc, folderId, rel, file);
-		opts.onProgress?.({
+		if (acc.length % 40 === 0 || acc.length < 5) opts.onProgress?.({
 			found: acc.length,
 			looked: acc.length,
 			folderName,
 			current: rel
 		});
 		maybeFlush(acc, flushed, opts.onBatch);
-		if (acc.length % 30 === 0) await yieldUi();
+		if (acc.length % 20 === 0) await yieldUi();
 	} catch {}
 }
 function pushVideo(acc, folderId, relPath, file, handle) {
 	const name = file.name;
 	const id = `${folderId}:${relPath}`;
-	rememberFile(id, file);
 	if (handle) rememberFileHandle(id, handle);
+	else rememberFile(id, file);
 	acc.push({
 		id,
 		folderId,
@@ -851,6 +949,127 @@ async function requestDirPermission(handle) {
 	if (typeof h.requestPermission !== "function") return false;
 	return await h.requestPermission({ mode: "read" }) === "granted";
 }
+/** Tokenize for indexed search: lowercase alphanumerics, keep path-ish separators as splits. */
+function tokenize(text) {
+	const out = [];
+	const lower = text.toLowerCase();
+	let start = -1;
+	for (let i = 0; i <= lower.length; i++) {
+		const ch = lower.charCodeAt(i);
+		if (i < lower.length && (ch >= 48 && ch <= 57 || ch >= 97 && ch <= 122 || ch === 95)) {
+			if (start < 0) start = i;
+		} else if (start >= 0) {
+			if (i - start >= 1) out.push(lower.slice(start, i));
+			start = -1;
+		}
+	}
+	return out;
+}
+function haystackFor(video, tags, categories) {
+	return [
+		video.name,
+		video.path,
+		video.genre ?? "",
+		video.tagline ?? "",
+		video.collection ?? "",
+		categories[video.id] ?? "",
+		...tags[video.id] ?? [],
+		video.remote?.channelName ?? "",
+		video.remote?.kind ?? ""
+	].join(" ");
+}
+/**
+* Inverted token index over the durable catalog.
+* Search is AND-of-tokens with prefix expansion so typing stays cheap
+* without scanning every video field on the main thread each keystroke.
+*/
+var VideoSearchIndex = class {
+	byToken = /* @__PURE__ */ new Map();
+	docTokens = /* @__PURE__ */ new Map();
+	videosRef = null;
+	tagsRef = null;
+	categoriesRef = null;
+	clear() {
+		this.byToken.clear();
+		this.docTokens.clear();
+		this.videosRef = null;
+		this.tagsRef = null;
+		this.categoriesRef = null;
+	}
+	unlink(id) {
+		const prev = this.docTokens.get(id);
+		if (!prev) return;
+		for (const token of prev) {
+			const set = this.byToken.get(token);
+			if (!set) continue;
+			set.delete(id);
+			if (!set.size) this.byToken.delete(token);
+		}
+		this.docTokens.delete(id);
+	}
+	link(id, text) {
+		const tokens = [...new Set(tokenize(text))];
+		this.docTokens.set(id, tokens);
+		for (const token of tokens) {
+			let set = this.byToken.get(token);
+			if (!set) {
+				set = /* @__PURE__ */ new Set();
+				this.byToken.set(token, set);
+			}
+			set.add(id);
+		}
+	}
+	upsert(video, tags, categories) {
+		this.unlink(video.id);
+		this.link(video.id, haystackFor(video, tags, categories));
+	}
+	remove(id) {
+		this.unlink(id);
+	}
+	/**
+	* Sync index to current store slices. Append-only growth (ingest batches)
+	* only indexes the new suffix; tag/category or reorder changes rebuild.
+	*/
+	sync(videos, tags, categories) {
+		if (videos === this.videosRef && tags === this.tagsRef && categories === this.categoriesRef) return;
+		const prevVideos = this.videosRef;
+		if (!(tags !== this.tagsRef || categories !== this.categoriesRef) && prevVideos != null && videos.length >= prevVideos.length && prevVideos.every((v, i) => v === videos[i])) for (let i = prevVideos.length; i < videos.length; i++) this.upsert(videos[i], tags, categories);
+		else {
+			this.byToken.clear();
+			this.docTokens.clear();
+			for (const video of videos) this.link(video.id, haystackFor(video, tags, categories));
+		}
+		this.videosRef = videos;
+		this.tagsRef = tags;
+		this.categoriesRef = categories;
+	}
+	/** Matching video ids, or null when query is empty (caller keeps full list). */
+	search(query) {
+		const tokens = tokenize(query);
+		if (!tokens.length) return null;
+		let acc = null;
+		for (const token of tokens) {
+			const hits = this.idsForPrefix(token);
+			if (!hits.size) return /* @__PURE__ */ new Set();
+			if (!acc) {
+				acc = hits;
+				continue;
+			}
+			const next = /* @__PURE__ */ new Set();
+			for (const id of acc) if (hits.has(id)) next.add(id);
+			acc = next;
+			if (!acc.size) return acc;
+		}
+		return acc ?? /* @__PURE__ */ new Set();
+	}
+	idsForPrefix(prefix) {
+		if (prefix.length >= 3 && this.byToken.has(prefix)) return this.byToken.get(prefix);
+		const out = /* @__PURE__ */ new Set();
+		for (const [token, ids] of this.byToken) if (token.startsWith(prefix) || prefix.length >= 4 && token.includes(prefix)) for (const id of ids) out.add(id);
+		return out;
+	}
+};
+var librarySearchIndex = new VideoSearchIndex();
 var HISTORY_CAP = 80;
 var STARTER_FOLLOWS = [
 	{
@@ -903,6 +1122,25 @@ function persistNow(get) {
 		notices: s.notices.slice(0, 40),
 		notifyPush: s.notifyPush
 	});
+}
+var persistTimer = null;
+function persistSoon(get) {
+	if (typeof window === "undefined") {
+		persistNow(get);
+		return;
+	}
+	if (persistTimer != null) return;
+	persistTimer = setTimeout(() => {
+		persistTimer = null;
+		persistNow(get);
+	}, 900);
+}
+function flushPersist(get) {
+	if (persistTimer != null) {
+		clearTimeout(persistTimer);
+		persistTimer = null;
+	}
+	persistNow(get);
 }
 function mergeVideos(existing, incoming) {
 	const map = new Map(existing.map((v) => [v.id, v]));
@@ -1021,7 +1259,7 @@ var useLibrary = create((set, get) => ({
 				at: Date.now()
 			}
 		} }));
-		persistNow(get);
+		persistSoon(get);
 	},
 	recordPlay: (id) => {
 		set((s) => {
@@ -1054,12 +1292,29 @@ var useLibrary = create((set, get) => ({
 	closePreview: () => set({ previewId: null }),
 	closePlayer: () => set({ activeId: null }),
 	removeVideo: (id) => {
-		set((s) => ({
-			videos: s.videos.filter((video) => video.id !== id),
-			activeId: s.activeId === id ? null : s.activeId,
-			favorites: Object.fromEntries(Object.entries(s.favorites).filter(([key]) => key !== id)),
-			likes: Object.fromEntries(Object.entries(s.likes).filter(([key]) => key !== id))
-		}));
+		set((s) => {
+			const favorites = { ...s.favorites };
+			const likes = { ...s.likes };
+			const tags = { ...s.tags };
+			const categories = { ...s.categories };
+			const progress = { ...s.progress };
+			delete favorites[id];
+			delete likes[id];
+			delete tags[id];
+			delete categories[id];
+			delete progress[id];
+			return {
+				videos: s.videos.filter((video) => video.id !== id),
+				activeId: s.activeId === id ? null : s.activeId,
+				previewId: s.previewId === id ? null : s.previewId,
+				favorites,
+				likes,
+				tags,
+				categories,
+				progress,
+				history: s.history.filter((h) => h.id !== id)
+			};
+		});
 		persistNow(get);
 	},
 	playRelative: (delta, playlist) => {
@@ -1141,34 +1396,56 @@ var useLibrary = create((set, get) => ({
 		if (!await requestDirPermission(handle)) return;
 		const folderId = `folder:${handle.name}:${crypto.randomUUID().slice(0, 8)}`;
 		rememberDirHandle(folderId, handle);
-		set({ scanning: {
-			found: 0,
-			looked: 0,
-			folderName: handle.name
-		} });
+		const adult = Boolean(opts?.adult);
+		const folder = {
+			id: folderId,
+			name: handle.name,
+			kind: "directory",
+			videoCount: 0,
+			recommended: startIn,
+			adult
+		};
+		set((s) => ({
+			folders: [...s.folders.filter((f) => f.id !== folderId), folder],
+			scanning: {
+				found: 0,
+				looked: 0,
+				folderName: handle.name
+			},
+			sourceId: adult ? "adults" : folderId
+		}));
+		let writeChain = clearFolderVideos(folderId).catch(() => void 0);
 		try {
-			const videos = await ingestDirectoryHandle(handle, folderId, (p) => set({ scanning: p }));
-			const adult = Boolean(opts?.adult);
-			const folder = {
-				id: folderId,
-				name: handle.name,
-				kind: "directory",
-				videoCount: videos.length,
-				recommended: startIn,
-				adult
-			};
+			const videos = await ingestDirectoryHandle(handle, folderId, {
+				onProgress: (p) => set({ scanning: p }),
+				onBatch: (batch) => {
+					if (!batch.length) return;
+					set((s) => ({
+						videos: s.videos.concat(batch),
+						folders: s.folders.map((f) => f.id === folderId ? {
+							...f,
+							videoCount: (f.videoCount ?? 0) + batch.length
+						} : f)
+					}));
+					writeChain = writeChain.then(() => appendCatalogVideos(batch)).catch(() => void 0);
+				}
+			});
+			await writeChain;
 			set((s) => ({
-				folders: [...s.folders.filter((f) => f.id !== folderId), folder],
-				videos: mergeVideos(s.videos, videos),
+				folders: s.folders.map((f) => f.id === folderId ? {
+					...f,
+					videoCount: videos.length
+				} : f),
 				scanning: null,
 				sourceId: adult ? "adults" : videos.length ? folderId : s.sourceId
 			}));
-			persistNow(get);
+			flushPersist(get);
 			await saveDirHandle({
 				id: folderId,
 				name: handle.name,
 				handle
 			});
+			if (videos.length) await saveFolderVideos(folderId, videos).catch(() => void 0);
 		} catch (err) {
 			set({ scanning: null });
 			throw err;
@@ -1182,53 +1459,97 @@ var useLibrary = create((set, get) => ({
 		const rel = files[0].webkitRelativePath || "";
 		const folderName = asDirectory ? rel.split("/")[0] || "Folder" : "Added files";
 		const folderId = asDirectory ? `folder:${folderName}:${crypto.randomUUID().slice(0, 8)}` : `files:${crypto.randomUUID().slice(0, 8)}`;
-		set({ scanning: {
-			found: 0,
-			looked: 0,
-			folderName
-		} });
-		const videos = await ingestFileList(files, folderId, folderName, (p) => set({ scanning: p }));
 		const adult = Boolean(opts?.adult) || get().sourceId === "adults";
 		const folder = {
 			id: folderId,
 			name: folderName,
 			kind: asDirectory ? "directory" : "files",
-			videoCount: videos.length,
+			videoCount: 0,
 			adult
 		};
 		set((s) => ({
 			folders: [...s.folders, folder],
-			videos: mergeVideos(s.videos, videos),
+			scanning: {
+				found: 0,
+				looked: 0,
+				folderName
+			},
+			sourceId: adult ? "adults" : folderId
+		}));
+		let writeChain = Promise.resolve();
+		const videos = await ingestFileList(files, folderId, folderName, {
+			onProgress: (p) => set({ scanning: p }),
+			onBatch: (batch) => {
+				if (!batch.length) return;
+				set((s) => ({
+					videos: s.videos.concat(batch),
+					folders: s.folders.map((f) => f.id === folderId ? {
+						...f,
+						videoCount: (f.videoCount ?? 0) + batch.length
+					} : f)
+				}));
+				writeChain = writeChain.then(() => appendCatalogVideos(batch)).catch(() => void 0);
+			}
+		});
+		await writeChain;
+		set((s) => ({
+			folders: s.folders.map((f) => f.id === folderId ? {
+				...f,
+				videoCount: videos.length
+			} : f),
 			scanning: null,
 			sourceId: adult ? "adults" : videos.length ? folderId : s.sourceId
 		}));
-		persistNow(get);
+		flushPersist(get);
+		if (videos.length) await saveFolderVideos(folderId, videos).catch(() => void 0);
 	},
 	ingestDrop: async (dt) => {
 		const nameGuess = dt.files?.[0]?.webkitRelativePath?.split("/")[0] || dt.files?.[0]?.name || "Dropped files";
 		const folderId = `drop:${crypto.randomUUID().slice(0, 8)}`;
-		set({ scanning: {
-			found: 0,
-			looked: 0,
-			folderName: nameGuess
-		} });
-		const videos = await ingestDataTransfer(dt, folderId, nameGuess, (p) => set({ scanning: p }));
-		const folderName = videos[0]?.path.includes("/") ? videos[0].path.split("/")[0] : "Dropped files";
 		const adult = get().sourceId === "adults";
-		const folder = {
-			id: folderId,
-			name: folderName,
-			kind: videos.some((v) => v.path.includes("/")) ? "directory" : "files",
-			videoCount: videos.length,
-			adult
-		};
 		set((s) => ({
-			folders: [...s.folders, folder],
-			videos: mergeVideos(s.videos, videos),
+			folders: [...s.folders, {
+				id: folderId,
+				name: nameGuess,
+				kind: "files",
+				videoCount: 0,
+				adult
+			}],
+			scanning: {
+				found: 0,
+				looked: 0,
+				folderName: nameGuess
+			}
+		}));
+		let writeChain = Promise.resolve();
+		const videos = await ingestDataTransfer(dt, folderId, nameGuess, {
+			onProgress: (p) => set({ scanning: p }),
+			onBatch: (batch) => {
+				if (!batch.length) return;
+				set((s) => ({
+					videos: s.videos.concat(batch),
+					folders: s.folders.map((f) => f.id === folderId ? {
+						...f,
+						videoCount: (f.videoCount ?? 0) + batch.length
+					} : f)
+				}));
+				writeChain = writeChain.then(() => appendCatalogVideos(batch)).catch(() => void 0);
+			}
+		});
+		await writeChain;
+		const folderName = videos[0]?.path.includes("/") ? videos[0].path.split("/")[0] : "Dropped files";
+		set((s) => ({
+			folders: s.folders.map((f) => f.id === folderId ? {
+				...f,
+				name: folderName,
+				kind: videos.some((v) => v.path.includes("/")) ? "directory" : "files",
+				videoCount: videos.length
+			} : f),
 			scanning: null,
 			sourceId: adult ? "adults" : videos.length ? folderId : s.sourceId
 		}));
-		persistNow(get);
+		flushPersist(get);
+		if (videos.length) await saveFolderVideos(folderId, videos).catch(() => void 0);
 	},
 	restoreFolders: async () => {
 		const prefsState = applyPrefs({});
@@ -1237,6 +1558,27 @@ var useLibrary = create((set, get) => ({
 			...prefsState,
 			hydrated: true
 		});
+		try {
+			const catalog = await loadCatalogVideos();
+			if (catalog.length) {
+				const counts = /* @__PURE__ */ new Map();
+				for (const v of catalog) counts.set(v.folderId, (counts.get(v.folderId) ?? 0) + 1);
+				set((s) => ({
+					videos: mergeVideos(s.videos, catalog),
+					folders: [...s.folders, ...[...counts.entries()].filter(([id]) => !s.folders.some((f) => f.id === id)).map(([id, videoCount]) => ({
+						id,
+						name: id.split(":")[1] || id,
+						kind: "directory",
+						videoCount,
+						adult: adultIds.has(id),
+						needsPermission: true
+					}))].map((f) => counts.has(f.id) ? {
+						...f,
+						videoCount: counts.get(f.id) ?? f.videoCount
+					} : f)
+				}));
+			}
+		} catch {}
 		let stored = [];
 		try {
 			stored = await loadDirHandles();
@@ -1253,25 +1595,47 @@ var useLibrary = create((set, get) => ({
 			}
 			const adult = adultIds.has(row.id);
 			if (perm === "granted") {
-				set({ scanning: {
-					found: 0,
-					looked: 0,
-					folderName: row.name
-				} });
-				try {
-					const videos = await ingestDirectoryHandle(row.handle, row.id, (p) => set({ scanning: p }));
-					const folder = {
+				set((s) => ({
+					scanning: {
+						found: 0,
+						looked: 0,
+						folderName: row.name
+					},
+					folders: [...s.folders.filter((f) => f.id !== row.id), {
 						id: row.id,
 						name: row.name,
 						kind: "directory",
-						videoCount: videos.length,
+						videoCount: 0,
 						adult
-					};
+					}],
+					videos: s.videos.filter((v) => v.folderId !== row.id)
+				}));
+				let writeChain = clearFolderVideos(row.id).catch(() => void 0);
+				try {
+					const videos = await ingestDirectoryHandle(row.handle, row.id, {
+						onProgress: (p) => set({ scanning: p }),
+						onBatch: (batch) => {
+							if (!batch.length) return;
+							set((s) => ({
+								videos: s.videos.concat(batch),
+								folders: s.folders.map((f) => f.id === row.id ? {
+									...f,
+									videoCount: (f.videoCount ?? 0) + batch.length
+								} : f)
+							}));
+							writeChain = writeChain.then(() => appendCatalogVideos(batch)).catch(() => void 0);
+						}
+					});
+					await writeChain;
 					set((s) => ({
-						folders: [...s.folders.filter((f) => f.id !== row.id), folder],
-						videos: mergeVideos(s.videos, videos),
+						folders: s.folders.map((f) => f.id === row.id ? {
+							...f,
+							videoCount: videos.length,
+							needsPermission: false
+						} : f),
 						scanning: null
 					}));
+					if (videos.length) await saveFolderVideos(row.id, videos).catch(() => void 0);
 				} catch {
 					set((s) => ({
 						scanning: null,
@@ -1289,7 +1653,7 @@ var useLibrary = create((set, get) => ({
 				id: row.id,
 				name: row.name,
 				kind: "directory",
-				videoCount: 0,
+				videoCount: s.folders.find((f) => f.id === row.id)?.videoCount ?? 0,
 				needsPermission: true,
 				adult
 			}] }));
@@ -1300,22 +1664,46 @@ var useLibrary = create((set, get) => ({
 		if (!handle) return;
 		if (!await requestDirPermission(handle)) return;
 		const folder = get().folders.find((f) => f.id === folderId);
-		set({ scanning: {
-			found: 0,
-			looked: 0,
-			folderName: folder?.name ?? handle.name
-		} });
-		const videos = await ingestDirectoryHandle(handle, folderId, (p) => set({ scanning: p }));
+		const name = folder?.name ?? handle.name;
+		set((s) => ({
+			scanning: {
+				found: 0,
+				looked: 0,
+				folderName: name
+			},
+			videos: s.videos.filter((v) => v.folderId !== folderId),
+			folders: s.folders.map((f) => f.id === folderId ? {
+				...f,
+				videoCount: 0,
+				needsPermission: false
+			} : f)
+		}));
+		let writeChain = clearFolderVideos(folderId).catch(() => void 0);
+		const videos = await ingestDirectoryHandle(handle, folderId, {
+			onProgress: (p) => set({ scanning: p }),
+			onBatch: (batch) => {
+				if (!batch.length) return;
+				set((s) => ({
+					videos: s.videos.concat(batch),
+					folders: s.folders.map((f) => f.id === folderId ? {
+						...f,
+						videoCount: (f.videoCount ?? 0) + batch.length
+					} : f)
+				}));
+				writeChain = writeChain.then(() => appendCatalogVideos(batch)).catch(() => void 0);
+			}
+		});
+		await writeChain;
 		set((s) => ({
 			folders: s.folders.map((f) => f.id === folderId ? {
 				...f,
 				videoCount: videos.length,
 				needsPermission: false
 			} : f),
-			videos: mergeVideos(s.videos, videos),
 			scanning: null,
 			sourceId: folder?.adult ? "adults" : folderId
 		}));
+		if (videos.length) await saveFolderVideos(folderId, videos).catch(() => void 0);
 	},
 	removeFolder: async (folderId) => {
 		if (folderId === "demo") {
@@ -1326,19 +1714,29 @@ var useLibrary = create((set, get) => ({
 		forgetFolder(folderId, ids);
 		set((s) => {
 			const favorites = { ...s.favorites };
+			const likes = { ...s.likes };
+			const tags = { ...s.tags };
+			const categories = { ...s.categories };
 			const progress = { ...s.progress };
 			for (const id of ids) {
 				delete favorites[id];
+				delete likes[id];
+				delete tags[id];
+				delete categories[id];
 				delete progress[id];
 			}
 			return {
 				folders: s.folders.filter((f) => f.id !== folderId),
 				videos: s.videos.filter((v) => v.folderId !== folderId),
 				favorites,
+				likes,
+				tags,
+				categories,
 				progress,
 				history: s.history.filter((h) => !ids.includes(h.id)),
 				sourceId: s.sourceId === folderId ? "home" : s.sourceId,
-				activeId: s.activeId && ids.includes(s.activeId) ? null : s.activeId
+				activeId: s.activeId && ids.includes(s.activeId) ? null : s.activeId,
+				previewId: s.previewId && ids.includes(s.previewId) ? null : s.previewId
 			};
 		});
 		persistNow(get);
@@ -1349,7 +1747,7 @@ var useLibrary = create((set, get) => ({
 	followRemoteQuery: async (query, kind = "auto") => {
 		set({ remoteBusy: true });
 		try {
-			const { followRemote } = await import("./api-VOZ6t1wJ.mjs");
+			const { followRemote } = await import("./api-uXBZW8EY.mjs");
 			const result = await followRemote({ data: {
 				query,
 				kind
@@ -1388,7 +1786,8 @@ var useLibrary = create((set, get) => ({
 		})).filter((i) => i.query);
 		if (!unique.length) return {
 			ok: 0,
-			failed: 0
+			failed: 0,
+			failedQueries: []
 		};
 		const existing = new Set(get().follows.map((f) => f.id));
 		set({
@@ -1401,14 +1800,16 @@ var useLibrary = create((set, get) => ({
 		});
 		let ok = 0;
 		let failed = 0;
+		const failedQueries = [];
 		const chunk = 6;
 		try {
-			const { importChannels } = await import("./api-VOZ6t1wJ.mjs");
+			const { importChannels } = await import("./api-uXBZW8EY.mjs");
 			for (let i = 0; i < unique.length; i += chunk) {
 				const slice = unique.slice(i, i + chunk);
 				const result = await importChannels({ data: { items: slice } });
 				ok += result.ok.length;
 				failed += result.failed;
+				if (result.failedQueries?.length) failedQueries.push(...result.failedQueries);
 				set((s) => {
 					let follows = s.follows;
 					let folders = s.folders;
@@ -1451,7 +1852,8 @@ var useLibrary = create((set, get) => ({
 			persistNow(get);
 			return {
 				ok,
-				failed
+				failed,
+				failedQueries
 			};
 		} catch (err) {
 			set({
@@ -1479,7 +1881,7 @@ var useLibrary = create((set, get) => ({
 		const beforeLive = new Set(get().videos.filter((v) => v.remote?.live).map((v) => v.id));
 		const beforeIds = new Set(get().videos.map((v) => v.id));
 		try {
-			const { refreshRemotes } = await import("./api-VOZ6t1wJ.mjs");
+			const { refreshRemotes } = await import("./api-uXBZW8EY.mjs");
 			const result = await refreshRemotes({ data: { channels: current } });
 			const followIds = new Set(result.channels.map((c) => c.id));
 			set((s) => ({
@@ -1568,7 +1970,11 @@ function selectVisible(state) {
 	else if (state.sourceId === "twitch") list = list.filter((v) => v.remote?.kind === "twitch");
 	else if (state.sourceId === "live") list = list.filter((v) => v.remote?.live);
 	else if (state.sourceId === "home" || state.sourceId === "all") {} else if (!SYSTEM_SOURCES.has(state.sourceId) && !inAdults) list = list.filter((v) => v.folderId === state.sourceId);
-	if (q) list = list.filter((v) => v.name.toLowerCase().includes(q) || v.path.toLowerCase().includes(q) || (v.genre ?? "").toLowerCase().includes(q) || (v.tagline ?? "").toLowerCase().includes(q) || (state.categories[v.id] ?? "").toLowerCase().includes(q) || (state.tags[v.id] ?? []).some((tag) => tag.toLowerCase().includes(q)));
+	if (q) {
+		librarySearchIndex.sync(state.videos, state.tags, state.categories);
+		const hits = librarySearchIndex.search(q);
+		if (hits) list = list.filter((v) => hits.has(v.id));
+	}
 	if (state.sourceId === "history") return list;
 	const sorted = [...list];
 	sorted.sort((a, b) => {
@@ -1799,6 +2205,12 @@ function SidebarNav({ onAddFolder, onNavigate }) {
 						onClick: () => go("photos"),
 						icon: Images,
 						label: "Photos"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(NavItem, {
+						active: sourceId === "spotify",
+						onClick: () => go("spotify"),
+						icon: Music2,
+						label: "Spotify"
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(NavItem, {
 						active: sourceId === "prints",
@@ -2085,6 +2497,19 @@ var SORTS = [
 function TopBar({ onMenu, onAddFiles }) {
 	const query = useLibrary((s) => s.query);
 	const setQuery = useLibrary((s) => s.setQuery);
+	const [draft, setDraft] = (0, import_react.useState)(query);
+	(0, import_react.useEffect)(() => {
+		setDraft(query);
+	}, [query]);
+	(0, import_react.useEffect)(() => {
+		if (draft === query) return;
+		const t = window.setTimeout(() => setQuery(draft), 180);
+		return () => window.clearTimeout(t);
+	}, [
+		draft,
+		query,
+		setQuery
+	]);
 	const view = useLibrary((s) => s.view);
 	const setView = useLibrary((s) => s.setView);
 	const sort = useLibrary((s) => s.sort);
@@ -2113,8 +2538,11 @@ function TopBar({ onMenu, onAddFiles }) {
 				className: "relative min-w-0 flex-1",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Search, { className: "pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
 					type: "search",
-					value: query,
-					onChange: (e) => setQuery(e.target.value),
+					value: draft,
+					onChange: (e) => setDraft(e.target.value),
+					onKeyDown: (e) => {
+						if (e.key === "Enter") setQuery(draft);
+					},
 					placeholder: "Search titles, channels, paths",
 					className: "pl-9",
 					"aria-label": "Search videos"
@@ -2610,10 +3038,25 @@ function VideoCard({ video, variant = "grid", index = 0, playedAt, className }) 
 		]
 	});
 }
+/** Initial / incremental page size — catalog stays full in memory/IDB; only this many cards mount. */
+var PAGE = 96;
 function VideoGrid({ videos, playedAt }) {
 	const view = useLibrary((s) => s.view);
-	const [limit, setLimit] = (0, import_react.useState)(120);
-	(0, import_react.useEffect)(() => setLimit(120), [videos.length]);
+	const [limit, setLimit] = (0, import_react.useState)(PAGE);
+	const sentinelRef = (0, import_react.useRef)(null);
+	const sourceKey = `${videos.length}:${videos[0]?.id ?? ""}:${videos[videos.length - 1]?.id ?? ""}`;
+	(0, import_react.useEffect)(() => {
+		setLimit(PAGE);
+	}, [sourceKey]);
+	(0, import_react.useEffect)(() => {
+		const el = sentinelRef.current;
+		if (!el || limit >= videos.length) return;
+		const io = new IntersectionObserver((entries) => {
+			if (entries.some((e) => e.isIntersecting)) setLimit((value) => Math.min(videos.length, value + PAGE));
+		}, { rootMargin: "600px 0px" });
+		io.observe(el);
+		return () => io.disconnect();
+	}, [limit, videos.length]);
 	const visible = videos.slice(0, limit);
 	if (!videos.length) return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 		className: "rounded-xl bg-surface px-6 py-16 text-center shadow-border",
@@ -2625,6 +3068,7 @@ function VideoGrid({ videos, playedAt }) {
 			children: "Try another source, clear search, or add a folder from this computer."
 		})]
 	});
+	const more = limit < videos.length;
 	if (view === "list") return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 		className: "flex flex-col gap-1",
 		children: visible.map((video, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(VideoCard, {
@@ -2633,16 +3077,20 @@ function VideoGrid({ videos, playedAt }) {
 			index: i,
 			playedAt: playedAt?.[video.id]
 		}, video.id))
-	}), limit < videos.length && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+	}), more && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+		ref: sentinelRef,
+		className: "h-8",
+		"aria-hidden": true
+	}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 		variant: "secondary",
 		className: "mt-5 w-full",
-		onClick: () => setLimit((value) => value + 120),
+		onClick: () => setLimit((value) => Math.min(videos.length, value + PAGE)),
 		children: [
-			"Show 120 more · ",
+			"Show more · ",
 			videos.length - limit,
 			" remaining"
 		]
-	})] });
+	})] })] });
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 		className: "grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5",
 		children: visible.map((video, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(VideoCard, {
@@ -2651,16 +3099,20 @@ function VideoGrid({ videos, playedAt }) {
 			index: i,
 			playedAt: playedAt?.[video.id]
 		}, video.id))
-	}), limit < videos.length && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+	}), more && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+		ref: sentinelRef,
+		className: "h-8",
+		"aria-hidden": true
+	}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 		variant: "secondary",
 		className: "mt-6 w-full",
-		onClick: () => setLimit((value) => value + 120),
+		onClick: () => setLimit((value) => Math.min(videos.length, value + PAGE)),
 		children: [
-			"Show 120 more · ",
+			"Show more · ",
 			videos.length - limit,
 			" remaining"
 		]
-	})] });
+	})] })] });
 }
 function Billboard({ video }) {
 	const thumb = useThumbs((s) => s.byId[video.id]);
@@ -2896,7 +3348,23 @@ var TAG_PRESETS = [
 ];
 function twitchEmbed(base) {
 	if (typeof window === "undefined") return base;
-	return `${base}${base.includes("?") ? "&" : "?"}parent=${encodeURIComponent(window.location.hostname)}`;
+	const qs = [.../* @__PURE__ */ new Set([
+		window.location.hostname,
+		window.location.hostname.replace(/^www\./, ""),
+		"localhost",
+		"127.0.0.1"
+	])].map((h) => `parent=${encodeURIComponent(h)}`).join("&");
+	return `${base}${base.includes("?") ? "&" : "?"}${qs}`;
+}
+function youtubeEmbed(base) {
+	if (!base) return null;
+	const url = new URL(base, "https://www.youtube-nocookie.com");
+	url.searchParams.set("autoplay", "1");
+	url.searchParams.set("rel", "0");
+	url.searchParams.set("modestbranding", "1");
+	url.searchParams.set("playsinline", "1");
+	if (typeof window !== "undefined") url.searchParams.set("origin", window.location.origin);
+	return url.toString();
 }
 function Player({ playlist }) {
 	const activeId = useLibrary((s) => s.activeId);
@@ -3134,7 +3602,7 @@ function Player({ playlist }) {
 	]);
 	if (!video) return null;
 	const remote = video.remote;
-	const embedSrc = remote && remote.kind !== "youtube" ? remote.kind === "twitch" ? twitchEmbed(remote.embedUrl ?? "") : remote.embedUrl ? `${remote.embedUrl}${remote.embedUrl.includes("?") ? "&" : "?"}autoplay=1&rel=0&modestbranding=1` : null : null;
+	const embedSrc = remote ? remote.kind === "twitch" ? twitchEmbed(remote.embedUrl ?? "") : remote.kind === "youtube" ? youtubeEmbed(remote.embedUrl ?? video.src ?? "") : remote.embedUrl ? `${remote.embedUrl}${remote.embedUrl.includes("?") ? "&" : "?"}autoplay=1&rel=0&modestbranding=1` : null : null;
 	const shown = scrub ?? current;
 	const dur = duration || capturedDur || video.duration || 0;
 	const i = playlist.indexOf(video.id);
@@ -3150,8 +3618,9 @@ function Player({ playlist }) {
 				src: embedSrc,
 				className: "absolute inset-0 size-full border-0 bg-bg",
 				allow: "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen",
-				allowFullScreen: true
-			}) : remote?.kind === "youtube" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				allowFullScreen: true,
+				referrerPolicy: "strict-origin-when-cross-origin"
+			}, embedSrc) : remote?.kind === "youtube" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 				className: "absolute inset-0 flex items-center justify-center bg-bg px-6 text-center",
 				children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
@@ -3160,7 +3629,7 @@ function Player({ playlist }) {
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "mx-auto mt-3 max-w-md text-sm text-muted",
-						children: "YouTube sign-in and bot checks do not work reliably inside embedded players. Open the official player to watch with your account."
+						children: "The embedded player could not be built for this title. Open it on YouTube instead."
 					}),
 					remote.watchUrl && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
 						href: remote.watchUrl,
@@ -3847,6 +4316,7 @@ function AiGuide() {
 		tags,
 		videos
 	]);
+	const localAnswer = () => localPicks.length ? `Local recommendation${localPicks.length === 1 ? "" : "s"} for “${prompt}”:\n${localPicks.slice(0, 3).map((video, index) => `${index + 1}. ${video.name} — ${video.genre ?? "a library pick"}${(tags[video.id] ?? []).length ? ` · ${(tags[video.id] ?? []).slice(0, 2).join(", ")}` : ""}`).join("\n")}\n\nThe optional cloud guide is unavailable, so these picks were ranked privately from your library signals.` : "Add a few titles, tags, likes, or favorites and the local guide will start making picks.";
 	const ask = async () => {
 		setBusy(true);
 		setAnswer("");
@@ -3856,9 +4326,9 @@ function AiGuide() {
 				prompt,
 				catalog
 			} });
-			setAnswer(result.ok ? result.text : result.error);
+			setAnswer(result.ok ? result.text : localAnswer());
 		} catch {
-			setAnswer("The recommendation guide could not respond right now.");
+			setAnswer(localAnswer());
 		} finally {
 			setBusy(false);
 		}
@@ -3953,8 +4423,9 @@ function AiGuide() {
 		]
 	});
 }
+/** Split pasted lists on newlines, commas, or whitespace (URLs never contain spaces). */
 function linesToCandidates(value, kind) {
-	return [...new Set(value.split(/[\n,]+/).map((line) => line.trim()).filter(Boolean))].map((query) => ({
+	return [...new Set(value.split(/[\s,]+/).map((line) => line.trim()).filter(Boolean))].map((query) => ({
 		query,
 		kind
 	}));
@@ -3975,10 +4446,15 @@ function ConnectPanel({ defaultKind = "youtube" }) {
 	const candidates = (0, import_react.useMemo)(() => linesToCandidates(bulk, kind), [bulk, kind]);
 	const networkFollows = follows.filter((follow) => follow.kind === kind);
 	const submit = async () => {
-		const value = query.trim();
-		if (!value) return;
+		const items = linesToCandidates(query, kind);
+		if (!items.length) return;
+		if (items.length > 1) {
+			await importItems(items);
+			setQuery("");
+			return;
+		}
 		try {
-			await followRemoteQuery(value, kind);
+			await followRemoteQuery(items[0].query, kind);
 			setQuery("");
 			toast.success(kind === "twitch" ? "Twitch channel added" : "YouTube channel added");
 		} catch (err) {
@@ -3991,7 +4467,8 @@ function ConnectPanel({ defaultKind = "youtube" }) {
 			const result = await importBatch(items);
 			setBulk("");
 			setFound([]);
-			toast.success(result.failed ? `${result.ok} added · ${result.failed} unavailable` : `${result.ok} channel${result.ok === 1 ? "" : "s"} added`);
+			if (result.failed && result.failedQueries?.length) toast.message(`${result.ok} added · ${result.failed} unavailable`, { description: result.failedQueries.slice(0, 8).join(", ") + (result.failedQueries.length > 8 ? "…" : "") });
+			else toast.success(result.failed ? `${result.ok} added · ${result.failed} unavailable` : `${result.ok} channel${result.ok === 1 ? "" : "s"} added`);
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Could not import those channels");
 		}
@@ -4001,7 +4478,7 @@ function ConnectPanel({ defaultKind = "youtube" }) {
 		if (!login) return;
 		setFinding(true);
 		try {
-			const { fetchTwitchFollowing } = await import("./api-VOZ6t1wJ.mjs");
+			const { fetchTwitchFollowing } = await import("./api-uXBZW8EY.mjs");
 			const result = await fetchTwitchFollowing({ data: { login } });
 			const rows = result.channels.map((channel) => ({
 				query: channel.login,
@@ -4076,11 +4553,11 @@ function ConnectPanel({ defaultKind = "youtube" }) {
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(StepBadge, {
 						number: "01",
-						label: "Add one creator"
+						label: "Add creators"
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "mt-2 text-sm text-muted",
-						children: kind === "youtube" ? "Paste a channel URL, @handle, channel ID, or a video link." : "Paste a Twitch channel URL or username."
+						children: kind === "youtube" ? "Paste a channel URL, @handle, channel ID, or a video link. Several at once is fine." : "Paste one or more Twitch usernames or channel URLs (comma, space, or newline separated)."
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", {
 						className: "mt-3 flex flex-col gap-2 sm:flex-row",
@@ -4091,8 +4568,8 @@ function ConnectPanel({ defaultKind = "youtube" }) {
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
 							value: query,
 							onChange: (event) => setQuery(event.target.value),
-							placeholder: kind === "youtube" ? "youtube.com/@creator or @creator" : "twitch.tv/creator or creator",
-							"aria-label": kind === "youtube" ? "YouTube channel or video" : "Twitch channel"
+							placeholder: kind === "youtube" ? "youtube.com/@creator or @creator" : "ironmouse, zackrawrr  or  twitch.tv/creator",
+							"aria-label": kind === "youtube" ? "YouTube channel or video" : "Twitch channels"
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 							type: "submit",
 							disabled: remoteBusy || !query.trim(),
@@ -4108,53 +4585,24 @@ function ConnectPanel({ defaultKind = "youtube" }) {
 					className: "border-t border-border pt-5 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(StepBadge, {
 						number: "02",
-						label: kind === "twitch" ? "Find public follows" : "Import several at once"
-					}), kind === "twitch" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+						label: "Import several at once"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 							className: "mt-2 text-sm text-muted",
-							children: "Enter a Twitch profile to look for its publicly visible follows, then choose what to add."
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "mt-3 flex flex-col gap-2 sm:flex-row",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-								value: twitchName,
-								onChange: (event) => setTwitchName(event.target.value),
-								placeholder: "Twitch username",
-								"aria-label": "Twitch username to inspect"
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-								variant: "secondary",
-								disabled: finding || !twitchName.trim(),
-								onClick: () => void findTwitchFollows(),
-								className: "sm:w-40",
-								children: [
-									finding ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, { className: "size-4 animate-spin" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ListPlus, { className: "size-4" }),
-									" ",
-									"Find follows"
-								]
-							})]
-						}),
-						found.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ImportReview, {
-							items: found,
-							onImport: () => void importItems(found),
-							busy: remoteBusy
-						})
-					] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-							className: "mt-2 text-sm text-muted",
-							children: "Paste one channel URL or @handle per line. This is the fastest way to move a saved subscription list into Reelcase."
+							children: kind === "twitch" ? "Paste a list of Twitch logins or channel URLs. You can also look up someone else's public follows below." : "Paste one channel URL or @handle per line. This is the fastest way to move a saved subscription list into Reelcase."
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("textarea", {
 							value: bulk,
 							onChange: (event) => setBulk(event.target.value),
 							className: "mt-3 min-h-28 w-full resize-y rounded-md bg-elevated px-3 py-2.5 text-sm text-fg shadow-border outline-none transition-[box-shadow] duration-150 placeholder:text-subtle focus-visible:ring-2 focus-visible:ring-ring/50",
-							placeholder: "@CreatorOne\nyoutube.com/@CreatorTwo\nhttps://youtube.com/channel/UC...",
-							"aria-label": "YouTube channels to import"
+							placeholder: kind === "twitch" ? "ironmouse\nzackrawrr\ntwitch.tv/shroud, pokimane" : "@CreatorOne\nyoutube.com/@CreatorTwo\nhttps://youtube.com/channel/UC...",
+							"aria-label": kind === "twitch" ? "Twitch channels to import" : "YouTube channels to import"
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "mt-2 flex items-center justify-between gap-3",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 								className: "text-xs text-subtle",
-								children: candidates.length ? `${candidates.length} channels ready` : "Separate channels with a new line or comma."
+								children: candidates.length ? `${candidates.length} channels ready` : "Separate with spaces, commas, or new lines."
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 								size: "sm",
 								disabled: remoteBusy || !candidates.length,
@@ -4165,6 +4613,39 @@ function ConnectPanel({ defaultKind = "youtube" }) {
 									"Import list"
 								]
 							})]
+						}),
+						kind === "twitch" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "mt-4 border-t border-border pt-4",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-sm text-muted",
+									children: "Or enter a Twitch profile to look for its publicly visible follows, then choose what to add."
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "mt-3 flex flex-col gap-2 sm:flex-row",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+										value: twitchName,
+										onChange: (event) => setTwitchName(event.target.value),
+										placeholder: "Twitch username",
+										"aria-label": "Twitch username to inspect"
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+										variant: "secondary",
+										disabled: finding || !twitchName.trim(),
+										onClick: () => void findTwitchFollows(),
+										className: "sm:w-40",
+										children: [
+											finding ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, { className: "size-4 animate-spin" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ListPlus, { className: "size-4" }),
+											" ",
+											"Find follows"
+										]
+									})]
+								}),
+								found.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ImportReview, {
+									items: found,
+									onImport: () => void importItems(found),
+									busy: remoteBusy
+								})
+							]
 						})
 					] })]
 				})]
@@ -4674,6 +5155,12 @@ function useP2PRoom(room, name) {
 	const ref = (0, import_react.useRef)(null);
 	const listeners = (0, import_react.useRef)(/* @__PURE__ */ new Set());
 	(0, import_react.useEffect)(() => {
+		if (!room.trim()) {
+			setJoined(false);
+			setPeers([]);
+			ref.current = null;
+			return;
+		}
 		const p2p = new P2PRoom({
 			room,
 			selfId,
@@ -5010,7 +5497,8 @@ function SettingsSection() {
 						icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PackageSearch, { className: "size-5" }),
 						title: "How Reelcase works",
 						copy: "Folders and files are cataloged locally; channel follows use their public pages; Watch Room sends direct peer events; and external services open only when you choose them. See PROJECT_GUIDE.md and LAN_WATCH_ROOM.md in the repository for the complete maintainer guide."
-					})
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AlexaLightControl, {})
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -5087,9 +5575,131 @@ function PrintsSection() {
 		})
 	});
 }
+function SpotifySection() {
+	const [saved, setSaved] = (0, import_react.useState)(() => {
+		if (typeof window === "undefined") return "";
+		try {
+			return localStorage.getItem("reelcase.spotify.playlist") ?? "";
+		} catch {
+			return "";
+		}
+	});
+	const [playlistUrl, setPlaylistUrl] = (0, import_react.useState)(saved);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(HubShell, {
+		eyebrow: "Music companion",
+		icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Music2, { className: "size-4" }),
+		title: "Spotify, beside your library.",
+		copy: "Keep music separate from video playback. Connect through Spotify’s official player or save a playlist link locally for your next listening session.",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			className: "mt-6 rounded-lg bg-elevated p-5 shadow-border",
+			children: [
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "text-sm font-medium text-fg",
+					children: "Open Spotify"
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "mt-1 text-sm text-muted",
+					children: "Account sign-in and playback remain on Spotify’s official site or app. Reelcase does not collect your Spotify password or tokens."
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					className: "mt-4 flex flex-wrap gap-2",
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
+						href: "https://open.spotify.com/",
+						target: "_blank",
+						rel: "noreferrer",
+						className: "inline-flex min-h-10 items-center rounded-sm bg-accent px-4 text-sm font-medium text-accent-fg",
+						children: ["Open Spotify ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExternalLink, { className: "ml-2 size-4" })]
+					})
+				})
+			]
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			className: "mt-4 rounded-lg bg-elevated p-5 shadow-border",
+			children: [
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "text-sm font-medium text-fg",
+					children: "Save a playlist shortcut"
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "mt-3 flex flex-col gap-2 sm:flex-row",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+						value: playlistUrl,
+						onChange: (event) => setPlaylistUrl(event.target.value),
+						placeholder: "https://open.spotify.com/playlist/...",
+						"aria-label": "Spotify playlist link"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						disabled: !playlistUrl.includes("spotify.com"),
+						onClick: () => {
+							localStorage.setItem("reelcase.spotify.playlist", playlistUrl.trim());
+							setSaved(playlistUrl.trim());
+						},
+						children: "Save shortcut"
+					})]
+				}),
+				saved && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
+					className: "mt-3 inline-flex text-sm text-accent hover:text-fg",
+					href: saved,
+					target: "_blank",
+					rel: "noreferrer",
+					children: ["Open saved playlist ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExternalLink, { className: "ml-1 size-4" })]
+				})
+			]
+		})]
+	});
+}
+function AlexaLightControl() {
+	const [scene, setScene] = (0, import_react.useState)("Movie night");
+	const [saved, setSaved] = (0, import_react.useState)(false);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "rounded-lg bg-elevated p-5 shadow-border",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+				className: "text-accent",
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Lightbulb, { className: "size-5" })
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+				className: "mt-3 font-display text-2xl text-fg",
+				children: "Alexa light scenes"
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				className: "mt-2 text-sm leading-6 text-muted",
+				children: "Set a preferred scene locally, then ask Alexa to run that scene. Direct device control needs an authorized Alexa Smart Home skill, which is not connected here."
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "mt-3 flex flex-wrap gap-2",
+				children: [
+					"Movie night",
+					"Bright",
+					"Warm",
+					"Pause lights"
+				].map((item) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+					size: "sm",
+					variant: scene === item ? "default" : "secondary",
+					onClick: () => setScene(item),
+					children: item
+				}, item))
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+				size: "sm",
+				className: "mt-3",
+				onClick: () => {
+					localStorage.setItem("reelcase.alexa.scene", scene);
+					setSaved(true);
+				},
+				children: "Save preferred scene"
+			}),
+			saved && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+				className: "mt-2 text-xs text-accent",
+				children: [
+					"Saved. Say “Alexa, ",
+					scene,
+					".” after creating that scene in the Alexa app."
+				]
+			})
+		]
+	});
+}
 function PhotosSection() {
 	const [photos, setPhotos] = (0, import_react.useState)([]);
-	const [person, setPerson] = (0, import_react.useState)("");
 	const [selectedPerson, setSelectedPerson] = (0, import_react.useState)("All photos");
 	const [photoSearch, setPhotoSearch] = (0, import_react.useState)("");
 	const [favoritesOnly, setFavoritesOnly] = (0, import_react.useState)(false);
@@ -5746,7 +6356,7 @@ function WatchRoomSection() {
 	const sharedVideo = videos.find((video) => video.id === sharedVideoId);
 	const roomVideoRef = (0, import_react.useRef)(null);
 	const lastRoomTick = (0, import_react.useRef)(0);
-	const p2p = useP2PRoom(activeRoom ?? "lobby", name.trim() || "Guest");
+	const p2p = useP2PRoom(activeRoom ?? "", name.trim() || "Guest");
 	(0, import_react.useEffect)(() => p2p.onMessage((from, raw) => {
 		const data = raw;
 		if (data.type === "chat" && data.text) setChat((rows) => [...rows, `${data.name ?? from}: ${data.text}`].slice(-50));
@@ -6375,7 +6985,6 @@ function LibraryApp() {
 	const scanning = useLibrary((s) => s.scanning);
 	const activeId = useLibrary((s) => s.activeId);
 	const previewId = useLibrary((s) => s.previewId);
-	useLibrary((s) => s.hideDemo);
 	const history = useLibrary((s) => s.history);
 	const adultsUnlocked = useLibrary((s) => s.adultsUnlocked);
 	const videos = useLibrary(useShallow(selectVisible));
@@ -6507,6 +7116,7 @@ function LibraryApp() {
 	const lockedAdults = sourceId === "adults" && !adultsUnlocked;
 	const isHubSection = [
 		"photos",
+		"spotify",
 		"prints",
 		"games",
 		"shop",
@@ -6551,6 +7161,7 @@ function LibraryApp() {
 					children: lockedAdults ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PinGate, {}) : isHubSection ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
 						sourceId === "prints" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PrintsSection, {}),
 						sourceId === "photos" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PhotosSection, {}),
+						sourceId === "spotify" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SpotifySection, {}),
 						sourceId === "games" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(GamesSection, {}),
 						sourceId === "shop" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ShopSection, {}),
 						sourceId === "streaming" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(StreamingSection, {}),

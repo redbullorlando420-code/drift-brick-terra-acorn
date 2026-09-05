@@ -731,6 +731,26 @@ var LayoutGrid = createLucideIcon("layout-grid", [
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
+var Lightbulb = createLucideIcon("lightbulb", [
+	["path", {
+		d: "M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5",
+		key: "1gvzjb"
+	}],
+	["path", {
+		d: "M9 18h6",
+		key: "x1upvd"
+	}],
+	["path", {
+		d: "M10 22h4",
+		key: "ceow96"
+	}]
+]);
+/**
+* @license lucide-react v0.510.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
 var ListPlus = createLucideIcon("list-plus", [
 	["path", {
 		d: "M11 12H3",
@@ -967,6 +987,21 @@ var Monitor = createLucideIcon("monitor", [
 		key: "vw1qmm"
 	}]
 ]);
+/**
+* @license lucide-react v0.510.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
+var Music2 = createLucideIcon("music-2", [["circle", {
+	cx: "8",
+	cy: "18",
+	r: "4",
+	key: "1fc0mg"
+}], ["path", {
+	d: "M12 18V2l7 4",
+	key: "g04rme"
+}]]);
 /**
 * @license lucide-react v0.510.0 - ISC
 *
@@ -1519,4 +1554,4 @@ var Youtube = createLucideIcon("youtube", [["path", {
 	key: "1jp15x"
 }]]);
 //#endregion
-export { Clock3 as $, MessageCircle as A, Image as B, Play as C, Monitor as D, PackageSearch as E, LoaderCircle as F, Gamepad2 as G, History as H, List as I, Film as J, Folder as K, ListPlus as L, Maximize as M, Lock as N, MonitorPlay as O, LockOpen as P, Cpu as Q, LayoutGrid as R, Radio as S, Pause as T, Heart as U, ImagePlus as V, Glasses as W, ExternalLink as X, FileText as Y, Download as Z, Shuffle as _, VolumeX as a, Box as at, Search as b, Users as c, BellOff as ct, ThumbsUp as d, Clapperboard as et, Tag as f, SkipBack as g, SkipForward as h, WandSparkles as i, Check as it, Menu as j, Minimize as k, Upload as l, ArrowLeft as lt, Sparkles as m, X as n, ChevronRight as nt, Volume2 as o, Bot as ot, Star as p, FolderPlus as q, Wifi as r, ChevronLeft as rt, Video as s, Bell as st, Youtube as t, CircleAlert as tt, TriangleAlert as u, ShoppingBag as v, PictureInPicture2 as w, Rocket as x, Settings2 as y, Images as z };
+export { Download as $, Minimize as A, LayoutGrid as B, Play as C, Music2 as D, PackageSearch as E, LockOpen as F, Heart as G, Image as H, LoaderCircle as I, Folder as J, Glasses as K, List as L, Menu as M, Maximize as N, Monitor as O, Lock as P, ExternalLink as Q, ListPlus as R, Radio as S, Pause as T, ImagePlus as U, Images as V, History as W, Film as X, FolderPlus as Y, FileText as Z, Shuffle as _, VolumeX as a, ChevronLeft as at, Search as b, Users as c, Bot as ct, ThumbsUp as d, ArrowLeft as dt, Cpu as et, Tag as f, SkipBack as g, SkipForward as h, WandSparkles as i, ChevronRight as it, MessageCircle as j, MonitorPlay as k, Upload as l, Bell as lt, Sparkles as m, X as n, Clapperboard as nt, Volume2 as o, Check as ot, Star as p, Gamepad2 as q, Wifi as r, CircleAlert as rt, Video as s, Box as st, Youtube as t, Clock3 as tt, TriangleAlert as u, BellOff as ut, ShoppingBag as v, PictureInPicture2 as w, Rocket as x, Settings2 as y, Lightbulb as z };

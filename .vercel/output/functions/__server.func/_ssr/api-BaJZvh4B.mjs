@@ -1,6 +1,6 @@
 import { t as createServerFn } from "./ssr.mjs";
 import { t as createServerRpc } from "./createServerRpc-A6pJPYTF.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/api-DDrjsna2.js
+//#region node_modules/.nitro/vite/services/ssr/assets/api-BaJZvh4B.js
 function asString(v) {
 	return typeof v === "string" ? v : "";
 }
@@ -64,7 +64,7 @@ function ytChannelIdFromText(text) {
 	return canon ? canon[1] : null;
 }
 function decodeXml(s) {
-	return s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">").replace(/"/g, "\"").replace(/&#39;/g, "'");
+	return s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, "\"").replace(/&#39;/g, "'").replace(/&amp;/g, "&");
 }
 function tag(xml, name) {
 	const m = xml.match(new RegExp(`<${name}[^>]*>([\\s\\S]*?)</${name}>`));
@@ -379,10 +379,17 @@ var importChannels = createServerFn({ method: "POST" }).validator((data) => pars
 			return null;
 		}
 	});
-	const ok = rows.filter((r) => r != null);
+	const ok = [];
+	const failedQueries = [];
+	for (let i = 0; i < rows.length; i++) {
+		const row = rows[i];
+		if (row) ok.push(row);
+		else failedQueries.push(data.items[i]?.query ?? "");
+	}
 	return {
 		ok,
-		failed: rows.length - ok.length
+		failed: failedQueries.length,
+		failedQueries: failedQueries.filter(Boolean)
 	};
 });
 function parseTwitchUser(data) {

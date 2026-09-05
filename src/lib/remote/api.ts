@@ -454,6 +454,7 @@ async function mapPool<T, R>(items: T[], size: number, fn: (item: T) => Promise<
 export type ImportBatchResult = {
   ok: FollowResult[];
   failed: number;
+  failedQueries: string[];
 };
 
 export const importChannels = createServerFn({ method: "POST" })
@@ -468,8 +469,14 @@ export const importChannels = createServerFn({ method: "POST" })
         return null;
       }
     });
-    const ok = rows.filter((r): r is FollowResult => r != null);
-    return { ok, failed: rows.length - ok.length };
+    const ok: FollowResult[] = [];
+    const failedQueries: string[] = [];
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      if (row) ok.push(row);
+      else failedQueries.push(data.items[i]?.query ?? "");
+    }
+    return { ok, failed: failedQueries.length, failedQueries: failedQueries.filter(Boolean) };
   });
 
 type FollowList = {

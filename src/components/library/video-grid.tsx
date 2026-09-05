@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useLibrary } from "@/lib/videos/store";
 import type { LibraryVideo } from "@/lib/videos/types";
 
+/** Initial / incremental page size — catalog stays full in memory/IDB; only this many cards mount. */
 const PAGE = 96;
 const RAIL_CAP = 24;
 
