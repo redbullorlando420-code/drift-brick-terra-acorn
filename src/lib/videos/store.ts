@@ -289,12 +289,29 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   closePreview: () => set({ previewId: null }),
   closePlayer: () => set({ activeId: null }),
   removeVideo: (id) => {
-    set((s) => ({
-      videos: s.videos.filter((video) => video.id !== id),
-      activeId: s.activeId === id ? null : s.activeId,
-      favorites: Object.fromEntries(Object.entries(s.favorites).filter(([key]) => key !== id)),
-      likes: Object.fromEntries(Object.entries(s.likes).filter(([key]) => key !== id)),
-    }));
+    set((s) => {
+      const favorites = { ...s.favorites };
+      const likes = { ...s.likes };
+      const tags = { ...s.tags };
+      const categories = { ...s.categories };
+      const progress = { ...s.progress };
+      delete favorites[id];
+      delete likes[id];
+      delete tags[id];
+      delete categories[id];
+      delete progress[id];
+      return {
+        videos: s.videos.filter((video) => video.id !== id),
+        activeId: s.activeId === id ? null : s.activeId,
+        previewId: s.previewId === id ? null : s.previewId,
+        favorites,
+        likes,
+        tags,
+        categories,
+        progress,
+        history: s.history.filter((h) => h.id !== id),
+      };
+    });
     persistNow(get);
   },
   playRelative: (delta, playlist) => {
@@ -551,19 +568,29 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     forgetFolder(folderId, ids);
     set((s) => {
       const favorites = { ...s.favorites };
+      const likes = { ...s.likes };
+      const tags = { ...s.tags };
+      const categories = { ...s.categories };
       const progress = { ...s.progress };
       for (const id of ids) {
         delete favorites[id];
+        delete likes[id];
+        delete tags[id];
+        delete categories[id];
         delete progress[id];
       }
       return {
         folders: s.folders.filter((f) => f.id !== folderId),
         videos: s.videos.filter((v) => v.folderId !== folderId),
         favorites,
+        likes,
+        tags,
+        categories,
         progress,
         history: s.history.filter((h) => !ids.includes(h.id)),
         sourceId: s.sourceId === folderId ? "home" : s.sourceId,
         activeId: s.activeId && ids.includes(s.activeId) ? null : s.activeId,
+        previewId: s.previewId && ids.includes(s.previewId) ? null : s.previewId,
       };
     });
     persistNow(get);
