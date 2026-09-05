@@ -29,5 +29,12 @@ Reelcase is a browser-first personal media hub built with TanStack Start, React,
 ## Local catalog formats
 
 - Prints: `.stl`, `.obj`, `.3mf`, and `.gcode`.
-- Games: selected folders are cataloged by file names only. Web browsers cannot launch desktop executables.
+- Games: selected folders catalog executable and shortcut names. `.url` files can launch their explicitly-declared `https` destination; `.exe`, `.lnk`, and `.appref-ms` entries stay cataloged until a native companion is installed. Users may attach a custom local cover icon.
 - Media: local folder access and video scanning are handled by `src/lib/videos/scan.ts`.
+
+## Feature map
+
+- Movie features live in `library-app.tsx` and `player.tsx`: rails, random/next playback, progress, metadata, ratings, quick tags, and private notes.
+- Adult browsing uses the same local tag store but only renders after the PIN gate. Never copy adult rows to public rails.
+- The game section intentionally distinguishes safe web shortcuts from desktop executables. Do not bypass browser security using `file:` paths or shell-like protocols.
+- Watch Room UI belongs in `hub-sections.tsx`; protocol notes and multi-device verification live in `LAN_WATCH_ROOM.md`.

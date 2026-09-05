@@ -12,9 +12,12 @@ import {
   LockOpen,
   Radio,
   Settings2,
+  Sparkles,
   ShoppingBag,
   Box,
+  Images,
   MonitorPlay,
+  Music2,
   Users,
   X as XIcon,
   X,
@@ -220,6 +223,18 @@ export function SidebarNav({
           }
         />
         <NavItem
+          active={sourceId === "photos"}
+          onClick={() => go("photos")}
+          icon={Images}
+          label="Photos"
+        />
+        <NavItem
+          active={sourceId === "spotify"}
+          onClick={() => go("spotify")}
+          icon={Music2}
+          label="Spotify"
+        />
+        <NavItem
           active={sourceId === "prints"}
           onClick={() => go("prints")}
           icon={Box}
@@ -254,6 +269,12 @@ export function SidebarNav({
           onClick={() => go("social")}
           icon={XIcon}
           label="X accounts"
+        />
+        <NavItem
+          active={sourceId === "assistant"}
+          onClick={() => go("assistant")}
+          icon={Sparkles}
+          label="AI guide"
         />
         <NavItem
           active={sourceId === "settings"}

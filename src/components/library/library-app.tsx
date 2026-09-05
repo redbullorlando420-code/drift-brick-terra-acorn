@@ -11,13 +11,17 @@ import { VideoGrid } from "./video-grid";
 import { Billboard, PosterGrid, TitleRail } from "./browse";
 import { PinGate } from "./pin-gate";
 import { Player } from "./player";
+import { PreVideo } from "./pre-video";
+import { AiGuide } from "./ai-guide";
 import { ConnectPanel } from "./connect-panel";
 import {
   GamesSection,
+  PhotosSection,
   PrintsSection,
   SettingsSection,
   ShopSection,
   SocialSection,
+  SpotifySection,
   StreamingSection,
   WatchRoomSection,
 } from "./hub-sections";
@@ -45,8 +49,10 @@ export function LibraryApp() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [movieShuffle, setMovieShuffle] = useState(0);
+  const [adultTag, setAdultTag] = useState("All");
 
   const restoreFolders = useLibrary((s) => s.restoreFolders);
+  const openVideo = useLibrary((s) => s.openVideo);
   const addFolder = useLibrary((s) => s.addFolder);
   const ingestFromInput = useLibrary((s) => s.ingestFromInput);
   const ingestDrop = useLibrary((s) => s.ingestDrop);
@@ -56,6 +62,7 @@ export function LibraryApp() {
   const query = useLibrary((s) => s.query);
   const scanning = useLibrary((s) => s.scanning);
   const activeId = useLibrary((s) => s.activeId);
+  const previewId = useLibrary((s) => s.previewId);
   const hideDemo = useLibrary((s) => s.hideDemo);
   const history = useLibrary((s) => s.history);
   const adultsUnlocked = useLibrary((s) => s.adultsUnlocked);
@@ -76,6 +83,9 @@ export function LibraryApp() {
     (f) => f.kind !== "demo" && f.kind !== "youtube" && f.kind !== "twitch" && !f.adult,
   );
   const adultFolders = folders.filter((f) => f.adult);
+  const tags = useLibrary((s) => s.tags);
+  const adultTagNames = useMemo(() => [...new Set(videos.flatMap((video) => tags[video.id] ?? []))].sort(), [tags, videos]);
+  const moviesByGenre = useMemo(() => [...videos].filter((video) => Boolean(video.genre)).sort((a, b) => a.genre!.localeCompare(b.genre!)), [videos]);
 
   useEffect(() => {
     void restoreFolders();
@@ -203,6 +213,8 @@ export function LibraryApp() {
       sourceId === "live");
   const lockedAdults = sourceId === "adults" && !adultsUnlocked;
   const isHubSection = [
+    "photos",
+    "spotify",
     "prints",
     "games",
     "shop",
@@ -210,6 +222,7 @@ export function LibraryApp() {
     "social",
     "watch-room",
     "settings",
+    "assistant",
   ].includes(sourceId);
 
   return (
@@ -239,12 +252,15 @@ export function LibraryApp() {
           ) : isHubSection ? (
             <>
               {sourceId === "prints" && <PrintsSection />}
+              {sourceId === "photos" && <PhotosSection />}
+              {sourceId === "spotify" && <SpotifySection />}
               {sourceId === "games" && <GamesSection />}
               {sourceId === "shop" && <ShopSection />}
               {sourceId === "streaming" && <StreamingSection />}
               {sourceId === "social" && <SocialSection />}
               {sourceId === "watch-room" && <WatchRoomSection />}
               {sourceId === "settings" && <SettingsSection />}
+              {sourceId === "assistant" && <AiGuide />}
             </>
           ) : (
             <>
@@ -284,6 +300,10 @@ export function LibraryApp() {
                   <TitleRail title="Twitch" videos={twitchVideos} variant="rail" />
                   <TitleRail title="Favorites" videos={favoriteVideos} variant="poster" />
                   <TitleRail title="Classic movies" videos={classics} variant="poster" />
+                  <TitleRail title="Top picks for tonight" videos={[...videos].sort((a, b) => Number(Boolean(b.poster)) - Number(Boolean(a.poster))).slice(0, 10)} variant="poster" />
+                  <TitleRail title="Because you liked classics" videos={[...videos].filter((video) => video.collection === "classics" || video.genre === "Drama" || video.genre === "Noir").slice(0, 18)} variant="poster" />
+                  <TitleRail title="Short films & quick watches" videos={videos.filter((video) => video.collection === "shorts" || (video.duration ?? 0) > 0 && (video.duration ?? 0) < 1800).slice(0, 18)} variant="rail" />
+                  <TitleRail title="Browse by genre" videos={moviesByGenre.slice(0, 24)} variant="poster" />
                   <TitleRail
                     title="History"
                     videos={historyVideos}
@@ -310,6 +330,7 @@ export function LibraryApp() {
 
               {sourceId === "twitch" && browsing && (
                 <>
+                  <section className="mb-7 rounded-xl bg-elevated p-5 shadow-border sm:p-6"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Live desk</p><h1 className="mt-2 font-display text-4xl text-fg">Twitch, live first.</h1><p className="mt-2 max-w-2xl text-sm text-muted">Live channels lead this view, followed by recent VODs. Add a creator above or use the public-follows finder to build a stream guide.</p></section>
                   <TitleRail title="Live" videos={liveVideos} variant="rail" />
                   <TitleRail
                     title="Recent"
@@ -371,8 +392,11 @@ export function LibraryApp() {
 
               {sourceId === "adults" && adultsUnlocked && browsing && (
                 <>
+                  <section className="mb-6 rounded-xl bg-elevated p-5 shadow-border"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Private library</p><h1 className="mt-2 font-display text-4xl text-fg">Your shelves, your tags.</h1><p className="mt-2 text-sm text-muted">Tags, history, and organization remain private to this browser. Edit a title’s tags from its preview or player.</p></div><Button disabled={!videos.length} onClick={() => { const choices = adultTag === "All" ? videos : videos.filter((video) => (tags[video.id] ?? []).includes(adultTag)); const pick = choices[Math.floor(Math.random() * choices.length)]; if (pick) openVideo(pick.id); }}><Shuffle className="size-4" /> Random private pick</Button></div><div className="mt-4 flex flex-wrap gap-2"><Button size="sm" variant={adultTag === "All" ? "default" : "secondary"} onClick={() => setAdultTag("All")}>All titles</Button>{adultTagNames.map((tag) => <Button key={tag} size="sm" variant={adultTag === tag ? "default" : "secondary"} onClick={() => setAdultTag(tag)}>{tag}</Button>)}</div></section>
                   <TitleRail title="Continue watching" videos={adultContinue} variant="rail" />
                   <TitleRail title="Favorites" videos={adultFavorites} variant="poster" />
+                  <TitleRail title="Recently added" videos={[...videos].sort((a, b) => b.addedAt - a.addedAt).slice(0, 24)} variant="rail" />
+                  <TitleRail title={adultTag === "All" ? "All private titles" : `Tagged · ${adultTag}`} videos={adultTag === "All" ? videos : videos.filter((video) => (tags[video.id] ?? []).includes(adultTag))} variant="poster" />
                   <TitleRail
                     title="History"
                     videos={adultHistory}
@@ -473,6 +497,7 @@ export function LibraryApp() {
       </div>
 
       {activeId && <Player playlist={playlist} />}
+      {previewId && <PreVideo />}
 
       {dragging && (
         <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-bg/80">

@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ChevronLeft,
   Cpu,
+  ExternalLink,
+  Glasses,
   Heart,
   Maximize,
   Minimize,
@@ -10,6 +12,7 @@ import {
   Play,
   SkipBack,
   SkipForward,
+  Shuffle,
   Volume2,
   VolumeX,
   X,
@@ -34,26 +37,18 @@ import { attachFrameCallback, probeHardwareDecode, type HwInfo } from "@/lib/vid
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 const EMPTY_TAGS: string[] = [];
+const TAG_PRESETS = ["watch-later", "favorite", "family", "4k", "short", "documentary", "how-to", "comfort"];
 
 function twitchEmbed(base: string) {
   if (typeof window === "undefined") return base;
-  const hosts = new Set([
-    window.location.hostname,
-    window.location.hostname.replace(/^www\./, ""),
-    "grok.com",
-    "www.grok.com",
-    "x.com",
-    "localhost",
-    "127.0.0.1",
-  ]);
-  const qs = [...hosts].map((h) => `parent=${encodeURIComponent(h)}`).join("&");
-  return `${base}${base.includes("?") ? "&" : "?"}${qs}`;
+  return `${base}${base.includes("?") ? "&" : "?"}parent=${encodeURIComponent(window.location.hostname)}`;
 }
 
 export function Player({ playlist }: { playlist: string[] }) {
   const activeId = useLibrary((s) => s.activeId);
   const video = useLibrary((s) => s.videos.find((v) => v.id === s.activeId));
   const closePlayer = useLibrary((s) => s.closePlayer);
+  const openVideo = useLibrary((s) => s.openVideo);
   const playRelative = useLibrary((s) => s.playRelative);
   const markProgress = useLibrary((s) => s.markProgress);
   const toggleFavorite = useLibrary((s) => s.toggleFavorite);
@@ -62,6 +57,7 @@ export function Player({ playlist }: { playlist: string[] }) {
   const setVideoCategory = useLibrary((s) => s.setVideoCategory);
   const hardwareAccel = useLibrary((s) => s.hardwareAccel);
   const setHardwareAccel = useLibrary((s) => s.setHardwareAccel);
+  const removeVideo = useLibrary((s) => s.removeVideo);
   const fav = useLibrary((s) => (s.activeId ? Boolean(s.favorites[s.activeId]) : false));
   const liked = useLibrary((s) => (s.activeId ? Boolean(s.likes[s.activeId]) : false));
   const tags = useLibrary((s) => (s.activeId ? (s.tags[s.activeId] ?? EMPTY_TAGS) : EMPTY_TAGS));
@@ -84,6 +80,8 @@ export function Player({ playlist }: { playlist: string[] }) {
   const [scrub, setScrub] = useState<number | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [hw, setHw] = useState<HwInfo | null>(null);
+  const [vrAvailable, setVrAvailable] = useState(false);
+  const [removeReady, setRemoveReady] = useState(false);
   const capturedDur = useThumbs((s) => (video ? s.durations[video.id] : undefined));
   const scrubbing = useRef(false);
 
@@ -184,6 +182,11 @@ export function Player({ playlist }: { playlist: string[] }) {
   }, [speed, src]);
 
   useEffect(() => {
+    const xr = (navigator as Navigator & { xr?: { isSessionSupported: (mode: string) => Promise<boolean> } }).xr;
+    if (xr) void xr.isSessionSupported("immersive-vr").then(setVrAvailable).catch(() => setVrAvailable(false));
+  }, []);
+
+  useEffect(() => {
     const el = mediaRef.current;
     if (!el) return;
     el.volume = volume;
@@ -215,6 +218,12 @@ export function Player({ playlist }: { playlist: string[] }) {
     if (document.fullscreenElement) await document.exitFullscreen();
     else await wrap.requestFullscreen().catch(() => {});
   }, []);
+
+  const playRandom = useCallback(() => {
+    const choices = playlist.filter((id) => id !== activeId);
+    const nextId = choices[Math.floor(Math.random() * choices.length)];
+    if (nextId) openVideo(nextId);
+  }, [activeId, openVideo, playlist]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -265,6 +274,10 @@ export function Player({ playlist }: { playlist: string[] }) {
         case "P":
           playRelative(-1, playlist);
           break;
+        case "r":
+        case "R":
+          playRandom();
+          break;
         default:
           break;
       }
@@ -272,11 +285,11 @@ export function Player({ playlist }: { playlist: string[] }) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [togglePlay, seekBy, toggleFs, closePlayer, playRelative, playlist, reveal]);
+  }, [togglePlay, seekBy, toggleFs, closePlayer, playRelative, playlist, playRandom, reveal]);
 
   if (!video) return null;
   const remote = video.remote;
-  const embedSrc = remote
+  const embedSrc = remote && remote.kind !== "youtube"
     ? remote.kind === "twitch"
       ? twitchEmbed(remote.embedUrl ?? "")
       : remote.embedUrl
@@ -305,6 +318,10 @@ export function Player({ playlist }: { playlist: string[] }) {
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
           allowFullScreen
         />
+      ) : remote?.kind === "youtube" ? (
+        <div className="absolute inset-0 flex items-center justify-center bg-bg px-6 text-center">
+          <div><p className="font-display text-3xl text-fg">This title plays on YouTube</p><p className="mx-auto mt-3 max-w-md text-sm text-muted">YouTube sign-in and bot checks do not work reliably inside embedded players. Open the official player to watch with your account.</p>{remote.watchUrl && <a href={remote.watchUrl} target="_blank" rel="noreferrer" className="mt-5 inline-flex min-h-10 items-center rounded-sm bg-accent px-4 text-sm font-medium text-accent-fg">Open YouTube <ExternalLink className="ml-2 size-4" /></a>}</div>
+        </div>
       ) : (
         <video
           ref={mediaRef}
@@ -374,6 +391,7 @@ export function Player({ playlist }: { playlist: string[] }) {
           >
             <Heart className={cn("size-4", fav && "fill-accent text-accent")} />
           </Button>
+          <Button variant="ghost" size="sm" disabled={!vrAvailable} title={vrAvailable ? "Open in Meta Quest Browser" : "VR requires Meta Quest Browser on a secure site"} onClick={() => { const xr = (navigator as Navigator & { xr?: { requestSession: (mode: string) => Promise<unknown> } }).xr; void xr?.requestSession("immersive-vr").catch(() => {}); }}><Glasses className="size-4" /> VR theater</Button>
           <Button
             variant="ghost"
             size="icon"
@@ -403,6 +421,8 @@ export function Player({ playlist }: { playlist: string[] }) {
           <Button variant="ghost" size="icon" aria-label="Close" onClick={closePlayer}>
             <X className="size-5" />
           </Button>
+          {remote?.watchUrl && <a href={remote.watchUrl} target="_blank" rel="noreferrer" className="hidden items-center gap-1 text-xs text-accent hover:text-fg sm:inline-flex">Open official player <ExternalLink className="size-3" /></a>}
+          <Button variant="ghost" size="sm" onClick={() => { if (removeReady) removeVideo(video.id); else setRemoveReady(true); }}>{removeReady ? "Confirm remove" : "Remove"}</Button>
         </div>
       </div>
 
@@ -412,6 +432,7 @@ export function Player({ playlist }: { playlist: string[] }) {
           <p className="mt-2 text-sm text-muted">{srcError || loadError}</p>
         </div>
       )}
+
 
       {!remote && (
         <div
@@ -469,6 +490,15 @@ export function Player({ playlist }: { playlist: string[] }) {
               onClick={() => playRelative(1, playlist)}
             >
               <SkipForward className="size-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Play a random video"
+              disabled={playlist.length < 2}
+              onClick={playRandom}
+            >
+              <Shuffle className="size-4" />
             </Button>
             <span className="ml-1 min-w-20 font-mono text-xs tabular-nums text-muted">
               {formatTime(shown)}
@@ -588,13 +618,16 @@ function MetadataEditor({
   const [tags, setTags] = useState(initialTags.join(", "));
   const [category, setCategory] = useState(initialCategory);
   const [rating, setRating] = useState(0);
+  const [note, setNote] = useState("");
   useEffect(() => {
     setTags(initialTags.join(", "));
     setCategory(initialCategory);
     try {
       setRating(Number(localStorage.getItem(`reelcase.rating.${videoId}`) ?? 0));
+      setNote(localStorage.getItem(`reelcase.note.${videoId}`) ?? "");
     } catch {
       setRating(0);
+      setNote("");
     }
   }, [videoId, initialCategory, initialTags]);
   return (
@@ -622,6 +655,18 @@ function MetadataEditor({
         />
       </label>
       <div>
+        <p className="text-xs text-muted">Quick tags</p>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {TAG_PRESETS.map((preset) => {
+            const selected = tags.split(",").map((tag) => tag.trim().toLowerCase()).includes(preset);
+            return <button key={preset} type="button" onClick={() => setTags((value) => {
+              const rows = value.split(",").map((tag) => tag.trim()).filter(Boolean);
+              return selected ? rows.filter((tag) => tag.toLowerCase() !== preset).join(", ") : [...rows, preset].join(", ");
+            })} className={cn("rounded-full px-2 py-1 text-[11px] shadow-border", selected ? "bg-accent text-accent-fg" : "bg-elevated text-muted")}>{preset}</button>;
+          })}
+        </div>
+      </div>
+      <div>
         <p className="text-xs text-muted">Your rating</p>
         <div className="mt-1 flex gap-1">
           {[1, 2, 3, 4, 5].map((value) => (
@@ -642,7 +687,11 @@ function MetadataEditor({
           ))}
         </div>
       </div>
-      <Button size="sm" className="w-full" onClick={() => onSave(tags.split(","), category)}>
+      <label className="block text-xs text-muted">
+        Private viewing note
+        <Input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Why save this? What to watch for?" className="mt-1" />
+      </label>
+      <Button size="sm" className="w-full" onClick={() => { localStorage.setItem(`reelcase.note.${videoId}`, note.trim()); onSave(tags.split(","), category); }}>
         Save metadata
       </Button>
     </div>

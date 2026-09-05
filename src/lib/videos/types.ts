@@ -160,12 +160,15 @@ export type SourceId =
   | "twitch"
   | "live"
   | "prints"
+  | "photos"
+  | "spotify"
   | "games"
   | "shop"
   | "streaming"
   | "social"
   | "watch-room"
   | "settings"
+  | "assistant"
   | string;
 
 export type ProgressMark = { t: number; d: number; at: number };
@@ -284,6 +287,8 @@ export const SYSTEM_SOURCES = new Set([
   "twitch",
   "live",
   "prints",
+  "photos",
+  "spotify",
   "games",
   "shop",
   "streaming",

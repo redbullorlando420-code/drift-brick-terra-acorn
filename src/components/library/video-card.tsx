@@ -33,7 +33,7 @@ export function VideoCard({
   const tags = useLibrary((s) => s.tags[video.id] ?? EMPTY_TAGS);
   const category = useLibrary((s) => s.categories[video.id] ?? "");
   const toggleLike = useLibrary((s) => s.toggleLike);
-  const openVideo = useLibrary((s) => s.openVideo);
+  const openPreview = useLibrary((s) => s.openPreview);
   const toggleFavorite = useLibrary((s) => s.toggleFavorite);
   const duration = capturedDur ?? video.duration;
   const ratio = progress && progress.d > 0 ? Math.min(1, progress.t / progress.d) : 0;
@@ -43,6 +43,7 @@ export function VideoCard({
   const live = Boolean(video.remote?.live);
   const preview = video.remote?.previewUrl;
   const [hovered, setHovered] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
 
   useEffect(() => {
     const el = ref.current;
@@ -66,10 +67,11 @@ export function VideoCard({
         (variant === "grid" || variant === "rail") && "aspect-video w-full rounded-md",
       )}
     >
-      {art ? (
+      {art && !imageFailed ? (
         <img
           src={hovered && preview ? preview : art}
           alt=""
+          onError={() => setImageFailed(true)}
           className="size-full object-cover outline outline-1 -outline-offset-1 outline-fg/10"
         />
       ) : (
@@ -137,7 +139,7 @@ export function VideoCard({
         type="button"
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        onClick={() => openVideo(video.id)}
+        onClick={() => openPreview(video.id)}
         className={cn(
           "w-full text-left outline-none",
           variant === "list" && "flex items-center gap-3 rounded-lg p-2 hover:bg-elevated",

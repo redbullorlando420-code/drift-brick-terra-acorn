@@ -1,4 +1,6 @@
 import { VideoCard } from "./video-card";
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { useLibrary } from "@/lib/videos/store";
 import type { LibraryVideo } from "@/lib/videos/types";
 
@@ -64,6 +66,9 @@ export function VideoGrid({
   playedAt?: Record<string, number>;
 }) {
   const view = useLibrary((s) => s.view);
+  const [limit, setLimit] = useState(120);
+  useEffect(() => setLimit(120), [videos.length]);
+  const visible = videos.slice(0, limit);
   if (!videos.length) {
     return (
       <div className="rounded-xl bg-surface px-6 py-16 text-center shadow-border">
@@ -76,8 +81,9 @@ export function VideoGrid({
   }
   if (view === "list") {
     return (
+      <>
       <div className="flex flex-col gap-1">
-        {videos.map((video, i) => (
+        {visible.map((video, i) => (
           <VideoCard
             key={video.id}
             video={video}
@@ -87,11 +93,14 @@ export function VideoGrid({
           />
         ))}
       </div>
+      {limit < videos.length && <Button variant="secondary" className="mt-5 w-full" onClick={() => setLimit((value) => value + 120)}>Show 120 more · {videos.length - limit} remaining</Button>}
+      </>
     );
   }
   return (
+    <>
     <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-      {videos.map((video, i) => (
+      {visible.map((video, i) => (
         <VideoCard
           key={video.id}
           video={video}
@@ -101,5 +110,7 @@ export function VideoGrid({
         />
       ))}
     </div>
+    {limit < videos.length && <Button variant="secondary" className="mt-6 w-full" onClick={() => setLimit((value) => value + 120)}>Show 120 more · {videos.length - limit} remaining</Button>}
+    </>
   );
 }

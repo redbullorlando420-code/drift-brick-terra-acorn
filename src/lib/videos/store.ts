@@ -34,6 +34,12 @@ import type {
 import { isClassicVideo, SYSTEM_SOURCES } from "./types";
 
 const HISTORY_CAP = 80;
+const STARTER_FOLLOWS: FollowedChannel[] = [
+  { id: "yt:starter-h3", kind: "youtube", handle: "H3Podcast", title: "H3 Podcast" },
+  { id: "yt:starter-ltt", kind: "youtube", handle: "LinusTechTips", title: "Linus Tech Tips" },
+  { id: "tw:starter-ironmouse", kind: "twitch", handle: "ironmouse", title: "Ironmouse" },
+  { id: "tw:starter-zackrawrr", kind: "twitch", handle: "zackrawrr", title: "Zackrawrr" },
+];
 
 export type AddOpts = { adult?: boolean };
 
@@ -55,6 +61,7 @@ type LibraryState = {
   adultPinHash: string | null;
   adultsUnlocked: boolean;
   activeId: string | null;
+  previewId: string | null;
   scanning: ScanProgress | null;
   hydrated: boolean;
   follows: FollowedChannel[];
@@ -74,7 +81,10 @@ type LibraryState = {
   recordPlay: (id: string) => void;
   clearHistory: () => void;
   openVideo: (id: string) => void;
+  openPreview: (id: string) => void;
+  closePreview: () => void;
   closePlayer: () => void;
+  removeVideo: (id: string) => void;
   playRelative: (delta: number, playlist: string[]) => void;
   setHideDemo: (hide: boolean) => void;
   setHardwareAccel: (on: boolean) => void;
@@ -160,7 +170,7 @@ function applyPrefs(partial: Partial<LibraryState>): Partial<LibraryState> {
     sourceId: prefs.sourceId === "adults" ? "home" : (prefs.sourceId ?? "home"),
     hardwareAccel: prefs.hardwareAccel ?? true,
     adultPinHash: prefs.adultPinHash ?? null,
-    follows: prefs.follows ?? [],
+    follows: prefs.follows?.length ? prefs.follows : STARTER_FOLLOWS,
     notices: prefs.notices ?? [],
     notifyPush: prefs.notifyPush ?? false,
   };
@@ -192,9 +202,10 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   adultPinHash: null,
   adultsUnlocked: false,
   activeId: null,
+  previewId: null,
   scanning: null,
   hydrated: false,
-  follows: [],
+  follows: STARTER_FOLLOWS,
   notices: [],
   notifyPush: false,
   remoteBusy: false,
@@ -271,10 +282,21 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       persistNow(get);
       return;
     }
-    set({ activeId });
+    set({ activeId, previewId: null });
     get().recordPlay(activeId);
   },
+  openPreview: (previewId) => set({ previewId }),
+  closePreview: () => set({ previewId: null }),
   closePlayer: () => set({ activeId: null }),
+  removeVideo: (id) => {
+    set((s) => ({
+      videos: s.videos.filter((video) => video.id !== id),
+      activeId: s.activeId === id ? null : s.activeId,
+      favorites: Object.fromEntries(Object.entries(s.favorites).filter(([key]) => key !== id)),
+      likes: Object.fromEntries(Object.entries(s.likes).filter(([key]) => key !== id)),
+    }));
+    persistNow(get);
+  },
   playRelative: (delta, playlist) => {
     const { activeId } = get();
     if (!activeId || !playlist.length) return;
@@ -795,7 +817,9 @@ export function selectVisible(state: LibraryState): LibraryVideo[] {
         v.name.toLowerCase().includes(q) ||
         v.path.toLowerCase().includes(q) ||
         (v.genre ?? "").toLowerCase().includes(q) ||
-        (v.tagline ?? "").toLowerCase().includes(q),
+        (v.tagline ?? "").toLowerCase().includes(q) ||
+        (state.categories[v.id] ?? "").toLowerCase().includes(q) ||
+        (state.tags[v.id] ?? []).some((tag) => tag.toLowerCase().includes(q)),
     );
   }
   if (state.sourceId === "history") return list;

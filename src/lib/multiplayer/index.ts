@@ -7,3 +7,4 @@ export type {
   SignalRow,
   RtcPollResponse,
 } from "./p2p";
+export { useP2PRoom } from "./use-p2p-room";

@@ -89,6 +89,10 @@ export const FEATURED_YOUTUBE: LibraryVideo[] = [
     tagline: "A Blender Studio open movie.",
     channel: "Blender Studio",
   }),
+  ytFilm({ id: "eRsGyueVLvQ", name: "Elephants Dream", year: 2006, duration: 650, genre: "Sci-Fi", tagline: "The first Blender open movie.", channel: "Blender" }),
+  ytFilm({ id: "YE7VzlLtp-4", name: "Sintel", year: 2010, duration: 888, genre: "Fantasy", tagline: "An open adventure from Blender.", channel: "Blender" }),
+  ytFilm({ id: "M0mLqG-E1xw", name: "Caminandes", year: 2013, duration: 120, genre: "Animation", tagline: "A short open-film journey.", channel: "Blender" }),
+  ytFilm({ id: "E9wCYsP4VfI", name: "Agent 327", year: 2017, duration: 210, genre: "Animation", tagline: "A Blender Studio open project.", channel: "Blender Studio" }),
 ];
 
 export const SAMPLE_VIDEOS: LibraryVideo[] = [

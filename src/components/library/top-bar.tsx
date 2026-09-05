@@ -68,7 +68,7 @@ export function TopBar({
             Scanning {scanning.folderName} · {scanning.found}
           </span>
         )}
-        {sourceId !== "history" && sourceId !== "home" && sourceId !== "movies" && sourceId !== "adults" && (
+        {sourceId !== "history" && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm">

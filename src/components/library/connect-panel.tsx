@@ -36,6 +36,7 @@ export function ConnectPanel({ defaultKind = "youtube" }: { defaultKind?: Remote
   const follows = useLibrary((s) => s.follows);
   const [kind, setKind] = useState<RemoteKind>(defaultKind);
   const [query, setQuery] = useState("");
+  const [discovery, setDiscovery] = useState("");
   const [bulk, setBulk] = useState("");
   const [twitchName, setTwitchName] = useState("");
   const [found, setFound] = useState<ImportCandidate[]>([]);
@@ -268,6 +269,16 @@ export function ConnectPanel({ defaultKind = "youtube" }: { defaultKind?: Remote
           </p>
         )}
       </div>
+      {kind === "youtube" && (
+        <div className="border-t border-border px-5 py-5 sm:px-6">
+          <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Live discovery</p>
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Input value={discovery} onChange={(event) => setDiscovery(event.target.value)} placeholder="Search live channels, games, or events" aria-label="Discover live YouTube channels" />
+            <a className="inline-flex min-h-10 items-center justify-center rounded-sm bg-accent px-4 text-sm font-medium text-accent-fg" target="_blank" rel="noreferrer" href={`https://www.youtube.com/results?search_query=${encodeURIComponent(discovery || "live")}&sp=EgJAAQ%3D%3D`}>Browse live</a>
+          </div>
+          <p className="mt-2 text-xs text-subtle">Open a live channel, then paste it above to add it to your guide. Your followed channels remain browsable, refreshable, and ready for a random pick from Home.</p>
+        </div>
+      )}
     </section>
   );
 }
