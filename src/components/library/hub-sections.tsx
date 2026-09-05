@@ -6,7 +6,6 @@ import {
   Download,
   ExternalLink,
   Gamepad2,
-  Heart,
   Images,
   ImagePlus,
   MessageCircle,
@@ -21,7 +20,6 @@ import {
   Settings2,
   Lightbulb,
   ShoppingBag,
-  Ticket,
   Users,
   Wifi,
   X,
@@ -200,8 +198,15 @@ export function PrintsSection() {
 }
 
 export function SpotifySection() {
-  const [playlistUrl, setPlaylistUrl] = useState("");
-  const [saved, setSaved] = useState("");
+  const [saved, setSaved] = useState(() => {
+    if (typeof window === "undefined") return "";
+    try {
+      return localStorage.getItem("reelcase.spotify.playlist") ?? "";
+    } catch {
+      return "";
+    }
+  });
+  const [playlistUrl, setPlaylistUrl] = useState(saved);
   return <HubShell eyebrow="Music companion" icon={<Music2 className="size-4" />} title="Spotify, beside your library." copy="Keep music separate from video playback. Connect through Spotify’s official player or save a playlist link locally for your next listening session.">
     <div className="mt-6 rounded-lg bg-elevated p-5 shadow-border"><p className="text-sm font-medium text-fg">Open Spotify</p><p className="mt-1 text-sm text-muted">Account sign-in and playback remain on Spotify’s official site or app. Reelcase does not collect your Spotify password or tokens.</p><div className="mt-4 flex flex-wrap gap-2"><a href="https://open.spotify.com/" target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center rounded-sm bg-accent px-4 text-sm font-medium text-accent-fg">Open Spotify <ExternalLink className="ml-2 size-4" /></a></div></div><div className="mt-4 rounded-lg bg-elevated p-5 shadow-border"><p className="text-sm font-medium text-fg">Save a playlist shortcut</p><div className="mt-3 flex flex-col gap-2 sm:flex-row"><Input value={playlistUrl} onChange={(event) => setPlaylistUrl(event.target.value)} placeholder="https://open.spotify.com/playlist/..." aria-label="Spotify playlist link"/><Button disabled={!playlistUrl.includes("spotify.com")} onClick={() => { localStorage.setItem("reelcase.spotify.playlist", playlistUrl.trim()); setSaved(playlistUrl.trim()); }}>Save shortcut</Button></div>{saved && <a className="mt-3 inline-flex text-sm text-accent hover:text-fg" href={saved} target="_blank" rel="noreferrer">Open saved playlist <ExternalLink className="ml-1 size-4" /></a>}</div>
   </HubShell>;
@@ -216,7 +221,6 @@ type LocalPhoto = { id: string; name: string; url: string; people: string[]; alb
 
 export function PhotosSection() {
   const [photos, setPhotos] = useState<LocalPhoto[]>([]);
-  const [person, setPerson] = useState("");
   const [selectedPerson, setSelectedPerson] = useState("All photos");
   const [photoSearch, setPhotoSearch] = useState("");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
@@ -534,7 +538,7 @@ export function WatchRoomSection() {
   const sharedVideo = videos.find((video) => video.id === sharedVideoId);
   const roomVideoRef = useRef<HTMLVideoElement>(null);
   const lastRoomTick = useRef(0);
-  const room = activeRoom ?? "lobby";
+  const room = activeRoom ?? "";
   const p2p = useP2PRoom(room, name.trim() || "Guest");
   useEffect(() => p2p.onMessage((from, raw) => {
     const data = raw as { type?: string; text?: string; name?: string; playing?: boolean; position?: number; videoId?: string; queue?: string[] };

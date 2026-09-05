@@ -8,6 +8,12 @@ export function useP2PRoom(room: string, name: string) {
   const ref = useRef<P2PRoom | null>(null);
   const listeners = useRef(new Set<(from: string, data: unknown) => void>());
   useEffect(() => {
+    if (!room.trim()) {
+      setJoined(false);
+      setPeers([]);
+      ref.current = null;
+      return;
+    }
     const p2p = new P2PRoom({ room, selfId, name, onPeersChanged: setPeers, onConnected: () => setJoined(true), onMessage: (from, data) => listeners.current.forEach((fn) => fn(from, data)) });
     ref.current = p2p; void p2p.join();
     return () => { ref.current = null; p2p.close(); };
