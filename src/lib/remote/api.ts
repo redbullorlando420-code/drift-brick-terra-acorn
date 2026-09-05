@@ -103,8 +103,7 @@ function tag(xml: string, name: string): string {
 async function fetchText(url: string): Promise<string> {
   const res = await fetch(url, {
     headers: {
-      "user-agent":
-        "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai) AppleWebKit/537.36",
+      "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai) AppleWebKit/537.36",
       accept: "text/html,application/xhtml+xml,application/xml,application/json",
     },
   });
@@ -191,10 +190,7 @@ async function youtubeFromVideo(id: string): Promise<FollowResult> {
 
 const YT_INBOX = "youtube:inbox";
 
-async function youtubeFromChannel(
-  query: string,
-  limit = 18,
-): Promise<FollowResult> {
+async function youtubeFromChannel(query: string, limit = 32): Promise<FollowResult> {
   let channelId = "";
   const trimmed = query.trim();
   if (/^UC[\w-]{20,}$/.test(trimmed)) channelId = trimmed;
@@ -219,8 +215,7 @@ async function youtubeFromChannel(
   const videos = entries.map((m) => {
     const block = m[1];
     const id = tag(block, "yt:videoId");
-    const thumb =
-      block.match(/url="([^"]+)"/)?.[1] ?? `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+    const thumb = block.match(/url="([^"]+)"/)?.[1] ?? `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
     return ytVideo({
       id,
       title: tag(block, "title") || id,
@@ -283,7 +278,7 @@ async function twitchUser(login: string): Promise<GqlUser | null> {
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      query: `query($login:String!){user(login:$login){id displayName profileImageURL(width:70) stream{title viewersCount previewImageURL(width:640,height:360) game{name}} videos(first:8,type:ARCHIVE){edges{node{id title lengthSeconds publishedAt previewThumbnailURL(width:640,height:360)}}}}}`,
+      query: `query($login:String!){user(login:$login){id displayName profileImageURL(width:70) stream{title viewersCount previewImageURL(width:640,height:360) game{name}} videos(first:20,type:ARCHIVE){edges{node{id title lengthSeconds publishedAt previewThumbnailURL(width:640,height:360)}}}}}`,
       variables: { login },
     }),
   });
@@ -292,7 +287,7 @@ async function twitchUser(login: string): Promise<GqlUser | null> {
   return json.data?.user ?? null;
 }
 
-function twitchVideos(login: string, user: GqlUser, vodLimit = 8): LibraryVideo[] {
+function twitchVideos(login: string, user: GqlUser, vodLimit = 18): LibraryVideo[] {
   const title = user.displayName ?? login;
   const folderId = `tw:${login}`;
   const out: LibraryVideo[] = [];
@@ -408,9 +403,7 @@ export const refreshRemotes = createServerFn({ method: "POST" })
           channels.push({ ...ch, ...next.channel, id: ch.id });
           videos.push(...next.videos);
         } else {
-          const q = ch.channelId
-            ? `https://www.youtube.com/channel/${ch.channelId}`
-            : ch.handle;
+          const q = ch.channelId ? `https://www.youtube.com/channel/${ch.channelId}` : ch.handle;
           const next = await youtubeFromChannel(q);
           channels.push({ ...ch, ...next.channel, id: ch.id });
           videos.push(...next.videos);
@@ -442,11 +435,7 @@ function parseImport(data: unknown): { items: ImportItemIn[] } {
   return { items: items.slice(0, 80) };
 }
 
-async function mapPool<T, R>(
-  items: T[],
-  size: number,
-  fn: (item: T) => Promise<R>,
-): Promise<R[]> {
+async function mapPool<T, R>(items: T[], size: number, fn: (item: T) => Promise<R>): Promise<R[]> {
   const out: R[] = new Array(items.length);
   let i = 0;
   const workers = Array.from({ length: Math.min(size, items.length) }, async () => {
@@ -545,4 +534,3 @@ export const fetchTwitchFollowing = createServerFn({ method: "POST" })
     }
     return { channels: [], privateList: true };
   });
-

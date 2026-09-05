@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast, Toaster } from "sonner";
 import { useShallow } from "zustand/react/shallow";
-import { Lock } from "lucide-react";
+import { Lock, Shuffle } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { SidebarNav } from "./sidebar";
@@ -12,6 +12,15 @@ import { Billboard, PosterGrid, TitleRail } from "./browse";
 import { PinGate } from "./pin-gate";
 import { Player } from "./player";
 import { ConnectPanel } from "./connect-panel";
+import {
+  GamesSection,
+  PrintsSection,
+  SettingsSection,
+  ShopSection,
+  SocialSection,
+  StreamingSection,
+  WatchRoomSection,
+} from "./hub-sections";
 import {
   selectClassics,
   selectContinue,
@@ -35,6 +44,7 @@ export function LibraryApp() {
   const pendingAdult = useRef(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [movieShuffle, setMovieShuffle] = useState(0);
 
   const restoreFolders = useLibrary((s) => s.restoreFolders);
   const addFolder = useLibrary((s) => s.addFolder);
@@ -192,13 +202,20 @@ export function LibraryApp() {
       sourceId === "twitch" ||
       sourceId === "live");
   const lockedAdults = sourceId === "adults" && !adultsUnlocked;
+  const isHubSection = [
+    "prints",
+    "games",
+    "shop",
+    "streaming",
+    "social",
+    "watch-room",
+    "settings",
+  ].includes(sourceId);
 
   return (
     <div className="flex min-h-dvh bg-bg text-fg">
       <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 border-r border-border bg-surface/80 px-3 py-5 lg:block">
-        <SidebarNav
-          onAddFolder={(adult) => onAddFolder(undefined, adult)}
-        />
+        <SidebarNav onAddFolder={(adult) => onAddFolder(undefined, adult)} />
       </aside>
 
       <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
@@ -219,6 +236,16 @@ export function LibraryApp() {
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
           {lockedAdults ? (
             <PinGate />
+          ) : isHubSection ? (
+            <>
+              {sourceId === "prints" && <PrintsSection />}
+              {sourceId === "games" && <GamesSection />}
+              {sourceId === "shop" && <ShopSection />}
+              {sourceId === "streaming" && <StreamingSection />}
+              {sourceId === "social" && <SocialSection />}
+              {sourceId === "watch-room" && <WatchRoomSection />}
+              {sourceId === "settings" && <SettingsSection />}
+            </>
           ) : (
             <>
               {!hasUserFolders && sourceId === "home" && (
@@ -230,9 +257,7 @@ export function LibraryApp() {
               )}
               {(sourceId === "home" || sourceId === "youtube" || sourceId === "twitch") &&
                 !query && (
-                  <ConnectPanel
-                    defaultKind={sourceId === "twitch" ? "twitch" : "youtube"}
-                  />
+                  <ConnectPanel defaultKind={sourceId === "twitch" ? "twitch" : "youtube"} />
                 )}
 
               {sourceId === "home" && !query && featured && <Billboard video={featured} />}
@@ -246,12 +271,25 @@ export function LibraryApp() {
               {sourceId === "home" && browsing && (
                 <>
                   <TitleRail title="Live now" videos={liveVideos} variant="rail" />
+                  <TitleRail
+                    title={follows.length ? "Latest from your channels" : "Fresh from YouTube"}
+                    videos={[...youtubeVideos, ...twitchVideos]
+                      .filter((video) => !video.remote?.live)
+                      .sort((a, b) => b.addedAt - a.addedAt)
+                      .slice(0, 32)}
+                    variant="rail"
+                  />
                   <TitleRail title="Continue watching" videos={continueVideos} variant="rail" />
                   <TitleRail title="From YouTube" videos={youtubeVideos} variant="rail" />
                   <TitleRail title="Twitch" videos={twitchVideos} variant="rail" />
                   <TitleRail title="Favorites" videos={favoriteVideos} variant="poster" />
                   <TitleRail title="Classic movies" videos={classics} variant="poster" />
-                  <TitleRail title="History" videos={historyVideos} variant="rail" playedAt={playedAt} />
+                  <TitleRail
+                    title="History"
+                    videos={historyVideos}
+                    variant="rail"
+                    playedAt={playedAt}
+                  />
                   {publicFolders.map((folder) => (
                     <TitleRail
                       key={folder.id}
@@ -273,7 +311,11 @@ export function LibraryApp() {
               {sourceId === "twitch" && browsing && (
                 <>
                   <TitleRail title="Live" videos={liveVideos} variant="rail" />
-                  <TitleRail title="Recent" videos={twitchVideos.filter((v) => !v.remote?.live)} variant="rail" />
+                  <TitleRail
+                    title="Recent"
+                    videos={twitchVideos.filter((v) => !v.remote?.live)}
+                    variant="rail"
+                  />
                   {!twitchVideos.length && (
                     <p className="text-sm text-muted">Follow a channel above to fill this shelf.</p>
                   )}
@@ -288,7 +330,8 @@ export function LibraryApp() {
                     <div className="rounded-xl bg-surface px-6 py-16 text-center shadow-border">
                       <p className="font-display text-2xl text-fg">Nobody you follow is live</p>
                       <p className="mx-auto mt-2 max-w-sm text-sm text-muted">
-                        Add Twitch channels. Reelcase checks them and pings Notifications when they go live.
+                        Add Twitch channels. Reelcase checks them and pings Notifications when they
+                        go live.
                       </p>
                     </div>
                   )}
@@ -297,10 +340,29 @@ export function LibraryApp() {
 
               {sourceId === "movies" && browsing && (
                 <>
+                  <div className="mb-5 flex items-center justify-between gap-4">
+                    <div>
+                      <h1 className="font-display text-4xl text-fg">Movies</h1>
+                      <p className="mt-1 text-sm text-muted">
+                        Liked titles stay at the front. Change the order when you want a surprise.
+                      </p>
+                    </div>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setMovieShuffle((value) => value + 1)}
+                    >
+                      <Shuffle className="size-4" /> Random pick
+                    </Button>
+                  </div>
                   <TitleRail title="Classic movies" videos={classics} variant="poster" />
                   <TitleRail
                     title="All movies"
-                    videos={videos.filter((v) => !isClassicVideo(v))}
+                    videos={[...videos.filter((v) => !isClassicVideo(v))].sort(
+                      (a, b) =>
+                        ((a.id.charCodeAt(0) + movieShuffle * 17) % 29) -
+                        ((b.id.charCodeAt(0) + movieShuffle * 17) % 29),
+                    )}
                     variant="poster"
                   />
                   {classics.length === 0 && videos.length === 0 ? null : null}
@@ -311,7 +373,12 @@ export function LibraryApp() {
                 <>
                   <TitleRail title="Continue watching" videos={adultContinue} variant="rail" />
                   <TitleRail title="Favorites" videos={adultFavorites} variant="poster" />
-                  <TitleRail title="History" videos={adultHistory} variant="rail" playedAt={playedAt} />
+                  <TitleRail
+                    title="History"
+                    videos={adultHistory}
+                    variant="rail"
+                    playedAt={playedAt}
+                  />
                   {adultFolders.map((folder) => (
                     <TitleRail
                       key={folder.id}
@@ -325,8 +392,8 @@ export function LibraryApp() {
                       <Lock className="mx-auto size-6 text-muted" />
                       <p className="mt-3 font-display text-2xl text-fg">No private folders yet</p>
                       <p className="mx-auto mt-2 max-w-sm text-sm text-muted">
-                        Add a private folder, or lock an existing source. Those titles stay off Home,
-                        Movies, and Favorites.
+                        Add a private folder, or lock an existing source. Those titles stay off
+                        Home, Movies, and Favorites.
                       </p>
                       <Button className="mt-5" onClick={() => onAddFolder(undefined, true)}>
                         Add private folder

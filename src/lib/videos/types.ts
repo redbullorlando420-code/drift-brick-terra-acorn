@@ -141,14 +141,7 @@ export type AppNotice = {
 };
 
 export type SortKey =
-  | "name"
-  | "added"
-  | "size"
-  | "duration"
-  | "recent"
-  | "type"
-  | "folder"
-  | "path";
+  "name" | "added" | "size" | "duration" | "recent" | "type" | "folder" | "path";
 
 export type SortDir = "asc" | "desc";
 
@@ -166,6 +159,13 @@ export type SourceId =
   | "youtube"
   | "twitch"
   | "live"
+  | "prints"
+  | "games"
+  | "shop"
+  | "streaming"
+  | "social"
+  | "watch-room"
+  | "settings"
   | string;
 
 export type ProgressMark = { t: number; d: number; at: number };
@@ -175,12 +175,7 @@ export type HistoryEntry = { id: string; at: number };
 export type ViewMode = "grid" | "list";
 
 export type WellKnownStart =
-  | "desktop"
-  | "documents"
-  | "downloads"
-  | "music"
-  | "pictures"
-  | "videos";
+  "desktop" | "documents" | "downloads" | "music" | "pictures" | "videos";
 
 export const RECOMMENDED_FOLDERS: {
   id: WellKnownStart;
@@ -206,9 +201,7 @@ export const SORT_OPTIONS: { key: SortKey; label: string; hint: string }[] = [
 ];
 
 export function defaultSortDir(key: SortKey): SortDir {
-  return key === "name" || key === "folder" || key === "path" || key === "type"
-    ? "asc"
-    : "desc";
+  return key === "name" || key === "folder" || key === "path" || key === "type" ? "asc" : "desc";
 }
 
 export function isVideoFile(name: string, mime?: string): boolean {
@@ -290,4 +283,11 @@ export const SYSTEM_SOURCES = new Set([
   "youtube",
   "twitch",
   "live",
+  "prints",
+  "games",
+  "shop",
+  "streaming",
+  "social",
+  "watch-room",
+  "settings",
 ]);

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Heart, Play } from "lucide-react";
+import { Heart, Play, Tag, ThumbsUp } from "lucide-react";
 import { cn, formatAgo, formatBytes, formatTime } from "@/lib/utils";
 import type { LibraryVideo } from "@/lib/videos/types";
 import { isLikelyPlayable, titleOf } from "@/lib/videos/types";
@@ -7,6 +7,7 @@ import { useThumbs } from "@/lib/videos/thumbs";
 import { useLibrary } from "@/lib/videos/store";
 
 type Variant = "grid" | "list" | "rail" | "poster";
+const EMPTY_TAGS: string[] = [];
 
 export function VideoCard({
   video,
@@ -28,6 +29,10 @@ export function VideoCard({
   const request = useThumbs((s) => s.request);
   const progress = useLibrary((s) => s.progress[video.id]);
   const fav = useLibrary((s) => Boolean(s.favorites[video.id]));
+  const liked = useLibrary((s) => Boolean(s.likes[video.id]));
+  const tags = useLibrary((s) => s.tags[video.id] ?? EMPTY_TAGS);
+  const category = useLibrary((s) => s.categories[video.id] ?? "");
+  const toggleLike = useLibrary((s) => s.toggleLike);
   const openVideo = useLibrary((s) => s.openVideo);
   const toggleFavorite = useLibrary((s) => s.toggleFavorite);
   const duration = capturedDur ?? video.duration;
@@ -113,7 +118,10 @@ export function VideoCard({
       ) : null}
       {ratio > 0.02 && (
         <span className="absolute inset-x-0 bottom-0 h-0.5 bg-fg/20">
-          <span className="block h-full bg-accent" style={{ width: `${Math.round(ratio * 100)}%` }} />
+          <span
+            className="block h-full bg-accent"
+            style={{ width: `${Math.round(ratio * 100)}%` }}
+          />
         </span>
       )}
     </div>
@@ -141,7 +149,9 @@ export function VideoCard({
         {poster}
         <div className={cn("min-w-0", variant === "list" ? "flex-1" : "mt-2.5")}>
           <div className="flex items-start gap-2">
-            <h3 className="min-w-0 flex-1 truncate text-sm font-medium text-fg">{titleOf(video)}</h3>
+            <h3 className="min-w-0 flex-1 truncate text-sm font-medium text-fg">
+              {titleOf(video)}
+            </h3>
             {fav && variant !== "list" && (
               <Heart className="mt-0.5 size-3.5 shrink-0 fill-accent text-accent" />
             )}
@@ -185,9 +195,17 @@ export function VideoCard({
               </>
             )}
           </p>
+          {(category || tags.length > 0) && variant !== "list" && (
+            <p className="mt-1 flex items-center gap-1 truncate text-xs text-subtle">
+              <Tag className="size-3 shrink-0" />
+              {[category, ...tags].filter(Boolean).join(" · ")}
+            </p>
+          )}
         </div>
         {variant === "list" && (
-          <span className="hidden max-w-xs truncate text-xs text-subtle sm:block">{video.path}</span>
+          <span className="hidden max-w-xs truncate text-xs text-subtle sm:block">
+            {video.path}
+          </span>
         )}
       </button>
       <button
@@ -204,6 +222,21 @@ export function VideoCard({
         )}
       >
         <Heart className={cn("size-3.5", fav && "fill-accent text-accent")} />
+      </button>
+      <button
+        type="button"
+        aria-label={liked ? "Remove like" : "Like"}
+        onClick={(event) => {
+          event.stopPropagation();
+          toggleLike(video.id);
+        }}
+        className={cn(
+          "absolute top-11 right-2 flex size-9 items-center justify-center rounded-sm bg-bg/55 text-fg opacity-0 backdrop-blur-sm transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100",
+          liked && "opacity-100",
+          variant === "list" && "top-12 right-3",
+        )}
+      >
+        <ThumbsUp className={cn("size-3.5", liked && "fill-accent text-accent")} />
       </button>
     </div>
   );

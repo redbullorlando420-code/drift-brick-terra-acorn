@@ -13,8 +13,11 @@ import {
   Volume2,
   VolumeX,
   X,
+  Tag,
+  ThumbsUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import {
   DropdownMenu,
@@ -30,6 +33,7 @@ import { isLikelyPlayable } from "@/lib/videos/types";
 import { attachFrameCallback, probeHardwareDecode, type HwInfo } from "@/lib/videos/hw";
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
+const EMPTY_TAGS: string[] = [];
 
 function twitchEmbed(base: string) {
   if (typeof window === "undefined") return base;
@@ -53,9 +57,15 @@ export function Player({ playlist }: { playlist: string[] }) {
   const playRelative = useLibrary((s) => s.playRelative);
   const markProgress = useLibrary((s) => s.markProgress);
   const toggleFavorite = useLibrary((s) => s.toggleFavorite);
+  const toggleLike = useLibrary((s) => s.toggleLike);
+  const setVideoTags = useLibrary((s) => s.setVideoTags);
+  const setVideoCategory = useLibrary((s) => s.setVideoCategory);
   const hardwareAccel = useLibrary((s) => s.hardwareAccel);
   const setHardwareAccel = useLibrary((s) => s.setHardwareAccel);
   const fav = useLibrary((s) => (s.activeId ? Boolean(s.favorites[s.activeId]) : false));
+  const liked = useLibrary((s) => (s.activeId ? Boolean(s.likes[s.activeId]) : false));
+  const tags = useLibrary((s) => (s.activeId ? (s.tags[s.activeId] ?? EMPTY_TAGS) : EMPTY_TAGS));
+  const category = useLibrary((s) => (s.activeId ? (s.categories[s.activeId] ?? "") : ""));
   const saved = useLibrary((s) => (s.activeId ? s.progress[s.activeId] : undefined));
 
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -278,11 +288,7 @@ export function Player({ playlist }: { playlist: string[] }) {
   const dur = duration || capturedDur || video.duration || 0;
   const i = playlist.indexOf(video.id);
   const hwLabel =
-    hardwareAccel && hw?.powerEfficient
-      ? "GPU decode"
-      : hardwareAccel
-        ? "Hardware on"
-        : "Software";
+    hardwareAccel && hw?.powerEfficient ? "GPU decode" : hardwareAccel ? "Hardware on" : "Software";
 
   return (
     <div
@@ -335,23 +341,23 @@ export function Player({ playlist }: { playlist: string[] }) {
               {video.name.replace(/\.[^/.]+$/, "")}
             </h2>
             <p className="truncate text-xs text-muted">
-              {remote
-                ? [
-                    remote.live ? "Live" : remote.kind === "youtube" ? "YouTube" : "Twitch",
-                    remote.channelName,
-                    remote.viewers ? `${remote.viewers.toLocaleString()} watching` : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")
-                : (
-                  <>
-                    {video.path}
-                    <span className="text-subtle"> · </span>
-                    {video.extension.toUpperCase()}
-                    <span className="text-subtle"> · </span>
-                    {formatBytes(video.size)}
-                  </>
-                )}
+              {remote ? (
+                [
+                  remote.live ? "Live" : remote.kind === "youtube" ? "YouTube" : "Twitch",
+                  remote.channelName,
+                  remote.viewers ? `${remote.viewers.toLocaleString()} watching` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")
+              ) : (
+                <>
+                  {video.path}
+                  <span className="text-subtle"> · </span>
+                  {video.extension.toUpperCase()}
+                  <span className="text-subtle"> · </span>
+                  {formatBytes(video.size)}
+                </>
+              )}
             </p>
           </div>
         </div>
@@ -368,6 +374,32 @@ export function Player({ playlist }: { playlist: string[] }) {
           >
             <Heart className={cn("size-4", fav && "fill-accent text-accent")} />
           </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={liked ? "Remove like" : "Like"}
+            onClick={() => toggleLike(video.id)}
+          >
+            <ThumbsUp className={cn("size-4", liked && "fill-accent text-accent")} />
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label="Edit tags and category">
+                <Tag className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-72 p-3">
+              <MetadataEditor
+                videoId={video.id}
+                initialTags={tags}
+                initialCategory={category}
+                onSave={(nextTags, nextCategory) => {
+                  setVideoTags(video.id, nextTags);
+                  setVideoCategory(video.id, nextCategory);
+                }}
+              />
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button variant="ghost" size="icon" aria-label="Close" onClick={closePlayer}>
             <X className="size-5" />
           </Button>
@@ -382,130 +414,139 @@ export function Player({ playlist }: { playlist: string[] }) {
       )}
 
       {!remote && (
-      <div
-        className={cn(
-          "relative z-10 mt-auto px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] transition-[opacity,transform] duration-200 ease-[var(--ease-smooth-out)] sm:px-6",
-          chrome ? "opacity-100" : "pointer-events-none opacity-0 translate-y-1",
-        )}
-      >
-        <Slider
-          min={0}
-          max={Math.max(dur, 0.01)}
-          step={0.05}
-          value={[shown]}
-          onValueChange={(v) => {
-            scrubbing.current = true;
-            setScrub(v[0] ?? 0);
-          }}
-          onValueCommit={(v) => {
-            const t = v[0] ?? 0;
-            const el = mediaRef.current;
-            if (el) el.currentTime = t;
-            setCurrent(t);
-            setScrub(null);
-            scrubbing.current = false;
-          }}
-          aria-label="Seek"
-        />
-        <div className="mt-3 flex items-center gap-1 sm:gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Previous"
-            disabled={i <= 0}
-            onClick={() => playRelative(-1, playlist)}
-          >
-            <SkipBack className="size-4" />
-          </Button>
-          <Button variant="secondary" size="icon" aria-label={playing ? "Pause" : "Play"} onClick={togglePlay}>
-            {playing ? (
-              <Pause className="size-4 fill-current" />
-            ) : (
-              <Play className="ml-0.5 size-4 fill-current" />
-            )}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Next"
-            disabled={i < 0 || i >= playlist.length - 1}
-            onClick={() => playRelative(1, playlist)}
-          >
-            <SkipForward className="size-4" />
-          </Button>
-          <span className="ml-1 min-w-20 font-mono text-xs tabular-nums text-muted">
-            {formatTime(shown)}
-            <span className="text-subtle"> / </span>
-            {formatTime(dur)}
-          </span>
-          <div className="ml-auto flex items-center gap-1">
+        <div
+          className={cn(
+            "relative z-10 mt-auto px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] transition-[opacity,transform] duration-200 ease-[var(--ease-smooth-out)] sm:px-6",
+            chrome ? "opacity-100" : "pointer-events-none opacity-0 translate-y-1",
+          )}
+        >
+          <Slider
+            min={0}
+            max={Math.max(dur, 0.01)}
+            step={0.05}
+            value={[shown]}
+            onValueChange={(v) => {
+              scrubbing.current = true;
+              setScrub(v[0] ?? 0);
+            }}
+            onValueCommit={(v) => {
+              const t = v[0] ?? 0;
+              const el = mediaRef.current;
+              if (el) el.currentTime = t;
+              setCurrent(t);
+              setScrub(null);
+              scrubbing.current = false;
+            }}
+            aria-label="Seek"
+          />
+          <div className="mt-3 flex items-center gap-1 sm:gap-2">
             <Button
               variant="ghost"
-              size="icon-sm"
-              aria-label={muted ? "Unmute" : "Mute"}
-              onClick={() => setMuted((m) => !m)}
+              size="icon"
+              aria-label="Previous"
+              disabled={i <= 0}
+              onClick={() => playRelative(-1, playlist)}
             >
-              {muted || volume === 0 ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
+              <SkipBack className="size-4" />
             </Button>
-            <div className="hidden w-24 sm:block">
-              <Slider
-                min={0}
-                max={1}
-                step={0.01}
-                value={[muted ? 0 : volume]}
-                onValueChange={(v) => {
-                  setVolume(v[0] ?? 0);
-                  setMuted((v[0] ?? 0) === 0);
-                }}
-                aria-label="Volume"
-              />
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="tabular-nums">
-                  {speed === 1 ? "1×" : `${speed}×`}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {SPEEDS.map((s) => (
-                  <DropdownMenuItem key={s} onSelect={() => setSpeed(s)}>
-                    {s === speed ? "· " : "  "}
-                    {s}×
+            <Button
+              variant="secondary"
+              size="icon"
+              aria-label={playing ? "Pause" : "Play"}
+              onClick={togglePlay}
+            >
+              {playing ? (
+                <Pause className="size-4 fill-current" />
+              ) : (
+                <Play className="ml-0.5 size-4 fill-current" />
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Next"
+              disabled={i < 0 || i >= playlist.length - 1}
+              onClick={() => playRelative(1, playlist)}
+            >
+              <SkipForward className="size-4" />
+            </Button>
+            <span className="ml-1 min-w-20 font-mono text-xs tabular-nums text-muted">
+              {formatTime(shown)}
+              <span className="text-subtle"> / </span>
+              {formatTime(dur)}
+            </span>
+            <div className="ml-auto flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={muted ? "Unmute" : "Mute"}
+                onClick={() => setMuted((m) => !m)}
+              >
+                {muted || volume === 0 ? (
+                  <VolumeX className="size-4" />
+                ) : (
+                  <Volume2 className="size-4" />
+                )}
+              </Button>
+              <div className="hidden w-24 sm:block">
+                <Slider
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={[muted ? 0 : volume]}
+                  onValueChange={(v) => {
+                    setVolume(v[0] ?? 0);
+                    setMuted((v[0] ?? 0) === 0);
+                  }}
+                  aria-label="Volume"
+                />
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="tabular-nums">
+                    {speed === 1 ? "1×" : `${speed}×`}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {SPEEDS.map((s) => (
+                    <DropdownMenuItem key={s} onSelect={() => setSpeed(s)}>
+                      {s === speed ? "· " : "  "}
+                      {s}×
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuItem onSelect={() => setHardwareAccel(!hardwareAccel)}>
+                    {hardwareAccel ? "· " : "  "}
+                    Hardware accel
                   </DropdownMenuItem>
-                ))}
-                <DropdownMenuItem onSelect={() => setHardwareAccel(!hardwareAccel)}>
-                  {hardwareAccel ? "· " : "  "}
-                  Hardware accel
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Picture in picture"
-              onClick={() => {
-                const el = mediaRef.current;
-                if (el && document.pictureInPictureEnabled) {
-                  void el.requestPictureInPicture().catch(() => {});
-                }
-              }}
-            >
-              <PictureInPicture2 className="size-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={fs ? "Exit fullscreen" : "Fullscreen"}
-              onClick={() => void toggleFs()}
-            >
-              {fs ? <Minimize className="size-4" /> : <Maximize className="size-4" />}
-            </Button>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Picture in picture"
+                onClick={() => {
+                  const el = mediaRef.current;
+                  if (el && document.pictureInPictureEnabled) {
+                    void el.requestPictureInPicture().catch(() => {});
+                  }
+                }}
+              >
+                <PictureInPicture2 className="size-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={fs ? "Exit fullscreen" : "Fullscreen"}
+                onClick={() => void toggleFs()}
+              >
+                {fs ? <Minimize className="size-4" /> : <Maximize className="size-4" />}
+              </Button>
+            </div>
           </div>
+          <p className="mt-2 hidden text-center text-xs text-subtle sm:block">
+            Space play · ← → 10s · F full · M mute · N / P next · Esc close
+          </p>
         </div>
-        <p className="mt-2 hidden text-center text-xs text-subtle sm:block">
-          Space play · ← → 10s · F full · M mute · N / P next · Esc close
-        </p>
-      </div>
       )}
       {remote && (
         <div className="relative z-10 mt-auto flex items-center justify-between gap-3 px-4 py-4 sm:px-6">
@@ -519,11 +560,91 @@ export function Player({ playlist }: { playlist: string[] }) {
               Open on {remote.kind === "youtube" ? "YouTube" : "Twitch"}
             </a>
           )}
-          <Button variant="ghost" size="icon-sm" aria-label="Fullscreen" onClick={() => void toggleFs()}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Fullscreen"
+            onClick={() => void toggleFs()}
+          >
             {fs ? <Minimize className="size-4" /> : <Maximize className="size-4" />}
           </Button>
         </div>
       )}
+    </div>
+  );
+}
+
+function MetadataEditor({
+  videoId,
+  initialTags,
+  initialCategory,
+  onSave,
+}: {
+  videoId: string;
+  initialTags: string[];
+  initialCategory: string;
+  onSave: (tags: string[], category: string) => void;
+}) {
+  const [tags, setTags] = useState(initialTags.join(", "));
+  const [category, setCategory] = useState(initialCategory);
+  const [rating, setRating] = useState(0);
+  useEffect(() => {
+    setTags(initialTags.join(", "));
+    setCategory(initialCategory);
+    try {
+      setRating(Number(localStorage.getItem(`reelcase.rating.${videoId}`) ?? 0));
+    } catch {
+      setRating(0);
+    }
+  }, [videoId, initialCategory, initialTags]);
+  return (
+    <div className="space-y-3">
+      <div>
+        <p className="text-sm font-medium text-fg">Local metadata</p>
+        <p className="mt-1 text-xs text-muted">Saved only in this browser.</p>
+      </div>
+      <label className="block text-xs text-muted">
+        Category
+        <Input
+          value={category}
+          onChange={(event) => setCategory(event.target.value)}
+          placeholder="Movie, tutorial, stream…"
+          className="mt-1"
+        />
+      </label>
+      <label className="block text-xs text-muted">
+        Tags
+        <Input
+          value={tags}
+          onChange={(event) => setTags(event.target.value)}
+          placeholder="noir, favorites, watch later"
+          className="mt-1"
+        />
+      </label>
+      <div>
+        <p className="text-xs text-muted">Your rating</p>
+        <div className="mt-1 flex gap-1">
+          {[1, 2, 3, 4, 5].map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => {
+                setRating(value);
+                localStorage.setItem(`reelcase.rating.${videoId}`, String(value));
+              }}
+              className={cn(
+                "flex size-8 items-center justify-center rounded-sm text-sm shadow-border",
+                value <= rating ? "bg-accent text-accent-fg" : "bg-elevated text-muted",
+              )}
+            >
+              {value}
+            </button>
+          ))}
+        </div>
+      </div>
+      <Button size="sm" className="w-full" onClick={() => onSave(tags.split(","), category)}>
+        Save metadata
+      </Button>
     </div>
   );
 }

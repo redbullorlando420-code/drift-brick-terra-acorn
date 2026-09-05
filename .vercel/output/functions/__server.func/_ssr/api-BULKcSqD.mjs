@@ -1,5 +1,5 @@
 import { n as TSS_SERVER_FUNCTION, t as createServerFn } from "./ssr.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/api-C-h-t3ab.js
+//#region node_modules/.nitro/vite/services/ssr/assets/api-BULKcSqD.js
 var createServerRpc = (serverFnMeta, splitImportFn) => {
 	const url = "/_serverFn/" + serverFnMeta.id;
 	return Object.assign(splitImportFn, {
@@ -145,8 +145,10 @@ async function youtubeFromVideo(id) {
 	};
 }
 var YT_INBOX = "youtube:inbox";
-async function youtubeFromChannel(query) {
+async function youtubeFromChannel(query, limit = 32) {
 	let channelId = "";
+	const trimmed = query.trim();
+	if (/^UC[\w-]{20,}$/.test(trimmed)) channelId = trimmed;
 	const asUrl = query.startsWith("http") ? query : "";
 	if (asUrl.includes("/channel/")) channelId = asUrl.split("/channel/")[1]?.split(/[/?#]/)[0] ?? "";
 	if (!channelId) {
@@ -157,7 +159,7 @@ async function youtubeFromChannel(query) {
 	const xml = await fetchText(`https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`);
 	const title = tag(xml, "title") || "YouTube";
 	const author = tag(xml, "name") || title;
-	const videos = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)].slice(0, 18).map((m) => {
+	const videos = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)].slice(0, limit).map((m) => {
 		const block = m[1];
 		const id = tag(block, "yt:videoId");
 		const thumb = block.match(/url="([^"]+)"/)?.[1] ?? `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
@@ -198,14 +200,14 @@ async function twitchUser(login) {
 			"content-type": "application/json"
 		},
 		body: JSON.stringify({
-			query: `query($login:String!){user(login:$login){id displayName profileImageURL(width:70) stream{title viewersCount previewImageURL(width:640,height:360) game{name}} videos(first:8,type:ARCHIVE){edges{node{id title lengthSeconds publishedAt previewThumbnailURL(width:640,height:360)}}}}}`,
+			query: `query($login:String!){user(login:$login){id displayName profileImageURL(width:70) stream{title viewersCount previewImageURL(width:640,height:360) game{name}} videos(first:20,type:ARCHIVE){edges{node{id title lengthSeconds publishedAt previewThumbnailURL(width:640,height:360)}}}}}`,
 			variables: { login }
 		})
 	});
 	if (!res.ok) return null;
 	return (await res.json()).data?.user ?? null;
 }
-function twitchVideos(login, user) {
+function twitchVideos(login, user, vodLimit = 18) {
 	const title = user.displayName ?? login;
 	const folderId = `tw:${login}`;
 	const out = [];
@@ -230,7 +232,7 @@ function twitchVideos(login, user) {
 			watchUrl: `https://www.twitch.tv/${login}`
 		}
 	});
-	for (const edge of user.videos?.edges ?? []) {
+	for (const edge of (user.videos?.edges ?? []).slice(0, vodLimit)) {
 		const node = edge.node;
 		if (!node?.id) continue;
 		out.push({
@@ -274,7 +276,7 @@ function twitchVideos(login, user) {
 	});
 	return out;
 }
-async function followTwitch(query) {
+async function followTwitch(query, compact = false) {
 	const login = twitchLogin(query);
 	if (!login) throw new Error("Enter a Twitch channel.");
 	const user = await twitchUser(login);
@@ -289,7 +291,7 @@ async function followTwitch(query) {
 			thumb: user?.profileImageURL,
 			live: Boolean(user?.stream)
 		},
-		videos: user ? twitchVideos(login, user) : twitchVideos(login, { displayName: login })
+		videos: user ? twitchVideos(login, user, compact ? 2 : 8) : twitchVideos(login, { displayName: login }, compact ? 2 : 8)
 	};
 }
 var followRemote_createServerFn_handler = createServerRpc({
@@ -337,5 +339,113 @@ var refreshRemotes = createServerFn({ method: "POST" }).validator((data) => pars
 		channels
 	};
 });
+function parseImport(data) {
+	if (typeof data !== "object" || data === null) return { items: [] };
+	const rec = data;
+	if (!Array.isArray(rec.items)) return { items: [] };
+	const items = [];
+	for (const raw of rec.items) {
+		if (!raw || typeof raw !== "object") continue;
+		const row = raw;
+		const query = asString(row.query).trim();
+		if (!query) continue;
+		items.push({
+			query,
+			kind: row.kind === "twitch" ? "twitch" : "youtube"
+		});
+	}
+	return { items: items.slice(0, 80) };
+}
+async function mapPool(items, size, fn) {
+	const out = new Array(items.length);
+	let i = 0;
+	const workers = Array.from({ length: Math.min(size, items.length) }, async () => {
+		while (i < items.length) {
+			const idx = i;
+			i += 1;
+			const item = items[idx];
+			if (item === void 0) continue;
+			out[idx] = await fn(item);
+		}
+	});
+	await Promise.all(workers);
+	return out;
+}
+var importChannels_createServerFn_handler = createServerRpc({
+	id: "d7a9de260cc8839e45abd41f5c96ef881c8fdf9d186bdd087f29f6faeff9bd1d",
+	name: "importChannels",
+	filename: "src/lib/remote/api.ts"
+}, (opts) => importChannels.__executeServer(opts));
+var importChannels = createServerFn({ method: "POST" }).validator((data) => parseImport(data)).handler(importChannels_createServerFn_handler, async ({ data }) => {
+	const compact = data.items.length > 1;
+	const rows = await mapPool(data.items, 4, async (item) => {
+		try {
+			if (item.kind === "twitch") return await followTwitch(item.query, compact);
+			return await youtubeFromChannel(item.query, compact ? 4 : 18);
+		} catch {
+			return null;
+		}
+	});
+	const ok = rows.filter((r) => r != null);
+	return {
+		ok,
+		failed: rows.length - ok.length
+	};
+});
+function parseTwitchUser(data) {
+	if (typeof data !== "object" || data === null) throw new Error("Enter your Twitch name");
+	const login = twitchLogin(asString(data.login));
+	if (!login) throw new Error("Enter your Twitch name");
+	return { login };
+}
+async function twitchGql(query, variables) {
+	const res = await fetch("https://gql.twitch.tv/gql", {
+		method: "POST",
+		headers: {
+			"client-id": "kimne78kx3ncx6brgo4mv6wki5h1ko",
+			"content-type": "application/json"
+		},
+		body: JSON.stringify({
+			query,
+			variables
+		})
+	});
+	if (!res.ok) return null;
+	return await res.json();
+}
+var fetchTwitchFollowing_createServerFn_handler = createServerRpc({
+	id: "298e45714281c48abde137e2b56dd5a9336fcd5d739cb85235ad8f876afe9a48",
+	name: "fetchTwitchFollowing",
+	filename: "src/lib/remote/api.ts"
+}, (opts) => fetchTwitchFollowing.__executeServer(opts));
+var fetchTwitchFollowing = createServerFn({ method: "POST" }).validator((data) => parseTwitchUser(data)).handler(fetchTwitchFollowing_createServerFn_handler, async ({ data }) => {
+	const login = data.login;
+	if (!await twitchUser(login)) throw new Error(`No Twitch channel named ${login}`);
+	for (const q of [`query($login:String!){user(login:$login){follows(first:100){edges{node{login displayName stream{id}}}}}}`, `query($login:String!){user(login:$login){followConnection(first:100){edges{node{login displayName stream{id}}}}}}`]) {
+		const user = ((await twitchGql(q, { login }))?.data)?.user;
+		if (!user) continue;
+		const edges = (user.follows ?? user.followConnection)?.edges ?? [];
+		if (!edges.length) continue;
+		const channels = [];
+		for (const edge of edges) {
+			const node = edge.node;
+			const handle = node?.login;
+			if (!handle) continue;
+			channels.push({
+				login: handle,
+				title: node.displayName ?? handle,
+				live: Boolean(node.stream)
+			});
+		}
+		if (channels.length) return {
+			channels,
+			privateList: false
+		};
+	}
+	return {
+		channels: [],
+		privateList: true
+	};
+});
 //#endregion
-export { followRemote_createServerFn_handler, refreshRemotes_createServerFn_handler };
+export { fetchTwitchFollowing_createServerFn_handler, followRemote_createServerFn_handler, importChannels_createServerFn_handler, refreshRemotes_createServerFn_handler };

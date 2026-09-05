@@ -22,6 +22,9 @@ export type StoredDir = {
 
 export type Prefs = {
   favorites: string[];
+  likes: string[];
+  tags: Record<string, string[]>;
+  categories: Record<string, string>;
   progress: Record<string, { t: number; d: number; at: number }>;
   history: { id: string; at: number }[];
   view: "grid" | "list";
@@ -153,6 +156,9 @@ function normalize(raw: Record<string, unknown>): Prefs {
   const sort = (raw.sort as SortKey | undefined) ?? "name";
   return {
     favorites,
+    likes: (raw.likes as string[] | undefined) ?? [],
+    tags: (raw.tags as Record<string, string[]> | undefined) ?? {},
+    categories: (raw.categories as Record<string, string> | undefined) ?? {},
     progress: (raw.progress as Prefs["progress"]) ?? {},
     history: (raw.history as Prefs["history"]) ?? [],
     view: (raw.view as Prefs["view"]) ?? "grid",

@@ -45,6 +45,9 @@ type LibraryState = {
   view: ViewMode;
   sourceId: SourceId;
   favorites: Record<string, true>;
+  likes: Record<string, true>;
+  tags: Record<string, string[]>;
+  categories: Record<string, string>;
   progress: Record<string, ProgressMark>;
   history: HistoryEntry[];
   hideDemo: boolean;
@@ -64,6 +67,9 @@ type LibraryState = {
   setView: (v: ViewMode) => void;
   setSource: (id: SourceId) => void;
   toggleFavorite: (id: string) => void;
+  toggleLike: (id: string) => void;
+  setVideoTags: (id: string, tags: string[]) => void;
+  setVideoCategory: (id: string, category: string) => void;
   markProgress: (id: string, t: number, d: number) => void;
   recordPlay: (id: string) => void;
   clearHistory: () => void;
@@ -83,11 +89,7 @@ type LibraryState = {
     opts?: AddOpts,
   ) => Promise<void>;
   addFiles: (inputEl?: HTMLInputElement | null) => Promise<void>;
-  ingestFromInput: (
-    files: FileList,
-    asDirectory: boolean,
-    opts?: AddOpts,
-  ) => Promise<void>;
+  ingestFromInput: (files: FileList, asDirectory: boolean, opts?: AddOpts) => Promise<void>;
   ingestDrop: (dt: DataTransfer) => Promise<void>;
   restoreFolders: () => Promise<void>;
   restoreOne: (folderId: string) => Promise<void>;
@@ -107,6 +109,9 @@ function persistNow(get: () => LibraryState) {
   const s = get();
   const prefs: Prefs = {
     favorites: Object.keys(s.favorites),
+    likes: Object.keys(s.likes),
+    tags: s.tags,
+    categories: s.categories,
     progress: s.progress,
     history: s.history,
     view: s.view,
@@ -138,10 +143,15 @@ function applyPrefs(partial: Partial<LibraryState>): Partial<LibraryState> {
   const prefs = loadPrefs();
   if (!prefs) return partial;
   const favorites: Record<string, true> = {};
+  const likes: Record<string, true> = {};
   for (const id of prefs.favorites ?? []) favorites[id] = true;
+  for (const id of prefs.likes ?? []) likes[id] = true;
   return {
     ...partial,
     favorites,
+    likes,
+    tags: prefs.tags ?? {},
+    categories: prefs.categories ?? {},
     progress: prefs.progress ?? {},
     history: prefs.history ?? [],
     view: prefs.view ?? "grid",
@@ -172,6 +182,9 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   view: "grid",
   sourceId: "home",
   favorites: {},
+  likes: {},
+  tags: {},
+  categories: {},
   progress: {},
   history: [],
   hideDemo: false,
@@ -206,6 +219,31 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       else favorites[id] = true;
       return { favorites };
     });
+    persistNow(get);
+  },
+  toggleLike: (id) => {
+    set((s) => {
+      const likes = { ...s.likes };
+      if (likes[id]) delete likes[id];
+      else likes[id] = true;
+      return { likes };
+    });
+    persistNow(get);
+  },
+  setVideoTags: (id, tags) => {
+    set((s) => ({
+      tags: {
+        ...s.tags,
+        [id]: [...new Set(tags.map((tag) => tag.trim().toLowerCase()).filter(Boolean))].slice(
+          0,
+          12,
+        ),
+      },
+    }));
+    persistNow(get);
+  },
+  setVideoCategory: (id, category) => {
+    set((s) => ({ categories: { ...s.categories, [id]: category.trim().slice(0, 40) } }));
     persistNow(get);
   },
   markProgress: (id, t, d) => {
@@ -315,9 +353,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     rememberDirHandle(folderId, handle);
     set({ scanning: { found: 0, looked: 0, folderName: handle.name } });
     try {
-      const videos = await ingestDirectoryHandle(handle, folderId, (p) =>
-        set({ scanning: p }),
-      );
+      const videos = await ingestDirectoryHandle(handle, folderId, (p) => set({ scanning: p }));
       const adult = Boolean(opts?.adult);
       const folder: Folder = {
         id: folderId,
@@ -347,16 +383,12 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     if (!files.length) return;
     const first = files[0];
     const rel = first.webkitRelativePath || "";
-    const folderName = asDirectory
-      ? rel.split("/")[0] || "Folder"
-      : "Added files";
+    const folderName = asDirectory ? rel.split("/")[0] || "Folder" : "Added files";
     const folderId = asDirectory
       ? `folder:${folderName}:${crypto.randomUUID().slice(0, 8)}`
       : `files:${crypto.randomUUID().slice(0, 8)}`;
     set({ scanning: { found: 0, looked: 0, folderName } });
-    const videos = await ingestFileList(files, folderId, folderName, (p) =>
-      set({ scanning: p }),
-    );
+    const videos = await ingestFileList(files, folderId, folderName, (p) => set({ scanning: p }));
     const adult = Boolean(opts?.adult) || get().sourceId === "adults";
     const folder: Folder = {
       id: folderId,
@@ -375,16 +407,13 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   },
   ingestDrop: async (dt) => {
     const nameGuess =
-      dt.files?.[0]?.webkitRelativePath?.split("/")[0] ||
-      dt.files?.[0]?.name ||
-      "Dropped files";
+      dt.files?.[0]?.webkitRelativePath?.split("/")[0] || dt.files?.[0]?.name || "Dropped files";
     const folderId = `drop:${crypto.randomUUID().slice(0, 8)}`;
     set({ scanning: { found: 0, looked: 0, folderName: nameGuess } });
-    const videos = await ingestDataTransfer(dt, folderId, nameGuess, (p) =>
-      set({ scanning: p }),
-    );
-    const folderName =
-      videos[0]?.path.includes("/") ? videos[0].path.split("/")[0] : "Dropped files";
+    const videos = await ingestDataTransfer(dt, folderId, nameGuess, (p) => set({ scanning: p }));
+    const folderName = videos[0]?.path.includes("/")
+      ? videos[0].path.split("/")[0]
+      : "Dropped files";
     const adult = get().sourceId === "adults";
     const folder: Folder = {
       id: folderId,
@@ -479,14 +508,10 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     const folder = get().folders.find((f) => f.id === folderId);
     const name = folder?.name ?? handle.name;
     set({ scanning: { found: 0, looked: 0, folderName: name } });
-    const videos = await ingestDirectoryHandle(handle, folderId, (p) =>
-      set({ scanning: p }),
-    );
+    const videos = await ingestDirectoryHandle(handle, folderId, (p) => set({ scanning: p }));
     set((s) => ({
       folders: s.folders.map((f) =>
-        f.id === folderId
-          ? { ...f, videoCount: videos.length, needsPermission: false }
-          : f,
+        f.id === folderId ? { ...f, videoCount: videos.length, needsPermission: false } : f,
       ),
       videos: mergeVideos(s.videos, videos),
       scanning: null,
@@ -532,10 +557,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       const { followRemote } = await import("@/lib/remote/api");
       const result = await followRemote({ data: { query, kind } });
       set((s) => {
-        const follows = [
-          result.channel,
-          ...s.follows.filter((f) => f.id !== result.channel.id),
-        ];
+        const follows = [result.channel, ...s.follows.filter((f) => f.id !== result.channel.id)];
         const folder: Folder = {
           id: result.channel.id,
           name: result.channel.title,
@@ -753,9 +775,7 @@ export function selectVisible(state: LibraryState): LibraryVideo[] {
     });
   } else if (state.sourceId === "history") {
     const byId = new Map(list.map((v) => [v.id, v]));
-    list = state.history
-      .map((h) => byId.get(h.id))
-      .filter((v): v is LibraryVideo => v != null);
+    list = state.history.map((h) => byId.get(h.id)).filter((v): v is LibraryVideo => v != null);
   } else if (state.sourceId === "movies") {
     list = list.filter((v) => !v.remote);
   } else if (state.sourceId === "youtube") {
@@ -781,6 +801,9 @@ export function selectVisible(state: LibraryState): LibraryVideo[] {
   if (state.sourceId === "history") return list;
   const sorted = [...list];
   sorted.sort((a, b) => {
+    if (state.sourceId === "movies" && Boolean(state.likes[b.id]) !== Boolean(state.likes[a.id])) {
+      return state.likes[b.id] ? 1 : -1;
+    }
     switch (state.sort) {
       case "added":
         return b.addedAt - a.addedAt;

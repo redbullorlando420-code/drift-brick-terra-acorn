@@ -5,11 +5,18 @@ import {
   Film,
   Folder as FolderIcon,
   FolderPlus,
+  Gamepad2,
   Heart,
   History,
   Lock,
   LockOpen,
   Radio,
+  Settings2,
+  ShoppingBag,
+  Box,
+  MonitorPlay,
+  Users,
+  X as XIcon,
   X,
   Youtube,
 } from "lucide-react";
@@ -98,12 +105,8 @@ export function SidebarNav({
     if (!s.adultsUnlocked) return undefined;
     return s.videos.filter((v) => isAdultVideo(v, s.folders)).length;
   });
-  const ytCount = useLibrary(
-    (s) => s.videos.filter((v) => v.remote?.kind === "youtube").length,
-  );
-  const twitchCount = useLibrary(
-    (s) => s.videos.filter((v) => v.remote?.kind === "twitch").length,
-  );
+  const ytCount = useLibrary((s) => s.videos.filter((v) => v.remote?.kind === "youtube").length);
+  const twitchCount = useLibrary((s) => s.videos.filter((v) => v.remote?.kind === "twitch").length);
   const liveCount = useLibrary((s) => s.videos.filter((v) => v.remote?.live).length);
 
   const go = (id: SourceId) => {
@@ -216,6 +219,48 @@ export function SidebarNav({
             ) : undefined
           }
         />
+        <NavItem
+          active={sourceId === "prints"}
+          onClick={() => go("prints")}
+          icon={Box}
+          label="3D prints"
+        />
+        <NavItem
+          active={sourceId === "games"}
+          onClick={() => go("games")}
+          icon={Gamepad2}
+          label="Games"
+        />
+        <NavItem
+          active={sourceId === "shop"}
+          onClick={() => go("shop")}
+          icon={ShoppingBag}
+          label="Shop"
+        />
+        <NavItem
+          active={sourceId === "streaming"}
+          onClick={() => go("streaming")}
+          icon={MonitorPlay}
+          label="Streaming"
+        />
+        <NavItem
+          active={sourceId === "watch-room"}
+          onClick={() => go("watch-room")}
+          icon={Users}
+          label="Watch room"
+        />
+        <NavItem
+          active={sourceId === "social"}
+          onClick={() => go("social")}
+          icon={XIcon}
+          label="X accounts"
+        />
+        <NavItem
+          active={sourceId === "settings"}
+          onClick={() => go("settings")}
+          icon={Settings2}
+          label="Settings"
+        />
       </nav>
       <Separator className="my-4" />
       <p className="px-3 pb-2 text-xs font-medium tracking-wide text-subtle uppercase">Sources</p>
@@ -323,25 +368,27 @@ function FolderRow({
         trailing={
           <span className="flex items-center">
             {!hideAdult && (
-            <span
-              role="button"
-              tabIndex={0}
-              aria-label={folder.adult ? `Move ${folder.name} to library` : `Move ${folder.name} to Adults`}
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleAdult();
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
+              <span
+                role="button"
+                tabIndex={0}
+                aria-label={
+                  folder.adult ? `Move ${folder.name} to library` : `Move ${folder.name} to Adults`
+                }
+                onClick={(e) => {
                   e.stopPropagation();
                   onToggleAdult();
-                }
-              }}
-              className="flex size-7 items-center justify-center rounded-sm text-subtle opacity-0 transition-opacity duration-150 hover:bg-bg hover:text-fg group-hover:opacity-100 focus-visible:opacity-100"
-            >
-              {folder.adult ? <LockOpen className="size-3.5" /> : <Lock className="size-3.5" />}
-            </span>
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onToggleAdult();
+                  }
+                }}
+                className="flex size-7 items-center justify-center rounded-sm text-subtle opacity-0 transition-opacity duration-150 hover:bg-bg hover:text-fg group-hover:opacity-100 focus-visible:opacity-100"
+              >
+                {folder.adult ? <LockOpen className="size-3.5" /> : <Lock className="size-3.5" />}
+              </span>
             )}
             <span
               role="button"
