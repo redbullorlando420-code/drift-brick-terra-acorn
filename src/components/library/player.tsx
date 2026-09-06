@@ -53,7 +53,9 @@ function twitchEmbed(base: string) {
 
 function youtubeEmbed(base: string) {
   if (!base) return null;
-  const url = new URL(base, "https://www.youtube-nocookie.com");
+  const url = new URL(base, "https://www.youtube.com");
+  url.protocol = "https:";
+  url.hostname = "www.youtube.com";
   url.searchParams.set("autoplay", "1");
   url.searchParams.set("rel", "0");
   url.searchParams.set("modestbranding", "1");
@@ -101,9 +103,22 @@ export function Player({ playlist }: { playlist: string[] }) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [hw, setHw] = useState<HwInfo | null>(null);
   const [vrAvailable, setVrAvailable] = useState(false);
+  const [vrStatus, setVrStatus] = useState("");
   const [removeReady, setRemoveReady] = useState(false);
   const capturedDur = useThumbs((s) => (video ? s.durations[video.id] : undefined));
   const scrubbing = useRef(false);
+
+  const enterVrTheater = useCallback(async () => {
+    const xr = (navigator as Navigator & { xr?: { requestSession: (mode: string, init?: unknown) => Promise<{ addEventListener: (name: string, listener: () => void) => void; end: () => Promise<void> }> } }).xr;
+    if (!xr) { setVrStatus("VR needs Meta Quest Browser or another WebXR browser."); return; }
+    try {
+      const session = await xr.requestSession("immersive-vr", { optionalFeatures: ["local-floor", "dom-overlay"], domOverlay: { root: document.body } });
+      setVrStatus("VR theater active — your video remains visible in the headset overlay. Use the headset system button to exit.");
+      session.addEventListener("end", () => setVrStatus("VR theater closed."));
+    } catch {
+      setVrStatus("VR session was not started. Allow immersive VR in your headset browser, then try again.");
+    }
+  }, []);
 
   useEffect(() => {
     if (!video) {
@@ -165,7 +180,12 @@ export function Player({ playlist }: { playlist: string[] }) {
     };
     const onEnd = () => {
       if (video && el.duration) markProgress(video.id, el.duration, el.duration);
-      playRelative(1, playlist);
+      try {
+        const preferences = JSON.parse(localStorage.getItem("reelcase.settings.v1") ?? "{}") as Record<string, boolean>;
+        if (preferences["playback-autoplay-next-video"]) playRelative(1, playlist);
+      } catch {
+        // Keep playback stopped if settings cannot be read.
+      }
     };
     const onErr = () => {
       setLoadError(
@@ -430,7 +450,7 @@ export function Player({ playlist }: { playlist: string[] }) {
           >
             <Heart className={cn("size-4", fav && "fill-accent text-accent")} />
           </Button>
-          <Button variant="ghost" size="sm" disabled={!vrAvailable} title={vrAvailable ? "Open in Meta Quest Browser" : "VR requires Meta Quest Browser on a secure site"} onClick={() => { const xr = (navigator as Navigator & { xr?: { requestSession: (mode: string) => Promise<unknown> } }).xr; void xr?.requestSession("immersive-vr").catch(() => {}); }}><Glasses className="size-4" /> VR theater</Button>
+          <Button variant="ghost" size="sm" disabled={!vrAvailable} title={vrAvailable ? "Enter the headset theater" : "VR requires Meta Quest Browser on a secure site"} onClick={() => void enterVrTheater()}><Glasses className="size-4" /> VR theater</Button>
           <Button
             variant="ghost"
             size="icon"
@@ -471,6 +491,7 @@ export function Player({ playlist }: { playlist: string[] }) {
           <p className="mt-2 text-sm text-muted">{srcError || loadError}</p>
         </div>
       )}
+      {vrStatus && <p className="absolute z-20 right-4 bottom-4 max-w-sm rounded-md bg-surface/95 px-3 py-2 text-xs text-fg shadow-border sm:right-6">{vrStatus}</p>}
 
 
       {!remote && (

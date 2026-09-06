@@ -36,9 +36,10 @@ import type {
   WellKnownStart,
 } from "./types";
 import { librarySearchIndex } from "./search-index";
+import { useSourceAssets } from "@/lib/source-assets";
 import { isClassicVideo, SYSTEM_SOURCES } from "./types";
 
-const HISTORY_CAP = 80;
+const HISTORY_CAP = 250;
 const STARTER_FOLLOWS: FollowedChannel[] = [
   { id: "yt:starter-h3", kind: "youtube", handle: "H3Podcast", title: "H3 Podcast" },
   { id: "yt:starter-ltt", kind: "youtube", handle: "LinusTechTips", title: "Linus Tech Tips" },
@@ -175,6 +176,29 @@ function mergeVideos(existing: LibraryVideo[], incoming: LibraryVideo[]) {
   const map = new Map(existing.map((v) => [v.id, v]));
   for (const v of incoming) map.set(v.id, v);
   return Array.from(map.values());
+}
+
+function remoteMetadataTags(video: LibraryVideo) {
+  return [...new Set([video.remote?.kind, video.remote?.channelName, video.genre, video.remote?.live ? "live" : "vod"].filter((value): value is string => Boolean(value)).map((value) => value.trim()).filter(Boolean))].slice(0, 12);
+}
+
+function localNameTags(video: LibraryVideo) {
+  const text = `${video.name} ${video.path}`.toLowerCase();
+  const tags = [video.genre?.toLowerCase()];
+  if (/\b(open source|creative commons|blender|public domain)\b/.test(text)) tags.push("open-source");
+  if (/\b(trailer|teaser)\b/.test(text)) tags.push("trailer");
+  if (/\b(1080p|2160p|4k|720p)\b/.test(text)) tags.push((text.match(/\b(2160p|4k|1080p|720p)\b/)?.[1]) ?? "hd");
+  return tags.filter((tag): tag is string => Boolean(tag));
+}
+
+function addLocalNameTags(existing: Record<string, string[]>, videos: LibraryVideo[]) {
+  const next = { ...existing };
+  for (const video of videos) {
+    const inferred = localNameTags(video);
+    if (!inferred.length) continue;
+    next[video.id] = [...new Set([...(next[video.id] ?? []), ...inferred])].slice(0, 12);
+  }
+  return next;
 }
 
 function applyPrefs(partial: Partial<LibraryState>): Partial<LibraryState> {
@@ -457,6 +481,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         scanning: null,
         sourceId: adult ? "adults" : videos.length ? folderId : s.sourceId,
       }));
+      if (videos.length) set((s) => ({ tags: addLocalNameTags(s.tags, videos) }));
       flushPersist(get);
       await saveDirHandle({ id: folderId, name: handle.name, handle });
       // Final authoritative write in case batches were empty / partial.
@@ -471,6 +496,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   },
   ingestFromInput: async (files, asDirectory, opts) => {
     if (!files.length) return;
+    useSourceAssets.getState().capture(files);
     const first = files[0];
     const rel = first.webkitRelativePath || "";
     const folderName = asDirectory ? rel.split("/")[0] || "Folder" : "Added files";
@@ -514,6 +540,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       scanning: null,
       sourceId: adult ? "adults" : videos.length ? folderId : s.sourceId,
     }));
+    if (videos.length) set((s) => ({ tags: addLocalNameTags(s.tags, videos) }));
     flushPersist(get);
     if (videos.length) await saveFolderVideos(folderId, videos).catch(() => undefined);
   },
@@ -569,15 +596,21 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       scanning: null,
       sourceId: adult ? "adults" : videos.length ? folderId : s.sourceId,
     }));
+    if (videos.length) set((s) => ({ tags: addLocalNameTags(s.tags, videos) }));
     flushPersist(get);
     if (videos.length) await saveFolderVideos(folderId, videos).catch(() => undefined);
   },
   restoreFolders: async () => {
     const prefsState = applyPrefs({});
     const adultIds = new Set(loadPrefs()?.privateFolderIds ?? []);
+    let cachedFolderIds = new Set<string>();
     set({ ...prefsState, hydrated: true });
+    // Saved follows are part of the local catalog contract. Start their refresh
+    // immediately on restore so Live and Home do not require another import.
+    if (prefsState.follows?.length) void get().refreshFollows();
     try {
       const catalog = await loadCatalogVideos();
+      cachedFolderIds = new Set(catalog.map((video) => video.folderId));
       if (catalog.length) {
         const counts = new Map<string, number>();
         for (const v of catalog) counts.set(v.folderId, (counts.get(v.folderId) ?? 0) + 1);
@@ -618,6 +651,11 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         perm = "prompt";
       }
       const adult = adultIds.has(row.id);
+      const cacheFirst = localStorage.getItem("reelcase.source-cache-first") !== "false";
+      if (cacheFirst && cachedFolderIds.has(row.id)) {
+        set((s) => ({ folders: s.folders.map((folder) => folder.id === row.id ? { ...folder, name: row.name, needsPermission: false } : folder) }));
+        continue;
+      }
       if (perm === "granted") {
         set((s) => ({
           scanning: { found: 0, looked: 0, folderName: row.name },
@@ -798,6 +836,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
             s.videos.filter((v) => v.folderId !== result.channel.id),
             result.videos,
           ),
+          tags: { ...s.tags, ...Object.fromEntries(result.videos.map((video) => [video.id, [...new Set([...(s.tags[video.id] ?? []), ...remoteMetadataTags(video)])]])) },
           sourceId: result.channel.kind,
           remoteBusy: false,
         };
@@ -819,9 +858,17 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     }
   },
   importBatch: async (items) => {
+    const savedHandles = new Set(get().follows.map((follow) => `${follow.kind}:${follow.handle.toLowerCase()}`));
+    const seenQueries = new Set<string>();
     const unique = items
       .map((i) => ({ query: i.query.trim(), kind: i.kind }))
-      .filter((i) => i.query);
+      .filter((i) => {
+        const handle = i.query.replace(/^https?:\/\/(www\.)?(youtube\.com\/(@|channel\/)?|twitch\.tv\/)?/i, "").replace(/^@/, "").split(/[/?#]/)[0].toLowerCase();
+        const key = `${i.kind}:${handle}`;
+        if (!i.query || !handle || seenQueries.has(key) || savedHandles.has(key)) return false;
+        seenQueries.add(key);
+        return true;
+      });
     if (!unique.length) return { ok: 0, failed: 0, failedQueries: [] };
     const existing = new Set(get().follows.map((f) => f.id));
     set({
@@ -831,7 +878,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     let ok = 0;
     let failed = 0;
     const failedQueries: string[] = [];
-    const chunk = 6;
+    const chunk = 10;
     try {
       const { importChannels } = await import("@/lib/remote/api");
       for (let i = 0; i < unique.length; i += chunk) {
@@ -862,6 +909,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
             follows,
             folders,
             videos,
+            tags: { ...s.tags, ...Object.fromEntries(result.ok.flatMap((row) => row.videos.map((video) => [video.id, [...new Set([...(s.tags[video.id] ?? []), ...remoteMetadataTags(video)])]]))) },
             importProgress: {
               done: Math.min(i + slice.length, unique.length),
               total: unique.length,
@@ -1101,11 +1149,10 @@ export function selectClassics(state: LibraryState): LibraryVideo[] {
 export function selectFeatured(state: LibraryState, adult = false): LibraryVideo | undefined {
   const cont = selectContinue(state, adult);
   if (cont[0]) return cont[0];
-  if (!adult) {
-    const classics = selectClassics(state);
-    if (classics[0]) return classics[0];
-  }
-  return scoped(state, adult)[0];
+  const pool = adult ? scoped(state, true) : [...selectClassics(state), ...publicList(state).filter((video) => !video.remote && !isClassicVideo(video))];
+  if (!pool.length) return undefined;
+  const day = Math.floor(Date.now() / 86_400_000);
+  return pool[day % pool.length];
 }
 
 export function userFolderCount(folders: Folder[]) {

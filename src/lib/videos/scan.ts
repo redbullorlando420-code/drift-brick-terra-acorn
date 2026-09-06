@@ -43,6 +43,16 @@ async function yieldUi() {
 
 const BATCH_SIZE = 250;
 
+function inferGenre(name: string): string | undefined {
+  const text = name.toLowerCase();
+  if (/\b(comedy|funny|standup|sitcom)\b/.test(text)) return "Comedy";
+  if (/\b(horror|scary|slasher|ghost)\b/.test(text)) return "Horror";
+  if (/\b(action|fight|battle|war)\b/.test(text)) return "Action";
+  if (/\b(documentary|documentary|history|nature)\b/.test(text)) return "Documentary";
+  if (/\b(sci[ .-]?fi|science fiction|space)\b/.test(text)) return "Science Fiction";
+  return undefined;
+}
+
 function maybeFlush(
   acc: LibraryVideo[],
   flushed: { n: number },
@@ -328,6 +338,7 @@ function pushVideo(
     mime: file.type || mimeFromName(name),
     size: file.size,
     addedAt: Date.now(),
+    genre: inferGenre(`${relPath} ${name}`),
   });
 }
 

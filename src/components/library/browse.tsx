@@ -72,11 +72,12 @@ export function TitleRail({
   playedAt?: Record<string, number>;
 }) {
   if (!videos.length) return null;
+  const limit = typeof window === "undefined" ? 12 : Number(localStorage.getItem("reelcase.home-rail-limit") ?? "12");
   return (
     <section className="mb-8">
       <h2 className="mb-3 font-display text-xl text-fg sm:text-2xl">{title}</h2>
       <div className="rail-scroll flex gap-3 overflow-x-auto pb-3 sm:gap-4">
-        {videos.map((video, i) => (
+        {videos.slice(0, [12, 24, 48].includes(limit) ? limit : 24).map((video, i) => (
           <div
             key={video.id}
             className={cn(variant === "poster" && "w-32 shrink-0 sm:w-36 md:w-40", variant === "rail" && "shrink-0")}
@@ -98,7 +99,7 @@ export function PosterGrid({ videos }: { videos: LibraryVideo[] }) {
   if (!videos.length) return null;
   return (
     <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 sm:gap-4 md:grid-cols-5 lg:grid-cols-6">
-      {videos.map((video, i) => (
+      {videos.slice(0, 240).map((video, i) => (
         <VideoCard key={video.id} video={video} variant="poster" index={i} className="w-full" />
       ))}
     </div>

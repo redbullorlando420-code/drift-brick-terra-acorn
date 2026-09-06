@@ -14,6 +14,7 @@ const inflight = new Set<string>();
 let active = 0;
 const waiting: Array<() => void> = [];
 const MAX = 2;
+const MAX_MEMORY_THUMBS = 360;
 
 async function acquire() {
   if (active < MAX) {
@@ -69,7 +70,7 @@ function capture(src: string): Promise<{ thumb: string | null; duration?: number
             finish(null, Number.isFinite(video.duration) ? video.duration : undefined);
             return;
           }
-          const w = 640;
+          const w = 360;
           const h = Math.round((height / width) * w) || 360;
           const canvas = document.createElement("canvas");
           canvas.width = w;
@@ -119,13 +120,17 @@ export const useThumbs = create<ThumbState>((set, get) => ({
         const { thumb, duration } = await capture(src);
         inflight.delete(video.id);
         if (thumb) {
-          set((s) => ({
-            byId: { ...s.byId, [video.id]: thumb },
+          set((s) => {
+            const nextThumbs = { ...s.byId, [video.id]: thumb };
+            const ids = Object.keys(nextThumbs);
+            if (ids.length > MAX_MEMORY_THUMBS) delete nextThumbs[ids[0]];
+            return {
+            byId: nextThumbs,
             durations:
               duration && duration > 0
                 ? { ...s.durations, [video.id]: duration }
                 : s.durations,
-          }));
+          }; });
         } else {
           set((s) => ({
             failed: { ...s.failed, [video.id]: true },

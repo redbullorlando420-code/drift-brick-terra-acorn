@@ -31,7 +31,9 @@ function parseRefresh(data: unknown): RefreshInput {
   if (typeof data !== "object" || data === null) return { channels: [] };
   const rec = data as Record<string, unknown>;
   const channels = Array.isArray(rec.channels) ? (rec.channels as FollowedChannel[]) : [];
-  return { channels: channels.slice(0, 24) };
+  // Keep a sizeable saved list live after restore; the refresh worker remains
+  // concurrency-limited below so this does not flood providers.
+  return { channels: channels.slice(0, 80) };
 }
 
 function guessKind(query: string): RemoteKind {
@@ -132,13 +134,13 @@ function ytVideo(entry: {
     addedAt: published,
     tagline: entry.desc.slice(0, 140),
     poster: entry.thumb || `https://i.ytimg.com/vi/${entry.id}/hqdefault.jpg`,
-    src: `https://www.youtube-nocookie.com/embed/${entry.id}`,
+    src: `https://www.youtube.com/embed/${entry.id}`,
     remote: {
       kind: "youtube",
       videoId: entry.id,
       channelId: entry.channelId,
       channelName: entry.channelName,
-      embedUrl: `https://www.youtube-nocookie.com/embed/${entry.id}`,
+      embedUrl: `https://www.youtube.com/embed/${entry.id}`,
       watchUrl: `https://www.youtube.com/watch?v=${entry.id}`,
       previewUrl: `https://i.ytimg.com/an_webp/${entry.id}/mqdefault_6s.webp`,
     },

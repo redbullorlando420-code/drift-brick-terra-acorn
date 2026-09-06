@@ -41,12 +41,12 @@ function ytFilm(opts: {
     genre: opts.genre,
     tagline: opts.tagline,
     poster: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-    src: `https://www.youtube-nocookie.com/embed/${videoId}`,
+    src: `https://www.youtube.com/embed/${videoId}`,
     remote: {
       kind: "youtube",
       videoId,
       channelName: opts.channel,
-      embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}`,
+      embedUrl: `https://www.youtube.com/embed/${videoId}`,
       watchUrl: `https://www.youtube.com/watch?v=${videoId}`,
     },
   };

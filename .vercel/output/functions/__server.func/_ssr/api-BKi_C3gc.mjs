@@ -1,6 +1,6 @@
 import { t as createServerFn } from "./ssr.mjs";
-import { n as createSsrRpc } from "./routes-5G0itYQD.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/api-uXBZW8EY.js
+import { n as createSsrRpc } from "./routes-BIsa_WZY.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/api-BKi_C3gc.js
 function asString(v) {
 	return typeof v === "string" ? v : "";
 }
@@ -17,7 +17,7 @@ function parseFollow(data) {
 function parseRefresh(data) {
 	if (typeof data !== "object" || data === null) return { channels: [] };
 	const rec = data;
-	return { channels: (Array.isArray(rec.channels) ? rec.channels : []).slice(0, 24) };
+	return { channels: (Array.isArray(rec.channels) ? rec.channels : []).slice(0, 80) };
 }
 function twitchLogin(input) {
 	const raw = input.trim();

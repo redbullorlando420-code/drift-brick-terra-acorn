@@ -1,6 +1,6 @@
 import { t as createServerFn } from "./ssr.mjs";
 import { t as createServerRpc } from "./createServerRpc-A6pJPYTF.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/api-BaJZvh4B.js
+//#region node_modules/.nitro/vite/services/ssr/assets/api-CdjhrvdO.js
 function asString(v) {
 	return typeof v === "string" ? v : "";
 }
@@ -17,7 +17,7 @@ function parseFollow(data) {
 function parseRefresh(data) {
 	if (typeof data !== "object" || data === null) return { channels: [] };
 	const rec = data;
-	return { channels: (Array.isArray(rec.channels) ? rec.channels : []).slice(0, 24) };
+	return { channels: (Array.isArray(rec.channels) ? rec.channels : []).slice(0, 80) };
 }
 function guessKind(query) {
 	const q = query.toLowerCase();
@@ -91,13 +91,13 @@ function ytVideo(entry) {
 		addedAt: published,
 		tagline: entry.desc.slice(0, 140),
 		poster: entry.thumb || `https://i.ytimg.com/vi/${entry.id}/hqdefault.jpg`,
-		src: `https://www.youtube-nocookie.com/embed/${entry.id}`,
+		src: `https://www.youtube.com/embed/${entry.id}`,
 		remote: {
 			kind: "youtube",
 			videoId: entry.id,
 			channelId: entry.channelId,
 			channelName: entry.channelName,
-			embedUrl: `https://www.youtube-nocookie.com/embed/${entry.id}`,
+			embedUrl: `https://www.youtube.com/embed/${entry.id}`,
 			watchUrl: `https://www.youtube.com/watch?v=${entry.id}`,
 			previewUrl: `https://i.ytimg.com/an_webp/${entry.id}/mqdefault_6s.webp`
 		}

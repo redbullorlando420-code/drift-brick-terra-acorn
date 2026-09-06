@@ -47,6 +47,15 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  html[data-reduce-motion] *,
+  html[data-reduce-motion] *::before,
+  html[data-reduce-motion] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
   html,
   body {
     min-height: 100%;

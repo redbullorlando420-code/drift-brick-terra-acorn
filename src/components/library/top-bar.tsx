@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { LayoutGrid, List, Menu, Search, Upload } from "lucide-react";
+import { Clock3, LayoutGrid, List, Menu, Search, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -31,6 +31,7 @@ export function TopBar({
   const query = useLibrary((s) => s.query);
   const setQuery = useLibrary((s) => s.setQuery);
   const [draft, setDraft] = useState(query);
+  const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     setDraft(query);
   }, [query]);
@@ -39,6 +40,7 @@ export function TopBar({
     const t = window.setTimeout(() => setQuery(draft), 180);
     return () => window.clearTimeout(t);
   }, [draft, query, setQuery]);
+  useEffect(() => { const id = window.setInterval(() => setNow(new Date()), 15_000); return () => window.clearInterval(id); }, []);
   const view = useLibrary((s) => s.view);
   const setView = useLibrary((s) => s.setView);
   const sort = useLibrary((s) => s.sort);
@@ -98,6 +100,7 @@ export function TopBar({
             </DropdownMenuContent>
           </DropdownMenu>
         )}
+        <span className="hidden items-center gap-1.5 px-2 text-xs tabular-nums text-muted xl:flex"><Clock3 className="size-3.5" />{now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
         <NoticeBell />
         <div className="flex rounded-md bg-elevated p-0.5 shadow-border">
           <button

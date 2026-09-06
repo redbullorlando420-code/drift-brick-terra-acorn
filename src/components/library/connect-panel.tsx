@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Check,
   ChevronRight,
@@ -42,8 +42,27 @@ export function ConnectPanel({ defaultKind = "youtube" }: { defaultKind?: Remote
   const [twitchName, setTwitchName] = useState("");
   const [found, setFound] = useState<ImportCandidate[]>([]);
   const [finding, setFinding] = useState(false);
+  const [savedLists, setSavedLists] = useState<string[]>([]);
+  useEffect(() => {
+    try {
+      setBulk(localStorage.getItem(`reelcase.import-draft.${kind}`) ?? "");
+    } catch {
+      /* local storage unavailable */
+    }
+  }, [kind]);
+  useEffect(() => { try { setSavedLists(JSON.parse(localStorage.getItem(`reelcase.import-history.${kind}`) ?? "[]") as string[]); } catch { setSavedLists([]); } }, [kind]);
   const candidates = useMemo(() => linesToCandidates(bulk, kind), [bulk, kind]);
   const networkFollows = follows.filter((follow) => follow.kind === kind);
+  const recommended = (
+    kind === "twitch"
+      ? ["Northernlion", "CohhCarnage", "LIRIK"]
+      : ["H3Podcast", "LinusTechTips", "MarquesBrownlee", "Kurzgesagt"]
+  ).filter(
+    (handle) =>
+      !follows.some(
+        (follow) => follow.kind === kind && follow.handle.toLowerCase() === handle.toLowerCase(),
+      ),
+  );
   const submit = async () => {
     const items = linesToCandidates(query, kind);
     if (!items.length) return;
@@ -64,13 +83,18 @@ export function ConnectPanel({ defaultKind = "youtube" }: { defaultKind?: Remote
     if (!items.length) return;
     try {
       const result = await importBatch(items);
-      setBulk("");
+      const saved = [...new Set([...items.map((item) => item.query.trim()), ...savedLists])].slice(0, 200);
+      localStorage.setItem(`reelcase.import-history.${kind}`, JSON.stringify(saved));
+      setSavedLists(saved);
+      // Keep the submitted text as a durable local draft as well as the structured history.
+      localStorage.setItem(`reelcase.import-draft.${kind}`, bulk);
       setFound([]);
       if (result.failed && result.failedQueries?.length) {
-        toast.message(
-          `${result.ok} added · ${result.failed} unavailable`,
-          { description: result.failedQueries.slice(0, 8).join(", ") + (result.failedQueries.length > 8 ? "…" : "") },
-        );
+        toast.message(`${result.ok} added · ${result.failed} unavailable`, {
+          description:
+            result.failedQueries.slice(0, 8).join(", ") +
+            (result.failedQueries.length > 8 ? "…" : ""),
+        });
       } else {
         toast.success(
           result.failed
@@ -189,85 +213,116 @@ export function ConnectPanel({ defaultKind = "youtube" }: { defaultKind?: Remote
           </form>
         </div>
         <div className="border-t border-border pt-5 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6">
-          <StepBadge
-            number="02"
-            label="Import several at once"
-          />
+          <StepBadge number="02" label="Import several at once" />
           <>
-              <p className="mt-2 text-sm text-muted">
-                {kind === "twitch"
-                  ? "Paste a list of Twitch logins or channel URLs. You can also look up someone else's public follows below."
-                  : "Paste one channel URL or @handle per line. This is the fastest way to move a saved subscription list into Reelcase."}
+            <p className="mt-2 text-sm text-muted">
+              {kind === "twitch"
+                ? "Paste a list of Twitch logins or channel URLs. You can also look up someone else's public follows below."
+                : "Paste one channel URL or @handle per line. This is the fastest way to move a saved subscription list into Reelcase."}
+            </p>
+            <p className="mt-2 rounded-md bg-bg/45 px-3 py-2 text-xs leading-5 text-muted">
+              {kind === "twitch"
+                ? "How to import: copy public channel links or logins from Twitch, paste them below (one per line, or comma-separated), then select Import list. Private Twitch follows are not exposed by the site, so Reelcase cannot read them directly."
+                : "How to import: copy YouTube channel URLs or @handles from your subscriptions, paste them below (one per line, or comma-separated), then select Import list. Your pasted list stays saved locally for future refreshes."}
+            </p>
+            <textarea
+              value={bulk}
+              onChange={(event) => {
+                setBulk(event.target.value);
+                localStorage.setItem(`reelcase.import-draft.${kind}`, event.target.value);
+              }}
+              className="mt-3 min-h-28 w-full resize-y rounded-md bg-elevated px-3 py-2.5 text-sm text-fg shadow-border outline-none transition-[box-shadow] duration-150 placeholder:text-subtle focus-visible:ring-2 focus-visible:ring-ring/50"
+              placeholder={
+                kind === "twitch"
+                  ? "ironmouse\nzackrawrr\ntwitch.tv/shroud, pokimane"
+                  : "@CreatorOne\nyoutube.com/@CreatorTwo\nhttps://youtube.com/channel/UC..."
+              }
+              aria-label={
+                kind === "twitch" ? "Twitch channels to import" : "YouTube channels to import"
+              }
+            />
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <p className="text-xs text-subtle">
+                {candidates.length
+                  ? `${candidates.length} channels ready`
+                  : "Separate with spaces, commas, or new lines."}
               </p>
-              <textarea
-                value={bulk}
-                onChange={(event) => setBulk(event.target.value)}
-                className="mt-3 min-h-28 w-full resize-y rounded-md bg-elevated px-3 py-2.5 text-sm text-fg shadow-border outline-none transition-[box-shadow] duration-150 placeholder:text-subtle focus-visible:ring-2 focus-visible:ring-ring/50"
-                placeholder={
-                  kind === "twitch"
-                    ? "ironmouse\nzackrawrr\ntwitch.tv/shroud, pokimane"
-                    : "@CreatorOne\nyoutube.com/@CreatorTwo\nhttps://youtube.com/channel/UC..."
-                }
-                aria-label={kind === "twitch" ? "Twitch channels to import" : "YouTube channels to import"}
-              />
-              <div className="mt-2 flex items-center justify-between gap-3">
-                <p className="text-xs text-subtle">
-                  {candidates.length
-                    ? `${candidates.length} channels ready`
-                    : "Separate with spaces, commas, or new lines."}
+              <Button
+                size="sm"
+                disabled={remoteBusy || !candidates.length}
+                onClick={() => void importItems(candidates)}
+              >
+                {remoteBusy ? (
+                  <LoaderCircle className="size-4 animate-spin" />
+                ) : (
+                  <ListPlus className="size-4" />
+                )}{" "}
+                Import list
+              </Button>
+            </div>
+            {kind === "twitch" && (
+              <div className="mt-4 border-t border-border pt-4">
+                <p className="text-sm text-muted">
+                  Or enter a Twitch profile to look for its publicly visible follows, then choose
+                  what to add.
                 </p>
-                <Button
-                  size="sm"
-                  disabled={remoteBusy || !candidates.length}
-                  onClick={() => void importItems(candidates)}
-                >
-                  {remoteBusy ? (
-                    <LoaderCircle className="size-4 animate-spin" />
-                  ) : (
-                    <ListPlus className="size-4" />
-                  )}{" "}
-                  Import list
-                </Button>
-              </div>
-              {kind === "twitch" && (
-                <div className="mt-4 border-t border-border pt-4">
-                  <p className="text-sm text-muted">
-                    Or enter a Twitch profile to look for its publicly visible follows, then choose
-                    what to add.
-                  </p>
-                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                    <Input
-                      value={twitchName}
-                      onChange={(event) => setTwitchName(event.target.value)}
-                      placeholder="Twitch username"
-                      aria-label="Twitch username to inspect"
-                    />
-                    <Button
-                      variant="secondary"
-                      disabled={finding || !twitchName.trim()}
-                      onClick={() => void findTwitchFollows()}
-                      className="sm:w-40"
-                    >
-                      {finding ? (
-                        <LoaderCircle className="size-4 animate-spin" />
-                      ) : (
-                        <ListPlus className="size-4" />
-                      )}{" "}
-                      Find follows
-                    </Button>
-                  </div>
-                  {found.length > 0 && (
-                    <ImportReview
-                      items={found}
-                      onImport={() => void importItems(found)}
-                      busy={remoteBusy}
-                    />
-                  )}
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                  <Input
+                    value={twitchName}
+                    onChange={(event) => setTwitchName(event.target.value)}
+                    placeholder="Twitch username"
+                    aria-label="Twitch username to inspect"
+                  />
+                  <Button
+                    variant="secondary"
+                    disabled={finding || !twitchName.trim()}
+                    onClick={() => void findTwitchFollows()}
+                    className="sm:w-40"
+                  >
+                    {finding ? (
+                      <LoaderCircle className="size-4 animate-spin" />
+                    ) : (
+                      <ListPlus className="size-4" />
+                    )}{" "}
+                    Find follows
+                  </Button>
                 </div>
-              )}
-            </>
+                {found.length > 0 && (
+                  <ImportReview
+                    items={found}
+                    onImport={() => void importItems(found)}
+                    busy={remoteBusy}
+                  />
+                )}
+              </div>
+            )}
+          </>
         </div>
       </div>
+      {recommended.length > 0 && (
+        <div className="border-t border-border px-5 py-4 sm:px-6">
+          <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">
+            Recommended follows
+          </p>
+          <p className="mt-1 text-xs text-muted">
+            Quick local suggestions. Already saved channels are hidden automatically.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {recommended.map((handle) => (
+              <Button
+                key={handle}
+                size="sm"
+                variant="secondary"
+                disabled={remoteBusy}
+                onClick={() => void importItems([{ query: handle, kind }])}
+              >
+                <ListPlus className="size-3.5" /> {handle}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+      {savedLists.length > 0 && <div className="border-t border-border px-5 py-4 sm:px-6"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Saved import list</p><p className="mt-1 text-xs text-muted">{savedLists.length} channel entries retained locally for this service.</p><div className="mt-3 flex flex-wrap gap-2">{savedLists.slice(0, 12).map((handle) => <span key={handle} className="rounded-sm bg-elevated px-2 py-1 text-xs text-muted">{handle}</span>)}</div></div>}
       <div className="flex flex-col gap-3 border-t border-border bg-elevated/30 px-5 py-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <p className="flex items-center gap-2 text-muted">
           <Check className="size-4 text-accent" /> Latest uploads and live streams appear
@@ -286,12 +341,29 @@ export function ConnectPanel({ defaultKind = "youtube" }: { defaultKind?: Remote
       </div>
       {kind === "youtube" && (
         <div className="border-t border-border px-5 py-5 sm:px-6">
-          <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Live discovery</p>
+          <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">
+            Live discovery
+          </p>
           <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
-            <Input value={discovery} onChange={(event) => setDiscovery(event.target.value)} placeholder="Search live channels, games, or events" aria-label="Discover live YouTube channels" />
-            <a className="inline-flex min-h-10 items-center justify-center rounded-sm bg-accent px-4 text-sm font-medium text-accent-fg" target="_blank" rel="noreferrer" href={`https://www.youtube.com/results?search_query=${encodeURIComponent(discovery || "live")}&sp=EgJAAQ%3D%3D`}>Browse live</a>
+            <Input
+              value={discovery}
+              onChange={(event) => setDiscovery(event.target.value)}
+              placeholder="Search live channels, games, or events"
+              aria-label="Discover live YouTube channels"
+            />
+            <a
+              className="inline-flex min-h-10 items-center justify-center rounded-sm bg-accent px-4 text-sm font-medium text-accent-fg"
+              target="_blank"
+              rel="noreferrer"
+              href={`https://www.youtube.com/results?search_query=${encodeURIComponent(discovery || "live")}&sp=EgJAAQ%3D%3D`}
+            >
+              Browse live
+            </a>
           </div>
-          <p className="mt-2 text-xs text-subtle">Open a live channel, then paste it above to add it to your guide. Your followed channels remain browsable, refreshable, and ready for a random pick from Home.</p>
+          <p className="mt-2 text-xs text-subtle">
+            Open a live channel, then paste it above to add it to your guide. Your followed channels
+            remain browsable, refreshable, and ready for a random pick from Home.
+          </p>
         </div>
       )}
     </section>
