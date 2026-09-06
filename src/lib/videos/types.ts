@@ -80,10 +80,14 @@ export type Folder = {
   name: string;
   kind: FolderKind;
   videoCount: number;
+  photoCount?: number;
   needsPermission?: boolean;
   recommended?: string;
   adult?: boolean;
   drive?: boolean;
+  /** Cached source-index health, updated during restore and explicit rescans. */
+  health?: "cached" | "healthy" | "permission-needed" | "unavailable";
+  lastCheckedAt?: number;
 };
 
 export type LibraryVideo = {

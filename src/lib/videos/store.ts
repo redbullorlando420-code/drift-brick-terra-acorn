@@ -7,9 +7,11 @@ import {
   loadCatalogVideos,
   loadDirHandles,
   loadPrefs,
+  loadSourceHealth,
   saveDirHandle,
   saveFolderVideos,
   savePrefs,
+  saveSourceHealth,
   type Prefs,
 } from "./persist";
 import { hashPin, isPinShape } from "./pin";
@@ -109,6 +111,7 @@ type LibraryState = {
   ingestDrop: (dt: DataTransfer) => Promise<void>;
   restoreFolders: () => Promise<void>;
   restoreOne: (folderId: string) => Promise<void>;
+  refreshSourcePhotos: (folderId: string) => Promise<number>;
   removeFolder: (folderId: string) => Promise<void>;
   followRemoteQuery: (query: string, kind?: "auto" | "youtube" | "twitch") => Promise<void>;
   importBatch: (
@@ -222,7 +225,8 @@ function applyPrefs(partial: Partial<LibraryState>): Partial<LibraryState> {
     sourceId: prefs.sourceId === "adults" ? "home" : (prefs.sourceId ?? "home"),
     hardwareAccel: prefs.hardwareAccel ?? true,
     adultPinHash: prefs.adultPinHash ?? null,
-    follows: prefs.follows?.length ? prefs.follows : STARTER_FOLLOWS,
+    // An empty saved list is intentional. Do not repopulate it with sample follows.
+    follows: prefs.follows ?? [],
     notices: prefs.notices ?? [],
     notifyPush: prefs.notifyPush ?? false,
   };
@@ -303,10 +307,16 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         ),
       },
     }));
+    const state = get();
+    const video = state.videos.find((item) => item.id === id);
+    if (video) librarySearchIndex.updateMetadata(video, state.videos, state.tags, state.categories);
     persistNow(get);
   },
   setVideoCategory: (id, category) => {
     set((s) => ({ categories: { ...s.categories, [id]: category.trim().slice(0, 40) } }));
+    const state = get();
+    const video = state.videos.find((item) => item.id === id);
+    if (video) librarySearchIndex.updateMetadata(video, state.videos, state.tags, state.categories);
     persistNow(get);
   },
   markProgress: (id, t, d) => {
@@ -457,9 +467,14 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       sourceId: adult ? "adults" : folderId,
     }));
     let writeChain: Promise<void> = clearFolderVideos(folderId).catch(() => undefined);
+    let discoveredPhotos = 0;
     try {
       const videos = await ingestDirectoryHandle(handle, folderId, {
         onProgress: (p) => set({ scanning: p }),
+        onImage: (file, relativePath) => {
+          discoveredPhotos += 1;
+          useSourceAssets.getState().capturePhoto(file, `${handle.name}/${relativePath}`);
+        },
         onBatch: (batch) => {
           if (!batch.length) return;
           set((s) => ({
@@ -475,11 +490,11 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       });
       await writeChain;
       set((s) => ({
-        folders: s.folders.map((f) =>
-          f.id === folderId ? { ...f, videoCount: videos.length } : f,
-        ),
-        scanning: null,
-        sourceId: adult ? "adults" : videos.length ? folderId : s.sourceId,
+          folders: s.folders.map((f) =>
+            f.id === folderId ? { ...f, videoCount: videos.length, photoCount: discoveredPhotos } : f,
+          ),
+          scanning: null,
+          sourceId: adult ? "adults" : videos.length ? folderId : discoveredPhotos ? "photos" : s.sourceId,
       }));
       if (videos.length) set((s) => ({ tags: addLocalNameTags(s.tags, videos) }));
       flushPersist(get);
@@ -604,12 +619,26 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     const prefsState = applyPrefs({});
     const adultIds = new Set(loadPrefs()?.privateFolderIds ?? []);
     let cachedFolderIds = new Set<string>();
+    let savedHealth = new Map<string, Awaited<ReturnType<typeof loadSourceHealth>>[number]>();
     set({ ...prefsState, hydrated: true });
-    // Saved follows are part of the local catalog contract. Start their refresh
-    // immediately on restore so Live and Home do not require another import.
-    if (prefsState.follows?.length) void get().refreshFollows();
+    // A pasted import list is a durable recovery queue. Resume every missing
+    // entry—not only an entirely empty shelf—so partial Twitch imports keep
+    // progressing across reloads without requiring “Load saved list now”.
+    if (typeof window !== "undefined") {
+      const recover = async (kind: "twitch" | "youtube") => {
+        try {
+          const saved = JSON.parse(localStorage.getItem(`reelcase.import-history.${kind}`) ?? "[]") as unknown;
+          if (!Array.isArray(saved) || !saved.length) return;
+          await get().importBatch(saved.filter((value): value is string => typeof value === "string" && Boolean(value.trim())).slice(0, 1000).map((query) => ({ query, kind })));
+        } catch { /* no saved import list */ }
+      };
+      void (async () => { await recover("twitch"); await recover("youtube"); })();
+    }
+    // Saved follows hydrate synchronously from preferences. The app shell owns the
+    // single background refresh, avoiding two competing refreshes and rail flicker.
     try {
-      const catalog = await loadCatalogVideos();
+      const [catalog, healthRows] = await Promise.all([loadCatalogVideos(), loadSourceHealth()]);
+      savedHealth = new Map(healthRows.map((entry) => [entry.id, entry]));
       cachedFolderIds = new Set(catalog.map((video) => video.folderId));
       if (catalog.length) {
         const counts = new Map<string, number>();
@@ -629,7 +658,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
                 needsPermission: true,
               })),
           ].map((f) =>
-            counts.has(f.id) ? { ...f, videoCount: counts.get(f.id) ?? f.videoCount } : f,
+            counts.has(f.id) ? { ...f, videoCount: counts.get(f.id) ?? f.videoCount, ...(savedHealth.get(f.id) ?? {}) } : f,
           ),
         }));
       }
@@ -653,7 +682,9 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       const adult = adultIds.has(row.id);
       const cacheFirst = localStorage.getItem("reelcase.source-cache-first") !== "false";
       if (cacheFirst && cachedFolderIds.has(row.id)) {
-        set((s) => ({ folders: s.folders.map((folder) => folder.id === row.id ? { ...folder, name: row.name, needsPermission: false } : folder) }));
+        const snapshot = { id: row.id, health: "cached" as const, lastCheckedAt: Date.now(), videoCount: savedHealth.get(row.id)?.videoCount ?? 0 };
+        set((s) => ({ folders: s.folders.map((folder) => folder.id === row.id ? { ...folder, name: row.name, needsPermission: false, ...snapshot } : folder) }));
+        void saveSourceHealth(snapshot).catch(() => undefined);
         continue;
       }
       if (perm === "granted") {
@@ -694,13 +725,15 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           set((s) => ({
             folders: s.folders.map((f) =>
               f.id === row.id
-                ? { ...f, videoCount: videos.length, needsPermission: false }
+                ? { ...f, videoCount: videos.length, needsPermission: false, health: "healthy", lastCheckedAt: Date.now() }
                 : f,
             ),
             scanning: null,
           }));
           if (videos.length) await saveFolderVideos(row.id, videos).catch(() => undefined);
+          void saveSourceHealth({ id: row.id, health: "healthy", lastCheckedAt: Date.now(), videoCount: videos.length }).catch(() => undefined);
         } catch {
+          void saveSourceHealth({ id: row.id, health: "unavailable", lastCheckedAt: Date.now(), videoCount: 0 }).catch(() => undefined);
           set((s) => ({
             scanning: null,
             folders: [
@@ -711,12 +744,15 @@ export const useLibrary = create<LibraryState>((set, get) => ({
                 kind: "directory",
                 videoCount: 0,
                 needsPermission: true,
+                health: "unavailable",
+                lastCheckedAt: Date.now(),
                 adult,
               },
             ],
           }));
         }
       } else {
+        void saveSourceHealth({ id: row.id, health: "permission-needed", lastCheckedAt: Date.now(), videoCount: savedHealth.get(row.id)?.videoCount ?? 0 }).catch(() => undefined);
         set((s) => ({
           folders: [
             ...s.folders.filter((f) => f.id !== row.id),
@@ -726,6 +762,8 @@ export const useLibrary = create<LibraryState>((set, get) => ({
               kind: "directory",
               videoCount: s.folders.find((f) => f.id === row.id)?.videoCount ?? 0,
               needsPermission: true,
+              health: "permission-needed",
+              lastCheckedAt: Date.now(),
               adult,
             },
           ],
@@ -772,6 +810,29 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       sourceId: folder?.adult ? "adults" : folderId,
     }));
     if (videos.length) await saveFolderVideos(folderId, videos).catch(() => undefined);
+  },
+  refreshSourcePhotos: async (folderId) => {
+    const handle = getDirHandle(folderId);
+    if (!handle) return 0;
+    try {
+      if ((await queryDirPermission(handle)) !== "granted") return 0;
+      let photoCount = 0;
+      await ingestDirectoryHandle(handle, folderId, {
+        imagesOnly: true,
+        onImage: (file, relativePath) => {
+          photoCount += 1;
+          useSourceAssets.getState().capturePhoto(file, `${handle.name}/${relativePath}`);
+        },
+      });
+      set((s) => ({
+        folders: s.folders.map((folder) =>
+          folder.id === folderId ? { ...folder, photoCount, needsPermission: false } : folder,
+        ),
+      }));
+      return photoCount;
+    } catch {
+      return 0;
+    }
   },
   removeFolder: async (folderId) => {
     if (folderId === "demo") {
@@ -861,7 +922,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     const savedHandles = new Set(get().follows.map((follow) => `${follow.kind}:${follow.handle.toLowerCase()}`));
     const seenQueries = new Set<string>();
     const unique = items
-      .map((i) => ({ query: i.query.trim(), kind: i.kind }))
+      .map((i) => ({ query: i.query.trim().replaceAll("\\_", "_"), kind: i.kind }))
       .filter((i) => {
         const handle = i.query.replace(/^https?:\/\/(www\.)?(youtube\.com\/(@|channel\/)?|twitch\.tv\/)?/i, "").replace(/^@/, "").split(/[/?#]/)[0].toLowerCase();
         const key = `${i.kind}:${handle}`;
@@ -878,7 +939,10 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     let ok = 0;
     let failed = 0;
     const failedQueries: string[] = [];
-    const chunk = 10;
+    // Each request resolves a small concurrent pool on the server. Keeping batches
+    // below the provider cap but larger than the old ten-item batches makes long
+    // Twitch imports visibly faster without overwhelming public endpoints.
+    const chunk = 20;
     try {
       const { importChannels } = await import("@/lib/remote/api");
       for (let i = 0; i < unique.length; i += chunk) {
@@ -917,6 +981,9 @@ export const useLibrary = create<LibraryState>((set, get) => ({
             },
           };
         });
+        // A completed batch is useful even if the next provider call is slow or
+        // unavailable. Queue its metadata for local persistence immediately.
+        persistSoon(get);
       }
       persistNow(get);
       const added = get().follows.filter((f) => !existing.has(f.id)).length;
@@ -928,7 +995,6 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       set({
         remoteBusy: false,
         importProgress: null,
-        sourceId: unique[0]?.kind === "twitch" ? "twitch" : "youtube",
       });
       persistNow(get);
       return { ok, failed, failedQueries };
@@ -1026,7 +1092,10 @@ export const useLibrary = create<LibraryState>((set, get) => ({
 
 function publicList(state: LibraryState): LibraryVideo[] {
   const adult = adultIdSet(state.folders);
-  let list = state.videos.filter((v) => !adult.has(v.folderId));
+  const knownFolders = new Set(state.folders.map((folder) => folder.id));
+  // Cached catalog entries can outlive a removed source. Keep their metadata in storage,
+  // but never promote an orphaned entry into Home or search results.
+  let list = state.videos.filter((v) => !adult.has(v.folderId) && (knownFolders.has(v.folderId) || Boolean(v.remote) || v.isSample));
   if (state.hideDemo) list = list.filter((v) => !v.isSample);
   return list;
 }

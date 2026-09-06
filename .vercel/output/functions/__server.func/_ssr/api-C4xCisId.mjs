@@ -1,6 +1,6 @@
 import { t as createServerFn } from "./ssr.mjs";
-import { n as createSsrRpc } from "./routes-BIsa_WZY.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/api-BKi_C3gc.js
+import { n as createSsrRpc } from "./routes-CMG-G_R2.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/api-C4xCisId.js
 function asString(v) {
 	return typeof v === "string" ? v : "";
 }
@@ -20,11 +20,11 @@ function parseRefresh(data) {
 	return { channels: (Array.isArray(rec.channels) ? rec.channels : []).slice(0, 80) };
 }
 function twitchLogin(input) {
-	const raw = input.trim();
+	const raw = input.trim().replaceAll("\\_", "_").replace(/^["'([{<]+|["')\]}>.;:]+$/g, "");
 	try {
-		return (new URL(raw.startsWith("http") ? raw : `https://twitch.tv/${raw}`).pathname.split("/").filter(Boolean)[0] ?? raw).replace(/^@/, "").toLowerCase();
+		return (new URL(raw.startsWith("http") ? raw : `https://twitch.tv/${raw}`).pathname.split("/").filter(Boolean)[0] ?? raw).replace(/^@/, "").replace(/[^a-z0-9_]/gi, "").toLowerCase();
 	} catch {
-		return raw.replace(/^@/, "").replace(/^tw:/, "").toLowerCase();
+		return raw.replace(/^@/, "").replace(/^tw:/, "").replace(/[^a-z0-9_]/gi, "").toLowerCase();
 	}
 }
 var followRemote = createServerFn({ method: "POST" }).validator((data) => parseFollow(data)).handler(createSsrRpc("0c214d4b031988870bdc1c9a42a92ccbf9e9579cd8ab478f2d173e66fe73e2f0"));

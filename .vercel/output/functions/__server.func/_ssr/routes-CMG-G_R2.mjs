@@ -2,7 +2,7 @@ import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { n as Slot, s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
 import { n as TSS_SERVER_FUNCTION, r as getServerFnById, t as createServerFn } from "./ssr.mjs";
-import { $ as ExternalLink, A as Minimize, B as Lightbulb, C as Play, D as Music2, E as PackageSearch, F as Lock, G as History, H as Images, I as LockOpen, J as Gamepad2, K as Heart, L as LoaderCircle, M as Menu, N as Maximize, O as Monitor, P as Maximize2, Q as FileText, R as List, S as Radio, T as Pause, U as Image, V as LayoutGrid, W as ImagePlus, X as FolderPlus, Y as Folder, Z as Film, _ as Shuffle, a as VolumeX, at as ChevronRight, b as Search, c as Users, ct as Box, d as ThumbsUp, dt as BellOff, et as Download, f as Tag, ft as ArrowLeft, g as SkipBack, h as SkipForward, i as WandSparkles, it as CircleAlert, j as MessageCircle, k as MonitorPlay, l as Upload, lt as Bot, m as Sparkles, n as X, nt as Clock3, o as Volume2, ot as ChevronLeft, p as Star, q as Glasses, r as Wifi, rt as Clapperboard, s as Video, st as Check, t as Youtube, tt as Cpu, ut as Bell, v as ShoppingBag, w as PictureInPicture2, x as Rocket, y as Settings2, z as ListPlus } from "../_libs/lucide-react.mjs";
+import { $ as ExternalLink, A as Minimize, B as Lightbulb, C as Play, D as Music2, E as PackageSearch, F as Lock, G as History, H as Images, I as LockOpen, J as Gamepad2, K as Heart, L as LoaderCircle, M as Menu, N as Maximize, O as Monitor, P as Maximize2, Q as FileText, R as List, S as Radio, T as Pause, U as Image, V as LayoutGrid, W as ImagePlus, X as FolderPlus, Y as Folder, Z as Film, _ as Shuffle, a as VolumeX, at as CircleAlert, b as Search, c as Users, ct as Check, d as ThumbsUp, dt as Bell, et as Download, f as Tag, ft as BellOff, g as SkipBack, h as SkipForward, i as WandSparkles, it as Clapperboard, j as MessageCircle, k as MonitorPlay, l as Upload, lt as Box, m as Sparkles, n as X, nt as Copy, o as Volume2, ot as ChevronRight, p as Star, pt as ArrowLeft, q as Glasses, r as Wifi, rt as Clock3, s as Video, st as ChevronLeft, t as Youtube, tt as Cpu, ut as Bot, v as ShoppingBag, w as PictureInPicture2, x as Rocket, y as Settings2, z as ListPlus } from "../_libs/lucide-react.mjs";
 import { n as clsx, t as cva } from "../_libs/class-variance-authority+clsx.mjs";
 import { t as twMerge } from "../_libs/tailwind-merge.mjs";
 import { n as toast, t as Toaster } from "../_libs/sonner.mjs";
@@ -11,7 +11,7 @@ import { a as DialogPortal, i as DialogOverlay, n as DialogClose, o as DialogTit
 import { t as Root } from "../_libs/radix-ui__react-separator.mjs";
 import { a as Trigger, i as Root2, n as Item2, r as Portal2, t as Content2 } from "../_libs/@radix-ui/react-dropdown-menu+[...].mjs";
 import { i as SliderTrack, n as SliderRange, r as SliderThumb, t as Slider$1 } from "../_libs/@radix-ui/react-slider+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-BIsa_WZY.js
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-CMG-G_R2.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var __defProp = Object.defineProperty;
@@ -330,6 +330,7 @@ var SAMPLE_VIDEOS = [
 var DB_NAME = "reelcase";
 var STORE = "dirs";
 var VIDEO_STORE = "videos";
+var SOURCE_HEALTH_STORE = "source-health";
 var PREFS_KEY = "reelcase.prefs.v4";
 var LEGACY_KEYS = [
 	"reelcase.prefs.v3",
@@ -345,11 +346,12 @@ function migrateSource(id) {
 }
 function openDb() {
 	return new Promise((resolve, reject) => {
-		const req = indexedDB.open(DB_NAME, 2);
+		const req = indexedDB.open(DB_NAME, 3);
 		req.onupgradeneeded = () => {
 			const db = req.result;
 			if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: "id" });
 			if (!db.objectStoreNames.contains(VIDEO_STORE)) db.createObjectStore(VIDEO_STORE, { keyPath: "id" }).createIndex("folderId", "folderId", { unique: false });
+			if (!db.objectStoreNames.contains(SOURCE_HEALTH_STORE)) db.createObjectStore(SOURCE_HEALTH_STORE, { keyPath: "id" });
 		};
 		req.onsuccess = () => resolve(req.result);
 		req.onerror = () => reject(req.error);
@@ -378,8 +380,13 @@ async function loadDirHandles() {
 async function deleteDirHandle(id) {
 	const db = await openDb();
 	await new Promise((resolve, reject) => {
-		const tx = db.transaction([STORE, VIDEO_STORE], "readwrite");
+		const tx = db.transaction([
+			STORE,
+			VIDEO_STORE,
+			SOURCE_HEALTH_STORE
+		], "readwrite");
 		tx.objectStore(STORE).delete(id);
+		tx.objectStore(SOURCE_HEALTH_STORE).delete(id);
 		const req = tx.objectStore(VIDEO_STORE).index("folderId").openCursor(IDBKeyRange.only(id));
 		req.onsuccess = () => {
 			const cursor = req.result;
@@ -452,6 +459,26 @@ async function loadCatalogVideos() {
 	});
 	db.close();
 	return rows.filter((v) => !v.isSample);
+}
+async function saveSourceHealth(entry) {
+	const db = await openDb();
+	await new Promise((resolve, reject) => {
+		const tx = db.transaction(SOURCE_HEALTH_STORE, "readwrite");
+		tx.objectStore(SOURCE_HEALTH_STORE).put(entry);
+		tx.oncomplete = () => resolve();
+		tx.onerror = () => reject(tx.error);
+	});
+	db.close();
+}
+async function loadSourceHealth() {
+	const db = await openDb();
+	const rows = await new Promise((resolve, reject) => {
+		const req = db.transaction(SOURCE_HEALTH_STORE, "readonly").objectStore(SOURCE_HEALTH_STORE).getAll();
+		req.onsuccess = () => resolve(req.result ?? []);
+		req.onerror = () => reject(req.error);
+	});
+	db.close();
+	return rows;
 }
 function normalize(raw) {
 	const starred = raw.starred ?? [];
@@ -796,7 +823,7 @@ async function walkHandle(dir, prefix, folderId, acc, folderName, opts, flushed,
 		if (handle.kind === "directory") {
 			if (shouldSkipDir(name)) continue;
 			await walkHandle(handle, `${prefix}${name}/`, folderId, acc, folderName, opts, flushed, depth + 1, drive, progressState);
-		} else if (handle.kind === "file" && isVideoFile(name)) try {
+		} else if (handle.kind === "file" && !opts.imagesOnly && isVideoFile(name)) try {
 			const fileHandle = handle;
 			const file = await fileHandle.getFile();
 			pushVideo(acc, folderId, prefix + name, file, fileHandle);
@@ -808,6 +835,9 @@ async function walkHandle(dir, prefix, folderId, acc, folderName, opts, flushed,
 			});
 			maybeFlush(acc, flushed, opts.onBatch);
 			if (acc.length % 20 === 0) await yieldUi();
+		} catch {}
+		else if (handle.kind === "file" && /\.(avif|bmp|gif|heic|heif|jpe?g|png|tiff?|webp)$/i.test(name)) try {
+			opts.onImage?.(await handle.getFile(), prefix + name);
 		} catch {}
 		else if (looked % 200 === 0) {
 			throttleProgress(opts, progressState, {
@@ -1032,6 +1062,13 @@ var VideoSearchIndex = class {
 		this.unlink(video.id);
 		this.link(video.id, haystackFor(video, tags, categories));
 	}
+	/** Update one locally edited document without rebuilding a very large catalog. */
+	updateMetadata(video, videos, tags, categories) {
+		if (this.videosRef !== videos) return;
+		this.upsert(video, tags, categories);
+		this.tagsRef = tags;
+		this.categoriesRef = categories;
+	}
 	remove(id) {
 		this.unlink(id);
 	}
@@ -1088,10 +1125,22 @@ var useSourceAssets = create((set) => ({
 	capture: (input) => set((state) => {
 		const files = Array.from(input);
 		const append = (current, next) => [...current, ...next.filter((file) => !current.some((saved) => `${saved.name}:${saved.lastModified}` === `${file.name}:${file.lastModified}`))].slice(-600);
+		const photoFiles = files.filter(imageFile);
 		return {
-			photos: append(state.photos, files.filter(imageFile)),
+			photos: [...state.photos, ...photoFiles.filter((file) => !state.photos.some((saved) => `${saved.file.name}:${saved.file.lastModified}` === `${file.name}:${file.lastModified}`)).map((file) => ({
+				file,
+				path: file.webkitRelativePath || file.name
+			}))].slice(-600),
 			shortcuts: append(state.shortcuts, files.filter(shortcutFile))
 		};
+	}),
+	capturePhoto: (file, path) => set((state) => {
+		const key = `${path}:${file.lastModified}`;
+		if (state.photos.some((saved) => `${saved.path}:${saved.file.lastModified}` === key)) return state;
+		return { photos: [...state.photos, {
+			file,
+			path
+		}].slice(-600) };
 	})
 }));
 var HISTORY_CAP = 250;
@@ -1217,7 +1266,7 @@ function applyPrefs(partial) {
 		sourceId: prefs.sourceId === "adults" ? "home" : prefs.sourceId ?? "home",
 		hardwareAccel: prefs.hardwareAccel ?? true,
 		adultPinHash: prefs.adultPinHash ?? null,
-		follows: prefs.follows?.length ? prefs.follows : STARTER_FOLLOWS,
+		follows: prefs.follows ?? [],
 		notices: prefs.notices ?? [],
 		notifyPush: prefs.notifyPush ?? false
 	};
@@ -1290,6 +1339,9 @@ var useLibrary = create((set, get) => ({
 			...s.tags,
 			[id]: [...new Set(tags.map((tag) => tag.trim().toLowerCase()).filter(Boolean))].slice(0, 12)
 		} }));
+		const state = get();
+		const video = state.videos.find((item) => item.id === id);
+		if (video) librarySearchIndex.updateMetadata(video, state.videos, state.tags, state.categories);
 		persistNow(get);
 	},
 	setVideoCategory: (id, category) => {
@@ -1297,6 +1349,9 @@ var useLibrary = create((set, get) => ({
 			...s.categories,
 			[id]: category.trim().slice(0, 40)
 		} }));
+		const state = get();
+		const video = state.videos.find((item) => item.id === id);
+		if (video) librarySearchIndex.updateMetadata(video, state.videos, state.tags, state.categories);
 		persistNow(get);
 	},
 	markProgress: (id, t, d) => {
@@ -1464,9 +1519,14 @@ var useLibrary = create((set, get) => ({
 			sourceId: adult ? "adults" : folderId
 		}));
 		let writeChain = clearFolderVideos(folderId).catch(() => void 0);
+		let discoveredPhotos = 0;
 		try {
 			const videos = await ingestDirectoryHandle(handle, folderId, {
 				onProgress: (p) => set({ scanning: p }),
+				onImage: (file, relativePath) => {
+					discoveredPhotos += 1;
+					useSourceAssets.getState().capturePhoto(file, `${handle.name}/${relativePath}`);
+				},
 				onBatch: (batch) => {
 					if (!batch.length) return;
 					set((s) => ({
@@ -1483,10 +1543,11 @@ var useLibrary = create((set, get) => ({
 			set((s) => ({
 				folders: s.folders.map((f) => f.id === folderId ? {
 					...f,
-					videoCount: videos.length
+					videoCount: videos.length,
+					photoCount: discoveredPhotos
 				} : f),
 				scanning: null,
-				sourceId: adult ? "adults" : videos.length ? folderId : s.sourceId
+				sourceId: adult ? "adults" : videos.length ? folderId : discoveredPhotos ? "photos" : s.sourceId
 			}));
 			if (videos.length) set((s) => ({ tags: addLocalNameTags(s.tags, videos) }));
 			flushPersist(get);
@@ -1608,13 +1669,30 @@ var useLibrary = create((set, get) => ({
 		const prefsState = applyPrefs({});
 		const adultIds = new Set(loadPrefs()?.privateFolderIds ?? []);
 		let cachedFolderIds = /* @__PURE__ */ new Set();
+		let savedHealth = /* @__PURE__ */ new Map();
 		set({
 			...prefsState,
 			hydrated: true
 		});
-		if (prefsState.follows?.length) get().refreshFollows();
+		if (typeof window !== "undefined") {
+			const recover = async (kind) => {
+				try {
+					const saved = JSON.parse(localStorage.getItem(`reelcase.import-history.${kind}`) ?? "[]");
+					if (!Array.isArray(saved) || !saved.length) return;
+					await get().importBatch(saved.filter((value) => typeof value === "string" && Boolean(value.trim())).slice(0, 1e3).map((query) => ({
+						query,
+						kind
+					})));
+				} catch {}
+			};
+			(async () => {
+				await recover("twitch");
+				await recover("youtube");
+			})();
+		}
 		try {
-			const catalog = await loadCatalogVideos();
+			const [catalog, healthRows] = await Promise.all([loadCatalogVideos(), loadSourceHealth()]);
+			savedHealth = new Map(healthRows.map((entry) => [entry.id, entry]));
 			cachedFolderIds = new Set(catalog.map((video) => video.folderId));
 			if (catalog.length) {
 				const counts = /* @__PURE__ */ new Map();
@@ -1630,7 +1708,8 @@ var useLibrary = create((set, get) => ({
 						needsPermission: true
 					}))].map((f) => counts.has(f.id) ? {
 						...f,
-						videoCount: counts.get(f.id) ?? f.videoCount
+						videoCount: counts.get(f.id) ?? f.videoCount,
+						...savedHealth.get(f.id) ?? {}
 					} : f)
 				}));
 			}
@@ -1651,11 +1730,19 @@ var useLibrary = create((set, get) => ({
 			}
 			const adult = adultIds.has(row.id);
 			if (localStorage.getItem("reelcase.source-cache-first") !== "false" && cachedFolderIds.has(row.id)) {
+				const snapshot = {
+					id: row.id,
+					health: "cached",
+					lastCheckedAt: Date.now(),
+					videoCount: savedHealth.get(row.id)?.videoCount ?? 0
+				};
 				set((s) => ({ folders: s.folders.map((folder) => folder.id === row.id ? {
 					...folder,
 					name: row.name,
-					needsPermission: false
+					needsPermission: false,
+					...snapshot
 				} : folder) }));
+				saveSourceHealth(snapshot).catch(() => void 0);
 				continue;
 			}
 			if (perm === "granted") {
@@ -1695,12 +1782,26 @@ var useLibrary = create((set, get) => ({
 						folders: s.folders.map((f) => f.id === row.id ? {
 							...f,
 							videoCount: videos.length,
-							needsPermission: false
+							needsPermission: false,
+							health: "healthy",
+							lastCheckedAt: Date.now()
 						} : f),
 						scanning: null
 					}));
 					if (videos.length) await saveFolderVideos(row.id, videos).catch(() => void 0);
+					saveSourceHealth({
+						id: row.id,
+						health: "healthy",
+						lastCheckedAt: Date.now(),
+						videoCount: videos.length
+					}).catch(() => void 0);
 				} catch {
+					saveSourceHealth({
+						id: row.id,
+						health: "unavailable",
+						lastCheckedAt: Date.now(),
+						videoCount: 0
+					}).catch(() => void 0);
 					set((s) => ({
 						scanning: null,
 						folders: [...s.folders.filter((f) => f.id !== row.id), {
@@ -1709,18 +1810,30 @@ var useLibrary = create((set, get) => ({
 							kind: "directory",
 							videoCount: 0,
 							needsPermission: true,
+							health: "unavailable",
+							lastCheckedAt: Date.now(),
 							adult
 						}]
 					}));
 				}
-			} else set((s) => ({ folders: [...s.folders.filter((f) => f.id !== row.id), {
-				id: row.id,
-				name: row.name,
-				kind: "directory",
-				videoCount: s.folders.find((f) => f.id === row.id)?.videoCount ?? 0,
-				needsPermission: true,
-				adult
-			}] }));
+			} else {
+				saveSourceHealth({
+					id: row.id,
+					health: "permission-needed",
+					lastCheckedAt: Date.now(),
+					videoCount: savedHealth.get(row.id)?.videoCount ?? 0
+				}).catch(() => void 0);
+				set((s) => ({ folders: [...s.folders.filter((f) => f.id !== row.id), {
+					id: row.id,
+					name: row.name,
+					kind: "directory",
+					videoCount: s.folders.find((f) => f.id === row.id)?.videoCount ?? 0,
+					needsPermission: true,
+					health: "permission-needed",
+					lastCheckedAt: Date.now(),
+					adult
+				}] }));
+			}
 		}
 	},
 	restoreOne: async (folderId) => {
@@ -1769,6 +1882,29 @@ var useLibrary = create((set, get) => ({
 		}));
 		if (videos.length) await saveFolderVideos(folderId, videos).catch(() => void 0);
 	},
+	refreshSourcePhotos: async (folderId) => {
+		const handle = getDirHandle(folderId);
+		if (!handle) return 0;
+		try {
+			if (await queryDirPermission(handle) !== "granted") return 0;
+			let photoCount = 0;
+			await ingestDirectoryHandle(handle, folderId, {
+				imagesOnly: true,
+				onImage: (file, relativePath) => {
+					photoCount += 1;
+					useSourceAssets.getState().capturePhoto(file, `${handle.name}/${relativePath}`);
+				}
+			});
+			set((s) => ({ folders: s.folders.map((folder) => folder.id === folderId ? {
+				...folder,
+				photoCount,
+				needsPermission: false
+			} : folder) }));
+			return photoCount;
+		} catch {
+			return 0;
+		}
+	},
 	removeFolder: async (folderId) => {
 		if (folderId === "demo") {
 			get().setHideDemo(true);
@@ -1811,7 +1947,7 @@ var useLibrary = create((set, get) => ({
 	followRemoteQuery: async (query, kind = "auto") => {
 		set({ remoteBusy: true });
 		try {
-			const { followRemote } = await import("./api-BKi_C3gc.mjs");
+			const { followRemote } = await import("./api-C4xCisId.mjs");
 			const result = await followRemote({ data: {
 				query,
 				kind
@@ -1851,7 +1987,7 @@ var useLibrary = create((set, get) => ({
 		const savedHandles = new Set(get().follows.map((follow) => `${follow.kind}:${follow.handle.toLowerCase()}`));
 		const seenQueries = /* @__PURE__ */ new Set();
 		const unique = items.map((i) => ({
-			query: i.query.trim(),
+			query: i.query.trim().replaceAll("\\_", "_"),
 			kind: i.kind
 		})).filter((i) => {
 			const handle = i.query.replace(/^https?:\/\/(www\.)?(youtube\.com\/(@|channel\/)?|twitch\.tv\/)?/i, "").replace(/^@/, "").split(/[/?#]/)[0].toLowerCase();
@@ -1877,9 +2013,9 @@ var useLibrary = create((set, get) => ({
 		let ok = 0;
 		let failed = 0;
 		const failedQueries = [];
-		const chunk = 10;
+		const chunk = 20;
 		try {
-			const { importChannels } = await import("./api-BKi_C3gc.mjs");
+			const { importChannels } = await import("./api-C4xCisId.mjs");
 			for (let i = 0; i < unique.length; i += chunk) {
 				const slice = unique.slice(i, i + chunk);
 				const result = await importChannels({ data: { items: slice } });
@@ -1916,6 +2052,7 @@ var useLibrary = create((set, get) => ({
 						}
 					};
 				});
+				persistSoon(get);
 			}
 			persistNow(get);
 			const added = get().follows.filter((f) => !existing.has(f.id)).length;
@@ -1926,8 +2063,7 @@ var useLibrary = create((set, get) => ({
 			});
 			set({
 				remoteBusy: false,
-				importProgress: null,
-				sourceId: unique[0]?.kind === "twitch" ? "twitch" : "youtube"
+				importProgress: null
 			});
 			persistNow(get);
 			return {
@@ -1961,7 +2097,7 @@ var useLibrary = create((set, get) => ({
 		const beforeLive = new Set(get().videos.filter((v) => v.remote?.live).map((v) => v.id));
 		const beforeIds = new Set(get().videos.map((v) => v.id));
 		try {
-			const { refreshRemotes } = await import("./api-BKi_C3gc.mjs");
+			const { refreshRemotes } = await import("./api-C4xCisId.mjs");
 			const result = await refreshRemotes({ data: { channels: current } });
 			const followIds = new Set(result.channels.map((c) => c.id));
 			set((s) => ({
@@ -2022,7 +2158,8 @@ var useLibrary = create((set, get) => ({
 }));
 function publicList(state) {
 	const adult = adultIdSet(state.folders);
-	let list = state.videos.filter((v) => !adult.has(v.folderId));
+	const knownFolders = new Set(state.folders.map((folder) => folder.id));
+	let list = state.videos.filter((v) => !adult.has(v.folderId) && (knownFolders.has(v.folderId) || Boolean(v.remote) || v.isSample));
 	if (state.hideDemo) list = list.filter((v) => !v.isSample);
 	return list;
 }
@@ -2176,7 +2313,7 @@ function SidebarNav({ onAddFolder, onNavigate }) {
 		setSource(id);
 		onNavigate?.();
 	};
-	const publicFolders = folders.filter((f) => f.kind !== "demo" && f.kind !== "youtube" && f.kind !== "twitch" && !f.adult);
+	const publicFolders = folders.filter((f) => f.kind !== "demo" && f.kind !== "youtube" && f.kind !== "twitch" && !f.adult && (f.videoCount > 0 || Boolean(f.photoCount) || Boolean(f.needsPermission)));
 	const networkFolders = folders.filter((f) => (f.kind === "youtube" || f.kind === "twitch") && f.id !== "youtube:featured");
 	const adultFolders = folders.filter((f) => f.adult);
 	const demo = folders.find((f) => f.kind === "demo" && !hideDemo);
@@ -2186,9 +2323,15 @@ function SidebarNav({ onAddFolder, onNavigate }) {
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "px-2 pt-1 pb-4",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-					className: "font-display text-2xl leading-none tracking-tight text-fg",
-					children: "Reelcase"
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "flex items-center gap-2.5",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+						className: "flex size-9 items-center justify-center rounded-lg bg-accent text-accent-fg shadow-border",
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Clapperboard, { className: "size-5" })
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "font-display text-2xl leading-none tracking-tight text-fg",
+						children: "Reelcase"
+					})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 					className: "mt-1 text-xs text-muted",
 					children: "Vault · networks · live"
@@ -2331,6 +2474,12 @@ function SidebarNav({ onAddFolder, onNavigate }) {
 						onClick: () => go("assistant"),
 						icon: Sparkles,
 						label: "AI guide"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(NavItem, {
+						active: sourceId === "mission-plan",
+						onClick: () => go("mission-plan"),
+						icon: Clapperboard,
+						label: "Mission plan"
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(NavItem, {
 						active: sourceId === "settings",
@@ -2570,6 +2719,18 @@ var SORTS = [
 	{
 		key: "duration",
 		label: "Duration"
+	},
+	{
+		key: "type",
+		label: "File type"
+	},
+	{
+		key: "folder",
+		label: "Folder"
+	},
+	{
+		key: "path",
+		label: "Full path"
 	}
 ];
 function TopBar({ onMenu, onAddFiles }) {
@@ -2599,12 +2760,16 @@ function TopBar({ onMenu, onAddFiles }) {
 	const setSort = useLibrary((s) => s.setSort);
 	const scanning = useLibrary((s) => s.scanning);
 	const sourceId = useLibrary((s) => s.sourceId);
+	const folders = useLibrary((s) => s.folders);
+	const videos = useLibrary((s) => s.videos);
 	const sortLabel = SORTS.find((s) => s.key === sort)?.label ?? "Name";
+	const sourceLabel = sourceId === "home" ? "Home" : sourceId === "movies" ? "Movies" : sourceId === "photos" ? "Photos" : sourceId === "twitch" ? "Twitch" : sourceId === "youtube" ? "YouTube" : folders.find((folder) => folder.id === sourceId)?.name ?? "Library";
+	const sourceCount = sourceId === "home" ? videos.length : folders.find((folder) => folder.id === sourceId)?.videoCount;
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("header", {
-		className: "flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:px-6",
+		className: "grid gap-3 border-b border-border px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-6 xl:grid-cols-[minmax(13rem,0.55fr)_minmax(20rem,1.4fr)_auto]",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "flex items-center gap-2",
+				className: "flex min-w-0 items-center gap-2",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 					variant: "ghost",
 					size: "icon-sm",
@@ -2612,13 +2777,19 @@ function TopBar({ onMenu, onAddFiles }) {
 					"aria-label": "Open menu",
 					onClick: onMenu,
 					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Menu, { className: "size-5" })
-				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-					className: "font-display text-lg leading-none lg:hidden",
-					children: "Reelcase"
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "min-w-0",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "truncate font-display text-lg leading-none text-fg",
+						children: sourceLabel
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-1 text-xs text-muted",
+						children: typeof sourceCount === "number" ? `${sourceCount.toLocaleString()} indexed` : "Control room"
+					})]
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "relative min-w-0 flex-1",
+				className: "relative min-w-0 xl:max-w-3xl",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Search, { className: "pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
 					type: "search",
 					value: draft,
@@ -2632,7 +2803,7 @@ function TopBar({ onMenu, onAddFiles }) {
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "flex items-center gap-1.5",
+				className: "flex items-center gap-1.5 sm:justify-end",
 				children: [
 					scanning && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
 						className: "mr-2 hidden truncate text-xs text-muted sm:inline",
@@ -2985,6 +3156,7 @@ function VideoCard({ video, variant = "grid", index = 0, playedAt, className }) 
 	const ratio = progress && progress.d > 0 ? Math.min(1, progress.t / progress.d) : 0;
 	const playable = isLikelyPlayable(video.extension);
 	const art = variant === "poster" ? video.poster || thumb : thumb || video.poster;
+	const youtubeFallback = video.remote?.kind === "youtube" && video.remote.videoId ? `https://i.ytimg.com/vi/${video.remote.videoId}/hqdefault.jpg` : void 0;
 	const isPoster = variant === "poster";
 	const live = Boolean(video.remote?.live);
 	const preview = video.remote?.previewUrl;
@@ -3002,8 +3174,8 @@ function VideoCard({ video, variant = "grid", index = 0, playedAt, className }) 
 	const poster = /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 		className: cn("relative overflow-hidden bg-elevated", variant === "list" && "h-16 w-28 shrink-0 rounded-sm", variant === "poster" && "aspect-poster w-full rounded-md", (variant === "grid" || variant === "rail") && "aspect-video w-full rounded-md"),
 		children: [
-			art && !imageFailed ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
-				src: hovered && preview ? preview : art,
+			(imageFailed && youtubeFallback ? youtubeFallback : art) ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+				src: imageFailed && youtubeFallback ? youtubeFallback : hovered && preview ? preview : art,
 				alt: "",
 				onError: () => setImageFailed(true),
 				className: "size-full object-cover outline outline-1 -outline-offset-1 outline-fg/10"
@@ -4482,6 +4654,10 @@ function AiGuide() {
 		setBusy(true);
 		setAnswer("");
 		try {
+			if (/live|twitch|stream/i.test(prompt)) {
+				setAnswer(localAnswer());
+				return;
+			}
 			const catalog = videos.slice(0, 80).map((video) => `${video.name} | ${video.genre ?? ""} | ${(tags[video.id] ?? []).join(", ")} | ${favorites[video.id] ? "favorite" : ""} ${likes[video.id] ? "liked" : ""}`).join("\n");
 			const result = await askRecommendations({ data: {
 				prompt,
@@ -4495,7 +4671,7 @@ function AiGuide() {
 		}
 	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
-		className: "mx-auto max-w-3xl rounded-xl bg-surface p-5 shadow-border sm:p-8",
+		className: "w-full max-w-none rounded-xl bg-surface p-5 shadow-border sm:p-6 xl:p-8",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 				className: "flex items-center gap-2 text-xs font-medium tracking-[0.16em] text-accent uppercase",
@@ -4507,7 +4683,7 @@ function AiGuide() {
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 				className: "mt-3 max-w-xl text-sm text-muted",
-				children: "Automatic local picks learn from favorites, likes, tags, history, and the latest followed Twitch status without sending video files anywhere. The optional guide receives only a compact title, genre, and tag list when you ask it."
+				children: "Automatic local picks learn from favorites, likes, tags, history, and the latest followed Twitch status without sending video files anywhere."
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "mt-6 rounded-lg bg-elevated p-5 shadow-border",
@@ -4605,24 +4781,63 @@ function AiGuide() {
 					onClick: () => setPrompt(suggestion),
 					children: suggestion
 				}, suggestion))
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "mt-6 border-t border-border pt-5",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+						children: "AI tools"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-1 text-xs text-muted",
+						children: "Open an AI workspace when you want broader research or creative help; Reelcase does not share your library automatically."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-3 flex flex-wrap gap-2",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", {
+								href: "https://chatgpt.com/",
+								target: "_blank",
+								rel: "noreferrer",
+								className: "rounded-sm bg-elevated px-3 py-2 text-sm text-fg shadow-border",
+								children: "ChatGPT"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", {
+								href: "https://grok.com/",
+								target: "_blank",
+								rel: "noreferrer",
+								className: "rounded-sm bg-elevated px-3 py-2 text-sm text-fg shadow-border",
+								children: "Grok"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", {
+								href: "https://gemini.google.com/",
+								target: "_blank",
+								rel: "noreferrer",
+								className: "rounded-sm bg-elevated px-3 py-2 text-sm text-fg shadow-border",
+								children: "Gemini"
+							})
+						]
+					})
+				]
 			})
 		]
 	});
 }
 /** Split pasted lists on newlines, commas, or whitespace (URLs never contain spaces). */
 function linesToCandidates(value, kind) {
-	return [...new Set(value.split(/[\s,]+/).map((line) => line.trim()).filter(Boolean))].map((query) => ({
+	return [...new Set(value.split(/[\s,]+/).map((line) => line.trim().replaceAll("\\_", "_").replace(/^["'([{<]+|["')\]}>.;:]+$/g, "")).filter(Boolean))].map((query) => ({
 		query,
 		kind
 	}));
 }
-function ConnectPanel({ defaultKind = "youtube" }) {
+function ConnectPanel({ defaultKind = "youtube", lockedKind }) {
 	const followRemoteQuery = useLibrary((s) => s.followRemoteQuery);
 	const importBatch = useLibrary((s) => s.importBatch);
 	const remoteBusy = useLibrary((s) => s.remoteBusy);
 	const importProgress = useLibrary((s) => s.importProgress);
 	const follows = useLibrary((s) => s.follows);
-	const [kind, setKind] = (0, import_react.useState)(defaultKind);
+	const [kind, setKind] = (0, import_react.useState)(lockedKind ?? defaultKind);
 	const [query, setQuery] = (0, import_react.useState)("");
 	const [discovery, setDiscovery] = (0, import_react.useState)("");
 	const [bulk, setBulk] = (0, import_react.useState)("");
@@ -4635,6 +4850,9 @@ function ConnectPanel({ defaultKind = "youtube" }) {
 			setBulk(localStorage.getItem(`reelcase.import-draft.${kind}`) ?? "");
 		} catch {}
 	}, [kind]);
+	(0, import_react.useEffect)(() => {
+		if (lockedKind) setKind(lockedKind);
+	}, [lockedKind]);
 	(0, import_react.useEffect)(() => {
 		try {
 			setSavedLists(JSON.parse(localStorage.getItem(`reelcase.import-history.${kind}`) ?? "[]"));
@@ -4672,12 +4890,16 @@ function ConnectPanel({ defaultKind = "youtube" }) {
 	};
 	const importItems = async (items) => {
 		if (!items.length) return;
+		const normalized = items.map((item) => ({
+			...item,
+			query: item.query.trim().replaceAll("\\_", "_")
+		}));
+		const saved = [.../* @__PURE__ */ new Set([...normalized.map((item) => item.query), ...savedLists])].slice(0, 1e3);
+		localStorage.setItem(`reelcase.import-history.${kind}`, JSON.stringify(saved));
+		localStorage.setItem(`reelcase.import-draft.${kind}`, bulk);
+		setSavedLists(saved);
 		try {
-			const result = await importBatch(items);
-			const saved = [.../* @__PURE__ */ new Set([...items.map((item) => item.query.trim()), ...savedLists])].slice(0, 200);
-			localStorage.setItem(`reelcase.import-history.${kind}`, JSON.stringify(saved));
-			setSavedLists(saved);
-			localStorage.setItem(`reelcase.import-draft.${kind}`, bulk);
+			const result = await importBatch(normalized);
 			setFound([]);
 			if (result.failed && result.failedQueries?.length) toast.message(`${result.ok} added · ${result.failed} unavailable`, { description: result.failedQueries.slice(0, 8).join(", ") + (result.failedQueries.length > 8 ? "…" : "") });
 			else toast.success(result.failed ? `${result.ok} added · ${result.failed} unavailable` : `${result.ok} channel${result.ok === 1 ? "" : "s"} added`);
@@ -4690,7 +4912,7 @@ function ConnectPanel({ defaultKind = "youtube" }) {
 		if (!login) return;
 		setFinding(true);
 		try {
-			const { fetchTwitchFollowing } = await import("./api-BKi_C3gc.mjs");
+			const { fetchTwitchFollowing } = await import("./api-C4xCisId.mjs");
 			const result = await fetchTwitchFollowing({ data: { login } });
 			const rows = result.channels.map((channel) => ({
 				query: channel.login,
@@ -4716,15 +4938,19 @@ function ConnectPanel({ defaultKind = "youtube" }) {
 						children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 								className: "flex items-center gap-2 text-xs font-medium tracking-[0.16em] text-accent uppercase",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Sparkles, { className: "size-3.5" }), " Network desk"]
+								children: [
+									kind === "twitch" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Radio, { className: "size-3.5" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Youtube, { className: "size-3.5" }),
+									" ",
+									kind === "twitch" ? "Twitch follow manager" : "YouTube subscriptions"
+								]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
 								className: "mt-2 font-display text-3xl leading-none text-fg sm:text-4xl",
-								children: "Make Home your live guide."
+								children: kind === "twitch" ? "Build your live desk." : "Bring subscriptions home."
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 								className: "mt-2 text-sm text-muted",
-								children: "Bring in creators once. Reelcase groups fresh uploads, recent streams, and live channels in one watchable feed."
+								children: kind === "twitch" ? "Keep live channels, VODs, and clips in a Twitch-only follow list." : "Keep channel uploads, previews, and recommendations in a YouTube-only subscription list."
 							})
 						]
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -4737,7 +4963,7 @@ function ConnectPanel({ defaultKind = "youtube" }) {
 							value: networkFollows.length
 						})]
 					})]
-				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				}), !lockedKind && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "mt-5 inline-flex rounded-md bg-bg/50 p-1 shadow-border",
 					role: "tablist",
 					"aria-label": "Network",
@@ -4765,7 +4991,7 @@ function ConnectPanel({ defaultKind = "youtube" }) {
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(StepBadge, {
 						number: "01",
-						label: "Add creators"
+						label: kind === "twitch" ? "Follow live channels" : "Add subscriptions"
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "mt-2 text-sm text-muted",
@@ -4797,7 +5023,7 @@ function ConnectPanel({ defaultKind = "youtube" }) {
 					className: "border-t border-border pt-5 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(StepBadge, {
 						number: "02",
-						label: "Import several at once"
+						label: kind === "twitch" ? "Import Twitch follows" : "Import YouTube subscriptions"
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 							className: "mt-2 text-sm text-muted",
@@ -4908,7 +5134,7 @@ function ConnectPanel({ defaultKind = "youtube" }) {
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 						className: "mt-1 text-xs text-muted",
-						children: [savedLists.length, " channel entries retained locally for this service."]
+						children: [savedLists.length, " channel entries retained locally for this service. Reelcase retries this list automatically at startup when the follow shelf is empty."]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "mt-3 flex flex-wrap gap-2",
@@ -4916,6 +5142,17 @@ function ConnectPanel({ defaultKind = "youtube" }) {
 							className: "rounded-sm bg-elevated px-2 py-1 text-xs text-muted",
 							children: handle
 						}, handle))
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+						className: "mt-3",
+						size: "sm",
+						variant: "secondary",
+						disabled: remoteBusy,
+						onClick: () => void importItems(savedLists.map((query) => ({
+							query,
+							kind
+						}))),
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ListPlus, { className: "size-3.5" }), " Load saved list now"]
 					})
 				]
 			}),
@@ -5464,6 +5701,13 @@ function useP2PRoom(room, name) {
 }
 var HUB_KEY = "reelcase.hub.v1";
 var PREFERENCE_GROUPS = {
+	Alerts: [
+		"Go-live alerts",
+		"New Twitch VOD alerts",
+		"New YouTube upload alerts",
+		"Source change alerts",
+		"Watch-room invitation alerts"
+	],
 	Playback: [
 		"Autoplay next video",
 		"Resume playback",
@@ -5663,7 +5907,10 @@ function SettingsSection() {
 	const [preferenceGroup, setPreferenceGroup] = (0, import_react.useState)("Playback");
 	const [zoom, setZoom] = (0, import_react.useState)(100);
 	const [railLimit, setRailLimit] = (0, import_react.useState)(24);
+	const [liveDensity, setLiveDensity] = (0, import_react.useState)(4);
 	const [sourceCacheFirst, setSourceCacheFirst] = (0, import_react.useState)(true);
+	const [debugEnabled, setDebugEnabled] = (0, import_react.useState)(false);
+	const [debugReport, setDebugReport] = (0, import_react.useState)("");
 	(0, import_react.useEffect)(() => setHub(readHub()), []);
 	(0, import_react.useEffect)(() => {
 		try {
@@ -5693,6 +5940,16 @@ function SettingsSection() {
 		].includes(saved) ? saved : 24);
 	}, []);
 	(0, import_react.useEffect)(() => setSourceCacheFirst(localStorage.getItem("reelcase.source-cache-first") !== "false"), []);
+	(0, import_react.useEffect)(() => {
+		try {
+			setDebugEnabled(localStorage.getItem("reelcase.debug-panel") === "true");
+		} catch {}
+	}, []);
+	(0, import_react.useEffect)(() => setLiveDensity([
+		3,
+		4,
+		6
+	].includes(Number(localStorage.getItem("reelcase.live-columns") ?? "4")) ? Number(localStorage.getItem("reelcase.live-columns")) : 4), []);
 	const setGlobalZoom = (value) => {
 		setZoom(value);
 		localStorage.setItem("reelcase.ui-zoom", String(value));
@@ -5726,7 +5983,7 @@ function SettingsSection() {
 				follows: state.follows,
 				notices: state.notices,
 				sourceCompanions: {
-					photoNames: useSourceAssets.getState().photos.map((file) => file.name),
+					photoNames: useSourceAssets.getState().photos.map((asset) => asset.path),
 					shortcutNames: useSourceAssets.getState().shortcuts.map((file) => file.name)
 				}
 			},
@@ -5775,120 +6032,249 @@ function SettingsSection() {
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Download, { className: "size-4" }), " Export JSON"]
 				})]
 			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "mt-4 grid gap-4 sm:grid-cols-2",
-				children: [
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "rounded-lg bg-elevated p-5 shadow-border",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-								className: "text-accent",
-								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Settings2, { className: "size-5" })
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
-								className: "mt-3 font-display text-2xl text-fg",
-								children: "App zoom"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "mt-2 text-sm leading-6 text-muted",
-								children: "Scale the entire library interface for this browser. Your choice is remembered everywhere in Reelcase."
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "mt-4 flex flex-wrap gap-2",
-								children: [
-									80,
-									90,
-									100,
-									110,
-									125
-								].map((value) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "mt-6",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "mb-3",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+						children: "Device & performance"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-1 text-sm text-muted",
+						children: "The controls that change how Reelcase runs and fits your screen."
+					})]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "grid gap-4 sm:grid-cols-2 xl:grid-cols-4",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "rounded-lg bg-elevated p-5 shadow-border",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									className: "text-accent",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Settings2, { className: "size-5" })
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+									className: "mt-3 font-display text-2xl text-fg",
+									children: "Diagnostics"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-2 text-sm leading-6 text-muted",
+									children: "Keep a local, opt-in status panel for source, cache, and companion troubleshooting. It is off by default and sends nothing away."
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 									size: "sm",
-									variant: zoom === value ? "default" : "secondary",
-									onClick: () => setGlobalZoom(value),
-									children: [value, "%"]
-								}, value))
-							})
-						]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "rounded-lg bg-elevated p-5 shadow-border",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-								className: "text-accent",
-								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PackageSearch, { className: "size-5" })
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
-								className: "mt-3 font-display text-2xl text-fg",
-								children: "Home performance"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "mt-2 text-sm leading-6 text-muted",
-								children: "Choose how many cards each Home rail mounts. Lower counts keep huge folders smooth; the complete catalog remains searchable."
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "mt-4 flex flex-wrap gap-2",
-								children: [
-									12,
-									24,
-									48
-								].map((value) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-									size: "sm",
-									variant: railLimit === value ? "default" : "secondary",
+									variant: debugEnabled ? "default" : "secondary",
+									className: "mt-4",
 									onClick: () => {
-										setRailLimit(value);
-										localStorage.setItem("reelcase.home-rail-limit", String(value));
+										const next = !debugEnabled;
+										setDebugEnabled(next);
+										localStorage.setItem("reelcase.debug-panel", String(next));
+										if (!next) setDebugReport("");
 									},
-									children: [value, " per row"]
-								}, value))
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-								size: "sm",
-								variant: sourceCacheFirst ? "default" : "secondary",
-								className: "mt-3",
-								onClick: () => {
-									const next = !sourceCacheFirst;
-									setSourceCacheFirst(next);
-									localStorage.setItem("reelcase.source-cache-first", String(next));
-								},
-								children: sourceCacheFirst ? "Use cached sources first" : "Rescan sources on launch"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "mt-3 text-xs text-subtle",
-								children: "Cached source catalogs load immediately. Use a source refresh when you want to check the disk again."
-							})
-						]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(InfoCard, {
-						icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Clapperboard, { className: "size-5" }),
-						title: "Local edit workspace",
-						copy: "The player has reliable native playback and metadata tools today. A non-destructive OpenShot-style timeline requires a dedicated browser media engine; keep it local-first and never upload media by default."
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(InfoCard, {
-						icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bot, { className: "size-5" }),
-						title: "AI recommendations, later",
-						copy: "Your tags, likes, categories, history, and export file are the future recommendation signal. Add a server endpoint and explicit consent screen before any assistant can read it."
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(InfoCard, {
-						icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bot, { className: "size-5" }),
-						title: "AI tools directory",
-						copy: "Prepare future connectors for recommendations, metadata cleanup, captioning, and watch-list suggestions. Keep every connection opt-in and scoped to only the library data you select."
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(InfoCard, {
-						icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Settings2, { className: "size-5" }),
-						title: "Privacy defaults",
-						copy: "Local cataloging, tags, ratings, and history stay on this device. Export is metadata-only; no source videos, print files, game files, or browser permissions are included."
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(InfoCard, {
-						icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PackageSearch, { className: "size-5" }),
-						title: "How Reelcase works",
-						copy: "Folders and files are cataloged locally; channel follows use their public pages; Watch Room sends direct peer events; and external services open only when you choose them. See PROJECT_GUIDE.md and LAN_WATCH_ROOM.md in the repository for the complete maintainer guide."
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AlexaLightControl, {}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(GoogleYouTubeConnection, {})
-				]
+									children: debugEnabled ? "Disable diagnostics" : "Enable diagnostics"
+								}),
+								debugEnabled && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "mt-3 rounded-sm bg-bg/45 p-3 text-xs leading-5 text-muted",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", { children: [
+											useLibrary.getState().videos.length,
+											" catalog entries · ",
+											useLibrary.getState().folders.length,
+											" sources · ",
+											navigator.onLine ? "browser online" : "browser offline"
+										] }),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", { children: [
+											useLibrary.getState().folders.filter((folder) => folder.health === "healthy").length,
+											" healthy · ",
+											useLibrary.getState().folders.filter((folder) => folder.health === "cached").length,
+											" cache-first · ",
+											useLibrary.getState().folders.filter((folder) => folder.health === "permission-needed" || folder.health === "unavailable").length,
+											" need attention"
+										] }),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+											size: "sm",
+											variant: "ghost",
+											className: "mt-2",
+											onClick: () => void (async () => {
+												try {
+													const data = await (await fetch("http://127.0.0.1:43123/health")).json();
+													setDebugReport(`Companion v${data.version ?? "?"} · ${data.roots ?? 0} approved roots · Desktop ${data.desktopEnabled ? "ready" : "not available"}`);
+												} catch {
+													setDebugReport("Companion is not running or is unavailable to this browser.");
+												}
+											})(),
+											children: "Check companion"
+										}),
+										debugReport && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "mt-2 text-accent",
+											children: debugReport
+										})
+									]
+								})
+							]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "rounded-lg bg-elevated p-5 shadow-border",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									className: "text-accent",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Settings2, { className: "size-5" })
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+									className: "mt-3 font-display text-2xl text-fg",
+									children: "App zoom"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-2 text-sm leading-6 text-muted",
+									children: "Scale the entire library interface for this browser. Your choice is remembered everywhere in Reelcase."
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "mt-4 flex flex-wrap gap-2",
+									children: [
+										80,
+										90,
+										100,
+										110,
+										125
+									].map((value) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+										size: "sm",
+										variant: zoom === value ? "default" : "secondary",
+										onClick: () => setGlobalZoom(value),
+										children: [value, "%"]
+									}, value))
+								})
+							]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "rounded-lg bg-elevated p-5 shadow-border",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									className: "text-accent",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Radio, { className: "size-5" })
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+									className: "mt-3 font-display text-2xl text-fg",
+									children: "Live layout"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-2 text-sm leading-6 text-muted",
+									children: "Choose a larger card layout or fit more live channels on screen. This changes the Live page without adding heavier media loads."
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "mt-4 flex flex-wrap gap-2",
+									children: [
+										3,
+										4,
+										6
+									].map((value) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										size: "sm",
+										variant: liveDensity === value ? "default" : "secondary",
+										onClick: () => {
+											setLiveDensity(value);
+											localStorage.setItem("reelcase.live-columns", String(value));
+										},
+										children: value === 3 ? "Large · 3 columns" : `${value} columns`
+									}, value))
+								})
+							]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "rounded-lg bg-elevated p-5 shadow-border",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									className: "text-accent",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PackageSearch, { className: "size-5" })
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+									className: "mt-3 font-display text-2xl text-fg",
+									children: "Home performance"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-2 text-sm leading-6 text-muted",
+									children: "Choose how many cards each Home rail mounts. Lower counts keep huge folders smooth; the complete catalog remains searchable."
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "mt-4 flex flex-wrap gap-2",
+									children: [
+										12,
+										24,
+										48
+									].map((value) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+										size: "sm",
+										variant: railLimit === value ? "default" : "secondary",
+										onClick: () => {
+											setRailLimit(value);
+											localStorage.setItem("reelcase.home-rail-limit", String(value));
+										},
+										children: [value, " per row"]
+									}, value))
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+									size: "sm",
+									variant: sourceCacheFirst ? "default" : "secondary",
+									className: "mt-3",
+									onClick: () => {
+										const next = !sourceCacheFirst;
+										setSourceCacheFirst(next);
+										localStorage.setItem("reelcase.source-cache-first", String(next));
+									},
+									children: sourceCacheFirst ? "Use cached sources first" : "Rescan sources on launch"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-3 text-xs text-subtle",
+									children: "Cached source catalogs load immediately. Use a source refresh when you want to check the disk again."
+								})
+							]
+						})
+					]
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "mt-6",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "mb-3",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+						children: "Connections, privacy & guides"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-1 text-sm text-muted",
+						children: "Optional services and explanations stay separate from everyday library preferences."
+					})]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "grid gap-4 sm:grid-cols-2 xl:grid-cols-3",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(InfoCard, {
+							icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Clapperboard, { className: "size-5" }),
+							title: "Local edit workspace",
+							copy: "The player has reliable native playback and metadata tools today. A non-destructive OpenShot-style timeline requires a dedicated browser media engine; keep it local-first and never upload media by default."
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(InfoCard, {
+							icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bot, { className: "size-5" }),
+							title: "AI recommendations, later",
+							copy: "Your tags, likes, categories, history, and export file are the future recommendation signal. Add a server endpoint and explicit consent screen before any assistant can read it."
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(InfoCard, {
+							icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bot, { className: "size-5" }),
+							title: "AI tools directory",
+							copy: "Prepare future connectors for recommendations, metadata cleanup, captioning, and watch-list suggestions. Keep every connection opt-in and scoped to only the library data you select."
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(InfoCard, {
+							icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Settings2, { className: "size-5" }),
+							title: "Privacy defaults",
+							copy: "Local cataloging, tags, ratings, and history stay on this device. Export is metadata-only; no source videos, print files, game files, or browser permissions are included."
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(InfoCard, {
+							icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PackageSearch, { className: "size-5" }),
+							title: "How Reelcase works",
+							copy: "Folders and files are cataloged locally; channel follows use their public pages; Watch Room sends direct peer events; and external services open only when you choose them. See PROJECT_GUIDE.md and LAN_WATCH_ROOM.md in the repository for the complete maintainer guide."
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AlexaLightControl, {}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(GoogleYouTubeConnection, {})
+					]
+				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "mt-4 rounded-lg bg-elevated p-5 shadow-border",
+				className: "mt-6 rounded-lg bg-elevated p-5 shadow-border",
 				children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between",
@@ -6239,18 +6625,47 @@ function PhotosSection() {
 	const [photos, setPhotos] = (0, import_react.useState)([]);
 	const [selectedPerson, setSelectedPerson] = (0, import_react.useState)("All photos");
 	const [photoSearch, setPhotoSearch] = (0, import_react.useState)("");
+	const [discoveryFilter, setDiscoveryFilter] = (0, import_react.useState)("all");
 	const [favoritesOnly, setFavoritesOnly] = (0, import_react.useState)(false);
-	const [newestFirst, setNewestFirst] = (0, import_react.useState)(true);
+	const [photoSort, setPhotoSort] = (0, import_react.useState)(() => {
+		try {
+			return localStorage.getItem("reelcase.photos.sort") || "newest";
+		} catch {
+			return "newest";
+		}
+	});
+	const [showLocations, setShowLocations] = (0, import_react.useState)(() => {
+		try {
+			return localStorage.getItem("reelcase.photos.show-locations") === "true";
+		} catch {
+			return false;
+		}
+	});
 	const [photoFolders, setPhotoFolders] = (0, import_react.useState)([]);
 	const [slideshow, setSlideshow] = (0, import_react.useState)(false);
+	const [slideSeconds, setSlideSeconds] = (0, import_react.useState)(() => {
+		try {
+			const value = Number(localStorage.getItem("reelcase.photos.slide-seconds") ?? "5");
+			return [
+				3,
+				5,
+				10,
+				20,
+				30
+			].includes(value) ? value : 5;
+		} catch {
+			return 5;
+		}
+	});
 	const [slideIndex, setSlideIndex] = (0, import_react.useState)(0);
 	const [helperNote, setHelperNote] = (0, import_react.useState)("");
 	const [focusedPhotoId, setFocusedPhotoId] = (0, import_react.useState)(null);
 	const [photoLimit, setPhotoLimit] = (0, import_react.useState)(80);
 	const libraryFolders = useLibrary((s) => s.folders);
 	const sourcePhotos = useSourceAssets((s) => s.photos);
+	const refreshSourcePhotos = useLibrary((s) => s.refreshSourcePhotos);
 	const sourceFolders = (0, import_react.useMemo)(() => libraryFolders.filter((folder) => folder.kind === "directory" || folder.kind === "files"), [libraryFolders]);
-	const addPhotos = (files, folderName = "Unsorted") => {
+	const addPhotos = (files, folderName = "Unsorted", paths) => {
 		if (!files) return;
 		const remembered = (() => {
 			try {
@@ -6259,31 +6674,69 @@ function PhotosSection() {
 				return {};
 			}
 		})();
-		const next = Array.from(files).filter((file) => file.type.startsWith("image/") || PHOTO_FILE_RE.test(file.name)).slice(0, 600).map((file) => ({
-			id: `${file.name}-${file.lastModified}`,
-			name: file.name,
-			url: URL.createObjectURL(file),
-			people: remembered[`${file.name}-${file.lastModified}`]?.people ?? [],
-			album: remembered[`${file.name}-${file.lastModified}`]?.album ?? folderName,
-			favorite: remembered[`${file.name}-${file.lastModified}`]?.favorite ?? false,
-			rating: remembered[`${file.name}-${file.lastModified}`]?.rating ?? 0,
-			addedAt: file.lastModified
-		}));
-		setPhotos((current) => [...current, ...next]);
+		const next = Array.from(files).filter((file) => file.type.startsWith("image/") || PHOTO_FILE_RE.test(file.name)).slice(0, 600).map((file, index) => {
+			const path = paths?.[index] || file.webkitRelativePath || `${folderName}/${file.name}`;
+			const id = `${path}-${file.lastModified}`;
+			return {
+				id,
+				name: file.name,
+				path,
+				url: URL.createObjectURL(file),
+				people: remembered[id]?.people ?? [],
+				tags: remembered[id]?.tags ?? [],
+				album: remembered[id]?.album ?? folderName,
+				favorite: remembered[id]?.favorite ?? false,
+				rating: remembered[id]?.rating ?? 0,
+				addedAt: file.lastModified
+			};
+		});
+		setPhotos((current) => {
+			const known = new Set(current.map((photo) => photo.id));
+			return [...current, ...next.filter((photo) => !known.has(photo.id))];
+		});
 	};
 	(0, import_react.useEffect)(() => {
-		if (sourcePhotos.length) addPhotos(sourcePhotos, "Source import");
+		if (sourcePhotos.length) addPhotos(sourcePhotos.map((asset) => asset.file), "Source import", sourcePhotos.map((asset) => asset.path));
 	}, [sourcePhotos]);
 	(0, import_react.useEffect)(() => {
 		try {
-			localStorage.setItem("reelcase.photo-meta.v1", JSON.stringify(Object.fromEntries(photos.map(({ id, people, album, favorite, rating }) => [id, {
+			localStorage.setItem("reelcase.photo-meta.v1", JSON.stringify(Object.fromEntries(photos.map(({ id, path, people, tags, album, favorite, rating }) => [id, {
+				path,
 				people,
+				tags,
 				album,
 				favorite,
 				rating
 			}]))));
 		} catch {}
 	}, [photos]);
+	(0, import_react.useEffect)(() => {
+		try {
+			localStorage.setItem("reelcase.photos.sort", photoSort);
+		} catch {}
+	}, [photoSort]);
+	(0, import_react.useEffect)(() => {
+		try {
+			localStorage.setItem("reelcase.photos.show-locations", String(showLocations));
+		} catch {}
+	}, [showLocations]);
+	(0, import_react.useEffect)(() => {
+		try {
+			localStorage.setItem("reelcase.photos.slide-seconds", String(slideSeconds));
+		} catch {}
+	}, [slideSeconds]);
+	(0, import_react.useEffect)(() => {
+		let cancelled = false;
+		(async () => {
+			for (const folder of sourceFolders) {
+				if (cancelled) return;
+				await refreshSourcePhotos(folder.id);
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [refreshSourcePhotos, sourceFolders]);
 	const addPhotoFolder = (files) => {
 		if (!files?.length) return;
 		const first = [...files].find((file) => file.webkitRelativePath)?.webkitRelativePath.split("/")[0] ?? "Photo folder";
@@ -6292,19 +6745,29 @@ function PhotosSection() {
 	};
 	const people = [...new Set(photos.flatMap((photo) => photo.people))];
 	const albums = [...new Set(photos.map((photo) => photo.album))];
-	const visible = photos.filter((photo) => (selectedPerson === "All photos" || photo.people.includes(selectedPerson)) && (!favoritesOnly || photo.favorite) && `${photo.name} ${photo.people.join(" ")} ${photo.album}`.toLowerCase().includes(photoSearch.toLowerCase())).sort((a, b) => newestFirst ? b.addedAt - a.addedAt : a.name.localeCompare(b.name));
+	const visible = photos.filter((photo) => (selectedPerson === "All photos" || photo.people.includes(selectedPerson)) && (!favoritesOnly || photo.favorite) && (discoveryFilter === "all" || (discoveryFilter === "screenshots" ? /screenshot|screen[_ -]?shot/i.test(photo.name) : discoveryFilter === "camera" ? /^(img|dsc|pxl|photo)[_ -]?\d/i.test(photo.name) : /download|image|copy|edited/i.test(photo.name))) && `${photo.name} ${photo.path} ${photo.people.join(" ")} ${photo.tags.join(" ")} ${photo.album}`.toLowerCase().includes(photoSearch.toLowerCase())).sort((a, b) => {
+		if (photoSort === "name") return a.name.localeCompare(b.name);
+		if (photoSort === "rating") return b.rating - a.rating || b.addedAt - a.addedAt;
+		if (photoSort === "favorite") return Number(b.favorite) - Number(a.favorite) || b.addedAt - a.addedAt;
+		return b.addedAt - a.addedAt;
+	});
 	const renderedPhotos = visible.slice(0, photoLimit);
 	(0, import_react.useEffect)(() => setPhotoLimit(80), [
 		photoSearch,
 		selectedPerson,
 		favoritesOnly,
-		newestFirst
+		photoSort,
+		discoveryFilter
 	]);
 	(0, import_react.useEffect)(() => {
 		if (!slideshow || !visible.length) return;
-		const timer = window.setInterval(() => setSlideIndex((index) => (index + 1) % visible.length), 5e3);
+		const timer = window.setInterval(() => setSlideIndex((index) => (index + 1) % visible.length), slideSeconds * 1e3);
 		return () => window.clearInterval(timer);
-	}, [slideshow, visible.length]);
+	}, [
+		slideshow,
+		slideSeconds,
+		visible.length
+	]);
 	const featuredPhoto = visible[slideIndex % Math.max(visible.length, 1)];
 	const focusedIndex = visible.findIndex((photo) => photo.id === focusedPhotoId);
 	const focusedPhoto = focusedIndex >= 0 ? visible[focusedIndex] : void 0;
@@ -6372,6 +6835,13 @@ function PhotosSection() {
 							className: "inline-flex min-h-10 items-center rounded-sm bg-bg/50 px-4 text-sm text-fg shadow-border",
 							children: "Open Google Photos"
 						}),
+						photoSearch.trim() && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", {
+							href: `https://photos.google.com/search/${encodeURIComponent(photoSearch.trim())}`,
+							target: "_blank",
+							rel: "noreferrer",
+							className: "inline-flex min-h-10 items-center rounded-sm bg-bg/50 px-4 text-sm text-fg shadow-border",
+							children: "Search Google Photos"
+						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", {
 							href: "https://www.google.com/android/find/",
 							target: "_blank",
@@ -6420,7 +6890,7 @@ function PhotosSection() {
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
 								value: photoSearch,
 								onChange: (event) => setPhotoSearch(event.target.value),
-								placeholder: "Search names, people, albums",
+								placeholder: "Search names, people, albums, or file locations",
 								"aria-label": "Search photos"
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
@@ -6429,17 +6899,48 @@ function PhotosSection() {
 								onClick: () => setFavoritesOnly((value) => !value),
 								children: "Favorites"
 							}),
+							[
+								"newest",
+								"name",
+								"rating",
+								"favorite"
+							].map((sort) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								size: "sm",
+								variant: photoSort === sort ? "default" : "secondary",
+								onClick: () => setPhotoSort(sort),
+								children: sort === "newest" ? "Newest" : sort === "name" ? "A–Z" : sort === "rating" ? "Top rated" : "Favorites first"
+							}, sort)),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 								size: "sm",
-								variant: "secondary",
-								onClick: () => setNewestFirst((value) => !value),
-								children: newestFirst ? "Newest" : "A–Z"
+								variant: showLocations ? "default" : "secondary",
+								onClick: () => setShowLocations((value) => !value),
+								children: showLocations ? "Hide locations" : "Show locations"
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 								size: "sm",
 								variant: slideshow ? "default" : "secondary",
 								onClick: () => setSlideshow((value) => !value),
 								children: slideshow ? "Stop auto-change" : "Auto-change photos"
+							}),
+							slideshow && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
+								value: slideSeconds,
+								onChange: (event) => setSlideSeconds(Number(event.target.value)),
+								"aria-label": "Photo slideshow interval",
+								className: "h-9 rounded-sm bg-elevated px-2 text-xs text-fg shadow-border",
+								children: [
+									3,
+									5,
+									10,
+									20,
+									30
+								].map((seconds) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("option", {
+									value: seconds,
+									children: [
+										"Every ",
+										seconds,
+										"s"
+									]
+								}, seconds))
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 								size: "sm",
@@ -6463,9 +6964,26 @@ function PhotosSection() {
 							})
 						]
 					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "flex flex-wrap gap-2",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+							className: "self-center text-xs text-muted",
+							children: "Local discovery"
+						}), [
+							"all",
+							"screenshots",
+							"camera",
+							"downloads"
+						].map((filter) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							size: "sm",
+							variant: discoveryFilter === filter ? "default" : "secondary",
+							onClick: () => setDiscoveryFilter(filter),
+							children: filter === "all" ? "All" : filter === "camera" ? "Camera names" : filter[0].toUpperCase() + filter.slice(1)
+						}, filter))]
+					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "text-xs leading-5 text-muted",
-						children: "Private helper: suggestions come from your photo file names only. Face recognition is not enabled, so no image leaves this device. Large folders are displayed in small batches to keep scrolling responsive."
+						children: "Private local discovery uses file-name patterns for screenshots, camera files, downloads, and suggested people labels. Face recognition is not enabled, so no image leaves this device. Large folders are decoded lazily and displayed in small batches to keep scrolling responsive."
 					}),
 					helperNote && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "text-xs text-accent",
@@ -6494,6 +7012,7 @@ function PhotosSection() {
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
 							src: featuredPhoto.url,
 							alt: featuredPhoto.name,
+							decoding: "async",
 							className: "aspect-video size-full object-cover"
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "flex flex-col justify-center p-5",
@@ -6514,13 +7033,18 @@ function PhotosSection() {
 										featuredPhoto.rating || 0,
 										"/5 rating"
 									]
+								}),
+								showLocations && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									title: featuredPhoto.path,
+									className: "mt-2 truncate text-xs text-muted",
+									children: featuredPhoto.path
 								})
 							]
 						})]
 					})
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-					className: "mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4",
+					className: "mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6",
 					children: renderedPhotos.map((photo) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "overflow-hidden rounded-md bg-elevated shadow-border",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
@@ -6531,6 +7055,8 @@ function PhotosSection() {
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
 								src: photo.url,
 								alt: photo.name,
+								loading: "lazy",
+								decoding: "async",
 								className: "aspect-square w-full object-cover"
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 								className: "absolute inset-0 flex items-center justify-center bg-bg/45 opacity-0 transition-opacity group-hover:opacity-100",
@@ -6553,6 +7079,11 @@ function PhotosSection() {
 										} : item)),
 										children: "♥"
 									})]
+								}),
+								showLocations && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									title: photo.path,
+									className: "mt-1 truncate text-xs text-muted",
+									children: photo.path
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 									className: "mt-2 flex gap-1",
@@ -6581,6 +7112,18 @@ function PhotosSection() {
 										setPhotos((items) => items.map((item) => item.id === photo.id ? {
 											...item,
 											people: names
+										} : item));
+									}
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+									className: "mt-2 h-9",
+									placeholder: "Tags: travel, pets, event",
+									value: photo.tags.join(", "),
+									onChange: (event) => {
+										const tags = event.target.value.split(",").map((value) => value.trim().toLowerCase()).filter(Boolean).slice(0, 20);
+										setPhotos((items) => items.map((item) => item.id === photo.id ? {
+											...item,
+											tags: [...new Set(tags)]
 										} : item));
 									}
 								}),
@@ -6625,19 +7168,27 @@ function PhotosSection() {
 							className: "flex items-center justify-between gap-3 text-fg",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "min-w-0",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "truncate font-medium",
-									children: focusedPhoto.name
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-									className: "text-xs text-muted",
-									children: [
-										focusedPhoto.album,
-										" · ",
-										focusedIndex + 1,
-										" of ",
-										visible.length
-									]
-								})]
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "truncate font-medium",
+										children: focusedPhoto.name
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "text-xs text-muted",
+										children: [
+											focusedPhoto.album,
+											" · ",
+											focusedIndex + 1,
+											" of ",
+											visible.length
+										]
+									}),
+									showLocations && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										title: focusedPhoto.path,
+										className: "truncate text-xs text-muted",
+										children: focusedPhoto.path
+									})
+								]
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 								size: "sm",
 								variant: "secondary",
@@ -6676,12 +7227,199 @@ function PhotosSection() {
 		]
 	});
 }
+var DEFAULT_MISSIONS = [
+	{
+		id: "index",
+		title: "Durable media index",
+		detail: "Catalog source health, cached metadata, thumbnails, and fast search without blocking the first screen.",
+		done: false
+	},
+	{
+		id: "companion",
+		title: "Desktop companion",
+		detail: "Verify local files, watch selected folders, and launch approved desktop shortcuts through a local companion.",
+		done: false
+	},
+	{
+		id: "watch",
+		title: "Watch room reliability",
+		detail: "Harden LAN signaling, timeline reconciliation, queue voting, and guest access checks.",
+		done: false
+	},
+	{
+		id: "services",
+		title: "Connected services",
+		detail: "Keep Twitch, YouTube, Roku, Spotify, and photo imports independently cached and refreshable.",
+		done: false
+	},
+	{
+		id: "thumb-health",
+		title: "Thumbnail health queue",
+		detail: "Retry failed artwork, hide unavailable remote cards, and expose a small source diagnostic instead of blank previews.",
+		done: false
+	},
+	{
+		id: "windows-explorer",
+		title: "Windows explorer bridge",
+		detail: "Expand companion-backed folder health, change events, shortcut validation, and safe launch history for local libraries.",
+		done: false
+	},
+	{
+		id: "service-status",
+		title: "Service refresh status",
+		detail: "Show when each connected service last refreshed, preserve partial results, and allow focused retries without reloading the whole app.",
+		done: false
+	},
+	{
+		id: "vr-theater",
+		title: "VR theater reliability",
+		detail: "Replace the current WebXR capability check with a true headset cinema surface, controller controls, and clear Meta Quest recovery guidance.",
+		done: false
+	}
+];
+function MissionPlanSection() {
+	const [missions, setMissions] = (0, import_react.useState)(() => {
+		try {
+			const saved = JSON.parse(localStorage.getItem("reelcase.mission-plan.v1") ?? "null");
+			return Array.isArray(saved) ? [...saved, ...DEFAULT_MISSIONS.filter((mission) => !saved.some((item) => item.id === mission.id))] : DEFAULT_MISSIONS;
+		} catch {
+			return DEFAULT_MISSIONS;
+		}
+	});
+	const [idea, setIdea] = (0, import_react.useState)("");
+	(0, import_react.useEffect)(() => {
+		try {
+			localStorage.setItem("reelcase.mission-plan.v1", JSON.stringify(missions));
+		} catch {}
+	}, [missions]);
+	const completed = missions.filter((mission) => mission.done).length;
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(HubShell, {
+		eyebrow: "Mission plan",
+		icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Rocket, { className: "size-4" }),
+		title: "Build a private media home that scales.",
+		copy: "Reelcase is moving toward a fast, local-first media hub: your files load from a durable catalog, your watch room works across your home network, and connected services remain optional and easy to control.",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "mt-6 rounded-lg bg-elevated p-5 shadow-border",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+						children: "Product mission"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+						className: "mt-2 font-display text-3xl text-fg",
+						children: "One calm control room for a very large library."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-2 max-w-3xl text-sm leading-6 text-muted",
+						children: "Make a million-file media collection feel immediate: cache its catalog locally, keep original files private, surface useful recommendations, and let trusted people watch together without turning the app into a cloud upload service."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-5 flex items-end justify-between gap-4",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+							className: "font-display text-2xl text-fg",
+							children: [
+								completed,
+								" of ",
+								missions.length,
+								" milestones complete"
+							]
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "mt-1 text-sm text-muted",
+							children: "Every milestone includes implementation, browser verification, and a production build check."
+						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "rounded-full bg-accent/15 px-3 py-1 text-sm text-accent",
+							children: [missions.length ? Math.round(completed / missions.length * 100) : 0, "%"]
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "mt-5 h-2 overflow-hidden rounded-full bg-bg/70",
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "h-full bg-accent transition-all",
+							style: { width: `${missions.length ? completed / missions.length * 100 : 0}%` }
+						})
+					})
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "mt-5 space-y-3",
+				children: missions.map((mission, index) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("article", {
+					className: "flex gap-4 rounded-lg bg-elevated p-4 shadow-border",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						size: "sm",
+						variant: mission.done ? "default" : "secondary",
+						"aria-label": `Mark ${mission.title} ${mission.done ? "incomplete" : "complete"}`,
+						onClick: () => setMissions((items) => items.map((item) => item.id === mission.id ? {
+							...item,
+							done: !item.done
+						} : item)),
+						children: mission.done ? "Done" : `Step ${index + 1}`
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "min-w-0 flex-1",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+							className: mission.done ? "text-sm font-medium text-muted line-through" : "text-sm font-medium text-fg",
+							children: mission.title
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "mt-1 text-sm text-muted",
+							children: mission.detail
+						})]
+					})]
+				}, mission.id))
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "mt-5 grid gap-3 sm:grid-cols-3",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(InfoCard, {
+						icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Wifi, { className: "size-5" }),
+						title: "Next: home network",
+						copy: "Folder watch events, Roku discovery, stable room invitations, and stronger timeline recovery."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(InfoCard, {
+						icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Images, { className: "size-5" }),
+						title: "Then: media intelligence",
+						copy: "Background metadata, thumbnail health, faster source search, and reviewable local tags."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(InfoCard, {
+						icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bot, { className: "size-5" }),
+						title: "Later: optional assistants",
+						copy: "Private recommendation controls, explainable picks, and only opt-in service connections."
+					})
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", {
+				className: "mt-5 flex flex-col gap-2 sm:flex-row",
+				onSubmit: (event) => {
+					event.preventDefault();
+					const title = idea.trim();
+					if (!title) return;
+					setMissions((items) => [...items, {
+						id: crypto.randomUUID(),
+						title,
+						detail: "New idea — break this into implementation and verification steps.",
+						done: false
+					}]);
+					setIdea("");
+				},
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+					value: idea,
+					onChange: (event) => setIdea(event.target.value),
+					placeholder: "Add a larger change idea",
+					"aria-label": "New mission idea"
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+					type: "submit",
+					children: "Add to plan"
+				})]
+			})
+		]
+	});
+}
 function GamesSection() {
 	const [games, setGames] = (0, import_react.useState)([]);
 	const [filter, setFilter] = (0, import_react.useState)("");
 	const [removeGame, setRemoveGame] = (0, import_react.useState)(null);
 	const [launchNotice, setLaunchNotice] = (0, import_react.useState)("");
 	const [shortcutView, setShortcutView] = (0, import_react.useState)("all");
+	const [companionLoading, setCompanionLoading] = (0, import_react.useState)(false);
 	const sourceShortcuts = useSourceAssets((s) => s.shortcuts);
 	(0, import_react.useEffect)(() => {
 		const saved = readHub().games;
@@ -6720,6 +7458,43 @@ function GamesSection() {
 	(0, import_react.useEffect)(() => {
 		if (sourceShortcuts.length) add(sourceShortcuts, true);
 	}, [sourceShortcuts]);
+	const launchDesktop = async (game) => {
+		try {
+			const result = await (await fetch("http://127.0.0.1:43123/launch", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ path: game.path })
+			})).json();
+			setLaunchNotice(result.ok ? `Launching ${game.name} through the local companion.` : result.error ?? "The companion could not launch this item.");
+		} catch {
+			setLaunchNotice("Desktop launch needs the Reelcase Companion running and this shortcut inside one of its approved Windows folders.");
+		}
+	};
+	const loadApprovedShortcuts = async () => {
+		setCompanionLoading(true);
+		try {
+			const result = await (await fetch("http://127.0.0.1:43123/shortcuts?limit=300")).json();
+			if (!result.ok) throw new Error(result.error ?? "The companion could not read approved shortcuts.");
+			const next = (result.shortcuts ?? []).map((item) => ({
+				...item,
+				size: 0,
+				addedAt: Date.now()
+			}));
+			setGames((current) => {
+				const merged = [...current, ...next.filter((item) => !current.some((game) => game.path === item.path))];
+				writeHub({
+					...readHub(),
+					games: merged
+				});
+				return merged;
+			});
+			setLaunchNotice(next.length ? `Added ${next.length} approved desktop shortcuts. They can launch through the companion.` : "No approved desktop shortcuts were found. Add a shortcut to Desktop or another approved companion folder.");
+		} catch {
+			setLaunchNotice("Companion connection unavailable. Start the local Reelcase Companion, then try again.");
+		} finally {
+			setCompanionLoading(false);
+		}
+	};
 	const visible = games.filter((game) => game.name.toLowerCase().includes(filter.toLowerCase()) && (shortcutView === "all" || (shortcutView === "web" ? Boolean(game.launchUrl) : !game.launchUrl)));
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(HubShell, {
 		eyebrow: "Desktop game shelf",
@@ -6740,6 +7515,12 @@ function GamesSection() {
 						className: "inline-flex min-h-10 items-center rounded-sm bg-accent px-4 text-sm font-medium text-accent-fg",
 						children: "Add web game shortcut"
 					})] }),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						variant: "secondary",
+						disabled: companionLoading,
+						onClick: () => void loadApprovedShortcuts(),
+						children: companionLoading ? "Reading approved shortcuts…" : "Load approved desktop shortcuts"
+					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
 						className: "sr-only",
 						type: "file",
@@ -6798,10 +7579,15 @@ function GamesSection() {
 										size: "sm",
 										onClick: () => {
 											if (game.launchUrl) {
-												window.location.assign(game.launchUrl);
+												const link = document.createElement("a");
+												link.href = game.launchUrl;
+												link.target = game.launchUrl.startsWith("http") ? "_self" : "_blank";
+												document.body.appendChild(link);
+												link.click();
+												link.remove();
 												return;
 											}
-											setLaunchNotice(`${game.name} is a desktop launcher. Browsers block direct .exe/.lnk starts; use its desktop shortcut or add its web/Steam shortcut to launch it here.`);
+											launchDesktop(game);
 										},
 										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Rocket, { className: "size-3" }), game.launchUrl ? "Launch shortcut" : "Launch desktop game"]
 									}),
@@ -7092,19 +7878,19 @@ function ShopSection() {
 			detail: "Search Walmart"
 		},
 		{
-			name: "AliExpress",
-			href: `https://www.aliexpress.com/wholesale?SearchText=${encoded}`,
-			detail: "Search AliExpress"
-		},
-		{
-			name: "Temu",
-			href: `https://www.temu.com/search_result.html?search_key=${encoded}`,
-			detail: "Search Temu"
-		},
-		{
 			name: "eBay",
 			href: `https://www.ebay.com/sch/i.html?_nkw=${encoded}`,
 			detail: "Search eBay"
+		},
+		{
+			name: "Etsy",
+			href: `https://www.etsy.com/search?q=${encoded}`,
+			detail: "Search handmade & niche shops"
+		},
+		{
+			name: "Diipoo",
+			href: `https://diipoo.com/?s=${encoded}`,
+			detail: "Search Diipoo deals"
 		}
 	], [encoded]);
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(HubShell, {
@@ -7408,13 +8194,15 @@ function SocialSection() {
 function WatchRoomSection() {
 	const [roomCode, setRoomCode] = (0, import_react.useState)(() => `RC${Math.random().toString(36).slice(2, 7).toUpperCase()}`);
 	const [roomInput, setRoomInput] = (0, import_react.useState)("");
-	const [name, setName] = (0, import_react.useState)("Host");
+	const [name, setName] = (0, import_react.useState)(() => localStorage.getItem("reelcase.profile-name") || "Host");
 	const [activeRoom, setActiveRoom] = (0, import_react.useState)(null);
 	const [joinedAsGuest, setJoinedAsGuest] = (0, import_react.useState)(false);
 	const [guestAccess, setGuestAccess] = (0, import_react.useState)(false);
 	const [localVideo, setLocalVideo] = (0, import_react.useState)(null);
 	const [rokuAddress, setRokuAddress] = (0, import_react.useState)("");
 	const [rokuReady, setRokuReady] = (0, import_react.useState)(false);
+	const [rokuDevices, setRokuDevices] = (0, import_react.useState)([]);
+	const [rokuNotice, setRokuNotice] = (0, import_react.useState)("");
 	const [queue, setQueue] = (0, import_react.useState)([]);
 	const [stageSize, setStageSize] = (0, import_react.useState)("compact");
 	const [playback, setPlayback] = (0, import_react.useState)({
@@ -7431,6 +8219,7 @@ function WatchRoomSection() {
 	});
 	const [friendName, setFriendName] = (0, import_react.useState)("");
 	const [friendCode, setFriendCode] = (0, import_react.useState)("");
+	const [inviteNotice, setInviteNotice] = (0, import_react.useState)("");
 	const [friends, setFriends] = (0, import_react.useState)(() => {
 		try {
 			const saved = JSON.parse(localStorage.getItem("reelcase.lan-friends.v1") ?? "[]");
@@ -7440,11 +8229,26 @@ function WatchRoomSection() {
 		}
 	});
 	const videos = useLibrary((s) => s.videos);
+	(0, import_react.useEffect)(() => {
+		localStorage.setItem("reelcase.profile-name", name.trim() || "Host");
+	}, [name]);
 	const [sharedVideoId, setSharedVideoId] = (0, import_react.useState)(() => videos.find((video) => Boolean(video.src || video.remote?.embedUrl))?.id ?? "");
 	const sharedVideo = videos.find((video) => video.id === sharedVideoId);
 	const roomVideoRef = (0, import_react.useRef)(null);
 	const lastRoomTick = (0, import_react.useRef)(0);
 	const p2p = useP2PRoom(activeRoom ?? "", name.trim() || "Guest");
+	const roomCandidates = (0, import_react.useMemo)(() => videos.filter((video) => Boolean(video.remote?.embedUrl || video.src)), [videos]);
+	(0, import_react.useEffect)(() => {
+		const params = new URLSearchParams(window.location.search);
+		const invitedRoom = (params.get("room") ?? "").trim().toUpperCase();
+		if (!/^RC[A-Z0-9]{4,12}$/.test(invitedRoom)) return;
+		setRoomInput(invitedRoom);
+		if (params.get("theater") === "1") {
+			setJoinedAsGuest(true);
+			setStageSize("cinema");
+			setActiveRoom(invitedRoom);
+		}
+	}, []);
 	(0, import_react.useEffect)(() => {
 		if (!p2p.peers.length) return;
 		p2p.send({
@@ -7458,10 +8262,14 @@ function WatchRoomSection() {
 	(0, import_react.useEffect)(() => p2p.onMessage((from, raw) => {
 		const data = raw;
 		if (data.type === "chat" && data.text) setChat((rows) => [...rows, `${data.name ?? from}: ${data.text}`].slice(-50));
-		if (data.type === "sync") setPlayback({
-			playing: Boolean(data.playing),
-			position: Number(data.position) || 0
-		});
+		if (data.type === "sync") {
+			const position = Number(data.position) || 0;
+			const elapsed = data.playing && data.sentAt ? Math.max(0, (Date.now() - data.sentAt) / 1e3) : 0;
+			setPlayback({
+				playing: Boolean(data.playing),
+				position: position + elapsed
+			});
+		}
 		if (data.type === "video" && data.videoId) setSharedVideoId(data.videoId);
 		if (data.type === "queue" && Array.isArray(data.queue)) setQueue(data.queue);
 		if (data.type === "party-vote" && data.name) setPartyVotes((votes) => ({
@@ -7471,18 +8279,70 @@ function WatchRoomSection() {
 		if (data.type === "room-state") {
 			if (data.videoId) setSharedVideoId(data.videoId);
 			if (Array.isArray(data.queue)) setQueue(data.queue);
+			const position = Number(data.position) || 0;
+			const elapsed = data.playing && data.sentAt ? Math.max(0, (Date.now() - data.sentAt) / 1e3) : 0;
 			setPlayback({
 				playing: Boolean(data.playing),
-				position: Number(data.position) || 0
+				position: position + elapsed
 			});
 		}
-	}), [p2p.onMessage]);
+		if (data.type === "resync-request" && !joinedAsGuest) {
+			const position = roomVideoRef.current?.currentTime ?? playback.position;
+			p2p.send({
+				type: "room-state",
+				playing: !roomVideoRef.current?.paused && playback.playing,
+				position,
+				videoId: sharedVideoId,
+				queue,
+				sentAt: Date.now()
+			}, from);
+		}
+	}), [
+		joinedAsGuest,
+		p2p.onMessage,
+		p2p.send,
+		playback.playing,
+		playback.position,
+		queue,
+		sharedVideoId
+	]);
 	const sync = (next) => {
 		setPlayback(next);
 		p2p.send({
 			type: "sync",
-			...next
+			...next,
+			sentAt: Date.now()
 		});
+	};
+	const resync = () => {
+		if (joinedAsGuest) {
+			p2p.send({ type: "resync-request" });
+			setInviteNotice("Requested the host’s current room state.");
+			return;
+		}
+		const position = roomVideoRef.current?.currentTime ?? playback.position;
+		sync({
+			playing: roomVideoRef.current ? !roomVideoRef.current.paused : playback.playing,
+			position
+		});
+		p2p.send({
+			type: "room-state",
+			playing: roomVideoRef.current ? !roomVideoRef.current.paused : playback.playing,
+			position,
+			videoId: sharedVideoId,
+			queue,
+			sentAt: Date.now()
+		});
+		setInviteNotice("Sent the current video and timeline to every guest.");
+	};
+	const copyInvite = async () => {
+		const link = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(roomCode)}&theater=1`;
+		try {
+			await navigator.clipboard.writeText(link);
+			setInviteNotice("Theater invitation link copied.");
+		} catch {
+			setInviteNotice(`Share this theater link: ${link}`);
+		}
 	};
 	(0, import_react.useEffect)(() => {
 		const media = roomVideoRef.current;
@@ -7557,6 +8417,16 @@ function WatchRoomSection() {
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "mt-2 text-sm text-muted",
 						children: "Share this code only with people you want in your watch room."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+						variant: "secondary",
+						className: "mt-3 w-full",
+						onClick: () => void copyInvite(),
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Copy, { className: "size-4" }), " Copy theater invitation link"]
+					}),
+					inviteNotice && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-2 break-all text-xs text-accent",
+						children: inviteNotice
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 						className: "mt-5 w-full",
@@ -7728,6 +8598,15 @@ function WatchRoomSection() {
 								children: "+15 sec"
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+								variant: "secondary",
+								onClick: resync,
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Wifi, { className: "size-4" }),
+									" ",
+									joinedAsGuest ? "Request resync" : "Resync guests"
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 								variant: "ghost",
 								size: "sm",
 								disabled: !queue.length,
@@ -7735,6 +8614,10 @@ function WatchRoomSection() {
 								children: ["Play next ", queue.length ? `(${queue.length})` : ""]
 							})
 						]
+					}),
+					inviteNotice && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-3 text-xs text-accent",
+						children: inviteNotice
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "mt-4 flex flex-wrap items-center gap-2 text-xs text-muted",
@@ -7750,7 +8633,7 @@ function WatchRoomSection() {
 						}, size))]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: `mt-3 mx-auto w-full overflow-hidden rounded-md bg-bg shadow-border ${stageSize === "compact" ? "max-w-2xl" : stageSize === "theater" ? "max-w-4xl" : "max-w-5xl"}`,
+						className: `mt-3 mx-auto w-full overflow-hidden rounded-md bg-bg shadow-border ${stageSize === "compact" ? "max-w-2xl" : stageSize === "theater" ? "max-w-6xl" : "max-w-none"}`,
 						children: sharedVideo?.remote?.embedUrl ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("iframe", {
 							title: sharedVideo.name,
 							src: `${sharedVideo.remote.embedUrl}${sharedVideo.remote.embedUrl.includes("?") ? "&" : "?"}autoplay=0&rel=0`,
@@ -7795,7 +8678,7 @@ function WatchRoomSection() {
 					}) : null,
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "mt-3 flex gap-2 overflow-x-auto pb-2",
-						children: videos.filter((video) => Boolean(video.src || video.remote?.embedUrl)).slice(0, 18).map((video) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+						children: roomCandidates.slice(0, 18).map((video) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 							type: "button",
 							onClick: () => chooseVideo(video),
 							className: `w-36 shrink-0 overflow-hidden rounded-sm text-left shadow-border ${video.id === sharedVideoId ? "bg-accent text-accent-fg" : "bg-bg/45 text-fg"}`,
@@ -7862,7 +8745,7 @@ function WatchRoomSection() {
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 								className: "mt-3 flex gap-2 overflow-x-auto pb-1",
-								children: videos.filter((video) => Boolean(video.src || video.remote?.embedUrl) && video.id !== sharedVideoId).slice(0, 12).map((video) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+								children: roomCandidates.filter((video) => video.id !== sharedVideoId).slice(0, 12).map((video) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 									size: "sm",
 									variant: "secondary",
 									disabled: queue.includes(video.id),
@@ -7991,23 +8874,56 @@ function WatchRoomSection() {
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "mt-3 flex flex-col gap-2 sm:flex-row",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-									value: rokuAddress,
-									onChange: (event) => {
-										setRokuAddress(event.target.value);
-										setRokuReady(false);
-									},
-									placeholder: "Roku IP address, e.g. 192.168.1.24",
-									"aria-label": "Roku IP address"
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+										value: rokuAddress,
+										onChange: (event) => {
+											setRokuAddress(event.target.value);
+											setRokuReady(false);
+										},
+										placeholder: "Roku IP address, e.g. 192.168.1.24",
+										"aria-label": "Roku IP address"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										variant: "secondary",
+										disabled: !rokuAddress.trim(),
+										onClick: () => {
+											setRokuReady(true);
+											localStorage.setItem("reelcase.roku", rokuAddress.trim());
+										},
+										children: "Save & pair TV"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										variant: "secondary",
+										onClick: () => void (async () => {
+											try {
+												const devices = (await (await fetch("http://127.0.0.1:43123/roku/discover")).json()).devices ?? [];
+												setRokuDevices(devices);
+												setRokuNotice(devices.length ? `${devices.length} Roku device${devices.length === 1 ? "" : "s"} found on this network.` : "No Roku devices responded. You can still pair one by its IP address.");
+											} catch {
+												setRokuNotice("Roku discovery needs the local Reelcase Companion running on this Windows computer.");
+											}
+										})(),
+										children: "Discover TVs"
+									})
+								]
+							}),
+							rokuNotice && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-2 text-xs text-muted",
+								children: rokuNotice
+							}),
+							rokuDevices.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "mt-2 flex flex-wrap gap-2",
+								children: rokuDevices.map((device) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+									size: "sm",
 									variant: "secondary",
-									disabled: !rokuAddress.trim(),
 									onClick: () => {
+										setRokuAddress(device.address);
 										setRokuReady(true);
-										localStorage.setItem("reelcase.roku", rokuAddress.trim());
+										localStorage.setItem("reelcase.roku", device.address);
 									},
-									children: "Save & pair TV"
-								})]
+									children: device.address
+								}, device.address))
 							}),
 							rokuReady && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "mt-3 rounded-sm bg-elevated p-3",
@@ -8118,7 +9034,7 @@ function WatchRoomSection() {
 }
 function HubShell({ eyebrow, icon, title, copy, children }) {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
-		className: "mx-auto max-w-4xl rounded-xl bg-surface p-5 shadow-border sm:p-8",
+		className: "w-full max-w-none rounded-xl bg-surface p-5 shadow-border sm:p-6 xl:p-8",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 				className: "flex items-center gap-2 text-xs font-medium tracking-[0.16em] text-accent uppercase",
@@ -8201,6 +9117,7 @@ function LibraryApp() {
 	const [adultTag, setAdultTag] = (0, import_react.useState)("All");
 	const [adultSort, setAdultSort] = (0, import_react.useState)("recent");
 	const [twitchSort, setTwitchSort] = (0, import_react.useState)("live");
+	const [liveColumns, setLiveColumns] = (0, import_react.useState)(4);
 	const restoreFolders = useLibrary((s) => s.restoreFolders);
 	const openVideo = useLibrary((s) => s.openVideo);
 	const addFolder = useLibrary((s) => s.addFolder);
@@ -8209,6 +9126,8 @@ function LibraryApp() {
 	const clearHistory = useLibrary((s) => s.clearHistory);
 	const folders = useLibrary((s) => s.folders);
 	const sourceId = useLibrary((s) => s.sourceId);
+	const setSource = useLibrary((s) => s.setSource);
+	const hydrated = useLibrary((s) => s.hydrated);
 	const query = useLibrary((s) => s.query);
 	const scanning = useLibrary((s) => s.scanning);
 	const activeId = useLibrary((s) => s.activeId);
@@ -8233,9 +9152,14 @@ function LibraryApp() {
 	const adultFolders = folders.filter((f) => f.adult);
 	const tags = useLibrary((s) => s.tags);
 	const favorites = useLibrary((s) => s.favorites);
+	const favoriteLiveVideos = (0, import_react.useMemo)(() => liveVideos.filter((video) => favorites[video.id]), [favorites, liveVideos]);
 	const likes = useLibrary((s) => s.likes);
 	const adultTagNames = (0, import_react.useMemo)(() => [...new Set(videos.flatMap((video) => tags[video.id] ?? []))].sort(), [tags, videos]);
 	const moviesByGenre = (0, import_react.useMemo)(() => [...videos].filter((video) => Boolean(video.genre)).sort((a, b) => a.genre.localeCompare(b.genre)), [videos]);
+	const randomSourceMovies = (0, import_react.useMemo)(() => videos.filter((video) => !video.remote && !video.isSample).map((video) => ({
+		video,
+		rank: (video.id.length * 31 + video.addedAt + movieShuffle * 7919) % 100003
+	})).sort((a, b) => a.rank - b.rank).map((entry) => entry.video), [movieShuffle, videos]);
 	const priorityMovieGenres = (0, import_react.useMemo)(() => [
 		"Comedy",
 		"Action",
@@ -8284,6 +9208,17 @@ function LibraryApp() {
 	(0, import_react.useEffect)(() => {
 		restoreFolders();
 	}, [restoreFolders]);
+	(0, import_react.useEffect)(() => {
+		if (!hydrated) return;
+		const room = new URLSearchParams(window.location.search).get("room")?.trim().toUpperCase() ?? "";
+		if (/^RC[A-Z0-9]{4,12}$/.test(room)) setSource("watch-room");
+	}, [hydrated, setSource]);
+	(0, import_react.useEffect)(() => {
+		const sync = () => setLiveColumns(Number(localStorage.getItem("reelcase.live-columns") ?? "4"));
+		sync();
+		window.addEventListener("storage", sync);
+		return () => window.removeEventListener("storage", sync);
+	}, []);
 	const refreshFollows = useLibrary((s) => s.refreshFollows);
 	const pushNotice = useLibrary((s) => s.pushNotice);
 	const follows = useLibrary((s) => s.follows);
@@ -8323,9 +9258,10 @@ function LibraryApp() {
 		const was = prevScanning.current;
 		prevScanning.current = scanning;
 		if (was && !scanning) {
-			const n = useLibrary.getState().folders.find((f) => f.name === was.folderName)?.videoCount ?? 0;
-			if (n === 0) toast.message(`No videos in ${was.folderName}`);
-			else toast.success(`Found ${n} video${n === 1 ? "" : "s"} in ${was.folderName}`);
+			const folder = useLibrary.getState().folders.find((f) => f.name === was.folderName);
+			const n = folder?.videoCount ?? 0;
+			if (n === 0 && folder?.photoCount) toast.success(`Found ${folder.photoCount} photo${folder.photoCount === 1 ? "" : "s"} in ${was.folderName}`);
+			else if (n > 0) toast.success(`Found ${n} video${n === 1 ? "" : "s"} in ${was.folderName}`);
 		}
 	}, [scanning]);
 	(0, import_react.useEffect)(() => {
@@ -8390,6 +9326,7 @@ function LibraryApp() {
 	}, [history]);
 	const browsing = !query && (sourceId === "home" || sourceId === "movies" || sourceId === "adults" || sourceId === "youtube" || sourceId === "twitch" || sourceId === "live");
 	const lockedAdults = sourceId === "adults" && !adultsUnlocked;
+	const invitedToTheater = typeof window !== "undefined" && /^RC[A-Z0-9]{4,12}$/.test((new URLSearchParams(window.location.search).get("room") ?? "").trim().toUpperCase());
 	const isHubSection = [
 		"photos",
 		"spotify",
@@ -8400,8 +9337,9 @@ function LibraryApp() {
 		"social",
 		"watch-room",
 		"settings",
-		"assistant"
-	].includes(sourceId);
+		"assistant",
+		"mission-plan"
+	].includes(sourceId) || invitedToTheater;
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 		className: "flex min-h-dvh bg-bg text-fg",
 		children: [
@@ -8433,7 +9371,7 @@ function LibraryApp() {
 					onMenu: () => setMenuOpen(true),
 					onAddFiles: () => fileInputRef.current?.click()
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("main", {
-					className: "mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6",
+					className: "w-full max-w-none flex-1 px-4 py-6 sm:px-6 xl:px-8 2xl:px-10",
 					children: lockedAdults ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PinGate, {}) : isHubSection ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
 						sourceId === "prints" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PrintsSection, {}),
 						sourceId === "photos" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PhotosSection, {}),
@@ -8442,16 +9380,20 @@ function LibraryApp() {
 						sourceId === "shop" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ShopSection, {}),
 						sourceId === "streaming" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(StreamingSection, {}),
 						sourceId === "social" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SocialSection, {}),
-						sourceId === "watch-room" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(WatchRoomSection, {}),
+						(sourceId === "watch-room" || invitedToTheater) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(WatchRoomSection, {}),
 						sourceId === "settings" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SettingsSection, {}),
-						sourceId === "assistant" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AiGuide, {})
+						sourceId === "assistant" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AiGuide, {}),
+						sourceId === "mission-plan" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MissionPlanSection, {})
 					] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
 						!hasUserFolders && sourceId === "home" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(InviteStrip, {
 							onAddFolder: () => onAddFolder(),
 							onAddFiles: () => fileInputRef.current?.click(),
 							onRecommended: (id) => onAddFolder(id)
 						}),
-						(sourceId === "home" || sourceId === "youtube" || sourceId === "twitch") && !query && (sourceId !== "home" || !follows.length) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ConnectPanel, { defaultKind: sourceId === "twitch" ? "twitch" : "youtube" }),
+						(sourceId === "home" || sourceId === "youtube" || sourceId === "twitch") && !query && (sourceId !== "home" || !follows.length) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ConnectPanel, {
+							defaultKind: sourceId === "twitch" ? "twitch" : "youtube",
+							lockedKind: sourceId === "youtube" || sourceId === "twitch" ? sourceId : void 0
+						}, sourceId === "twitch" ? "twitch-imports" : sourceId === "youtube" ? "youtube-imports" : "home-imports"),
 						sourceId === "home" && !query && featured && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Billboard, { video: featured }),
 						sourceId === "movies" && !query && (classics[0] || featured) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Billboard, { video: classics[0] ?? featured }),
 						sourceId === "adults" && adultsUnlocked && featured && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Billboard, { video: featured }),
@@ -8644,7 +9586,26 @@ function LibraryApp() {
 								children: "Follow a channel above to fill this shelf."
 							})
 						] }),
-						sourceId === "live" && browsing && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_jsx_runtime.Fragment, { children: liveVideos.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PosterGrid, { videos: liveVideos }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						sourceId === "live" && browsing && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_jsx_runtime.Fragment, { children: liveVideos.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+							favoriteLiveVideos.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: "Favorites live now",
+								videos: favoriteLiveVideos,
+								variant: "rail"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
+								className: "mb-3 font-display text-2xl text-fg",
+								children: "Everyone else live now"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: liveColumns === 3 ? "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" : liveColumns === 6 ? "grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6" : "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4",
+								children: liveVideos.filter((video) => !favorites[video.id]).slice(0, 120).map((video, index) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(VideoCard, {
+									video,
+									variant: "rail",
+									index,
+									className: "w-full"
+								}, video.id))
+							})
+						] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "rounded-xl bg-surface px-6 py-16 text-center shadow-border",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 								className: "font-display text-2xl text-fg",
@@ -8673,6 +9634,16 @@ function LibraryApp() {
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
 								title: "Classic movies",
 								videos: classics,
+								variant: "poster"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: "From your source folders",
+								videos: videos.filter((video) => !video.remote && !video.isSample).sort((a, b) => Number(Boolean(favorites[b.id])) - Number(Boolean(favorites[a.id])) || b.addedAt - a.addedAt),
+								variant: "poster"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: "Random from your library",
+								videos: randomSourceMovies,
 								variant: "poster"
 							}),
 							priorityMovieGenres.map((shelf) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
@@ -8842,24 +9813,43 @@ function LibraryApp() {
 								children: "Heart a title or use My List on the billboard."
 							})]
 						}) : null,
-						(sourceId === "history" || sourceId === "continue" || query || !browsing && sourceId !== "favorites" && sourceId !== "home" && sourceId !== "movies" && sourceId !== "adults") && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "mb-4 flex items-end justify-between gap-3",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
-								className: "font-display text-3xl leading-none tracking-tight text-fg sm:text-4xl",
-								children: query ? "Search" : heading
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "mt-2 text-sm text-muted",
-								children: sourceId === "history" ? `${history.length} watched title${history.length === 1 ? "" : "s"} · ${historyLastDay} in the last 24 hours · newest first` : scanning ? `Scanning ${scanning.folderName} · ${scanning.found} found` : `${videos.length} video${videos.length === 1 ? "" : "s"}`
-							})] }), sourceId === "history" && history.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-								variant: "ghost",
-								size: "sm",
-								onClick: clearHistory,
-								children: "Clear history"
-							})]
-						}), sourceId === "history" || sourceId === "continue" || query ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(VideoGrid, {
-							videos,
-							playedAt: sourceId === "history" ? playedAt : void 0
-						}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PosterGrid, { videos })] }),
+						(sourceId === "history" || sourceId === "continue" || query || !browsing && sourceId !== "favorites" && sourceId !== "home" && sourceId !== "movies" && sourceId !== "adults") && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "mb-4 flex items-end justify-between gap-3",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
+									className: "font-display text-3xl leading-none tracking-tight text-fg sm:text-4xl",
+									children: query ? "Search" : heading
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-2 text-sm text-muted",
+									children: sourceId === "history" ? `${history.length} watched title${history.length === 1 ? "" : "s"} · ${historyLastDay} in the last 24 hours · newest first` : scanning ? `Scanning ${scanning.folderName} · ${scanning.found} found` : `${videos.length} video${videos.length === 1 ? "" : "s"}`
+								})] }), sourceId === "history" && history.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+									variant: "ghost",
+									size: "sm",
+									onClick: clearHistory,
+									children: "Clear history"
+								})]
+							}),
+							folders.find((folder) => folder.id === sourceId)?.photoCount ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "mb-4 flex items-center justify-between gap-3 rounded-lg bg-elevated px-4 py-3 shadow-border",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+									className: "text-sm text-fg",
+									children: [
+										"This source also has ",
+										folders.find((folder) => folder.id === sourceId)?.photoCount,
+										" discovered photos."
+									]
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+									size: "sm",
+									variant: "secondary",
+									onClick: () => setSource("photos"),
+									children: "Open Photos"
+								})]
+							}) : null,
+							sourceId === "history" || sourceId === "continue" || query ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(VideoGrid, {
+								videos,
+								playedAt: sourceId === "history" ? playedAt : void 0
+							}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PosterGrid, { videos })
+						] }),
 						sourceId === "demo" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 							className: "mt-8 text-center text-xs text-subtle",
 							children: "Original shorts styled as classics. Add a folder to scan this computer."

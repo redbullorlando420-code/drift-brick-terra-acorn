@@ -8,6 +8,7 @@ import { SidebarNav } from "./sidebar";
 import { TopBar } from "./top-bar";
 import { InviteStrip } from "./invite";
 import { VideoGrid } from "./video-grid";
+import { VideoCard } from "./video-card";
 import { Billboard, PosterGrid, TitleRail } from "./browse";
 import { PinGate } from "./pin-gate";
 import { Player } from "./player";
@@ -16,6 +17,7 @@ import { AiGuide } from "./ai-guide";
 import { ConnectPanel } from "./connect-panel";
 import {
   GamesSection,
+  MissionPlanSection,
   PhotosSection,
   PrivateWebShortcuts,
   PrintsSection,
@@ -53,6 +55,7 @@ export function LibraryApp() {
   const [adultTag, setAdultTag] = useState("All");
   const [adultSort, setAdultSort] = useState<"recent" | "name" | "favorites">("recent");
   const [twitchSort, setTwitchSort] = useState<"live" | "viewers" | "name">("live");
+  const [liveColumns, setLiveColumns] = useState(4);
 
   const restoreFolders = useLibrary((s) => s.restoreFolders);
   const openVideo = useLibrary((s) => s.openVideo);
@@ -62,6 +65,8 @@ export function LibraryApp() {
   const clearHistory = useLibrary((s) => s.clearHistory);
   const folders = useLibrary((s) => s.folders);
   const sourceId = useLibrary((s) => s.sourceId);
+  const setSource = useLibrary((s) => s.setSource);
+  const hydrated = useLibrary((s) => s.hydrated);
   const query = useLibrary((s) => s.query);
   const scanning = useLibrary((s) => s.scanning);
   const activeId = useLibrary((s) => s.activeId);
@@ -88,9 +93,11 @@ export function LibraryApp() {
   const adultFolders = folders.filter((f) => f.adult);
   const tags = useLibrary((s) => s.tags);
   const favorites = useLibrary((s) => s.favorites);
+  const favoriteLiveVideos = useMemo(() => liveVideos.filter((video) => favorites[video.id]), [favorites, liveVideos]);
   const likes = useLibrary((s) => s.likes);
   const adultTagNames = useMemo(() => [...new Set(videos.flatMap((video) => tags[video.id] ?? []))].sort(), [tags, videos]);
   const moviesByGenre = useMemo(() => [...videos].filter((video) => Boolean(video.genre)).sort((a, b) => a.genre!.localeCompare(b.genre!)), [videos]);
+  const randomSourceMovies = useMemo(() => videos.filter((video) => !video.remote && !video.isSample).map((video) => ({ video, rank: ((video.id.length * 31 + video.addedAt + movieShuffle * 7919) % 100003) })).sort((a, b) => a.rank - b.rank).map((entry) => entry.video), [movieShuffle, videos]);
   const priorityMovieGenres = useMemo(() => ["Comedy", "Action", "Horror", "Drama", "Documentary", "Science Fiction"].map((genre) => ({ genre, videos: videos.filter((video) => video.genre?.toLowerCase() === genre.toLowerCase()) })).filter((shelf) => shelf.videos.length > 0), [videos]);
   const adultSorted = useMemo(() => [...videos].sort((a, b) => adultSort === "name" ? a.name.localeCompare(b.name) : adultSort === "favorites" ? Number(Boolean(favorites[b.id])) - Number(Boolean(favorites[a.id])) || b.addedAt - a.addedAt : b.addedAt - a.addedAt), [adultSort, favorites, videos]);
   const personalizedPicks = useMemo(() => {
@@ -116,6 +123,14 @@ export function LibraryApp() {
   useEffect(() => {
     void restoreFolders();
   }, [restoreFolders]);
+  useEffect(() => {
+    // Theater invitations are regular shareable links. Route them to the room
+    // after saved preferences hydrate so a remembered last page cannot win.
+    if (!hydrated) return;
+    const room = new URLSearchParams(window.location.search).get("room")?.trim().toUpperCase() ?? "";
+    if (/^RC[A-Z0-9]{4,12}$/.test(room)) setSource("watch-room");
+  }, [hydrated, setSource]);
+  useEffect(() => { const sync = () => setLiveColumns(Number(localStorage.getItem("reelcase.live-columns") ?? "4")); sync(); window.addEventListener("storage", sync); return () => window.removeEventListener("storage", sync); }, []);
 
   const refreshFollows = useLibrary((s) => s.refreshFollows);
   const pushNotice = useLibrary((s) => s.pushNotice);
@@ -160,8 +175,10 @@ export function LibraryApp() {
     if (was && !scanning) {
       const folder = useLibrary.getState().folders.find((f) => f.name === was.folderName);
       const n = folder?.videoCount ?? 0;
-      if (n === 0) toast.message(`No videos in ${was.folderName}`);
-      else toast.success(`Found ${n} video${n === 1 ? "" : "s"} in ${was.folderName}`);
+      // Empty folders remain in the durable index for later rescans, but do not
+      // interrupt every launch with a misleading "no photos" notification.
+      if (n === 0 && folder?.photoCount) toast.success(`Found ${folder.photoCount} photo${folder.photoCount === 1 ? "" : "s"} in ${was.folderName}`);
+      else if (n > 0) toast.success(`Found ${n} video${n === 1 ? "" : "s"} in ${was.folderName}`);
     }
   }, [scanning]);
 
@@ -238,6 +255,9 @@ export function LibraryApp() {
       sourceId === "twitch" ||
       sourceId === "live");
   const lockedAdults = sourceId === "adults" && !adultsUnlocked;
+  const invitedToTheater = typeof window !== "undefined" && /^RC[A-Z0-9]{4,12}$/.test(
+    (new URLSearchParams(window.location.search).get("room") ?? "").trim().toUpperCase(),
+  );
   const isHubSection = [
     "photos",
     "spotify",
@@ -249,7 +269,8 @@ export function LibraryApp() {
     "watch-room",
     "settings",
     "assistant",
-  ].includes(sourceId);
+    "mission-plan",
+  ].includes(sourceId) || invitedToTheater;
 
   return (
     <div className="flex min-h-dvh bg-bg text-fg">
@@ -272,7 +293,7 @@ export function LibraryApp() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar onMenu={() => setMenuOpen(true)} onAddFiles={() => fileInputRef.current?.click()} />
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
+        <main className="w-full max-w-none flex-1 px-4 py-6 sm:px-6 xl:px-8 2xl:px-10">
           {lockedAdults ? (
             <PinGate />
           ) : isHubSection ? (
@@ -284,9 +305,10 @@ export function LibraryApp() {
               {sourceId === "shop" && <ShopSection />}
               {sourceId === "streaming" && <StreamingSection />}
               {sourceId === "social" && <SocialSection />}
-              {sourceId === "watch-room" && <WatchRoomSection />}
+              {(sourceId === "watch-room" || invitedToTheater) && <WatchRoomSection />}
               {sourceId === "settings" && <SettingsSection />}
               {sourceId === "assistant" && <AiGuide />}
+              {sourceId === "mission-plan" && <MissionPlanSection />}
             </>
           ) : (
             <>
@@ -299,7 +321,7 @@ export function LibraryApp() {
               )}
               {(sourceId === "home" || sourceId === "youtube" || sourceId === "twitch") &&
                 !query && (sourceId !== "home" || !follows.length) && (
-                  <ConnectPanel defaultKind={sourceId === "twitch" ? "twitch" : "youtube"} />
+                  <ConnectPanel key={sourceId === "twitch" ? "twitch-imports" : sourceId === "youtube" ? "youtube-imports" : "home-imports"} defaultKind={sourceId === "twitch" ? "twitch" : "youtube"} lockedKind={sourceId === "youtube" || sourceId === "twitch" ? sourceId : undefined} />
                 )}
 
               {sourceId === "home" && !query && featured && <Billboard video={featured} />}
@@ -375,7 +397,11 @@ export function LibraryApp() {
               {sourceId === "live" && browsing && (
                 <>
                   {liveVideos.length ? (
-                    <PosterGrid videos={liveVideos} />
+                    <>
+                      {favoriteLiveVideos.length > 0 && <TitleRail title="Favorites live now" videos={favoriteLiveVideos} variant="rail" />}
+                      <h1 className="mb-3 font-display text-2xl text-fg">Everyone else live now</h1>
+                      <div className={liveColumns === 3 ? "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" : liveColumns === 6 ? "grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6" : "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"}>{liveVideos.filter((video) => !favorites[video.id]).slice(0, 120).map((video, index) => <VideoCard key={video.id} video={video} variant="rail" index={index} className="w-full" />)}</div>
+                    </>
                   ) : (
                     <div className="rounded-xl bg-surface px-6 py-16 text-center shadow-border">
                       <p className="font-display text-2xl text-fg">Nobody you follow is live</p>
@@ -406,6 +432,8 @@ export function LibraryApp() {
                     </Button>
                   </div>
                   <TitleRail title="Classic movies" videos={classics} variant="poster" />
+                  <TitleRail title="From your source folders" videos={videos.filter((video) => !video.remote && !video.isSample).sort((a, b) => Number(Boolean(favorites[b.id])) - Number(Boolean(favorites[a.id])) || b.addedAt - a.addedAt)} variant="poster" />
+                  <TitleRail title="Random from your library" videos={randomSourceMovies} variant="poster" />
                   {priorityMovieGenres.map((shelf) => <TitleRail key={shelf.genre} title={`${shelf.genre} first`} videos={shelf.videos} variant="poster" />)}
                   <TitleRail
                     title="All movies"
@@ -509,6 +537,7 @@ export function LibraryApp() {
                       </Button>
                     )}
                   </div>
+                  {folders.find((folder) => folder.id === sourceId)?.photoCount ? <div className="mb-4 flex items-center justify-between gap-3 rounded-lg bg-elevated px-4 py-3 shadow-border"><p className="text-sm text-fg">This source also has {folders.find((folder) => folder.id === sourceId)?.photoCount} discovered photos.</p><Button size="sm" variant="secondary" onClick={() => setSource("photos")}>Open Photos</Button></div> : null}
                   {sourceId === "history" || sourceId === "continue" || query ? (
                     <VideoGrid
                       videos={videos}

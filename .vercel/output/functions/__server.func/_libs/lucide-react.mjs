@@ -285,6 +285,24 @@ var Clock3 = createLucideIcon("clock-3", [["circle", {
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
+var Copy = createLucideIcon("copy", [["rect", {
+	width: "14",
+	height: "14",
+	x: "8",
+	y: "8",
+	rx: "2",
+	ry: "2",
+	key: "17jyea"
+}], ["path", {
+	d: "M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2",
+	key: "zix9uf"
+}]]);
+/**
+* @license lucide-react v0.510.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
 var Cpu = createLucideIcon("cpu", [
 	["path", {
 		d: "M12 20v2",
@@ -1584,4 +1602,4 @@ var Youtube = createLucideIcon("youtube", [["path", {
 	key: "1jp15x"
 }]]);
 //#endregion
-export { ExternalLink as $, Minimize as A, Lightbulb as B, Play as C, Music2 as D, PackageSearch as E, Lock as F, History as G, Images as H, LockOpen as I, Gamepad2 as J, Heart as K, LoaderCircle as L, Menu as M, Maximize as N, Monitor as O, Maximize2 as P, FileText as Q, List as R, Radio as S, Pause as T, Image as U, LayoutGrid as V, ImagePlus as W, FolderPlus as X, Folder as Y, Film as Z, Shuffle as _, VolumeX as a, ChevronRight as at, Search as b, Users as c, Box as ct, ThumbsUp as d, BellOff as dt, Download as et, Tag as f, ArrowLeft as ft, SkipBack as g, SkipForward as h, WandSparkles as i, CircleAlert as it, MessageCircle as j, MonitorPlay as k, Upload as l, Bot as lt, Sparkles as m, X as n, Clock3 as nt, Volume2 as o, ChevronLeft as ot, Star as p, Glasses as q, Wifi as r, Clapperboard as rt, Video as s, Check as st, Youtube as t, Cpu as tt, TriangleAlert as u, Bell as ut, ShoppingBag as v, PictureInPicture2 as w, Rocket as x, Settings2 as y, ListPlus as z };
+export { ExternalLink as $, Minimize as A, Lightbulb as B, Play as C, Music2 as D, PackageSearch as E, Lock as F, History as G, Images as H, LockOpen as I, Gamepad2 as J, Heart as K, LoaderCircle as L, Menu as M, Maximize as N, Monitor as O, Maximize2 as P, FileText as Q, List as R, Radio as S, Pause as T, Image as U, LayoutGrid as V, ImagePlus as W, FolderPlus as X, Folder as Y, Film as Z, Shuffle as _, VolumeX as a, CircleAlert as at, Search as b, Users as c, Check as ct, ThumbsUp as d, Bell as dt, Download as et, Tag as f, BellOff as ft, SkipBack as g, SkipForward as h, WandSparkles as i, Clapperboard as it, MessageCircle as j, MonitorPlay as k, Upload as l, Box as lt, Sparkles as m, X as n, Copy as nt, Volume2 as o, ChevronRight as ot, Star as p, ArrowLeft as pt, Glasses as q, Wifi as r, Clock3 as rt, Video as s, ChevronLeft as st, Youtube as t, Cpu as tt, TriangleAlert as u, Bot as ut, ShoppingBag as v, PictureInPicture2 as w, Rocket as x, Settings2 as y, ListPlus as z };

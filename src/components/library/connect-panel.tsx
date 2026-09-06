@@ -23,19 +23,22 @@ function linesToCandidates(value: string, kind: RemoteKind): ImportCandidate[] {
     ...new Set(
       value
         .split(/[\s,]+/)
-        .map((line) => line.trim())
+        // Lists copied from Markdown often escape underscores (\_) and may
+        // carry quote or trailing punctuation characters. Normalize those
+        // before deduplication so a large pasted Twitch list stays usable.
+        .map((line) => line.trim().replaceAll("\\_", "_").replace(/^["'([{<]+|["')\]}>.;:]+$/g, ""))
         .filter(Boolean),
     ),
   ].map((query) => ({ query, kind }));
 }
 
-export function ConnectPanel({ defaultKind = "youtube" }: { defaultKind?: RemoteKind }) {
+export function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultKind?: RemoteKind; lockedKind?: RemoteKind }) {
   const followRemoteQuery = useLibrary((s) => s.followRemoteQuery);
   const importBatch = useLibrary((s) => s.importBatch);
   const remoteBusy = useLibrary((s) => s.remoteBusy);
   const importProgress = useLibrary((s) => s.importProgress);
   const follows = useLibrary((s) => s.follows);
-  const [kind, setKind] = useState<RemoteKind>(defaultKind);
+  const [kind, setKind] = useState<RemoteKind>(lockedKind ?? defaultKind);
   const [query, setQuery] = useState("");
   const [discovery, setDiscovery] = useState("");
   const [bulk, setBulk] = useState("");
@@ -50,6 +53,7 @@ export function ConnectPanel({ defaultKind = "youtube" }: { defaultKind?: Remote
       /* local storage unavailable */
     }
   }, [kind]);
+  useEffect(() => { if (lockedKind) setKind(lockedKind); }, [lockedKind]);
   useEffect(() => { try { setSavedLists(JSON.parse(localStorage.getItem(`reelcase.import-history.${kind}`) ?? "[]") as string[]); } catch { setSavedLists([]); } }, [kind]);
   const candidates = useMemo(() => linesToCandidates(bulk, kind), [bulk, kind]);
   const networkFollows = follows.filter((follow) => follow.kind === kind);
@@ -81,13 +85,15 @@ export function ConnectPanel({ defaultKind = "youtube" }: { defaultKind?: Remote
   };
   const importItems = async (items: ImportCandidate[]) => {
     if (!items.length) return;
+    const normalized = items.map((item) => ({ ...item, query: item.query.trim().replaceAll("\\_", "_") }));
+    // Save the submitted list before requesting providers. A partial outage
+    // must never make a pasted collection disappear.
+    const saved = [...new Set([...normalized.map((item) => item.query), ...savedLists])].slice(0, 1000);
+    localStorage.setItem(`reelcase.import-history.${kind}`, JSON.stringify(saved));
+    localStorage.setItem(`reelcase.import-draft.${kind}`, bulk);
+    setSavedLists(saved);
     try {
-      const result = await importBatch(items);
-      const saved = [...new Set([...items.map((item) => item.query.trim()), ...savedLists])].slice(0, 200);
-      localStorage.setItem(`reelcase.import-history.${kind}`, JSON.stringify(saved));
-      setSavedLists(saved);
-      // Keep the submitted text as a durable local draft as well as the structured history.
-      localStorage.setItem(`reelcase.import-draft.${kind}`, bulk);
+      const result = await importBatch(normalized);
       setFound([]);
       if (result.failed && result.failedQueries?.length) {
         toast.message(`${result.ok} added · ${result.failed} unavailable`, {
@@ -137,14 +143,13 @@ export function ConnectPanel({ defaultKind = "youtube" }: { defaultKind?: Remote
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="max-w-xl">
             <p className="flex items-center gap-2 text-xs font-medium tracking-[0.16em] text-accent uppercase">
-              <Sparkles className="size-3.5" /> Network desk
+              {kind === "twitch" ? <Radio className="size-3.5" /> : <Youtube className="size-3.5" />} {kind === "twitch" ? "Twitch follow manager" : "YouTube subscriptions"}
             </p>
             <h2 className="mt-2 font-display text-3xl leading-none text-fg sm:text-4xl">
-              Make Home your live guide.
+              {kind === "twitch" ? "Build your live desk." : "Bring subscriptions home."}
             </h2>
             <p className="mt-2 text-sm text-muted">
-              Bring in creators once. Reelcase groups fresh uploads, recent streams, and live
-              channels in one watchable feed.
+              {kind === "twitch" ? "Keep live channels, VODs, and clips in a Twitch-only follow list." : "Keep channel uploads, previews, and recommendations in a YouTube-only subscription list."}
             </p>
           </div>
           <div className="flex shrink-0 gap-2">
@@ -152,7 +157,7 @@ export function ConnectPanel({ defaultKind = "youtube" }: { defaultKind?: Remote
             <Metric label="This network" value={networkFollows.length} />
           </div>
         </div>
-        <div
+        {!lockedKind && <div
           className="mt-5 inline-flex rounded-md bg-bg/50 p-1 shadow-border"
           role="tablist"
           aria-label="Network"
@@ -175,11 +180,11 @@ export function ConnectPanel({ defaultKind = "youtube" }: { defaultKind?: Remote
             icon={<Radio className="size-4" />}
             label="Twitch"
           />
-        </div>
+        </div>}
       </div>
       <div className="grid gap-6 px-5 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div>
-          <StepBadge number="01" label="Add creators" />
+          <StepBadge number="01" label={kind === "twitch" ? "Follow live channels" : "Add subscriptions"} />
           <p className="mt-2 text-sm text-muted">
             {kind === "youtube"
               ? "Paste a channel URL, @handle, channel ID, or a video link. Several at once is fine."
@@ -213,7 +218,7 @@ export function ConnectPanel({ defaultKind = "youtube" }: { defaultKind?: Remote
           </form>
         </div>
         <div className="border-t border-border pt-5 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6">
-          <StepBadge number="02" label="Import several at once" />
+          <StepBadge number="02" label={kind === "twitch" ? "Import Twitch follows" : "Import YouTube subscriptions"} />
           <>
             <p className="mt-2 text-sm text-muted">
               {kind === "twitch"
@@ -322,7 +327,7 @@ export function ConnectPanel({ defaultKind = "youtube" }: { defaultKind?: Remote
           </div>
         </div>
       )}
-      {savedLists.length > 0 && <div className="border-t border-border px-5 py-4 sm:px-6"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Saved import list</p><p className="mt-1 text-xs text-muted">{savedLists.length} channel entries retained locally for this service.</p><div className="mt-3 flex flex-wrap gap-2">{savedLists.slice(0, 12).map((handle) => <span key={handle} className="rounded-sm bg-elevated px-2 py-1 text-xs text-muted">{handle}</span>)}</div></div>}
+      {savedLists.length > 0 && <div className="border-t border-border px-5 py-4 sm:px-6"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Saved import list</p><p className="mt-1 text-xs text-muted">{savedLists.length} channel entries retained locally for this service. Reelcase retries this list automatically at startup when the follow shelf is empty.</p><div className="mt-3 flex flex-wrap gap-2">{savedLists.slice(0, 12).map((handle) => <span key={handle} className="rounded-sm bg-elevated px-2 py-1 text-xs text-muted">{handle}</span>)}</div><Button className="mt-3" size="sm" variant="secondary" disabled={remoteBusy} onClick={() => void importItems(savedLists.map((query) => ({ query, kind })))}><ListPlus className="size-3.5" /> Load saved list now</Button></div>}
       <div className="flex flex-col gap-3 border-t border-border bg-elevated/30 px-5 py-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <p className="flex items-center gap-2 text-muted">
           <Check className="size-4 text-accent" /> Latest uploads and live streams appear

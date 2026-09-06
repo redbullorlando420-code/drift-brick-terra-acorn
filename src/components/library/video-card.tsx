@@ -39,11 +39,13 @@ export function VideoCard({
   const ratio = progress && progress.d > 0 ? Math.min(1, progress.t / progress.d) : 0;
   const playable = isLikelyPlayable(video.extension);
   const art = variant === "poster" ? video.poster || thumb : thumb || video.poster;
+  const youtubeFallback = video.remote?.kind === "youtube" && video.remote.videoId ? `https://i.ytimg.com/vi/${video.remote.videoId}/hqdefault.jpg` : undefined;
   const isPoster = variant === "poster";
   const live = Boolean(video.remote?.live);
   const preview = video.remote?.previewUrl;
   const [hovered, setHovered] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
+
 
   useEffect(() => {
     const el = ref.current;
@@ -67,9 +69,9 @@ export function VideoCard({
         (variant === "grid" || variant === "rail") && "aspect-video w-full rounded-md",
       )}
     >
-      {art && !imageFailed ? (
+      {(imageFailed && youtubeFallback ? youtubeFallback : art) ? (
         <img
-          src={hovered && preview ? preview : art}
+          src={imageFailed && youtubeFallback ? youtubeFallback : hovered && preview ? preview : art}
           alt=""
           onError={() => setImageFailed(true)}
           className="size-full object-cover outline outline-1 -outline-offset-1 outline-fg/10"

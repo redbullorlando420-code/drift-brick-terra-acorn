@@ -343,6 +343,10 @@ in-browser say so and ship the best web-only build.
 
 ## Quick reference
 
+## Change scope
+
+For substantive product requests, prefer cohesive end-to-end changes that repair the affected workflow rather than isolated visual tweaks. Preserve saved user data, verify the changed path in the browser, and retain performance safeguards for very large media libraries.
+
 ```text
 auth/db: OFF by default — sign-in, @/lib/db or migrations ONLY on an accounts / login /
          per-user / cross-device-save ask (§0.5); otherwise localStorage

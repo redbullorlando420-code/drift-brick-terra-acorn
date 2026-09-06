@@ -24,6 +24,9 @@ export type ScanOpts = {
   onBatch?: (videos: LibraryVideo[]) => void;
   signal?: AbortSignal;
   drive?: boolean;
+  onImage?: (file: File, relativePath: string) => void;
+  /** Walk a saved source for photos without rebuilding its video catalog. */
+  imagesOnly?: boolean;
 };
 
 function asOpts(
@@ -136,7 +139,7 @@ async function walkHandle(
         drive,
         progressState,
       );
-    } else if (handle.kind === "file" && isVideoFile(name)) {
+    } else if (handle.kind === "file" && !opts.imagesOnly && isVideoFile(name)) {
       try {
         const fileHandle = handle as FileSystemFileHandle;
         const file = await fileHandle.getFile();
@@ -152,6 +155,8 @@ async function walkHandle(
       } catch {
         // skip unreadable
       }
+    } else if (handle.kind === "file" && /\.(avif|bmp|gif|heic|heif|jpe?g|png|tiff?|webp)$/i.test(name)) {
+      try { opts.onImage?.(await (handle as FileSystemFileHandle).getFile(), prefix + name); } catch { /* skip unreadable */ }
     } else if (looked % 200 === 0) {
       throttleProgress(opts, progressState, {
         found: acc.length,

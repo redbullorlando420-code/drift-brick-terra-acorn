@@ -239,13 +239,13 @@ async function youtubeFromChannel(query: string, limit = 32): Promise<FollowResu
 }
 
 function twitchLogin(input: string): string {
-  const raw = input.trim();
+  const raw = input.trim().replaceAll("\\_", "_").replace(/^["'([{<]+|["')\]}>.;:]+$/g, "");
   try {
     const url = new URL(raw.startsWith("http") ? raw : `https://twitch.tv/${raw}`);
     const parts = url.pathname.split("/").filter(Boolean);
-    return (parts[0] ?? raw).replace(/^@/, "").toLowerCase();
+    return (parts[0] ?? raw).replace(/^@/, "").replace(/[^a-z0-9_]/gi, "").toLowerCase();
   } catch {
-    return raw.replace(/^@/, "").replace(/^tw:/, "").toLowerCase();
+    return raw.replace(/^@/, "").replace(/^tw:/, "").replace(/[^a-z0-9_]/gi, "").toLowerCase();
   }
 }
 

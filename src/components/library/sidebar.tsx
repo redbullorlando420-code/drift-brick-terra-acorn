@@ -117,7 +117,7 @@ export function SidebarNav({
   };
 
   const publicFolders = folders.filter(
-    (f) => f.kind !== "demo" && f.kind !== "youtube" && f.kind !== "twitch" && !f.adult,
+    (f) => f.kind !== "demo" && f.kind !== "youtube" && f.kind !== "twitch" && !f.adult && (f.videoCount > 0 || Boolean(f.photoCount) || Boolean(f.needsPermission)),
   );
   const networkFolders = folders.filter(
     (f) => (f.kind === "youtube" || f.kind === "twitch") && f.id !== "youtube:featured",
@@ -131,7 +131,10 @@ export function SidebarNav({
   return (
     <div className="flex h-full flex-col">
       <div className="px-2 pt-1 pb-4">
-        <p className="font-display text-2xl leading-none tracking-tight text-fg">Reelcase</p>
+        <div className="flex items-center gap-2.5">
+          <span className="flex size-9 items-center justify-center rounded-lg bg-accent text-accent-fg shadow-border"><Clapperboard className="size-5" /></span>
+          <p className="font-display text-2xl leading-none tracking-tight text-fg">Reelcase</p>
+        </div>
         <p className="mt-1 text-xs text-muted">Vault · networks · live</p>
       </div>
       <nav className="flex flex-col gap-0.5 px-1">
@@ -274,6 +277,12 @@ export function SidebarNav({
           onClick={() => go("assistant")}
           icon={Sparkles}
           label="AI guide"
+        />
+        <NavItem
+          active={sourceId === "mission-plan"}
+          onClick={() => go("mission-plan")}
+          icon={Clapperboard}
+          label="Mission plan"
         />
         <NavItem
           active={sourceId === "settings"}

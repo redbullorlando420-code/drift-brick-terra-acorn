@@ -3,6 +3,7 @@ import {
   Bot,
   Box,
   Clapperboard,
+  Copy,
   Download,
   ExternalLink,
   Gamepad2,
@@ -45,6 +46,13 @@ type LocalItem = {
 type HubStore = { prints: LocalItem[]; games: LocalItem[] };
 const HUB_KEY = "reelcase.hub.v1";
 const PREFERENCE_GROUPS = {
+  Alerts: [
+    "Go-live alerts",
+    "New Twitch VOD alerts",
+    "New YouTube upload alerts",
+    "Source change alerts",
+    "Watch-room invitation alerts",
+  ],
   Playback: [
     "Autoplay next video",
     "Resume playback",
@@ -240,7 +248,10 @@ export function SettingsSection() {
     useState<keyof typeof PREFERENCE_GROUPS>("Playback");
   const [zoom, setZoom] = useState(100);
   const [railLimit, setRailLimit] = useState(24);
+  const [liveDensity, setLiveDensity] = useState(4);
   const [sourceCacheFirst, setSourceCacheFirst] = useState(true);
+  const [debugEnabled, setDebugEnabled] = useState(false);
+  const [debugReport, setDebugReport] = useState("");
   useEffect(() => setHub(readHub()), []);
   useEffect(() => {
     try {
@@ -265,6 +276,8 @@ export function SettingsSection() {
     () => setSourceCacheFirst(localStorage.getItem("reelcase.source-cache-first") !== "false"),
     [],
   );
+  useEffect(() => { try { setDebugEnabled(localStorage.getItem("reelcase.debug-panel") === "true"); } catch { /* unavailable */ } }, []);
+  useEffect(() => setLiveDensity([3, 4, 6].includes(Number(localStorage.getItem("reelcase.live-columns") ?? "4")) ? Number(localStorage.getItem("reelcase.live-columns")) : 4), []);
   const setGlobalZoom = (value: number) => {
     setZoom(value);
     localStorage.setItem("reelcase.ui-zoom", String(value));
@@ -296,7 +309,7 @@ export function SettingsSection() {
         follows: state.follows,
         notices: state.notices,
         sourceCompanions: {
-          photoNames: useSourceAssets.getState().photos.map((file) => file.name),
+          photoNames: useSourceAssets.getState().photos.map((asset) => asset.path),
           shortcutNames: useSourceAssets.getState().shortcuts.map((file) => file.name),
         },
       },
@@ -336,7 +349,16 @@ export function SettingsSection() {
           <Download className="size-4" /> Export JSON
         </Button>
       </div>
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+      <section className="mt-6"><div className="mb-3"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Device & performance</p><p className="mt-1 text-sm text-muted">The controls that change how Reelcase runs and fits your screen.</p></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-lg bg-elevated p-5 shadow-border">
+          <span className="text-accent"><Settings2 className="size-5" /></span>
+          <h2 className="mt-3 font-display text-2xl text-fg">Diagnostics</h2>
+          <p className="mt-2 text-sm leading-6 text-muted">Keep a local, opt-in status panel for source, cache, and companion troubleshooting. It is off by default and sends nothing away.</p>
+          <Button size="sm" variant={debugEnabled ? "default" : "secondary"} className="mt-4" onClick={() => { const next = !debugEnabled; setDebugEnabled(next); localStorage.setItem("reelcase.debug-panel", String(next)); if (!next) setDebugReport(""); }}>
+            {debugEnabled ? "Disable diagnostics" : "Enable diagnostics"}
+          </Button>
+          {debugEnabled && <div className="mt-3 rounded-sm bg-bg/45 p-3 text-xs leading-5 text-muted"><p>{useLibrary.getState().videos.length} catalog entries · {useLibrary.getState().folders.length} sources · {navigator.onLine ? "browser online" : "browser offline"}</p><p>{useLibrary.getState().folders.filter((folder) => folder.health === "healthy").length} healthy · {useLibrary.getState().folders.filter((folder) => folder.health === "cached").length} cache-first · {useLibrary.getState().folders.filter((folder) => folder.health === "permission-needed" || folder.health === "unavailable").length} need attention</p><Button size="sm" variant="ghost" className="mt-2" onClick={() => void (async () => { try { const response = await fetch("http://127.0.0.1:43123/health"); const data = await response.json() as { version?: number; roots?: number; desktopEnabled?: boolean }; setDebugReport(`Companion v${data.version ?? "?"} · ${data.roots ?? 0} approved roots · Desktop ${data.desktopEnabled ? "ready" : "not available"}`); } catch { setDebugReport("Companion is not running or is unavailable to this browser."); } })()}>Check companion</Button>{debugReport && <p className="mt-2 text-accent">{debugReport}</p>}</div>}
+        </div>
         <div className="rounded-lg bg-elevated p-5 shadow-border">
           <span className="text-accent">
             <Settings2 className="size-5" />
@@ -358,6 +380,12 @@ export function SettingsSection() {
               </Button>
             ))}
           </div>
+        </div>
+        <div className="rounded-lg bg-elevated p-5 shadow-border">
+          <span className="text-accent"><Radio className="size-5" /></span>
+          <h2 className="mt-3 font-display text-2xl text-fg">Live layout</h2>
+          <p className="mt-2 text-sm leading-6 text-muted">Choose a larger card layout or fit more live channels on screen. This changes the Live page without adding heavier media loads.</p>
+          <div className="mt-4 flex flex-wrap gap-2">{[3, 4, 6].map((value) => <Button key={value} size="sm" variant={liveDensity === value ? "default" : "secondary"} onClick={() => { setLiveDensity(value); localStorage.setItem("reelcase.live-columns", String(value)); }}>{value === 3 ? "Large · 3 columns" : `${value} columns`}</Button>)}</div>
         </div>
         <div className="rounded-lg bg-elevated p-5 shadow-border">
           <span className="text-accent">
@@ -400,6 +428,8 @@ export function SettingsSection() {
             disk again.
           </p>
         </div>
+      </div></section>
+      <section className="mt-6"><div className="mb-3"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Connections, privacy & guides</p><p className="mt-1 text-sm text-muted">Optional services and explanations stay separate from everyday library preferences.</p></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <InfoCard
           icon={<Clapperboard className="size-5" />}
           title="Local edit workspace"
@@ -427,8 +457,8 @@ export function SettingsSection() {
         />
         <AlexaLightControl />
         <GoogleYouTubeConnection />
-      </div>
-      <div className="mt-4 rounded-lg bg-elevated p-5 shadow-border">
+      </div></section>
+      <div className="mt-6 rounded-lg bg-elevated p-5 shadow-border">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="font-display text-2xl text-fg">100 local preferences</h2>
@@ -795,23 +825,35 @@ function GoogleYouTubeConnection() {
 type LocalPhoto = {
   id: string;
   name: string;
+  path: string;
   url: string;
   people: string[];
+  tags: string[];
   album: string;
   favorite: boolean;
   rating: number;
   addedAt: number;
 };
+type PhotoSort = "newest" | "name" | "rating" | "favorite";
 const PHOTO_FILE_RE = /\.(avif|bmp|gif|heic|heif|jpe?g|png|tiff?|webp)$/i;
 
 export function PhotosSection() {
   const [photos, setPhotos] = useState<LocalPhoto[]>([]);
   const [selectedPerson, setSelectedPerson] = useState("All photos");
   const [photoSearch, setPhotoSearch] = useState("");
+  const [discoveryFilter, setDiscoveryFilter] = useState<"all" | "screenshots" | "camera" | "downloads">("all");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
-  const [newestFirst, setNewestFirst] = useState(true);
+  const [photoSort, setPhotoSort] = useState<PhotoSort>(() => {
+    try { return (localStorage.getItem("reelcase.photos.sort") as PhotoSort) || "newest"; } catch { return "newest"; }
+  });
+  const [showLocations, setShowLocations] = useState(() => {
+    try { return localStorage.getItem("reelcase.photos.show-locations") === "true"; } catch { return false; }
+  });
   const [photoFolders, setPhotoFolders] = useState<string[]>([]);
   const [slideshow, setSlideshow] = useState(false);
+  const [slideSeconds, setSlideSeconds] = useState(() => {
+    try { const value = Number(localStorage.getItem("reelcase.photos.slide-seconds") ?? "5"); return [3, 5, 10, 20, 30].includes(value) ? value : 5; } catch { return 5; }
+  });
   const [slideIndex, setSlideIndex] = useState(0);
   const [helperNote, setHelperNote] = useState("");
   const [focusedPhotoId, setFocusedPhotoId] = useState<string | null>(null);
@@ -820,32 +862,57 @@ export function PhotosSection() {
   // fresh value every render, which makes Zustand continuously notify this view.
   const libraryFolders = useLibrary((s) => s.folders);
   const sourcePhotos = useSourceAssets((s) => s.photos);
+  const refreshSourcePhotos = useLibrary((s) => s.refreshSourcePhotos);
   const sourceFolders = useMemo(
     () => libraryFolders.filter((folder) => folder.kind === "directory" || folder.kind === "files"),
     [libraryFolders],
   );
-  const addPhotos = (files: FileList | File[] | null, folderName = "Unsorted") => {
+  const addPhotos = (files: FileList | File[] | null, folderName = "Unsorted", paths?: string[]) => {
     if (!files) return;
     const remembered = (() => { try { return JSON.parse(localStorage.getItem("reelcase.photo-meta.v1") ?? "{}"); } catch { return {}; } })() as Record<string, Partial<LocalPhoto>>;
     const next = Array.from(files)
       .filter((file) => file.type.startsWith("image/") || PHOTO_FILE_RE.test(file.name))
       .slice(0, 600)
-      .map((file) => ({
-        id: `${file.name}-${file.lastModified}`,
+      .map((file, index) => {
+        const path = paths?.[index] || file.webkitRelativePath || `${folderName}/${file.name}`;
+        const id = `${path}-${file.lastModified}`;
+        return {
+        id,
         name: file.name,
+        path,
         url: URL.createObjectURL(file),
-        people: remembered[`${file.name}-${file.lastModified}`]?.people ?? [],
-        album: remembered[`${file.name}-${file.lastModified}`]?.album ?? folderName,
-        favorite: remembered[`${file.name}-${file.lastModified}`]?.favorite ?? false,
-        rating: remembered[`${file.name}-${file.lastModified}`]?.rating ?? 0,
+        people: remembered[id]?.people ?? [],
+        tags: remembered[id]?.tags ?? [],
+        album: remembered[id]?.album ?? folderName,
+        favorite: remembered[id]?.favorite ?? false,
+        rating: remembered[id]?.rating ?? 0,
         addedAt: file.lastModified,
-      }));
-    setPhotos((current) => [...current, ...next]);
+      };
+      });
+    setPhotos((current) => {
+      const known = new Set(current.map((photo) => photo.id));
+      return [...current, ...next.filter((photo) => !known.has(photo.id))];
+    });
   };
   useEffect(() => {
-    if (sourcePhotos.length) addPhotos(sourcePhotos, "Source import");
+    if (sourcePhotos.length) addPhotos(sourcePhotos.map((asset) => asset.file), "Source import", sourcePhotos.map((asset) => asset.path));
   }, [sourcePhotos]);
-  useEffect(() => { try { localStorage.setItem("reelcase.photo-meta.v1", JSON.stringify(Object.fromEntries(photos.map(({ id, people, album, favorite, rating }) => [id, { people, album, favorite, rating }])))); } catch { /* quota */ } }, [photos]);
+  useEffect(() => { try { localStorage.setItem("reelcase.photo-meta.v1", JSON.stringify(Object.fromEntries(photos.map(({ id, path, people, tags, album, favorite, rating }) => [id, { path, people, tags, album, favorite, rating }])))); } catch { /* quota */ } }, [photos]);
+  useEffect(() => { try { localStorage.setItem("reelcase.photos.sort", photoSort); } catch { /* storage unavailable */ } }, [photoSort]);
+  useEffect(() => { try { localStorage.setItem("reelcase.photos.show-locations", String(showLocations)); } catch { /* storage unavailable */ } }, [showLocations]);
+  useEffect(() => { try { localStorage.setItem("reelcase.photos.slide-seconds", String(slideSeconds)); } catch { /* storage unavailable */ } }, [slideSeconds]);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      // Directory handles are re-read only when the photo shelf is opened, so the
+      // startup catalog remains fast even for very large video sources.
+      for (const folder of sourceFolders) {
+        if (cancelled) return;
+        await refreshSourcePhotos(folder.id);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [refreshSourcePhotos, sourceFolders]);
   const addPhotoFolder = (files: FileList | null) => {
     if (!files?.length) return;
     const first =
@@ -861,14 +928,20 @@ export function PhotosSection() {
       (photo) =>
         (selectedPerson === "All photos" || photo.people.includes(selectedPerson)) &&
         (!favoritesOnly || photo.favorite) &&
-        `${photo.name} ${photo.people.join(" ")} ${photo.album}`
+        (discoveryFilter === "all" || (discoveryFilter === "screenshots" ? /screenshot|screen[_ -]?shot/i.test(photo.name) : discoveryFilter === "camera" ? /^(img|dsc|pxl|photo)[_ -]?\d/i.test(photo.name) : /download|image|copy|edited/i.test(photo.name))) &&
+        `${photo.name} ${photo.path} ${photo.people.join(" ")} ${photo.tags.join(" ")} ${photo.album}`
           .toLowerCase()
           .includes(photoSearch.toLowerCase()),
     )
-    .sort((a, b) => (newestFirst ? b.addedAt - a.addedAt : a.name.localeCompare(b.name)));
+    .sort((a, b) => {
+      if (photoSort === "name") return a.name.localeCompare(b.name);
+      if (photoSort === "rating") return b.rating - a.rating || b.addedAt - a.addedAt;
+      if (photoSort === "favorite") return Number(b.favorite) - Number(a.favorite) || b.addedAt - a.addedAt;
+      return b.addedAt - a.addedAt;
+    });
   const renderedPhotos = visible.slice(0, photoLimit);
-  useEffect(() => setPhotoLimit(80), [photoSearch, selectedPerson, favoritesOnly, newestFirst]);
-  useEffect(() => { if (!slideshow || !visible.length) return; const timer = window.setInterval(() => setSlideIndex((index) => (index + 1) % visible.length), 5000); return () => window.clearInterval(timer); }, [slideshow, visible.length]);
+  useEffect(() => setPhotoLimit(80), [photoSearch, selectedPerson, favoritesOnly, photoSort, discoveryFilter]);
+  useEffect(() => { if (!slideshow || !visible.length) return; const timer = window.setInterval(() => setSlideIndex((index) => (index + 1) % visible.length), slideSeconds * 1000); return () => window.clearInterval(timer); }, [slideshow, slideSeconds, visible.length]);
   const featuredPhoto = visible[slideIndex % Math.max(visible.length, 1)];
   const focusedIndex = visible.findIndex((photo) => photo.id === focusedPhotoId);
   const focusedPhoto = focusedIndex >= 0 ? visible[focusedIndex] : undefined;
@@ -937,6 +1010,7 @@ export function PhotosSection() {
           >
             Open Google Photos
           </a>
+          {photoSearch.trim() && <a href={`https://photos.google.com/search/${encodeURIComponent(photoSearch.trim())}`} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center rounded-sm bg-bg/50 px-4 text-sm text-fg shadow-border">Search Google Photos</a>}
           <a
             href="https://www.google.com/android/find/"
             target="_blank"
@@ -980,7 +1054,7 @@ export function PhotosSection() {
           <Input
             value={photoSearch}
             onChange={(event) => setPhotoSearch(event.target.value)}
-            placeholder="Search names, people, albums"
+            placeholder="Search names, people, albums, or file locations"
             aria-label="Search photos"
           />
           <Button
@@ -990,14 +1064,21 @@ export function PhotosSection() {
           >
             Favorites
           </Button>
-          <Button size="sm" variant="secondary" onClick={() => setNewestFirst((value) => !value)}>
-            {newestFirst ? "Newest" : "A–Z"}
+          {(["newest", "name", "rating", "favorite"] as const).map((sort) => (
+            <Button key={sort} size="sm" variant={photoSort === sort ? "default" : "secondary"} onClick={() => setPhotoSort(sort)}>
+              {sort === "newest" ? "Newest" : sort === "name" ? "A–Z" : sort === "rating" ? "Top rated" : "Favorites first"}
+            </Button>
+          ))}
+          <Button size="sm" variant={showLocations ? "default" : "secondary"} onClick={() => setShowLocations((value) => !value)}>
+            {showLocations ? "Hide locations" : "Show locations"}
           </Button>
           <Button size="sm" variant={slideshow ? "default" : "secondary"} onClick={() => setSlideshow((value) => !value)}>{slideshow ? "Stop auto-change" : "Auto-change photos"}</Button>
+          {slideshow && <select value={slideSeconds} onChange={(event) => setSlideSeconds(Number(event.target.value))} aria-label="Photo slideshow interval" className="h-9 rounded-sm bg-elevated px-2 text-xs text-fg shadow-border">{[3, 5, 10, 20, 30].map((seconds) => <option key={seconds} value={seconds}>Every {seconds}s</option>)}</select>}
           <Button size="sm" variant="secondary" disabled={!visible.length} onClick={() => { const pick = visible[Math.floor(Math.random() * visible.length)]; if (pick) { setSlideIndex(visible.findIndex((photo) => photo.id === pick.id)); setFocusedPhotoId(pick.id); } }}>Random photo</Button>
           <Button size="sm" variant="secondary" disabled={!photos.length} onClick={suggestPeopleFromNames}>Suggest people labels</Button>
         </div>
-        <p className="text-xs leading-5 text-muted">Private helper: suggestions come from your photo file names only. Face recognition is not enabled, so no image leaves this device. Large folders are displayed in small batches to keep scrolling responsive.</p>
+        <div className="flex flex-wrap gap-2"><span className="self-center text-xs text-muted">Local discovery</span>{(["all", "screenshots", "camera", "downloads"] as const).map((filter) => <Button key={filter} size="sm" variant={discoveryFilter === filter ? "default" : "secondary"} onClick={() => setDiscoveryFilter(filter)}>{filter === "all" ? "All" : filter === "camera" ? "Camera names" : filter[0].toUpperCase() + filter.slice(1)}</Button>)}</div>
+        <p className="text-xs leading-5 text-muted">Private local discovery uses file-name patterns for screenshots, camera files, downloads, and suggested people labels. Face recognition is not enabled, so no image leaves this device. Large folders are decoded lazily and displayed in small batches to keep scrolling responsive.</p>
         {helperNote && <p className="text-xs text-accent">{helperNote}</p>}
       </div>
       {!photos.length ? (
@@ -1009,10 +1090,10 @@ export function PhotosSection() {
           </p>
         </div>
       ) : (
-        <><div className="mt-5 overflow-hidden rounded-lg bg-elevated shadow-border">{featuredPhoto && <div className="grid gap-0 sm:grid-cols-[minmax(0,1.5fr)_minmax(16rem,0.5fr)]"><img src={featuredPhoto.url} alt={featuredPhoto.name} className="aspect-video size-full object-cover"/><div className="flex flex-col justify-center p-5"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Now showing</p><p className="mt-2 font-display text-3xl text-fg">{featuredPhoto.name}</p><p className="mt-2 text-sm text-muted">{featuredPhoto.album} · {featuredPhoto.rating || 0}/5 rating</p></div></div>}</div><div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        <><div className="mt-5 overflow-hidden rounded-lg bg-elevated shadow-border">{featuredPhoto && <div className="grid gap-0 sm:grid-cols-[minmax(0,1.5fr)_minmax(16rem,0.5fr)]"><img src={featuredPhoto.url} alt={featuredPhoto.name} decoding="async" className="aspect-video size-full object-cover"/><div className="flex flex-col justify-center p-5"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Now showing</p><p className="mt-2 font-display text-3xl text-fg">{featuredPhoto.name}</p><p className="mt-2 text-sm text-muted">{featuredPhoto.album} · {featuredPhoto.rating || 0}/5 rating</p>{showLocations && <p title={featuredPhoto.path} className="mt-2 truncate text-xs text-muted">{featuredPhoto.path}</p>}</div></div>}</div><div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
           {renderedPhotos.map((photo) => (
             <div key={photo.id} className="overflow-hidden rounded-md bg-elevated shadow-border">
-              <button type="button" className="group relative block w-full" onClick={() => setFocusedPhotoId(photo.id)} aria-label={`Open ${photo.name} full screen`}><img src={photo.url} alt={photo.name} className="aspect-square w-full object-cover" /><span className="absolute inset-0 flex items-center justify-center bg-bg/45 opacity-0 transition-opacity group-hover:opacity-100"><Maximize2 className="size-6 text-fg" /></span></button>
+              <button type="button" className="group relative block w-full" onClick={() => setFocusedPhotoId(photo.id)} aria-label={`Open ${photo.name} full screen`}><img src={photo.url} alt={photo.name} loading="lazy" decoding="async" className="aspect-square w-full object-cover" /><span className="absolute inset-0 flex items-center justify-center bg-bg/45 opacity-0 transition-opacity group-hover:opacity-100"><Maximize2 className="size-6 text-fg" /></span></button>
               <div className="p-3">
                 <div className="flex items-center gap-2">
                   <p className="min-w-0 flex-1 truncate text-sm text-fg">{photo.name}</p>
@@ -1030,6 +1111,7 @@ export function PhotosSection() {
                     ♥
                   </Button>
                 </div>
+                {showLocations && <p title={photo.path} className="mt-1 truncate text-xs text-muted">{photo.path}</p>}
                 <div className="mt-2 flex gap-1">{[1,2,3,4,5].map((value) => <Button key={value} size="sm" variant={value <= photo.rating ? "default" : "secondary"} onClick={() => setPhotos((items) => items.map((item) => item.id === photo.id ? { ...item, rating: value } : item))}>{value}</Button>)}</div>
                 <Input
                   className="mt-2 h-9"
@@ -1049,6 +1131,15 @@ export function PhotosSection() {
                 />
                 <Input
                   className="mt-2 h-9"
+                  placeholder="Tags: travel, pets, event"
+                  value={photo.tags.join(", ")}
+                  onChange={(event) => {
+                    const tags = event.target.value.split(",").map((value) => value.trim().toLowerCase()).filter(Boolean).slice(0, 20);
+                    setPhotos((items) => items.map((item) => item.id === photo.id ? { ...item, tags: [...new Set(tags)] } : item));
+                  }}
+                />
+                <Input
+                  className="mt-2 h-9"
                   placeholder="Album, e.g. Summer 2026"
                   value={photo.album}
                   onChange={(event) =>
@@ -1064,10 +1155,36 @@ export function PhotosSection() {
               </div>
             </div>
           ))}
-        </div><div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted"><span>Showing {Math.min(renderedPhotos.length, visible.length)} of {visible.length} matching photos</span>{renderedPhotos.length < visible.length && <Button size="sm" variant="secondary" onClick={() => setPhotoLimit((limit) => limit + 80)}>Show 80 more</Button>}</div>{focusedPhoto && <div role="dialog" aria-modal="true" aria-label={`Viewing ${focusedPhoto.name}`} className="fixed inset-0 z-50 flex items-center justify-center bg-bg/95 p-4" onClick={() => setFocusedPhotoId(null)}><div className="relative flex h-full w-full max-w-7xl flex-col gap-3" onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between gap-3 text-fg"><div className="min-w-0"><p className="truncate font-medium">{focusedPhoto.name}</p><p className="text-xs text-muted">{focusedPhoto.album} · {focusedIndex + 1} of {visible.length}</p></div><Button size="sm" variant="secondary" onClick={() => setFocusedPhotoId(null)}>Close</Button></div><div className="relative min-h-0 flex-1"><img src={focusedPhoto.url} alt={focusedPhoto.name} className="size-full object-contain"/><Button size="sm" variant="secondary" className="absolute top-1/2 left-2 -translate-y-1/2" onClick={() => moveFocus(-1)} aria-label="Previous photo"><ChevronLeft className="size-5"/></Button><Button size="sm" variant="secondary" className="absolute top-1/2 right-2 -translate-y-1/2" onClick={() => moveFocus(1)} aria-label="Next photo"><ChevronRight className="size-5"/></Button></div></div></div>}</>
+        </div><div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted"><span>Showing {Math.min(renderedPhotos.length, visible.length)} of {visible.length} matching photos</span>{renderedPhotos.length < visible.length && <Button size="sm" variant="secondary" onClick={() => setPhotoLimit((limit) => limit + 80)}>Show 80 more</Button>}</div>{focusedPhoto && <div role="dialog" aria-modal="true" aria-label={`Viewing ${focusedPhoto.name}`} className="fixed inset-0 z-50 flex items-center justify-center bg-bg/95 p-4" onClick={() => setFocusedPhotoId(null)}><div className="relative flex h-full w-full max-w-7xl flex-col gap-3" onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between gap-3 text-fg"><div className="min-w-0"><p className="truncate font-medium">{focusedPhoto.name}</p><p className="text-xs text-muted">{focusedPhoto.album} · {focusedIndex + 1} of {visible.length}</p>{showLocations && <p title={focusedPhoto.path} className="truncate text-xs text-muted">{focusedPhoto.path}</p>}</div><Button size="sm" variant="secondary" onClick={() => setFocusedPhotoId(null)}>Close</Button></div><div className="relative min-h-0 flex-1"><img src={focusedPhoto.url} alt={focusedPhoto.name} className="size-full object-contain"/><Button size="sm" variant="secondary" className="absolute top-1/2 left-2 -translate-y-1/2" onClick={() => moveFocus(-1)} aria-label="Previous photo"><ChevronLeft className="size-5"/></Button><Button size="sm" variant="secondary" className="absolute top-1/2 right-2 -translate-y-1/2" onClick={() => moveFocus(1)} aria-label="Next photo"><ChevronRight className="size-5"/></Button></div></div></div>}</>
       )}
     </HubShell>
   );
+}
+type Mission = { id: string; title: string; detail: string; done: boolean };
+const DEFAULT_MISSIONS: Mission[] = [
+  { id: "index", title: "Durable media index", detail: "Catalog source health, cached metadata, thumbnails, and fast search without blocking the first screen.", done: false },
+  { id: "companion", title: "Desktop companion", detail: "Verify local files, watch selected folders, and launch approved desktop shortcuts through a local companion.", done: false },
+  { id: "watch", title: "Watch room reliability", detail: "Harden LAN signaling, timeline reconciliation, queue voting, and guest access checks.", done: false },
+  { id: "services", title: "Connected services", detail: "Keep Twitch, YouTube, Roku, Spotify, and photo imports independently cached and refreshable.", done: false },
+  { id: "thumb-health", title: "Thumbnail health queue", detail: "Retry failed artwork, hide unavailable remote cards, and expose a small source diagnostic instead of blank previews.", done: false },
+  { id: "windows-explorer", title: "Windows explorer bridge", detail: "Expand companion-backed folder health, change events, shortcut validation, and safe launch history for local libraries.", done: false },
+  { id: "service-status", title: "Service refresh status", detail: "Show when each connected service last refreshed, preserve partial results, and allow focused retries without reloading the whole app.", done: false },
+  { id: "vr-theater", title: "VR theater reliability", detail: "Replace the current WebXR capability check with a true headset cinema surface, controller controls, and clear Meta Quest recovery guidance.", done: false },
+];
+
+export function MissionPlanSection() {
+  const [missions, setMissions] = useState<Mission[]>(() => {
+    try { const saved = JSON.parse(localStorage.getItem("reelcase.mission-plan.v1") ?? "null") as Mission[] | null; return Array.isArray(saved) ? [...saved, ...DEFAULT_MISSIONS.filter((mission) => !saved.some((item) => item.id === mission.id))] : DEFAULT_MISSIONS; } catch { return DEFAULT_MISSIONS; }
+  });
+  const [idea, setIdea] = useState("");
+  useEffect(() => { try { localStorage.setItem("reelcase.mission-plan.v1", JSON.stringify(missions)); } catch { /* storage unavailable */ } }, [missions]);
+  const completed = missions.filter((mission) => mission.done).length;
+  return <HubShell eyebrow="Mission plan" icon={<Rocket className="size-4"/>} title="Build a private media home that scales." copy="Reelcase is moving toward a fast, local-first media hub: your files load from a durable catalog, your watch room works across your home network, and connected services remain optional and easy to control.">
+    <section className="mt-6 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Product mission</p><h2 className="mt-2 font-display text-3xl text-fg">One calm control room for a very large library.</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-muted">Make a million-file media collection feel immediate: cache its catalog locally, keep original files private, surface useful recommendations, and let trusted people watch together without turning the app into a cloud upload service.</p><div className="mt-5 flex items-end justify-between gap-4"><div><p className="font-display text-2xl text-fg">{completed} of {missions.length} milestones complete</p><p className="mt-1 text-sm text-muted">Every milestone includes implementation, browser verification, and a production build check.</p></div><div className="rounded-full bg-accent/15 px-3 py-1 text-sm text-accent">{missions.length ? Math.round(completed / missions.length * 100) : 0}%</div></div><div className="mt-5 h-2 overflow-hidden rounded-full bg-bg/70"><div className="h-full bg-accent transition-all" style={{ width: `${missions.length ? completed / missions.length * 100 : 0}%` }}/></div></section>
+    <div className="mt-5 space-y-3">{missions.map((mission, index) => <article key={mission.id} className="flex gap-4 rounded-lg bg-elevated p-4 shadow-border"><Button size="sm" variant={mission.done ? "default" : "secondary"} aria-label={`Mark ${mission.title} ${mission.done ? "incomplete" : "complete"}`} onClick={() => setMissions((items) => items.map((item) => item.id === mission.id ? { ...item, done: !item.done } : item))}>{mission.done ? "Done" : `Step ${index + 1}`}</Button><div className="min-w-0 flex-1"><h2 className={mission.done ? "text-sm font-medium text-muted line-through" : "text-sm font-medium text-fg"}>{mission.title}</h2><p className="mt-1 text-sm text-muted">{mission.detail}</p></div></article>)}</div>
+    <section className="mt-5 grid gap-3 sm:grid-cols-3"><InfoCard icon={<Wifi className="size-5"/>} title="Next: home network" copy="Folder watch events, Roku discovery, stable room invitations, and stronger timeline recovery."/><InfoCard icon={<Images className="size-5"/>} title="Then: media intelligence" copy="Background metadata, thumbnail health, faster source search, and reviewable local tags."/><InfoCard icon={<Bot className="size-5"/>} title="Later: optional assistants" copy="Private recommendation controls, explainable picks, and only opt-in service connections."/></section>
+    <form className="mt-5 flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); const title = idea.trim(); if (!title) return; setMissions((items) => [...items, { id: crypto.randomUUID(), title, detail: "New idea — break this into implementation and verification steps.", done: false }]); setIdea(""); }}><Input value={idea} onChange={(event) => setIdea(event.target.value)} placeholder="Add a larger change idea" aria-label="New mission idea"/><Button type="submit">Add to plan</Button></form>
+  </HubShell>;
 }
 export function GamesSection() {
   const [games, setGames] = useState<LocalItem[]>([]);
@@ -1075,6 +1192,7 @@ export function GamesSection() {
   const [removeGame, setRemoveGame] = useState<string | null>(null);
   const [launchNotice, setLaunchNotice] = useState("");
   const [shortcutView, setShortcutView] = useState<"all" | "web" | "desktop">("all");
+  const [companionLoading, setCompanionLoading] = useState(false);
   const sourceShortcuts = useSourceAssets((s) => s.shortcuts);
   useEffect(() => {
     const saved = readHub().games;
@@ -1119,6 +1237,32 @@ export function GamesSection() {
     });
   };
   useEffect(() => { if (sourceShortcuts.length) void add(sourceShortcuts, true); }, [sourceShortcuts]);
+  const launchDesktop = async (game: LocalItem) => {
+    try {
+      const response = await fetch("http://127.0.0.1:43123/launch", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path: game.path }) });
+      const result = await response.json() as { ok?: boolean; error?: string };
+      setLaunchNotice(result.ok ? `Launching ${game.name} through the local companion.` : result.error ?? "The companion could not launch this item.");
+    } catch {
+      setLaunchNotice("Desktop launch needs the Reelcase Companion running and this shortcut inside one of its approved Windows folders.");
+    }
+  };
+  const loadApprovedShortcuts = async () => {
+    setCompanionLoading(true);
+    try {
+      const response = await fetch("http://127.0.0.1:43123/shortcuts?limit=300");
+      const result = await response.json() as { ok?: boolean; shortcuts?: Array<{ name: string; path: string }>; error?: string };
+      if (!result.ok) throw new Error(result.error ?? "The companion could not read approved shortcuts.");
+      const next = (result.shortcuts ?? []).map((item) => ({ ...item, size: 0, addedAt: Date.now() }));
+      setGames((current) => {
+        const merged = [...current, ...next.filter((item) => !current.some((game) => game.path === item.path))];
+        writeHub({ ...readHub(), games: merged });
+        return merged;
+      });
+      setLaunchNotice(next.length ? `Added ${next.length} approved desktop shortcuts. They can launch through the companion.` : "No approved desktop shortcuts were found. Add a shortcut to Desktop or another approved companion folder.");
+    } catch {
+      setLaunchNotice("Companion connection unavailable. Start the local Reelcase Companion, then try again.");
+    } finally { setCompanionLoading(false); }
+  };
   const visible = games.filter((game) => game.name.toLowerCase().includes(filter.toLowerCase()) && (shortcutView === "all" || (shortcutView === "web" ? Boolean(game.launchUrl) : !game.launchUrl)));
   return (
     <HubShell
@@ -1140,6 +1284,9 @@ export function GamesSection() {
             Add web game shortcut
           </span>
         </label>
+        <Button variant="secondary" disabled={companionLoading} onClick={() => void loadApprovedShortcuts()}>
+          {companionLoading ? "Reading approved shortcuts…" : "Load approved desktop shortcuts"}
+        </Button>
         <label>
           <input
             className="sr-only"
@@ -1186,10 +1333,15 @@ export function GamesSection() {
                     size="sm"
                     onClick={() => {
                       if (game.launchUrl) {
-                        window.location.assign(game.launchUrl);
+                        const link = document.createElement("a");
+                        link.href = game.launchUrl;
+                        link.target = game.launchUrl.startsWith("http") ? "_self" : "_blank";
+                        document.body.appendChild(link);
+                        link.click();
+                        link.remove();
                         return;
                       }
-                      setLaunchNotice(`${game.name} is a desktop launcher. Browsers block direct .exe/.lnk starts; use its desktop shortcut or add its web/Steam shortcut to launch it here.`);
+                      void launchDesktop(game);
                     }}
                   >
                     <Rocket className="size-3" />
@@ -1388,20 +1540,12 @@ export function ShopSection() {
         detail: "Search Walmart",
       },
       {
-        name: "AliExpress",
-        href: `https://www.aliexpress.com/wholesale?SearchText=${encoded}`,
-        detail: "Search AliExpress",
-      },
-      {
-        name: "Temu",
-        href: `https://www.temu.com/search_result.html?search_key=${encoded}`,
-        detail: "Search Temu",
-      },
-      {
         name: "eBay",
         href: `https://www.ebay.com/sch/i.html?_nkw=${encoded}`,
         detail: "Search eBay",
       },
+      { name: "Etsy", href: `https://www.etsy.com/search?q=${encoded}`, detail: "Search handmade & niche shops" },
+      { name: "Diipoo", href: `https://diipoo.com/?s=${encoded}`, detail: "Search Diipoo deals" },
     ],
     [encoded],
   );
@@ -1583,13 +1727,15 @@ export function WatchRoomSection() {
     () => `RC${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
   );
   const [roomInput, setRoomInput] = useState("");
-  const [name, setName] = useState("Host");
+  const [name, setName] = useState(() => localStorage.getItem("reelcase.profile-name") || "Host");
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
   const [joinedAsGuest, setJoinedAsGuest] = useState(false);
   const [guestAccess, setGuestAccess] = useState(false);
   const [localVideo, setLocalVideo] = useState<File | null>(null);
   const [rokuAddress, setRokuAddress] = useState("");
   const [rokuReady, setRokuReady] = useState(false);
+  const [rokuDevices, setRokuDevices] = useState<{ address: string; location: string }[]>([]);
+  const [rokuNotice, setRokuNotice] = useState("");
   const [queue, setQueue] = useState<string[]>([]);
   const [stageSize, setStageSize] = useState<"compact" | "theater" | "cinema">("compact");
   const [playback, setPlayback] = useState({ playing: false, position: 0 });
@@ -1599,10 +1745,12 @@ export function WatchRoomSection() {
   const [partyVotes, setPartyVotes] = useState<Record<string, number>>({ Comedy: 0, Action: 0, Surprise: 0 });
   const [friendName, setFriendName] = useState("");
   const [friendCode, setFriendCode] = useState("");
+  const [inviteNotice, setInviteNotice] = useState("");
   const [friends, setFriends] = useState<{ name: string; code: string }[]>(() => {
     try { const saved = JSON.parse(localStorage.getItem("reelcase.lan-friends.v1") ?? "[]"); return Array.isArray(saved) ? saved.slice(0, 16) : []; } catch { return []; }
   });
   const videos = useLibrary((s) => s.videos);
+  useEffect(() => { localStorage.setItem("reelcase.profile-name", name.trim() || "Host"); }, [name]);
   const [sharedVideoId, setSharedVideoId] = useState(
     () => videos.find((video) => Boolean(video.src || video.remote?.embedUrl))?.id ?? "",
   );
@@ -1611,6 +1759,24 @@ export function WatchRoomSection() {
   const lastRoomTick = useRef(0);
   const room = activeRoom ?? "";
   const p2p = useP2PRoom(room, name.trim() || "Guest");
+  // A room must not advertise catalog-only local records as playable. Browser
+  // File handles need an explicit resolved source first, so show only videos
+  // that already have a usable embedded or direct media URL here.
+  const roomCandidates = useMemo(
+    () => videos.filter((video) => Boolean(video.remote?.embedUrl || video.src)),
+    [videos],
+  );
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const invitedRoom = (params.get("room") ?? "").trim().toUpperCase();
+    if (!/^RC[A-Z0-9]{4,12}$/.test(invitedRoom)) return;
+    setRoomInput(invitedRoom);
+    if (params.get("theater") === "1") {
+      setJoinedAsGuest(true);
+      setStageSize("cinema");
+      setActiveRoom(invitedRoom);
+    }
+  }, []);
   useEffect(() => {
     if (!p2p.peers.length) return;
     p2p.send({
@@ -1630,27 +1796,57 @@ export function WatchRoomSection() {
           name?: string;
           playing?: boolean;
           position?: number;
+          sentAt?: number;
           videoId?: string;
           queue?: string[];
         };
         if (data.type === "chat" && data.text)
           setChat((rows) => [...rows, `${data.name ?? from}: ${data.text}`].slice(-50));
-        if (data.type === "sync")
-          setPlayback({ playing: Boolean(data.playing), position: Number(data.position) || 0 });
+        if (data.type === "sync") {
+          const position = Number(data.position) || 0;
+          const elapsed = data.playing && data.sentAt ? Math.max(0, (Date.now() - data.sentAt) / 1000) : 0;
+          setPlayback({ playing: Boolean(data.playing), position: position + elapsed });
+        }
         if (data.type === "video" && data.videoId) setSharedVideoId(data.videoId);
         if (data.type === "queue" && Array.isArray(data.queue)) setQueue(data.queue);
         if (data.type === "party-vote" && data.name) setPartyVotes((votes) => ({ ...votes, [data.name!]: Number(data.position) || 0 }));
         if (data.type === "room-state") {
           if (data.videoId) setSharedVideoId(data.videoId);
           if (Array.isArray(data.queue)) setQueue(data.queue);
-          setPlayback({ playing: Boolean(data.playing), position: Number(data.position) || 0 });
+          const position = Number(data.position) || 0;
+          const elapsed = data.playing && data.sentAt ? Math.max(0, (Date.now() - data.sentAt) / 1000) : 0;
+          setPlayback({ playing: Boolean(data.playing), position: position + elapsed });
+        }
+        if (data.type === "resync-request" && !joinedAsGuest) {
+          const position = roomVideoRef.current?.currentTime ?? playback.position;
+          p2p.send({ type: "room-state", playing: !roomVideoRef.current?.paused && playback.playing, position, videoId: sharedVideoId, queue, sentAt: Date.now() }, from);
         }
       }),
-    [p2p.onMessage],
+    [joinedAsGuest, p2p.onMessage, p2p.send, playback.playing, playback.position, queue, sharedVideoId],
   );
   const sync = (next: { playing: boolean; position: number }) => {
     setPlayback(next);
-    p2p.send({ type: "sync", ...next });
+    p2p.send({ type: "sync", ...next, sentAt: Date.now() });
+  };
+  const resync = () => {
+    if (joinedAsGuest) {
+      p2p.send({ type: "resync-request" });
+      setInviteNotice("Requested the host’s current room state.");
+      return;
+    }
+    const position = roomVideoRef.current?.currentTime ?? playback.position;
+    sync({ playing: roomVideoRef.current ? !roomVideoRef.current.paused : playback.playing, position });
+    p2p.send({ type: "room-state", playing: roomVideoRef.current ? !roomVideoRef.current.paused : playback.playing, position, videoId: sharedVideoId, queue, sentAt: Date.now() });
+    setInviteNotice("Sent the current video and timeline to every guest.");
+  };
+  const copyInvite = async () => {
+    const link = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(roomCode)}&theater=1`;
+    try {
+      await navigator.clipboard.writeText(link);
+      setInviteNotice("Theater invitation link copied.");
+    } catch {
+      setInviteNotice(`Share this theater link: ${link}`);
+    }
   };
   useEffect(() => {
     const media = roomVideoRef.current;
@@ -1705,6 +1901,10 @@ export function WatchRoomSection() {
             <p className="mt-2 text-sm text-muted">
               Share this code only with people you want in your watch room.
             </p>
+            <Button variant="secondary" className="mt-3 w-full" onClick={() => void copyInvite()}>
+              <Copy className="size-4" /> Copy theater invitation link
+            </Button>
+            {inviteNotice && <p className="mt-2 break-all text-xs text-accent">{inviteNotice}</p>}
             <Button
               className="mt-5 w-full"
               onClick={() => {
@@ -1807,10 +2007,14 @@ export function WatchRoomSection() {
             >
               +15 sec
             </Button>
+            <Button variant="secondary" onClick={resync}>
+              <Wifi className="size-4" /> {joinedAsGuest ? "Request resync" : "Resync guests"}
+            </Button>
             <Button variant="ghost" size="sm" disabled={!queue.length} onClick={playNext}>
               Play next {queue.length ? `(${queue.length})` : ""}
             </Button>
           </div>
+          {inviteNotice && <p className="mt-3 text-xs text-accent">{inviteNotice}</p>}
           <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-muted">
             <span>Stage size</span>
             {(["compact", "theater", "cinema"] as const).map((size) => (
@@ -1825,7 +2029,7 @@ export function WatchRoomSection() {
             ))}
           </div>
           <div
-            className={`mt-3 mx-auto w-full overflow-hidden rounded-md bg-bg shadow-border ${stageSize === "compact" ? "max-w-2xl" : stageSize === "theater" ? "max-w-4xl" : "max-w-5xl"}`}
+            className={`mt-3 mx-auto w-full overflow-hidden rounded-md bg-bg shadow-border ${stageSize === "compact" ? "max-w-2xl" : stageSize === "theater" ? "max-w-6xl" : "max-w-none"}`}
           >
             {sharedVideo?.remote?.embedUrl ? (
               <iframe
@@ -1874,8 +2078,7 @@ export function WatchRoomSection() {
             </p>
           ) : null}
           <div className="mt-3 flex gap-2 overflow-x-auto pb-2">
-            {videos
-              .filter((video) => Boolean(video.src || video.remote?.embedUrl))
+            {roomCandidates
               .slice(0, 18)
               .map((video) => (
                 <button
@@ -1939,11 +2142,8 @@ export function WatchRoomSection() {
               </p>
             )}
             <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-              {videos
-                .filter(
-                  (video) =>
-                    Boolean(video.src || video.remote?.embedUrl) && video.id !== sharedVideoId,
-                )
+                  {roomCandidates
+                    .filter((video) => video.id !== sharedVideoId)
                 .slice(0, 12)
                 .map((video) => (
                   <Button
@@ -2043,7 +2243,20 @@ export function WatchRoomSection() {
               >
                 Save & pair TV
               </Button>
+              <Button variant="secondary" onClick={() => void (async () => {
+                try {
+                  const response = await fetch("http://127.0.0.1:43123/roku/discover");
+                  const data = await response.json() as { devices?: { address: string; location: string }[] };
+                  const devices = data.devices ?? [];
+                  setRokuDevices(devices);
+                  setRokuNotice(devices.length ? `${devices.length} Roku device${devices.length === 1 ? "" : "s"} found on this network.` : "No Roku devices responded. You can still pair one by its IP address.");
+                } catch { setRokuNotice("Roku discovery needs the local Reelcase Companion running on this Windows computer."); }
+              })()}>
+                Discover TVs
+              </Button>
             </div>
+            {rokuNotice && <p className="mt-2 text-xs text-muted">{rokuNotice}</p>}
+            {rokuDevices.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{rokuDevices.map((device) => <Button key={device.address} size="sm" variant="secondary" onClick={() => { setRokuAddress(device.address); setRokuReady(true); localStorage.setItem("reelcase.roku", device.address); }}>{device.address}</Button>)}</div>}
             {rokuReady && (
               <div className="mt-3 rounded-sm bg-elevated p-3">
                 <span className="text-xs text-accent">Step 3 ready · {rokuAddress}</span>
@@ -2156,7 +2369,7 @@ function HubShell({
   children: ReactNode;
 }) {
   return (
-    <section className="mx-auto max-w-4xl rounded-xl bg-surface p-5 shadow-border sm:p-8">
+    <section className="w-full max-w-none rounded-xl bg-surface p-5 shadow-border sm:p-6 xl:p-8">
       <p className="flex items-center gap-2 text-xs font-medium tracking-[0.16em] text-accent uppercase">
         {icon} {eyebrow}
       </p>

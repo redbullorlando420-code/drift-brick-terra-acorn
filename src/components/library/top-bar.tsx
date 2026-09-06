@@ -19,6 +19,9 @@ const SORTS: { key: SortKey; label: string }[] = [
   { key: "recent", label: "Recently played" },
   { key: "size", label: "Size" },
   { key: "duration", label: "Duration" },
+  { key: "type", label: "File type" },
+  { key: "folder", label: "Folder" },
+  { key: "path", label: "Full path" },
 ];
 
 export function TopBar({
@@ -47,11 +50,15 @@ export function TopBar({
   const setSort = useLibrary((s) => s.setSort);
   const scanning = useLibrary((s) => s.scanning);
   const sourceId = useLibrary((s) => s.sourceId);
+  const folders = useLibrary((s) => s.folders);
+  const videos = useLibrary((s) => s.videos);
   const sortLabel = SORTS.find((s) => s.key === sort)?.label ?? "Name";
+  const sourceLabel = sourceId === "home" ? "Home" : sourceId === "movies" ? "Movies" : sourceId === "photos" ? "Photos" : sourceId === "twitch" ? "Twitch" : sourceId === "youtube" ? "YouTube" : folders.find((folder) => folder.id === sourceId)?.name ?? "Library";
+  const sourceCount = sourceId === "home" ? videos.length : folders.find((folder) => folder.id === sourceId)?.videoCount;
 
   return (
-    <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:px-6">
-      <div className="flex items-center gap-2">
+    <header className="grid gap-3 border-b border-border px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-6 xl:grid-cols-[minmax(13rem,0.55fr)_minmax(20rem,1.4fr)_auto]">
+      <div className="flex min-w-0 items-center gap-2">
         <Button
           variant="ghost"
           size="icon-sm"
@@ -61,9 +68,9 @@ export function TopBar({
         >
           <Menu className="size-5" />
         </Button>
-        <p className="font-display text-lg leading-none lg:hidden">Reelcase</p>
+        <div className="min-w-0"><p className="truncate font-display text-lg leading-none text-fg">{sourceLabel}</p><p className="mt-1 text-xs text-muted">{typeof sourceCount === "number" ? `${sourceCount.toLocaleString()} indexed` : "Control room"}</p></div>
       </div>
-      <div className="relative min-w-0 flex-1">
+      <div className="relative min-w-0 xl:max-w-3xl">
         <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle" />
         <Input
           type="search"
@@ -77,7 +84,7 @@ export function TopBar({
           aria-label="Search videos"
         />
       </div>
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5 sm:justify-end">
         {scanning && (
           <span className="mr-2 hidden truncate text-xs text-muted sm:inline">
             Scanning {scanning.folderName} · {scanning.found}

@@ -93,6 +93,20 @@ export class VideoSearchIndex {
     this.link(video.id, haystackFor(video, tags, categories));
   }
 
+  /** Update one locally edited document without rebuilding a very large catalog. */
+  updateMetadata(
+    video: LibraryVideo,
+    videos: LibraryVideo[],
+    tags: Record<string, string[]>,
+    categories: Record<string, string>,
+  ) {
+    // If the catalog has not been indexed yet, let sync perform the first full build.
+    if (this.videosRef !== videos) return;
+    this.upsert(video, tags, categories);
+    this.tagsRef = tags;
+    this.categoriesRef = categories;
+  }
+
   remove(id: string) {
     this.unlink(id);
   }

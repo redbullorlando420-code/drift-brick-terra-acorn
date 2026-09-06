@@ -1,6 +1,7 @@
 import type {
   AppNotice,
   FollowedChannel,
+  Folder,
   GroupBy,
   LibraryVideo,
   SizeFilter,
@@ -11,6 +12,7 @@ import type {
 const DB_NAME = "reelcase";
 const STORE = "dirs";
 const VIDEO_STORE = "videos";
+const SOURCE_HEALTH_STORE = "source-health";
 const PREFS_KEY = "reelcase.prefs.v4";
 const LEGACY_KEYS = ["reelcase.prefs.v3", "reelcase.prefs.v2", "reelcase.prefs.v1"];
 
@@ -19,6 +21,9 @@ export type StoredDir = {
   name: string;
   handle: FileSystemDirectoryHandle;
 };
+
+/** Small, durable source summary. This is intentionally metadata only: no raw file paths or blobs. */
+export type StoredSourceHealth = Pick<Folder, "id" | "health" | "lastCheckedAt" | "videoCount">;
 
 export type Prefs = {
   favorites: string[];
@@ -54,7 +59,7 @@ function migrateSource(id: string | undefined): string {
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 2);
+    const req = indexedDB.open(DB_NAME, 3);
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains(STORE)) {
@@ -63,6 +68,9 @@ function openDb(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(VIDEO_STORE)) {
         const videos = db.createObjectStore(VIDEO_STORE, { keyPath: "id" });
         videos.createIndex("folderId", "folderId", { unique: false });
+      }
+      if (!db.objectStoreNames.contains(SOURCE_HEALTH_STORE)) {
+        db.createObjectStore(SOURCE_HEALTH_STORE, { keyPath: "id" });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -96,8 +104,9 @@ export async function loadDirHandles(): Promise<StoredDir[]> {
 export async function deleteDirHandle(id: string): Promise<void> {
   const db = await openDb();
   await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction([STORE, VIDEO_STORE], "readwrite");
+    const tx = db.transaction([STORE, VIDEO_STORE, SOURCE_HEALTH_STORE], "readwrite");
     tx.objectStore(STORE).delete(id);
+    tx.objectStore(SOURCE_HEALTH_STORE).delete(id);
     const idx = tx.objectStore(VIDEO_STORE).index("folderId");
     const req = idx.openCursor(IDBKeyRange.only(id));
     req.onsuccess = () => {
@@ -180,6 +189,29 @@ export async function loadCatalogVideos(): Promise<LibraryVideo[]> {
   });
   db.close();
   return rows.filter((v) => !v.isSample);
+}
+
+export async function saveSourceHealth(entry: StoredSourceHealth): Promise<void> {
+  const db = await openDb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(SOURCE_HEALTH_STORE, "readwrite");
+    tx.objectStore(SOURCE_HEALTH_STORE).put(entry);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+  db.close();
+}
+
+export async function loadSourceHealth(): Promise<StoredSourceHealth[]> {
+  const db = await openDb();
+  const rows = await new Promise<StoredSourceHealth[]>((resolve, reject) => {
+    const tx = db.transaction(SOURCE_HEALTH_STORE, "readonly");
+    const req = tx.objectStore(SOURCE_HEALTH_STORE).getAll();
+    req.onsuccess = () => resolve((req.result as StoredSourceHealth[]) ?? []);
+    req.onerror = () => reject(req.error);
+  });
+  db.close();
+  return rows;
 }
 
 function normalize(raw: Record<string, unknown>): Prefs {
