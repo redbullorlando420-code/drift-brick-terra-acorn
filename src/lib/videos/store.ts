@@ -41,7 +41,7 @@ import { librarySearchIndex } from "./search-index";
 import { useSourceAssets } from "@/lib/source-assets";
 import { isClassicVideo, SYSTEM_SOURCES } from "./types";
 
-const HISTORY_CAP = 250;
+const HISTORY_CAP = 2_000;
 const STARTER_FOLLOWS: FollowedChannel[] = [
   { id: "yt:starter-h3", kind: "youtube", handle: "H3Podcast", title: "H3 Podcast" },
   { id: "yt:starter-ltt", kind: "youtube", handle: "LinusTechTips", title: "Linus Tech Tips" },
@@ -181,6 +181,26 @@ function mergeVideos(existing: LibraryVideo[], incoming: LibraryVideo[]) {
   return Array.from(map.values());
 }
 
+function canonicalFollowHandle(kind: "youtube" | "twitch", raw: string): string {
+  const value = raw.trim().replaceAll("\\_", "_").toLowerCase();
+  if (kind === "twitch") {
+    const match = value.match(/(?:https?:\/\/)?(?:www\.)?twitch\.tv\/([^/?#]+)/i);
+    return (match?.[1] ?? value.replace(/^tw:/, "")).replace(/^@/, "").replace(/[^a-z0-9_]/g, "");
+  }
+  const match = value.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:@|channel\/)?([^/?#]+)/i);
+  return (match?.[1] ?? value).replace(/^@/, "").replace(/[^a-z0-9_-]/g, "");
+}
+
+function dedupeFollows(rows: FollowedChannel[]): FollowedChannel[] {
+  const seen = new Set<string>();
+  return rows.filter((row) => {
+    const key = `${row.kind}:${canonicalFollowHandle(row.kind, row.handle || row.id)}`;
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function remoteMetadataTags(video: LibraryVideo) {
   return [...new Set([video.remote?.kind, video.remote?.channelName, video.genre, video.remote?.live ? "live" : "vod"].filter((value): value is string => Boolean(value)).map((value) => value.trim()).filter(Boolean))].slice(0, 12);
 }
@@ -226,7 +246,7 @@ function applyPrefs(partial: Partial<LibraryState>): Partial<LibraryState> {
     hardwareAccel: prefs.hardwareAccel ?? true,
     adultPinHash: prefs.adultPinHash ?? null,
     // An empty saved list is intentional. Do not repopulate it with sample follows.
-    follows: prefs.follows ?? [],
+    follows: dedupeFollows(prefs.follows ?? []),
     notices: prefs.notices ?? [],
     notifyPush: prefs.notifyPush ?? false,
   };
@@ -629,7 +649,10 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         try {
           const saved = JSON.parse(localStorage.getItem(`reelcase.import-history.${kind}`) ?? "[]") as unknown;
           if (!Array.isArray(saved) || !saved.length) return;
-          await get().importBatch(saved.filter((value): value is string => typeof value === "string" && Boolean(value.trim())).slice(0, 1000).map((query) => ({ query, kind })));
+          // Startup recovery must never monopolize the first screen when a user
+          // has hundreds of subscriptions. The complete saved list stays intact;
+          // each refresh resumes a bounded, provider-friendly batch.
+          await get().importBatch(saved.filter((value): value is string => typeof value === "string" && Boolean(value.trim())).slice(0, 80).map((query) => ({ query, kind })));
         } catch { /* no saved import list */ }
       };
       void (async () => { await recover("twitch"); await recover("youtube"); })();
@@ -919,12 +942,12 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     }
   },
   importBatch: async (items) => {
-    const savedHandles = new Set(get().follows.map((follow) => `${follow.kind}:${follow.handle.toLowerCase()}`));
+    const savedHandles = new Set(get().follows.map((follow) => `${follow.kind}:${canonicalFollowHandle(follow.kind, follow.handle)}`));
     const seenQueries = new Set<string>();
     const unique = items
       .map((i) => ({ query: i.query.trim().replaceAll("\\_", "_"), kind: i.kind }))
       .filter((i) => {
-        const handle = i.query.replace(/^https?:\/\/(www\.)?(youtube\.com\/(@|channel\/)?|twitch\.tv\/)?/i, "").replace(/^@/, "").split(/[/?#]/)[0].toLowerCase();
+        const handle = canonicalFollowHandle(i.kind, i.query);
         const key = `${i.kind}:${handle}`;
         if (!i.query || !handle || seenQueries.has(key) || savedHandles.has(key)) return false;
         seenQueries.add(key);
@@ -947,7 +970,18 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       const { importChannels } = await import("@/lib/remote/api");
       for (let i = 0; i < unique.length; i += chunk) {
         const slice = unique.slice(i, i + chunk);
-        const result = await importChannels({ data: { items: slice } });
+        let result: Awaited<ReturnType<typeof importChannels>>;
+        try {
+          result = await Promise.race([
+            importChannels({ data: { items: slice } }),
+            new Promise<never>((_, reject) => window.setTimeout(() => reject(new Error("Provider request timed out")), 20_000)),
+          ]);
+        } catch {
+          failed += slice.length;
+          failedQueries.push(...slice.map((item) => item.query));
+          set({ importProgress: { done: Math.min(i + slice.length, unique.length), total: unique.length, label: "Retrying next batch" } });
+          continue;
+        }
         ok += result.ok.length;
         failed += result.failed;
         if (result.failedQueries?.length) failedQueries.push(...result.failedQueries);
@@ -956,7 +990,8 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           let folders = s.folders;
           let videos = s.videos;
           for (const row of result.ok) {
-            follows = [row.channel, ...follows.filter((f) => f.id !== row.channel.id)];
+            const key = canonicalFollowHandle(row.channel.kind, row.channel.handle);
+            follows = [row.channel, ...follows.filter((f) => canonicalFollowHandle(f.kind, f.handle) !== key)];
             const folder: Folder = {
               id: row.channel.id,
               name: row.channel.title,
@@ -970,7 +1005,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
             );
           }
           return {
-            follows,
+            follows: dedupeFollows(follows),
             folders,
             videos,
             tags: { ...s.tags, ...Object.fromEntries(result.ok.flatMap((row) => row.videos.map((video) => [video.id, [...new Set([...(s.tags[video.id] ?? []), ...remoteMetadataTags(video)])]]))) },
@@ -1013,7 +1048,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     persistNow(get);
   },
   refreshFollows: async () => {
-    const current = get().follows;
+    const current = dedupeFollows(get().follows);
     if (!current.length) return { wentLive: [], newVideos: [] };
     const beforeLive = new Set(
       get()
@@ -1169,6 +1204,21 @@ function scoped(state: LibraryState, adult: boolean): LibraryVideo[] {
   return adult ? adultList(state) : publicList(state);
 }
 
+/** Keep a small newest-first result without sorting an entire remote library. */
+function newestFirst(items: LibraryVideo[], limit: number): LibraryVideo[] {
+  const top: LibraryVideo[] = [];
+  for (const item of items) {
+    const insertAt = top.findIndex((current) => current.addedAt < item.addedAt);
+    if (insertAt < 0) {
+      if (top.length < limit) top.push(item);
+    } else {
+      top.splice(insertAt, 0, item);
+      if (top.length > limit) top.pop();
+    }
+  }
+  return top;
+}
+
 export function selectContinue(state: LibraryState, adult = false): LibraryVideo[] {
   const items = scoped(state, adult).filter((v) => {
     const p = state.progress[v.id];
@@ -1194,17 +1244,14 @@ export function selectHistory(state: LibraryState, adult = false): LibraryVideo[
 }
 
 export function selectYoutube(state: LibraryState): LibraryVideo[] {
-  return publicList(state)
-    .filter((v) => v.remote?.kind === "youtube")
-    .sort((a, b) => b.addedAt - a.addedAt)
-    .slice(0, 18);
+  return newestFirst(publicList(state).filter((v) => v.remote?.kind === "youtube"), 18);
 }
 
 export function selectTwitch(state: LibraryState): LibraryVideo[] {
-  return publicList(state)
-    .filter((v) => v.remote?.kind === "twitch")
-    .sort((a, b) => Number(b.remote?.live) - Number(a.remote?.live) || b.addedAt - a.addedAt)
-    .slice(0, 18);
+  const twitch = publicList(state).filter((v) => v.remote?.kind === "twitch");
+  const live = twitch.filter((v) => v.remote?.live);
+  const vods = twitch.filter((v) => !v.remote?.live);
+  return [...newestFirst(live, 18), ...newestFirst(vods, Math.max(0, 18 - live.length))];
 }
 
 export function selectLive(state: LibraryState): LibraryVideo[] {

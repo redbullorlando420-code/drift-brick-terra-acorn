@@ -1,6 +1,6 @@
 import { t as createServerFn } from "./ssr.mjs";
 import { t as createServerRpc } from "./createServerRpc-A6pJPYTF.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/api-Cri_t0th.js
+//#region node_modules/.nitro/vite/services/ssr/assets/api-CEZlN5Jx.js
 function asString(v) {
 	return typeof v === "string" ? v : "";
 }
@@ -193,7 +193,7 @@ async function twitchUser(login) {
 			"content-type": "application/json"
 		},
 		body: JSON.stringify({
-			query: `query($login:String!){user(login:$login){id displayName profileImageURL(width:70) stream{title viewersCount previewImageURL(width:640,height:360) game{name}} videos(first:20,type:ARCHIVE){edges{node{id title lengthSeconds publishedAt previewThumbnailURL(width:640,height:360)}}}}}`,
+			query: `query($login:String!){user(login:$login){id displayName profileImageURL(width:70) stream{title viewersCount previewImageURL(width:640,height:360) game{name}} videos(first:40,type:ARCHIVE){edges{node{id title lengthSeconds publishedAt previewThumbnailURL(width:640,height:360)}}}}}`,
 			variables: { login }
 		})
 	});
@@ -273,7 +273,8 @@ async function followTwitch(query, compact = false) {
 	const login = twitchLogin(query);
 	if (!login) throw new Error("Enter a Twitch channel.");
 	const user = await twitchUser(login);
-	const title = user?.displayName ?? login;
+	if (!user?.id) throw new Error(`Twitch could not resolve ${login}`);
+	const title = user.displayName ?? login;
 	return {
 		channel: {
 			id: `tw:${login}`,
@@ -284,7 +285,7 @@ async function followTwitch(query, compact = false) {
 			thumb: user?.profileImageURL,
 			live: Boolean(user?.stream)
 		},
-		videos: user ? twitchVideos(login, user, compact ? 2 : 8) : twitchVideos(login, { displayName: login }, compact ? 2 : 8)
+		videos: twitchVideos(login, user, compact ? 6 : 24)
 	};
 }
 var followRemote_createServerFn_handler = createServerRpc({

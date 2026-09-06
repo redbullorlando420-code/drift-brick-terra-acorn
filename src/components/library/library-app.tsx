@@ -93,6 +93,7 @@ export function LibraryApp() {
   const adultFolders = folders.filter((f) => f.adult);
   const tags = useLibrary((s) => s.tags);
   const favorites = useLibrary((s) => s.favorites);
+  const progress = useLibrary((s) => s.progress);
   const favoriteLiveVideos = useMemo(() => liveVideos.filter((video) => favorites[video.id]), [favorites, liveVideos]);
   const likes = useLibrary((s) => s.likes);
   const adultTagNames = useMemo(() => [...new Set(videos.flatMap((video) => tags[video.id] ?? []))].sort(), [tags, videos]);
@@ -325,8 +326,8 @@ export function LibraryApp() {
                 )}
 
               {sourceId === "home" && !query && featured && <Billboard video={featured} />}
-              {sourceId === "movies" && !query && (classics[0] || featured) && (
-                <Billboard video={classics[0] ?? featured!} />
+              {sourceId === "movies" && !query && (randomSourceMovies[0] || featured) && (
+                <Billboard video={randomSourceMovies[0] ?? featured!} />
               )}
               {sourceId === "adults" && adultsUnlocked && featured && (
                 <Billboard video={featured} />
@@ -431,7 +432,6 @@ export function LibraryApp() {
                       <Shuffle className="size-4" /> Random pick
                     </Button>
                   </div>
-                  <TitleRail title="Classic movies" videos={classics} variant="poster" />
                   <TitleRail title="From your source folders" videos={videos.filter((video) => !video.remote && !video.isSample).sort((a, b) => Number(Boolean(favorites[b.id])) - Number(Boolean(favorites[a.id])) || b.addedAt - a.addedAt)} variant="poster" />
                   <TitleRail title="Random from your library" videos={randomSourceMovies} variant="poster" />
                   {priorityMovieGenres.map((shelf) => <TitleRail key={shelf.genre} title={`${shelf.genre} first`} videos={shelf.videos} variant="poster" />)}
@@ -444,6 +444,7 @@ export function LibraryApp() {
                     )}
                     variant="poster"
                   />
+                  <TitleRail title="Classic movies" videos={classics} variant="poster" />
                   {classics.length === 0 && videos.length === 0 ? null : null}
                 </>
               )}
@@ -496,6 +497,15 @@ export function LibraryApp() {
                 </div>
               )}
 
+              {sourceId === "favorites" && !query && favoriteVideos.length > 0 && (
+                <>
+                  <TitleRail title="Continue your favorites" videos={favoriteVideos.filter((video) => { const mark = progress[video.id]; return mark && mark.t > 0 && mark.t < mark.d; })} variant="rail" />
+                  <TitleRail title="Favorite movies" videos={favoriteVideos.filter((video) => !video.remote && !video.isSample)} variant="poster" />
+                  <TitleRail title="Favorite YouTube" videos={favoriteVideos.filter((video) => video.remote?.kind === "youtube")} variant="rail" />
+                  <TitleRail title="Favorite Twitch" videos={favoriteVideos.filter((video) => video.remote?.kind === "twitch")} variant="rail" />
+                  <h2 className="mb-3 font-display text-xl text-fg sm:text-2xl">Everything in My List</h2>
+                </>
+              )}
               {sourceId === "favorites" && !query ? (
                 favoriteVideos.length ? (
                   <PosterGrid videos={favoriteVideos} />

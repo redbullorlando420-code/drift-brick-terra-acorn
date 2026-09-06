@@ -3,6 +3,7 @@ import { ArrowLeft, ExternalLink, Glasses, Play, Star, Tag, X } from "lucide-rea
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLibrary } from "@/lib/videos/store";
+import { getRating, setRating as saveRating } from "@/lib/media-feedback";
 
 const EMPTY_TAGS: string[] = [];
 
@@ -21,7 +22,7 @@ export function PreVideo() {
   const [vrAvailable, setVrAvailable] = useState(false);
   const [rating, setRating] = useState(0);
   const video = videos.find((item) => item.id === previewId);
-  useEffect(() => { if (!previewId) return; setRating(Number(localStorage.getItem(`reelcase.rating.${previewId}`) ?? 0)); }, [previewId]);
+  useEffect(() => { if (!previewId) return; setRating(getRating(previewId)); }, [previewId]);
   useEffect(() => {
     const xr = (
       navigator as Navigator & { xr?: { isSessionSupported: (mode: string) => Promise<boolean> } }
@@ -204,7 +205,7 @@ export function PreVideo() {
                   <button
                     key={value}
                     type="button"
-                    onClick={() => { localStorage.setItem(`reelcase.rating.${video.id}`, String(value)); setRating(value); }}
+                    onClick={() => { saveRating(video.id, value); setRating(value); }}
                     className={`flex size-9 items-center justify-center rounded-sm text-sm shadow-border ${value <= rating ? "bg-accent text-accent-fg" : "bg-bg/50 text-accent"}`}
                   >
                     {value}

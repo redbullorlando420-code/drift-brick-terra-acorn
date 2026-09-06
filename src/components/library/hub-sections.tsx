@@ -251,6 +251,7 @@ export function SettingsSection() {
   const [liveDensity, setLiveDensity] = useState(4);
   const [sourceCacheFirst, setSourceCacheFirst] = useState(true);
   const [debugEnabled, setDebugEnabled] = useState(false);
+  const [theme, setTheme] = useState<"night" | "day">("night");
   const [debugReport, setDebugReport] = useState("");
   useEffect(() => setHub(readHub()), []);
   useEffect(() => {
@@ -277,11 +278,17 @@ export function SettingsSection() {
     [],
   );
   useEffect(() => { try { setDebugEnabled(localStorage.getItem("reelcase.debug-panel") === "true"); } catch { /* unavailable */ } }, []);
+  useEffect(() => { try { const saved = localStorage.getItem("reelcase.theme") === "day" ? "day" : "night"; setTheme(saved); document.documentElement.dataset.theme = saved; } catch { /* unavailable */ } }, []);
   useEffect(() => setLiveDensity([3, 4, 6].includes(Number(localStorage.getItem("reelcase.live-columns") ?? "4")) ? Number(localStorage.getItem("reelcase.live-columns")) : 4), []);
   const setGlobalZoom = (value: number) => {
     setZoom(value);
     localStorage.setItem("reelcase.ui-zoom", String(value));
     document.documentElement.style.fontSize = `${value}%`;
+  };
+  const setColorTheme = (value: "night" | "day") => {
+    setTheme(value);
+    localStorage.setItem("reelcase.theme", value);
+    document.documentElement.dataset.theme = value;
   };
   const togglePreference = (key: string) => {
     const enabled = !preferences[key];
@@ -354,6 +361,7 @@ export function SettingsSection() {
           <span className="text-accent"><Settings2 className="size-5" /></span>
           <h2 className="mt-3 font-display text-2xl text-fg">Diagnostics</h2>
           <p className="mt-2 text-sm leading-6 text-muted">Keep a local, opt-in status panel for source, cache, and companion troubleshooting. It is off by default and sends nothing away.</p>
+          <ol className="mt-3 space-y-1 text-xs leading-5 text-muted"><li><span className="text-accent">1.</span> Start the Reelcase Companion from its desktop setup.</li><li><span className="text-accent">2.</span> Select Check companion to confirm the Desktop root.</li><li><span className="text-accent">3.</span> Open Games and choose Load approved desktop shortcuts.</li></ol>
           <Button size="sm" variant={debugEnabled ? "default" : "secondary"} className="mt-4" onClick={() => { const next = !debugEnabled; setDebugEnabled(next); localStorage.setItem("reelcase.debug-panel", String(next)); if (!next) setDebugReport(""); }}>
             {debugEnabled ? "Disable diagnostics" : "Enable diagnostics"}
           </Button>
@@ -380,6 +388,12 @@ export function SettingsSection() {
               </Button>
             ))}
           </div>
+        </div>
+        <div className="rounded-lg bg-elevated p-5 shadow-border">
+          <span className="text-accent"><Settings2 className="size-5" /></span>
+          <h2 className="mt-3 font-display text-2xl text-fg">Day & night</h2>
+          <p className="mt-2 text-sm leading-6 text-muted">Choose the palette that is easiest on your eyes. It applies to every Reelcase page and stays on this device.</p>
+          <div className="mt-4 flex flex-wrap gap-2"><Button size="sm" variant={theme === "night" ? "default" : "secondary"} onClick={() => setColorTheme("night")}>Night mode</Button><Button size="sm" variant={theme === "day" ? "default" : "secondary"} onClick={() => setColorTheme("day")}>Day mode</Button></div>
         </div>
         <div className="rounded-lg bg-elevated p-5 shadow-border">
           <span className="text-accent"><Radio className="size-5" /></span>
@@ -463,7 +477,7 @@ export function SettingsSection() {
           <div>
             <h2 className="font-display text-2xl text-fg">100 local preferences</h2>
             <p className="mt-1 text-sm text-muted">
-              Organized controls for playback, library management, discovery, rooms, and privacy.
+              Organized controls for playback, library management, discovery, rooms, and privacy. Each switch saves immediately in this browser; hover or read the line below it to see what it changes.
             </p>
           </div>
           <p className="text-xs text-muted">
@@ -548,6 +562,16 @@ export function SpotifySection() {
     }
   });
   const [playlistUrl, setPlaylistUrl] = useState(saved);
+  const [imports, setImports] = useState<string[]>(() => { try { const savedImports = JSON.parse(localStorage.getItem("reelcase.spotify.imports.v1") ?? "[]"); return Array.isArray(savedImports) ? savedImports.filter((item): item is string => typeof item === "string") : []; } catch { return []; } });
+  const importSpotifyLink = () => {
+    const value = playlistUrl.trim();
+    if (!/^https:\/\/open\.spotify\.com\/(playlist|album|artist)\//i.test(value)) return;
+    const next = [value, ...imports.filter((item) => item !== value)].slice(0, 50);
+    setImports(next);
+    setSaved(value);
+    localStorage.setItem("reelcase.spotify.imports.v1", JSON.stringify(next));
+    localStorage.setItem("reelcase.spotify.playlist", value);
+  };
   return (
     <HubShell
       eyebrow="Music companion"
@@ -583,12 +607,9 @@ export function SpotifySection() {
           />
           <Button
             disabled={!playlistUrl.includes("spotify.com")}
-            onClick={() => {
-              localStorage.setItem("reelcase.spotify.playlist", playlistUrl.trim());
-              setSaved(playlistUrl.trim());
-            }}
+            onClick={importSpotifyLink}
           >
-            Save shortcut
+            Import link
           </Button>
         </div>
         {saved && (
@@ -602,6 +623,7 @@ export function SpotifySection() {
           </a>
         )}
       </div>
+      {imports.length > 0 && <div className="mt-4 rounded-lg bg-elevated p-5 shadow-border"><p className="text-sm font-medium text-fg">Imported Spotify shortcuts</p><p className="mt-1 text-xs text-muted">Playlist, album, and artist links are stored locally for quick return. Spotify account data remains in Spotify.</p><div className="mt-3 flex flex-wrap gap-2">{imports.slice(0, 12).map((url) => <a key={url} href={url} target="_blank" rel="noreferrer" className="max-w-full truncate rounded-sm bg-bg/45 px-3 py-2 text-xs text-fg shadow-border">{url.replace("https://open.spotify.com/", "Spotify · ")}</a>)}</div></div>}
     </HubShell>
   );
 }
@@ -1170,6 +1192,10 @@ const DEFAULT_MISSIONS: Mission[] = [
   { id: "windows-explorer", title: "Windows explorer bridge", detail: "Expand companion-backed folder health, change events, shortcut validation, and safe launch history for local libraries.", done: false },
   { id: "service-status", title: "Service refresh status", detail: "Show when each connected service last refreshed, preserve partial results, and allow focused retries without reloading the whole app.", done: false },
   { id: "vr-theater", title: "VR theater reliability", detail: "Replace the current WebXR capability check with a true headset cinema surface, controller controls, and clear Meta Quest recovery guidance.", done: false },
+  { id: "companion-onboarding", title: "Companion onboarding", detail: "Add a one-screen startup checklist: run the companion, confirm Desktop approval, load shortcuts, verify a file, then launch one game safely.", done: false },
+  { id: "large-library-views", title: "Large-library views", detail: "Progressively render grids, virtualize long result sets, and keep recommendations responsive with hundreds of thousands of catalog entries.", done: false },
+  { id: "favorites-memory", title: "Favorites memory", detail: "Preserve favorites, shelves, and resume markers in the local catalog with export and recovery checks across sessions.", done: false },
+  { id: "theme-accessibility", title: "Theme & accessibility", detail: "Finish day/night palettes, contrast checks, focus styling, and per-section density preferences.", done: false },
 ];
 
 export function MissionPlanSection() {
@@ -1182,6 +1208,7 @@ export function MissionPlanSection() {
   return <HubShell eyebrow="Mission plan" icon={<Rocket className="size-4"/>} title="Build a private media home that scales." copy="Reelcase is moving toward a fast, local-first media hub: your files load from a durable catalog, your watch room works across your home network, and connected services remain optional and easy to control.">
     <section className="mt-6 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Product mission</p><h2 className="mt-2 font-display text-3xl text-fg">One calm control room for a very large library.</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-muted">Make a million-file media collection feel immediate: cache its catalog locally, keep original files private, surface useful recommendations, and let trusted people watch together without turning the app into a cloud upload service.</p><div className="mt-5 flex items-end justify-between gap-4"><div><p className="font-display text-2xl text-fg">{completed} of {missions.length} milestones complete</p><p className="mt-1 text-sm text-muted">Every milestone includes implementation, browser verification, and a production build check.</p></div><div className="rounded-full bg-accent/15 px-3 py-1 text-sm text-accent">{missions.length ? Math.round(completed / missions.length * 100) : 0}%</div></div><div className="mt-5 h-2 overflow-hidden rounded-full bg-bg/70"><div className="h-full bg-accent transition-all" style={{ width: `${missions.length ? completed / missions.length * 100 : 0}%` }}/></div></section>
     <div className="mt-5 space-y-3">{missions.map((mission, index) => <article key={mission.id} className="flex gap-4 rounded-lg bg-elevated p-4 shadow-border"><Button size="sm" variant={mission.done ? "default" : "secondary"} aria-label={`Mark ${mission.title} ${mission.done ? "incomplete" : "complete"}`} onClick={() => setMissions((items) => items.map((item) => item.id === mission.id ? { ...item, done: !item.done } : item))}>{mission.done ? "Done" : `Step ${index + 1}`}</Button><div className="min-w-0 flex-1"><h2 className={mission.done ? "text-sm font-medium text-muted line-through" : "text-sm font-medium text-fg"}>{mission.title}</h2><p className="mt-1 text-sm text-muted">{mission.detail}</p></div></article>)}</div>
+    <section className="mt-5 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Desktop companion launch path</p><ol className="mt-3 grid gap-3 text-sm text-muted sm:grid-cols-2"><li><span className="font-medium text-fg">1. Start Companion</span><br/>Start the local Reelcase Companion from its approved desktop setup.</li><li><span className="font-medium text-fg">2. Confirm Desktop</span><br/>Use Settings → Diagnostics to confirm the Desktop root is available.</li><li><span className="font-medium text-fg">3. Load shortcuts</span><br/>Open Games and choose Load approved desktop shortcuts.</li><li><span className="font-medium text-fg">4. Verify, then launch</span><br/>Use a listed shortcut; the companion checks that it stays inside an approved root.</li></ol></section>
     <section className="mt-5 grid gap-3 sm:grid-cols-3"><InfoCard icon={<Wifi className="size-5"/>} title="Next: home network" copy="Folder watch events, Roku discovery, stable room invitations, and stronger timeline recovery."/><InfoCard icon={<Images className="size-5"/>} title="Then: media intelligence" copy="Background metadata, thumbnail health, faster source search, and reviewable local tags."/><InfoCard icon={<Bot className="size-5"/>} title="Later: optional assistants" copy="Private recommendation controls, explainable picks, and only opt-in service connections."/></section>
     <form className="mt-5 flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); const title = idea.trim(); if (!title) return; setMissions((items) => [...items, { id: crypto.randomUUID(), title, detail: "New idea — break this into implementation and verification steps.", done: false }]); setIdea(""); }}><Input value={idea} onChange={(event) => setIdea(event.target.value)} placeholder="Add a larger change idea" aria-label="New mission idea"/><Button type="submit">Add to plan</Button></form>
   </HubShell>;
@@ -1750,6 +1777,8 @@ export function WatchRoomSection() {
     try { const saved = JSON.parse(localStorage.getItem("reelcase.lan-friends.v1") ?? "[]"); return Array.isArray(saved) ? saved.slice(0, 16) : []; } catch { return []; }
   });
   const videos = useLibrary((s) => s.videos);
+  const favorites = useLibrary((s) => s.favorites);
+  const history = useLibrary((s) => s.history);
   useEffect(() => { localStorage.setItem("reelcase.profile-name", name.trim() || "Host"); }, [name]);
   const [sharedVideoId, setSharedVideoId] = useState(
     () => videos.find((video) => Boolean(video.src || video.remote?.embedUrl))?.id ?? "",
@@ -1762,10 +1791,12 @@ export function WatchRoomSection() {
   // A room must not advertise catalog-only local records as playable. Browser
   // File handles need an explicit resolved source first, so show only videos
   // that already have a usable embedded or direct media URL here.
-  const roomCandidates = useMemo(
-    () => videos.filter((video) => Boolean(video.remote?.embedUrl || video.src)),
-    [videos],
-  );
+  const roomCandidates = useMemo(() => {
+    const played = new Set(history.map((entry) => entry.id));
+    return videos
+      .filter((video) => Boolean(video.remote?.embedUrl || video.src))
+      .sort((a, b) => Number(Boolean(favorites[b.id])) - Number(Boolean(favorites[a.id])) || Number(played.has(b.id)) - Number(played.has(a.id)) || b.addedAt - a.addedAt);
+  }, [favorites, history, videos]);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const invitedRoom = (params.get("room") ?? "").trim().toUpperCase();
@@ -1971,8 +2002,8 @@ export function WatchRoomSection() {
           : "Direct peer connection for your selected guests. Playback events are synchronized across connected devices."
       }
     >
-      <div className="mt-6 grid gap-4 lg:grid-cols-[1.3fr_0.7fr]">
-        <div className="rounded-lg bg-elevated p-5 shadow-border">
+      <div className="mt-6 grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(18rem,0.7fr)]">
+        <div className="min-w-0 rounded-lg bg-elevated p-5 shadow-border">
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">
               Synchronized playback
@@ -2029,7 +2060,7 @@ export function WatchRoomSection() {
             ))}
           </div>
           <div
-            className={`mt-3 mx-auto w-full overflow-hidden rounded-md bg-bg shadow-border ${stageSize === "compact" ? "max-w-2xl" : stageSize === "theater" ? "max-w-6xl" : "max-w-none"}`}
+            className={`mt-3 mx-auto w-full max-w-full overflow-hidden rounded-md bg-bg shadow-border ${stageSize === "compact" ? "lg:max-w-2xl" : stageSize === "theater" ? "lg:max-w-6xl" : ""}`}
           >
             {sharedVideo?.remote?.embedUrl ? (
               <iframe
@@ -2077,6 +2108,7 @@ export function WatchRoomSection() {
               available for local and library video files.
             </p>
           ) : null}
+          <p className="mt-3 text-xs text-muted">Recommended from your playable library — favorites and recently watched titles appear first. Local catalog entries without a resolved browser media source stay out to avoid broken room cards.</p>
           <div className="mt-3 flex gap-2 overflow-x-auto pb-2">
             {roomCandidates
               .slice(0, 18)

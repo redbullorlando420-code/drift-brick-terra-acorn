@@ -29,6 +29,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn, formatBytes, formatTime } from "@/lib/utils";
+import { getNote, getRating, setNote as saveNote, setRating as saveRating } from "@/lib/media-feedback";
 import { useLibrary } from "@/lib/videos/store";
 import { useThumbs } from "@/lib/videos/thumbs";
 import { resolvePlayUrl } from "@/lib/videos/sources";
@@ -683,8 +684,8 @@ function MetadataEditor({
     setTags(initialTags.join(", "));
     setCategory(initialCategory);
     try {
-      setRating(Number(localStorage.getItem(`reelcase.rating.${videoId}`) ?? 0));
-      setNote(localStorage.getItem(`reelcase.note.${videoId}`) ?? "");
+      setRating(getRating(videoId));
+      setNote(getNote(videoId));
     } catch {
       setRating(0);
       setNote("");
@@ -735,7 +736,7 @@ function MetadataEditor({
               type="button"
               onClick={() => {
                 setRating(value);
-                localStorage.setItem(`reelcase.rating.${videoId}`, String(value));
+                saveRating(videoId, value);
               }}
               className={cn(
                 "flex size-8 items-center justify-center rounded-sm text-sm shadow-border",
@@ -751,7 +752,7 @@ function MetadataEditor({
         Private viewing note
         <Input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Why save this? What to watch for?" className="mt-1" />
       </label>
-      <Button size="sm" className="w-full" onClick={() => { localStorage.setItem(`reelcase.note.${videoId}`, note.trim()); onSave(tags.split(","), category); }}>
+      <Button size="sm" className="w-full" onClick={() => { saveNote(videoId, note); onSave(tags.split(","), category); }}>
         Save metadata
       </Button>
     </div>

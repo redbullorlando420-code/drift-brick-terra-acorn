@@ -40,6 +40,23 @@
 }
 
 @layer base {
+  html[data-theme="day"] {
+    color-scheme: light;
+    --color-bg: #f5f1e9;
+    --color-surface: #fffdf9;
+    --color-elevated: #ece6dc;
+    --color-fg: #201d19;
+    --color-muted: #655e55;
+    --color-subtle: #8a8176;
+    --color-accent: #3e3932;
+    --color-accent-fg: #fffdf9;
+    --color-border: rgb(32 29 25 / 0.14);
+    --color-ring: #3e3932;
+    --color-danger: #9a392c;
+    --shadow-border: 0 0 0 1px rgb(32 29 25 / 0.1);
+    --shadow-border-hover: 0 0 0 1px rgb(32 29 25 / 0.2);
+  }
+
   html {
     color-scheme: dark;
     background: var(--color-bg);

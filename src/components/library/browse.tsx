@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { titleOf, type LibraryVideo } from "@/lib/videos/types";
 import { useLibrary } from "@/lib/videos/store";
 import { useThumbs } from "@/lib/videos/thumbs";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export function Billboard({ video }: { video: LibraryVideo }) {
   const thumb = useThumbs((s) => s.byId[video.id]);
@@ -96,12 +96,17 @@ export function TitleRail({
 }
 
 export function PosterGrid({ videos }: { videos: LibraryVideo[] }) {
+  const [limit, setLimit] = useState(120);
+  useEffect(() => setLimit(120), [videos]);
   if (!videos.length) return null;
   return (
-    <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 sm:gap-4 md:grid-cols-5 lg:grid-cols-6">
-      {videos.slice(0, 240).map((video, i) => (
+    <>
+    <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 sm:gap-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7">
+      {videos.slice(0, limit).map((video, i) => (
         <VideoCard key={video.id} video={video} variant="poster" index={i} className="w-full" />
       ))}
     </div>
+    {videos.length > limit && <div className="mt-5 flex items-center justify-between gap-3"><p className="text-xs text-muted">Showing {limit.toLocaleString()} of {videos.length.toLocaleString()} titles</p><Button variant="secondary" onClick={() => setLimit((value) => Math.min(value + 120, videos.length))}>Show 120 more</Button></div>}
+    </>
   );
 }

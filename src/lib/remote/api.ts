@@ -280,7 +280,7 @@ async function twitchUser(login: string): Promise<GqlUser | null> {
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      query: `query($login:String!){user(login:$login){id displayName profileImageURL(width:70) stream{title viewersCount previewImageURL(width:640,height:360) game{name}} videos(first:20,type:ARCHIVE){edges{node{id title lengthSeconds publishedAt previewThumbnailURL(width:640,height:360)}}}}}`,
+      query: `query($login:String!){user(login:$login){id displayName profileImageURL(width:70) stream{title viewersCount previewImageURL(width:640,height:360) game{name}} videos(first:40,type:ARCHIVE){edges{node{id title lengthSeconds publishedAt previewThumbnailURL(width:640,height:360)}}}}}`,
       variables: { login },
     }),
   });
@@ -367,7 +367,10 @@ async function followTwitch(query: string, compact = false): Promise<FollowResul
   const login = twitchLogin(query);
   if (!login) throw new Error("Enter a Twitch channel.");
   const user = await twitchUser(login);
-  const title = user?.displayName ?? login;
+  // Do not manufacture an offline placeholder for an account that Twitch did
+  // not resolve. It looks like a successful follow and causes repeated cards.
+  if (!user?.id) throw new Error(`Twitch could not resolve ${login}`);
+  const title = user.displayName ?? login;
   const channel: FollowedChannel = {
     id: `tw:${login}`,
     kind: "twitch",
@@ -377,9 +380,7 @@ async function followTwitch(query: string, compact = false): Promise<FollowResul
     thumb: user?.profileImageURL,
     live: Boolean(user?.stream),
   };
-  const videos = user
-    ? twitchVideos(login, user, compact ? 2 : 8)
-    : twitchVideos(login, { displayName: login }, compact ? 2 : 8);
+  const videos = twitchVideos(login, user, compact ? 6 : 24);
   return { channel, videos };
 }
 

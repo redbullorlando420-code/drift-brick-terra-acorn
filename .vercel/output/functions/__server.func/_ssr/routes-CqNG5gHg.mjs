@@ -11,7 +11,7 @@ import { a as DialogPortal, i as DialogOverlay, n as DialogClose, o as DialogTit
 import { t as Root } from "../_libs/radix-ui__react-separator.mjs";
 import { a as Trigger, i as Root2, n as Item2, r as Portal2, t as Content2 } from "../_libs/@radix-ui/react-dropdown-menu+[...].mjs";
 import { i as SliderTrack, n as SliderRange, r as SliderThumb, t as Slider$1 } from "../_libs/@radix-ui/react-slider+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-CMG-G_R2.js
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-CqNG5gHg.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var __defProp = Object.defineProperty;
@@ -1143,7 +1143,7 @@ var useSourceAssets = create((set) => ({
 		}].slice(-600) };
 	})
 }));
-var HISTORY_CAP = 250;
+var HISTORY_CAP = 2e3;
 var STARTER_FOLLOWS = [
 	{
 		id: "yt:starter-h3",
@@ -1220,6 +1220,20 @@ function mergeVideos(existing, incoming) {
 	for (const v of incoming) map.set(v.id, v);
 	return Array.from(map.values());
 }
+function canonicalFollowHandle(kind, raw) {
+	const value = raw.trim().replaceAll("\\_", "_").toLowerCase();
+	if (kind === "twitch") return (value.match(/(?:https?:\/\/)?(?:www\.)?twitch\.tv\/([^/?#]+)/i)?.[1] ?? value.replace(/^tw:/, "")).replace(/^@/, "").replace(/[^a-z0-9_]/g, "");
+	return (value.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:@|channel\/)?([^/?#]+)/i)?.[1] ?? value).replace(/^@/, "").replace(/[^a-z0-9_-]/g, "");
+}
+function dedupeFollows(rows) {
+	const seen = /* @__PURE__ */ new Set();
+	return rows.filter((row) => {
+		const key = `${row.kind}:${canonicalFollowHandle(row.kind, row.handle || row.id)}`;
+		if (!key || seen.has(key)) return false;
+		seen.add(key);
+		return true;
+	});
+}
 function remoteMetadataTags(video) {
 	return [...new Set([
 		video.remote?.kind,
@@ -1266,7 +1280,7 @@ function applyPrefs(partial) {
 		sourceId: prefs.sourceId === "adults" ? "home" : prefs.sourceId ?? "home",
 		hardwareAccel: prefs.hardwareAccel ?? true,
 		adultPinHash: prefs.adultPinHash ?? null,
-		follows: prefs.follows ?? [],
+		follows: dedupeFollows(prefs.follows ?? []),
 		notices: prefs.notices ?? [],
 		notifyPush: prefs.notifyPush ?? false
 	};
@@ -1679,7 +1693,7 @@ var useLibrary = create((set, get) => ({
 				try {
 					const saved = JSON.parse(localStorage.getItem(`reelcase.import-history.${kind}`) ?? "[]");
 					if (!Array.isArray(saved) || !saved.length) return;
-					await get().importBatch(saved.filter((value) => typeof value === "string" && Boolean(value.trim())).slice(0, 1e3).map((query) => ({
+					await get().importBatch(saved.filter((value) => typeof value === "string" && Boolean(value.trim())).slice(0, 80).map((query) => ({
 						query,
 						kind
 					})));
@@ -1947,7 +1961,7 @@ var useLibrary = create((set, get) => ({
 	followRemoteQuery: async (query, kind = "auto") => {
 		set({ remoteBusy: true });
 		try {
-			const { followRemote } = await import("./api-C4xCisId.mjs");
+			const { followRemote } = await import("./api-DQroj_Eu.mjs");
 			const result = await followRemote({ data: {
 				query,
 				kind
@@ -1984,13 +1998,13 @@ var useLibrary = create((set, get) => ({
 		}
 	},
 	importBatch: async (items) => {
-		const savedHandles = new Set(get().follows.map((follow) => `${follow.kind}:${follow.handle.toLowerCase()}`));
+		const savedHandles = new Set(get().follows.map((follow) => `${follow.kind}:${canonicalFollowHandle(follow.kind, follow.handle)}`));
 		const seenQueries = /* @__PURE__ */ new Set();
 		const unique = items.map((i) => ({
 			query: i.query.trim().replaceAll("\\_", "_"),
 			kind: i.kind
 		})).filter((i) => {
-			const handle = i.query.replace(/^https?:\/\/(www\.)?(youtube\.com\/(@|channel\/)?|twitch\.tv\/)?/i, "").replace(/^@/, "").split(/[/?#]/)[0].toLowerCase();
+			const handle = canonicalFollowHandle(i.kind, i.query);
 			const key = `${i.kind}:${handle}`;
 			if (!i.query || !handle || seenQueries.has(key) || savedHandles.has(key)) return false;
 			seenQueries.add(key);
@@ -2015,10 +2029,22 @@ var useLibrary = create((set, get) => ({
 		const failedQueries = [];
 		const chunk = 20;
 		try {
-			const { importChannels } = await import("./api-C4xCisId.mjs");
+			const { importChannels } = await import("./api-DQroj_Eu.mjs");
 			for (let i = 0; i < unique.length; i += chunk) {
 				const slice = unique.slice(i, i + chunk);
-				const result = await importChannels({ data: { items: slice } });
+				let result;
+				try {
+					result = await Promise.race([importChannels({ data: { items: slice } }), new Promise((_, reject) => window.setTimeout(() => reject(/* @__PURE__ */ new Error("Provider request timed out")), 2e4))]);
+				} catch {
+					failed += slice.length;
+					failedQueries.push(...slice.map((item) => item.query));
+					set({ importProgress: {
+						done: Math.min(i + slice.length, unique.length),
+						total: unique.length,
+						label: "Retrying next batch"
+					} });
+					continue;
+				}
 				ok += result.ok.length;
 				failed += result.failed;
 				if (result.failedQueries?.length) failedQueries.push(...result.failedQueries);
@@ -2027,7 +2053,8 @@ var useLibrary = create((set, get) => ({
 					let folders = s.folders;
 					let videos = s.videos;
 					for (const row of result.ok) {
-						follows = [row.channel, ...follows.filter((f) => f.id !== row.channel.id)];
+						const key = canonicalFollowHandle(row.channel.kind, row.channel.handle);
+						follows = [row.channel, ...follows.filter((f) => canonicalFollowHandle(f.kind, f.handle) !== key)];
 						const folder = {
 							id: row.channel.id,
 							name: row.channel.title,
@@ -2038,7 +2065,7 @@ var useLibrary = create((set, get) => ({
 						videos = mergeVideos(videos.filter((v) => v.folderId !== row.channel.id), row.videos);
 					}
 					return {
-						follows,
+						follows: dedupeFollows(follows),
 						folders,
 						videos,
 						tags: {
@@ -2089,7 +2116,7 @@ var useLibrary = create((set, get) => ({
 		persistNow(get);
 	},
 	refreshFollows: async () => {
-		const current = get().follows;
+		const current = dedupeFollows(get().follows);
 		if (!current.length) return {
 			wentLive: [],
 			newVideos: []
@@ -2097,7 +2124,7 @@ var useLibrary = create((set, get) => ({
 		const beforeLive = new Set(get().videos.filter((v) => v.remote?.live).map((v) => v.id));
 		const beforeIds = new Set(get().videos.map((v) => v.id));
 		try {
-			const { refreshRemotes } = await import("./api-C4xCisId.mjs");
+			const { refreshRemotes } = await import("./api-DQroj_Eu.mjs");
 			const result = await refreshRemotes({ data: { channels: current } });
 			const followIds = new Set(result.channels.map((c) => c.id));
 			set((s) => ({
@@ -2212,6 +2239,20 @@ function selectVisible(state) {
 function scoped(state, adult) {
 	return adult ? adultList(state) : publicList(state);
 }
+/** Keep a small newest-first result without sorting an entire remote library. */
+function newestFirst(items, limit) {
+	const top = [];
+	for (const item of items) {
+		const insertAt = top.findIndex((current) => current.addedAt < item.addedAt);
+		if (insertAt < 0) {
+			if (top.length < limit) top.push(item);
+		} else {
+			top.splice(insertAt, 0, item);
+			if (top.length > limit) top.pop();
+		}
+	}
+	return top;
+}
 function selectContinue(state, adult = false) {
 	const items = scoped(state, adult).filter((v) => {
 		const p = state.progress[v.id];
@@ -2231,10 +2272,13 @@ function selectHistory(state, adult = false) {
 	return state.history.map((h) => byId.get(h.id)).filter((v) => v != null).slice(0, 12);
 }
 function selectYoutube(state) {
-	return publicList(state).filter((v) => v.remote?.kind === "youtube").sort((a, b) => b.addedAt - a.addedAt).slice(0, 18);
+	return newestFirst(publicList(state).filter((v) => v.remote?.kind === "youtube"), 18);
 }
 function selectTwitch(state) {
-	return publicList(state).filter((v) => v.remote?.kind === "twitch").sort((a, b) => Number(b.remote?.live) - Number(a.remote?.live) || b.addedAt - a.addedAt).slice(0, 18);
+	const twitch = publicList(state).filter((v) => v.remote?.kind === "twitch");
+	const live = twitch.filter((v) => v.remote?.live);
+	const vods = twitch.filter((v) => !v.remote?.live);
+	return [...newestFirst(live, 18), ...newestFirst(vods, Math.max(0, 18 - live.length))];
 }
 function selectLive(state) {
 	return publicList(state).filter((v) => v.remote?.live);
@@ -3466,16 +3510,34 @@ function TitleRail({ title, videos, variant = "poster", playedAt }) {
 	});
 }
 function PosterGrid({ videos }) {
+	const [limit, setLimit] = (0, import_react.useState)(120);
+	(0, import_react.useEffect)(() => setLimit(120), [videos]);
 	if (!videos.length) return null;
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-		className: "grid grid-cols-3 gap-3 sm:grid-cols-4 sm:gap-4 md:grid-cols-5 lg:grid-cols-6",
-		children: videos.slice(0, 240).map((video, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(VideoCard, {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+		className: "grid grid-cols-3 gap-3 sm:grid-cols-4 sm:gap-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7",
+		children: videos.slice(0, limit).map((video, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(VideoCard, {
 			video,
 			variant: "poster",
 			index: i,
 			className: "w-full"
 		}, video.id))
-	});
+	}), videos.length > limit && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "mt-5 flex items-center justify-between gap-3",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+			className: "text-xs text-muted",
+			children: [
+				"Showing ",
+				limit.toLocaleString(),
+				" of ",
+				videos.length.toLocaleString(),
+				" titles"
+			]
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+			variant: "secondary",
+			onClick: () => setLimit((value) => Math.min(value + 120, videos.length)),
+			children: "Show 120 more"
+		})]
+	})] });
 }
 function PinGate() {
 	const hasPin = useLibrary((s) => Boolean(s.adultPinHash));
@@ -3599,6 +3661,55 @@ function Slider({ className, ...props }) {
 			children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SliderRange, { className: "absolute h-full bg-accent" })
 		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SliderThumb, { className: "block size-3 rounded-full bg-accent shadow-lift outline-none transition-transform duration-150 hover:scale-110 focus-visible:ring-2 focus-visible:ring-ring/70" })]
 	});
+}
+var KEY = "reelcase.media-feedback.v1";
+function read() {
+	try {
+		const saved = JSON.parse(localStorage.getItem(KEY) ?? "{}");
+		return {
+			ratings: saved.ratings ?? {},
+			notes: saved.notes ?? {}
+		};
+	} catch {
+		return {
+			ratings: {},
+			notes: {}
+		};
+	}
+}
+function write(next) {
+	try {
+		localStorage.setItem(KEY, JSON.stringify(next));
+	} catch {}
+}
+function getRating(id) {
+	const value = read().ratings[id];
+	if (Number.isFinite(value)) return value;
+	try {
+		return Number(localStorage.getItem(`reelcase.rating.${id}`) ?? 0);
+	} catch {
+		return 0;
+	}
+}
+function setRating(id, rating) {
+	const next = read();
+	next.ratings[id] = Math.max(0, Math.min(5, Math.round(rating)));
+	write(next);
+}
+function getNote(id) {
+	const value = read().notes[id];
+	if (typeof value === "string") return value;
+	try {
+		return localStorage.getItem(`reelcase.note.${id}`) ?? "";
+	} catch {
+		return "";
+	}
+}
+function setNote(id, note) {
+	const next = read();
+	if (note.trim()) next.notes[id] = note.trim();
+	else delete next.notes[id];
+	write(next);
 }
 var SPEEDS = [
 	.5,
@@ -4231,17 +4342,17 @@ function Player({ playlist }) {
 function MetadataEditor({ videoId, initialTags, initialCategory, onSave }) {
 	const [tags, setTags] = (0, import_react.useState)(initialTags.join(", "));
 	const [category, setCategory] = (0, import_react.useState)(initialCategory);
-	const [rating, setRating] = (0, import_react.useState)(0);
-	const [note, setNote] = (0, import_react.useState)("");
+	const [rating, setRating$2] = (0, import_react.useState)(0);
+	const [note, setNote$1] = (0, import_react.useState)("");
 	(0, import_react.useEffect)(() => {
 		setTags(initialTags.join(", "));
 		setCategory(initialCategory);
 		try {
-			setRating(Number(localStorage.getItem(`reelcase.rating.${videoId}`) ?? 0));
-			setNote(localStorage.getItem(`reelcase.note.${videoId}`) ?? "");
+			setRating$2(getRating(videoId));
+			setNote$1(getNote(videoId));
 		} catch {
-			setRating(0);
-			setNote("");
+			setRating$2(0);
+			setNote$1("");
 		}
 	}, [
 		videoId,
@@ -4308,8 +4419,8 @@ function MetadataEditor({ videoId, initialTags, initialCategory, onSave }) {
 				].map((value) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 					type: "button",
 					onClick: () => {
-						setRating(value);
-						localStorage.setItem(`reelcase.rating.${videoId}`, String(value));
+						setRating$2(value);
+						setRating(videoId, value);
 					},
 					className: cn("flex size-8 items-center justify-center rounded-sm text-sm shadow-border", value <= rating ? "bg-accent text-accent-fg" : "bg-elevated text-muted"),
 					children: value
@@ -4319,7 +4430,7 @@ function MetadataEditor({ videoId, initialTags, initialCategory, onSave }) {
 				className: "block text-xs text-muted",
 				children: ["Private viewing note", /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
 					value: note,
-					onChange: (event) => setNote(event.target.value),
+					onChange: (event) => setNote$1(event.target.value),
 					placeholder: "Why save this? What to watch for?",
 					className: "mt-1"
 				})]
@@ -4328,7 +4439,7 @@ function MetadataEditor({ videoId, initialTags, initialCategory, onSave }) {
 				size: "sm",
 				className: "w-full",
 				onClick: () => {
-					localStorage.setItem(`reelcase.note.${videoId}`, note.trim());
+					setNote(videoId, note);
 					onSave(tags.split(","), category);
 				},
 				children: "Save metadata"
@@ -4350,11 +4461,11 @@ function PreVideo() {
 	const [tagText, setTagText] = (0, import_react.useState)("");
 	const [categoryText, setCategoryText] = (0, import_react.useState)("");
 	const [vrAvailable, setVrAvailable] = (0, import_react.useState)(false);
-	const [rating, setRating] = (0, import_react.useState)(0);
+	const [rating, setRating$1] = (0, import_react.useState)(0);
 	const video = videos.find((item) => item.id === previewId);
 	(0, import_react.useEffect)(() => {
 		if (!previewId) return;
-		setRating(Number(localStorage.getItem(`reelcase.rating.${previewId}`) ?? 0));
+		setRating$1(getRating(previewId));
 	}, [previewId]);
 	(0, import_react.useEffect)(() => {
 		const xr = navigator.xr;
@@ -4548,8 +4659,8 @@ function PreVideo() {
 									].map((value) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 										type: "button",
 										onClick: () => {
-											localStorage.setItem(`reelcase.rating.${video.id}`, String(value));
-											setRating(value);
+											setRating(video.id, value);
+											setRating$1(value);
 										},
 										className: `flex size-9 items-center justify-center rounded-sm text-sm shadow-border ${value <= rating ? "bg-accent text-accent-fg" : "bg-bg/50 text-accent"}`,
 										children: value
@@ -4912,7 +5023,7 @@ function ConnectPanel({ defaultKind = "youtube", lockedKind }) {
 		if (!login) return;
 		setFinding(true);
 		try {
-			const { fetchTwitchFollowing } = await import("./api-C4xCisId.mjs");
+			const { fetchTwitchFollowing } = await import("./api-DQroj_Eu.mjs");
 			const result = await fetchTwitchFollowing({ data: { login } });
 			const rows = result.channels.map((channel) => ({
 				query: channel.login,
@@ -5910,6 +6021,7 @@ function SettingsSection() {
 	const [liveDensity, setLiveDensity] = (0, import_react.useState)(4);
 	const [sourceCacheFirst, setSourceCacheFirst] = (0, import_react.useState)(true);
 	const [debugEnabled, setDebugEnabled] = (0, import_react.useState)(false);
+	const [theme, setTheme] = (0, import_react.useState)("night");
 	const [debugReport, setDebugReport] = (0, import_react.useState)("");
 	(0, import_react.useEffect)(() => setHub(readHub()), []);
 	(0, import_react.useEffect)(() => {
@@ -5945,6 +6057,13 @@ function SettingsSection() {
 			setDebugEnabled(localStorage.getItem("reelcase.debug-panel") === "true");
 		} catch {}
 	}, []);
+	(0, import_react.useEffect)(() => {
+		try {
+			const saved = localStorage.getItem("reelcase.theme") === "day" ? "day" : "night";
+			setTheme(saved);
+			document.documentElement.dataset.theme = saved;
+		} catch {}
+	}, []);
 	(0, import_react.useEffect)(() => setLiveDensity([
 		3,
 		4,
@@ -5954,6 +6073,11 @@ function SettingsSection() {
 		setZoom(value);
 		localStorage.setItem("reelcase.ui-zoom", String(value));
 		document.documentElement.style.fontSize = `${value}%`;
+	};
+	const setColorTheme = (value) => {
+		setTheme(value);
+		localStorage.setItem("reelcase.theme", value);
+		document.documentElement.dataset.theme = value;
 	};
 	const togglePreference = (key) => {
 		const enabled = !preferences[key];
@@ -6061,6 +6185,23 @@ function SettingsSection() {
 									className: "mt-2 text-sm leading-6 text-muted",
 									children: "Keep a local, opt-in status panel for source, cache, and companion troubleshooting. It is off by default and sends nothing away."
 								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("ol", {
+									className: "mt-3 space-y-1 text-xs leading-5 text-muted",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "text-accent",
+											children: "1."
+										}), " Start the Reelcase Companion from its desktop setup."] }),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "text-accent",
+											children: "2."
+										}), " Select Check companion to confirm the Desktop root."] }),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "text-accent",
+											children: "3."
+										}), " Open Games and choose Load approved desktop shortcuts."] })
+									]
+								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 									size: "sm",
 									variant: debugEnabled ? "default" : "secondary",
@@ -6142,6 +6283,37 @@ function SettingsSection() {
 										onClick: () => setGlobalZoom(value),
 										children: [value, "%"]
 									}, value))
+								})
+							]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "rounded-lg bg-elevated p-5 shadow-border",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									className: "text-accent",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Settings2, { className: "size-5" })
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+									className: "mt-3 font-display text-2xl text-fg",
+									children: "Day & night"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-2 text-sm leading-6 text-muted",
+									children: "Choose the palette that is easiest on your eyes. It applies to every Reelcase page and stays on this device."
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "mt-4 flex flex-wrap gap-2",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										size: "sm",
+										variant: theme === "night" ? "default" : "secondary",
+										onClick: () => setColorTheme("night"),
+										children: "Night mode"
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										size: "sm",
+										variant: theme === "day" ? "default" : "secondary",
+										onClick: () => setColorTheme("day"),
+										children: "Day mode"
+									})]
 								})
 							]
 						}),
@@ -6283,7 +6455,7 @@ function SettingsSection() {
 							children: "100 local preferences"
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 							className: "mt-1 text-sm text-muted",
-							children: "Organized controls for playback, library management, discovery, rooms, and privacy."
+							children: "Organized controls for playback, library management, discovery, rooms, and privacy. Each switch saves immediately in this browser; hover or read the line below it to see what it changes."
 						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 							className: "text-xs text-muted",
 							children: [Object.values(preferences).filter(Boolean).length, " enabled"]
@@ -6357,65 +6529,105 @@ function SpotifySection() {
 		}
 	});
 	const [playlistUrl, setPlaylistUrl] = (0, import_react.useState)(saved);
+	const [imports, setImports] = (0, import_react.useState)(() => {
+		try {
+			const savedImports = JSON.parse(localStorage.getItem("reelcase.spotify.imports.v1") ?? "[]");
+			return Array.isArray(savedImports) ? savedImports.filter((item) => typeof item === "string") : [];
+		} catch {
+			return [];
+		}
+	});
+	const importSpotifyLink = () => {
+		const value = playlistUrl.trim();
+		if (!/^https:\/\/open\.spotify\.com\/(playlist|album|artist)\//i.test(value)) return;
+		const next = [value, ...imports.filter((item) => item !== value)].slice(0, 50);
+		setImports(next);
+		setSaved(value);
+		localStorage.setItem("reelcase.spotify.imports.v1", JSON.stringify(next));
+		localStorage.setItem("reelcase.spotify.playlist", value);
+	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(HubShell, {
 		eyebrow: "Music companion",
 		icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Music2, { className: "size-4" }),
 		title: "Spotify, beside your library.",
 		copy: "Keep music separate from video playback. Connect through Spotify’s official player or save a playlist link locally for your next listening session.",
-		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-			className: "mt-6 rounded-lg bg-elevated p-5 shadow-border",
-			children: [
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-					className: "text-sm font-medium text-fg",
-					children: "Open Spotify"
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-					className: "mt-1 text-sm text-muted",
-					children: "Account sign-in and playback remain on Spotify’s official site or app. Reelcase does not collect your Spotify password or tokens."
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-					className: "mt-4 flex flex-wrap gap-2",
-					children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
-						href: "https://open.spotify.com/",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "mt-6 rounded-lg bg-elevated p-5 shadow-border",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-sm font-medium text-fg",
+						children: "Open Spotify"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-1 text-sm text-muted",
+						children: "Account sign-in and playback remain on Spotify’s official site or app. Reelcase does not collect your Spotify password or tokens."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "mt-4 flex flex-wrap gap-2",
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
+							href: "https://open.spotify.com/",
+							target: "_blank",
+							rel: "noreferrer",
+							className: "inline-flex min-h-10 items-center rounded-sm bg-accent px-4 text-sm font-medium text-accent-fg",
+							children: ["Open Spotify ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExternalLink, { className: "ml-2 size-4" })]
+						})
+					})
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "mt-4 rounded-lg bg-elevated p-5 shadow-border",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-sm font-medium text-fg",
+						children: "Save a playlist shortcut"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-3 flex flex-col gap-2 sm:flex-row",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+							value: playlistUrl,
+							onChange: (event) => setPlaylistUrl(event.target.value),
+							placeholder: "https://open.spotify.com/playlist/...",
+							"aria-label": "Spotify playlist link"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							disabled: !playlistUrl.includes("spotify.com"),
+							onClick: importSpotifyLink,
+							children: "Import link"
+						})]
+					}),
+					saved && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
+						className: "mt-3 inline-flex text-sm text-accent hover:text-fg",
+						href: saved,
 						target: "_blank",
 						rel: "noreferrer",
-						className: "inline-flex min-h-10 items-center rounded-sm bg-accent px-4 text-sm font-medium text-accent-fg",
-						children: ["Open Spotify ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExternalLink, { className: "ml-2 size-4" })]
+						children: ["Open saved playlist ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExternalLink, { className: "ml-1 size-4" })]
 					})
-				})
-			]
-		}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-			className: "mt-4 rounded-lg bg-elevated p-5 shadow-border",
-			children: [
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-					className: "text-sm font-medium text-fg",
-					children: "Save a playlist shortcut"
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					className: "mt-3 flex flex-col gap-2 sm:flex-row",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-						value: playlistUrl,
-						onChange: (event) => setPlaylistUrl(event.target.value),
-						placeholder: "https://open.spotify.com/playlist/...",
-						"aria-label": "Spotify playlist link"
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-						disabled: !playlistUrl.includes("spotify.com"),
-						onClick: () => {
-							localStorage.setItem("reelcase.spotify.playlist", playlistUrl.trim());
-							setSaved(playlistUrl.trim());
-						},
-						children: "Save shortcut"
-					})]
-				}),
-				saved && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
-					className: "mt-3 inline-flex text-sm text-accent hover:text-fg",
-					href: saved,
-					target: "_blank",
-					rel: "noreferrer",
-					children: ["Open saved playlist ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExternalLink, { className: "ml-1 size-4" })]
-				})
-			]
-		})]
+				]
+			}),
+			imports.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "mt-4 rounded-lg bg-elevated p-5 shadow-border",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-sm font-medium text-fg",
+						children: "Imported Spotify shortcuts"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-1 text-xs text-muted",
+						children: "Playlist, album, and artist links are stored locally for quick return. Spotify account data remains in Spotify."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "mt-3 flex flex-wrap gap-2",
+						children: imports.slice(0, 12).map((url) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", {
+							href: url,
+							target: "_blank",
+							rel: "noreferrer",
+							className: "max-w-full truncate rounded-sm bg-bg/45 px-3 py-2 text-xs text-fg shadow-border",
+							children: url.replace("https://open.spotify.com/", "Spotify · ")
+						}, url))
+					})
+				]
+			})
+		]
 	});
 }
 function AlexaLightControl() {
@@ -7275,6 +7487,30 @@ var DEFAULT_MISSIONS = [
 		title: "VR theater reliability",
 		detail: "Replace the current WebXR capability check with a true headset cinema surface, controller controls, and clear Meta Quest recovery guidance.",
 		done: false
+	},
+	{
+		id: "companion-onboarding",
+		title: "Companion onboarding",
+		detail: "Add a one-screen startup checklist: run the companion, confirm Desktop approval, load shortcuts, verify a file, then launch one game safely.",
+		done: false
+	},
+	{
+		id: "large-library-views",
+		title: "Large-library views",
+		detail: "Progressively render grids, virtualize long result sets, and keep recommendations responsive with hundreds of thousands of catalog entries.",
+		done: false
+	},
+	{
+		id: "favorites-memory",
+		title: "Favorites memory",
+		detail: "Preserve favorites, shelves, and resume markers in the local catalog with export and recovery checks across sessions.",
+		done: false
+	},
+	{
+		id: "theme-accessibility",
+		title: "Theme & accessibility",
+		detail: "Finish day/night palettes, contrast checks, focus styling, and per-section density preferences.",
+		done: false
 	}
 ];
 function MissionPlanSection() {
@@ -7365,6 +7601,49 @@ function MissionPlanSection() {
 						})]
 					})]
 				}, mission.id))
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "mt-5 rounded-lg bg-elevated p-5 shadow-border",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+					children: "Desktop companion launch path"
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("ol", {
+					className: "mt-3 grid gap-3 text-sm text-muted sm:grid-cols-2",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								className: "font-medium text-fg",
+								children: "1. Start Companion"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
+							"Start the local Reelcase Companion from its approved desktop setup."
+						] }),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								className: "font-medium text-fg",
+								children: "2. Confirm Desktop"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
+							"Use Settings → Diagnostics to confirm the Desktop root is available."
+						] }),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								className: "font-medium text-fg",
+								children: "3. Load shortcuts"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
+							"Open Games and choose Load approved desktop shortcuts."
+						] }),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								className: "font-medium text-fg",
+								children: "4. Verify, then launch"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
+							"Use a listed shortcut; the companion checks that it stays inside an approved root."
+						] })
+					]
+				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 				className: "mt-5 grid gap-3 sm:grid-cols-3",
@@ -8229,6 +8508,8 @@ function WatchRoomSection() {
 		}
 	});
 	const videos = useLibrary((s) => s.videos);
+	const favorites = useLibrary((s) => s.favorites);
+	const history = useLibrary((s) => s.history);
 	(0, import_react.useEffect)(() => {
 		localStorage.setItem("reelcase.profile-name", name.trim() || "Host");
 	}, [name]);
@@ -8237,7 +8518,14 @@ function WatchRoomSection() {
 	const roomVideoRef = (0, import_react.useRef)(null);
 	const lastRoomTick = (0, import_react.useRef)(0);
 	const p2p = useP2PRoom(activeRoom ?? "", name.trim() || "Guest");
-	const roomCandidates = (0, import_react.useMemo)(() => videos.filter((video) => Boolean(video.remote?.embedUrl || video.src)), [videos]);
+	const roomCandidates = (0, import_react.useMemo)(() => {
+		const played = new Set(history.map((entry) => entry.id));
+		return videos.filter((video) => Boolean(video.remote?.embedUrl || video.src)).sort((a, b) => Number(Boolean(favorites[b.id])) - Number(Boolean(favorites[a.id])) || Number(played.has(b.id)) - Number(played.has(a.id)) || b.addedAt - a.addedAt);
+	}, [
+		favorites,
+		history,
+		videos
+	]);
 	(0, import_react.useEffect)(() => {
 		const params = new URLSearchParams(window.location.search);
 		const invitedRoom = (params.get("room") ?? "").trim().toUpperCase();
@@ -8543,9 +8831,9 @@ function WatchRoomSection() {
 		title: joinedAsGuest ? `Theater · ${activeRoom}` : `Room ${activeRoom}`,
 		copy: joinedAsGuest ? "Guest theater view. The host's current video, queue, and timeline arrive as the connection settles." : "Direct peer connection for your selected guests. Playback events are synchronized across connected devices.",
 		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-			className: "mt-6 grid gap-4 lg:grid-cols-[1.3fr_0.7fr]",
+			className: "mt-6 grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(18rem,0.7fr)]",
 			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "rounded-lg bg-elevated p-5 shadow-border",
+				className: "min-w-0 rounded-lg bg-elevated p-5 shadow-border",
 				children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "flex items-center justify-between gap-3",
@@ -8633,7 +8921,7 @@ function WatchRoomSection() {
 						}, size))]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: `mt-3 mx-auto w-full overflow-hidden rounded-md bg-bg shadow-border ${stageSize === "compact" ? "max-w-2xl" : stageSize === "theater" ? "max-w-6xl" : "max-w-none"}`,
+						className: `mt-3 mx-auto w-full max-w-full overflow-hidden rounded-md bg-bg shadow-border ${stageSize === "compact" ? "lg:max-w-2xl" : stageSize === "theater" ? "lg:max-w-6xl" : ""}`,
 						children: sharedVideo?.remote?.embedUrl ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("iframe", {
 							title: sharedVideo.name,
 							src: `${sharedVideo.remote.embedUrl}${sharedVideo.remote.embedUrl.includes("?") ? "&" : "?"}autoplay=0&rel=0`,
@@ -8676,6 +8964,10 @@ function WatchRoomSection() {
 						className: "mt-2 text-xs text-subtle",
 						children: "Embedded services show the selected title for everyone; exact timestamp sync is available for local and library video files."
 					}) : null,
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-3 text-xs text-muted",
+						children: "Recommended from your playable library — favorites and recently watched titles appear first. Local catalog entries without a resolved browser media source stay out to avoid broken room cards."
+					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "mt-3 flex gap-2 overflow-x-auto pb-2",
 						children: roomCandidates.slice(0, 18).map((video) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
@@ -9152,6 +9444,7 @@ function LibraryApp() {
 	const adultFolders = folders.filter((f) => f.adult);
 	const tags = useLibrary((s) => s.tags);
 	const favorites = useLibrary((s) => s.favorites);
+	const progress = useLibrary((s) => s.progress);
 	const favoriteLiveVideos = (0, import_react.useMemo)(() => liveVideos.filter((video) => favorites[video.id]), [favorites, liveVideos]);
 	const likes = useLibrary((s) => s.likes);
 	const adultTagNames = (0, import_react.useMemo)(() => [...new Set(videos.flatMap((video) => tags[video.id] ?? []))].sort(), [tags, videos]);
@@ -9395,7 +9688,7 @@ function LibraryApp() {
 							lockedKind: sourceId === "youtube" || sourceId === "twitch" ? sourceId : void 0
 						}, sourceId === "twitch" ? "twitch-imports" : sourceId === "youtube" ? "youtube-imports" : "home-imports"),
 						sourceId === "home" && !query && featured && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Billboard, { video: featured }),
-						sourceId === "movies" && !query && (classics[0] || featured) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Billboard, { video: classics[0] ?? featured }),
+						sourceId === "movies" && !query && (randomSourceMovies[0] || featured) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Billboard, { video: randomSourceMovies[0] ?? featured }),
 						sourceId === "adults" && adultsUnlocked && featured && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Billboard, { video: featured }),
 						sourceId === "home" && browsing && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
@@ -9632,11 +9925,6 @@ function LibraryApp() {
 								})]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
-								title: "Classic movies",
-								videos: classics,
-								variant: "poster"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
 								title: "From your source folders",
 								videos: videos.filter((video) => !video.remote && !video.isSample).sort((a, b) => Number(Boolean(favorites[b.id])) - Number(Boolean(favorites[a.id])) || b.addedAt - a.addedAt),
 								variant: "poster"
@@ -9654,6 +9942,11 @@ function LibraryApp() {
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
 								title: "All movies",
 								videos: [...videos.filter((v) => !isClassicVideo(v))].sort((a, b) => (a.id.charCodeAt(0) + movieShuffle * 17) % 29 - (b.id.charCodeAt(0) + movieShuffle * 17) % 29),
+								variant: "poster"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: "Classic movies",
+								videos: classics,
 								variant: "poster"
 							}),
 							classics.length === 0 && videos.length === 0 ? null : null
@@ -9803,6 +10096,35 @@ function LibraryApp() {
 								children: "Your list, on this computer."
 							})]
 						}),
+						sourceId === "favorites" && !query && favoriteVideos.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: "Continue your favorites",
+								videos: favoriteVideos.filter((video) => {
+									const mark = progress[video.id];
+									return mark && mark.t > 0 && mark.t < mark.d;
+								}),
+								variant: "rail"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: "Favorite movies",
+								videos: favoriteVideos.filter((video) => !video.remote && !video.isSample),
+								variant: "poster"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: "Favorite YouTube",
+								videos: favoriteVideos.filter((video) => video.remote?.kind === "youtube"),
+								variant: "rail"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: "Favorite Twitch",
+								videos: favoriteVideos.filter((video) => video.remote?.kind === "twitch"),
+								variant: "rail"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+								className: "mb-3 font-display text-xl text-fg sm:text-2xl",
+								children: "Everything in My List"
+							})
+						] }),
 						sourceId === "favorites" && !query ? favoriteVideos.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PosterGrid, { videos: favoriteVideos }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "rounded-xl bg-surface px-6 py-16 text-center shadow-border",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
