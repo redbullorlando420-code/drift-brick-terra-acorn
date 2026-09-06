@@ -2,19 +2,19 @@
 
 @theme {
   --font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Instrument Serif", ui-serif, Georgia, "Times New Roman", serif;
+  --font-display: "Figtree", ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
-  --color-bg: #0c0b0a;
-  --color-surface: #141312;
-  --color-elevated: #1c1a18;
-  --color-fg: #f3eee6;
-  --color-muted: #9c948a;
-  --color-subtle: #6f6860;
-  --color-accent: #e8e0d4;
+  --color-bg: #0b0e13;
+  --color-surface: #11161e;
+  --color-elevated: #1b222d;
+  --color-fg: #edf2f7;
+  --color-muted: #a5b1c1;
+  --color-subtle: #8290a3;
+  --color-accent: #b9d5f0;
   --color-accent-fg: #0c0b0a;
   --color-border: rgb(243 238 230 / 0.12);
-  --color-ring: #e8e0d4;
+  --color-ring: #b9d5f0;
   --color-danger: #c45c4a;
 
   --radius-xs: 4px;
@@ -190,3 +190,12 @@
     transform: none;
   }
 }
+
+/* Shared editorial shell: crisp typography, quiet panels, visible focus. */
+.font-display { font-weight: 600; letter-spacing: -0.035em; }
+main > section, main > div > section { min-width: 0; }
+button, a, input { -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }
+.discovery-heading { font-size: clamp(2rem, 4vw, 3.5rem); line-height: 1.08; }
+.media-shelf { content-visibility: auto; contain-intrinsic-size: auto 290px; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }

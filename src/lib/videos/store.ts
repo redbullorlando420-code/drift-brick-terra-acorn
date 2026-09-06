@@ -1,7 +1,10 @@
 import { create } from "zustand";
+import { mergeRemoteRefresh } from "./remote-merge";
 import { DEMO_FOLDER, FEATURED_YOUTUBE, SAMPLE_VIDEOS, YT_FOLDER } from "./samples";
 import {
   appendCatalogVideos,
+  loadRemoteSnapshot,
+  saveRemoteSnapshot,
   clearFolderVideos,
   deleteDirHandle,
   loadCatalogVideos,
@@ -42,6 +45,7 @@ import { useSourceAssets } from "@/lib/source-assets";
 import { isClassicVideo, SYSTEM_SOURCES } from "./types";
 
 const HISTORY_CAP = 2_000;
+let restoring = false;
 const STARTER_FOLLOWS: FollowedChannel[] = [
   { id: "yt:starter-h3", kind: "youtube", handle: "H3Podcast", title: "H3 Podcast" },
   { id: "yt:starter-ltt", kind: "youtube", handle: "LinusTechTips", title: "Linus Tech Tips" },
@@ -76,6 +80,8 @@ type LibraryState = {
   notices: AppNotice[];
   notifyPush: boolean;
   remoteBusy: boolean;
+  remoteCheckedAt: number;
+  refreshing: boolean;
   importProgress: { done: number; total: number; label: string } | null;
   setQuery: (q: string) => void;
   setSort: (s: SortKey) => void;
@@ -179,6 +185,15 @@ function mergeVideos(existing: LibraryVideo[], incoming: LibraryVideo[]) {
   const map = new Map(existing.map((v) => [v.id, v]));
   for (const v of incoming) map.set(v.id, v);
   return Array.from(map.values());
+}
+
+function cacheRemotes(get: () => LibraryState) {
+  const s = get();
+  void saveRemoteSnapshot({
+    videos: s.videos.filter((v) => v.remote && !v.isSample),
+    folders: s.folders.filter((f) => f.kind === "youtube" || f.kind === "twitch"),
+    checkedAt: s.remoteCheckedAt,
+  }).catch(() => undefined);
 }
 
 function canonicalFollowHandle(kind: "youtube" | "twitch", raw: string): string {
@@ -285,6 +300,8 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   notices: [],
   notifyPush: false,
   remoteBusy: false,
+  refreshing: false,
+  remoteCheckedAt: 0,
   importProgress: null,
   setQuery: (query) => set({ query }),
   setSort: (sort) => {
@@ -307,6 +324,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       return { favorites };
     });
     persistNow(get);
+    cacheRemotes(get);
   },
   toggleLike: (id) => {
     set((s) => {
@@ -316,6 +334,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       return { likes };
     });
     persistNow(get);
+    cacheRemotes(get);
   },
   setVideoTags: (id, tags) => {
     set((s) => ({
@@ -636,11 +655,26 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     if (videos.length) await saveFolderVideos(folderId, videos).catch(() => undefined);
   },
   restoreFolders: async () => {
+    if (get().hydrated || restoring) return;
+    restoring = true;
     const prefsState = applyPrefs({});
     const adultIds = new Set(loadPrefs()?.privateFolderIds ?? []);
     let cachedFolderIds = new Set<string>();
     let savedHealth = new Map<string, Awaited<ReturnType<typeof loadSourceHealth>>[number]>();
-    set({ ...prefsState, hydrated: true });
+    set({ ...prefsState });
+    try {
+      const snapshot = await loadRemoteSnapshot();
+      if (snapshot) {
+        const ids = new Set(get().follows.map((channel) => channel.id));
+        set((s) => ({
+          videos: mergeVideos(s.videos, snapshot.videos.filter((v) => ids.has(v.folderId) || s.favorites[v.id] || s.likes[v.id])),
+          folders: [...s.folders.filter((f) => !snapshot.folders.some((saved) => saved.id === f.id)), ...snapshot.folders.filter((f) => ids.has(f.id))],
+          remoteCheckedAt: snapshot.checkedAt,
+        }));
+      }
+    } catch { /* The catalog remains usable when storage is unavailable. */ }
+    set({ hydrated: true });
+    restoring = false;
     // A pasted import list is a durable recovery queue. Resume every missing
     // entry—not only an entirely empty shelf—so partial Twitch imports keep
     // progressing across reloads without requiring “Load saved list now”.
@@ -917,7 +951,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           follows,
           folders: [...s.folders.filter((f) => f.id !== folder.id), folder],
           videos: mergeVideos(
-            s.videos.filter((v) => v.folderId !== result.channel.id),
+            s.videos.filter((v) => v.folderId !== result.channel.id || s.favorites[v.id] || s.likes[v.id]),
             result.videos,
           ),
           tags: { ...s.tags, ...Object.fromEntries(result.videos.map((video) => [video.id, [...new Set([...(s.tags[video.id] ?? []), ...remoteMetadataTags(video)])]])) },
@@ -926,6 +960,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         };
       });
       persistNow(get);
+      cacheRemotes(get);
       get().pushNotice({
         title: `Following ${result.channel.title}`,
         body:
@@ -1000,7 +1035,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
             };
             folders = [...folders.filter((f) => f.id !== folder.id), folder];
             videos = mergeVideos(
-              videos.filter((v) => v.folderId !== row.channel.id),
+              videos.filter((v) => v.folderId !== row.channel.id || s.favorites[v.id] || s.likes[v.id]),
               row.videos,
             );
           }
@@ -1019,6 +1054,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         // A completed batch is useful even if the next provider call is slow or
         // unavailable. Queue its metadata for local persistence immediately.
         persistSoon(get);
+        cacheRemotes(get);
       }
       persistNow(get);
       const added = get().follows.filter((f) => !existing.has(f.id)).length;
@@ -1042,14 +1078,17 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     set((s) => ({
       follows: s.follows.filter((f) => f.id !== id),
       folders: s.folders.filter((f) => f.id !== id),
-      videos: s.videos.filter((v) => v.folderId !== id),
+      videos: s.videos.filter((v) => v.folderId !== id || s.favorites[v.id] || s.likes[v.id]),
       sourceId: s.sourceId === id ? "home" : s.sourceId,
     }));
     persistNow(get);
+    cacheRemotes(get);
   },
   refreshFollows: async () => {
+    if (get().refreshing || get().remoteBusy) return { wentLive: [], newVideos: [] };
     const current = dedupeFollows(get().follows);
     if (!current.length) return { wentLive: [], newVideos: [] };
+    set({ refreshing: true });
     const beforeLive = new Set(
       get()
         .videos.filter((v) => v.remote?.live)
@@ -1059,12 +1098,13 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     try {
       const { refreshRemotes } = await import("@/lib/remote/api");
       const result = await refreshRemotes({ data: { channels: current } });
-      const followIds = new Set(result.channels.map((c) => c.id));
+      const followIds = new Set(result.refreshedIds);
+
       set((s) => ({
-        follows: result.channels,
+        follows: dedupeFollows([...result.channels, ...s.follows]),
+        remoteCheckedAt: Date.now(),
         folders: [
-          ...s.folders.filter((f) => f.kind !== "youtube" && f.kind !== "twitch"),
-          YT_FOLDER,
+          ...s.folders.filter((f) => !result.channels.some((channel) => channel.id === f.id)),
           ...result.channels.map((c) => ({
             id: c.id,
             name: c.title,
@@ -1072,14 +1112,10 @@ export const useLibrary = create<LibraryState>((set, get) => ({
             videoCount: result.videos.filter((v) => v.folderId === c.id).length,
           })),
         ],
-        videos: [
-          ...s.videos.filter(
-            (v) => !v.remote || v.folderId === "youtube:featured" || !followIds.has(v.folderId),
-          ),
-          ...result.videos,
-        ],
+        videos: mergeRemoteRefresh(s.videos, result.videos, result.refreshedIds, new Set([...Object.keys(s.favorites), ...Object.keys(s.likes), ...s.history.map((entry) => entry.id)])),
       }));
       persistNow(get);
+      cacheRemotes(get);
       const wentLive = result.channels.filter(
         (c) =>
           c.live &&
@@ -1092,6 +1128,8 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       return { wentLive, newVideos };
     } catch {
       return { wentLive: [], newVideos: [] };
+    } finally {
+      set({ refreshing: false });
     }
   },
   pushNotice: (n) => {
@@ -1251,7 +1289,7 @@ export function selectTwitch(state: LibraryState): LibraryVideo[] {
   const twitch = publicList(state).filter((v) => v.remote?.kind === "twitch");
   const live = twitch.filter((v) => v.remote?.live);
   const vods = twitch.filter((v) => !v.remote?.live);
-  return [...newestFirst(live, 18), ...newestFirst(vods, Math.max(0, 18 - live.length))];
+  return [...live, ...vods];
 }
 
 export function selectLive(state: LibraryState): LibraryVideo[] {
@@ -1274,3 +1312,4 @@ export function selectFeatured(state: LibraryState, adult = false): LibraryVideo
 export function userFolderCount(folders: Folder[]) {
   return folders.filter((f) => f.kind !== "demo").length;
 }
+

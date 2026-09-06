@@ -59,9 +59,10 @@ function migrateSource(id: string | undefined): string {
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 3);
+    const req = indexedDB.open(DB_NAME, 4);
     req.onupgradeneeded = () => {
       const db = req.result;
+      if (!db.objectStoreNames.contains("remote-cache")) db.createObjectStore("remote-cache");
       if (!db.objectStoreNames.contains(STORE)) {
         db.createObjectStore(STORE, { keyPath: "id" });
       }
@@ -189,6 +190,23 @@ export async function loadCatalogVideos(): Promise<LibraryVideo[]> {
   });
   db.close();
   return rows.filter((v) => !v.isSample);
+}
+
+export type RemoteSnapshot = { videos: LibraryVideo[]; folders: Folder[]; checkedAt: number };
+export async function loadRemoteSnapshot(): Promise<RemoteSnapshot | undefined> {
+  const db = await openDb();
+  try { return await new Promise((resolve, reject) => {
+    const req = db.transaction("remote-cache").objectStore("remote-cache").get("snapshot");
+    req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error);
+  }); } finally { db.close(); }
+}
+export async function saveRemoteSnapshot(snapshot: RemoteSnapshot): Promise<void> {
+  const db = await openDb();
+  try { await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction("remote-cache", "readwrite");
+    tx.objectStore("remote-cache").put(snapshot, "snapshot");
+    tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
+  }); } finally { db.close(); }
 }
 
 export async function saveSourceHealth(entry: StoredSourceHealth): Promise<void> {

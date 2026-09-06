@@ -19,6 +19,7 @@ import {
   Rocket,
   Search,
   Settings2,
+  Star,
   ChevronLeft,
   ChevronRight,
   Maximize2,
@@ -34,6 +35,8 @@ import { useLibrary } from "@/lib/videos/store";
 import { useSourceAssets } from "@/lib/source-assets";
 import { useP2PRoom } from "@/lib/multiplayer";
 import type { LibraryVideo } from "@/lib/videos/types";
+
+import { XTimeline } from "./x-timeline";
 
 type LocalItem = {
   name: string;
@@ -860,6 +863,9 @@ type PhotoSort = "newest" | "name" | "rating" | "favorite";
 const PHOTO_FILE_RE = /\.(avif|bmp|gif|heic|heif|jpe?g|png|tiff?|webp)$/i;
 
 export function PhotosSection() {
+  const scannedPhotoSources = useRef(new Set<string>());
+  const photoUrls = useRef(new Set<string>());
+  const [ratingFilter, setRatingFilter] = useState("all");
   const [photos, setPhotos] = useState<LocalPhoto[]>([]);
   const [selectedPerson, setSelectedPerson] = useState("All photos");
   const [photoSearch, setPhotoSearch] = useState("");
@@ -892,17 +898,21 @@ export function PhotosSection() {
   const addPhotos = (files: FileList | File[] | null, folderName = "Unsorted", paths?: string[]) => {
     if (!files) return;
     const remembered = (() => { try { return JSON.parse(localStorage.getItem("reelcase.photo-meta.v1") ?? "{}"); } catch { return {}; } })() as Record<string, Partial<LocalPhoto>>;
+    const known = new Set(photos.map((photo) => photo.id));
     const next = Array.from(files)
       .filter((file) => file.type.startsWith("image/") || PHOTO_FILE_RE.test(file.name))
       .slice(0, 600)
       .map((file, index) => {
         const path = paths?.[index] || file.webkitRelativePath || `${folderName}/${file.name}`;
         const id = `${path}-${file.lastModified}`;
+        if (known.has(id)) return null;
+        const url = URL.createObjectURL(file);
+        photoUrls.current.add(url);
         return {
         id,
         name: file.name,
         path,
-        url: URL.createObjectURL(file),
+        url,
         people: remembered[id]?.people ?? [],
         tags: remembered[id]?.tags ?? [],
         album: remembered[id]?.album ?? folderName,
@@ -910,7 +920,7 @@ export function PhotosSection() {
         rating: remembered[id]?.rating ?? 0,
         addedAt: file.lastModified,
       };
-      });
+      }).filter((photo): photo is LocalPhoto => photo !== null);
     setPhotos((current) => {
       const known = new Set(current.map((photo) => photo.id));
       return [...current, ...next.filter((photo) => !known.has(photo.id))];
@@ -919,7 +929,8 @@ export function PhotosSection() {
   useEffect(() => {
     if (sourcePhotos.length) addPhotos(sourcePhotos.map((asset) => asset.file), "Source import", sourcePhotos.map((asset) => asset.path));
   }, [sourcePhotos]);
-  useEffect(() => { try { localStorage.setItem("reelcase.photo-meta.v1", JSON.stringify(Object.fromEntries(photos.map(({ id, path, people, tags, album, favorite, rating }) => [id, { path, people, tags, album, favorite, rating }])))); } catch { /* quota */ } }, [photos]);
+  useEffect(() => () => { for (const url of photoUrls.current) URL.revokeObjectURL(url); photoUrls.current.clear(); }, []);
+  useEffect(() => { try { localStorage.setItem("reelcase.photo-meta.v1", JSON.stringify({ ...JSON.parse(localStorage.getItem("reelcase.photo-meta.v1") ?? "{}"), ...Object.fromEntries(photos.map(({ id, path, people, tags, album, favorite, rating }) => [id, { path, people, tags, album, favorite, rating }])) })); } catch { /* quota */ } }, [photos]);
   useEffect(() => { try { localStorage.setItem("reelcase.photos.sort", photoSort); } catch { /* storage unavailable */ } }, [photoSort]);
   useEffect(() => { try { localStorage.setItem("reelcase.photos.show-locations", String(showLocations)); } catch { /* storage unavailable */ } }, [showLocations]);
   useEffect(() => { try { localStorage.setItem("reelcase.photos.slide-seconds", String(slideSeconds)); } catch { /* storage unavailable */ } }, [slideSeconds]);
@@ -930,6 +941,8 @@ export function PhotosSection() {
       // startup catalog remains fast even for very large video sources.
       for (const folder of sourceFolders) {
         if (cancelled) return;
+        if (scannedPhotoSources.current.has(folder.id)) continue;
+        scannedPhotoSources.current.add(folder.id);
         await refreshSourcePhotos(folder.id);
       }
     })();
@@ -950,6 +963,7 @@ export function PhotosSection() {
       (photo) =>
         (selectedPerson === "All photos" || photo.people.includes(selectedPerson)) &&
         (!favoritesOnly || photo.favorite) &&
+        (ratingFilter === "all" || (ratingFilter === "unrated" ? !photo.rating : photo.rating >= Number(ratingFilter))) &&
         (discoveryFilter === "all" || (discoveryFilter === "screenshots" ? /screenshot|screen[_ -]?shot/i.test(photo.name) : discoveryFilter === "camera" ? /^(img|dsc|pxl|photo)[_ -]?\d/i.test(photo.name) : /download|image|copy|edited/i.test(photo.name))) &&
         `${photo.name} ${photo.path} ${photo.people.join(" ")} ${photo.tags.join(" ")} ${photo.album}`
           .toLowerCase()
@@ -962,7 +976,7 @@ export function PhotosSection() {
       return b.addedAt - a.addedAt;
     });
   const renderedPhotos = visible.slice(0, photoLimit);
-  useEffect(() => setPhotoLimit(80), [photoSearch, selectedPerson, favoritesOnly, photoSort, discoveryFilter]);
+  useEffect(() => setPhotoLimit(80), [photoSearch, selectedPerson, favoritesOnly, photoSort, discoveryFilter, ratingFilter]);
   useEffect(() => { if (!slideshow || !visible.length) return; const timer = window.setInterval(() => setSlideIndex((index) => (index + 1) % visible.length), slideSeconds * 1000); return () => window.clearInterval(timer); }, [slideshow, slideSeconds, visible.length]);
   const featuredPhoto = visible[slideIndex % Math.max(visible.length, 1)];
   const focusedIndex = visible.findIndex((photo) => photo.id === focusedPhotoId);
@@ -988,9 +1002,10 @@ export function PhotosSection() {
     <HubShell
       eyebrow="Photo viewer"
       icon={<Images className="size-4" />}
-      title="A private people shelf."
+      title="Your photos. Your favorites."
       copy="Add photos from this device, then group them by people yourself. Nothing uploads from this browser. Google Photos remains a separate, opt-in destination."
     >
+      <div className="mt-6 flex flex-wrap items-center gap-2 rounded-lg border border-border p-4"><Star className="size-4 text-accent"/><span className="mr-2 text-sm font-medium">Rating desk</span>{[["all", "All ratings"], ["unrated", "Needs a rating"], ["3", "3+ stars"], ["4", "4+ stars"], ["5", "5 stars"]].map(([value, label]) => <Button key={value} size="sm" variant={ratingFilter === value ? "default" : "secondary"} onClick={() => setRatingFilter(value)}>{label}</Button>)}<span className="text-xs text-muted">{photos.filter((photo) => photo.rating > 0).length} of {photos.length} rated</span></div>
       <div className="mt-6 flex flex-col gap-3 rounded-lg bg-elevated p-5 shadow-border sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-medium text-fg">Your local photo selection</p>
@@ -1134,7 +1149,7 @@ export function PhotosSection() {
                   </Button>
                 </div>
                 {showLocations && <p title={photo.path} className="mt-1 truncate text-xs text-muted">{photo.path}</p>}
-                <div className="mt-2 flex gap-1">{[1,2,3,4,5].map((value) => <Button key={value} size="sm" variant={value <= photo.rating ? "default" : "secondary"} onClick={() => setPhotos((items) => items.map((item) => item.id === photo.id ? { ...item, rating: value } : item))}>{value}</Button>)}</div>
+                <PhotoStars name={photo.name} rating={photo.rating} onChange={(rating) => setPhotos((items) => items.map((item) => item.id === photo.id ? { ...item, rating } : item))} />
                 <Input
                   className="mt-2 h-9"
                   placeholder="People: Alex, Sam"
@@ -1177,7 +1192,7 @@ export function PhotosSection() {
               </div>
             </div>
           ))}
-        </div><div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted"><span>Showing {Math.min(renderedPhotos.length, visible.length)} of {visible.length} matching photos</span>{renderedPhotos.length < visible.length && <Button size="sm" variant="secondary" onClick={() => setPhotoLimit((limit) => limit + 80)}>Show 80 more</Button>}</div>{focusedPhoto && <div role="dialog" aria-modal="true" aria-label={`Viewing ${focusedPhoto.name}`} className="fixed inset-0 z-50 flex items-center justify-center bg-bg/95 p-4" onClick={() => setFocusedPhotoId(null)}><div className="relative flex h-full w-full max-w-7xl flex-col gap-3" onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between gap-3 text-fg"><div className="min-w-0"><p className="truncate font-medium">{focusedPhoto.name}</p><p className="text-xs text-muted">{focusedPhoto.album} · {focusedIndex + 1} of {visible.length}</p>{showLocations && <p title={focusedPhoto.path} className="truncate text-xs text-muted">{focusedPhoto.path}</p>}</div><Button size="sm" variant="secondary" onClick={() => setFocusedPhotoId(null)}>Close</Button></div><div className="relative min-h-0 flex-1"><img src={focusedPhoto.url} alt={focusedPhoto.name} className="size-full object-contain"/><Button size="sm" variant="secondary" className="absolute top-1/2 left-2 -translate-y-1/2" onClick={() => moveFocus(-1)} aria-label="Previous photo"><ChevronLeft className="size-5"/></Button><Button size="sm" variant="secondary" className="absolute top-1/2 right-2 -translate-y-1/2" onClick={() => moveFocus(1)} aria-label="Next photo"><ChevronRight className="size-5"/></Button></div></div></div>}</>
+        </div><div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted"><span>Showing {Math.min(renderedPhotos.length, visible.length)} of {visible.length} matching photos</span>{renderedPhotos.length < visible.length && <Button size="sm" variant="secondary" onClick={() => setPhotoLimit((limit) => limit + 80)}>Show 80 more</Button>}</div>{focusedPhoto && <div role="dialog" aria-modal="true" aria-label={`Viewing ${focusedPhoto.name}`} className="fixed inset-0 z-50 flex items-center justify-center bg-bg/95 p-4" onClick={() => setFocusedPhotoId(null)}><div className="relative flex h-full w-full max-w-7xl flex-col gap-3" onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between gap-3 text-fg"><div className="min-w-0"><p className="truncate font-medium">{focusedPhoto.name}</p><p className="text-xs text-muted">{focusedPhoto.album} · {focusedIndex + 1} of {visible.length}</p>{showLocations && <p title={focusedPhoto.path} className="truncate text-xs text-muted">{focusedPhoto.path}</p>}</div><Button size="sm" variant="secondary" onClick={() => setFocusedPhotoId(null)}>Close</Button></div><PhotoStars name={focusedPhoto.name} rating={focusedPhoto.rating} onChange={(rating) => setPhotos((items) => items.map((item) => item.id === focusedPhoto.id ? { ...item, rating } : item))} /><div className="relative min-h-0 flex-1"><img src={focusedPhoto.url} alt={focusedPhoto.name} className="size-full object-contain"/><Button size="sm" variant="secondary" className="absolute top-1/2 left-2 -translate-y-1/2" onClick={() => moveFocus(-1)} aria-label="Previous photo"><ChevronLeft className="size-5"/></Button><Button size="sm" variant="secondary" className="absolute top-1/2 right-2 -translate-y-1/2" onClick={() => moveFocus(1)} aria-label="Next photo"><ChevronRight className="size-5"/></Button></div></div></div>}</>
       )}
     </HubShell>
   );
@@ -1673,80 +1688,32 @@ export function SocialSection() {
   const [handle, setHandle] = useState("");
   const [active, setActive] = useState("");
   const [search, setSearch] = useState("");
+  const [error, setError] = useState("");
   useEffect(() => {
     try {
-      setAccounts(JSON.parse(localStorage.getItem("reelcase.x-accounts") ?? "[]") as string[]);
-    } catch {
-      setAccounts([]);
-    }
+      const raw: unknown = JSON.parse(localStorage.getItem("reelcase.x-accounts") ?? "[]");
+      const saved = Array.isArray(raw) ? raw.filter((value): value is string => typeof value === "string" && /^[A-Za-z0-9_]{1,15}$/.test(value)) : [];
+      setAccounts(saved);
+      const last = localStorage.getItem("reelcase.x-active") ?? "";
+      setActive(saved.includes(last) ? last : saved[0] ?? "");
+    } catch { /* empty shelf */ }
   }, []);
+  const choose = (account: string) => { setActive(account); try { localStorage.setItem("reelcase.x-active", account); } catch { /* session only */ } };
+  const save = (next: string[]) => { setAccounts(next); try { localStorage.setItem("reelcase.x-accounts", JSON.stringify(next)); } catch { setError("Storage is full. Account changes will last for this session only."); } };
   const add = () => {
-    const next = [...new Set([...accounts, handle.trim().replace(/^@/, "")].filter(Boolean))].slice(
-      0,
-      12,
-    );
-    setAccounts(next);
-    localStorage.setItem("reelcase.x-accounts", JSON.stringify(next));
-    setActive(next.at(-1) ?? "");
-    setHandle("");
+    const value = handle.trim().replace(/^https?:\/\/(?:www\.)?(?:x|twitter)\.com\//i, "").replace(/^@/, "").replace(/[/?#].*$/, "").toLowerCase();
+    if (!/^[a-z0-9_]{1,15}$/.test(value)) { setError("Enter a valid X handle or profile URL (up to 15 letters, numbers or underscores)."); return; }
+    if (accounts.length >= 50 && !accounts.includes(value)) { setError("Your shelf holds 50 accounts. Remove one before adding another."); return; }
+    setError(""); save([...new Set([...accounts, value])]); choose(value); setHandle("");
   };
-  return (
-    <HubShell
-      eyebrow="Social browser"
-      icon={<X className="size-4" />}
-      title="X account shelf"
-      copy="Save public handles locally and browse a selected public profile in this workspace. Reelcase does not read credentials, messages, or account data."
-    >
-      <div className="mt-6 flex flex-col gap-2 sm:flex-row">
-        <Input
-          value={handle}
-          onChange={(event) => setHandle(event.target.value)}
-          placeholder="@account"
-          aria-label="X account handle"
-        />
-        <Button disabled={!handle.trim()} onClick={add}>
-          Add account
-        </Button>
-      </div>
-      <Input className="mt-3" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search your saved X accounts" aria-label="Search saved X accounts" />
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        {accounts.filter((account) => account.toLowerCase().includes(search.trim().toLowerCase())).length ? (
-          accounts.filter((account) => account.toLowerCase().includes(search.trim().toLowerCase())).map((account) => (
-            <button
-              key={account}
-              type="button"
-              onClick={() => setActive(account)}
-              className={`rounded-lg p-5 text-left shadow-border transition-[background-color,color,transform] duration-150 hover:-translate-y-0.5 ${active === account ? "bg-accent text-accent-fg" : "bg-elevated text-fg"}`}
-            >
-              <p className="font-display text-2xl">@{account}</p>
-              <p className="mt-1 text-sm opacity-70">Browse public profile</p>
-            </button>
-          ))
-        ) : (
-          <p className="rounded-lg bg-elevated px-4 py-8 text-sm text-muted shadow-border sm:col-span-2">
-            Add public handles to keep a local launch list.
-          </p>
-        )}
-      </div>
-      {active && (
-        <div className="mt-5 overflow-hidden rounded-lg bg-elevated shadow-border">
-          <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
-            <p className="text-sm text-fg">Browsing @{active}</p>
-            <span className="text-xs text-muted">Local account view</span>
-          </div>
-          <div className="flex min-h-48 items-center justify-center px-6 text-center">
-            <div>
-              <p className="font-display text-2xl text-fg">Saved account, kept in Reelcase</p>
-              <p className="mt-2 max-w-md text-sm text-muted">
-                Search and switch saved handles here without being sent elsewhere. X does not make
-                public profile timelines available for reliable in-app embedding.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-    </HubShell>
-  );
+  return <HubShell eyebrow="Social desk" icon={<X className="size-4" />} title="Keep your people close." copy="Save X profiles, switch between public timelines, and pick up where you left off. Private posts and account likes require access on X.">
+    <form className="mt-6 flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); add(); }}><Input value={handle} onChange={(event) => setHandle(event.target.value)} placeholder="@handle or X profile URL" aria-label="X account handle"/><Button type="submit" disabled={!handle.trim()}>Add account</Button></form>
+    {error && <p role="alert" className="mt-2 text-sm text-danger">{error}</p>}
+    <Input className="mt-4" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find a saved account" aria-label="Search saved X accounts"/>
+    <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{accounts.filter((account) => account.toLowerCase().includes(search.toLowerCase())).map((account) => <div key={account} className={"flex items-center gap-2 rounded-lg border p-2 " + (active === account ? "border-accent bg-elevated" : "border-border bg-surface")}><button type="button" aria-pressed={active === account} onClick={() => choose(account)} className="min-w-0 flex-1 p-3 text-left"><span className="block truncate text-lg font-semibold">@{account}</span><span className="text-xs text-muted">Public profile</span></button><Button variant="ghost" size="icon" aria-label={"Remove @" + account} onClick={() => { const next = accounts.filter((value) => value !== account); save(next); if (active === account) choose(next[0] ?? ""); }}><X className="size-4"/></Button></div>)}</div>
+    {!accounts.length && <p className="mt-6 rounded-lg border border-border p-8 text-muted">Add your first account to build your reading shelf.</p>}
+    {active && <XTimeline key={active} account={active}/>}
+  </HubShell>;
 }
 
 export function WatchRoomSection() {
@@ -2443,4 +2410,8 @@ function InfoCard({ icon, title, copy }: { icon: ReactNode; title: string; copy:
       <p className="mt-2 text-sm leading-6 text-muted">{copy}</p>
     </div>
   );
+}
+
+function PhotoStars({ name, rating, onChange }: { name: string; rating: number; onChange: (rating: number) => void }) {
+  return <div className="mt-2 flex flex-wrap items-center gap-1" role="group" aria-label={"Rating for " + name}>{[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" className="inline-flex size-11 items-center justify-center rounded-sm hover:bg-accent/10 focus-visible:outline-2 focus-visible:outline-accent" aria-label={"Rate " + name + " " + value + " stars"} aria-pressed={rating === value} onClick={() => onChange(value)}><Star className={"size-5 " + (value <= rating ? "fill-accent text-accent" : "text-muted")}/></button>)}{rating > 0 && <button type="button" className="min-h-11 px-2 text-xs text-muted" aria-label={"Clear rating for " + name} onClick={() => onChange(0)}>Clear</button>}</div>;
 }

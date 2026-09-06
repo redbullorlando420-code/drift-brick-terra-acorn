@@ -4,6 +4,7 @@ import { useShallow } from "zustand/react/shallow";
 import { Lock, Shuffle } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { DiscoveryDesk, LiveDesk } from "./discovery-desk";
 import { SidebarNav } from "./sidebar";
 import { TopBar } from "./top-bar";
 import { InviteStrip } from "./invite";
@@ -55,7 +56,7 @@ export function LibraryApp() {
   const [adultTag, setAdultTag] = useState("All");
   const [adultSort, setAdultSort] = useState<"recent" | "name" | "favorites">("recent");
   const [twitchSort, setTwitchSort] = useState<"live" | "viewers" | "name">("live");
-  const [liveColumns, setLiveColumns] = useState(4);
+  const [twitchFilter, setTwitchFilter] = useState("all");
 
   const restoreFolders = useLibrary((s) => s.restoreFolders);
   const openVideo = useLibrary((s) => s.openVideo);
@@ -94,7 +95,6 @@ export function LibraryApp() {
   const tags = useLibrary((s) => s.tags);
   const favorites = useLibrary((s) => s.favorites);
   const progress = useLibrary((s) => s.progress);
-  const favoriteLiveVideos = useMemo(() => liveVideos.filter((video) => favorites[video.id]), [favorites, liveVideos]);
   const likes = useLibrary((s) => s.likes);
   const adultTagNames = useMemo(() => [...new Set(videos.flatMap((video) => tags[video.id] ?? []))].sort(), [tags, videos]);
   const moviesByGenre = useMemo(() => [...videos].filter((video) => Boolean(video.genre)).sort((a, b) => a.genre!.localeCompare(b.genre!)), [videos]);
@@ -131,16 +131,17 @@ export function LibraryApp() {
     const room = new URLSearchParams(window.location.search).get("room")?.trim().toUpperCase() ?? "";
     if (/^RC[A-Z0-9]{4,12}$/.test(room)) setSource("watch-room");
   }, [hydrated, setSource]);
-  useEffect(() => { const sync = () => setLiveColumns(Number(localStorage.getItem("reelcase.live-columns") ?? "4")); sync(); window.addEventListener("storage", sync); return () => window.removeEventListener("storage", sync); }, []);
 
   const refreshFollows = useLibrary((s) => s.refreshFollows);
   const pushNotice = useLibrary((s) => s.pushNotice);
   const follows = useLibrary((s) => s.follows);
 
   useEffect(() => {
-    if (!follows.length) return;
+    if (!hydrated || !follows.length) return;
     let cancelled = false;
     const tick = async () => {
+      if (document.hidden || !navigator.onLine) return;
+      if (Date.now() - useLibrary.getState().remoteCheckedAt < 90_000) return;
       const { wentLive, newVideos } = await refreshFollows();
       if (cancelled) return;
       for (const ch of wentLive) {
@@ -161,13 +162,13 @@ export function LibraryApp() {
       }
     };
     const id = window.setInterval(() => void tick(), 90_000);
-    const first = window.setTimeout(() => void tick(), 250);
+    const first = window.setTimeout(() => void tick(), 1500);
     return () => {
       cancelled = true;
       window.clearInterval(id);
       window.clearTimeout(first);
     };
-  }, [follows.length, refreshFollows, pushNotice]);
+  }, [hydrated, follows.length, refreshFollows, pushNotice]);
 
   const prevScanning = useRef<typeof scanning>(null);
   useEffect(() => {
@@ -275,12 +276,12 @@ export function LibraryApp() {
 
   return (
     <div className="flex min-h-dvh bg-bg text-fg">
-      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 border-r border-border bg-surface/80 px-3 py-5 lg:block">
+      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 overflow-y-auto border-r border-border bg-surface/80 px-3 py-5 lg:block">
         <SidebarNav onAddFolder={(adult) => onAddFolder(undefined, adult)} />
       </aside>
 
       <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-        <SheetContent side="left" className="bg-surface p-4">
+        <SheetContent side="left" className="overflow-y-auto bg-surface p-4">
           <SheetTitle className="sr-only">Library menu</SheetTitle>
           <SidebarNav
             onAddFolder={(adult) => {
@@ -313,6 +314,7 @@ export function LibraryApp() {
             </>
           ) : (
             <>
+              {sourceId === "home" && !query && <DiscoveryDesk videos={videos} />}
               {!hasUserFolders && sourceId === "home" && (
                 <InviteStrip
                   onAddFolder={() => onAddFolder()}
@@ -325,7 +327,7 @@ export function LibraryApp() {
                   <ConnectPanel key={sourceId === "twitch" ? "twitch-imports" : sourceId === "youtube" ? "youtube-imports" : "home-imports"} defaultKind={sourceId === "twitch" ? "twitch" : "youtube"} lockedKind={sourceId === "youtube" || sourceId === "twitch" ? sourceId : undefined} />
                 )}
 
-              {sourceId === "home" && !query && featured && <Billboard video={featured} />}
+
               {sourceId === "movies" && !query && (randomSourceMovies[0] || featured) && (
                 <Billboard video={randomSourceMovies[0] ?? featured!} />
               )}
@@ -385,35 +387,22 @@ export function LibraryApp() {
               {sourceId === "twitch" && browsing && (
                 <>
                   <section className="mb-7 rounded-xl bg-elevated p-5 shadow-border sm:p-6"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Live desk</p><h1 className="mt-2 font-display text-4xl text-fg">Twitch, live first.</h1><p className="mt-2 max-w-2xl text-sm text-muted">Sort live streams and VODs by what matters right now.</p><div className="mt-4 flex flex-wrap gap-2">{(["live", "viewers", "name"] as const).map((sort) => <Button key={sort} size="sm" variant={twitchSort === sort ? "default" : "secondary"} onClick={() => setTwitchSort(sort)}>{sort === "live" ? "Live first" : sort === "viewers" ? "Most viewers" : "A–Z"}</Button>)}</div></section>
-                  <TitleRail title="Twitch sorted" videos={sortedTwitch} variant="rail" />
+                  <div className="mb-5 flex flex-wrap gap-2">{[["all", "All Twitch"], ["favorites", "Favorites"], ["likes", "Liked"]].map(([value, label]) => <Button key={value} variant={twitchFilter === value ? "default" : "secondary"} onClick={() => setTwitchFilter(value)}>{label}{value === "all" ? "" : " · " + twitchVideos.filter((video) => value === "favorites" ? favorites[video.id] : likes[video.id]).length}</Button>)}</div>
+                  {twitchFilter === "all" ? <><TitleRail title="Favorite Twitch videos" videos={sortedTwitch.filter((video) => favorites[video.id])} variant="rail"/><TitleRail title="Liked on Twitch" videos={sortedTwitch.filter((video) => likes[video.id])} variant="rail"/></> : null}
+                  {twitchFilter !== "all" && !sortedTwitch.some((video) => twitchFilter === "favorites" ? favorites[video.id] : likes[video.id]) && <p className="mb-6 rounded-lg border border-border p-6 text-muted">Nothing saved here yet. Use the heart or like action on a Twitch video to keep it here between visits.</p>}
+                  <TitleRail title={twitchFilter === "all" ? "Your Twitch mix" : twitchFilter === "favorites" ? "Your favorites" : "Your liked videos"} videos={sortedTwitch.filter((video) => twitchFilter === "all" || (twitchFilter === "favorites" ? favorites[video.id] : likes[video.id]))} variant="rail" />
+                  {twitchFilter === "all" && <>
                   <TitleRail title="Live" videos={sortedTwitch.filter((video) => video.remote?.live)} variant="rail" />
                   <TitleRail title="Popular VODs" videos={twitchVodPicks} variant="rail" />
                   <TitleRail title="Clips & quick watches" videos={twitchClips} variant="rail" />
+                  </>}
                   {!twitchVideos.length && (
                     <p className="text-sm text-muted">Follow a channel above to fill this shelf.</p>
                   )}
                 </>
               )}
 
-              {sourceId === "live" && browsing && (
-                <>
-                  {liveVideos.length ? (
-                    <>
-                      {favoriteLiveVideos.length > 0 && <TitleRail title="Favorites live now" videos={favoriteLiveVideos} variant="rail" />}
-                      <h1 className="mb-3 font-display text-2xl text-fg">Everyone else live now</h1>
-                      <div className={liveColumns === 3 ? "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" : liveColumns === 6 ? "grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6" : "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"}>{liveVideos.filter((video) => !favorites[video.id]).slice(0, 120).map((video, index) => <VideoCard key={video.id} video={video} variant="rail" index={index} className="w-full" />)}</div>
-                    </>
-                  ) : (
-                    <div className="rounded-xl bg-surface px-6 py-16 text-center shadow-border">
-                      <p className="font-display text-2xl text-fg">Nobody you follow is live</p>
-                      <p className="mx-auto mt-2 max-w-sm text-sm text-muted">
-                        Add Twitch channels. Reelcase checks them and pings Notifications when they
-                        go live.
-                      </p>
-                    </div>
-                  )}
-                </>
-              )}
+              {sourceId === "live" && browsing && <LiveDesk videos={liveVideos} />}
 
               {sourceId === "movies" && browsing && (
                 <>
@@ -634,3 +623,4 @@ export function LibraryApp() {
     </div>
   );
 }
+

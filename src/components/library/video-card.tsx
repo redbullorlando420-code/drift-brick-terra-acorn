@@ -71,6 +71,8 @@ export function VideoCard({
     >
       {(imageFailed && youtubeFallback ? youtubeFallback : art) ? (
         <img
+          loading="lazy"
+          decoding="async"
           src={imageFailed && youtubeFallback ? youtubeFallback : hovered && preview ? preview : art}
           alt=""
           onError={() => setImageFailed(true)}

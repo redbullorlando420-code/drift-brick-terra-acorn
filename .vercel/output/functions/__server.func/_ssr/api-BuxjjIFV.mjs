@@ -1,6 +1,6 @@
 import { t as createServerFn } from "./ssr.mjs";
 import { t as createServerRpc } from "./createServerRpc-A6pJPYTF.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/api-CEZlN5Jx.js
+//#region node_modules/.nitro/vite/services/ssr/assets/api-BuxjjIFV.js
 function asString(v) {
 	return typeof v === "string" ? v : "";
 }
@@ -307,30 +307,41 @@ var refreshRemotes_createServerFn_handler = createServerRpc({
 var refreshRemotes = createServerFn({ method: "POST" }).validator((data) => parseRefresh(data)).handler(refreshRemotes_createServerFn_handler, async ({ data }) => {
 	const videos = [];
 	const channels = [];
-	for (const ch of data.channels) try {
-		if (ch.kind === "twitch") {
-			const next = await followTwitch(ch.handle);
-			channels.push({
-				...ch,
-				...next.channel,
-				id: ch.id
-			});
-			videos.push(...next.videos);
-		} else {
-			const next = await youtubeFromChannel(ch.channelId ? `https://www.youtube.com/channel/${ch.channelId}` : ch.handle);
-			channels.push({
-				...ch,
-				...next.channel,
-				id: ch.id
-			});
-			videos.push(...next.videos);
+	const refreshedIds = [];
+	await mapPool(data.channels, 4, async (ch) => {
+		try {
+			if (ch.kind === "twitch") {
+				const next = await followTwitch(ch.handle);
+				channels.push({
+					...ch,
+					...next.channel,
+					id: ch.id
+				});
+				videos.push(...next.videos.map((video) => ({
+					...video,
+					folderId: ch.id
+				})));
+			} else {
+				const next = await youtubeFromChannel(ch.channelId ? `https://www.youtube.com/channel/${ch.channelId}` : ch.handle);
+				channels.push({
+					...ch,
+					...next.channel,
+					id: ch.id
+				});
+				videos.push(...next.videos.map((video) => ({
+					...video,
+					folderId: ch.id
+				})));
+			}
+			refreshedIds.push(ch.id);
+		} catch {
+			channels.push(ch);
 		}
-	} catch {
-		channels.push(ch);
-	}
+	});
 	return {
 		videos,
-		channels
+		channels,
+		refreshedIds
 	};
 });
 function parseImport(data) {

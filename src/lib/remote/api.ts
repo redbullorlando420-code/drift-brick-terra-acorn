@@ -12,6 +12,7 @@ export type FollowResult = {
 export type RefreshResult = {
   videos: LibraryVideo[];
   channels: FollowedChannel[];
+  refreshedIds: string[];
 };
 
 function asString(v: unknown) {
@@ -104,6 +105,7 @@ function tag(xml: string, name: string): string {
 
 async function fetchText(url: string): Promise<string> {
   const res = await fetch(url, {
+    signal: AbortSignal.timeout(12000),
     headers: {
       "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai) AppleWebKit/537.36",
       accept: "text/html,application/xhtml+xml,application/xml,application/json",
@@ -150,6 +152,7 @@ function ytVideo(entry: {
 async function youtubeFromVideo(id: string): Promise<FollowResult> {
   const oembed = await fetch(
     `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${id}`)}&format=json`,
+    { signal: AbortSignal.timeout(12000) },
   );
   if (!oembed.ok) throw new Error("That YouTube video could not be found.");
   const meta = (await oembed.json()) as {
@@ -274,6 +277,7 @@ type GqlUser = {
 
 async function twitchUser(login: string): Promise<GqlUser | null> {
   const res = await fetch("https://gql.twitch.tv/gql", {
+    signal: AbortSignal.timeout(12000),
     method: "POST",
     headers: {
       "client-id": "kimne78kx3ncx6brgo4mv6wki5h1ko",
@@ -399,23 +403,25 @@ export const refreshRemotes = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<RefreshResult> => {
     const videos: LibraryVideo[] = [];
     const channels: FollowedChannel[] = [];
-    for (const ch of data.channels) {
+    const refreshedIds: string[] = [];
+    await mapPool(data.channels, 4, async (ch) => {
       try {
         if (ch.kind === "twitch") {
           const next = await followTwitch(ch.handle);
           channels.push({ ...ch, ...next.channel, id: ch.id });
-          videos.push(...next.videos);
+          videos.push(...next.videos.map((video) => ({ ...video, folderId: ch.id })));
         } else {
           const q = ch.channelId ? `https://www.youtube.com/channel/${ch.channelId}` : ch.handle;
           const next = await youtubeFromChannel(q);
           channels.push({ ...ch, ...next.channel, id: ch.id });
-          videos.push(...next.videos);
+          videos.push(...next.videos.map((video) => ({ ...video, folderId: ch.id })));
         }
+        refreshedIds.push(ch.id);
       } catch {
         channels.push(ch);
       }
-    }
-    return { videos, channels };
+    });
+    return { videos, channels, refreshedIds };
   });
 
 type ImportItemIn = { query: string; kind: "youtube" | "twitch" };
@@ -498,6 +504,7 @@ function parseTwitchUser(data: unknown): { login: string } {
 
 async function twitchGql(query: string, variables: Record<string, string>) {
   const res = await fetch("https://gql.twitch.tv/gql", {
+    signal: AbortSignal.timeout(12000),
     method: "POST",
     headers: {
       "client-id": "kimne78kx3ncx6brgo4mv6wki5h1ko",
