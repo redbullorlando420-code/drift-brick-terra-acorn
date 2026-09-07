@@ -1,0 +1,38 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Reelcase",
+      "hasCanvas": false,
+      "bodyTextLen": 2141,
+      "bodyTextHash": "ed16c56f2fe9f81735112c4550c53d99d15488984d33c8c06f5b58b973ae5d83",
+      "bodyTextPrefix": "Reelcase Vault · networks · live Home 12 Movies YouTube 8 Twitch",
+      "horizontalOverflow": false,
+      "consoleErrors": [
+        "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\n%s%s https://react.dev/link/hydration-mismatch \n\n  ...\n    <OutletImpl>\n      <Suspense fallback={null}>\n        <MatchImpl routeId=\"/\">\n          <MatchView router={{...}} match={{id:\"//\",ssr:true, ...}}>\n            <SafeFragment>\n              <SafeFragment fallback={null}>\n                <CatchBoundary getResetKey={function getResetKey} errorComponent={function AppErrorComponent} ...>\n                  <SafeFragment fallback={function fallback}>\n                    <MatchInnerImpl match={{id:\"//\",ssr:true, ...}}>\n                      <Lazy>\n                        <Home>\n                          <LibraryApp>\n                            <div className=\"flex min-h...\">\n                              <aside>\n                              <Sheet>\n                              <div>\n                              <input\n                                ref={{current:null}}\n                                type=\"file\"\n                                multiple={true}\n                                className=\"sr-only\"\n                                tabIndex={-1}\n                                aria-hidden=\"true\"\n                                webkitdirectory=\"\"\n                                directory=\"\"\n                                onChange={function onChange}\n-                               style={{caret-color:\"transparent\"}}\n                              >\n                              <input\n                                ref={{current:null}}\n                                type=\"file\"\n                                multiple={true}\n                                accept=\"video/*\"\n                                className=\"sr-only\"\n                                tabIndex={-1}\n                                aria-hidden=\"true\"\n                                onChange={function onChange}\n-                               style={{caret-color:\"transparent\"}}\n                              >\n                              ...\n"
+      ],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\reelcase-preferences-discovery.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Reelcase",
+      "hasCanvas": false,
+      "bodyTextLen": 2035,
+      "bodyTextHash": "578e43bf352205a230f122443703568f47f7e71cc7d0c897ac6c2a6f7a671fe7",
+      "bodyTextPrefix": "Home 12 indexed Name YOUR DAILY DETOUR Something worth finding. ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\reelcase-preferences-discovery-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\reelcase-preferences-discovery.json"
+}

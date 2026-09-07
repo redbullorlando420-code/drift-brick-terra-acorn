@@ -52,6 +52,7 @@ export interface P2PRoomOptions {
   onMessage?: (from: string, data: unknown, channel: "state" | "reliable") => void;
   /** Fires once, on the first successful signaling poll (registration). */
   onConnected?: () => void;
+  onDebug?: (event: string) => void;
 }
 
 interface PeerSlot {
@@ -106,6 +107,7 @@ export class P2PRoom {
   private closed = false;
   private everPolled = false;
   private lastPeersFingerprint = "";
+  private debug(event: string) { this.opts.onDebug?.(`${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })} · ${event}`); }
 
   constructor(opts: P2PRoomOptions) {
     this.opts = opts;
@@ -119,7 +121,9 @@ export class P2PRoom {
   async join(): Promise<void> {
     try {
       await this.pollOnce();
+      this.debug("Signaling registered");
     } catch {
+      this.debug("Signaling retry scheduled");
       // First poll can fail transiently; the scheduled loop below retries.
     }
     if (this.closed) return;
@@ -202,6 +206,7 @@ export class P2PRoom {
       this.opts.onConnected?.();
     }
     this.reconcileRoster(body.peers);
+    this.debug(`Roster visible: ${Math.max(0, body.peers.length - 1)} other peer${body.peers.length === 2 ? "" : "s"}`);
     const roster = new Set(body.peers.map((p) => p.id));
     for (const sig of body.signals) {
       this.cursor = Math.max(this.cursor, sig.id);
@@ -302,6 +307,7 @@ export class P2PRoom {
     pc.ondatachannel = (e) => this.attachChannel(slot, e.channel);
 
     if (initiator) {
+      this.debug(`Negotiating direct channel with ${name || "guest"}`);
       // Creating the channels triggers negotiationneeded → the offer.
       this.attachChannel(
         slot,
@@ -317,6 +323,7 @@ export class P2PRoom {
     else slot.reliable = channel;
     channel.onopen = () => {
       slot.lastProgressAt = Date.now();
+      this.debug(`Direct ${channel.label} channel open with ${slot.info.name || "guest"}`);
     };
     channel.onmessage = (e) => {
       let msg: { t: string; d?: unknown };
@@ -467,6 +474,7 @@ export class P2PRoom {
           // Delivery gave up; the pair converges on the next offer cycle (or
           // the watchdog rebuilds it). Logged once so failures are visible.
           console.warn(`[p2p] signal ${kind} to ${to} failed after retries`, err);
+          this.debug(`Could not deliver ${kind} signal`);
           return;
         }
         await new Promise((r) => setTimeout(r, SIGNAL_RETRY_DELAYS_MS[attempt]));

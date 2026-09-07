@@ -81,6 +81,9 @@ export function Player({ playlist }: { playlist: string[] }) {
   const hardwareAccel = useLibrary((s) => s.hardwareAccel);
   const setHardwareAccel = useLibrary((s) => s.setHardwareAccel);
   const removeVideo = useLibrary((s) => s.removeVideo);
+  const restoreOne = useLibrary((s) => s.restoreOne);
+  const markUnavailable = useLibrary((s) => s.markUnavailable);
+  const folder = useLibrary((s) => s.folders.find((item) => item.id === video?.folderId));
   const fav = useLibrary((s) => (s.activeId ? Boolean(s.favorites[s.activeId]) : false));
   const liked = useLibrary((s) => (s.activeId ? Boolean(s.likes[s.activeId]) : false));
   const tags = useLibrary((s) => (s.activeId ? (s.tags[s.activeId] ?? EMPTY_TAGS) : EMPTY_TAGS));
@@ -110,14 +113,34 @@ export function Player({ playlist }: { playlist: string[] }) {
   const scrubbing = useRef(false);
 
   const enterVrTheater = useCallback(async () => {
-    const xr = (navigator as Navigator & { xr?: { requestSession: (mode: string, init?: unknown) => Promise<{ addEventListener: (name: string, listener: () => void) => void; end: () => Promise<void> }> } }).xr;
-    if (!xr) { setVrStatus("VR needs Meta Quest Browser or another WebXR browser."); return; }
+    const xr = (navigator as Navigator & { xr?: { requestSession: (mode: string, init?: unknown) => Promise<any> } }).xr;
+    const media = mediaRef.current;
+    if (!xr) { setVrStatus("VR needs Meta Quest Browser on a secure site. Open Reelcase there, allow immersive VR, then try again."); return; }
+    if (!media) { setVrStatus("VR cinema is available for local video playback. Open a local file first; embedded provider video stays in its official player."); return; }
     try {
-      const session = await xr.requestSession("immersive-vr", { optionalFeatures: ["local-floor", "dom-overlay"], domOverlay: { root: document.body } });
-      setVrStatus("VR theater active — your video remains visible in the headset overlay. Use the headset system button to exit.");
-      session.addEventListener("end", () => setVrStatus("VR theater closed."));
+      const session = await xr.requestSession("immersive-vr", { optionalFeatures: ["local-floor", "bounded-floor"] });
+      const canvas = document.createElement("canvas");
+      const gl = canvas.getContext("webgl", { xrCompatible: true }) as WebGLRenderingContext | null;
+      if (!gl) { await session.end(); setVrStatus("This headset browser could not create the cinema surface. Update Meta Quest Browser and retry."); return; }
+      await (gl as WebGLRenderingContext & { makeXRCompatible?: () => Promise<void> }).makeXRCompatible?.();
+      const layer = new (window as any).XRWebGLLayer(session, gl);
+      session.updateRenderState({ baseLayer: layer });
+      const source = await session.requestReferenceSpace("local");
+      const shader = (type: number, code: string) => { const part = gl.createShader(type)!; gl.shaderSource(part, code); gl.compileShader(part); return part; };
+      const program = gl.createProgram()!;
+      gl.attachShader(program, shader(gl.VERTEX_SHADER, "attribute vec2 p; varying vec2 uv; void main(){uv=(p+1.0)*.5;gl_Position=vec4(p,0.,1.);}"));
+      gl.attachShader(program, shader(gl.FRAGMENT_SHADER, "precision mediump float; varying vec2 uv; uniform sampler2D video; void main(){vec2 q=vec2(uv.x,1.0-uv.y); gl_FragColor=texture2D(video,q);}"));
+      gl.linkProgram(program); gl.useProgram(program);
+      const buffer = gl.createBuffer()!; gl.bindBuffer(gl.ARRAY_BUFFER, buffer); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]), gl.STATIC_DRAW);
+      const position = gl.getAttribLocation(program, "p"); gl.enableVertexAttribArray(position); gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
+      const texture = gl.createTexture()!; gl.bindTexture(gl.TEXTURE_2D, texture); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      let lastControl = 0;
+      const render = (time: number, frame: any) => { const pose = frame.getViewerPose(source); if (pose) { gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer); for (const view of pose.views) { const viewport = layer.getViewport(view); gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height); try { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, media); } catch {} gl.drawArrays(gl.TRIANGLES, 0, 6); } } for (const input of session.inputSources) { const buttons = input.gamepad?.buttons; if (buttons?.[0]?.pressed && time - lastControl > 500) { media.paused ? void media.play() : media.pause(); lastControl = time; } if (buttons?.[4]?.pressed && time - lastControl > 500) { media.currentTime = Math.max(0, media.currentTime - 10); lastControl = time; } if (buttons?.[5]?.pressed && time - lastControl > 500) { media.currentTime += 10; lastControl = time; } } session.requestAnimationFrame(render); };
+      session.requestAnimationFrame(render);
+      setVrStatus("VR cinema active. Trigger: play/pause · left grip: −10 seconds · right grip: +10 seconds. Use the headset system button to exit.");
+      session.addEventListener("end", () => { gl.deleteTexture(texture); gl.deleteProgram(program); canvas.remove(); setVrStatus("VR cinema closed."); });
     } catch {
-      setVrStatus("VR session was not started. Allow immersive VR in your headset browser, then try again.");
+      setVrStatus("VR cinema was not started. In Meta Quest Browser, allow immersive VR, use HTTPS, and retry with a local playable video.");
     }
   }, []);
 
@@ -143,7 +166,8 @@ export function Player({ playlist }: { playlist: string[] }) {
         if (!cancelled) setSrc(url);
       })
       .catch((err: unknown) => {
-        if (!cancelled) setSrcError(err instanceof Error ? err.message : "Could not open file");
+        const message = err instanceof Error ? err.message : "Could not open file";
+        if (!cancelled) { setSrcError(message); markUnavailable(video.id, message); }
       });
     void probeHardwareDecode(video.mime).then((info) => {
       if (!cancelled) setHw(info);
@@ -189,11 +213,12 @@ export function Player({ playlist }: { playlist: string[] }) {
       }
     };
     const onErr = () => {
-      setLoadError(
+      const message =
         isLikelyPlayable(video?.extension ?? "")
           ? "This file could not be decoded."
-          : `${(video?.extension ?? "this").toUpperCase()} often needs a desktop player.`,
-      );
+          : `${(video?.extension ?? "this").toUpperCase()} often needs a desktop player.`;
+      setLoadError(message);
+      if (video) markUnavailable(video.id, message);
     };
     const stopFrames = attachFrameCallback(el, (t) => {
       if (scrubbing.current) return;
@@ -490,6 +515,14 @@ export function Player({ playlist }: { playlist: string[] }) {
         <div className="relative z-10 mx-auto mt-auto mb-auto max-w-md rounded-xl bg-surface px-6 py-5 text-center shadow-border">
           <p className="font-display text-xl text-fg">Can’t play this file</p>
           <p className="mt-2 text-sm text-muted">{srcError || loadError}</p>
+          {!remote && folder?.kind === "directory" && (
+            <div className="mt-5 border-t border-border pt-4">
+              <p className="text-xs leading-5 text-subtle">Reelcase still has this title in your catalog, but the browser no longer has permission to read its folder.</p>
+              <Button className="mt-3" onClick={() => void restoreOne(folder.id)}>
+                Reconnect {folder.name}
+              </Button>
+            </div>
+          )}
         </div>
       )}
       {vrStatus && <p className="absolute z-20 right-4 bottom-4 max-w-sm rounded-md bg-surface/95 px-3 py-2 text-xs text-fg shadow-border sm:right-6">{vrStatus}</p>}

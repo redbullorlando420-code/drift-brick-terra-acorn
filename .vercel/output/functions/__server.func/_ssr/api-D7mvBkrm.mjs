@@ -1,6 +1,6 @@
 import { t as createServerFn } from "./ssr.mjs";
-import { n as createSsrRpc } from "./routes-C_48nI3V.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/api-BLlonZ5A.js
+import { n as createSsrRpc } from "./routes-DTr22jwL.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/api-D7mvBkrm.js
 function asString(v) {
 	return typeof v === "string" ? v : "";
 }

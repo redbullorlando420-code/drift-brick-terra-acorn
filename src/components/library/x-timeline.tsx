@@ -18,7 +18,7 @@ function loadWidgets() {
   }).catch((error) => { widgetScript = undefined; throw error; });
 }
 
-export function XTimeline({ account }: { account: string }) {
+export function XTimeline({ account, topic }: { account?: string; topic?: { label: string; query: string } }) {
   const container = useRef<HTMLDivElement>(null);
   const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState("Loading public posts…");
@@ -30,11 +30,11 @@ export function XTimeline({ account }: { account: string }) {
     element.replaceChildren();
     const link = document.createElement("a");
     link.className = "twitter-timeline";
-    link.href = `https://twitter.com/${account}`;
+    link.href = topic ? `https://twitter.com/search?q=${encodeURIComponent(topic.query)}&src=typed_query&f=live` : `https://twitter.com/${account}`;
     link.dataset.height = "640";
     link.dataset.theme = document.documentElement.dataset.theme === "day" ? "light" : "dark";
     link.dataset.dnt = "true";
-    link.textContent = `Public posts by @${account}`;
+    link.textContent = topic ? `Public posts about ${topic.label}` : `Public posts by @${account}`;
     element.append(link);
     const timeout = window.setTimeout(() => {
       if (!cancelled) setStatus("X hasn’t supplied a timeline. Open the profile to view posts, or retry.");
@@ -48,9 +48,11 @@ export function XTimeline({ account }: { account: string }) {
       if (!cancelled) { clearTimeout(timeout); setStatus("X is unavailable here. Your saved accounts are still ready to open."); }
     });
     return () => { cancelled = true; clearTimeout(timeout); observer.disconnect(); element.replaceChildren(); };
-  }, [account, attempt]);
+  }, [account, attempt, topic]);
+  const destination = topic ? `https://x.com/search?q=${encodeURIComponent(topic.query)}&src=typed_query&f=live` : `https://x.com/${account}`;
+  const title = topic ? topic.label : `@${account}`;
   return <section className="mt-5 rounded-lg border border-border bg-elevated p-5">
-    <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-semibold">@{account}</h2><div className="flex gap-2"><Button size="sm" variant="secondary" onClick={() => setAttempt((value) => value + 1)}><RefreshCw className="size-4" />Retry</Button><a className="inline-flex min-h-11 items-center gap-2 rounded-sm bg-accent px-3 text-sm font-medium text-accent-fg" href={`https://x.com/${account}`} target="_blank" rel="noopener noreferrer">Open profile<ExternalLink className="size-4" /></a></div></div>
+    <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-semibold">{title}</h2><div className="flex gap-2"><Button size="sm" variant="secondary" onClick={() => setAttempt((value) => value + 1)}><RefreshCw className="size-4" />Retry</Button><a className="inline-flex min-h-11 items-center gap-2 rounded-sm bg-accent px-3 text-sm font-medium text-accent-fg" href={destination} target="_blank" rel="noopener noreferrer">{topic ? "Open topic" : "Open profile"}<ExternalLink className="size-4" /></a></div></div>
     <p role="status" className="my-4 text-sm text-muted">{status}</p><div ref={container} className="min-h-24 overflow-hidden" />
   </section>;
 }

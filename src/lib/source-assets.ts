@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type SourcePhotoAsset = { file: File; path: string };
+export type SourcePhotoAsset = { file: File; path: string; url: string };
 
 type SourceAssets = {
   photos: SourcePhotoAsset[];
@@ -24,13 +24,13 @@ export const useSourceAssets = create<SourceAssets>((set) => ({
       ...state.photos,
       ...photoFiles
         .filter((file) => !state.photos.some((saved) => `${saved.file.name}:${saved.file.lastModified}` === `${file.name}:${file.lastModified}`))
-        .map((file) => ({ file, path: file.webkitRelativePath || file.name })),
+        .map((file) => ({ file, path: file.webkitRelativePath || file.name, url: URL.createObjectURL(file) })),
     ].slice(-600);
     return { photos, shortcuts: append(state.shortcuts, files.filter(shortcutFile)) };
   }),
   capturePhoto: (file, path) => set((state) => {
     const key = `${path}:${file.lastModified}`;
     if (state.photos.some((saved) => `${saved.path}:${saved.file.lastModified}` === key)) return state;
-    return { photos: [...state.photos, { file, path }].slice(-600) };
+    return { photos: [...state.photos, { file, path, url: URL.createObjectURL(file) }].slice(-600) };
   }),
 }));

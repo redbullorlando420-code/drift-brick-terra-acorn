@@ -37,6 +37,7 @@ function ytFilm(opts: {
     size: 0,
     duration: opts.duration,
     addedAt: 20 + opts.year,
+    isSample: true,
     year: opts.year,
     genre: opts.genre,
     tagline: opts.tagline,

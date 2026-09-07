@@ -78,6 +78,7 @@ type LibraryState = {
   hydrated: boolean;
   follows: FollowedChannel[];
   notices: AppNotice[];
+  unavailable: Record<string, true>;
   notifyPush: boolean;
   remoteBusy: boolean;
   remoteCheckedAt: number;
@@ -90,6 +91,7 @@ type LibraryState = {
   toggleFavorite: (id: string) => void;
   toggleLike: (id: string) => void;
   setVideoTags: (id: string, tags: string[]) => void;
+  autoTagLibrary: () => number;
   setVideoCategory: (id: string, category: string) => void;
   markProgress: (id: string, t: number, d: number) => void;
   recordPlay: (id: string) => void;
@@ -128,6 +130,7 @@ type LibraryState = {
   pushNotice: (n: Omit<AppNotice, "id" | "at" | "read">) => void;
   markNoticesRead: () => void;
   setNotifyPush: (on: boolean) => void;
+  markUnavailable: (id: string, reason: string) => void;
 };
 
 function persistNow(get: () => LibraryState) {
@@ -154,6 +157,7 @@ function persistNow(get: () => LibraryState) {
     follows: s.follows,
     notices: s.notices.slice(0, 40),
     notifyPush: s.notifyPush,
+    unavailableVideoIds: Object.keys(s.unavailable),
   };
   savePrefs(prefs);
 }
@@ -217,12 +221,24 @@ function dedupeFollows(rows: FollowedChannel[]): FollowedChannel[] {
 }
 
 function remoteMetadataTags(video: LibraryVideo) {
-  return [...new Set([video.remote?.kind, video.remote?.channelName, video.genre, video.remote?.live ? "live" : "vod"].filter((value): value is string => Boolean(value)).map((value) => value.trim()).filter(Boolean))].slice(0, 12);
+  const descriptionWords = (video.tagline ?? "").toLowerCase().match(/[a-z0-9]{4,}/g) ?? [];
+  const usefulWords = descriptionWords.filter((word) => !/^(this|that|with|from|your|have|will|into|about|video|youtube|twitch|watch|today|live)$/.test(word)).slice(0, 6);
+  return [...new Set([video.remote?.kind, video.remote?.channelName, video.genre, video.remote?.live ? "live" : "vod", ...usefulWords].filter((value): value is string => Boolean(value)).map((value) => value.trim()).filter(Boolean))].slice(0, 12);
 }
 
 function localNameTags(video: LibraryVideo) {
   const text = `${video.name} ${video.path}`.toLowerCase();
-  const tags = [video.genre?.toLowerCase()];
+  const added = new Date(video.addedAt);
+  const dateTags = Number.isFinite(added.getTime())
+    ? [`year-${added.getFullYear()}`, `month-${added.toLocaleString("en-US", { month: "long" }).toLowerCase()}`]
+    : [];
+  const nameTags = video.name
+    .replace(/\.[^.]+$/, "")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length >= 4 && !/^(video|movie|final|copy|edit|the|with|from)$/.test(word))
+    .slice(0, 4);
+  const tags = [video.genre?.toLowerCase(), `type-${video.extension.replace(/^\./, "").toLowerCase()}`, ...dateTags, ...nameTags];
   if (/\b(open source|creative commons|blender|public domain)\b/.test(text)) tags.push("open-source");
   if (/\b(trailer|teaser)\b/.test(text)) tags.push("trailer");
   if (/\b(1080p|2160p|4k|720p)\b/.test(text)) tags.push((text.match(/\b(2160p|4k|1080p|720p)\b/)?.[1]) ?? "hd");
@@ -264,6 +280,7 @@ function applyPrefs(partial: Partial<LibraryState>): Partial<LibraryState> {
     follows: dedupeFollows(prefs.follows ?? []),
     notices: prefs.notices ?? [],
     notifyPush: prefs.notifyPush ?? false,
+    unavailable: Object.fromEntries((prefs.unavailableVideoIds ?? []).map((id) => [id, true])),
   };
 }
 
@@ -298,6 +315,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   hydrated: false,
   follows: STARTER_FOLLOWS,
   notices: [],
+  unavailable: {},
   notifyPush: false,
   remoteBusy: false,
   refreshing: false,
@@ -350,6 +368,22 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     const video = state.videos.find((item) => item.id === id);
     if (video) librarySearchIndex.updateMetadata(video, state.videos, state.tags, state.categories);
     persistNow(get);
+  },
+  autoTagLibrary: () => {
+    let changed = 0;
+    set((s) => {
+      const tags = { ...s.tags };
+      for (const video of s.videos) {
+        const merged = [...new Set([...(tags[video.id] ?? []), ...localNameTags(video)])].slice(0, 12);
+        if (merged.length !== (tags[video.id] ?? []).length) changed += 1;
+        tags[video.id] = merged;
+      }
+      return { tags };
+    });
+    const state = get();
+    librarySearchIndex.sync(state.videos, state.tags, state.categories);
+    persistNow(get);
+    return changed;
   },
   setVideoCategory: (id, category) => {
     set((s) => ({ categories: { ...s.categories, [id]: category.trim().slice(0, 40) } }));
@@ -738,6 +772,9 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       }
       const adult = adultIds.has(row.id);
       const cacheFirst = localStorage.getItem("reelcase.source-cache-first") !== "false";
+      // Cached catalogs are intentionally stable at startup. Re-scanning a large
+      // permitted folder on every reload makes the sidebar flicker and delays the
+      // first screen; explicit source reload remains available when needed.
       if (cacheFirst && cachedFolderIds.has(row.id)) {
         const snapshot = { id: row.id, health: "cached" as const, lastCheckedAt: Date.now(), videoCount: savedHealth.get(row.id)?.videoCount ?? 0 };
         set((s) => ({ folders: s.folders.map((folder) => folder.id === row.id ? { ...folder, name: row.name, needsPermission: false, ...snapshot } : folder) }));
@@ -835,9 +872,11 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     if (!ok) return;
     const folder = get().folders.find((f) => f.id === folderId);
     const name = folder?.name ?? handle.name;
+    const resumeByPath = new Map(get().videos.filter((video) => video.folderId === folderId).map((video) => [video.path, get().progress[video.id]]));
     set((s) => ({
       scanning: { found: 0, looked: 0, folderName: name },
       videos: s.videos.filter((v) => v.folderId !== folderId),
+      unavailable: Object.fromEntries(Object.entries(s.unavailable).filter(([id]) => !s.videos.some((video) => video.id === id && video.folderId === folderId))),
       folders: s.folders.map((f) =>
         f.id === folderId ? { ...f, videoCount: 0, needsPermission: false } : f,
       ),
@@ -859,12 +898,18 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       },
     });
     await writeChain;
+    const recoveredProgress = videos.reduce<Record<string, ProgressMark>>((next, video) => {
+      const mark = resumeByPath.get(video.path);
+      if (mark) next[video.id] = mark;
+      return next;
+    }, {});
     set((s) => ({
       folders: s.folders.map((f) =>
         f.id === folderId ? { ...f, videoCount: videos.length, needsPermission: false } : f,
       ),
       scanning: null,
       sourceId: folder?.adult ? "adults" : folderId,
+      progress: { ...s.progress, ...recoveredProgress },
     }));
     if (videos.length) await saveFolderVideos(folderId, videos).catch(() => undefined);
   },
@@ -1110,6 +1155,8 @@ export const useLibrary = create<LibraryState>((set, get) => ({
             name: c.title,
             kind: c.kind as Folder["kind"],
             videoCount: result.videos.filter((v) => v.folderId === c.id).length,
+            health: "healthy" as const,
+            lastCheckedAt: Date.now(),
           })),
         ],
         videos: mergeRemoteRefresh(s.videos, result.videos, result.refreshedIds, new Set([...Object.keys(s.favorites), ...Object.keys(s.likes), ...s.history.map((entry) => entry.id)])),
@@ -1122,9 +1169,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           !beforeLive.has(`tw:${c.handle}:live`) &&
           !beforeLive.has(`tw:${c.handle.toLowerCase()}:live`),
       );
-      const newVideos = result.videos.filter(
-        (v) => !beforeIds.has(v.id) && v.remote?.kind === "youtube",
-      );
+      const newVideos = result.videos.filter((v) => !beforeIds.has(v.id) && Boolean(v.remote));
       return { wentLive, newVideos };
     } catch {
       return { wentLive: [], newVideos: [] };
@@ -1161,6 +1206,13 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     set({ notifyPush });
     persistNow(get);
   },
+  markUnavailable: (id, reason) => {
+    const video = get().videos.find((item) => item.id === id);
+    if (!video || video.remote) return;
+    set((s) => ({ unavailable: { ...s.unavailable, [id]: true } }));
+    get().pushNotice({ title: "Hidden unavailable video", body: `${video.name} · ${reason}`, kind: "system" });
+    persistNow(get);
+  },
 }));
 
 function publicList(state: LibraryState): LibraryVideo[] {
@@ -1168,7 +1220,7 @@ function publicList(state: LibraryState): LibraryVideo[] {
   const knownFolders = new Set(state.folders.map((folder) => folder.id));
   // Cached catalog entries can outlive a removed source. Keep their metadata in storage,
   // but never promote an orphaned entry into Home or search results.
-  let list = state.videos.filter((v) => !adult.has(v.folderId) && (knownFolders.has(v.folderId) || Boolean(v.remote) || v.isSample));
+  let list = state.videos.filter((v) => !state.unavailable[v.id] && !adult.has(v.folderId) && (knownFolders.has(v.folderId) || Boolean(v.remote) || v.isSample));
   if (state.hideDemo) list = list.filter((v) => !v.isSample);
   return list;
 }
@@ -1176,7 +1228,7 @@ function publicList(state: LibraryState): LibraryVideo[] {
 function adultList(state: LibraryState): LibraryVideo[] {
   if (!state.adultsUnlocked) return [];
   const adult = adultIdSet(state.folders);
-  return state.videos.filter((v) => adult.has(v.folderId));
+  return state.videos.filter((v) => !state.unavailable[v.id] && adult.has(v.folderId));
 }
 
 export function selectVisible(state: LibraryState): LibraryVideo[] {
@@ -1265,7 +1317,7 @@ export function selectContinue(state: LibraryState, adult = false): LibraryVideo
     return r > 0.04 && r < 0.96;
   });
   items.sort((a, b) => (state.progress[b.id]?.at ?? 0) - (state.progress[a.id]?.at ?? 0));
-  return items.slice(0, 12);
+  return items.slice(0, 48);
 }
 
 export function selectFavorites(state: LibraryState, adult = false): LibraryVideo[] {
@@ -1278,11 +1330,11 @@ export function selectHistory(state: LibraryState, adult = false): LibraryVideo[
   return state.history
     .map((h) => byId.get(h.id))
     .filter((v): v is LibraryVideo => v != null)
-    .slice(0, 12);
+    .slice(0, 48);
 }
 
 export function selectYoutube(state: LibraryState): LibraryVideo[] {
-  return newestFirst(publicList(state).filter((v) => v.remote?.kind === "youtube"), 18);
+  return [...publicList(state).filter((v) => v.remote?.kind === "youtube")].sort((a, b) => b.addedAt - a.addedAt);
 }
 
 export function selectTwitch(state: LibraryState): LibraryVideo[] {

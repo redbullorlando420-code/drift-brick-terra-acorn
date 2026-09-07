@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bot,
   Box,
+  BarChart3,
   Clapperboard,
   Copy,
   Download,
@@ -37,6 +38,7 @@ import { useP2PRoom } from "@/lib/multiplayer";
 import type { LibraryVideo } from "@/lib/videos/types";
 
 import { XTimeline } from "./x-timeline";
+import { VideoCard } from "./video-card";
 
 type LocalItem = {
   name: string;
@@ -49,130 +51,26 @@ type LocalItem = {
 type HubStore = { prints: LocalItem[]; games: LocalItem[] };
 const HUB_KEY = "reelcase.hub.v1";
 const PREFERENCE_GROUPS = {
-  Alerts: [
-    "Go-live alerts",
-    "New Twitch VOD alerts",
-    "New YouTube upload alerts",
-    "Source change alerts",
-    "Watch-room invitation alerts",
-  ],
-  Playback: [
-    "Autoplay next video",
-    "Resume playback",
-    "Skip intros",
-    "Skip credits",
-    "Remember volume",
-    "Default playback speed",
-    "Prefer captions",
-    "Caption styling",
-    "Prefer dubbed audio",
-    "Picture in picture",
-    "Theater mode",
-    "Dim room lights",
-    "Hardware decode",
-    "Data saver",
-    "High quality on Wi-Fi",
-    "Play trailers muted",
-    "Ask before autoplay",
-    "Loop short videos",
-    "Show chapter markers",
-    "Keep player controls visible",
-  ],
-  Library: [
-    "Show hidden files",
-    "Group by folder",
-    "Remember folder view",
-    "Compact list view",
-    "Show file paths",
-    "Show file size",
-    "Show media details",
-    "Index new folders",
-    "Hide duplicate titles",
-    "Prefer poster artwork",
-    "Show unwatched badge",
-    "Show progress bar",
-    "Show date added",
-    "Show runtime",
-    "Open preview before play",
-    "Keep last search",
-    "Search tags",
-    "Search notes",
-    "Search exact titles",
-    "Clear recent searches",
-  ],
-  Discovery: [
-    "Local recommendations",
-    "Use favorites for picks",
-    "Use watch history for picks",
-    "Use tags for picks",
-    "Surface short films",
-    "Surface live channels",
-    "Show channel uploads",
-    "Show random pick",
-    "Refresh public channels",
-    "Include open-source films",
-    "Prefer familiar genres",
-    "Try new genres",
-    "Show trending shelf",
-    "Show recently added",
-    "Show because-you-watched",
-    "Show top picks",
-    "Show trailers",
-    "Show creator details",
-    "Show similar titles",
-    "Hide already watched",
-  ],
-  WatchRoom: [
-    "Watch-room notices",
-    "Room clock correction",
-    "Send periodic timeline ticks",
-    "Require guest consent",
-    "Show guest ping",
-    "Show connection quality",
-    "Keep chat history",
-    "Allow queue edits",
-    "Auto play next queue item",
-    "Default compact stage",
-    "Remember stage size",
-    "Share playback speed",
-    "Pause when host leaves",
-    "Show ready check",
-    "Copy room code on create",
-    "Allow reaction messages",
-    "Show queue duration",
-    "Show room activity",
-    "Mute room notifications",
-    "Show Roku handoff",
-  ],
-  Privacy: [
-    "Reduce motion",
-    "Hide demo media",
-    "Private search history",
-    "Clear history on exit",
-    "Lock adult library on exit",
-    "Hide private titles from picks",
-    "Keep notes local",
-    "Keep tags local",
-    "Ask before external links",
-    "Ask before file sharing",
-    "Do not preload remote media",
-    "Mask local file paths",
-    "Hide viewing activity",
-    "Do not use watch history",
-    "Do not use likes",
-    "Do not use ratings",
-    "Export metadata only",
-    "Remember device permissions",
-    "Show privacy reminders",
-    "Reset local preferences",
-  ],
+  Alerts: ["Go-live alerts", "New Twitch VOD alerts", "New YouTube upload alerts", "Desktop notifications"],
+  Playback: ["Autoplay next video"],
+  Privacy: ["Reduce motion", "Hide demo media"],
 } as const;
+const ACTIVE_PREFERENCE_DETAILS: Record<string, string> = {
+  "alerts-go-live-alerts": "Active: adds an in-app notice when a tracked Twitch channel goes live after a refresh.",
+  "alerts-new-twitch-vod-alerts": "Active: adds an in-app notice when a tracked Twitch channel has a newly discovered VOD or clip.",
+  "alerts-new-youtube-upload-alerts": "Active: adds an in-app notice when a tracked YouTube channel has a newly discovered upload.",
+  "alerts-desktop-notifications": "Active: asks the browser for permission, then mirrors enabled Reelcase alerts as desktop notifications.",
+  "playback-autoplay-next-video": "Active: starts the next library title when a local video ends.",
+  "privacy-reduce-motion": "Active: reduces animation and scrolling motion across Reelcase.",
+  "privacy-hide-demo-media": "Active: hides bundled demonstration titles from your library shelves.",
+};
 const PREFERENCES = Object.entries(PREFERENCE_GROUPS).flatMap(([group, labels]) =>
   labels.map((label) => ({
     key: `${group}-${label}`.toLowerCase().replaceAll(" ", "-"),
     group,
     label,
-    detail: `${group} preference saved locally.`,
+    detail: ACTIVE_PREFERENCE_DETAILS[`${group}-${label}`.toLowerCase().replaceAll(" ", "-")],
+    implemented: true,
   })),
 );
 
@@ -244,6 +142,43 @@ function bytes(value: number) {
     : `${(value / 1024 / 1024).toFixed(1)} MB`;
 }
 
+export function GenreSection() {
+  const videos = useLibrary((s) => s.videos);
+  const tags = useLibrary((s) => s.tags);
+  const folders = useLibrary((s) => s.folders);
+  const [selected, setSelected] = useState("All genres");
+  const publicVideos = useMemo(() => videos.filter((video) => !folders.some((folder) => folder.id === video.folderId && folder.adult)), [folders, videos]);
+  const genres = useMemo(() => [...new Set(publicVideos.map((video) => video.genre).filter((genre): genre is string => Boolean(genre)))].sort(), [publicVideos]);
+  const tagGroups = useMemo(() => [...new Set(publicVideos.flatMap((video) => tags[video.id] ?? []))].filter((tag) => !/^(youtube|twitch|vod|live|type-)/.test(tag)).map((tag) => ({ tag, count: publicVideos.filter((video) => (tags[video.id] ?? []).includes(tag)).length })).filter((row) => row.count >= 2).sort((a, b) => b.count - a.count).slice(0, 20), [publicVideos, tags]);
+  const matching = selected === "All genres" ? publicVideos : genres.includes(selected) ? publicVideos.filter((video) => video.genre === selected) : publicVideos.filter((video) => (tags[video.id] ?? []).includes(selected));
+  return <HubShell eyebrow="Genre explorer" icon={<Clapperboard className="size-4"/>} title="Explore the shape of your library." copy="Browse local media, YouTube, and Twitch through explicit genres and the tags recovered from titles and descriptions.">
+    <section className="mt-6 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Genres</p><div className="mt-3 flex flex-wrap gap-2"><Button size="sm" variant={selected === "All genres" ? "default" : "secondary"} onClick={() => setSelected("All genres")}>All titles · {publicVideos.length}</Button>{genres.map((genre) => <Button key={genre} size="sm" variant={selected === genre ? "default" : "secondary"} onClick={() => setSelected(genre)}>{genre} · {publicVideos.filter((video) => video.genre === genre).length}</Button>)}</div><p className="mt-5 text-xs font-medium tracking-[0.14em] text-accent uppercase">Channel and description tags</p><div className="mt-3 flex flex-wrap gap-2">{tagGroups.map((row) => <Button key={row.tag} size="sm" variant={selected === row.tag ? "default" : "secondary"} onClick={() => setSelected(row.tag)}>#{row.tag} · {row.count}</Button>)}</div></section>
+    <p className="mt-5 text-sm text-muted">{matching.length.toLocaleString()} title{matching.length === 1 ? "" : "s"} in this view.</p>
+    <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">{matching.slice(0, 180).map((video, index) => <VideoCard key={video.id} video={video} variant="poster" index={index}/>)}</div>
+  </HubShell>;
+}
+
+export function StatsSection() {
+  const videos = useLibrary((s) => s.videos);
+  const folders = useLibrary((s) => s.folders);
+  const tags = useLibrary((s) => s.tags);
+  const favorites = useLibrary((s) => s.favorites);
+  const totalBytes = videos.reduce((sum, video) => sum + video.size, 0);
+  const folderRows = useMemo(() => folders.filter((folder) => folder.kind !== "demo").map((folder) => ({ folder, videos: videos.filter((video) => video.folderId === folder.id), bytes: videos.filter((video) => video.folderId === folder.id).reduce((sum, video) => sum + video.size, 0) })).sort((a, b) => b.bytes - a.bytes || b.videos.length - a.videos.length), [folders, videos]);
+  const tagRows = useMemo(() => Object.entries(tags).flatMap(([, values]) => values).reduce<Record<string, number>>((counts, tag) => ({ ...counts, [tag]: (counts[tag] ?? 0) + 1 }), {}), [tags]);
+  const topTags = Object.entries(tagRows).sort((a, b) => b[1] - a[1]).slice(0, 14);
+  const genreRows = useMemo(() => [...new Set(videos.map((video) => video.genre).filter(Boolean))].map((genre) => [genre!, videos.filter((video) => video.genre === genre).length] as const).sort((a, b) => b[1] - a[1]), [videos]);
+  return <HubShell eyebrow="Library intelligence" icon={<BarChart3 className="size-4"/>} title="Know what your library needs next." copy="These local-only counts help identify coverage gaps, oversized source folders, and the tags that are driving discovery.">
+    <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Stat label="Catalog titles" value={videos.length.toLocaleString()}/><Stat label="Local storage mapped" value={bytes(totalBytes)}/><Stat label="Tag assignments" value={Object.values(tags).reduce((sum, values) => sum + values.length, 0).toLocaleString()}/><Stat label="Favorites" value={Object.keys(favorites).length.toLocaleString()}/></div>
+    <div className="mt-6 grid gap-5 xl:grid-cols-2"><section className="rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Genre distribution</h2><div className="mt-4 space-y-3">{genreRows.map(([genre, count]) => <DistributionRow key={genre} label={genre} value={count} total={videos.length}/>)}</div></section><section className="rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Most useful tags</h2><div className="mt-4 space-y-3">{topTags.map(([tag, count]) => <DistributionRow key={tag} label={`#${tag}`} value={count} total={videos.length}/>)}</div></section></div>
+    <section className="mt-5 rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Source mapping & storage</h2><p className="mt-1 text-sm text-muted">Only local files contribute bytes; remote providers report catalog counts but not source storage.</p><div className="mt-4 space-y-2">{folderRows.map(({ folder, videos: mapped, bytes: folderBytes }) => <div key={folder.id} className="flex flex-wrap items-center justify-between gap-3 rounded-sm bg-bg/45 px-3 py-3"><span className="min-w-0 truncate text-sm text-fg">{folder.name}</span><span className="text-xs text-muted">{mapped.length.toLocaleString()} mapped · {folderBytes ? bytes(folderBytes) : folder.kind === "youtube" || folder.kind === "twitch" ? "remote catalog" : "no local media yet"}</span></div>)}</div></section>
+  </HubShell>;
+}
+
+function DistributionRow({ label, value, total }: { label: string; value: number; total: number }) {
+  return <div><div className="flex justify-between gap-3 text-sm"><span className="truncate text-fg">{label}</span><span className="text-muted">{value}</span></div><div className="mt-1 h-2 overflow-hidden rounded-full bg-bg/70"><div className="h-full bg-accent" style={{ width: `${Math.max(3, Math.round(value / Math.max(total, 1) * 100))}%` }}/></div></div>;
+}
+
 export function SettingsSection() {
   const [hub, setHub] = useState<HubStore>({ prints: [], games: [] });
   const [preferences, setPreferences] = useState<Record<string, boolean>>({});
@@ -256,12 +191,20 @@ export function SettingsSection() {
   const [debugEnabled, setDebugEnabled] = useState(false);
   const [theme, setTheme] = useState<"night" | "day">("night");
   const [debugReport, setDebugReport] = useState("");
+  const refreshFollows = useLibrary((s) => s.refreshFollows);
+  const folders = useLibrary((s) => s.folders);
+  const refreshSourcePhotos = useLibrary((s) => s.refreshSourcePhotos);
+  const unavailableVideoCount = useLibrary((s) => Object.keys(s.unavailable).length);
+  const remoteCheckedAt = useLibrary((s) => s.remoteCheckedAt);
+  const [serviceNote, setServiceNote] = useState("");
   useEffect(() => setHub(readHub()), []);
   useEffect(() => {
     try {
-      setPreferences(
-        JSON.parse(localStorage.getItem("reelcase.settings.v1") ?? "{}") as Record<string, boolean>,
-      );
+      const saved = JSON.parse(localStorage.getItem("reelcase.settings.v1") ?? "{}") as Record<string, boolean>;
+      const defaults = { "alerts-go-live-alerts": true, "alerts-new-twitch-vod-alerts": true, "alerts-new-youtube-upload-alerts": true, "playback-autoplay-next-video": true };
+      const next = { ...defaults, ...saved };
+      setPreferences(next);
+      localStorage.setItem("reelcase.settings.v1", JSON.stringify(next));
     } catch {
       setPreferences({});
     }
@@ -301,6 +244,13 @@ export function SettingsSection() {
     if (key === "privacy-reduce-motion")
       document.documentElement.toggleAttribute("data-reduce-motion", enabled);
     if (key === "privacy-hide-demo-media") useLibrary.getState().setHideDemo(enabled);
+    if (key === "alerts-desktop-notifications" && enabled) {
+      if (!("Notification" in window)) { setServiceNote("This browser does not support desktop notifications."); return; }
+      void Notification.requestPermission().then((permission) => {
+        if (permission !== "granted") { setPreferences((current) => ({ ...current, [key]: false })); localStorage.setItem("reelcase.settings.v1", JSON.stringify({ ...next, [key]: false })); setServiceNote("Desktop notifications were not granted. In-app alerts remain available."); }
+        else { useLibrary.getState().setNotifyPush(true); setServiceNote("Desktop notifications are enabled for the alerts you keep switched on."); }
+      });
+    }
   };
   const exportLocal = () => {
     const state = useLibrary.getState();
@@ -334,6 +284,30 @@ export function SettingsSection() {
     link.click();
     URL.revokeObjectURL(url);
   };
+  const downloadExport = (body: string, filename: string, type: string) => {
+    const url = URL.createObjectURL(new Blob([body], { type }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+  const exportChannels = () => {
+    const follows = useLibrary.getState().follows.map((channel) => ({
+      service: channel.kind,
+      channel: channel.title,
+      handle: channel.handle,
+      channelId: channel.channelId ?? "",
+      live: Boolean(channel.live),
+    }));
+    downloadExport(JSON.stringify({ exportedAt: new Date().toISOString(), channels: follows }, null, 2), `reelcase-channels-${new Date().toISOString().slice(0, 10)}.json`, "application/json");
+  };
+  const exportCatalogCsv = () => {
+    const state = useLibrary.getState();
+    const quote = (value: unknown) => `"${String(value ?? "").replaceAll('"', '""')}"`;
+    const rows = [["title", "source", "format", "tags", "category", "favorite", "added"], ...state.videos.map((video) => [video.name, state.folders.find((folder) => folder.id === video.folderId)?.name ?? video.remote?.channelName ?? "", video.extension, (state.tags[video.id] ?? []).join(" | "), state.categories[video.id] ?? "", Boolean(state.favorites[video.id]), new Date(video.addedAt).toISOString()])];
+    downloadExport(rows.map((row) => row.map(quote).join(",")).join("\n"), `reelcase-catalog-${new Date().toISOString().slice(0, 10)}.csv`, "text/csv");
+  };
   return (
     <HubShell
       eyebrow="Library control"
@@ -346,6 +320,8 @@ export function SettingsSection() {
         <Stat label="Followed channels" value={useLibrary((s) => s.follows.length)} />
         <Stat label="Saved hub items" value={hub.prints.length + hub.games.length} />
       </div>
+      {unavailableVideoCount > 0 && <div className="mt-4 rounded-lg border border-danger/40 bg-elevated p-4"><p className="text-sm font-medium text-fg">Playback health queue · {unavailableVideoCount} hidden</p><p className="mt-1 text-xs leading-5 text-muted">These catalog entries were hidden after a browser file-permission or decode failure. Reconnect the source folder from the playback message to rebuild its live file handles.</p></div>}
+      <section className="mt-4 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Smart local tags</p><h2 className="mt-2 font-display text-2xl text-fg">Tag by name, date, and file type.</h2><p className="mt-1 max-w-2xl text-sm text-muted">Adds private, explainable tags such as year-2026, month-september, type-mp4, and meaningful words from the filename. Existing manual tags are preserved; nothing is uploaded.</p><Button className="mt-4" size="sm" variant="secondary" onClick={() => { const changed = useLibrary.getState().autoTagLibrary(); setServiceNote(changed ? `Added or improved smart tags for ${changed} catalog item${changed === 1 ? "" : "s"}.` : "Every catalog item already has the available smart tags."); }}>Apply smart tags to all files</Button></section>
       <div className="mt-6 flex flex-col gap-4 rounded-lg bg-elevated p-5 shadow-border sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="font-display text-2xl text-fg">Export local metadata</h2>
@@ -355,16 +331,20 @@ export function SettingsSection() {
             private on this device.
           </p>
         </div>
-        <Button onClick={exportLocal}>
-          <Download className="size-4" /> Export JSON
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={exportLocal}><Download className="size-4" /> Full backup</Button>
+          <Button variant="secondary" onClick={exportCatalogCsv}>Catalog CSV</Button>
+          <Button variant="secondary" onClick={exportChannels}>YouTube + Twitch</Button>
+        </div>
       </div>
+      <section className="mt-6 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Connected services</p><h2 className="mt-2 font-display text-2xl text-fg">Independent caches, on your schedule.</h2><p className="mt-1 text-sm text-muted">Twitch and YouTube refresh together from your saved follows. Photo imports, Roku discovery, and Spotify remain independently local and refresh only when you ask.</p><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{[{ name: "YouTube", detail: "Saved channels", checked: remoteCheckedAt, action: async () => { const result = await refreshFollows(); setServiceNote(`Refreshed channel cache · ${result.newVideos.length} new items.`); } }, { name: "Twitch", detail: "Live + VOD cache", checked: remoteCheckedAt, action: async () => { const result = await refreshFollows(); setServiceNote(`Refreshed Twitch status · ${result.wentLive.length} channels live.`); } }, { name: "Photos", detail: `${folders.filter((folder) => folder.photoCount).length} source folders`, checked: Math.max(0, ...folders.map((folder) => folder.lastCheckedAt ?? 0)), action: async () => { const sources = folders.filter((folder) => folder.photoCount && (folder.kind === "directory" || folder.kind === "files")); const counts = await Promise.all(sources.map((folder) => refreshSourcePhotos(folder.id))); setServiceNote(`Refreshed local photo sources · ${counts.reduce((sum, count) => sum + count, 0)} photos found.`); } }, { name: "Roku", detail: "Companion-assisted", checked: 0, action: async () => { try { const res = await fetch("http://127.0.0.1:43123/roku/discover"); const data = await res.json() as { devices?: unknown[] }; setServiceNote(`Roku refresh complete · ${(data.devices ?? []).length} device(s) found.`); } catch { setServiceNote("Roku refresh needs the local Reelcase Companion running."); } } }, { name: "Spotify", detail: "Saved music shortcuts", checked: 0, action: async () => { setServiceNote("Spotify shortcuts are local and ready. Open Spotify from its library section to refresh provider content."); } }].map((service) => <div key={service.name} className="rounded-md bg-bg/45 p-3 shadow-border"><p className="text-sm font-medium text-fg">{service.name}</p><p className="mt-1 text-xs text-muted">{service.detail}</p><p className="mt-1 text-[11px] text-subtle">{service.checked ? `Last refreshed ${new Date(service.checked).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Not refreshed this session"}</p><Button size="sm" variant="secondary" className="mt-3" onClick={() => void service.action()}>Refresh</Button></div>)}</div>{serviceNote && <p className="mt-3 text-xs text-accent">{serviceNote}</p>}</section>
       <section className="mt-6"><div className="mb-3"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Device & performance</p><p className="mt-1 text-sm text-muted">The controls that change how Reelcase runs and fits your screen.</p></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-lg bg-elevated p-5 shadow-border">
           <span className="text-accent"><Settings2 className="size-5" /></span>
           <h2 className="mt-3 font-display text-2xl text-fg">Diagnostics</h2>
           <p className="mt-2 text-sm leading-6 text-muted">Keep a local, opt-in status panel for source, cache, and companion troubleshooting. It is off by default and sends nothing away.</p>
-          <ol className="mt-3 space-y-1 text-xs leading-5 text-muted"><li><span className="text-accent">1.</span> Start the Reelcase Companion from its desktop setup.</li><li><span className="text-accent">2.</span> Select Check companion to confirm the Desktop root.</li><li><span className="text-accent">3.</span> Open Games and choose Load approved desktop shortcuts.</li></ol>
+          <ol className="mt-3 space-y-1 text-xs leading-5 text-muted"><li><span className="text-accent">1.</span> In the main Reelcase folder, double-click <strong className="text-fg">Start-Reelcase-Companion.cmd</strong>.</li><li><span className="text-accent">2.</span> Leave the small Companion window open until it says it is listening.</li><li><span className="text-accent">3.</span> Enable diagnostics, select Check companion, then open Games to load approved shortcuts.</li></ol>
+          <p className="mt-2 text-xs leading-5 text-subtle">The companion is optional. It only runs on this computer and is needed for desktop shortcut launching, source checks, and TV discovery—not for browsing your media library.</p>
           <Button size="sm" variant={debugEnabled ? "default" : "secondary"} className="mt-4" onClick={() => { const next = !debugEnabled; setDebugEnabled(next); localStorage.setItem("reelcase.debug-panel", String(next)); if (!next) setDebugReport(""); }}>
             {debugEnabled ? "Disable diagnostics" : "Enable diagnostics"}
           </Button>
@@ -478,9 +458,9 @@ export function SettingsSection() {
       <div className="mt-6 rounded-lg bg-elevated p-5 shadow-border">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="font-display text-2xl text-fg">100 local preferences</h2>
+            <h2 className="font-display text-2xl text-fg">Working preferences</h2>
             <p className="mt-1 text-sm text-muted">
-              Organized controls for playback, library management, discovery, rooms, and privacy. Each switch saves immediately in this browser; hover or read the line below it to see what it changes.
+              Every switch below works now, changes Reelcase immediately, and is saved in this browser. Future ideas belong in the Mission plan—not in this control panel.
             </p>
           </div>
           <p className="text-xs text-muted">
@@ -506,18 +486,19 @@ export function SettingsSection() {
             <button
               key={item.key}
               type="button"
+              disabled={!item.implemented}
               onClick={() => togglePreference(item.key)}
-              className="flex min-h-16 items-center justify-between gap-4 rounded-md bg-bg/45 px-4 text-left shadow-border"
+              className="flex min-h-16 items-center justify-between gap-4 rounded-md bg-bg/45 px-4 text-left shadow-border disabled:cursor-not-allowed disabled:opacity-60"
             >
               <span>
                 <span className="block text-sm font-medium text-fg">{item.label}</span>
                 <span className="mt-0.5 block text-xs text-muted">{item.detail}</span>
               </span>
               <span
-                className={`flex h-6 w-11 items-center rounded-full p-0.5 transition-[background-color] duration-150 ${preferences[item.key] ? "bg-accent justify-end" : "bg-surface justify-start"}`}
+                className={`flex h-6 w-11 items-center rounded-full p-0.5 transition-[background-color] duration-150 ${item.implemented && preferences[item.key] ? "bg-accent justify-end" : "bg-surface justify-start"}`}
               >
                 <span
-                  className={`size-5 rounded-full ${preferences[item.key] ? "bg-accent-fg" : "bg-muted"}`}
+                  className={`size-5 rounded-full ${item.implemented && preferences[item.key] ? "bg-accent-fg" : "bg-muted"}`}
                 />
               </span>
             </button>
@@ -859,15 +840,24 @@ type LocalPhoto = {
   rating: number;
   addedAt: number;
 };
-type PhotoSort = "newest" | "name" | "rating" | "favorite";
+type PhotoSort = "newest" | "name" | "rating" | "favorite" | "auto-tags";
 const PHOTO_FILE_RE = /\.(avif|bmp|gif|heic|heif|jpe?g|png|tiff?|webp)$/i;
+const photoSourceWarmth = new Map<string, number>();
 
 export function PhotosSection() {
   const scannedPhotoSources = useRef(new Set<string>());
   const photoUrls = useRef(new Set<string>());
   const [ratingFilter, setRatingFilter] = useState("all");
+  const [ratingQueuePhotoId, setRatingQueuePhotoId] = useState(() => {
+    try { return localStorage.getItem("reelcase.photos.rating-queue") ?? ""; } catch { return ""; }
+  });
   const [photos, setPhotos] = useState<LocalPhoto[]>([]);
   const [selectedPerson, setSelectedPerson] = useState("All photos");
+  const [selectedAlbum, setSelectedAlbum] = useState(() => {
+    try { return localStorage.getItem("reelcase.photos.source-filter") || "All albums"; } catch { return "All albums"; }
+  });
+  const [selectedTag, setSelectedTag] = useState("All tags");
+  const [selectedPhotoIds, setSelectedPhotoIds] = useState<Set<string>>(() => new Set());
   const [photoSearch, setPhotoSearch] = useState("");
   const [discoveryFilter, setDiscoveryFilter] = useState<"all" | "screenshots" | "camera" | "downloads">("all");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
@@ -879,6 +869,7 @@ export function PhotosSection() {
   });
   const [photoFolders, setPhotoFolders] = useState<string[]>([]);
   const [slideshow, setSlideshow] = useState(false);
+  const [fullScreenSlide, setFullScreenSlide] = useState(false);
   const [slideSeconds, setSlideSeconds] = useState(() => {
     try { const value = Number(localStorage.getItem("reelcase.photos.slide-seconds") ?? "5"); return [3, 5, 10, 20, 30].includes(value) ? value : 5; } catch { return 5; }
   });
@@ -895,7 +886,7 @@ export function PhotosSection() {
     () => libraryFolders.filter((folder) => folder.kind === "directory" || folder.kind === "files"),
     [libraryFolders],
   );
-  const addPhotos = (files: FileList | File[] | null, folderName = "Unsorted", paths?: string[]) => {
+  const addPhotos = (files: FileList | File[] | null, folderName = "Unsorted", paths?: string[], urls?: string[]) => {
     if (!files) return;
     const remembered = (() => { try { return JSON.parse(localStorage.getItem("reelcase.photo-meta.v1") ?? "{}"); } catch { return {}; } })() as Record<string, Partial<LocalPhoto>>;
     const known = new Set(photos.map((photo) => photo.id));
@@ -906,8 +897,8 @@ export function PhotosSection() {
         const path = paths?.[index] || file.webkitRelativePath || `${folderName}/${file.name}`;
         const id = `${path}-${file.lastModified}`;
         if (known.has(id)) return null;
-        const url = URL.createObjectURL(file);
-        photoUrls.current.add(url);
+        const url = urls?.[index] ?? URL.createObjectURL(file);
+        if (!urls?.[index]) photoUrls.current.add(url);
         return {
         id,
         name: file.name,
@@ -915,7 +906,7 @@ export function PhotosSection() {
         url,
         people: remembered[id]?.people ?? [],
         tags: remembered[id]?.tags ?? [],
-        album: remembered[id]?.album ?? folderName,
+        album: remembered[id]?.album ?? paths?.[index]?.split("/")[0] ?? folderName,
         favorite: remembered[id]?.favorite ?? false,
         rating: remembered[id]?.rating ?? 0,
         addedAt: file.lastModified,
@@ -927,13 +918,19 @@ export function PhotosSection() {
     });
   };
   useEffect(() => {
-    if (sourcePhotos.length) addPhotos(sourcePhotos.map((asset) => asset.file), "Source import", sourcePhotos.map((asset) => asset.path));
+    if (sourcePhotos.length) addPhotos(sourcePhotos.map((asset) => asset.file), "Source import", sourcePhotos.map((asset) => asset.path), sourcePhotos.map((asset) => asset.url));
   }, [sourcePhotos]);
   useEffect(() => () => { for (const url of photoUrls.current) URL.revokeObjectURL(url); photoUrls.current.clear(); }, []);
   useEffect(() => { try { localStorage.setItem("reelcase.photo-meta.v1", JSON.stringify({ ...JSON.parse(localStorage.getItem("reelcase.photo-meta.v1") ?? "{}"), ...Object.fromEntries(photos.map(({ id, path, people, tags, album, favorite, rating }) => [id, { path, people, tags, album, favorite, rating }])) })); } catch { /* quota */ } }, [photos]);
   useEffect(() => { try { localStorage.setItem("reelcase.photos.sort", photoSort); } catch { /* storage unavailable */ } }, [photoSort]);
+  useEffect(() => { try { localStorage.setItem("reelcase.photos.rating-queue", ratingQueuePhotoId); } catch { /* storage unavailable */ } }, [ratingQueuePhotoId]);
   useEffect(() => { try { localStorage.setItem("reelcase.photos.show-locations", String(showLocations)); } catch { /* storage unavailable */ } }, [showLocations]);
   useEffect(() => { try { localStorage.setItem("reelcase.photos.slide-seconds", String(slideSeconds)); } catch { /* storage unavailable */ } }, [slideSeconds]);
+  useEffect(() => {
+    const onFullscreen = () => setFullScreenSlide(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", onFullscreen);
+    return () => document.removeEventListener("fullscreenchange", onFullscreen);
+  }, []);
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -941,9 +938,10 @@ export function PhotosSection() {
       // startup catalog remains fast even for very large video sources.
       for (const folder of sourceFolders) {
         if (cancelled) return;
-        if (scannedPhotoSources.current.has(folder.id)) continue;
+        if (scannedPhotoSources.current.has(folder.id) || (Date.now() - (photoSourceWarmth.get(folder.id) ?? 0) < 300_000)) continue;
         scannedPhotoSources.current.add(folder.id);
         await refreshSourcePhotos(folder.id);
+        photoSourceWarmth.set(folder.id, Date.now());
       }
     })();
     return () => { cancelled = true; };
@@ -958,10 +956,13 @@ export function PhotosSection() {
   };
   const people = [...new Set(photos.flatMap((photo) => photo.people))];
   const albums = [...new Set(photos.map((photo) => photo.album))];
+  const photoTags = [...new Set(photos.flatMap((photo) => photo.tags))].sort();
   const visible = photos
     .filter(
       (photo) =>
         (selectedPerson === "All photos" || photo.people.includes(selectedPerson)) &&
+        (selectedAlbum === "All albums" || photo.album === selectedAlbum) &&
+        (selectedTag === "All tags" || photo.tags.includes(selectedTag)) &&
         (!favoritesOnly || photo.favorite) &&
         (ratingFilter === "all" || (ratingFilter === "unrated" ? !photo.rating : photo.rating >= Number(ratingFilter))) &&
         (discoveryFilter === "all" || (discoveryFilter === "screenshots" ? /screenshot|screen[_ -]?shot/i.test(photo.name) : discoveryFilter === "camera" ? /^(img|dsc|pxl|photo)[_ -]?\d/i.test(photo.name) : /download|image|copy|edited/i.test(photo.name))) &&
@@ -973,10 +974,11 @@ export function PhotosSection() {
       if (photoSort === "name") return a.name.localeCompare(b.name);
       if (photoSort === "rating") return b.rating - a.rating || b.addedAt - a.addedAt;
       if (photoSort === "favorite") return Number(b.favorite) - Number(a.favorite) || b.addedAt - a.addedAt;
+      if (photoSort === "auto-tags") return b.tags.length - a.tags.length || b.addedAt - a.addedAt;
       return b.addedAt - a.addedAt;
     });
   const renderedPhotos = visible.slice(0, photoLimit);
-  useEffect(() => setPhotoLimit(80), [photoSearch, selectedPerson, favoritesOnly, photoSort, discoveryFilter, ratingFilter]);
+  useEffect(() => setPhotoLimit(80), [photoSearch, selectedPerson, selectedAlbum, selectedTag, favoritesOnly, photoSort, discoveryFilter, ratingFilter]);
   useEffect(() => { if (!slideshow || !visible.length) return; const timer = window.setInterval(() => setSlideIndex((index) => (index + 1) % visible.length), slideSeconds * 1000); return () => window.clearInterval(timer); }, [slideshow, slideSeconds, visible.length]);
   const featuredPhoto = visible[slideIndex % Math.max(visible.length, 1)];
   const focusedIndex = visible.findIndex((photo) => photo.id === focusedPhotoId);
@@ -998,6 +1000,45 @@ export function PhotosSection() {
     }));
     setHelperNote(labeled ? `Added ${labeled} suggested label${labeled === 1 ? "" : "s"} from file names. Review each label before relying on it.` : "No clear names were found in unlabeled file names.");
   };
+  const autoTagPhotos = () => {
+    let changed = 0;
+    setPhotos((items) => items.map((photo) => {
+      const text = `${photo.name} ${photo.path}`.toLowerCase();
+      const suggestions = [
+        /screenshot|screen[_ -]?shot/.test(text) ? "screenshot" : "",
+        /^(img|dsc|pxl|photo)[_ -]?\d/i.test(photo.name) ? "camera" : "",
+        /download|image|copy|edited/.test(text) ? "downloaded" : "",
+        /vacation|travel|trip|beach|mountain/.test(text) ? "travel" : "",
+        /birthday|wedding|party|event/.test(text) ? "event" : "",
+        /pet|dog|cat/.test(text) ? "pets" : "",
+      ].filter(Boolean);
+      const tags = [...new Set([...photo.tags, ...suggestions])];
+      if (tags.length === photo.tags.length) return photo;
+      changed += 1;
+      return { ...photo, tags };
+    }));
+    setHelperNote(changed ? `Added local filename-based auto tags to ${changed} photo${changed === 1 ? "" : "s"}. You can edit any tag on its card.` : "Everything already has the available local auto tags.");
+  };
+  const downloadPhoto = (photo: LocalPhoto) => {
+    const link = document.createElement("a");
+    link.href = photo.url;
+    link.download = photo.name;
+    link.click();
+  };
+  const applyTagToSelected = (tag: string) => {
+    const clean = tag.trim().toLowerCase();
+    if (!clean || !selectedPhotoIds.size) return;
+    setPhotos((items) => items.map((photo) => selectedPhotoIds.has(photo.id) ? { ...photo, tags: [...new Set([...photo.tags, clean])] } : photo));
+    setHelperNote(`Added “${clean}” to ${selectedPhotoIds.size} selected photo${selectedPhotoIds.size === 1 ? "" : "s"}.`);
+  };
+  const startFullScreenSlideshow = async () => {
+    const first = visible[slideIndex % Math.max(visible.length, 1)];
+    if (!first) return;
+    setFocusedPhotoId(first.id);
+    setSlideshow(true);
+    try { await document.documentElement.requestFullscreen?.(); }
+    catch { setHelperNote("Full-screen mode was blocked by this browser. The full-window viewer is still open."); }
+  };
   return (
     <HubShell
       eyebrow="Photo viewer"
@@ -1005,7 +1046,7 @@ export function PhotosSection() {
       title="Your photos. Your favorites."
       copy="Add photos from this device, then group them by people yourself. Nothing uploads from this browser. Google Photos remains a separate, opt-in destination."
     >
-      <div className="mt-6 flex flex-wrap items-center gap-2 rounded-lg border border-border p-4"><Star className="size-4 text-accent"/><span className="mr-2 text-sm font-medium">Rating desk</span>{[["all", "All ratings"], ["unrated", "Needs a rating"], ["3", "3+ stars"], ["4", "4+ stars"], ["5", "5 stars"]].map(([value, label]) => <Button key={value} size="sm" variant={ratingFilter === value ? "default" : "secondary"} onClick={() => setRatingFilter(value)}>{label}</Button>)}<span className="text-xs text-muted">{photos.filter((photo) => photo.rating > 0).length} of {photos.length} rated</span></div>
+      <div className="mt-6 flex flex-wrap items-center gap-2 rounded-lg border border-border p-4"><Star className="size-4 text-accent"/><span className="mr-2 text-sm font-medium">Rating quest</span>{[["all", "All ratings"], ["unrated", "Needs a rating"], ["3", "3+ stars"], ["4", "4+ stars"], ["5", "5 stars"]].map(([value, label]) => <Button key={value} size="sm" variant={ratingFilter === value ? "default" : "secondary"} onClick={() => setRatingFilter(value)}>{label}</Button>)}<Button size="sm" variant="secondary" disabled={!photos.some((photo) => !photo.rating)} onClick={() => { const choices = photos.filter((photo) => !photo.rating); const savedIndex = choices.findIndex((photo) => photo.id === ratingQueuePhotoId); const pick = choices[(savedIndex + 1 + choices.length) % choices.length]; if (pick) { setRatingQueuePhotoId(pick.id); setFocusedPhotoId(pick.id); } }}>{ratingQueuePhotoId ? "Continue rating queue" : "Rate a surprise photo"}</Button><span className="text-xs text-muted">{photos.filter((photo) => photo.rating > 0).length} of {photos.length} rated</span></div>
       <div className="mt-6 flex flex-col gap-3 rounded-lg bg-elevated p-5 shadow-border sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-medium text-fg">Your local photo selection</p>
@@ -1083,6 +1124,9 @@ export function PhotosSection() {
             </span>
           ))}
         </div>
+        <div className="flex flex-wrap gap-2 border-t border-border pt-3"><span className="self-center text-xs text-muted">Albums</span><Button size="sm" variant={selectedAlbum === "All albums" ? "default" : "secondary"} onClick={() => { setSelectedAlbum("All albums"); localStorage.removeItem("reelcase.photos.source-filter"); }}>All albums</Button>{albums.map((album) => <Button key={album} size="sm" variant={selectedAlbum === album ? "default" : "secondary"} onClick={() => { setSelectedAlbum(album); localStorage.setItem("reelcase.photos.source-filter", album); }}>{album}</Button>)}</div>
+        <div className="flex flex-wrap gap-2"><span className="self-center text-xs text-muted">Tags</span><Button size="sm" variant={selectedTag === "All tags" ? "default" : "secondary"} onClick={() => setSelectedTag("All tags")}>All tags</Button>{photoTags.slice(0, 16).map((tag) => <Button key={tag} size="sm" variant={selectedTag === tag ? "default" : "secondary"} onClick={() => setSelectedTag(tag)}>#{tag}</Button>)}</div>
+        {selectedPhotoIds.size > 0 && <div className="flex flex-wrap items-center gap-2 rounded-sm bg-bg/45 p-3"><span className="text-sm font-medium text-fg">{selectedPhotoIds.size} selected</span><Button size="sm" variant="secondary" onClick={() => applyTagToSelected("favorite-set")}>Tag set</Button><Button size="sm" variant="secondary" onClick={() => { photos.filter((photo) => selectedPhotoIds.has(photo.id)).forEach(downloadPhoto); }}>Download selected</Button><Button size="sm" variant="ghost" onClick={() => setSelectedPhotoIds(new Set())}>Clear selection</Button></div>}
         {photoFolders.length > 0 && (
           <p className="text-xs text-muted">Sources · {photoFolders.join(" · ")}</p>
         )}
@@ -1101,18 +1145,20 @@ export function PhotosSection() {
           >
             Favorites
           </Button>
-          {(["newest", "name", "rating", "favorite"] as const).map((sort) => (
+          {(["newest", "name", "rating", "favorite", "auto-tags"] as const).map((sort) => (
             <Button key={sort} size="sm" variant={photoSort === sort ? "default" : "secondary"} onClick={() => setPhotoSort(sort)}>
-              {sort === "newest" ? "Newest" : sort === "name" ? "A–Z" : sort === "rating" ? "Top rated" : "Favorites first"}
+              {sort === "newest" ? "Newest" : sort === "name" ? "A–Z" : sort === "rating" ? "Top rated" : sort === "favorite" ? "Favorites first" : "Auto tags"}
             </Button>
           ))}
           <Button size="sm" variant={showLocations ? "default" : "secondary"} onClick={() => setShowLocations((value) => !value)}>
             {showLocations ? "Hide locations" : "Show locations"}
           </Button>
           <Button size="sm" variant={slideshow ? "default" : "secondary"} onClick={() => setSlideshow((value) => !value)}>{slideshow ? "Stop auto-change" : "Auto-change photos"}</Button>
+          <Button size="sm" variant={fullScreenSlide ? "default" : "secondary"} disabled={!visible.length} onClick={() => void startFullScreenSlideshow()}>{fullScreenSlide ? "Full screen active" : "Full-screen slideshow"}</Button>
           {slideshow && <select value={slideSeconds} onChange={(event) => setSlideSeconds(Number(event.target.value))} aria-label="Photo slideshow interval" className="h-9 rounded-sm bg-elevated px-2 text-xs text-fg shadow-border">{[3, 5, 10, 20, 30].map((seconds) => <option key={seconds} value={seconds}>Every {seconds}s</option>)}</select>}
           <Button size="sm" variant="secondary" disabled={!visible.length} onClick={() => { const pick = visible[Math.floor(Math.random() * visible.length)]; if (pick) { setSlideIndex(visible.findIndex((photo) => photo.id === pick.id)); setFocusedPhotoId(pick.id); } }}>Random photo</Button>
           <Button size="sm" variant="secondary" disabled={!photos.length} onClick={suggestPeopleFromNames}>Suggest people labels</Button>
+          <Button size="sm" variant="secondary" disabled={!photos.length} onClick={autoTagPhotos}>Auto tag photos</Button>
         </div>
         <div className="flex flex-wrap gap-2"><span className="self-center text-xs text-muted">Local discovery</span>{(["all", "screenshots", "camera", "downloads"] as const).map((filter) => <Button key={filter} size="sm" variant={discoveryFilter === filter ? "default" : "secondary"} onClick={() => setDiscoveryFilter(filter)}>{filter === "all" ? "All" : filter === "camera" ? "Camera names" : filter[0].toUpperCase() + filter.slice(1)}</Button>)}</div>
         <p className="text-xs leading-5 text-muted">Private local discovery uses file-name patterns for screenshots, camera files, downloads, and suggested people labels. Face recognition is not enabled, so no image leaves this device. Large folders are decoded lazily and displayed in small batches to keep scrolling responsive.</p>
@@ -1129,7 +1175,8 @@ export function PhotosSection() {
       ) : (
         <><div className="mt-5 overflow-hidden rounded-lg bg-elevated shadow-border">{featuredPhoto && <div className="grid gap-0 sm:grid-cols-[minmax(0,1.5fr)_minmax(16rem,0.5fr)]"><img src={featuredPhoto.url} alt={featuredPhoto.name} decoding="async" className="aspect-video size-full object-cover"/><div className="flex flex-col justify-center p-5"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Now showing</p><p className="mt-2 font-display text-3xl text-fg">{featuredPhoto.name}</p><p className="mt-2 text-sm text-muted">{featuredPhoto.album} · {featuredPhoto.rating || 0}/5 rating</p>{showLocations && <p title={featuredPhoto.path} className="mt-2 truncate text-xs text-muted">{featuredPhoto.path}</p>}</div></div>}</div><div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
           {renderedPhotos.map((photo) => (
-            <div key={photo.id} className="overflow-hidden rounded-md bg-elevated shadow-border">
+            <div key={photo.id} className="relative overflow-hidden rounded-md bg-elevated shadow-border">
+              <label className="absolute z-10 m-2 flex size-7 items-center justify-center rounded-sm bg-bg/75 text-fg"><input type="checkbox" checked={selectedPhotoIds.has(photo.id)} onChange={() => setSelectedPhotoIds((current) => { const next = new Set(current); if (next.has(photo.id)) next.delete(photo.id); else next.add(photo.id); return next; })} aria-label={`Select ${photo.name}`}/></label>
               <button type="button" className="group relative block w-full" onClick={() => setFocusedPhotoId(photo.id)} aria-label={`Open ${photo.name} full screen`}><img src={photo.url} alt={photo.name} loading="lazy" decoding="async" className="aspect-square w-full object-cover" /><span className="absolute inset-0 flex items-center justify-center bg-bg/45 opacity-0 transition-opacity group-hover:opacity-100"><Maximize2 className="size-6 text-fg" /></span></button>
               <div className="p-3">
                 <div className="flex items-center gap-2">
@@ -1146,6 +1193,9 @@ export function PhotosSection() {
                     }
                   >
                     ♥
+                  </Button>
+                  <Button size="sm" variant="secondary" aria-label={`Download ${photo.name}`} onClick={() => downloadPhoto(photo)}>
+                    <Download className="size-4" />
                   </Button>
                 </div>
                 {showLocations && <p title={photo.path} className="mt-1 truncate text-xs text-muted">{photo.path}</p>}
@@ -1199,32 +1249,59 @@ export function PhotosSection() {
 }
 type Mission = { id: string; title: string; detail: string; done: boolean };
 const DEFAULT_MISSIONS: Mission[] = [
-  { id: "index", title: "Durable media index", detail: "Catalog source health, cached metadata, thumbnails, and fast search without blocking the first screen.", done: false },
-  { id: "companion", title: "Desktop companion", detail: "Verify local files, watch selected folders, and launch approved desktop shortcuts through a local companion.", done: false },
+  { id: "index", title: "Durable media index", detail: "Catalog source health, cached metadata, persistent thumbnails, and fast search without blocking the first screen.", done: true },
+  { id: "companion", title: "Desktop companion", detail: "Verify local files, watch selected folders, and launch approved desktop shortcuts through a local companion.", done: true },
   { id: "watch", title: "Watch room reliability", detail: "Harden LAN signaling, timeline reconciliation, queue voting, and guest access checks.", done: false },
-  { id: "services", title: "Connected services", detail: "Keep Twitch, YouTube, Roku, Spotify, and photo imports independently cached and refreshable.", done: false },
-  { id: "thumb-health", title: "Thumbnail health queue", detail: "Retry failed artwork, hide unavailable remote cards, and expose a small source diagnostic instead of blank previews.", done: false },
-  { id: "windows-explorer", title: "Windows explorer bridge", detail: "Expand companion-backed folder health, change events, shortcut validation, and safe launch history for local libraries.", done: false },
-  { id: "service-status", title: "Service refresh status", detail: "Show when each connected service last refreshed, preserve partial results, and allow focused retries without reloading the whole app.", done: false },
-  { id: "vr-theater", title: "VR theater reliability", detail: "Replace the current WebXR capability check with a true headset cinema surface, controller controls, and clear Meta Quest recovery guidance.", done: false },
-  { id: "companion-onboarding", title: "Companion onboarding", detail: "Add a one-screen startup checklist: run the companion, confirm Desktop approval, load shortcuts, verify a file, then launch one game safely.", done: false },
-  { id: "large-library-views", title: "Large-library views", detail: "Progressively render grids, virtualize long result sets, and keep recommendations responsive with hundreds of thousands of catalog entries.", done: false },
-  { id: "favorites-memory", title: "Favorites memory", detail: "Preserve favorites, shelves, and resume markers in the local catalog with export and recovery checks across sessions.", done: false },
-  { id: "theme-accessibility", title: "Theme & accessibility", detail: "Finish day/night palettes, contrast checks, focus styling, and per-section density preferences.", done: false },
+  { id: "services", title: "Connected services", detail: "Keep Twitch, YouTube, Roku, Spotify, and photo imports independently cached and refreshable.", done: true },
+  { id: "thumb-health", title: "Thumbnail health queue", detail: "Retry failed artwork, hide unavailable remote cards, and expose a small source diagnostic instead of blank previews.", done: true },
+  { id: "windows-explorer", title: "Windows explorer bridge", detail: "Companion-backed folder health, change events, shortcut validation, and safe launch history for local libraries.", done: true },
+  { id: "service-status", title: "Service refresh status", detail: "Show when each connected service last refreshed, preserve partial results, and allow focused retries without reloading the whole app.", done: true },
+  { id: "vr-theater", title: "VR theater reliability", detail: "WebXR cinema surface for local playback, controller transport controls, and clear Meta Quest recovery guidance.", done: true },
+  { id: "companion-onboarding", title: "Companion onboarding", detail: "One-screen startup checklist: run the companion, confirm Desktop approval, load shortcuts, verify a file, then launch one game safely.", done: true },
+  { id: "large-library-views", title: "Large-library views", detail: "Progressively render grids and keep recommendations responsive with very large catalog views.", done: true },
+  { id: "favorites-memory", title: "Favorites memory", detail: "Preserve favorites, shelves, and resume markers in the local catalog with export and recovery checks across sessions.", done: true },
+  { id: "theme-accessibility", title: "Theme & accessibility", detail: "Day/night palettes, focus styling, reduced-motion support, and per-section density preferences.", done: true },
+  { id: "preview-recovery", title: "Local preview recovery", detail: "Resolve restored file handles in previews, hide failures, and log playback health without blocking the library.", done: true },
+  { id: "youtube-quality", title: "YouTube channel quality", detail: "Add per-channel refresh history, unavailable embed recovery, duplicate suppression, and a channel-by-channel retry desk.", done: false },
+  { id: "twitch-quality", title: "Twitch live quality", detail: "Add live-state timestamps, VOD/clip separation, backoff visibility, and a focused single-channel refresh workflow.", done: false },
+  { id: "x-quality", title: "X reading desk quality", detail: "Add per-account sync state, reading position, failure states, and safe public-profile navigation without storing account credentials.", done: false },
+  { id: "startup-budget", title: "Startup performance budget", detail: "Measure first meaningful shelf, catalog hydration, and thumbnail cache hit rate before expanding background work.", done: false },
+  { id: "sprint-01", title: "Alert rules", detail: "Finish per-service alert rules and a notification activity log.", done: false },
+  { id: "sprint-02", title: "Preference coverage", detail: "Turn remaining shipped settings into real controls or remove them from the UI.", done: false },
+  { id: "sprint-03", title: "Ratings streaks", detail: "Add rating goals, weekly streaks, and explainable local rewards.", done: false },
+  { id: "sprint-04", title: "Video rating import/export", detail: "Include local video ratings in backup and catalog export recovery.", done: false },
+  { id: "sprint-05", title: "Photo rating queue", detail: "Make unrated-photo review resumable across sessions.", done: false },
+  { id: "sprint-06", title: "Continue recovery", detail: "Preserve richer resume marks and recover them after source reconnects.", done: false },
+  { id: "sprint-07", title: "History timeline", detail: "Add date groups, filters, and recovery information to watch history.", done: false },
+  { id: "sprint-08", title: "X topic desk", detail: "Add curated public topic views alongside saved X profiles.", done: false },
+  { id: "sprint-09", title: "X read tracking", detail: "Save reading position and surface timeline load diagnostics.", done: false },
+  { id: "sprint-10", title: "Twitch discovery", detail: "Verify recommended public channels and separate discovery from follows.", done: false },
+  { id: "sprint-11", title: "YouTube discovery", detail: "Build a separate creator discovery shelf with follow actions.", done: false },
+  { id: "sprint-12", title: "Channel recency", detail: "Show channel freshness and focused refresh results.", done: false },
+  { id: "sprint-13", title: "Remote dedupe", detail: "Suppress duplicate remote cards while retaining the newest valid metadata.", done: false },
+  { id: "sprint-14", title: "Artwork retry budget", detail: "Limit artwork retries and retain useful failure diagnostics.", done: false },
+  { id: "sprint-15", title: "File type views", detail: "Extend file-type grouping beyond games into large local media libraries.", done: false },
+  { id: "sprint-16", title: "Tag review queue", detail: "Review automated date, name, and type tags before bulk cleanup.", done: false },
+  { id: "sprint-17", title: "Fast filters", detail: "Cache common filter results for very large catalogs.", done: false },
+  { id: "sprint-18", title: "Offline resilience", detail: "Explain cached versus unavailable remote cards at a glance.", done: false },
+  { id: "sprint-19", title: "Watch room device matrix", detail: "Validate host and guest paths across browsers and home-network devices.", done: false },
+  { id: "sprint-20", title: "Accessibility audit", detail: "Verify focus order, touch targets, contrast, and motion settings in every hub.", done: false },
 ];
 
 export function MissionPlanSection() {
   const [missions, setMissions] = useState<Mission[]>(() => {
-    try { const saved = JSON.parse(localStorage.getItem("reelcase.mission-plan.v1") ?? "null") as Mission[] | null; return Array.isArray(saved) ? [...saved, ...DEFAULT_MISSIONS.filter((mission) => !saved.some((item) => item.id === mission.id))] : DEFAULT_MISSIONS; } catch { return DEFAULT_MISSIONS; }
+    try { const saved = JSON.parse(localStorage.getItem("reelcase.mission-plan.v1") ?? "null") as Mission[] | null; return Array.isArray(saved) ? [...saved.map((item) => ({ ...item, done: item.done || Boolean(DEFAULT_MISSIONS.find((mission) => mission.id === item.id)?.done) })), ...DEFAULT_MISSIONS.filter((mission) => !saved.some((item) => item.id === mission.id))] : DEFAULT_MISSIONS; } catch { return DEFAULT_MISSIONS; }
   });
   const [idea, setIdea] = useState("");
+  const [companionCheck, setCompanionCheck] = useState<{ ready: boolean; desktop: boolean; detail: string } | null>(null);
   useEffect(() => { try { localStorage.setItem("reelcase.mission-plan.v1", JSON.stringify(missions)); } catch { /* storage unavailable */ } }, [missions]);
   const completed = missions.filter((mission) => mission.done).length;
   return <HubShell eyebrow="Mission plan" icon={<Rocket className="size-4"/>} title="Build a private media home that scales." copy="Reelcase is moving toward a fast, local-first media hub: your files load from a durable catalog, your watch room works across your home network, and connected services remain optional and easy to control.">
     <section className="mt-6 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Product mission</p><h2 className="mt-2 font-display text-3xl text-fg">One calm control room for a very large library.</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-muted">Make a million-file media collection feel immediate: cache its catalog locally, keep original files private, surface useful recommendations, and let trusted people watch together without turning the app into a cloud upload service.</p><div className="mt-5 flex items-end justify-between gap-4"><div><p className="font-display text-2xl text-fg">{completed} of {missions.length} milestones complete</p><p className="mt-1 text-sm text-muted">Every milestone includes implementation, browser verification, and a production build check.</p></div><div className="rounded-full bg-accent/15 px-3 py-1 text-sm text-accent">{missions.length ? Math.round(completed / missions.length * 100) : 0}%</div></div><div className="mt-5 h-2 overflow-hidden rounded-full bg-bg/70"><div className="h-full bg-accent transition-all" style={{ width: `${missions.length ? completed / missions.length * 100 : 0}%` }}/></div></section>
     <div className="mt-5 space-y-3">{missions.map((mission, index) => <article key={mission.id} className="flex gap-4 rounded-lg bg-elevated p-4 shadow-border"><Button size="sm" variant={mission.done ? "default" : "secondary"} aria-label={`Mark ${mission.title} ${mission.done ? "incomplete" : "complete"}`} onClick={() => setMissions((items) => items.map((item) => item.id === mission.id ? { ...item, done: !item.done } : item))}>{mission.done ? "Done" : `Step ${index + 1}`}</Button><div className="min-w-0 flex-1"><h2 className={mission.done ? "text-sm font-medium text-muted line-through" : "text-sm font-medium text-fg"}>{mission.title}</h2><p className="mt-1 text-sm text-muted">{mission.detail}</p></div></article>)}</div>
-    <section className="mt-5 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Desktop companion launch path</p><ol className="mt-3 grid gap-3 text-sm text-muted sm:grid-cols-2"><li><span className="font-medium text-fg">1. Start Companion</span><br/>Start the local Reelcase Companion from its approved desktop setup.</li><li><span className="font-medium text-fg">2. Confirm Desktop</span><br/>Use Settings → Diagnostics to confirm the Desktop root is available.</li><li><span className="font-medium text-fg">3. Load shortcuts</span><br/>Open Games and choose Load approved desktop shortcuts.</li><li><span className="font-medium text-fg">4. Verify, then launch</span><br/>Use a listed shortcut; the companion checks that it stays inside an approved root.</li></ol></section>
+    <section className="mt-5 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Companion onboarding</p><h2 className="mt-2 font-display text-2xl text-fg">A safe five-minute desktop setup.</h2><ol className="mt-4 grid gap-3 text-sm text-muted sm:grid-cols-2"><li className="rounded-sm bg-bg/45 p-3"><span className="font-medium text-fg">1. Start Companion</span><br/>Double-click Start-Reelcase-Companion.cmd in the main Reelcase folder.</li><li className="rounded-sm bg-bg/45 p-3"><span className="font-medium text-fg">2. Confirm Desktop</span><br/>Keep its window open, then run the check below.</li><li className="rounded-sm bg-bg/45 p-3"><span className="font-medium text-fg">3. Load shortcuts</span><br/>Open Games and choose Load approved desktop shortcuts.</li><li className="rounded-sm bg-bg/45 p-3"><span className="font-medium text-fg">4. Verify first</span><br/>Use a listed shortcut inside an approved root before launching it.</li></ol><Button className="mt-4" variant="secondary" onClick={() => void (async () => { try { const response = await fetch("http://127.0.0.1:43123/health"); const data = await response.json() as { roots?: number; desktopEnabled?: boolean }; setCompanionCheck({ ready: true, desktop: Boolean(data.desktopEnabled), detail: `${data.roots ?? 0} approved root(s)` }); } catch { setCompanionCheck({ ready: false, desktop: false, detail: "Companion not detected. Start it, leave the window open, then retry." }); } })()}>Check Companion setup</Button>{companionCheck && <p className={`mt-3 text-sm ${companionCheck.ready && companionCheck.desktop ? "text-accent" : "text-danger"}`}>{companionCheck.ready ? `Ready · Desktop ${companionCheck.desktop ? "approved" : "not approved"} · ${companionCheck.detail}` : companionCheck.detail}</p>}</section>
     <section className="mt-5 grid gap-3 sm:grid-cols-3"><InfoCard icon={<Wifi className="size-5"/>} title="Next: home network" copy="Folder watch events, Roku discovery, stable room invitations, and stronger timeline recovery."/><InfoCard icon={<Images className="size-5"/>} title="Then: media intelligence" copy="Background metadata, thumbnail health, faster source search, and reviewable local tags."/><InfoCard icon={<Bot className="size-5"/>} title="Later: optional assistants" copy="Private recommendation controls, explainable picks, and only opt-in service connections."/></section>
+    <div className="mt-5 flex flex-wrap gap-2"><Button variant="secondary" onClick={() => setMissions(DEFAULT_MISSIONS)}>Reset to the current 20-step delivery queue</Button><span className="self-center text-xs text-muted">Restores the current baseline and removes local completion overrides.</span></div>
     <form className="mt-5 flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); const title = idea.trim(); if (!title) return; setMissions((items) => [...items, { id: crypto.randomUUID(), title, detail: "New idea — break this into implementation and verification steps.", done: false }]); setIdea(""); }}><Input value={idea} onChange={(event) => setIdea(event.target.value)} placeholder="Add a larger change idea" aria-label="New mission idea"/><Button type="submit">Add to plan</Button></form>
   </HubShell>;
 }
@@ -1234,6 +1311,8 @@ export function GamesSection() {
   const [removeGame, setRemoveGame] = useState<string | null>(null);
   const [launchNotice, setLaunchNotice] = useState("");
   const [shortcutView, setShortcutView] = useState<"all" | "web" | "desktop">("all");
+  const [fileType, setFileType] = useState("all");
+  const [sort, setSort] = useState<"name" | "newest" | "type">("name");
   const [companionLoading, setCompanionLoading] = useState(false);
   const sourceShortcuts = useSourceAssets((s) => s.shortcuts);
   useEffect(() => {
@@ -1250,7 +1329,7 @@ export function GamesSection() {
     const source = Array.from(files).filter((file) =>
       allowWebShortcut
         ? /\.(exe|lnk|url|appref-ms)$/i.test(file.name)
-        : /\.(exe|lnk|appref-ms)$/i.test(file.name),
+        : /\.(exe|lnk|url|appref-ms)$/i.test(file.name),
     );
     const next = await Promise.all(
       source.map(async (file) => {
@@ -1305,7 +1384,10 @@ export function GamesSection() {
       setLaunchNotice("Companion connection unavailable. Start the local Reelcase Companion, then try again.");
     } finally { setCompanionLoading(false); }
   };
-  const visible = games.filter((game) => game.name.toLowerCase().includes(filter.toLowerCase()) && (shortcutView === "all" || (shortcutView === "web" ? Boolean(game.launchUrl) : !game.launchUrl)));
+  const gameTypes = [...new Set(games.map((game) => (game.name.match(/\.([^.]+)$/)?.[1] ?? "other").toLowerCase()))].sort();
+  const visible = games
+    .filter((game) => game.name.toLowerCase().includes(filter.toLowerCase()) && (shortcutView === "all" || (shortcutView === "web" ? Boolean(game.launchUrl) : !game.launchUrl)) && (fileType === "all" || game.name.toLowerCase().endsWith(`.${fileType}`)))
+    .sort((a, b) => sort === "newest" ? b.addedAt - a.addedAt : sort === "type" ? a.name.split(".").pop()!.localeCompare(b.name.split(".").pop()!) || a.name.localeCompare(b.name) : a.name.localeCompare(b.name));
   return (
     <HubShell
       eyebrow="Desktop game shelf"
@@ -1349,6 +1431,7 @@ export function GamesSection() {
         />
         {(["all", "web", "desktop"] as const).map((view) => <Button key={view} size="sm" variant={shortcutView === view ? "default" : "secondary"} onClick={() => setShortcutView(view)}>{view === "all" ? "All" : view === "web" ? "Web launchers" : "Desktop launchers"}</Button>)}
       </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2"><span className="text-xs text-muted">File type</span><Button size="sm" variant={fileType === "all" ? "default" : "secondary"} onClick={() => setFileType("all")}>All types</Button>{gameTypes.map((type) => <Button key={type} size="sm" variant={fileType === type ? "default" : "secondary"} onClick={() => setFileType(type)}>.{type}</Button>)}<span className="ml-2 text-xs text-muted">Sort</span>{(["name", "newest", "type"] as const).map((value) => <Button key={value} size="sm" variant={sort === value ? "default" : "secondary"} onClick={() => setSort(value)}>{value === "name" ? "A–Z" : value === "newest" ? "Recently added" : "File type"}</Button>)}</div>
       {visible.length ? (
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           {visible.map((game) => (
@@ -1638,6 +1721,7 @@ export function ShopSection() {
 }
 
 export function StreamingSection() {
+  const [ratingQuery, setRatingQuery] = useState("");
   const services = [
     { name: "Netflix", href: "https://www.netflix.com/", copy: "Movies & series" },
     { name: "Hulu", href: "https://www.hulu.com/", copy: "TV & films" },
@@ -1666,6 +1750,9 @@ export function StreamingSection() {
       href: "https://www.openculture.com/freemoviesonline",
       copy: "Free film collections and courses",
     },
+    { name: "AniList", href: "https://anilist.co/", copy: "Anime discovery & ratings" },
+    { name: "AniDB", href: "https://anidb.net/", copy: "Anime database" },
+    { name: "Rotten Tomatoes", href: "https://www.rottentomatoes.com/", copy: "Critic & audience ratings" },
   ];
   return (
     <HubShell
@@ -1674,6 +1761,7 @@ export function StreamingSection() {
       title="Streaming destinations"
       copy="Keep watch sources separate from shopping. These official services and public collections open in their own sites."
     >
+      <section className="mt-6 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">External rating search</p><p className="mt-1 text-sm text-muted">Look up a title on the source you trust. Searches open on the official site; Reelcase does not copy ratings into your local catalog.</p><div className="mt-3 flex flex-col gap-2 sm:flex-row"><Input value={ratingQuery} onChange={(event) => setRatingQuery(event.target.value)} placeholder="Search an anime, movie, or series" aria-label="External rating search"/><div className="flex flex-wrap gap-2">{[{ label: "AniList", url: "https://anilist.co/search/anime?search=" }, { label: "AniDB", url: "https://anidb.net/anime/?adb.search=" }, { label: "Rotten Tomatoes", url: "https://www.rottentomatoes.com/search?search=" }].map((source) => <a key={source.label} href={`${source.url}${encodeURIComponent(ratingQuery.trim())}`} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center rounded-sm bg-bg/50 px-3 text-sm text-fg shadow-border">{source.label}<ExternalLink className="ml-2 size-3.5"/></a>)}</div></div></section>
       <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {services.map((service) => (
           <ServiceLink key={service.name} {...service} />
@@ -1689,6 +1777,9 @@ export function SocialSection() {
   const [active, setActive] = useState("");
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
+  const [lastRead, setLastRead] = useState<Record<string, number>>({});
+  const [topic, setTopic] = useState<{ label: string; query: string } | null>(null);
+  const defaultTopics = useMemo(() => [{ label: "Movies & TV", query: "movies OR tv" }, { label: "Anime", query: "anime" }, { label: "Gaming", query: "gaming" }, { label: "Live creators", query: "twitch streamer" }], []);
   useEffect(() => {
     try {
       const raw: unknown = JSON.parse(localStorage.getItem("reelcase.x-accounts") ?? "[]");
@@ -1696,9 +1787,12 @@ export function SocialSection() {
       setAccounts(saved);
       const last = localStorage.getItem("reelcase.x-active") ?? "";
       setActive(saved.includes(last) ? last : saved[0] ?? "");
+      if (!saved.length) setTopic(defaultTopics[0]);
+      const reads: unknown = JSON.parse(localStorage.getItem("reelcase.x-last-read") ?? "{}");
+      if (reads && typeof reads === "object") setLastRead(reads as Record<string, number>);
     } catch { /* empty shelf */ }
   }, []);
-  const choose = (account: string) => { setActive(account); try { localStorage.setItem("reelcase.x-active", account); } catch { /* session only */ } };
+  const choose = (account: string) => { const at = Date.now(); setTopic(null); setActive(account); setLastRead((current) => { const next = { ...current, [account]: at }; try { localStorage.setItem("reelcase.x-last-read", JSON.stringify(next)); } catch { /* session only */ } return next; }); try { localStorage.setItem("reelcase.x-active", account); } catch { /* session only */ } };
   const save = (next: string[]) => { setAccounts(next); try { localStorage.setItem("reelcase.x-accounts", JSON.stringify(next)); } catch { setError("Storage is full. Account changes will last for this session only."); } };
   const add = () => {
     const value = handle.trim().replace(/^https?:\/\/(?:www\.)?(?:x|twitter)\.com\//i, "").replace(/^@/, "").replace(/[/?#].*$/, "").toLowerCase();
@@ -1706,13 +1800,14 @@ export function SocialSection() {
     if (accounts.length >= 50 && !accounts.includes(value)) { setError("Your shelf holds 50 accounts. Remove one before adding another."); return; }
     setError(""); save([...new Set([...accounts, value])]); choose(value); setHandle("");
   };
-  return <HubShell eyebrow="Social desk" icon={<X className="size-4" />} title="Keep your people close." copy="Save X profiles, switch between public timelines, and pick up where you left off. Private posts and account likes require access on X.">
+  return <HubShell eyebrow="Social desk" icon={<X className="size-4" />} title="Keep your people close." copy="Save X profiles, switch between public timelines, and pick up where you left off. Public timelines render inside Reelcase through X’s official widget; private posts and account likes stay on X.">
     <form className="mt-6 flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); add(); }}><Input value={handle} onChange={(event) => setHandle(event.target.value)} placeholder="@handle or X profile URL" aria-label="X account handle"/><Button type="submit" disabled={!handle.trim()}>Add account</Button></form>
     {error && <p role="alert" className="mt-2 text-sm text-danger">{error}</p>}
     <Input className="mt-4" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find a saved account" aria-label="Search saved X accounts"/>
-    <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{accounts.filter((account) => account.toLowerCase().includes(search.toLowerCase())).map((account) => <div key={account} className={"flex items-center gap-2 rounded-lg border p-2 " + (active === account ? "border-accent bg-elevated" : "border-border bg-surface")}><button type="button" aria-pressed={active === account} onClick={() => choose(account)} className="min-w-0 flex-1 p-3 text-left"><span className="block truncate text-lg font-semibold">@{account}</span><span className="text-xs text-muted">Public profile</span></button><Button variant="ghost" size="icon" aria-label={"Remove @" + account} onClick={() => { const next = accounts.filter((value) => value !== account); save(next); if (active === account) choose(next[0] ?? ""); }}><X className="size-4"/></Button></div>)}</div>
-    {!accounts.length && <p className="mt-6 rounded-lg border border-border p-8 text-muted">Add your first account to build your reading shelf.</p>}
-    {active && <XTimeline key={active} account={active}/>}
+    <section className="mt-5 rounded-lg bg-elevated p-4 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Public topic views</p><p className="mt-1 text-sm text-muted">Explore these X searches separately from your saved people. X supplies the public timeline; open the topic if it is unavailable.</p><div className="mt-3 flex flex-wrap gap-2">{defaultTopics.map((item) => <Button key={item.label} size="sm" variant={topic?.label === item.label ? "default" : "secondary"} onClick={() => { setTopic(item); setActive(""); }}>{item.label}</Button>)}</div></section>
+    <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{accounts.filter((account) => account.toLowerCase().includes(search.toLowerCase())).map((account) => <div key={account} className={"flex items-center gap-2 rounded-lg border p-2 " + (active === account ? "border-accent bg-elevated" : "border-border bg-surface")}><button type="button" aria-pressed={active === account} onClick={() => choose(account)} className="min-w-0 flex-1 p-3 text-left"><span className="block truncate text-lg font-semibold">@{account}</span><span className="text-xs text-muted">{lastRead[account] ? `Read ${new Date(lastRead[account]).toLocaleDateString()}` : "Public profile"}</span></button><Button variant="ghost" size="icon" aria-label={"Remove @" + account} onClick={() => { const next = accounts.filter((value) => value !== account); save(next); if (active === account) choose(next[0] ?? ""); }}><X className="size-4"/></Button></div>)}</div>
+    {!accounts.length && <p className="mt-6 rounded-lg border border-border p-5 text-sm text-muted">Showing the default public topic view below. Add a profile to create a personal reading shelf; if X blocks embedded posts, the Open topic/profile button is the reliable fallback.</p>}
+    {(active || topic) && <XTimeline key={topic ? `topic:${topic.label}` : active} account={active || undefined} topic={topic ?? undefined}/>}
   </HubShell>;
 }
 
@@ -1740,6 +1835,7 @@ export function WatchRoomSection() {
   const [friendName, setFriendName] = useState("");
   const [friendCode, setFriendCode] = useState("");
   const [inviteNotice, setInviteNotice] = useState("");
+  const [pulseStatus, setPulseStatus] = useState("No direct transport test yet.");
   const [friends, setFriends] = useState<{ name: string; code: string }[]>(() => {
     try { const saved = JSON.parse(localStorage.getItem("reelcase.lan-friends.v1") ?? "[]"); return Array.isArray(saved) ? saved.slice(0, 16) : []; } catch { return []; }
   });
@@ -1800,6 +1896,8 @@ export function WatchRoomSection() {
         };
         if (data.type === "chat" && data.text)
           setChat((rows) => [...rows, `${data.name ?? from}: ${data.text}`].slice(-50));
+        if (data.type === "room-pulse") p2p.send({ type: "room-pulse-ack", sentAt: data.sentAt }, from);
+        if (data.type === "room-pulse-ack" && data.sentAt) setPulseStatus(`Direct transport confirmed · ${Math.max(0, Date.now() - data.sentAt)}ms round trip.`);
         if (data.type === "sync") {
           const position = Number(data.position) || 0;
           const elapsed = data.playing && data.sentAt ? Math.max(0, (Date.now() - data.sentAt) / 1000) : 0;
@@ -1912,6 +2010,7 @@ export function WatchRoomSection() {
             >
               <Wifi className="size-4" /> Start room
             </Button>
+            <p className="mt-3 text-xs leading-5 text-subtle">Testing on one computer? Start the room first, then use <strong className="text-fg">Open local guest window</strong> inside the room. A second browser window is a separate peer; a single tab cannot chat with itself.</p>
           </div>
           <div className="rounded-lg bg-elevated p-5 shadow-border">
             <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">
@@ -1979,6 +2078,20 @@ export function WatchRoomSection() {
               <Radio className={`size-3 ${p2p.joined ? "text-accent" : "text-subtle"}`} />
               {p2p.joined ? "Signaling online" : "Connecting…"}
             </span>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button size="sm" variant="secondary" onClick={() => {
+              const invite = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(activeRoom)}&theater=1`;
+              const opened = window.open(invite, "reelcase-local-guest", "noopener,width=1200,height=820");
+              setInviteNotice(opened ? "Opened a separate local guest window. Give it a moment to appear in Guests." : "Your browser blocked the guest window. Allow pop-ups, then try again.");
+            }}>Open local guest window</Button>
+            <Button size="sm" variant="ghost" onClick={() => void navigator.clipboard?.writeText(JSON.stringify({ room: activeRoom, signaling: p2p.joined, peers: p2p.peers, events: p2p.events }, null, 2)).then(() => setInviteNotice("Connection diagnostic copied."), () => setInviteNotice("Could not copy the diagnostic."))}>Copy connection diagnostic</Button>
+          </div>
+          <div className="mt-3 rounded-sm bg-bg/45 p-3">
+            <div className="flex items-center justify-between gap-3"><p className="text-xs font-medium text-fg">Connection signals</p><span className="text-xs text-muted">{p2p.peers.filter((peer) => peer.connectionState === "connected").length}/{p2p.peers.length} direct</span></div>
+            <div className="mt-2 max-h-28 space-y-1 overflow-y-auto font-mono text-[11px] leading-4 text-muted">{p2p.events.map((event, index) => <p key={`${event}-${index}`}>{event}</p>)}</div>
+            {!p2p.peers.length && p2p.joined && <p className="mt-2 text-xs text-accent">Signaling works. Open the invitation in another browser window or device to create a direct chat peer.</p>}
+            <div className="mt-3 flex flex-wrap items-center gap-2"><Button size="sm" variant="secondary" disabled={!p2p.peers.some((peer) => peer.connectionState === "connected")} onClick={() => { setPulseStatus("Sending direct transport test…"); p2p.send({ type: "room-pulse", sentAt: Date.now() }); }}>Test chat transport</Button><span className="text-xs text-muted">{pulseStatus}</span></div>
           </div>
           <h2 className="mt-2 font-display text-3xl text-fg">
             {playback.playing ? "Playing together" : "Paused together"}
@@ -2380,7 +2493,7 @@ function HubShell({
     </section>
   );
 }
-function Stat({ label, value }: { label: string; value: number }) {
+function Stat({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-lg bg-elevated px-4 py-4 shadow-border">
       <p className="font-mono text-2xl tabular-nums text-fg">{value}</p>

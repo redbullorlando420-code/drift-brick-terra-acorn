@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Reelcase",
+      "hasCanvas": false,
+      "bodyTextLen": 2141,
+      "bodyTextHash": "d7b7e7913f4b1386dbb1e26a6d35c2f1c2e160a6da8799815b158a4e38b9cbf2",
+      "bodyTextPrefix": "Reelcase Vault · networks · live Home 12 Movies YouTube 8 Twitch",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\reelcase-three-milestones.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Reelcase",
+      "hasCanvas": false,
+      "bodyTextLen": 2035,
+      "bodyTextHash": "06db3a1f87d26a71be5b019be00ff9f1719c93a7ae560320e4b34f58aaf95e23",
+      "bodyTextPrefix": "Home 12 indexed Name YOUR DAILY DETOUR Something worth finding. ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\reelcase-three-milestones-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\reelcase-three-milestones.json"
+}

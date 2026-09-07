@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Reelcase",
+      "hasCanvas": false,
+      "bodyTextLen": 2153,
+      "bodyTextHash": "4be31c88faff3e1e015cee9779881a7f55538a0c9f789fb71a0b073773d99619",
+      "bodyTextPrefix": "Reelcase Vault · networks · live Home 12 Movies YouTube 8 Twitch",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\reelcase-sources-discovery.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Reelcase",
+      "hasCanvas": false,
+      "bodyTextLen": 2035,
+      "bodyTextHash": "f9cea5201e5ace67a76beb598e7db3f7f0de166a062e11e2ac2f4f1b022c3173",
+      "bodyTextPrefix": "Home 12 indexed Name YOUR DAILY DETOUR Something worth finding. ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\reelcase-sources-discovery-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\reelcase-sources-discovery.json"
+}

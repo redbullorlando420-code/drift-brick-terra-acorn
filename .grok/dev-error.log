@@ -1,0 +1,66 @@
+2:15:56 PM [vite] (client) [console.error] [vite] SyntaxError: The requested module '/src/components/library/hub-sections.tsx' does not provide an export named 'GenreSection'
+2:15:56 PM [vite] (client) [console.error] [vite] Failed to reload /src/components/library/library-app.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+2:16:48 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:16:50 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:16:51 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:16:53 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:16:54 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:16:56 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:16:58 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:16:59 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:17:01 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:17:02 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:17:03 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:17:06 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:17:08 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:17:10 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:17:12 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:17:14 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:17:16 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:17:18 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:17:20 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:17:22 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:17:25 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:17:28 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:17:33 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:17:36 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:17:37 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:17:40 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:17:42 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:17:46 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:17:47 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:17:49 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:17:51 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:17:54 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:17:56 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:17:58 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:18:01 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:18:04 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:18:06 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:18:08 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:18:10 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:18:12 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+2:19:18 PM [vite] (client) [Unhandled rejection] AbortError: The play() request was interrupted because the media was removed from the document. https://goo.gl/LdLk22
+
+AbortError: This operation was aborted
+    at new DOMException (node:internal/per_context/domexception:76:18)
+    ... 8 lines matching cause stack trace ...
+    at TCP.<anonymous> (node:net:362:12) {
+  cause: DOMException [AbortError]: This operation was aborted
+      at new DOMException (node:internal/per_context/domexception:76:18)
+      at AbortController.abort (node:internal/abort_controller:572:18)
+      at abort (file:///E:/codex/drift-brick-terra-acorn/node_modules/srvx/dist/adapters/node.mjs:316:51)
+      at ServerResponse.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/node_modules/srvx/dist/adapters/node.mjs:320:35)
+      at ServerResponse.wrapper (node:events:639:12)
+      at ServerResponse.emit (node:events:514:28)
+      at emitCloseNT (node:_http_server:1156:10)
+      at Socket.onServerResponseClose (node:_http_server:292:5)
+      at Socket.emit (node:events:526:24)
+      at TCP.<anonymous> (node:net:362:12),
+  status: 500,
+  statusText: undefined,
+  headers: undefined,
+  data: undefined,
+  body: undefined,
+  unhandled: true
+}

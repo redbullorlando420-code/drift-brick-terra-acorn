@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLibrary } from "@/lib/videos/store";
 import { getRating, setRating as saveRating } from "@/lib/media-feedback";
+import { resolvePlayUrl } from "@/lib/videos/sources";
 
 const EMPTY_TAGS: string[] = [];
 
@@ -12,6 +13,8 @@ export function PreVideo() {
   const videos = useLibrary((s) => s.videos);
   const openVideo = useLibrary((s) => s.openVideo);
   const closePreview = useLibrary((s) => s.closePreview);
+  const setSource = useLibrary((s) => s.setSource);
+  const setQuery = useLibrary((s) => s.setQuery);
   const setVideoTags = useLibrary((s) => s.setVideoTags);
   const setVideoCategory = useLibrary((s) => s.setVideoCategory);
   const tags = useLibrary((s) => (previewId ? (s.tags[previewId] ?? EMPTY_TAGS) : EMPTY_TAGS));
@@ -21,8 +24,21 @@ export function PreVideo() {
   const [categoryText, setCategoryText] = useState("");
   const [vrAvailable, setVrAvailable] = useState(false);
   const [rating, setRating] = useState(0);
+  const [localPreviewSrc, setLocalPreviewSrc] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState("");
+  const markUnavailable = useLibrary((s) => s.markUnavailable);
   const video = videos.find((item) => item.id === previewId);
   useEffect(() => { if (!previewId) return; setRating(getRating(previewId)); }, [previewId]);
+  useEffect(() => {
+    if (!video || video.remote || video.src) { setLocalPreviewSrc(null); setPreviewError(""); return; }
+    let cancelled = false;
+    setLocalPreviewSrc(null); setPreviewError("");
+    void resolvePlayUrl(video).then((src) => { if (!cancelled) setLocalPreviewSrc(src); }).catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : "This local file is no longer available.";
+      if (!cancelled) { setPreviewError(message); markUnavailable(video.id, message); }
+    });
+    return () => { cancelled = true; };
+  }, [markUnavailable, video]);
   useEffect(() => {
     const xr = (
       navigator as Navigator & { xr?: { isSessionSupported: (mode: string) => Promise<boolean> } }
@@ -75,9 +91,9 @@ export function PreVideo() {
                   allow="autoplay; encrypted-media; picture-in-picture"
                   allowFullScreen
                 />
-              ) : video.src ? (
+              ) : (video.src || localPreviewSrc) ? (
                 <video
-                  src={video.src}
+                  src={video.src ?? localPreviewSrc ?? undefined}
                   poster={video.poster}
                   className="aspect-video w-full bg-bg object-contain"
                   muted
@@ -86,6 +102,8 @@ export function PreVideo() {
                   playsInline
                   controls
                 />
+              ) : previewError ? (
+                <div className="flex aspect-video items-center justify-center bg-bg px-6 text-center text-sm text-muted">{previewError}</div>
               ) : (
                 <img src={video.poster} alt="" className="aspect-video w-full object-cover" />
               )}
@@ -118,22 +136,9 @@ export function PreVideo() {
                     ? "Use Meta Quest Browser to enter VR"
                     : "VR is available on a Meta Quest or other WebXR browser"
                 }
-                onClick={() => {
-                  const xr = (
-                    navigator as Navigator & {
-                      xr?: { requestSession: (mode: string, init?: unknown) => Promise<unknown> };
-                    }
-                  ).xr;
-                  if (!xr) {
-                    window.alert(
-                      "Open this video in Meta Quest Browser or another WebXR-capable browser to enter VR theater.",
-                    );
-                    return;
-                  }
-                  void xr.requestSession("immersive-vr", { optionalFeatures: ["local-floor", "dom-overlay"], domOverlay: { root: document.body } }).catch(() => {});
-                }}
+                onClick={() => openVideo(video.id)}
               >
-                <Glasses className="size-4" /> VR theater
+                <Glasses className="size-4" /> Open VR cinema
               </Button>
               <Button
                 variant="secondary"
@@ -155,9 +160,19 @@ export function PreVideo() {
             <div className="mt-4 flex flex-wrap gap-1.5">
               {tags.length ? (
                 tags.map((tag) => (
-                  <span key={tag} className="rounded-xs bg-bg/50 px-2 py-1 text-xs text-muted">
-                    {tag}
-                  </span>
+                  <button
+                    key={tag}
+                    type="button"
+                    title={`Show videos tagged ${tag}`}
+                    onClick={() => {
+                      setSource(video.remote?.kind === "twitch" ? "twitch" : video.remote?.kind === "youtube" ? "youtube" : "all");
+                      setQuery(tag);
+                      closePreview();
+                    }}
+                    className="rounded-xs bg-bg/50 px-2 py-1 text-xs text-muted transition-colors hover:bg-accent/15 hover:text-accent focus-visible:outline-2 focus-visible:outline-accent"
+                  >
+                    #{tag}
+                  </button>
                 ))
               ) : (
                 <span className="text-xs text-subtle">No keywords yet</span>

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   Clapperboard,
   Clock3,
@@ -15,6 +15,7 @@ import {
   Sparkles,
   ShoppingBag,
   Box,
+  BarChart3,
   Images,
   MonitorPlay,
   Music2,
@@ -110,6 +111,11 @@ export function SidebarNav({
   const ytCount = useLibrary((s) => s.videos.filter((v) => v.remote?.kind === "youtube").length);
   const twitchCount = useLibrary((s) => s.videos.filter((v) => v.remote?.kind === "twitch").length);
   const liveCount = useLibrary((s) => s.videos.filter((v) => v.remote?.live).length);
+  const [followingOpen, setFollowingOpen] = useState(false);
+  const [sourcesOpen, setSourcesOpen] = useState(true);
+  useEffect(() => { try { setFollowingOpen(localStorage.getItem("reelcase.sidebar.following-open") === "true"); setSourcesOpen(localStorage.getItem("reelcase.sidebar.sources-open") !== "false"); } catch { /* defaults */ } }, []);
+  const toggleFollowing = () => setFollowingOpen((open) => { const next = !open; try { localStorage.setItem("reelcase.sidebar.following-open", String(next)); } catch { /* session */ } return next; });
+  const toggleSources = () => setSourcesOpen((open) => { const next = !open; try { localStorage.setItem("reelcase.sidebar.sources-open", String(next)); } catch { /* session */ } return next; });
 
   const go = (id: SourceId) => {
     setSource(id);
@@ -117,7 +123,7 @@ export function SidebarNav({
   };
 
   const publicFolders = folders.filter(
-    (f) => f.kind !== "demo" && f.kind !== "youtube" && f.kind !== "twitch" && !f.adult && (f.videoCount > 0 || Boolean(f.photoCount) || Boolean(f.needsPermission)),
+    (f) => f.kind !== "demo" && f.kind !== "youtube" && f.kind !== "twitch" && !f.adult,
   );
   const networkFolders = folders.filter(
     (f) => (f.kind === "youtube" || f.kind === "twitch") && f.id !== "youtube:featured",
@@ -150,6 +156,12 @@ export function SidebarNav({
           onClick={() => go("movies")}
           icon={Film}
           label="Movies"
+        />
+        <NavItem
+          active={sourceId === "genres"}
+          onClick={() => go("genres")}
+          icon={Film}
+          label="Genres"
         />
         <NavItem
           active={sourceId === "youtube"}
@@ -290,11 +302,17 @@ export function SidebarNav({
           icon={Settings2}
           label="Settings"
         />
+        <NavItem
+          active={sourceId === "stats"}
+          onClick={() => go("stats")}
+          icon={BarChart3}
+          label="Stats"
+        />
       </nav>
       <Separator className="my-4" />
-      <p className="px-3 pb-2 text-xs font-medium tracking-wide text-subtle uppercase">Sources</p>
+      <button type="button" onClick={toggleSources} className="flex items-center justify-between px-3 pb-2 text-xs font-medium tracking-wide text-subtle uppercase"><span>Local sources</span><span>{sourcesOpen ? "Hide" : `${publicFolders.length}`}</span></button>
       <div className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-1">
-        {demo && (
+        {sourcesOpen && demo && (
           <NavItem
             active={sourceId === demo.id}
             onClick={() => go(demo.id)}
@@ -303,7 +321,7 @@ export function SidebarNav({
             count={demo.videoCount}
           />
         )}
-        {publicFolders.map((folder) => (
+        {sourcesOpen && publicFolders.map((folder) => (
           <FolderRow
             key={folder.id}
             folder={folder}
@@ -318,10 +336,8 @@ export function SidebarNav({
         ))}
         {networkFolders.length > 0 && (
           <>
-            <p className="mt-3 px-2 pb-1 text-xs font-medium tracking-wide text-subtle uppercase">
-              Following
-            </p>
-            {networkFolders.map((folder) => (
+            <button type="button" onClick={toggleFollowing} className="mt-3 flex items-center justify-between px-2 pb-1 text-xs font-medium tracking-wide text-subtle uppercase"><span>Following</span><span>{followingOpen ? "Hide" : networkFolders.length}</span></button>
+            {followingOpen && networkFolders.map((folder) => (
               <FolderRow
                 key={folder.id}
                 folder={folder}
@@ -396,6 +412,7 @@ function FolderRow({
         count={folder.needsPermission ? undefined : folder.videoCount}
         trailing={
           <span className="flex items-center">
+            {folder.health && <span title={folder.health === "healthy" ? "Source checked" : folder.health === "cached" ? "Cached catalog" : "Source needs attention"} className={cn("mr-1 size-2 rounded-full", folder.health === "healthy" ? "bg-accent" : folder.health === "cached" ? "bg-muted" : "bg-danger")} />}
             {!hideAdult && (
               <span
                 role="button"

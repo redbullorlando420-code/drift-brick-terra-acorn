@@ -106,7 +106,7 @@ export function PosterGrid({ videos }: { videos: LibraryVideo[] }) {
         <VideoCard key={video.id} video={video} variant="poster" index={i} className="w-full" />
       ))}
     </div>
-    {videos.length > limit && <div className="mt-5 flex items-center justify-between gap-3"><p className="text-xs text-muted">Showing {limit.toLocaleString()} of {videos.length.toLocaleString()} titles</p><Button variant="secondary" onClick={() => setLimit((value) => Math.min(value + 120, videos.length))}>Show 120 more</Button></div>}
+    {videos.length > limit && <div className="mt-5 flex items-center justify-between gap-3"><p className="text-xs text-muted">Page {Math.ceil(limit / 120)} · showing {limit.toLocaleString()} of {videos.length.toLocaleString()} titles</p><Button variant="secondary" onClick={() => setLimit((value) => Math.min(value + 120, videos.length))}>Next page · 120</Button></div>}
     </>
   );
 }

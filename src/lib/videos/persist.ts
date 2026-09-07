@@ -13,6 +13,7 @@ const DB_NAME = "reelcase";
 const STORE = "dirs";
 const VIDEO_STORE = "videos";
 const SOURCE_HEALTH_STORE = "source-health";
+const THUMB_STORE = "thumb-cache";
 const PREFS_KEY = "reelcase.prefs.v4";
 const LEGACY_KEYS = ["reelcase.prefs.v3", "reelcase.prefs.v2", "reelcase.prefs.v1"];
 
@@ -47,6 +48,7 @@ export type Prefs = {
   follows: FollowedChannel[];
   notices: AppNotice[];
   notifyPush: boolean;
+  unavailableVideoIds?: string[];
 };
 
 function migrateSource(id: string | undefined): string {
@@ -59,7 +61,7 @@ function migrateSource(id: string | undefined): string {
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 4);
+    const req = indexedDB.open(DB_NAME, 5);
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains("remote-cache")) db.createObjectStore("remote-cache");
@@ -73,6 +75,7 @@ function openDb(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(SOURCE_HEALTH_STORE)) {
         db.createObjectStore(SOURCE_HEALTH_STORE, { keyPath: "id" });
       }
+      if (!db.objectStoreNames.contains(THUMB_STORE)) db.createObjectStore(THUMB_STORE, { keyPath: "id" });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -190,6 +193,23 @@ export async function loadCatalogVideos(): Promise<LibraryVideo[]> {
   });
   db.close();
   return rows.filter((v) => !v.isSample);
+}
+
+export type StoredThumb = { id: string; thumb: string; at: number };
+export async function loadThumbCache(limit = 120): Promise<StoredThumb[]> {
+  const db = await openDb();
+  try {
+    const rows = await new Promise<StoredThumb[]>((resolve, reject) => {
+      const req = db.transaction(THUMB_STORE, "readonly").objectStore(THUMB_STORE).getAll();
+      req.onsuccess = () => resolve((req.result as StoredThumb[]) ?? []);
+      req.onerror = () => reject(req.error);
+    });
+    return rows.sort((a, b) => b.at - a.at).slice(0, limit);
+  } finally { db.close(); }
+}
+export async function saveThumbCache(entry: StoredThumb): Promise<void> {
+  const db = await openDb();
+  try { await new Promise<void>((resolve, reject) => { const tx = db.transaction(THUMB_STORE, "readwrite"); tx.objectStore(THUMB_STORE).put(entry); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); }); } finally { db.close(); }
 }
 
 export type RemoteSnapshot = { videos: LibraryVideo[]; folders: Folder[]; checkedAt: number };

@@ -2,12 +2,15 @@ import { create } from "zustand";
 import type { LibraryVideo } from "./types";
 import { resolvePlayUrl } from "./sources";
 import { bitmapFromVideo } from "./hw";
+import { loadThumbCache, saveThumbCache } from "./persist";
 
 type ThumbState = {
   byId: Record<string, string>;
   failed: Record<string, true>;
   durations: Record<string, number>;
   request: (video: LibraryVideo) => void;
+  retry: (video: LibraryVideo) => void;
+  hydrate: () => Promise<void>;
 };
 
 const inflight = new Set<string>();
@@ -131,6 +134,7 @@ export const useThumbs = create<ThumbState>((set, get) => ({
                 ? { ...s.durations, [video.id]: duration }
                 : s.durations,
           }; });
+          void saveThumbCache({ id: video.id, thumb, at: Date.now() }).catch(() => undefined);
         } else {
           set((s) => ({
             failed: { ...s.failed, [video.id]: true },
@@ -147,5 +151,19 @@ export const useThumbs = create<ThumbState>((set, get) => ({
         release();
       }
     })();
+  },
+  retry: (video) => {
+    set((s) => {
+      const failed = { ...s.failed };
+      delete failed[video.id];
+      return { failed };
+    });
+    get().request(video);
+  },
+  hydrate: async () => {
+    try {
+      const rows = await loadThumbCache(MAX_MEMORY_THUMBS);
+      set((s) => ({ byId: { ...Object.fromEntries(rows.map((row) => [row.id, row.thumb])), ...s.byId } }));
+    } catch { /* Thumbnail cache is an optional speed-up. */ }
   },
 }));

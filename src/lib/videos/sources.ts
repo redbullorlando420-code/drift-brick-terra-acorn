@@ -54,6 +54,8 @@ function rememberObjectUrl(id: string, url: string) {
 export async function resolvePlayUrl(video: {
   id: string;
   src?: string;
+  folderId?: string;
+  path?: string;
 }): Promise<string> {
   if (video.src) return video.src;
   const cached = objectUrls.get(video.id);
@@ -67,6 +69,28 @@ export async function resolvePlayUrl(video: {
   if (!file) {
     const handle = fileHandles.get(video.id);
     if (handle) file = await handle.getFile();
+  }
+  // File handles are intentionally memory-only. After a reload, recover the
+  // file directly from the persisted folder permission instead of asking the
+  // user to reconnect an unchanged source just to play one item.
+  if (!file && video.folderId && video.path) {
+    const root = dirHandles.get(video.folderId);
+    if (root) {
+      try {
+        const segments = video.path.split("/").filter(Boolean);
+        const leaf = segments.pop();
+        let dir = root;
+        for (const segment of segments) dir = await dir.getDirectoryHandle(segment);
+        if (leaf) {
+          const handle = await dir.getFileHandle(leaf);
+          rememberFileHandle(video.id, handle);
+          file = await handle.getFile();
+        }
+      } catch {
+        // The existing error below remains the clear recovery path if a file
+        // moved or Windows revoked the folder permission.
+      }
+    }
   }
   if (!file) {
     throw new Error("This file is no longer available. Add the folder again.");

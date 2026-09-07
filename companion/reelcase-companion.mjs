@@ -23,6 +23,7 @@ const allowedRoots = [...new Set([...configuredRoots, ...(desktopRoot ? [desktop
   .flatMap((value) => { try { return [realpathSync(value)]; } catch { return []; } });
 const allowedExt = new Set([".exe", ".lnk", ".url", ".appref-ms"]);
 const changes = [];
+const launches = [];
 for (const root of allowedRoots) {
   try {
     watch(root, { recursive: true }, (kind, file) => {
@@ -110,6 +111,10 @@ const server = createServer(async (req, res) => {
     reply(res, 200, { ok: true, watching: allowedRoots.map((path) => ({ path, active: existsSync(path) })), recentChanges: changes.slice(0, 30) });
     return;
   }
+  if (req.method === "GET" && req.url === "/launch-history") {
+    reply(res, 200, { ok: true, launches });
+    return;
+  }
   if (req.method === "GET" && req.url?.startsWith("/shortcuts")) {
     const requested = Number(new URL(req.url, "http://127.0.0.1").searchParams.get("limit") ?? "250");
     const limit = Number.isFinite(requested) ? Math.max(1, Math.min(500, Math.floor(requested))) : 250;
@@ -120,6 +125,14 @@ const server = createServer(async (req, res) => {
     const rawPath = new URL(req.url, "http://127.0.0.1").searchParams.get("path") ?? "";
     const path = allowedPath(rawPath);
     reply(res, 200, { ok: true, available: Boolean(path), path: path ?? null });
+    return;
+  }
+  if (req.method === "POST" && req.url === "/validate-shortcuts") {
+    let text = "";
+    for await (const chunk of req) text += chunk;
+    let body; try { body = JSON.parse(text); } catch { reply(res, 400, { ok: false, error: "Invalid request" }); return; }
+    const paths = Array.isArray(body.paths) ? body.paths.slice(0, 100) : [];
+    reply(res, 200, { ok: true, shortcuts: paths.map((rawPath) => ({ requested: String(rawPath ?? ""), approved: Boolean(allowedFile(rawPath)) })) });
     return;
   }
   if (req.method === "POST" && req.url === "/verify") {
@@ -144,7 +157,7 @@ const server = createServer(async (req, res) => {
     let body; try { body = JSON.parse(text); } catch { reply(res, 400, { ok: false, error: "Invalid request" }); return; }
     const file = allowedFile(body.path);
     if (!file) { reply(res, 400, { ok: false, error: "File is missing, unsupported, or outside an allowed root" }); return; }
-    try { spawn(file, [], { detached: true, stdio: "ignore", windowsHide: true }).unref(); reply(res, 200, { ok: true, path: file }); }
+    try { spawn(file, [], { detached: true, stdio: "ignore", windowsHide: true }).unref(); launches.unshift({ path: file, at: Date.now() }); launches.splice(50); reply(res, 200, { ok: true, path: file }); }
     catch { reply(res, 500, { ok: false, error: "The launcher could not be started" }); }
     return;
   }

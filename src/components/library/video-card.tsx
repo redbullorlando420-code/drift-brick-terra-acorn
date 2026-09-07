@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Heart, Play, Tag, ThumbsUp } from "lucide-react";
+import { Heart, Play, Tag, ThumbsUp, RefreshCw, Star } from "lucide-react";
 import { cn, formatAgo, formatBytes, formatTime } from "@/lib/utils";
 import type { LibraryVideo } from "@/lib/videos/types";
 import { isLikelyPlayable, titleOf } from "@/lib/videos/types";
@@ -27,6 +27,7 @@ export function VideoCard({
   const failed = useThumbs((s) => s.failed[video.id]);
   const capturedDur = useThumbs((s) => s.durations[video.id]);
   const request = useThumbs((s) => s.request);
+  const retry = useThumbs((s) => s.retry);
   const progress = useLibrary((s) => s.progress[video.id]);
   const fav = useLibrary((s) => Boolean(s.favorites[video.id]));
   const liked = useLibrary((s) => Boolean(s.likes[video.id]));
@@ -45,6 +46,7 @@ export function VideoCard({
   const preview = video.remote?.previewUrl;
   const [hovered, setHovered] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
+  const [rating, setRating] = useState(0);
 
 
   useEffect(() => {
@@ -59,6 +61,16 @@ export function VideoCard({
     io.observe(el);
     return () => io.disconnect();
   }, [request, video]);
+  useEffect(() => {
+    try { setRating(Number(JSON.parse(localStorage.getItem("reelcase.video-ratings") ?? "{}")[video.id] ?? 0)); } catch { setRating(0); }
+  }, [video.id]);
+  const rate = (value: number) => {
+    setRating(value);
+    try {
+      const saved = JSON.parse(localStorage.getItem("reelcase.video-ratings") ?? "{}") as Record<string, number>;
+      localStorage.setItem("reelcase.video-ratings", JSON.stringify({ ...saved, [video.id]: value }));
+    } catch { /* session-only rating */ }
+  };
 
   const poster = (
     <div
@@ -88,6 +100,7 @@ export function VideoCard({
           >
             <Play className="ml-0.5 size-4 fill-current" />
           </span>
+          {failed && video.remote && <span className="absolute bottom-2 left-2 right-2 rounded-xs bg-bg/80 px-2 py-1 text-center text-[11px] text-muted">Artwork unavailable</span>}
         </div>
       )}
       <div className="absolute inset-0 bg-linear-to-t from-bg/80 via-transparent to-transparent opacity-90" />
@@ -135,7 +148,7 @@ export function VideoCard({
 
   return (
     <div
-      className={cn("stagger-in group relative", isPoster && "poster-hit", className)}
+      className={cn("stagger-in group relative", isPoster && "poster-hit", live && "rounded-lg border border-border bg-surface p-2 shadow-border", className)}
       style={{ ["--stagger-i" as string]: Math.min(index, 16) }}
     >
       <button
@@ -201,6 +214,7 @@ export function VideoCard({
               </>
             )}
           </p>
+          {rating > 0 && <p className="mt-1 flex items-center gap-1 text-xs text-accent"><Star className="size-3 fill-current" /> Your rating {rating}/5</p>}
           {(category || tags.length > 0) && variant !== "list" && (
             <p className="mt-1 flex items-center gap-1 truncate text-xs text-subtle">
               <Tag className="size-3 shrink-0" />
@@ -214,7 +228,8 @@ export function VideoCard({
           </span>
         )}
       </button>
-      <button
+      {failed && <button type="button" aria-label={`Retry artwork for ${video.name}`} onClick={(event) => { event.stopPropagation(); retry(video); }} className="absolute bottom-2 right-2 flex size-8 items-center justify-center rounded-sm bg-bg/75 text-fg opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"><RefreshCw className="size-3.5" /></button>}
+      {!live && <button
         type="button"
         aria-label={fav ? "Remove from favorites" : "Add to favorites"}
         onClick={(e) => {
@@ -228,8 +243,8 @@ export function VideoCard({
         )}
       >
         <Heart className={cn("size-3.5", fav && "fill-accent text-accent")} />
-      </button>
-      <button
+      </button>}
+      {!live && <button
         type="button"
         aria-label={liked ? "Remove like" : "Like"}
         onClick={(event) => {
@@ -243,7 +258,19 @@ export function VideoCard({
         )}
       >
         <ThumbsUp className={cn("size-3.5", liked && "fill-accent text-accent")} />
-      </button>
+      </button>}
+      {live && (
+        <div className="mt-2 flex items-center justify-between border-t border-border pt-2">
+          <span className="text-[11px] text-muted">Save this stream</span>
+          <div className="flex items-center gap-1">
+            <button type="button" aria-label={fav ? "Remove from favorites" : "Add to favorites"} onClick={(event) => { event.stopPropagation(); toggleFavorite(video.id); }} className={cn("flex min-h-8 items-center gap-1 rounded-sm px-2 text-xs transition-colors hover:bg-elevated", fav && "bg-accent/15 text-accent")}><Heart className={cn("size-3.5", fav && "fill-current")} />{fav ? "Saved" : "Save"}</button>
+            <button type="button" aria-label={liked ? "Remove like" : "Like"} onClick={(event) => { event.stopPropagation(); toggleLike(video.id); }} className={cn("flex min-h-8 items-center gap-1 rounded-sm px-2 text-xs transition-colors hover:bg-elevated", liked && "bg-accent/15 text-accent")}><ThumbsUp className={cn("size-3.5", liked && "fill-current")} />{liked ? "Liked" : "Like"}</button>
+          </div>
+        </div>
+      )}
+      <div className="absolute right-2 bottom-2 hidden items-center gap-0.5 rounded-sm bg-bg/75 p-1 text-accent backdrop-blur-sm group-hover:flex group-focus-within:flex">
+        {[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" aria-label={`Rate ${video.name} ${value} stars`} onClick={(event) => { event.stopPropagation(); rate(value); }} className={cn("p-0.5", value <= rating && "text-fg")}><Star className={cn("size-3", value <= rating && "fill-current")} /></button>)}
+      </div>
     </div>
   );
 }

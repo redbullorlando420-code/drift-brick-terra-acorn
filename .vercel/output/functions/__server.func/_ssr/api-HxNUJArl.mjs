@@ -1,6 +1,6 @@
 import { t as createServerFn } from "./ssr.mjs";
 import { t as createServerRpc } from "./createServerRpc-A6pJPYTF.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/api-BuxjjIFV.js
+//#region node_modules/.nitro/vite/services/ssr/assets/api-HxNUJArl.js
 function asString(v) {
 	return typeof v === "string" ? v : "";
 }
@@ -71,10 +71,13 @@ function tag(xml, name) {
 	return m ? decodeXml(m[1]).trim() : "";
 }
 async function fetchText(url) {
-	const res = await fetch(url, { headers: {
-		"user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai) AppleWebKit/537.36",
-		accept: "text/html,application/xhtml+xml,application/xml,application/json"
-	} });
+	const res = await fetch(url, {
+		signal: AbortSignal.timeout(12e3),
+		headers: {
+			"user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai) AppleWebKit/537.36",
+			accept: "text/html,application/xhtml+xml,application/xml,application/json"
+		}
+	});
 	if (!res.ok) throw new Error(`Could not reach ${url}`);
 	return res.text();
 }
@@ -104,7 +107,7 @@ function ytVideo(entry) {
 	};
 }
 async function youtubeFromVideo(id) {
-	const oembed = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${id}`)}&format=json`);
+	const oembed = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${id}`)}&format=json`, { signal: AbortSignal.timeout(12e3) });
 	if (!oembed.ok) throw new Error("That YouTube video could not be found.");
 	const meta = await oembed.json();
 	const channelName = meta.author_name ?? "YouTube";
@@ -187,6 +190,7 @@ function twitchLogin(input) {
 }
 async function twitchUser(login) {
 	const res = await fetch("https://gql.twitch.tv/gql", {
+		signal: AbortSignal.timeout(12e3),
 		method: "POST",
 		headers: {
 			"client-id": "kimne78kx3ncx6brgo4mv6wki5h1ko",
@@ -412,6 +416,7 @@ function parseTwitchUser(data) {
 }
 async function twitchGql(query, variables) {
 	const res = await fetch("https://gql.twitch.tv/gql", {
+		signal: AbortSignal.timeout(12e3),
 		method: "POST",
 		headers: {
 			"client-id": "kimne78kx3ncx6brgo4mv6wki5h1ko",

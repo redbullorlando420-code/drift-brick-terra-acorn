@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Clock3, LayoutGrid, List, Menu, Search, Upload } from "lucide-react";
+import { Clock3, LayoutGrid, List, Menu, Search, Upload, X, Sparkles, FolderSearch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -26,10 +26,10 @@ const SORTS: { key: SortKey; label: string }[] = [
 
 export function TopBar({
   onMenu,
-  onAddFiles,
+  onAddFolder,
 }: {
   onMenu: () => void;
-  onAddFiles: () => void;
+  onAddFolder: () => void;
 }) {
   const query = useLibrary((s) => s.query);
   const setQuery = useLibrary((s) => s.setQuery);
@@ -52,9 +52,35 @@ export function TopBar({
   const sourceId = useLibrary((s) => s.sourceId);
   const folders = useLibrary((s) => s.folders);
   const videos = useLibrary((s) => s.videos);
+  const openPreview = useLibrary((s) => s.openPreview);
+  const setSource = useLibrary((s) => s.setSource);
+  const tags = useLibrary((s) => s.tags);
+  const adultsUnlocked = useLibrary((s) => s.adultsUnlocked);
+  const [focused, setFocused] = useState(false);
+  const [recent, setRecent] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem("reelcase.search.recent") ?? "[]") as string[]; } catch { return []; }
+  });
   const sortLabel = SORTS.find((s) => s.key === sort)?.label ?? "Name";
   const sourceLabel = sourceId === "home" ? "Home" : sourceId === "movies" ? "Movies" : sourceId === "photos" ? "Photos" : sourceId === "twitch" ? "Twitch" : sourceId === "youtube" ? "YouTube" : folders.find((folder) => folder.id === sourceId)?.name ?? "Library";
   const sourceCount = sourceId === "home" ? videos.length : folders.find((folder) => folder.id === sourceId)?.videoCount;
+  const needle = draft.trim().toLowerCase();
+  const hits = needle
+    ? videos.filter((video) => {
+        const folder = folders.find((item) => item.id === video.folderId);
+        if (folder?.adult && !(sourceId === "adults" && adultsUnlocked)) return false;
+        return `${video.name} ${video.path} ${video.remote?.channelName ?? ""} ${(tags[video.id] ?? []).join(" ")}`.toLowerCase().includes(needle);
+      }).slice(0, 6)
+    : [];
+  const commit = (value = draft) => {
+    const clean = value.trim();
+    setQuery(clean);
+    if (clean) {
+      const next = [clean, ...recent.filter((item) => item !== clean)].slice(0, 5);
+      setRecent(next);
+      localStorage.setItem("reelcase.search.recent", JSON.stringify(next));
+    }
+    setFocused(false);
+  };
 
   return (
     <header className="grid gap-3 border-b border-border px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-6 xl:grid-cols-[minmax(13rem,0.55fr)_minmax(20rem,1.4fr)_auto]">
@@ -71,18 +97,35 @@ export function TopBar({
         <div className="min-w-0"><p className="truncate font-display text-lg leading-none text-fg">{sourceLabel}</p><p className="mt-1 text-xs text-muted">{typeof sourceCount === "number" ? `${sourceCount.toLocaleString()} indexed` : "Control room"}</p></div>
       </div>
       <div className="relative min-w-0 xl:max-w-3xl">
-        <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle" />
+        <Search className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-accent" />
         <Input
           type="search"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") setQuery(draft);
+            if (e.key === "Enter") commit();
+            if (e.key === "Escape") setFocused(false);
           }}
-          placeholder="Search titles, channels, paths"
-          className="pl-9"
-          aria-label="Search videos"
+          onFocus={() => setFocused(true)}
+          placeholder="Search your entire media desk…"
+          className="h-12 border-border bg-elevated pl-11 pr-10 text-base shadow-border"
+          aria-label="Global media search"
         />
+        {draft && <button type="button" aria-label="Clear search" onClick={() => { setDraft(""); setQuery(""); }} className="absolute top-1/2 right-3 -translate-y-1/2 text-subtle hover:text-fg"><X className="size-4" /></button>}
+        {focused && (
+          <div className="absolute top-[calc(100%+0.5rem)] z-40 w-full overflow-hidden rounded-lg bg-surface p-2 shadow-lift shadow-border">
+            {hits.length ? <>
+              <p className="px-3 py-2 text-xs font-medium tracking-[0.14em] text-accent uppercase">Best matches</p>
+              {hits.map((video) => <button key={video.id} type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => { openPreview(video.id); setFocused(false); }} className="flex w-full items-center gap-3 rounded-sm px-3 py-2 text-left hover:bg-elevated"><span className="flex size-8 shrink-0 items-center justify-center rounded-sm bg-bg/60 text-accent"><FolderSearch className="size-4" /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium text-fg">{video.name}</span><span className="block truncate text-xs text-muted">{video.remote?.channelName ?? video.path}</span></span></button>)}
+              <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => commit()} className="mt-1 flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm text-accent hover:bg-elevated"><Search className="size-4" /> See all results for “{draft}”</button>
+            </> : <>
+              <p className="px-3 py-2 text-xs font-medium tracking-[0.14em] text-accent uppercase">Search everywhere</p>
+              <div className="flex flex-wrap gap-2 px-3 py-2">{["favorites", "4k", "documentary", "watch later"].map((term) => <Button key={term} size="sm" variant="secondary" onMouseDown={(event) => event.preventDefault()} onClick={() => { setDraft(term); commit(term); }}>{term}</Button>)}</div>
+              {recent.length > 0 && <div className="border-t border-border px-3 pt-2"><p className="text-xs text-muted">Recent</p>{recent.map((term) => <button key={term} type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => { setDraft(term); commit(term); }} className="mt-1 flex w-full items-center gap-2 py-1 text-left text-sm text-fg hover:text-accent"><Sparkles className="size-3.5" />{term}</button>)}</div>}
+            </>}
+            <div className="mt-2 flex gap-2 border-t border-border px-3 pt-2"><Button size="sm" variant="ghost" onMouseDown={(event) => event.preventDefault()} onClick={() => setSource("home")}>Library</Button><Button size="sm" variant="ghost" onMouseDown={(event) => event.preventDefault()} onClick={() => setSource("youtube")}>YouTube</Button><Button size="sm" variant="ghost" onMouseDown={(event) => event.preventDefault()} onClick={() => setSource("twitch")}>Twitch</Button></div>
+          </div>
+        )}
       </div>
       <div className="flex items-center gap-1.5 sm:justify-end">
         {scanning && (
@@ -133,9 +176,9 @@ export function TopBar({
             <List className="size-4" />
           </button>
         </div>
-        <Button variant="secondary" size="sm" onClick={onAddFiles} className="hidden sm:inline-flex">
+        <Button variant="secondary" size="sm" onClick={onAddFolder} className="hidden sm:inline-flex">
           <Upload className="size-3.5" />
-          Files
+          Folder
         </Button>
       </div>
     </header>
