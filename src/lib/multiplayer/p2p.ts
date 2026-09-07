@@ -107,6 +107,9 @@ export class P2PRoom {
   private closed = false;
   private everPolled = false;
   private lastPeersFingerprint = "";
+  private lastRosterCount = -1;
+  /** Same-origin tabs get a zero-config reliable fallback while WebRTC negotiates. */
+  private localRelay: BroadcastChannel | null = null;
   private debug(event: string) { this.opts.onDebug?.(`${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })} · ${event}`); }
 
   constructor(opts: P2PRoomOptions) {
@@ -119,6 +122,20 @@ export class P2PRoom {
    * room: the loop and timers start regardless and the next poll retries.
    */
   async join(): Promise<void> {
+    // WebRTC is still the cross-device transport. BroadcastChannel fills the
+    // gap for the very common "test the guest window on this computer" flow:
+    // it does not need a database, ICE candidate, or a successful WebRTC offer.
+    if (typeof BroadcastChannel !== "undefined") {
+      this.localRelay = new BroadcastChannel(`reelcase-watch:${this.opts.room}`);
+      this.localRelay.onmessage = (event) => {
+        const message = event.data as { from?: string; to?: string; data?: unknown } | null;
+        if (!message || message.from === this.opts.selfId || (message.to && message.to !== this.opts.selfId)) return;
+        this.debug("Local tab relay delivered a room message");
+        this.opts.onMessage?.(message.from ?? "local-guest", message.data, "reliable");
+      };
+      this.debug("Local tab relay ready");
+      this.opts.onConnected?.();
+    }
     try {
       await this.pollOnce();
       this.debug("Signaling registered");
@@ -138,6 +155,8 @@ export class P2PRoom {
     this.closed = true;
     if (this.pollTimer) clearTimeout(this.pollTimer);
     if (this.pingTimer) clearInterval(this.pingTimer);
+    this.localRelay?.close();
+    this.localRelay = null;
     for (const slot of this.peers.values()) slot.pc.close();
     this.peers.clear();
     // Leaving the roster is the teardown broadcast: everyone's next poll
@@ -162,9 +181,14 @@ export class P2PRoom {
   send(data: unknown, peerId?: string): void {
     const wire = JSON.stringify({ t: "d", d: data });
     const targets = peerId ? [this.peers.get(peerId)] : [...this.peers.values()];
+    let delivered = false;
     for (const slot of targets) {
+      if (slot?.reliable?.readyState === "open") delivered = true;
       if (slot?.reliable?.readyState === "open") slot.reliable.send(wire);
     }
+    // Avoid duplicate events once WebRTC is open, while guaranteeing the
+    // same-machine guest window can chat, receive room state, and sync video.
+    if (!delivered) this.localRelay?.postMessage({ from: this.opts.selfId, to: peerId, data });
   }
 
   peerList(): PeerInfo[] {
@@ -206,7 +230,11 @@ export class P2PRoom {
       this.opts.onConnected?.();
     }
     this.reconcileRoster(body.peers);
-    this.debug(`Roster visible: ${Math.max(0, body.peers.length - 1)} other peer${body.peers.length === 2 ? "" : "s"}`);
+    const otherPeers = Math.max(0, body.peers.length - 1);
+    if (otherPeers !== this.lastRosterCount) {
+      this.lastRosterCount = otherPeers;
+      this.debug(`Roster visible: ${otherPeers} other peer${otherPeers === 1 ? "" : "s"}`);
+    }
     const roster = new Set(body.peers.map((p) => p.id));
     for (const sig of body.signals) {
       this.cursor = Math.max(this.cursor, sig.id);

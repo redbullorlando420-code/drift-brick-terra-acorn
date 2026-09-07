@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Clock3, LayoutGrid, List, Menu, Search, Upload, X, Sparkles, FolderSearch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,16 +34,18 @@ export function TopBar({
   const query = useLibrary((s) => s.query);
   const setQuery = useLibrary((s) => s.setQuery);
   const [draft, setDraft] = useState(query);
-  const [now, setNow] = useState(() => new Date());
+  const [lookup, setLookup] = useState(query);
+  const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
     setDraft(query);
   }, [query]);
+  useEffect(() => { const id = window.setTimeout(() => setLookup(draft), 140); return () => window.clearTimeout(id); }, [draft]);
   useEffect(() => {
     if (draft === query) return;
     const t = window.setTimeout(() => setQuery(draft), 180);
     return () => window.clearTimeout(t);
   }, [draft, query, setQuery]);
-  useEffect(() => { const id = window.setInterval(() => setNow(new Date()), 15_000); return () => window.clearInterval(id); }, []);
+  useEffect(() => { setNow(new Date()); const id = window.setInterval(() => setNow(new Date()), 15_000); return () => window.clearInterval(id); }, []);
   const view = useLibrary((s) => s.view);
   const setView = useLibrary((s) => s.setView);
   const sort = useLibrary((s) => s.sort);
@@ -63,14 +65,15 @@ export function TopBar({
   const sortLabel = SORTS.find((s) => s.key === sort)?.label ?? "Name";
   const sourceLabel = sourceId === "home" ? "Home" : sourceId === "movies" ? "Movies" : sourceId === "photos" ? "Photos" : sourceId === "twitch" ? "Twitch" : sourceId === "youtube" ? "YouTube" : folders.find((folder) => folder.id === sourceId)?.name ?? "Library";
   const sourceCount = sourceId === "home" ? videos.length : folders.find((folder) => folder.id === sourceId)?.videoCount;
-  const needle = draft.trim().toLowerCase();
-  const hits = needle
+  const needle = lookup.trim().toLowerCase();
+  const hits = useMemo(() => needle
     ? videos.filter((video) => {
         const folder = folders.find((item) => item.id === video.folderId);
         if (folder?.adult && !(sourceId === "adults" && adultsUnlocked)) return false;
         return `${video.name} ${video.path} ${video.remote?.channelName ?? ""} ${(tags[video.id] ?? []).join(" ")}`.toLowerCase().includes(needle);
       }).slice(0, 6)
-    : [];
+    : [], [adultsUnlocked, folders, needle, sourceId, tags, videos]);
+  const suggestionTags = useMemo(() => [...new Set(hits.flatMap((video) => tags[video.id] ?? []))].filter((tag) => tag.length >= 3).slice(0, 5), [hits, tags]);
   const commit = (value = draft) => {
     const clean = value.trim();
     setQuery(clean);
@@ -117,6 +120,7 @@ export function TopBar({
             {hits.length ? <>
               <p className="px-3 py-2 text-xs font-medium tracking-[0.14em] text-accent uppercase">Best matches</p>
               {hits.map((video) => <button key={video.id} type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => { openPreview(video.id); setFocused(false); }} className="flex w-full items-center gap-3 rounded-sm px-3 py-2 text-left hover:bg-elevated"><span className="flex size-8 shrink-0 items-center justify-center rounded-sm bg-bg/60 text-accent"><FolderSearch className="size-4" /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium text-fg">{video.name}</span><span className="block truncate text-xs text-muted">{video.remote?.channelName ?? video.path}</span></span></button>)}
+              {suggestionTags.length > 0 && <div className="flex flex-wrap gap-2 border-t border-border px-3 py-2"><span className="self-center text-xs text-muted">Related tags</span>{suggestionTags.map((tag) => <Button key={tag} size="sm" variant="secondary" onMouseDown={(event) => event.preventDefault()} onClick={() => { setDraft(tag); commit(tag); }}>#{tag}</Button>)}</div>}
               <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => commit()} className="mt-1 flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm text-accent hover:bg-elevated"><Search className="size-4" /> See all results for “{draft}”</button>
             </> : <>
               <p className="px-3 py-2 text-xs font-medium tracking-[0.14em] text-accent uppercase">Search everywhere</p>
@@ -150,7 +154,7 @@ export function TopBar({
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-        <span className="hidden items-center gap-1.5 px-2 text-xs tabular-nums text-muted xl:flex"><Clock3 className="size-3.5" />{now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
+        <span className="hidden items-center gap-1.5 px-2 text-xs tabular-nums text-muted xl:flex"><Clock3 className="size-3.5" />{now ? now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "--:--"}</span>
         <NoticeBell />
         <div className="flex rounded-md bg-elevated p-0.5 shadow-border">
           <button

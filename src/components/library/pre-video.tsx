@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ExternalLink, Glasses, Play, Star, Tag, X } from "lucide-react";
+import { ArrowLeft, ExternalLink, Glasses, Heart, Play, Star, Tag, ThumbsUp, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLibrary } from "@/lib/videos/store";
@@ -17,6 +17,10 @@ export function PreVideo() {
   const setQuery = useLibrary((s) => s.setQuery);
   const setVideoTags = useLibrary((s) => s.setVideoTags);
   const setVideoCategory = useLibrary((s) => s.setVideoCategory);
+  const toggleFavorite = useLibrary((s) => s.toggleFavorite);
+  const toggleLike = useLibrary((s) => s.toggleLike);
+  const favorite = useLibrary((s) => (previewId ? Boolean(s.favorites[previewId]) : false));
+  const liked = useLibrary((s) => (previewId ? Boolean(s.likes[previewId]) : false));
   const tags = useLibrary((s) => (previewId ? (s.tags[previewId] ?? EMPTY_TAGS) : EMPTY_TAGS));
   const category = useLibrary((s) => (previewId ? (s.categories[previewId] ?? "") : ""));
   const [editing, setEditing] = useState(false);
@@ -150,6 +154,8 @@ export function PreVideo() {
               >
                 <Tag className="size-4" /> Edit tags
               </Button>
+              <Button variant={favorite ? "default" : "secondary"} onClick={() => toggleFavorite(video.id)}><Heart className={favorite ? "size-4 fill-current" : "size-4"} />{favorite ? "Saved" : "Save"}</Button>
+              <Button variant={liked ? "default" : "secondary"} onClick={() => toggleLike(video.id)}><ThumbsUp className={liked ? "size-4 fill-current" : "size-4"} />{liked ? "Liked" : "Like"}</Button>
             </div>
           </div>
           <aside className="rounded-lg bg-elevated p-5 shadow-border">

@@ -46,6 +46,11 @@ import { isClassicVideo, SYSTEM_SOURCES } from "./types";
 
 const HISTORY_CAP = 2_000;
 let restoring = false;
+// A full provider refresh is intentionally bounded. Rotate that window instead
+// of repeatedly checking the first saved channels, which left large Twitch
+// libraries with stale live state forever.
+let remoteRefreshCursor = 0;
+const REMOTE_REFRESH_BATCH_SIZE = 80;
 const STARTER_FOLLOWS: FollowedChannel[] = [
   { id: "yt:starter-h3", kind: "youtube", handle: "H3Podcast", title: "H3 Podcast" },
   { id: "yt:starter-ltt", kind: "youtube", handle: "LinusTechTips", title: "Linus Tech Tips" },
@@ -68,6 +73,7 @@ type LibraryState = {
   categories: Record<string, string>;
   progress: Record<string, ProgressMark>;
   history: HistoryEntry[];
+  viewCounts: Record<string, number>;
   hideDemo: boolean;
   hardwareAccel: boolean;
   adultPinHash: string | null;
@@ -142,6 +148,7 @@ function persistNow(get: () => LibraryState) {
     categories: s.categories,
     progress: s.progress,
     history: s.history,
+    viewCounts: s.viewCounts,
     view: s.view,
     sort: s.sort,
     hideDemo: s.hideDemo,
@@ -221,9 +228,39 @@ function dedupeFollows(rows: FollowedChannel[]): FollowedChannel[] {
 }
 
 function remoteMetadataTags(video: LibraryVideo) {
-  const descriptionWords = (video.tagline ?? "").toLowerCase().match(/[a-z0-9]{4,}/g) ?? [];
-  const usefulWords = descriptionWords.filter((word) => !/^(this|that|with|from|your|have|will|into|about|video|youtube|twitch|watch|today|live)$/.test(word)).slice(0, 6);
-  return [...new Set([video.remote?.kind, video.remote?.channelName, video.genre, video.remote?.live ? "live" : "vod", ...usefulWords].filter((value): value is string => Boolean(value)).map((value) => value.trim()).filter(Boolean))].slice(0, 12);
+  // Stable taxonomy beats raw description words: filler words made the genre
+  // explorer noisy and prevented meaningful cross-service connections.
+  return [...new Set([video.remote?.kind, video.remote?.channelName, video.genre, video.remote?.live ? "live" : "vod", ...semanticTags(video)].filter((value): value is string => Boolean(value)).map((value) => value.trim().toLowerCase()).filter(Boolean))].slice(0, 14);
+}
+
+/** Local, explainable semantic taxonomy. It runs over provider titles and descriptions only—never media bytes or uploads. */
+function semanticTags(video: LibraryVideo) {
+  const text = `${video.name} ${video.path} ${video.tagline ?? ""}`.toLowerCase();
+  const rules: Array<[RegExp, string]> = [
+    [/\b(game|gaming|playthrough|speedrun|walkthrough|minecraft|steam)\b/, "gaming"],
+    [/\b(tech|software|coding|programming|computer|ai|gadget)\b/, "technology"],
+    [/\b(news|politic|election|debate|commentary)\b/, "news-commentary"],
+    [/\b(music|song|album|concert|cover|playlist)\b/, "music"],
+    [/\b(movie|film|cinema|trailer|review)\b/, "film"],
+    [/\b(anime|manga|japan|otaku)\b/, "anime"],
+    [/\b(food|cook|recipe|restaurant|kitchen)\b/, "food"],
+    [/\b(travel|trip|tour|flight|hotel|beach)\b/, "travel"],
+    [/\b(fitness|workout|gym|health|sport)\b/, "fitness"],
+    [/\b(science|space|history|documentary|education)\b/, "learning"],
+    [/\b(comedy|funny|sketch|standup|meme)\b/, "comedy"],
+    [/\b(asmr|relax|sleep|ambient|meditation)\b/, "relaxing"],
+    [/\b(podcast|interview|talk|discussion)\b/, "talk"],
+    [/\b(react|reaction|drama|tea|opinion)\b/, "commentary"],
+    [/\b(art|drawing|painting|design|animation)\b/, "creative"],
+    [/\b(animal|wildlife|zoo|nature)\b/, "nature"],
+    [/\b(finance|money|business|investing)\b/, "business"],
+    [/\b(fashion|beauty|makeup|style)\b/, "style"],
+  ];
+  const tags = rules.filter(([pattern]) => pattern.test(text)).map(([, tag]) => tag);
+  if (video.remote?.kind === "youtube" && (video.duration ?? 0) > 0 && (video.duration ?? 0) < 90) tags.push("short-form");
+  if (video.remote?.kind === "twitch" && !video.remote.live && (video.duration ?? 0) > 0 && (video.duration ?? 0) < 120) tags.push("clip");
+  if ((video.duration ?? 0) >= 3600) tags.push("long-form");
+  return tags;
 }
 
 function localNameTags(video: LibraryVideo) {
@@ -238,7 +275,7 @@ function localNameTags(video: LibraryVideo) {
     .split(/[^a-z0-9]+/)
     .filter((word) => word.length >= 4 && !/^(video|movie|final|copy|edit|the|with|from)$/.test(word))
     .slice(0, 4);
-  const tags = [video.genre?.toLowerCase(), `type-${video.extension.replace(/^\./, "").toLowerCase()}`, ...dateTags, ...nameTags];
+  const tags = [video.genre?.toLowerCase(), `type-${video.extension.replace(/^\./, "").toLowerCase()}`, ...dateTags, ...semanticTags(video), ...nameTags];
   if (/\b(open source|creative commons|blender|public domain)\b/.test(text)) tags.push("open-source");
   if (/\b(trailer|teaser)\b/.test(text)) tags.push("trailer");
   if (/\b(1080p|2160p|4k|720p)\b/.test(text)) tags.push((text.match(/\b(2160p|4k|1080p|720p)\b/)?.[1]) ?? "hd");
@@ -250,7 +287,7 @@ function addLocalNameTags(existing: Record<string, string[]>, videos: LibraryVid
   for (const video of videos) {
     const inferred = localNameTags(video);
     if (!inferred.length) continue;
-    next[video.id] = [...new Set([...(next[video.id] ?? []), ...inferred])].slice(0, 12);
+    next[video.id] = [...new Set([...(next[video.id] ?? []), ...inferred])].slice(0, 18);
   }
   return next;
 }
@@ -270,6 +307,7 @@ function applyPrefs(partial: Partial<LibraryState>): Partial<LibraryState> {
     categories: prefs.categories ?? {},
     progress: prefs.progress ?? {},
     history: prefs.history ?? [],
+    viewCounts: prefs.viewCounts ?? {},
     view: prefs.view ?? "grid",
     sort: prefs.sort ?? "name",
     hideDemo: prefs.hideDemo ?? false,
@@ -305,6 +343,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   categories: {},
   progress: {},
   history: [],
+  viewCounts: {},
   hideDemo: false,
   hardwareAccel: true,
   adultPinHash: null,
@@ -360,7 +399,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         ...s.tags,
         [id]: [...new Set(tags.map((tag) => tag.trim().toLowerCase()).filter(Boolean))].slice(
           0,
-          12,
+          18,
         ),
       },
     }));
@@ -374,7 +413,8 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     set((s) => {
       const tags = { ...s.tags };
       for (const video of s.videos) {
-        const merged = [...new Set([...(tags[video.id] ?? []), ...localNameTags(video)])].slice(0, 12);
+        const inferred = video.remote ? remoteMetadataTags(video) : localNameTags(video);
+        const merged = [...new Set([...(tags[video.id] ?? []), ...inferred])].slice(0, 18);
         if (merged.length !== (tags[video.id] ?? []).length) changed += 1;
         tags[video.id] = merged;
       }
@@ -401,7 +441,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   recordPlay: (id) => {
     set((s) => {
       const next = [{ id, at: Date.now() }, ...s.history.filter((h) => h.id !== id)];
-      return { history: next.slice(0, HISTORY_CAP) };
+      return { history: next.slice(0, HISTORY_CAP), viewCounts: { ...s.viewCounts, [id]: (s.viewCounts[id] ?? 0) + 1 } };
     });
     persistNow(get);
   },
@@ -430,11 +470,13 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       const tags = { ...s.tags };
       const categories = { ...s.categories };
       const progress = { ...s.progress };
+      const viewCounts = { ...s.viewCounts };
       delete favorites[id];
       delete likes[id];
       delete tags[id];
       delete categories[id];
       delete progress[id];
+      delete viewCounts[id];
       return {
         videos: s.videos.filter((video) => video.id !== id),
         activeId: s.activeId === id ? null : s.activeId,
@@ -444,6 +486,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         tags,
         categories,
         progress,
+        viewCounts,
         history: s.history.filter((h) => h.id !== id),
       };
     });
@@ -1131,8 +1174,12 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   },
   refreshFollows: async () => {
     if (get().refreshing || get().remoteBusy) return { wentLive: [], newVideos: [] };
-    const current = dedupeFollows(get().follows);
-    if (!current.length) return { wentLive: [], newVideos: [] };
+    const allFollows = dedupeFollows(get().follows);
+    if (!allFollows.length) return { wentLive: [], newVideos: [] };
+    const batchSize = Math.min(REMOTE_REFRESH_BATCH_SIZE, allFollows.length);
+    const start = remoteRefreshCursor % allFollows.length;
+    const current = Array.from({ length: batchSize }, (_, index) => allFollows[(start + index) % allFollows.length]);
+    remoteRefreshCursor = (start + batchSize) % allFollows.length;
     set({ refreshing: true });
     const beforeLive = new Set(
       get()
@@ -1329,8 +1376,7 @@ export function selectHistory(state: LibraryState, adult = false): LibraryVideo[
   const byId = new Map(list.map((v) => [v.id, v]));
   return state.history
     .map((h) => byId.get(h.id))
-    .filter((v): v is LibraryVideo => v != null)
-    .slice(0, 48);
+    .filter((v): v is LibraryVideo => v != null);
 }
 
 export function selectYoutube(state: LibraryState): LibraryVideo[] {

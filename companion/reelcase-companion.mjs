@@ -4,7 +4,7 @@
  * explicitly configured allowed roots.
  */
 import { createServer } from "node:http";
-import { existsSync, realpathSync, readdirSync, watch } from "node:fs";
+import { existsSync, realpathSync, readdirSync, readFileSync, watch } from "node:fs";
 import { spawn } from "node:child_process";
 import { resolve, sep } from "node:path";
 import dgram from "node:dgram";
@@ -15,10 +15,14 @@ const configuredRoots = (process.env.REELCASE_ALLOWED_ROOTS || "").split(";").ma
 // Desktop is the practical default on Windows, while explicit roots remain
 // available for game libraries on other drives. Every path is resolved before
 // use; this does not grant access outside the resulting allow-list.
-const desktopRoot = process.platform === "win32" && process.env.USERPROFILE
-  ? resolve(process.env.USERPROFILE, "Desktop")
-  : "";
-const allowedRoots = [...new Set([...configuredRoots, ...(desktopRoot ? [desktopRoot] : [])])]
+const desktopRoots = process.platform === "win32" && process.env.USERPROFILE
+  ? [
+      resolve(process.env.USERPROFILE, "Desktop"),
+      ...(process.env.OneDrive ? [resolve(process.env.OneDrive, "Desktop")] : []),
+      ...(process.env.OneDriveConsumer ? [resolve(process.env.OneDriveConsumer, "Desktop")] : []),
+    ]
+  : [];
+const allowedRoots = [...new Set([...configuredRoots, ...desktopRoots])]
   .filter((value) => existsSync(value))
   .flatMap((value) => { try { return [realpathSync(value)]; } catch { return []; } });
 const allowedExt = new Set([".exe", ".lnk", ".url", ".appref-ms"]);
@@ -74,7 +78,18 @@ function listApprovedShortcuts(limit = 250) {
       const path = resolve(dir, entry.name);
       if (entry.isDirectory()) { visit(path, depth + 1); continue; }
       const suffix = entry.name.slice(entry.name.lastIndexOf(".")).toLowerCase();
-      if (allowedExt.has(suffix)) found.push({ name: entry.name, path });
+      if (!allowedExt.has(suffix)) continue;
+      // Internet shortcuts are plain INI files. Returning the declared target
+      // lets Reelcase distinguish a usable game link from a legacy .url file
+      // without ever launching or reading anything outside an approved root.
+      let launchUrl;
+      if (suffix === ".url") {
+        try {
+          const match = readFileSync(path, "utf8").match(/^URL\s*=\s*((?:https?|steam|epic|com\.epicgames\.launcher|xbox):\S+)/im);
+          launchUrl = match?.[1];
+        } catch { /* unreadable shortcut remains visible for repair */ }
+      }
+      found.push({ name: entry.name, path, ...(launchUrl ? { launchUrl } : {}) });
     }
   };
   for (const root of allowedRoots) visit(root, 0);
@@ -100,7 +115,7 @@ const server = createServer(async (req, res) => {
   if (req.method === "OPTIONS") { cors(req, res); res.writeHead(204); res.end(); return; }
   if (!cors(req, res)) { reply(res, 403, { ok: false, error: "Untrusted origin" }); return; }
   if (req.method === "GET" && req.url === "/health") {
-    reply(res, 200, { ok: true, service: "reelcase-companion", version: 4, roots: allowedRoots.length, desktopEnabled: desktopRoot ? allowedRoots.includes(realpathSync(desktopRoot)) : false, capabilities: ["launch", "shortcut-catalog", "file-health", "batch-verify", "folder-watch", "watch-status", "roku-ssdp-discovery"] });
+    reply(res, 200, { ok: true, service: "reelcase-companion", version: 5, roots: allowedRoots.length, desktopEnabled: desktopRoots.some((root) => { try { return allowedRoots.includes(realpathSync(root)); } catch { return false; } }), capabilities: ["launch", "shortcut-catalog", "file-health", "batch-verify", "folder-watch", "watch-status", "roku-ssdp-discovery"] });
     return;
   }
   if (req.method === "GET" && req.url === "/source-health") {
@@ -157,7 +172,15 @@ const server = createServer(async (req, res) => {
     let body; try { body = JSON.parse(text); } catch { reply(res, 400, { ok: false, error: "Invalid request" }); return; }
     const file = allowedFile(body.path);
     if (!file) { reply(res, 400, { ok: false, error: "File is missing, unsupported, or outside an allowed root" }); return; }
-    try { spawn(file, [], { detached: true, stdio: "ignore", windowsHide: true }).unref(); launches.unshift({ path: file, at: Date.now() }); launches.splice(50); reply(res, 200, { ok: true, path: file }); }
+    try {
+      // Windows does not consistently execute .lnk and .url targets through a
+      // direct child-process spawn. `start` delegates to the registered shell
+      // handler while allowedFile has already constrained the exact path.
+      const child = process.platform === "win32"
+        ? spawn("cmd.exe", ["/d", "/s", "/c", "start", "", file], { detached: true, stdio: "ignore", windowsHide: true })
+        : spawn(file, [], { detached: true, stdio: "ignore" });
+      child.unref(); launches.unshift({ path: file, at: Date.now() }); launches.splice(50); reply(res, 200, { ok: true, path: file });
+    }
     catch { reply(res, 500, { ok: false, error: "The launcher could not be started" }); }
     return;
   }

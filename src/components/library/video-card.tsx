@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Heart, Play, Tag, ThumbsUp, RefreshCw, Star } from "lucide-react";
+import { Heart, Play, Tag, ThumbsUp, RefreshCw, Star, Users } from "lucide-react";
 import { cn, formatAgo, formatBytes, formatTime } from "@/lib/utils";
 import type { LibraryVideo } from "@/lib/videos/types";
 import { isLikelyPlayable, titleOf } from "@/lib/videos/types";
 import { useThumbs } from "@/lib/videos/thumbs";
 import { useLibrary } from "@/lib/videos/store";
+import { getRating, setRating as setMediaRating } from "@/lib/media-feedback";
 
 type Variant = "grid" | "list" | "rail" | "poster";
 const EMPTY_TAGS: string[] = [];
@@ -33,9 +34,11 @@ export function VideoCard({
   const liked = useLibrary((s) => Boolean(s.likes[video.id]));
   const tags = useLibrary((s) => s.tags[video.id] ?? EMPTY_TAGS);
   const category = useLibrary((s) => s.categories[video.id] ?? "");
+  const viewCount = useLibrary((s) => s.viewCounts[video.id] ?? 0);
   const toggleLike = useLibrary((s) => s.toggleLike);
   const openPreview = useLibrary((s) => s.openPreview);
   const toggleFavorite = useLibrary((s) => s.toggleFavorite);
+  const setSource = useLibrary((s) => s.setSource);
   const duration = capturedDur ?? video.duration;
   const ratio = progress && progress.d > 0 ? Math.min(1, progress.t / progress.d) : 0;
   const playable = isLikelyPlayable(video.extension);
@@ -61,15 +64,10 @@ export function VideoCard({
     io.observe(el);
     return () => io.disconnect();
   }, [request, video]);
-  useEffect(() => {
-    try { setRating(Number(JSON.parse(localStorage.getItem("reelcase.video-ratings") ?? "{}")[video.id] ?? 0)); } catch { setRating(0); }
-  }, [video.id]);
+  useEffect(() => { setRating(getRating(video.id)); }, [video.id]);
   const rate = (value: number) => {
     setRating(value);
-    try {
-      const saved = JSON.parse(localStorage.getItem("reelcase.video-ratings") ?? "{}") as Record<string, number>;
-      localStorage.setItem("reelcase.video-ratings", JSON.stringify({ ...saved, [video.id]: value }));
-    } catch { /* session-only rating */ }
+    setMediaRating(video.id, value);
   };
 
   const poster = (
@@ -215,6 +213,7 @@ export function VideoCard({
             )}
           </p>
           {rating > 0 && <p className="mt-1 flex items-center gap-1 text-xs text-accent"><Star className="size-3 fill-current" /> Your rating {rating}/5</p>}
+          {viewCount > 0 && <p className="mt-1 text-xs text-subtle">Watched {viewCount} time{viewCount === 1 ? "" : "s"}</p>}
           {(category || tags.length > 0) && variant !== "list" && (
             <p className="mt-1 flex items-center gap-1 truncate text-xs text-subtle">
               <Tag className="size-3 shrink-0" />
@@ -244,6 +243,21 @@ export function VideoCard({
       >
         <Heart className={cn("size-3.5", fav && "fill-accent text-accent")} />
       </button>}
+      <button
+        type="button"
+        aria-label={`Watch ${video.name} together`}
+        onClick={(event) => {
+          event.stopPropagation();
+          localStorage.setItem("reelcase.watch-room.pending-video", video.id);
+          setSource("watch-room");
+        }}
+        className={cn(
+          "absolute bottom-2 left-2 flex min-h-9 items-center gap-1 rounded-sm bg-bg/75 px-2 text-xs text-fg opacity-0 backdrop-blur-sm transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100",
+          variant === "list" && "bottom-3 left-auto right-3",
+        )}
+      >
+        <Users className="size-3.5" /> Together
+      </button>
       {!live && <button
         type="button"
         aria-label={liked ? "Remove like" : "Like"}
@@ -268,9 +282,9 @@ export function VideoCard({
           </div>
         </div>
       )}
-      <div className="absolute right-2 bottom-2 hidden items-center gap-0.5 rounded-sm bg-bg/75 p-1 text-accent backdrop-blur-sm group-hover:flex group-focus-within:flex">
+      {!live && <div className="absolute right-2 bottom-2 hidden items-center gap-0.5 rounded-sm bg-bg/75 p-1 text-accent backdrop-blur-sm group-hover:flex group-focus-within:flex">
         {[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" aria-label={`Rate ${video.name} ${value} stars`} onClick={(event) => { event.stopPropagation(); rate(value); }} className={cn("p-0.5", value <= rating && "text-fg")}><Star className={cn("size-3", value <= rating && "fill-current")} /></button>)}
-      </div>
+      </div>}
     </div>
   );
 }

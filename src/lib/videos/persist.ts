@@ -33,6 +33,7 @@ export type Prefs = {
   categories: Record<string, string>;
   progress: Record<string, { t: number; d: number; at: number }>;
   history: { id: string; at: number }[];
+  viewCounts?: Record<string, number>;
   view: "grid" | "list";
   sort: SortKey;
   sortDir: SortDir;

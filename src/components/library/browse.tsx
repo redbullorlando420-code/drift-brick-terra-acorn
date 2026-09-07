@@ -7,6 +7,15 @@ import { useLibrary } from "@/lib/videos/store";
 import { useThumbs } from "@/lib/videos/thumbs";
 import { useEffect, useState } from "react";
 
+const RAIL_SIZES = [8, 16, 32, 48];
+const GRID_SIZES = [24, 48, 96, 144];
+
+function savedRenderBudget(key: string, allowed: number[], fallback: number) {
+  if (typeof window === "undefined") return fallback;
+  const value = Number(localStorage.getItem(key) ?? fallback);
+  return allowed.includes(value) ? value : fallback;
+}
+
 export function Billboard({ video }: { video: LibraryVideo }) {
   const thumb = useThumbs((s) => s.byId[video.id]);
   const request = useThumbs((s) => s.request);
@@ -65,19 +74,28 @@ export function TitleRail({
   videos,
   variant = "poster",
   playedAt,
+  onTitleClick,
 }: {
   title: string;
   videos: LibraryVideo[];
   variant?: "poster" | "rail";
   playedAt?: Record<string, number>;
+  onTitleClick?: () => void;
 }) {
+  const [limit, setLimit] = useState(() => savedRenderBudget("reelcase.home-rail-limit", RAIL_SIZES, 8));
+  useEffect(() => {
+    const sync = () => setLimit(savedRenderBudget("reelcase.home-rail-limit", RAIL_SIZES, 8));
+    window.addEventListener("reelcase:render-settings", sync);
+    return () => window.removeEventListener("reelcase:render-settings", sync);
+  }, []);
   if (!videos.length) return null;
-  const limit = typeof window === "undefined" ? 12 : Number(localStorage.getItem("reelcase.home-rail-limit") ?? "12");
+  const shown = videos.slice(0, limit);
+  const endCaps = Math.max(0, Math.min(6, Math.min(limit, 8) - shown.length));
   return (
     <section className="media-shelf mb-8">
-      <h2 className="mb-3 font-display text-xl text-fg sm:text-2xl">{title}</h2>
+      {onTitleClick ? <button type="button" onClick={onTitleClick} className="mb-3 block font-display text-xl text-fg hover:text-accent sm:text-2xl">{title} <span className="text-sm text-muted">Open source →</span></button> : <h2 className="mb-3 font-display text-xl text-fg sm:text-2xl">{title}</h2>}
       <div className="rail-scroll flex gap-3 overflow-x-auto pb-3 sm:gap-4">
-        {videos.slice(0, [12, 24, 48].includes(limit) ? limit : 24).map((video, i) => (
+        {shown.map((video, i) => (
           <div
             key={video.id}
             className={cn(variant === "poster" && "w-32 shrink-0 sm:w-36 md:w-40", variant === "rail" && "shrink-0")}
@@ -90,14 +108,24 @@ export function TitleRail({
             />
           </div>
         ))}
+        {Array.from({ length: endCaps }, (_, index) => (
+          <div key={`end-cap-${index}`} aria-hidden="true" className={cn("shrink-0 rounded-md border border-border/50 bg-elevated/35", variant === "poster" ? "aspect-poster w-32 sm:w-36 md:w-40" : "h-36 w-56")} />
+        ))}
       </div>
     </section>
   );
 }
 
 export function PosterGrid({ videos }: { videos: LibraryVideo[] }) {
-  const [limit, setLimit] = useState(120);
-  useEffect(() => setLimit(120), [videos]);
+  const [pageSize, setPageSize] = useState(() => savedRenderBudget("reelcase.grid-page-size", GRID_SIZES, 48));
+  useEffect(() => {
+    const sync = () => setPageSize(savedRenderBudget("reelcase.grid-page-size", GRID_SIZES, 48));
+    window.addEventListener("reelcase:render-settings", sync);
+    return () => window.removeEventListener("reelcase:render-settings", sync);
+  }, []);
+  const safePageSize = pageSize;
+  const [limit, setLimit] = useState(safePageSize);
+  useEffect(() => setLimit(safePageSize), [videos, safePageSize]);
   if (!videos.length) return null;
   return (
     <>
@@ -106,7 +134,7 @@ export function PosterGrid({ videos }: { videos: LibraryVideo[] }) {
         <VideoCard key={video.id} video={video} variant="poster" index={i} className="w-full" />
       ))}
     </div>
-    {videos.length > limit && <div className="mt-5 flex items-center justify-between gap-3"><p className="text-xs text-muted">Page {Math.ceil(limit / 120)} · showing {limit.toLocaleString()} of {videos.length.toLocaleString()} titles</p><Button variant="secondary" onClick={() => setLimit((value) => Math.min(value + 120, videos.length))}>Next page · 120</Button></div>}
+    {videos.length > limit && <div className="mt-5 flex items-center justify-between gap-3"><p className="text-xs text-muted">Page {Math.ceil(limit / safePageSize)} · showing {limit.toLocaleString()} of {videos.length.toLocaleString()} titles</p><Button variant="secondary" onClick={() => setLimit((value) => Math.min(value + safePageSize, videos.length))}>Next page · {safePageSize}</Button></div>}
     </>
   );
 }

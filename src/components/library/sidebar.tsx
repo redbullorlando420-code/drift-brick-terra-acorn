@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Clapperboard,
   Clock3,
@@ -82,37 +82,13 @@ export function SidebarNav({
   const unfollow = useLibrary((s) => s.unfollow);
   const adultsUnlocked = useLibrary((s) => s.adultsUnlocked);
   const lockAdults = useLibrary((s) => s.lockAdults);
-  const favCount = useLibrary(
-    (s) =>
-      Object.keys(s.favorites).filter((id) => {
-        const v = s.videos.find((x) => x.id === id);
-        return v && !isAdultVideo(v, s.folders);
-      }).length,
-  );
-  const continueCount = useLibrary((s) => {
-    return s.videos.filter((v) => {
-      if (isAdultVideo(v, s.folders)) return false;
-      const p = s.progress[v.id];
-      if (!p || p.d <= 0) return false;
-      const r = p.t / p.d;
-      return r > 0.04 && r < 0.96 && !(s.hideDemo && v.isSample);
-    }).length;
-  });
-  const historyCount = useLibrary((s) => {
-    return s.history.filter((h) => {
-      const v = s.videos.find((x) => x.id === h.id);
-      return v && !isAdultVideo(v, s.folders) && !(s.hideDemo && v.isSample);
-    }).length;
-  });
-  const adultCount = useLibrary((s) => {
-    if (!s.adultsUnlocked) return undefined;
-    return s.videos.filter((v) => isAdultVideo(v, s.folders)).length;
-  });
-  const ytCount = useLibrary((s) => s.videos.filter((v) => v.remote?.kind === "youtube").length);
-  const twitchCount = useLibrary((s) => s.videos.filter((v) => v.remote?.kind === "twitch").length);
-  const liveCount = useLibrary((s) => s.videos.filter((v) => v.remote?.live).length);
+  const favorites = useLibrary((s) => s.favorites);
+  const progress = useLibrary((s) => s.progress);
+  const history = useLibrary((s) => s.history);
   const [followingOpen, setFollowingOpen] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(true);
+  const [followingLimit, setFollowingLimit] = useState(48);
+  const [sourceLimit, setSourceLimit] = useState(80);
   useEffect(() => { try { setFollowingOpen(localStorage.getItem("reelcase.sidebar.following-open") === "true"); setSourcesOpen(localStorage.getItem("reelcase.sidebar.sources-open") !== "false"); } catch { /* defaults */ } }, []);
   const toggleFollowing = () => setFollowingOpen((open) => { const next = !open; try { localStorage.setItem("reelcase.sidebar.following-open", String(next)); } catch { /* session */ } return next; });
   const toggleSources = () => setSourcesOpen((open) => { const next = !open; try { localStorage.setItem("reelcase.sidebar.sources-open", String(next)); } catch { /* session */ } return next; });
@@ -122,17 +98,36 @@ export function SidebarNav({
     onNavigate?.();
   };
 
-  const publicFolders = folders.filter(
-    (f) => f.kind !== "demo" && f.kind !== "youtube" && f.kind !== "twitch" && !f.adult,
-  );
-  const networkFolders = folders.filter(
-    (f) => (f.kind === "youtube" || f.kind === "twitch") && f.id !== "youtube:featured",
-  );
-  const adultFolders = folders.filter((f) => f.adult);
+  const { publicFolders, networkFolders, adultFolders, counts } = useMemo(() => {
+    const publicFolders: Folder[] = [];
+    const networkFolders: Folder[] = [];
+    const adultFolders: Folder[] = [];
+    const folderById = new Map(folders.map((folder) => [folder.id, folder]));
+    let publicCount = 0, adultCount = 0, ytCount = 0, twitchCount = 0, liveCount = 0, continueCount = 0;
+    const videosById = new Map(videos.map((video) => [video.id, video]));
+    for (const folder of folders) {
+      if (folder.adult) adultFolders.push(folder);
+      else if ((folder.kind === "youtube" || folder.kind === "twitch") && folder.id !== "youtube:featured") networkFolders.push(folder);
+      else if (folder.kind !== "demo" && folder.kind !== "youtube" && folder.kind !== "twitch") publicFolders.push(folder);
+    }
+    for (const video of videos) {
+      const adult = Boolean(folderById.get(video.folderId)?.adult);
+      if (adult) { adultCount += 1; continue; }
+      if (!(hideDemo && video.isSample)) {
+        publicCount += 1;
+        const mark = progress[video.id];
+        if (mark?.d && mark.t / mark.d > 0.04 && mark.t / mark.d < 0.96) continueCount += 1;
+      }
+      if (video.remote?.kind === "youtube") ytCount += 1;
+      if (video.remote?.kind === "twitch") twitchCount += 1;
+      if (video.remote?.live) liveCount += 1;
+    }
+    let favCount = 0, historyCount = 0;
+    for (const id of Object.keys(favorites)) if (videosById.get(id) && !folderById.get(videosById.get(id)!.folderId)?.adult) favCount += 1;
+    for (const entry of history) { const video = videosById.get(entry.id); if (video && !folderById.get(video.folderId)?.adult && !(hideDemo && video.isSample)) historyCount += 1; }
+    return { publicFolders, networkFolders, adultFolders, counts: { publicCount, adultCount: adultsUnlocked ? adultCount : undefined, ytCount, twitchCount, liveCount, continueCount, favCount, historyCount } };
+  }, [adultsUnlocked, favorites, folders, hideDemo, history, progress, videos]);
   const demo = folders.find((f) => f.kind === "demo" && !hideDemo);
-  const publicCount = videos.filter(
-    (v) => !isAdultVideo(v, folders) && !(hideDemo && v.isSample),
-  ).length;
 
   return (
     <div className="flex min-h-full flex-col">
@@ -149,7 +144,7 @@ export function SidebarNav({
           onClick={() => go("home")}
           icon={Clapperboard}
           label="Home"
-          count={publicCount}
+          count={counts.publicCount}
         />
         <NavItem
           active={sourceId === "movies"}
@@ -168,49 +163,49 @@ export function SidebarNav({
           onClick={() => go("youtube")}
           icon={Youtube}
           label="YouTube"
-          count={ytCount}
+          count={counts.ytCount}
         />
         <NavItem
           active={sourceId === "twitch"}
           onClick={() => go("twitch")}
           icon={Radio}
           label="Twitch"
-          count={twitchCount}
+          count={counts.twitchCount}
         />
         <NavItem
           active={sourceId === "live"}
           onClick={() => go("live")}
           icon={Radio}
           label="Live"
-          count={liveCount}
+          count={counts.liveCount}
         />
         <NavItem
           active={sourceId === "favorites"}
           onClick={() => go("favorites")}
           icon={Heart}
           label="Favorites"
-          count={favCount}
+          count={counts.favCount}
         />
         <NavItem
           active={sourceId === "continue"}
           onClick={() => go("continue")}
           icon={Clock3}
           label="Continue"
-          count={continueCount}
+          count={counts.continueCount}
         />
         <NavItem
           active={sourceId === "history"}
           onClick={() => go("history")}
           icon={History}
           label="History"
-          count={historyCount}
+          count={counts.historyCount}
         />
         <NavItem
           active={sourceId === "adults"}
           onClick={() => go("adults")}
           icon={adultsUnlocked ? LockOpen : Lock}
           label="Adults"
-          count={adultCount}
+          count={counts.adultCount}
           trailing={
             adultsUnlocked ? (
               <span
@@ -321,7 +316,7 @@ export function SidebarNav({
             count={demo.videoCount}
           />
         )}
-        {sourcesOpen && publicFolders.map((folder) => (
+        {sourcesOpen && publicFolders.slice(0, sourceLimit).map((folder) => (
           <FolderRow
             key={folder.id}
             folder={folder}
@@ -334,10 +329,11 @@ export function SidebarNav({
             onToggleAdult={() => setFolderAdult(folder.id, true)}
           />
         ))}
+        {sourcesOpen && publicFolders.length > sourceLimit && <Button variant="ghost" size="sm" className="mx-1 mt-1" onClick={() => setSourceLimit((value) => value + 80)}>Show 80 more sources</Button>}
         {networkFolders.length > 0 && (
           <>
             <button type="button" onClick={toggleFollowing} className="mt-3 flex items-center justify-between px-2 pb-1 text-xs font-medium tracking-wide text-subtle uppercase"><span>Following</span><span>{followingOpen ? "Hide" : networkFolders.length}</span></button>
-            {followingOpen && networkFolders.map((folder) => (
+            {followingOpen && networkFolders.slice(0, followingLimit).map((folder) => (
               <FolderRow
                 key={folder.id}
                 folder={folder}
@@ -348,6 +344,7 @@ export function SidebarNav({
                 hideAdult
               />
             ))}
+            {followingOpen && networkFolders.length > followingLimit && <Button variant="ghost" size="sm" className="mx-1 mt-1" onClick={() => setFollowingLimit((value) => value + 48)}>Show 48 more follows</Button>}
           </>
         )}
         {adultsUnlocked && adultFolders.length > 0 && (

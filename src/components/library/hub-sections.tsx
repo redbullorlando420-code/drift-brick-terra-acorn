@@ -17,6 +17,7 @@ import {
   Pause,
   Play,
   Radio,
+  RefreshCw,
   Rocket,
   Search,
   Settings2,
@@ -35,6 +36,8 @@ import { Input } from "@/components/ui/input";
 import { useLibrary } from "@/lib/videos/store";
 import { useSourceAssets } from "@/lib/source-assets";
 import { useP2PRoom } from "@/lib/multiplayer";
+import { exportFeedback } from "@/lib/media-feedback";
+import { classifyImagesLocally } from "@/lib/local-vision";
 import type { LibraryVideo } from "@/lib/videos/types";
 
 import { XTimeline } from "./x-timeline";
@@ -50,6 +53,27 @@ type LocalItem = {
 };
 type HubStore = { prints: LocalItem[]; games: LocalItem[] };
 const HUB_KEY = "reelcase.hub.v1";
+function gameKind(item: LocalItem) {
+  if (item.launchUrl) return "web-ready" as const;
+  if (/\.url$/i.test(item.name)) return "web-needs-target" as const;
+  if (/\.lnk$/i.test(item.name)) return "desktop-shortcut" as const;
+  if (/\.appref-ms$/i.test(item.name)) return "desktop-app" as const;
+  return "desktop-executable" as const;
+}
+function isWebGame(item: LocalItem) { return gameKind(item).startsWith("web-"); }
+function isGameHelper(item: LocalItem) {
+  const value = `${item.name} ${item.path}`.toLowerCase();
+  return /(?:uninstall|setup|installer|updater|crashpad|helper|redistributable|vcredist|python|node_modules|\\\\lib\\\\|\/lib\/)/.test(value);
+}
+function gameBadge(item: LocalItem) {
+  if (item.launchUrl?.startsWith("steam:")) return "STEAM";
+  if (item.launchUrl?.startsWith("epic:") || item.launchUrl?.startsWith("com.epicgames")) return "EPIC";
+  if (gameKind(item) === "web-needs-target") return "LINK?";
+  if (gameKind(item) === "web-ready") return "WEB";
+  if (/\.appref-ms$/i.test(item.name)) return "APP";
+  if (/\.lnk$/i.test(item.name)) return "LINK";
+  return "GAME";
+}
 const PREFERENCE_GROUPS = {
   Alerts: ["Go-live alerts", "New Twitch VOD alerts", "New YouTube upload alerts", "Desktop notifications"],
   Playback: ["Autoplay next video"],
@@ -142,19 +166,87 @@ function bytes(value: number) {
     : `${(value / 1024 / 1024).toFixed(1)} MB`;
 }
 
+function watchRoomEmbed(video: LibraryVideo) {
+  const base = video.remote?.embedUrl;
+  if (!base) return "";
+  const url = new URL(base);
+  if (video.remote?.kind === "twitch") {
+    // Twitch rejects every embed without a parent matching the page host.
+    url.searchParams.set("parent", window.location.hostname);
+    url.searchParams.set("autoplay", "false");
+  } else {
+    url.searchParams.set("autoplay", "0");
+    url.searchParams.set("rel", "0");
+    url.searchParams.set("playsinline", "1");
+    url.searchParams.set("origin", window.location.origin);
+    if (video.remote?.kind === "youtube") url.searchParams.set("enablejsapi", "1");
+  }
+  return url.toString();
+}
+
+// Operational tags are useful for search, but do not describe a viewer's taste.
+// Keep them out of topic shelves and statistics so date/provider noise cannot win.
+function isTopicTag(tag: string) {
+  const value = tag.trim().toLowerCase();
+  return value.length >= 3 &&
+    !/^(year-\d{4}|month-|type-|youtube|twitch|vod|live|https?|channel|mode|grok|source-|provider-)/.test(value) &&
+    !/^(here|follow|subscribe|extremely|spicy|more|code|back|what|check|first|link|like|best|watch|video|official|full|today|new|this|that|with|from|your|about)$/.test(value) &&
+    !/^\d+$/.test(value);
+}
+
+function downloadCsv(rows: Array<Array<string | number | boolean>>, filename: string) {
+  const quote = (value: string | number | boolean) => `"${String(value).replaceAll('"', '""')}"`;
+  const body = rows.map((row) => row.map(quote).join(",")).join("\n");
+  const url = URL.createObjectURL(new Blob([body], { type: "text/csv;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export function GenreSection() {
   const videos = useLibrary((s) => s.videos);
   const tags = useLibrary((s) => s.tags);
   const folders = useLibrary((s) => s.folders);
   const [selected, setSelected] = useState("All genres");
-  const publicVideos = useMemo(() => videos.filter((video) => !folders.some((folder) => folder.id === video.folderId && folder.adult)), [folders, videos]);
-  const genres = useMemo(() => [...new Set(publicVideos.map((video) => video.genre).filter((genre): genre is string => Boolean(genre)))].sort(), [publicVideos]);
-  const tagGroups = useMemo(() => [...new Set(publicVideos.flatMap((video) => tags[video.id] ?? []))].filter((tag) => !/^(youtube|twitch|vod|live|type-)/.test(tag)).map((tag) => ({ tag, count: publicVideos.filter((video) => (tags[video.id] ?? []).includes(tag)).length })).filter((row) => row.count >= 2).sort((a, b) => b.count - a.count).slice(0, 20), [publicVideos, tags]);
-  const matching = selected === "All genres" ? publicVideos : genres.includes(selected) ? publicVideos.filter((video) => video.genre === selected) : publicVideos.filter((video) => (tags[video.id] ?? []).includes(selected));
+  const [limit, setLimit] = useState(96);
+  const [showAllTopics, setShowAllTopics] = useState(false);
+  const catalog = useMemo(() => {
+    const privateFolders = new Set(folders.filter((folder) => folder.adult).map((folder) => folder.id));
+    const publicVideos: LibraryVideo[] = [];
+    const genreCounts = new Map<string, number>();
+    const tagCounts = new Map<string, number>();
+    const tagSources = new Map<string, Set<string>>();
+    const folderKinds = new Map(folders.map((folder) => [folder.id, folder.kind]));
+    for (const video of videos) {
+      if (privateFolders.has(video.folderId)) continue;
+      publicVideos.push(video);
+      const genre = video.genre?.trim();
+      if (genre) genreCounts.set(genre, (genreCounts.get(genre) ?? 0) + 1);
+      for (const tag of tags[video.id] ?? []) {
+        const clean = tag.trim();
+        if (!isTopicTag(clean)) continue;
+        tagCounts.set(clean, (tagCounts.get(clean) ?? 0) + 1);
+        const sources = tagSources.get(clean) ?? new Set<string>();
+        sources.add(video.remote?.kind ?? (folderKinds.get(video.folderId) === "directory" || folderKinds.get(video.folderId) === "files" ? "local" : "library"));
+        tagSources.set(clean, sources);
+      }
+    }
+    return {
+      publicVideos,
+      genres: [...genreCounts.entries()].sort((a, b) => a[0].localeCompare(b[0])),
+      tags: [...tagCounts.entries()].filter(([, count]) => count >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
+      bridges: [...tagSources.entries()].filter(([tag, sources]) => (tagCounts.get(tag) ?? 0) >= 2 && sources.size >= 2).sort((a, b) => (tagCounts.get(b[0]) ?? 0) - (tagCounts.get(a[0]) ?? 0)).slice(0, 18).map(([tag, sources]) => ({ tag, sources: [...sources], count: tagCounts.get(tag) ?? 0 })),
+    };
+  }, [folders, tags, videos]);
+  const genreNames = useMemo(() => new Set(catalog.genres.map(([genre]) => genre)), [catalog.genres]);
+  const matching = useMemo(() => selected === "All genres" ? catalog.publicVideos : genreNames.has(selected) ? catalog.publicVideos.filter((video) => video.genre === selected) : catalog.publicVideos.filter((video) => (tags[video.id] ?? []).includes(selected)), [catalog.publicVideos, genreNames, selected, tags]);
+  useEffect(() => setLimit(96), [selected]);
   return <HubShell eyebrow="Genre explorer" icon={<Clapperboard className="size-4"/>} title="Explore the shape of your library." copy="Browse local media, YouTube, and Twitch through explicit genres and the tags recovered from titles and descriptions.">
-    <section className="mt-6 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Genres</p><div className="mt-3 flex flex-wrap gap-2"><Button size="sm" variant={selected === "All genres" ? "default" : "secondary"} onClick={() => setSelected("All genres")}>All titles · {publicVideos.length}</Button>{genres.map((genre) => <Button key={genre} size="sm" variant={selected === genre ? "default" : "secondary"} onClick={() => setSelected(genre)}>{genre} · {publicVideos.filter((video) => video.genre === genre).length}</Button>)}</div><p className="mt-5 text-xs font-medium tracking-[0.14em] text-accent uppercase">Channel and description tags</p><div className="mt-3 flex flex-wrap gap-2">{tagGroups.map((row) => <Button key={row.tag} size="sm" variant={selected === row.tag ? "default" : "secondary"} onClick={() => setSelected(row.tag)}>#{row.tag} · {row.count}</Button>)}</div></section>
+    <section className="mt-6 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Genres · {catalog.genres.length}</p><div className="mt-3 flex flex-wrap gap-2"><Button size="sm" variant={selected === "All genres" ? "default" : "secondary"} onClick={() => setSelected("All genres")}>All titles · {catalog.publicVideos.length}</Button>{catalog.genres.map(([genre, count]) => <Button key={genre} size="sm" variant={selected === genre ? "default" : "secondary"} onClick={() => setSelected(genre)}>{genre} · {count}</Button>)}</div><p className="mt-5 text-xs font-medium tracking-[0.14em] text-accent uppercase">Topic bridges across local, YouTube & Twitch</p><div className="mt-3 flex flex-wrap gap-2">{catalog.bridges.map((bridge) => <Button key={bridge.tag} size="sm" variant={selected === bridge.tag ? "default" : "secondary"} onClick={() => setSelected(bridge.tag)}>#{bridge.tag} · {bridge.count} · {bridge.sources.join(" + ")}</Button>)}</div><p className="mt-5 text-xs font-medium tracking-[0.14em] text-accent uppercase">All useful topics · {catalog.tags.length}</p><div className="mt-3 flex flex-wrap gap-2">{catalog.tags.slice(0, showAllTopics ? 96 : 36).map(([tag, count]) => <Button key={tag} size="sm" variant={selected === tag ? "default" : "secondary"} onClick={() => setSelected(tag)}>#{tag} · {count}</Button>)}</div>{catalog.tags.length > 36 && <Button className="mt-3" size="sm" variant="secondary" onClick={() => setShowAllTopics((value) => !value)}>{showAllTopics ? "Show fewer topics" : `Show more topics · ${catalog.tags.length - 36}`}</Button>}</section>
     <p className="mt-5 text-sm text-muted">{matching.length.toLocaleString()} title{matching.length === 1 ? "" : "s"} in this view.</p>
-    <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">{matching.slice(0, 180).map((video, index) => <VideoCard key={video.id} video={video} variant="poster" index={index}/>)}</div>
+    {matching.length ? <><div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">{matching.slice(0, limit).map((video, index) => <VideoCard key={video.id} video={video} variant="poster" index={index}/>)}</div>{matching.length > limit && <Button variant="secondary" className="mt-5" onClick={() => setLimit((value) => value + 96)}>Show 96 more · {matching.length - limit} remaining</Button>}</> : <div className="mt-4 rounded-lg bg-elevated p-6 text-sm text-muted shadow-border">No titles match this genre yet. Import or refresh a channel to populate this view.</div>}
   </HubShell>;
 }
 
@@ -163,15 +255,55 @@ export function StatsSection() {
   const folders = useLibrary((s) => s.folders);
   const tags = useLibrary((s) => s.tags);
   const favorites = useLibrary((s) => s.favorites);
-  const totalBytes = videos.reduce((sum, video) => sum + video.size, 0);
-  const folderRows = useMemo(() => folders.filter((folder) => folder.kind !== "demo").map((folder) => ({ folder, videos: videos.filter((video) => video.folderId === folder.id), bytes: videos.filter((video) => video.folderId === folder.id).reduce((sum, video) => sum + video.size, 0) })).sort((a, b) => b.bytes - a.bytes || b.videos.length - a.videos.length), [folders, videos]);
-  const tagRows = useMemo(() => Object.entries(tags).flatMap(([, values]) => values).reduce<Record<string, number>>((counts, tag) => ({ ...counts, [tag]: (counts[tag] ?? 0) + 1 }), {}), [tags]);
-  const topTags = Object.entries(tagRows).sort((a, b) => b[1] - a[1]).slice(0, 14);
-  const genreRows = useMemo(() => [...new Set(videos.map((video) => video.genre).filter(Boolean))].map((genre) => [genre!, videos.filter((video) => video.genre === genre).length] as const).sort((a, b) => b[1] - a[1]), [videos]);
+  const [showAllSources, setShowAllSources] = useState(false);
+  const summary = useMemo(() => {
+    const byFolder = new Map<string, { videos: number; bytes: number }>();
+    const byGenre = new Map<string, number>();
+    const byTag = new Map<string, number>();
+    let totalBytes = 0;
+    let localTitles = 0;
+    let remoteTitles = 0;
+    let untaggedTitles = 0;
+    let freshRemoteTitles = 0;
+    for (const video of videos) {
+      totalBytes += video.size;
+      if (video.remote) remoteTitles += 1; else localTitles += 1;
+      if (!(tags[video.id] ?? []).some(isTopicTag)) untaggedTitles += 1;
+      if (video.remote && Date.now() - video.addedAt < 7 * 24 * 60 * 60_000) freshRemoteTitles += 1;
+      const folder = byFolder.get(video.folderId) ?? { videos: 0, bytes: 0 };
+      folder.videos += 1;
+      folder.bytes += video.size;
+      byFolder.set(video.folderId, folder);
+      if (video.genre?.trim()) byGenre.set(video.genre, (byGenre.get(video.genre) ?? 0) + 1);
+      for (const tag of tags[video.id] ?? []) if (isTopicTag(tag)) byTag.set(tag, (byTag.get(tag) ?? 0) + 1);
+    }
+    return { totalBytes, byFolder, localTitles, remoteTitles, untaggedTitles, freshRemoteTitles, genreRows: [...byGenre.entries()].filter(([, count]) => count >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])), topTags: [...byTag.entries()].filter(([, count]) => count >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 14), tagAssignments: [...byTag.values()].reduce((sum, count) => sum + count, 0) };
+  }, [tags, videos]);
+  const folderRows = useMemo(() => folders.filter((folder) => folder.kind !== "demo").map((folder) => ({ folder, ...(summary.byFolder.get(folder.id) ?? { videos: 0, bytes: 0 }) })).sort((a, b) => b.bytes - a.bytes || b.videos - a.videos || a.folder.name.localeCompare(b.folder.name)), [folders, summary.byFolder]);
+  const visibleFolderRows = showAllSources ? folderRows : folderRows.slice(0, 80);
+  const exportStats = () => {
+    const stamp = new Date().toISOString().slice(0, 10);
+    downloadCsv([
+      ["metric", "value"],
+      ["catalog_titles", videos.length],
+      ["local_storage_bytes", summary.totalBytes],
+      ["topic_tag_assignments", summary.tagAssignments],
+      ["favorites", Object.keys(favorites).length],
+      ["local_titles", summary.localTitles], ["remote_titles", summary.remoteTitles], ["untagged_titles", summary.untaggedTitles], ["fresh_remote_titles_7d", summary.freshRemoteTitles],
+      ...summary.genreRows.map(([name, count]) => [`genre:${name}`, count]),
+      ...summary.topTags.map(([name, count]) => [`topic_tag:${name}`, count]),
+    ], `reelcase-library-insights-${stamp}.csv`);
+  };
+  const exportSources = () => downloadCsv([
+    ["source", "kind", "mapped_titles", "local_storage_bytes", "last_checked"],
+    ...folderRows.map(({ folder, videos: mapped, bytes: mappedBytes }) => [folder.name, folder.kind, mapped, mappedBytes, folder.lastCheckedAt ? new Date(folder.lastCheckedAt).toISOString() : ""]),
+  ], `reelcase-source-map-${new Date().toISOString().slice(0, 10)}.csv`);
   return <HubShell eyebrow="Library intelligence" icon={<BarChart3 className="size-4"/>} title="Know what your library needs next." copy="These local-only counts help identify coverage gaps, oversized source folders, and the tags that are driving discovery.">
-    <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Stat label="Catalog titles" value={videos.length.toLocaleString()}/><Stat label="Local storage mapped" value={bytes(totalBytes)}/><Stat label="Tag assignments" value={Object.values(tags).reduce((sum, values) => sum + values.length, 0).toLocaleString()}/><Stat label="Favorites" value={Object.keys(favorites).length.toLocaleString()}/></div>
-    <div className="mt-6 grid gap-5 xl:grid-cols-2"><section className="rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Genre distribution</h2><div className="mt-4 space-y-3">{genreRows.map(([genre, count]) => <DistributionRow key={genre} label={genre} value={count} total={videos.length}/>)}</div></section><section className="rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Most useful tags</h2><div className="mt-4 space-y-3">{topTags.map(([tag, count]) => <DistributionRow key={tag} label={`#${tag}`} value={count} total={videos.length}/>)}</div></section></div>
-    <section className="mt-5 rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Source mapping & storage</h2><p className="mt-1 text-sm text-muted">Only local files contribute bytes; remote providers report catalog counts but not source storage.</p><div className="mt-4 space-y-2">{folderRows.map(({ folder, videos: mapped, bytes: folderBytes }) => <div key={folder.id} className="flex flex-wrap items-center justify-between gap-3 rounded-sm bg-bg/45 px-3 py-3"><span className="min-w-0 truncate text-sm text-fg">{folder.name}</span><span className="text-xs text-muted">{mapped.length.toLocaleString()} mapped · {folderBytes ? bytes(folderBytes) : folder.kind === "youtube" || folder.kind === "twitch" ? "remote catalog" : "no local media yet"}</span></div>)}</div></section>
+    <div className="mt-5 flex flex-wrap gap-2"><Button size="sm" variant="secondary" onClick={exportStats}><Download className="size-4"/>Download insight CSV</Button><Button size="sm" variant="secondary" onClick={exportSources}><Download className="size-4"/>Download source-map CSV</Button><span className="self-center text-xs text-muted">Exports only local catalog metadata, useful for improving sorting and discovery rules.</span></div>
+    <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Stat label="Catalog titles" value={videos.length.toLocaleString()}/><Stat label="Local storage mapped" value={bytes(summary.totalBytes)}/><Stat label="Topic-tag assignments" value={summary.tagAssignments.toLocaleString()}/><Stat label="Favorites" value={Object.keys(favorites).length.toLocaleString()}/></div>
+    <section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Stat label="Local / remote" value={`${summary.localTitles.toLocaleString()} / ${summary.remoteTitles.toLocaleString()}`}/><Stat label="New provider items · 7d" value={summary.freshRemoteTitles.toLocaleString()}/><Stat label="Needs useful tag" value={`${summary.untaggedTitles.toLocaleString()} titles`}/><Stat label="Coverage" value={`${Math.round((1 - summary.untaggedTitles / Math.max(videos.length, 1)) * 100)}% topic-tagged`}/></section>
+    <div className="mt-6 grid gap-5 xl:grid-cols-2"><section className="rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Genre distribution</h2><div className="mt-4 space-y-3">{summary.genreRows.slice(0, 18).map(([genre, count]) => <DistributionRow key={genre} label={genre} value={count} total={videos.length}/>) || <p className="text-sm text-muted">Genres will appear as media is tagged.</p>}</div></section><section className="rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Most useful tags</h2><div className="mt-4 space-y-3">{summary.topTags.map(([tag, count]) => <DistributionRow key={tag} label={`#${tag}`} value={count} total={videos.length}/>) || <p className="text-sm text-muted">Tags will appear as media is indexed.</p>}</div></section></div>
+    <section className="mt-5 rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Source mapping & storage</h2><p className="mt-1 text-sm text-muted">Only local files contribute bytes; remote providers report catalog counts but not source storage.</p><div className="mt-4 space-y-2">{visibleFolderRows.map(({ folder, videos: mapped, bytes: folderBytes }) => <div key={folder.id} className="flex flex-wrap items-center justify-between gap-3 rounded-sm bg-bg/45 px-3 py-3"><span className="min-w-0 truncate text-sm text-fg">{folder.name}</span><span className="text-xs text-muted">{mapped.toLocaleString()} mapped · {folderBytes ? bytes(folderBytes) : folder.kind === "youtube" || folder.kind === "twitch" ? "remote catalog" : "no local media yet"}</span></div>)}</div>{folderRows.length > visibleFolderRows.length && <Button variant="secondary" size="sm" className="mt-4" onClick={() => setShowAllSources(true)}>Show all {folderRows.length.toLocaleString()} sources</Button>}</section>
   </HubShell>;
 }
 
@@ -185,7 +317,9 @@ export function SettingsSection() {
   const [preferenceGroup, setPreferenceGroup] =
     useState<keyof typeof PREFERENCE_GROUPS>("Playback");
   const [zoom, setZoom] = useState(100);
-  const [railLimit, setRailLimit] = useState(24);
+  const [railLimit, setRailLimit] = useState(8);
+  const [gridPageSize, setGridPageSize] = useState(48);
+  const [twitchRefreshSeconds, setTwitchRefreshSeconds] = useState(60);
   const [liveDensity, setLiveDensity] = useState(4);
   const [sourceCacheFirst, setSourceCacheFirst] = useState(true);
   const [debugEnabled, setDebugEnabled] = useState(false);
@@ -216,9 +350,11 @@ export function SettingsSection() {
     document.documentElement.style.fontSize = `${value}%`;
   }, []);
   useEffect(() => {
-    const saved = Number(localStorage.getItem("reelcase.home-rail-limit") ?? "24");
-    setRailLimit([12, 24, 48].includes(saved) ? saved : 24);
+    const saved = Number(localStorage.getItem("reelcase.home-rail-limit") ?? "8");
+    setRailLimit([8, 16, 32, 48].includes(saved) ? saved : 8);
   }, []);
+  useEffect(() => { const saved = Number(localStorage.getItem("reelcase.grid-page-size") ?? "48"); setGridPageSize([24, 48, 96, 144].includes(saved) ? saved : 48); }, []);
+  useEffect(() => { const saved = Number(localStorage.getItem("reelcase.twitch-refresh-seconds") ?? "60"); setTwitchRefreshSeconds([30, 60, 120, 300].includes(saved) ? saved : 60); }, []);
   useEffect(
     () => setSourceCacheFirst(localStorage.getItem("reelcase.source-cache-first") !== "false"),
     [],
@@ -266,6 +402,7 @@ export function SettingsSection() {
         categories: state.categories,
         progress: state.progress,
         history: state.history,
+        feedback: exportFeedback(),
         follows: state.follows,
         notices: state.notices,
         sourceCompanions: {
@@ -394,7 +531,7 @@ export function SettingsSection() {
             complete catalog remains searchable.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
-            {[12, 24, 48].map((value) => (
+            {[8, 16, 32, 48].map((value) => (
               <Button
                 key={value}
                 size="sm"
@@ -402,9 +539,10 @@ export function SettingsSection() {
                 onClick={() => {
                   setRailLimit(value);
                   localStorage.setItem("reelcase.home-rail-limit", String(value));
+                  window.dispatchEvent(new Event("reelcase:render-settings"));
                 }}
               >
-                {value} per row
+                {value} per shelf
               </Button>
             ))}
           </div>
@@ -425,6 +563,8 @@ export function SettingsSection() {
             disk again.
           </p>
         </div>
+        <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><PackageSearch className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Grid memory budget</h2><p className="mt-2 text-sm leading-6 text-muted">Sets how many poster cards are mounted at once before a Next page control. Use 24 for the smoothest experience with very large YouTube and Twitch libraries.</p><div className="mt-4 flex flex-wrap gap-2">{[24, 48, 96, 144].map((value) => <Button key={value} size="sm" variant={gridPageSize === value ? "default" : "secondary"} onClick={() => { setGridPageSize(value); localStorage.setItem("reelcase.grid-page-size", String(value)); window.dispatchEvent(new Event("reelcase:render-settings")); }}>{value} cards</Button>)}</div></div>
+        <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><Radio className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Twitch live refresh</h2><p className="mt-2 text-sm leading-6 text-muted">Checks the next saved provider batch while this tab is visible. Faster checks use more provider requests; one minute is the balanced default.</p><div className="mt-4 flex flex-wrap gap-2">{[[30, "30 sec"], [60, "1 min"], [120, "2 min"], [300, "5 min"]].map(([value, label]) => <Button key={value} size="sm" variant={twitchRefreshSeconds === value ? "default" : "secondary"} onClick={() => { setTwitchRefreshSeconds(value as number); localStorage.setItem("reelcase.twitch-refresh-seconds", String(value)); window.dispatchEvent(new Event("reelcase:refresh-settings")); }}>{label}</Button>)}</div></div>
       </div></section>
       <section className="mt-6"><div className="mb-3"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Connections, privacy & guides</p><p className="mt-1 text-sm text-muted">Optional services and explanations stay separate from everyday library preferences.</p></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <InfoCard
@@ -843,6 +983,15 @@ type LocalPhoto = {
 type PhotoSort = "newest" | "name" | "rating" | "favorite" | "auto-tags";
 const PHOTO_FILE_RE = /\.(avif|bmp|gif|heic|heif|jpe?g|png|tiff?|webp)$/i;
 const photoSourceWarmth = new Map<string, number>();
+const PHOTO_BACKGROUND_REFRESH_MS = 30 * 60_000;
+let cachedPhotoMetadata: Record<string, Partial<LocalPhoto>> | null = null;
+
+function photoMetadata() {
+  if (cachedPhotoMetadata) return cachedPhotoMetadata;
+  try { cachedPhotoMetadata = JSON.parse(localStorage.getItem("reelcase.photo-meta.v1") ?? "{}"); }
+  catch { cachedPhotoMetadata = {}; }
+  return cachedPhotoMetadata as Record<string, Partial<LocalPhoto>>;
+}
 
 export function PhotosSection() {
   const scannedPhotoSources = useRef(new Set<string>());
@@ -876,7 +1025,11 @@ export function PhotosSection() {
   const [slideIndex, setSlideIndex] = useState(0);
   const [helperNote, setHelperNote] = useState("");
   const [focusedPhotoId, setFocusedPhotoId] = useState<string | null>(null);
+  const [photoViewerLoading, setPhotoViewerLoading] = useState(false);
+  const [photoSourceLoading, setPhotoSourceLoading] = useState(false);
   const [photoLimit, setPhotoLimit] = useState(80);
+  const [visionBusy, setVisionBusy] = useState(false);
+  const [visionProgress, setVisionProgress] = useState("");
   // Select the store's stable array first. Filtering inside the selector creates a
   // fresh value every render, which makes Zustand continuously notify this view.
   const libraryFolders = useLibrary((s) => s.folders);
@@ -888,7 +1041,10 @@ export function PhotosSection() {
   );
   const addPhotos = (files: FileList | File[] | null, folderName = "Unsorted", paths?: string[], urls?: string[]) => {
     if (!files) return;
-    const remembered = (() => { try { return JSON.parse(localStorage.getItem("reelcase.photo-meta.v1") ?? "{}"); } catch { return {}; } })() as Record<string, Partial<LocalPhoto>>;
+    // Ratings, tags, and favorites are a small metadata cache. Keep it in
+    // memory while Photos is open instead of reparsing the whole collection
+    // each time a source sends another image batch.
+    const remembered = photoMetadata();
     const known = new Set(photos.map((photo) => photo.id));
     const next = Array.from(files)
       .filter((file) => file.type.startsWith("image/") || PHOTO_FILE_RE.test(file.name))
@@ -921,7 +1077,7 @@ export function PhotosSection() {
     if (sourcePhotos.length) addPhotos(sourcePhotos.map((asset) => asset.file), "Source import", sourcePhotos.map((asset) => asset.path), sourcePhotos.map((asset) => asset.url));
   }, [sourcePhotos]);
   useEffect(() => () => { for (const url of photoUrls.current) URL.revokeObjectURL(url); photoUrls.current.clear(); }, []);
-  useEffect(() => { try { localStorage.setItem("reelcase.photo-meta.v1", JSON.stringify({ ...JSON.parse(localStorage.getItem("reelcase.photo-meta.v1") ?? "{}"), ...Object.fromEntries(photos.map(({ id, path, people, tags, album, favorite, rating }) => [id, { path, people, tags, album, favorite, rating }])) })); } catch { /* quota */ } }, [photos]);
+  useEffect(() => { try { cachedPhotoMetadata = { ...photoMetadata(), ...Object.fromEntries(photos.map(({ id, path, people, tags, album, favorite, rating }) => [id, { path, people, tags, album, favorite, rating }])) }; localStorage.setItem("reelcase.photo-meta.v1", JSON.stringify(cachedPhotoMetadata)); } catch { /* quota */ } }, [photos]);
   useEffect(() => { try { localStorage.setItem("reelcase.photos.sort", photoSort); } catch { /* storage unavailable */ } }, [photoSort]);
   useEffect(() => { try { localStorage.setItem("reelcase.photos.rating-queue", ratingQueuePhotoId); } catch { /* storage unavailable */ } }, [ratingQueuePhotoId]);
   useEffect(() => { try { localStorage.setItem("reelcase.photos.show-locations", String(showLocations)); } catch { /* storage unavailable */ } }, [showLocations]);
@@ -936,13 +1092,15 @@ export function PhotosSection() {
     void (async () => {
       // Directory handles are re-read only when the photo shelf is opened, so the
       // startup catalog remains fast even for very large video sources.
-      for (const folder of sourceFolders) {
+      const toScan = sourceFolders.filter((folder) => !scannedPhotoSources.current.has(folder.id) && (Date.now() - (photoSourceWarmth.get(folder.id) ?? 0) >= PHOTO_BACKGROUND_REFRESH_MS));
+      if (toScan.length) setPhotoSourceLoading(true);
+      for (const folder of toScan) {
         if (cancelled) return;
-        if (scannedPhotoSources.current.has(folder.id) || (Date.now() - (photoSourceWarmth.get(folder.id) ?? 0) < 300_000)) continue;
         scannedPhotoSources.current.add(folder.id);
         await refreshSourcePhotos(folder.id);
         photoSourceWarmth.set(folder.id, Date.now());
       }
+      if (!cancelled) setPhotoSourceLoading(false);
     })();
     return () => { cancelled = true; };
   }, [refreshSourcePhotos, sourceFolders]);
@@ -1011,6 +1169,11 @@ export function PhotosSection() {
         /vacation|travel|trip|beach|mountain/.test(text) ? "travel" : "",
         /birthday|wedding|party|event/.test(text) ? "event" : "",
         /pet|dog|cat/.test(text) ? "pets" : "",
+        /receipt|invoice|document|scan/.test(text) ? "document" : "",
+        /food|meal|restaurant|recipe/.test(text) ? "food" : "",
+        /selfie|portrait|face/.test(text) ? "portrait" : "",
+        `year-${new Date(photo.addedAt).getFullYear()}`,
+        `month-${new Date(photo.addedAt).toLocaleString("en-US", { month: "long" }).toLowerCase()}`,
       ].filter(Boolean);
       const tags = [...new Set([...photo.tags, ...suggestions])];
       if (tags.length === photo.tags.length) return photo;
@@ -1018,6 +1181,27 @@ export function PhotosSection() {
       return { ...photo, tags };
     }));
     setHelperNote(changed ? `Added local filename-based auto tags to ${changed} photo${changed === 1 ? "" : "s"}. You can edit any tag on its card.` : "Everything already has the available local auto tags.");
+  };
+  const autoTagPhotosWithVision = async () => {
+    const candidates = photos.filter((photo) => !photo.tags.some((tag) => tag.startsWith("vision-"))).slice(0, 24);
+    if (!candidates.length) { setHelperNote("Every loaded photo already has a local vision pass. Add more photos or edit tags to review them."); return; }
+    setVisionBusy(true);
+    setVisionProgress(`Preparing a local model for ${candidates.length} photos…`);
+    try {
+      const labels = await classifyImagesLocally(candidates.map((photo) => photo.url), (done, total) => setVisionProgress(`Classifying locally · ${done}/${total}`));
+      const byId = new Map(candidates.map((photo, index) => [photo.id, labels[index].map((label) => `vision-${label}`)]));
+      let changed = 0;
+      setPhotos((items) => items.map((photo) => {
+        const additions = byId.get(photo.id) ?? [];
+        const tags = [...new Set([...photo.tags, ...additions])];
+        if (tags.length === photo.tags.length) return photo;
+        changed += 1;
+        return { ...photo, tags };
+      }));
+      setHelperNote(`Local vision suggestions added to ${changed} photo${changed === 1 ? "" : "s"}. Review the vision-* tags before relying on them.`);
+    } catch {
+      setHelperNote("The local vision model could not start. It needs browser storage and an initial model download; filename auto-tagging remains available.");
+    } finally { setVisionBusy(false); setVisionProgress(""); }
   };
   const downloadPhoto = (photo: LocalPhoto) => {
     const link = document.createElement("a");
@@ -1159,10 +1343,11 @@ export function PhotosSection() {
           <Button size="sm" variant="secondary" disabled={!visible.length} onClick={() => { const pick = visible[Math.floor(Math.random() * visible.length)]; if (pick) { setSlideIndex(visible.findIndex((photo) => photo.id === pick.id)); setFocusedPhotoId(pick.id); } }}>Random photo</Button>
           <Button size="sm" variant="secondary" disabled={!photos.length} onClick={suggestPeopleFromNames}>Suggest people labels</Button>
           <Button size="sm" variant="secondary" disabled={!photos.length} onClick={autoTagPhotos}>Auto tag photos</Button>
+          <Button size="sm" variant="secondary" disabled={!photos.length || visionBusy} onClick={() => void autoTagPhotosWithVision()}>{visionBusy ? visionProgress || "Starting local vision…" : "Local vision tags · 24"}</Button>
         </div>
         <div className="flex flex-wrap gap-2"><span className="self-center text-xs text-muted">Local discovery</span>{(["all", "screenshots", "camera", "downloads"] as const).map((filter) => <Button key={filter} size="sm" variant={discoveryFilter === filter ? "default" : "secondary"} onClick={() => setDiscoveryFilter(filter)}>{filter === "all" ? "All" : filter === "camera" ? "Camera names" : filter[0].toUpperCase() + filter.slice(1)}</Button>)}</div>
-        <p className="text-xs leading-5 text-muted">Private local discovery uses file-name patterns for screenshots, camera files, downloads, and suggested people labels. Face recognition is not enabled, so no image leaves this device. Large folders are decoded lazily and displayed in small batches to keep scrolling responsive.</p>
-        {helperNote && <p className="text-xs text-accent">{helperNote}</p>}
+        <p className="text-xs leading-5 text-muted">Private local discovery uses file-name patterns plus an optional on-device open-source image classifier. It analyzes up to 24 loaded photos at a time; photo bytes stay in this browser. Large folders are decoded lazily and displayed in small batches to keep scrolling responsive.</p>
+        {(helperNote || photoSourceLoading) && <p className="flex items-center gap-2 text-xs text-accent">{photoSourceLoading && <RefreshCw className="size-3 animate-spin" />}{photoSourceLoading ? "Loading cached photo sources in the background…" : helperNote}</p>}
       </div>
       {!photos.length ? (
         <div className="mt-5 rounded-lg bg-elevated px-5 py-14 text-center shadow-border">
@@ -1177,7 +1362,7 @@ export function PhotosSection() {
           {renderedPhotos.map((photo) => (
             <div key={photo.id} className="relative overflow-hidden rounded-md bg-elevated shadow-border">
               <label className="absolute z-10 m-2 flex size-7 items-center justify-center rounded-sm bg-bg/75 text-fg"><input type="checkbox" checked={selectedPhotoIds.has(photo.id)} onChange={() => setSelectedPhotoIds((current) => { const next = new Set(current); if (next.has(photo.id)) next.delete(photo.id); else next.add(photo.id); return next; })} aria-label={`Select ${photo.name}`}/></label>
-              <button type="button" className="group relative block w-full" onClick={() => setFocusedPhotoId(photo.id)} aria-label={`Open ${photo.name} full screen`}><img src={photo.url} alt={photo.name} loading="lazy" decoding="async" className="aspect-square w-full object-cover" /><span className="absolute inset-0 flex items-center justify-center bg-bg/45 opacity-0 transition-opacity group-hover:opacity-100"><Maximize2 className="size-6 text-fg" /></span></button>
+              <button type="button" className="group relative block w-full" onClick={() => { setPhotoViewerLoading(true); setFocusedPhotoId(photo.id); }} aria-label={`Open ${photo.name} full screen`}><img src={photo.url} alt={photo.name} loading="lazy" decoding="async" className="aspect-square w-full object-cover" /><span className="absolute inset-0 flex items-center justify-center bg-bg/45 opacity-0 transition-opacity group-hover:opacity-100"><Maximize2 className="size-6 text-fg" /></span></button>
               <div className="p-3">
                 <div className="flex items-center gap-2">
                   <p className="min-w-0 flex-1 truncate text-sm text-fg">{photo.name}</p>
@@ -1242,7 +1427,7 @@ export function PhotosSection() {
               </div>
             </div>
           ))}
-        </div><div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted"><span>Showing {Math.min(renderedPhotos.length, visible.length)} of {visible.length} matching photos</span>{renderedPhotos.length < visible.length && <Button size="sm" variant="secondary" onClick={() => setPhotoLimit((limit) => limit + 80)}>Show 80 more</Button>}</div>{focusedPhoto && <div role="dialog" aria-modal="true" aria-label={`Viewing ${focusedPhoto.name}`} className="fixed inset-0 z-50 flex items-center justify-center bg-bg/95 p-4" onClick={() => setFocusedPhotoId(null)}><div className="relative flex h-full w-full max-w-7xl flex-col gap-3" onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between gap-3 text-fg"><div className="min-w-0"><p className="truncate font-medium">{focusedPhoto.name}</p><p className="text-xs text-muted">{focusedPhoto.album} · {focusedIndex + 1} of {visible.length}</p>{showLocations && <p title={focusedPhoto.path} className="truncate text-xs text-muted">{focusedPhoto.path}</p>}</div><Button size="sm" variant="secondary" onClick={() => setFocusedPhotoId(null)}>Close</Button></div><PhotoStars name={focusedPhoto.name} rating={focusedPhoto.rating} onChange={(rating) => setPhotos((items) => items.map((item) => item.id === focusedPhoto.id ? { ...item, rating } : item))} /><div className="relative min-h-0 flex-1"><img src={focusedPhoto.url} alt={focusedPhoto.name} className="size-full object-contain"/><Button size="sm" variant="secondary" className="absolute top-1/2 left-2 -translate-y-1/2" onClick={() => moveFocus(-1)} aria-label="Previous photo"><ChevronLeft className="size-5"/></Button><Button size="sm" variant="secondary" className="absolute top-1/2 right-2 -translate-y-1/2" onClick={() => moveFocus(1)} aria-label="Next photo"><ChevronRight className="size-5"/></Button></div></div></div>}</>
+        </div><div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted"><span>Showing {Math.min(renderedPhotos.length, visible.length)} of {visible.length} matching photos</span>{renderedPhotos.length < visible.length && <Button size="sm" variant="secondary" onClick={() => setPhotoLimit((limit) => limit + 80)}>Show 80 more</Button>}</div>{focusedPhoto && <div role="dialog" aria-modal="true" aria-label={`Viewing ${focusedPhoto.name}`} className="fixed inset-0 z-50 flex items-center justify-center bg-bg/95 p-4" onClick={() => setFocusedPhotoId(null)}><div className="relative flex h-full w-full max-w-7xl flex-col gap-3" onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between gap-3 text-fg"><div className="min-w-0"><p className="truncate font-medium">{focusedPhoto.name}</p><p className="text-xs text-muted">{focusedPhoto.album} · {focusedIndex + 1} of {visible.length}</p>{showLocations && <p title={focusedPhoto.path} className="truncate text-xs text-muted">{focusedPhoto.path}</p>}</div><Button size="sm" variant="secondary" onClick={() => setFocusedPhotoId(null)}>Close</Button></div><div className="flex flex-wrap items-center gap-2"><Button size="sm" variant={focusedPhoto.favorite ? "default" : "secondary"} onClick={() => setPhotos((items) => items.map((item) => item.id === focusedPhoto.id ? { ...item, favorite: !item.favorite } : item))}>{focusedPhoto.favorite ? "♥ Favorite" : "♡ Favorite"}</Button>{focusedPhoto.tags.length ? focusedPhoto.tags.map((tag) => <span key={tag} className="rounded-xs bg-elevated px-2 py-1 text-xs text-muted">#{tag}</span>) : <span className="text-xs text-muted">No tags yet</span>}</div><PhotoStars name={focusedPhoto.name} rating={focusedPhoto.rating} onChange={(rating) => setPhotos((items) => items.map((item) => item.id === focusedPhoto.id ? { ...item, rating } : item))} /><div className="relative min-h-0 flex-1">{photoViewerLoading && <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-bg/70 text-sm text-fg"><RefreshCw className="size-7 animate-spin text-accent" />Loading full-resolution photo…</div>}<img src={focusedPhoto.url} alt={focusedPhoto.name} className="size-full object-contain" onLoad={() => setPhotoViewerLoading(false)} onError={() => setPhotoViewerLoading(false)}/><Button size="sm" variant="secondary" className="absolute top-1/2 left-2 -translate-y-1/2" onClick={() => { setPhotoViewerLoading(true); moveFocus(-1); }} aria-label="Previous photo"><ChevronLeft className="size-5"/></Button><Button size="sm" variant="secondary" className="absolute top-1/2 right-2 -translate-y-1/2" onClick={() => { setPhotoViewerLoading(true); moveFocus(1); }} aria-label="Next photo"><ChevronRight className="size-5"/></Button></div></div></div>}</>
       )}
     </HubShell>
   );
@@ -1251,7 +1436,7 @@ type Mission = { id: string; title: string; detail: string; done: boolean };
 const DEFAULT_MISSIONS: Mission[] = [
   { id: "index", title: "Durable media index", detail: "Catalog source health, cached metadata, persistent thumbnails, and fast search without blocking the first screen.", done: true },
   { id: "companion", title: "Desktop companion", detail: "Verify local files, watch selected folders, and launch approved desktop shortcuts through a local companion.", done: true },
-  { id: "watch", title: "Watch room reliability", detail: "Harden LAN signaling, timeline reconciliation, queue voting, and guest access checks.", done: false },
+  { id: "watch", title: "Watch room reliability", detail: "LAN diagnostics, timeline reconciliation, queue controls, and guest-access messaging are implemented; real cross-device matrix validation remains in progress.", done: false },
   { id: "services", title: "Connected services", detail: "Keep Twitch, YouTube, Roku, Spotify, and photo imports independently cached and refreshable.", done: true },
   { id: "thumb-health", title: "Thumbnail health queue", detail: "Retry failed artwork, hide unavailable remote cards, and expose a small source diagnostic instead of blank previews.", done: true },
   { id: "windows-explorer", title: "Windows explorer bridge", detail: "Companion-backed folder health, change events, shortcut validation, and safe launch history for local libraries.", done: true },
@@ -1262,23 +1447,26 @@ const DEFAULT_MISSIONS: Mission[] = [
   { id: "favorites-memory", title: "Favorites memory", detail: "Preserve favorites, shelves, and resume markers in the local catalog with export and recovery checks across sessions.", done: true },
   { id: "theme-accessibility", title: "Theme & accessibility", detail: "Day/night palettes, focus styling, reduced-motion support, and per-section density preferences.", done: true },
   { id: "preview-recovery", title: "Local preview recovery", detail: "Resolve restored file handles in previews, hide failures, and log playback health without blocking the library.", done: true },
-  { id: "youtube-quality", title: "YouTube channel quality", detail: "Add per-channel refresh history, unavailable embed recovery, duplicate suppression, and a channel-by-channel retry desk.", done: false },
-  { id: "twitch-quality", title: "Twitch live quality", detail: "Add live-state timestamps, VOD/clip separation, backoff visibility, and a focused single-channel refresh workflow.", done: false },
-  { id: "x-quality", title: "X reading desk quality", detail: "Add per-account sync state, reading position, failure states, and safe public-profile navigation without storing account credentials.", done: false },
-  { id: "startup-budget", title: "Startup performance budget", detail: "Measure first meaningful shelf, catalog hydration, and thumbnail cache hit rate before expanding background work.", done: false },
-  { id: "sprint-01", title: "Alert rules", detail: "Finish per-service alert rules and a notification activity log.", done: false },
-  { id: "sprint-02", title: "Preference coverage", detail: "Turn remaining shipped settings into real controls or remove them from the UI.", done: false },
+  { id: "youtube-quality", title: "YouTube channel quality", detail: "Per-channel retry controls, published-date ordering, duplicate suppression, and unavailable-card recovery are available in the YouTube desk.", done: true },
+  { id: "twitch-quality", title: "Twitch live quality", detail: "Live-first ordering, check timestamps, VOD/clip shelves, automatic rotating refresh, and focused per-channel refresh are available; provider backoff reporting remains in progress.", done: false },
+  { id: "x-quality", title: "X reading desk quality", detail: "Public profile/topic navigation, per-view load state, retry handling, and local reading-position timestamps are available without credentials.", done: true },
+  { id: "startup-budget", title: "Startup performance budget", detail: "Catalog hydration, deferred search-index construction, lazy thumbnails, and bounded photo rendering protect the first usable shelf.", done: true },
+  { id: "provider-import-recovery", title: "Provider import recovery", detail: "Add provider-specific retry reasons and alternate public metadata recovery when a YouTube or Twitch batch is temporarily unavailable.", done: false },
+  { id: "watch-room-cross-device", title: "Watch Room cross-device relay", detail: "Verify the signaling relay across separate devices and add a TURN-backed recovery route for networks that block direct peer negotiation.", done: false },
+  { id: "movie-private-tag-shelves", title: "Movie and private tag shelves", detail: "Expand folder-separated movies and private-library tag shelves, with bulk auto-tag review and feature/like-based sorting.", done: false },
+  { id: "sprint-01", title: "Alert rules", detail: "Per-service alert switches and the notification activity center are active locally.", done: true },
+  { id: "sprint-02", title: "Preference coverage", detail: "Shipped preferences have concrete local controls, with status copy explaining their effects.", done: true },
   { id: "sprint-03", title: "Ratings streaks", detail: "Add rating goals, weekly streaks, and explainable local rewards.", done: false },
-  { id: "sprint-04", title: "Video rating import/export", detail: "Include local video ratings in backup and catalog export recovery.", done: false },
-  { id: "sprint-05", title: "Photo rating queue", detail: "Make unrated-photo review resumable across sessions.", done: false },
+  { id: "sprint-04", title: "Video rating import/export", detail: "Include local video ratings in backup and catalog export recovery.", done: true },
+  { id: "sprint-05", title: "Photo rating queue", detail: "Make unrated-photo review resumable across sessions.", done: true },
   { id: "sprint-06", title: "Continue recovery", detail: "Preserve richer resume marks and recover them after source reconnects.", done: false },
   { id: "sprint-07", title: "History timeline", detail: "Add date groups, filters, and recovery information to watch history.", done: false },
-  { id: "sprint-08", title: "X topic desk", detail: "Add curated public topic views alongside saved X profiles.", done: false },
+  { id: "sprint-08", title: "X topic desk", detail: "Add curated public topic views alongside saved X profiles.", done: true },
   { id: "sprint-09", title: "X read tracking", detail: "Save reading position and surface timeline load diagnostics.", done: false },
-  { id: "sprint-10", title: "Twitch discovery", detail: "Verify recommended public channels and separate discovery from follows.", done: false },
-  { id: "sprint-11", title: "YouTube discovery", detail: "Build a separate creator discovery shelf with follow actions.", done: false },
-  { id: "sprint-12", title: "Channel recency", detail: "Show channel freshness and focused refresh results.", done: false },
-  { id: "sprint-13", title: "Remote dedupe", detail: "Suppress duplicate remote cards while retaining the newest valid metadata.", done: false },
+  { id: "sprint-10", title: "Twitch discovery", detail: "Verify recommended public channels and separate discovery from follows.", done: true },
+  { id: "sprint-11", title: "YouTube discovery", detail: "Build a separate creator discovery shelf with follow actions.", done: true },
+  { id: "sprint-12", title: "Channel recency", detail: "Show channel freshness and focused refresh results.", done: true },
+  { id: "sprint-13", title: "Remote dedupe", detail: "Suppress duplicate remote cards while retaining the newest valid metadata.", done: true },
   { id: "sprint-14", title: "Artwork retry budget", detail: "Limit artwork retries and retain useful failure diagnostics.", done: false },
   { id: "sprint-15", title: "File type views", detail: "Extend file-type grouping beyond games into large local media libraries.", done: false },
   { id: "sprint-16", title: "Tag review queue", detail: "Review automated date, name, and type tags before bulk cleanup.", done: false },
@@ -1286,6 +1474,9 @@ const DEFAULT_MISSIONS: Mission[] = [
   { id: "sprint-18", title: "Offline resilience", detail: "Explain cached versus unavailable remote cards at a glance.", done: false },
   { id: "sprint-19", title: "Watch room device matrix", detail: "Validate host and guest paths across browsers and home-network devices.", done: false },
   { id: "sprint-20", title: "Accessibility audit", detail: "Verify focus order, touch targets, contrast, and motion settings in every hub.", done: false },
+  { id: "metadata-provenance", title: "Metadata provenance and locks", detail: "Adopt the open-library pattern: preserve manual tags, record the source of enrichment, and never let a provider overwrite a locked user choice.", done: false },
+  { id: "media-inspection", title: "Companion media inspection", detail: "Use the local companion for optional ffprobe/embedded-tag extraction in bounded batches, with a preview before tags are saved.", done: false },
+  { id: "vision-tagging", title: "Optional local vision tagging", detail: "Evaluate an on-device open model for photo/video scene suggestions, keeping media bytes local and requiring review before labels are applied.", done: true },
 ];
 
 export function MissionPlanSection() {
@@ -1296,12 +1487,13 @@ export function MissionPlanSection() {
   const [companionCheck, setCompanionCheck] = useState<{ ready: boolean; desktop: boolean; detail: string } | null>(null);
   useEffect(() => { try { localStorage.setItem("reelcase.mission-plan.v1", JSON.stringify(missions)); } catch { /* storage unavailable */ } }, [missions]);
   const completed = missions.filter((mission) => mission.done).length;
+  const exportMissions = () => downloadCsv([["step", "title", "status", "detail"], ...missions.map((mission, index) => [index + 1, mission.title, mission.done ? "complete" : "in-progress", mission.detail])], `reelcase-mission-plan-${new Date().toISOString().slice(0, 10)}.csv`);
   return <HubShell eyebrow="Mission plan" icon={<Rocket className="size-4"/>} title="Build a private media home that scales." copy="Reelcase is moving toward a fast, local-first media hub: your files load from a durable catalog, your watch room works across your home network, and connected services remain optional and easy to control.">
     <section className="mt-6 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Product mission</p><h2 className="mt-2 font-display text-3xl text-fg">One calm control room for a very large library.</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-muted">Make a million-file media collection feel immediate: cache its catalog locally, keep original files private, surface useful recommendations, and let trusted people watch together without turning the app into a cloud upload service.</p><div className="mt-5 flex items-end justify-between gap-4"><div><p className="font-display text-2xl text-fg">{completed} of {missions.length} milestones complete</p><p className="mt-1 text-sm text-muted">Every milestone includes implementation, browser verification, and a production build check.</p></div><div className="rounded-full bg-accent/15 px-3 py-1 text-sm text-accent">{missions.length ? Math.round(completed / missions.length * 100) : 0}%</div></div><div className="mt-5 h-2 overflow-hidden rounded-full bg-bg/70"><div className="h-full bg-accent transition-all" style={{ width: `${missions.length ? completed / missions.length * 100 : 0}%` }}/></div></section>
     <div className="mt-5 space-y-3">{missions.map((mission, index) => <article key={mission.id} className="flex gap-4 rounded-lg bg-elevated p-4 shadow-border"><Button size="sm" variant={mission.done ? "default" : "secondary"} aria-label={`Mark ${mission.title} ${mission.done ? "incomplete" : "complete"}`} onClick={() => setMissions((items) => items.map((item) => item.id === mission.id ? { ...item, done: !item.done } : item))}>{mission.done ? "Done" : `Step ${index + 1}`}</Button><div className="min-w-0 flex-1"><h2 className={mission.done ? "text-sm font-medium text-muted line-through" : "text-sm font-medium text-fg"}>{mission.title}</h2><p className="mt-1 text-sm text-muted">{mission.detail}</p></div></article>)}</div>
     <section className="mt-5 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Companion onboarding</p><h2 className="mt-2 font-display text-2xl text-fg">A safe five-minute desktop setup.</h2><ol className="mt-4 grid gap-3 text-sm text-muted sm:grid-cols-2"><li className="rounded-sm bg-bg/45 p-3"><span className="font-medium text-fg">1. Start Companion</span><br/>Double-click Start-Reelcase-Companion.cmd in the main Reelcase folder.</li><li className="rounded-sm bg-bg/45 p-3"><span className="font-medium text-fg">2. Confirm Desktop</span><br/>Keep its window open, then run the check below.</li><li className="rounded-sm bg-bg/45 p-3"><span className="font-medium text-fg">3. Load shortcuts</span><br/>Open Games and choose Load approved desktop shortcuts.</li><li className="rounded-sm bg-bg/45 p-3"><span className="font-medium text-fg">4. Verify first</span><br/>Use a listed shortcut inside an approved root before launching it.</li></ol><Button className="mt-4" variant="secondary" onClick={() => void (async () => { try { const response = await fetch("http://127.0.0.1:43123/health"); const data = await response.json() as { roots?: number; desktopEnabled?: boolean }; setCompanionCheck({ ready: true, desktop: Boolean(data.desktopEnabled), detail: `${data.roots ?? 0} approved root(s)` }); } catch { setCompanionCheck({ ready: false, desktop: false, detail: "Companion not detected. Start it, leave the window open, then retry." }); } })()}>Check Companion setup</Button>{companionCheck && <p className={`mt-3 text-sm ${companionCheck.ready && companionCheck.desktop ? "text-accent" : "text-danger"}`}>{companionCheck.ready ? `Ready · Desktop ${companionCheck.desktop ? "approved" : "not approved"} · ${companionCheck.detail}` : companionCheck.detail}</p>}</section>
     <section className="mt-5 grid gap-3 sm:grid-cols-3"><InfoCard icon={<Wifi className="size-5"/>} title="Next: home network" copy="Folder watch events, Roku discovery, stable room invitations, and stronger timeline recovery."/><InfoCard icon={<Images className="size-5"/>} title="Then: media intelligence" copy="Background metadata, thumbnail health, faster source search, and reviewable local tags."/><InfoCard icon={<Bot className="size-5"/>} title="Later: optional assistants" copy="Private recommendation controls, explainable picks, and only opt-in service connections."/></section>
-    <div className="mt-5 flex flex-wrap gap-2"><Button variant="secondary" onClick={() => setMissions(DEFAULT_MISSIONS)}>Reset to the current 20-step delivery queue</Button><span className="self-center text-xs text-muted">Restores the current baseline and removes local completion overrides.</span></div>
+    <div className="mt-5 flex flex-wrap gap-2"><Button variant="secondary" onClick={exportMissions}><Download className="size-4"/>Export mission plan</Button><Button variant="secondary" onClick={() => setMissions(DEFAULT_MISSIONS)}>Reset to the current 43-step delivery queue</Button><span className="self-center text-xs text-muted">Exports the current status, or restores the complete delivery baseline.</span></div>
     <form className="mt-5 flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); const title = idea.trim(); if (!title) return; setMissions((items) => [...items, { id: crypto.randomUUID(), title, detail: "New idea — break this into implementation and verification steps.", done: false }]); setIdea(""); }}><Input value={idea} onChange={(event) => setIdea(event.target.value)} placeholder="Add a larger change idea" aria-label="New mission idea"/><Button type="submit">Add to plan</Button></form>
   </HubShell>;
 }
@@ -1310,7 +1502,7 @@ export function GamesSection() {
   const [filter, setFilter] = useState("");
   const [removeGame, setRemoveGame] = useState<string | null>(null);
   const [launchNotice, setLaunchNotice] = useState("");
-  const [shortcutView, setShortcutView] = useState<"all" | "web" | "desktop">("all");
+  const [shortcutView, setShortcutView] = useState<"all" | "ready" | "desktop" | "unknown">("all");
   const [fileType, setFileType] = useState("all");
   const [sort, setSort] = useState<"name" | "newest" | "type">("name");
   const [companionLoading, setCompanionLoading] = useState(false);
@@ -1335,7 +1527,7 @@ export function GamesSection() {
       source.map(async (file) => {
         let launchUrl: string | undefined;
         if (/\.url$/i.test(file.name)) {
-          const match = (await file.text()).match(/^URL\s*=\s*((?:https?|steam|epic):\S+)/im);
+          const match = (await file.text()).match(/^URL\s*=\s*((?:https?|steam|epic|com\.epicgames\.launcher|xbox):\S+)/im);
           launchUrl = match?.[1];
         }
         return {
@@ -1371,11 +1563,20 @@ export function GamesSection() {
     setCompanionLoading(true);
     try {
       const response = await fetch("http://127.0.0.1:43123/shortcuts?limit=300");
-      const result = await response.json() as { ok?: boolean; shortcuts?: Array<{ name: string; path: string }>; error?: string };
+      const result = await response.json() as { ok?: boolean; shortcuts?: Array<{ name: string; path: string; launchUrl?: string }>; error?: string };
       if (!result.ok) throw new Error(result.error ?? "The companion could not read approved shortcuts.");
       const next = (result.shortcuts ?? []).map((item) => ({ ...item, size: 0, addedAt: Date.now() }));
       setGames((current) => {
-        const merged = [...current, ...next.filter((item) => !current.some((game) => game.path === item.path))];
+        // Refresh existing rows too: legacy .url entries may have been saved
+        // before the companion could safely surface their readable target.
+        const incoming = new Map(next.map((item) => [item.path, item]));
+        const merged = [
+          ...current.map((game) => {
+            const refreshed = incoming.get(game.path);
+            return refreshed ? { ...game, ...refreshed, iconData: game.iconData } : game;
+          }),
+          ...next.filter((item) => !current.some((game) => game.path === item.path)),
+        ];
         writeHub({ ...readHub(), games: merged });
         return merged;
       });
@@ -1386,7 +1587,8 @@ export function GamesSection() {
   };
   const gameTypes = [...new Set(games.map((game) => (game.name.match(/\.([^.]+)$/)?.[1] ?? "other").toLowerCase()))].sort();
   const visible = games
-    .filter((game) => game.name.toLowerCase().includes(filter.toLowerCase()) && (shortcutView === "all" || (shortcutView === "web" ? Boolean(game.launchUrl) : !game.launchUrl)) && (fileType === "all" || game.name.toLowerCase().endsWith(`.${fileType}`)))
+    .filter((game) => game.name.toLowerCase().includes(filter.toLowerCase()) && (shortcutView === "all" || (shortcutView === "ready" ? gameKind(game) === "web-ready" : shortcutView === "unknown" ? gameKind(game) === "web-needs-target" : !isWebGame(game))) && (fileType === "all" || game.name.toLowerCase().endsWith(`.${fileType}`)))
+    .filter((game) => shortcutView === "all" || !isGameHelper(game))
     .sort((a, b) => sort === "newest" ? b.addedAt - a.addedAt : sort === "type" ? a.name.split(".").pop()!.localeCompare(b.name.split(".").pop()!) || a.name.localeCompare(b.name) : a.name.localeCompare(b.name));
   return (
     <HubShell
@@ -1429,9 +1631,10 @@ export function GamesSection() {
           placeholder="Filter your games"
           aria-label="Filter games"
         />
-        {(["all", "web", "desktop"] as const).map((view) => <Button key={view} size="sm" variant={shortcutView === view ? "default" : "secondary"} onClick={() => setShortcutView(view)}>{view === "all" ? "All" : view === "web" ? "Web launchers" : "Desktop launchers"}</Button>)}
+        {(["all", "ready", "desktop", "unknown"] as const).map((view) => <Button key={view} size="sm" variant={shortcutView === view ? "default" : "secondary"} onClick={() => setShortcutView(view)}>{view === "all" ? "All (helpers hidden)" : view === "ready" ? "Web ready" : view === "desktop" ? "Desktop" : "Unknown URL"}</Button>)}
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2"><span className="text-xs text-muted">File type</span><Button size="sm" variant={fileType === "all" ? "default" : "secondary"} onClick={() => setFileType("all")}>All types</Button>{gameTypes.map((type) => <Button key={type} size="sm" variant={fileType === type ? "default" : "secondary"} onClick={() => setFileType(type)}>.{type}</Button>)}<span className="ml-2 text-xs text-muted">Sort</span>{(["name", "newest", "type"] as const).map((value) => <Button key={value} size="sm" variant={sort === value ? "default" : "secondary"} onClick={() => setSort(value)}>{value === "name" ? "A–Z" : value === "newest" ? "Recently added" : "File type"}</Button>)}</div>
+      <div className="mt-3 flex items-center justify-between gap-3 rounded-sm bg-bg/45 px-3 py-2 text-xs text-muted"><span>{visible.length} shown · {games.filter((game) => gameKind(game) === "web-needs-target").length} web shortcuts need a readable target</span><Button size="sm" variant="ghost" onClick={() => downloadCsv([["name", "path", "kind", "extension", "launch_ready", "helper", "added_at"], ...games.map((game) => [game.name, game.path, gameKind(game), game.name.split(".").pop() ?? "", Boolean(game.launchUrl), isGameHelper(game), new Date(game.addedAt).toISOString()])], `reelcase-games-debug-${new Date().toISOString().slice(0, 10)}.csv`)}><Download className="size-3" /> Export game debug CSV</Button></div>
       {visible.length ? (
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           {visible.map((game) => (
@@ -1439,11 +1642,11 @@ export function GamesSection() {
               key={game.path}
               className="flex items-center gap-4 rounded-lg bg-elevated p-4 shadow-border"
             >
-              <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-md bg-bg/50 text-accent">
+              <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-md bg-accent/10 text-center text-[10px] font-bold tracking-[0.08em] text-accent">
                 {game.iconData ? (
                   <img src={game.iconData} alt="" className="size-full object-cover" />
                 ) : (
-                  <Gamepad2 className="size-6" />
+                  gameBadge(game)
                 )}
               </div>
               <div className="min-w-0 flex-1">
@@ -1451,7 +1654,7 @@ export function GamesSection() {
                   {game.name.replace(/\.(exe|lnk|url|appref-ms)$/i, "")}
                 </p>
                 <p className="mt-1 truncate text-xs text-muted">
-                  {game.launchUrl ? "Web shortcut ready to launch" : game.path}
+                  {gameKind(game) === "web-ready" ? "Web launcher ready" : gameKind(game) === "web-needs-target" ? "Shortcut target is unknown here — open it through the Companion or refresh its target" : game.path}
                 </p>
                 <div className="mt-3 flex flex-wrap items-center gap-3">
                   <Button
@@ -1466,11 +1669,12 @@ export function GamesSection() {
                         link.remove();
                         return;
                       }
+                      if (gameKind(game) === "web-needs-target") { void launchDesktop(game); return; }
                       void launchDesktop(game);
                     }}
                   >
                     <Rocket className="size-3" />
-                    {game.launchUrl ? "Launch shortcut" : "Launch desktop game"}
+                    {gameKind(game) === "web-needs-target" ? "Open .url shortcut" : isWebGame(game) ? "Open web game" : "Launch desktop game"}
                   </Button>
                   <label className="inline-flex cursor-pointer items-center text-xs text-muted hover:text-fg">
                     <ImagePlus className="mr-1 size-3" /> Set icon
@@ -1816,6 +2020,7 @@ export function WatchRoomSection() {
     () => `RC${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
   );
   const [roomInput, setRoomInput] = useState("");
+  const [recentLocalRoom, setRecentLocalRoom] = useState(() => localStorage.getItem("reelcase.watch-room.last-host") ?? "");
   const [name, setName] = useState(() => localStorage.getItem("reelcase.profile-name") || "Host");
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
   const [joinedAsGuest, setJoinedAsGuest] = useState(false);
@@ -1844,13 +2049,31 @@ export function WatchRoomSection() {
   const history = useLibrary((s) => s.history);
   useEffect(() => { localStorage.setItem("reelcase.profile-name", name.trim() || "Host"); }, [name]);
   const [sharedVideoId, setSharedVideoId] = useState(
-    () => videos.find((video) => Boolean(video.src || video.remote?.embedUrl))?.id ?? "",
+    () => {
+      const pending = localStorage.getItem("reelcase.watch-room.pending-video");
+      const requested = pending ? videos.find((video) => video.id === pending && Boolean(video.src || video.remote?.embedUrl)) : undefined;
+      return requested?.id ?? videos.find((video) => Boolean(video.src || video.remote?.embedUrl))?.id ?? "";
+    },
   );
   const sharedVideo = videos.find((video) => video.id === sharedVideoId);
   const roomVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteFrameRef = useRef<HTMLIFrameElement>(null);
+  const [remoteFrameReady, setRemoteFrameReady] = useState(0);
+  const [remoteSeekNonce, setRemoteSeekNonce] = useState(0);
+  const youtubePlaybackStartedAt = useRef<number | null>(null);
+  const [localVideoUrl, setLocalVideoUrl] = useState("");
   const lastRoomTick = useRef(0);
   const room = activeRoom ?? "";
   const p2p = useP2PRoom(room, name.trim() || "Guest");
+  useEffect(() => {
+    if (!localVideo) { setLocalVideoUrl(""); return; }
+    const url = URL.createObjectURL(localVideo);
+    setLocalVideoUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [localVideo]);
+  useEffect(() => {
+    localStorage.removeItem("reelcase.watch-room.pending-video");
+  }, []);
   // A room must not advertise catalog-only local records as playable. Browser
   // File handles need an explicit resolved source first, so show only videos
   // that already have a usable embedded or direct media URL here.
@@ -1881,6 +2104,11 @@ export function WatchRoomSection() {
       queue,
     });
   }, [p2p.peers.length]);
+  useEffect(() => {
+    // A theater invite should request state immediately. This also wakes the
+    // same-machine BroadcastChannel fallback before WebRTC has a peer row.
+    if (joinedAsGuest && p2p.joined) p2p.send({ type: "resync-request" });
+  }, [joinedAsGuest, p2p.joined, p2p.send]);
   useEffect(
     () =>
       p2p.onMessage((from, raw) => {
@@ -1891,6 +2119,7 @@ export function WatchRoomSection() {
           playing?: boolean;
           position?: number;
           sentAt?: number;
+          seek?: boolean;
           videoId?: string;
           queue?: string[];
         };
@@ -1898,9 +2127,11 @@ export function WatchRoomSection() {
           setChat((rows) => [...rows, `${data.name ?? from}: ${data.text}`].slice(-50));
         if (data.type === "room-pulse") p2p.send({ type: "room-pulse-ack", sentAt: data.sentAt }, from);
         if (data.type === "room-pulse-ack" && data.sentAt) setPulseStatus(`Direct transport confirmed · ${Math.max(0, Date.now() - data.sentAt)}ms round trip.`);
+        if (data.type === "share-ready" && data.name) setInviteNotice(`${data.name} was requested for local sharing. Choose the same permitted file on this device; room controls will then keep its timeline aligned.`);
         if (data.type === "sync") {
           const position = Number(data.position) || 0;
           const elapsed = data.playing && data.sentAt ? Math.max(0, (Date.now() - data.sentAt) / 1000) : 0;
+          if (data.seek) setRemoteSeekNonce((value) => value + 1);
           setPlayback({ playing: Boolean(data.playing), position: position + elapsed });
         }
         if (data.type === "video" && data.videoId) setSharedVideoId(data.videoId);
@@ -1920,9 +2151,18 @@ export function WatchRoomSection() {
       }),
     [joinedAsGuest, p2p.onMessage, p2p.send, playback.playing, playback.position, queue, sharedVideoId],
   );
-  const sync = (next: { playing: boolean; position: number }) => {
-    setPlayback(next);
-    p2p.send({ type: "sync", ...next, sentAt: Date.now() });
+  const sync = (next: { playing: boolean; position: number }, seek = false) => {
+    // The YouTube iframe cannot expose its live time without a separate API
+    // event bridge. Keep an accurate-enough local clock between room commands
+    // so Pause does not broadcast the original zero timestamp back to guests.
+    const isYoutube = sharedVideo?.remote?.kind === "youtube";
+    const elapsed = isYoutube && playback.playing && youtubePlaybackStartedAt.current ? Math.max(0, (Date.now() - youtubePlaybackStartedAt.current) / 1000) : 0;
+    const position = !next.playing && playback.playing && next.position === playback.position ? playback.position + elapsed : next.position;
+    const resolved = { ...next, position };
+    youtubePlaybackStartedAt.current = resolved.playing ? Date.now() - resolved.position * 1000 : null;
+    setPlayback(resolved);
+    if (seek) setRemoteSeekNonce((value) => value + 1);
+    p2p.send({ type: "sync", ...resolved, seek, sentAt: Date.now() });
   };
   const resync = () => {
     if (joinedAsGuest) {
@@ -1953,11 +2193,25 @@ export function WatchRoomSection() {
     if (playback.playing && media.paused) void media.play().catch(() => {});
     if (!playback.playing && !media.paused) media.pause();
   }, [playback, sharedVideo]);
+  useEffect(() => {
+    // YouTube's iframe API accepts command messages once enablejsapi=1 is in
+    // the URL. This keeps the in-room controls meaningful instead of merely
+    // changing a label beside an uncontrolled embed.
+    if (sharedVideo?.remote?.kind !== "youtube" || !remoteFrameReady) return;
+    const frame = remoteFrameRef.current?.contentWindow;
+    if (!frame) return;
+    const target = new URL(watchRoomEmbed(sharedVideo)).origin;
+    // Seeking is destructive for an iframe player. Do it only for an explicit
+    // +/- seek (or a newly selected video), never as a side effect of Pause.
+    if (remoteSeekNonce) frame.postMessage(JSON.stringify({ event: "command", func: "seekTo", args: [playback.position, true] }), target);
+    frame.postMessage(JSON.stringify({ event: "command", func: playback.playing ? "playVideo" : "pauseVideo", args: [] }), target);
+  }, [playback, remoteFrameReady, remoteSeekNonce, sharedVideo]);
   const chooseVideo = (video: LibraryVideo) => {
+    setLocalVideo(null);
     setSharedVideoId(video.id);
     setPlayback({ playing: false, position: 0 });
     p2p.send({ type: "video", videoId: video.id });
-    p2p.send({ type: "sync", playing: false, position: 0 });
+    p2p.send({ type: "sync", playing: false, position: 0, seek: true });
   };
   const updateQueue = (next: string[]) => {
     setQueue(next);
@@ -2005,6 +2259,8 @@ export function WatchRoomSection() {
               className="mt-5 w-full"
               onClick={() => {
                 setJoinedAsGuest(false);
+                localStorage.setItem("reelcase.watch-room.last-host", roomCode);
+                setRecentLocalRoom(roomCode);
                 setActiveRoom(roomCode);
               }}
             >
@@ -2027,6 +2283,7 @@ export function WatchRoomSection() {
               placeholder="Enter room code"
               aria-label="Watch room code"
             />
+            {recentLocalRoom && recentLocalRoom !== roomInput && <Button size="sm" variant="secondary" className="mt-2" onClick={() => { setRoomInput(recentLocalRoom); setInviteNotice(`Using this browser’s active host room: ${recentLocalRoom}.`); }}>Join local host · {recentLocalRoom}</Button>}
             <Input
               className="mt-2"
               value={name}
@@ -2085,12 +2342,13 @@ export function WatchRoomSection() {
               const opened = window.open(invite, "reelcase-local-guest", "noopener,width=1200,height=820");
               setInviteNotice(opened ? "Opened a separate local guest window. Give it a moment to appear in Guests." : "Your browser blocked the guest window. Allow pop-ups, then try again.");
             }}>Open local guest window</Button>
-            <Button size="sm" variant="ghost" onClick={() => void navigator.clipboard?.writeText(JSON.stringify({ room: activeRoom, signaling: p2p.joined, peers: p2p.peers, events: p2p.events }, null, 2)).then(() => setInviteNotice("Connection diagnostic copied."), () => setInviteNotice("Could not copy the diagnostic."))}>Copy connection diagnostic</Button>
+            <Button size="sm" variant="ghost" onClick={() => void navigator.clipboard?.writeText(JSON.stringify({ room: activeRoom, invitation: `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(activeRoom)}&theater=1`, self: p2p.selfId, signaling: p2p.joined, peers: p2p.peers, transportTest: pulseStatus, events: p2p.events, capturedAt: new Date().toISOString() }, null, 2)).then(() => setInviteNotice("Connection diagnostic copied."), () => setInviteNotice("Could not copy the diagnostic."))}>Copy connection diagnostic</Button>
           </div>
           <div className="mt-3 rounded-sm bg-bg/45 p-3">
             <div className="flex items-center justify-between gap-3"><p className="text-xs font-medium text-fg">Connection signals</p><span className="text-xs text-muted">{p2p.peers.filter((peer) => peer.connectionState === "connected").length}/{p2p.peers.length} direct</span></div>
             <div className="mt-2 max-h-28 space-y-1 overflow-y-auto font-mono text-[11px] leading-4 text-muted">{p2p.events.map((event, index) => <p key={`${event}-${index}`}>{event}</p>)}</div>
-            {!p2p.peers.length && p2p.joined && <p className="mt-2 text-xs text-accent">Signaling works. Open the invitation in another browser window or device to create a direct chat peer.</p>}
+            {!p2p.peers.length && p2p.joined && <p className="mt-2 text-xs text-accent">Signaling is healthy, but no peer is in <strong>{activeRoom}</strong>. The other window must join this exact code—not create its own. Use Open local guest window or copy this room link.</p>}
+            {p2p.peers.length > 0 && <div className="mt-2 space-y-1 text-xs text-muted">{p2p.peers.map((peer) => <p key={peer.id}><strong className="text-fg">{peer.name || "Guest"}</strong> · {peer.connectionState} · {peer.candidateType ?? "path pending"} · {peer.rttMs == null ? "RTT pending" : `${peer.rttMs}ms`} · {peer.id.slice(-6)}</p>)}</div>}
             <div className="mt-3 flex flex-wrap items-center gap-2"><Button size="sm" variant="secondary" disabled={!p2p.peers.some((peer) => peer.connectionState === "connected")} onClick={() => { setPulseStatus("Sending direct transport test…"); p2p.send({ type: "room-pulse", sentAt: Date.now() }); }}>Test chat transport</Button><span className="text-xs text-muted">{pulseStatus}</span></div>
           </div>
           <h2 className="mt-2 font-display text-3xl text-fg">
@@ -2108,13 +2366,13 @@ export function WatchRoomSection() {
             </Button>
             <Button
               variant="secondary"
-              onClick={() => sync({ ...playback, position: Math.max(0, playback.position - 15) })}
+              onClick={() => sync({ ...playback, position: Math.max(0, playback.position - 15) }, true)}
             >
               −15 sec
             </Button>
             <Button
               variant="secondary"
-              onClick={() => sync({ ...playback, position: playback.position + 15 })}
+              onClick={() => sync({ ...playback, position: playback.position + 15 }, true)}
             >
               +15 sec
             </Button>
@@ -2142,13 +2400,26 @@ export function WatchRoomSection() {
           <div
             className={`mt-3 mx-auto w-full max-w-full overflow-hidden rounded-md bg-bg shadow-border ${stageSize === "compact" ? "lg:max-w-2xl" : stageSize === "theater" ? "lg:max-w-6xl" : ""}`}
           >
-            {sharedVideo?.remote?.embedUrl ? (
+            {localVideoUrl ? (
+              <video
+                ref={roomVideoRef}
+                className="aspect-video w-full bg-bg"
+                src={localVideoUrl}
+                controls
+                onEnded={playNext}
+                onPlay={() => sync({ playing: true, position: roomVideoRef.current?.currentTime ?? 0 })}
+                onPause={() => sync({ playing: false, position: roomVideoRef.current?.currentTime ?? 0 })}
+                onSeeked={() => sync({ playing: roomVideoRef.current ? !roomVideoRef.current.paused : false, position: roomVideoRef.current?.currentTime ?? 0 })}
+              />
+            ) : sharedVideo?.remote?.embedUrl ? (
               <iframe
+                ref={remoteFrameRef}
                 title={sharedVideo.name}
-                src={`${sharedVideo.remote.embedUrl}${sharedVideo.remote.embedUrl.includes("?") ? "&" : "?"}autoplay=0&rel=0`}
+                src={watchRoomEmbed(sharedVideo)}
                 className="aspect-video w-full border-0"
                 allow="autoplay; encrypted-media; picture-in-picture"
                 allowFullScreen
+                onLoad={() => setRemoteFrameReady(Date.now())}
               />
             ) : sharedVideo?.src ? (
               <video
@@ -2182,11 +2453,12 @@ export function WatchRoomSection() {
               </div>
             )}
           </div>
-          {sharedVideo?.remote?.embedUrl ? (
+          {sharedVideo?.remote?.kind === "youtube" ? (
             <p className="mt-2 text-xs text-subtle">
-              Embedded services show the selected title for everyone; exact timestamp sync is
-              available for local and library video files.
+              YouTube room controls now send shared play, pause, and seek commands. Use the room controls so every guest receives the same command.
             </p>
+          ) : sharedVideo?.remote?.kind === "twitch" ? (
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-subtle"><p>Twitch permits the shared embed selection, but its web player does not allow a page to force play on a guest’s behalf. Each guest starts the stream in the embed; the room keeps selection, chat, and queue together.</p>{sharedVideo.remote.watchUrl && <a href={sharedVideo.remote.watchUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-8 items-center rounded-sm bg-elevated px-2 text-xs text-fg shadow-border"><ExternalLink className="mr-1 size-3"/>Open Twitch directly</a>}</div>
           ) : null}
           <p className="mt-3 text-xs text-muted">Recommended from your playable library — favorites and recently watched titles appear first. Local catalog entries without a resolved browser media source stay out to avoid broken room cards.</p>
           <div className="mt-3 flex gap-2 overflow-x-auto pb-2">
@@ -2284,7 +2556,16 @@ export function WatchRoomSection() {
                 className="sr-only"
                 type="file"
                 accept="video/*"
-                onChange={(event) => setLocalVideo(event.target.files?.[0] ?? null)}
+                onChange={(event) => {
+                  const file = event.target.files?.[0] ?? null;
+                  setLocalVideo(file);
+                  if (file) {
+                    setSharedVideoId("");
+                    setPlayback({ playing: false, position: 0 });
+                    p2p.send({ type: "share-ready", name: file.name });
+                    setInviteNotice("Local video selected. Guests receive a request to choose their permitted copy; the file itself is never sent across the room.");
+                  }
+                }}
               />
               <span className="inline-flex min-h-10 items-center rounded-sm bg-elevated px-3 text-sm text-fg shadow-border">
                 {localVideo ? localVideo.name : "Choose local video"}
@@ -2304,7 +2585,7 @@ export function WatchRoomSection() {
               size="sm"
               className="mt-3"
               disabled={!localVideo || !guestAccess || !p2p.peers.length}
-              onClick={() => p2p.send({ type: "share-ready", name: localVideo?.name })}
+              onClick={() => { p2p.send({ type: "share-ready", name: localVideo?.name }); setInviteNotice("Local-share request sent to connected guests. They must choose their permitted local copy before playback can align."); }}
             >
               Send sharing request
             </Button>

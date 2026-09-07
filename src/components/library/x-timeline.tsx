@@ -22,6 +22,8 @@ export function XTimeline({ account, topic }: { account?: string; topic?: { labe
   const container = useRef<HTMLDivElement>(null);
   const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState("Loading public posts…");
+  const deskKey = `reelcase.x-desk.${topic ? `topic:${topic.query}` : `account:${account ?? "public"}`}`;
+  const [lastReadAt, setLastReadAt] = useState(() => typeof window === "undefined" ? 0 : Number(localStorage.getItem(deskKey) ?? 0));
   useEffect(() => {
     const element = container.current;
     if (!element) return;
@@ -41,18 +43,18 @@ export function XTimeline({ account, topic }: { account?: string; topic?: { labe
     }, 15000);
     const observer = new MutationObserver(() => {
       const frame = element.querySelector("iframe");
-      if (frame) frame.addEventListener("load", () => { if (!cancelled) { clearTimeout(timeout); setStatus("Public timeline supplied by X. If posts are unavailable, open the profile."); } }, { once: true });
+      if (frame) frame.addEventListener("load", () => { if (!cancelled) { clearTimeout(timeout); const now = Date.now(); localStorage.setItem(deskKey, String(now)); setLastReadAt(now); setStatus("Public timeline supplied by X. If posts are unavailable, open the profile."); } }, { once: true });
     });
     observer.observe(element, { childList: true, subtree: true });
     void loadWidgets().then((api) => { if (!cancelled) return api.widgets.load(element); }).catch(() => {
       if (!cancelled) { clearTimeout(timeout); setStatus("X is unavailable here. Your saved accounts are still ready to open."); }
     });
     return () => { cancelled = true; clearTimeout(timeout); observer.disconnect(); element.replaceChildren(); };
-  }, [account, attempt, topic]);
+  }, [account, attempt, deskKey, topic]);
   const destination = topic ? `https://x.com/search?q=${encodeURIComponent(topic.query)}&src=typed_query&f=live` : `https://x.com/${account}`;
   const title = topic ? topic.label : `@${account}`;
   return <section className="mt-5 rounded-lg border border-border bg-elevated p-5">
     <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-semibold">{title}</h2><div className="flex gap-2"><Button size="sm" variant="secondary" onClick={() => setAttempt((value) => value + 1)}><RefreshCw className="size-4" />Retry</Button><a className="inline-flex min-h-11 items-center gap-2 rounded-sm bg-accent px-3 text-sm font-medium text-accent-fg" href={destination} target="_blank" rel="noopener noreferrer">{topic ? "Open topic" : "Open profile"}<ExternalLink className="size-4" /></a></div></div>
-    <p role="status" className="my-4 text-sm text-muted">{status}</p><div ref={container} className="min-h-24 overflow-hidden" />
+    <p role="status" className="my-4 text-sm text-muted">{status}</p><p className="mb-3 text-xs text-subtle">{lastReadAt ? `Reading position saved locally · last loaded ${new Date(lastReadAt).toLocaleString()}` : "No public timeline has loaded in this browser yet."}</p><div ref={container} className="min-h-24 overflow-hidden" />
   </section>;
 }

@@ -1,0 +1,38 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Reelcase",
+      "hasCanvas": false,
+      "bodyTextLen": 478,
+      "bodyTextHash": "68371464f8010ce43c716a212755375e73d90b09095592daa71d5f14a07e33d7",
+      "bodyTextPrefix": "Reelcase Vault · networks · live Home 12 Movies Genres YouTube 8",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [
+        "Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <SafeFragment>\n      <SafeFragment fallback={null}>\n        <CatchBoundary getResetKey={function getResetKey} errorComponent={function AppErrorComponent} ...>\n          <SafeFragment fallback={function fallback}>\n            <MatchInnerImpl match={{id:\"//\",ssr:true, ...}}>\n              <Lazy>\n                <Home>\n                  <LibraryApp>\n                    <div className=\"flex min-h...\">\n                      <aside>\n                      <Sheet>\n                      <div className=\"flex min-w...\">\n                        <TopBar onMenu={function onMenu} onAddFolder={function onAddFolder}>\n                          <header className=\"grid gap-3...\">\n                            <div>\n                            <div>\n                            <div className=\"flex items...\">\n                              <DropdownMenu>\n                              <span className=\"hidden ite...\">\n                                <Clock3>\n+                               4:39 PM\n-                               4:38 PM\n                              ...\n                        ...\n                      ...\n"
+      ],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\reliability-performance.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Reelcase",
+      "hasCanvas": false,
+      "bodyTextLen": 196,
+      "bodyTextHash": "9f28bc2842e73f268879b5edf609601fb8bae7487e34d43e5021615d6862f13c",
+      "bodyTextPrefix": "Home 12 indexed Name YOUR DAILY DETOUR Something worth finding. ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\reliability-performance-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\reliability-performance.json"
+}

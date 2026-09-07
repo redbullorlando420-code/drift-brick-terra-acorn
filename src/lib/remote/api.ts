@@ -471,12 +471,15 @@ export const importChannels = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<ImportBatchResult> => {
     const compact = data.items.length > 1;
     const rows = await mapPool(data.items, 4, async (item) => {
-      try {
-        if (item.kind === "twitch") return await followTwitch(item.query, compact);
-        return await youtubeFromChannel(item.query, compact ? 4 : 18);
-      } catch {
-        return null;
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          if (item.kind === "twitch") return await followTwitch(item.query, compact);
+          return await youtubeFromChannel(item.query, compact ? 4 : 18);
+        } catch {
+          if (!attempt) await new Promise((resolve) => setTimeout(resolve, 350));
+        }
       }
+      return null;
     });
     const ok: FollowResult[] = [];
     const failedQueries: string[] = [];

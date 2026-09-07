@@ -181,7 +181,10 @@ export function Player({ playlist }: { playlist: string[] }) {
     setChrome(true);
     window.clearTimeout(hideTimer.current);
     hideTimer.current = window.setTimeout(() => {
-      if (mediaRef.current && !mediaRef.current.paused) setChrome(false);
+      // Provider embeds do not expose a local <video> element, so the old
+      // condition never hid their chrome. Hide after inactivity for every
+      // player; any pointer movement, touch, or key immediately reveals it.
+      setChrome(false);
     }, 2400);
   }, []);
 
