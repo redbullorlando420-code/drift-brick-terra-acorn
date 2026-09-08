@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ExternalLink, RefreshCw } from "lucide-react";
+import { ExternalLink, RefreshCw, Search, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type XWidgets = { widgets: { load: (element: HTMLElement) => Promise<unknown> | void } };
@@ -53,8 +53,9 @@ export function XTimeline({ account, topic }: { account?: string; topic?: { labe
   }, [account, attempt, deskKey, topic]);
   const destination = topic ? `https://x.com/search?q=${encodeURIComponent(topic.query)}&src=typed_query&f=live` : `https://x.com/${account}`;
   const title = topic ? topic.label : `@${account}`;
+  const unavailable = /hasn’t supplied|unavailable/i.test(status);
   return <section className="mt-5 rounded-lg border border-border bg-elevated p-5">
     <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-semibold">{title}</h2><div className="flex gap-2"><Button size="sm" variant="secondary" onClick={() => setAttempt((value) => value + 1)}><RefreshCw className="size-4" />Retry</Button><a className="inline-flex min-h-11 items-center gap-2 rounded-sm bg-accent px-3 text-sm font-medium text-accent-fg" href={destination} target="_blank" rel="noopener noreferrer">{topic ? "Open topic" : "Open profile"}<ExternalLink className="size-4" /></a></div></div>
-    <p role="status" className="my-4 text-sm text-muted">{status}</p><p className="mb-3 text-xs text-subtle">{lastReadAt ? `Reading position saved locally · last loaded ${new Date(lastReadAt).toLocaleString()}` : "No public timeline has loaded in this browser yet."}</p><div ref={container} className="min-h-24 overflow-hidden" />
+    <p role="status" className="my-4 text-sm text-muted">{status}</p><p className="mb-3 text-xs text-subtle">{lastReadAt ? `Reading position saved locally · last loaded ${new Date(lastReadAt).toLocaleString()}` : "No public timeline has loaded in this browser yet."}</p>{unavailable && <div className="mb-4 grid gap-3 rounded-md bg-bg/45 p-4 sm:grid-cols-2"><div><p className="flex items-center gap-2 text-sm font-medium text-fg"><ShieldCheck className="size-4 text-accent"/>Public-reader fallback</p><p className="mt-1 text-xs leading-5 text-muted">X did not permit an embedded timeline in this browser. Reelcase does not invent posts or store credentials.</p></div><div className="flex flex-wrap items-center gap-2"><a href={destination} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-10 items-center rounded-sm bg-accent px-3 text-sm font-medium text-accent-fg">Open official view<ExternalLink className="ml-2 size-4"/></a><a href={topic ? `https://www.google.com/search?q=site%3Ax.com+${encodeURIComponent(topic.query)}` : `https://www.google.com/search?q=site%3Ax.com%2F${encodeURIComponent(account ?? "")}`} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-10 items-center rounded-sm bg-surface px-3 text-sm text-fg shadow-border"><Search className="mr-2 size-4"/>Search public posts</a></div></div>}<div ref={container} className="min-h-24 overflow-hidden" />
   </section>;
 }

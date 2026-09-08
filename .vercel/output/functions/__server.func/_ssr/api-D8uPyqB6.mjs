@@ -1,6 +1,13 @@
-import { t as createServerFn } from "./ssr.mjs";
-import { t as createServerRpc } from "./createServerRpc-A6pJPYTF.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/api-B0dVXnB-.js
+import { n as TSS_SERVER_FUNCTION, t as createServerFn } from "./ssr.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/api-D8uPyqB6.js
+var createServerRpc = (serverFnMeta, splitImportFn) => {
+	const url = "/_serverFn/" + serverFnMeta.id;
+	return Object.assign(splitImportFn, {
+		url,
+		serverFnMeta,
+		[TSS_SERVER_FUNCTION]: true
+	});
+};
 function asString(v) {
 	return typeof v === "string" ? v : "";
 }
@@ -92,7 +99,8 @@ function ytVideo(entry) {
 		mime: "video/youtube",
 		size: 0,
 		addedAt: published,
-		tagline: entry.desc.slice(0, 140),
+		tagline: entry.desc.slice(0, 180),
+		description: entry.desc.slice(0, 4e3),
 		poster: entry.thumb || `https://i.ytimg.com/vi/${entry.id}/hqdefault.jpg`,
 		src: `https://www.youtube.com/embed/${entry.id}`,
 		remote: {
@@ -100,6 +108,7 @@ function ytVideo(entry) {
 			videoId: entry.id,
 			channelId: entry.channelId,
 			channelName: entry.channelName,
+			live: entry.live,
 			embedUrl: `https://www.youtube.com/embed/${entry.id}`,
 			watchUrl: `https://www.youtube.com/watch?v=${entry.id}`,
 			previewUrl: `https://i.ytimg.com/an_webp/${entry.id}/mqdefault_6s.webp`
@@ -141,7 +150,28 @@ async function youtubeFromVideo(id) {
 	};
 }
 var YT_INBOX = "youtube:inbox";
-async function youtubeFromChannel(query, limit = 32) {
+async function youtubeLiveFromChannel(channelId, channelName) {
+	try {
+		const match = (await fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}/live`)).match(/"videoId":"([A-Za-z0-9_-]{11})"[\s\S]{0,2400}?"isLiveContent":true/);
+		if (!match?.[1]) return null;
+		const id = match[1];
+		const video = ytVideo({
+			id,
+			title: `${channelName} live`,
+			published: (/* @__PURE__ */ new Date()).toISOString(),
+			thumb: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+			desc: `${channelName} is live on YouTube.`,
+			channelId,
+			channelName,
+			live: true
+		});
+		video.tagline = `${channelName} is live now`;
+		return video;
+	} catch {
+		return null;
+	}
+}
+async function youtubeFromChannel(query, limit = 48) {
 	let channelId = "";
 	const trimmed = query.trim();
 	if (/^UC[\w-]{20,}$/.test(trimmed)) channelId = trimmed;
@@ -169,6 +199,8 @@ async function youtubeFromChannel(query, limit = 32) {
 			channelName: author
 		});
 	});
+	const live = await youtubeLiveFromChannel(channelId, author);
+	if (live && !videos.some((video) => video.id === live.id)) videos.unshift(live);
 	return {
 		channel: {
 			id: `yt:${channelId}`,
@@ -390,7 +422,7 @@ var importChannels = createServerFn({ method: "POST" }).validator((data) => pars
 	const rows = await mapPool(data.items, 4, async (item) => {
 		for (let attempt = 0; attempt < 2; attempt += 1) try {
 			if (item.kind === "twitch") return await followTwitch(item.query, compact);
-			return await youtubeFromChannel(item.query, compact ? 4 : 18);
+			return await youtubeFromChannel(item.query, compact ? 8 : 48);
 		} catch {
 			if (!attempt) await new Promise((resolve) => setTimeout(resolve, 350));
 		}

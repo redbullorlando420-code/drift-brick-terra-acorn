@@ -1,6 +1,17 @@
-import { t as createServerFn } from "./ssr.mjs";
-import { n as createSsrRpc } from "./routes-Doxicx9I.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/api-Cn-8SLGj.js
+import { n as TSS_SERVER_FUNCTION, r as getServerFnById, t as createServerFn } from "./ssr.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/api-CeYPgULp.js
+var createSsrRpc = (functionId) => {
+	const url = "/_serverFn/" + functionId;
+	const serverFnMeta = { id: functionId };
+	const fn = async (...args) => {
+		return (await getServerFnById(functionId, { origin: "server" }))(...args);
+	};
+	return Object.assign(fn, {
+		url,
+		serverFnMeta,
+		[TSS_SERVER_FUNCTION]: true
+	});
+};
 function asString(v) {
 	return typeof v === "string" ? v : "";
 }

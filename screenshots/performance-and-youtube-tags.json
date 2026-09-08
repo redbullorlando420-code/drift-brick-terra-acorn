@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Reelcase",
+      "hasCanvas": false,
+      "bodyTextLen": 895,
+      "bodyTextHash": "f5051f644a7d32c05b49b5432cd4add10720271c8687449623ea84823489c61b",
+      "bodyTextPrefix": "Reelcase Vault · networks · live Home 0 Movies Genres YouTube 0 ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\performance-and-youtube-tags.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Reelcase",
+      "hasCanvas": false,
+      "bodyTextLen": 597,
+      "bodyTextHash": "93cefffa421739500b087c3934e6242b9163e17876a1446b313ec290b8a84eca",
+      "bodyTextPrefix": "Home 0 indexed Name YOUR DAILY DETOUR Something worth finding. A",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\performance-and-youtube-tags-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\performance-and-youtube-tags.json"
+}

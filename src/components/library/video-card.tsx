@@ -42,8 +42,13 @@ export function VideoCard({
   const duration = capturedDur ?? video.duration;
   const ratio = progress && progress.d > 0 ? Math.min(1, progress.t / progress.d) : 0;
   const playable = isLikelyPlayable(video.extension);
-  const art = variant === "poster" ? video.poster || thumb : thumb || video.poster;
-  const youtubeFallback = video.remote?.kind === "youtube" && video.remote.videoId ? `https://i.ytimg.com/vi/${video.remote.videoId}/hqdefault.jpg` : undefined;
+  const youtubeId = video.remote?.kind === "youtube" ? video.remote.videoId ?? video.remote.embedUrl?.match(/(?:embed\/|v=)([A-Za-z0-9_-]{11})/)?.[1] : undefined;
+  const youtubeFallback = youtubeId ? `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg` : undefined;
+  const providerArt = video.poster || youtubeFallback || video.remote?.previewUrl;
+  // Provider artwork is already the authoritative thumbnail. Never route it
+  // through the local video-frame worker, which cannot decode cross-origin
+  // embeds and was incorrectly marking good remote cards as unavailable.
+  const art = variant === "poster" ? providerArt || thumb : thumb || providerArt;
   const isPoster = variant === "poster";
   const live = Boolean(video.remote?.live);
   const preview = video.remote?.previewUrl;
@@ -54,7 +59,7 @@ export function VideoCard({
 
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el || video.remote) return;
     const io = new IntersectionObserver(
       (entries) => {
         if (entries.some((e) => e.isIntersecting)) request(video);
@@ -98,7 +103,7 @@ export function VideoCard({
           >
             <Play className="ml-0.5 size-4 fill-current" />
           </span>
-          {failed && video.remote && <span className="absolute bottom-2 left-2 right-2 rounded-xs bg-bg/80 px-2 py-1 text-center text-[11px] text-muted">Artwork unavailable</span>}
+          {failed && !video.remote && <span className="absolute bottom-2 left-2 right-2 rounded-xs bg-bg/80 px-2 py-1 text-center text-[11px] text-muted">Local artwork unavailable</span>}
         </div>
       )}
       <div className="absolute inset-0 bg-linear-to-t from-bg/80 via-transparent to-transparent opacity-90" />

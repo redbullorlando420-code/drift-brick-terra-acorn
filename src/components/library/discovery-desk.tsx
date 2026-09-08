@@ -10,19 +10,23 @@ import { VideoCard } from "./video-card";
 export function DiscoveryDesk({ videos }: { videos: LibraryVideo[] }) {
   const [seed, setSeed] = useState(1);
   const open = useLibrary((s) => s.openVideo);
-  useEffect(() => setSeed(Math.floor(Math.random() * 0xffffffff)), []);
+  useEffect(() => {
+    const rotate = () => setSeed((Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0);
+    rotate();
+    const timer = window.setInterval(rotate, 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
   const picks = useMemo(() => {
-    // Fresh remote and recently-added local titles lead the daily mix. Demo
-    // classics remain discoverable, but cannot crowd out current subscriptions.
+    // Time-based rotation ensures a fresh mix even when the catalog itself is
+    // unchanged. Demonstration media is excluded before scoring.
     let state = seed >>> 0;
     const random = () => { state ^= state << 13; state ^= state >>> 17; state ^= state << 5; return (state >>> 0) / 4294967296; };
     const currentChoices = videos.filter((video) => !video.remote?.live && !video.isSample);
     const candidatePool = currentChoices;
-    const hasNonBlenderRemote = candidatePool.some((video) => video.remote && !/blender/i.test(video.remote.channelName ?? ""));
     const weighted = candidatePool.map((video) => {
-      const classicOrBlender = video.collection === "classics" || /blender|classic|noir/i.test(`${video.name} ${video.remote?.channelName ?? ""}`);
+      const classicFallback = video.collection === "classics" || /classic|noir/i.test(`${video.name} ${video.remote?.channelName ?? ""}`);
       const freshness = Math.max(1, Math.min(8, (video.addedAt - Date.now() + 31_536_000_000) / 3_942_000_000));
-      const weight = (video.remote ? 7 : 2) + freshness + (classicOrBlender ? -6 : 0) + (hasNonBlenderRemote && /blender/i.test(video.remote?.channelName ?? "") ? -20 : 0) + (video.isSample ? -2 : 0);
+      const weight = (video.remote ? 7 : 2) + freshness + (classicFallback ? -6 : 0);
       return { video, score: random() * Math.max(0.25, weight) };
     });
     const chosen = weighted

@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Reelcase",
+      "hasCanvas": false,
+      "bodyTextLen": 895,
+      "bodyTextHash": "df4a58ae827a2e9fa63083bc3b6825a64209e36ba9e128e16488c0f035b9c2c5",
+      "bodyTextPrefix": "Reelcase Vault · networks · live Home 0 Movies Genres YouTube 0 ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\vod-explorer-and-clean-catalog.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Reelcase",
+      "hasCanvas": false,
+      "bodyTextLen": 597,
+      "bodyTextHash": "93cefffa421739500b087c3934e6242b9163e17876a1446b313ec290b8a84eca",
+      "bodyTextPrefix": "Home 0 indexed Name YOUR DAILY DETOUR Something worth finding. A",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\vod-explorer-and-clean-catalog-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\vod-explorer-and-clean-catalog.json"
+}

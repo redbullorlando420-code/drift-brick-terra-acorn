@@ -105,6 +105,8 @@ export type LibraryVideo = {
   year?: number;
   genre?: string;
   tagline?: string;
+  /** Provider description retained for local search and bounded keyword extraction. */
+  description?: string;
   collection?: "classics" | "shorts";
   poster?: string;
   remote?: RemoteRef;

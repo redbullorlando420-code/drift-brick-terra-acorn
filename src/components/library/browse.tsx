@@ -93,7 +93,10 @@ export function TitleRail({
   const endCaps = Math.max(0, Math.min(6, Math.min(limit, 8) - shown.length));
   return (
     <section className="media-shelf mb-8">
-      {onTitleClick ? <button type="button" onClick={onTitleClick} className="mb-3 block font-display text-xl text-fg hover:text-accent sm:text-2xl">{title} <span className="text-sm text-muted">Open source →</span></button> : <h2 className="mb-3 font-display text-xl text-fg sm:text-2xl">{title}</h2>}
+      <div className="mb-3 flex items-center justify-between gap-3">
+        {onTitleClick ? <button type="button" onClick={onTitleClick} className="block min-w-0 truncate font-display text-xl text-fg hover:text-accent sm:text-2xl">{title} <span className="text-sm text-muted">Open source →</span></button> : <h2 className="min-w-0 truncate font-display text-xl text-fg sm:text-2xl">{title}</h2>}
+        {videos.length > limit && <Button size="sm" variant="ghost" className="shrink-0 text-xs" onClick={() => setLimit((value) => Math.min(videos.length, value + 16))}>Show 16 more · {videos.length - limit}</Button>}
+      </div>
       <div className="rail-scroll flex gap-3 overflow-x-auto pb-3 sm:gap-4">
         {shown.map((video, i) => (
           <div

@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { mergeRemoteRefresh } from "./remote-merge";
-import { DEMO_FOLDER, FEATURED_YOUTUBE, SAMPLE_VIDEOS, YT_FOLDER } from "./samples";
 import {
   appendCatalogVideos,
   loadRemoteSnapshot,
@@ -44,7 +43,6 @@ import { librarySearchIndex } from "./search-index";
 import { useSourceAssets } from "@/lib/source-assets";
 import { isClassicVideo, SYSTEM_SOURCES } from "./types";
 
-const HISTORY_CAP = 2_000;
 let restoring = false;
 // A full provider refresh is intentionally bounded. Rotate that window instead
 // of repeatedly checking the first saved channels, which left large Twitch
@@ -228,14 +226,40 @@ function dedupeFollows(rows: FollowedChannel[]): FollowedChannel[] {
 }
 
 function remoteMetadataTags(video: LibraryVideo) {
-  // Stable taxonomy beats raw description words: filler words made the genre
-  // explorer noisy and prevented meaningful cross-service connections.
-  return [...new Set([video.remote?.kind, video.remote?.channelName, video.genre, video.remote?.live ? "live" : "vod", ...semanticTags(video)].filter((value): value is string => Boolean(value)).map((value) => value.trim().toLowerCase()).filter(Boolean))].slice(0, 14);
+  // Keep source, creator, format, topic, and genre as distinct tag families.
+  // This makes cross-service mapping explainable and prevents raw provider
+  // strings from pretending to be interests.
+  const creator = video.remote?.channelName?.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const provider = video.remote?.kind ? `provider-${video.remote.kind}` : "";
+  const format = video.remote?.live ? "format-live" : video.remote ? "format-vod" : "";
+  const genre = video.genre?.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  // Twitch exposes a public stream game/category even when it does not expose
+  // a richer tag list. Preserve it separately so live and VOD browsing can use
+  // a concrete provider category rather than only title-keyword guesses.
+  const twitchGame = video.remote?.kind === "twitch" && genre ? `twitch-game-${genre}` : "";
+  return [...new Set([provider, creator ? `creator-${creator}` : "", format, genre ? `genre-${genre}` : "", twitchGame, ...semanticTags(video), ...descriptionKeywordTags(video)].filter(Boolean))].slice(0, 16);
+}
+
+function descriptionKeywordTags(video: LibraryVideo) {
+  // Descriptions are valuable, but an unlimited word dump makes every render
+  // and export slower. Keep a small, explainable set of distinctive terms.
+  const ignored = new Set(["about", "after", "also", "because", "being", "between", "channel", "click", "creator", "description", "from", "have", "here", "just", "more", "next", "official", "please", "really", "subscribe", "that", "this", "through", "today", "video", "watch", "with", "youtube", "your"]);
+  const text = `${video.remote?.channelName ?? ""} ${video.name} ${video.description ?? video.tagline ?? ""}`.toLowerCase();
+  const words = text.match(/[a-z][a-z0-9-]{3,30}/g) ?? [];
+  const seen = new Set<string>();
+  const tags: string[] = [];
+  for (const word of words) {
+    if (ignored.has(word) || seen.has(word)) continue;
+    seen.add(word);
+    tags.push(`keyword-${word}`);
+    if (tags.length >= 6) break;
+  }
+  return tags;
 }
 
 /** Local, explainable semantic taxonomy. It runs over provider titles and descriptions only—never media bytes or uploads. */
 function semanticTags(video: LibraryVideo) {
-  const text = `${video.name} ${video.path} ${video.tagline ?? ""}`.toLowerCase();
+  const text = `${video.name} ${video.path} ${video.tagline ?? ""} ${video.description ?? ""}`.toLowerCase();
   const rules: Array<[RegExp, string]> = [
     [/\b(game|gaming|playthrough|speedrun|walkthrough|minecraft|steam)\b/, "gaming"],
     [/\b(tech|software|coding|programming|computer|ai|gadget)\b/, "technology"],
@@ -255,6 +279,16 @@ function semanticTags(video: LibraryVideo) {
     [/\b(animal|wildlife|zoo|nature)\b/, "nature"],
     [/\b(finance|money|business|investing)\b/, "business"],
     [/\b(fashion|beauty|makeup|style)\b/, "style"],
+    [/\b(car|cars|driving|racing|automotive|motorcycle)\b/, "motors"],
+    [/\b(horror|scary|creepy|ghost|true crime)\b/, "horror"],
+    [/\b(diy|repair|build|woodwork|maker|restoration)\b/, "maker"],
+    [/\b(soccer|football|basketball|baseball|esports|tournament)\b/, "sports"],
+    [/\b(science|space|physics|biology|chemistry)\b/, "science"],
+    [/\b(relationship|dating|love|couple)\b/, "relationships"],
+    [/\b(mental health|therapy|psychology|mindfulness)\b/, "wellbeing"],
+    [/\b(language|linguistics|learn \w+|lesson|tutorial)\b/, "skills"],
+    [/\b(hardware|pc build|keyboard|phone|camera)\b/, "hardware"],
+    [/\b(legal|court|law|lawsuit)\b/, "legal"],
   ];
   const tags = rules.filter(([pattern]) => pattern.test(text)).map(([, tag]) => tag);
   if (video.remote?.kind === "youtube" && (video.duration ?? 0) > 0 && (video.duration ?? 0) < 90) tags.push("short-form");
@@ -275,7 +309,8 @@ function localNameTags(video: LibraryVideo) {
     .split(/[^a-z0-9]+/)
     .filter((word) => word.length >= 4 && !/^(video|movie|final|copy|edit|the|with|from)$/.test(word))
     .slice(0, 4);
-  const tags = [video.genre?.toLowerCase(), `type-${video.extension.replace(/^\./, "").toLowerCase()}`, ...dateTags, ...semanticTags(video), ...nameTags];
+  const sourceName = video.path.split(/[\\/]/).find(Boolean)?.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const tags = [video.genre?.toLowerCase(), `type-${video.extension.replace(/^\./, "").toLowerCase()}`, sourceName ? `source-${sourceName}` : "", ...dateTags, ...semanticTags(video), ...nameTags];
   if (/\b(open source|creative commons|blender|public domain)\b/.test(text)) tags.push("open-source");
   if (/\b(trailer|teaser)\b/.test(text)) tags.push("trailer");
   if (/\b(1080p|2160p|4k|720p)\b/.test(text)) tags.push((text.match(/\b(2160p|4k|1080p|720p)\b/)?.[1]) ?? "hd");
@@ -310,7 +345,7 @@ function applyPrefs(partial: Partial<LibraryState>): Partial<LibraryState> {
     viewCounts: prefs.viewCounts ?? {},
     view: prefs.view ?? "grid",
     sort: prefs.sort ?? "name",
-    hideDemo: prefs.hideDemo ?? false,
+    hideDemo: true,
     sourceId: prefs.sourceId === "adults" ? "home" : (prefs.sourceId ?? "home"),
     hardwareAccel: prefs.hardwareAccel ?? true,
     adultPinHash: prefs.adultPinHash ?? null,
@@ -331,8 +366,10 @@ export function isAdultVideo(video: LibraryVideo, folders: Folder[]) {
 }
 
 export const useLibrary = create<LibraryState>((set, get) => ({
-  folders: [DEMO_FOLDER, YT_FOLDER],
-  videos: [...SAMPLE_VIDEOS, ...FEATURED_YOUTUBE],
+  // A new library starts empty. Demo movies once helped illustrate the UI, but
+  // they should never compete with a person's own sources or provider follows.
+  folders: [],
+  videos: [],
   query: "",
   sort: "name",
   view: "grid",
@@ -344,7 +381,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   progress: {},
   history: [],
   viewCounts: {},
-  hideDemo: false,
+  hideDemo: true,
   hardwareAccel: true,
   adultPinHash: null,
   adultsUnlocked: false,
@@ -440,8 +477,11 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   },
   recordPlay: (id) => {
     set((s) => {
-      const next = [{ id, at: Date.now() }, ...s.history.filter((h) => h.id !== id)];
-      return { history: next.slice(0, HISTORY_CAP), viewCounts: { ...s.viewCounts, [id]: (s.viewCounts[id] ?? 0) + 1 } };
+      // Keep an event timeline rather than a de-duplicated "recently played"
+      // cache. A title played again next week deserves a second history entry;
+      // users can explicitly clear this local-first record when they want.
+      const next = [{ id, at: Date.now() }, ...s.history];
+      return { history: next, viewCounts: { ...s.viewCounts, [id]: (s.viewCounts[id] ?? 0) + 1 } };
     });
     persistNow(get);
   },
@@ -1341,6 +1381,17 @@ function scoped(state: LibraryState, adult: boolean): LibraryVideo[] {
   return adult ? adultList(state) : publicList(state);
 }
 
+// Favorites and history are recovery views. Unlike a browse shelf, they must
+// retain a title when its folder needs reconnecting or a remote embed was
+// briefly marked unavailable; the card can still explain that state.
+function recoveryList(state: LibraryState, adult: boolean): LibraryVideo[] {
+  const adultIds = adultIdSet(state.folders);
+  return state.videos.filter((video) => {
+    if (state.hideDemo && video.isSample) return false;
+    return adult ? adultIds.has(video.folderId) : !adultIds.has(video.folderId);
+  });
+}
+
 /** Keep a small newest-first result without sorting an entire remote library. */
 function newestFirst(items: LibraryVideo[], limit: number): LibraryVideo[] {
   const top: LibraryVideo[] = [];
@@ -1361,18 +1412,21 @@ export function selectContinue(state: LibraryState, adult = false): LibraryVideo
     const p = state.progress[v.id];
     if (!p || p.d <= 0) return false;
     const r = p.t / p.d;
-    return r > 0.04 && r < 0.96;
+    // Short clips and resumed providers often persist only a small first
+    // progress mark. Keep them visible once meaningful playback began, while
+    // still clearing genuinely completed titles from Continue.
+    return r > 0.01 && r < 0.985;
   });
   items.sort((a, b) => (state.progress[b.id]?.at ?? 0) - (state.progress[a.id]?.at ?? 0));
   return items.slice(0, 48);
 }
 
 export function selectFavorites(state: LibraryState, adult = false): LibraryVideo[] {
-  return scoped(state, adult).filter((v) => state.favorites[v.id]);
+  return recoveryList(state, adult).filter((v) => state.favorites[v.id]);
 }
 
 export function selectHistory(state: LibraryState, adult = false): LibraryVideo[] {
-  const list = scoped(state, adult);
+  const list = recoveryList(state, adult);
   const byId = new Map(list.map((v) => [v.id, v]));
   return state.history
     .map((h) => byId.get(h.id))

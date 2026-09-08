@@ -111,8 +111,12 @@ export const useThumbs = create<ThumbState>((set, get) => ({
   request: (video) => {
     const { byId, failed } = get();
     if (byId[video.id] || failed[video.id] || inflight.has(video.id)) return;
-    if (video.remote && video.poster) {
-      set((s) => ({ byId: { ...s.byId, [video.id]: video.poster! } }));
+    if (video.remote) {
+      const youtubeId = video.remote.kind === "youtube" ? video.remote.videoId ?? video.remote.embedUrl?.match(/(?:embed\/|v=)([A-Za-z0-9_-]{11})/)?.[1] : undefined;
+      const providerArtwork = video.poster || (youtubeId ? `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg` : undefined) || video.remote.previewUrl;
+      if (providerArtwork) set((s) => ({ byId: { ...s.byId, [video.id]: providerArtwork } }));
+      // Cross-origin embeds cannot be frame-captured. Leave cards on provider
+      // artwork rather than placing them in the local thumbnail failure queue.
       return;
     }
     inflight.add(video.id);

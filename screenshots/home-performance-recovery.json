@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Reelcase",
+      "hasCanvas": false,
+      "bodyTextLen": 918,
+      "bodyTextHash": "e5674866d80c58d779e7360c21f3f4d0927136f3ad6fd97e408a85081246668a",
+      "bodyTextPrefix": "Reelcase Vault · networks · live Home 0 Movies Genres YouTube 0 ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\home-performance-recovery.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Reelcase",
+      "hasCanvas": false,
+      "bodyTextLen": 620,
+      "bodyTextHash": "19544bbced7a27a603a468db06792dcf585a086b6899be078cccfeb7258d4a02",
+      "bodyTextPrefix": "Home 0 indexed Name YOUR DAILY DETOUR Something worth finding. A",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\home-performance-recovery-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\home-performance-recovery.json"
+}

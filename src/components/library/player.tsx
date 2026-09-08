@@ -111,6 +111,7 @@ export function Player({ playlist }: { playlist: string[] }) {
   const [removeReady, setRemoveReady] = useState(false);
   const capturedDur = useThumbs((s) => (video ? s.durations[video.id] : undefined));
   const scrubbing = useRef(false);
+  const remoteStartedAt = useRef(0);
 
   const enterVrTheater = useCallback(async () => {
     const xr = (navigator as Navigator & { xr?: { requestSession: (mode: string, init?: unknown) => Promise<any> } }).xr;
@@ -244,6 +245,25 @@ export function Player({ playlist }: { playlist: string[] }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [src, video?.id]);
+
+  useEffect(() => {
+    if (!video?.remote) return;
+    // Provider iframes do not expose a reliable playback clock to the parent.
+    // Record a conservative local heartbeat while the Reelcase player remains
+    // open so Continue works for YouTube/Twitch without pretending we can read
+    // private provider state.
+    remoteStartedAt.current = Date.now();
+    const durationHint = Math.max(video.duration ?? 0, 120);
+    const heartbeat = () => {
+      const elapsed = Math.max(2, (Date.now() - remoteStartedAt.current) / 1000);
+      markProgress(video.id, Math.min(elapsed, durationHint * 0.94), durationHint);
+    };
+    const timer = window.setInterval(heartbeat, 5_000);
+    return () => {
+      heartbeat();
+      window.clearInterval(timer);
+    };
+  }, [markProgress, video?.id, video?.remote]);
 
   useEffect(() => {
     const el = mediaRef.current;

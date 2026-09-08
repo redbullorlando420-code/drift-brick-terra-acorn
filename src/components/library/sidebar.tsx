@@ -20,6 +20,8 @@ import {
   MonitorPlay,
   Music2,
   Users,
+  Wifi,
+  Smartphone,
   X as XIcon,
   X,
   Youtube,
@@ -86,10 +88,10 @@ export function SidebarNav({
   const progress = useLibrary((s) => s.progress);
   const history = useLibrary((s) => s.history);
   const [followingOpen, setFollowingOpen] = useState(false);
-  const [sourcesOpen, setSourcesOpen] = useState(true);
+  const [sourcesOpen, setSourcesOpen] = useState(false);
   const [followingLimit, setFollowingLimit] = useState(48);
   const [sourceLimit, setSourceLimit] = useState(80);
-  useEffect(() => { try { setFollowingOpen(localStorage.getItem("reelcase.sidebar.following-open") === "true"); setSourcesOpen(localStorage.getItem("reelcase.sidebar.sources-open") !== "false"); } catch { /* defaults */ } }, []);
+  useEffect(() => { try { setFollowingOpen(localStorage.getItem("reelcase.sidebar.following-open") === "true"); setSourcesOpen(localStorage.getItem("reelcase.sidebar.sources-open") === "true"); } catch { /* defaults */ } }, []);
   const toggleFollowing = () => setFollowingOpen((open) => { const next = !open; try { localStorage.setItem("reelcase.sidebar.following-open", String(next)); } catch { /* session */ } return next; });
   const toggleSources = () => setSourcesOpen((open) => { const next = !open; try { localStorage.setItem("reelcase.sidebar.sources-open", String(next)); } catch { /* session */ } return next; });
 
@@ -128,6 +130,8 @@ export function SidebarNav({
     return { publicFolders, networkFolders, adultFolders, counts: { publicCount, adultCount: adultsUnlocked ? adultCount : undefined, ytCount, twitchCount, liveCount, continueCount, favCount, historyCount } };
   }, [adultsUnlocked, favorites, folders, hideDemo, history, progress, videos]);
   const demo = folders.find((f) => f.kind === "demo" && !hideDemo);
+  const youtubeFollowing = networkFolders.filter((folder) => folder.kind === "youtube");
+  const twitchFollowing = networkFolders.filter((folder) => folder.kind === "twitch");
 
   return (
     <div className="flex min-h-full flex-col">
@@ -156,7 +160,7 @@ export function SidebarNav({
           active={sourceId === "genres"}
           onClick={() => go("genres")}
           icon={Film}
-          label="Genres"
+          label="Topics"
         />
         <NavItem
           active={sourceId === "youtube"}
@@ -274,6 +278,18 @@ export function SidebarNav({
           label="Watch room"
         />
         <NavItem
+          active={sourceId === "connection"}
+          onClick={() => go("connection")}
+          icon={Wifi}
+          label="Connection guide"
+        />
+        <NavItem
+          active={sourceId === "find-phone"}
+          onClick={() => go("find-phone")}
+          icon={Smartphone}
+          label="Find my phone"
+        />
+        <NavItem
           active={sourceId === "social"}
           onClick={() => go("social")}
           icon={XIcon}
@@ -333,7 +349,8 @@ export function SidebarNav({
         {networkFolders.length > 0 && (
           <>
             <button type="button" onClick={toggleFollowing} className="mt-3 flex items-center justify-between px-2 pb-1 text-xs font-medium tracking-wide text-subtle uppercase"><span>Following</span><span>{followingOpen ? "Hide" : networkFolders.length}</span></button>
-            {followingOpen && networkFolders.slice(0, followingLimit).map((folder) => (
+            {followingOpen && <p className="px-2 pt-1 text-[10px] font-medium tracking-wide text-subtle uppercase">YouTube · {youtubeFollowing.length}</p>}
+            {followingOpen && youtubeFollowing.slice(0, followingLimit).map((folder) => (
               <FolderRow
                 key={folder.id}
                 folder={folder}
@@ -344,7 +361,19 @@ export function SidebarNav({
                 hideAdult
               />
             ))}
-            {followingOpen && networkFolders.length > followingLimit && <Button variant="ghost" size="sm" className="mx-1 mt-1" onClick={() => setFollowingLimit((value) => value + 48)}>Show 48 more follows</Button>}
+            {followingOpen && <p className="px-2 pt-3 text-[10px] font-medium tracking-wide text-subtle uppercase">Twitch · {twitchFollowing.length}</p>}
+            {followingOpen && twitchFollowing.slice(0, followingLimit).map((folder) => (
+              <FolderRow
+                key={folder.id}
+                folder={folder}
+                active={sourceId === folder.id}
+                onClick={() => go(folder.id)}
+                onRemove={() => unfollow(folder.id)}
+                onToggleAdult={() => {}}
+                hideAdult
+              />
+            ))}
+            {followingOpen && (youtubeFollowing.length > followingLimit || twitchFollowing.length > followingLimit) && <Button variant="ghost" size="sm" className="mx-1 mt-1" onClick={() => setFollowingLimit((value) => value + 48)}>Show 48 more follows</Button>}
           </>
         )}
         {adultsUnlocked && adultFolders.length > 0 && (

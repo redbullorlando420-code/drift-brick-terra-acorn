@@ -3,10 +3,18 @@ import { ArrowLeft, ExternalLink, Glasses, Heart, Play, Star, Tag, ThumbsUp, X }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLibrary } from "@/lib/videos/store";
-import { getRating, setRating as saveRating } from "@/lib/media-feedback";
+import { creatorIsLiked, getCreatorRating, getRating, setCreatorRating, setRating as saveRating, tagIsLiked, toggleCreatorLike, toggleTagLike } from "@/lib/media-feedback";
 import { resolvePlayUrl } from "@/lib/videos/sources";
 
 const EMPTY_TAGS: string[] = [];
+function previewShuffle(id: string, seed: number) {
+  let value = seed >>> 0;
+  for (let index = 0; index < id.length; index += 1) value = Math.imul(value ^ id.charCodeAt(index), 0x45d9f3b);
+  return value >>> 0;
+}
+function isExcludedPreviewCandidate(video: { isSample?: boolean; name: string; remote?: { channelName?: string }; tagline?: string }) {
+  return Boolean(video.isSample) || /\b(blender|big buck bunny|cosmos laundromat|tears of steel|elephants dream|sintel|night rain|empty house|golden coast|tungsten reel)\b/i.test(`${video.name} ${video.remote?.channelName ?? ""} ${video.tagline ?? ""}`);
+}
 
 export function PreVideo() {
   const previewId = useLibrary((s) => s.previewId);
@@ -28,11 +36,25 @@ export function PreVideo() {
   const [categoryText, setCategoryText] = useState("");
   const [vrAvailable, setVrAvailable] = useState(false);
   const [rating, setRating] = useState(0);
+  const [creatorRevision, setCreatorRevision] = useState(0);
+  const [tagRevision, setTagRevision] = useState(0);
+  const [recommendationSeed, setRecommendationSeed] = useState(() => Date.now() >>> 0);
   const [localPreviewSrc, setLocalPreviewSrc] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState("");
   const markUnavailable = useLibrary((s) => s.markUnavailable);
   const video = videos.find((item) => item.id === previewId);
+  const creator = video?.remote?.channelName?.trim() ?? "";
+  const creatorKeyword = creator.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const visibleTags = creatorKeyword && !tags.includes(`creator-${creatorKeyword}`) ? [`creator-${creatorKeyword}`, ...tags] : tags;
+  const creatorRating = creator ? getCreatorRating(creator) : 0;
+  const creatorLiked = creator ? creatorIsLiked(creator) : false;
   useEffect(() => { if (!previewId) return; setRating(getRating(previewId)); }, [previewId]);
+  useEffect(() => {
+    // Rotate tie-breaks while a preview stays open. The taste signals remain
+    // dominant, but a shelf does not become a permanently fixed six titles.
+    const timer = window.setInterval(() => setRecommendationSeed(Date.now() >>> 0), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
   useEffect(() => {
     if (!video || video.remote || video.src) { setLocalPreviewSrc(null); setPreviewError(""); return; }
     let cancelled = false;
@@ -53,20 +75,50 @@ export function PreVideo() {
         .then(setVrAvailable)
         .catch(() => setVrAvailable(false));
   }, []);
-  const related = useMemo(
-    () =>
-      video
-        ? videos
-            .filter(
-              (item) =>
-                item.id !== video.id &&
-                (item.folderId === video.folderId || item.genre === video.genre),
-            )
-            .slice(0, 8)
-        : [],
-    [video, videos],
-  );
-  const recommended = useMemo(() => video ? videos.filter((item) => item.id !== video.id && !related.some((relatedItem) => relatedItem.id === item.id)).sort((a, b) => Number(b.genre === video.genre) - Number(a.genre === video.genre) || b.addedAt - a.addedAt).slice(0, 6) : [], [related, video, videos]);
+  const related = useMemo(() => {
+    if (!video) return [];
+    const sourceTags = new Set(tags);
+    const creatorName = video.remote?.channelName?.trim().toLowerCase();
+    const sourceKind = video.remote?.kind;
+    return videos.filter((item) => item.id !== video.id && !isExcludedPreviewCandidate(item) && !useLibrary.getState().unavailable[item.id]).map((item) => {
+      const itemTags = useLibrary.getState().tags[item.id] ?? [];
+      const sharedTopics = itemTags.filter((tag) => sourceTags.has(tag)).length;
+      const sameCreator = Boolean(creatorName && item.remote?.channelName?.trim().toLowerCase() === creatorName);
+      const liveToVod = Boolean(video.remote?.live && !item.remote?.live && sameCreator);
+      const score = Number(sameCreator) * 14
+        + Number(liveToVod) * 8
+        + Number(item.folderId === video.folderId) * 5
+        + Number(item.genre === video.genre) * 4
+        + Number(item.remote?.kind === sourceKind) * 2
+        + sharedTopics * 3
+        + getRating(item.id) * 1.5
+        + getCreatorRating(item.remote?.channelName ?? "") * 2
+        + Number(creatorIsLiked(item.remote?.channelName ?? "")) * 3;
+      return { item, score, random: previewShuffle(`${video.id}:${item.id}:${recommendationSeed}`, recommendationSeed) };
+    }).filter((row) => row.score > 0).sort((a, b) => b.score - a.score || a.random - b.random).slice(0, 8).map((row) => row.item);
+  }, [creatorRevision, recommendationSeed, tags, video, videos]);
+  const recommended = useMemo(() => {
+    if (!video) return [];
+    const sourceTags = new Set(tags);
+    const sourceKind = video.remote?.kind;
+    const seed = (recommendationSeed + 17) >>> 0;
+    const highlyRatedTags = new Set(videos.flatMap((item) => {
+      const itemTags = useLibrary.getState().tags[item.id] ?? [];
+      return getRating(item.id) >= 4 ? itemTags : itemTags.filter((tag) => tagIsLiked(tag));
+    }));
+    return videos.filter((item) => item.id !== video.id && !isExcludedPreviewCandidate(item) && !useLibrary.getState().unavailable[item.id] && !related.some((relatedItem) => relatedItem.id === item.id)).map((item) => {
+      const itemTags = useLibrary.getState().tags[item.id] ?? [];
+      const sharedTopics = itemTags.filter((tag) => sourceTags.has(tag)).length;
+      const score = Number(item.genre === video.genre) * 3
+        + Number(item.remote?.kind === sourceKind) * 1.5
+        + sharedTopics * 3
+        + getRating(item.id) * 2
+        + getCreatorRating(item.remote?.channelName ?? "") * 2
+        + Number(creatorIsLiked(item.remote?.channelName ?? "")) * 3
+        + itemTags.filter((tag) => highlyRatedTags.has(tag)).length * 2;
+      return { item, score, random: previewShuffle(`${video.id}:${item.id}:${seed}`, seed) };
+    }).sort((a, b) => b.score - a.score || a.random - b.random).slice(0, 6).map((row) => row.item);
+  }, [creatorRevision, recommendationSeed, related, tagRevision, tags, video, videos]);
   if (!video) return null;
   const embed = video.remote?.embedUrl
     ? video.remote.kind === "twitch"
@@ -157,6 +209,7 @@ export function PreVideo() {
               <Button variant={favorite ? "default" : "secondary"} onClick={() => toggleFavorite(video.id)}><Heart className={favorite ? "size-4 fill-current" : "size-4"} />{favorite ? "Saved" : "Save"}</Button>
               <Button variant={liked ? "default" : "secondary"} onClick={() => toggleLike(video.id)}><ThumbsUp className={liked ? "size-4 fill-current" : "size-4"} />{liked ? "Liked" : "Like"}</Button>
             </div>
+            {creator && <div className="mt-4 rounded-lg border border-border bg-elevated/55 p-4"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Creator taste</p><div className="mt-2 flex flex-wrap items-center gap-2"><button type="button" onClick={() => { setSource(video.remote?.kind ?? "youtube"); setQuery(creator); closePreview(); }} className="font-medium text-fg hover:text-accent">{creator}</button><Button size="sm" variant={creatorLiked ? "default" : "secondary"} onClick={() => { toggleCreatorLike(creator); setCreatorRevision((value) => value + 1); }}><ThumbsUp className={creatorLiked ? "size-3.5 fill-current" : "size-3.5"}/>{creatorLiked ? "Creator liked" : "Like creator"}</Button>{[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" onClick={() => { setCreatorRating(creator, value); setCreatorRevision((revision) => revision + 1); }} className={`flex size-8 items-center justify-center rounded-sm text-xs shadow-border ${value <= creatorRating ? "bg-accent text-accent-fg" : "bg-bg/50 text-accent"}`} aria-label={`Rate creator ${creator} ${value} stars`}>{value}</button>)}</div><p className="mt-2 text-xs text-muted">Creator likes and ratings boost this creator and shared tags across YouTube recommendations.</p></div>}
           </div>
           <aside className="rounded-lg bg-elevated p-5 shadow-border">
             <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Details</p>
@@ -164,21 +217,12 @@ export function PreVideo() {
               {video.year ?? "New"} · {video.genre ?? "Uncategorized"}
             </p>
             <div className="mt-4 flex flex-wrap gap-1.5">
-              {tags.length ? (
-                tags.map((tag) => (
-                  <button
-                    key={tag}
-                    type="button"
-                    title={`Show videos tagged ${tag}`}
-                    onClick={() => {
-                      setSource(video.remote?.kind === "twitch" ? "twitch" : video.remote?.kind === "youtube" ? "youtube" : "all");
-                      setQuery(tag);
-                      closePreview();
-                    }}
-                    className="rounded-xs bg-bg/50 px-2 py-1 text-xs text-muted transition-colors hover:bg-accent/15 hover:text-accent focus-visible:outline-2 focus-visible:outline-accent"
-                  >
-                    #{tag}
-                  </button>
+              {visibleTags.length ? (
+                visibleTags.map((tag) => (
+                  <span key={tag} className="inline-flex overflow-hidden rounded-xs bg-bg/50 text-xs text-muted">
+                    <button type="button" title={`Show videos tagged ${tag}`} onClick={() => { setSource(video.remote?.kind === "twitch" ? "twitch" : video.remote?.kind === "youtube" ? "youtube" : "all"); setQuery(tag); closePreview(); }} className="px-2 py-1 transition-colors hover:bg-accent/15 hover:text-accent focus-visible:outline-2 focus-visible:outline-accent">#{tag}</button>
+                    <button type="button" title={tagIsLiked(tag) ? `Unlike tag ${tag}` : `Like tag ${tag}`} aria-label={tagIsLiked(tag) ? `Unlike tag ${tag}` : `Like tag ${tag}`} onClick={() => { toggleTagLike(tag); setTagRevision((value) => value + 1); }} className={`border-l border-border px-1.5 transition-colors hover:bg-accent/15 ${tagIsLiked(tag) ? "text-accent" : "text-subtle"}`}><Heart className={tagIsLiked(tag) ? "size-3 fill-current" : "size-3"}/></button>
+                  </span>
                 ))
               ) : (
                 <span className="text-xs text-subtle">No keywords yet</span>
