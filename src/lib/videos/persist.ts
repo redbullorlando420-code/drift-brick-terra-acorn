@@ -256,7 +256,9 @@ export async function loadSourceHealth(): Promise<StoredSourceHealth[]> {
 function normalize(raw: Record<string, unknown>): Prefs {
   const starred = (raw.starred as string[] | undefined) ?? [];
   const favorites = (raw.favorites as string[] | undefined) ?? starred;
-  const sort = (raw.sort as SortKey | undefined) ?? "name";
+  // New libraries should surface fresh media rather than beginning with an
+  // alphabetical wall. Existing explicit preferences remain untouched.
+  const sort = (raw.sort as SortKey | undefined) ?? "added";
   return {
     favorites,
     likes: (raw.likes as string[] | undefined) ?? [],

@@ -31,9 +31,11 @@ function haystackFor(
     video.genre ?? "",
     video.tagline ?? "",
     video.collection ?? "",
+    video.description ?? "",
     categories[video.id] ?? "",
     ...(tags[video.id] ?? []),
     video.remote?.channelName ?? "",
+    video.remote?.channelId ?? "",
     video.remote?.kind ?? "",
   ];
   return parts.join(" ");

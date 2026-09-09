@@ -121,6 +121,8 @@ export type RemoteRef = {
   channelName?: string;
   live?: boolean;
   viewers?: number;
+  /** Public provider view total when the source exposes one. */
+  views?: number;
   embedUrl?: string;
   watchUrl?: string;
   previewUrl?: string;

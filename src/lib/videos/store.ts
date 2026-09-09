@@ -123,6 +123,7 @@ type LibraryState = {
   ingestDrop: (dt: DataTransfer) => Promise<void>;
   restoreFolders: () => Promise<void>;
   restoreOne: (folderId: string) => Promise<void>;
+  repairArtworkSource: (folderId: string) => Promise<boolean>;
   refreshSourcePhotos: (folderId: string) => Promise<number>;
   removeFolder: (folderId: string) => Promise<void>;
   followRemoteQuery: (query: string, kind?: "auto" | "youtube" | "twitch") => Promise<void>;
@@ -205,6 +206,23 @@ function cacheRemotes(get: () => LibraryState) {
   }).catch(() => undefined);
 }
 
+// A favorite/like is an interaction, not a catalog refresh.  Saving the full
+// remote snapshot while the card is animating used to serialize thousands of
+// provider rows on the click path.  Coalesce it just behind the interaction;
+// explicit provider refreshes still use cacheRemotes immediately.
+let remoteCacheTimer: ReturnType<typeof setTimeout> | null = null;
+function cacheRemotesSoon(get: () => LibraryState) {
+  if (typeof window === "undefined") {
+    cacheRemotes(get);
+    return;
+  }
+  if (remoteCacheTimer != null) return;
+  remoteCacheTimer = setTimeout(() => {
+    remoteCacheTimer = null;
+    cacheRemotes(get);
+  }, 1_200);
+}
+
 function canonicalFollowHandle(kind: "youtube" | "twitch", raw: string): string {
   const value = raw.trim().replaceAll("\\_", "_").toLowerCase();
   if (kind === "twitch") {
@@ -229,7 +247,7 @@ function remoteMetadataTags(video: LibraryVideo) {
   // Keep source, creator, format, topic, and genre as distinct tag families.
   // This makes cross-service mapping explainable and prevents raw provider
   // strings from pretending to be interests.
-  const creator = video.remote?.channelName?.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const creator = video.remote?.channelName?.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") ?? "";
   const provider = video.remote?.kind ? `provider-${video.remote.kind}` : "";
   const format = video.remote?.live ? "format-live" : video.remote ? "format-vod" : "";
   const genre = video.genre?.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -237,7 +255,7 @@ function remoteMetadataTags(video: LibraryVideo) {
   // a richer tag list. Preserve it separately so live and VOD browsing can use
   // a concrete provider category rather than only title-keyword guesses.
   const twitchGame = video.remote?.kind === "twitch" && genre ? `twitch-game-${genre}` : "";
-  return [...new Set([provider, creator ? `creator-${creator}` : "", format, genre ? `genre-${genre}` : "", twitchGame, ...semanticTags(video), ...descriptionKeywordTags(video)].filter(Boolean))].slice(0, 16);
+  return [...new Set([provider, creator, format, genre ? `genre-${genre}` : "", twitchGame, ...semanticTags(video), ...descriptionKeywordTags(video)].filter(Boolean))].slice(0, 40);
 }
 
 function descriptionKeywordTags(video: LibraryVideo) {
@@ -251,8 +269,11 @@ function descriptionKeywordTags(video: LibraryVideo) {
   for (const word of words) {
     if (ignored.has(word) || seen.has(word)) continue;
     seen.add(word);
-    tags.push(`keyword-${word}`);
-    if (tags.length >= 6) break;
+    // These are viewer-facing words, not implementation fields. Keeping the
+    // raw word also lets keyword clicks bridge local, Twitch, and YouTube
+    // without exposing an internal "keyword-" prefix in every shelf.
+    tags.push(word);
+    if (tags.length >= 20) break;
   }
   return tags;
 }
@@ -291,7 +312,7 @@ function semanticTags(video: LibraryVideo) {
     [/\b(legal|court|law|lawsuit)\b/, "legal"],
   ];
   const tags = rules.filter(([pattern]) => pattern.test(text)).map(([, tag]) => tag);
-  if (video.remote?.kind === "youtube" && (video.duration ?? 0) > 0 && (video.duration ?? 0) < 90) tags.push("short-form");
+  if (video.remote?.kind === "youtube" && ((video.duration ?? 0) > 0 && (video.duration ?? 0) < 90 || /(?:#|\b)shorts?\b/i.test(text))) tags.push("shorts", "short-form");
   if (video.remote?.kind === "twitch" && !video.remote.live && (video.duration ?? 0) > 0 && (video.duration ?? 0) < 120) tags.push("clip");
   if ((video.duration ?? 0) >= 3600) tags.push("long-form");
   return tags;
@@ -371,7 +392,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   folders: [],
   videos: [],
   query: "",
-  sort: "name",
+  sort: "added",
   view: "grid",
   sourceId: "home",
   favorites: {},
@@ -417,8 +438,8 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       else favorites[id] = true;
       return { favorites };
     });
-    persistNow(get);
-    cacheRemotes(get);
+    persistSoon(get);
+    cacheRemotesSoon(get);
   },
   toggleLike: (id) => {
     set((s) => {
@@ -427,14 +448,14 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       else likes[id] = true;
       return { likes };
     });
-    persistNow(get);
-    cacheRemotes(get);
+    persistSoon(get);
+    cacheRemotesSoon(get);
   },
   setVideoTags: (id, tags) => {
     set((s) => ({
       tags: {
         ...s.tags,
-        [id]: [...new Set(tags.map((tag) => tag.trim().toLowerCase()).filter(Boolean))].slice(
+        [id]: [...new Set(tags.map((tag) => tag.trim().toLowerCase().replace(/^keyword-/, "")).filter(Boolean))].slice(
           0,
           18,
         ),
@@ -451,7 +472,8 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       const tags = { ...s.tags };
       for (const video of s.videos) {
         const inferred = video.remote ? remoteMetadataTags(video) : localNameTags(video);
-        const merged = [...new Set([...(tags[video.id] ?? []), ...inferred])].slice(0, 18);
+        const existing = (tags[video.id] ?? []).map((tag) => tag.replace(/^keyword-/i, "").replace(/^creator-/i, ""));
+        const merged = [...new Set([...existing, ...inferred])].slice(0, 40);
         if (merged.length !== (tags[video.id] ?? []).length) changed += 1;
         tags[video.id] = merged;
       }
@@ -956,9 +978,17 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     const folder = get().folders.find((f) => f.id === folderId);
     const name = folder?.name ?? handle.name;
     const resumeByPath = new Map(get().videos.filter((video) => video.folderId === folderId).map((video) => [video.path, get().progress[video.id]]));
+    const retainedRecoveryIds = new Set([
+      ...get().history.map((entry) => entry.id),
+      ...Object.keys(get().favorites),
+      ...Object.keys(get().likes),
+    ]);
     set((s) => ({
       scanning: { found: 0, looked: 0, folderName: name },
-      videos: s.videos.filter((v) => v.folderId !== folderId),
+      // Keep history, favorites, and likes visible while a folder is being
+      // rebuilt. A scan must never make the recovery views look empty merely
+      // because their source is between batches.
+      videos: s.videos.filter((v) => v.folderId !== folderId || retainedRecoveryIds.has(v.id)),
       unavailable: Object.fromEntries(Object.entries(s.unavailable).filter(([id]) => !s.videos.some((video) => video.id === id && video.folderId === folderId))),
       folders: s.folders.map((f) =>
         f.id === folderId ? { ...f, videoCount: 0, needsPermission: false } : f,
@@ -970,7 +1000,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       onBatch: (batch) => {
         if (!batch.length) return;
         set((s) => ({
-          videos: s.videos.concat(batch),
+          videos: s.videos.concat(batch.filter((video) => !s.videos.some((existing) => existing.id === video.id))),
           folders: s.folders.map((f) =>
             f.id === folderId
               ? { ...f, videoCount: (f.videoCount ?? 0) + batch.length }
@@ -995,6 +1025,14 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       progress: { ...s.progress, ...recoveredProgress },
     }));
     if (videos.length) await saveFolderVideos(folderId, videos).catch(() => undefined);
+  },
+  repairArtworkSource: async (folderId) => {
+    const handle = getDirHandle(folderId);
+    // Never surprise the user with a folder-permission prompt while cards are
+    // rendering. A granted companion/browser handle can be safely rescanned.
+    if (!handle || (await queryDirPermission(handle)) !== "granted") return false;
+    await get().restoreOne(folderId);
+    return true;
   },
   refreshSourcePhotos: async (folderId) => {
     const handle = getDirHandle(folderId);
@@ -1418,7 +1456,9 @@ export function selectContinue(state: LibraryState, adult = false): LibraryVideo
     return r > 0.01 && r < 0.985;
   });
   items.sort((a, b) => (state.progress[b.id]?.at ?? 0) - (state.progress[a.id]?.at ?? 0));
-  return items.slice(0, 48);
+  // VideoGrid progressively mounts pages, so Continue itself must not silently
+  // truncate a large resume list before the view gets a chance to paginate it.
+  return items;
 }
 
 export function selectFavorites(state: LibraryState, adult = false): LibraryVideo[] {

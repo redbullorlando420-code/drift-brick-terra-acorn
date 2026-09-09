@@ -1,7 +1,7 @@
 import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { n as Slot, s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
-import { $ as FolderSearch, A as Music2, B as LoaderCircle, C as Rocket, D as PictureInPicture2, E as Play, F as Menu, G as Images, H as ListPlus, I as Maximize, J as History, K as Image, L as Maximize2, M as MonitorPlay, N as Minimize, O as Pause, P as MessageCircle, Q as Folder, R as Lock, S as Search, T as Radio, U as Lightbulb, V as List, W as LayoutGrid, X as Glasses, Y as Heart, Z as Gamepad2, _ as SkipBack, _t as BellOff, a as VolumeX, at as Cpu, b as ShieldCheck, c as Users, ct as Clapperboard, d as ThumbsUp, dt as ChevronLeft, et as FolderPlus, f as Tag, ft as Check, g as SkipForward, gt as Bell, h as Smartphone, ht as Bot, i as WandSparkles, it as Download, j as Monitor, k as PackageSearch, l as Upload, lt as CircleAlert, m as Sparkles, mt as Box, n as X, nt as FileText, o as Volume2, ot as Copy, p as Star, pt as ChartColumn, q as ImagePlus, r as Wifi, rt as ExternalLink, s as Video, st as Clock3, t as Youtube, tt as Film, ut as ChevronRight, v as Shuffle, vt as ArrowLeft, w as RefreshCw, x as Settings2, y as ShoppingBag, z as LockOpen } from "../_libs/lucide-react.mjs";
+import { $ as FolderPlus, A as Monitor, B as List, C as RefreshCw, D as Pause, E as PictureInPicture2, F as Maximize, G as Image, H as Lightbulb, I as Maximize2, J as Heart, K as ImagePlus, L as Lock, M as Minimize, N as MessageCircle, O as PackageSearch, P as Menu, Q as FolderSearch, R as LockOpen, S as Rocket, T as Play, U as LayoutGrid, V as ListPlus, W as Images, X as Gamepad2, Y as Glasses, Z as Folder, _ as Shuffle, _t as ArrowLeft, a as Volume2, at as Copy, b as Settings2, c as Upload, ct as CircleAlert, d as Tag, dt as Check, et as Film, f as Star, ft as ChartColumn, g as SkipBack, gt as BellOff, h as SkipForward, ht as Bell, i as VolumeX, it as Cpu, j as MonitorPlay, k as Music2, lt as ChevronRight, m as Smartphone, mt as Bot, n as X, nt as ExternalLink, o as Video, ot as Clock3, p as Sparkles, pt as Box, q as History, r as Wifi, rt as Download, s as Users, st as Clapperboard, t as Youtube, tt as FileText, u as ThumbsUp, ut as ChevronLeft, v as ShoppingBag, w as Radio, x as Search, y as ShieldCheck, z as LoaderCircle } from "../_libs/lucide-react.mjs";
 import { a as DialogPortal, i as DialogOverlay, n as DialogClose, o as DialogTitle, r as DialogContent, t as Dialog } from "../_libs/@radix-ui/react-dialog+[...].mjs";
 import { a as Trigger, i as Root2, n as Item2, r as Portal2, t as Content2 } from "../_libs/@radix-ui/react-dropdown-menu+[...].mjs";
 import { n as clsx, t as cva } from "../_libs/class-variance-authority+clsx.mjs";
@@ -10,7 +10,8 @@ import { n as toast, t as Toaster } from "../_libs/sonner.mjs";
 import { n as useShallow, t as create } from "../_libs/zustand.mjs";
 import { t as Root } from "../_libs/radix-ui__react-separator.mjs";
 import { i as SliderTrack, n as SliderRange, r as SliderThumb, t as Slider$1 } from "../_libs/@radix-ui/react-slider+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-CFJKNSvm.js
+import { a as ResponsiveContainer, i as Bar, n as YAxis, o as Tooltip, r as XAxis, t as BarChart } from "../_libs/recharts+[...].mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-C3vQCc1v.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function cn(...inputs) {
@@ -337,7 +338,7 @@ async function loadSourceHealth() {
 function normalize(raw) {
 	const starred = raw.starred ?? [];
 	const favorites = raw.favorites ?? starred;
-	const sort = raw.sort ?? "name";
+	const sort = raw.sort ?? "added";
 	return {
 		favorites,
 		likes: raw.likes ?? [],
@@ -879,9 +880,11 @@ function haystackFor(video, tags, categories) {
 		video.genre ?? "",
 		video.tagline ?? "",
 		video.collection ?? "",
+		video.description ?? "",
 		categories[video.id] ?? "",
 		...tags[video.id] ?? [],
 		video.remote?.channelName ?? "",
+		video.remote?.channelId ?? "",
 		video.remote?.kind ?? ""
 	].join(" ");
 }
@@ -986,6 +989,11 @@ var VideoSearchIndex = class {
 var librarySearchIndex = new VideoSearchIndex();
 var imageFile = (file) => file.type.startsWith("image/") || /\.(avif|bmp|gif|heic|heif|jpe?g|png|tiff?|webp)$/i.test(file.name);
 var shortcutFile = (file) => /\.(url|lnk|exe|appref-ms)$/i.test(file.name);
+var MAX_WARM_PHOTOS = 900;
+function releaseDiscardedUrls(previous, next) {
+	const retained = new Set(next.map((asset) => asset.url));
+	for (const asset of previous) if (!retained.has(asset.url)) URL.revokeObjectURL(asset.url);
+}
 /** Companion assets discovered in a source picker. File handles remain browser-private. */
 var useSourceAssets = create((set) => ({
 	photos: [],
@@ -994,23 +1002,35 @@ var useSourceAssets = create((set) => ({
 		const files = Array.from(input);
 		const append = (current, next) => [...current, ...next.filter((file) => !current.some((saved) => `${saved.name}:${saved.lastModified}` === `${file.name}:${file.lastModified}`))].slice(-600);
 		const photoFiles = files.filter(imageFile);
+		const existing = new Set(state.photos.map((asset) => `${asset.path}:${asset.file.lastModified}`));
+		const incoming = photoFiles.filter((file) => {
+			const key = `${file.webkitRelativePath || file.name}:${file.lastModified}`;
+			if (existing.has(key)) return false;
+			existing.add(key);
+			return true;
+		}).slice(-900);
+		const overflow = Math.max(0, state.photos.length + incoming.length - MAX_WARM_PHOTOS);
+		const photos = [...state.photos.slice(overflow), ...incoming.map((file) => ({
+			file,
+			path: file.webkitRelativePath || file.name,
+			url: URL.createObjectURL(file)
+		}))];
+		releaseDiscardedUrls(state.photos, photos);
 		return {
-			photos: [...state.photos, ...photoFiles.filter((file) => !state.photos.some((saved) => `${saved.file.name}:${saved.file.lastModified}` === `${file.name}:${file.lastModified}`)).map((file) => ({
-				file,
-				path: file.webkitRelativePath || file.name,
-				url: URL.createObjectURL(file)
-			}))].slice(-600),
+			photos,
 			shortcuts: append(state.shortcuts, files.filter(shortcutFile))
 		};
 	}),
 	capturePhoto: (file, path) => set((state) => {
 		const key = `${path}:${file.lastModified}`;
-		if (state.photos.some((saved) => `${saved.path}:${saved.file.lastModified}` === key)) return state;
-		return { photos: [...state.photos, {
+		if (state.photos.some((asset) => `${asset.path}:${asset.file.lastModified}` === key)) return state;
+		const next = [...state.photos, {
 			file,
 			path,
 			url: URL.createObjectURL(file)
-		}].slice(-600) };
+		}].slice(-900);
+		releaseDiscardedUrls(state.photos, next);
+		return { photos: next };
 	})
 }));
 var restoring = false;
@@ -1102,6 +1122,18 @@ function cacheRemotes(get) {
 		checkedAt: s.remoteCheckedAt
 	}).catch(() => void 0);
 }
+var remoteCacheTimer = null;
+function cacheRemotesSoon(get) {
+	if (typeof window === "undefined") {
+		cacheRemotes(get);
+		return;
+	}
+	if (remoteCacheTimer != null) return;
+	remoteCacheTimer = setTimeout(() => {
+		remoteCacheTimer = null;
+		cacheRemotes(get);
+	}, 1200);
+}
 function canonicalFollowHandle(kind, raw) {
 	const value = raw.trim().replaceAll("\\_", "_").toLowerCase();
 	if (kind === "twitch") return (value.match(/(?:https?:\/\/)?(?:www\.)?twitch\.tv\/([^/?#]+)/i)?.[1] ?? value.replace(/^tw:/, "")).replace(/^@/, "").replace(/[^a-z0-9_]/g, "");
@@ -1117,20 +1149,20 @@ function dedupeFollows(rows) {
 	});
 }
 function remoteMetadataTags(video) {
-	const creator = video.remote?.channelName?.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+	const creator = video.remote?.channelName?.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") ?? "";
 	const provider = video.remote?.kind ? `provider-${video.remote.kind}` : "";
 	const format = video.remote?.live ? "format-live" : video.remote ? "format-vod" : "";
 	const genre = video.genre?.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 	const twitchGame = video.remote?.kind === "twitch" && genre ? `twitch-game-${genre}` : "";
 	return [...new Set([
 		provider,
-		creator ? `creator-${creator}` : "",
+		creator,
 		format,
 		genre ? `genre-${genre}` : "",
 		twitchGame,
 		...semanticTags(video),
 		...descriptionKeywordTags(video)
-	].filter(Boolean))].slice(0, 16);
+	].filter(Boolean))].slice(0, 40);
 }
 function descriptionKeywordTags(video) {
 	const ignored = /* @__PURE__ */ new Set([
@@ -1170,8 +1202,8 @@ function descriptionKeywordTags(video) {
 	for (const word of words) {
 		if (ignored.has(word) || seen.has(word)) continue;
 		seen.add(word);
-		tags.push(`keyword-${word}`);
-		if (tags.length >= 6) break;
+		tags.push(word);
+		if (tags.length >= 20) break;
 	}
 	return tags;
 }
@@ -1208,7 +1240,7 @@ function semanticTags(video) {
 		[/\b(hardware|pc build|keyboard|phone|camera)\b/, "hardware"],
 		[/\b(legal|court|law|lawsuit)\b/, "legal"]
 	].filter(([pattern]) => pattern.test(text)).map(([, tag]) => tag);
-	if (video.remote?.kind === "youtube" && (video.duration ?? 0) > 0 && (video.duration ?? 0) < 90) tags.push("short-form");
+	if (video.remote?.kind === "youtube" && ((video.duration ?? 0) > 0 && (video.duration ?? 0) < 90 || /(?:#|\b)shorts?\b/i.test(text))) tags.push("shorts", "short-form");
 	if (video.remote?.kind === "twitch" && !video.remote.live && (video.duration ?? 0) > 0 && (video.duration ?? 0) < 120) tags.push("clip");
 	if ((video.duration ?? 0) >= 3600) tags.push("long-form");
 	return tags;
@@ -1279,7 +1311,7 @@ var useLibrary = create((set, get) => ({
 	folders: [],
 	videos: [],
 	query: "",
-	sort: "name",
+	sort: "added",
 	view: "grid",
 	sourceId: "home",
 	favorites: {},
@@ -1325,8 +1357,8 @@ var useLibrary = create((set, get) => ({
 			else favorites[id] = true;
 			return { favorites };
 		});
-		persistNow(get);
-		cacheRemotes(get);
+		persistSoon(get);
+		cacheRemotesSoon(get);
 	},
 	toggleLike: (id) => {
 		set((s) => {
@@ -1335,13 +1367,13 @@ var useLibrary = create((set, get) => ({
 			else likes[id] = true;
 			return { likes };
 		});
-		persistNow(get);
-		cacheRemotes(get);
+		persistSoon(get);
+		cacheRemotesSoon(get);
 	},
 	setVideoTags: (id, tags) => {
 		set((s) => ({ tags: {
 			...s.tags,
-			[id]: [...new Set(tags.map((tag) => tag.trim().toLowerCase()).filter(Boolean))].slice(0, 18)
+			[id]: [...new Set(tags.map((tag) => tag.trim().toLowerCase().replace(/^keyword-/, "")).filter(Boolean))].slice(0, 18)
 		} }));
 		const state = get();
 		const video = state.videos.find((item) => item.id === id);
@@ -1354,7 +1386,8 @@ var useLibrary = create((set, get) => ({
 			const tags = { ...s.tags };
 			for (const video of s.videos) {
 				const inferred = video.remote ? remoteMetadataTags(video) : localNameTags(video);
-				const merged = [.../* @__PURE__ */ new Set([...tags[video.id] ?? [], ...inferred])].slice(0, 18);
+				const existing = (tags[video.id] ?? []).map((tag) => tag.replace(/^keyword-/i, "").replace(/^creator-/i, ""));
+				const merged = [.../* @__PURE__ */ new Set([...existing, ...inferred])].slice(0, 40);
 				if (merged.length !== (tags[video.id] ?? []).length) changed += 1;
 				tags[video.id] = merged;
 			}
@@ -1392,7 +1425,7 @@ var useLibrary = create((set, get) => ({
 				history: [{
 					id,
 					at: Date.now()
-				}, ...s.history.filter((h) => h.id !== id)],
+				}, ...s.history],
 				viewCounts: {
 					...s.viewCounts,
 					[id]: (s.viewCounts[id] ?? 0) + 1
@@ -1885,13 +1918,18 @@ var useLibrary = create((set, get) => ({
 		const folder = get().folders.find((f) => f.id === folderId);
 		const name = folder?.name ?? handle.name;
 		const resumeByPath = new Map(get().videos.filter((video) => video.folderId === folderId).map((video) => [video.path, get().progress[video.id]]));
+		const retainedRecoveryIds = /* @__PURE__ */ new Set([
+			...get().history.map((entry) => entry.id),
+			...Object.keys(get().favorites),
+			...Object.keys(get().likes)
+		]);
 		set((s) => ({
 			scanning: {
 				found: 0,
 				looked: 0,
 				folderName: name
 			},
-			videos: s.videos.filter((v) => v.folderId !== folderId),
+			videos: s.videos.filter((v) => v.folderId !== folderId || retainedRecoveryIds.has(v.id)),
 			unavailable: Object.fromEntries(Object.entries(s.unavailable).filter(([id]) => !s.videos.some((video) => video.id === id && video.folderId === folderId))),
 			folders: s.folders.map((f) => f.id === folderId ? {
 				...f,
@@ -1905,7 +1943,7 @@ var useLibrary = create((set, get) => ({
 			onBatch: (batch) => {
 				if (!batch.length) return;
 				set((s) => ({
-					videos: s.videos.concat(batch),
+					videos: s.videos.concat(batch.filter((video) => !s.videos.some((existing) => existing.id === video.id))),
 					folders: s.folders.map((f) => f.id === folderId ? {
 						...f,
 						videoCount: (f.videoCount ?? 0) + batch.length
@@ -1934,6 +1972,12 @@ var useLibrary = create((set, get) => ({
 			}
 		}));
 		if (videos.length) await saveFolderVideos(folderId, videos).catch(() => void 0);
+	},
+	repairArtworkSource: async (folderId) => {
+		const handle = getDirHandle(folderId);
+		if (!handle || await queryDirPermission(handle) !== "granted") return false;
+		await get().restoreOne(folderId);
+		return true;
 	},
 	refreshSourcePhotos: async (folderId) => {
 		const handle = getDirHandle(folderId);
@@ -2310,6 +2354,13 @@ function selectVisible(state) {
 function scoped(state, adult) {
 	return adult ? adultList(state) : publicList(state);
 }
+function recoveryList(state, adult) {
+	const adultIds = adultIdSet(state.folders);
+	return state.videos.filter((video) => {
+		if (state.hideDemo && video.isSample) return false;
+		return adult ? adultIds.has(video.folderId) : !adultIds.has(video.folderId);
+	});
+}
 function selectContinue(state, adult = false) {
 	const items = scoped(state, adult).filter((v) => {
 		const p = state.progress[v.id];
@@ -2318,13 +2369,13 @@ function selectContinue(state, adult = false) {
 		return r > .01 && r < .985;
 	});
 	items.sort((a, b) => (state.progress[b.id]?.at ?? 0) - (state.progress[a.id]?.at ?? 0));
-	return items.slice(0, 48);
+	return items;
 }
 function selectFavorites(state, adult = false) {
-	return scoped(state, adult).filter((v) => state.favorites[v.id]);
+	return recoveryList(state, adult).filter((v) => state.favorites[v.id]);
 }
 function selectHistory(state, adult = false) {
-	const list = scoped(state, adult);
+	const list = recoveryList(state, adult);
 	const byId = new Map(list.map((v) => [v.id, v]));
 	return state.history.map((h) => byId.get(h.id)).filter((v) => v != null);
 }
@@ -2424,10 +2475,22 @@ async function bitmapFromVideo(video) {
 var inflight = /* @__PURE__ */ new Set();
 var active = 0;
 var waiting = [];
-var MAX = 2;
 var MAX_MEMORY_THUMBS = 360;
+function maxThumbnailWorkers() {
+	const adaptive = Math.min(4, Math.max(2, Math.floor(((typeof navigator !== "undefined" ? navigator.hardwareConcurrency : 4) || 4) / 2)));
+	try {
+		const saved = Number(localStorage.getItem("reelcase.thumbnail-workers") ?? "0");
+		return [
+			2,
+			3,
+			4
+		].includes(saved) ? saved : adaptive;
+	} catch {
+		return adaptive;
+	}
+}
 async function acquire() {
-	if (active < MAX) {
+	if (active < maxThumbnailWorkers()) {
 		active += 1;
 		return;
 	}
@@ -2459,7 +2522,7 @@ function capture(src) {
 				duration
 			});
 		};
-		const timer = window.setTimeout(() => finish(null), 9e3);
+		const timer = window.setTimeout(() => finish(null), 6e3);
 		video.addEventListener("loadedmetadata", () => {
 			const duration = Number.isFinite(video.duration) ? video.duration : void 0;
 			const t = duration && duration > 0 ? Math.min(Math.max(duration * .15, .35), 6) : .35;
@@ -2587,6 +2650,7 @@ var useThumbs = create((set, get) => ({
 }));
 var KEY = "reelcase.media-feedback.v1";
 var cached = null;
+var changeTimer;
 function read() {
 	if (cached) return cached;
 	try {
@@ -2615,6 +2679,13 @@ function write(next) {
 		localStorage.setItem(KEY, JSON.stringify(next));
 	} catch {}
 }
+function notifyChange() {
+	if (typeof window === "undefined" || changeTimer) return;
+	changeTimer = window.setTimeout(() => {
+		changeTimer = void 0;
+		window.dispatchEvent(new Event("reelcase:rating-change"));
+	}, 48);
+}
 function getRating(id) {
 	const value = read().ratings[id];
 	if (Number.isFinite(value)) return value;
@@ -2628,7 +2699,7 @@ function setRating(id, rating) {
 	const next = read();
 	next.ratings[id] = Math.max(0, Math.min(5, Math.round(rating)));
 	write(next);
-	if (typeof window !== "undefined") window.dispatchEvent(new Event("reelcase:rating-change"));
+	notifyChange();
 }
 function creatorKey(name) {
 	return name.trim().toLowerCase();
@@ -2640,7 +2711,7 @@ function setCreatorRating(name, rating) {
 	const next = read();
 	next.creatorRatings[creatorKey(name)] = Math.max(0, Math.min(5, Math.round(rating)));
 	write(next);
-	if (typeof window !== "undefined") window.dispatchEvent(new Event("reelcase:rating-change"));
+	notifyChange();
 }
 function creatorIsLiked(name) {
 	return Boolean(read().creatorLikes[creatorKey(name)]);
@@ -2651,7 +2722,7 @@ function toggleCreatorLike(name) {
 	if (next.creatorLikes[key]) delete next.creatorLikes[key];
 	else next.creatorLikes[key] = true;
 	write(next);
-	if (typeof window !== "undefined") window.dispatchEvent(new Event("reelcase:rating-change"));
+	notifyChange();
 }
 function tagKey(tag) {
 	return tag.trim().toLowerCase();
@@ -2665,7 +2736,7 @@ function toggleTagLike(tag) {
 	if (next.tagLikes[key]) delete next.tagLikes[key];
 	else next.tagLikes[key] = true;
 	write(next);
-	if (typeof window !== "undefined") window.dispatchEvent(new Event("reelcase:rating-change"));
+	notifyChange();
 }
 /** Versioned rating/note payload used by the full library backup. */
 function exportFeedback() {
@@ -2690,6 +2761,7 @@ function setNote(id, note) {
 	write(next);
 }
 var EMPTY_TAGS$2 = [];
+var artworkRepairRequested = /* @__PURE__ */ new Set();
 function VideoCard({ video, variant = "grid", index = 0, playedAt, className }) {
 	const ref = (0, import_react.useRef)(null);
 	const thumb = useThumbs((s) => s.byId[video.id]);
@@ -2697,6 +2769,7 @@ function VideoCard({ video, variant = "grid", index = 0, playedAt, className }) 
 	const capturedDur = useThumbs((s) => s.durations[video.id]);
 	const request = useThumbs((s) => s.request);
 	const retry = useThumbs((s) => s.retry);
+	const repairArtworkSource = useLibrary((s) => s.repairArtworkSource);
 	const progress = useLibrary((s) => s.progress[video.id]);
 	const fav = useLibrary((s) => Boolean(s.favorites[video.id]));
 	const liked = useLibrary((s) => Boolean(s.likes[video.id]));
@@ -2732,6 +2805,18 @@ function VideoCard({ video, variant = "grid", index = 0, playedAt, className }) 
 	(0, import_react.useEffect)(() => {
 		setRating$3(getRating(video.id));
 	}, [video.id]);
+	(0, import_react.useEffect)(() => {
+		if (!failed || video.remote || artworkRepairRequested.has(video.folderId)) return;
+		artworkRepairRequested.add(video.folderId);
+		repairArtworkSource(video.folderId).then((rescanned) => {
+			if (rescanned) retry(video);
+		});
+	}, [
+		failed,
+		repairArtworkSource,
+		retry,
+		video
+	]);
 	const rate = (value) => {
 		setRating$3(value);
 		setRating(video.id, value);
@@ -2825,7 +2910,25 @@ function VideoCard({ video, variant = "grid", index = 0, playedAt, className }) 
 									}),
 									video.remote.viewers.toLocaleString(),
 									" watching"
-								] }) : null] }) : video.remote ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_jsx_runtime.Fragment, { children: video.remote.channelName ?? video.remote.kind }) : video.year || video.genre ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [video.year ?? video.extension.toUpperCase(), video.genre && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								] }) : null] }) : video.remote ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+									video.remote.channelName ?? video.remote.kind,
+									video.remote.views ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "text-subtle",
+											children: " · "
+										}),
+										video.remote.views.toLocaleString(),
+										" views"
+									] }) : null,
+									video.remote.kind === "youtube" || video.remote.kind === "twitch" && !live ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "text-subtle",
+										children: " · "
+									}), video.addedAt > Date.UTC(2e3, 0, 1) ? `Published ${new Intl.DateTimeFormat(void 0, {
+										month: "short",
+										day: "numeric",
+										year: "numeric"
+									}).format(video.addedAt)}` : "Older catalog item"] }) : null
+								] }) : video.year || video.genre ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [video.year ?? video.extension.toUpperCase(), video.genre && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 									className: "text-subtle",
 									children: " · "
 								}), video.genre] })] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
@@ -3259,6 +3362,7 @@ function LiveDesk({ videos }) {
 		sort,
 		search
 	]);
+	const youtubeLiveCount = videos.filter((video) => video.remote?.kind === "youtube").length;
 	const recommendedChannels = [
 		{
 			handle: "twitch",
@@ -3298,7 +3402,11 @@ function LiveDesk({ videos }) {
 						className: "mt-3 text-sm text-muted",
 						children: [
 							videos.length,
-							" streams in the latest check · ",
+							" confirmed live stream",
+							videos.length === 1 ? "" : "s",
+							" · ",
+							youtubeLiveCount,
+							" from YouTube · scheduled “waiting to go live” channels stay out · ",
 							checkedAt ? `Checked ${new Date(checkedAt).toLocaleTimeString([], {
 								hour: "2-digit",
 								minute: "2-digit"
@@ -3527,6 +3635,10 @@ function SidebarNav({ onAddFolder, onNavigate }) {
 	});
 	const go = (id) => {
 		setSource(id);
+		window.scrollTo({
+			top: 0,
+			behavior: "smooth"
+		});
 		onNavigate?.();
 	};
 	const { publicFolders, networkFolders, adultFolders, counts } = (0, import_react.useMemo)(() => {
@@ -4113,15 +4225,21 @@ function TopBar({ onMenu, onAddFolder }) {
 	const sourceLabel = sourceId === "home" ? "Home" : sourceId === "movies" ? "Movies" : sourceId === "photos" ? "Photos" : sourceId === "twitch" ? "Twitch" : sourceId === "youtube" ? "YouTube" : folders.find((folder) => folder.id === sourceId)?.name ?? "Library";
 	const sourceCount = sourceId === "home" ? videos.length : folders.find((folder) => folder.id === sourceId)?.videoCount;
 	const needle = lookup.trim().toLowerCase();
-	const hits = (0, import_react.useMemo)(() => needle ? videos.filter((video) => {
-		if (folders.find((item) => item.id === video.folderId)?.adult && !(sourceId === "adults" && adultsUnlocked)) return false;
-		return `${video.name} ${video.path} ${video.remote?.channelName ?? ""} ${(tags[video.id] ?? []).join(" ")}`.toLowerCase().includes(needle);
-	}).slice(0, 6) : [], [
+	const videoById = (0, import_react.useMemo)(() => new Map(videos.map((video) => [video.id, video])), [videos]);
+	const hits = (0, import_react.useMemo)(() => {
+		if (!needle) return [];
+		const indexedIds = librarySearchIndex.search(needle);
+		return (indexedIds ? Array.from(indexedIds, (id) => videoById.get(id)).filter((video) => Boolean(video)) : videos).filter((video) => {
+			if (folders.find((item) => item.id === video.folderId)?.adult && !(sourceId === "adults" && adultsUnlocked)) return false;
+			return indexedIds ? true : `${video.name} ${video.path} ${video.description ?? ""} ${video.remote?.channelName ?? ""} ${(tags[video.id] ?? []).join(" ")}`.toLowerCase().includes(needle);
+		}).sort((a, b) => b.addedAt - a.addedAt).slice(0, 6);
+	}, [
 		adultsUnlocked,
 		folders,
 		needle,
 		sourceId,
 		tags,
+		videoById,
 		videos
 	]);
 	const suggestionTags = (0, import_react.useMemo)(() => [...new Set(hits.flatMap((video) => tags[video.id] ?? []))].filter((tag) => tag.length >= 3).slice(0, 5), [hits, tags]);
@@ -4675,6 +4793,7 @@ function youtubeEmbed(base) {
 	url.searchParams.set("rel", "0");
 	url.searchParams.set("modestbranding", "1");
 	url.searchParams.set("playsinline", "1");
+	url.searchParams.set("controls", "1");
 	if (typeof window !== "undefined") url.searchParams.set("origin", window.location.origin);
 	return url.toString();
 }
@@ -4708,8 +4827,27 @@ function Player({ playlist }) {
 	const [playing, setPlaying] = (0, import_react.useState)(false);
 	const [current, setCurrent] = (0, import_react.useState)(0);
 	const [duration, setDuration] = (0, import_react.useState)(0);
-	const [volume, setVolume] = (0, import_react.useState)(1);
-	const [muted, setMuted] = (0, import_react.useState)(false);
+	const [volume, setVolume] = (0, import_react.useState)(() => {
+		try {
+			const saved = Number(localStorage.getItem("reelcase.player-volume") ?? "85");
+			return [
+				25,
+				50,
+				70,
+				85,
+				100
+			].includes(saved) ? saved / 100 : .85;
+		} catch {
+			return .85;
+		}
+	});
+	const [muted, setMuted] = (0, import_react.useState)(() => {
+		try {
+			return localStorage.getItem("reelcase.player-start-muted") === "true";
+		} catch {
+			return false;
+		}
+	});
 	const [speed, setSpeed] = (0, import_react.useState)(1);
 	const [chrome, setChrome] = (0, import_react.useState)(true);
 	const [fs, setFs] = (0, import_react.useState)(false);
@@ -4721,6 +4859,7 @@ function Player({ playlist }) {
 	const [removeReady, setRemoveReady] = (0, import_react.useState)(false);
 	const capturedDur = useThumbs((s) => video ? s.durations[video.id] : void 0);
 	const scrubbing = (0, import_react.useRef)(false);
+	const remoteStartedAt = (0, import_react.useRef)(0);
 	const enterVrTheater = (0, import_react.useCallback)(async () => {
 		const xr = navigator.xr;
 		const media = mediaRef.current;
@@ -4912,6 +5051,24 @@ function Player({ playlist }) {
 			el.removeEventListener("error", onErr);
 		};
 	}, [src, video?.id]);
+	(0, import_react.useEffect)(() => {
+		if (!video?.remote) return;
+		remoteStartedAt.current = Date.now();
+		const durationHint = Math.max(video.duration ?? 0, 120);
+		const heartbeat = () => {
+			const elapsed = Math.max(2, (Date.now() - remoteStartedAt.current) / 1e3);
+			markProgress(video.id, Math.min(elapsed, durationHint * .94), durationHint);
+		};
+		const timer = window.setInterval(heartbeat, 5e3);
+		return () => {
+			heartbeat();
+			window.clearInterval(timer);
+		};
+	}, [
+		markProgress,
+		video?.id,
+		video?.remote
+	]);
 	(0, import_react.useEffect)(() => {
 		const el = mediaRef.current;
 		if (el) el.playbackRate = speed;
@@ -5455,7 +5612,7 @@ function MetadataEditor({ videoId, initialTags, initialCategory, onSave }) {
 					type: "button",
 					onClick: () => {
 						setRating$2(value);
-						setRating(videoId, value);
+						(0, import_react.startTransition)(() => setRating(videoId, value));
 					},
 					className: cn("flex size-8 items-center justify-center rounded-sm text-sm shadow-border", value <= rating ? "bg-accent text-accent-fg" : "bg-elevated text-muted"),
 					children: value
@@ -5501,7 +5658,9 @@ function PreVideo() {
 	const setVideoTags = useLibrary((s) => s.setVideoTags);
 	const setVideoCategory = useLibrary((s) => s.setVideoCategory);
 	const toggleFavorite = useLibrary((s) => s.toggleFavorite);
+	const recordPlay = useLibrary((s) => s.recordPlay);
 	const toggleLike = useLibrary((s) => s.toggleLike);
+	const followRemoteQuery = useLibrary((s) => s.followRemoteQuery);
 	const favorite = useLibrary((s) => previewId ? Boolean(s.favorites[previewId]) : false);
 	const liked = useLibrary((s) => previewId ? Boolean(s.likes[previewId]) : false);
 	const tags = useLibrary((s) => previewId ? s.tags[previewId] ?? EMPTY_TAGS : EMPTY_TAGS);
@@ -5512,20 +5671,27 @@ function PreVideo() {
 	const [vrAvailable, setVrAvailable] = (0, import_react.useState)(false);
 	const [rating, setRating$1] = (0, import_react.useState)(0);
 	const [creatorRevision, setCreatorRevision] = (0, import_react.useState)(0);
+	const [creatorLoading, setCreatorLoading] = (0, import_react.useState)(false);
 	const [tagRevision, setTagRevision] = (0, import_react.useState)(0);
 	const [recommendationSeed, setRecommendationSeed] = (0, import_react.useState)(() => Date.now() >>> 0);
 	const [localPreviewSrc, setLocalPreviewSrc] = (0, import_react.useState)(null);
 	const [previewError, setPreviewError] = (0, import_react.useState)("");
+	const [shelfReady, setShelfReady] = (0, import_react.useState)(false);
 	const markUnavailable = useLibrary((s) => s.markUnavailable);
 	const video = videos.find((item) => item.id === previewId);
 	const creator = video?.remote?.channelName?.trim() ?? "";
 	const creatorKeyword = creator.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-	const visibleTags = creatorKeyword && !tags.includes(`creator-${creatorKeyword}`) ? [`creator-${creatorKeyword}`, ...tags] : tags;
+	const visibleTags = (creatorKeyword && !tags.includes(creatorKeyword) ? [creatorKeyword, ...tags] : tags).map((tag) => tag.replace(/^(?:keyword-|creator-)/i, ""));
 	const creatorRating = creator ? getCreatorRating(creator) : 0;
 	const creatorLiked = creator ? creatorIsLiked(creator) : false;
 	(0, import_react.useEffect)(() => {
 		if (!previewId) return;
 		setRating$1(getRating(previewId));
+	}, [previewId]);
+	(0, import_react.useEffect)(() => {
+		setShelfReady(false);
+		const timer = window.setTimeout(() => setShelfReady(true), 140);
+		return () => window.clearTimeout(timer);
 	}, [previewId]);
 	(0, import_react.useEffect)(() => {
 		const timer = window.setInterval(() => setRecommendationSeed(Date.now() >>> 0), 6e4);
@@ -5558,29 +5724,31 @@ function PreVideo() {
 		if (xr) xr.isSessionSupported("immersive-vr").then(setVrAvailable).catch(() => setVrAvailable(false));
 	}, []);
 	const related = (0, import_react.useMemo)(() => {
-		if (!video) return [];
+		if (!video || !shelfReady) return [];
 		const sourceTags = new Set(tags);
 		const creatorName = video.remote?.channelName?.trim().toLowerCase();
 		const sourceKind = video.remote?.kind;
 		return videos.filter((item) => item.id !== video.id && !isExcludedPreviewCandidate(item) && !useLibrary.getState().unavailable[item.id]).map((item) => {
-			const sharedTopics = (useLibrary.getState().tags[item.id] ?? []).filter((tag) => sourceTags.has(tag)).length;
+			const itemTags = useLibrary.getState().tags[item.id] ?? [];
+			const sharedTopics = itemTags.filter((tag) => sourceTags.has(tag)).length;
 			const sameCreator = Boolean(creatorName && item.remote?.channelName?.trim().toLowerCase() === creatorName);
 			const liveToVod = Boolean(video.remote?.live && !item.remote?.live && sameCreator);
 			return {
 				item,
-				score: Number(sameCreator) * 14 + Number(liveToVod) * 8 + Number(item.folderId === video.folderId) * 5 + Number(item.genre === video.genre) * 4 + Number(item.remote?.kind === sourceKind) * 2 + sharedTopics * 3 + getRating(item.id) * 1.5 + getCreatorRating(item.remote?.channelName ?? "") * 2 + Number(creatorIsLiked(item.remote?.channelName ?? "")) * 3,
+				score: Number(sameCreator) * 14 + Number(liveToVod) * 8 + Number(item.folderId === video.folderId) * 5 + Number(item.genre === video.genre) * 4 + Number(item.remote?.kind === sourceKind) * 2 + sharedTopics * 3 + itemTags.filter((tag) => tagIsLiked(tag)).length * 2 + getRating(item.id) * 1.5 + getCreatorRating(item.remote?.channelName ?? "") * 2 + Number(creatorIsLiked(item.remote?.channelName ?? "")) * 3,
 				random: previewShuffle(`${video.id}:${item.id}:${recommendationSeed}`, recommendationSeed)
 			};
 		}).filter((row) => row.score > 0).sort((a, b) => b.score - a.score || a.random - b.random).slice(0, 8).map((row) => row.item);
 	}, [
 		creatorRevision,
 		recommendationSeed,
+		shelfReady,
 		tags,
 		video,
 		videos
 	]);
 	const recommended = (0, import_react.useMemo)(() => {
-		if (!video) return [];
+		if (!video || !shelfReady) return [];
 		const sourceTags = new Set(tags);
 		const sourceKind = video.remote?.kind;
 		const seed = recommendationSeed + 17 >>> 0;
@@ -5593,7 +5761,7 @@ function PreVideo() {
 			const sharedTopics = itemTags.filter((tag) => sourceTags.has(tag)).length;
 			return {
 				item,
-				score: Number(item.genre === video.genre) * 3 + Number(item.remote?.kind === sourceKind) * 1.5 + sharedTopics * 3 + getRating(item.id) * 2 + getCreatorRating(item.remote?.channelName ?? "") * 2 + Number(creatorIsLiked(item.remote?.channelName ?? "")) * 3 + itemTags.filter((tag) => highlyRatedTags.has(tag)).length * 2,
+				score: Number(item.genre === video.genre) * 3 + Number(item.remote?.kind === sourceKind) * 1.5 + sharedTopics * 3 + getRating(item.id) * 2 + getCreatorRating(item.remote?.channelName ?? "") * 2 + Number(creatorIsLiked(item.remote?.channelName ?? "")) * 3 + itemTags.filter((tag) => highlyRatedTags.has(tag)).length * 3 + itemTags.filter((tag) => tagIsLiked(tag)).length * 2,
 				random: previewShuffle(`${video.id}:${item.id}:${seed}`, seed)
 			};
 		}).sort((a, b) => b.score - a.score || a.random - b.random).slice(0, 6).map((row) => row.item);
@@ -5601,6 +5769,7 @@ function PreVideo() {
 		creatorRevision,
 		recommendationSeed,
 		related,
+		shelfReady,
 		tagRevision,
 		tags,
 		video,
@@ -5687,6 +5856,7 @@ function PreVideo() {
 								}),
 								video.remote?.watchUrl && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
 									href: video.remote.watchUrl,
+									onClick: () => recordPlay(video.id),
 									className: "inline-flex min-h-10 items-center rounded-sm bg-elevated px-3 text-sm text-fg shadow-border",
 									children: ["Open official player ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExternalLink, { className: "ml-2 size-4" })]
 								}),
@@ -5764,9 +5934,28 @@ function PreVideo() {
 										}, value))
 									]
 								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "mt-3 flex flex-wrap gap-2",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										size: "sm",
+										variant: "secondary",
+										disabled: creatorLoading || !video.remote,
+										onClick: () => void (async () => {
+											if (!video.remote) return;
+											setCreatorLoading(true);
+											try {
+												await followRemoteQuery(creator, video.remote.kind);
+												setCreatorRevision((value) => value + 1);
+											} finally {
+												setCreatorLoading(false);
+											}
+										})(),
+										children: creatorLoading ? "Pulling older videos…" : "Pull older creator videos"
+									})
+								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 									className: "mt-2 text-xs text-muted",
-									children: "Creator likes and ratings boost this creator and shared tags across YouTube recommendations."
+									children: "Creator likes, ratings, and the older-video pull boost this creator and shared tags across related recommendations."
 								})
 							]
 						})
@@ -5864,8 +6053,8 @@ function PreVideo() {
 									].map((value) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 										type: "button",
 										onClick: () => {
-											setRating(video.id, value);
 											setRating$1(value);
+											(0, import_react.startTransition)(() => setRating(video.id, value));
 										},
 										className: `flex size-9 items-center justify-center rounded-sm text-sm shadow-border ${value <= rating ? "bg-accent text-accent-fg" : "bg-bg/50 text-accent"}`,
 										children: value
@@ -5889,7 +6078,13 @@ function PreVideo() {
 							children: [item.poster ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
 								src: item.poster,
 								alt: "",
-								className: "aspect-video w-full object-cover"
+								loading: "lazy",
+								className: "aspect-video w-full object-cover",
+								onError: (event) => {
+									const fallback = item.remote?.kind === "youtube" && item.remote.videoId ? `https://i.ytimg.com/vi/${item.remote.videoId}/mqdefault.jpg` : "";
+									if (fallback && event.currentTarget.src !== fallback) event.currentTarget.src = fallback;
+									else event.currentTarget.style.display = "none";
+								}
 							}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "block aspect-video bg-bg" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 								className: "block truncate px-3 py-2 text-sm text-fg",
 								children: item.name
@@ -5917,7 +6112,13 @@ function PreVideo() {
 								children: [item.poster ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
 									src: item.poster,
 									alt: "",
-									className: "aspect-video w-full object-cover"
+									loading: "lazy",
+									className: "aspect-video w-full object-cover",
+									onError: (event) => {
+										const fallback = item.remote?.kind === "youtube" && item.remote.videoId ? `https://i.ytimg.com/vi/${item.remote.videoId}/mqdefault.jpg` : "";
+										if (fallback && event.currentTarget.src !== fallback) event.currentTarget.src = fallback;
+										else event.currentTarget.style.display = "none";
+									}
 								}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "block aspect-video bg-bg" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 									className: "block truncate px-3 py-2 text-sm text-fg",
 									children: item.name
@@ -5937,20 +6138,30 @@ function AiGuide() {
 	const likes = useLibrary((s) => s.likes);
 	const history = useLibrary((s) => s.history);
 	const openPreview = useLibrary((s) => s.openPreview);
+	const [recommendationSeed, setRecommendationSeed] = (0, import_react.useState)(() => Date.now());
 	const [prompt, setPrompt] = (0, import_react.useState)("What should I watch tonight?");
 	const [answer, setAnswer] = (0, import_react.useState)("");
 	const [busy, setBusy] = (0, import_react.useState)(false);
 	const localPicks = (0, import_react.useMemo)(() => {
 		const favoredTags = new Set(videos.filter((video) => favorites[video.id] || likes[video.id]).flatMap((video) => tags[video.id] ?? []));
 		const watched = new Set(history.map((entry) => entry.id));
-		return [...videos].filter((video) => !watched.has(video.id)).sort((a, b) => {
-			const aScore = (favorites[a.id] ? 3 : 0) + (likes[a.id] ? 2 : 0) + (tags[a.id] ?? []).filter((tag) => favoredTags.has(tag)).length;
-			return (favorites[b.id] ? 3 : 0) + (likes[b.id] ? 2 : 0) + (tags[b.id] ?? []).filter((tag) => favoredTags.has(tag)).length - aScore || b.addedAt - a.addedAt;
-		}).slice(0, 6);
+		const rank = (id) => {
+			let value = recommendationSeed >>> 0;
+			for (const char of id) value = Math.imul(value ^ char.charCodeAt(0), 73244475);
+			return value >>> 0;
+		};
+		return [...videos].filter((video) => !watched.has(video.id)).map((video) => ({
+			video,
+			score: (favorites[video.id] ? 3 : 0) + (likes[video.id] ? 2 : 0) + (tags[video.id] ?? []).filter((tag) => favoredTags.has(tag)).length,
+			random: rank(video.id)
+		})).sort((a, b) => {
+			return b.score - a.score || a.random - b.random;
+		}).slice(0, 12).map((row) => row.video);
 	}, [
 		favorites,
 		history,
 		likes,
+		recommendationSeed,
 		tags,
 		videos
 	]);
@@ -5998,9 +6209,14 @@ function AiGuide() {
 							Object.values(tags).flat().length,
 							" tags"
 						]
-					})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(WandSparkles, { className: "size-5 text-accent" })]
+					})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+						size: "sm",
+						variant: "secondary",
+						onClick: () => setRecommendationSeed(Date.now()),
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(RefreshCw, { className: "size-3.5" }), "New recommendations"]
+					})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-					className: "mt-4 grid gap-2 sm:grid-cols-2",
+					className: "mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3",
 					children: localPicks.map((video) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 						type: "button",
 						onClick: () => openPreview(video.id),
@@ -6019,9 +6235,9 @@ function AiGuide() {
 					}, video.id))
 				})]
 			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "mt-5 rounded-lg border border-border bg-elevated/60 p-4",
-				children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "flex items-center justify-between gap-3",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "font-medium text-fg",
@@ -6033,7 +6249,15 @@ function AiGuide() {
 						className: "rounded-full bg-accent/15 px-2 py-1 text-xs font-medium text-accent",
 						children: [liveNow.length, " live"]
 					})]
-				})
+				}), liveNow.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					className: "mt-3 flex flex-wrap gap-2",
+					children: liveNow.map((video) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+						size: "sm",
+						variant: "secondary",
+						onClick: () => openPreview(video.id),
+						children: [video.remote?.channelName ?? video.name, video.remote?.viewers ? ` · ${video.remote.viewers.toLocaleString()}` : ""]
+					}, video.id))
+				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "mt-6 flex flex-col gap-2 sm:flex-row",
@@ -7003,12 +7227,20 @@ function useP2PRoom(room, name) {
 async function classifyImagesLocally(urls, onProgress) {
 	const { pipeline } = await import("../_libs/@huggingface/transformers+[...].mjs").then((n) => n.t);
 	const classifier = await pipeline("image-classification", "onnx-community/mobilenetv4_conv_small.e2400_r224_in1k", { device: typeof navigator !== "undefined" && "gpu" in navigator ? "webgpu" : "wasm" });
-	const results = [];
-	for (let index = 0; index < urls.length; index += 1) {
-		const labels = await classifier(urls[index], { topk: 3 });
-		results.push([...new Set(labels.filter((item) => item.score >= .08).map((item) => item.label.toLowerCase().split(",")[0].replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")).filter((label) => label.length >= 3).slice(0, 3))]);
-		onProgress?.(index + 1, urls.length);
-	}
+	const results = Array.from({ length: urls.length }, () => []);
+	let cursor = 0;
+	let completed = 0;
+	const workers = Array.from({ length: Math.min(3, urls.length) }, async () => {
+		while (true) {
+			const index = cursor++;
+			if (index >= urls.length) return;
+			const labels = await classifier(urls[index], { topk: 5 });
+			results[index] = [...new Set(labels.filter((item) => item.score >= .045).map((item) => item.label.toLowerCase().split(",")[0].replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")).filter((label) => label.length >= 3).slice(0, 5))];
+			completed += 1;
+			onProgress?.(completed, urls.length);
+		}
+	});
+	await Promise.all(workers);
 	return results;
 }
 var widgetScript;
@@ -7303,6 +7535,7 @@ function watchRoomEmbed(video) {
 		url.searchParams.set("autoplay", "0");
 		url.searchParams.set("rel", "0");
 		url.searchParams.set("playsinline", "1");
+		url.searchParams.set("controls", "1");
 		url.searchParams.set("origin", window.location.origin);
 		if (video.remote?.kind === "youtube") url.searchParams.set("enablejsapi", "1");
 	}
@@ -7367,6 +7600,35 @@ var TOPIC_TAXONOMY = /* @__PURE__ */ new Set([
 	"hardware",
 	"legal"
 ]);
+var TOPIC_GENRE_MAP = {
+	anime: ["Animation", "Fantasy"],
+	comedy: ["Comedy"],
+	creative: ["Animation", "Fantasy"],
+	film: [
+		"Documentary",
+		"Drama",
+		"Sci-Fi",
+		"Science Fiction",
+		"Thriller"
+	],
+	gaming: ["Action", "Adventure"],
+	horror: ["Horror", "Thriller"],
+	maker: ["Documentary", "Science Fiction"],
+	learning: ["Documentary"],
+	music: ["Documentary"],
+	motors: ["Action", "Documentary"],
+	nature: ["Documentary", "Adventure"],
+	"news-commentary": ["Documentary"],
+	relationships: ["Romance", "Drama"],
+	relaxing: ["Nature", "Documentary"],
+	science: ["Science Fiction", "Documentary"],
+	skills: ["Documentary"],
+	sports: ["Action", "Documentary"],
+	style: ["Documentary"],
+	technology: ["Documentary", "Science Fiction"],
+	travel: ["Documentary", "Adventure"],
+	wellbeing: ["Documentary"]
+};
 function isTopicTag(tag) {
 	return TOPIC_TAXONOMY.has(tag.trim().toLowerCase());
 }
@@ -7414,10 +7676,10 @@ function GenreSection() {
 			publicVideos.push(video);
 			const genre = video.genre?.trim();
 			if (genre && mediaGenres.has(genre)) genreCounts.set(genre, (genreCounts.get(genre) ?? 0) + 1);
-			if (genre && video.remote?.kind === "twitch") liveCategoryCounts.set(genre, (liveCategoryCounts.get(genre) ?? 0) + 1);
-			for (const tag of tags[video.id] ?? []) {
-				const clean = tag.trim();
-				if (!isTopicTag(clean)) continue;
+			if (genre && video.remote?.kind === "twitch" && video.remote.live) liveCategoryCounts.set(genre, (liveCategoryCounts.get(genre) ?? 0) + 1);
+			const directTopics = new Set((tags[video.id] ?? []).map((tag) => tag.trim().toLowerCase()).filter(isTopicTag));
+			for (const [topic, linkedGenres] of Object.entries(TOPIC_GENRE_MAP)) if (genre && linkedGenres.includes(genre)) directTopics.add(topic);
+			for (const clean of directTopics) {
 				tagCounts.set(clean, (tagCounts.get(clean) ?? 0) + 1);
 				const sources = tagSources.get(clean) ?? /* @__PURE__ */ new Set();
 				sources.add(video.remote?.kind ?? (folderKinds.get(video.folderId) === "directory" || folderKinds.get(video.folderId) === "files" ? "local" : "library"));
@@ -7441,7 +7703,7 @@ function GenreSection() {
 		videos
 	]);
 	const genreNames = (0, import_react.useMemo)(() => new Set(catalog.genres.map(([genre]) => genre)), [catalog.genres]);
-	const matching = (0, import_react.useMemo)(() => selected === "All topics" ? catalog.publicVideos : genreNames.has(selected) || catalog.liveCategories.some(([category]) => category === selected) ? catalog.publicVideos.filter((video) => video.genre === selected) : catalog.publicVideos.filter((video) => (tags[video.id] ?? []).includes(selected)), [
+	const matching = (0, import_react.useMemo)(() => selected === "All topics" ? catalog.publicVideos : genreNames.has(selected) || catalog.liveCategories.some(([category]) => category === selected) ? catalog.publicVideos.filter((video) => video.genre === selected) : catalog.publicVideos.filter((video) => (tags[video.id] ?? []).includes(selected) || (TOPIC_GENRE_MAP[selected] ?? []).includes(video.genre ?? "")), [
 		catalog.liveCategories,
 		catalog.publicVideos,
 		genreNames,
@@ -7586,6 +7848,8 @@ function StatsSection() {
 	const favorites = useLibrary((s) => s.favorites);
 	const history = useLibrary((s) => s.history);
 	const unavailable = useLibrary((s) => s.unavailable);
+	const progress = useLibrary((s) => s.progress);
+	const viewCounts = useLibrary((s) => s.viewCounts);
 	const [showAllSources, setShowAllSources] = (0, import_react.useState)(false);
 	const summary = (0, import_react.useMemo)(() => {
 		const byFolder = /* @__PURE__ */ new Map();
@@ -7600,6 +7864,13 @@ function StatsSection() {
 		let youtubeTitles = 0;
 		let twitchTitles = 0;
 		let liveTitles = 0;
+		let knownDuration = 0;
+		let durationTitles = 0;
+		let resumedTitles = 0;
+		let totalViews = 0;
+		let metadataTaggedTitles = 0;
+		let creatorTaggedTitles = 0;
+		let descriptionTaggedTitles = 0;
 		for (const video of videos) {
 			totalBytes += video.size;
 			if (video.remote) remoteTitles += 1;
@@ -7608,7 +7879,17 @@ function StatsSection() {
 			if (video.remote?.kind === "youtube") youtubeTitles += 1;
 			if (video.remote?.kind === "twitch") twitchTitles += 1;
 			if (video.remote?.live) liveTitles += 1;
-			if (!(tags[video.id] ?? []).some(isTopicTag)) untaggedTitles += 1;
+			if ((video.duration ?? 0) > 0) {
+				knownDuration += video.duration ?? 0;
+				durationTitles += 1;
+			}
+			if (progress[video.id] && progress[video.id].t > 0) resumedTitles += 1;
+			totalViews += viewCounts[video.id] ?? 0;
+			const videoTags = tags[video.id] ?? [];
+			if (videoTags.length) metadataTaggedTitles += 1;
+			if (Boolean(video.remote?.channelName?.trim())) creatorTaggedTitles += 1;
+			if (videoTags.some((tag) => !tag.includes("-") && tag.length >= 4)) descriptionTaggedTitles += 1;
+			if (!videoTags.some(isTopicTag)) untaggedTitles += 1;
 			if (video.remote && Date.now() - video.addedAt < 6048e5) freshRemoteTitles += 1;
 			const folder = byFolder.get(video.folderId) ?? {
 				videos: 0,
@@ -7618,7 +7899,7 @@ function StatsSection() {
 			folder.bytes += video.size;
 			byFolder.set(video.folderId, folder);
 			if (video.genre?.trim()) byGenre.set(video.genre, (byGenre.get(video.genre) ?? 0) + 1);
-			for (const tag of tags[video.id] ?? []) if (isTopicTag(tag)) byTag.set(tag, (byTag.get(tag) ?? 0) + 1);
+			for (const tag of videoTags) if (isTopicTag(tag)) byTag.set(tag, (byTag.get(tag) ?? 0) + 1);
 		}
 		return {
 			totalBytes,
@@ -7626,16 +7907,28 @@ function StatsSection() {
 			localTitles,
 			remoteTitles,
 			untaggedTitles,
+			metadataTaggedTitles,
+			creatorTaggedTitles,
+			descriptionTaggedTitles,
 			freshRemoteTitles,
 			thumbReady,
 			youtubeTitles,
 			twitchTitles,
 			liveTitles,
+			knownDuration,
+			durationTitles,
+			resumedTitles,
+			totalViews,
 			genreRows: [...byGenre.entries()].filter(([, count]) => count >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
 			topTags: [...byTag.entries()].filter(([, count]) => count >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 14),
 			tagAssignments: [...byTag.values()].reduce((sum, count) => sum + count, 0)
 		};
-	}, [tags, videos]);
+	}, [
+		progress,
+		tags,
+		videos,
+		viewCounts
+	]);
 	const folderRows = (0, import_react.useMemo)(() => folders.filter((folder) => folder.kind !== "demo").map((folder) => ({
 		folder,
 		...summary.byFolder.get(folder.id) ?? {
@@ -7689,6 +7982,10 @@ function StatsSection() {
 			["topic_tag_coverage_percent", Math.round((1 - summary.untaggedTitles / Math.max(videos.length, 1)) * 100)],
 			["largest_source_percent", sourceHealth.concentration],
 			["duplicate_source_names", sourceHealth.duplicateNames.length],
+			["metadata_tagged_titles", summary.metadataTaggedTitles],
+			["metadata_tag_coverage_percent", Math.round(summary.metadataTaggedTitles / Math.max(videos.length, 1) * 100)],
+			["creator_tagged_titles", summary.creatorTaggedTitles],
+			["description_keyword_tagged_titles", summary.descriptionTaggedTitles],
 			["favorites_saved", favoriteHealth.saved],
 			["favorites_resolved", favoriteHealth.resolved],
 			["favorites_waiting_for_source", favoriteHealth.missing],
@@ -7696,6 +7993,10 @@ function StatsSection() {
 			["creator_ratings_saved", Object.keys(feedback.creatorRatings).length],
 			["creator_likes_saved", Object.keys(feedback.creatorLikes).length],
 			["notes_saved", Object.keys(feedback.notes).length],
+			["known_duration_titles", summary.durationTitles],
+			["known_duration_hours", Math.round(summary.knownDuration / 3600)],
+			["resume_marks", summary.resumedTitles],
+			["local_view_events", summary.totalViews],
 			...summary.genreRows.map(([name, count]) => [`genre:${name}`, count]),
 			...summary.topTags.map(([name, count]) => [`topic_tag:${name}`, count]),
 			...sourceHealth.duplicateNames.map(({ name, count }) => [`duplicate_source:${name}`, count])
@@ -7774,16 +8075,36 @@ function StatsSection() {
 						value: summary.freshRemoteTitles.toLocaleString()
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Stat, {
-						label: "Needs useful tag",
+						label: "Needs useful topic",
 						value: `${summary.untaggedTitles.toLocaleString()} titles`
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Stat, {
-						label: "Coverage",
-						value: `${Math.round((1 - summary.untaggedTitles / Math.max(videos.length, 1)) * 100)}% topic-tagged`
+						label: "Topic coverage",
+						value: `${Math.round((1 - summary.untaggedTitles / Math.max(videos.length, 1)) * 100)}%`
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Stat, {
+						label: "Any metadata coverage",
+						value: `${Math.round(summary.metadataTaggedTitles / Math.max(videos.length, 1) * 100)}%`
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Stat, {
+						label: "Creator / description tags",
+						value: `${summary.creatorTaggedTitles.toLocaleString()} / ${summary.descriptionTaggedTitles.toLocaleString()}`
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Stat, {
 						label: "YouTube / Twitch",
 						value: `${summary.youtubeTitles.toLocaleString()} / ${summary.twitchTitles.toLocaleString()}`
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Stat, {
+						label: "Known runtime",
+						value: `${Math.round(summary.knownDuration / 3600).toLocaleString()} hours`
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Stat, {
+						label: "Resume marks",
+						value: summary.resumedTitles.toLocaleString()
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Stat, {
+						label: "Local view events",
+						value: summary.totalViews.toLocaleString()
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Stat, {
 						label: "Live right now",
@@ -7802,6 +8123,88 @@ function StatsSection() {
 						value: Object.keys(unavailable).length.toLocaleString()
 					})
 				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "mt-5 grid gap-5 xl:grid-cols-2",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "h-72 rounded-lg bg-elevated p-5 shadow-border",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+						className: "font-display text-2xl text-fg",
+						children: "Provider mix"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ResponsiveContainer, {
+						width: "100%",
+						height: "85%",
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(BarChart, {
+							data: [
+								{
+									name: "Local",
+									titles: summary.localTitles
+								},
+								{
+									name: "YouTube",
+									titles: summary.youtubeTitles
+								},
+								{
+									name: "Twitch",
+									titles: summary.twitchTitles
+								}
+							],
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(XAxis, {
+									dataKey: "name",
+									stroke: "currentColor",
+									fontSize: 12
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(YAxis, {
+									stroke: "currentColor",
+									fontSize: 12
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tooltip, {}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bar, {
+									dataKey: "titles",
+									fill: "var(--color-accent)",
+									radius: 4
+								})
+							]
+						})
+					})]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "h-72 rounded-lg bg-elevated p-5 shadow-border",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+						className: "font-display text-2xl text-fg",
+						children: "Most useful topics"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ResponsiveContainer, {
+						width: "100%",
+						height: "85%",
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(BarChart, {
+							layout: "vertical",
+							data: summary.topTags.slice(0, 8).map(([name, titles]) => ({
+								name,
+								titles
+							})),
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(XAxis, {
+									type: "number",
+									stroke: "currentColor",
+									fontSize: 12
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(YAxis, {
+									type: "category",
+									dataKey: "name",
+									width: 92,
+									stroke: "currentColor",
+									fontSize: 11
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tooltip, {}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bar, {
+									dataKey: "titles",
+									fill: "var(--color-accent)",
+									radius: 4
+								})
+							]
+						})
+					})]
+				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 				className: "mt-5 grid gap-3 lg:grid-cols-4",
@@ -7969,7 +8372,9 @@ function LanConnectionSection() {
 	const [copied, setCopied] = (0, import_react.useState)(false);
 	const [companion, setCompanion] = (0, import_react.useState)("checking");
 	(0, import_react.useEffect)(() => {
-		setOrigin(window.location.origin);
+		const current = window.location;
+		const loopback = current.hostname === "localhost" || current.hostname === "127.0.0.1" || current.hostname === "::1";
+		setOrigin(loopback ? "" : current.origin);
 		fetch("http://127.0.0.1:43123/health").then((response) => setCompanion(response.ok ? "ready" : "offline")).catch(() => setCompanion("offline"));
 	}, []);
 	const copyAddress = async () => {
@@ -7990,20 +8395,18 @@ function LanConnectionSection() {
 			className: "mt-6 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]",
 			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "rounded-lg bg-elevated p-5 shadow-border",
-				children: [
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
-						children: "Your current Reelcase address"
-					}),
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+					children: "Shareable Reelcase address"
+				}), origin ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "mt-2 break-all font-mono text-sm text-fg",
-						children: origin || "Checking this device…"
+						children: origin
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "mt-4 flex flex-wrap gap-2",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 							onClick: () => void copyAddress(),
-							disabled: !origin,
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Copy, { className: "size-4" }), copied ? "Address copied" : "Copy address"]
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 							variant: "secondary",
@@ -8013,9 +8416,24 @@ function LanConnectionSection() {
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "mt-4 text-xs leading-5 text-muted",
-						children: "On the other computer or phone, connect to the same home Wi‑Fi, open this exact address, then use the Watch Room invitation or room code. A room code alone cannot load Reelcase if the other device cannot reach this address."
+						children: "On the other computer or phone, connect to the same home Wi‑Fi, open this address, then use the Watch Room invitation or room code."
 					})
-				]
+				] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-2 text-sm text-fg",
+						children: "This computer is using a local-only address."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-2 text-sm leading-6 text-muted",
+						children: "It cannot be opened from another device, so Reelcase will not recommend it. Open Reelcase from its shared site address, or use the Companion’s LAN host option when it is available; then return here to copy that address."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						variant: "secondary",
+						className: "mt-4",
+						onClick: () => useLibrary.getState().setSource("watch-room"),
+						children: "Open Watch Room on this device"
+					})
+				] })]
 			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "rounded-lg border border-border bg-surface p-5",
 				children: [
@@ -8035,58 +8453,65 @@ function LanConnectionSection() {
 			})]
 		}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 			className: "mt-5 rounded-lg bg-elevated p-5 shadow-border",
-			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-				className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
-				children: "Four-step connection check"
-			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("ol", {
-				className: "mt-4 grid gap-4 md:grid-cols-2",
-				children: [
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
-						className: "rounded-md bg-bg/45 p-4 text-sm text-muted",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-								className: "font-medium text-fg",
-								children: "1. Open Reelcase on the host."
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
-							"Keep this page open and copy its address."
-						]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
-						className: "rounded-md bg-bg/45 p-4 text-sm text-muted",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-								className: "font-medium text-fg",
-								children: "2. Open the address on the guest device."
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
-							"If it does not load, the devices are not on the same reachable network yet."
-						]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
-						className: "rounded-md bg-bg/45 p-4 text-sm text-muted",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-								className: "font-medium text-fg",
-								children: "3. Create or join a Watch Room."
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
-							"Share the invitation link from the host, or enter the same room code."
-						]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
-						className: "rounded-md bg-bg/45 p-4 text-sm text-muted",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-								className: "font-medium text-fg",
-								children: "4. Use Room diagnostics."
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
-							"It shows roster, direct transport, and timeline messages so you can identify whether the issue is network reachability or playback control."
-						]
-					})
-				]
-			})]
+			children: [
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+					children: "Ethernet and Wi‑Fi connection check"
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("ol", {
+					className: "mt-4 grid gap-4 md:grid-cols-2",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
+							className: "rounded-md bg-bg/45 p-4 text-sm text-muted",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									className: "font-medium text-fg",
+									children: "1. Use the host’s shared address."
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
+								"This computer may be wired by Ethernet while the guest uses Wi‑Fi; that is expected when both connect through the same home router."
+							]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
+							className: "rounded-md bg-bg/45 p-4 text-sm text-muted",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									className: "font-medium text-fg",
+									children: "2. Avoid guest Wi‑Fi."
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
+								"Guest/isolated Wi‑Fi blocks device-to-device traffic. Move the guest to the normal home network, then open the copied address."
+							]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
+							className: "rounded-md bg-bg/45 p-4 text-sm text-muted",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									className: "font-medium text-fg",
+									children: "3. Confirm Reelcase opens first."
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
+								"The guest must see this library before joining the room. If it cannot load, use the Companion LAN host option or a shared Reelcase site address; a local-only address cannot be reached by another device."
+							]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
+							className: "rounded-md bg-bg/45 p-4 text-sm text-muted",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									className: "font-medium text-fg",
+									children: "4. Join the same room code."
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
+								"Open the invitation or enter the exact code, then use Room diagnostics. Roster confirms signaling; Direct confirms playback/chat transport."
+							]
+						})
+					]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "mt-4 text-xs leading-5 text-subtle",
+					children: "Ethernet-to-Wi‑Fi is not the problem by itself. The likely blockers are a local-only address, guest-network isolation, a router client-isolation setting, or a firewall rule on the host computer."
+				})
+			]
 		})]
 	});
 }
@@ -8099,9 +8524,9 @@ function FindPhoneSection() {
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 			className: "mt-6 grid gap-4 md:grid-cols-2",
 			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
-				href: "https://www.google.com/android/find",
+				href: "https://www.google.com/android/find/",
 				target: "_blank",
-				rel: "noreferrer",
+				rel: "noopener noreferrer",
 				className: "rounded-lg bg-elevated p-5 shadow-border transition-colors hover:bg-surface",
 				children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
@@ -8118,9 +8543,9 @@ function FindPhoneSection() {
 					})
 				]
 			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
-				href: "https://www.icloud.com/find",
+				href: "https://www.icloud.com/find/",
 				target: "_blank",
-				rel: "noreferrer",
+				rel: "noopener noreferrer",
 				className: "rounded-lg bg-elevated p-5 shadow-border transition-colors hover:bg-surface",
 				children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
@@ -8168,6 +8593,12 @@ function SettingsSection() {
 	const [zoom, setZoom] = (0, import_react.useState)(100);
 	const [railLimit, setRailLimit] = (0, import_react.useState)(8);
 	const [gridPageSize, setGridPageSize] = (0, import_react.useState)(48);
+	const [thumbnailWorkers, setThumbnailWorkers] = (0, import_react.useState)(0);
+	const [photoWorkers, setPhotoWorkers] = (0, import_react.useState)(0);
+	const [defaultVolume, setDefaultVolume] = (0, import_react.useState)(85);
+	const [startMuted, setStartMuted] = (0, import_react.useState)(false);
+	const [videoVisionBusy, setVideoVisionBusy] = (0, import_react.useState)(false);
+	const [videoVisionNote, setVideoVisionNote] = (0, import_react.useState)("");
 	const [twitchRefreshSeconds, setTwitchRefreshSeconds] = (0, import_react.useState)(60);
 	const [liveDensity, setLiveDensity] = (0, import_react.useState)(4);
 	const [sourceCacheFirst, setSourceCacheFirst] = (0, import_react.useState)(true);
@@ -8176,6 +8607,9 @@ function SettingsSection() {
 	const [debugReport, setDebugReport] = (0, import_react.useState)("");
 	const refreshFollows = useLibrary((s) => s.refreshFollows);
 	const folders = useLibrary((s) => s.folders);
+	const videos = useLibrary((s) => s.videos);
+	const tags = useLibrary((s) => s.tags);
+	const setVideoTags = useLibrary((s) => s.setVideoTags);
 	const refreshSourcePhotos = useLibrary((s) => s.refreshSourcePhotos);
 	const unavailableVideoCount = useLibrary((s) => Object.keys(s.unavailable).length);
 	const remoteCheckedAt = useLibrary((s) => s.remoteCheckedAt);
@@ -8225,6 +8659,35 @@ function SettingsSection() {
 			96,
 			144
 		].includes(saved) ? saved : 48);
+	}, []);
+	(0, import_react.useEffect)(() => {
+		const saved = Number(localStorage.getItem("reelcase.thumbnail-workers") ?? "0");
+		setThumbnailWorkers([
+			2,
+			3,
+			4
+		].includes(saved) ? saved : 0);
+	}, []);
+	(0, import_react.useEffect)(() => {
+		const saved = Number(localStorage.getItem("reelcase.photo-scan-workers") ?? "0");
+		setPhotoWorkers([
+			2,
+			4,
+			6,
+			8,
+			12
+		].includes(saved) ? saved : 0);
+	}, []);
+	(0, import_react.useEffect)(() => {
+		const saved = Number(localStorage.getItem("reelcase.player-volume") ?? "85");
+		setDefaultVolume([
+			25,
+			50,
+			70,
+			85,
+			100
+		].includes(saved) ? saved : 85);
+		setStartMuted(localStorage.getItem("reelcase.player-start-muted") === "true");
 	}, []);
 	(0, import_react.useEffect)(() => {
 		const saved = Number(localStorage.getItem("reelcase.twitch-refresh-seconds") ?? "60");
@@ -8326,6 +8789,33 @@ function SettingsSection() {
 		link.download = `reelcase-export-${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.json`;
 		link.click();
 		URL.revokeObjectURL(url);
+	};
+	const tagLocalVideoFrames = async () => {
+		const candidates = videos.filter((video) => !video.remote && !(tags[video.id] ?? []).some((tag) => tag.startsWith("vision-"))).slice(0, 12);
+		if (!candidates.length) {
+			setVideoVisionNote("No eligible local video frames are ready. Open a few local cards first so their cached frame artwork can warm.");
+			return;
+		}
+		setVideoVisionBusy(true);
+		setVideoVisionNote(`Warming local video frames · 0/${candidates.length}`);
+		for (const video of candidates) useThumbs.getState().request(video);
+		await new Promise((resolve) => window.setTimeout(resolve, 1200));
+		const thumbs = useThumbs.getState().byId;
+		const ready = candidates.filter((video) => Boolean(thumbs[video.id]));
+		if (!ready.length) {
+			setVideoVisionBusy(false);
+			setVideoVisionNote("Frames are still warming. Try again in a moment; this beta never uploads local video.");
+			return;
+		}
+		try {
+			const labels = await classifyImagesLocally(ready.map((video) => thumbs[video.id]), (done, total) => setVideoVisionNote(`Classifying local video frames · ${done}/${total}`));
+			ready.forEach((video, index) => setVideoTags(video.id, [...useLibrary.getState().tags[video.id] ?? [], ...labels[index].map((label) => `vision-${label}`)]));
+			setVideoVisionNote(`Tagged ${ready.length} local video frame${ready.length === 1 ? "" : "s"}. Review vision-* tags before using them as a permanent organizer.`);
+		} catch {
+			setVideoVisionNote("The local vision model could not start. File data stayed on this device; filename tags are still available.");
+		} finally {
+			setVideoVisionBusy(false);
+		}
 	};
 	const downloadExport = (body, filename, type) => {
 		const url = URL.createObjectURL(new Blob([body], { type }));
@@ -8431,6 +8921,35 @@ function SettingsSection() {
 							setServiceNote(changed ? `Added or improved smart tags for ${changed} catalog item${changed === 1 ? "" : "s"}.` : "Every catalog item already has the available smart tags.");
 						},
 						children: "Apply smart tags to all files"
+					})
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+						children: "Beta · local video vision"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+						className: "mt-2 font-display text-2xl text-fg",
+						children: "Tag local videos from a cached frame."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-1 max-w-2xl text-sm text-muted",
+						children: "Uses the same on-device image model as Photos on one cached local thumbnail per video. It runs only when you start it, uses a bounded 12-video batch, and keeps frames and labels on this device."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						className: "mt-4",
+						size: "sm",
+						variant: "secondary",
+						disabled: videoVisionBusy,
+						onClick: () => void tagLocalVideoFrames(),
+						children: videoVisionBusy ? videoVisionNote || "Preparing local frames…" : "Tag next 12 local videos"
+					}),
+					videoVisionNote && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-3 text-xs text-accent",
+						children: videoVisionNote
 					})
 				]
 			}),
@@ -8851,6 +9370,122 @@ function SettingsSection() {
 										},
 										children: [value, " cards"]
 									}, value))
+								})
+							]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "rounded-lg bg-elevated p-5 shadow-border",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									className: "text-accent",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PackageSearch, { className: "size-5" })
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+									className: "mt-3 font-display text-2xl text-fg",
+									children: "Artwork worker budget"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-2 text-sm leading-6 text-muted",
+									children: "Controls concurrent local thumbnail extraction. Adaptive uses available CPU without crowding playback; Fast is best while Reelcase is otherwise idle."
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "mt-4 flex flex-wrap gap-2",
+									children: [
+										[0, "Adaptive"],
+										[2, "Gentle · 2"],
+										[3, "Balanced · 3"],
+										[4, "Fast · 4"]
+									].map(([value, label]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										size: "sm",
+										variant: thumbnailWorkers === value ? "default" : "secondary",
+										onClick: () => {
+											setThumbnailWorkers(value);
+											localStorage.setItem("reelcase.thumbnail-workers", String(value));
+										},
+										children: label
+									}, value))
+								})
+							]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "rounded-lg bg-elevated p-5 shadow-border",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									className: "text-accent",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PackageSearch, { className: "size-5" })
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+									className: "mt-3 font-display text-2xl text-fg",
+									children: "Photo scan workers"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-2 text-sm leading-6 text-muted",
+									children: "Sets background folder workers for cached photo metadata. Adaptive protects browsing; use Fast when you want a newly added photo source ready sooner."
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "mt-4 flex flex-wrap gap-2",
+									children: [
+										[0, "Adaptive"],
+										[2, "Gentle · 2"],
+										[4, "Balanced · 4"],
+										[6, "Fast · 6"],
+										[8, "Max · 8"],
+										[12, "Turbo · 12"]
+									].map(([value, label]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										size: "sm",
+										variant: photoWorkers === value ? "default" : "secondary",
+										onClick: () => {
+											setPhotoWorkers(value);
+											localStorage.setItem("reelcase.photo-scan-workers", String(value));
+										},
+										children: label
+									}, value))
+								})
+							]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "rounded-lg bg-elevated p-5 shadow-border",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									className: "text-accent",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Settings2, { className: "size-5" })
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+									className: "mt-3 font-display text-2xl text-fg",
+									children: "Player sound"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-2 text-sm leading-6 text-muted",
+									children: "Sets the starting volume for local video and whether a newly opened player starts muted. Provider embeds keep their own service-level audio controls."
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "mt-4 flex flex-wrap gap-2",
+									children: [
+										25,
+										50,
+										70,
+										85,
+										100
+									].map((value) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+										size: "sm",
+										variant: defaultVolume === value ? "default" : "secondary",
+										onClick: () => {
+											setDefaultVolume(value);
+											localStorage.setItem("reelcase.player-volume", String(value));
+										},
+										children: [value, "%"]
+									}, value))
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+									className: "mt-3",
+									size: "sm",
+									variant: startMuted ? "default" : "secondary",
+									onClick: () => {
+										const next = !startMuted;
+										setStartMuted(next);
+										localStorage.setItem("reelcase.player-start-muted", String(next));
+									},
+									children: startMuted ? "Start muted" : "Start with sound"
 								})
 							]
 						}),
@@ -9340,6 +9975,9 @@ function photoMetadata() {
 function PhotosSection() {
 	const scannedPhotoSources = (0, import_react.useRef)(/* @__PURE__ */ new Set());
 	const photoUrls = (0, import_react.useRef)(/* @__PURE__ */ new Set());
+	const knownPhotoIds = (0, import_react.useRef)(/* @__PURE__ */ new Set());
+	const discoverySeen = (0, import_react.useRef)(/* @__PURE__ */ new Set());
+	const metadataWriteTimer = (0, import_react.useRef)(null);
 	const [ratingFilter, setRatingFilter] = (0, import_react.useState)("all");
 	const [ratingQueuePhotoId, setRatingQueuePhotoId] = (0, import_react.useState)(() => {
 		try {
@@ -9361,7 +9999,13 @@ function PhotosSection() {
 	const [selectedPhotoIds, setSelectedPhotoIds] = (0, import_react.useState)(() => /* @__PURE__ */ new Set());
 	const [photoSearch, setPhotoSearch] = (0, import_react.useState)("");
 	const [discoveryFilter, setDiscoveryFilter] = (0, import_react.useState)("all");
-	const [favoritesOnly, setFavoritesOnly] = (0, import_react.useState)(false);
+	const [favoritesOnly, setFavoritesOnly] = (0, import_react.useState)(() => {
+		try {
+			return localStorage.getItem("reelcase.photos.favorites-only") === "true";
+		} catch {
+			return false;
+		}
+	});
 	const [photoSort, setPhotoSort] = (0, import_react.useState)(() => {
 		try {
 			return localStorage.getItem("reelcase.photos.sort") || "newest";
@@ -9401,6 +10045,9 @@ function PhotosSection() {
 	const [photoScanTotal, setPhotoScanTotal] = (0, import_react.useState)(0);
 	const [photoScanDone, setPhotoScanDone] = (0, import_react.useState)(0);
 	const [photoScanStartedAt, setPhotoScanStartedAt] = (0, import_react.useState)(0);
+	const [photoScanEstimatedPhotos, setPhotoScanEstimatedPhotos] = (0, import_react.useState)(0);
+	const [photoScanFoundPhotos, setPhotoScanFoundPhotos] = (0, import_react.useState)(0);
+	const [photoScanAverageMs, setPhotoScanAverageMs] = (0, import_react.useState)(0);
 	const [photoLimit, setPhotoLimit] = (0, import_react.useState)(80);
 	const [visionBusy, setVisionBusy] = (0, import_react.useState)(false);
 	const [visionProgress, setVisionProgress] = (0, import_react.useState)("");
@@ -9412,11 +10059,10 @@ function PhotosSection() {
 	const addPhotos = (files, folderName = "Unsorted", paths, urls) => {
 		if (!files) return;
 		const remembered = photoMetadata();
-		const known = new Set(photos.map((photo) => photo.id));
 		const next = Array.from(files).filter((file) => file.type.startsWith("image/") || PHOTO_FILE_RE.test(file.name)).slice(0, 600).map((file, index) => {
 			const path = paths?.[index] || file.webkitRelativePath || `${folderName}/${file.name}`;
 			const id = `${path}-${file.lastModified}`;
-			if (known.has(id)) return null;
+			if (knownPhotoIds.current.has(id)) return null;
 			const url = urls?.[index] ?? URL.createObjectURL(file);
 			if (!urls?.[index]) photoUrls.current.add(url);
 			return {
@@ -9432,10 +10078,9 @@ function PhotosSection() {
 				addedAt: file.lastModified
 			};
 		}).filter((photo) => photo !== null);
-		setPhotos((current) => {
-			const known = new Set(current.map((photo) => photo.id));
-			return [...current, ...next.filter((photo) => !known.has(photo.id))];
-		});
+		if (!next.length) return;
+		for (const photo of next) knownPhotoIds.current.add(photo.id);
+		setPhotos((current) => current.length ? [...current, ...next] : next);
 	};
 	(0, import_react.useEffect)(() => {
 		if (sourcePhotos.length) {
@@ -9453,26 +10098,37 @@ function PhotosSection() {
 		photoUrls.current.clear();
 	}, []);
 	(0, import_react.useEffect)(() => {
-		try {
-			cachedPhotoMetadata = {
-				...photoMetadata(),
-				...Object.fromEntries(photos.map(({ id, path, people, tags, album, favorite, rating }) => [id, {
-					path,
-					people,
-					tags,
-					album,
-					favorite,
-					rating
-				}]))
-			};
-			localStorage.setItem("reelcase.photo-meta.v1", JSON.stringify(cachedPhotoMetadata));
-		} catch {}
+		if (metadataWriteTimer.current) clearTimeout(metadataWriteTimer.current);
+		metadataWriteTimer.current = setTimeout(() => {
+			try {
+				cachedPhotoMetadata = {
+					...photoMetadata(),
+					...Object.fromEntries(photos.map(({ id, path, people, tags, album, favorite, rating }) => [id, {
+						path,
+						people,
+						tags,
+						album,
+						favorite,
+						rating
+					}]))
+				};
+				localStorage.setItem("reelcase.photo-meta.v1", JSON.stringify(cachedPhotoMetadata));
+			} catch {}
+		}, 650);
+		return () => {
+			if (metadataWriteTimer.current) clearTimeout(metadataWriteTimer.current);
+		};
 	}, [photos]);
 	(0, import_react.useEffect)(() => {
 		try {
 			localStorage.setItem("reelcase.photos.sort", photoSort);
 		} catch {}
 	}, [photoSort]);
+	(0, import_react.useEffect)(() => {
+		try {
+			localStorage.setItem("reelcase.photos.favorites-only", String(favoritesOnly));
+		} catch {}
+	}, [favoritesOnly]);
 	(0, import_react.useEffect)(() => {
 		try {
 			localStorage.setItem("reelcase.photos.rating-queue", ratingQueuePhotoId);
@@ -9502,16 +10158,34 @@ function PhotosSection() {
 				setPhotoScanTotal(toScan.length);
 				setPhotoScanDone(0);
 				setPhotoScanStartedAt(Date.now());
+				setPhotoScanEstimatedPhotos(toScan.reduce((sum, folder) => sum + (folder.photoCount ?? 0), 0));
+				setPhotoScanFoundPhotos(0);
+				setPhotoScanAverageMs(0);
 			}
 			let cursor = 0;
-			const workers = Array.from({ length: Math.min(4, toScan.length) }, async () => {
+			const adaptiveWorkers = Math.min(12, Math.max(2, Math.floor((navigator.hardwareConcurrency || 4) / 2)));
+			const configuredWorkers = Number(localStorage.getItem("reelcase.photo-scan-workers") ?? "0");
+			const workerCount = Math.min(toScan.length, [
+				2,
+				4,
+				6,
+				8,
+				12
+			].includes(configuredWorkers) ? configuredWorkers : adaptiveWorkers);
+			const workers = Array.from({ length: workerCount }, async () => {
 				while (!cancelled) {
 					const folder = toScan[cursor++];
 					if (!folder) return;
 					scannedPhotoSources.current.add(folder.id);
-					await refreshSourcePhotos(folder.id);
+					const started = performance.now();
+					const found = await refreshSourcePhotos(folder.id);
+					const elapsed = performance.now() - started;
 					photoSourceWarmth.set(folder.id, Date.now());
-					if (!cancelled) setPhotoScanDone((done) => done + 1);
+					if (!cancelled) {
+						setPhotoScanDone((done) => done + 1);
+						setPhotoScanFoundPhotos((total) => total + found);
+						setPhotoScanAverageMs((mean) => mean ? mean * .65 + elapsed * .35 : elapsed);
+					}
 				}
 			});
 			await Promise.all(workers);
@@ -9521,7 +10195,7 @@ function PhotosSection() {
 			cancelled = true;
 		};
 	}, [refreshSourcePhotos, sourceFolders]);
-	const photoScanEta = photoSourceLoading && photoScanDone > 0 && photoScanTotal > photoScanDone ? Math.max(1, Math.ceil((Date.now() - photoScanStartedAt) / photoScanDone * (photoScanTotal - photoScanDone) / 1e3)) : 0;
+	const photoScanEta = photoSourceLoading && photoScanDone >= 2 && photoScanTotal > photoScanDone && photoScanAverageMs > 0 ? Math.max(1, Math.ceil(photoScanAverageMs * (photoScanTotal - photoScanDone) / 1e3)) : 0;
 	const addPhotoFolder = (files) => {
 		if (!files?.length) return;
 		const first = [...files].find((file) => file.webkitRelativePath)?.webkitRelativePath.split("/")[0] ?? "Photo folder";
@@ -9578,6 +10252,17 @@ function PhotosSection() {
 		const nextIndex = focusedIndex < 0 ? 0 : (focusedIndex + direction + visible.length) % visible.length;
 		setFocusedPhotoId(visible[nextIndex].id);
 	};
+	const pickFreshDiscovery = () => {
+		const unseen = visible.filter((photo) => !discoverySeen.current.has(photo.id));
+		const pool = unseen.length ? unseen : visible;
+		if (!unseen.length) discoverySeen.current.clear();
+		const pick = pool[Math.floor(Math.random() * pool.length)];
+		if (!pick) return;
+		discoverySeen.current.add(pick.id);
+		setSlideIndex(visible.findIndex((photo) => photo.id === pick.id));
+		setPhotoViewerLoading(true);
+		setFocusedPhotoId(pick.id);
+	};
 	const suggestPeopleFromNames = () => {
 		let labeled = 0;
 		setPhotos((items) => items.map((photo) => {
@@ -9596,6 +10281,8 @@ function PhotosSection() {
 		let changed = 0;
 		setPhotos((items) => items.map((photo) => {
 			const text = `${photo.name} ${photo.path}`.toLowerCase();
+			const extension = photo.name.split(".").pop()?.toLowerCase();
+			const album = photo.album.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 			const suggestions = [
 				/screenshot|screen[_ -]?shot/.test(text) ? "screenshot" : "",
 				/^(img|dsc|pxl|photo)[_ -]?\d/i.test(photo.name) ? "camera" : "",
@@ -9606,6 +10293,10 @@ function PhotosSection() {
 				/receipt|invoice|document|scan/.test(text) ? "document" : "",
 				/food|meal|restaurant|recipe/.test(text) ? "food" : "",
 				/selfie|portrait|face/.test(text) ? "portrait" : "",
+				extension ? `type-${extension}` : "",
+				album && album !== "unsorted" && album !== "source-import" ? `album-${album}` : "",
+				photo.favorite ? "favorite" : "",
+				photo.rating >= 4 ? "highly-rated" : "",
 				`year-${new Date(photo.addedAt).getFullYear()}`,
 				`month-${new Date(photo.addedAt).toLocaleString("en-US", { month: "long" }).toLowerCase()}`
 			].filter(Boolean);
@@ -9620,7 +10311,7 @@ function PhotosSection() {
 		setHelperNote(changed ? `Added local filename-based auto tags to ${changed} photo${changed === 1 ? "" : "s"}. You can edit any tag on its card.` : "Everything already has the available local auto tags.");
 	};
 	const autoTagPhotosWithVision = async () => {
-		const candidates = photos.filter((photo) => !photo.tags.some((tag) => tag.startsWith("vision-"))).slice(0, 24);
+		const candidates = photos.filter((photo) => !photo.tags.some((tag) => tag.startsWith("vision-"))).slice(0, 48);
 		if (!candidates.length) {
 			setHelperNote("Every loaded photo already has a local vision pass. Add more photos or edit tags to review them.");
 			return;
@@ -9961,14 +10652,8 @@ function PhotosSection() {
 								size: "sm",
 								variant: "secondary",
 								disabled: !visible.length,
-								onClick: () => {
-									const pick = visible[Math.floor(Math.random() * visible.length)];
-									if (pick) {
-										setSlideIndex(visible.findIndex((photo) => photo.id === pick.id));
-										setFocusedPhotoId(pick.id);
-									}
-								},
-								children: "Random photo"
+								onClick: pickFreshDiscovery,
+								children: "Fresh discovery"
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 								size: "sm",
@@ -9989,7 +10674,7 @@ function PhotosSection() {
 								variant: "secondary",
 								disabled: !photos.length || visionBusy,
 								onClick: () => void autoTagPhotosWithVision(),
-								children: visionBusy ? visionProgress || "Starting local vision…" : "Local vision tags · 24"
+								children: visionBusy ? visionProgress || "Starting local vision…" : "Local vision tags · 48"
 							})
 						]
 					}),
@@ -10023,14 +10708,14 @@ function PhotosSection() {
 									visionProcessed.toLocaleString(),
 									" processed · ",
 									visionPending.toLocaleString(),
-									" waiting · model runs locally"
+									" waiting · 3 bounded local workers"
 								]
 							})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 								size: "sm",
 								variant: "secondary",
 								disabled: visionBusy || !photos.length,
 								onClick: () => void autoTagPhotosWithVision(),
-								children: visionBusy ? visionProgress || "Starting model…" : `Process next ${Math.min(24, visionPending)}`
+								children: visionBusy ? visionProgress || "Starting model…" : `Process next ${Math.min(48, visionPending)}`
 							})]
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 							className: "mt-2 text-xs leading-5 text-muted",
@@ -10039,11 +10724,11 @@ function PhotosSection() {
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "text-xs leading-5 text-muted",
-						children: "Private local discovery uses file-name patterns plus an optional on-device open-source image classifier. It analyzes up to 24 loaded photos at a time; photo bytes stay in this browser. Large folders are decoded lazily and displayed in small batches to keep scrolling responsive."
+						children: "Private local discovery uses file-name patterns plus an optional on-device open-source image classifier. It analyzes up to 48 queued photos at a time; photo bytes stay in this browser. A 900-photo warm URL cache and small rendered batches keep scrolling responsive while folders continue to stream."
 					}),
 					(helperNote || photoSourceLoading || photoCacheNotice) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 						className: "flex items-center gap-2 text-xs text-accent",
-						children: [photoSourceLoading && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(RefreshCw, { className: "size-3 animate-spin" }), photoSourceLoading ? `Loading cached photo sources · ${photoScanDone}/${photoScanTotal}${photoScanEta ? ` · about ${photoScanEta}s remaining` : " · estimating time remaining…"}` : helperNote || photoCacheNotice]
+						children: [photoSourceLoading && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(RefreshCw, { className: "size-3 animate-spin" }), photoSourceLoading ? `Loading cached photo sources · ${photoScanDone}/${photoScanTotal} folders · ${photoScanFoundPhotos.toLocaleString()} found${photoScanEstimatedPhotos ? ` of about ${photoScanEstimatedPhotos.toLocaleString()}` : ""}${photoScanEta ? ` · about ${photoScanEta}s remaining` : " · estimating time remaining…"}` : helperNote || photoCacheNotice]
 					})
 				]
 			}),
@@ -11963,10 +12648,13 @@ function WatchRoomSection() {
 	const [twitchPlayerStatus, setTwitchPlayerStatus] = (0, import_react.useState)("Waiting for Twitch player…");
 	const [twitchPlayerReady, setTwitchPlayerReady] = (0, import_react.useState)(0);
 	const [candidateSeed, setCandidateSeed] = (0, import_react.useState)(() => Date.now());
+	const [roomPickLimit, setRoomPickLimit] = (0, import_react.useState)(18);
 	const youtubePlaybackStartedAt = (0, import_react.useRef)(null);
 	const [localVideoUrl, setLocalVideoUrl] = (0, import_react.useState)("");
 	const lastRoomTick = (0, import_react.useRef)(0);
 	const lastRoomHistoryId = (0, import_react.useRef)("");
+	const lastRoomPosition = (0, import_react.useRef)(0);
+	const applyingRemotePlaybackUntil = (0, import_react.useRef)(0);
 	const p2p = useP2PRoom(activeRoom ?? "", name.trim() || "Guest");
 	(0, import_react.useEffect)(() => {
 		if (!localVideo) {
@@ -11984,7 +12672,7 @@ function WatchRoomSection() {
 		const played = new Set(history.map((entry) => entry.id));
 		return videos.filter((video) => !video.isSample && !/\b(blender|big buck bunny|cosmos laundromat|tears of steel|elephants dream|sintel|night rain|empty house|golden coast|tungsten reel)\b/i.test(`${video.name} ${video.remote?.channelName ?? ""} ${video.tagline ?? ""}`) && !useLibrary.getState().unavailable[video.id] && Boolean(video.remote?.embedUrl || video.src)).map((video) => ({
 			video,
-			score: (favorites[video.id] ? 2 : 0) + (played.has(video.id) ? 1 : 0),
+			score: (favorites[video.id] ? 1 : 0) - (played.has(video.id) ? 2 : 0),
 			tie: roomShuffleRank(video.id, candidateSeed)
 		})).sort((a, b) => b.score - a.score || a.tie - b.tie).map(({ video }) => video);
 	}, [
@@ -11993,9 +12681,26 @@ function WatchRoomSection() {
 		history,
 		videos
 	]);
+	const localQueueCandidates = (0, import_react.useMemo)(() => roomCandidates.filter((video) => !video.remote && video.id !== sharedVideoId && !queue.includes(video.id)).slice(0, 18), [
+		queue,
+		roomCandidates,
+		sharedVideoId
+	]);
+	const queueRecommendations = (0, import_react.useMemo)(() => {
+		const alreadyShown = new Set(roomCandidates.slice(0, roomPickLimit).map((video) => video.id));
+		const queued = new Set(queue);
+		const unseen = roomCandidates.filter((video) => video.id !== sharedVideoId && !queued.has(video.id) && !alreadyShown.has(video.id)).sort((a, b) => roomShuffleRank(`${a.id}:queue`, candidateSeed + 17) - roomShuffleRank(`${b.id}:queue`, candidateSeed + 17));
+		return (unseen.length ? unseen : roomCandidates.filter((video) => video.id !== sharedVideoId && !queued.has(video.id))).slice(0, 12);
+	}, [
+		candidateSeed,
+		queue,
+		roomCandidates,
+		roomPickLimit,
+		sharedVideoId
+	]);
 	(0, import_react.useEffect)(() => {
 		const rotate = () => setCandidateSeed(Date.now());
-		const timer = window.setInterval(rotate, 6e4);
+		const timer = window.setInterval(rotate, 3e4);
 		return () => window.clearInterval(timer);
 	}, []);
 	(0, import_react.useEffect)(() => {
@@ -12036,12 +12741,14 @@ function WatchRoomSection() {
 		if (data.type === "room-pulse-ack" && data.sentAt) setPulseStatus(`Direct transport confirmed · ${Math.max(0, Date.now() - data.sentAt)}ms round trip.`);
 		if (data.type === "share-ready" && data.name) setInviteNotice(`${data.name} was requested for local sharing. Choose the same permitted file on this device; room controls will then keep its timeline aligned.`);
 		if (data.type === "sync") {
-			const position = Number(data.position) || 0;
-			const elapsed = data.playing && data.sentAt ? Math.max(0, (Date.now() - data.sentAt) / 1e3) : 0;
+			const nextPosition = (Number(data.position) || 0) + (data.playing && data.sentAt ? Math.max(0, (Date.now() - data.sentAt) / 1e3) : 0);
+			const safePosition = !data.seek && nextPosition + .75 < lastRoomPosition.current ? lastRoomPosition.current : nextPosition;
+			lastRoomPosition.current = safePosition;
+			applyingRemotePlaybackUntil.current = Date.now() + 900;
 			if (data.seek) setRemoteSeekNonce((value) => value + 1);
 			setPlayback({
 				playing: Boolean(data.playing),
-				position: position + elapsed
+				position: safePosition
 			});
 		}
 		if (data.type === "video" && data.videoId) setSharedVideoId(data.videoId);
@@ -12051,13 +12758,16 @@ function WatchRoomSection() {
 			[data.name]: Number(data.position) || 0
 		}));
 		if (data.type === "room-state") {
+			const videoChanged = Boolean(data.videoId && data.videoId !== sharedVideoId);
 			if (data.videoId) setSharedVideoId(data.videoId);
 			if (Array.isArray(data.queue)) setQueue(data.queue);
-			const position = Number(data.position) || 0;
-			const elapsed = data.playing && data.sentAt ? Math.max(0, (Date.now() - data.sentAt) / 1e3) : 0;
+			const nextPosition = (Number(data.position) || 0) + (data.playing && data.sentAt ? Math.max(0, (Date.now() - data.sentAt) / 1e3) : 0);
+			const safePosition = !videoChanged && nextPosition + .75 < lastRoomPosition.current ? lastRoomPosition.current : nextPosition;
+			lastRoomPosition.current = safePosition;
+			applyingRemotePlaybackUntil.current = Date.now() + 900;
 			setPlayback({
 				playing: Boolean(data.playing),
-				position: position + elapsed
+				position: safePosition
 			});
 		}
 		if (data.type === "resync-request" && !joinedAsGuest) {
@@ -12081,15 +12791,20 @@ function WatchRoomSection() {
 		sharedVideoId
 	]);
 	const sync = (next, seek = false) => {
+		if (!seek && Date.now() < applyingRemotePlaybackUntil.current) return;
 		const isYoutube = sharedVideo?.remote?.kind === "youtube";
 		const isTwitch = sharedVideo?.remote?.kind === "twitch";
-		const elapsed = isYoutube && playback.playing && youtubePlaybackStartedAt.current ? Math.max(0, (Date.now() - youtubePlaybackStartedAt.current) / 1e3) : 0;
+		const elapsed = (isYoutube || isTwitch) && playback.playing && youtubePlaybackStartedAt.current ? Math.max(0, (Date.now() - youtubePlaybackStartedAt.current) / 1e3) : 0;
 		const playerPosition = isTwitch ? twitchPlayerRef.current?.getCurrentTime() : void 0;
-		const position = isTwitch && Number.isFinite(playerPosition) && next.position === playback.position ? Number(playerPosition) : !next.playing && playback.playing && next.position === playback.position ? playback.position + elapsed : next.position;
+		const hasTwitchPosition = typeof playerPosition === "number" && Number.isFinite(playerPosition) && playerPosition > .25;
+		const providerFallback = lastRoomPosition.current > .25 && next.position <= .25 && !seek;
+		const providerClock = Math.max(lastRoomPosition.current, playback.position + elapsed);
+		const position = !seek && (isYoutube || isTwitch) && !next.playing ? Math.max(providerClock, next.position) : isTwitch ? hasTwitchPosition ? playerPosition : providerFallback ? providerClock : Math.max(providerClock, next.position) : providerFallback ? providerClock : isYoutube ? Math.max(providerClock, next.position) : next.position;
 		const resolved = {
 			...next,
 			position
 		};
+		lastRoomPosition.current = resolved.position;
 		youtubePlaybackStartedAt.current = resolved.playing ? Date.now() - resolved.position * 1e3 : null;
 		setPlayback(resolved);
 		if (resolved.playing && sharedVideoId && lastRoomHistoryId.current !== sharedVideoId) {
@@ -12104,20 +12819,51 @@ function WatchRoomSection() {
 			sentAt: Date.now()
 		});
 	};
+	(0, import_react.useEffect)(() => {
+		const provider = sharedVideo?.remote?.kind;
+		if (!provider || !playback.playing || !youtubePlaybackStartedAt.current) return;
+		const timer = window.setInterval(() => {
+			const twitchTime = provider === "twitch" ? twitchPlayerRef.current?.getCurrentTime() : void 0;
+			const estimated = (typeof twitchTime === "number" && twitchTime > .25 ? twitchTime : void 0) ?? Math.max(lastRoomPosition.current, (Date.now() - youtubePlaybackStartedAt.current) / 1e3);
+			if (estimated <= lastRoomPosition.current + .2) return;
+			lastRoomPosition.current = estimated;
+			setPlayback((current) => current.playing ? {
+				...current,
+				position: estimated
+			} : current);
+			if (!joinedAsGuest) p2p.send({
+				type: "sync",
+				playing: true,
+				position: estimated,
+				seek: false,
+				sentAt: Date.now()
+			});
+		}, 1e3);
+		return () => window.clearInterval(timer);
+	}, [
+		joinedAsGuest,
+		p2p.send,
+		playback.playing,
+		sharedVideo?.id,
+		sharedVideo?.remote?.kind
+	]);
 	const resync = () => {
 		if (joinedAsGuest) {
 			p2p.send({ type: "resync-request" });
 			setInviteNotice("Requested the host’s current room state.");
 			return;
 		}
-		const position = roomVideoRef.current?.currentTime ?? playback.position;
+		const localPosition = roomVideoRef.current?.currentTime;
+		const twitchPosition = sharedVideo?.remote?.kind === "twitch" ? twitchPlayerRef.current?.getCurrentTime() : void 0;
+		const position = typeof localPosition === "number" && localPosition > .25 ? localPosition : typeof twitchPosition === "number" && twitchPosition > .25 ? twitchPosition : playback.position;
+		const playing = roomVideoRef.current ? !roomVideoRef.current.paused : playback.playing;
 		sync({
-			playing: roomVideoRef.current ? !roomVideoRef.current.paused : playback.playing,
+			playing,
 			position
 		});
 		p2p.send({
 			type: "room-state",
-			playing: roomVideoRef.current ? !roomVideoRef.current.paused : playback.playing,
+			playing,
 			position,
 			videoId: sharedVideoId,
 			queue,
@@ -12200,15 +12946,17 @@ function WatchRoomSection() {
 				}
 			});
 			player.addEventListener(events.PLAY ?? "play", () => {
+				const position = player.getCurrentTime();
 				if (!cancelled && Date.now() > suppressRemotePlayerEchoUntil.current) sync({
 					playing: true,
-					position: player.getCurrentTime() || playback.position
+					position: position > .25 ? position : playback.position
 				});
 			});
 			player.addEventListener(events.PAUSE ?? "pause", () => {
+				const position = player.getCurrentTime();
 				if (!cancelled && Date.now() > suppressRemotePlayerEchoUntil.current) sync({
 					playing: false,
-					position: player.getCurrentTime() || playback.position
+					position: position > .25 ? position : playback.position
 				});
 			});
 			player.addEventListener(events.SEEK ?? "seek", () => {
@@ -12246,11 +12994,15 @@ function WatchRoomSection() {
 	const toggleRoomPlayback = () => {
 		const playing = !playback.playing;
 		const player = twitchPlayerRef.current;
+		if (sharedVideo?.remote?.kind === "twitch" && (!player || !twitchPlayerReady)) {
+			setInviteNotice("Twitch is still preparing its player. Wait for “Twitch player ready,” then press Play.");
+			return;
+		}
 		if (sharedVideo?.remote?.kind === "twitch" && player) {
 			if (playing) {
-				player.setMuted?.(true);
+				player.setMuted?.(false);
 				player.play();
-				setTwitchPlayerStatus("Starting Twitch stream… audio may begin muted by browser policy.");
+				setTwitchPlayerStatus("Starting Twitch from the room control…");
 			} else player.pause();
 		}
 		sync({
@@ -12265,6 +13017,7 @@ function WatchRoomSection() {
 			playing: false,
 			position: 0
 		});
+		lastRoomPosition.current = 0;
 		lastRoomHistoryId.current = "";
 		recordPlay(video.id);
 		p2p.send({
@@ -12299,6 +13052,12 @@ function WatchRoomSection() {
 		const next = videos.find((video) => video.id === nextId);
 		updateQueue(queue.slice(1));
 		if (next) chooseVideo(next);
+	};
+	const playQueuedNow = (id) => {
+		const video = videos.find((item) => item.id === id);
+		if (!video) return;
+		updateQueue(queue.filter((item) => item !== id));
+		chooseVideo(video);
 	};
 	const send = () => {
 		const text = message.trim();
@@ -12733,10 +13492,13 @@ function WatchRoomSection() {
 					}),
 					sharedVideo?.remote?.kind === "youtube" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "mt-2 text-xs text-subtle",
-						children: "YouTube room controls now send shared play, pause, and seek commands. Use the room controls so every guest receives the same command."
+						children: "YouTube room controls retain the last trusted clock on pause, then resume from that same point. Use the room controls so every guest receives the same command."
 					}) : sharedVideo?.remote?.kind === "twitch" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "mt-2 flex flex-wrap items-center gap-2 text-xs text-subtle",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: "Twitch permits the shared embed selection, but its web player does not allow a page to force play on a guest’s behalf. Each guest starts the stream in the embed; the room keeps selection, chat, and queue together." }), sharedVideo.remote.watchUrl && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", {
+							className: "text-fg",
+							children: "Twitch currently needs one manual Play press in each viewer’s embed."
+						}), " Browser media rules prevent Reelcase from forcing a guest stream to start. Selection, queue, chat, and the preserved pause clock still sync through the room controls."] }), sharedVideo.remote.watchUrl && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
 							href: sharedVideo.remote.watchUrl,
 							target: "_blank",
 							rel: "noreferrer",
@@ -12746,11 +13508,28 @@ function WatchRoomSection() {
 					}) : null,
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "mt-3 text-xs text-muted",
-						children: "Recommended from your playable library — favorites and recently watched titles appear first. Local catalog entries without a resolved browser media source stay out to avoid broken room cards."
+						children: "Recommended from your playable library — saved titles get a small lift while unplayed playable videos rotate to the front. Ready local files can be added to the queue below without taking over the stage."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-2 flex flex-wrap gap-2",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+							size: "sm",
+							variant: "ghost",
+							onClick: () => {
+								setCandidateSeed(Date.now());
+								setRoomPickLimit(18);
+							},
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Shuffle, { className: "size-3.5" }), " Mix playable picks"]
+						}), roomCandidates.length > roomPickLimit && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							size: "sm",
+							variant: "ghost",
+							onClick: () => setRoomPickLimit((limit) => Math.min(roomCandidates.length, limit + 18)),
+							children: "Load 18 more playable videos"
+						})]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "mt-3 flex gap-2 overflow-x-auto pb-2",
-						children: roomCandidates.slice(0, 18).map((video) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+						children: roomCandidates.slice(0, roomPickLimit).map((video) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 							type: "button",
 							onClick: () => chooseVideo(video),
 							className: `w-36 shrink-0 overflow-hidden rounded-sm text-left shadow-border ${video.id === sharedVideoId ? "bg-accent text-accent-fg" : "bg-bg/45 text-fg"}`,
@@ -12797,22 +13576,31 @@ function WatchRoomSection() {
 											]
 										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 											className: "flex gap-1",
-											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-												size: "sm",
-												variant: "ghost",
-												disabled: index === 0,
-												onClick: () => {
-													const next = [...queue];
-													[next[index - 1], next[index]] = [next[index], next[index - 1]];
-													updateQueue(next);
-												},
-												children: "↑"
-											}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-												size: "sm",
-												variant: "ghost",
-												onClick: () => updateQueue(queue.filter((item) => item !== id)),
-												children: "Remove"
-											})]
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+													size: "sm",
+													variant: "secondary",
+													onClick: () => playQueuedNow(id),
+													children: "Play now"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+													size: "sm",
+													variant: "ghost",
+													disabled: index === 0,
+													onClick: () => {
+														const next = [...queue];
+														[next[index - 1], next[index]] = [next[index], next[index - 1]];
+														updateQueue(next);
+													},
+													children: "↑"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+													size: "sm",
+													variant: "ghost",
+													onClick: () => updateQueue(queue.filter((item) => item !== id)),
+													children: "Remove"
+												})
+											]
 										})]
 									}, id);
 								})
@@ -12837,6 +13625,56 @@ function WatchRoomSection() {
 										children: ["+ queue · ", video.name]
 									})]
 								}, video.id))
+							}),
+							queueRecommendations.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "mt-4 border-t border-border pt-3",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "flex items-center justify-between gap-3",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "text-xs font-medium text-fg",
+										children: "More queue ideas"
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "text-xs text-muted",
+										children: "Different from the theater picks above"
+									})]
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "mt-2 flex gap-2 overflow-x-auto pb-1",
+									children: queueRecommendations.map((video) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+										className: "inline-flex shrink-0 overflow-hidden rounded-sm shadow-border",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+											size: "sm",
+											variant: "secondary",
+											onClick: () => queueImmediately(video),
+											children: "Play next"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+											size: "sm",
+											variant: "ghost",
+											onClick: () => queueVideo(video),
+											children: ["+ queue · ", video.name]
+										})]
+									}, video.id))
+								})]
+							}),
+							localQueueCandidates.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "mt-4 border-t border-border pt-3",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "flex items-center justify-between gap-3",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "text-xs font-medium text-fg",
+										children: "Ready local files"
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "text-xs text-muted",
+										children: "Add to queue without opening now"
+									})]
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "mt-2 flex gap-2 overflow-x-auto pb-1",
+									children: localQueueCandidates.map((video) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+										size: "sm",
+										variant: "ghost",
+										onClick: () => queueVideo(video),
+										children: ["+ queue · ", video.name]
+									}, video.id))
+								})]
 							})
 						]
 					}),
@@ -13335,11 +14173,35 @@ function shuffleRank(id, seed) {
 	for (let index = 0; index < id.length; index += 1) value = Math.imul(value ^ id.charCodeAt(index), 73244475);
 	return value >>> 0;
 }
+function diversifyCreators(items, limit = 48) {
+	const groups = /* @__PURE__ */ new Map();
+	for (const item of items) {
+		const key = item.remote?.channelName?.trim().toLowerCase() || "local";
+		const group = groups.get(key) ?? [];
+		group.push(item);
+		groups.set(key, group);
+	}
+	const rows = [...groups.values()];
+	const result = [];
+	for (let index = 0; result.length < limit; index += 1) {
+		let added = false;
+		for (const group of rows) {
+			const item = group[index];
+			if (!item) continue;
+			result.push(item);
+			added = true;
+			if (result.length >= limit) break;
+		}
+		if (!added) break;
+	}
+	return result;
+}
 function isExcludedDemoVideo(video) {
 	return Boolean(video.isSample) || /\bblender\b/i.test(`${video.name} ${video.remote?.channelName ?? ""} ${video.tagline ?? ""}`);
 }
 function isOfflineChannelCard(video) {
-	return video.remote?.kind === "twitch" && !video.remote.live && /^offline\b/i.test(video.tagline ?? "");
+	if (video.remote?.kind !== "twitch" || video.remote.live) return false;
+	return /^offline\b/i.test(video.tagline ?? "") || video.extension === "live" || /\/(?:live|channel)$/i.test(video.path ?? "") || /:(?:live|channel)$/i.test(video.id ?? "");
 }
 function isFreshRemoteUpload(video) {
 	const age = Date.now() - video.addedAt;
@@ -13411,6 +14273,17 @@ function LibraryApp() {
 	const publicFolders = folders.filter((f) => f.kind !== "demo" && f.kind !== "youtube" && f.kind !== "twitch" && !f.adult);
 	const adultFolders = folders.filter((f) => f.adult);
 	const tags = useLibrary((s) => s.tags);
+	const historyTopTags = (0, import_react.useMemo)(() => {
+		const counts = /* @__PURE__ */ new Map();
+		for (const entry of history) for (const tag of tags[entry.id] ?? []) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+		return [...counts.entries()].filter(([tag]) => !/^year-|^month-|^type-|^format-|^https$|^youtube$|^twitch$/.test(tag)).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 12);
+	}, [history, tags]);
+	const filteredYoutube = (0, import_react.useMemo)(() => youtubeTagFilter === "all" ? newestYoutube : newestYoutube.filter((video) => (tags[video.id] ?? []).includes(youtubeTagFilter)), [
+		newestYoutube,
+		tags,
+		youtubeTagFilter
+	]);
+	const trendingYoutube = (0, import_react.useMemo)(() => diversifyCreators([...filteredYoutube].sort((a, b) => (b.remote?.views ?? 0) - (a.remote?.views ?? 0) || b.addedAt - a.addedAt)), [filteredYoutube]);
 	const categories = useLibrary((s) => s.categories);
 	const catalogVideos = useLibrary((s) => s.videos);
 	const favorites = useLibrary((s) => s.favorites);
@@ -13466,11 +14339,52 @@ function LibraryApp() {
 		tags,
 		videos
 	]);
+	const tasteAverages = (0, import_react.useMemo)(() => {
+		const tagsByScore = /* @__PURE__ */ new Map();
+		const creatorsByScore = /* @__PURE__ */ new Map();
+		for (const video of videos) {
+			const signal = getRating(video.id) || (favorites[video.id] ? 4 : 0) || (likes[video.id] ? 3 : 0);
+			if (!signal) continue;
+			for (const tag of tags[video.id] ?? []) {
+				const row = tagsByScore.get(tag) ?? {
+					total: 0,
+					count: 0
+				};
+				row.total += signal;
+				row.count += 1;
+				tagsByScore.set(tag, row);
+			}
+			const creator = video.remote?.channelName?.trim().toLowerCase();
+			if (creator) {
+				const row = creatorsByScore.get(creator) ?? {
+					total: 0,
+					count: 0
+				};
+				row.total += signal;
+				row.count += 1;
+				creatorsByScore.set(creator, row);
+			}
+		}
+		return {
+			tag: new Map([...tagsByScore].map(([key, row]) => [key, row.total / row.count])),
+			creator: new Map([...creatorsByScore].map(([key, row]) => [key, row.total / row.count]))
+		};
+	}, [
+		favorites,
+		likes,
+		ratingRevision,
+		tags,
+		videos
+	]);
 	const personalizedPicks = (0, import_react.useMemo)(() => {
 		const watched = new Set(history.map((entry) => entry.id));
 		const preferredTags = new Set(videos.filter((video) => favorites[video.id] || likes[video.id] || getRating(video.id) >= 4).flatMap((video) => tags[video.id] ?? []));
 		return [...videos].filter((video) => !video.isSample && !watched.has(video.id)).sort((a, b) => {
-			const score = (video) => getRating(video.id) * 18 + getCreatorRating(video.remote?.channelName ?? "") * 10 + (creatorIsLiked(video.remote?.channelName ?? "") ? 9 : 0) + (favorites[video.id] ? 6 : 0) + (likes[video.id] ? 4 : 0) + (tags[video.id] ?? []).filter((tag) => preferredTags.has(tag)).length * 2 + (video.remote?.live ? 1 : 0);
+			const score = (video) => {
+				const creatorAverage = tasteAverages.creator.get(video.remote?.channelName?.trim().toLowerCase() ?? "") ?? 0;
+				const tagAverage = (tags[video.id] ?? []).reduce((total, tag) => total + (tasteAverages.tag.get(tag) ?? 0), 0);
+				return getRating(video.id) * 18 + getCreatorRating(video.remote?.channelName ?? "") * 10 + creatorAverage * 5 + tagAverage * 2 + (creatorIsLiked(video.remote?.channelName ?? "") ? 9 : 0) + (favorites[video.id] ? 6 : 0) + (likes[video.id] ? 4 : 0) + (tags[video.id] ?? []).filter((tag) => preferredTags.has(tag)).length * 2 + (video.remote?.live ? 1 : 0);
+			};
 			const rank = (video) => score(video) * .45 + shuffleRank(`${video.id}:${homePickShuffle}`, homePickShuffle) / 4294967295;
 			return rank(b) - rank(a);
 		});
@@ -13481,6 +14395,7 @@ function LibraryApp() {
 		likes,
 		ratingRevision,
 		tags,
+		tasteAverages,
 		videos
 	]);
 	const freshPicks = (0, import_react.useMemo)(() => {
@@ -13491,13 +14406,24 @@ function LibraryApp() {
 			rank: shuffleRank(`${video.id}:${seed}`, seed)
 		})).sort((a, b) => a.views - b.views || a.rank - b.rank).slice(0, 48).map(({ video }) => video);
 	}, [videos, viewCounts]);
-	const homeLocalRecent = (0, import_react.useMemo)(() => videos.filter((video) => !video.remote && !video.isSample).sort((a, b) => b.addedAt - a.addedAt).slice(0, 48), [videos]);
+	const homeLocalRecent = (0, import_react.useMemo)(() => videos.filter((video) => !video.remote && !video.isSample).map((video) => ({
+		video,
+		ageBucket: Math.floor(Math.max(0, Date.now() - video.addedAt) / 6048e5),
+		rank: shuffleRank(`${video.id}:recent`, homePickShuffle)
+	})).sort((a, b) => a.ageBucket - b.ageBucket || a.rank - b.rank).slice(0, 48).map(({ video }) => video), [homePickShuffle, videos]);
 	const homeLatestChannels = (0, import_react.useMemo)(() => [...youtubeVideos, ...twitchVideos].filter((video) => !video.remote?.live && !video.isSample && !isOfflineChannelCard(video)).sort((a, b) => b.addedAt - a.addedAt).slice(0, 48), [twitchVideos, youtubeVideos]);
-	const sortedTwitch = (0, import_react.useMemo)(() => [...twitchVideos].sort((a, b) => {
-		if (twitchSort === "viewers") return (b.remote?.viewers ?? 0) - (a.remote?.viewers ?? 0) || a.name.localeCompare(b.name);
-		if (twitchSort === "name") return a.name.localeCompare(b.name);
-		return Number(Boolean(b.remote?.live)) - Number(Boolean(a.remote?.live)) || (b.remote?.viewers ?? 0) - (a.remote?.viewers ?? 0) || b.addedAt - a.addedAt;
-	}), [twitchSort, twitchVideos]);
+	const sortedTwitch = (0, import_react.useMemo)(() => {
+		if (sourceId !== "twitch") return [];
+		return [...twitchVideos].filter((video) => !isOfflineChannelCard(video)).sort((a, b) => {
+			if (twitchSort === "viewers") return (b.remote?.viewers ?? 0) - (a.remote?.viewers ?? 0) || a.name.localeCompare(b.name);
+			if (twitchSort === "name") return a.name.localeCompare(b.name);
+			return Number(Boolean(b.remote?.live)) - Number(Boolean(a.remote?.live)) || (b.remote?.viewers ?? 0) - (a.remote?.viewers ?? 0) || b.addedAt - a.addedAt;
+		});
+	}, [
+		sourceId,
+		twitchSort,
+		twitchVideos
+	]);
 	const twitchVodPicks = (0, import_react.useMemo)(() => {
 		if (sourceId !== "twitch") return [];
 		const popularity = (video) => (video.remote?.viewers ?? 0) + getRating(video.id) * 40 + (favorites[video.id] ? 28 : 0) + (likes[video.id] ? 16 : 0) + (viewCounts[video.id] ?? 0) * 5 + (tags[video.id] ?? []).filter((tag) => highlyRatedTags.has(tag)).length * 8;
@@ -13553,7 +14479,11 @@ function LibraryApp() {
 		const likedChannels = new Set(youtubeVideos.filter((video) => favorites[video.id] || likes[video.id]).map((video) => video.remote?.channelName).filter(Boolean));
 		const favoriteTags = new Set(youtubeVideos.filter((video) => getRating(video.id) >= 4).flatMap((video) => tags[video.id] ?? []));
 		return [...youtubeVideos].sort((a, b) => {
-			const score = (video) => getRating(video.id) * 12 + getCreatorRating(video.remote?.channelName ?? "") * 8 + (creatorIsLiked(video.remote?.channelName ?? "") ? 7 : 0) + (likedChannels.has(video.remote?.channelName) ? 5 : 0) + (tags[video.id] ?? []).filter((tag) => favoriteTags.has(tag)).length * 3;
+			const score = (video) => {
+				const creatorAverage = tasteAverages.creator.get(video.remote?.channelName?.trim().toLowerCase() ?? "") ?? 0;
+				const tagAverage = (tags[video.id] ?? []).reduce((total, tag) => total + (tasteAverages.tag.get(tag) ?? 0), 0);
+				return getRating(video.id) * 12 + getCreatorRating(video.remote?.channelName ?? "") * 8 + creatorAverage * 4 + tagAverage * 2 + (creatorIsLiked(video.remote?.channelName ?? "") ? 7 : 0) + (likedChannels.has(video.remote?.channelName) ? 5 : 0) + (tags[video.id] ?? []).filter((tag) => favoriteTags.has(tag)).length * 3;
+			};
 			return score(b) - score(a) || b.addedAt - a.addedAt || shuffleRank(`${a.id}:${homePickShuffle}`, homePickShuffle) - shuffleRank(`${b.id}:${homePickShuffle}`, homePickShuffle);
 		});
 	}, [
@@ -13563,6 +14493,7 @@ function LibraryApp() {
 		ratingRevision,
 		sourceId,
 		tags,
+		tasteAverages,
 		youtubeVideos
 	]);
 	const youtubeDiscovery = (0, import_react.useMemo)(() => {
@@ -13595,7 +14526,7 @@ function LibraryApp() {
 				return taste(b[1]) - taste(a[1]) || b[1].length - a[1].length || a[0].localeCompare(b[0]);
 			}).slice(0, 20).map(([tag, videos]) => ({
 				tag,
-				videos
+				videos: diversifyCreators(videos)
 			}));
 		};
 		return {
@@ -13616,7 +14547,7 @@ function LibraryApp() {
 		if (sourceId === "home") setHomePickShuffle(Date.now());
 	}, [sourceId]);
 	(0, import_react.useEffect)(() => {
-		const refreshRatedShelves = () => setRatingRevision((value) => value + 1);
+		const refreshRatedShelves = () => (0, import_react.startTransition)(() => setRatingRevision((value) => value + 1));
 		window.addEventListener("reelcase:rating-change", refreshRatedShelves);
 		return () => window.removeEventListener("reelcase:rating-change", refreshRatedShelves);
 	}, []);
@@ -13782,16 +14713,16 @@ function LibraryApp() {
 	const playlist = videos.map((v) => v.id);
 	const playedAt = (0, import_react.useMemo)(() => {
 		const map = {};
-		for (const h of history) map[h.id] = h.at;
+		for (const h of history) if (map[h.id] == null) map[h.id] = h.at;
 		return map;
 	}, [history]);
 	const historyFilteredVideos = (0, import_react.useMemo)(() => {
 		const cutoff = historyWindow === "day" ? Date.now() - 864e5 : historyWindow === "week" ? Date.now() - 6048e5 : 0;
-		return historyWindow === "all" ? videos : videos.filter((video) => (playedAt[video.id] ?? 0) >= cutoff);
+		return historyWindow === "all" ? historyVideos : historyVideos.filter((video) => (playedAt[video.id] ?? 0) >= cutoff);
 	}, [
+		historyVideos,
 		historyWindow,
-		playedAt,
-		videos
+		playedAt
 	]);
 	const browsing = !query && (sourceId === "home" || sourceId === "movies" || sourceId === "adults" || sourceId === "youtube" || sourceId === "twitch" || sourceId === "live");
 	const lockedAdults = sourceId === "adults" && !adultsUnlocked;
@@ -13989,7 +14920,9 @@ function LibraryApp() {
 											follows.filter((channel) => channel.kind === "youtube").length,
 											" channel",
 											follows.filter((channel) => channel.kind === "youtube").length === 1 ? "" : "s",
-											" tracked locally."
+											" tracked locally · ",
+											youtubeVideos.length.toLocaleString(),
+											" cached videos."
 										]
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
@@ -14008,29 +14941,34 @@ function LibraryApp() {
 											children: "Refresh now"
 										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 											className: "self-center text-xs text-muted",
-											children: "Saved channels retry in rotating background batches."
+											children: "Saved channels retry in rotating background batches; each result adds to this cached count."
 										})]
 									})
 								]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
 								title: "Latest uploads",
-								videos: newestYoutube,
+								videos: filteredYoutube,
+								variant: "rail"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: "Trending in your tracked channels",
+								videos: trendingYoutube,
 								variant: "rail"
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
 								title: "New to you on YouTube",
-								videos: freshPicks.filter((video) => video.remote?.kind === "youtube"),
+								videos: freshPicks.filter((video) => video.remote?.kind === "youtube" && (youtubeTagFilter === "all" || (tags[video.id] ?? []).includes(youtubeTagFilter))),
 								variant: "rail"
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
 								title: "More from your rated YouTube",
-								videos: relatedYoutube,
+								videos: relatedYoutube.filter((video) => youtubeTagFilter === "all" || (tags[video.id] ?? []).includes(youtubeTagFilter)),
 								variant: "rail"
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
 								title: "Quick picks",
-								videos: newestYoutube.filter((video) => (video.duration ?? 0) > 0 && (video.duration ?? 0) < 1200),
+								videos: filteredYoutube.filter((video) => (video.duration ?? 0) > 0 && (video.duration ?? 0) < 1200),
 								variant: "rail"
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -14051,6 +14989,16 @@ function LibraryApp() {
 										shelf.videos.length
 									]
 								}, shelf.tag))]
+							}),
+							youtubeTagFilter !== "all" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+								className: "-mt-2 mb-5 text-xs text-accent",
+								children: [
+									"Filtering every YouTube shelf and the full catalog by #",
+									youtubeTagFilter,
+									" · ",
+									filteredYoutube.length.toLocaleString(),
+									" matching videos."
+								]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 								className: "mb-6 rounded-xl border border-border bg-surface p-5",
@@ -14108,7 +15056,7 @@ function LibraryApp() {
 								videos: shelf.videos,
 								variant: "rail"
 							}, `youtube-tag-${shelf.tag}`)),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PosterGrid, { videos: youtubeTagFilter === "all" ? newestYoutube : newestYoutube.filter((video) => (tags[video.id] ?? []).includes(youtubeTagFilter)) }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PosterGrid, { videos: filteredYoutube }),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ConnectPanel, {
 								defaultKind: "youtube",
 								lockedKind: "youtube"
@@ -14320,7 +15268,7 @@ function LibraryApp() {
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
 								title: "From your source folders",
-								videos: [...movieCatalog].sort((a, b) => Number(Boolean(favorites[b.id])) - Number(Boolean(favorites[a.id])) || b.addedAt - a.addedAt),
+								videos: randomSourceMovies,
 								variant: "poster"
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
@@ -14562,6 +15510,29 @@ function LibraryApp() {
 								})
 							]
 						}),
+						sourceId === "favorites" && !query && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "mb-6 rounded-lg bg-elevated p-4 shadow-border",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-sm font-medium text-fg",
+									children: "Photo favorites stay with the photo library"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-1 text-xs text-muted",
+									children: "Open your saved photos in their optimized viewer without mixing large image assets into this video grid."
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+									size: "sm",
+									variant: "secondary",
+									className: "mt-3",
+									onClick: () => {
+										localStorage.setItem("reelcase.photos.favorites-only", "true");
+										setSource("photos");
+									},
+									children: "Open photo favorites"
+								})
+							]
+						}),
 						sourceId === "favorites" && !query && favoriteVideos.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
 								title: "Continue your favorites",
@@ -14596,7 +15567,10 @@ function LibraryApp() {
 								children: "Everything in My List"
 							})
 						] }),
-						sourceId === "favorites" && !query ? favoriteVideos.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PosterGrid, { videos: favoriteVideos }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						sourceId === "favorites" && !query ? favoriteVideos.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "w-full min-w-0",
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PosterGrid, { videos: favoriteVideos })
+						}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "rounded-xl bg-surface px-6 py-16 text-center shadow-border",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 								className: "font-display text-2xl text-fg",
@@ -14614,7 +15588,7 @@ function LibraryApp() {
 									children: query ? "Search" : heading
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 									className: "mt-2 text-sm text-muted",
-									children: sourceId === "history" ? `${history.length} watched title${history.length === 1 ? "" : "s"} · ${historyLastDay} in the last 24 hours · newest first` : scanning ? `Scanning ${scanning.folderName} · ${scanning.found} found` : `${videos.length} video${videos.length === 1 ? "" : "s"}`
+									children: sourceId === "history" ? `${history.length} saved watch event${history.length === 1 ? "" : "s"} · ${historyLastDay} in the last 24 hours · no maximum · newest first` : scanning ? `Scanning ${scanning.folderName} · ${scanning.found} found` : `${videos.length} video${videos.length === 1 ? "" : "s"}`
 								})] }), sourceId === "history" && history.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 									className: "flex flex-wrap gap-2",
 									children: [
@@ -14643,6 +15617,24 @@ function LibraryApp() {
 											children: "Clear history"
 										})
 									]
+								})]
+							}),
+							sourceId === "history" && historyTopTags.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "mb-5 rounded-lg bg-elevated px-4 py-3 shadow-border",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+									children: "Top tags in your history"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "mt-2 flex flex-wrap gap-2",
+									children: historyTopTags.map(([tag, count]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+										className: "rounded-full border border-border px-2.5 py-1 text-xs text-muted",
+										children: [
+											"#",
+											tag,
+											" · ",
+											count
+										]
+									}, tag))
 								})]
 							}),
 							folders.find((folder) => folder.id === sourceId)?.photoCount ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {

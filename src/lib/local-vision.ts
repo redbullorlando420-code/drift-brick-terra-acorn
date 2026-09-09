@@ -13,15 +13,26 @@ export async function classifyImagesLocally(urls: string[], onProgress?: VisionP
     "onnx-community/mobilenetv4_conv_small.e2400_r224_in1k",
     { device: typeof navigator !== "undefined" && "gpu" in navigator ? "webgpu" : "wasm" },
   ) as unknown as (url: string, options: { topk: number }) => Promise<Result[]>;
-  const results: string[][] = [];
-  for (let index = 0; index < urls.length; index += 1) {
-    const labels = await classifier(urls[index], { topk: 3 });
-    results.push([...new Set(labels
-      .filter((item) => item.score >= 0.08)
-      .map((item) => item.label.toLowerCase().split(",")[0].replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""))
-      .filter((label) => label.length >= 3)
-      .slice(0, 3))]);
-    onProgress?.(index + 1, urls.length);
-  }
+  // A small bounded pool takes advantage of WebGPU/WASM workers without
+  // flooding memory with decoded image tensors.  Five candidates gives the
+  // tag review desk more useful coverage than the old three-label pass.
+  const results: string[][] = Array.from({ length: urls.length }, () => [] as string[]);
+  let cursor = 0;
+  let completed = 0;
+  const workers = Array.from({ length: Math.min(3, urls.length) }, async () => {
+    while (true) {
+      const index = cursor++;
+      if (index >= urls.length) return;
+      const labels = await classifier(urls[index], { topk: 5 });
+      results[index] = [...new Set(labels
+        .filter((item) => item.score >= 0.045)
+        .map((item) => item.label.toLowerCase().split(",")[0].replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""))
+        .filter((label) => label.length >= 3)
+        .slice(0, 5))];
+      completed += 1;
+      onProgress?.(completed, urls.length);
+    }
+  });
+  await Promise.all(workers);
   return results;
 }

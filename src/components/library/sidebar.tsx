@@ -97,6 +97,10 @@ export function SidebarNav({
 
   const go = (id: SourceId) => {
     setSource(id);
+    // Hub pages such as Find My Phone can be much shorter than a media shelf.
+    // Reset the document position so selecting one never leaves the user at a
+    // blank lower scroll position from the page they just left.
+    window.scrollTo({ top: 0, behavior: "smooth" });
     onNavigate?.();
   };
 

@@ -1,5 +1,5 @@
 import { n as TSS_SERVER_FUNCTION, t as createServerFn } from "./ssr.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/api-D8uPyqB6.js
+//#region node_modules/.nitro/vite/services/ssr/assets/api-Cr8KMw-4.js
 var createServerRpc = (serverFnMeta, splitImportFn) => {
 	const url = "/_serverFn/" + serverFnMeta.id;
 	return Object.assign(splitImportFn, {
@@ -98,6 +98,7 @@ function ytVideo(entry) {
 		extension: "yt",
 		mime: "video/youtube",
 		size: 0,
+		duration: entry.duration,
 		addedAt: published,
 		tagline: entry.desc.slice(0, 180),
 		description: entry.desc.slice(0, 4e3),
@@ -109,11 +110,72 @@ function ytVideo(entry) {
 			channelId: entry.channelId,
 			channelName: entry.channelName,
 			live: entry.live,
+			views: entry.views,
 			embedUrl: `https://www.youtube.com/embed/${entry.id}`,
 			watchUrl: `https://www.youtube.com/watch?v=${entry.id}`,
 			previewUrl: `https://i.ytimg.com/an_webp/${entry.id}/mqdefault_6s.webp`
 		}
 	};
+}
+function rendererText(value) {
+	return value?.simpleText ?? value?.runs?.map((run) => run.text ?? "").join("") ?? "";
+}
+function parsePublicViewCount(text) {
+	const match = text.replace(/,/g, "").match(/([\d.]+)\s*([KMB])?\s+(?:views|watching)/i);
+	if (!match) return void 0;
+	const value = Number(match[1]);
+	const multiplier = match[2]?.toUpperCase() === "B" ? 1e9 : match[2]?.toUpperCase() === "M" ? 1e6 : match[2]?.toUpperCase() === "K" ? 1e3 : 1;
+	return Number.isFinite(value) ? Math.round(value * multiplier) : void 0;
+}
+function channelPageRenderers(html) {
+	const match = html.match(/var ytInitialData\s*=\s*({[\s\S]*?});<\/script>/);
+	if (!match?.[1]) return [];
+	try {
+		const root = JSON.parse(match[1]);
+		const found = [];
+		const stack = [root];
+		while (stack.length && found.length < 240) {
+			const current = stack.pop();
+			if (!current || typeof current !== "object") continue;
+			if (Array.isArray(current)) {
+				stack.push(...current);
+				continue;
+			}
+			const record = current;
+			const renderer = record.videoRenderer;
+			if (renderer?.videoId) found.push(renderer);
+			for (const value of Object.values(record)) if (value && typeof value === "object") stack.push(value);
+		}
+		return found;
+	} catch {
+		return [];
+	}
+}
+async function youtubeChannelBackfill(channelId, channelName, knownIds, limit) {
+	try {
+		const html = await fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}/videos`);
+		const seen = new Set(knownIds);
+		const videos = [];
+		for (const renderer of channelPageRenderers(html)) {
+			const id = renderer.videoId;
+			if (!id || seen.has(id)) continue;
+			seen.add(id);
+			videos.push(ytVideo({
+				id,
+				title: rendererText(renderer.title) || `${channelName} video`,
+				published: "1970-01-01T00:00:00.000Z",
+				thumb: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+				desc: `${channelName} public channel catalog item.`,
+				channelId,
+				channelName,
+				views: parsePublicViewCount(rendererText(renderer.viewCountText))
+			}));
+			if (videos.length >= limit) break;
+		}
+		return videos;
+	} catch {
+		return [];
+	}
 }
 async function youtubeFromVideo(id) {
 	const oembed = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${id}`)}&format=json`, { signal: AbortSignal.timeout(12e3) });
@@ -152,9 +214,13 @@ async function youtubeFromVideo(id) {
 var YT_INBOX = "youtube:inbox";
 async function youtubeLiveFromChannel(channelId, channelName) {
 	try {
-		const match = (await fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}/live`)).match(/"videoId":"([A-Za-z0-9_-]{11})"[\s\S]{0,2400}?"isLiveContent":true/);
+		const html = await fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}/live`);
+		const match = html.match(/"videoId":"([A-Za-z0-9_-]{11})"[\s\S]{0,3200}?"isLiveNow":true/) ?? html.match(/"isLiveNow":true[\s\S]{0,3200}?"videoId":"([A-Za-z0-9_-]{11})"/);
 		if (!match?.[1]) return null;
 		const id = match[1];
+		const windowStart = Math.max(0, (match.index ?? 0) - 1200);
+		const liveWindow = html.slice(windowStart, (match.index ?? 0) + 4e3);
+		const watchingText = liveWindow.match(/"viewCountText":\{"simpleText":"([^"]+)"/)?.[1] ?? liveWindow.match(/"viewCountText":\{"runs":\[\{"text":"([^"]+)"/)?.[1] ?? "";
 		const video = ytVideo({
 			id,
 			title: `${channelName} live`,
@@ -163,15 +229,17 @@ async function youtubeLiveFromChannel(channelId, channelName) {
 			desc: `${channelName} is live on YouTube.`,
 			channelId,
 			channelName,
-			live: true
+			live: true,
+			views: parsePublicViewCount(watchingText)
 		});
+		if (video.remote) video.remote.viewers = video.remote.views;
 		video.tagline = `${channelName} is live now`;
 		return video;
 	} catch {
 		return null;
 	}
 }
-async function youtubeFromChannel(query, limit = 48) {
+async function youtubeFromChannel(query, limit = 180) {
 	let channelId = "";
 	const trimmed = query.trim();
 	if (/^UC[\w-]{20,}$/.test(trimmed)) channelId = trimmed;
@@ -182,7 +250,7 @@ async function youtubeFromChannel(query, limit = 48) {
 		channelId = ytChannelIdFromText(await fetchText(`https://www.youtube.com/@${encodeURIComponent(handle)}`)) ?? "";
 		if (!channelId) throw new Error("Could not find that YouTube channel.");
 	}
-	const xml = await fetchText(`https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`);
+	const [xml, channelPage] = await Promise.all([fetchText(`https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`), fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}/videos`).catch(() => "")]);
 	const title = tag(xml, "title") || "YouTube";
 	const author = tag(xml, "name") || title;
 	const videos = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)].slice(0, limit).map((m) => {
@@ -196,9 +264,34 @@ async function youtubeFromChannel(query, limit = 48) {
 			thumb,
 			desc: tag(block, "media:description"),
 			channelId,
-			channelName: author
+			channelName: author,
+			duration: Number(block.match(/<yt:duration[^>]*seconds="(\d+)"/)?.[1]) || void 0,
+			views: Number(block.match(/<media:statistics[^>]*views="(\d+)"/)?.[1]) || void 0
 		});
 	});
+	const feedIds = new Set(videos.map((video) => video.remote?.videoId).filter((id) => Boolean(id)));
+	const backfill = channelPage ? await (async () => {
+		const seen = new Set(feedIds);
+		const rows = [];
+		for (const renderer of channelPageRenderers(channelPage)) {
+			const id = renderer.videoId;
+			if (!id || seen.has(id)) continue;
+			seen.add(id);
+			rows.push(ytVideo({
+				id,
+				title: rendererText(renderer.title) || `${author} video`,
+				published: "1970-01-01T00:00:00.000Z",
+				thumb: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+				desc: `${author} public channel catalog item.`,
+				channelId,
+				channelName: author,
+				views: parsePublicViewCount(rendererText(renderer.viewCountText))
+			}));
+			if (rows.length >= Math.max(0, limit - videos.length)) break;
+		}
+		return rows;
+	})() : await youtubeChannelBackfill(channelId, author, feedIds, Math.max(0, limit - videos.length));
+	videos.push(...backfill);
 	const live = await youtubeLiveFromChannel(channelId, author);
 	if (live && !videos.some((video) => video.id === live.id)) videos.unshift(live);
 	return {
@@ -229,14 +322,14 @@ async function twitchUser(login) {
 			"content-type": "application/json"
 		},
 		body: JSON.stringify({
-			query: `query($login:String!){user(login:$login){id displayName profileImageURL(width:70) stream{title viewersCount previewImageURL(width:640,height:360) game{name}} videos(first:40,type:ARCHIVE){edges{node{id title lengthSeconds publishedAt previewThumbnailURL(width:640,height:360)}}}}}`,
+			query: `query($login:String!){user(login:$login){id displayName profileImageURL(width:70) stream{title viewersCount previewImageURL(width:640,height:360) game{name}} videos(first:80,type:ARCHIVE){edges{node{id title description lengthSeconds publishedAt previewThumbnailURL(width:640,height:360)}}}}}`,
 			variables: { login }
 		})
 	});
 	if (!res.ok) return null;
 	return (await res.json()).data?.user ?? null;
 }
-function twitchVideos(login, user, vodLimit = 18) {
+function twitchVideos(login, user, vodLimit = 36) {
 	const title = user.displayName ?? login;
 	const folderId = `tw:${login}`;
 	const out = [];
@@ -275,6 +368,8 @@ function twitchVideos(login, user, vodLimit = 18) {
 			duration: node.lengthSeconds,
 			addedAt: Date.parse(node.publishedAt ?? "") || Date.now(),
 			poster: node.previewThumbnailURL,
+			tagline: node.description?.slice(0, 180),
+			description: node.description?.slice(0, 4e3),
 			remote: {
 				kind: "twitch",
 				videoId: node.id,
@@ -321,7 +416,7 @@ async function followTwitch(query, compact = false) {
 			thumb: user?.profileImageURL,
 			live: Boolean(user?.stream)
 		},
-		videos: twitchVideos(login, user, compact ? 6 : 24)
+		videos: twitchVideos(login, user, compact ? 12 : 48)
 	};
 }
 var followRemote_createServerFn_handler = createServerRpc({
@@ -344,7 +439,7 @@ var refreshRemotes = createServerFn({ method: "POST" }).validator((data) => pars
 	const videos = [];
 	const channels = [];
 	const refreshedIds = [];
-	await mapPool(data.channels, 4, async (ch) => {
+	await mapPool(data.channels, 6, async (ch) => {
 		try {
 			if (ch.kind === "twitch") {
 				const next = await followTwitch(ch.handle);
@@ -419,10 +514,10 @@ var importChannels_createServerFn_handler = createServerRpc({
 }, (opts) => importChannels.__executeServer(opts));
 var importChannels = createServerFn({ method: "POST" }).validator((data) => parseImport(data)).handler(importChannels_createServerFn_handler, async ({ data }) => {
 	const compact = data.items.length > 1;
-	const rows = await mapPool(data.items, 4, async (item) => {
+	const rows = await mapPool(data.items, 6, async (item) => {
 		for (let attempt = 0; attempt < 2; attempt += 1) try {
 			if (item.kind === "twitch") return await followTwitch(item.query, compact);
-			return await youtubeFromChannel(item.query, compact ? 8 : 48);
+			return await youtubeFromChannel(item.query, compact ? 96 : 180);
 		} catch {
 			if (!attempt) await new Promise((resolve) => setTimeout(resolve, 350));
 		}

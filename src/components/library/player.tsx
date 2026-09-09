@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import {
   ChevronLeft,
   Cpu,
@@ -61,6 +61,10 @@ function youtubeEmbed(base: string) {
   url.searchParams.set("rel", "0");
   url.searchParams.set("modestbranding", "1");
   url.searchParams.set("playsinline", "1");
+  // Ask for YouTube's standard control bar. Its controls remain inside the
+  // provider iframe, but this prevents the compact top-overlay variant where
+  // the browser has enough room for the normal bottom transport row.
+  url.searchParams.set("controls", "1");
   if (typeof window !== "undefined") {
     url.searchParams.set("origin", window.location.origin);
   }
@@ -98,8 +102,12 @@ export function Player({ playlist }: { playlist: string[] }) {
   const [playing, setPlaying] = useState(false);
   const [current, setCurrent] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(1);
-  const [muted, setMuted] = useState(false);
+  const [volume, setVolume] = useState(() => {
+    try { const saved = Number(localStorage.getItem("reelcase.player-volume") ?? "85"); return [25, 50, 70, 85, 100].includes(saved) ? saved / 100 : 0.85; } catch { return 0.85; }
+  });
+  const [muted, setMuted] = useState(() => {
+    try { return localStorage.getItem("reelcase.player-start-muted") === "true"; } catch { return false; }
+  });
   const [speed, setSpeed] = useState(1);
   const [chrome, setChrome] = useState(true);
   const [fs, setFs] = useState(false);
@@ -792,7 +800,7 @@ function MetadataEditor({
               type="button"
               onClick={() => {
                 setRating(value);
-                saveRating(videoId, value);
+                startTransition(() => saveRating(videoId, value));
               }}
               className={cn(
                 "flex size-8 items-center justify-center rounded-sm text-sm shadow-border",

@@ -16,11 +16,18 @@ type ThumbState = {
 const inflight = new Set<string>();
 let active = 0;
 const waiting: Array<() => void> = [];
-const MAX = 2;
 const MAX_MEMORY_THUMBS = 360;
 
+function maxThumbnailWorkers() {
+  const adaptive = Math.min(4, Math.max(2, Math.floor(((typeof navigator !== "undefined" ? navigator.hardwareConcurrency : 4) || 4) / 2)));
+  try {
+    const saved = Number(localStorage.getItem("reelcase.thumbnail-workers") ?? "0");
+    return [2, 3, 4].includes(saved) ? saved : adaptive;
+  } catch { return adaptive; }
+}
+
 async function acquire() {
-  if (active < MAX) {
+  if (active < maxThumbnailWorkers()) {
     active += 1;
     return;
   }
@@ -51,7 +58,7 @@ function capture(src: string): Promise<{ thumb: string | null; duration?: number
       video.load();
       resolve({ thumb, duration });
     };
-    const timer = window.setTimeout(() => finish(null), 9000);
+    const timer = window.setTimeout(() => finish(null), 6000);
     video.addEventListener("loadedmetadata", () => {
       const duration = Number.isFinite(video.duration) ? video.duration : undefined;
       const t =

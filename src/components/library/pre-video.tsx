@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ExternalLink, Glasses, Heart, Play, Star, Tag, ThumbsUp, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +26,9 @@ export function PreVideo() {
   const setVideoTags = useLibrary((s) => s.setVideoTags);
   const setVideoCategory = useLibrary((s) => s.setVideoCategory);
   const toggleFavorite = useLibrary((s) => s.toggleFavorite);
+  const recordPlay = useLibrary((s) => s.recordPlay);
   const toggleLike = useLibrary((s) => s.toggleLike);
+  const followRemoteQuery = useLibrary((s) => s.followRemoteQuery);
   const favorite = useLibrary((s) => (previewId ? Boolean(s.favorites[previewId]) : false));
   const liked = useLibrary((s) => (previewId ? Boolean(s.likes[previewId]) : false));
   const tags = useLibrary((s) => (previewId ? (s.tags[previewId] ?? EMPTY_TAGS) : EMPTY_TAGS));
@@ -37,18 +39,28 @@ export function PreVideo() {
   const [vrAvailable, setVrAvailable] = useState(false);
   const [rating, setRating] = useState(0);
   const [creatorRevision, setCreatorRevision] = useState(0);
+  const [creatorLoading, setCreatorLoading] = useState(false);
   const [tagRevision, setTagRevision] = useState(0);
   const [recommendationSeed, setRecommendationSeed] = useState(() => Date.now() >>> 0);
   const [localPreviewSrc, setLocalPreviewSrc] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState("");
+  const [shelfReady, setShelfReady] = useState(false);
   const markUnavailable = useLibrary((s) => s.markUnavailable);
   const video = videos.find((item) => item.id === previewId);
   const creator = video?.remote?.channelName?.trim() ?? "";
   const creatorKeyword = creator.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  const visibleTags = creatorKeyword && !tags.includes(`creator-${creatorKeyword}`) ? [`creator-${creatorKeyword}`, ...tags] : tags;
+  const visibleTags = (creatorKeyword && !tags.includes(creatorKeyword) ? [creatorKeyword, ...tags] : tags).map((tag) => tag.replace(/^(?:keyword-|creator-)/i, ""));
   const creatorRating = creator ? getCreatorRating(creator) : 0;
   const creatorLiked = creator ? creatorIsLiked(creator) : false;
   useEffect(() => { if (!previewId) return; setRating(getRating(previewId)); }, [previewId]);
+  useEffect(() => {
+    // Render the player and controls first. Large related shelves score the
+    // catalog after the overlay is already interactive instead of delaying a
+    // YouTube or Twitch click.
+    setShelfReady(false);
+    const timer = window.setTimeout(() => setShelfReady(true), 140);
+    return () => window.clearTimeout(timer);
+  }, [previewId]);
   useEffect(() => {
     // Rotate tie-breaks while a preview stays open. The taste signals remain
     // dominant, but a shelf does not become a permanently fixed six titles.
@@ -76,7 +88,7 @@ export function PreVideo() {
         .catch(() => setVrAvailable(false));
   }, []);
   const related = useMemo(() => {
-    if (!video) return [];
+    if (!video || !shelfReady) return [];
     const sourceTags = new Set(tags);
     const creatorName = video.remote?.channelName?.trim().toLowerCase();
     const sourceKind = video.remote?.kind;
@@ -91,14 +103,15 @@ export function PreVideo() {
         + Number(item.genre === video.genre) * 4
         + Number(item.remote?.kind === sourceKind) * 2
         + sharedTopics * 3
+        + itemTags.filter((tag) => tagIsLiked(tag)).length * 2
         + getRating(item.id) * 1.5
         + getCreatorRating(item.remote?.channelName ?? "") * 2
         + Number(creatorIsLiked(item.remote?.channelName ?? "")) * 3;
       return { item, score, random: previewShuffle(`${video.id}:${item.id}:${recommendationSeed}`, recommendationSeed) };
     }).filter((row) => row.score > 0).sort((a, b) => b.score - a.score || a.random - b.random).slice(0, 8).map((row) => row.item);
-  }, [creatorRevision, recommendationSeed, tags, video, videos]);
+  }, [creatorRevision, recommendationSeed, shelfReady, tags, video, videos]);
   const recommended = useMemo(() => {
-    if (!video) return [];
+    if (!video || !shelfReady) return [];
     const sourceTags = new Set(tags);
     const sourceKind = video.remote?.kind;
     const seed = (recommendationSeed + 17) >>> 0;
@@ -115,10 +128,11 @@ export function PreVideo() {
         + getRating(item.id) * 2
         + getCreatorRating(item.remote?.channelName ?? "") * 2
         + Number(creatorIsLiked(item.remote?.channelName ?? "")) * 3
-        + itemTags.filter((tag) => highlyRatedTags.has(tag)).length * 2;
+        + itemTags.filter((tag) => highlyRatedTags.has(tag)).length * 3
+        + itemTags.filter((tag) => tagIsLiked(tag)).length * 2;
       return { item, score, random: previewShuffle(`${video.id}:${item.id}:${seed}`, seed) };
     }).sort((a, b) => b.score - a.score || a.random - b.random).slice(0, 6).map((row) => row.item);
-  }, [creatorRevision, recommendationSeed, related, tagRevision, tags, video, videos]);
+  }, [creatorRevision, recommendationSeed, related, shelfReady, tagRevision, tags, video, videos]);
   if (!video) return null;
   const embed = video.remote?.embedUrl
     ? video.remote.kind === "twitch"
@@ -180,6 +194,7 @@ export function PreVideo() {
               {video.remote?.watchUrl && (
                 <a
                   href={video.remote.watchUrl}
+                  onClick={() => recordPlay(video.id)}
                   className="inline-flex min-h-10 items-center rounded-sm bg-elevated px-3 text-sm text-fg shadow-border"
                 >
                   Open official player <ExternalLink className="ml-2 size-4" />
@@ -209,7 +224,7 @@ export function PreVideo() {
               <Button variant={favorite ? "default" : "secondary"} onClick={() => toggleFavorite(video.id)}><Heart className={favorite ? "size-4 fill-current" : "size-4"} />{favorite ? "Saved" : "Save"}</Button>
               <Button variant={liked ? "default" : "secondary"} onClick={() => toggleLike(video.id)}><ThumbsUp className={liked ? "size-4 fill-current" : "size-4"} />{liked ? "Liked" : "Like"}</Button>
             </div>
-            {creator && <div className="mt-4 rounded-lg border border-border bg-elevated/55 p-4"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Creator taste</p><div className="mt-2 flex flex-wrap items-center gap-2"><button type="button" onClick={() => { setSource(video.remote?.kind ?? "youtube"); setQuery(creator); closePreview(); }} className="font-medium text-fg hover:text-accent">{creator}</button><Button size="sm" variant={creatorLiked ? "default" : "secondary"} onClick={() => { toggleCreatorLike(creator); setCreatorRevision((value) => value + 1); }}><ThumbsUp className={creatorLiked ? "size-3.5 fill-current" : "size-3.5"}/>{creatorLiked ? "Creator liked" : "Like creator"}</Button>{[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" onClick={() => { setCreatorRating(creator, value); setCreatorRevision((revision) => revision + 1); }} className={`flex size-8 items-center justify-center rounded-sm text-xs shadow-border ${value <= creatorRating ? "bg-accent text-accent-fg" : "bg-bg/50 text-accent"}`} aria-label={`Rate creator ${creator} ${value} stars`}>{value}</button>)}</div><p className="mt-2 text-xs text-muted">Creator likes and ratings boost this creator and shared tags across YouTube recommendations.</p></div>}
+            {creator && <div className="mt-4 rounded-lg border border-border bg-elevated/55 p-4"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Creator taste</p><div className="mt-2 flex flex-wrap items-center gap-2"><button type="button" onClick={() => { setSource(video.remote?.kind ?? "youtube"); setQuery(creator); closePreview(); }} className="font-medium text-fg hover:text-accent">{creator}</button><Button size="sm" variant={creatorLiked ? "default" : "secondary"} onClick={() => { toggleCreatorLike(creator); setCreatorRevision((value) => value + 1); }}><ThumbsUp className={creatorLiked ? "size-3.5 fill-current" : "size-3.5"}/>{creatorLiked ? "Creator liked" : "Like creator"}</Button>{[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" onClick={() => { setCreatorRating(creator, value); setCreatorRevision((revision) => revision + 1); }} className={`flex size-8 items-center justify-center rounded-sm text-xs shadow-border ${value <= creatorRating ? "bg-accent text-accent-fg" : "bg-bg/50 text-accent"}`} aria-label={`Rate creator ${creator} ${value} stars`}>{value}</button>)}</div><div className="mt-3 flex flex-wrap gap-2"><Button size="sm" variant="secondary" disabled={creatorLoading || !video.remote} onClick={() => void (async () => { if (!video.remote) return; setCreatorLoading(true); try { await followRemoteQuery(creator, video.remote.kind); setCreatorRevision((value) => value + 1); } finally { setCreatorLoading(false); } })()}>{creatorLoading ? "Pulling older videos…" : "Pull older creator videos"}</Button></div><p className="mt-2 text-xs text-muted">Creator likes, ratings, and the older-video pull boost this creator and shared tags across related recommendations.</p></div>}
           </div>
           <aside className="rounded-lg bg-elevated p-5 shadow-border">
             <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Details</p>
@@ -270,7 +285,7 @@ export function PreVideo() {
                   <button
                     key={value}
                     type="button"
-                    onClick={() => { saveRating(video.id, value); setRating(value); }}
+                    onClick={() => { setRating(value); startTransition(() => saveRating(video.id, value)); }}
                     className={`flex size-9 items-center justify-center rounded-sm text-sm shadow-border ${value <= rating ? "bg-accent text-accent-fg" : "bg-bg/50 text-accent"}`}
                   >
                     {value}
@@ -292,7 +307,7 @@ export function PreVideo() {
                   className="overflow-hidden rounded-md bg-elevated text-left shadow-border hover:bg-surface"
                 >
                   {item.poster ? (
-                    <img src={item.poster} alt="" className="aspect-video w-full object-cover" />
+                    <img src={item.poster} alt="" loading="lazy" className="aspect-video w-full object-cover" onError={(event) => { const fallback = item.remote?.kind === "youtube" && item.remote.videoId ? `https://i.ytimg.com/vi/${item.remote.videoId}/mqdefault.jpg` : ""; if (fallback && event.currentTarget.src !== fallback) event.currentTarget.src = fallback; else event.currentTarget.style.display = "none"; }} />
                   ) : (
                     <span className="block aspect-video bg-bg" />
                   )}
@@ -307,7 +322,7 @@ export function PreVideo() {
             <h2 className="font-display text-2xl text-fg">More to try next</h2>
             <p className="mt-1 text-sm text-muted">A fresh mix based on this title’s genre and what was added recently.</p>
             <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-              {recommended.map((item) => <button key={item.id} type="button" onClick={() => useLibrary.getState().openPreview(item.id)} className="overflow-hidden rounded-md bg-elevated text-left shadow-border hover:bg-surface">{item.poster ? <img src={item.poster} alt="" className="aspect-video w-full object-cover" /> : <span className="block aspect-video bg-bg" />}<span className="block truncate px-3 py-2 text-sm text-fg">{item.name}</span></button>)}
+              {recommended.map((item) => <button key={item.id} type="button" onClick={() => useLibrary.getState().openPreview(item.id)} className="overflow-hidden rounded-md bg-elevated text-left shadow-border hover:bg-surface">{item.poster ? <img src={item.poster} alt="" loading="lazy" className="aspect-video w-full object-cover" onError={(event) => { const fallback = item.remote?.kind === "youtube" && item.remote.videoId ? `https://i.ytimg.com/vi/${item.remote.videoId}/mqdefault.jpg` : ""; if (fallback && event.currentTarget.src !== fallback) event.currentTarget.src = fallback; else event.currentTarget.style.display = "none"; }} /> : <span className="block aspect-video bg-bg" />}<span className="block truncate px-3 py-2 text-sm text-fg">{item.name}</span></button>)}
             </div>
           </section>
         )}

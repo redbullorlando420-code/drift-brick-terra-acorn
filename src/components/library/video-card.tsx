@@ -9,6 +9,7 @@ import { getRating, setRating as setMediaRating } from "@/lib/media-feedback";
 
 type Variant = "grid" | "list" | "rail" | "poster";
 const EMPTY_TAGS: string[] = [];
+const artworkRepairRequested = new Set<string>();
 
 export function VideoCard({
   video,
@@ -29,6 +30,7 @@ export function VideoCard({
   const capturedDur = useThumbs((s) => s.durations[video.id]);
   const request = useThumbs((s) => s.request);
   const retry = useThumbs((s) => s.retry);
+  const repairArtworkSource = useLibrary((s) => s.repairArtworkSource);
   const progress = useLibrary((s) => s.progress[video.id]);
   const fav = useLibrary((s) => Boolean(s.favorites[video.id]));
   const liked = useLibrary((s) => Boolean(s.likes[video.id]));
@@ -70,6 +72,16 @@ export function VideoCard({
     return () => io.disconnect();
   }, [request, video]);
   useEffect(() => { setRating(getRating(video.id)); }, [video.id]);
+  useEffect(() => {
+    if (!failed || video.remote || artworkRepairRequested.has(video.folderId)) return;
+    artworkRepairRequested.add(video.folderId);
+    // A stale local file handle is a common cause of missing artwork. If the
+    // source remains approved, refresh its index once in the background and
+    // retry the specific card afterwards; otherwise leave the visible retry.
+    void repairArtworkSource(video.folderId).then((rescanned) => {
+      if (rescanned) retry(video);
+    });
+  }, [failed, repairArtworkSource, retry, video]);
   const rate = (value: number) => {
     setRating(value);
     setMediaRating(video.id, value);
@@ -192,7 +204,7 @@ export function VideoCard({
                 ) : null}
               </>
             ) : video.remote ? (
-              <>{video.remote.channelName ?? video.remote.kind}</>
+              <>{video.remote.channelName ?? video.remote.kind}{video.remote.views ? <><span className="text-subtle"> · </span>{video.remote.views.toLocaleString()} views</> : null}{(video.remote.kind === "youtube" || (video.remote.kind === "twitch" && !live)) ? <><span className="text-subtle"> · </span>{video.addedAt > Date.UTC(2000, 0, 1) ? `Published ${new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" }).format(video.addedAt)}` : "Older catalog item"}</> : null}</>
             ) : video.year || video.genre ? (
               <>
                 {video.year ?? video.extension.toUpperCase()}

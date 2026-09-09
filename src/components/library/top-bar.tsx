@@ -11,6 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 import { NoticeBell } from "./notice-center";
 import { useLibrary } from "@/lib/videos/store";
+import { librarySearchIndex } from "@/lib/videos/search-index";
 import type { SortKey } from "@/lib/videos/types";
 
 const SORTS: { key: SortKey; label: string }[] = [
@@ -66,13 +67,20 @@ export function TopBar({
   const sourceLabel = sourceId === "home" ? "Home" : sourceId === "movies" ? "Movies" : sourceId === "photos" ? "Photos" : sourceId === "twitch" ? "Twitch" : sourceId === "youtube" ? "YouTube" : folders.find((folder) => folder.id === sourceId)?.name ?? "Library";
   const sourceCount = sourceId === "home" ? videos.length : folders.find((folder) => folder.id === sourceId)?.videoCount;
   const needle = lookup.trim().toLowerCase();
-  const hits = useMemo(() => needle
-    ? videos.filter((video) => {
+  const videoById = useMemo(() => new Map(videos.map((video) => [video.id, video])), [videos]);
+  const hits = useMemo(() => {
+    if (!needle) return [];
+    const indexedIds = librarySearchIndex.search(needle);
+    // The index covers title, creator, description, tags, category, source,
+    // and local path.  A short fallback keeps search useful during its first
+    // background build without making every keystroke the normal slow path.
+    const candidates = indexedIds ? Array.from(indexedIds, (id) => videoById.get(id)).filter((video): video is NonNullable<typeof video> => Boolean(video)) : videos;
+    return candidates.filter((video) => {
         const folder = folders.find((item) => item.id === video.folderId);
         if (folder?.adult && !(sourceId === "adults" && adultsUnlocked)) return false;
-        return `${video.name} ${video.path} ${video.remote?.channelName ?? ""} ${(tags[video.id] ?? []).join(" ")}`.toLowerCase().includes(needle);
-      }).slice(0, 6)
-    : [], [adultsUnlocked, folders, needle, sourceId, tags, videos]);
+        return indexedIds ? true : `${video.name} ${video.path} ${video.description ?? ""} ${video.remote?.channelName ?? ""} ${(tags[video.id] ?? []).join(" ")}`.toLowerCase().includes(needle);
+      }).sort((a, b) => b.addedAt - a.addedAt).slice(0, 6);
+  }, [adultsUnlocked, folders, needle, sourceId, tags, videoById, videos]);
   const suggestionTags = useMemo(() => [...new Set(hits.flatMap((video) => tags[video.id] ?? []))].filter((tag) => tag.length >= 3).slice(0, 5), [hits, tags]);
   const commit = (value = draft) => {
     const clean = value.trim();
