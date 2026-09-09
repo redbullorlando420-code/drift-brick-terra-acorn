@@ -3,6 +3,7 @@ import type {
   FollowedChannel,
   Folder,
   GroupBy,
+  HistoryEntry,
   LibraryVideo,
   SizeFilter,
   SortDir,
@@ -14,6 +15,7 @@ const STORE = "dirs";
 const VIDEO_STORE = "videos";
 const SOURCE_HEALTH_STORE = "source-health";
 const THUMB_STORE = "thumb-cache";
+const ACTIVITY_STORE = "activity";
 const PREFS_KEY = "reelcase.prefs.v4";
 const LEGACY_KEYS = ["reelcase.prefs.v3", "reelcase.prefs.v2", "reelcase.prefs.v1"];
 
@@ -32,7 +34,7 @@ export type Prefs = {
   tags: Record<string, string[]>;
   categories: Record<string, string>;
   progress: Record<string, { t: number; d: number; at: number }>;
-  history: { id: string; at: number }[];
+  history: HistoryEntry[];
   viewCounts?: Record<string, number>;
   view: "grid" | "list";
   sort: SortKey;
@@ -62,7 +64,7 @@ function migrateSource(id: string | undefined): string {
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 5);
+    const req = indexedDB.open(DB_NAME, 6);
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains("remote-cache")) db.createObjectStore("remote-cache");
@@ -77,6 +79,7 @@ function openDb(): Promise<IDBDatabase> {
         db.createObjectStore(SOURCE_HEALTH_STORE, { keyPath: "id" });
       }
       if (!db.objectStoreNames.contains(THUMB_STORE)) db.createObjectStore(THUMB_STORE, { keyPath: "id" });
+      if (!db.objectStoreNames.contains(ACTIVITY_STORE)) db.createObjectStore(ACTIVITY_STORE);
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -228,6 +231,28 @@ export async function saveRemoteSnapshot(snapshot: RemoteSnapshot): Promise<void
     tx.objectStore("remote-cache").put(snapshot, "snapshot");
     tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
   }); } finally { db.close(); }
+}
+
+export type ActivitySnapshot = Pick<Prefs, "history" | "progress"> & { viewCounts: Record<string, number>; savedAt: number };
+export async function loadActivitySnapshot(): Promise<ActivitySnapshot | undefined> {
+  const db = await openDb();
+  try {
+    return await new Promise((resolve, reject) => {
+      const req = db.transaction(ACTIVITY_STORE, "readonly").objectStore(ACTIVITY_STORE).get("primary");
+      req.onsuccess = () => resolve(req.result as ActivitySnapshot | undefined);
+      req.onerror = () => reject(req.error);
+    });
+  } finally { db.close(); }
+}
+export async function saveActivitySnapshot(snapshot: ActivitySnapshot): Promise<void> {
+  const db = await openDb();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(ACTIVITY_STORE, "readwrite");
+      tx.objectStore(ACTIVITY_STORE).put(snapshot, "primary");
+      tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
+    });
+  } finally { db.close(); }
 }
 
 export async function saveSourceHealth(entry: StoredSourceHealth): Promise<void> {

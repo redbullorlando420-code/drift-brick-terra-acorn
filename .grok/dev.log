@@ -3,10 +3,15 @@
 > node scripts/with-app-env.mjs vite dev --host 0.0.0.0 --port 8080
 
 
-  VITE v8.2.2  ready in 1469 ms
+  VITE v8.2.2  ready in 1077 ms
 
   ➜  Local:   http://localhost:8080/
   ➜  Network: http://10.5.0.2:8080/      NordLynx
   ➜  Network: http://192.168.1.68:8080/  Ethernet 2
   ➜  press h + enter to show help
-11:03:19 AM [vite] (ssr) connected.
+3:16:53 PM [vite] (ssr) connected.
+3:19:44 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/invite.tsx, /src/components/library/browse.tsx, /src/components/library/video-grid.tsx, /src/components/library/ai-guide.tsx, /src/components/library/pin-gate.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx, /src/components/library/discovery-desk.tsx, /src/components/library/connect-panel.tsx, /src/components/library/top-bar.tsx, /src/components/library/player.tsx and 3 more
+3:19:44 PM [vite] (ssr) page reload src/lib/videos/types.ts
+3:19:44 PM [vite] (ssr) program reload
+3:19:46 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/ai-guide.tsx, /src/components/library/pin-gate.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx, /src/components/library/discovery-desk.tsx, /src/components/library/connect-panel.tsx, /src/components/library/browse.tsx, /src/components/library/top-bar.tsx, /src/components/library/player.tsx, /src/components/library/hub-sections.tsx and 2 more
+3:19:46 PM [vite] (ssr) page reload src/lib/videos/store.ts

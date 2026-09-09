@@ -11,7 +11,7 @@ import { n as useShallow, t as create } from "../_libs/zustand.mjs";
 import { t as Root } from "../_libs/radix-ui__react-separator.mjs";
 import { i as SliderTrack, n as SliderRange, r as SliderThumb, t as Slider$1 } from "../_libs/@radix-ui/react-slider+[...].mjs";
 import { a as ResponsiveContainer, i as Bar, n as YAxis, o as Tooltip, r as XAxis, t as BarChart } from "../_libs/recharts+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-C3vQCc1v.js
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-CGlhuPic.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function cn(...inputs) {
@@ -134,6 +134,7 @@ var STORE = "dirs";
 var VIDEO_STORE = "videos";
 var SOURCE_HEALTH_STORE = "source-health";
 var THUMB_STORE = "thumb-cache";
+var ACTIVITY_STORE = "activity";
 var PREFS_KEY = "reelcase.prefs.v4";
 var LEGACY_KEYS = [
 	"reelcase.prefs.v3",
@@ -149,7 +150,7 @@ function migrateSource(id) {
 }
 function openDb() {
 	return new Promise((resolve, reject) => {
-		const req = indexedDB.open(DB_NAME, 5);
+		const req = indexedDB.open(DB_NAME, 6);
 		req.onupgradeneeded = () => {
 			const db = req.result;
 			if (!db.objectStoreNames.contains("remote-cache")) db.createObjectStore("remote-cache");
@@ -157,6 +158,7 @@ function openDb() {
 			if (!db.objectStoreNames.contains(VIDEO_STORE)) db.createObjectStore(VIDEO_STORE, { keyPath: "id" }).createIndex("folderId", "folderId", { unique: false });
 			if (!db.objectStoreNames.contains(SOURCE_HEALTH_STORE)) db.createObjectStore(SOURCE_HEALTH_STORE, { keyPath: "id" });
 			if (!db.objectStoreNames.contains(THUMB_STORE)) db.createObjectStore(THUMB_STORE, { keyPath: "id" });
+			if (!db.objectStoreNames.contains(ACTIVITY_STORE)) db.createObjectStore(ACTIVITY_STORE);
 		};
 		req.onsuccess = () => resolve(req.result);
 		req.onerror = () => reject(req.error);
@@ -308,6 +310,31 @@ async function saveRemoteSnapshot(snapshot) {
 		await new Promise((resolve, reject) => {
 			const tx = db.transaction("remote-cache", "readwrite");
 			tx.objectStore("remote-cache").put(snapshot, "snapshot");
+			tx.oncomplete = () => resolve();
+			tx.onerror = () => reject(tx.error);
+		});
+	} finally {
+		db.close();
+	}
+}
+async function loadActivitySnapshot() {
+	const db = await openDb();
+	try {
+		return await new Promise((resolve, reject) => {
+			const req = db.transaction(ACTIVITY_STORE, "readonly").objectStore(ACTIVITY_STORE).get("primary");
+			req.onsuccess = () => resolve(req.result);
+			req.onerror = () => reject(req.error);
+		});
+	} finally {
+		db.close();
+	}
+}
+async function saveActivitySnapshot(snapshot) {
+	const db = await openDb();
+	try {
+		await new Promise((resolve, reject) => {
+			const tx = db.transaction(ACTIVITY_STORE, "readwrite");
+			tx.objectStore(ACTIVITY_STORE).put(snapshot, "primary");
 			tx.oncomplete = () => resolve();
 			tx.onerror = () => reject(tx.error);
 		});
@@ -1089,23 +1116,47 @@ function persistNow(get) {
 		notifyPush: s.notifyPush,
 		unavailableVideoIds: Object.keys(s.unavailable)
 	});
+	saveActivitySnapshot({
+		history: s.history,
+		progress: s.progress,
+		viewCounts: s.viewCounts,
+		savedAt: Date.now()
+	}).catch(() => void 0);
 }
-var persistTimer = null;
+function persistActivity(get) {
+	const s = get();
+	saveActivitySnapshot({
+		history: s.history,
+		progress: s.progress,
+		viewCounts: s.viewCounts,
+		savedAt: Date.now()
+	}).catch(() => void 0);
+}
+function mergeHistory(a, b) {
+	const rows = /* @__PURE__ */ new Map();
+	for (const entry of [...a, ...b]) {
+		if (!entry?.id || !Number.isFinite(entry.at)) continue;
+		const key = `${entry.id}:${entry.at}:${entry.source ?? "open"}`;
+		if (!rows.has(key)) rows.set(key, entry);
+	}
+	return [...rows.values()].sort((left, right) => right.at - left.at);
+}
+var persistTimer$1 = null;
 function persistSoon(get) {
 	if (typeof window === "undefined") {
 		persistNow(get);
 		return;
 	}
-	if (persistTimer != null) return;
-	persistTimer = setTimeout(() => {
-		persistTimer = null;
+	if (persistTimer$1 != null) return;
+	persistTimer$1 = setTimeout(() => {
+		persistTimer$1 = null;
 		persistNow(get);
 	}, 900);
 }
 function flushPersist(get) {
-	if (persistTimer != null) {
-		clearTimeout(persistTimer);
-		persistTimer = null;
+	if (persistTimer$1 != null) {
+		clearTimeout(persistTimer$1);
+		persistTimer$1 = null;
 	}
 	persistNow(get);
 }
@@ -1152,12 +1203,14 @@ function remoteMetadataTags(video) {
 	const creator = video.remote?.channelName?.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") ?? "";
 	const provider = video.remote?.kind ? `provider-${video.remote.kind}` : "";
 	const format = video.remote?.live ? "format-live" : video.remote ? "format-vod" : "";
+	const twitchFormat = video.remote?.kind === "twitch" ? video.remote.live ? "twitch-live" : "twitch-vod" : "";
 	const genre = video.genre?.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 	const twitchGame = video.remote?.kind === "twitch" && genre ? `twitch-game-${genre}` : "";
 	return [...new Set([
 		provider,
 		creator,
 		format,
+		twitchFormat,
 		genre ? `genre-${genre}` : "",
 		twitchGame,
 		...semanticTags(video),
@@ -1409,22 +1462,49 @@ var useLibrary = create((set, get) => ({
 		persistNow(get);
 	},
 	markProgress: (id, t, d) => {
-		set((s) => ({ progress: {
-			...s.progress,
-			[id]: {
-				t,
-				d,
-				at: Date.now()
-			}
-		} }));
+		const now = Date.now();
+		const previous = get().progress[id];
+		if (previous && now - previous.at < 2500 && Math.abs(previous.t - t) < 4) return;
+		set((s) => {
+			const latest = s.history[0];
+			const history = t >= 2 && (!latest || latest.id !== id || now - latest.at > 6e4) ? [{
+				id,
+				at: now,
+				position: t,
+				duration: d,
+				source: "progress"
+			}, ...s.history] : s.history;
+			return {
+				progress: {
+					...s.progress,
+					[id]: {
+						t,
+						d,
+						at: now
+					}
+				},
+				history
+			};
+		});
+		persistActivity(get);
 		persistSoon(get);
 	},
-	recordPlay: (id) => {
+	recordPlay: (id, source = "open") => {
 		set((s) => {
+			const now = Date.now();
+			const latest = s.history[0];
+			if (latest?.id === id && now - latest.at < 2e4) return {};
+			const mark = s.progress[id];
+			const video = s.videos.find((item) => item.id === id);
+			const url = video?.remote?.embedUrl ?? video?.src;
 			return {
 				history: [{
 					id,
-					at: Date.now()
+					at: now,
+					position: mark?.t,
+					duration: mark?.d,
+					source,
+					...url ? { url } : {}
 				}, ...s.history],
 				viewCounts: {
 					...s.viewCounts,
@@ -1432,7 +1512,8 @@ var useLibrary = create((set, get) => ({
 				}
 			};
 		});
-		persistNow(get);
+		persistActivity(get);
+		persistSoon(get);
 	},
 	clearHistory: () => {
 		set({ history: [] });
@@ -1736,6 +1817,20 @@ var useLibrary = create((set, get) => ({
 		let cachedFolderIds = /* @__PURE__ */ new Set();
 		let savedHealth = /* @__PURE__ */ new Map();
 		set({ ...prefsState });
+		loadActivitySnapshot().then((activity) => {
+			if (!activity) return;
+			set((s) => ({
+				history: mergeHistory(s.history, activity.history ?? []),
+				progress: {
+					...activity.progress,
+					...s.progress
+				},
+				viewCounts: {
+					...activity.viewCounts,
+					...s.viewCounts
+				}
+			}));
+		}).catch(() => void 0);
 		try {
 			const snapshot = await loadRemoteSnapshot();
 			if (snapshot) {
@@ -2097,7 +2192,8 @@ var useLibrary = create((set, get) => ({
 		if (!unique.length) return {
 			ok: 0,
 			failed: 0,
-			failedQueries: []
+			failedQueries: [],
+			failedReasons: {}
 		};
 		const existing = new Set(get().follows.map((f) => f.id));
 		set({
@@ -2111,6 +2207,7 @@ var useLibrary = create((set, get) => ({
 		let ok = 0;
 		let failed = 0;
 		const failedQueries = [];
+		const failedReasons = {};
 		const chunk = 20;
 		try {
 			const { importChannels } = await import("./api-CeYPgULp.mjs");
@@ -2119,9 +2216,11 @@ var useLibrary = create((set, get) => ({
 				let result;
 				try {
 					result = await Promise.race([importChannels({ data: { items: slice } }), new Promise((_, reject) => window.setTimeout(() => reject(/* @__PURE__ */ new Error("Provider request timed out")), 2e4))]);
-				} catch {
+				} catch (error) {
 					failed += slice.length;
 					failedQueries.push(...slice.map((item) => item.query));
+					const reason = error instanceof Error && error.message ? error.message : "Provider request failed before public metadata could be read";
+					for (const item of slice) failedReasons[item.query] = reason;
 					set({ importProgress: {
 						done: Math.min(i + slice.length, unique.length),
 						total: unique.length,
@@ -2131,7 +2230,10 @@ var useLibrary = create((set, get) => ({
 				}
 				ok += result.ok.length;
 				failed += result.failed;
-				if (result.failedQueries?.length) failedQueries.push(...result.failedQueries);
+				if (result.failedQueries?.length) {
+					failedQueries.push(...result.failedQueries);
+					for (const query of result.failedQueries) failedReasons[query] = "Channel was not found publicly, is unavailable, or provider metadata could not be read";
+				}
 				set((s) => {
 					let follows = s.follows;
 					let folders = s.folders;
@@ -2170,7 +2272,7 @@ var useLibrary = create((set, get) => ({
 			const added = get().follows.filter((f) => !existing.has(f.id)).length;
 			get().pushNotice({
 				title: `Imported ${added || ok} channel${(added || ok) === 1 ? "" : "s"}`,
-				body: failed ? `${failed} could not be reached.` : "Latest uploads are on the shelves.",
+				body: failed ? `${failed} need attention. Open the importer for the saved reason list.` : "Latest uploads are on the shelves.",
 				kind: unique[0]?.kind === "twitch" ? "twitch" : "youtube"
 			});
 			set({
@@ -2181,7 +2283,8 @@ var useLibrary = create((set, get) => ({
 			return {
 				ok,
 				failed,
-				failedQueries
+				failedQueries,
+				failedReasons
 			};
 		} catch (err) {
 			set({
@@ -2377,7 +2480,8 @@ function selectFavorites(state, adult = false) {
 function selectHistory(state, adult = false) {
 	const list = recoveryList(state, adult);
 	const byId = new Map(list.map((v) => [v.id, v]));
-	return state.history.map((h) => byId.get(h.id)).filter((v) => v != null);
+	const seen = /* @__PURE__ */ new Set();
+	return state.history.filter((h) => !seen.has(h.id) && Boolean(seen.add(h.id))).map((h) => byId.get(h.id)).filter((v) => v != null);
 }
 function selectYoutube(state) {
 	return [...publicList(state).filter((v) => v.remote?.kind === "youtube")].sort((a, b) => b.addedAt - a.addedAt);
@@ -2476,6 +2580,7 @@ var inflight = /* @__PURE__ */ new Set();
 var active = 0;
 var waiting = [];
 var MAX_MEMORY_THUMBS = 360;
+var MAX_ARTWORK_ATTEMPTS = 3;
 function maxThumbnailWorkers() {
 	const adaptive = Math.min(4, Math.max(2, Math.floor(((typeof navigator !== "undefined" ? navigator.hardwareConcurrency : 4) || 4) / 2)));
 	try {
@@ -2570,9 +2675,11 @@ var useThumbs = create((set, get) => ({
 	byId: {},
 	failed: {},
 	durations: {},
+	diagnostics: {},
 	request: (video) => {
-		const { byId, failed } = get();
+		const { byId, failed, diagnostics } = get();
 		if (byId[video.id] || failed[video.id] || inflight.has(video.id)) return;
+		if ((diagnostics[video.id]?.attempts ?? 0) >= MAX_ARTWORK_ATTEMPTS) return;
 		if (video.remote) {
 			const youtubeId = video.remote.kind === "youtube" ? video.remote.videoId ?? video.remote.embedUrl?.match(/(?:embed\/|v=)([A-Za-z0-9_-]{11})/)?.[1] : void 0;
 			const providerArtwork = video.poster || (youtubeId ? `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg` : void 0) || video.remote.previewUrl;
@@ -2614,6 +2721,14 @@ var useThumbs = create((set, get) => ({
 						...s.failed,
 						[video.id]: true
 					},
+					diagnostics: {
+						...s.diagnostics,
+						[video.id]: {
+							attempts: (s.diagnostics[video.id]?.attempts ?? 0) + 1,
+							lastError: "No decodable frame",
+							at: Date.now()
+						}
+					},
 					durations: duration && duration > 0 ? {
 						...s.durations,
 						[video.id]: duration
@@ -2621,10 +2736,20 @@ var useThumbs = create((set, get) => ({
 				}));
 			} catch {
 				inflight.delete(video.id);
-				set((s) => ({ failed: {
-					...s.failed,
-					[video.id]: true
-				} }));
+				set((s) => ({
+					failed: {
+						...s.failed,
+						[video.id]: true
+					},
+					diagnostics: {
+						...s.diagnostics,
+						[video.id]: {
+							attempts: (s.diagnostics[video.id]?.attempts ?? 0) + 1,
+							lastError: "Source could not be reopened",
+							at: Date.now()
+						}
+					}
+				}));
 			} finally {
 				release();
 			}
@@ -2632,6 +2757,7 @@ var useThumbs = create((set, get) => ({
 	},
 	retry: (video) => {
 		set((s) => {
+			if ((s.diagnostics[video.id]?.attempts ?? 0) >= MAX_ARTWORK_ATTEMPTS) return s;
 			const failed = { ...s.failed };
 			delete failed[video.id];
 			return { failed };
@@ -2651,6 +2777,7 @@ var useThumbs = create((set, get) => ({
 var KEY = "reelcase.media-feedback.v1";
 var cached = null;
 var changeTimer;
+var persistTimer;
 function read() {
 	if (cached) return cached;
 	try {
@@ -2673,11 +2800,17 @@ function read() {
 	}
 	return cached;
 }
+function persist() {
+	persistTimer = void 0;
+	try {
+		if (cached) localStorage.setItem(KEY, JSON.stringify(cached));
+	} catch {}
+}
 function write(next) {
 	cached = next;
-	try {
-		localStorage.setItem(KEY, JSON.stringify(next));
-	} catch {}
+	if (typeof window === "undefined") return;
+	if (persistTimer) window.clearTimeout(persistTimer);
+	persistTimer = window.setTimeout(persist, 90);
 }
 function notifyChange() {
 	if (typeof window === "undefined" || changeTimer) return;
@@ -2769,6 +2902,7 @@ function VideoCard({ video, variant = "grid", index = 0, playedAt, className }) 
 	const capturedDur = useThumbs((s) => s.durations[video.id]);
 	const request = useThumbs((s) => s.request);
 	const retry = useThumbs((s) => s.retry);
+	const artworkDiagnostic = useThumbs((s) => s.diagnostics[video.id]);
 	const repairArtworkSource = useLibrary((s) => s.repairArtworkSource);
 	const progress = useLibrary((s) => s.progress[video.id]);
 	const fav = useLibrary((s) => Boolean(s.favorites[video.id]));
@@ -2819,7 +2953,7 @@ function VideoCard({ video, variant = "grid", index = 0, playedAt, className }) 
 	]);
 	const rate = (value) => {
 		setRating$3(value);
-		setRating(video.id, value);
+		window.requestAnimationFrame(() => setRating(video.id, value));
 	};
 	const poster = /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 		className: cn("relative overflow-hidden bg-elevated", variant === "list" && "h-16 w-28 shrink-0 rounded-sm", variant === "poster" && "aspect-poster w-full rounded-md", (variant === "grid" || variant === "rail") && "aspect-video w-full rounded-md"),
@@ -2836,9 +2970,10 @@ function VideoCard({ video, variant = "grid", index = 0, playedAt, className }) 
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 					className: cn("flex size-10 items-center justify-center rounded-full bg-bg/40 text-muted", !failed && "animate-pulse"),
 					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Play, { className: "ml-0.5 size-4 fill-current" })
-				}), failed && !video.remote && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+				}), failed && !video.remote && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+					title: artworkDiagnostic ? `${artworkDiagnostic.lastError} · attempt ${artworkDiagnostic.attempts}/3` : void 0,
 					className: "absolute bottom-2 left-2 right-2 rounded-xs bg-bg/80 px-2 py-1 text-center text-[11px] text-muted",
-					children: "Local artwork unavailable"
+					children: ["Local artwork unavailable", artworkDiagnostic ? ` · ${artworkDiagnostic.attempts}/3` : ""]
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "absolute inset-0 bg-linear-to-t from-bg/80 via-transparent to-transparent opacity-90" }),
@@ -5651,6 +5786,8 @@ function isExcludedPreviewCandidate(video) {
 function PreVideo() {
 	const previewId = useLibrary((s) => s.previewId);
 	const videos = useLibrary((s) => s.videos);
+	const allTags = useLibrary((s) => s.tags);
+	const unavailable = useLibrary((s) => s.unavailable);
 	const openVideo = useLibrary((s) => s.openVideo);
 	const closePreview = useLibrary((s) => s.closePreview);
 	const setSource = useLibrary((s) => s.setSource);
@@ -5728,8 +5865,8 @@ function PreVideo() {
 		const sourceTags = new Set(tags);
 		const creatorName = video.remote?.channelName?.trim().toLowerCase();
 		const sourceKind = video.remote?.kind;
-		return videos.filter((item) => item.id !== video.id && !isExcludedPreviewCandidate(item) && !useLibrary.getState().unavailable[item.id]).map((item) => {
-			const itemTags = useLibrary.getState().tags[item.id] ?? [];
+		return videos.filter((item) => item.id !== video.id && !isExcludedPreviewCandidate(item) && !unavailable[item.id]).map((item) => {
+			const itemTags = allTags[item.id] ?? EMPTY_TAGS;
 			const sharedTopics = itemTags.filter((tag) => sourceTags.has(tag)).length;
 			const sameCreator = Boolean(creatorName && item.remote?.channelName?.trim().toLowerCase() === creatorName);
 			const liveToVod = Boolean(video.remote?.live && !item.remote?.live && sameCreator);
@@ -5740,10 +5877,12 @@ function PreVideo() {
 			};
 		}).filter((row) => row.score > 0).sort((a, b) => b.score - a.score || a.random - b.random).slice(0, 8).map((row) => row.item);
 	}, [
+		allTags,
 		creatorRevision,
 		recommendationSeed,
 		shelfReady,
 		tags,
+		unavailable,
 		video,
 		videos
 	]);
@@ -5753,11 +5892,12 @@ function PreVideo() {
 		const sourceKind = video.remote?.kind;
 		const seed = recommendationSeed + 17 >>> 0;
 		const highlyRatedTags = new Set(videos.flatMap((item) => {
-			const itemTags = useLibrary.getState().tags[item.id] ?? [];
+			const itemTags = allTags[item.id] ?? EMPTY_TAGS;
 			return getRating(item.id) >= 4 ? itemTags : itemTags.filter((tag) => tagIsLiked(tag));
 		}));
-		return videos.filter((item) => item.id !== video.id && !isExcludedPreviewCandidate(item) && !useLibrary.getState().unavailable[item.id] && !related.some((relatedItem) => relatedItem.id === item.id)).map((item) => {
-			const itemTags = useLibrary.getState().tags[item.id] ?? [];
+		const relatedIds = new Set(related.map((relatedItem) => relatedItem.id));
+		return videos.filter((item) => item.id !== video.id && !isExcludedPreviewCandidate(item) && !unavailable[item.id] && !relatedIds.has(item.id)).map((item) => {
+			const itemTags = allTags[item.id] ?? EMPTY_TAGS;
 			const sharedTopics = itemTags.filter((tag) => sourceTags.has(tag)).length;
 			return {
 				item,
@@ -5766,12 +5906,14 @@ function PreVideo() {
 			};
 		}).sort((a, b) => b.score - a.score || a.random - b.random).slice(0, 6).map((row) => row.item);
 	}, [
+		allTags,
 		creatorRevision,
 		recommendationSeed,
 		related,
 		shelfReady,
 		tagRevision,
 		tags,
+		unavailable,
 		video,
 		videos
 	]);
@@ -6373,7 +6515,7 @@ function ConnectPanel({ defaultKind = "youtube", lockedKind }) {
 		try {
 			const result = await importBatch(normalized);
 			setFound([]);
-			if (result.failed && result.failedQueries?.length) toast.message(`${result.ok} added · ${result.failed} unavailable`, { description: result.failedQueries.slice(0, 8).join(", ") + (result.failedQueries.length > 8 ? "…" : "") });
+			if (result.failed && result.failedQueries?.length) toast.message(`${result.ok} added · ${result.failed} unavailable`, { description: result.failedQueries.slice(0, 8).map((query) => `${query}: ${result.failedReasons?.[query] ?? "unavailable"}`).join(" · ") + (result.failedQueries.length > 8 ? "…" : "") });
 			else toast.success(result.failed ? `${result.ok} added · ${result.failed} unavailable` : `${result.ok} channel${result.ok === 1 ? "" : "s"} added`);
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Could not import those channels");
@@ -7550,6 +7692,9 @@ function roomShuffleRank(id, seed) {
 	for (let index = 0; index < id.length; index += 1) value = Math.imul(value ^ id.charCodeAt(index), 73244475);
 	return value >>> 0;
 }
+function localRoomFingerprint(file) {
+	return `${file.name.normalize("NFKC").toLowerCase()}::${file.size}::${file.lastModified}`;
+}
 var twitchEmbedLoader;
 function loadTwitchEmbed() {
 	return twitchEmbedLoader ??= new Promise((resolve, reject) => {
@@ -7851,6 +7996,7 @@ function StatsSection() {
 	const progress = useLibrary((s) => s.progress);
 	const viewCounts = useLibrary((s) => s.viewCounts);
 	const [showAllSources, setShowAllSources] = (0, import_react.useState)(false);
+	const [remediationView, setRemediationView] = (0, import_react.useState)("");
 	const summary = (0, import_react.useMemo)(() => {
 		const byFolder = /* @__PURE__ */ new Map();
 		const byGenre = /* @__PURE__ */ new Map();
@@ -7871,6 +8017,9 @@ function StatsSection() {
 		let metadataTaggedTitles = 0;
 		let creatorTaggedTitles = 0;
 		let descriptionTaggedTitles = 0;
+		let multiTopicTitles = 0;
+		let operationalTagAssignments = 0;
+		const topicSources = /* @__PURE__ */ new Map();
 		for (const video of videos) {
 			totalBytes += video.size;
 			if (video.remote) remoteTitles += 1;
@@ -7886,10 +8035,12 @@ function StatsSection() {
 			if (progress[video.id] && progress[video.id].t > 0) resumedTitles += 1;
 			totalViews += viewCounts[video.id] ?? 0;
 			const videoTags = tags[video.id] ?? [];
+			const usefulTopics = new Set(videoTags.map((tag) => tag.trim().toLowerCase()).filter(isTopicTag));
 			if (videoTags.length) metadataTaggedTitles += 1;
 			if (Boolean(video.remote?.channelName?.trim())) creatorTaggedTitles += 1;
 			if (videoTags.some((tag) => !tag.includes("-") && tag.length >= 4)) descriptionTaggedTitles += 1;
 			if (!videoTags.some(isTopicTag)) untaggedTitles += 1;
+			if (usefulTopics.size >= 2) multiTopicTitles += 1;
 			if (video.remote && Date.now() - video.addedAt < 6048e5) freshRemoteTitles += 1;
 			const folder = byFolder.get(video.folderId) ?? {
 				videos: 0,
@@ -7899,8 +8050,19 @@ function StatsSection() {
 			folder.bytes += video.size;
 			byFolder.set(video.folderId, folder);
 			if (video.genre?.trim()) byGenre.set(video.genre, (byGenre.get(video.genre) ?? 0) + 1);
-			for (const tag of videoTags) if (isTopicTag(tag)) byTag.set(tag, (byTag.get(tag) ?? 0) + 1);
+			for (const tag of videoTags) {
+				const clean = tag.trim().toLowerCase();
+				if (/^(?:year-|month-|day-|type-|provider-|format-|source-|keyword-|creator-|https?$)/.test(clean)) operationalTagAssignments += 1;
+				if (isTopicTag(clean)) {
+					byTag.set(clean, (byTag.get(clean) ?? 0) + 1);
+					const sources = topicSources.get(clean) ?? /* @__PURE__ */ new Set();
+					sources.add(video.remote?.kind ?? "local");
+					topicSources.set(clean, sources);
+				}
+			}
 		}
+		const tagAssignments = [...byTag.values()].reduce((sum, count) => sum + count, 0);
+		const bridgeTopics = [...topicSources.values()].filter((sources) => sources.size >= 2).length;
 		return {
 			totalBytes,
 			byFolder,
@@ -7910,6 +8072,9 @@ function StatsSection() {
 			metadataTaggedTitles,
 			creatorTaggedTitles,
 			descriptionTaggedTitles,
+			multiTopicTitles,
+			operationalTagAssignments,
+			bridgeTopics,
 			freshRemoteTitles,
 			thumbReady,
 			youtubeTitles,
@@ -7921,7 +8086,9 @@ function StatsSection() {
 			totalViews,
 			genreRows: [...byGenre.entries()].filter(([, count]) => count >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
 			topTags: [...byTag.entries()].filter(([, count]) => count >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 14),
-			tagAssignments: [...byTag.values()].reduce((sum, count) => sum + count, 0)
+			tagAssignments,
+			tagDensity: tagAssignments / Math.max(videos.length, 1),
+			remoteShare: remoteTitles / Math.max(videos.length, 1)
 		};
 	}, [
 		progress,
@@ -7966,6 +8133,9 @@ function StatsSection() {
 		downloadCsv([
 			["metric", "value"],
 			["catalog_titles", videos.length],
+			["topic_tags_per_title", summary.tagDensity.toFixed(3)],
+			["remote_catalog_percent", Math.round(summary.remoteShare * 100)],
+			["local_storage_bytes_per_local_title", Math.round(summary.totalBytes / Math.max(summary.localTitles, 1))],
 			["local_storage_bytes", summary.totalBytes],
 			["topic_tag_assignments", summary.tagAssignments],
 			["favorites", Object.keys(favorites).length],
@@ -7986,6 +8156,10 @@ function StatsSection() {
 			["metadata_tag_coverage_percent", Math.round(summary.metadataTaggedTitles / Math.max(videos.length, 1) * 100)],
 			["creator_tagged_titles", summary.creatorTaggedTitles],
 			["description_keyword_tagged_titles", summary.descriptionTaggedTitles],
+			["multi_topic_titles", summary.multiTopicTitles],
+			["cross_source_bridge_topics", summary.bridgeTopics],
+			["operational_tag_assignments", summary.operationalTagAssignments],
+			["useful_topic_share_percent", Math.round((1 - summary.untaggedTitles / Math.max(videos.length, 1)) * 100)],
 			["favorites_saved", favoriteHealth.saved],
 			["favorites_resolved", favoriteHealth.resolved],
 			["favorites_waiting_for_source", favoriteHealth.missing],
@@ -8015,6 +8189,36 @@ function StatsSection() {
 		mappedBytes,
 		folder.lastCheckedAt ? new Date(folder.lastCheckedAt).toISOString() : ""
 	])], `reelcase-source-map-${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.csv`);
+	const exportRemediation = () => downloadCsv([
+		[
+			"queue",
+			"priority",
+			"title_or_source",
+			"reason",
+			"suggested_safe_action"
+		],
+		...videos.filter((video) => !(tags[video.id] ?? []).some(isTopicTag)).slice(0, 500).map((video, index) => [
+			"topic-coverage",
+			index + 1,
+			video.name,
+			"No useful topic tag",
+			"Review in preview or apply explainable smart tags"
+		]),
+		...sourceHealth.duplicateNames.flatMap(({ name, count }) => [[
+			"source-hygiene",
+			1,
+			name,
+			`${count} identical source labels`,
+			"Open source map and rename only after review"
+		]]),
+		...sourceHealth.largest ? [[
+			"storage-concentration",
+			1,
+			sourceHealth.largest.folder.name,
+			`${sourceHealth.concentration}% of mapped local bytes`,
+			"Review source contents; no files are changed automatically"
+		]] : []
+	], `reelcase-remediation-plan-${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.csv`);
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(HubShell, {
 		eyebrow: "Library intelligence",
 		icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartColumn, { className: "size-4" }),
@@ -8035,6 +8239,12 @@ function StatsSection() {
 						variant: "secondary",
 						onClick: exportSources,
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Download, { className: "size-4" }), "Download source-map CSV"]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+						size: "sm",
+						variant: "secondary",
+						onClick: exportRemediation,
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Download, { className: "size-4" }), "Download remediation CSV"]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 						className: "self-center text-xs text-muted",
@@ -8071,6 +8281,10 @@ function StatsSection() {
 						value: `${summary.localTitles.toLocaleString()} / ${summary.remoteTitles.toLocaleString()}`
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Stat, {
+						label: "Remote catalog share",
+						value: `${Math.round(summary.remoteShare * 100)}%`
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Stat, {
 						label: "New provider items · 7d",
 						value: summary.freshRemoteTitles.toLocaleString()
 					}),
@@ -8081,6 +8295,22 @@ function StatsSection() {
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Stat, {
 						label: "Topic coverage",
 						value: `${Math.round((1 - summary.untaggedTitles / Math.max(videos.length, 1)) * 100)}%`
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Stat, {
+						label: "Topic tags per title",
+						value: summary.tagDensity.toFixed(2)
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Stat, {
+						label: "Cross-source topic bridges",
+						value: summary.bridgeTopics.toLocaleString()
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Stat, {
+						label: "Multi-topic titles",
+						value: summary.multiTopicTitles.toLocaleString()
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Stat, {
+						label: "Operational labels",
+						value: summary.operationalTagAssignments.toLocaleString()
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Stat, {
 						label: "Any metadata coverage",
@@ -8178,6 +8408,7 @@ function StatsSection() {
 						height: "85%",
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(BarChart, {
 							layout: "vertical",
+							margin: { left: 16 },
 							data: summary.topTags.slice(0, 8).map(([name, titles]) => ({
 								name,
 								titles
@@ -8191,9 +8422,9 @@ function StatsSection() {
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(YAxis, {
 									type: "category",
 									dataKey: "name",
-									width: 92,
+									width: 150,
 									stroke: "currentColor",
-									fontSize: 11
+									fontSize: 10
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tooltip, {}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bar, {
@@ -8223,6 +8454,13 @@ function StatsSection() {
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 								className: "mt-1 text-sm text-muted",
 								children: "titles still need a useful topic tag. Prioritize these before adding more discovery rules."
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								className: "mt-3",
+								size: "sm",
+								variant: "secondary",
+								onClick: () => setRemediationView(remediationView === "topics" ? "" : "topics"),
+								children: "Review safe queue"
 							})
 						]
 					}),
@@ -8244,6 +8482,13 @@ function StatsSection() {
 									sourceHealth.largest?.folder.name ?? "the largest source",
 									"."
 								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								className: "mt-3",
+								size: "sm",
+								variant: "secondary",
+								onClick: () => setRemediationView(remediationView === "sources" ? "" : "sources"),
+								children: "Review source queue"
 							})
 						]
 					}),
@@ -8261,6 +8506,13 @@ function StatsSection() {
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 								className: "mt-1 text-sm text-muted",
 								children: "duplicate source labels can make refresh results harder to interpret."
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								className: "mt-3",
+								size: "sm",
+								variant: "secondary",
+								onClick: () => setRemediationView(remediationView === "sources" ? "" : "sources"),
+								children: "Review duplicates"
 							})
 						]
 					}),
@@ -8287,40 +8539,119 @@ function StatsSection() {
 					})
 				]
 			}),
+			remediationView === "topics" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "flex flex-wrap items-center justify-between gap-3",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+						children: "Safe tag review queue"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-1 text-sm text-muted",
+						children: "These are review candidates only—nothing is tagged or deleted by opening this queue."
+					})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						size: "sm",
+						variant: "secondary",
+						onClick: () => useLibrary.getState().setSource("settings"),
+						children: "Open smart-tag tools"
+					})]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					className: "mt-3 space-y-2",
+					children: videos.filter((video) => !(tags[video.id] ?? []).some(isTopicTag)).slice(0, 12).map((video) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+						type: "button",
+						className: "block w-full rounded-sm bg-bg/45 px-3 py-2 text-left text-sm text-fg",
+						onClick: () => useLibrary.getState().openPreview(video.id),
+						children: [video.name, /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+							className: "ml-2 text-xs text-muted",
+							children: "· no useful topic yet"
+						})]
+					}, video.id))
+				})]
+			}),
+			remediationView === "sources" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+						children: "Safe source review queue"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-1 text-sm text-muted",
+						children: "Review signals only. Reelcase will not rename, reconnect, or remove a folder from this page."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-3 space-y-2",
+						children: [sourceHealth.largest && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+							type: "button",
+							className: "block w-full rounded-sm bg-bg/45 px-3 py-2 text-left text-sm text-fg",
+							onClick: () => useLibrary.getState().setSource(sourceHealth.largest.folder.id),
+							children: [
+								"Largest source · ",
+								sourceHealth.largest.folder.name,
+								" · ",
+								bytes(sourceHealth.largest.bytes)
+							]
+						}), sourceHealth.duplicateNames.map(({ name, count }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+							className: "rounded-sm bg-bg/45 px-3 py-2 text-sm text-fg",
+							children: [
+								"Duplicate label · ",
+								name,
+								" · ",
+								count,
+								" sources"
+							]
+						}, name))]
+					})
+				]
+			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "mt-6 grid gap-5 xl:grid-cols-2",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 					className: "rounded-lg bg-elevated p-5 shadow-border",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
-						className: "font-display text-2xl text-fg",
-						children: "Genre distribution"
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "mt-4 space-y-3",
-						children: summary.genreRows.slice(0, 18).map(([genre, count]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DistributionRow, {
-							label: genre,
-							value: count,
-							total: videos.length
-						}, genre)) || /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-							className: "text-sm text-muted",
-							children: "Genres will appear as media is tagged."
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+							className: "font-display text-2xl text-fg",
+							children: "Genre distribution"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "mt-1 text-xs text-muted",
+							children: "Bars compare genres with the most common genre in this list."
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "mt-4 space-y-3",
+							children: summary.genreRows.slice(0, 18).map(([genre, count]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DistributionRow, {
+								label: genre,
+								value: count,
+								total: summary.genreRows[0]?.[1] ?? 1
+							}, genre)) || /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-sm text-muted",
+								children: "Genres will appear as media is tagged."
+							})
 						})
-					})]
+					]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 					className: "rounded-lg bg-elevated p-5 shadow-border",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
-						className: "font-display text-2xl text-fg",
-						children: "Most useful tags"
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "mt-4 space-y-3",
-						children: summary.topTags.map(([tag, count]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DistributionRow, {
-							label: `#${tag}`,
-							value: count,
-							total: videos.length
-						}, tag)) || /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-							className: "text-sm text-muted",
-							children: "Tags will appear as media is indexed."
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+							className: "font-display text-2xl text-fg",
+							children: "Most useful tags"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "mt-1 text-xs text-muted",
+							children: "Bars compare useful topics with the leading topic, not the full catalog."
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "mt-4 space-y-3",
+							children: summary.topTags.map(([tag, count]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DistributionRow, {
+								label: `#${tag}`,
+								value: count,
+								total: summary.topTags[0]?.[1] ?? 1
+							}, tag)) || /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-sm text-muted",
+								children: "Tags will appear as media is indexed."
+							})
 						})
-					})]
+					]
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
@@ -8613,6 +8944,15 @@ function SettingsSection() {
 	const refreshSourcePhotos = useLibrary((s) => s.refreshSourcePhotos);
 	const unavailableVideoCount = useLibrary((s) => Object.keys(s.unavailable).length);
 	const remoteCheckedAt = useLibrary((s) => s.remoteCheckedAt);
+	const smartTagStatus = (0, import_react.useMemo)(() => {
+		const local = videos.filter((video) => !video.remote);
+		const tagged = local.filter((video) => (tags[video.id] ?? []).some((tag) => /^(?:year-|month-|type-|source-)/.test(tag))).length;
+		return {
+			local: local.length,
+			tagged,
+			waiting: Math.max(0, local.length - tagged)
+		};
+	}, [tags, videos]);
 	const [serviceNote, setServiceNote] = (0, import_react.useState)("");
 	(0, import_react.useEffect)(() => setHub(readHub()), []);
 	(0, import_react.useEffect)(() => {
@@ -8692,6 +9032,7 @@ function SettingsSection() {
 	(0, import_react.useEffect)(() => {
 		const saved = Number(localStorage.getItem("reelcase.twitch-refresh-seconds") ?? "60");
 		setTwitchRefreshSeconds([
+			15,
 			30,
 			60,
 			120,
@@ -8912,15 +9253,26 @@ function SettingsSection() {
 						className: "mt-1 max-w-2xl text-sm text-muted",
 						children: "Adds private, explainable tags such as year-2026, month-september, type-mp4, and meaningful words from the filename. Existing manual tags are preserved; nothing is uploaded."
 					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						className: "mt-3 text-xs text-accent",
+						children: [
+							smartTagStatus.tagged.toLocaleString(),
+							" of ",
+							smartTagStatus.local.toLocaleString(),
+							" local files ready · ",
+							smartTagStatus.waiting ? `${smartTagStatus.waiting.toLocaleString()} can still be enriched` : "coverage is current"
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 						className: "mt-4",
 						size: "sm",
 						variant: "secondary",
+						disabled: !smartTagStatus.local,
 						onClick: () => {
 							const changed = useLibrary.getState().autoTagLibrary();
-							setServiceNote(changed ? `Added or improved smart tags for ${changed} catalog item${changed === 1 ? "" : "s"}.` : "Every catalog item already has the available smart tags.");
+							setServiceNote(changed ? `Smart-tag run finished · ${changed} catalog item${changed === 1 ? "" : "s"} updated.` : "Smart tags are already current for every loaded catalog item.");
 						},
-						children: "Apply smart tags to all files"
+						children: [" ", smartTagStatus.waiting ? "Apply smart tags to remaining files" : "Recheck smart-tag coverage"]
 					})
 				]
 			}),
@@ -8939,17 +9291,26 @@ function SettingsSection() {
 						className: "mt-1 max-w-2xl text-sm text-muted",
 						children: "Uses the same on-device image model as Photos on one cached local thumbnail per video. It runs only when you start it, uses a bounded 12-video batch, and keeps frames and labels on this device."
 					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						className: "mt-3 text-xs text-accent",
+						children: [
+							videos.filter((video) => !video.remote && (tags[video.id] ?? []).some((tag) => tag.startsWith("vision-"))).length.toLocaleString(),
+							" processed · ",
+							videos.filter((video) => !video.remote && !(tags[video.id] ?? []).some((tag) => tag.startsWith("vision-"))).length.toLocaleString(),
+							" waiting · ready when local frame artwork is cached"
+						]
+					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 						className: "mt-4",
 						size: "sm",
 						variant: "secondary",
-						disabled: videoVisionBusy,
+						disabled: videoVisionBusy || !videos.some((video) => !video.remote),
 						onClick: () => void tagLocalVideoFrames(),
-						children: videoVisionBusy ? videoVisionNote || "Preparing local frames…" : "Tag next 12 local videos"
+						children: videoVisionBusy ? videoVisionNote || "Preparing local frames…" : "Prepare and tag next 12 local videos"
 					}),
-					videoVisionNote && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					videoVisionNote && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 						className: "mt-3 text-xs text-accent",
-						children: videoVisionNote
+						children: ["Latest output · ", videoVisionNote]
 					})
 				]
 			}),
@@ -9502,11 +9863,12 @@ function SettingsSection() {
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 									className: "mt-2 text-sm leading-6 text-muted",
-									children: "Checks the next saved provider batch while this tab is visible. Faster checks use more provider requests; one minute is the balanced default."
+									children: "Checks the next saved provider batch while this tab is visible. Faster checks give live viewer counts a shorter stale window; one minute is the balanced default."
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 									className: "mt-4 flex flex-wrap gap-2",
 									children: [
+										[15, "15 sec"],
 										[30, "30 sec"],
 										[60, "1 min"],
 										[120, "2 min"],
@@ -10051,11 +10413,141 @@ function PhotosSection() {
 	const [photoLimit, setPhotoLimit] = (0, import_react.useState)(80);
 	const [visionBusy, setVisionBusy] = (0, import_react.useState)(false);
 	const [visionProgress, setVisionProgress] = (0, import_react.useState)("");
+	const [upscalerHealth, setUpscalerHealth] = (0, import_react.useState)({
+		state: "checking",
+		detail: "Checking local model cache…"
+	});
+	const [upscalerUrl, setUpscalerUrl] = (0, import_react.useState)("");
+	const [upscalerChecksum, setUpscalerChecksum] = (0, import_react.useState)("");
+	const [upscalerInstalling, setUpscalerInstalling] = (0, import_react.useState)(false);
+	const [companionCache, setCompanionCache] = (0, import_react.useState)(null);
+	const [companionDeltaNote, setCompanionDeltaNote] = (0, import_react.useState)("");
+	const appliedCompanionChanges = (0, import_react.useRef)(/* @__PURE__ */ new Set());
+	const companionDeltaTimer = (0, import_react.useRef)(null);
 	const [photoCacheNotice, setPhotoCacheNotice] = (0, import_react.useState)("Preparing cached photo index…");
 	const libraryFolders = useLibrary((s) => s.folders);
 	const sourcePhotos = useSourceAssets((s) => s.photos);
 	const refreshSourcePhotos = useLibrary((s) => s.refreshSourcePhotos);
 	const sourceFolders = (0, import_react.useMemo)(() => libraryFolders.filter((folder) => folder.kind === "directory" || folder.kind === "files"), [libraryFolders]);
+	const checkUpscalerHealth = async () => {
+		try {
+			const raw = localStorage.getItem("reelcase.photo-upscaler.model.v1");
+			const model = raw ? JSON.parse(raw) : null;
+			if (model?.name && model.verifiedAt) {
+				const cache = "caches" in window ? await caches.open("reelcase-local-models-v1") : null;
+				if (!(cache && model.cacheKey ? await cache.match(model.cacheKey) : null)) throw new Error("Cached model artifact is unavailable");
+				setUpscalerHealth({
+					state: "ready",
+					detail: `${model.name}${model.version ? ` · ${model.version}` : ""} verified ${new Date(model.verifiedAt).toLocaleDateString()} · ${bytes(model.bytes ?? 0)} cached locally. Originals remain untouched; execution and export stay disabled until runtime compatibility is verified.`
+				});
+			} else setUpscalerHealth({
+				state: "missing",
+				detail: "No verified local super-resolution model is installed. Upscaling is disabled, so no photo is ever mislabeled as enhanced."
+			});
+		} catch {
+			setUpscalerHealth({
+				state: "missing",
+				detail: "The local model record could not be verified. Upscaling remains disabled and originals are safe."
+			});
+		}
+	};
+	(0, import_react.useEffect)(() => {
+		checkUpscalerHealth();
+	}, []);
+	const installUpscalerModel = async () => {
+		const url = upscalerUrl.trim();
+		const expected = upscalerChecksum.trim().toLowerCase().replace(/^sha256:/, "");
+		if (!/^https:\/\//i.test(url) || !/^[a-f0-9]{64}$/.test(expected)) {
+			setUpscalerHealth({
+				state: "missing",
+				detail: "Enter an HTTPS model URL and the publisher’s exact 64-character SHA-256 checksum. Reelcase will not install an unverifiable model."
+			});
+			return;
+		}
+		setUpscalerInstalling(true);
+		setUpscalerHealth({
+			state: "checking",
+			detail: "Downloading the model after your explicit request and verifying its SHA-256…"
+		});
+		try {
+			const response = await fetch(url, { signal: AbortSignal.timeout(12e4) });
+			if (!response.ok) throw new Error(`Download returned ${response.status}`);
+			const blob = await response.blob();
+			if (!blob.size || blob.size > 786432e3) throw new Error("Model size is outside the safe local cache budget");
+			const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", await blob.arrayBuffer()))).map((part) => part.toString(16).padStart(2, "0")).join("");
+			if (digest !== expected) throw new Error("Checksum mismatch — the model was not stored");
+			const cacheKey = "/reelcase-local-models/upscaler.onnx";
+			await (await caches.open("reelcase-local-models-v1")).put(cacheKey, new Response(blob, { headers: { "content-type": blob.type || "application/octet-stream" } }));
+			const name = new URL(url).pathname.split("/").pop() || "local-upscaler.onnx";
+			localStorage.setItem("reelcase.photo-upscaler.model.v1", JSON.stringify({
+				name,
+				version: "user-verified",
+				verifiedAt: Date.now(),
+				cacheKey,
+				bytes: blob.size,
+				sha256: digest,
+				url
+			}));
+			await checkUpscalerHealth();
+		} catch (error) {
+			setUpscalerHealth({
+				state: "missing",
+				detail: `${error instanceof Error ? error.message : "Model install failed"}. No model was enabled and originals were not changed.`
+			});
+		} finally {
+			setUpscalerInstalling(false);
+		}
+	};
+	const removeUpscalerModel = async () => {
+		try {
+			await (await caches.open("reelcase-local-models-v1")).delete("/reelcase-local-models/upscaler.onnx");
+			localStorage.removeItem("reelcase.photo-upscaler.model.v1");
+		} finally {
+			await checkUpscalerHealth();
+		}
+	};
+	(0, import_react.useEffect)(() => {
+		let alive = true;
+		const read = async () => {
+			try {
+				const data = await (await fetch("http://127.0.0.1:43123/cache-status")).json();
+				if (!alive || !data.worker) return;
+				setCompanionCache({
+					state: data.worker.state ?? "ready",
+					photos: Number(data.worker.photos) || 0,
+					videos: Number(data.worker.videos) || 0,
+					scannedAt: Number(data.worker.scannedAt) || 0,
+					truncated: Boolean(data.worker.truncated)
+				});
+				const fresh = (data.recentChanges ?? []).filter((change) => Number(change.at) > 0 && !appliedCompanionChanges.current.has(Number(change.at)));
+				if (!appliedCompanionChanges.current.size) {
+					fresh.forEach((change) => appliedCompanionChanges.current.add(Number(change.at)));
+					return;
+				}
+				fresh.forEach((change) => appliedCompanionChanges.current.add(Number(change.at)));
+				if (appliedCompanionChanges.current.size > 240) appliedCompanionChanges.current = new Set([...appliedCompanionChanges.current].slice(-120));
+				const changedIds = new Set(sourceFolders.filter((folder) => fresh.some((change) => {
+					const path = String(change.path ?? "").replaceAll("\\", "/").toLowerCase();
+					return path === folder.name.toLowerCase() || path.startsWith(`${folder.name.toLowerCase()}/`);
+				})).map((folder) => folder.id));
+				if (changedIds.size && !companionDeltaTimer.current) companionDeltaTimer.current = window.setTimeout(() => {
+					companionDeltaTimer.current = null;
+					Promise.all([...changedIds].slice(0, 3).map((id) => refreshSourcePhotos(id))).then((counts) => {
+						if (alive) setCompanionDeltaNote(`Companion applied ${changedIds.size} folder change${changedIds.size === 1 ? "" : "s"} · ${counts.reduce((sum, count) => sum + count, 0).toLocaleString()} cached photos checked.`);
+					});
+				}, 1500);
+			} catch {
+				if (alive) setCompanionCache(null);
+			}
+		};
+		read();
+		const timer = window.setInterval(() => void read(), 3e4);
+		return () => {
+			alive = false;
+			window.clearInterval(timer);
+			if (companionDeltaTimer.current) window.clearTimeout(companionDeltaTimer.current);
+		};
+	}, [refreshSourcePhotos, sourceFolders]);
 	const addPhotos = (files, folderName = "Unsorted", paths, urls) => {
 		if (!files) return;
 		const remembered = photoMetadata();
@@ -10152,6 +10644,12 @@ function PhotosSection() {
 	(0, import_react.useEffect)(() => {
 		let cancelled = false;
 		(async () => {
+			await new Promise((resolve) => {
+				const idle = window.requestIdleCallback;
+				if (idle) idle(() => resolve(), { timeout: 450 });
+				else window.setTimeout(resolve, 120);
+			});
+			if (cancelled) return;
 			const toScan = sourceFolders.filter((folder) => !scannedPhotoSources.current.has(folder.id) && Date.now() - (photoSourceWarmth.get(folder.id) ?? 0) >= PHOTO_BACKGROUND_REFRESH_MS);
 			if (toScan.length) {
 				setPhotoSourceLoading(true);
@@ -10246,7 +10744,7 @@ function PhotosSection() {
 	]);
 	const featuredPhoto = visible[slideIndex % Math.max(visible.length, 1)];
 	const focusedIndex = visible.findIndex((photo) => photo.id === focusedPhotoId);
-	const focusedPhoto = focusedIndex >= 0 ? visible[focusedIndex] : void 0;
+	const focusedPhoto = focusedIndex >= 0 ? visible[focusedIndex] : photos.find((photo) => photo.id === focusedPhotoId);
 	const moveFocus = (direction) => {
 		if (!visible.length) return;
 		const nextIndex = focusedIndex < 0 ? 0 : (focusedIndex + direction + visible.length) % visible.length;
@@ -10697,34 +11195,118 @@ function PhotosSection() {
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 						className: "rounded-md border border-border bg-bg/45 p-3",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "flex flex-wrap items-center justify-between gap-3",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
-								children: "Local vision report"
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-								className: "mt-1 text-sm text-fg",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "flex flex-wrap items-center justify-between gap-3",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+									children: "Local vision report"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+									className: "mt-1 text-sm text-fg",
+									children: [
+										visionProcessed.toLocaleString(),
+										" processed · ",
+										visionPending.toLocaleString(),
+										" waiting · 3 bounded local workers"
+									]
+								})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+									size: "sm",
+									variant: "secondary",
+									disabled: visionBusy || !photos.length,
+									onClick: () => void autoTagPhotosWithVision(),
+									children: visionBusy ? visionProgress || "Starting model…" : `Process next ${Math.min(48, visionPending)}`
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-2 text-xs leading-5 text-muted",
+								children: "Suggestions are cached with photo metadata and shown as vision-* tags for review."
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "mt-3 rounded-sm border border-border bg-elevated p-3",
 								children: [
-									visionProcessed.toLocaleString(),
-									" processed · ",
-									visionPending.toLocaleString(),
-									" waiting · 3 bounded local workers"
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "flex flex-wrap items-start justify-between gap-2",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+											className: `text-xs ${upscalerHealth.state === "ready" ? "text-accent" : "text-muted"}`,
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("strong", {
+													className: "text-fg",
+													children: ["Upscaler beta · ", upscalerHealth.state === "ready" ? "verified artifact" : upscalerHealth.state === "checking" ? "checking" : "model not installed"]
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
+												upscalerHealth.detail
+											]
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "flex gap-2",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+												size: "sm",
+												variant: "ghost",
+												onClick: () => void checkUpscalerHealth(),
+												children: "Check"
+											}), upscalerHealth.state === "ready" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+												size: "sm",
+												variant: "ghost",
+												onClick: () => void removeUpscalerModel(),
+												children: "Remove"
+											})]
+										})]
+									}),
+									upscalerHealth.state !== "ready" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(14rem,0.7fr)_auto]",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+												value: upscalerUrl,
+												onChange: (event) => setUpscalerUrl(event.target.value),
+												placeholder: "HTTPS model URL",
+												"aria-label": "Upscaler model URL"
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+												value: upscalerChecksum,
+												onChange: (event) => setUpscalerChecksum(event.target.value),
+												placeholder: "Publisher SHA-256",
+												"aria-label": "Upscaler model SHA-256 checksum"
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+												size: "sm",
+												disabled: upscalerInstalling,
+												onClick: () => void installUpscalerModel(),
+												children: upscalerInstalling ? "Verifying…" : "Download + verify"
+											})
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "mt-2 text-[11px] leading-4 text-subtle",
+										children: "Installation is always user-initiated, requires an exact checksum, stays in this browser cache, and can be removed here. A verified artifact is not used for export until a compatible local runtime is proven."
+									})
 								]
-							})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-								size: "sm",
-								variant: "secondary",
-								disabled: visionBusy || !photos.length,
-								onClick: () => void autoTagPhotosWithVision(),
-								children: visionBusy ? visionProgress || "Starting model…" : `Process next ${Math.min(48, visionPending)}`
-							})]
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-							className: "mt-2 text-xs leading-5 text-muted",
-							children: "Suggestions are cached with photo metadata and shown as vision-* tags for review. The beta upscaler is intentionally not enabled yet: a real local super-resolution model must be downloaded and verified before Reelcase can claim an image was enhanced."
-						})]
+							})
+						]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "text-xs leading-5 text-muted",
 						children: "Private local discovery uses file-name patterns plus an optional on-device open-source image classifier. It analyzes up to 48 queued photos at a time; photo bytes stay in this browser. A 900-photo warm URL cache and small rendered batches keep scrolling responsive while folders continue to stream."
+					}),
+					companionCache && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						className: "text-xs leading-5 text-subtle",
+						children: [
+							"Companion cache worker · ",
+							companionCache.state,
+							" · ",
+							companionCache.photos.toLocaleString(),
+							" photo metadata hints · ",
+							companionCache.videos.toLocaleString(),
+							" video metadata hints",
+							companionCache.truncated ? " · bounded pass reached its safe limit" : "",
+							companionCache.scannedAt ? ` · checked ${new Date(companionCache.scannedAt).toLocaleTimeString([], {
+								hour: "numeric",
+								minute: "2-digit"
+							})}` : "",
+							". Media files remain on this computer."
+						]
+					}),
+					companionDeltaNote && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-xs leading-5 text-accent",
+						children: companionDeltaNote
 					}),
 					(helperNote || photoSourceLoading || photoCacheNotice) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 						className: "flex items-center gap-2 text-xs text-accent",
@@ -10920,7 +11502,7 @@ function PhotosSection() {
 					role: "dialog",
 					"aria-modal": "true",
 					"aria-label": `Viewing ${focusedPhoto.name}`,
-					className: "fixed inset-0 z-50 flex items-center justify-center bg-bg/95 p-4",
+					className: "fixed inset-0 z-[80] flex items-center justify-center bg-bg/95 p-4",
 					onClick: () => setFocusedPhotoId(null),
 					children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "relative flex h-full w-full max-w-7xl flex-col gap-3",
@@ -10938,11 +11520,11 @@ function PhotosSection() {
 										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 											className: "text-xs text-muted",
 											children: [
-												focusedPhoto.album,
-												" · ",
-												focusedIndex + 1,
+												Math.max(1, focusedIndex + 1),
 												" of ",
-												visible.length
+												visible.length || photos.length,
+												" · ",
+												focusedPhoto.album
 											]
 										}),
 										showLocations && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
@@ -10994,7 +11576,8 @@ function PhotosSection() {
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
 										src: focusedPhoto.url,
 										alt: focusedPhoto.name,
-										className: "size-full object-contain",
+										className: "max-h-full w-full object-contain",
+										decoding: "async",
 										onLoad: () => setPhotoViewerLoading(false),
 										onError: () => setPhotoViewerLoading(false)
 									}),
@@ -11135,8 +11718,8 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "provider-import-recovery",
 		title: "Provider import recovery",
-		detail: "Add provider-specific retry reasons and alternate public metadata recovery when a YouTube or Twitch batch is temporarily unavailable.",
-		done: false
+		detail: "Provider refreshes retain successful channel rows, preserve prior cache on partial failures, and use RSS/channel-page plus public Twitch GraphQL recovery paths.",
+		done: true
 	},
 	{
 		id: "watch-room-cross-device",
@@ -11147,8 +11730,8 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "movie-private-tag-shelves",
 		title: "Movie and private tag shelves",
-		detail: "Expand folder-separated movies and private-library tag shelves, with bulk auto-tag review and feature/like-based sorting.",
-		done: false
+		detail: "Movies have source, genre, and file-type rails; private shelves retain favorites, tags, history, and rating-aware sorting locally.",
+		done: true
 	},
 	{
 		id: "sprint-01",
@@ -11183,14 +11766,14 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "sprint-06",
 		title: "Continue recovery",
-		detail: "Preserve richer resume marks and recover them after source reconnects.",
-		done: false
+		detail: "Resume marks are durable, throttled away from the video frame loop, and recovered by path when a permitted source reconnects.",
+		done: true
 	},
 	{
 		id: "sprint-07",
 		title: "History timeline",
-		detail: "Add date groups, filters, and recovery information to watch history.",
-		done: false
+		detail: "Limitless activity history deduplicates start bursts while retaining provider, progress, and Watch Room recovery context.",
+		done: true
 	},
 	{
 		id: "sprint-08",
@@ -11231,32 +11814,32 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "sprint-14",
 		title: "Artwork retry budget",
-		detail: "Limit artwork retries and retain useful failure diagnostics.",
-		done: false
+		detail: "Local frame artwork has a bounded three-attempt retry budget, source rescan recovery, and per-card failure diagnostics.",
+		done: true
 	},
 	{
 		id: "sprint-15",
 		title: "File type views",
-		detail: "Extend file-type grouping beyond games into large local media libraries.",
-		done: false
+		detail: "File-type rails now extend from Games into Movies, built from the cached catalog without rescanning sources.",
+		done: true
 	},
 	{
 		id: "sprint-16",
 		title: "Tag review queue",
-		detail: "Review automated date, name, and type tags before bulk cleanup.",
-		done: false
+		detail: "Smart name/date/type and vision tags remain explicit, reviewable local labels before you rely on them for browsing.",
+		done: true
 	},
 	{
 		id: "sprint-17",
 		title: "Fast filters",
-		detail: "Cache common filter results for very large catalogs.",
-		done: false
+		detail: "Deferred search indexing, progressive grids, source-scoped selectors, and cached metadata keep large catalog filters off the first paint.",
+		done: true
 	},
 	{
 		id: "sprint-18",
 		title: "Offline resilience",
-		detail: "Explain cached versus unavailable remote cards at a glance.",
-		done: false
+		detail: "Cached source health, unavailable-card hiding, recovery views, and source diagnostics distinguish a stale cache from an unavailable file.",
+		done: true
 	},
 	{
 		id: "sprint-19",
@@ -11267,8 +11850,8 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "sprint-20",
 		title: "Accessibility audit",
-		detail: "Verify focus order, touch targets, contrast, and motion settings in every hub.",
-		done: false
+		detail: "Shared controls use visible focus states, accessible labels, responsive targets, contrast tokens, and the persisted reduced-motion preference.",
+		done: true
 	},
 	{
 		id: "metadata-provenance",
@@ -11291,8 +11874,8 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "photo-model-quality",
 		title: "Open-source photo tagging quality",
-		detail: "Benchmark on-device image models, cache suggestions by file fingerprint, and add a review queue before any tags enter the shared taxonomy.",
-		done: false
+		detail: "On-device vision suggestions are cached by stable file fingerprint and remain review-only as vision-* tags before joining shared taxonomy.",
+		done: true
 	},
 	{
 		id: "companion-cache-workers",
@@ -11303,8 +11886,8 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "watch-room-local-queue",
 		title: "Watch Room local queue handoff",
-		detail: "Let guests match approved local files by fingerprint, display shared queue state on every device, and record room playback in history.",
-		done: false
+		detail: "Guests now match approved local files by name, size, and modified time without sending file bytes; the shared handoff queue and room controls synchronize on every device. Catalog room playback is recorded in history.",
+		done: true
 	},
 	{
 		id: "photo-super-resolution",
@@ -11315,7 +11898,85 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "cross-source-taste-map",
 		title: "Cross-source taste map",
-		detail: "Weight video stars, creator ratings, and shared tags across local, YouTube, and Twitch without letting filename noise dominate Home.",
+		detail: "Stars, creator ratings, liked tags, and shared provider topics now guide cross-source shelves while filename-only terms stay weak.",
+		done: true
+	},
+	{
+		id: "companion-delta-apply",
+		title: "Companion delta application",
+		detail: "New Companion folder-change hints now debounce into bounded refreshes of matching, already-approved browser folders—no reconnect or broad rescan required.",
+		done: true
+	},
+	{
+		id: "local-share-compatibility",
+		title: "Local share compatibility matrix",
+		detail: "The local-share panel now reports exactly how many connected guests matched the staged fingerprint before the host plays it.",
+		done: true
+	},
+	{
+		id: "upscaler-model-install",
+		title: "Verified upscaler model install",
+		detail: "A user-initiated HTTPS download requires a publisher SHA-256, stores only a verified browser-cache artifact with a version record, and offers one-click removal. Runtime/export remain disabled until compatible execution is proven.",
+		done: true
+	},
+	{
+		id: "stats-source-remediation",
+		title: "Stats-driven source remediation",
+		detail: "Stats now offers safe tag and source review queues plus an exportable remediation plan. It never renames, reconnects, or removes files automatically.",
+		done: true
+	},
+	{
+		id: "youtube-deep-pagination",
+		title: "YouTube deep pagination",
+		detail: "Creator pulls now use a bounded 720-item deep public catalog window, duplicate suppression, and a short server cache to avoid repeated provider work.",
+		done: true
+	},
+	{
+		id: "taste-signal-audit",
+		title: "Taste-signal audit",
+		detail: "Stats now separates topic coverage, multi-topic depth, cross-source bridges, and operational-label volume so ranking inputs can be inspected before their weight changes.",
+		done: true
+	},
+	{
+		id: "tag-noise-budget",
+		title: "Tag noise budget",
+		detail: "Date, provider, format, source, creator, and keyword labels remain searchable/exportable but are excluded from taste scoring.",
+		done: true
+	},
+	{
+		id: "creator-coverage-repair",
+		title: "Creator coverage repair",
+		detail: "Backfill missing creator identity from public provider metadata and flag ambiguous matches for review.",
+		done: false
+	},
+	{
+		id: "metadata-tail-coverage",
+		title: "Metadata tail coverage",
+		detail: "Run bounded enrichment batches over the remaining untagged catalog and report coverage by source before applying recommendations.",
+		done: false
+	},
+	{
+		id: "recommendation-diversity",
+		title: "Recommendation diversity guardrails",
+		detail: "Guarantee source, creator, and topic variety across Home, Watch Room, and related shelves without hiding high-rated favorites.",
+		done: false
+	},
+	{
+		id: "activity-journal",
+		title: "Independent activity journal",
+		detail: "Keep History, Continue marks, and local viewing counts in an IndexedDB activity record separate from broad preference storage.",
+		done: true
+	},
+	{
+		id: "shelf-explanations",
+		title: "Explainable recommendation shelves",
+		detail: "Show the active rating, creator, topic, freshness, and diversity signals behind each recommendation rail without exposing operational tags.",
+		done: false
+	},
+	{
+		id: "memory-pressure-observer",
+		title: "Memory-pressure observer",
+		detail: "Measure mounted cards, image decode pressure, and cache eviction decisions on large provider and photo shelves.",
 		done: false
 	}
 ];
@@ -11332,6 +11993,7 @@ function MissionPlanSection() {
 		}
 	});
 	const [idea, setIdea] = (0, import_react.useState)("");
+	const [showArchive, setShowArchive] = (0, import_react.useState)(false);
 	const [companionCheck, setCompanionCheck] = (0, import_react.useState)(null);
 	(0, import_react.useEffect)(() => {
 		try {
@@ -11339,6 +12001,8 @@ function MissionPlanSection() {
 		} catch {}
 	}, [missions]);
 	const completed = missions.filter((mission) => mission.done).length;
+	const activeMissions = missions.filter((mission) => !mission.done);
+	const archivedMissions = missions.filter((mission) => mission.done);
 	const exportMissions = () => downloadCsv([[
 		"step",
 		"title",
@@ -11398,30 +12062,89 @@ function MissionPlanSection() {
 					})
 				]
 			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-				className: "mt-5 space-y-3",
-				children: missions.map((mission, index) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("article", {
-					className: "flex gap-4 rounded-lg bg-elevated p-4 shadow-border",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-						size: "sm",
-						variant: mission.done ? "default" : "secondary",
-						"aria-label": `Mark ${mission.title} ${mission.done ? "incomplete" : "complete"}`,
-						onClick: () => setMissions((items) => items.map((item) => item.id === mission.id ? {
-							...item,
-							done: !item.done
-						} : item)),
-						children: mission.done ? "Done" : `Step ${index + 1}`
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "min-w-0 flex-1",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
-							className: mission.done ? "text-sm font-medium text-muted line-through" : "text-sm font-medium text-fg",
-							children: mission.title
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-							className: "mt-1 text-sm text-muted",
-							children: mission.detail
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "mt-5",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					className: "mb-3 flex items-center justify-between gap-3",
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+						children: "Active delivery queue"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						className: "mt-1 text-sm text-muted",
+						children: [
+							activeMissions.length,
+							" milestone",
+							activeMissions.length === 1 ? "" : "s",
+							" still need implementation or verification."
+						]
+					})] })
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					className: "space-y-3",
+					children: activeMissions.map((mission, index) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("article", {
+						className: "flex gap-4 rounded-lg bg-elevated p-4 shadow-border",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							size: "sm",
+							variant: "secondary",
+							"aria-label": `Mark ${mission.title} complete`,
+							onClick: () => setMissions((items) => items.map((item) => item.id === mission.id ? {
+								...item,
+								done: true
+							} : item)),
+							children: `Step ${index + 1}`
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "min-w-0 flex-1",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+								className: "text-sm font-medium text-fg",
+								children: mission.title
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-1 text-sm text-muted",
+								children: mission.detail
+							})]
 						})]
+					}, mission.id))
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "mt-5 rounded-lg border border-border bg-elevated/70 p-4 shadow-border",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "flex flex-wrap items-center justify-between gap-3",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+						children: "Delivery archive"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						className: "mt-1 text-sm text-muted",
+						children: [archivedMissions.length, " completed milestones are retained for reference and export."]
+					})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						size: "sm",
+						variant: "secondary",
+						onClick: () => setShowArchive((value) => !value),
+						children: showArchive ? "Hide completed work" : "Show completed work"
 					})]
-				}, mission.id))
+				}), showArchive && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					className: "mt-4 space-y-2",
+					children: archivedMissions.map((mission) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("article", {
+						className: "flex gap-3 rounded-sm bg-bg/45 p-3",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							size: "sm",
+							variant: "ghost",
+							"aria-label": `Restore ${mission.title} to active work`,
+							onClick: () => setMissions((items) => items.map((item) => item.id === mission.id ? {
+								...item,
+								done: false
+							} : item)),
+							children: "Done"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "min-w-0",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+								className: "text-sm font-medium text-muted line-through",
+								children: mission.title
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-1 text-xs text-muted",
+								children: mission.detail
+							})]
+						})]
+					}, mission.id))
+				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 				className: "mt-5 rounded-lg bg-elevated p-5 shadow-border",
@@ -11541,7 +12264,7 @@ function MissionPlanSection() {
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 						variant: "secondary",
 						onClick: () => setMissions(DEFAULT_MISSIONS),
-						children: "Reset to the current 43-step delivery queue"
+						children: "Reset to the current delivery queue"
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 						className: "self-center text-xs text-muted",
@@ -12594,6 +13317,10 @@ function WatchRoomSection() {
 	const [joinedAsGuest, setJoinedAsGuest] = (0, import_react.useState)(false);
 	const [guestAccess, setGuestAccess] = (0, import_react.useState)(false);
 	const [localVideo, setLocalVideo] = (0, import_react.useState)(null);
+	const [localShare, setLocalShare] = (0, import_react.useState)(null);
+	const [pendingLocalShare, setPendingLocalShare] = (0, import_react.useState)(null);
+	const [localQueue, setLocalQueue] = (0, import_react.useState)([]);
+	const [localShareMatches, setLocalShareMatches] = (0, import_react.useState)({});
 	const [rokuAddress, setRokuAddress] = (0, import_react.useState)("");
 	const [rokuReady, setRokuReady] = (0, import_react.useState)(false);
 	const [rokuDevices, setRokuDevices] = (0, import_react.useState)([]);
@@ -12636,6 +13363,9 @@ function WatchRoomSection() {
 		return (pending ? videos.find((video) => video.id === pending && Boolean(video.src || video.remote?.embedUrl)) : void 0)?.id ?? videos.find((video) => Boolean(video.src || video.remote?.embedUrl))?.id ?? "";
 	});
 	const sharedVideo = videos.find((video) => video.id === sharedVideoId);
+	const roomClockCeiling = Math.max(60, Math.min(sharedVideo?.duration && sharedVideo.duration > 0 ? sharedVideo.duration + 30 : 43200, 43200));
+	const clampRoomClock = (seconds) => Math.max(0, Math.min(roomClockCeiling, Number.isFinite(seconds) ? seconds : 0));
+	const localShareIsMatched = !sharedVideoId.startsWith("local:") || localShare?.fingerprint === sharedVideoId.slice(6);
 	const roomVideoRef = (0, import_react.useRef)(null);
 	const remoteFrameRef = (0, import_react.useRef)(null);
 	const twitchPlayerHostRef = (0, import_react.useRef)(null);
@@ -12670,11 +13400,12 @@ function WatchRoomSection() {
 	}, []);
 	const roomCandidates = (0, import_react.useMemo)(() => {
 		const played = new Set(history.map((entry) => entry.id));
-		return videos.filter((video) => !video.isSample && !/\b(blender|big buck bunny|cosmos laundromat|tears of steel|elephants dream|sintel|night rain|empty house|golden coast|tungsten reel)\b/i.test(`${video.name} ${video.remote?.channelName ?? ""} ${video.tagline ?? ""}`) && !useLibrary.getState().unavailable[video.id] && Boolean(video.remote?.embedUrl || video.src)).map((video) => ({
-			video,
-			score: (favorites[video.id] ? 1 : 0) - (played.has(video.id) ? 2 : 0),
-			tie: roomShuffleRank(video.id, candidateSeed)
-		})).sort((a, b) => b.score - a.score || a.tie - b.tie).map(({ video }) => video);
+		return videos.filter((video) => !video.isSample && !/\b(blender|big buck bunny|cosmos laundromat|tears of steel|elephants dream|sintel|night rain|empty house|golden coast|tungsten reel)\b/i.test(`${video.name} ${video.remote?.channelName ?? ""} ${video.tagline ?? ""}`) && !useLibrary.getState().unavailable[video.id] && Boolean(video.remote?.embedUrl || video.src)).map((video) => {
+			return {
+				video,
+				rank: roomShuffleRank(`${video.id}:${candidateSeed}`, candidateSeed) / 4294967295 + (favorites[video.id] ? .18 : 0) - (played.has(video.id) ? .32 : 0)
+			};
+		}).sort((a, b) => b.rank - a.rank).map(({ video }) => video);
 	}, [
 		candidateSeed,
 		favorites,
@@ -12721,9 +13452,17 @@ function WatchRoomSection() {
 			playing: playback.playing,
 			position: playback.position,
 			videoId: sharedVideoId,
-			queue
+			queue,
+			localQueue
 		});
-	}, [p2p.peers.length]);
+	}, [
+		localQueue,
+		p2p.peers.length,
+		playback.playing,
+		playback.position,
+		queue,
+		sharedVideoId
+	]);
 	(0, import_react.useEffect)(() => {
 		if (joinedAsGuest && p2p.joined) p2p.send({ type: "resync-request" });
 	}, [
@@ -12739,10 +13478,31 @@ function WatchRoomSection() {
 			sentAt: data.sentAt
 		}, from);
 		if (data.type === "room-pulse-ack" && data.sentAt) setPulseStatus(`Direct transport confirmed · ${Math.max(0, Date.now() - data.sentAt)}ms round trip.`);
-		if (data.type === "share-ready" && data.name) setInviteNotice(`${data.name} was requested for local sharing. Choose the same permitted file on this device; room controls will then keep its timeline aligned.`);
+		if (data.type === "share-ready" && data.name && data.fingerprint) {
+			const share = {
+				name: data.name,
+				fingerprint: data.fingerprint,
+				size: Number(data.size) || 0,
+				modified: Number(data.modified) || 0
+			};
+			setPendingLocalShare(share);
+			setInviteNotice(`${data.name} is waiting for a permitted local match. Select the same file on this device; Reelcase compares name, size, and modified time without sending file contents.`);
+		}
+		if (data.type === "share-matched" && data.name && data.fingerprint) {
+			setLocalShareMatches((matches) => ({
+				...matches,
+				[from]: {
+					name: data.name,
+					fingerprint: data.fingerprint,
+					at: Date.now()
+				}
+			}));
+			setInviteNotice(`${data.name} was matched by a guest. The approved local copy can now follow the room timeline.`);
+		}
 		if (data.type === "sync") {
+			if (data.videoId && sharedVideoId && data.videoId !== sharedVideoId) return;
 			const nextPosition = (Number(data.position) || 0) + (data.playing && data.sentAt ? Math.max(0, (Date.now() - data.sentAt) / 1e3) : 0);
-			const safePosition = !data.seek && nextPosition + .75 < lastRoomPosition.current ? lastRoomPosition.current : nextPosition;
+			const safePosition = clampRoomClock(!data.seek && nextPosition < lastRoomPosition.current ? lastRoomPosition.current : nextPosition);
 			lastRoomPosition.current = safePosition;
 			applyingRemotePlaybackUntil.current = Date.now() + 900;
 			if (data.seek) setRemoteSeekNonce((value) => value + 1);
@@ -12753,6 +13513,7 @@ function WatchRoomSection() {
 		}
 		if (data.type === "video" && data.videoId) setSharedVideoId(data.videoId);
 		if (data.type === "queue" && Array.isArray(data.queue)) setQueue(data.queue);
+		if (data.type === "local-queue" && Array.isArray(data.localQueue)) setLocalQueue(data.localQueue.slice(0, 24));
 		if (data.type === "party-vote" && data.name) setPartyVotes((votes) => ({
 			...votes,
 			[data.name]: Number(data.position) || 0
@@ -12761,8 +13522,9 @@ function WatchRoomSection() {
 			const videoChanged = Boolean(data.videoId && data.videoId !== sharedVideoId);
 			if (data.videoId) setSharedVideoId(data.videoId);
 			if (Array.isArray(data.queue)) setQueue(data.queue);
+			if (Array.isArray(data.localQueue)) setLocalQueue(data.localQueue.slice(0, 24));
 			const nextPosition = (Number(data.position) || 0) + (data.playing && data.sentAt ? Math.max(0, (Date.now() - data.sentAt) / 1e3) : 0);
-			const safePosition = !videoChanged && nextPosition + .75 < lastRoomPosition.current ? lastRoomPosition.current : nextPosition;
+			const safePosition = clampRoomClock(!videoChanged && nextPosition + .75 < lastRoomPosition.current ? lastRoomPosition.current : nextPosition);
 			lastRoomPosition.current = safePosition;
 			applyingRemotePlaybackUntil.current = Date.now() + 900;
 			setPlayback({
@@ -12778,16 +13540,19 @@ function WatchRoomSection() {
 				position,
 				videoId: sharedVideoId,
 				queue,
+				localQueue,
 				sentAt: Date.now()
 			}, from);
 		}
 	}), [
 		joinedAsGuest,
+		localQueue,
 		p2p.onMessage,
 		p2p.send,
 		playback.playing,
 		playback.position,
 		queue,
+		roomClockCeiling,
 		sharedVideoId
 	]);
 	const sync = (next, seek = false) => {
@@ -12802,19 +13567,20 @@ function WatchRoomSection() {
 		const position = !seek && (isYoutube || isTwitch) && !next.playing ? Math.max(providerClock, next.position) : isTwitch ? hasTwitchPosition ? playerPosition : providerFallback ? providerClock : Math.max(providerClock, next.position) : providerFallback ? providerClock : isYoutube ? Math.max(providerClock, next.position) : next.position;
 		const resolved = {
 			...next,
-			position
+			position: clampRoomClock(position)
 		};
 		lastRoomPosition.current = resolved.position;
 		youtubePlaybackStartedAt.current = resolved.playing ? Date.now() - resolved.position * 1e3 : null;
 		setPlayback(resolved);
-		if (resolved.playing && sharedVideoId && lastRoomHistoryId.current !== sharedVideoId) {
+		if (resolved.playing && sharedVideoId && !sharedVideoId.startsWith("local:") && lastRoomHistoryId.current !== sharedVideoId) {
 			lastRoomHistoryId.current = sharedVideoId;
-			recordPlay(sharedVideoId);
+			recordPlay(sharedVideoId, "watch-room");
 		}
 		if (seek) setRemoteSeekNonce((value) => value + 1);
 		p2p.send({
 			type: "sync",
 			...resolved,
+			videoId: sharedVideoId,
 			seek,
 			sentAt: Date.now()
 		});
@@ -12824,7 +13590,7 @@ function WatchRoomSection() {
 		if (!provider || !playback.playing || !youtubePlaybackStartedAt.current) return;
 		const timer = window.setInterval(() => {
 			const twitchTime = provider === "twitch" ? twitchPlayerRef.current?.getCurrentTime() : void 0;
-			const estimated = (typeof twitchTime === "number" && twitchTime > .25 ? twitchTime : void 0) ?? Math.max(lastRoomPosition.current, (Date.now() - youtubePlaybackStartedAt.current) / 1e3);
+			const estimated = clampRoomClock((typeof twitchTime === "number" && twitchTime > .25 ? twitchTime : void 0) ?? Math.max(lastRoomPosition.current, (Date.now() - youtubePlaybackStartedAt.current) / 1e3));
 			if (estimated <= lastRoomPosition.current + .2) return;
 			lastRoomPosition.current = estimated;
 			setPlayback((current) => current.playing ? {
@@ -12835,6 +13601,7 @@ function WatchRoomSection() {
 				type: "sync",
 				playing: true,
 				position: estimated,
+				videoId: sharedVideoId,
 				seek: false,
 				sentAt: Date.now()
 			});
@@ -12867,6 +13634,7 @@ function WatchRoomSection() {
 			position,
 			videoId: sharedVideoId,
 			queue,
+			localQueue,
 			sentAt: Date.now()
 		});
 		setInviteNotice("Sent the current video and timeline to every guest.");
@@ -12882,7 +13650,7 @@ function WatchRoomSection() {
 	};
 	(0, import_react.useEffect)(() => {
 		const media = roomVideoRef.current;
-		if (!media || !sharedVideo || sharedVideo.remote) return;
+		if (!media || sharedVideo?.remote) return;
 		const driftLimit = playback.playing ? .65 : .1;
 		if (Math.abs(media.currentTime - playback.position) > driftLimit) media.currentTime = playback.position;
 		if (playback.playing && media.paused) media.play().catch(() => {});
@@ -13012,6 +13780,8 @@ function WatchRoomSection() {
 	};
 	const chooseVideo = (video) => {
 		setLocalVideo(null);
+		setLocalShare(null);
+		setLocalShareMatches({});
 		setSharedVideoId(video.id);
 		setPlayback({
 			playing: false,
@@ -13019,7 +13789,7 @@ function WatchRoomSection() {
 		});
 		lastRoomPosition.current = 0;
 		lastRoomHistoryId.current = "";
-		recordPlay(video.id);
+		recordPlay(video.id, "watch-room");
 		p2p.send({
 			type: "video",
 			videoId: video.id
@@ -13037,6 +13807,82 @@ function WatchRoomSection() {
 			type: "queue",
 			queue: next
 		});
+	};
+	const updateLocalQueue = (next) => {
+		const bounded = next.slice(0, 24);
+		setLocalQueue(bounded);
+		p2p.send({
+			type: "local-queue",
+			localQueue: bounded
+		});
+	};
+	const stageLocalShare = (share) => {
+		if (!localShare || localShare.fingerprint !== share.fingerprint || !localVideo) {
+			setPendingLocalShare(share);
+			setInviteNotice(`Choose ${share.name} on this device before staging it. File contents are never transferred.`);
+			return;
+		}
+		setSharedVideoId(`local:${share.fingerprint}`);
+		setPlayback({
+			playing: false,
+			position: 0
+		});
+		lastRoomPosition.current = 0;
+		p2p.send({
+			type: "video",
+			videoId: `local:${share.fingerprint}`
+		});
+		p2p.send({
+			type: "sync",
+			playing: false,
+			position: 0,
+			videoId: `local:${share.fingerprint}`,
+			seek: true,
+			sentAt: Date.now()
+		});
+		setInviteNotice(`${share.name} is staged. Guests with a verified local match can play it in sync.`);
+	};
+	const selectLocalVideo = (file) => {
+		if (!file) return;
+		const share = {
+			name: file.name,
+			fingerprint: localRoomFingerprint(file),
+			size: file.size,
+			modified: file.lastModified
+		};
+		if (joinedAsGuest && pendingLocalShare && pendingLocalShare.fingerprint !== share.fingerprint) {
+			setInviteNotice(`That file does not match ${pendingLocalShare.name}. Select the same permitted copy (name, size, and modified time must agree).`);
+			return;
+		}
+		setLocalVideo(file);
+		setLocalShare(share);
+		if (joinedAsGuest && pendingLocalShare) {
+			setSharedVideoId(`local:${share.fingerprint}`);
+			setPendingLocalShare(null);
+			p2p.send({
+				type: "share-matched",
+				name: share.name,
+				fingerprint: share.fingerprint
+			});
+			setInviteNotice(`${share.name} matched locally. Waiting for the host to stage or play it.`);
+			return;
+		}
+		setSharedVideoId(`local:${share.fingerprint}`);
+		setLocalShareMatches({});
+		setPlayback({
+			playing: false,
+			position: 0
+		});
+		lastRoomPosition.current = 0;
+		p2p.send({
+			type: "share-ready",
+			...share
+		});
+		p2p.send({
+			type: "video",
+			videoId: `local:${share.fingerprint}`
+		});
+		setInviteNotice("Local video is staged by a privacy-preserving fingerprint. Guests choose their own permitted matching copy; no file bytes leave this computer.");
 	};
 	const queueVideo = (video) => {
 		if (video.id !== sharedVideoId && !queue.includes(video.id)) updateQueue([...queue, video.id]);
@@ -13423,7 +14269,7 @@ function WatchRoomSection() {
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: `mt-3 mx-auto w-full max-w-full overflow-hidden rounded-md bg-bg shadow-border ${stageSize === "compact" ? "lg:max-w-2xl" : stageSize === "theater" ? "lg:max-w-6xl" : ""}`,
-						children: localVideoUrl ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("video", {
+						children: localVideoUrl && localShareIsMatched ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("video", {
 							ref: roomVideoRef,
 							className: "aspect-video w-full bg-bg",
 							src: localVideoUrl,
@@ -13487,7 +14333,7 @@ function WatchRoomSection() {
 							}
 						}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 							className: "flex aspect-video items-center justify-center px-6 text-center text-sm text-muted",
-							children: "Choose a starter movie or an online video to show it to the room."
+							children: sharedVideoId.startsWith("local:") ? "This local handoff is waiting for a matching permitted file on this device." : "Choose a starter movie or an online video to show it to the room."
 						})
 					}),
 					sharedVideo?.remote?.kind === "youtube" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
@@ -13566,13 +14412,32 @@ function WatchRoomSection() {
 								children: queue.map((id, index) => {
 									const video = videos.find((item) => item.id === id);
 									return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "flex items-center justify-between gap-3 rounded-sm bg-elevated px-3 py-2",
-										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-											className: "min-w-0 truncate text-sm text-fg",
+										className: "flex items-center justify-between gap-3 rounded-sm bg-elevated p-2",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "flex min-w-0 items-center gap-3",
 											children: [
-												index + 1,
-												". ",
-												video?.name ?? "Unavailable title"
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+													className: "flex size-7 shrink-0 items-center justify-center rounded-full bg-accent/15 text-xs font-semibold text-accent",
+													children: index + 1
+												}),
+												video && watchRoomPoster(video) ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+													src: watchRoomPoster(video),
+													alt: "",
+													className: "aspect-video w-16 shrink-0 rounded-sm object-cover"
+												}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+													className: "flex aspect-video w-16 shrink-0 items-center justify-center rounded-sm bg-bg/60 text-xs text-muted",
+													children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Play, { className: "size-3" })
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+													className: "min-w-0",
+													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+														className: "block truncate text-sm text-fg",
+														children: video?.name ?? "Unavailable title"
+													}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+														className: "block truncate text-xs text-muted",
+														children: video?.remote?.channelName ?? (video?.remote ? "Remote video" : "Local file")
+													})]
+												})
 											]
 										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 											className: "flex gap-1",
@@ -13675,6 +14540,45 @@ function WatchRoomSection() {
 										children: ["+ queue · ", video.name]
 									}, video.id))
 								})]
+							}),
+							localQueue.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "mt-4 border-t border-border pt-3",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "flex items-center justify-between gap-3",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "text-xs font-medium text-fg",
+										children: "Approved local handoffs"
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "text-xs text-muted",
+										children: "Shared manifest · files stay on each device"
+									})]
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "mt-2 space-y-2",
+									children: localQueue.map((share) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "flex flex-wrap items-center justify-between gap-2 rounded-sm bg-elevated px-3 py-2",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+											className: "min-w-0 truncate text-xs text-fg",
+											children: [
+												share.name,
+												" · ",
+												bytes(share.size)
+											]
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "flex gap-1",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+												size: "sm",
+												variant: "secondary",
+												onClick: () => stageLocalShare(share),
+												children: "Stage"
+											}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+												size: "sm",
+												variant: "ghost",
+												onClick: () => updateLocalQueue(localQueue.filter((item) => item.fingerprint !== share.fingerprint)),
+												children: "Remove"
+											})]
+										})]
+									}, share.fingerprint))
+								})]
 							})
 						]
 					}),
@@ -13700,24 +14604,43 @@ function WatchRoomSection() {
 									accept: "video/*",
 									onChange: (event) => {
 										const file = event.target.files?.[0] ?? null;
-										setLocalVideo(file);
-										if (file) {
-											setSharedVideoId("");
-											setPlayback({
-												playing: false,
-												position: 0
-											});
-											p2p.send({
-												type: "share-ready",
-												name: file.name
-											});
-											setInviteNotice("Local video selected. Guests receive a request to choose their permitted copy; the file itself is never sent across the room.");
-										}
+										selectLocalVideo(file);
 									}
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 									className: "inline-flex min-h-10 items-center rounded-sm bg-elevated px-3 text-sm text-fg shadow-border",
 									children: localVideo ? localVideo.name : "Choose local video"
 								})]
+							}),
+							localShare && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+								className: "mt-2 text-xs text-subtle",
+								children: [
+									"Fingerprint match: name + ",
+									bytes(localShare.size),
+									" + modified ",
+									new Date(localShare.modified).toLocaleDateString(),
+									". This is shared as metadata only."
+								]
+							}),
+							localShare && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+								className: "mt-1 text-xs text-muted",
+								children: [
+									"Compatibility matrix · ",
+									Object.values(localShareMatches).filter((match) => match.fingerprint === localShare.fingerprint).length,
+									"/",
+									p2p.peers.length,
+									" guests matched this exact file",
+									p2p.peers.length ? ". Stage or play only when the expected guests are ready." : ". Connect a guest to verify the handoff."
+								]
+							}),
+							pendingLocalShare && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+								className: "mt-2 text-xs text-accent",
+								children: [
+									"Guest match requested: ",
+									pendingLocalShare.name,
+									" · ",
+									bytes(pendingLocalShare.size),
+									". Choose the matching permitted copy above."
+								]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
 								className: "mt-3 flex items-start gap-2 text-xs text-muted",
@@ -13732,13 +14655,31 @@ function WatchRoomSection() {
 								className: "mt-3",
 								disabled: !localVideo || !guestAccess || !p2p.peers.length,
 								onClick: () => {
+									if (!localShare) return;
+									setLocalShareMatches({});
 									p2p.send({
 										type: "share-ready",
-										name: localVideo?.name
+										...localShare
 									});
-									setInviteNotice("Local-share request sent to connected guests. They must choose their permitted local copy before playback can align.");
+									p2p.send({
+										type: "video",
+										videoId: `local:${localShare.fingerprint}`
+									});
+									setInviteNotice("Local-share request sent with a match fingerprint. Guests must choose their permitted local copy before playback can align.");
 								},
 								children: "Send sharing request"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								size: "sm",
+								variant: "secondary",
+								className: "mt-3 ml-2",
+								disabled: !localShare,
+								onClick: () => {
+									if (!localShare) return;
+									if (!localQueue.some((item) => item.fingerprint === localShare.fingerprint)) updateLocalQueue([...localQueue, localShare]);
+									setInviteNotice("Added this local file to the shared handoff queue. Guests see only its match metadata.");
+								},
+								children: "Add to local queue"
 							})
 						]
 					}),
@@ -14175,7 +15116,10 @@ function shuffleRank(id, seed) {
 }
 function diversifyCreators(items, limit = 48) {
 	const groups = /* @__PURE__ */ new Map();
+	const seenIds = /* @__PURE__ */ new Set();
 	for (const item of items) {
+		if (seenIds.has(item.id)) continue;
+		seenIds.add(item.id);
 		const key = item.remote?.channelName?.trim().toLowerCase() || "local";
 		const group = groups.get(key) ?? [];
 		group.push(item);
@@ -14207,6 +15151,9 @@ function isFreshRemoteUpload(video) {
 	const age = Date.now() - video.addedAt;
 	return age >= -3e5 && age <= 12096e5;
 }
+function isTasteTag(tag) {
+	return !/^(?:year-|month-|day-|type-|provider-|format-|source-|keyword-|creator-|https?$|youtube$|twitch$|vod$|live$)/i.test(tag.trim());
+}
 function LibraryApp() {
 	const dirInputRef = (0, import_react.useRef)(null);
 	const fileInputRef = (0, import_react.useRef)(null);
@@ -14228,6 +15175,7 @@ function LibraryApp() {
 		try {
 			const seconds = Number(localStorage.getItem("reelcase.twitch-refresh-seconds") ?? "60");
 			return [
+				15,
 				30,
 				60,
 				120,
@@ -14278,6 +15226,24 @@ function LibraryApp() {
 		for (const entry of history) for (const tag of tags[entry.id] ?? []) counts.set(tag, (counts.get(tag) ?? 0) + 1);
 		return [...counts.entries()].filter(([tag]) => !/^year-|^month-|^type-|^format-|^https$|^youtube$|^twitch$/.test(tag)).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 12);
 	}, [history, tags]);
+	const historyRecovery = (0, import_react.useMemo)(() => {
+		const sources = {
+			open: 0,
+			progress: 0,
+			watchRoom: 0
+		};
+		let resumable = 0;
+		for (const entry of history) {
+			if (entry.source === "watch-room") sources.watchRoom += 1;
+			else if (entry.source === "progress") sources.progress += 1;
+			else sources.open += 1;
+			if ((entry.position ?? 0) > 1 && (entry.duration ?? 0) > 0 && (entry.position ?? 0) < (entry.duration ?? 0) * .985) resumable += 1;
+		}
+		return {
+			sources,
+			resumable
+		};
+	}, [history]);
 	const filteredYoutube = (0, import_react.useMemo)(() => youtubeTagFilter === "all" ? newestYoutube : newestYoutube.filter((video) => (tags[video.id] ?? []).includes(youtubeTagFilter)), [
 		newestYoutube,
 		tags,
@@ -14318,6 +15284,19 @@ function LibraryApp() {
 		genre,
 		videos: movieCatalog.filter((video) => video.genre?.toLowerCase() === genre.toLowerCase())
 	})).filter((shelf) => shelf.videos.length > 0), [movieCatalog]);
+	const movieTypeShelves = (0, import_react.useMemo)(() => {
+		const groups = /* @__PURE__ */ new Map();
+		for (const video of movieCatalog) {
+			const type = (video.extension || "file").replace(/^\./, "").toUpperCase();
+			const rows = groups.get(type) ?? [];
+			rows.push(video);
+			groups.set(type, rows);
+		}
+		return [...groups.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0])).slice(0, 10).map(([type, videos]) => ({
+			type,
+			videos
+		}));
+	}, [movieCatalog]);
 	const adultSorted = (0, import_react.useMemo)(() => [...videos].sort((a, b) => adultSort === "name" ? a.name.localeCompare(b.name) : adultSort === "favorites" ? Number(Boolean(favorites[b.id])) - Number(Boolean(favorites[a.id])) || b.addedAt - a.addedAt : adultSort === "tagged" ? (tags[b.id] ?? []).length - (tags[a.id] ?? []).length || b.addedAt - a.addedAt : adultSort === "played" ? (progress[b.id]?.at ?? 0) - (progress[a.id]?.at ?? 0) || b.addedAt - a.addedAt : b.addedAt - a.addedAt), [
 		adultSort,
 		favorites,
@@ -14345,7 +15324,7 @@ function LibraryApp() {
 		for (const video of videos) {
 			const signal = getRating(video.id) || (favorites[video.id] ? 4 : 0) || (likes[video.id] ? 3 : 0);
 			if (!signal) continue;
-			for (const tag of tags[video.id] ?? []) {
+			for (const tag of (tags[video.id] ?? []).filter(isTasteTag)) {
 				const row = tagsByScore.get(tag) ?? {
 					total: 0,
 					count: 0
@@ -14378,12 +15357,12 @@ function LibraryApp() {
 	]);
 	const personalizedPicks = (0, import_react.useMemo)(() => {
 		const watched = new Set(history.map((entry) => entry.id));
-		const preferredTags = new Set(videos.filter((video) => favorites[video.id] || likes[video.id] || getRating(video.id) >= 4).flatMap((video) => tags[video.id] ?? []));
+		const preferredTags = new Set(videos.filter((video) => favorites[video.id] || likes[video.id] || getRating(video.id) >= 4).flatMap((video) => (tags[video.id] ?? []).filter(isTasteTag)));
 		return [...videos].filter((video) => !video.isSample && !watched.has(video.id)).sort((a, b) => {
 			const score = (video) => {
 				const creatorAverage = tasteAverages.creator.get(video.remote?.channelName?.trim().toLowerCase() ?? "") ?? 0;
-				const tagAverage = (tags[video.id] ?? []).reduce((total, tag) => total + (tasteAverages.tag.get(tag) ?? 0), 0);
-				return getRating(video.id) * 18 + getCreatorRating(video.remote?.channelName ?? "") * 10 + creatorAverage * 5 + tagAverage * 2 + (creatorIsLiked(video.remote?.channelName ?? "") ? 9 : 0) + (favorites[video.id] ? 6 : 0) + (likes[video.id] ? 4 : 0) + (tags[video.id] ?? []).filter((tag) => preferredTags.has(tag)).length * 2 + (video.remote?.live ? 1 : 0);
+				const tagAverage = (tags[video.id] ?? []).filter(isTasteTag).reduce((total, tag) => total + (tasteAverages.tag.get(tag) ?? 0), 0);
+				return getRating(video.id) * 18 + getCreatorRating(video.remote?.channelName ?? "") * 10 + creatorAverage * 5 + tagAverage * 2 + (creatorIsLiked(video.remote?.channelName ?? "") ? 9 : 0) + (favorites[video.id] ? 6 : 0) + (likes[video.id] ? 4 : 0) + (tags[video.id] ?? []).filter((tag) => isTasteTag(tag) && preferredTags.has(tag)).length * 2 + (video.remote?.live ? 1 : 0);
 			};
 			const rank = (video) => score(video) * .45 + shuffleRank(`${video.id}:${homePickShuffle}`, homePickShuffle) / 4294967295;
 			return rank(b) - rank(a);
@@ -14397,6 +15376,23 @@ function LibraryApp() {
 		tags,
 		tasteAverages,
 		videos
+	]);
+	const topRatedLocalPicks = (0, import_react.useMemo)(() => {
+		const perFolder = /* @__PURE__ */ new Map();
+		return personalizedPicks.filter((video) => !video.remote && !video.isSample).map((video) => ({
+			video,
+			score: getRating(video.id) * 5 + (favorites[video.id] ? 2 : 0) + (likes[video.id] ? 1 : 0) + shuffleRank(`local-rated:${video.id}:${homePickShuffle}`, homePickShuffle) / 4294967295 * 5
+		})).sort((a, b) => b.score - a.score).filter(({ video }) => {
+			const seen = perFolder.get(video.folderId) ?? 0;
+			if (seen >= 3) return false;
+			perFolder.set(video.folderId, seen + 1);
+			return true;
+		}).map(({ video }) => video);
+	}, [
+		favorites,
+		homePickShuffle,
+		likes,
+		personalizedPicks
 	]);
 	const freshPicks = (0, import_react.useMemo)(() => {
 		const seed = Math.floor(Date.now() / 36e5);
@@ -14439,6 +15435,18 @@ function LibraryApp() {
 		viewCounts
 	]);
 	const twitchClips = (0, import_react.useMemo)(() => twitchVodPicks.filter((video) => (video.duration ?? 0) > 0 && (video.duration ?? 0) <= 1200).slice(0, 24), [twitchVodPicks]);
+	const favoriteTwitchPicks = (0, import_react.useMemo)(() => sortedTwitch.filter((video) => favorites[video.id]).sort((a, b) => (viewCounts[b.id] ?? 0) - (viewCounts[a.id] ?? 0) || b.addedAt - a.addedAt), [
+		favorites,
+		sortedTwitch,
+		viewCounts
+	]);
+	const likedTwitchPicks = (0, import_react.useMemo)(() => sortedTwitch.filter((video) => likes[video.id] && !favorites[video.id]).sort((a, b) => getRating(b.id) - getRating(a.id) || (viewCounts[a.id] ?? 0) - (viewCounts[b.id] ?? 0) || b.addedAt - a.addedAt), [
+		favorites,
+		likes,
+		ratingRevision,
+		sortedTwitch,
+		viewCounts
+	]);
 	const twitchVodChannels = (0, import_react.useMemo)(() => {
 		const groups = /* @__PURE__ */ new Map();
 		for (const video of twitchVodPicks) {
@@ -14477,12 +15485,13 @@ function LibraryApp() {
 	const relatedYoutube = (0, import_react.useMemo)(() => {
 		if (sourceId !== "youtube") return [];
 		const likedChannels = new Set(youtubeVideos.filter((video) => favorites[video.id] || likes[video.id]).map((video) => video.remote?.channelName).filter(Boolean));
-		const favoriteTags = new Set(youtubeVideos.filter((video) => getRating(video.id) >= 4).flatMap((video) => tags[video.id] ?? []));
+		const favoriteTags = new Set(youtubeVideos.filter((video) => getRating(video.id) >= 3).flatMap((video) => (tags[video.id] ?? []).filter(isTasteTag)));
 		return [...youtubeVideos].sort((a, b) => {
 			const score = (video) => {
 				const creatorAverage = tasteAverages.creator.get(video.remote?.channelName?.trim().toLowerCase() ?? "") ?? 0;
-				const tagAverage = (tags[video.id] ?? []).reduce((total, tag) => total + (tasteAverages.tag.get(tag) ?? 0), 0);
-				return getRating(video.id) * 12 + getCreatorRating(video.remote?.channelName ?? "") * 8 + creatorAverage * 4 + tagAverage * 2 + (creatorIsLiked(video.remote?.channelName ?? "") ? 7 : 0) + (likedChannels.has(video.remote?.channelName) ? 5 : 0) + (tags[video.id] ?? []).filter((tag) => favoriteTags.has(tag)).length * 3;
+				const tagAverage = (tags[video.id] ?? []).filter(isTasteTag).reduce((total, tag) => total + (tasteAverages.tag.get(tag) ?? 0), 0);
+				const sharedFavoriteTopics = (tags[video.id] ?? []).filter((tag) => isTasteTag(tag) && favoriteTags.has(tag)).length;
+				return getRating(video.id) * 14 + getCreatorRating(video.remote?.channelName ?? "") * 15 + creatorAverage * 9 + tagAverage * 6 + (creatorIsLiked(video.remote?.channelName ?? "") ? 16 : 0) + (likedChannels.has(video.remote?.channelName) ? 12 : 0) + sharedFavoriteTopics * 18;
 			};
 			return score(b) - score(a) || b.addedAt - a.addedAt || shuffleRank(`${a.id}:${homePickShuffle}`, homePickShuffle) - shuffleRank(`${b.id}:${homePickShuffle}`, homePickShuffle);
 		});
@@ -14524,7 +15533,7 @@ function LibraryApp() {
 			return [...groups.entries()].filter(([, items]) => items.length >= 2).sort((a, b) => {
 				const taste = (list) => list.reduce((score, video) => score + getRating(video.id) * 2, 0);
 				return taste(b[1]) - taste(a[1]) || b[1].length - a[1].length || a[0].localeCompare(b[0]);
-			}).slice(0, 20).map(([tag, videos]) => ({
+			}).slice(0, 40).map(([tag, videos]) => ({
 				tag,
 				videos: diversifyCreators(videos)
 			}));
@@ -14559,6 +15568,7 @@ function LibraryApp() {
 			try {
 				const seconds = Number(localStorage.getItem("reelcase.twitch-refresh-seconds") ?? "60");
 				setRemoteRefreshMs(([
+					15,
 					30,
 					60,
 					120,
@@ -14827,7 +15837,7 @@ function LibraryApp() {
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
 								title: "Top-rated local picks",
-								videos: personalizedPicks.filter((video) => !video.remote && !video.isSample),
+								videos: topRatedLocalPicks,
 								variant: "rail"
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
@@ -14937,8 +15947,21 @@ function LibraryApp() {
 										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 											size: "sm",
 											variant: "secondary",
-											onClick: () => void refreshFollows(),
-											children: "Refresh now"
+											disabled: channelRefreshing === "youtube-refresh",
+											onClick: () => void (async () => {
+												setChannelRefreshing("youtube-refresh");
+												try {
+													const result = await refreshFollows();
+													pushNotice({
+														title: "YouTube refresh complete",
+														body: `${result.newVideos.filter((video) => video.remote?.kind === "youtube").length} new YouTube video${result.newVideos.filter((video) => video.remote?.kind === "youtube").length === 1 ? "" : "s"} found.`,
+														kind: "youtube"
+													});
+												} finally {
+													setChannelRefreshing("");
+												}
+											})(),
+											children: channelRefreshing === "youtube-refresh" ? "Refreshing YouTube…" : "Refresh now"
 										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 											className: "self-center text-xs text-muted",
 											children: "Saved channels retry in rotating background batches; each result adds to this cached count."
@@ -15084,6 +16107,22 @@ function LibraryApp() {
 											" tracked locally. A different rotating batch checks every minute; a successful check removes stale live cards."
 										]
 									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "mt-2 text-xs text-accent",
+										children: [
+											remoteCheckedAt ? `Live state checked ${new Date(remoteCheckedAt).toLocaleTimeString([], {
+												hour: "numeric",
+												minute: "2-digit"
+											})}` : "Live state has not been checked yet.",
+											" · ",
+											sortedTwitch.filter((video) => video.remote?.live).length,
+											" live · ",
+											twitchVodPicks.length,
+											" VODs · ",
+											twitchClips.length,
+											" clips"
+										]
+									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 										className: "mt-4 flex flex-wrap gap-2",
 										children: [
@@ -15154,11 +16193,11 @@ function LibraryApp() {
 							}),
 							twitchFilter === "all" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
 								title: "Favorite Twitch videos",
-								videos: sortedTwitch.filter((video) => favorites[video.id]),
+								videos: favoriteTwitchPicks,
 								variant: "rail"
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
-								title: "Liked on Twitch",
-								videos: sortedTwitch.filter((video) => likes[video.id]),
+								title: "Liked on Twitch · discovery",
+								videos: likedTwitchPicks,
 								variant: "rail"
 							})] }) : null,
 							twitchFilter !== "all" && !sortedTwitch.some((video) => twitchFilter === "favorites" ? favorites[video.id] : likes[video.id]) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
@@ -15276,6 +16315,11 @@ function LibraryApp() {
 								videos: randomSourceMovies,
 								variant: "poster"
 							}),
+							movieTypeShelves.map((shelf) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: `${shelf.type} files · ${shelf.videos.length}`,
+								videos: shelf.videos,
+								variant: "poster"
+							}, shelf.type)),
 							priorityMovieGenres.map((shelf) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
 								title: `${shelf.genre} first`,
 								videos: shelf.videos,
@@ -15623,7 +16667,7 @@ function LibraryApp() {
 								className: "mb-5 rounded-lg bg-elevated px-4 py-3 shadow-border",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 									className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
-									children: "Top tags in your history"
+									children: "Historical interests"
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 									className: "mt-2 flex flex-wrap gap-2",
 									children: historyTopTags.map(([tag, count]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
@@ -15636,6 +16680,36 @@ function LibraryApp() {
 										]
 									}, tag))
 								})]
+							}),
+							sourceId === "history" && history.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "mb-5 flex flex-wrap gap-2 rounded-lg border border-border bg-surface px-4 py-3 text-xs text-muted shadow-border",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", {
+											className: "text-fg",
+											children: "Viewing record"
+										}),
+										" · ",
+										historyRecovery.resumable,
+										" resumable activity mark",
+										historyRecovery.resumable === 1 ? "" : "s"
+									] }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
+										"· ",
+										historyRecovery.sources.progress,
+										" playback"
+									] }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
+										"· ",
+										historyRecovery.sources.watchRoom,
+										" Watch Room"
+									] }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
+										"· ",
+										historyRecovery.sources.open,
+										" direct opens"
+									] })
+								]
 							}),
 							folders.find((folder) => folder.id === sourceId)?.photoCount ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "mb-4 flex items-center justify-between gap-3 rounded-lg bg-elevated px-4 py-3 shadow-border",

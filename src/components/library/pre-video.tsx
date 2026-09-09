@@ -19,6 +19,8 @@ function isExcludedPreviewCandidate(video: { isSample?: boolean; name: string; r
 export function PreVideo() {
   const previewId = useLibrary((s) => s.previewId);
   const videos = useLibrary((s) => s.videos);
+  const allTags = useLibrary((s) => s.tags);
+  const unavailable = useLibrary((s) => s.unavailable);
   const openVideo = useLibrary((s) => s.openVideo);
   const closePreview = useLibrary((s) => s.closePreview);
   const setSource = useLibrary((s) => s.setSource);
@@ -92,8 +94,8 @@ export function PreVideo() {
     const sourceTags = new Set(tags);
     const creatorName = video.remote?.channelName?.trim().toLowerCase();
     const sourceKind = video.remote?.kind;
-    return videos.filter((item) => item.id !== video.id && !isExcludedPreviewCandidate(item) && !useLibrary.getState().unavailable[item.id]).map((item) => {
-      const itemTags = useLibrary.getState().tags[item.id] ?? [];
+    return videos.filter((item) => item.id !== video.id && !isExcludedPreviewCandidate(item) && !unavailable[item.id]).map((item) => {
+      const itemTags = allTags[item.id] ?? EMPTY_TAGS;
       const sharedTopics = itemTags.filter((tag) => sourceTags.has(tag)).length;
       const sameCreator = Boolean(creatorName && item.remote?.channelName?.trim().toLowerCase() === creatorName);
       const liveToVod = Boolean(video.remote?.live && !item.remote?.live && sameCreator);
@@ -109,18 +111,19 @@ export function PreVideo() {
         + Number(creatorIsLiked(item.remote?.channelName ?? "")) * 3;
       return { item, score, random: previewShuffle(`${video.id}:${item.id}:${recommendationSeed}`, recommendationSeed) };
     }).filter((row) => row.score > 0).sort((a, b) => b.score - a.score || a.random - b.random).slice(0, 8).map((row) => row.item);
-  }, [creatorRevision, recommendationSeed, shelfReady, tags, video, videos]);
+  }, [allTags, creatorRevision, recommendationSeed, shelfReady, tags, unavailable, video, videos]);
   const recommended = useMemo(() => {
     if (!video || !shelfReady) return [];
     const sourceTags = new Set(tags);
     const sourceKind = video.remote?.kind;
     const seed = (recommendationSeed + 17) >>> 0;
     const highlyRatedTags = new Set(videos.flatMap((item) => {
-      const itemTags = useLibrary.getState().tags[item.id] ?? [];
+      const itemTags = allTags[item.id] ?? EMPTY_TAGS;
       return getRating(item.id) >= 4 ? itemTags : itemTags.filter((tag) => tagIsLiked(tag));
     }));
-    return videos.filter((item) => item.id !== video.id && !isExcludedPreviewCandidate(item) && !useLibrary.getState().unavailable[item.id] && !related.some((relatedItem) => relatedItem.id === item.id)).map((item) => {
-      const itemTags = useLibrary.getState().tags[item.id] ?? [];
+    const relatedIds = new Set(related.map((relatedItem) => relatedItem.id));
+    return videos.filter((item) => item.id !== video.id && !isExcludedPreviewCandidate(item) && !unavailable[item.id] && !relatedIds.has(item.id)).map((item) => {
+      const itemTags = allTags[item.id] ?? EMPTY_TAGS;
       const sharedTopics = itemTags.filter((tag) => sourceTags.has(tag)).length;
       const score = Number(item.genre === video.genre) * 3
         + Number(item.remote?.kind === sourceKind) * 1.5
@@ -132,7 +135,7 @@ export function PreVideo() {
         + itemTags.filter((tag) => tagIsLiked(tag)).length * 2;
       return { item, score, random: previewShuffle(`${video.id}:${item.id}:${seed}`, seed) };
     }).sort((a, b) => b.score - a.score || a.random - b.random).slice(0, 6).map((row) => row.item);
-  }, [creatorRevision, recommendationSeed, related, shelfReady, tagRevision, tags, video, videos]);
+  }, [allTags, creatorRevision, recommendationSeed, related, shelfReady, tagRevision, tags, unavailable, video, videos]);
   if (!video) return null;
   const embed = video.remote?.embedUrl
     ? video.remote.kind === "twitch"

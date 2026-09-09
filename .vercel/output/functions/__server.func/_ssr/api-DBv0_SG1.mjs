@@ -1,5 +1,5 @@
 import { n as TSS_SERVER_FUNCTION, t as createServerFn } from "./ssr.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/api-Cr8KMw-4.js
+//#region node_modules/.nitro/vite/services/ssr/assets/api-DBv0_SG1.js
 var createServerRpc = (serverFnMeta, splitImportFn) => {
 	const url = "/_serverFn/" + serverFnMeta.id;
 	return Object.assign(splitImportFn, {
@@ -117,6 +117,9 @@ function ytVideo(entry) {
 		}
 	};
 }
+var YOUTUBE_CHANNEL_CACHE_TTL_MS = 24e4;
+var YOUTUBE_CHANNEL_CACHE_LIMIT = 64;
+var youtubeChannelCache = /* @__PURE__ */ new Map();
 function rendererText(value) {
 	return value?.simpleText ?? value?.runs?.map((run) => run.text ?? "").join("") ?? "";
 }
@@ -134,7 +137,7 @@ function channelPageRenderers(html) {
 		const root = JSON.parse(match[1]);
 		const found = [];
 		const stack = [root];
-		while (stack.length && found.length < 240) {
+		while (stack.length && found.length < 1200) {
 			const current = stack.pop();
 			if (!current || typeof current !== "object") continue;
 			if (Array.isArray(current)) {
@@ -239,7 +242,7 @@ async function youtubeLiveFromChannel(channelId, channelName) {
 		return null;
 	}
 }
-async function youtubeFromChannel(query, limit = 180) {
+async function youtubeFromChannel(query, limit = 720) {
 	let channelId = "";
 	const trimmed = query.trim();
 	if (/^UC[\w-]{20,}$/.test(trimmed)) channelId = trimmed;
@@ -250,10 +253,13 @@ async function youtubeFromChannel(query, limit = 180) {
 		channelId = ytChannelIdFromText(await fetchText(`https://www.youtube.com/@${encodeURIComponent(handle)}`)) ?? "";
 		if (!channelId) throw new Error("Could not find that YouTube channel.");
 	}
+	const boundedLimit = Math.max(24, Math.min(720, Math.floor(limit)));
+	const cached = youtubeChannelCache.get(channelId);
+	if (cached && Date.now() - cached.at < YOUTUBE_CHANNEL_CACHE_TTL_MS && cached.result.videos.length >= Math.min(144, boundedLimit)) return cached.result;
 	const [xml, channelPage] = await Promise.all([fetchText(`https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`), fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}/videos`).catch(() => "")]);
 	const title = tag(xml, "title") || "YouTube";
 	const author = tag(xml, "name") || title;
-	const videos = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)].slice(0, limit).map((m) => {
+	const videos = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)].slice(0, boundedLimit).map((m) => {
 		const block = m[1];
 		const id = tag(block, "yt:videoId");
 		const thumb = block.match(/url="([^"]+)"/)?.[1] ?? `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
@@ -287,14 +293,14 @@ async function youtubeFromChannel(query, limit = 180) {
 				channelName: author,
 				views: parsePublicViewCount(rendererText(renderer.viewCountText))
 			}));
-			if (rows.length >= Math.max(0, limit - videos.length)) break;
+			if (rows.length >= Math.max(0, boundedLimit - videos.length)) break;
 		}
 		return rows;
-	})() : await youtubeChannelBackfill(channelId, author, feedIds, Math.max(0, limit - videos.length));
+	})() : await youtubeChannelBackfill(channelId, author, feedIds, Math.max(0, boundedLimit - videos.length));
 	videos.push(...backfill);
 	const live = await youtubeLiveFromChannel(channelId, author);
 	if (live && !videos.some((video) => video.id === live.id)) videos.unshift(live);
-	return {
+	const result = {
 		channel: {
 			id: `yt:${channelId}`,
 			kind: "youtube",
@@ -304,6 +310,12 @@ async function youtubeFromChannel(query, limit = 180) {
 		},
 		videos
 	};
+	youtubeChannelCache.set(channelId, {
+		at: Date.now(),
+		result
+	});
+	while (youtubeChannelCache.size > YOUTUBE_CHANNEL_CACHE_LIMIT) youtubeChannelCache.delete(youtubeChannelCache.keys().next().value);
+	return result;
 }
 function twitchLogin(input) {
 	const raw = input.trim().replaceAll("\\_", "_").replace(/^["'([{<]+|["')\]}>.;:]+$/g, "");
@@ -322,7 +334,7 @@ async function twitchUser(login) {
 			"content-type": "application/json"
 		},
 		body: JSON.stringify({
-			query: `query($login:String!){user(login:$login){id displayName profileImageURL(width:70) stream{title viewersCount previewImageURL(width:640,height:360) game{name}} videos(first:80,type:ARCHIVE){edges{node{id title description lengthSeconds publishedAt previewThumbnailURL(width:640,height:360)}}}}}`,
+			query: `query($login:String!){user(login:$login){id displayName profileImageURL(width:70) stream{title viewersCount previewImageURL(width:640,height:360) game{name}} videos(first:160,type:ARCHIVE){edges{node{id title description lengthSeconds publishedAt previewThumbnailURL(width:640,height:360)}}}}}`,
 			variables: { login }
 		})
 	});
@@ -517,7 +529,7 @@ var importChannels = createServerFn({ method: "POST" }).validator((data) => pars
 	const rows = await mapPool(data.items, 6, async (item) => {
 		for (let attempt = 0; attempt < 2; attempt += 1) try {
 			if (item.kind === "twitch") return await followTwitch(item.query, compact);
-			return await youtubeFromChannel(item.query, compact ? 96 : 180);
+			return await youtubeFromChannel(item.query, compact ? 180 : 720);
 		} catch {
 			if (!attempt) await new Promise((resolve) => setTimeout(resolve, 350));
 		}

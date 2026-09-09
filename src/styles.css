@@ -57,7 +57,7 @@
     --shadow-border-hover: 0 0 0 1px rgb(32 29 25 / 0.2);
   }
 
-  html {
+  html:not([data-theme="day"]) {
     color-scheme: dark;
     background: var(--color-bg);
     -webkit-font-smoothing: antialiased;

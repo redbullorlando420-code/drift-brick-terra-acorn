@@ -98,7 +98,7 @@ export function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultK
       if (result.failed && result.failedQueries?.length) {
         toast.message(`${result.ok} added · ${result.failed} unavailable`, {
           description:
-            result.failedQueries.slice(0, 8).join(", ") +
+            result.failedQueries.slice(0, 8).map((query) => `${query}: ${result.failedReasons?.[query] ?? "unavailable"}`).join(" · ") +
             (result.failedQueries.length > 8 ? "…" : ""),
         });
       } else {

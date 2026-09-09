@@ -2,6 +2,7 @@ type Feedback = { ratings: Record<string, number>; notes: Record<string, string>
 const KEY = "reelcase.media-feedback.v1";
 let cached: Feedback | null = null;
 let changeTimer: number | undefined;
+let persistTimer: number | undefined;
 
 function read(): Feedback {
   if (cached) return cached;
@@ -11,7 +12,19 @@ function read(): Feedback {
   } catch { cached = { ratings: {}, notes: {}, creatorRatings: {}, creatorLikes: {}, tagLikes: {} }; }
   return cached;
 }
-function write(next: Feedback) { cached = next; try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* legacy per-item values remain available */ } }
+function persist() {
+  persistTimer = undefined;
+  try { if (cached) localStorage.setItem(KEY, JSON.stringify(cached)); } catch { /* legacy per-item values remain available */ }
+}
+// Ratings are used on dense rails. Coalesce the JSON write so a star press
+// paints immediately instead of serializing the entire feedback archive on the
+// input frame. The in-memory version remains authoritative for this session.
+function write(next: Feedback) {
+  cached = next;
+  if (typeof window === "undefined") return;
+  if (persistTimer) window.clearTimeout(persistTimer);
+  persistTimer = window.setTimeout(persist, 90);
+}
 function notifyChange() {
   if (typeof window === "undefined" || changeTimer) return;
   changeTimer = window.setTimeout(() => {

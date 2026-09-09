@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { mergeRemoteRefresh } from "./remote-merge";
 import {
   appendCatalogVideos,
+  loadActivitySnapshot,
   loadRemoteSnapshot,
   saveRemoteSnapshot,
   clearFolderVideos,
@@ -11,6 +12,7 @@ import {
   loadPrefs,
   loadSourceHealth,
   saveDirHandle,
+  saveActivitySnapshot,
   saveFolderVideos,
   savePrefs,
   saveSourceHealth,
@@ -98,7 +100,7 @@ type LibraryState = {
   autoTagLibrary: () => number;
   setVideoCategory: (id: string, category: string) => void;
   markProgress: (id: string, t: number, d: number) => void;
-  recordPlay: (id: string) => void;
+  recordPlay: (id: string, source?: HistoryEntry["source"]) => void;
   clearHistory: () => void;
   openVideo: (id: string) => void;
   openPreview: (id: string) => void;
@@ -129,7 +131,7 @@ type LibraryState = {
   followRemoteQuery: (query: string, kind?: "auto" | "youtube" | "twitch") => Promise<void>;
   importBatch: (
     items: { query: string; kind: "youtube" | "twitch" }[],
-  ) => Promise<{ ok: number; failed: number; failedQueries: string[] }>;
+  ) => Promise<{ ok: number; failed: number; failedQueries: string[]; failedReasons: Record<string, string> }>;
   unfollow: (id: string) => void;
   refreshFollows: () => Promise<{ wentLive: FollowedChannel[]; newVideos: LibraryVideo[] }>;
   pushNotice: (n: Omit<AppNotice, "id" | "at" | "read">) => void;
@@ -166,6 +168,22 @@ function persistNow(get: () => LibraryState) {
     unavailableVideoIds: Object.keys(s.unavailable),
   };
   savePrefs(prefs);
+  void saveActivitySnapshot({ history: s.history, progress: s.progress, viewCounts: s.viewCounts, savedAt: Date.now() }).catch(() => undefined);
+}
+
+function persistActivity(get: () => LibraryState) {
+  const s = get();
+  void saveActivitySnapshot({ history: s.history, progress: s.progress, viewCounts: s.viewCounts, savedAt: Date.now() }).catch(() => undefined);
+}
+
+function mergeHistory(a: HistoryEntry[], b: HistoryEntry[]): HistoryEntry[] {
+  const rows = new Map<string, HistoryEntry>();
+  for (const entry of [...a, ...b]) {
+    if (!entry?.id || !Number.isFinite(entry.at)) continue;
+    const key = `${entry.id}:${entry.at}:${entry.source ?? "open"}`;
+    if (!rows.has(key)) rows.set(key, entry);
+  }
+  return [...rows.values()].sort((left, right) => right.at - left.at);
 }
 
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
@@ -250,12 +268,13 @@ function remoteMetadataTags(video: LibraryVideo) {
   const creator = video.remote?.channelName?.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") ?? "";
   const provider = video.remote?.kind ? `provider-${video.remote.kind}` : "";
   const format = video.remote?.live ? "format-live" : video.remote ? "format-vod" : "";
+  const twitchFormat = video.remote?.kind === "twitch" ? (video.remote.live ? "twitch-live" : "twitch-vod") : "";
   const genre = video.genre?.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   // Twitch exposes a public stream game/category even when it does not expose
   // a richer tag list. Preserve it separately so live and VOD browsing can use
   // a concrete provider category rather than only title-keyword guesses.
   const twitchGame = video.remote?.kind === "twitch" && genre ? `twitch-game-${genre}` : "";
-  return [...new Set([provider, creator, format, genre ? `genre-${genre}` : "", twitchGame, ...semanticTags(video), ...descriptionKeywordTags(video)].filter(Boolean))].slice(0, 40);
+  return [...new Set([provider, creator, format, twitchFormat, genre ? `genre-${genre}` : "", twitchGame, ...semanticTags(video), ...descriptionKeywordTags(video)].filter(Boolean))].slice(0, 40);
 }
 
 function descriptionKeywordTags(video: LibraryVideo) {
@@ -492,20 +511,38 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     persistNow(get);
   },
   markProgress: (id, t, d) => {
-    set((s) => ({
-      progress: { ...s.progress, [id]: { t, d, at: Date.now() } },
-    }));
+    const now = Date.now();
+    const previous = get().progress[id];
+    // Frame callbacks can fire 60 times per second. A progress mark needs to
+    // be durable, not frame-perfect: suppress tiny updates while still saving
+    // a pause/seek or every few seconds of real playback.
+    if (previous && now - previous.at < 2_500 && Math.abs(previous.t - t) < 4) return;
+    set((s) => {
+      const latest = s.history[0];
+      const shouldRecord = t >= 2 && (!latest || latest.id !== id || now - latest.at > 60_000);
+      const history = shouldRecord
+        ? [{ id, at: now, position: t, duration: d, source: "progress" as const }, ...s.history]
+        : s.history;
+      return { progress: { ...s.progress, [id]: { t, d, at: now } }, history };
+    });
+    persistActivity(get);
     persistSoon(get);
   },
-  recordPlay: (id) => {
+  recordPlay: (id, source = "open") => {
     set((s) => {
-      // Keep an event timeline rather than a de-duplicated "recently played"
-      // cache. A title played again next week deserves a second history entry;
-      // users can explicitly clear this local-first record when they want.
-      const next = [{ id, at: Date.now() }, ...s.history];
+      const now = Date.now();
+      const latest = s.history[0];
+      // Keep history limitless, but a play button, provider event, and player
+      // heartbeat for the same start should remain one activity event.
+      if (latest?.id === id && now - latest.at < 20_000) return {};
+      const mark = s.progress[id];
+      const video = s.videos.find((item) => item.id === id);
+      const url = video?.remote?.embedUrl ?? video?.src;
+      const next = [{ id, at: now, position: mark?.t, duration: mark?.d, source, ...(url ? { url } : {}) }, ...s.history];
       return { history: next, viewCounts: { ...s.viewCounts, [id]: (s.viewCounts[id] ?? 0) + 1 } };
     });
-    persistNow(get);
+    persistActivity(get);
+    persistSoon(get);
   },
   clearHistory: () => {
     set({ history: [] });
@@ -801,6 +838,17 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     let cachedFolderIds = new Set<string>();
     let savedHealth = new Map<string, Awaited<ReturnType<typeof loadSourceHealth>>[number]>();
     set({ ...prefsState });
+    // Keep the durable activity journal separate from broad preferences. It
+    // merges after first paint, so a massive tag payload cannot wipe history
+    // or block startup recovery.
+    void loadActivitySnapshot().then((activity) => {
+      if (!activity) return;
+      set((s) => ({
+        history: mergeHistory(s.history, activity.history ?? []),
+        progress: { ...activity.progress, ...s.progress },
+        viewCounts: { ...activity.viewCounts, ...s.viewCounts },
+      }));
+    }).catch(() => undefined);
     try {
       const snapshot = await loadRemoteSnapshot();
       if (snapshot) {
@@ -1154,7 +1202,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         seenQueries.add(key);
         return true;
       });
-    if (!unique.length) return { ok: 0, failed: 0, failedQueries: [] };
+    if (!unique.length) return { ok: 0, failed: 0, failedQueries: [], failedReasons: {} };
     const existing = new Set(get().follows.map((f) => f.id));
     set({
       remoteBusy: true,
@@ -1163,6 +1211,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     let ok = 0;
     let failed = 0;
     const failedQueries: string[] = [];
+    const failedReasons: Record<string, string> = {};
     // Each request resolves a small concurrent pool on the server. Keeping batches
     // below the provider cap but larger than the old ten-item batches makes long
     // Twitch imports visibly faster without overwhelming public endpoints.
@@ -1177,15 +1226,20 @@ export const useLibrary = create<LibraryState>((set, get) => ({
             importChannels({ data: { items: slice } }),
             new Promise<never>((_, reject) => window.setTimeout(() => reject(new Error("Provider request timed out")), 20_000)),
           ]);
-        } catch {
+        } catch (error) {
           failed += slice.length;
           failedQueries.push(...slice.map((item) => item.query));
+          const reason = error instanceof Error && error.message ? error.message : "Provider request failed before public metadata could be read";
+          for (const item of slice) failedReasons[item.query] = reason;
           set({ importProgress: { done: Math.min(i + slice.length, unique.length), total: unique.length, label: "Retrying next batch" } });
           continue;
         }
         ok += result.ok.length;
         failed += result.failed;
-        if (result.failedQueries?.length) failedQueries.push(...result.failedQueries);
+        if (result.failedQueries?.length) {
+          failedQueries.push(...result.failedQueries);
+          for (const query of result.failedQueries) failedReasons[query] = "Channel was not found publicly, is unavailable, or provider metadata could not be read";
+        }
         set((s) => {
           let follows = s.follows;
           let folders = s.folders;
@@ -1226,7 +1280,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       const added = get().follows.filter((f) => !existing.has(f.id)).length;
       get().pushNotice({
         title: `Imported ${added || ok} channel${(added || ok) === 1 ? "" : "s"}`,
-        body: failed ? `${failed} could not be reached.` : "Latest uploads are on the shelves.",
+        body: failed ? `${failed} need attention. Open the importer for the saved reason list.` : "Latest uploads are on the shelves.",
         kind: unique[0]?.kind === "twitch" ? "twitch" : "youtube",
       });
       set({
@@ -1234,7 +1288,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         importProgress: null,
       });
       persistNow(get);
-      return { ok, failed, failedQueries };
+      return { ok, failed, failedQueries, failedReasons };
     } catch (err) {
       set({ remoteBusy: false, importProgress: null });
       throw err;
@@ -1468,7 +1522,9 @@ export function selectFavorites(state: LibraryState, adult = false): LibraryVide
 export function selectHistory(state: LibraryState, adult = false): LibraryVideo[] {
   const list = recoveryList(state, adult);
   const byId = new Map(list.map((v) => [v.id, v]));
+  const seen = new Set<string>();
   return state.history
+    .filter((h) => !seen.has(h.id) && Boolean(seen.add(h.id)))
     .map((h) => byId.get(h.id))
     .filter((v): v is LibraryVideo => v != null);
 }

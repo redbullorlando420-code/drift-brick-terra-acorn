@@ -28,6 +28,40 @@ const allowedRoots = [...new Set([...configuredRoots, ...desktopRoots])]
 const allowedExt = new Set([".exe", ".lnk", ".url", ".appref-ms"]);
 const changes = [];
 const launches = [];
+// This deliberately stays small.  The companion is a hint/index worker, not
+// a second media server: it never sends media bytes or file paths back to the
+// browser.  A bounded walk gives the web app a fast, privacy-preserving view
+// of photo/video deltas while the browser retains file-handle authority.
+const photoExt = new Set([".avif", ".bmp", ".gif", ".heic", ".jpeg", ".jpg", ".png", ".webp"]);
+const videoExt = new Set([".avi", ".m4v", ".mkv", ".mov", ".mp4", ".mpeg", ".mpg", ".webm"]);
+let cacheWorker = { state: "idle", scannedAt: 0, scanned: 0, photos: 0, videos: 0, thumbnailHints: 0, roots: 0, truncated: false };
+
+function refreshMediaCache() {
+  if (cacheWorker.state === "scanning") return;
+  cacheWorker = { ...cacheWorker, state: "scanning", roots: allowedRoots.length };
+  // Yield once so the health route remains responsive even when a desktop has
+  // thousands of files. The 4k ceiling and shallow traversal are intentional.
+  setImmediate(() => {
+    const next = { state: "ready", scannedAt: Date.now(), scanned: 0, photos: 0, videos: 0, thumbnailHints: 0, roots: allowedRoots.length, truncated: false };
+    const visit = (dir, depth) => {
+      if (depth > 5 || next.scanned >= 4000) { if (next.scanned >= 4000) next.truncated = true; return; }
+      let entries = [];
+      try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
+      for (const entry of entries) {
+        if (next.scanned >= 4000) { next.truncated = true; return; }
+        if (entry.isDirectory()) { visit(resolve(dir, entry.name), depth + 1); continue; }
+        next.scanned += 1;
+        const ext = entry.name.slice(entry.name.lastIndexOf(".")).toLowerCase();
+        if (photoExt.has(ext)) { next.photos += 1; next.thumbnailHints += 1; }
+        if (videoExt.has(ext)) next.videos += 1;
+      }
+    };
+    for (const root of allowedRoots) visit(root, 0);
+    cacheWorker = next;
+  });
+}
+refreshMediaCache();
+setInterval(refreshMediaCache, 5 * 60_000).unref();
 for (const root of allowedRoots) {
   try {
     watch(root, { recursive: true }, (kind, file) => {
@@ -66,6 +100,26 @@ function allowedPath(rawPath) {
     const entry = realpathSync(candidate);
     return allowedRoots.some((root) => entry === root || entry.startsWith(`${root}${sep}`)) ? entry : null;
   } catch { return null; }
+}
+function inspectMedia(rawPath) {
+  const path = allowedPath(rawPath);
+  const ext = path?.slice(path.lastIndexOf(".")).toLowerCase();
+  if (!path || !ext || (!photoExt.has(ext) && !videoExt.has(ext))) return Promise.resolve({ requested: typeof rawPath === "string" ? rawPath : "", available: false, reason: "Not an approved local media file" });
+  return new Promise((resolve) => {
+    const child = spawn("ffprobe", ["-v", "error", "-show_entries", "format=duration,size:stream=codec_type,codec_name,width,height", "-of", "json", path], { windowsHide: true, stdio: ["ignore", "pipe", "ignore"] });
+    let output = "";
+    const timer = setTimeout(() => { try { child.kill(); } catch { /* already closed */ } }, 5_000);
+    child.stdout.on("data", (chunk) => { output += String(chunk); if (output.length > 32_000) child.kill(); });
+    child.on("error", () => { clearTimeout(timer); resolve({ requested: rawPath, available: true, inspected: false, reason: "ffprobe is not available in the Companion environment" }); });
+    child.on("close", () => {
+      clearTimeout(timer);
+      try {
+        const data = JSON.parse(output);
+        const streams = Array.isArray(data.streams) ? data.streams.slice(0, 4).map((stream) => ({ type: stream.codec_type, codec: stream.codec_name, width: stream.width, height: stream.height })) : [];
+        resolve({ requested: rawPath, available: true, inspected: true, duration: Number(data.format?.duration) || 0, bytes: Number(data.format?.size) || 0, streams });
+      } catch { resolve({ requested: rawPath, available: true, inspected: false, reason: "No readable media metadata returned" }); }
+    });
+  });
 }
 function listApprovedShortcuts(limit = 250) {
   const found = [];
@@ -115,7 +169,7 @@ const server = createServer(async (req, res) => {
   if (req.method === "OPTIONS") { cors(req, res); res.writeHead(204); res.end(); return; }
   if (!cors(req, res)) { reply(res, 403, { ok: false, error: "Untrusted origin" }); return; }
   if (req.method === "GET" && req.url === "/health") {
-    reply(res, 200, { ok: true, service: "reelcase-companion", version: 5, roots: allowedRoots.length, desktopEnabled: desktopRoots.some((root) => { try { return allowedRoots.includes(realpathSync(root)); } catch { return false; } }), capabilities: ["launch", "shortcut-catalog", "file-health", "batch-verify", "folder-watch", "watch-status", "roku-ssdp-discovery"] });
+    reply(res, 200, { ok: true, service: "reelcase-companion", version: 7, roots: allowedRoots.length, desktopEnabled: desktopRoots.some((root) => { try { return allowedRoots.includes(realpathSync(root)); } catch { return false; } }), capabilities: ["launch", "shortcut-catalog", "file-health", "batch-verify", "folder-watch", "watch-status", "cache-status", "cache-warmup", "media-inspection", "roku-ssdp-discovery"] });
     return;
   }
   if (req.method === "GET" && req.url === "/source-health") {
@@ -124,6 +178,15 @@ const server = createServer(async (req, res) => {
   }
   if (req.method === "GET" && req.url === "/watch-status") {
     reply(res, 200, { ok: true, watching: allowedRoots.map((path) => ({ path, active: existsSync(path) })), recentChanges: changes.slice(0, 30) });
+    return;
+  }
+  if (req.method === "GET" && req.url === "/cache-status") {
+    reply(res, 200, { ok: true, worker: cacheWorker, recentChanges: changes.slice(0, 30) });
+    return;
+  }
+  if (req.method === "POST" && req.url === "/cache-warmup") {
+    refreshMediaCache();
+    reply(res, 202, { ok: true, worker: cacheWorker, note: "A bounded metadata and thumbnail-hint pass has started. Media bytes remain local." });
     return;
   }
   if (req.method === "GET" && req.url === "/launch-history") {
@@ -160,6 +223,15 @@ const server = createServer(async (req, res) => {
       return { requested: typeof rawPath === "string" ? rawPath : "", available: Boolean(path), path: path ?? null };
     });
     reply(res, 200, { ok: true, entries });
+    return;
+  }
+  if (req.method === "POST" && req.url === "/inspect-media") {
+    let text = "";
+    for await (const chunk of req) text += chunk;
+    let body; try { body = JSON.parse(text); } catch { reply(res, 400, { ok: false, error: "Invalid request" }); return; }
+    const paths = Array.isArray(body.paths) ? body.paths.slice(0, 12) : [];
+    const entries = await Promise.all(paths.map(inspectMedia));
+    reply(res, 200, { ok: true, entries, note: "Bounded local inspection returns metadata only; no media bytes leave this computer." });
     return;
   }
   if (req.method === "GET" && req.url === "/roku/discover") {

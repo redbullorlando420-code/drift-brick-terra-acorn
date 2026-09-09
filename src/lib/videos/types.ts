@@ -181,7 +181,16 @@ export type SourceId =
 
 export type ProgressMark = { t: number; d: number; at: number };
 
-export type HistoryEntry = { id: string; at: number };
+export type HistoryEntry = {
+  id: string;
+  at: number;
+  /** Provider or local URL retained so a remote history entry remains useful if its card is later evicted. */
+  url?: string;
+  /** Last trustworthy point when the entry was created; optional for v1 data. */
+  position?: number;
+  duration?: number;
+  source?: "open" | "progress" | "watch-room";
+};
 
 export type ViewMode = "grid" | "list";
 

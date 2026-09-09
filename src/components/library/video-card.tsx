@@ -30,6 +30,7 @@ export function VideoCard({
   const capturedDur = useThumbs((s) => s.durations[video.id]);
   const request = useThumbs((s) => s.request);
   const retry = useThumbs((s) => s.retry);
+  const artworkDiagnostic = useThumbs((s) => s.diagnostics[video.id]);
   const repairArtworkSource = useLibrary((s) => s.repairArtworkSource);
   const progress = useLibrary((s) => s.progress[video.id]);
   const fav = useLibrary((s) => Boolean(s.favorites[video.id]));
@@ -84,7 +85,9 @@ export function VideoCard({
   }, [failed, repairArtworkSource, retry, video]);
   const rate = (value: number) => {
     setRating(value);
-    setMediaRating(video.id, value);
+    // Keep the card responsive; the persisted feedback write is coalesced by
+    // media-feedback so a quick sequence of ratings does not stall the rail.
+    window.requestAnimationFrame(() => setMediaRating(video.id, value));
   };
 
   const poster = (
@@ -115,7 +118,7 @@ export function VideoCard({
           >
             <Play className="ml-0.5 size-4 fill-current" />
           </span>
-          {failed && !video.remote && <span className="absolute bottom-2 left-2 right-2 rounded-xs bg-bg/80 px-2 py-1 text-center text-[11px] text-muted">Local artwork unavailable</span>}
+          {failed && !video.remote && <span title={artworkDiagnostic ? `${artworkDiagnostic.lastError} · attempt ${artworkDiagnostic.attempts}/3` : undefined} className="absolute bottom-2 left-2 right-2 rounded-xs bg-bg/80 px-2 py-1 text-center text-[11px] text-muted">Local artwork unavailable{artworkDiagnostic ? ` · ${artworkDiagnostic.attempts}/3` : ""}</span>}
         </div>
       )}
       <div className="absolute inset-0 bg-linear-to-t from-bg/80 via-transparent to-transparent opacity-90" />

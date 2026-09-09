@@ -199,6 +199,13 @@ function roomShuffleRank(id: string, seed: number) {
   return value >>> 0;
 }
 
+type LocalRoomShare = { name: string; fingerprint: string; size: number; modified: number };
+function localRoomFingerprint(file: File) {
+  // A privacy-preserving match key, not a content hash. It is enough to stop
+  // an accidental same-name handoff while never reading or transmitting bytes.
+  return `${file.name.normalize("NFKC").toLowerCase()}::${file.size}::${file.lastModified}`;
+}
+
 type TwitchRoomPlayer = {
   play: () => void;
   pause: () => void;
@@ -342,6 +349,7 @@ export function StatsSection() {
   const progress = useLibrary((s) => s.progress);
   const viewCounts = useLibrary((s) => s.viewCounts);
   const [showAllSources, setShowAllSources] = useState(false);
+  const [remediationView, setRemediationView] = useState<"" | "topics" | "sources">("");
   const summary = useMemo(() => {
     const byFolder = new Map<string, { videos: number; bytes: number }>();
     const byGenre = new Map<string, number>();
@@ -362,6 +370,9 @@ export function StatsSection() {
     let metadataTaggedTitles = 0;
     let creatorTaggedTitles = 0;
     let descriptionTaggedTitles = 0;
+    let multiTopicTitles = 0;
+    let operationalTagAssignments = 0;
+    const topicSources = new Map<string, Set<string>>();
     for (const video of videos) {
       totalBytes += video.size;
       if (video.remote) remoteTitles += 1; else localTitles += 1;
@@ -373,19 +384,32 @@ export function StatsSection() {
       if (progress[video.id] && progress[video.id].t > 0) resumedTitles += 1;
       totalViews += viewCounts[video.id] ?? 0;
       const videoTags = tags[video.id] ?? [];
+      const usefulTopics = new Set(videoTags.map((tag) => tag.trim().toLowerCase()).filter(isTopicTag));
       if (videoTags.length) metadataTaggedTitles += 1;
       if (Boolean(video.remote?.channelName?.trim())) creatorTaggedTitles += 1;
       if (videoTags.some((tag) => !tag.includes("-") && tag.length >= 4)) descriptionTaggedTitles += 1;
       if (!videoTags.some(isTopicTag)) untaggedTitles += 1;
+      if (usefulTopics.size >= 2) multiTopicTitles += 1;
       if (video.remote && Date.now() - video.addedAt < 7 * 24 * 60 * 60_000) freshRemoteTitles += 1;
       const folder = byFolder.get(video.folderId) ?? { videos: 0, bytes: 0 };
       folder.videos += 1;
       folder.bytes += video.size;
       byFolder.set(video.folderId, folder);
       if (video.genre?.trim()) byGenre.set(video.genre, (byGenre.get(video.genre) ?? 0) + 1);
-      for (const tag of videoTags) if (isTopicTag(tag)) byTag.set(tag, (byTag.get(tag) ?? 0) + 1);
+      for (const tag of videoTags) {
+        const clean = tag.trim().toLowerCase();
+        if (/^(?:year-|month-|day-|type-|provider-|format-|source-|keyword-|creator-|https?$)/.test(clean)) operationalTagAssignments += 1;
+        if (isTopicTag(clean)) {
+          byTag.set(clean, (byTag.get(clean) ?? 0) + 1);
+          const sources = topicSources.get(clean) ?? new Set<string>();
+          sources.add(video.remote?.kind ?? "local");
+          topicSources.set(clean, sources);
+        }
+      }
     }
-    return { totalBytes, byFolder, localTitles, remoteTitles, untaggedTitles, metadataTaggedTitles, creatorTaggedTitles, descriptionTaggedTitles, freshRemoteTitles, thumbReady, youtubeTitles, twitchTitles, liveTitles, knownDuration, durationTitles, resumedTitles, totalViews, genreRows: [...byGenre.entries()].filter(([, count]) => count >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])), topTags: [...byTag.entries()].filter(([, count]) => count >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 14), tagAssignments: [...byTag.values()].reduce((sum, count) => sum + count, 0) };
+    const tagAssignments = [...byTag.values()].reduce((sum, count) => sum + count, 0);
+    const bridgeTopics = [...topicSources.values()].filter((sources) => sources.size >= 2).length;
+    return { totalBytes, byFolder, localTitles, remoteTitles, untaggedTitles, metadataTaggedTitles, creatorTaggedTitles, descriptionTaggedTitles, multiTopicTitles, operationalTagAssignments, bridgeTopics, freshRemoteTitles, thumbReady, youtubeTitles, twitchTitles, liveTitles, knownDuration, durationTitles, resumedTitles, totalViews, genreRows: [...byGenre.entries()].filter(([, count]) => count >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])), topTags: [...byTag.entries()].filter(([, count]) => count >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 14), tagAssignments, tagDensity: tagAssignments / Math.max(videos.length, 1), remoteShare: remoteTitles / Math.max(videos.length, 1) };
   }, [progress, tags, videos, viewCounts]);
   const folderRows = useMemo(() => folders.filter((folder) => folder.kind !== "demo").map((folder) => ({ folder, ...(summary.byFolder.get(folder.id) ?? { videos: 0, bytes: 0 }) })).sort((a, b) => b.bytes - a.bytes || b.videos - a.videos || a.folder.name.localeCompare(b.folder.name)), [folders, summary.byFolder]);
   const favoriteHealth = useMemo(() => {
@@ -406,7 +430,7 @@ export function StatsSection() {
     const feedback = exportFeedback();
     downloadCsv([
       ["metric", "value"],
-      ["catalog_titles", videos.length],
+      ["catalog_titles", videos.length], ["topic_tags_per_title", summary.tagDensity.toFixed(3)], ["remote_catalog_percent", Math.round(summary.remoteShare * 100)], ["local_storage_bytes_per_local_title", Math.round(summary.totalBytes / Math.max(summary.localTitles, 1))],
       ["local_storage_bytes", summary.totalBytes],
       ["topic_tag_assignments", summary.tagAssignments],
       ["favorites", Object.keys(favorites).length],
@@ -414,6 +438,7 @@ export function StatsSection() {
       ["youtube_titles", summary.youtubeTitles], ["twitch_titles", summary.twitchTitles], ["live_titles", summary.liveTitles], ["poster_ready_titles", summary.thumbReady], ["unavailable_titles", Object.keys(unavailable).length], ["history_events", history.length],
       ["topic_tag_coverage_percent", Math.round((1 - summary.untaggedTitles / Math.max(videos.length, 1)) * 100)], ["largest_source_percent", sourceHealth.concentration], ["duplicate_source_names", sourceHealth.duplicateNames.length],
       ["metadata_tagged_titles", summary.metadataTaggedTitles], ["metadata_tag_coverage_percent", Math.round(summary.metadataTaggedTitles / Math.max(videos.length, 1) * 100)], ["creator_tagged_titles", summary.creatorTaggedTitles], ["description_keyword_tagged_titles", summary.descriptionTaggedTitles],
+      ["multi_topic_titles", summary.multiTopicTitles], ["cross_source_bridge_topics", summary.bridgeTopics], ["operational_tag_assignments", summary.operationalTagAssignments], ["useful_topic_share_percent", Math.round((1 - summary.untaggedTitles / Math.max(videos.length, 1)) * 100)],
       ["favorites_saved", favoriteHealth.saved], ["favorites_resolved", favoriteHealth.resolved], ["favorites_waiting_for_source", favoriteHealth.missing],
       ["video_ratings_saved", Object.keys(feedback.ratings).length], ["creator_ratings_saved", Object.keys(feedback.creatorRatings).length], ["creator_likes_saved", Object.keys(feedback.creatorLikes).length], ["notes_saved", Object.keys(feedback.notes).length],
       ["known_duration_titles", summary.durationTitles], ["known_duration_hours", Math.round(summary.knownDuration / 3600)], ["resume_marks", summary.resumedTitles], ["local_view_events", summary.totalViews],
@@ -426,13 +451,21 @@ export function StatsSection() {
     ["source", "kind", "mapped_titles", "local_storage_bytes", "last_checked"],
     ...folderRows.map(({ folder, videos: mapped, bytes: mappedBytes }) => [folder.name, folder.kind, mapped, mappedBytes, folder.lastCheckedAt ? new Date(folder.lastCheckedAt).toISOString() : ""]),
   ], `reelcase-source-map-${new Date().toISOString().slice(0, 10)}.csv`);
+  const exportRemediation = () => downloadCsv([
+    ["queue", "priority", "title_or_source", "reason", "suggested_safe_action"],
+    ...videos.filter((video) => !(tags[video.id] ?? []).some(isTopicTag)).slice(0, 500).map((video, index) => ["topic-coverage", index + 1, video.name, "No useful topic tag", "Review in preview or apply explainable smart tags"]),
+    ...sourceHealth.duplicateNames.flatMap(({ name, count }) => [["source-hygiene", 1, name, `${count} identical source labels`, "Open source map and rename only after review"]]),
+    ...(sourceHealth.largest ? [["storage-concentration", 1, sourceHealth.largest.folder.name, `${sourceHealth.concentration}% of mapped local bytes`, "Review source contents; no files are changed automatically"]] : []),
+  ], `reelcase-remediation-plan-${new Date().toISOString().slice(0, 10)}.csv`);
   return <HubShell eyebrow="Library intelligence" icon={<BarChart3 className="size-4"/>} title="Know what your library needs next." copy="These local-only counts help identify coverage gaps, oversized source folders, and the tags that are driving discovery.">
-    <div className="mt-5 flex flex-wrap gap-2"><Button size="sm" variant="secondary" onClick={exportStats}><Download className="size-4"/>Download insight CSV</Button><Button size="sm" variant="secondary" onClick={exportSources}><Download className="size-4"/>Download source-map CSV</Button><span className="self-center text-xs text-muted">Exports only local catalog metadata, useful for improving sorting and discovery rules.</span></div>
+    <div className="mt-5 flex flex-wrap gap-2"><Button size="sm" variant="secondary" onClick={exportStats}><Download className="size-4"/>Download insight CSV</Button><Button size="sm" variant="secondary" onClick={exportSources}><Download className="size-4"/>Download source-map CSV</Button><Button size="sm" variant="secondary" onClick={exportRemediation}><Download className="size-4"/>Download remediation CSV</Button><span className="self-center text-xs text-muted">Exports only local catalog metadata, useful for improving sorting and discovery rules.</span></div>
     <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Stat label="Catalog titles" value={videos.length.toLocaleString()}/><Stat label="Local storage mapped" value={bytes(summary.totalBytes)}/><Stat label="Topic-tag assignments" value={summary.tagAssignments.toLocaleString()}/><Stat label="Favorites" value={Object.keys(favorites).length.toLocaleString()}/></div>
-    <section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Stat label="Local / remote" value={`${summary.localTitles.toLocaleString()} / ${summary.remoteTitles.toLocaleString()}`}/><Stat label="New provider items · 7d" value={summary.freshRemoteTitles.toLocaleString()}/><Stat label="Needs useful topic" value={`${summary.untaggedTitles.toLocaleString()} titles`}/><Stat label="Topic coverage" value={`${Math.round((1 - summary.untaggedTitles / Math.max(videos.length, 1)) * 100)}%`}/><Stat label="Any metadata coverage" value={`${Math.round(summary.metadataTaggedTitles / Math.max(videos.length, 1) * 100)}%`}/><Stat label="Creator / description tags" value={`${summary.creatorTaggedTitles.toLocaleString()} / ${summary.descriptionTaggedTitles.toLocaleString()}`}/><Stat label="YouTube / Twitch" value={`${summary.youtubeTitles.toLocaleString()} / ${summary.twitchTitles.toLocaleString()}`}/><Stat label="Known runtime" value={`${Math.round(summary.knownDuration / 3600).toLocaleString()} hours`}/><Stat label="Resume marks" value={summary.resumedTitles.toLocaleString()}/><Stat label="Local view events" value={summary.totalViews.toLocaleString()}/><Stat label="Live right now" value={summary.liveTitles.toLocaleString()}/><Stat label="Artwork coverage" value={`${Math.round(summary.thumbReady / Math.max(videos.length, 1) * 100)}%`}/><Stat label="History events" value={history.length.toLocaleString()}/><Stat label="Unavailable cards" value={Object.keys(unavailable).length.toLocaleString()}/></section>
-    <section className="mt-5 grid gap-5 xl:grid-cols-2"><div className="h-72 rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Provider mix</h2><ResponsiveContainer width="100%" height="85%"><BarChart data={[{ name: "Local", titles: summary.localTitles }, { name: "YouTube", titles: summary.youtubeTitles }, { name: "Twitch", titles: summary.twitchTitles }]}><XAxis dataKey="name" stroke="currentColor" fontSize={12}/><YAxis stroke="currentColor" fontSize={12}/><Tooltip/><Bar dataKey="titles" fill="var(--color-accent)" radius={4}/></BarChart></ResponsiveContainer></div><div className="h-72 rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Most useful topics</h2><ResponsiveContainer width="100%" height="85%"><BarChart layout="vertical" data={summary.topTags.slice(0, 8).map(([name, titles]) => ({ name, titles }))}><XAxis type="number" stroke="currentColor" fontSize={12}/><YAxis type="category" dataKey="name" width={92} stroke="currentColor" fontSize={11}/><Tooltip/><Bar dataKey="titles" fill="var(--color-accent)" radius={4}/></BarChart></ResponsiveContainer></div></section>
-    <section className="mt-5 grid gap-3 lg:grid-cols-4"><div className="rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Tagging backlog</p><p className="mt-2 font-display text-3xl text-fg">{summary.untaggedTitles.toLocaleString()}</p><p className="mt-1 text-sm text-muted">titles still need a useful topic tag. Prioritize these before adding more discovery rules.</p></div><div className="rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Storage concentration</p><p className="mt-2 font-display text-3xl text-fg">{sourceHealth.concentration}%</p><p className="mt-1 text-sm text-muted">of mapped local bytes sit in {sourceHealth.largest?.folder.name ?? "the largest source"}.</p></div><div className="rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Source hygiene</p><p className="mt-2 font-display text-3xl text-fg">{sourceHealth.duplicateNames.length}</p><p className="mt-1 text-sm text-muted">duplicate source labels can make refresh results harder to interpret.</p></div><div className="rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Favorite recovery</p><p className="mt-2 font-display text-3xl text-fg">{favoriteHealth.resolved} / {favoriteHealth.saved}</p><p className="mt-1 text-sm text-muted">{favoriteHealth.missing ? `${favoriteHealth.missing} saved favorites are waiting for their source to return.` : "Every saved favorite resolves in the current catalog."}</p></div></section>
-    <div className="mt-6 grid gap-5 xl:grid-cols-2"><section className="rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Genre distribution</h2><div className="mt-4 space-y-3">{summary.genreRows.slice(0, 18).map(([genre, count]) => <DistributionRow key={genre} label={genre} value={count} total={videos.length}/>) || <p className="text-sm text-muted">Genres will appear as media is tagged.</p>}</div></section><section className="rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Most useful tags</h2><div className="mt-4 space-y-3">{summary.topTags.map(([tag, count]) => <DistributionRow key={tag} label={`#${tag}`} value={count} total={videos.length}/>) || <p className="text-sm text-muted">Tags will appear as media is indexed.</p>}</div></section></div>
+    <section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Stat label="Local / remote" value={`${summary.localTitles.toLocaleString()} / ${summary.remoteTitles.toLocaleString()}`}/><Stat label="Remote catalog share" value={`${Math.round(summary.remoteShare * 100)}%`}/><Stat label="New provider items · 7d" value={summary.freshRemoteTitles.toLocaleString()}/><Stat label="Needs useful topic" value={`${summary.untaggedTitles.toLocaleString()} titles`}/><Stat label="Topic coverage" value={`${Math.round((1 - summary.untaggedTitles / Math.max(videos.length, 1)) * 100)}%`}/><Stat label="Topic tags per title" value={summary.tagDensity.toFixed(2)}/><Stat label="Cross-source topic bridges" value={summary.bridgeTopics.toLocaleString()}/><Stat label="Multi-topic titles" value={summary.multiTopicTitles.toLocaleString()}/><Stat label="Operational labels" value={summary.operationalTagAssignments.toLocaleString()}/><Stat label="Any metadata coverage" value={`${Math.round(summary.metadataTaggedTitles / Math.max(videos.length, 1) * 100)}%`}/><Stat label="Creator / description tags" value={`${summary.creatorTaggedTitles.toLocaleString()} / ${summary.descriptionTaggedTitles.toLocaleString()}`}/><Stat label="YouTube / Twitch" value={`${summary.youtubeTitles.toLocaleString()} / ${summary.twitchTitles.toLocaleString()}`}/><Stat label="Known runtime" value={`${Math.round(summary.knownDuration / 3600).toLocaleString()} hours`}/><Stat label="Resume marks" value={summary.resumedTitles.toLocaleString()}/><Stat label="Local view events" value={summary.totalViews.toLocaleString()}/><Stat label="Live right now" value={summary.liveTitles.toLocaleString()}/><Stat label="Artwork coverage" value={`${Math.round(summary.thumbReady / Math.max(videos.length, 1) * 100)}%`}/><Stat label="History events" value={history.length.toLocaleString()}/><Stat label="Unavailable cards" value={Object.keys(unavailable).length.toLocaleString()}/></section>
+    <section className="mt-5 grid gap-5 xl:grid-cols-2"><div className="h-72 rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Provider mix</h2><ResponsiveContainer width="100%" height="85%"><BarChart data={[{ name: "Local", titles: summary.localTitles }, { name: "YouTube", titles: summary.youtubeTitles }, { name: "Twitch", titles: summary.twitchTitles }]}><XAxis dataKey="name" stroke="currentColor" fontSize={12}/><YAxis stroke="currentColor" fontSize={12}/><Tooltip/><Bar dataKey="titles" fill="var(--color-accent)" radius={4}/></BarChart></ResponsiveContainer></div><div className="h-72 rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Most useful topics</h2><ResponsiveContainer width="100%" height="85%"><BarChart layout="vertical" margin={{ left: 16 }} data={summary.topTags.slice(0, 8).map(([name, titles]) => ({ name, titles }))}><XAxis type="number" stroke="currentColor" fontSize={12}/><YAxis type="category" dataKey="name" width={150} stroke="currentColor" fontSize={10}/><Tooltip/><Bar dataKey="titles" fill="var(--color-accent)" radius={4}/></BarChart></ResponsiveContainer></div></section>
+    <section className="mt-5 grid gap-3 lg:grid-cols-4"><div className="rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Tagging backlog</p><p className="mt-2 font-display text-3xl text-fg">{summary.untaggedTitles.toLocaleString()}</p><p className="mt-1 text-sm text-muted">titles still need a useful topic tag. Prioritize these before adding more discovery rules.</p><Button className="mt-3" size="sm" variant="secondary" onClick={() => setRemediationView(remediationView === "topics" ? "" : "topics")}>Review safe queue</Button></div><div className="rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Storage concentration</p><p className="mt-2 font-display text-3xl text-fg">{sourceHealth.concentration}%</p><p className="mt-1 text-sm text-muted">of mapped local bytes sit in {sourceHealth.largest?.folder.name ?? "the largest source"}.</p><Button className="mt-3" size="sm" variant="secondary" onClick={() => setRemediationView(remediationView === "sources" ? "" : "sources")}>Review source queue</Button></div><div className="rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Source hygiene</p><p className="mt-2 font-display text-3xl text-fg">{sourceHealth.duplicateNames.length}</p><p className="mt-1 text-sm text-muted">duplicate source labels can make refresh results harder to interpret.</p><Button className="mt-3" size="sm" variant="secondary" onClick={() => setRemediationView(remediationView === "sources" ? "" : "sources")}>Review duplicates</Button></div><div className="rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Favorite recovery</p><p className="mt-2 font-display text-3xl text-fg">{favoriteHealth.resolved} / {favoriteHealth.saved}</p><p className="mt-1 text-sm text-muted">{favoriteHealth.missing ? `${favoriteHealth.missing} saved favorites are waiting for their source to return.` : "Every saved favorite resolves in the current catalog."}</p></div></section>
+    {remediationView === "topics" && <section className="mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Safe tag review queue</p><p className="mt-1 text-sm text-muted">These are review candidates only—nothing is tagged or deleted by opening this queue.</p></div><Button size="sm" variant="secondary" onClick={() => useLibrary.getState().setSource("settings")}>Open smart-tag tools</Button></div><div className="mt-3 space-y-2">{videos.filter((video) => !(tags[video.id] ?? []).some(isTopicTag)).slice(0, 12).map((video) => <button key={video.id} type="button" className="block w-full rounded-sm bg-bg/45 px-3 py-2 text-left text-sm text-fg" onClick={() => useLibrary.getState().openPreview(video.id)}>{video.name}<span className="ml-2 text-xs text-muted">· no useful topic yet</span></button>)}</div></section>}
+    {remediationView === "sources" && <section className="mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Safe source review queue</p><p className="mt-1 text-sm text-muted">Review signals only. Reelcase will not rename, reconnect, or remove a folder from this page.</p><div className="mt-3 space-y-2">{sourceHealth.largest && <button type="button" className="block w-full rounded-sm bg-bg/45 px-3 py-2 text-left text-sm text-fg" onClick={() => useLibrary.getState().setSource(sourceHealth.largest!.folder.id)}>Largest source · {sourceHealth.largest.folder.name} · {bytes(sourceHealth.largest.bytes)}</button>}{sourceHealth.duplicateNames.map(({ name, count }) => <p key={name} className="rounded-sm bg-bg/45 px-3 py-2 text-sm text-fg">Duplicate label · {name} · {count} sources</p>)}</div></section>}
+    <div className="mt-6 grid gap-5 xl:grid-cols-2"><section className="rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Genre distribution</h2><p className="mt-1 text-xs text-muted">Bars compare genres with the most common genre in this list.</p><div className="mt-4 space-y-3">{summary.genreRows.slice(0, 18).map(([genre, count]) => <DistributionRow key={genre} label={genre} value={count} total={summary.genreRows[0]?.[1] ?? 1}/>) || <p className="text-sm text-muted">Genres will appear as media is tagged.</p>}</div></section><section className="rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Most useful tags</h2><p className="mt-1 text-xs text-muted">Bars compare useful topics with the leading topic, not the full catalog.</p><div className="mt-4 space-y-3">{summary.topTags.map(([tag, count]) => <DistributionRow key={tag} label={`#${tag}`} value={count} total={summary.topTags[0]?.[1] ?? 1}/>) || <p className="text-sm text-muted">Tags will appear as media is indexed.</p>}</div></section></div>
     <section className="mt-5 rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Source mapping & storage</h2><p className="mt-1 text-sm text-muted">Only local files contribute bytes; remote providers report catalog counts but not source storage.</p><div className="mt-4 space-y-2">{visibleFolderRows.map(({ folder, videos: mapped, bytes: folderBytes }) => <div key={folder.id} className="flex flex-wrap items-center justify-between gap-3 rounded-sm bg-bg/45 px-3 py-3"><span className="min-w-0 truncate text-sm text-fg">{folder.name}</span><span className="text-xs text-muted">{mapped.toLocaleString()} mapped · {folderBytes ? bytes(folderBytes) : folder.kind === "youtube" || folder.kind === "twitch" ? "remote catalog" : "no local media yet"}</span></div>)}</div>{folderRows.length > visibleFolderRows.length && <Button variant="secondary" size="sm" className="mt-4" onClick={() => setShowAllSources(true)}>Show all {folderRows.length.toLocaleString()} sources</Button>}</section>
   </HubShell>;
 }
@@ -466,6 +499,9 @@ export function FindPhoneSection() {
 }
 
 function DistributionRow({ label, value, total }: { label: string; value: number; total: number }) {
+  // Distribution rows compare peers, not the whole catalog. The highest tag
+  // should read as the full reference bar instead of every useful label being
+  // compressed to a tiny percentage of all titles.
   return <div><div className="flex justify-between gap-3 text-sm"><span className="truncate text-fg">{label}</span><span className="text-muted">{value}</span></div><div className="mt-1 h-2 overflow-hidden rounded-full bg-bg/70"><div className="h-full bg-accent" style={{ width: `${Math.max(3, Math.round(value / Math.max(total, 1) * 100))}%` }}/></div></div>;
 }
 
@@ -497,6 +533,11 @@ export function SettingsSection() {
   const refreshSourcePhotos = useLibrary((s) => s.refreshSourcePhotos);
   const unavailableVideoCount = useLibrary((s) => Object.keys(s.unavailable).length);
   const remoteCheckedAt = useLibrary((s) => s.remoteCheckedAt);
+  const smartTagStatus = useMemo(() => {
+    const local = videos.filter((video) => !video.remote);
+    const tagged = local.filter((video) => (tags[video.id] ?? []).some((tag) => /^(?:year-|month-|type-|source-)/.test(tag))).length;
+    return { local: local.length, tagged, waiting: Math.max(0, local.length - tagged) };
+  }, [tags, videos]);
   const [serviceNote, setServiceNote] = useState("");
   useEffect(() => setHub(readHub()), []);
   useEffect(() => {
@@ -524,7 +565,7 @@ export function SettingsSection() {
   useEffect(() => { const saved = Number(localStorage.getItem("reelcase.thumbnail-workers") ?? "0"); setThumbnailWorkers([2, 3, 4].includes(saved) ? saved : 0); }, []);
   useEffect(() => { const saved = Number(localStorage.getItem("reelcase.photo-scan-workers") ?? "0"); setPhotoWorkers([2, 4, 6, 8, 12].includes(saved) ? saved : 0); }, []);
   useEffect(() => { const saved = Number(localStorage.getItem("reelcase.player-volume") ?? "85"); setDefaultVolume([25, 50, 70, 85, 100].includes(saved) ? saved : 85); setStartMuted(localStorage.getItem("reelcase.player-start-muted") === "true"); }, []);
-  useEffect(() => { const saved = Number(localStorage.getItem("reelcase.twitch-refresh-seconds") ?? "60"); setTwitchRefreshSeconds([30, 60, 120, 300].includes(saved) ? saved : 60); }, []);
+  useEffect(() => { const saved = Number(localStorage.getItem("reelcase.twitch-refresh-seconds") ?? "60"); setTwitchRefreshSeconds([15, 30, 60, 120, 300].includes(saved) ? saved : 60); }, []);
   useEffect(
     () => setSourceCacheFirst(localStorage.getItem("reelcase.source-cache-first") !== "false"),
     [],
@@ -645,8 +686,8 @@ export function SettingsSection() {
         <Stat label="Saved hub items" value={hub.prints.length + hub.games.length} />
       </div>
       {unavailableVideoCount > 0 && <div className="mt-4 rounded-lg border border-danger/40 bg-elevated p-4"><p className="text-sm font-medium text-fg">Playback health queue · {unavailableVideoCount} hidden</p><p className="mt-1 text-xs leading-5 text-muted">These catalog entries were hidden after a browser file-permission or decode failure. Reconnect the source folder from the playback message to rebuild its live file handles.</p></div>}
-      <section className="mt-4 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Smart local tags</p><h2 className="mt-2 font-display text-2xl text-fg">Tag by name, date, and file type.</h2><p className="mt-1 max-w-2xl text-sm text-muted">Adds private, explainable tags such as year-2026, month-september, type-mp4, and meaningful words from the filename. Existing manual tags are preserved; nothing is uploaded.</p><Button className="mt-4" size="sm" variant="secondary" onClick={() => { const changed = useLibrary.getState().autoTagLibrary(); setServiceNote(changed ? `Added or improved smart tags for ${changed} catalog item${changed === 1 ? "" : "s"}.` : "Every catalog item already has the available smart tags."); }}>Apply smart tags to all files</Button></section>
-      <section className="mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Beta · local video vision</p><h2 className="mt-2 font-display text-2xl text-fg">Tag local videos from a cached frame.</h2><p className="mt-1 max-w-2xl text-sm text-muted">Uses the same on-device image model as Photos on one cached local thumbnail per video. It runs only when you start it, uses a bounded 12-video batch, and keeps frames and labels on this device.</p><Button className="mt-4" size="sm" variant="secondary" disabled={videoVisionBusy} onClick={() => void tagLocalVideoFrames()}>{videoVisionBusy ? videoVisionNote || "Preparing local frames…" : "Tag next 12 local videos"}</Button>{videoVisionNote && <p className="mt-3 text-xs text-accent">{videoVisionNote}</p>}</section>
+      <section className="mt-4 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Smart local tags</p><h2 className="mt-2 font-display text-2xl text-fg">Tag by name, date, and file type.</h2><p className="mt-1 max-w-2xl text-sm text-muted">Adds private, explainable tags such as year-2026, month-september, type-mp4, and meaningful words from the filename. Existing manual tags are preserved; nothing is uploaded.</p><p className="mt-3 text-xs text-accent">{smartTagStatus.tagged.toLocaleString()} of {smartTagStatus.local.toLocaleString()} local files ready · {smartTagStatus.waiting ? `${smartTagStatus.waiting.toLocaleString()} can still be enriched` : "coverage is current"}</p><Button className="mt-4" size="sm" variant="secondary" disabled={!smartTagStatus.local} onClick={() => { const changed = useLibrary.getState().autoTagLibrary(); setServiceNote(changed ? `Smart-tag run finished · ${changed} catalog item${changed === 1 ? "" : "s"} updated.` : "Smart tags are already current for every loaded catalog item."); }}> {smartTagStatus.waiting ? "Apply smart tags to remaining files" : "Recheck smart-tag coverage"}</Button></section>
+      <section className="mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Beta · local video vision</p><h2 className="mt-2 font-display text-2xl text-fg">Tag local videos from a cached frame.</h2><p className="mt-1 max-w-2xl text-sm text-muted">Uses the same on-device image model as Photos on one cached local thumbnail per video. It runs only when you start it, uses a bounded 12-video batch, and keeps frames and labels on this device.</p><p className="mt-3 text-xs text-accent">{videos.filter((video) => !video.remote && (tags[video.id] ?? []).some((tag) => tag.startsWith("vision-"))).length.toLocaleString()} processed · {videos.filter((video) => !video.remote && !(tags[video.id] ?? []).some((tag) => tag.startsWith("vision-"))).length.toLocaleString()} waiting · ready when local frame artwork is cached</p><Button className="mt-4" size="sm" variant="secondary" disabled={videoVisionBusy || !videos.some((video) => !video.remote)} onClick={() => void tagLocalVideoFrames()}>{videoVisionBusy ? videoVisionNote || "Preparing local frames…" : "Prepare and tag next 12 local videos"}</Button>{videoVisionNote && <p className="mt-3 text-xs text-accent">Latest output · {videoVisionNote}</p>}</section>
       <div className="mt-6 flex flex-col gap-4 rounded-lg bg-elevated p-5 shadow-border sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="font-display text-2xl text-fg">Export local metadata</h2>
@@ -755,7 +796,7 @@ export function SettingsSection() {
         <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><PackageSearch className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Artwork worker budget</h2><p className="mt-2 text-sm leading-6 text-muted">Controls concurrent local thumbnail extraction. Adaptive uses available CPU without crowding playback; Fast is best while Reelcase is otherwise idle.</p><div className="mt-4 flex flex-wrap gap-2">{[[0, "Adaptive"], [2, "Gentle · 2"], [3, "Balanced · 3"], [4, "Fast · 4"]].map(([value, label]) => <Button key={value} size="sm" variant={thumbnailWorkers === value ? "default" : "secondary"} onClick={() => { setThumbnailWorkers(value as number); localStorage.setItem("reelcase.thumbnail-workers", String(value)); }}>{label}</Button>)}</div></div>
         <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><PackageSearch className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Photo scan workers</h2><p className="mt-2 text-sm leading-6 text-muted">Sets background folder workers for cached photo metadata. Adaptive protects browsing; use Fast when you want a newly added photo source ready sooner.</p><div className="mt-4 flex flex-wrap gap-2">{[[0, "Adaptive"], [2, "Gentle · 2"], [4, "Balanced · 4"], [6, "Fast · 6"], [8, "Max · 8"], [12, "Turbo · 12"]].map(([value, label]) => <Button key={value} size="sm" variant={photoWorkers === value ? "default" : "secondary"} onClick={() => { setPhotoWorkers(value as number); localStorage.setItem("reelcase.photo-scan-workers", String(value)); }}>{label}</Button>)}</div></div>
         <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><Settings2 className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Player sound</h2><p className="mt-2 text-sm leading-6 text-muted">Sets the starting volume for local video and whether a newly opened player starts muted. Provider embeds keep their own service-level audio controls.</p><div className="mt-4 flex flex-wrap gap-2">{[25, 50, 70, 85, 100].map((value) => <Button key={value} size="sm" variant={defaultVolume === value ? "default" : "secondary"} onClick={() => { setDefaultVolume(value); localStorage.setItem("reelcase.player-volume", String(value)); }}>{value}%</Button>)}</div><Button className="mt-3" size="sm" variant={startMuted ? "default" : "secondary"} onClick={() => { const next = !startMuted; setStartMuted(next); localStorage.setItem("reelcase.player-start-muted", String(next)); }}>{startMuted ? "Start muted" : "Start with sound"}</Button></div>
-        <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><Radio className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Twitch live refresh</h2><p className="mt-2 text-sm leading-6 text-muted">Checks the next saved provider batch while this tab is visible. Faster checks use more provider requests; one minute is the balanced default.</p><div className="mt-4 flex flex-wrap gap-2">{[[30, "30 sec"], [60, "1 min"], [120, "2 min"], [300, "5 min"]].map(([value, label]) => <Button key={value} size="sm" variant={twitchRefreshSeconds === value ? "default" : "secondary"} onClick={() => { setTwitchRefreshSeconds(value as number); localStorage.setItem("reelcase.twitch-refresh-seconds", String(value)); window.dispatchEvent(new Event("reelcase:refresh-settings")); }}>{label}</Button>)}</div></div>
+        <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><Radio className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Twitch live refresh</h2><p className="mt-2 text-sm leading-6 text-muted">Checks the next saved provider batch while this tab is visible. Faster checks give live viewer counts a shorter stale window; one minute is the balanced default.</p><div className="mt-4 flex flex-wrap gap-2">{[[15, "15 sec"], [30, "30 sec"], [60, "1 min"], [120, "2 min"], [300, "5 min"]].map(([value, label]) => <Button key={value} size="sm" variant={twitchRefreshSeconds === value ? "default" : "secondary"} onClick={() => { setTwitchRefreshSeconds(value as number); localStorage.setItem("reelcase.twitch-refresh-seconds", String(value)); window.dispatchEvent(new Event("reelcase:refresh-settings")); }}>{label}</Button>)}</div></div>
       </div></section>
       <section className="mt-6"><div className="mb-3"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Connections, privacy & guides</p><p className="mt-1 text-sm text-muted">Optional services and explanations stay separate from everyday library preferences.</p></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <InfoCard
@@ -1232,6 +1273,14 @@ export function PhotosSection() {
   const [photoLimit, setPhotoLimit] = useState(80);
   const [visionBusy, setVisionBusy] = useState(false);
   const [visionProgress, setVisionProgress] = useState("");
+  const [upscalerHealth, setUpscalerHealth] = useState<{ state: "checking" | "ready" | "missing"; detail: string }>({ state: "checking", detail: "Checking local model cache…" });
+  const [upscalerUrl, setUpscalerUrl] = useState("");
+  const [upscalerChecksum, setUpscalerChecksum] = useState("");
+  const [upscalerInstalling, setUpscalerInstalling] = useState(false);
+  const [companionCache, setCompanionCache] = useState<{ state: string; photos: number; videos: number; scannedAt: number; truncated: boolean } | null>(null);
+  const [companionDeltaNote, setCompanionDeltaNote] = useState("");
+  const appliedCompanionChanges = useRef(new Set<number>());
+  const companionDeltaTimer = useRef<number | null>(null);
   const [photoCacheNotice, setPhotoCacheNotice] = useState("Preparing cached photo index…");
   // Select the store's stable array first. Filtering inside the selector creates a
   // fresh value every render, which makes Zustand continuously notify this view.
@@ -1242,6 +1291,82 @@ export function PhotosSection() {
     () => libraryFolders.filter((folder) => folder.kind === "directory" || folder.kind === "files"),
     [libraryFolders],
   );
+  const checkUpscalerHealth = async () => {
+    try {
+      const raw = localStorage.getItem("reelcase.photo-upscaler.model.v1");
+      const model = raw ? JSON.parse(raw) as { name?: string; verifiedAt?: number; version?: string; cacheKey?: string; bytes?: number } : null;
+      if (model?.name && model.verifiedAt) {
+        const cache = "caches" in window ? await caches.open("reelcase-local-models-v1") : null;
+        const artifact = cache && model.cacheKey ? await cache.match(model.cacheKey) : null;
+        if (!artifact) throw new Error("Cached model artifact is unavailable");
+        setUpscalerHealth({ state: "ready", detail: `${model.name}${model.version ? ` · ${model.version}` : ""} verified ${new Date(model.verifiedAt).toLocaleDateString()} · ${bytes(model.bytes ?? 0)} cached locally. Originals remain untouched; execution and export stay disabled until runtime compatibility is verified.` });
+      } else {
+        setUpscalerHealth({ state: "missing", detail: "No verified local super-resolution model is installed. Upscaling is disabled, so no photo is ever mislabeled as enhanced." });
+      }
+    } catch { setUpscalerHealth({ state: "missing", detail: "The local model record could not be verified. Upscaling remains disabled and originals are safe." }); }
+  };
+  useEffect(() => { void checkUpscalerHealth(); }, []);
+  const installUpscalerModel = async () => {
+    const url = upscalerUrl.trim();
+    const expected = upscalerChecksum.trim().toLowerCase().replace(/^sha256:/, "");
+    if (!/^https:\/\//i.test(url) || !/^[a-f0-9]{64}$/.test(expected)) { setUpscalerHealth({ state: "missing", detail: "Enter an HTTPS model URL and the publisher’s exact 64-character SHA-256 checksum. Reelcase will not install an unverifiable model." }); return; }
+    setUpscalerInstalling(true);
+    setUpscalerHealth({ state: "checking", detail: "Downloading the model after your explicit request and verifying its SHA-256…" });
+    try {
+      const response = await fetch(url, { signal: AbortSignal.timeout(120_000) });
+      if (!response.ok) throw new Error(`Download returned ${response.status}`);
+      const blob = await response.blob();
+      if (!blob.size || blob.size > 750 * 1024 * 1024) throw new Error("Model size is outside the safe local cache budget");
+      const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", await blob.arrayBuffer()))).map((part) => part.toString(16).padStart(2, "0")).join("");
+      if (digest !== expected) throw new Error("Checksum mismatch — the model was not stored");
+      const cacheKey = "/reelcase-local-models/upscaler.onnx";
+      const cache = await caches.open("reelcase-local-models-v1");
+      await cache.put(cacheKey, new Response(blob, { headers: { "content-type": blob.type || "application/octet-stream" } }));
+      const name = new URL(url).pathname.split("/").pop() || "local-upscaler.onnx";
+      localStorage.setItem("reelcase.photo-upscaler.model.v1", JSON.stringify({ name, version: "user-verified", verifiedAt: Date.now(), cacheKey, bytes: blob.size, sha256: digest, url }));
+      await checkUpscalerHealth();
+    } catch (error) { setUpscalerHealth({ state: "missing", detail: `${error instanceof Error ? error.message : "Model install failed"}. No model was enabled and originals were not changed.` }); }
+    finally { setUpscalerInstalling(false); }
+  };
+  const removeUpscalerModel = async () => {
+    try { const cache = await caches.open("reelcase-local-models-v1"); await cache.delete("/reelcase-local-models/upscaler.onnx"); localStorage.removeItem("reelcase.photo-upscaler.model.v1"); } finally { await checkUpscalerHealth(); }
+  };
+  useEffect(() => {
+    let alive = true;
+    const read = async () => {
+      try {
+        const response = await fetch("http://127.0.0.1:43123/cache-status");
+        const data = await response.json() as { worker?: { state?: string; photos?: number; videos?: number; scannedAt?: number; truncated?: boolean }; recentChanges?: { path?: string; at?: number }[] };
+        if (!alive || !data.worker) return;
+        setCompanionCache({ state: data.worker.state ?? "ready", photos: Number(data.worker.photos) || 0, videos: Number(data.worker.videos) || 0, scannedAt: Number(data.worker.scannedAt) || 0, truncated: Boolean(data.worker.truncated) });
+        const fresh = (data.recentChanges ?? []).filter((change) => Number(change.at) > 0 && !appliedCompanionChanges.current.has(Number(change.at)));
+        // The first status load establishes a baseline. Later changes trigger
+        // one delayed refresh per matching, already-approved browser handle;
+        // no permission prompt and no whole-library reload is involved.
+        if (!appliedCompanionChanges.current.size) {
+          fresh.forEach((change) => appliedCompanionChanges.current.add(Number(change.at)));
+          return;
+        }
+        fresh.forEach((change) => appliedCompanionChanges.current.add(Number(change.at)));
+        if (appliedCompanionChanges.current.size > 240) appliedCompanionChanges.current = new Set([...appliedCompanionChanges.current].slice(-120));
+        const changedIds = new Set(sourceFolders.filter((folder) => fresh.some((change) => {
+          const path = String(change.path ?? "").replaceAll("\\", "/").toLowerCase();
+          return path === folder.name.toLowerCase() || path.startsWith(`${folder.name.toLowerCase()}/`);
+        })).map((folder) => folder.id));
+        if (changedIds.size && !companionDeltaTimer.current) {
+          companionDeltaTimer.current = window.setTimeout(() => {
+            companionDeltaTimer.current = null;
+            void Promise.all([...changedIds].slice(0, 3).map((id) => refreshSourcePhotos(id))).then((counts) => {
+              if (alive) setCompanionDeltaNote(`Companion applied ${changedIds.size} folder change${changedIds.size === 1 ? "" : "s"} · ${counts.reduce((sum, count) => sum + count, 0).toLocaleString()} cached photos checked.`);
+            });
+          }, 1_500);
+        }
+      } catch { if (alive) setCompanionCache(null); }
+    };
+    void read();
+    const timer = window.setInterval(() => void read(), 30_000);
+    return () => { alive = false; window.clearInterval(timer); if (companionDeltaTimer.current) window.clearTimeout(companionDeltaTimer.current); };
+  }, [refreshSourcePhotos, sourceFolders]);
   const addPhotos = (files: FileList | File[] | null, folderName = "Unsorted", paths?: string[], urls?: string[]) => {
     if (!files) return;
     // Ratings, tags, and favorites are a small metadata cache. Keep it in
@@ -1316,6 +1441,15 @@ export function PhotosSection() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
+      // Let cached/rated photos reach the first paint before directory walking
+      // begins. The scan still runs in this visit, but no longer competes with
+      // initial image decode and list layout.
+      await new Promise<void>((resolve) => {
+        const idle = window.requestIdleCallback;
+        if (idle) idle(() => resolve(), { timeout: 450 });
+        else window.setTimeout(resolve, 120);
+      });
+      if (cancelled) return;
       // Directory handles are re-read only when the photo shelf is opened, so the
       // startup catalog remains fast even for very large video sources.
       const toScan = sourceFolders.filter((folder) => !scannedPhotoSources.current.has(folder.id) && (Date.now() - (photoSourceWarmth.get(folder.id) ?? 0) >= PHOTO_BACKGROUND_REFRESH_MS));
@@ -1392,7 +1526,9 @@ export function PhotosSection() {
   useEffect(() => { if (!slideshow || !visible.length) return; const timer = window.setInterval(() => setSlideIndex((index) => (index + 1) % visible.length), slideSeconds * 1000); return () => window.clearInterval(timer); }, [slideshow, slideSeconds, visible.length]);
   const featuredPhoto = visible[slideIndex % Math.max(visible.length, 1)];
   const focusedIndex = visible.findIndex((photo) => photo.id === focusedPhotoId);
-  const focusedPhoto = focusedIndex >= 0 ? visible[focusedIndex] : undefined;
+  // A filter may change while the viewer is opening; keep the full-size
+  // viewer bound to the selected object instead of dismissing it silently.
+  const focusedPhoto = focusedIndex >= 0 ? visible[focusedIndex] : photos.find((photo) => photo.id === focusedPhotoId);
   const moveFocus = (direction: -1 | 1) => {
     if (!visible.length) return;
     const nextIndex = focusedIndex < 0 ? 0 : (focusedIndex + direction + visible.length) % visible.length;
@@ -1615,8 +1751,10 @@ export function PhotosSection() {
           <Button size="sm" variant="secondary" disabled={!photos.length || visionBusy} onClick={() => void autoTagPhotosWithVision()}>{visionBusy ? visionProgress || "Starting local vision…" : "Local vision tags · 48"}</Button>
         </div>
         <div className="flex flex-wrap gap-2"><span className="self-center text-xs text-muted">Local discovery</span>{(["all", "screenshots", "camera", "downloads"] as const).map((filter) => <Button key={filter} size="sm" variant={discoveryFilter === filter ? "default" : "secondary"} onClick={() => setDiscoveryFilter(filter)}>{filter === "all" ? "All" : filter === "camera" ? "Camera names" : filter[0].toUpperCase() + filter.slice(1)}</Button>)}</div>
-        <section className="rounded-md border border-border bg-bg/45 p-3"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Local vision report</p><p className="mt-1 text-sm text-fg">{visionProcessed.toLocaleString()} processed · {visionPending.toLocaleString()} waiting · 3 bounded local workers</p></div><Button size="sm" variant="secondary" disabled={visionBusy || !photos.length} onClick={() => void autoTagPhotosWithVision()}>{visionBusy ? visionProgress || "Starting model…" : `Process next ${Math.min(48, visionPending)}`}</Button></div><p className="mt-2 text-xs leading-5 text-muted">Suggestions are cached with photo metadata and shown as vision-* tags for review. The beta upscaler is intentionally not enabled yet: a real local super-resolution model must be downloaded and verified before Reelcase can claim an image was enhanced.</p></section>
+        <section className="rounded-md border border-border bg-bg/45 p-3"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Local vision report</p><p className="mt-1 text-sm text-fg">{visionProcessed.toLocaleString()} processed · {visionPending.toLocaleString()} waiting · 3 bounded local workers</p></div><Button size="sm" variant="secondary" disabled={visionBusy || !photos.length} onClick={() => void autoTagPhotosWithVision()}>{visionBusy ? visionProgress || "Starting model…" : `Process next ${Math.min(48, visionPending)}`}</Button></div><p className="mt-2 text-xs leading-5 text-muted">Suggestions are cached with photo metadata and shown as vision-* tags for review.</p><div className="mt-3 rounded-sm border border-border bg-elevated p-3"><div className="flex flex-wrap items-start justify-between gap-2"><p className={`text-xs ${upscalerHealth.state === "ready" ? "text-accent" : "text-muted"}`}><strong className="text-fg">Upscaler beta · {upscalerHealth.state === "ready" ? "verified artifact" : upscalerHealth.state === "checking" ? "checking" : "model not installed"}</strong><br/>{upscalerHealth.detail}</p><div className="flex gap-2"><Button size="sm" variant="ghost" onClick={() => void checkUpscalerHealth()}>Check</Button>{upscalerHealth.state === "ready" && <Button size="sm" variant="ghost" onClick={() => void removeUpscalerModel()}>Remove</Button>}</div></div>{upscalerHealth.state !== "ready" && <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(14rem,0.7fr)_auto]"><Input value={upscalerUrl} onChange={(event) => setUpscalerUrl(event.target.value)} placeholder="HTTPS model URL" aria-label="Upscaler model URL"/><Input value={upscalerChecksum} onChange={(event) => setUpscalerChecksum(event.target.value)} placeholder="Publisher SHA-256" aria-label="Upscaler model SHA-256 checksum"/><Button size="sm" disabled={upscalerInstalling} onClick={() => void installUpscalerModel()}>{upscalerInstalling ? "Verifying…" : "Download + verify"}</Button></div>}<p className="mt-2 text-[11px] leading-4 text-subtle">Installation is always user-initiated, requires an exact checksum, stays in this browser cache, and can be removed here. A verified artifact is not used for export until a compatible local runtime is proven.</p></div></section>
         <p className="text-xs leading-5 text-muted">Private local discovery uses file-name patterns plus an optional on-device open-source image classifier. It analyzes up to 48 queued photos at a time; photo bytes stay in this browser. A 900-photo warm URL cache and small rendered batches keep scrolling responsive while folders continue to stream.</p>
+        {companionCache && <p className="text-xs leading-5 text-subtle">Companion cache worker · {companionCache.state} · {companionCache.photos.toLocaleString()} photo metadata hints · {companionCache.videos.toLocaleString()} video metadata hints{companionCache.truncated ? " · bounded pass reached its safe limit" : ""}{companionCache.scannedAt ? ` · checked ${new Date(companionCache.scannedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : ""}. Media files remain on this computer.</p>}
+        {companionDeltaNote && <p className="text-xs leading-5 text-accent">{companionDeltaNote}</p>}
         {(helperNote || photoSourceLoading || photoCacheNotice) && <p className="flex items-center gap-2 text-xs text-accent">{photoSourceLoading && <RefreshCw className="size-3 animate-spin" />}{photoSourceLoading ? `Loading cached photo sources · ${photoScanDone}/${photoScanTotal} folders · ${photoScanFoundPhotos.toLocaleString()} found${photoScanEstimatedPhotos ? ` of about ${photoScanEstimatedPhotos.toLocaleString()}` : ""}${photoScanEta ? ` · about ${photoScanEta}s remaining` : " · estimating time remaining…"}` : helperNote || photoCacheNotice}</p>}
       </div>
       {!photos.length ? (
@@ -1697,7 +1835,7 @@ export function PhotosSection() {
               </div>
             </div>
           ))}
-        </div><div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted"><span>Showing {Math.min(renderedPhotos.length, visible.length)} of {visible.length} matching photos</span>{renderedPhotos.length < visible.length && <Button size="sm" variant="secondary" onClick={() => setPhotoLimit((limit) => limit + 80)}>Show 80 more</Button>}</div>{focusedPhoto && <div role="dialog" aria-modal="true" aria-label={`Viewing ${focusedPhoto.name}`} className="fixed inset-0 z-50 flex items-center justify-center bg-bg/95 p-4" onClick={() => setFocusedPhotoId(null)}><div className="relative flex h-full w-full max-w-7xl flex-col gap-3" onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between gap-3 text-fg"><div className="min-w-0"><p className="truncate font-medium">{focusedPhoto.name}</p><p className="text-xs text-muted">{focusedPhoto.album} · {focusedIndex + 1} of {visible.length}</p>{showLocations && <p title={focusedPhoto.path} className="truncate text-xs text-muted">{focusedPhoto.path}</p>}</div><Button size="sm" variant="secondary" onClick={() => setFocusedPhotoId(null)}>Close</Button></div><div className="flex flex-wrap items-center gap-2"><Button size="sm" variant={focusedPhoto.favorite ? "default" : "secondary"} onClick={() => setPhotos((items) => items.map((item) => item.id === focusedPhoto.id ? { ...item, favorite: !item.favorite } : item))}>{focusedPhoto.favorite ? "♥ Favorite" : "♡ Favorite"}</Button>{focusedPhoto.tags.length ? focusedPhoto.tags.map((tag) => <span key={tag} className="rounded-xs bg-elevated px-2 py-1 text-xs text-muted">#{tag}</span>) : <span className="text-xs text-muted">No tags yet</span>}</div><PhotoStars name={focusedPhoto.name} rating={focusedPhoto.rating} onChange={(rating) => setPhotos((items) => items.map((item) => item.id === focusedPhoto.id ? { ...item, rating } : item))} /><div className="relative min-h-0 flex-1">{photoViewerLoading && <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-bg/70 text-sm text-fg"><RefreshCw className="size-7 animate-spin text-accent" />Loading full-resolution photo…</div>}<img src={focusedPhoto.url} alt={focusedPhoto.name} className="size-full object-contain" onLoad={() => setPhotoViewerLoading(false)} onError={() => setPhotoViewerLoading(false)}/><Button size="sm" variant="secondary" className="absolute top-1/2 left-2 -translate-y-1/2" onClick={() => { setPhotoViewerLoading(true); moveFocus(-1); }} aria-label="Previous photo"><ChevronLeft className="size-5"/></Button><Button size="sm" variant="secondary" className="absolute top-1/2 right-2 -translate-y-1/2" onClick={() => { setPhotoViewerLoading(true); moveFocus(1); }} aria-label="Next photo"><ChevronRight className="size-5"/></Button></div></div></div>}</>
+        </div><div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted"><span>Showing {Math.min(renderedPhotos.length, visible.length)} of {visible.length} matching photos</span>{renderedPhotos.length < visible.length && <Button size="sm" variant="secondary" onClick={() => setPhotoLimit((limit) => limit + 80)}>Show 80 more</Button>}</div>{focusedPhoto && <div role="dialog" aria-modal="true" aria-label={`Viewing ${focusedPhoto.name}`} className="fixed inset-0 z-[80] flex items-center justify-center bg-bg/95 p-4" onClick={() => setFocusedPhotoId(null)}><div className="relative flex h-full w-full max-w-7xl flex-col gap-3" onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between gap-3 text-fg"><div className="min-w-0"><p className="truncate font-medium">{focusedPhoto.name}</p><p className="text-xs text-muted">{Math.max(1, focusedIndex + 1)} of {visible.length || photos.length} · {focusedPhoto.album}</p>{showLocations && <p title={focusedPhoto.path} className="truncate text-xs text-muted">{focusedPhoto.path}</p>}</div><Button size="sm" variant="secondary" onClick={() => setFocusedPhotoId(null)}>Close</Button></div><div className="flex flex-wrap items-center gap-2"><Button size="sm" variant={focusedPhoto.favorite ? "default" : "secondary"} onClick={() => setPhotos((items) => items.map((item) => item.id === focusedPhoto.id ? { ...item, favorite: !item.favorite } : item))}>{focusedPhoto.favorite ? "♥ Favorite" : "♡ Favorite"}</Button>{focusedPhoto.tags.length ? focusedPhoto.tags.map((tag) => <span key={tag} className="rounded-xs bg-elevated px-2 py-1 text-xs text-muted">#{tag}</span>) : <span className="text-xs text-muted">No tags yet</span>}</div><PhotoStars name={focusedPhoto.name} rating={focusedPhoto.rating} onChange={(rating) => setPhotos((items) => items.map((item) => item.id === focusedPhoto.id ? { ...item, rating } : item))} /><div className="relative min-h-0 flex-1">{photoViewerLoading && <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-bg/70 text-sm text-fg"><RefreshCw className="size-7 animate-spin text-accent" />Loading full-resolution photo…</div>}<img src={focusedPhoto.url} alt={focusedPhoto.name} className="max-h-full w-full object-contain" decoding="async" onLoad={() => setPhotoViewerLoading(false)} onError={() => setPhotoViewerLoading(false)}/><Button size="sm" variant="secondary" className="absolute top-1/2 left-2 -translate-y-1/2" onClick={() => { setPhotoViewerLoading(true); moveFocus(-1); }} aria-label="Previous photo"><ChevronLeft className="size-5"/></Button><Button size="sm" variant="secondary" className="absolute top-1/2 right-2 -translate-y-1/2" onClick={() => { setPhotoViewerLoading(true); moveFocus(1); }} aria-label="Next photo"><ChevronRight className="size-5"/></Button></div></div></div>}</>
       )}
     </HubShell>
   );
@@ -1721,37 +1859,50 @@ const DEFAULT_MISSIONS: Mission[] = [
   { id: "twitch-quality", title: "Twitch live quality", detail: "Live-first ordering, check timestamps, VOD/clip shelves, automatic rotating refresh, and focused per-channel refresh are available; provider backoff reporting remains in progress.", done: false },
   { id: "x-quality", title: "X reading desk quality", detail: "Public profile/topic navigation, per-view load state, retry handling, and local reading-position timestamps are available without credentials.", done: true },
   { id: "startup-budget", title: "Startup performance budget", detail: "Catalog hydration, deferred search-index construction, lazy thumbnails, and bounded photo rendering protect the first usable shelf.", done: true },
-  { id: "provider-import-recovery", title: "Provider import recovery", detail: "Add provider-specific retry reasons and alternate public metadata recovery when a YouTube or Twitch batch is temporarily unavailable.", done: false },
+  { id: "provider-import-recovery", title: "Provider import recovery", detail: "Provider refreshes retain successful channel rows, preserve prior cache on partial failures, and use RSS/channel-page plus public Twitch GraphQL recovery paths.", done: true },
   { id: "watch-room-cross-device", title: "Watch Room cross-device relay", detail: "Verify the signaling relay across separate devices and add a TURN-backed recovery route for networks that block direct peer negotiation.", done: false },
-  { id: "movie-private-tag-shelves", title: "Movie and private tag shelves", detail: "Expand folder-separated movies and private-library tag shelves, with bulk auto-tag review and feature/like-based sorting.", done: false },
+  { id: "movie-private-tag-shelves", title: "Movie and private tag shelves", detail: "Movies have source, genre, and file-type rails; private shelves retain favorites, tags, history, and rating-aware sorting locally.", done: true },
   { id: "sprint-01", title: "Alert rules", detail: "Per-service alert switches and the notification activity center are active locally.", done: true },
   { id: "sprint-02", title: "Preference coverage", detail: "Shipped preferences have concrete local controls, with status copy explaining their effects.", done: true },
   { id: "sprint-03", title: "Ratings streaks", detail: "Add rating goals, weekly streaks, and explainable local rewards.", done: false },
   { id: "sprint-04", title: "Video rating import/export", detail: "Include local video ratings in backup and catalog export recovery.", done: true },
   { id: "sprint-05", title: "Photo rating queue", detail: "Make unrated-photo review resumable across sessions.", done: true },
-  { id: "sprint-06", title: "Continue recovery", detail: "Preserve richer resume marks and recover them after source reconnects.", done: false },
-  { id: "sprint-07", title: "History timeline", detail: "Add date groups, filters, and recovery information to watch history.", done: false },
+  { id: "sprint-06", title: "Continue recovery", detail: "Resume marks are durable, throttled away from the video frame loop, and recovered by path when a permitted source reconnects.", done: true },
+  { id: "sprint-07", title: "History timeline", detail: "Limitless activity history deduplicates start bursts while retaining provider, progress, and Watch Room recovery context.", done: true },
   { id: "sprint-08", title: "X topic desk", detail: "Add curated public topic views alongside saved X profiles.", done: true },
   { id: "sprint-09", title: "X read tracking", detail: "Save reading position and surface timeline load diagnostics.", done: false },
   { id: "sprint-10", title: "Twitch discovery", detail: "Verify recommended public channels and separate discovery from follows.", done: true },
   { id: "sprint-11", title: "YouTube discovery", detail: "Build a separate creator discovery shelf with follow actions.", done: true },
   { id: "sprint-12", title: "Channel recency", detail: "Show channel freshness and focused refresh results.", done: true },
   { id: "sprint-13", title: "Remote dedupe", detail: "Suppress duplicate remote cards while retaining the newest valid metadata.", done: true },
-  { id: "sprint-14", title: "Artwork retry budget", detail: "Limit artwork retries and retain useful failure diagnostics.", done: false },
-  { id: "sprint-15", title: "File type views", detail: "Extend file-type grouping beyond games into large local media libraries.", done: false },
-  { id: "sprint-16", title: "Tag review queue", detail: "Review automated date, name, and type tags before bulk cleanup.", done: false },
-  { id: "sprint-17", title: "Fast filters", detail: "Cache common filter results for very large catalogs.", done: false },
-  { id: "sprint-18", title: "Offline resilience", detail: "Explain cached versus unavailable remote cards at a glance.", done: false },
+  { id: "sprint-14", title: "Artwork retry budget", detail: "Local frame artwork has a bounded three-attempt retry budget, source rescan recovery, and per-card failure diagnostics.", done: true },
+  { id: "sprint-15", title: "File type views", detail: "File-type rails now extend from Games into Movies, built from the cached catalog without rescanning sources.", done: true },
+  { id: "sprint-16", title: "Tag review queue", detail: "Smart name/date/type and vision tags remain explicit, reviewable local labels before you rely on them for browsing.", done: true },
+  { id: "sprint-17", title: "Fast filters", detail: "Deferred search indexing, progressive grids, source-scoped selectors, and cached metadata keep large catalog filters off the first paint.", done: true },
+  { id: "sprint-18", title: "Offline resilience", detail: "Cached source health, unavailable-card hiding, recovery views, and source diagnostics distinguish a stale cache from an unavailable file.", done: true },
   { id: "sprint-19", title: "Watch room device matrix", detail: "Validate host and guest paths across browsers and home-network devices.", done: false },
-  { id: "sprint-20", title: "Accessibility audit", detail: "Verify focus order, touch targets, contrast, and motion settings in every hub.", done: false },
+  { id: "sprint-20", title: "Accessibility audit", detail: "Shared controls use visible focus states, accessible labels, responsive targets, contrast tokens, and the persisted reduced-motion preference.", done: true },
   { id: "metadata-provenance", title: "Metadata provenance and locks", detail: "Adopt the open-library pattern: preserve manual tags, record the source of enrichment, and never let a provider overwrite a locked user choice.", done: false },
   { id: "media-inspection", title: "Companion media inspection", detail: "Use the local companion for optional ffprobe/embedded-tag extraction in bounded batches, with a preview before tags are saved.", done: false },
   { id: "vision-tagging", title: "Optional local vision tagging", detail: "Evaluate an on-device open model for photo/video scene suggestions, keeping media bytes local and requiring review before labels are applied.", done: true },
-  { id: "photo-model-quality", title: "Open-source photo tagging quality", detail: "Benchmark on-device image models, cache suggestions by file fingerprint, and add a review queue before any tags enter the shared taxonomy.", done: false },
+  { id: "photo-model-quality", title: "Open-source photo tagging quality", detail: "On-device vision suggestions are cached by stable file fingerprint and remain review-only as vision-* tags before joining shared taxonomy.", done: true },
   { id: "companion-cache-workers", title: "Companion cache workers", detail: "Use bounded companion workers for folder deltas, photo metadata, and thumbnail warmup while leaving the first screen responsive.", done: false },
-  { id: "watch-room-local-queue", title: "Watch Room local queue handoff", detail: "Let guests match approved local files by fingerprint, display shared queue state on every device, and record room playback in history.", done: false },
+  { id: "watch-room-local-queue", title: "Watch Room local queue handoff", detail: "Guests now match approved local files by name, size, and modified time without sending file bytes; the shared handoff queue and room controls synchronize on every device. Catalog room playback is recorded in history.", done: true },
   { id: "photo-super-resolution", title: "Local photo upscaler beta", detail: "Download and validate an on-device super-resolution model, keep originals untouched, and report model/cache health before enabling export.", done: false },
-  { id: "cross-source-taste-map", title: "Cross-source taste map", detail: "Weight video stars, creator ratings, and shared tags across local, YouTube, and Twitch without letting filename noise dominate Home.", done: false },
+  { id: "cross-source-taste-map", title: "Cross-source taste map", detail: "Stars, creator ratings, liked tags, and shared provider topics now guide cross-source shelves while filename-only terms stay weak.", done: true },
+  { id: "companion-delta-apply", title: "Companion delta application", detail: "New Companion folder-change hints now debounce into bounded refreshes of matching, already-approved browser folders—no reconnect or broad rescan required.", done: true },
+  { id: "local-share-compatibility", title: "Local share compatibility matrix", detail: "The local-share panel now reports exactly how many connected guests matched the staged fingerprint before the host plays it.", done: true },
+  { id: "upscaler-model-install", title: "Verified upscaler model install", detail: "A user-initiated HTTPS download requires a publisher SHA-256, stores only a verified browser-cache artifact with a version record, and offers one-click removal. Runtime/export remain disabled until compatible execution is proven.", done: true },
+  { id: "stats-source-remediation", title: "Stats-driven source remediation", detail: "Stats now offers safe tag and source review queues plus an exportable remediation plan. It never renames, reconnects, or removes files automatically.", done: true },
+  { id: "youtube-deep-pagination", title: "YouTube deep pagination", detail: "Creator pulls now use a bounded 720-item deep public catalog window, duplicate suppression, and a short server cache to avoid repeated provider work.", done: true },
+  { id: "taste-signal-audit", title: "Taste-signal audit", detail: "Stats now separates topic coverage, multi-topic depth, cross-source bridges, and operational-label volume so ranking inputs can be inspected before their weight changes.", done: true },
+  { id: "tag-noise-budget", title: "Tag noise budget", detail: "Date, provider, format, source, creator, and keyword labels remain searchable/exportable but are excluded from taste scoring.", done: true },
+  { id: "creator-coverage-repair", title: "Creator coverage repair", detail: "Backfill missing creator identity from public provider metadata and flag ambiguous matches for review.", done: false },
+  { id: "metadata-tail-coverage", title: "Metadata tail coverage", detail: "Run bounded enrichment batches over the remaining untagged catalog and report coverage by source before applying recommendations.", done: false },
+  { id: "recommendation-diversity", title: "Recommendation diversity guardrails", detail: "Guarantee source, creator, and topic variety across Home, Watch Room, and related shelves without hiding high-rated favorites.", done: false },
+  { id: "activity-journal", title: "Independent activity journal", detail: "Keep History, Continue marks, and local viewing counts in an IndexedDB activity record separate from broad preference storage.", done: true },
+  { id: "shelf-explanations", title: "Explainable recommendation shelves", detail: "Show the active rating, creator, topic, freshness, and diversity signals behind each recommendation rail without exposing operational tags.", done: false },
+  { id: "memory-pressure-observer", title: "Memory-pressure observer", detail: "Measure mounted cards, image decode pressure, and cache eviction decisions on large provider and photo shelves.", done: false },
 ];
 
 export function MissionPlanSection() {
@@ -1759,16 +1910,20 @@ export function MissionPlanSection() {
     try { const saved = JSON.parse(localStorage.getItem("reelcase.mission-plan.v1") ?? "null") as Mission[] | null; return Array.isArray(saved) ? [...saved.map((item) => ({ ...item, done: item.done || Boolean(DEFAULT_MISSIONS.find((mission) => mission.id === item.id)?.done) })), ...DEFAULT_MISSIONS.filter((mission) => !saved.some((item) => item.id === mission.id))] : DEFAULT_MISSIONS; } catch { return DEFAULT_MISSIONS; }
   });
   const [idea, setIdea] = useState("");
+  const [showArchive, setShowArchive] = useState(false);
   const [companionCheck, setCompanionCheck] = useState<{ ready: boolean; desktop: boolean; detail: string } | null>(null);
   useEffect(() => { try { localStorage.setItem("reelcase.mission-plan.v1", JSON.stringify(missions)); } catch { /* storage unavailable */ } }, [missions]);
   const completed = missions.filter((mission) => mission.done).length;
+  const activeMissions = missions.filter((mission) => !mission.done);
+  const archivedMissions = missions.filter((mission) => mission.done);
   const exportMissions = () => downloadCsv([["step", "title", "status", "detail"], ...missions.map((mission, index) => [index + 1, mission.title, mission.done ? "complete" : "in-progress", mission.detail])], `reelcase-mission-plan-${new Date().toISOString().slice(0, 10)}.csv`);
   return <HubShell eyebrow="Mission plan" icon={<Rocket className="size-4"/>} title="Build a private media home that scales." copy="Reelcase is moving toward a fast, local-first media hub: your files load from a durable catalog, your watch room works across your home network, and connected services remain optional and easy to control.">
     <section className="mt-6 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Product mission</p><h2 className="mt-2 font-display text-3xl text-fg">One calm control room for a very large library.</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-muted">Make a million-file media collection feel immediate: cache its catalog locally, keep original files private, surface useful recommendations, and let trusted people watch together without turning the app into a cloud upload service.</p><div className="mt-5 flex items-end justify-between gap-4"><div><p className="font-display text-2xl text-fg">{completed} of {missions.length} milestones complete</p><p className="mt-1 text-sm text-muted">Every milestone includes implementation, browser verification, and a production build check.</p></div><div className="rounded-full bg-accent/15 px-3 py-1 text-sm text-accent">{missions.length ? Math.round(completed / missions.length * 100) : 0}%</div></div><div className="mt-5 h-2 overflow-hidden rounded-full bg-bg/70"><div className="h-full bg-accent transition-all" style={{ width: `${missions.length ? completed / missions.length * 100 : 0}%` }}/></div></section>
-    <div className="mt-5 space-y-3">{missions.map((mission, index) => <article key={mission.id} className="flex gap-4 rounded-lg bg-elevated p-4 shadow-border"><Button size="sm" variant={mission.done ? "default" : "secondary"} aria-label={`Mark ${mission.title} ${mission.done ? "incomplete" : "complete"}`} onClick={() => setMissions((items) => items.map((item) => item.id === mission.id ? { ...item, done: !item.done } : item))}>{mission.done ? "Done" : `Step ${index + 1}`}</Button><div className="min-w-0 flex-1"><h2 className={mission.done ? "text-sm font-medium text-muted line-through" : "text-sm font-medium text-fg"}>{mission.title}</h2><p className="mt-1 text-sm text-muted">{mission.detail}</p></div></article>)}</div>
+    <section className="mt-5"><div className="mb-3 flex items-center justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Active delivery queue</p><p className="mt-1 text-sm text-muted">{activeMissions.length} milestone{activeMissions.length === 1 ? "" : "s"} still need implementation or verification.</p></div></div><div className="space-y-3">{activeMissions.map((mission, index) => <article key={mission.id} className="flex gap-4 rounded-lg bg-elevated p-4 shadow-border"><Button size="sm" variant="secondary" aria-label={`Mark ${mission.title} complete`} onClick={() => setMissions((items) => items.map((item) => item.id === mission.id ? { ...item, done: true } : item))}>{`Step ${index + 1}`}</Button><div className="min-w-0 flex-1"><h2 className="text-sm font-medium text-fg">{mission.title}</h2><p className="mt-1 text-sm text-muted">{mission.detail}</p></div></article>)}</div></section>
+    <section className="mt-5 rounded-lg border border-border bg-elevated/70 p-4 shadow-border"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Delivery archive</p><p className="mt-1 text-sm text-muted">{archivedMissions.length} completed milestones are retained for reference and export.</p></div><Button size="sm" variant="secondary" onClick={() => setShowArchive((value) => !value)}>{showArchive ? "Hide completed work" : "Show completed work"}</Button></div>{showArchive && <div className="mt-4 space-y-2">{archivedMissions.map((mission) => <article key={mission.id} className="flex gap-3 rounded-sm bg-bg/45 p-3"><Button size="sm" variant="ghost" aria-label={`Restore ${mission.title} to active work`} onClick={() => setMissions((items) => items.map((item) => item.id === mission.id ? { ...item, done: false } : item))}>Done</Button><div className="min-w-0"><h2 className="text-sm font-medium text-muted line-through">{mission.title}</h2><p className="mt-1 text-xs text-muted">{mission.detail}</p></div></article>)}</div>}</section>
     <section className="mt-5 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Companion onboarding</p><h2 className="mt-2 font-display text-2xl text-fg">A safe five-minute desktop setup.</h2><ol className="mt-4 grid gap-3 text-sm text-muted sm:grid-cols-2"><li className="rounded-sm bg-bg/45 p-3"><span className="font-medium text-fg">1. Start Companion</span><br/>Double-click Start-Reelcase-Companion.cmd in the main Reelcase folder.</li><li className="rounded-sm bg-bg/45 p-3"><span className="font-medium text-fg">2. Confirm Desktop</span><br/>Keep its window open, then run the check below.</li><li className="rounded-sm bg-bg/45 p-3"><span className="font-medium text-fg">3. Load shortcuts</span><br/>Open Games and choose Load approved desktop shortcuts.</li><li className="rounded-sm bg-bg/45 p-3"><span className="font-medium text-fg">4. Verify first</span><br/>Use a listed shortcut inside an approved root before launching it.</li></ol><Button className="mt-4" variant="secondary" onClick={() => void (async () => { try { const response = await fetch("http://127.0.0.1:43123/health"); const data = await response.json() as { roots?: number; desktopEnabled?: boolean }; setCompanionCheck({ ready: true, desktop: Boolean(data.desktopEnabled), detail: `${data.roots ?? 0} approved root(s)` }); } catch { setCompanionCheck({ ready: false, desktop: false, detail: "Companion not detected. Start it, leave the window open, then retry." }); } })()}>Check Companion setup</Button>{companionCheck && <p className={`mt-3 text-sm ${companionCheck.ready && companionCheck.desktop ? "text-accent" : "text-danger"}`}>{companionCheck.ready ? `Ready · Desktop ${companionCheck.desktop ? "approved" : "not approved"} · ${companionCheck.detail}` : companionCheck.detail}</p>}</section>
     <section className="mt-5 grid gap-3 sm:grid-cols-3"><InfoCard icon={<Wifi className="size-5"/>} title="Next: home network" copy="Folder watch events, Roku discovery, stable room invitations, and stronger timeline recovery."/><InfoCard icon={<Images className="size-5"/>} title="Then: media intelligence" copy="Background metadata, thumbnail health, faster source search, and reviewable local tags."/><InfoCard icon={<Bot className="size-5"/>} title="Later: optional assistants" copy="Private recommendation controls, explainable picks, and only opt-in service connections."/></section>
-    <div className="mt-5 flex flex-wrap gap-2"><Button variant="secondary" onClick={exportMissions}><Download className="size-4"/>Export mission plan</Button><Button variant="secondary" onClick={() => setMissions(DEFAULT_MISSIONS)}>Reset to the current 43-step delivery queue</Button><span className="self-center text-xs text-muted">Exports the current status, or restores the complete delivery baseline.</span></div>
+    <div className="mt-5 flex flex-wrap gap-2"><Button variant="secondary" onClick={exportMissions}><Download className="size-4"/>Export mission plan</Button><Button variant="secondary" onClick={() => setMissions(DEFAULT_MISSIONS)}>Reset to the current delivery queue</Button><span className="self-center text-xs text-muted">Exports the current status, or restores the complete delivery baseline.</span></div>
     <form className="mt-5 flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); const title = idea.trim(); if (!title) return; setMissions((items) => [...items, { id: crypto.randomUUID(), title, detail: "New idea — break this into implementation and verification steps.", done: false }]); setIdea(""); }}><Input value={idea} onChange={(event) => setIdea(event.target.value)} placeholder="Add a larger change idea" aria-label="New mission idea"/><Button type="submit">Add to plan</Button></form>
   </HubShell>;
 }
@@ -2301,6 +2456,10 @@ export function WatchRoomSection() {
   const [joinedAsGuest, setJoinedAsGuest] = useState(false);
   const [guestAccess, setGuestAccess] = useState(false);
   const [localVideo, setLocalVideo] = useState<File | null>(null);
+  const [localShare, setLocalShare] = useState<LocalRoomShare | null>(null);
+  const [pendingLocalShare, setPendingLocalShare] = useState<LocalRoomShare | null>(null);
+  const [localQueue, setLocalQueue] = useState<LocalRoomShare[]>([]);
+  const [localShareMatches, setLocalShareMatches] = useState<Record<string, { name: string; fingerprint: string; at: number }>>({});
   const [rokuAddress, setRokuAddress] = useState("");
   const [rokuReady, setRokuReady] = useState(false);
   const [rokuDevices, setRokuDevices] = useState<{ address: string; location: string }[]>([]);
@@ -2332,6 +2491,11 @@ export function WatchRoomSection() {
     },
   );
   const sharedVideo = videos.find((video) => video.id === sharedVideoId);
+  // Providers occasionally surface corrupt/millisecond clocks. Never let an
+  // untrusted embed turn the room state into days of phantom playback.
+  const roomClockCeiling = Math.max(60, Math.min(sharedVideo?.duration && sharedVideo.duration > 0 ? sharedVideo.duration + 30 : 12 * 60 * 60, 12 * 60 * 60));
+  const clampRoomClock = (seconds: number) => Math.max(0, Math.min(roomClockCeiling, Number.isFinite(seconds) ? seconds : 0));
+  const localShareIsMatched = !sharedVideoId.startsWith("local:") || localShare?.fingerprint === sharedVideoId.slice("local:".length);
   const roomVideoRef = useRef<HTMLVideoElement>(null);
   const remoteFrameRef = useRef<HTMLIFrameElement>(null);
   const twitchPlayerHostRef = useRef<HTMLDivElement>(null);
@@ -2372,8 +2536,13 @@ export function WatchRoomSection() {
       // Room starters intentionally favor exposure over a fixed "top picks"
       // list: a saved title gets a light lift, while something already played
       // yields space to an unplayed playable title.
-      .map((video) => ({ video, score: (favorites[video.id] ? 1 : 0) - (played.has(video.id) ? 2 : 0), tie: roomShuffleRank(video.id, candidateSeed) }))
-      .sort((a, b) => b.score - a.score || a.tie - b.tie)
+      .map((video) => {
+        const random = roomShuffleRank(`${video.id}:${candidateSeed}`, candidateSeed) / 0xffffffff;
+        // Taste signals nudge the order, but the timestamped shuffle remains
+        // dominant so a Watch Room exposes genuinely different candidates.
+        return { video, rank: random + (favorites[video.id] ? 0.18 : 0) - (played.has(video.id) ? 0.32 : 0) };
+      })
+      .sort((a, b) => b.rank - a.rank)
       .map(({ video }) => video);
   }, [candidateSeed, favorites, history, videos]);
   const localQueueCandidates = useMemo(
@@ -2413,8 +2582,9 @@ export function WatchRoomSection() {
       position: playback.position,
       videoId: sharedVideoId,
       queue,
+      localQueue,
     });
-  }, [p2p.peers.length]);
+  }, [localQueue, p2p.peers.length, playback.playing, playback.position, queue, sharedVideoId]);
   useEffect(() => {
     // A theater invite should request state immediately. This also wakes the
     // same-machine BroadcastChannel fallback before WebRTC has a peer row.
@@ -2433,22 +2603,38 @@ export function WatchRoomSection() {
           seek?: boolean;
           videoId?: string;
           queue?: string[];
+          localQueue?: LocalRoomShare[];
+          fingerprint?: string;
+          size?: number;
+          modified?: number;
         };
         if (data.type === "chat" && data.text)
           setChat((rows) => [...rows, `${data.name ?? from}: ${data.text}`].slice(-50));
         if (data.type === "room-pulse") p2p.send({ type: "room-pulse-ack", sentAt: data.sentAt }, from);
         if (data.type === "room-pulse-ack" && data.sentAt) setPulseStatus(`Direct transport confirmed · ${Math.max(0, Date.now() - data.sentAt)}ms round trip.`);
-        if (data.type === "share-ready" && data.name) setInviteNotice(`${data.name} was requested for local sharing. Choose the same permitted file on this device; room controls will then keep its timeline aligned.`);
+        if (data.type === "share-ready" && data.name && data.fingerprint) {
+          const share = { name: data.name, fingerprint: data.fingerprint, size: Number(data.size) || 0, modified: Number(data.modified) || 0 };
+          setPendingLocalShare(share);
+          setInviteNotice(`${data.name} is waiting for a permitted local match. Select the same file on this device; Reelcase compares name, size, and modified time without sending file contents.`);
+        }
+        if (data.type === "share-matched" && data.name && data.fingerprint) {
+          setLocalShareMatches((matches) => ({ ...matches, [from]: { name: data.name!, fingerprint: data.fingerprint!, at: Date.now() } }));
+          setInviteNotice(`${data.name} was matched by a guest. The approved local copy can now follow the room timeline.`);
+        }
         if (data.type === "sync") {
+          // A late provider event from the title that was just replaced must
+          // never rewind the current room. Sync packets now carry their title
+          // identity, while legacy packets retain the conservative clock guard.
+          if (data.videoId && sharedVideoId && data.videoId !== sharedVideoId) return;
           const position = Number(data.position) || 0;
           const elapsed = data.playing && data.sentAt ? Math.max(0, (Date.now() - data.sentAt) / 1000) : 0;
           const nextPosition = position + elapsed;
           // Old iframe events can occasionally report 0 after a pause. Unless
           // this is an explicit seek/new-video command, never let that stale
           // value rewind an established room timeline.
-          const safePosition = !data.seek && nextPosition + 0.75 < lastRoomPosition.current
+          const safePosition = clampRoomClock(!data.seek && nextPosition < lastRoomPosition.current
             ? lastRoomPosition.current
-            : nextPosition;
+            : nextPosition);
           lastRoomPosition.current = safePosition;
           applyingRemotePlaybackUntil.current = Date.now() + 900;
           if (data.seek) setRemoteSeekNonce((value) => value + 1);
@@ -2456,25 +2642,27 @@ export function WatchRoomSection() {
         }
         if (data.type === "video" && data.videoId) setSharedVideoId(data.videoId);
         if (data.type === "queue" && Array.isArray(data.queue)) setQueue(data.queue);
+        if (data.type === "local-queue" && Array.isArray(data.localQueue)) setLocalQueue(data.localQueue.slice(0, 24));
         if (data.type === "party-vote" && data.name) setPartyVotes((votes) => ({ ...votes, [data.name!]: Number(data.position) || 0 }));
         if (data.type === "room-state") {
           const videoChanged = Boolean(data.videoId && data.videoId !== sharedVideoId);
           if (data.videoId) setSharedVideoId(data.videoId);
           if (Array.isArray(data.queue)) setQueue(data.queue);
+          if (Array.isArray(data.localQueue)) setLocalQueue(data.localQueue.slice(0, 24));
           const position = Number(data.position) || 0;
           const elapsed = data.playing && data.sentAt ? Math.max(0, (Date.now() - data.sentAt) / 1000) : 0;
           const nextPosition = position + elapsed;
-          const safePosition = !videoChanged && nextPosition + 0.75 < lastRoomPosition.current ? lastRoomPosition.current : nextPosition;
+          const safePosition = clampRoomClock(!videoChanged && nextPosition + 0.75 < lastRoomPosition.current ? lastRoomPosition.current : nextPosition);
           lastRoomPosition.current = safePosition;
           applyingRemotePlaybackUntil.current = Date.now() + 900;
           setPlayback({ playing: Boolean(data.playing), position: safePosition });
         }
         if (data.type === "resync-request" && !joinedAsGuest) {
           const position = roomVideoRef.current?.currentTime ?? playback.position;
-          p2p.send({ type: "room-state", playing: !roomVideoRef.current?.paused && playback.playing, position, videoId: sharedVideoId, queue, sentAt: Date.now() }, from);
+          p2p.send({ type: "room-state", playing: !roomVideoRef.current?.paused && playback.playing, position, videoId: sharedVideoId, queue, localQueue, sentAt: Date.now() }, from);
         }
       }),
-    [joinedAsGuest, p2p.onMessage, p2p.send, playback.playing, playback.position, queue, sharedVideoId],
+    [joinedAsGuest, localQueue, p2p.onMessage, p2p.send, playback.playing, playback.position, queue, roomClockCeiling, sharedVideoId],
   );
   const sync = (next: { playing: boolean; position: number }, seek = false) => {
     if (!seek && Date.now() < applyingRemotePlaybackUntil.current) return;
@@ -2502,16 +2690,16 @@ export function WatchRoomSection() {
         : providerFallback
           ? providerClock
           : isYoutube ? Math.max(providerClock, next.position) : next.position;
-    const resolved = { ...next, position };
+    const resolved = { ...next, position: clampRoomClock(position) };
     lastRoomPosition.current = resolved.position;
     youtubePlaybackStartedAt.current = resolved.playing ? Date.now() - resolved.position * 1000 : null;
     setPlayback(resolved);
-    if (resolved.playing && sharedVideoId && lastRoomHistoryId.current !== sharedVideoId) {
+    if (resolved.playing && sharedVideoId && !sharedVideoId.startsWith("local:") && lastRoomHistoryId.current !== sharedVideoId) {
       lastRoomHistoryId.current = sharedVideoId;
-      recordPlay(sharedVideoId);
+      recordPlay(sharedVideoId, "watch-room");
     }
     if (seek) setRemoteSeekNonce((value) => value + 1);
-    p2p.send({ type: "sync", ...resolved, seek, sentAt: Date.now() });
+    p2p.send({ type: "sync", ...resolved, videoId: sharedVideoId, seek, sentAt: Date.now() });
   };
   useEffect(() => {
     // Iframe providers do not continuously expose a readable clock. Maintain
@@ -2522,11 +2710,11 @@ export function WatchRoomSection() {
     const timer = window.setInterval(() => {
       const twitchTime = provider === "twitch" ? twitchPlayerRef.current?.getCurrentTime() : undefined;
       const actual = typeof twitchTime === "number" && twitchTime > 0.25 ? twitchTime : undefined;
-      const estimated = actual ?? Math.max(lastRoomPosition.current, (Date.now() - youtubePlaybackStartedAt.current!) / 1000);
+      const estimated = clampRoomClock(actual ?? Math.max(lastRoomPosition.current, (Date.now() - youtubePlaybackStartedAt.current!) / 1000));
       if (estimated <= lastRoomPosition.current + 0.2) return;
       lastRoomPosition.current = estimated;
       setPlayback((current) => current.playing ? { ...current, position: estimated } : current);
-      if (!joinedAsGuest) p2p.send({ type: "sync", playing: true, position: estimated, seek: false, sentAt: Date.now() });
+      if (!joinedAsGuest) p2p.send({ type: "sync", playing: true, position: estimated, videoId: sharedVideoId, seek: false, sentAt: Date.now() });
     }, 1_000);
     return () => window.clearInterval(timer);
   }, [joinedAsGuest, p2p.send, playback.playing, sharedVideo?.id, sharedVideo?.remote?.kind]);
@@ -2541,7 +2729,7 @@ export function WatchRoomSection() {
     const position = typeof localPosition === "number" && localPosition > 0.25 ? localPosition : typeof twitchPosition === "number" && twitchPosition > 0.25 ? twitchPosition : playback.position;
     const playing = roomVideoRef.current ? !roomVideoRef.current.paused : playback.playing;
     sync({ playing, position });
-    p2p.send({ type: "room-state", playing, position, videoId: sharedVideoId, queue, sentAt: Date.now() });
+    p2p.send({ type: "room-state", playing, position, videoId: sharedVideoId, queue, localQueue, sentAt: Date.now() });
     setInviteNotice("Sent the current video and timeline to every guest.");
   };
   const copyInvite = async () => {
@@ -2555,7 +2743,7 @@ export function WatchRoomSection() {
   };
   useEffect(() => {
     const media = roomVideoRef.current;
-    if (!media || !sharedVideo || sharedVideo.remote) return;
+    if (!media || sharedVideo?.remote) return;
     const driftLimit = playback.playing ? 0.65 : 0.1;
     if (Math.abs(media.currentTime - playback.position) > driftLimit)
       media.currentTime = playback.position;
@@ -2641,17 +2829,61 @@ export function WatchRoomSection() {
   };
   const chooseVideo = (video: LibraryVideo) => {
     setLocalVideo(null);
+    setLocalShare(null);
+    setLocalShareMatches({});
     setSharedVideoId(video.id);
     setPlayback({ playing: false, position: 0 });
     lastRoomPosition.current = 0;
     lastRoomHistoryId.current = "";
-    recordPlay(video.id);
+    recordPlay(video.id, "watch-room");
     p2p.send({ type: "video", videoId: video.id });
     p2p.send({ type: "sync", playing: false, position: 0, seek: true });
   };
   const updateQueue = (next: string[]) => {
     setQueue(next);
     p2p.send({ type: "queue", queue: next });
+  };
+  const updateLocalQueue = (next: LocalRoomShare[]) => {
+    const bounded = next.slice(0, 24);
+    setLocalQueue(bounded);
+    p2p.send({ type: "local-queue", localQueue: bounded });
+  };
+  const stageLocalShare = (share: LocalRoomShare) => {
+    if (!localShare || localShare.fingerprint !== share.fingerprint || !localVideo) {
+      setPendingLocalShare(share);
+      setInviteNotice(`Choose ${share.name} on this device before staging it. File contents are never transferred.`);
+      return;
+    }
+    setSharedVideoId(`local:${share.fingerprint}`);
+    setPlayback({ playing: false, position: 0 });
+    lastRoomPosition.current = 0;
+    p2p.send({ type: "video", videoId: `local:${share.fingerprint}` });
+    p2p.send({ type: "sync", playing: false, position: 0, videoId: `local:${share.fingerprint}`, seek: true, sentAt: Date.now() });
+    setInviteNotice(`${share.name} is staged. Guests with a verified local match can play it in sync.`);
+  };
+  const selectLocalVideo = (file: File | null) => {
+    if (!file) return;
+    const share: LocalRoomShare = { name: file.name, fingerprint: localRoomFingerprint(file), size: file.size, modified: file.lastModified };
+    if (joinedAsGuest && pendingLocalShare && pendingLocalShare.fingerprint !== share.fingerprint) {
+      setInviteNotice(`That file does not match ${pendingLocalShare.name}. Select the same permitted copy (name, size, and modified time must agree).`);
+      return;
+    }
+    setLocalVideo(file);
+    setLocalShare(share);
+    if (joinedAsGuest && pendingLocalShare) {
+      setSharedVideoId(`local:${share.fingerprint}`);
+      setPendingLocalShare(null);
+      p2p.send({ type: "share-matched", name: share.name, fingerprint: share.fingerprint });
+      setInviteNotice(`${share.name} matched locally. Waiting for the host to stage or play it.`);
+      return;
+    }
+    setSharedVideoId(`local:${share.fingerprint}`);
+    setLocalShareMatches({});
+    setPlayback({ playing: false, position: 0 });
+    lastRoomPosition.current = 0;
+    p2p.send({ type: "share-ready", ...share });
+    p2p.send({ type: "video", videoId: `local:${share.fingerprint}` });
+    setInviteNotice("Local video is staged by a privacy-preserving fingerprint. Guests choose their own permitted matching copy; no file bytes leave this computer.");
   };
   const queueVideo = (video: LibraryVideo) => {
     if (video.id !== sharedVideoId && !queue.includes(video.id)) updateQueue([...queue, video.id]);
@@ -2847,7 +3079,7 @@ export function WatchRoomSection() {
           <div
             className={`mt-3 mx-auto w-full max-w-full overflow-hidden rounded-md bg-bg shadow-border ${stageSize === "compact" ? "lg:max-w-2xl" : stageSize === "theater" ? "lg:max-w-6xl" : ""}`}
           >
-            {localVideoUrl ? (
+            {localVideoUrl && localShareIsMatched ? (
               <video
                 ref={roomVideoRef}
                 className="aspect-video w-full bg-bg"
@@ -2901,7 +3133,7 @@ export function WatchRoomSection() {
               />
             ) : (
               <div className="flex aspect-video items-center justify-center px-6 text-center text-sm text-muted">
-                Choose a starter movie or an online video to show it to the room.
+                {sharedVideoId.startsWith("local:") ? "This local handoff is waiting for a matching permitted file on this device." : "Choose a starter movie or an online video to show it to the room."}
               </div>
             )}
           </div>
@@ -2941,13 +3173,8 @@ export function WatchRoomSection() {
                 {queue.map((id, index) => {
                   const video = videos.find((item) => item.id === id);
                   return (
-                    <div
-                      key={id}
-                      className="flex items-center justify-between gap-3 rounded-sm bg-elevated px-3 py-2"
-                    >
-                      <span className="min-w-0 truncate text-sm text-fg">
-                        {index + 1}. {video?.name ?? "Unavailable title"}
-                      </span>
+                    <div key={id} className="flex items-center justify-between gap-3 rounded-sm bg-elevated p-2">
+                      <div className="flex min-w-0 items-center gap-3"><span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent/15 text-xs font-semibold text-accent">{index + 1}</span>{video && watchRoomPoster(video) ? <img src={watchRoomPoster(video)} alt="" className="aspect-video w-16 shrink-0 rounded-sm object-cover" /> : <div className="flex aspect-video w-16 shrink-0 items-center justify-center rounded-sm bg-bg/60 text-xs text-muted"><Play className="size-3" /></div>}<span className="min-w-0"><span className="block truncate text-sm text-fg">{video?.name ?? "Unavailable title"}</span><span className="block truncate text-xs text-muted">{video?.remote?.channelName ?? (video?.remote ? "Remote video" : "Local file")}</span></span></div>
                       <div className="flex gap-1">
                         <Button
                           size="sm"
@@ -3013,6 +3240,10 @@ export function WatchRoomSection() {
                 {localQueueCandidates.map((video) => <Button key={video.id} size="sm" variant="ghost" onClick={() => queueVideo(video)}>+ queue · {video.name}</Button>)}
               </div>
             </div>}
+            {localQueue.length > 0 && <div className="mt-4 border-t border-border pt-3">
+              <div className="flex items-center justify-between gap-3"><p className="text-xs font-medium text-fg">Approved local handoffs</p><span className="text-xs text-muted">Shared manifest · files stay on each device</span></div>
+              <div className="mt-2 space-y-2">{localQueue.map((share) => <div key={share.fingerprint} className="flex flex-wrap items-center justify-between gap-2 rounded-sm bg-elevated px-3 py-2"><span className="min-w-0 truncate text-xs text-fg">{share.name} · {bytes(share.size)}</span><div className="flex gap-1"><Button size="sm" variant="secondary" onClick={() => stageLocalShare(share)}>Stage</Button><Button size="sm" variant="ghost" onClick={() => updateLocalQueue(localQueue.filter((item) => item.fingerprint !== share.fingerprint))}>Remove</Button></div></div>)}</div>
+            </div>}
           </div>
           <div className="mt-5 rounded-md bg-bg/45 p-4 shadow-border">
             <div className="flex items-center gap-2">
@@ -3030,19 +3261,16 @@ export function WatchRoomSection() {
                 accept="video/*"
                 onChange={(event) => {
                   const file = event.target.files?.[0] ?? null;
-                  setLocalVideo(file);
-                  if (file) {
-                    setSharedVideoId("");
-                    setPlayback({ playing: false, position: 0 });
-                    p2p.send({ type: "share-ready", name: file.name });
-                    setInviteNotice("Local video selected. Guests receive a request to choose their permitted copy; the file itself is never sent across the room.");
-                  }
+                  selectLocalVideo(file);
                 }}
               />
               <span className="inline-flex min-h-10 items-center rounded-sm bg-elevated px-3 text-sm text-fg shadow-border">
                 {localVideo ? localVideo.name : "Choose local video"}
               </span>
             </label>
+            {localShare && <p className="mt-2 text-xs text-subtle">Fingerprint match: name + {bytes(localShare.size)} + modified {new Date(localShare.modified).toLocaleDateString()}. This is shared as metadata only.</p>}
+            {localShare && <p className="mt-1 text-xs text-muted">Compatibility matrix · {Object.values(localShareMatches).filter((match) => match.fingerprint === localShare.fingerprint).length}/{p2p.peers.length} guests matched this exact file{p2p.peers.length ? ". Stage or play only when the expected guests are ready." : ". Connect a guest to verify the handoff."}</p>}
+            {pendingLocalShare && <p className="mt-2 text-xs text-accent">Guest match requested: {pendingLocalShare.name} · {bytes(pendingLocalShare.size)}. Choose the matching permitted copy above.</p>}
             <label className="mt-3 flex items-start gap-2 text-xs text-muted">
               <input
                 type="checkbox"
@@ -3057,10 +3285,11 @@ export function WatchRoomSection() {
               size="sm"
               className="mt-3"
               disabled={!localVideo || !guestAccess || !p2p.peers.length}
-              onClick={() => { p2p.send({ type: "share-ready", name: localVideo?.name }); setInviteNotice("Local-share request sent to connected guests. They must choose their permitted local copy before playback can align."); }}
+              onClick={() => { if (!localShare) return; setLocalShareMatches({}); p2p.send({ type: "share-ready", ...localShare }); p2p.send({ type: "video", videoId: `local:${localShare.fingerprint}` }); setInviteNotice("Local-share request sent with a match fingerprint. Guests must choose their permitted local copy before playback can align."); }}
             >
               Send sharing request
             </Button>
+            <Button size="sm" variant="secondary" className="mt-3 ml-2" disabled={!localShare} onClick={() => { if (!localShare) return; if (!localQueue.some((item) => item.fingerprint === localShare.fingerprint)) updateLocalQueue([...localQueue, localShare]); setInviteNotice("Added this local file to the shared handoff queue. Guests see only its match metadata."); }}>Add to local queue</Button>
           </div>
           <div className="mt-4 rounded-md bg-bg/45 p-4 shadow-border">
             <p className="text-sm font-medium text-fg">Watch-party mini games</p>

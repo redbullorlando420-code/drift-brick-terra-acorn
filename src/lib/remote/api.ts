@@ -162,6 +162,13 @@ type YoutubeRenderer = {
   viewCountText?: { simpleText?: string; runs?: Array<{ text?: string }> };
 };
 
+// A deep channel fetch is expensive public metadata work. Keep a short bounded
+// server cache so opening a creator, refreshing its shelf, and retrying an
+// embed do not fan out into identical page reads.
+const YOUTUBE_CHANNEL_CACHE_TTL_MS = 4 * 60_000;
+const YOUTUBE_CHANNEL_CACHE_LIMIT = 64;
+const youtubeChannelCache = new Map<string, { at: number; result: FollowResult }>();
+
 function rendererText(value: YoutubeRenderer["title"] | YoutubeRenderer["viewCountText"]) {
   return value?.simpleText ?? value?.runs?.map((run) => run.text ?? "").join("") ?? "";
 }
@@ -181,7 +188,7 @@ function channelPageRenderers(html: string): YoutubeRenderer[] {
     const root = JSON.parse(match[1]) as unknown;
     const found: YoutubeRenderer[] = [];
     const stack: unknown[] = [root];
-    while (stack.length && found.length < 240) {
+    while (stack.length && found.length < 1_200) {
       const current = stack.pop();
       if (!current || typeof current !== "object") continue;
       if (Array.isArray(current)) { stack.push(...current); continue; }
@@ -291,7 +298,7 @@ async function youtubeLiveFromChannel(channelId: string, channelName: string): P
   }
 }
 
-async function youtubeFromChannel(query: string, limit = 180): Promise<FollowResult> {
+async function youtubeFromChannel(query: string, limit = 720): Promise<FollowResult> {
   let channelId = "";
   const trimmed = query.trim();
   if (/^UC[\w-]{20,}$/.test(trimmed)) channelId = trimmed;
@@ -306,13 +313,16 @@ async function youtubeFromChannel(query: string, limit = 180): Promise<FollowRes
     channelId = ytChannelIdFromText(html) ?? "";
     if (!channelId) throw new Error("Could not find that YouTube channel.");
   }
+  const boundedLimit = Math.max(24, Math.min(720, Math.floor(limit)));
+  const cached = youtubeChannelCache.get(channelId);
+  if (cached && Date.now() - cached.at < YOUTUBE_CHANNEL_CACHE_TTL_MS && cached.result.videos.length >= Math.min(144, boundedLimit)) return cached.result;
   const [xml, channelPage] = await Promise.all([
     fetchText(`https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`),
     fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}/videos`).catch(() => ""),
   ]);
   const title = tag(xml, "title") || "YouTube";
   const author = tag(xml, "name") || title;
-  const entries = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)].slice(0, limit);
+  const entries = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)].slice(0, boundedLimit);
 
   const videos = entries.map((m) => {
     const block = m[1];
@@ -339,10 +349,10 @@ async function youtubeFromChannel(query: string, limit = 180): Promise<FollowRes
       if (!id || seen.has(id)) continue;
       seen.add(id);
       rows.push(ytVideo({ id, title: rendererText(renderer.title) || `${author} video`, published: "1970-01-01T00:00:00.000Z", thumb: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, desc: `${author} public channel catalog item.`, channelId, channelName: author, views: parsePublicViewCount(rendererText(renderer.viewCountText)) }));
-      if (rows.length >= Math.max(0, limit - videos.length)) break;
+      if (rows.length >= Math.max(0, boundedLimit - videos.length)) break;
     }
     return rows;
-  })() : await youtubeChannelBackfill(channelId, author, feedIds, Math.max(0, limit - videos.length));
+  })() : await youtubeChannelBackfill(channelId, author, feedIds, Math.max(0, boundedLimit - videos.length));
   videos.push(...backfill);
   const live = await youtubeLiveFromChannel(channelId, author);
   if (live && !videos.some((video) => video.id === live.id)) videos.unshift(live);
@@ -353,7 +363,10 @@ async function youtubeFromChannel(query: string, limit = 180): Promise<FollowRes
     title: author,
     channelId,
   };
-  return { channel, videos };
+  const result = { channel, videos };
+  youtubeChannelCache.set(channelId, { at: Date.now(), result });
+  while (youtubeChannelCache.size > YOUTUBE_CHANNEL_CACHE_LIMIT) youtubeChannelCache.delete(youtubeChannelCache.keys().next().value!);
+  return result;
 }
 
 function twitchLogin(input: string): string {
@@ -400,7 +413,7 @@ async function twitchUser(login: string): Promise<GqlUser | null> {
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      query: `query($login:String!){user(login:$login){id displayName profileImageURL(width:70) stream{title viewersCount previewImageURL(width:640,height:360) game{name}} videos(first:80,type:ARCHIVE){edges{node{id title description lengthSeconds publishedAt previewThumbnailURL(width:640,height:360)}}}}}`,
+      query: `query($login:String!){user(login:$login){id displayName profileImageURL(width:70) stream{title viewersCount previewImageURL(width:640,height:360) game{name}} videos(first:160,type:ARCHIVE){edges{node{id title description lengthSeconds publishedAt previewThumbnailURL(width:640,height:360)}}}}}`,
       variables: { login },
     }),
   });
@@ -595,7 +608,7 @@ export const importChannels = createServerFn({ method: "POST" })
           // Bulk imports used to request only eight entries per creator, which
           // made a healthy library look arbitrarily capped. RSS availability
           // ultimately controls the ceiling, but ask for a practical window.
-          return await youtubeFromChannel(item.query, compact ? 96 : 180);
+          return await youtubeFromChannel(item.query, compact ? 180 : 720);
         } catch {
           if (!attempt) await new Promise((resolve) => setTimeout(resolve, 350));
         }

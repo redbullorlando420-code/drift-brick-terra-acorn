@@ -8,6 +8,7 @@ type ThumbState = {
   byId: Record<string, string>;
   failed: Record<string, true>;
   durations: Record<string, number>;
+  diagnostics: Record<string, { attempts: number; lastError: string; at: number }>;
   request: (video: LibraryVideo) => void;
   retry: (video: LibraryVideo) => void;
   hydrate: () => Promise<void>;
@@ -17,6 +18,7 @@ const inflight = new Set<string>();
 let active = 0;
 const waiting: Array<() => void> = [];
 const MAX_MEMORY_THUMBS = 360;
+const MAX_ARTWORK_ATTEMPTS = 3;
 
 function maxThumbnailWorkers() {
   const adaptive = Math.min(4, Math.max(2, Math.floor(((typeof navigator !== "undefined" ? navigator.hardwareConcurrency : 4) || 4) / 2)));
@@ -115,9 +117,11 @@ export const useThumbs = create<ThumbState>((set, get) => ({
   byId: {},
   failed: {},
   durations: {},
+  diagnostics: {},
   request: (video) => {
-    const { byId, failed } = get();
+    const { byId, failed, diagnostics } = get();
     if (byId[video.id] || failed[video.id] || inflight.has(video.id)) return;
+    if ((diagnostics[video.id]?.attempts ?? 0) >= MAX_ARTWORK_ATTEMPTS) return;
     if (video.remote) {
       const youtubeId = video.remote.kind === "youtube" ? video.remote.videoId ?? video.remote.embedUrl?.match(/(?:embed\/|v=)([A-Za-z0-9_-]{11})/)?.[1] : undefined;
       const providerArtwork = video.poster || (youtubeId ? `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg` : undefined) || video.remote.previewUrl;
@@ -149,6 +153,7 @@ export const useThumbs = create<ThumbState>((set, get) => ({
         } else {
           set((s) => ({
             failed: { ...s.failed, [video.id]: true },
+            diagnostics: { ...s.diagnostics, [video.id]: { attempts: (s.diagnostics[video.id]?.attempts ?? 0) + 1, lastError: "No decodable frame", at: Date.now() } },
             durations:
               duration && duration > 0
                 ? { ...s.durations, [video.id]: duration }
@@ -157,7 +162,7 @@ export const useThumbs = create<ThumbState>((set, get) => ({
         }
       } catch {
         inflight.delete(video.id);
-        set((s) => ({ failed: { ...s.failed, [video.id]: true } }));
+        set((s) => ({ failed: { ...s.failed, [video.id]: true }, diagnostics: { ...s.diagnostics, [video.id]: { attempts: (s.diagnostics[video.id]?.attempts ?? 0) + 1, lastError: "Source could not be reopened", at: Date.now() } } }));
       } finally {
         release();
       }
@@ -165,6 +170,7 @@ export const useThumbs = create<ThumbState>((set, get) => ({
   },
   retry: (video) => {
     set((s) => {
+      if ((s.diagnostics[video.id]?.attempts ?? 0) >= MAX_ARTWORK_ATTEMPTS) return s;
       const failed = { ...s.failed };
       delete failed[video.id];
       return { failed };
