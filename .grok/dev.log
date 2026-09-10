@@ -3,15 +3,119 @@
 > node scripts/with-app-env.mjs vite dev --host 0.0.0.0 --port 8080
 
 
-  VITE v8.2.2  ready in 1077 ms
+  VITE v8.2.2  ready in 1160 ms
 
   ➜  Local:   http://localhost:8080/
   ➜  Network: http://10.5.0.2:8080/      NordLynx
   ➜  Network: http://192.168.1.68:8080/  Ethernet 2
   ➜  press h + enter to show help
-3:16:53 PM [vite] (ssr) connected.
-3:19:44 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/invite.tsx, /src/components/library/browse.tsx, /src/components/library/video-grid.tsx, /src/components/library/ai-guide.tsx, /src/components/library/pin-gate.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx, /src/components/library/discovery-desk.tsx, /src/components/library/connect-panel.tsx, /src/components/library/top-bar.tsx, /src/components/library/player.tsx and 3 more
-3:19:44 PM [vite] (ssr) page reload src/lib/videos/types.ts
-3:19:44 PM [vite] (ssr) program reload
-3:19:46 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/ai-guide.tsx, /src/components/library/pin-gate.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx, /src/components/library/discovery-desk.tsx, /src/components/library/connect-panel.tsx, /src/components/library/browse.tsx, /src/components/library/top-bar.tsx, /src/components/library/player.tsx, /src/components/library/hub-sections.tsx and 2 more
-3:19:46 PM [vite] (ssr) page reload src/lib/videos/store.ts
+9:07:22 PM [vite] (ssr) connected.
+9:10:09 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/connect-panel.tsx, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/ai-guide.tsx, /src/components/library/pin-gate.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx, /src/components/library/discovery-desk.tsx, /src/components/library/browse.tsx, /src/components/library/top-bar.tsx, /src/components/library/player.tsx, /src/components/library/hub-sections.tsx and 2 more
+9:10:09 PM [vite] (ssr) hmr update /src/lib/remote/api.ts?tss-serverfn-split
+9:10:09 PM [vite] (ssr) hot updated: /src/lib/remote/api.ts?tss-serverfn-split
+9:10:11 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/ai-guide.tsx, /src/components/library/pin-gate.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx, /src/components/library/discovery-desk.tsx, /src/components/library/connect-panel.tsx, /src/components/library/browse.tsx, /src/components/library/top-bar.tsx, /src/components/library/player.tsx, /src/components/library/hub-sections.tsx and 2 more
+9:10:11 PM [vite] (ssr) page reload src/lib/videos/store.ts
+9:10:11 PM [vite] (ssr) program reload
+9:10:13 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+9:10:13 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+9:10:43 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+9:10:43 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+9:11:33 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/connect-panel.tsx, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/ai-guide.tsx, /src/components/library/pin-gate.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx, /src/components/library/discovery-desk.tsx, /src/components/library/browse.tsx, /src/components/library/top-bar.tsx, /src/components/library/player.tsx, /src/components/library/hub-sections.tsx and 2 more
+9:11:33 PM [vite] (ssr) hmr update /src/lib/remote/api.ts?tss-serverfn-split
+9:11:33 PM [vite] (ssr) hot updated: /src/lib/remote/api.ts?tss-serverfn-split
+9:12:32 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/ai-guide.tsx, /src/components/library/pin-gate.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx, /src/components/library/discovery-desk.tsx, /src/components/library/connect-panel.tsx, /src/components/library/browse.tsx, /src/components/library/top-bar.tsx, /src/components/library/player.tsx, /src/components/library/hub-sections.tsx and 2 more
+9:12:32 PM [vite] (ssr) page reload src/lib/videos/store.ts
+9:12:32 PM [vite] (ssr) program reload
+9:13:00 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+9:13:00 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+9:13:00 PM [vite] (ssr) program reload
+9:13:17 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/hub-sections.tsx
+9:13:17 PM [vite] (ssr) page reload src/components/library/hub-sections.tsx
+9:13:17 PM [vite] (ssr) program reload
+9:36:25 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/ai-guide.tsx, /src/components/library/pin-gate.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx, /src/components/library/discovery-desk.tsx, /src/components/library/connect-panel.tsx, /src/components/library/browse.tsx, /src/components/library/top-bar.tsx, /src/components/library/player.tsx, /src/components/library/hub-sections.tsx and 2 more
+9:36:25 PM [vite] (ssr) page reload src/lib/videos/store.ts
+9:36:25 PM [vite] (ssr) program reload
+9:36:27 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/browse.tsx
+9:36:27 PM [vite] (ssr) page reload src/components/library/browse.tsx
+9:38:35 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/browse.tsx, /src/components/library/player.tsx, /src/components/library/hub-sections.tsx, /src/components/library/video-card.tsx, /src/components/library/video-grid.tsx, /src/components/library/ai-guide.tsx, /src/components/library/pin-gate.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx, /src/components/library/discovery-desk.tsx, /src/components/library/connect-panel.tsx and 2 more
+9:38:35 PM [vite] (ssr) page reload src/lib/videos/persist.ts
+9:38:35 PM [vite] (ssr) program reload
+9:38:37 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/ai-guide.tsx, /src/components/library/pin-gate.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx, /src/components/library/discovery-desk.tsx, /src/components/library/connect-panel.tsx, /src/components/library/browse.tsx, /src/components/library/top-bar.tsx, /src/components/library/player.tsx, /src/components/library/hub-sections.tsx and 2 more
+9:38:37 PM [vite] (ssr) page reload src/lib/videos/store.ts
+9:38:49 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/ai-guide.tsx, /src/components/library/pin-gate.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx, /src/components/library/discovery-desk.tsx, /src/components/library/connect-panel.tsx, /src/components/library/browse.tsx, /src/components/library/top-bar.tsx, /src/components/library/player.tsx, /src/components/library/hub-sections.tsx and 2 more
+9:38:49 PM [vite] (ssr) page reload src/lib/videos/store.ts
+9:39:25 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+9:39:25 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+9:39:34 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+9:39:34 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+9:39:57 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/hub-sections.tsx
+9:39:57 PM [vite] (ssr) page reload src/components/library/hub-sections.tsx
+9:44:05 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/ai-guide.tsx, /src/components/library/pin-gate.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx, /src/components/library/discovery-desk.tsx, /src/components/library/connect-panel.tsx, /src/components/library/browse.tsx, /src/components/library/top-bar.tsx, /src/components/library/player.tsx, /src/components/library/hub-sections.tsx and 2 more
+9:44:05 PM [vite] (ssr) page reload src/lib/videos/remote-merge.ts
+9:44:05 PM [vite] (ssr) program reload
+9:44:07 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/ai-guide.tsx, /src/components/library/pin-gate.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx, /src/components/library/discovery-desk.tsx, /src/components/library/connect-panel.tsx, /src/components/library/browse.tsx, /src/components/library/top-bar.tsx, /src/components/library/player.tsx, /src/components/library/hub-sections.tsx and 2 more
+9:44:07 PM [vite] (ssr) page reload src/lib/videos/store.ts
+9:44:09 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+9:44:09 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+9:44:11 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/hub-sections.tsx
+9:44:11 PM [vite] (ssr) page reload src/components/library/hub-sections.tsx
+9:44:45 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx, /src/components/library/hub-sections.tsx, /src/components/library/video-card.tsx
+9:44:45 PM [vite] (ssr) page reload src/lib/media-feedback.ts
+9:44:48 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/video-card.tsx
+9:44:48 PM [vite] (ssr) page reload src/components/library/video-card.tsx
+9:44:50 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/hub-sections.tsx
+9:44:50 PM [vite] (ssr) page reload src/components/library/hub-sections.tsx
+9:45:39 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/hub-sections.tsx
+9:45:39 PM [vite] (ssr) page reload src/components/library/hub-sections.tsx
+9:49:24 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/connect-panel.tsx, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/ai-guide.tsx, /src/components/library/pin-gate.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx, /src/components/library/discovery-desk.tsx, /src/components/library/browse.tsx, /src/components/library/top-bar.tsx, /src/components/library/player.tsx, /src/components/library/hub-sections.tsx and 2 more
+9:49:24 PM [vite] (ssr) hmr update /src/lib/remote/api.ts?tss-serverfn-split
+9:49:25 PM [vite] (ssr) hot updated: /src/lib/remote/api.ts?tss-serverfn-split
+9:49:26 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/ai-guide.tsx, /src/components/library/pin-gate.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx, /src/components/library/discovery-desk.tsx, /src/components/library/connect-panel.tsx, /src/components/library/browse.tsx, /src/components/library/top-bar.tsx, /src/components/library/player.tsx, /src/components/library/hub-sections.tsx and 2 more
+9:49:26 PM [vite] (ssr) page reload src/lib/videos/store.ts
+9:49:26 PM [vite] (ssr) program reload
+9:49:28 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+9:49:28 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+9:59:40 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/connect-panel.tsx, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/ai-guide.tsx, /src/components/library/pin-gate.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx, /src/components/library/discovery-desk.tsx, /src/components/library/browse.tsx, /src/components/library/top-bar.tsx, /src/components/library/player.tsx, /src/components/library/hub-sections.tsx and 2 more
+9:59:40 PM [vite] (ssr) hmr update /src/lib/remote/api.ts?tss-serverfn-split
+9:59:40 PM [vite] (ssr) hot updated: /src/lib/remote/api.ts?tss-serverfn-split
+10:00:51 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/connect-panel.tsx, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/ai-guide.tsx, /src/components/library/pin-gate.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx, /src/components/library/discovery-desk.tsx, /src/components/library/browse.tsx, /src/components/library/top-bar.tsx, /src/components/library/player.tsx, /src/components/library/hub-sections.tsx and 2 more
+10:00:51 PM [vite] (ssr) hmr update /src/lib/remote/api.ts?tss-serverfn-split
+10:00:51 PM [vite] (ssr) hot updated: /src/lib/remote/api.ts?tss-serverfn-split
+10:01:54 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+10:01:54 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+10:01:54 PM [vite] (ssr) program reload
+10:02:25 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/connect-panel.tsx, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/ai-guide.tsx, /src/components/library/pin-gate.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx, /src/components/library/discovery-desk.tsx, /src/components/library/browse.tsx, /src/components/library/top-bar.tsx, /src/components/library/player.tsx, /src/components/library/hub-sections.tsx and 2 more
+10:02:25 PM [vite] (ssr) hmr update /src/lib/remote/api.ts?tss-serverfn-split
+10:02:25 PM [vite] (ssr) hot updated: /src/lib/remote/api.ts?tss-serverfn-split
+10:03:43 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/connect-panel.tsx, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/ai-guide.tsx, /src/components/library/pin-gate.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx, /src/components/library/discovery-desk.tsx, /src/components/library/browse.tsx, /src/components/library/top-bar.tsx, /src/components/library/player.tsx, /src/components/library/hub-sections.tsx and 2 more
+10:03:43 PM [vite] (ssr) hmr update /src/lib/remote/api.ts?tss-serverfn-split
+10:03:43 PM [vite] (ssr) hot updated: /src/lib/remote/api.ts?tss-serverfn-split
+10:04:11 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/ai-guide.tsx, /src/components/library/pin-gate.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx, /src/components/library/discovery-desk.tsx, /src/components/library/connect-panel.tsx, /src/components/library/browse.tsx, /src/components/library/top-bar.tsx, /src/components/library/player.tsx, /src/components/library/hub-sections.tsx and 2 more
+10:04:11 PM [vite] (ssr) page reload src/lib/videos/store.ts
+10:04:11 PM [vite] (ssr) program reload
+10:04:13 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+10:04:13 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+10:04:26 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/invite.tsx, /src/components/library/browse.tsx, /src/components/library/video-grid.tsx, /src/components/library/ai-guide.tsx, /src/components/library/pin-gate.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx, /src/components/library/discovery-desk.tsx, /src/components/library/connect-panel.tsx, /src/components/library/top-bar.tsx, /src/components/library/player.tsx and 3 more
+10:04:26 PM [vite] (ssr) page reload src/lib/videos/types.ts
+10:04:28 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/connect-panel.tsx, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/ai-guide.tsx, /src/components/library/pin-gate.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx, /src/components/library/discovery-desk.tsx, /src/components/library/browse.tsx, /src/components/library/top-bar.tsx, /src/components/library/player.tsx, /src/components/library/hub-sections.tsx and 2 more
+10:04:28 PM [vite] (ssr) hmr update /src/lib/remote/api.ts?tss-serverfn-split
+10:04:28 PM [vite] (ssr) hot updated: /src/lib/remote/api.ts?tss-serverfn-split
+10:04:58 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/connect-panel.tsx, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/ai-guide.tsx, /src/components/library/pin-gate.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx, /src/components/library/discovery-desk.tsx, /src/components/library/browse.tsx, /src/components/library/top-bar.tsx, /src/components/library/player.tsx, /src/components/library/hub-sections.tsx and 2 more
+10:04:58 PM [vite] (ssr) hmr update /src/lib/remote/api.ts?tss-serverfn-split
+10:04:58 PM [vite] (ssr) hot updated: /src/lib/remote/api.ts?tss-serverfn-split
+10:05:09 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/browse.tsx, /src/components/library/player.tsx, /src/components/library/hub-sections.tsx, /src/components/library/video-card.tsx
+10:05:09 PM [vite] (ssr) page reload src/lib/videos/thumbs.ts
+10:05:26 PM [vite] (client) hmr update /src/styles.css?direct
+10:05:51 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/ai-guide.tsx, /src/components/library/pin-gate.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx, /src/components/library/discovery-desk.tsx, /src/components/library/connect-panel.tsx, /src/components/library/browse.tsx, /src/components/library/top-bar.tsx, /src/components/library/player.tsx, /src/components/library/hub-sections.tsx and 2 more
+10:05:51 PM [vite] (ssr) page reload src/lib/videos/store.ts
+10:07:08 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/video-card.tsx
+10:07:08 PM [vite] (ssr) page reload src/components/library/video-card.tsx
+10:07:10 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/hub-sections.tsx
+10:07:10 PM [vite] (ssr) page reload src/components/library/hub-sections.tsx
+10:08:12 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/video-card.tsx
+10:08:12 PM [vite] (ssr) page reload src/components/library/video-card.tsx
+10:08:12 PM [vite] (ssr) program reload
+10:08:27 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/ai-guide.tsx, /src/components/library/pin-gate.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx, /src/components/library/discovery-desk.tsx, /src/components/library/connect-panel.tsx, /src/components/library/browse.tsx, /src/components/library/top-bar.tsx, /src/components/library/player.tsx, /src/components/library/hub-sections.tsx and 2 more
+10:08:27 PM [vite] (ssr) page reload src/lib/videos/store.ts
+10:10:06 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/hub-sections.tsx
+10:10:06 PM [vite] (ssr) page reload src/components/library/hub-sections.tsx

@@ -1,5 +1,5 @@
 import { n as TSS_SERVER_FUNCTION, r as getServerFnById, t as createServerFn } from "./ssr.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/api-CeYPgULp.js
+//#region node_modules/.nitro/vite/services/ssr/assets/api-CHra3-by.js
 var createSsrRpc = (functionId) => {
 	const url = "/_serverFn/" + functionId;
 	const serverFnMeta = { id: functionId };
@@ -12,6 +12,7 @@ var createSsrRpc = (functionId) => {
 		[TSS_SERVER_FUNCTION]: true
 	});
 };
+/** Share identical work across browser tabs and suppress only background retries. */
 function asString(v) {
 	return typeof v === "string" ? v : "";
 }
@@ -38,6 +39,13 @@ function twitchLogin(input) {
 		return raw.replace(/^@/, "").replace(/^tw:/, "").replace(/[^a-z0-9_]/gi, "").toLowerCase();
 	}
 }
+/**
+* Twitch exposes archives as a cursor connection. Reading only its first page
+* made a busy creator look as though they had about 160 VODs, and a later
+* focused refresh then overwrote the locally retained history with that page.
+* Deep reads are reserved for a user-initiated channel pull; rotating live
+* refreshes intentionally keep their small first-page window.
+*/
 var followRemote = createServerFn({ method: "POST" }).validator((data) => parseFollow(data)).handler(createSsrRpc("0c214d4b031988870bdc1c9a42a92ccbf9e9579cd8ab478f2d173e66fe73e2f0"));
 var refreshRemotes = createServerFn({ method: "POST" }).validator((data) => parseRefresh(data)).handler(createSsrRpc("ac1a300259a0cb0e7b027567a01868e6019bb4d175aa2aacdf50dd329b558123"));
 function parseImport(data) {

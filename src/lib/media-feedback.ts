@@ -3,6 +3,9 @@ const KEY = "reelcase.media-feedback.v1";
 let cached: Feedback | null = null;
 let changeTimer: number | undefined;
 let persistTimer: number | undefined;
+let lastRatingQueueMs = 0;
+let lastPersistMs = 0;
+let pendingWrites = 0;
 
 function read(): Feedback {
   if (cached) return cached;
@@ -14,7 +17,12 @@ function read(): Feedback {
 }
 function persist() {
   persistTimer = undefined;
+  const started = typeof performance !== "undefined" ? performance.now() : Date.now();
   try { if (cached) localStorage.setItem(KEY, JSON.stringify(cached)); } catch { /* legacy per-item values remain available */ }
+  finally {
+    lastPersistMs = Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - started);
+    pendingWrites = 0;
+  }
 }
 // Ratings are used on dense rails. Coalesce the JSON write so a star press
 // paints immediately instead of serializing the entire feedback archive on the
@@ -22,6 +30,7 @@ function persist() {
 function write(next: Feedback) {
   cached = next;
   if (typeof window === "undefined") return;
+  pendingWrites = 1;
   if (persistTimer) window.clearTimeout(persistTimer);
   persistTimer = window.setTimeout(persist, 90);
 }
@@ -34,11 +43,15 @@ function notifyChange() {
 }
 export function getRating(id: string): number { const value = read().ratings[id]; if (Number.isFinite(value)) return value; try { return Number(localStorage.getItem(`reelcase.rating.${id}`) ?? 0); } catch { return 0; } }
 export function setRating(id: string, rating: number) {
+  const started = typeof performance !== "undefined" ? performance.now() : Date.now();
   const next = read();
   next.ratings[id] = Math.max(0, Math.min(5, Math.round(rating)));
   write(next);
   notifyChange();
+  lastRatingQueueMs = Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - started);
 }
+/** Local timing only. This never transmits library feedback or usage data. */
+export function getFeedbackDiagnostics() { return { lastRatingQueueMs, lastPersistMs, pendingWrites }; }
 function creatorKey(name: string) { return name.trim().toLowerCase(); }
 export function getCreatorRating(name: string): number { return read().creatorRatings[creatorKey(name)] ?? 0; }
 export function setCreatorRating(name: string, rating: number) { const next = read(); next.creatorRatings[creatorKey(name)] = Math.max(0, Math.min(5, Math.round(rating))); write(next); notifyChange(); }

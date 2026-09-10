@@ -128,7 +128,10 @@ export function PosterGrid({ videos }: { videos: LibraryVideo[] }) {
   }, []);
   const safePageSize = pageSize;
   const [limit, setLimit] = useState(safePageSize);
-  useEffect(() => setLimit(safePageSize), [videos, safePageSize]);
+  // Selectors may return an equivalent new array after catalog metadata
+  // changes. Reset only when the displayed catalog size or chosen page budget
+  // actually changes, otherwise a grid can feed its own state update loop.
+  useEffect(() => setLimit(safePageSize), [safePageSize, videos.length]);
   if (!videos.length) return null;
   return (
     <>

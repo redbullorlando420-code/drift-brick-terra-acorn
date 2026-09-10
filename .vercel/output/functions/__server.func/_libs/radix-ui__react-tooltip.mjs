@@ -1,6 +1,6 @@
 import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "./@floating-ui/react-dom+[...].mjs";
-import { a as createContextScope, i as createSlottable, s as require_jsx_runtime } from "./@radix-ui/react-collection+[...].mjs";
+import { a as createSlottable, n as createContextScope, s as require_jsx_runtime } from "./@radix-ui/react-collection+[...].mjs";
 import { o as createPopperScope } from "./@radix-ui/react-dropdown-menu+[...].mjs";
 //#region node_modules/@radix-ui/react-tooltip/dist/index.mjs
 var import_react = /* @__PURE__ */ __toESM(require_react(), 1);

@@ -6,10 +6,12 @@ import { isLikelyPlayable, titleOf } from "@/lib/videos/types";
 import { useThumbs } from "@/lib/videos/thumbs";
 import { useLibrary } from "@/lib/videos/store";
 import { getRating, setRating as setMediaRating } from "@/lib/media-feedback";
+import { registerMountedCard } from "@/lib/render-budget";
 
 type Variant = "grid" | "list" | "rail" | "poster";
 const EMPTY_TAGS: string[] = [];
 const artworkRepairRequested = new Set<string>();
+const remoteArtworkRepairRequested = new Set<string>();
 
 export function VideoCard({
   video,
@@ -32,6 +34,7 @@ export function VideoCard({
   const retry = useThumbs((s) => s.retry);
   const artworkDiagnostic = useThumbs((s) => s.diagnostics[video.id]);
   const repairArtworkSource = useLibrary((s) => s.repairArtworkSource);
+  const followRemoteQuery = useLibrary((s) => s.followRemoteQuery);
   const progress = useLibrary((s) => s.progress[video.id]);
   const fav = useLibrary((s) => Boolean(s.favorites[video.id]));
   const liked = useLibrary((s) => Boolean(s.likes[video.id]));
@@ -57,6 +60,7 @@ export function VideoCard({
   const preview = video.remote?.previewUrl;
   const [hovered, setHovered] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
+  const [textFirst, setTextFirst] = useState(false);
   const [rating, setRating] = useState(0);
 
 
@@ -73,6 +77,8 @@ export function VideoCard({
     return () => io.disconnect();
   }, [request, video]);
   useEffect(() => { setRating(getRating(video.id)); }, [video.id]);
+  useEffect(() => { setTextFirst(document.documentElement.dataset.artworkMode === "text"); }, []);
+  useEffect(() => registerMountedCard(), []);
   useEffect(() => {
     if (!failed || video.remote || artworkRepairRequested.has(video.folderId)) return;
     artworkRepairRequested.add(video.folderId);
@@ -89,6 +95,15 @@ export function VideoCard({
     // media-feedback so a quick sequence of ratings does not stall the rail.
     window.requestAnimationFrame(() => setMediaRating(video.id, value));
   };
+  const repairRemoteArtwork = () => {
+    if (!video.remote || remoteArtworkRepairRequested.has(video.folderId)) return;
+    remoteArtworkRepairRequested.add(video.folderId);
+    // A signed/expired provider thumbnail is repaired by refreshing only this
+    // creator. The catalog merge is additive, so healthy sibling cards keep
+    // their existing artwork and never flicker out of the shelf.
+    const query = video.remote.channelId ?? video.folderId.replace(/^(?:yt|tw):/, "");
+    void followRemoteQuery(query, video.remote.kind).catch(() => undefined);
+  };
 
   const poster = (
     <div
@@ -99,13 +114,13 @@ export function VideoCard({
         (variant === "grid" || variant === "rail") && "aspect-video w-full rounded-md",
       )}
     >
-      {(imageFailed && youtubeFallback ? youtubeFallback : art) ? (
+      {!textFirst && (imageFailed && youtubeFallback ? youtubeFallback : art) ? (
         <img
           loading="lazy"
           decoding="async"
           src={imageFailed && youtubeFallback ? youtubeFallback : hovered && preview ? preview : art}
           alt=""
-          onError={() => setImageFailed(true)}
+          onError={() => { setImageFailed(true); repairRemoteArtwork(); }}
           className="size-full object-cover outline outline-1 -outline-offset-1 outline-fg/10"
         />
       ) : (
@@ -166,6 +181,7 @@ export function VideoCard({
 
   return (
     <div
+      data-video-card
       className={cn("stagger-in group relative", isPoster && "poster-hit", live && "rounded-lg border border-border bg-surface p-2 shadow-border", className)}
       style={{ ["--stagger-i" as string]: Math.min(index, 16) }}
     >

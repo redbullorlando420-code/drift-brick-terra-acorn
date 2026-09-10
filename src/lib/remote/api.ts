@@ -13,7 +13,44 @@ export type RefreshResult = {
   videos: LibraryVideo[];
   channels: FollowedChannel[];
   refreshedIds: string[];
+  /** Exact next eligible time for a provider/channel cooling down after failures. */
+  retryAt: Record<string, number>;
 };
+
+type ProviderName = "youtube" | "twitch";
+const providerInflight = new Map<string, Promise<unknown>>();
+const providerFailures = new Map<string, { attempts: number; retryAt: number }>();
+
+function providerKey(provider: ProviderName, handle: string) {
+  return `${provider}:${handle.trim().toLowerCase()}`;
+}
+
+function retryAtFor(provider: ProviderName, handle: string) {
+  return providerFailures.get(providerKey(provider, handle))?.retryAt;
+}
+
+/** Share identical work across browser tabs and suppress only background retries. */
+async function providerRequest<T>(provider: ProviderName, handle: string, focused: boolean, work: () => Promise<T>): Promise<T> {
+  const key = providerKey(provider, handle);
+  const cooling = providerFailures.get(key);
+  if (!focused && cooling && cooling.retryAt > Date.now()) {
+    throw new Error(`${provider} is retrying after ${new Date(cooling.retryAt).toLocaleTimeString()}`);
+  }
+  const existing = providerInflight.get(key) as Promise<T> | undefined;
+  if (existing) return existing;
+  const pending = work().then((result) => {
+    providerFailures.delete(key);
+    return result;
+  }).catch((error) => {
+    const previous = providerFailures.get(key);
+    const attempts = Math.min(8, (previous?.attempts ?? 0) + 1);
+    // 15s → 30s → … → 5m keeps a failing provider from pinning six workers.
+    providerFailures.set(key, { attempts, retryAt: Date.now() + Math.min(300_000, 15_000 * 2 ** (attempts - 1)) });
+    throw error;
+  }).finally(() => providerInflight.delete(key));
+  providerInflight.set(key, pending);
+  return pending;
+}
 
 function asString(v: unknown) {
   return typeof v === "string" ? v : "";
@@ -160,6 +197,7 @@ type YoutubeRenderer = {
   videoId?: string;
   title?: { simpleText?: string; runs?: Array<{ text?: string }> };
   viewCountText?: { simpleText?: string; runs?: Array<{ text?: string }> };
+  descriptionSnippet?: { simpleText?: string; runs?: Array<{ text?: string }> };
 };
 
 // A deep channel fetch is expensive public metadata work. Keep a short bounded
@@ -217,7 +255,10 @@ async function youtubeChannelBackfill(channelId: string, channelName: string, kn
         // cards are deliberately old until a provider supplies an exact date.
         published: "1970-01-01T00:00:00.000Z",
         thumb: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
-        desc: `${channelName} public channel catalog item.`,
+        // Channel pages expose a short public description snippet for many
+        // cards. Keep it so the local tagger can derive real topic words
+        // instead of relying only on a title and provider label.
+        desc: rendererText(renderer.descriptionSnippet) || `${channelName} public channel catalog item.`,
         channelId,
         channelName,
         views: parsePublicViewCount(rendererText(renderer.viewCountText)),
@@ -268,6 +309,9 @@ async function youtubeFromVideo(id: string): Promise<FollowResult> {
     title: channelName,
     channelId: channelId || undefined,
     thumb: meta.thumbnail_url,
+    lastCheckedAt: Date.now(),
+    newestPublishedAt: video.addedAt,
+    lastResponseCount: 1,
   };
   return { channel, videos: [video] };
 }
@@ -298,7 +342,14 @@ async function youtubeLiveFromChannel(channelId: string, channelName: string): P
   }
 }
 
-async function youtubeFromChannel(query: string, limit = 720): Promise<FollowResult> {
+function boundedFollowResult(result: FollowResult, limit: number): FollowResult {
+  const live = result.videos.filter((video) => video.remote?.live);
+  const catalog = result.videos.filter((video) => !video.remote?.live).slice(0, limit);
+  const videos = [...live, ...catalog];
+  return { ...result, channel: { ...result.channel, lastResponseCount: videos.length }, videos };
+}
+
+async function youtubeFromChannelUncoalesced(query: string, limit = 720, deepCatalog = true): Promise<FollowResult> {
   let channelId = "";
   const trimmed = query.trim();
   if (/^UC[\w-]{20,}$/.test(trimmed)) channelId = trimmed;
@@ -315,10 +366,10 @@ async function youtubeFromChannel(query: string, limit = 720): Promise<FollowRes
   }
   const boundedLimit = Math.max(24, Math.min(720, Math.floor(limit)));
   const cached = youtubeChannelCache.get(channelId);
-  if (cached && Date.now() - cached.at < YOUTUBE_CHANNEL_CACHE_TTL_MS && cached.result.videos.length >= Math.min(144, boundedLimit)) return cached.result;
+  if (cached && Date.now() - cached.at < YOUTUBE_CHANNEL_CACHE_TTL_MS && cached.result.videos.length >= Math.min(144, boundedLimit)) return boundedFollowResult(cached.result, boundedLimit);
   const [xml, channelPage] = await Promise.all([
     fetchText(`https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`),
-    fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}/videos`).catch(() => ""),
+    deepCatalog ? fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}/videos`).catch(() => "") : Promise.resolve(""),
   ]);
   const title = tag(xml, "title") || "YouTube";
   const author = tag(xml, "name") || title;
@@ -341,18 +392,18 @@ async function youtubeFromChannel(query: string, limit = 720): Promise<FollowRes
     });
   });
   const feedIds = new Set(videos.map((video) => video.remote?.videoId).filter((id): id is string => Boolean(id)));
-  const backfill = channelPage ? await (async () => {
+  const backfill = deepCatalog && channelPage ? await (async () => {
     const seen = new Set(feedIds);
     const rows: LibraryVideo[] = [];
     for (const renderer of channelPageRenderers(channelPage)) {
       const id = renderer.videoId;
       if (!id || seen.has(id)) continue;
       seen.add(id);
-      rows.push(ytVideo({ id, title: rendererText(renderer.title) || `${author} video`, published: "1970-01-01T00:00:00.000Z", thumb: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, desc: `${author} public channel catalog item.`, channelId, channelName: author, views: parsePublicViewCount(rendererText(renderer.viewCountText)) }));
+      rows.push(ytVideo({ id, title: rendererText(renderer.title) || `${author} video`, published: "1970-01-01T00:00:00.000Z", thumb: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, desc: rendererText(renderer.descriptionSnippet) || `${author} public channel catalog item.`, channelId, channelName: author, views: parsePublicViewCount(rendererText(renderer.viewCountText)) }));
       if (rows.length >= Math.max(0, boundedLimit - videos.length)) break;
     }
     return rows;
-  })() : await youtubeChannelBackfill(channelId, author, feedIds, Math.max(0, boundedLimit - videos.length));
+  })() : deepCatalog ? await youtubeChannelBackfill(channelId, author, feedIds, Math.max(0, boundedLimit - videos.length)) : [];
   videos.push(...backfill);
   const live = await youtubeLiveFromChannel(channelId, author);
   if (live && !videos.some((video) => video.id === live.id)) videos.unshift(live);
@@ -362,11 +413,14 @@ async function youtubeFromChannel(query: string, limit = 720): Promise<FollowRes
     handle: author,
     title: author,
     channelId,
+    lastCheckedAt: Date.now(),
+    newestPublishedAt: Math.max(0, ...videos.filter((video) => !video.remote?.live).map((video) => video.addedAt)),
+    lastResponseCount: videos.length,
   };
   const result = { channel, videos };
   youtubeChannelCache.set(channelId, { at: Date.now(), result });
   while (youtubeChannelCache.size > YOUTUBE_CHANNEL_CACHE_LIMIT) youtubeChannelCache.delete(youtubeChannelCache.keys().next().value!);
-  return result;
+  return boundedFollowResult(result, boundedLimit);
 }
 
 function twitchLogin(input: string): string {
@@ -380,6 +434,10 @@ function twitchLogin(input: string): string {
   }
 }
 
+function youtubeFromChannel(query: string, limit = 720, focused = true, deepCatalog = focused): Promise<FollowResult> {
+  return providerRequest("youtube", query, focused, () => youtubeFromChannelUncoalesced(query, limit, deepCatalog));
+}
+
 type GqlUser = {
   displayName?: string;
   id?: string;
@@ -391,7 +449,12 @@ type GqlUser = {
     game?: { name?: string };
   } | null;
   videos?: {
+    pageInfo?: {
+      hasNextPage?: boolean;
+      endCursor?: string | null;
+    };
     edges?: Array<{
+      cursor?: string | null;
       node?: {
         id?: string;
         title?: string;
@@ -404,7 +467,14 @@ type GqlUser = {
   };
 };
 
-async function twitchUser(login: string): Promise<GqlUser | null> {
+// Twitch accepts a 160-row initial archive window without its web-client
+// integrity proof. Keep that established baseline; deeper cursor pages are
+// attempted only for focused pulls and fall back to this window if challenged.
+const TWITCH_ARCHIVE_PAGE_SIZE = 160;
+const TWITCH_FOCUSED_VOD_LIMIT = 2_000;
+const TWITCH_REFRESH_VOD_LIMIT = 160;
+
+async function twitchUser(login: string, after?: string | null, archivePageSize = TWITCH_ARCHIVE_PAGE_SIZE): Promise<GqlUser | null> {
   const res = await fetch("https://gql.twitch.tv/gql", {
     signal: AbortSignal.timeout(12000),
     method: "POST",
@@ -413,8 +483,8 @@ async function twitchUser(login: string): Promise<GqlUser | null> {
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      query: `query($login:String!){user(login:$login){id displayName profileImageURL(width:70) stream{title viewersCount previewImageURL(width:640,height:360) game{name}} videos(first:160,type:ARCHIVE){edges{node{id title description lengthSeconds publishedAt previewThumbnailURL(width:640,height:360)}}}}}`,
-      variables: { login },
+      query: `query($login:String!,$after:Cursor,$first:Int!){user(login:$login){id displayName profileImageURL(width:70) stream{title viewersCount previewImageURL(width:640,height:360) game{name}} videos(first:$first,type:ARCHIVE,after:$after){pageInfo{hasNextPage endCursor} edges{cursor node{id title description lengthSeconds publishedAt previewThumbnailURL(width:640,height:360)}}}}}`,
+      variables: { login, after: after ?? null, first: archivePageSize },
     }),
   });
   if (!res.ok) return null;
@@ -422,7 +492,46 @@ async function twitchUser(login: string): Promise<GqlUser | null> {
   return json.data?.user ?? null;
 }
 
-function twitchVideos(login: string, user: GqlUser, vodLimit = 36): LibraryVideo[] {
+/**
+ * Twitch exposes archives as a cursor connection. Reading only its first page
+ * made a busy creator look as though they had about 160 VODs, and a later
+ * focused refresh then overwrote the locally retained history with that page.
+ * Deep reads are reserved for a user-initiated channel pull; rotating live
+ * refreshes intentionally keep their small first-page window.
+ */
+async function twitchArchive(login: string, limit: number): Promise<GqlUser | null> {
+  let after: string | null | undefined;
+  let first: GqlUser | null = null;
+  const edges: NonNullable<NonNullable<GqlUser["videos"]>["edges"]> = [];
+  const seen = new Set<string>();
+
+  while (edges.length < limit) {
+    const page = await twitchUser(login, after, Math.min(TWITCH_ARCHIVE_PAGE_SIZE, limit - edges.length));
+    if (!page) return first;
+    if (!first) first = page;
+    for (const edge of page.videos?.edges ?? []) {
+      const id = edge.node?.id;
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      edges.push(edge);
+      if (edges.length >= limit) break;
+    }
+    const pageInfo = page.videos?.pageInfo;
+    // Twitch's public connection currently reports a null `endCursor` even
+    // when there is another page. Its final edge carries the usable cursor.
+    const nextCursor = pageInfo?.endCursor ?? page.videos?.edges?.at(-1)?.cursor;
+    if (!pageInfo?.hasNextPage || !nextCursor || nextCursor === after) break;
+    after = nextCursor;
+  }
+
+  if (!first) return null;
+  return { ...first, videos: { edges } };
+}
+
+// Keep a useful VOD window per channel. The public query asks for 160 rows;
+// retaining 96 gives large follow lists enough history without sending the
+// entire archive through every rotating background refresh.
+function twitchVideos(login: string, user: GqlUser, vodLimit = 160): LibraryVideo[] {
   const title = user.displayName ?? login;
   const folderId = `tw:${login}`;
   const out: LibraryVideo[] = [];
@@ -498,14 +607,17 @@ function twitchVideos(login: string, user: GqlUser, vodLimit = 36): LibraryVideo
   return out;
 }
 
-async function followTwitch(query: string, compact = false): Promise<FollowResult> {
+async function followTwitchUncoalesced(query: string, compact = false): Promise<FollowResult> {
   const login = twitchLogin(query);
   if (!login) throw new Error("Enter a Twitch channel.");
-  const user = await twitchUser(login);
+  const user = await twitchArchive(login, compact ? TWITCH_REFRESH_VOD_LIMIT : TWITCH_FOCUSED_VOD_LIMIT);
   // Do not manufacture an offline placeholder for an account that Twitch did
   // not resolve. It looks like a successful follow and causes repeated cards.
   if (!user?.id) throw new Error(`Twitch could not resolve ${login}`);
   const title = user.displayName ?? login;
+  // Bulk import previously kept only 12 rows, which made healthy channels look
+  // empty until each one happened to receive a later focused refresh.
+  const videos = twitchVideos(login, user, compact ? TWITCH_REFRESH_VOD_LIMIT : TWITCH_FOCUSED_VOD_LIMIT);
   const channel: FollowedChannel = {
     id: `tw:${login}`,
     kind: "twitch",
@@ -514,9 +626,15 @@ async function followTwitch(query: string, compact = false): Promise<FollowResul
     channelId: user?.id,
     thumb: user?.profileImageURL,
     live: Boolean(user?.stream),
+    lastCheckedAt: Date.now(),
+    newestPublishedAt: Math.max(0, ...videos.filter((video) => !video.remote?.live).map((video) => video.addedAt)),
+    lastResponseCount: videos.length,
   };
-  const videos = twitchVideos(login, user, compact ? 12 : 48);
   return { channel, videos };
+}
+
+function followTwitch(query: string, compact = false): Promise<FollowResult> {
+  return providerRequest("twitch", query, !compact, () => followTwitchUncoalesced(query, compact));
 }
 
 export const followRemote = createServerFn({ method: "POST" })
@@ -538,12 +656,17 @@ export const refreshRemotes = createServerFn({ method: "POST" })
     await mapPool(data.channels, 6, async (ch) => {
       try {
         if (ch.kind === "twitch") {
-          const next = await followTwitch(ch.handle);
+          // A rotating refresh is for current live state and new VODs. Keep it
+          // shallow so it cannot turn one scheduled refresh into thousands of
+          // provider requests; the merge path preserves older archive cards.
+          const next = await followTwitch(ch.handle, true);
           channels.push({ ...ch, ...next.channel, id: ch.id });
           videos.push(...next.videos.map((video) => ({ ...video, folderId: ch.id })));
         } else {
           const q = ch.channelId ? `https://www.youtube.com/channel/${ch.channelId}` : ch.handle;
-          const next = await youtubeFromChannel(q);
+          // A routine refresh only needs the feed and live state. Deep archive
+          // parsing belongs to an explicit follow/import, not first paint.
+          const next = await youtubeFromChannel(q, 48, false, false);
           channels.push({ ...ch, ...next.channel, id: ch.id });
           videos.push(...next.videos.map((video) => ({ ...video, folderId: ch.id })));
         }
@@ -552,7 +675,11 @@ export const refreshRemotes = createServerFn({ method: "POST" })
         channels.push(ch);
       }
     });
-    return { videos, channels, refreshedIds };
+    const retryAt = Object.fromEntries(data.channels.flatMap((channel) => {
+      const retry = retryAtFor(channel.kind, channel.handle);
+      return retry ? [[channel.id, retry]] : [];
+    }));
+    return { videos, channels, refreshedIds, retryAt };
   });
 
 type ImportItemIn = { query: string; kind: "youtube" | "twitch" };
@@ -608,7 +735,7 @@ export const importChannels = createServerFn({ method: "POST" })
           // Bulk imports used to request only eight entries per creator, which
           // made a healthy library look arbitrarily capped. RSS availability
           // ultimately controls the ceiling, but ask for a practical window.
-          return await youtubeFromChannel(item.query, compact ? 180 : 720);
+          return await youtubeFromChannel(item.query, compact ? 48 : 720, true, !compact);
         } catch {
           if (!attempt) await new Promise((resolve) => setTimeout(resolve, 350));
         }

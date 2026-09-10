@@ -1,0 +1,201 @@
+9:11:28 PM [vite] (client) [console.error] The result of getSnapshot should be cached to avoid an infinite loop
+9:11:37 PM [vite] (client) [console.error] Error: Maximum update depth exceeded. This can happen when a component repeatedly calls setState inside componentWillUpdate or componentDidUpdate. React limits the number of nested updates to prevent infinite loops.
+    at getRootForUpdatedFiber (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:2633:166)
+    at enqueueConcurrentRenderForLane (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:2623:11)
+    at forceStoreRerender (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:4581:15)
+    at updateStoreInstance (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:4563:36)
+    at Object.react_stack_bottom_frame (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:12902:13)
+    at runWithFiberInDEV (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:851:66)
+    at commitHookEffectListMount (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:6617:153)
+    at commitHookPassiveMountEffects (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:6652:55)
+    at commitPassiveMountOnFiber (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:7618:22)
+    at recursivelyTraversePassiveMountEffects (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:7606:5)
+
+The above error occurred in the <LibraryApp> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, CatchBoundary.
+
+9:11:37 PM [vite] (client) [console.warn] Warning: Error in route match: //
+9:11:38 PM [vite] (client) [console.error] Error: Maximum update depth exceeded. This can happen when a component repeatedly calls setState inside componentWillUpdate or componentDidUpdate. React limits the number of nested updates to prevent infinite loops.
+    at getRootForUpdatedFiber (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:2633:166)
+    at enqueueConcurrentHookUpdate (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:2619:11)
+    at dispatchSetStateInternal (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:5160:14)
+    at dispatchSetState (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:5133:4)
+    at http://localhost:8080/src/components/library/browse.tsx?t=1789002693643:267:18
+    at Object.react_stack_bottom_frame (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:12902:13)
+    at runWithFiberInDEV (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:851:66)
+    at commitHookEffectListMount (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:6617:153)
+    at commitHookPassiveMountEffects (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:6652:55)
+    at commitPassiveMountOnFiber (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:7618:22)
+
+The above error occurred in the <PosterGrid> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, CatchBoundary.
+
+9:11:38 PM [vite] (client) [console.warn] Warning: Error in route match: //
+9:12:25 PM [vite] (client) [console.error] The result of getSnapshot should be cached to avoid an infinite loop
+9:12:25 PM [vite] (client) [console.error] Error: Maximum update depth exceeded. This can happen when a component repeatedly calls setState inside componentWillUpdate or componentDidUpdate. React limits the number of nested updates to prevent infinite loops.
+    at getRootForUpdatedFiber (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:2633:166)
+    at enqueueConcurrentHookUpdate (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:2619:11)
+    at dispatchSetStateInternal (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:5160:14)
+    at dispatchSetState (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:5133:4)
+    at http://localhost:8080/src/components/library/browse.tsx?t=1789002693643:267:18
+    at Object.react_stack_bottom_frame (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:12902:13)
+    at runWithFiberInDEV (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:851:66)
+    at commitHookEffectListMount (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:6617:153)
+    at commitHookPassiveMountEffects (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:6652:55)
+    at commitPassiveMountOnFiber (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:7618:22)
+
+The above error occurred in the <PosterGrid> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, CatchBoundary.
+
+9:12:25 PM [vite] (client) [console.warn] Warning: Error in route match: //
+9:12:36 PM [vite] (client) [console.error] The result of getSnapshot should be cached to avoid an infinite loop
+9:12:36 PM [vite] (client) [console.error] Error: Maximum update depth exceeded. This can happen when a component repeatedly calls setState inside componentWillUpdate or componentDidUpdate. React limits the number of nested updates to prevent infinite loops.
+    at getRootForUpdatedFiber (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:2633:166)
+    at enqueueConcurrentHookUpdate (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:2619:11)
+    at dispatchSetStateInternal (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:5160:14)
+    at dispatchSetState (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:5133:4)
+    at http://localhost:8080/src/components/library/browse.tsx?t=1789002752704:267:18
+    at Object.react_stack_bottom_frame (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:12902:13)
+    at runWithFiberInDEV (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:851:66)
+    at commitHookEffectListMount (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:6617:153)
+    at commitHookPassiveMountEffects (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:6652:55)
+    at commitPassiveMountOnFiber (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:7618:22)
+
+The above error occurred in the <PosterGrid> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, CatchBoundary.
+
+9:12:36 PM [vite] (client) [console.warn] Warning: Error in route match: //
+AbortError: This operation was aborted
+    at new DOMException (node:internal/per_context/domexception:76:18)
+    ... 8 lines matching cause stack trace ...
+    at TCP.<anonymous> (node:net:362:12) {
+  cause: DOMException [AbortError]: This operation was aborted
+      at new DOMException (node:internal/per_context/domexception:76:18)
+      at AbortController.abort (node:internal/abort_controller:572:18)
+      at abort (file:///E:/codex/drift-brick-terra-acorn/node_modules/srvx/dist/adapters/node.mjs:316:51)
+      at ServerResponse.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/node_modules/srvx/dist/adapters/node.mjs:320:35)
+      at ServerResponse.wrapper (node:events:639:12)
+      at ServerResponse.emit (node:events:514:28)
+      at emitCloseNT (node:_http_server:1156:10)
+      at Socket.onServerResponseClose (node:_http_server:292:5)
+      at Socket.emit (node:events:526:24)
+      at TCP.<anonymous> (node:net:362:12),
+  status: 500,
+  statusText: undefined,
+  headers: undefined,
+  data: undefined,
+  body: undefined,
+  unhandled: true
+}
+9:12:39 PM [vite] (client) [console.error] The result of getSnapshot should be cached to avoid an infinite loop
+9:12:39 PM [vite] (client) [console.error] Error: Maximum update depth exceeded. This can happen when a component repeatedly calls setState inside componentWillUpdate or componentDidUpdate. React limits the number of nested updates to prevent infinite loops.
+    at getRootForUpdatedFiber (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:2633:166)
+    at enqueueConcurrentHookUpdate (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:2619:11)
+    at dispatchSetStateInternal (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:5160:14)
+    at dispatchSetState (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:5133:4)
+    at http://localhost:8080/src/components/library/browse.tsx?t=1789002752704:267:18
+    at Object.react_stack_bottom_frame (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:12902:13)
+    at runWithFiberInDEV (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:851:66)
+    at commitHookEffectListMount (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:6617:153)
+    at commitHookPassiveMountEffects (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:6652:55)
+    at commitPassiveMountOnFiber (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:7618:22)
+
+The above error occurred in the <PosterGrid> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, CatchBoundary.
+
+9:12:39 PM [vite] (client) [console.warn] Warning: Error in route match: //
+9:13:13 PM [vite] (client) [console.error] The result of getSnapshot should be cached to avoid an infinite loop
+9:13:13 PM [vite] (client) [console.error] Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render.
+9:13:13 PM [vite] (client) [console.error] Error: Maximum update depth exceeded. This can happen when a component repeatedly calls setState inside componentWillUpdate or componentDidUpdate. React limits the number of nested updates to prevent infinite loops.
+    at getRootForUpdatedFiber (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:2633:166)
+    at enqueueConcurrentHookUpdate (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:2619:11)
+    at dispatchSetStateInternal (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:5160:14)
+    at dispatchSetState (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:5133:4)
+    at http://localhost:8080/src/components/library/browse.tsx?t=1789002752704:267:18
+    at Object.react_stack_bottom_frame (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:12902:13)
+    at runWithFiberInDEV (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:851:66)
+    at commitHookEffectListMount (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:6617:153)
+    at commitHookPassiveMountEffects (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:6652:55)
+    at commitPassiveMountOnFiber (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:7618:22)
+
+The above error occurred in the <PosterGrid> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, CatchBoundary.
+
+9:13:13 PM [vite] (client) [console.warn] Warning: Error in route match: //
+Warning: A notFoundError was encountered on the route with ID "__root__", but a notFoundComponent option was not configured, nor was a router level defaultNotFoundComponent configured. Consider configuring at least one of these to avoid TanStack Router's overly generic defaultNotFoundComponent (<p>Not Found</p>)
+Warning: A notFoundError was encountered on the route with ID "__root__", but a notFoundComponent option was not configured, nor was a router level defaultNotFoundComponent configured. Consider configuring at least one of these to avoid TanStack Router's overly generic defaultNotFoundComponent (<p>Not Found</p>)
+Warning: A notFoundError was encountered on the route with ID "__root__", but a notFoundComponent option was not configured, nor was a router level defaultNotFoundComponent configured. Consider configuring at least one of these to avoid TanStack Router's overly generic defaultNotFoundComponent (<p>Not Found</p>)
+9:35:25 PM [vite] (client) [console.error] The result of getSnapshot should be cached to avoid an infinite loop
+9:35:25 PM [vite] (client) [console.error] Error: Maximum update depth exceeded. This can happen when a component repeatedly calls setState inside componentWillUpdate or componentDidUpdate. React limits the number of nested updates to prevent infinite loops.
+    at getRootForUpdatedFiber (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:2633:166)
+    at enqueueConcurrentHookUpdate (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:2619:11)
+    at dispatchSetStateInternal (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:5160:14)
+    at dispatchSetState (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:5133:4)
+    at http://localhost:8080/src/components/library/browse.tsx?t=1789002752704:267:18
+    at Object.react_stack_bottom_frame (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:12902:13)
+    at runWithFiberInDEV (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:851:66)
+    at commitHookEffectListMount (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:6617:153)
+    at commitHookPassiveMountEffects (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:6652:55)
+    at commitPassiveMountOnFiber (http://localhost:8080/node_modules/.vite/deps/react-dom_client.js?v=516d7098:7618:22)
+
+The above error occurred in the <PosterGrid> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, CatchBoundary.
+
+9:35:25 PM [vite] (client) [console.warn] Warning: Error in route match: //
+Warning: A notFoundError was encountered on the route with ID "__root__", but a notFoundComponent option was not configured, nor was a router level defaultNotFoundComponent configured. Consider configuring at least one of these to avoid TanStack Router's overly generic defaultNotFoundComponent (<p>Not Found</p>)
+Warning: A notFoundError was encountered on the route with ID "__root__", but a notFoundComponent option was not configured, nor was a router level defaultNotFoundComponent configured. Consider configuring at least one of these to avoid TanStack Router's overly generic defaultNotFoundComponent (<p>Not Found</p>)
+Warning: A notFoundError was encountered on the route with ID "__root__", but a notFoundComponent option was not configured, nor was a router level defaultNotFoundComponent configured. Consider configuring at least one of these to avoid TanStack Router's overly generic defaultNotFoundComponent (<p>Not Found</p>)
+Warning: A notFoundError was encountered on the route with ID "__root__", but a notFoundComponent option was not configured, nor was a router level defaultNotFoundComponent configured. Consider configuring at least one of these to avoid TanStack Router's overly generic defaultNotFoundComponent (<p>Not Found</p>)
+Warning: A notFoundError was encountered on the route with ID "__root__", but a notFoundComponent option was not configured, nor was a router level defaultNotFoundComponent configured. Consider configuring at least one of these to avoid TanStack Router's overly generic defaultNotFoundComponent (<p>Not Found</p>)
+Warning: A notFoundError was encountered on the route with ID "__root__", but a notFoundComponent option was not configured, nor was a router level defaultNotFoundComponent configured. Consider configuring at least one of these to avoid TanStack Router's overly generic defaultNotFoundComponent (<p>Not Found</p>)
+Warning: A notFoundError was encountered on the route with ID "__root__", but a notFoundComponent option was not configured, nor was a router level defaultNotFoundComponent configured. Consider configuring at least one of these to avoid TanStack Router's overly generic defaultNotFoundComponent (<p>Not Found</p>)
+Warning: A notFoundError was encountered on the route with ID "__root__", but a notFoundComponent option was not configured, nor was a router level defaultNotFoundComponent configured. Consider configuring at least one of these to avoid TanStack Router's overly generic defaultNotFoundComponent (<p>Not Found</p>)
+Warning: A notFoundError was encountered on the route with ID "__root__", but a notFoundComponent option was not configured, nor was a router level defaultNotFoundComponent configured. Consider configuring at least one of these to avoid TanStack Router's overly generic defaultNotFoundComponent (<p>Not Found</p>)
+Warning: A notFoundError was encountered on the route with ID "__root__", but a notFoundComponent option was not configured, nor was a router level defaultNotFoundComponent configured. Consider configuring at least one of these to avoid TanStack Router's overly generic defaultNotFoundComponent (<p>Not Found</p>)
+9:41:57 PM [vite] (client) [Unhandled error] QuotaExceededError: Failed to execute 'setItem' on 'Storage': Setting the value of 'reelcase.twitch-refresh-seconds' exceeded the quota.
+ > onClick src/components/library/hub-sections.tsx:815:737
+    813 |          <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><PackageSearch classN...
+    814 |          <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><Settings2 className=...
+    815 |  ...=> { setTwitchRefreshSeconds(value as number); localStorage.setItem("reelcase.twitch-refresh-seconds", String(valu...
+        |                                                                 ^
+    816 |        </div></section>
+    817 |        <section className="mt-6"><div className="mb-3"><p className="text-xs font-medium tracking-[0.14em] text-accent...
+ > executeDispatch node_modules/react-dom/cjs/react-dom-client.development.js:19116:8
+ > runWithFiberInDEV node_modules/react-dom/cjs/react-dom-client.development.js:871:29
+ > processDispatchQueue node_modules/react-dom/cjs/react-dom-client.development.js:19166:18
+ > node_modules/react-dom/cjs/react-dom-client.development.js:19767:8
+ > batchedUpdates$1 node_modules/react-dom/cjs/react-dom-client.development.js:3255:39
+ > dispatchEventForPluginEventSystem node_modules/react-dom/cjs/react-dom-client.development.js:19320:6
+ > dispatchEvent node_modules/react-dom/cjs/react-dom-client.development.js:23585:10
+ > dispatchDiscreteEvent node_modules/react-dom/cjs/react-dom-client.development.js:23553:10
+
+node:internal/fs/watchers:323
+    const error = new UVException({
+                  ^
+
+Error: EBUSY: resource busy or locked, watch 'E:\codex\drift-brick-terra-acorn\.vercel\output\static\samples\empty-house.mp4'
+    at FSWatcher.<computed> (node:internal/fs/watchers:323:19)
+    at Object.watch (node:fs:2609:36)
+    at createFsWatchInstance (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:9429:16)
+    at setFsWatchListener (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:9471:14)
+    at NodeFsHandler._watchWithNodeFs (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:9586:20)
+    at NodeFsHandler._handleFile (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:9630:24)
+    at NodeFsHandler._addToNodeFs (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:9804:26)
+Emitted 'error' event on FSWatcher instance at:
+    at FSWatcher._handleError (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:10606:146)
+    at NodeFsHandler._addToNodeFs (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:9809:18) {
+  errno: -4082,
+  syscall: 'watch',
+  code: 'EBUSY',
+  path: 'E:\\codex\\drift-brick-terra-acorn\\.vercel\\output\\static\\samples\\empty-house.mp4',
+  filename: 'E:\\codex\\drift-brick-terra-acorn\\.vercel\\output\\static\\samples\\empty-house.mp4'
+}
+
+Node.js v24.20.0

@@ -38,8 +38,9 @@ import { useLibrary } from "@/lib/videos/store";
 import { useThumbs } from "@/lib/videos/thumbs";
 import { useSourceAssets } from "@/lib/source-assets";
 import { useP2PRoom } from "@/lib/multiplayer";
-import { exportFeedback } from "@/lib/media-feedback";
-import { classifyImagesLocally } from "@/lib/local-vision";
+import { exportFeedback, getFeedbackDiagnostics } from "@/lib/media-feedback";
+import { getRenderBudgetSnapshot } from "@/lib/render-budget";
+import { classifyImagesLocally, type VisionLabel } from "@/lib/local-vision";
 import type { LibraryVideo } from "@/lib/videos/types";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
@@ -79,7 +80,9 @@ function gameBadge(item: LocalItem) {
 }
 const PREFERENCE_GROUPS = {
   Alerts: ["Go-live alerts", "New Twitch VOD alerts", "New YouTube upload alerts", "Desktop notifications"],
-  Playback: ["Autoplay next video"],
+  Playback: ["Autoplay next video", "Start muted"],
+  Display: ["Day mode", "Compact live cards"],
+  Performance: ["Use cached sources first", "Low-memory grids", "Small Home shelves"],
   Privacy: ["Reduce motion", "Hide demo media"],
 } as const;
 const ACTIVE_PREFERENCE_DETAILS: Record<string, string> = {
@@ -88,6 +91,12 @@ const ACTIVE_PREFERENCE_DETAILS: Record<string, string> = {
   "alerts-new-youtube-upload-alerts": "Active: adds an in-app notice when a tracked YouTube channel has a newly discovered upload.",
   "alerts-desktop-notifications": "Active: asks the browser for permission, then mirrors enabled Reelcase alerts as desktop notifications.",
   "playback-autoplay-next-video": "Active: starts the next library title when a local video ends.",
+  "playback-start-muted": "Active: local video playback starts muted until you raise the player volume.",
+  "display-day-mode": "Active: uses the light palette throughout this browser.",
+  "display-compact-live-cards": "Active: renders six compact live cards per wide row to reduce scrolling and image work.",
+  "performance-use-cached-sources-first": "Active: opens the saved catalog before asking folders or the Companion for fresh file details.",
+  "performance-low-memory-grids": "Active: keeps only a smaller card batch mounted in large grids, reducing image decode pressure.",
+  "performance-small-home-shelves": "Active: draws shorter Home rails first; use Show more inside a rail when you want depth.",
   "privacy-reduce-motion": "Active: reduces animation and scrolling motion across Reelcase.",
   "privacy-hide-demo-media": "Active: hides bundled demonstration titles from your library shelves.",
 };
@@ -514,17 +523,19 @@ export function SettingsSection() {
   const [railLimit, setRailLimit] = useState(8);
   const [gridPageSize, setGridPageSize] = useState(48);
   const [thumbnailWorkers, setThumbnailWorkers] = useState(0);
+  const [textFirstArtwork, setTextFirstArtwork] = useState(false);
   const [photoWorkers, setPhotoWorkers] = useState(0);
   const [defaultVolume, setDefaultVolume] = useState(85);
   const [startMuted, setStartMuted] = useState(false);
   const [videoVisionBusy, setVideoVisionBusy] = useState(false);
   const [videoVisionNote, setVideoVisionNote] = useState("");
-  const [twitchRefreshSeconds, setTwitchRefreshSeconds] = useState(60);
+  const [twitchRefreshSeconds, setTwitchRefreshSeconds] = useState(30);
   const [liveDensity, setLiveDensity] = useState(4);
   const [sourceCacheFirst, setSourceCacheFirst] = useState(true);
   const [debugEnabled, setDebugEnabled] = useState(false);
   const [theme, setTheme] = useState<"night" | "day">("night");
   const [debugReport, setDebugReport] = useState("");
+  const [, refreshDebug] = useState(0);
   const refreshFollows = useLibrary((s) => s.refreshFollows);
   const folders = useLibrary((s) => s.folders);
   const videos = useLibrary((s) => s.videos);
@@ -542,11 +553,13 @@ export function SettingsSection() {
   useEffect(() => setHub(readHub()), []);
   useEffect(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem("reelcase.settings.v1") ?? "{}") as Record<string, boolean>;
-      const defaults = { "alerts-go-live-alerts": true, "alerts-new-twitch-vod-alerts": true, "alerts-new-youtube-upload-alerts": true, "playback-autoplay-next-video": true };
-      const next = { ...defaults, ...saved };
+      // v1 silently seeded several switches as enabled. Start this truthful
+      // preference ledger empty so the count means choices made by the person
+      // using this browser, not hidden defaults from an earlier build.
+      const saved = JSON.parse(localStorage.getItem("reelcase.settings.v2") ?? "{}") as Record<string, boolean>;
+      const next = { ...saved };
       setPreferences(next);
-      localStorage.setItem("reelcase.settings.v1", JSON.stringify(next));
+      localStorage.setItem("reelcase.settings.v2", JSON.stringify(next));
     } catch {
       setPreferences({});
     }
@@ -562,15 +575,21 @@ export function SettingsSection() {
     setRailLimit([8, 16, 32, 48].includes(saved) ? saved : 8);
   }, []);
   useEffect(() => { const saved = Number(localStorage.getItem("reelcase.grid-page-size") ?? "48"); setGridPageSize([24, 48, 96, 144].includes(saved) ? saved : 48); }, []);
-  useEffect(() => { const saved = Number(localStorage.getItem("reelcase.thumbnail-workers") ?? "0"); setThumbnailWorkers([2, 3, 4].includes(saved) ? saved : 0); }, []);
+  useEffect(() => { const saved = Number(localStorage.getItem("reelcase.thumbnail-workers") ?? "0"); setThumbnailWorkers([1, 2, 3, 4].includes(saved) ? saved : 0); }, []);
+  useEffect(() => { const textFirst = localStorage.getItem("reelcase.artwork-mode") === "text"; setTextFirstArtwork(textFirst); document.documentElement.dataset.artworkMode = textFirst ? "text" : "images"; }, []);
   useEffect(() => { const saved = Number(localStorage.getItem("reelcase.photo-scan-workers") ?? "0"); setPhotoWorkers([2, 4, 6, 8, 12].includes(saved) ? saved : 0); }, []);
   useEffect(() => { const saved = Number(localStorage.getItem("reelcase.player-volume") ?? "85"); setDefaultVolume([25, 50, 70, 85, 100].includes(saved) ? saved : 85); setStartMuted(localStorage.getItem("reelcase.player-start-muted") === "true"); }, []);
-  useEffect(() => { const saved = Number(localStorage.getItem("reelcase.twitch-refresh-seconds") ?? "60"); setTwitchRefreshSeconds([15, 30, 60, 120, 300].includes(saved) ? saved : 60); }, []);
+  useEffect(() => { const saved = Number(localStorage.getItem("reelcase.twitch-refresh-seconds") ?? "30"); setTwitchRefreshSeconds([15, 30, 60, 120, 300].includes(saved) ? saved : 30); }, []);
   useEffect(
     () => setSourceCacheFirst(localStorage.getItem("reelcase.source-cache-first") !== "false"),
     [],
   );
   useEffect(() => { try { setDebugEnabled(localStorage.getItem("reelcase.debug-panel") === "true"); } catch { /* unavailable */ } }, []);
+  useEffect(() => {
+    if (!debugEnabled) return;
+    const timer = window.setInterval(() => refreshDebug((value) => value + 1), 1_000);
+    return () => window.clearInterval(timer);
+  }, [debugEnabled]);
   useEffect(() => { try { const saved = localStorage.getItem("reelcase.theme") === "day" ? "day" : "night"; setTheme(saved); document.documentElement.dataset.theme = saved; } catch { /* unavailable */ } }, []);
   useEffect(() => setLiveDensity([3, 4, 6].includes(Number(localStorage.getItem("reelcase.live-columns") ?? "4")) ? Number(localStorage.getItem("reelcase.live-columns")) : 4), []);
   const setGlobalZoom = (value: number) => {
@@ -587,14 +606,20 @@ export function SettingsSection() {
     const enabled = !preferences[key];
     const next = { ...preferences, [key]: enabled };
     setPreferences(next);
-    localStorage.setItem("reelcase.settings.v1", JSON.stringify(next));
+    localStorage.setItem("reelcase.settings.v2", JSON.stringify(next));
     if (key === "privacy-reduce-motion")
       document.documentElement.toggleAttribute("data-reduce-motion", enabled);
     if (key === "privacy-hide-demo-media") useLibrary.getState().setHideDemo(enabled);
+    if (key === "playback-start-muted") localStorage.setItem("reelcase.player-start-muted", String(enabled));
+    if (key === "display-day-mode") setColorTheme(enabled ? "day" : "night");
+    if (key === "display-compact-live-cards") { localStorage.setItem("reelcase.live-columns", enabled ? "6" : "4"); setLiveDensity(enabled ? 6 : 4); }
+    if (key === "performance-use-cached-sources-first") { localStorage.setItem("reelcase.source-cache-first", String(enabled)); setSourceCacheFirst(enabled); }
+    if (key === "performance-low-memory-grids") { localStorage.setItem("reelcase.grid-page-size", enabled ? "24" : "48"); setGridPageSize(enabled ? 24 : 48); }
+    if (key === "performance-small-home-shelves") { localStorage.setItem("reelcase.home-rail-limit", enabled ? "8" : "16"); setRailLimit(enabled ? 8 : 16); }
     if (key === "alerts-desktop-notifications" && enabled) {
       if (!("Notification" in window)) { setServiceNote("This browser does not support desktop notifications."); return; }
       void Notification.requestPermission().then((permission) => {
-        if (permission !== "granted") { setPreferences((current) => ({ ...current, [key]: false })); localStorage.setItem("reelcase.settings.v1", JSON.stringify({ ...next, [key]: false })); setServiceNote("Desktop notifications were not granted. In-app alerts remain available."); }
+        if (permission !== "granted") { setPreferences((current) => ({ ...current, [key]: false })); localStorage.setItem("reelcase.settings.v2", JSON.stringify({ ...next, [key]: false })); setServiceNote("Desktop notifications were not granted. In-app alerts remain available."); }
         else { useLibrary.getState().setNotifyPush(true); setServiceNote("Desktop notifications are enabled for the alerts you keep switched on."); }
       });
     }
@@ -644,8 +669,9 @@ export function SettingsSection() {
     if (!ready.length) { setVideoVisionBusy(false); setVideoVisionNote("Frames are still warming. Try again in a moment; this beta never uploads local video."); return; }
     try {
       const labels = await classifyImagesLocally(ready.map((video) => thumbs[video.id]), (done, total) => setVideoVisionNote(`Classifying local video frames · ${done}/${total}`));
-      ready.forEach((video, index) => setVideoTags(video.id, [...(useLibrary.getState().tags[video.id] ?? []), ...labels[index].map((label) => `vision-${label}`)]));
-      setVideoVisionNote(`Tagged ${ready.length} local video frame${ready.length === 1 ? "" : "s"}. Review vision-* tags before using them as a permanent organizer.`);
+      ready.forEach((video, index) => setVideoTags(video.id, [...(useLibrary.getState().tags[video.id] ?? []), ...labels[index].map((item) => `vision-${item.label}`)]));
+      const report = ready.slice(0, 3).map((video, index) => `${video.name}: ${labels[index].map((item) => `${item.label} ${Math.round(item.score * 100)}%`).join(", ") || "no confident label"}`).join(" · ");
+      setVideoVisionNote(`Tagged ${ready.length} local video frame${ready.length === 1 ? "" : "s"} · ${report}`);
     } catch { setVideoVisionNote("The local vision model could not start. File data stayed on this device; filename tags are still available."); }
     finally { setVideoVisionBusy(false); }
   };
@@ -714,7 +740,7 @@ export function SettingsSection() {
           <Button size="sm" variant={debugEnabled ? "default" : "secondary"} className="mt-4" onClick={() => { const next = !debugEnabled; setDebugEnabled(next); localStorage.setItem("reelcase.debug-panel", String(next)); if (!next) setDebugReport(""); }}>
             {debugEnabled ? "Disable diagnostics" : "Enable diagnostics"}
           </Button>
-          {debugEnabled && <div className="mt-3 rounded-sm bg-bg/45 p-3 text-xs leading-5 text-muted"><p>{useLibrary.getState().videos.length} catalog entries · {useLibrary.getState().folders.length} sources · {navigator.onLine ? "browser online" : "browser offline"}</p><p>{useLibrary.getState().folders.filter((folder) => folder.health === "healthy").length} healthy · {useLibrary.getState().folders.filter((folder) => folder.health === "cached").length} cache-first · {useLibrary.getState().folders.filter((folder) => folder.health === "permission-needed" || folder.health === "unavailable").length} need attention</p><Button size="sm" variant="ghost" className="mt-2" onClick={() => void (async () => { try { const response = await fetch("http://127.0.0.1:43123/health"); const data = await response.json() as { version?: number; roots?: number; desktopEnabled?: boolean }; setDebugReport(`Companion v${data.version ?? "?"} · ${data.roots ?? 0} approved roots · Desktop ${data.desktopEnabled ? "ready" : "not available"}`); } catch { setDebugReport("Companion is not running or is unavailable to this browser."); } })()}>Check companion</Button>{debugReport && <p className="mt-2 text-accent">{debugReport}</p>}</div>}
+          {debugEnabled && <div className="mt-3 rounded-sm bg-bg/45 p-3 text-xs leading-5 text-muted"><p>{useLibrary.getState().videos.length} catalog entries · {useLibrary.getState().folders.length} sources · {navigator.onLine ? "browser online" : "browser offline"}</p><p>{useLibrary.getState().folders.filter((folder) => folder.health === "healthy").length} healthy · {useLibrary.getState().folders.filter((folder) => folder.health === "cached").length} cache-first · {useLibrary.getState().folders.filter((folder) => folder.health === "permission-needed" || folder.health === "unavailable").length} need attention</p><p>{(() => { const budget = getRenderBudgetSnapshot(); const feedback = getFeedbackDiagnostics(); const thumbs = useThumbs.getState(); return `${budget.mountedCards} mounted cards · ${Object.keys(thumbs.byId).length} artwork cache entries · ${budget.lastFrameMs}ms last frame${budget.longFrames ? ` · ${budget.longFrames} long frames (worst ${budget.worstFrameMs}ms)` : ""} · rating queue ${feedback.lastRatingQueueMs}ms / disk ${feedback.lastPersistMs}ms${feedback.pendingWrites ? " pending" : ""}`; })()}</p><Button size="sm" variant="ghost" className="mt-2" onClick={() => void (async () => { try { const response = await fetch("http://127.0.0.1:43123/health"); const data = await response.json() as { version?: number; roots?: number; desktopEnabled?: boolean }; setDebugReport(`Companion v${data.version ?? "?"} · ${data.roots ?? 0} approved roots · Desktop ${data.desktopEnabled ? "ready" : "not available"}`); } catch { setDebugReport("Companion is not running or is unavailable to this browser."); } })()}>Check companion</Button>{debugReport && <p className="mt-2 text-accent">{debugReport}</p>}</div>}
         </div>
         <div className="rounded-lg bg-elevated p-5 shadow-border">
           <span className="text-accent">
@@ -793,10 +819,10 @@ export function SettingsSection() {
           </p>
         </div>
         <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><PackageSearch className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Grid memory budget</h2><p className="mt-2 text-sm leading-6 text-muted">Sets how many poster cards are mounted at once before a Next page control. Use 24 for the smoothest experience with very large YouTube and Twitch libraries.</p><div className="mt-4 flex flex-wrap gap-2">{[24, 48, 96, 144].map((value) => <Button key={value} size="sm" variant={gridPageSize === value ? "default" : "secondary"} onClick={() => { setGridPageSize(value); localStorage.setItem("reelcase.grid-page-size", String(value)); window.dispatchEvent(new Event("reelcase:render-settings")); }}>{value} cards</Button>)}</div></div>
-        <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><PackageSearch className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Artwork worker budget</h2><p className="mt-2 text-sm leading-6 text-muted">Controls concurrent local thumbnail extraction. Adaptive uses available CPU without crowding playback; Fast is best while Reelcase is otherwise idle.</p><div className="mt-4 flex flex-wrap gap-2">{[[0, "Adaptive"], [2, "Gentle · 2"], [3, "Balanced · 3"], [4, "Fast · 4"]].map(([value, label]) => <Button key={value} size="sm" variant={thumbnailWorkers === value ? "default" : "secondary"} onClick={() => { setThumbnailWorkers(value as number); localStorage.setItem("reelcase.thumbnail-workers", String(value)); }}>{label}</Button>)}</div></div>
+        <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><PackageSearch className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Artwork worker budget</h2><p className="mt-2 text-sm leading-6 text-muted">Controls concurrent local thumbnail extraction. Adaptive uses device cores, available memory, and foreground input pressure.</p><div className="mt-4 flex flex-wrap gap-2">{[[0, "Adaptive"], [1, "Text-first · 1"], [2, "Gentle · 2"], [3, "Balanced · 3"], [4, "Fast · 4"]].map(([value, label]) => <Button key={value} size="sm" variant={thumbnailWorkers === value ? "default" : "secondary"} onClick={() => { setThumbnailWorkers(value as number); localStorage.setItem("reelcase.thumbnail-workers", String(value)); }}>{label}</Button>)}</div><Button size="sm" variant={textFirstArtwork ? "default" : "secondary"} className="mt-4" onClick={() => { const next = !textFirstArtwork; setTextFirstArtwork(next); localStorage.setItem("reelcase.artwork-mode", next ? "text" : "images"); document.documentElement.dataset.artworkMode = next ? "text" : "images"; }}> {textFirstArtwork ? "Text-first provider rows on" : "Use text-first provider rows"}</Button></div>
         <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><PackageSearch className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Photo scan workers</h2><p className="mt-2 text-sm leading-6 text-muted">Sets background folder workers for cached photo metadata. Adaptive protects browsing; use Fast when you want a newly added photo source ready sooner.</p><div className="mt-4 flex flex-wrap gap-2">{[[0, "Adaptive"], [2, "Gentle · 2"], [4, "Balanced · 4"], [6, "Fast · 6"], [8, "Max · 8"], [12, "Turbo · 12"]].map(([value, label]) => <Button key={value} size="sm" variant={photoWorkers === value ? "default" : "secondary"} onClick={() => { setPhotoWorkers(value as number); localStorage.setItem("reelcase.photo-scan-workers", String(value)); }}>{label}</Button>)}</div></div>
         <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><Settings2 className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Player sound</h2><p className="mt-2 text-sm leading-6 text-muted">Sets the starting volume for local video and whether a newly opened player starts muted. Provider embeds keep their own service-level audio controls.</p><div className="mt-4 flex flex-wrap gap-2">{[25, 50, 70, 85, 100].map((value) => <Button key={value} size="sm" variant={defaultVolume === value ? "default" : "secondary"} onClick={() => { setDefaultVolume(value); localStorage.setItem("reelcase.player-volume", String(value)); }}>{value}%</Button>)}</div><Button className="mt-3" size="sm" variant={startMuted ? "default" : "secondary"} onClick={() => { const next = !startMuted; setStartMuted(next); localStorage.setItem("reelcase.player-start-muted", String(next)); }}>{startMuted ? "Start muted" : "Start with sound"}</Button></div>
-        <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><Radio className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Twitch live refresh</h2><p className="mt-2 text-sm leading-6 text-muted">Checks the next saved provider batch while this tab is visible. Faster checks give live viewer counts a shorter stale window; one minute is the balanced default.</p><div className="mt-4 flex flex-wrap gap-2">{[[15, "15 sec"], [30, "30 sec"], [60, "1 min"], [120, "2 min"], [300, "5 min"]].map(([value, label]) => <Button key={value} size="sm" variant={twitchRefreshSeconds === value ? "default" : "secondary"} onClick={() => { setTwitchRefreshSeconds(value as number); localStorage.setItem("reelcase.twitch-refresh-seconds", String(value)); window.dispatchEvent(new Event("reelcase:refresh-settings")); }}>{label}</Button>)}</div></div>
+        <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><Radio className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Twitch live & archive refresh</h2><p className="mt-2 text-sm leading-6 text-muted">Checks a rotating batch while this tab is visible. Every mixed pass reserves Twitch archive channels, keeps earlier VODs when a provider response is partial, and updates live state separately. Thirty seconds is the default.</p><div className="mt-4 flex flex-wrap gap-2">{[[15, "15 sec"], [30, "30 sec"], [60, "1 min"], [120, "2 min"], [300, "5 min"]].map(([value, label]) => <Button key={value} size="sm" variant={twitchRefreshSeconds === value ? "default" : "secondary"} onClick={() => { setTwitchRefreshSeconds(value as number); localStorage.setItem("reelcase.twitch-refresh-seconds", String(value)); window.dispatchEvent(new Event("reelcase:refresh-settings")); }}>{label}</Button>)}</div></div>
       </div></section>
       <section className="mt-6"><div className="mb-3"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Connections, privacy & guides</p><p className="mt-1 text-sm text-muted">Optional services and explanations stay separate from everyday library preferences.</p></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <InfoCard
@@ -1211,6 +1237,7 @@ type LocalPhoto = {
   favorite: boolean;
   rating: number;
   addedAt: number;
+  vision?: VisionLabel[];
 };
 type PhotoSort = "newest" | "name" | "rating" | "favorite" | "auto-tags";
 const PHOTO_FILE_RE = /\.(avif|bmp|gif|heic|heif|jpe?g|png|tiff?|webp)$/i;
@@ -1273,6 +1300,7 @@ export function PhotosSection() {
   const [photoLimit, setPhotoLimit] = useState(80);
   const [visionBusy, setVisionBusy] = useState(false);
   const [visionProgress, setVisionProgress] = useState("");
+  const [visionReport, setVisionReport] = useState<Array<{ id: string; name: string; labels: VisionLabel[] }>>([]);
   const [upscalerHealth, setUpscalerHealth] = useState<{ state: "checking" | "ready" | "missing"; detail: string }>({ state: "checking", detail: "Checking local model cache…" });
   const [upscalerUrl, setUpscalerUrl] = useState("");
   const [upscalerChecksum, setUpscalerChecksum] = useState("");
@@ -1594,16 +1622,18 @@ export function PhotosSection() {
     setVisionProgress(`Preparing a local model for ${candidates.length} photos…`);
     try {
       const labels = await classifyImagesLocally(candidates.map((photo) => photo.url), (done, total) => setVisionProgress(`Classifying locally · ${done}/${total}`));
-      const byId = new Map(candidates.map((photo, index) => [photo.id, labels[index].map((label) => `vision-${label}`)]));
+      const byId = new Map(candidates.map((photo, index) => [photo.id, labels[index]]));
+      setVisionReport(candidates.map((photo, index) => ({ id: photo.id, name: photo.name, labels: labels[index] })));
       let changed = 0;
       setPhotos((items) => items.map((photo) => {
-        const additions = byId.get(photo.id) ?? [];
+        const report = byId.get(photo.id);
+        const additions = report?.map((item) => `vision-${item.label}`) ?? [];
         const tags = [...new Set([...photo.tags, ...additions])];
-        if (tags.length === photo.tags.length) return photo;
+        if (tags.length === photo.tags.length && report === photo.vision) return photo;
         changed += 1;
-        return { ...photo, tags };
+        return { ...photo, tags, vision: report };
       }));
-      setHelperNote(`Local vision suggestions added to ${changed} photo${changed === 1 ? "" : "s"}. Review the vision-* tags before relying on them.`);
+      setHelperNote(`Local vision report ready for ${candidates.length} photo${candidates.length === 1 ? "" : "s"}. Labels and confidence scores are shown below and remain review-only.`);
     } catch {
       setHelperNote("The local vision model could not start. It needs browser storage and an initial model download; filename auto-tagging remains available.");
     } finally { setVisionBusy(false); setVisionProgress(""); }
@@ -1751,7 +1781,7 @@ export function PhotosSection() {
           <Button size="sm" variant="secondary" disabled={!photos.length || visionBusy} onClick={() => void autoTagPhotosWithVision()}>{visionBusy ? visionProgress || "Starting local vision…" : "Local vision tags · 48"}</Button>
         </div>
         <div className="flex flex-wrap gap-2"><span className="self-center text-xs text-muted">Local discovery</span>{(["all", "screenshots", "camera", "downloads"] as const).map((filter) => <Button key={filter} size="sm" variant={discoveryFilter === filter ? "default" : "secondary"} onClick={() => setDiscoveryFilter(filter)}>{filter === "all" ? "All" : filter === "camera" ? "Camera names" : filter[0].toUpperCase() + filter.slice(1)}</Button>)}</div>
-        <section className="rounded-md border border-border bg-bg/45 p-3"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Local vision report</p><p className="mt-1 text-sm text-fg">{visionProcessed.toLocaleString()} processed · {visionPending.toLocaleString()} waiting · 3 bounded local workers</p></div><Button size="sm" variant="secondary" disabled={visionBusy || !photos.length} onClick={() => void autoTagPhotosWithVision()}>{visionBusy ? visionProgress || "Starting model…" : `Process next ${Math.min(48, visionPending)}`}</Button></div><p className="mt-2 text-xs leading-5 text-muted">Suggestions are cached with photo metadata and shown as vision-* tags for review.</p><div className="mt-3 rounded-sm border border-border bg-elevated p-3"><div className="flex flex-wrap items-start justify-between gap-2"><p className={`text-xs ${upscalerHealth.state === "ready" ? "text-accent" : "text-muted"}`}><strong className="text-fg">Upscaler beta · {upscalerHealth.state === "ready" ? "verified artifact" : upscalerHealth.state === "checking" ? "checking" : "model not installed"}</strong><br/>{upscalerHealth.detail}</p><div className="flex gap-2"><Button size="sm" variant="ghost" onClick={() => void checkUpscalerHealth()}>Check</Button>{upscalerHealth.state === "ready" && <Button size="sm" variant="ghost" onClick={() => void removeUpscalerModel()}>Remove</Button>}</div></div>{upscalerHealth.state !== "ready" && <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(14rem,0.7fr)_auto]"><Input value={upscalerUrl} onChange={(event) => setUpscalerUrl(event.target.value)} placeholder="HTTPS model URL" aria-label="Upscaler model URL"/><Input value={upscalerChecksum} onChange={(event) => setUpscalerChecksum(event.target.value)} placeholder="Publisher SHA-256" aria-label="Upscaler model SHA-256 checksum"/><Button size="sm" disabled={upscalerInstalling} onClick={() => void installUpscalerModel()}>{upscalerInstalling ? "Verifying…" : "Download + verify"}</Button></div>}<p className="mt-2 text-[11px] leading-4 text-subtle">Installation is always user-initiated, requires an exact checksum, stays in this browser cache, and can be removed here. A verified artifact is not used for export until a compatible local runtime is proven.</p></div></section>
+        <section className="rounded-md border border-border bg-bg/45 p-3"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Local vision report</p><p className="mt-1 text-sm text-fg">{visionProcessed.toLocaleString()} processed · {visionPending.toLocaleString()} waiting · 3 bounded local workers</p></div><Button size="sm" variant="secondary" disabled={visionBusy || !photos.length} onClick={() => void autoTagPhotosWithVision()}>{visionBusy ? visionProgress || "Starting model…" : `Process next ${Math.min(48, visionPending)}`}</Button></div><p className="mt-2 text-xs leading-5 text-muted">Each result stays on this device and shows its suggested label with confidence. Nothing is applied as a permanent organizer without your tag review.</p>{visionReport.length > 0 && <div className="mt-3 divide-y divide-border rounded-sm border border-border bg-elevated"><p className="px-3 py-2 text-xs font-medium text-fg">Latest local results</p>{visionReport.slice(0, 8).map((row) => <div key={row.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"><span className="min-w-0 truncate text-xs text-fg">{row.name}</span><span className="flex flex-wrap gap-1">{row.labels.length ? row.labels.slice(0, 3).map((item) => <span key={item.label} className="rounded-xs bg-bg/60 px-2 py-1 text-xs text-accent">{item.label} · {Math.round(item.score * 100)}%</span>) : <span className="text-xs text-muted">No confident label</span>}</span></div>)}</div>}<div className="mt-3 rounded-sm border border-border bg-elevated p-3"><div className="flex flex-wrap items-start justify-between gap-2"><p className={`text-xs ${upscalerHealth.state === "ready" ? "text-accent" : "text-muted"}`}><strong className="text-fg">Upscaler beta · {upscalerHealth.state === "ready" ? "verified artifact" : upscalerHealth.state === "checking" ? "checking" : "model not installed"}</strong><br/>{upscalerHealth.detail}</p><div className="flex gap-2"><Button size="sm" variant="ghost" onClick={() => void checkUpscalerHealth()}>Check</Button>{upscalerHealth.state === "ready" && <Button size="sm" variant="ghost" onClick={() => void removeUpscalerModel()}>Remove</Button>}</div></div>{upscalerHealth.state !== "ready" && <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(14rem,0.7fr)_auto]"><Input value={upscalerUrl} onChange={(event) => setUpscalerUrl(event.target.value)} placeholder="HTTPS model URL" aria-label="Upscaler model URL"/><Input value={upscalerChecksum} onChange={(event) => setUpscalerChecksum(event.target.value)} placeholder="Publisher SHA-256" aria-label="Upscaler model SHA-256 checksum"/><Button size="sm" disabled={upscalerInstalling} onClick={() => void installUpscalerModel()}>{upscalerInstalling ? "Verifying…" : "Download + verify"}</Button></div>}<p className="mt-2 text-[11px] leading-4 text-subtle">Installation is always user-initiated, requires an exact checksum, stays in this browser cache, and can be removed here. A verified artifact is not used for export until a compatible local runtime is proven.</p></div></section>
         <p className="text-xs leading-5 text-muted">Private local discovery uses file-name patterns plus an optional on-device open-source image classifier. It analyzes up to 48 queued photos at a time; photo bytes stay in this browser. A 900-photo warm URL cache and small rendered batches keep scrolling responsive while folders continue to stream.</p>
         {companionCache && <p className="text-xs leading-5 text-subtle">Companion cache worker · {companionCache.state} · {companionCache.photos.toLocaleString()} photo metadata hints · {companionCache.videos.toLocaleString()} video metadata hints{companionCache.truncated ? " · bounded pass reached its safe limit" : ""}{companionCache.scannedAt ? ` · checked ${new Date(companionCache.scannedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : ""}. Media files remain on this computer.</p>}
         {companionDeltaNote && <p className="text-xs leading-5 text-accent">{companionDeltaNote}</p>}
@@ -1856,7 +1886,7 @@ const DEFAULT_MISSIONS: Mission[] = [
   { id: "theme-accessibility", title: "Theme & accessibility", detail: "Day/night palettes, focus styling, reduced-motion support, and per-section density preferences.", done: true },
   { id: "preview-recovery", title: "Local preview recovery", detail: "Resolve restored file handles in previews, hide failures, and log playback health without blocking the library.", done: true },
   { id: "youtube-quality", title: "YouTube channel quality", detail: "Per-channel retry controls, published-date ordering, duplicate suppression, and unavailable-card recovery are available in the YouTube desk.", done: true },
-  { id: "twitch-quality", title: "Twitch live quality", detail: "Live-first ordering, check timestamps, VOD/clip shelves, automatic rotating refresh, and focused per-channel refresh are available; provider backoff reporting remains in progress.", done: false },
+  { id: "twitch-quality", title: "Twitch live quality", detail: "Live-first ordering, per-channel timestamps, VOD/clip shelves, focused refresh, retry deadlines, and an additive archive cache are active.", done: true },
   { id: "x-quality", title: "X reading desk quality", detail: "Public profile/topic navigation, per-view load state, retry handling, and local reading-position timestamps are available without credentials.", done: true },
   { id: "startup-budget", title: "Startup performance budget", detail: "Catalog hydration, deferred search-index construction, lazy thumbnails, and bounded photo rendering protect the first usable shelf.", done: true },
   { id: "provider-import-recovery", title: "Provider import recovery", detail: "Provider refreshes retain successful channel rows, preserve prior cache on partial failures, and use RSS/channel-page plus public Twitch GraphQL recovery paths.", done: true },
@@ -1870,7 +1900,7 @@ const DEFAULT_MISSIONS: Mission[] = [
   { id: "sprint-06", title: "Continue recovery", detail: "Resume marks are durable, throttled away from the video frame loop, and recovered by path when a permitted source reconnects.", done: true },
   { id: "sprint-07", title: "History timeline", detail: "Limitless activity history deduplicates start bursts while retaining provider, progress, and Watch Room recovery context.", done: true },
   { id: "sprint-08", title: "X topic desk", detail: "Add curated public topic views alongside saved X profiles.", done: true },
-  { id: "sprint-09", title: "X read tracking", detail: "Save reading position and surface timeline load diagnostics.", done: false },
+  { id: "sprint-09", title: "X read tracking", detail: "Public profile/topic views persist their local last-loaded position and show timeout, retry, and official-view diagnostics.", done: true },
   { id: "sprint-10", title: "Twitch discovery", detail: "Verify recommended public channels and separate discovery from follows.", done: true },
   { id: "sprint-11", title: "YouTube discovery", detail: "Build a separate creator discovery shelf with follow actions.", done: true },
   { id: "sprint-12", title: "Channel recency", detail: "Show channel freshness and focused refresh results.", done: true },
@@ -1886,9 +1916,9 @@ const DEFAULT_MISSIONS: Mission[] = [
   { id: "media-inspection", title: "Companion media inspection", detail: "Use the local companion for optional ffprobe/embedded-tag extraction in bounded batches, with a preview before tags are saved.", done: false },
   { id: "vision-tagging", title: "Optional local vision tagging", detail: "Evaluate an on-device open model for photo/video scene suggestions, keeping media bytes local and requiring review before labels are applied.", done: true },
   { id: "photo-model-quality", title: "Open-source photo tagging quality", detail: "On-device vision suggestions are cached by stable file fingerprint and remain review-only as vision-* tags before joining shared taxonomy.", done: true },
-  { id: "companion-cache-workers", title: "Companion cache workers", detail: "Use bounded companion workers for folder deltas, photo metadata, and thumbnail warmup while leaving the first screen responsive.", done: false },
+  { id: "companion-cache-workers", title: "Companion cache workers", detail: "Bounded Companion folder-delta, metadata, and thumbnail-hint workers expose their file/time budget and leave the first screen responsive.", done: true },
   { id: "watch-room-local-queue", title: "Watch Room local queue handoff", detail: "Guests now match approved local files by name, size, and modified time without sending file bytes; the shared handoff queue and room controls synchronize on every device. Catalog room playback is recorded in history.", done: true },
-  { id: "photo-super-resolution", title: "Local photo upscaler beta", detail: "Download and validate an on-device super-resolution model, keep originals untouched, and report model/cache health before enabling export.", done: false },
+  { id: "photo-super-resolution", title: "Local photo upscaler beta", detail: "A user-initiated model download is checksum-verified, originals remain untouched, and cache health is reported before any export capability is enabled.", done: true },
   { id: "cross-source-taste-map", title: "Cross-source taste map", detail: "Stars, creator ratings, liked tags, and shared provider topics now guide cross-source shelves while filename-only terms stay weak.", done: true },
   { id: "companion-delta-apply", title: "Companion delta application", detail: "New Companion folder-change hints now debounce into bounded refreshes of matching, already-approved browser folders—no reconnect or broad rescan required.", done: true },
   { id: "local-share-compatibility", title: "Local share compatibility matrix", detail: "The local-share panel now reports exactly how many connected guests matched the staged fingerprint before the host plays it.", done: true },
@@ -1903,11 +1933,125 @@ const DEFAULT_MISSIONS: Mission[] = [
   { id: "activity-journal", title: "Independent activity journal", detail: "Keep History, Continue marks, and local viewing counts in an IndexedDB activity record separate from broad preference storage.", done: true },
   { id: "shelf-explanations", title: "Explainable recommendation shelves", detail: "Show the active rating, creator, topic, freshness, and diversity signals behind each recommendation rail without exposing operational tags.", done: false },
   { id: "memory-pressure-observer", title: "Memory-pressure observer", detail: "Measure mounted cards, image decode pressure, and cache eviction decisions on large provider and photo shelves.", done: false },
+  { id: "warp-01", title: "First-shelf trace", detail: "Instrument time from launch to first interactive shelf, split by cached index, provider cache, and thumbnail work.", done: false },
+  { id: "warp-02", title: "Route-level code splitting", detail: "Photo, Stats, Watch Room, Settings, and other hub workspaces now load only when opened, keeping media browsing out of their first-load cost.", done: true },
+  { id: "warp-03", title: "Provider delta rendering", detail: "Apply only changed provider rows after a refresh instead of rebuilding every shelf.", done: false },
+  { id: "warp-04", title: "Thumbnail decode governor", detail: "Prioritize visible artwork and pause offscreen image decode when memory pressure rises.", done: false },
+  { id: "warp-05", title: "Search worker index", detail: "Move full-text tokenization and suggestion scoring off the main rendering thread.", done: false },
+  { id: "warp-06", title: "Photo metadata stream", detail: "Read photo dimensions and dates in worker-sized chunks with an honest rolling completion estimate.", done: false },
+  { id: "warp-07", title: "Warm route cache", detail: "Prefetch the next likely hub only after the current view becomes idle.", done: false },
+  { id: "warp-08", title: "Virtual rail windows", detail: "Render only card windows in long horizontal shelves while preserving keyboard navigation.", done: false },
+  { id: "warp-09", title: "Visible-card priorities", detail: "Give ratings, playback, and visible-card actions a higher scheduling priority than background enrichment.", done: false },
+  { id: "warp-10", title: "Idle tag batching", detail: "Coalesce tag, like, and rating writes into short idle batches without risking a lost click.", done: false },
+  { id: "warp-11", title: "Artwork disk cache audit", detail: "Measure cache hit rate and size by source before expanding thumbnail retention.", done: false },
+  { id: "warp-12", title: "Provider request coalescing", detail: "Done · matching in-flight YouTube and Twitch pulls share one provider request across tabs and focused controls.", done: true },
+  { id: "warp-13", title: "Backoff-aware provider scheduler", detail: "Done · provider failures use bounded exponential backoff, show the exact retry time, and retain focused refresh as an override.", done: true },
+  { id: "warp-14", title: "Twitch archive depth", detail: "Twitch now reserves archive checks in every mixed refresh, retains up to 160 public VOD rows on focused checks, and reports sparse channels directly in the Live desk.", done: true },
+  { id: "warp-15", title: "YouTube freshness ledger", detail: "Done · each provider channel records its last successful check, newest published item, and response count.", done: true },
+  { id: "warp-16", title: "Worker budget adaptation", detail: "Done · thumbnail workers adapt to cores, memory class, visibility, and foreground input pressure.", done: true },
+  { id: "warp-17", title: "Companion warmup contract", detail: "Done · warmup is bounded by a visible time/file budget and reports the exact stop reason.", done: true },
+  { id: "warp-18", title: "Duplicate selector memoization", detail: "Done · source and provider selectors share a per-state memo across Home, Stats, and Search paths.", done: true },
+  { id: "warp-19", title: "Feed image expiry repair", detail: "Done · a failed provider image schedules a one-creator refresh while healthy sibling cards remain cached.", done: true },
+  { id: "warp-20", title: "Low-bandwidth artwork mode", detail: "Done · settings can defer provider artwork and retain text-first, fully actionable cards.", done: true },
+  { id: "warp-21", title: "Catalog hydration checkpoints", detail: "Done · local scans append each bounded batch to the catalog cache; the next launch hydrates that checkpoint before any optional folder rescan.", done: true },
+  { id: "warp-22", title: "History append path", detail: "History, Continue marks, and view counts persist through the independent IndexedDB activity record; evicted provider cards retain a recoverable saved-link entry.", done: true },
+  { id: "warp-23", title: "Rating feedback latency", detail: "Done · star input updates locally, coalesces persistence outside the input frame, and reports queue/disk timing in Diagnostics.", done: true },
+  { id: "warp-24", title: "Remote catalog partitioning", detail: "Done · refreshes merge by provider channel; partial Twitch archive responses retain earlier VODs while fresh rows update in place.", done: true },
+  { id: "warp-25", title: "Tag taxonomy compaction", detail: "Done · provider enrichment removes legacy wrappers, whitespace variants, duplicates, and transport-only labels when tags enter the catalog.", done: true },
+  { id: "warp-26", title: "Render budget dashboard", detail: "Done · local Diagnostics reports mounted cards, artwork cache entries, frame pressure, and rating persistence timing.", done: true },
+  { id: "warp-27", title: "Near-view prefetch", detail: "Done · local artwork is requested at a small intersection margin, with bounded workers and no full-library thumbnail sweep.", done: true },
+  { id: "warp-28", title: "Fast resume lookup", detail: "Done · recovery resolves History/Continue entries through a stable provider URL or local path index before falling back to a saved-link card.", done: true },
+  { id: "warp-29", title: "Vision model benchmark", detail: "Compare the current MobileNetV4 speed-first classifier against a verified optional semantic model on a local benchmark before changing defaults.", done: false },
+  { id: "warp-30", title: "Performance regression gate", detail: "Done · the repeatable large-library browser benchmark records startup, scroll settle, mounted cards, overflow, and console errors.", done: true },
 ];
+
+const ROADMAP_EXPANSION: Mission[] = [
+  ...[
+    ["history-01", "History integrity journal", "Add monotonic event IDs and an append-only local audit record."],
+    ["history-02", "History replay recovery", "Reconcile IndexedDB activity events after an interrupted browser session."],
+    ["history-03", "History source badges", "Show whether each activity came from a direct open, progress, or Watch Room."],
+    ["history-04", "History retention controls", "Offer local retention windows and export before a user removes older events."],
+    ["history-05", "History duplicate guard", "Collapse equivalent play bursts without hiding a separate viewing session."],
+    ["history-06", "History timezone normalization", "Store epoch time and display a clear local-time conversion in every timeline."],
+    ["history-07", "History orphan recovery", "Keep a saved provider URL or local fingerprint when the source card is evicted."],
+    ["history-08", "History privacy review", "Expose what is stored locally and keep private/adult history behind the existing gate."],
+    ["history-09", "History filter diagnostics", "Explain empty history results, source filters, and recovery-card availability."],
+    ["history-10", "History restore benchmark", "Measure large-history hydration and replay before changing the default journal path."],
+  ].map(([id, title, detail]) => ({ id, title, detail, done: false })),
+  ...[
+    ["continue-01", "Continue stable identity", "Key resume records by provider URL and local fingerprint before transient card IDs."],
+    ["continue-02", "Continue duration validation", "Reject impossible duration and position values before they enter the resume shelf."],
+    ["continue-03", "Continue provider reconciliation", "Refresh a provider card without losing its last trustworthy resume point."],
+    ["continue-04", "Continue local handle recovery", "Reconnect an approved local file handle without rewriting watch progress."],
+    ["continue-05", "Continue completion threshold", "Remove finished items using a transparent, source-aware completion rule."],
+    ["continue-06", "Continue conflict resolution", "Choose the newest credible mark when two tabs report different positions."],
+    ["continue-07", "Continue shelf explanation", "Show why an item is resumable and the timestamp of its last durable mark."],
+    ["continue-08", "Continue offline handoff", "Queue a local mark safely when storage is unavailable, then replay once."],
+    ["continue-09", "Continue bulk repair", "Offer a preview-only scan for stale or invalid resume records."],
+    ["continue-10", "Continue recovery test", "Exercise local, YouTube, Twitch, and Watch Room resume paths in one repeatable check."],
+  ].map(([id, title, detail]) => ({ id, title, detail, done: false })),
+  ...[
+    ["youtube-upgrade-01", "Feed delta cursor", "Persist the newest trustworthy upload identity per channel, request only newer feed entries during routine refresh, and fall back to a bounded recent window if the cursor is missing."],
+    ["youtube-upgrade-02", "Channel cache budget", "Track response size, age, and cache-hit rate per channel; retain a short deep-catalog cache while returning only the requested shallow slice to routine refreshes."],
+    ["youtube-upgrade-03", "First-click trace", "Record time from choosing YouTube to its first usable latest-upload rail, split into catalog selector, image work, and provider work without collecting viewing data."],
+    ["youtube-upgrade-04", "Rail windowing", "Keep keyboard and touch navigation intact while mounting only the visible window of long YouTube rails, including an accessible count of deferred cards."],
+    ["youtube-upgrade-05", "Artwork priority", "Queue visible and near-view thumbnails before offscreen cards, cancel obsolete image work on source changes, and preserve text-first cards when artwork is unavailable."],
+    ["youtube-upgrade-06", "Creator ambiguity review", "Flag channels whose handle, display name, and channel ID disagree; show a review choice rather than silently merging one creator into another."],
+    ["youtube-upgrade-07", "Published-date repair", "Prefer RSS published timestamps, retain the provider-provided date source, and label archive rows with unknown dates instead of sorting them as new uploads."],
+    ["youtube-upgrade-08", "Live/VOD split", "Separate current live cards, completed streams, Shorts, and ordinary uploads in selectors so a live event cannot displace historical VODs or recommendations."],
+    ["youtube-upgrade-09", "Deep-pull checkpoint", "Make deep historical pulls resumable per channel with a visible item/page budget and a saved checkpoint; pause safely when provider data stops advancing."],
+    ["youtube-upgrade-10", "Provider error taxonomy", "Classify YouTube failures as unavailable, rate-limited, malformed, or network/offline; show the next retry time and keep cached cards untouched."],
+    ["youtube-upgrade-11", "Subscription import staging", "Validate, deduplicate, and preview a pasted subscription list before network work begins; report accepted, duplicate, and unresolved handles separately."],
+    ["youtube-upgrade-12", "Channel health matrix", "Show each saved channel’s last successful check, newest known upload, response count, cache age, and retry state in one compact diagnostics view."],
+    ["youtube-upgrade-13", "Recommendation diversity", "Cap repeated creators and topics across adjacent YouTube rails while preserving highly rated favorites and exposing the diversity rule in shelf copy."],
+    ["youtube-upgrade-14", "Shelf explanations", "Attach short, human-readable reasons to recommendation rails—rating, creator affinity, freshness, or topic—without exposing internal transport tags."],
+    ["youtube-upgrade-15", "Background refresh budget", "Reserve a small bounded concurrency and payload budget for automatic YouTube refreshes so provider work cannot delay interactions or Twitch checks."],
+    ["youtube-upgrade-16", "Search source filter", "Use the existing search index to restrict results to YouTube before rendering suggestion cards, including creator and provider URL matches."],
+    ["youtube-upgrade-17", "Offline cache audit", "Report cached channel and artwork coverage, oldest cache age, and recoverable saved links; never call a stale cache a successful provider refresh."],
+    ["youtube-upgrade-18", "Mobile rail gesture", "Validate horizontal rail scrolling, focus visibility, and card action targets on a phone viewport without accidental page scroll or gesture conflicts."],
+    ["youtube-upgrade-19", "Refresh result diff", "Apply and display only changed channel/video rows after a refresh, preserving card identity, scroll position, ratings, and healthy artwork."],
+    ["youtube-upgrade-20", "YouTube regression suite", "Add repeatable checks for first-click load, shallow refresh, deep pull, duplicate handling, cached recovery, and mobile rail rendering."],
+  ].map(([id, title, detail]) => ({ id, title, detail, done: false })),
+  ...[
+    ["twitch-upgrade-01", "Archive page checkpoint", "Persist the last accepted archive cursor and VOD ID for each creator; resume a focused historical pull only when Twitch returns a forward-moving public page."],
+    ["twitch-upgrade-02", "Focused pull queue", "Let users queue a small number of explicit archive pulls, run them serially within a visible budget, and never let them starve live-state refreshes."],
+    ["twitch-upgrade-03", "VOD cursor diagnostics", "Show page count, accepted cursor, duplicate count, provider challenge state, and stop reason for each historical VOD pull."],
+    ["twitch-upgrade-04", "Clip separation audit", "Identify clip-length media independently from full VODs using duration and provider shape; correct mislabeled cards without deleting user saves."],
+    ["twitch-upgrade-05", "Live-state clock", "Record the exact successful live-state observation time, expire stale live labels, and distinguish a live estimate from a confirmed current stream."],
+    ["twitch-upgrade-06", "Provider integrity fallback", "When Twitch requires an integrity challenge for deeper pages, retain accepted archive data, report the limit plainly, and avoid retry loops that waste provider budget."],
+    ["twitch-upgrade-07", "Archive coverage report", "Show cached VOD count, oldest/newest known dates, sparse creators, completed historical pulls, and public-provider limits for every followed channel."],
+    ["twitch-upgrade-08", "Channel retry budget", "Apply per-channel exponential backoff to failed public pulls while preserving a focused user retry that does not reset healthy channels."],
+    ["twitch-upgrade-09", "VOD merge proof", "Test that a partial or empty refresh can never erase older VODs, favorites, ratings, history, or valid local archive metadata."],
+    ["twitch-upgrade-10", "Creator archive controls", "Provide per-creator archive actions with clear depth, last result, and cooldown information instead of one opaque global refresh."],
+    ["twitch-upgrade-11", "Stream title delta", "Update a live card’s stream title and category only when the provider reports a newer observation, preventing stale title flashes."],
+    ["twitch-upgrade-12", "Viewer freshness", "Show viewer counts with an observation timestamp and remove them from ranking once they become stale."],
+    ["twitch-upgrade-13", "Local cache compaction", "Compact duplicate VOD rows by stable provider video ID while retaining the newest metadata and all local feedback references."],
+    ["twitch-upgrade-14", "Guest-ready embeds", "Verify Twitch Watch Room embeds receive the correct parent host, preserve the selected VOD, and surface a direct-link fallback when the player is blocked."],
+    ["twitch-upgrade-15", "VOD duration repair", "Recover missing or impossible duration values from accepted provider metadata and never infer a full VOD from a short clip duration."],
+    ["twitch-upgrade-16", "Historical search filter", "Add a source-scoped historical VOD search that can target creator, date range, title, and clip/VOD state without scanning every shelf."],
+    ["twitch-upgrade-17", "Mobile live rail", "Validate live-first ordering and archive controls at phone width, with compact cards and no accidental load of every archived thumbnail."],
+    ["twitch-upgrade-18", "Provider error taxonomy", "Classify Twitch failures—including public-page limit, integrity challenge, unavailable creator, and network delay—and show the safest recovery action."],
+    ["twitch-upgrade-19", "Twitch device regression", "Exercise live, VOD, clip, blocked-embed, and Watch Room handoff behavior across supported browser/device paths before release."],
+    ["twitch-upgrade-20", "Twitch archive benchmark", "Measure a large archive’s cursor work, merge time, storage growth, first paint, and scrolling before increasing any default depth budget."],
+  ].map(([id, title, detail]) => ({ id, title, detail, done: false })),
+  ...[
+    ["speed-01", "First interaction budget", "Measure launch-to-first interactive shelf on cached and cold catalogs."],
+    ["speed-02", "Provider payload budget", "Cap routine provider payloads and promote deep work to focused actions."],
+    ["speed-03", "Render invalidation audit", "Identify state changes that rebuild unrelated rails."],
+    ["speed-04", "Visible artwork priority", "Defer offscreen image work behind user-visible cards."],
+    ["speed-05", "Input latency monitor", "Track rating, search, and playback control response under a large catalog."],
+    ["speed-06", "Idle enrichment queue", "Run optional metadata work only after a stable idle window."],
+    ["speed-07", "Route warmup policy", "Prefetch only the next likely hub after the current view settles."],
+    ["speed-08", "Cache hit dashboard", "Report local/provider/artwork cache hits without retaining media bytes."],
+    ["speed-09", "Mobile memory budget", "Test low-memory grids and scrolling on a phone-sized viewport."],
+    ["speed-10", "Performance release gate", "Keep startup, scroll, and interaction benchmarks required before new shelves ship."],
+  ].map(([id, title, detail]) => ({ id, title, detail, done: false })),
+];
+const ALL_DEFAULT_MISSIONS = [...DEFAULT_MISSIONS, ...ROADMAP_EXPANSION];
 
 export function MissionPlanSection() {
   const [missions, setMissions] = useState<Mission[]>(() => {
-    try { const saved = JSON.parse(localStorage.getItem("reelcase.mission-plan.v1") ?? "null") as Mission[] | null; return Array.isArray(saved) ? [...saved.map((item) => ({ ...item, done: item.done || Boolean(DEFAULT_MISSIONS.find((mission) => mission.id === item.id)?.done) })), ...DEFAULT_MISSIONS.filter((mission) => !saved.some((item) => item.id === mission.id))] : DEFAULT_MISSIONS; } catch { return DEFAULT_MISSIONS; }
+    try { const saved = JSON.parse(localStorage.getItem("reelcase.mission-plan.v1") ?? "null") as Mission[] | null; return Array.isArray(saved) ? [...saved.map((item) => { const current = ALL_DEFAULT_MISSIONS.find((mission) => mission.id === item.id); return current ? { ...item, title: current.title, detail: current.detail, done: item.done || current.done } : item; }), ...ALL_DEFAULT_MISSIONS.filter((mission) => !saved.some((item) => item.id === mission.id))] : ALL_DEFAULT_MISSIONS; } catch { return ALL_DEFAULT_MISSIONS; }
   });
   const [idea, setIdea] = useState("");
   const [showArchive, setShowArchive] = useState(false);
@@ -2467,6 +2611,7 @@ export function WatchRoomSection() {
   const [queue, setQueue] = useState<string[]>([]);
   const [stageSize, setStageSize] = useState<"compact" | "theater" | "cinema">("compact");
   const [playback, setPlayback] = useState({ playing: false, position: 0 });
+  const [timelineEvidence, setTimelineEvidence] = useState<{ source: "local" | "remote" | "estimated"; at: number }>({ source: "local", at: Date.now() });
   const [chat, setChat] = useState<string[]>([]);
   const [message, setMessage] = useState("");
   const [partyPrompt, setPartyPrompt] = useState("Pick the next vibe");
@@ -2637,6 +2782,7 @@ export function WatchRoomSection() {
             : nextPosition);
           lastRoomPosition.current = safePosition;
           applyingRemotePlaybackUntil.current = Date.now() + 900;
+          setTimelineEvidence({ source: "remote", at: Date.now() });
           if (data.seek) setRemoteSeekNonce((value) => value + 1);
           setPlayback({ playing: Boolean(data.playing), position: safePosition });
         }
@@ -2655,6 +2801,7 @@ export function WatchRoomSection() {
           const safePosition = clampRoomClock(!videoChanged && nextPosition + 0.75 < lastRoomPosition.current ? lastRoomPosition.current : nextPosition);
           lastRoomPosition.current = safePosition;
           applyingRemotePlaybackUntil.current = Date.now() + 900;
+          setTimelineEvidence({ source: "remote", at: Date.now() });
           setPlayback({ playing: Boolean(data.playing), position: safePosition });
         }
         if (data.type === "resync-request" && !joinedAsGuest) {
@@ -2693,6 +2840,7 @@ export function WatchRoomSection() {
     const resolved = { ...next, position: clampRoomClock(position) };
     lastRoomPosition.current = resolved.position;
     youtubePlaybackStartedAt.current = resolved.playing ? Date.now() - resolved.position * 1000 : null;
+    setTimelineEvidence({ source: sharedVideo?.remote ? "estimated" : "local", at: Date.now() });
     setPlayback(resolved);
     if (resolved.playing && sharedVideoId && !sharedVideoId.startsWith("local:") && lastRoomHistoryId.current !== sharedVideoId) {
       lastRoomHistoryId.current = sharedVideoId;
@@ -2714,6 +2862,7 @@ export function WatchRoomSection() {
       if (estimated <= lastRoomPosition.current + 0.2) return;
       lastRoomPosition.current = estimated;
       setPlayback((current) => current.playing ? { ...current, position: estimated } : current);
+      setTimelineEvidence({ source: actual === undefined ? "estimated" : "local", at: Date.now() });
       if (!joinedAsGuest) p2p.send({ type: "sync", playing: true, position: estimated, videoId: sharedVideoId, seek: false, sentAt: Date.now() });
     }, 1_000);
     return () => window.clearInterval(timer);
@@ -3035,8 +3184,7 @@ export function WatchRoomSection() {
           </h2>
           <p className="mt-2 text-sm text-muted">
             Timeline {Math.floor(playback.position / 60)}:
-            {String(Math.floor(playback.position % 60)).padStart(2, "0")} · controls are sent to
-            every connected guest.
+            {String(Math.floor(playback.position % 60)).padStart(2, "0")} · {timelineEvidence.source === "remote" ? "host-confirmed" : timelineEvidence.source === "local" ? "local player" : "provider estimate"} · checked {new Date(timelineEvidence.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}.
           </p>
           <div className="mt-5 flex flex-wrap gap-2">
             <Button onClick={toggleRoomPlayback}>

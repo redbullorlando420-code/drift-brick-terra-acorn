@@ -136,6 +136,10 @@ export type FollowedChannel = {
   channelId?: string;
   thumb?: string;
   live?: boolean;
+  /** Freshness ledger for provider scheduling and a truthful last-check UI. */
+  lastCheckedAt?: number;
+  newestPublishedAt?: number;
+  lastResponseCount?: number;
 };
 
 export type AppNotice = {

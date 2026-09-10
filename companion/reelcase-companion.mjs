@@ -34,7 +34,9 @@ const launches = [];
 // of photo/video deltas while the browser retains file-handle authority.
 const photoExt = new Set([".avif", ".bmp", ".gif", ".heic", ".jpeg", ".jpg", ".png", ".webp"]);
 const videoExt = new Set([".avi", ".m4v", ".mkv", ".mov", ".mp4", ".mpeg", ".mpg", ".webm"]);
-let cacheWorker = { state: "idle", scannedAt: 0, scanned: 0, photos: 0, videos: 0, thumbnailHints: 0, roots: 0, truncated: false };
+const WARMUP_FILE_BUDGET = 4000;
+const WARMUP_TIME_BUDGET_MS = 1500;
+let cacheWorker = { state: "idle", scannedAt: 0, scanned: 0, photos: 0, videos: 0, thumbnailHints: 0, roots: 0, truncated: false, budget: { files: WARMUP_FILE_BUDGET, milliseconds: WARMUP_TIME_BUDGET_MS }, elapsedMs: 0, stopReason: "not-started" };
 
 function refreshMediaCache() {
   if (cacheWorker.state === "scanning") return;
@@ -42,13 +44,14 @@ function refreshMediaCache() {
   // Yield once so the health route remains responsive even when a desktop has
   // thousands of files. The 4k ceiling and shallow traversal are intentional.
   setImmediate(() => {
-    const next = { state: "ready", scannedAt: Date.now(), scanned: 0, photos: 0, videos: 0, thumbnailHints: 0, roots: allowedRoots.length, truncated: false };
+    const started = Date.now();
+    const next = { state: "ready", scannedAt: started, scanned: 0, photos: 0, videos: 0, thumbnailHints: 0, roots: allowedRoots.length, truncated: false, budget: { files: WARMUP_FILE_BUDGET, milliseconds: WARMUP_TIME_BUDGET_MS }, elapsedMs: 0, stopReason: "complete" };
     const visit = (dir, depth) => {
-      if (depth > 5 || next.scanned >= 4000) { if (next.scanned >= 4000) next.truncated = true; return; }
+      if (depth > 5 || next.scanned >= WARMUP_FILE_BUDGET || Date.now() - started >= WARMUP_TIME_BUDGET_MS) { if (next.scanned >= WARMUP_FILE_BUDGET || Date.now() - started >= WARMUP_TIME_BUDGET_MS) { next.truncated = true; next.stopReason = next.scanned >= WARMUP_FILE_BUDGET ? "file-budget" : "time-budget"; } return; }
       let entries = [];
       try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
       for (const entry of entries) {
-        if (next.scanned >= 4000) { next.truncated = true; return; }
+        if (next.scanned >= WARMUP_FILE_BUDGET || Date.now() - started >= WARMUP_TIME_BUDGET_MS) { next.truncated = true; next.stopReason = next.scanned >= WARMUP_FILE_BUDGET ? "file-budget" : "time-budget"; return; }
         if (entry.isDirectory()) { visit(resolve(dir, entry.name), depth + 1); continue; }
         next.scanned += 1;
         const ext = entry.name.slice(entry.name.lastIndexOf(".")).toLowerCase();
@@ -57,6 +60,7 @@ function refreshMediaCache() {
       }
     };
     for (const root of allowedRoots) visit(root, 0);
+    next.elapsedMs = Date.now() - started;
     cacheWorker = next;
   });
 }

@@ -2,6 +2,9 @@ import { create } from "zustand";
 import { mergeRemoteRefresh } from "./remote-merge";
 import {
   appendCatalogVideos,
+  appendActivityJournal,
+  clearActivityJournal,
+  loadActivityJournal,
   loadActivitySnapshot,
   loadRemoteSnapshot,
   saveRemoteSnapshot,
@@ -50,6 +53,9 @@ let restoring = false;
 // of repeatedly checking the first saved channels, which left large Twitch
 // libraries with stale live state forever.
 let remoteRefreshCursor = 0;
+let twitchRefreshCursor = 0;
+let youtubeRefreshCursor = 0;
+const historyRecoveryCardCache = new Map<string, { signature: string; video: LibraryVideo }>();
 const REMOTE_REFRESH_BATCH_SIZE = 80;
 const STARTER_FOLLOWS: FollowedChannel[] = [
   { id: "yt:starter-h3", kind: "youtube", handle: "H3Podcast", title: "H3 Podcast" },
@@ -89,6 +95,9 @@ type LibraryState = {
   remoteBusy: boolean;
   remoteCheckedAt: number;
   refreshing: boolean;
+  remoteRefreshStatus: { at: number; checked: number; refreshed: number; failed: number; youtube: number; twitch: number } | null;
+  /** Provider retry deadlines keyed by followed-channel id. Focused refreshes bypass these. */
+  remoteRetryAt: Record<string, number>;
   importProgress: { done: number; total: number; label: string } | null;
   setQuery: (q: string) => void;
   setSort: (s: SortKey) => void;
@@ -277,6 +286,22 @@ function remoteMetadataTags(video: LibraryVideo) {
   return [...new Set([provider, creator, format, twitchFormat, genre ? `genre-${genre}` : "", twitchGame, ...semanticTags(video), ...descriptionKeywordTags(video)].filter(Boolean))].slice(0, 40);
 }
 
+/** Normalize provider enrichment once when it enters the catalog. Manual tags
+ * are retained, while old keyword-/creator- wrappers and duplicate labels do
+ * not keep inflating every selector and render pass. */
+function compactIngestedTags(existing: string[], inferred: string[]) {
+  const seen = new Set<string>();
+  const compact: string[] = [];
+  for (const raw of [...existing, ...inferred]) {
+    const tag = raw.trim().toLowerCase().replace(/^keyword-/, "").replace(/^creator-/, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+    if (!tag || tag === "http" || tag === "https" || seen.has(tag)) continue;
+    seen.add(tag);
+    compact.push(tag);
+    if (compact.length >= 40) break;
+  }
+  return compact;
+}
+
 function descriptionKeywordTags(video: LibraryVideo) {
   // Descriptions are valuable, but an unlimited word dump makes every render
   // and export slower. Keep a small, explainable set of distinctive terms.
@@ -436,6 +461,8 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   remoteBusy: false,
   refreshing: false,
   remoteCheckedAt: 0,
+  remoteRefreshStatus: null,
+  remoteRetryAt: {},
   importProgress: null,
   setQuery: (query) => set({ query }),
   setSort: (sort) => {
@@ -492,7 +519,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       for (const video of s.videos) {
         const inferred = video.remote ? remoteMetadataTags(video) : localNameTags(video);
         const existing = (tags[video.id] ?? []).map((tag) => tag.replace(/^keyword-/i, "").replace(/^creator-/i, ""));
-        const merged = [...new Set([...existing, ...inferred])].slice(0, 40);
+        const merged = compactIngestedTags(existing, inferred);
         if (merged.length !== (tags[video.id] ?? []).length) changed += 1;
         tags[video.id] = merged;
       }
@@ -525,10 +552,13 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         : s.history;
       return { progress: { ...s.progress, [id]: { t, d, at: now } }, history };
     });
+    const event = get().history[0];
+    if (event?.id === id && event.at === now) void appendActivityJournal(event).catch(() => undefined);
     persistActivity(get);
     persistSoon(get);
   },
   recordPlay: (id, source = "open") => {
+    const beforeAt = get().history[0]?.at;
     set((s) => {
       const now = Date.now();
       const latest = s.history[0];
@@ -541,11 +571,14 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       const next = [{ id, at: now, position: mark?.t, duration: mark?.d, source, ...(url ? { url } : {}) }, ...s.history];
       return { history: next, viewCounts: { ...s.viewCounts, [id]: (s.viewCounts[id] ?? 0) + 1 } };
     });
+    const event = get().history[0];
+    if (event?.id === id && event.at !== beforeAt) void appendActivityJournal(event).catch(() => undefined);
     persistActivity(get);
     persistSoon(get);
   },
   clearHistory: () => {
     set({ history: [] });
+    void clearActivityJournal().catch(() => undefined);
     persistNow(get);
   },
   openVideo: (activeId) => {
@@ -841,12 +874,12 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     // Keep the durable activity journal separate from broad preferences. It
     // merges after first paint, so a massive tag payload cannot wipe history
     // or block startup recovery.
-    void loadActivitySnapshot().then((activity) => {
-      if (!activity) return;
+    void Promise.all([loadActivitySnapshot(), loadActivityJournal()]).then(([activity, journal]) => {
+      if (!activity && !journal.length) return;
       set((s) => ({
-        history: mergeHistory(s.history, activity.history ?? []),
-        progress: { ...activity.progress, ...s.progress },
-        viewCounts: { ...activity.viewCounts, ...s.viewCounts },
+        history: mergeHistory(mergeHistory(s.history, activity?.history ?? []), journal),
+        progress: { ...(activity?.progress ?? {}), ...s.progress },
+        viewCounts: { ...(activity?.viewCounts ?? {}), ...s.viewCounts },
       }));
     }).catch(() => undefined);
     try {
@@ -1165,10 +1198,18 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           follows,
           folders: [...s.folders.filter((f) => f.id !== folder.id), folder],
           videos: mergeVideos(
-            s.videos.filter((v) => v.folderId !== result.channel.id || s.favorites[v.id] || s.likes[v.id]),
+            s.videos.filter((v) =>
+              v.folderId !== result.channel.id
+              || s.favorites[v.id]
+              || s.likes[v.id]
+              // Archive pages are public and may be temporarily partial. A
+              // manual Twitch refresh must extend/update the archive, never
+              // collapse thousands of retained VOD cards to the newest page.
+              || (result.channel.kind === "twitch" && v.remote?.kind === "twitch" && !v.remote.live),
+            ),
             result.videos,
           ),
-          tags: { ...s.tags, ...Object.fromEntries(result.videos.map((video) => [video.id, [...new Set([...(s.tags[video.id] ?? []), ...remoteMetadataTags(video)])]])) },
+          tags: { ...s.tags, ...Object.fromEntries(result.videos.map((video) => [video.id, compactIngestedTags(s.tags[video.id] ?? [], remoteMetadataTags(video))])) },
           sourceId: result.channel.kind,
           remoteBusy: false,
         };
@@ -1263,7 +1304,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
             follows: dedupeFollows(follows),
             folders,
             videos,
-            tags: { ...s.tags, ...Object.fromEntries(result.ok.flatMap((row) => row.videos.map((video) => [video.id, [...new Set([...(s.tags[video.id] ?? []), ...remoteMetadataTags(video)])]]))) },
+            tags: { ...s.tags, ...Object.fromEntries(result.ok.flatMap((row) => row.videos.map((video) => [video.id, compactIngestedTags(s.tags[video.id] ?? [], remoteMetadataTags(video))]))) },
             importProgress: {
               done: Math.min(i + slice.length, unique.length),
               total: unique.length,
@@ -1308,10 +1349,26 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     if (get().refreshing || get().remoteBusy) return { wentLive: [], newVideos: [] };
     const allFollows = dedupeFollows(get().follows);
     if (!allFollows.length) return { wentLive: [], newVideos: [] };
-    const batchSize = Math.min(REMOTE_REFRESH_BATCH_SIZE, allFollows.length);
-    const start = remoteRefreshCursor % allFollows.length;
-    const current = Array.from({ length: batchSize }, (_, index) => allFollows[(start + index) % allFollows.length]);
-    remoteRefreshCursor = (start + batchSize) % allFollows.length;
+    const rotate = (items: FollowedChannel[], limit: number, cursor: "twitch" | "youtube" | "all") => {
+      if (!items.length) return [];
+      const savedCursor = cursor === "twitch" ? twitchRefreshCursor : cursor === "youtube" ? youtubeRefreshCursor : remoteRefreshCursor;
+      const count = Math.min(limit, items.length);
+      const start = savedCursor % items.length;
+      const next = Array.from({ length: count }, (_, index) => items[(start + index) % items.length]);
+      const updated = (start + count) % items.length;
+      if (cursor === "twitch") twitchRefreshCursor = updated;
+      else if (cursor === "youtube") youtubeRefreshCursor = updated;
+      else remoteRefreshCursor = updated;
+      return next;
+    };
+    const twitch = allFollows.filter((follow) => follow.kind === "twitch");
+    const youtube = allFollows.filter((follow) => follow.kind === "youtube");
+    // Twitch archive depth used to depend on wherever a mixed channel cursor
+    // happened to land. Reserve part of every refresh for it so a large
+    // YouTube list cannot starve VOD refreshes indefinitely.
+    const current = twitch.length && youtube.length
+      ? [...rotate(twitch, Math.min(24, REMOTE_REFRESH_BATCH_SIZE), "twitch"), ...rotate(youtube, REMOTE_REFRESH_BATCH_SIZE - Math.min(24, REMOTE_REFRESH_BATCH_SIZE), "youtube")]
+      : rotate(allFollows, REMOTE_REFRESH_BATCH_SIZE, "all");
     set({ refreshing: true });
     const beforeLive = new Set(
       get()
@@ -1324,7 +1381,11 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       const result = await refreshRemotes({ data: { channels: current } });
       const followIds = new Set(result.refreshedIds);
 
-      set((s) => ({
+      set((s) => {
+        const mergedVideos = mergeRemoteRefresh(s.videos, result.videos, result.refreshedIds, new Set([...Object.keys(s.favorites), ...Object.keys(s.likes), ...s.history.map((entry) => entry.id)]));
+        const folderCounts = new Map<string, number>();
+        for (const video of mergedVideos) folderCounts.set(video.folderId, (folderCounts.get(video.folderId) ?? 0) + 1);
+        return {
         follows: dedupeFollows([...result.channels, ...s.follows]),
         remoteCheckedAt: Date.now(),
         folders: [
@@ -1333,13 +1394,24 @@ export const useLibrary = create<LibraryState>((set, get) => ({
             id: c.id,
             name: c.title,
             kind: c.kind as Folder["kind"],
-            videoCount: result.videos.filter((v) => v.folderId === c.id).length,
+            videoCount: folderCounts.get(c.id) ?? 0,
             health: "healthy" as const,
             lastCheckedAt: Date.now(),
           })),
         ],
-        videos: mergeRemoteRefresh(s.videos, result.videos, result.refreshedIds, new Set([...Object.keys(s.favorites), ...Object.keys(s.likes), ...s.history.map((entry) => entry.id)])),
-      }));
+        videos: mergedVideos,
+        tags: { ...s.tags, ...Object.fromEntries(result.videos.map((video) => [video.id, compactIngestedTags(s.tags[video.id] ?? [], remoteMetadataTags(video))])) },
+        remoteRefreshStatus: {
+          at: Date.now(),
+          checked: current.length,
+          refreshed: result.refreshedIds.length,
+          failed: Math.max(0, current.length - result.refreshedIds.length),
+          youtube: result.videos.filter((video) => video.remote?.kind === "youtube").length,
+          twitch: result.videos.filter((video) => video.remote?.kind === "twitch" && !video.remote.live).length,
+        },
+        remoteRetryAt: result.retryAt,
+      };
+      });
       persistNow(get);
       cacheRemotes(get);
       const wentLive = result.channels.filter(
@@ -1351,6 +1423,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       const newVideos = result.videos.filter((v) => !beforeIds.has(v.id) && Boolean(v.remote));
       return { wentLive, newVideos };
     } catch {
+      set({ remoteRefreshStatus: { at: Date.now(), checked: current.length, refreshed: 0, failed: current.length, youtube: 0, twitch: 0 } });
       return { wentLive: [], newVideos: [] };
     } finally {
       set({ refreshing: false });
@@ -1394,13 +1467,33 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   },
 }));
 
+type SelectorMemo = { public?: LibraryVideo[]; youtube?: LibraryVideo[]; twitch?: LibraryVideo[]; live?: LibraryVideo[]; classics?: LibraryVideo[]; continuePublic?: LibraryVideo[]; continueAdult?: LibraryVideo[] };
+const selectorMemo = new WeakMap<LibraryState, SelectorMemo>();
+function memoFor(state: LibraryState) { let memo = selectorMemo.get(state); if (!memo) { memo = {}; selectorMemo.set(state, memo); } return memo; }
+const resumeLookupMemo = new WeakMap<LibraryState, Map<string, LibraryVideo>>();
+function resumeLookup(state: LibraryState, list: LibraryVideo[]) {
+  const cached = resumeLookupMemo.get(state);
+  if (cached) return cached;
+  const index = new Map<string, LibraryVideo>();
+  for (const video of list) {
+    // Provider watch URLs and local path/fingerprint-like identifiers survive
+    // a reimport more reliably than a transient catalog row id.
+    for (const key of [video.id, video.remote?.watchUrl, video.remote?.embedUrl, video.src, video.path]) if (key) index.set(key, video);
+  }
+  resumeLookupMemo.set(state, index);
+  return index;
+}
+
 function publicList(state: LibraryState): LibraryVideo[] {
+  const memo = memoFor(state);
+  if (memo.public) return memo.public;
   const adult = adultIdSet(state.folders);
   const knownFolders = new Set(state.folders.map((folder) => folder.id));
   // Cached catalog entries can outlive a removed source. Keep their metadata in storage,
   // but never promote an orphaned entry into Home or search results.
   let list = state.videos.filter((v) => !state.unavailable[v.id] && !adult.has(v.folderId) && (knownFolders.has(v.folderId) || Boolean(v.remote) || v.isSample));
   if (state.hideDemo) list = list.filter((v) => !v.isSample);
+  memo.public = list;
   return list;
 }
 
@@ -1500,6 +1593,9 @@ function newestFirst(items: LibraryVideo[], limit: number): LibraryVideo[] {
 }
 
 export function selectContinue(state: LibraryState, adult = false): LibraryVideo[] {
+  const memo = memoFor(state);
+  const existing = adult ? memo.continueAdult : memo.continuePublic;
+  if (existing) return existing;
   const items = scoped(state, adult).filter((v) => {
     const p = state.progress[v.id];
     if (!p || p.d <= 0) return false;
@@ -1512,6 +1608,8 @@ export function selectContinue(state: LibraryState, adult = false): LibraryVideo
   items.sort((a, b) => (state.progress[b.id]?.at ?? 0) - (state.progress[a.id]?.at ?? 0));
   // VideoGrid progressively mounts pages, so Continue itself must not silently
   // truncate a large resume list before the view gets a chance to paginate it.
+  if (adult) memo.continueAdult = items;
+  else memo.continuePublic = items;
   return items;
 }
 
@@ -1521,31 +1619,73 @@ export function selectFavorites(state: LibraryState, adult = false): LibraryVide
 
 export function selectHistory(state: LibraryState, adult = false): LibraryVideo[] {
   const list = recoveryList(state, adult);
-  const byId = new Map(list.map((v) => [v.id, v]));
+  const byId = resumeLookup(state, list);
   const seen = new Set<string>();
   return state.history
     .filter((h) => !seen.has(h.id) && Boolean(seen.add(h.id)))
-    .map((h) => byId.get(h.id))
+    .map((h) => {
+      const cached = byId.get(h.id) ?? (h.url ? byId.get(h.url) : undefined);
+      if (cached) return cached;
+      // Provider cards may be evicted or a local source may be temporarily
+      // disconnected. History must still be a durable timeline, not a view of
+      // whichever catalog rows happen to be mounted today.
+      if (!h.url) return null;
+      const isYoutube = /youtube\.com|youtu\.be/i.test(h.url);
+      const isTwitch = /twitch\.tv/i.test(h.url);
+      const signature = `${h.at}:${h.url}:${h.position ?? ""}:${h.duration ?? ""}`;
+      const cachedRecovery = historyRecoveryCardCache.get(h.id);
+      if (cachedRecovery?.signature === signature) return cachedRecovery.video;
+      const recovered = {
+        id: h.id,
+        folderId: "history:recovery",
+        name: isYoutube ? "Saved YouTube history" : isTwitch ? "Saved Twitch history" : "Saved playback history",
+        path: h.url,
+        src: h.url,
+        extension: isYoutube ? "yt" : isTwitch ? "vod" : "history",
+        mime: isYoutube ? "video/youtube" : isTwitch ? "video/twitch" : "video/history",
+        size: 0,
+        duration: h.duration,
+        addedAt: h.at,
+        tagline: "Original card is not cached right now. The saved link is retained for recovery.",
+        remote: isYoutube || isTwitch ? {
+          kind: isYoutube ? "youtube" : "twitch",
+          live: false,
+          embedUrl: h.url,
+          watchUrl: h.url,
+        } : undefined,
+      } as LibraryVideo;
+      historyRecoveryCardCache.set(h.id, { signature, video: recovered });
+      // History itself is intentionally limitless; this render-only cache is
+      // bounded so an old provider link cannot keep every past card in memory.
+      if (historyRecoveryCardCache.size > 1_500) historyRecoveryCardCache.delete(historyRecoveryCardCache.keys().next().value!);
+      return recovered;
+    })
     .filter((v): v is LibraryVideo => v != null);
 }
 
 export function selectYoutube(state: LibraryState): LibraryVideo[] {
-  return [...publicList(state).filter((v) => v.remote?.kind === "youtube")].sort((a, b) => b.addedAt - a.addedAt);
+  const memo = memoFor(state);
+  return memo.youtube ?? (memo.youtube = [...publicList(state).filter((v) => v.remote?.kind === "youtube")].sort((a, b) => b.addedAt - a.addedAt));
 }
 
 export function selectTwitch(state: LibraryState): LibraryVideo[] {
+  const memo = memoFor(state);
+  if (memo.twitch) return memo.twitch;
   const twitch = publicList(state).filter((v) => v.remote?.kind === "twitch");
   const live = twitch.filter((v) => v.remote?.live);
   const vods = twitch.filter((v) => !v.remote?.live);
-  return [...live, ...vods];
+  memo.twitch = [...live, ...vods];
+  return memo.twitch;
 }
 
 export function selectLive(state: LibraryState): LibraryVideo[] {
-  return publicList(state).filter((v) => v.remote?.live);
+  const memo = memoFor(state);
+  return memo.live ?? (memo.live = publicList(state).filter((v) => v.remote?.live));
 }
 
 export function selectClassics(state: LibraryState): LibraryVideo[] {
-  return publicList(state).filter((v) => !v.remote && isClassicVideo(v));
+  const memo = memoFor(state);
+  return memo.classics ?? (memo.classics = publicList(state).filter((v) => !v.remote && isClassicVideo(v)));
 }
 
 export function selectFeatured(state: LibraryState, adult = false): LibraryVideo | undefined {

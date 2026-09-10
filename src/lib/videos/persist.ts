@@ -16,6 +16,7 @@ const VIDEO_STORE = "videos";
 const SOURCE_HEALTH_STORE = "source-health";
 const THUMB_STORE = "thumb-cache";
 const ACTIVITY_STORE = "activity";
+const ACTIVITY_JOURNAL_STORE = "activity-journal";
 const PREFS_KEY = "reelcase.prefs.v4";
 const LEGACY_KEYS = ["reelcase.prefs.v3", "reelcase.prefs.v2", "reelcase.prefs.v1"];
 
@@ -64,7 +65,7 @@ function migrateSource(id: string | undefined): string {
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 6);
+    const req = indexedDB.open(DB_NAME, 7);
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains("remote-cache")) db.createObjectStore("remote-cache");
@@ -80,6 +81,7 @@ function openDb(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(THUMB_STORE)) db.createObjectStore(THUMB_STORE, { keyPath: "id" });
       if (!db.objectStoreNames.contains(ACTIVITY_STORE)) db.createObjectStore(ACTIVITY_STORE);
+      if (!db.objectStoreNames.contains(ACTIVITY_JOURNAL_STORE)) db.createObjectStore(ACTIVITY_JOURNAL_STORE, { keyPath: "key" });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -250,6 +252,38 @@ export async function saveActivitySnapshot(snapshot: ActivitySnapshot): Promise<
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(ACTIVITY_STORE, "readwrite");
       tx.objectStore(ACTIVITY_STORE).put(snapshot, "primary");
+      tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
+    });
+  } finally { db.close(); }
+}
+
+/** Append-only playback journal: a snapshot write can never erase an earlier event. */
+export async function appendActivityJournal(entry: HistoryEntry): Promise<void> {
+  const db = await openDb();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(ACTIVITY_JOURNAL_STORE, "readwrite");
+      tx.objectStore(ACTIVITY_JOURNAL_STORE).put({ key: `${entry.id}:${entry.at}:${entry.source ?? "open"}`, entry });
+      tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
+    });
+  } finally { db.close(); }
+}
+export async function loadActivityJournal(): Promise<HistoryEntry[]> {
+  const db = await openDb();
+  try {
+    return await new Promise((resolve, reject) => {
+      const req = db.transaction(ACTIVITY_JOURNAL_STORE, "readonly").objectStore(ACTIVITY_JOURNAL_STORE).getAll();
+      req.onsuccess = () => resolve((req.result as Array<{ entry?: HistoryEntry }>).map((row) => row.entry).filter((entry): entry is HistoryEntry => Boolean(entry)));
+      req.onerror = () => reject(req.error);
+    });
+  } finally { db.close(); }
+}
+export async function clearActivityJournal(): Promise<void> {
+  const db = await openDb();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(ACTIVITY_JOURNAL_STORE, "readwrite");
+      tx.objectStore(ACTIVITY_JOURNAL_STORE).clear();
       tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
     });
   } finally { db.close(); }

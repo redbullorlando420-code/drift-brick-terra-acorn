@@ -218,7 +218,7 @@ export function Player({ playlist }: { playlist: string[] }) {
     const onEnd = () => {
       if (video && el.duration) markProgress(video.id, el.duration, el.duration);
       try {
-        const preferences = JSON.parse(localStorage.getItem("reelcase.settings.v1") ?? "{}") as Record<string, boolean>;
+        const preferences = JSON.parse(localStorage.getItem("reelcase.settings.v2") ?? "{}") as Record<string, boolean>;
         if (preferences["playback-autoplay-next-video"]) playRelative(1, playlist);
       } catch {
         // Keep playback stopped if settings cannot be read.

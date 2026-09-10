@@ -21,10 +21,16 @@ const MAX_MEMORY_THUMBS = 360;
 const MAX_ARTWORK_ATTEMPTS = 3;
 
 function maxThumbnailWorkers() {
-  const adaptive = Math.min(4, Math.max(2, Math.floor(((typeof navigator !== "undefined" ? navigator.hardwareConcurrency : 4) || 4) / 2)));
+  const nav = typeof navigator !== "undefined" ? navigator as Navigator & { deviceMemory?: number; scheduling?: { isInputPending?: () => boolean } } : undefined;
+  const cores = nav?.hardwareConcurrency ?? 4;
+  const memory = nav?.deviceMemory ?? 4;
+  // Do not compete with scroll/touch work or decode several frames at once on
+  // entry-level devices. The explicit setting remains an upper-bound override.
+  const interacting = Boolean(nav?.scheduling?.isInputPending?.()) || (typeof document !== "undefined" && document.visibilityState !== "visible");
+  const adaptive = interacting || memory <= 2 ? 1 : Math.min(4, Math.max(2, Math.floor(cores / (memory <= 4 ? 3 : 2))));
   try {
     const saved = Number(localStorage.getItem("reelcase.thumbnail-workers") ?? "0");
-    return [2, 3, 4].includes(saved) ? saved : adaptive;
+    return [1, 2, 3, 4].includes(saved) ? Math.min(saved, adaptive + 1) : adaptive;
   } catch { return adaptive; }
 }
 
