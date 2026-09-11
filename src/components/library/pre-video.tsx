@@ -31,6 +31,7 @@ export function PreVideo() {
   const setVideoCategory = useLibrary((s) => s.setVideoCategory);
   const toggleFavorite = useLibrary((s) => s.toggleFavorite);
   const recordPlay = useLibrary((s) => s.recordPlay);
+  const markProgress = useLibrary((s) => s.markProgress);
   const toggleLike = useLibrary((s) => s.toggleLike);
   const followRemoteQuery = useLibrary((s) => s.followRemoteQuery);
   const favorite = useLibrary((s) => (previewId ? Boolean(s.favorites[previewId]) : false));
@@ -42,6 +43,7 @@ export function PreVideo() {
   const [categoryText, setCategoryText] = useState("");
   const [vrAvailable, setVrAvailable] = useState(false);
   const [rating, setRating] = useState(0);
+  const [ratingRevision, setRatingRevision] = useState(0);
   const [creatorRevision, setCreatorRevision] = useState(0);
   const [creatorLoading, setCreatorLoading] = useState(false);
   const [tagRevision, setTagRevision] = useState(0);
@@ -54,12 +56,43 @@ export function PreVideo() {
   useEffect(() => {
     if (video) recordPlay(video.id, "open");
   }, [recordPlay, video?.id]);
+  useEffect(() => {
+    if (!video?.remote) return;
+    // Provider iframes do not expose a playback clock. Count time only after
+    // this full preview has remained open for a real watch interval; clicking
+    // a thumbnail alone never creates a Continue entry.
+    const openedAt = Date.now();
+    const durationHint = Math.max(video.duration ?? 0, 120);
+    const savePreviewWatch = () => {
+      const watched = (Date.now() - openedAt) / 1_000;
+      if (watched >= 8) markProgress(video.id, Math.min(watched, durationHint * 0.94), durationHint);
+    };
+    const timer = window.setInterval(savePreviewWatch, 5_000);
+    return () => { savePreviewWatch(); window.clearInterval(timer); };
+  }, [markProgress, video?.id, video?.remote]);
   const creator = video?.remote?.channelName?.trim() ?? "";
   const creatorKeyword = creator.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  const visibleTags = (creatorKeyword && !tags.includes(creatorKeyword) ? [creatorKeyword, ...tags] : tags).map((tag) => tag.replace(/^(?:keyword-|creator-)/i, ""));
+  const tagScores = useMemo(() => {
+    const scores = new Map<string, { total: number; count: number }>();
+    for (const item of videos) for (const rawTag of allTags[item.id] ?? EMPTY_TAGS) {
+      const tag = rawTag.replace(/^(?:keyword-|creator-)/i, "");
+      const entry = scores.get(tag) ?? { total: 0, count: 0 };
+      entry.total += getRating(item.id); entry.count += 1; scores.set(tag, entry);
+    }
+    return scores;
+  }, [allTags, ratingRevision, videos]);
+  const allVisibleTags = (creatorKeyword && !tags.includes(creatorKeyword) ? [creatorKeyword, ...tags] : tags).map((tag) => tag.replace(/^(?:keyword-|creator-)/i, ""));
+  // Provider pulls can retain hundreds of useful description words. Render a
+  // generous first window so an expanded archive never makes the preview slow.
+  const visibleTags = allVisibleTags.slice(0, 80);
   const creatorRating = creator ? getCreatorRating(creator) : 0;
   const creatorLiked = creator ? creatorIsLiked(creator) : false;
   useEffect(() => { if (!previewId) return; setRating(getRating(previewId)); }, [previewId]);
+  useEffect(() => {
+    const refresh = () => setRatingRevision((value) => value + 1);
+    window.addEventListener("reelcase:rating-change", refresh);
+    return () => window.removeEventListener("reelcase:rating-change", refresh);
+  }, []);
   useEffect(() => {
     // Render the player and controls first. Large related shelves score the
     // catalog after the overlay is already interactive instead of delaying a
@@ -149,7 +182,7 @@ export function PreVideo() {
     : null;
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-bg/98 px-4 py-5 sm:px-8 sm:py-8">
-      <div className={video.remote?.kind === "twitch" ? "w-full max-w-none" : "mx-auto max-w-6xl"}>
+      <div className={video.remote ? "w-full max-w-none" : "mx-auto max-w-6xl"}>
         <div className="flex items-center justify-between gap-3">
           <Button variant="ghost" onClick={closePreview}>
             <ArrowLeft className="size-4" /> Browse
@@ -158,7 +191,7 @@ export function PreVideo() {
             <X className="size-5" />
           </Button>
         </div>
-        <div className={video.remote?.kind === "twitch" ? "mt-5 grid gap-7" : "mt-5 grid gap-7 lg:grid-cols-[minmax(0,1.55fr)_minmax(18rem,0.7fr)]"}>
+        <div className={video.remote?.kind === "twitch" ? "mt-5 grid gap-7" : video.remote?.kind === "youtube" ? "mt-5 grid gap-7 xl:grid-cols-[minmax(0,2.35fr)_minmax(20rem,0.65fr)]" : "mt-5 grid gap-7 lg:grid-cols-[minmax(0,1.55fr)_minmax(18rem,0.7fr)]"}>
           <div>
             <div className="overflow-hidden rounded-lg bg-elevated shadow-border">
               {embed ? (
@@ -179,6 +212,10 @@ export function PreVideo() {
                   preload="metadata"
                   playsInline
                   controls
+                  onTimeUpdate={(event) => {
+                    const element = event.currentTarget;
+                    if (Number.isFinite(element.duration) && element.duration > 0) markProgress(video.id, element.currentTime, element.duration);
+                  }}
                 />
               ) : previewError ? (
                 <div className="flex aspect-video items-center justify-center bg-bg px-6 text-center text-sm text-muted">{previewError}</div>
@@ -245,14 +282,14 @@ export function PreVideo() {
               {visibleTags.length ? (
                 visibleTags.map((tag) => (
                   <span key={tag} className="inline-flex overflow-hidden rounded-xs bg-bg/50 text-xs text-muted">
-                    <button type="button" title={`Show videos tagged ${tag}`} onClick={() => { setSource(video.remote?.kind === "twitch" ? "twitch" : video.remote?.kind === "youtube" ? "youtube" : "all"); setQuery(tag); closePreview(); }} className="px-2 py-1 transition-colors hover:bg-accent/15 hover:text-accent focus-visible:outline-2 focus-visible:outline-accent">#{tag}</button>
+                    <button type="button" title={`Show videos tagged ${tag} · score ${Math.round(((tagScores.get(tag)?.total ?? 0) / Math.max(1, tagScores.get(tag)?.count ?? 1)) * 1000).toLocaleString()}`} onClick={() => { setSource(video.remote?.kind === "twitch" ? "twitch" : video.remote?.kind === "youtube" ? "youtube" : "all"); setQuery(tag); closePreview(); }} className="px-2 py-1 transition-colors hover:bg-accent/15 hover:text-accent focus-visible:outline-2 focus-visible:outline-accent">#{tag} <span className="text-accent">· {Math.round(((tagScores.get(tag)?.total ?? 0) / Math.max(1, tagScores.get(tag)?.count ?? 1)) * 1000).toLocaleString()}</span></button>
                     <button type="button" title={tagIsLiked(tag) ? `Unlike tag ${tag}` : `Like tag ${tag}`} aria-label={tagIsLiked(tag) ? `Unlike tag ${tag}` : `Like tag ${tag}`} onClick={() => { toggleTagLike(tag); setTagRevision((value) => value + 1); }} className={`border-l border-border px-1.5 transition-colors hover:bg-accent/15 ${tagIsLiked(tag) ? "text-accent" : "text-subtle"}`}><Heart className={tagIsLiked(tag) ? "size-3 fill-current" : "size-3"}/></button>
                   </span>
                 ))
               ) : (
                 <span className="text-xs text-subtle">No keywords yet</span>
               )}
-            </div>
+            </div>{allVisibleTags.length > visibleTags.length && <p className="mt-2 text-xs text-muted">Showing {visibleTags.length} of {allVisibleTags.length} saved provider tags. Search the source to use the rest.</p>}
             {editing && (
               <div className="mt-5 space-y-3 border-t border-border pt-4">
                 <label className="block text-xs text-muted">

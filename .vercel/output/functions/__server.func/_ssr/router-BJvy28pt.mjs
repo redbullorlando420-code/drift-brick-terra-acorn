@@ -5,8 +5,8 @@ import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[.
 import { l as TriangleAlert } from "../_libs/lucide-react.mjs";
 import { a as number, c as union, i as literal, l as unknown, n as _enum, o as object, r as discriminatedUnion, s as string, t as number$1 } from "../_libs/zod.mjs";
 import { t as Provider } from "../_libs/radix-ui__react-tooltip.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/router-CjvI2c78.js
-var router_CjvI2c78_exports = /* @__PURE__ */ __exportAll({ getRouter: () => getRouter });
+//#region node_modules/.nitro/vite/services/ssr/assets/router-BJvy28pt.js
+var router_BJvy28pt_exports = /* @__PURE__ */ __exportAll({ getRouter: () => getRouter });
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function AppErrorComponent({ error }) {
@@ -281,9 +281,9 @@ function TooltipProvider({ delayDuration = 250, ...props }) {
 		...props
 	});
 }
-var styles_default = "/assets/styles-Bj_uLI_L.css";
+var styles_default = "/assets/styles-DEA7PRBW.css";
 var APP_NAME = "Reelcase";
-var Route$2 = createRootRoute({
+var Route$3 = createRootRoute({
 	head: () => ({
 		meta: [
 			{ charSet: "utf-8" },
@@ -348,8 +348,9 @@ var Route$2 = createRootRoute({
 		})]
 	})
 });
-var $$splitComponentImporter = () => import("./routes-DZWPtWp3.mjs").then((n) => n.t);
-var Route$1 = createFileRoute("/")({ component: lazyRouteComponent($$splitComponentImporter, "component") });
+var $$splitComponentImporter = () => import("./routes-Ry6ahRqg.mjs").then((n) => n.t);
+var Route$2 = createFileRoute("/")({ component: lazyRouteComponent($$splitComponentImporter, "component") });
+var _0002_network_presence_default = "CREATE TABLE IF NOT EXISTS reelcase_network_presence (\n  scope TEXT NOT NULL,\n  device_id TEXT NOT NULL,\n  label TEXT NOT NULL,\n  device_kind TEXT NOT NULL,\n  last_seen TIMESTAMPTZ NOT NULL DEFAULT now(),\n  PRIMARY KEY (scope, device_id)\n);\n\nCREATE INDEX IF NOT EXISTS reelcase_network_presence_active\n  ON reelcase_network_presence (scope, last_seen DESC);\n";
 /**
 * Migration bookkeeping shared by the two appliers — `scripts/migrate.mjs`
 * (deploy, `readdir`) and `src/lib/db.ts` (PGLite preview, `import.meta.glob`).
@@ -467,7 +468,7 @@ async function createPgliteSql() {
 	});
 	const pg = await globalRef$1.__pgliteInstance__;
 	const migrate = async () => {
-		const migrations = /* #__PURE__ */ Object.assign({});
+		const migrations = /* #__PURE__ */ Object.assign({ "/migrations/0002_network_presence.sql": _0002_network_presence_default });
 		const done = (await pg.query("select name from _migrations")).rows.map((r) => r.name);
 		for (const { name, path } of pendingMigrations(Object.keys(migrations), done)) await pg.transaction(async (tx) => {
 			await tx.exec(migrations[path]);
@@ -520,6 +521,59 @@ if (typeof window === "undefined" && dbSource === "pglite") globalBoot.__pgBoots
 	console.error("[db] PGLite bootstrap failed:", err);
 	throw err;
 });
+var device = object({
+	id: string().uuid(),
+	label: string().trim().min(1).max(48),
+	kind: _enum(["desktop", "mobile"])
+});
+function json$1(body, status = 200) {
+	return new Response(JSON.stringify(body), {
+		status,
+		headers: {
+			"content-type": "application/json",
+			"cache-control": "no-store"
+		}
+	});
+}
+function scopeFor(request) {
+	return (request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "").toLowerCase().slice(0, 255);
+}
+async function activeDevices(sql, scope) {
+	await sql.query("DELETE FROM reelcase_network_presence WHERE last_seen < now() - interval '90 seconds'");
+	return (await sql.query("SELECT device_id, label, device_kind, last_seen FROM reelcase_network_presence WHERE scope = $1 AND last_seen > now() - interval '90 seconds' ORDER BY last_seen DESC LIMIT 24", [scope])).map((row) => ({
+		id: row.device_id,
+		label: row.label,
+		kind: row.device_kind,
+		lastSeen: new Date(row.last_seen).getTime()
+	}));
+}
+async function handleNetworkPresence(request) {
+	try {
+		const scope = scopeFor(request);
+		if (!scope) return json$1({ error: "missing host" }, 400);
+		const sql = await getSql();
+		if (request.method === "GET") return json$1({ devices: await activeDevices(sql, scope) });
+		if (request.method !== "POST") return json$1({ error: "method not allowed" }, 405);
+		const parsed = device.safeParse(await request.json().catch(() => null));
+		if (!parsed.success) return json$1({ error: "invalid device" }, 400);
+		const { id, label, kind } = parsed.data;
+		await sql.query("INSERT INTO reelcase_network_presence (scope, device_id, label, device_kind, last_seen) VALUES ($1, $2, $3, $4, now()) ON CONFLICT (scope, device_id) DO UPDATE SET label = EXCLUDED.label, device_kind = EXCLUDED.device_kind, last_seen = now()", [
+			scope,
+			id,
+			label,
+			kind
+		]);
+		return json$1({ devices: await activeDevices(sql, scope) });
+	} catch (error) {
+		console.error("[network-presence] failed", error);
+		return json$1({ error: "network presence failed" }, 500);
+	}
+}
+var handle$1 = ({ request }) => handleNetworkPresence(request);
+var Route$1 = createFileRoute("/api/network-presence")({ server: { handlers: {
+	GET: handle$1,
+	POST: handle$1
+} } });
 var id = string().regex(/^[a-zA-Z0-9_-]{1,64}$/);
 var signal = object({
 	op: literal("signal"),
@@ -628,18 +682,23 @@ var Route = createFileRoute("/api/rtc")({ server: { handlers: {
 	POST: handle
 } } });
 var rootRouteChildren = {
-	IndexRoute: Route$1.update({
+	IndexRoute: Route$2.update({
 		id: "/",
 		path: "/",
-		getParentRoute: () => Route$2
+		getParentRoute: () => Route$3
+	}),
+	ApiNetworkPresenceRoute: Route$1.update({
+		id: "/api/network-presence",
+		path: "/api/network-presence",
+		getParentRoute: () => Route$3
 	}),
 	ApiRtcRoute: Route.update({
 		id: "/api/rtc",
 		path: "/api/rtc",
-		getParentRoute: () => Route$2
+		getParentRoute: () => Route$3
 	})
 };
-var routeTree = Route$2._addFileChildren(rootRouteChildren)._addFileTypes();
+var routeTree = Route$3._addFileChildren(rootRouteChildren)._addFileTypes();
 function getRouter() {
 	return createRouter({
 		routeTree,
@@ -647,4 +706,4 @@ function getRouter() {
 	});
 }
 //#endregion
-export { getRouter, router_CjvI2c78_exports as t };
+export { getRouter, router_BJvy28pt_exports as t };

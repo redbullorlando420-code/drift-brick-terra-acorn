@@ -7,10 +7,24 @@ import { createServer } from "node:http";
 import { existsSync, realpathSync, readdirSync, readFileSync, watch } from "node:fs";
 import { spawn } from "node:child_process";
 import { resolve, sep } from "node:path";
+import { networkInterfaces } from "node:os";
 import dgram from "node:dgram";
 
 const port = Number(process.env.REELCASE_COMPANION_PORT || 43123);
-const allowedOrigins = new Set((process.env.REELCASE_APP_ORIGIN || "http://localhost:8080,http://127.0.0.1:8080").split(",").map((value) => value.trim()));
+// The companion remains loopback-only. These extra origins only let the same
+// computer use Reelcase through one of its LAN/VPN addresses; they never make
+// the companion reachable from another device.
+const localNetworkOrigins = Object.values(networkInterfaces())
+  .flat()
+  .filter((entry) => entry && entry.family === "IPv4" && !entry.internal)
+  .map((entry) => `http://${entry.address}:8080`);
+const allowedOrigins = new Set([
+  ...(process.env.REELCASE_APP_ORIGIN || "http://localhost:8080,http://127.0.0.1:8080")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean),
+  ...localNetworkOrigins,
+]);
 const configuredRoots = (process.env.REELCASE_ALLOWED_ROOTS || "").split(";").map((value) => value.trim()).filter(Boolean);
 // Desktop is the practical default on Windows, while explicit roots remain
 // available for game libraries on other drives. Every path is resolved before
@@ -261,5 +275,26 @@ const server = createServer(async (req, res) => {
     return;
   }
   reply(res, 404, { ok: false, error: "Not found" });
+});
+server.on("error", async (error) => {
+  if (error?.code === "EADDRINUSE") {
+    // A second click on the desktop launcher should not present an alarming
+    // Node stack trace when a healthy companion already owns the loopback port.
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/health`, {
+        headers: { origin: "http://localhost:8080" },
+        signal: AbortSignal.timeout(1_500),
+      });
+      const health = await response.json();
+      if (health?.service === "reelcase-companion") {
+        console.log(`Reelcase Companion is already running on http://127.0.0.1:${port}`);
+        process.exit(0);
+      }
+    } catch { /* The port is held by an unknown process; report that below. */ }
+    console.error(`Port ${port} is already in use by another application. Choose REELCASE_COMPANION_PORT or close that application.`);
+    process.exit(1);
+  }
+  console.error("Reelcase Companion could not start:", error?.message || error);
+  process.exit(1);
 });
 server.listen(port, "127.0.0.1", () => console.log(`Reelcase Companion listening on http://127.0.0.1:${port}`));

@@ -53,6 +53,7 @@ import type {
 import { librarySearchIndex } from "./search-index";
 import { useSourceAssets } from "@/lib/source-assets";
 import { isClassicVideo, SYSTEM_SOURCES } from "./types";
+import { LIBRARY_LIMITS } from "@/lib/library-limits";
 
 let restoring = false;
 // A full provider refresh is intentionally bounded. Rotate that window instead
@@ -62,7 +63,7 @@ let remoteRefreshCursor = 0;
 let twitchRefreshCursor = 0;
 let youtubeRefreshCursor = 0;
 const historyRecoveryCardCache = new Map<string, { signature: string; video: LibraryVideo }>();
-const REMOTE_REFRESH_BATCH_SIZE = 80;
+const REMOTE_REFRESH_BATCH_SIZE = LIBRARY_LIMITS.remoteRefreshChannelBatch;
 const STARTER_FOLLOWS: FollowedChannel[] = [
   { id: "yt:starter-h3", kind: "youtube", handle: "H3Podcast", title: "H3 Podcast" },
   { id: "yt:starter-ltt", kind: "youtube", handle: "LinusTechTips", title: "Linus Tech Tips" },
@@ -235,6 +236,15 @@ function newestResume(...marks: Array<ProgressMark | undefined>): ResumeMark | u
     return normalized && (!best || normalized.at > best.at) ? normalized : best;
   }, undefined);
 }
+function isResumable(video: LibraryVideo, mark: ResumeMark | undefined) {
+  if (!mark) return false;
+  // A percentage-only floor meant a two-hour local movie needed almost five
+  // minutes of playback before it appeared in Continue. Keep a small real-time
+  // floor instead, while retaining the near-finish completion rule.
+  const minimumSeconds = video.remote ? 2 : 5;
+  const completeAt = video.remote ? 0.992 : 0.985;
+  return mark.t >= minimumSeconds && mark.t / mark.d < completeAt;
+}
 function reconcileResumeForVideos(videos: LibraryVideo[], progress: Record<string, ProgressMark>, resumeProgress: Record<string, ResumeMark>) {
   const next = { ...progress };
   for (const video of videos) {
@@ -347,7 +357,7 @@ function remoteMetadataTags(video: LibraryVideo) {
   // a richer tag list. Preserve it separately so live and VOD browsing can use
   // a concrete provider category rather than only title-keyword guesses.
   const twitchGame = video.remote?.kind === "twitch" && genre ? `twitch-game-${genre}` : "";
-  return [...new Set([provider, creator, format, twitchFormat, genre ? `genre-${genre}` : "", twitchGame, ...semanticTags(video), ...descriptionKeywordTags(video)].filter(Boolean))].slice(0, 40);
+  return [...new Set([provider, creator, format, twitchFormat, genre ? `genre-${genre}` : "", twitchGame, ...semanticTags(video), ...descriptionKeywordTags(video)].filter(Boolean))].slice(0, LIBRARY_LIMITS.remoteMetadataTagsPerTitle);
 }
 
 /** Upgrade cached provider cards with the same safe tags created for new pulls. */
@@ -371,14 +381,15 @@ function compactIngestedTags(existing: string[], inferred: string[]) {
     if (!tag || tag === "http" || tag === "https" || seen.has(tag)) continue;
     seen.add(tag);
     compact.push(tag);
-    if (compact.length >= 40) break;
+    if (compact.length >= LIBRARY_LIMITS.remoteMetadataTagsPerTitle) break;
   }
   return compact;
 }
 
 function descriptionKeywordTags(video: LibraryVideo) {
-  // Descriptions are valuable, but an unlimited word dump makes every render
-  // and export slower. Keep a small, explainable set of distinctive terms.
+  // Keep a controlled 300-word ceiling. Provider descriptions are the richest
+  // public source for Twitch and YouTube connections, while the ceiling keeps
+  // storage, exports, and derived shelves bounded.
   const ignored = new Set(["about", "after", "also", "because", "being", "between", "channel", "click", "creator", "description", "from", "have", "here", "just", "more", "next", "official", "please", "really", "subscribe", "that", "this", "through", "today", "video", "watch", "with", "youtube", "your"]);
   const text = `${video.remote?.channelName ?? ""} ${video.name} ${video.description ?? video.tagline ?? ""}`.toLowerCase();
   const words = text.match(/[a-z][a-z0-9-]{3,30}/g) ?? [];
@@ -391,7 +402,7 @@ function descriptionKeywordTags(video: LibraryVideo) {
     // raw word also lets keyword clicks bridge local, Twitch, and YouTube
     // without exposing an internal "keyword-" prefix in every shelf.
     tags.push(word);
-    if (tags.length >= 20) break;
+    if (tags.length >= LIBRARY_LIMITS.descriptionKeywordTagsPerTitle) break;
   }
   return tags;
 }
@@ -400,25 +411,26 @@ function descriptionKeywordTags(video: LibraryVideo) {
 function semanticTags(video: LibraryVideo) {
   const text = `${video.name} ${video.path} ${video.tagline ?? ""} ${video.description ?? ""}`.toLowerCase();
   const rules: Array<[RegExp, string]> = [
-    [/\b(game|gaming|playthrough|speedrun|walkthrough|minecraft|steam)\b/, "gaming"],
+    [/\b(game|gaming|playthrough|speedrun|walkthrough|minecraft|steam|zombies|streamer games|nba 2k\d*|cozy games|\barc\b)\b/, "gaming"],
     [/\b(tech|software|coding|programming|computer|ai|gadget)\b/, "technology"],
     [/\b(news|politic|election|debate|commentary)\b/, "news-commentary"],
     [/\b(music|song|album|concert|cover|playlist)\b/, "music"],
     [/\b(movie|film|cinema|trailer|review)\b/, "film"],
     [/\b(anime|manga|japan|otaku)\b/, "anime"],
-    [/\b(food|cook|recipe|restaurant|kitchen)\b/, "food"],
-    [/\b(travel|trip|tour|flight|hotel|beach)\b/, "travel"],
+    [/\b(food|cook|recipe|restaurant|kitchen|cake|baking|cake decorating)\b/, "food"],
+    [/\b(travel|trip|tour|flight|hotel|beach|bali|pool party)\b/, "travel"],
     [/\b(fitness|workout|gym|health|sport)\b/, "fitness"],
     [/\b(science|space|history|documentary|education)\b/, "learning"],
     [/\b(comedy|funny|sketch|standup|meme)\b/, "comedy"],
     [/\b(asmr|relax|sleep|ambient|meditation)\b/, "relaxing"],
+    [/\b(acupuncture|wellness|self care)\b/, "wellbeing"],
     [/\b(podcast|interview|talk|discussion)\b/, "talk"],
     [/\b(react|reaction|drama|tea|opinion)\b/, "commentary"],
     [/\b(art|drawing|painting|design|animation)\b/, "creative"],
     [/\b(animal|wildlife|zoo|nature)\b/, "nature"],
     [/\b(finance|money|business|investing)\b/, "business"],
     [/\b(fashion|beauty|makeup|style)\b/, "style"],
-    [/\b(car|cars|driving|racing|automotive|motorcycle)\b/, "motors"],
+    [/\b(car|cars|driving|racing|automotive|motorcycle|simucube|racing rig)\b/, "motors"],
     [/\b(horror|scary|creepy|ghost|true crime)\b/, "horror"],
     [/\b(diy|repair|build|woodwork|maker|restoration)\b/, "maker"],
     [/\b(soccer|football|basketball|baseball|esports|tournament)\b/, "sports"],
@@ -428,6 +440,18 @@ function semanticTags(video: LibraryVideo) {
     [/\b(language|linguistics|learn \w+|lesson|tutorial)\b/, "skills"],
     [/\b(hardware|pc build|keyboard|phone|camera)\b/, "hardware"],
     [/\b(legal|court|law|lawsuit)\b/, "legal"],
+    [/\b(documentary|docuseries)\b/, "documentary"],
+    [/\b(history|historical|ancient|archaeology)\b/, "history"],
+    [/\b(true crime|murder|missing person|serial killer)\b/, "true-crime"],
+    [/\b(photo|photography|camera review|photographer)\b/, "photography"],
+    [/\b(artwork|watercolor|illustration|digital art)\b/, "art"],
+    [/\b(animation|animated|cartoon|animator)\b/, "animation"],
+    [/\b(animals?|pets?|dogs?|cats?|wildlife)\b/, "animals"],
+    [/\b(hiking|camping|fishing|backpacking|outdoors?)\b/, "outdoors"],
+    [/\b(climate|environment|sustainability|conservation)\b/, "environment"],
+    [/\b(makeup|skincare|beauty|hair tutorial)\b/, "beauty"],
+    [/\b(fashion|outfit|streetwear|clothing)\b/, "fashion"],
+    [/\b(home decor|home tour|interior design|organization)\b/, "home"],
   ];
   const tags = rules.filter(([pattern]) => pattern.test(text)).map(([, tag]) => tag);
   if (video.remote?.kind === "youtube" && ((video.duration ?? 0) > 0 && (video.duration ?? 0) < 90 || /(?:#|\b)shorts?\b/i.test(text))) tags.push("shorts", "short-form");
@@ -595,7 +619,9 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     const video = state.videos.find((item) => item.id === id);
     if (video) librarySearchIndex.updateMetadata(video, state.videos, state.tags, state.categories);
     saveTagEdit(id, state.tags[id] ?? []);
-    persistNow(get);
+    // Keep the small per-title journal synchronous for recovery, then defer
+    // the broad preference snapshot so rapid tag edits never block input.
+    persistSoon(get);
   },
   autoTagLibrary: () => {
     let changed = 0;
@@ -1463,7 +1489,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     // happened to land. Reserve part of every refresh for it so a large
     // YouTube list cannot starve VOD refreshes indefinitely.
     const current = twitch.length && youtube.length
-      ? [...rotate(twitch, Math.min(24, REMOTE_REFRESH_BATCH_SIZE), "twitch"), ...rotate(youtube, REMOTE_REFRESH_BATCH_SIZE - Math.min(24, REMOTE_REFRESH_BATCH_SIZE), "youtube")]
+      ? [...rotate(twitch, Math.min(LIBRARY_LIMITS.twitchChannelsReservedPerRefresh, REMOTE_REFRESH_BATCH_SIZE), "twitch"), ...rotate(youtube, REMOTE_REFRESH_BATCH_SIZE - Math.min(LIBRARY_LIMITS.twitchChannelsReservedPerRefresh, REMOTE_REFRESH_BATCH_SIZE), "youtube")]
       : rotate(allFollows, REMOTE_REFRESH_BATCH_SIZE, "all");
     set({ refreshing: true });
     const beforeLive = new Set(
@@ -1624,12 +1650,7 @@ export function selectVisible(state: LibraryState): LibraryVideo[] {
   if (state.sourceId === "favorites") {
     list = list.filter((v) => state.favorites[v.id]);
   } else if (state.sourceId === "continue") {
-    list = list.filter((v) => {
-      const p = resumeForVideo(state, v);
-      if (!p) return false;
-      const r = p.t / p.d;
-      return r > (v.remote ? 0.01 : 0.04) && r < (v.remote ? 0.985 : 0.96);
-    });
+    list = recoveryList(state, false).filter((video) => isResumable(video, resumeForVideo(state, video)));
   } else if (state.sourceId === "history") {
     const byId = new Map(list.map((v) => [v.id, v]));
     list = state.history.map((h) => byId.get(h.id)).filter((v): v is LibraryVideo => v != null);
@@ -1710,12 +1731,7 @@ export function selectContinue(state: LibraryState, adult = false): LibraryVideo
   const memo = memoFor(state);
   const existing = adult ? memo.continueAdult : memo.continuePublic;
   if (existing) return existing;
-  const items = scoped(state, adult).filter((v) => {
-    const p = resumeForVideo(state, v);
-    if (!p) return false;
-    const r = p.t / p.d;
-    return r > (v.remote ? 0.01 : 0.04) && r < (v.remote ? 0.985 : 0.96);
-  });
+  const items = recoveryList(state, adult).filter((video) => isResumable(video, resumeForVideo(state, video)));
   items.sort((a, b) => (resumeForVideo(state, b)?.at ?? 0) - (resumeForVideo(state, a)?.at ?? 0));
   // VideoGrid progressively mounts pages, so Continue itself must not silently
   // truncate a large resume list before the view gets a chance to paginate it.

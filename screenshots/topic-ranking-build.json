@@ -1,0 +1,51 @@
+{
+  "url": "http://127.0.0.1:8081/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Reelcase",
+      "hasCanvas": false,
+      "bodyTextLen": 906,
+      "bodyTextHash": "7f604e8499d6843a0fe83b0a6917b2ea4a9b33fc0c9da22f9bde15ff18c4fc08",
+      "bodyTextPrefix": "Reelcase Vault · networks · live Home0MoviesTopicsYouTube0Twitch",
+      "horizontalOverflow": false,
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 ()",
+        "Failed to load resource: the server responded with a status of 404 ()",
+        "Failed to load resource: the server responded with a status of 404 ()"
+      ],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\topic-ranking-build.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Reelcase",
+      "hasCanvas": false,
+      "bodyTextLen": 906,
+      "bodyTextHash": "7f604e8499d6843a0fe83b0a6917b2ea4a9b33fc0c9da22f9bde15ff18c4fc08",
+      "bodyTextPrefix": "Reelcase Vault · networks · live Home0MoviesTopicsYouTube0Twitch",
+      "horizontalOverflow": false,
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 404 ()",
+        "Failed to load resource: the server responded with a status of 404 ()",
+        "Failed to load resource: the server responded with a status of 404 ()"
+      ],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\topic-ranking-build-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\topic-ranking-build.json",
+  "divergesFromBaseline": true,
+  "baselineReasons": [
+    "desktop: console/page errors appeared (3)",
+    "desktop: body text changed (1317 -> 906 chars, hash mismatch)",
+    "mobile: console/page errors appeared (3)",
+    "mobile: body text changed (1019 -> 906 chars, hash mismatch)"
+  ]
+}

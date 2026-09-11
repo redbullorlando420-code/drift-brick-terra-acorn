@@ -35,6 +35,7 @@ import { useThumbs } from "@/lib/videos/thumbs";
 import { resolvePlayUrl } from "@/lib/videos/sources";
 import { hasFreshViewerCount, isLikelyPlayable } from "@/lib/videos/types";
 import { attachFrameCallback, probeHardwareDecode, type HwInfo } from "@/lib/videos/hw";
+import { measureInteraction } from "@/lib/interaction-budget";
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 const EMPTY_TAGS: string[] = [];
@@ -297,6 +298,7 @@ export function Player({ playlist }: { playlist: string[] }) {
   }, []);
 
   const togglePlay = useCallback(() => {
+    measureInteraction("playback");
     const el = mediaRef.current;
     if (!el) return;
     if (el.paused) void el.play();

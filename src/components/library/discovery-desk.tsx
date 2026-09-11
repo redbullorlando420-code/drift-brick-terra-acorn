@@ -75,11 +75,13 @@ export function LiveDesk({ videos }: { videos: LibraryVideo[] }) {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("favorites");
   const [columns, setColumns] = useState(4);
+  const [visibleLimit, setVisibleLimit] = useState(120);
   const [ready, setReady] = useState(false);
   const [adding, setAdding] = useState("");
   useEffect(() => { try { const saved = JSON.parse(localStorage.getItem("reelcase.live-desk") ?? "{}"); if (["all", "favorites", "likes"].includes(saved.filter)) setFilter(saved.filter); if (["favorites", "viewers", "name"].includes(saved.sort)) setSort(saved.sort); const count = Number(localStorage.getItem("reelcase.live-columns") ?? 4); if ([3, 4, 6].includes(count)) setColumns(count); } catch { /* defaults */ } setReady(true); }, []);
   useEffect(() => { if (!ready) return; try { localStorage.setItem("reelcase.live-desk", JSON.stringify({ filter, sort })); localStorage.setItem("reelcase.live-columns", String(columns)); } catch { /* session only */ } }, [filter, sort, columns, ready]);
   const visible = useMemo(() => videos.filter((v) => (filter === "all" || (filter === "favorites" ? favorites[v.id] : likes[v.id])) && `${v.name} ${v.remote?.channelName ?? ""}`.toLowerCase().includes(search.toLowerCase())).sort((a, b) => sort === "name" ? a.name.localeCompare(b.name) : (sort === "favorites" ? Number(Boolean(favorites[b.id])) - Number(Boolean(favorites[a.id])) : 0) || (b.remote?.viewers ?? 0) - (a.remote?.viewers ?? 0)), [videos, filter, favorites, likes, sort, search]);
+  useEffect(() => setVisibleLimit(120), [filter, search, sort]);
   const youtubeLiveCount = videos.filter((video) => video.remote?.kind === "youtube").length;
   const recommendedChannels = [
     { handle: "twitch", title: "Twitch" }, { handle: "eslcs", title: "ESL Counter-Strike" }, { handle: "gamesdonequick", title: "Games Done Quick" }, { handle: "otknetwork", title: "OTK Network" }, { handle: "criticalrole", title: "Critical Role" },

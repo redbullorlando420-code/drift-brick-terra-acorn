@@ -1,5 +1,6 @@
 import { n as TSS_SERVER_FUNCTION, t as createServerFn } from "./ssr.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/api-BM8KSC1c.js
+import { t as LIBRARY_LIMITS } from "./library-limits-LYRl2QVK.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/api-DZn_0qjx.js
 var createServerRpc = (serverFnMeta, splitImportFn) => {
 	const url = "/_serverFn/" + serverFnMeta.id;
 	return Object.assign(splitImportFn, {
@@ -160,29 +161,109 @@ function parsePublicViewCount(text) {
 	const multiplier = match[2]?.toUpperCase() === "B" ? 1e9 : match[2]?.toUpperCase() === "M" ? 1e6 : match[2]?.toUpperCase() === "K" ? 1e3 : 1;
 	return Number.isFinite(value) ? Math.round(value * multiplier) : void 0;
 }
-function channelPageRenderers(html) {
+function youtubeInitialData(html) {
 	const match = html.match(/var ytInitialData\s*=\s*({[\s\S]*?});<\/script>/);
-	if (!match?.[1]) return [];
+	if (!match?.[1]) return null;
 	try {
-		const root = JSON.parse(match[1]);
-		const found = [];
-		const stack = [root];
-		while (stack.length && found.length < 1200) {
-			const current = stack.pop();
-			if (!current || typeof current !== "object") continue;
-			if (Array.isArray(current)) {
-				stack.push(...current);
-				continue;
-			}
-			const record = current;
-			const renderer = record.videoRenderer;
-			if (renderer?.videoId) found.push(renderer);
-			for (const value of Object.values(record)) if (value && typeof value === "object") stack.push(value);
-		}
-		return found;
+		return JSON.parse(match[1]);
 	} catch {
-		return [];
+		return null;
 	}
+}
+function youtubeRenderers(root, maximum) {
+	const found = [];
+	const stack = [root];
+	while (stack.length && found.length < maximum) {
+		const current = stack.pop();
+		if (!current || typeof current !== "object") continue;
+		if (Array.isArray(current)) {
+			stack.push(...current);
+			continue;
+		}
+		const record = current;
+		const renderer = record.videoRenderer;
+		if (renderer?.videoId) found.push(renderer);
+		for (const value of Object.values(record)) if (value && typeof value === "object") stack.push(value);
+	}
+	return found;
+}
+function channelPageRenderers(html) {
+	const root = youtubeInitialData(html);
+	return root ? youtubeRenderers(root, LIBRARY_LIMITS.youtubeFocusedVideosPerChannel) : [];
+}
+function youtubeContinuation(root) {
+	const stack = [root];
+	while (stack.length) {
+		const current = stack.pop();
+		if (!current || typeof current !== "object") continue;
+		if (Array.isArray(current)) {
+			stack.push(...current);
+			continue;
+		}
+		const record = current;
+		const command = record.continuationCommand;
+		if (command && typeof command === "object" && typeof command.token === "string") return command.token;
+		for (const value of Object.values(record)) if (value && typeof value === "object") stack.push(value);
+	}
+	return null;
+}
+function youtubeBrowseConfig(html, root) {
+	const apiKey = html.match(/"INNERTUBE_API_KEY":"([^"]+)"/)?.[1];
+	const clientVersion = html.match(/"INNERTUBE_CLIENT_VERSION":"([^"]+)"/)?.[1] ?? "2.20250101.00.00";
+	const continuation = youtubeContinuation(root);
+	return apiKey && continuation ? {
+		apiKey,
+		clientVersion,
+		continuation
+	} : null;
+}
+async function youtubeContinuationBackfill(html, knownIds, channelId, channelName, limit) {
+	const root = youtubeInitialData(html);
+	const config = root ? youtubeBrowseConfig(html, root) : null;
+	if (!config || limit <= 0) return [];
+	const seen = new Set(knownIds);
+	const videos = [];
+	let continuation = config.continuation;
+	for (let page = 0; continuation && page < LIBRARY_LIMITS.youtubeArchivePagesPerPull && videos.length < limit; page += 1) try {
+		const response = await fetch(`https://www.youtube.com/youtubei/v1/browse?key=${encodeURIComponent(config.apiKey)}`, {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				"x-youtube-client-name": "1",
+				"x-youtube-client-version": config.clientVersion
+			},
+			body: JSON.stringify({
+				context: { client: {
+					clientName: "WEB",
+					clientVersion: config.clientVersion
+				} },
+				continuation
+			}),
+			signal: AbortSignal.timeout(15e3)
+		});
+		if (!response.ok) break;
+		const pageData = await response.json();
+		for (const renderer of youtubeRenderers(pageData, limit - videos.length)) {
+			const id = renderer.videoId;
+			if (!id || seen.has(id)) continue;
+			seen.add(id);
+			videos.push(ytVideo({
+				id,
+				title: rendererText(renderer.title) || `${channelName} video`,
+				published: "1970-01-01T00:00:00.000Z",
+				thumb: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+				desc: rendererText(renderer.descriptionSnippet) || `${channelName} public channel catalog item.`,
+				channelId,
+				channelName,
+				views: parsePublicViewCount(rendererText(renderer.viewCountText))
+			}));
+		}
+		const next = youtubeContinuation(pageData);
+		continuation = next && next !== continuation ? next : null;
+	} catch {
+		break;
+	}
+	return videos;
 }
 async function youtubeChannelBackfill(channelId, channelName, knownIds, limit) {
 	try {
@@ -288,7 +369,7 @@ function boundedFollowResult(result, limit) {
 		videos
 	};
 }
-async function youtubeFromChannelUncoalesced(query, limit = 720, deepCatalog = true) {
+async function youtubeFromChannelUncoalesced(query, limit = LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, deepCatalog = true) {
 	let channelId = "";
 	const trimmed = query.trim();
 	if (/^UC[\w-]{20,}$/.test(trimmed)) channelId = trimmed;
@@ -299,7 +380,7 @@ async function youtubeFromChannelUncoalesced(query, limit = 720, deepCatalog = t
 		channelId = ytChannelIdFromText(await fetchText(`https://www.youtube.com/@${encodeURIComponent(handle)}`)) ?? "";
 		if (!channelId) throw new Error("Could not find that YouTube channel.");
 	}
-	const boundedLimit = Math.max(24, Math.min(720, Math.floor(limit)));
+	const boundedLimit = Math.max(24, Math.min(LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, Math.floor(limit)));
 	const cached = youtubeChannelCache.get(channelId);
 	if (cached && Date.now() - cached.at < YOUTUBE_CHANNEL_CACHE_TTL_MS && cached.result.videos.length >= Math.min(144, boundedLimit)) return boundedFollowResult(cached.result, boundedLimit);
 	const [xml, channelPage] = await Promise.all([fetchText(`https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`), deepCatalog ? fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}/videos`).catch(() => "") : Promise.resolve("")]);
@@ -341,6 +422,7 @@ async function youtubeFromChannelUncoalesced(query, limit = 720, deepCatalog = t
 			}));
 			if (rows.length >= Math.max(0, boundedLimit - videos.length)) break;
 		}
+		if (rows.length < Math.max(0, boundedLimit - videos.length)) rows.push(...await youtubeContinuationBackfill(channelPage, /* @__PURE__ */ new Set([...feedIds, ...rows.map((video) => video.remote?.videoId).filter((id) => Boolean(id))]), channelId, author, Math.max(0, boundedLimit - videos.length - rows.length)));
 		return rows;
 	})() : deepCatalog ? await youtubeChannelBackfill(channelId, author, feedIds, Math.max(0, boundedLimit - videos.length)) : [];
 	videos.push(...backfill);
@@ -374,12 +456,12 @@ function twitchLogin(input) {
 		return raw.replace(/^@/, "").replace(/^tw:/, "").replace(/[^a-z0-9_]/gi, "").toLowerCase();
 	}
 }
-function youtubeFromChannel(query, limit = 720, focused = true, deepCatalog = focused) {
+function youtubeFromChannel(query, limit = LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, focused = true, deepCatalog = focused) {
 	return providerRequest("youtube", query, focused, () => youtubeFromChannelUncoalesced(query, limit, deepCatalog));
 }
-var TWITCH_ARCHIVE_PAGE_SIZE = 160;
-var TWITCH_FOCUSED_VOD_LIMIT = 2e3;
-var TWITCH_REFRESH_VOD_LIMIT = 160;
+var TWITCH_ARCHIVE_PAGE_SIZE = LIBRARY_LIMITS.twitchArchivePageSize;
+var TWITCH_FOCUSED_VOD_LIMIT = LIBRARY_LIMITS.twitchFocusedVodsPerChannel;
+var TWITCH_REFRESH_VOD_LIMIT = LIBRARY_LIMITS.twitchRoutineVodsPerChannel;
 async function twitchUser(login, after, archivePageSize = TWITCH_ARCHIVE_PAGE_SIZE) {
 	const res = await fetch("https://gql.twitch.tv/gql", {
 		signal: AbortSignal.timeout(12e3),
@@ -434,7 +516,7 @@ async function twitchArchive(login, limit) {
 		videos: { edges }
 	};
 }
-function twitchVideos(login, user, vodLimit = 160) {
+function twitchVideos(login, user, vodLimit = TWITCH_ARCHIVE_PAGE_SIZE) {
 	const title = user.displayName ?? login;
 	const folderId = `tw:${login}`;
 	const observedAt = Date.now();
@@ -572,7 +654,7 @@ var refreshRemotes = createServerFn({ method: "POST" }).validator((data) => pars
 					folderId: ch.id
 				})));
 			} else {
-				const next = await youtubeFromChannel(ch.channelId ? `https://www.youtube.com/channel/${ch.channelId}` : ch.handle, 48, false, false);
+				const next = await youtubeFromChannel(ch.channelId ? `https://www.youtube.com/channel/${ch.channelId}` : ch.handle, LIBRARY_LIMITS.youtubeRoutineVideosPerChannel, false, true);
 				channels.push({
 					...ch,
 					...next.channel,
@@ -640,7 +722,7 @@ var importChannels = createServerFn({ method: "POST" }).validator((data) => pars
 	const rows = await mapPool(data.items, 6, async (item) => {
 		for (let attempt = 0; attempt < 2; attempt += 1) try {
 			if (item.kind === "twitch") return await followTwitch(item.query, compact);
-			return await youtubeFromChannel(item.query, compact ? 48 : 720, true, !compact);
+			return await youtubeFromChannel(item.query, compact ? LIBRARY_LIMITS.youtubeBulkImportVideosPerChannel : LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, true, !compact);
 		} catch {
 			if (!attempt) await new Promise((resolve) => setTimeout(resolve, 350));
 		}

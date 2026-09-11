@@ -29,7 +29,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { isAdultVideo, useLibrary } from "@/lib/videos/store";
+import { isAdultVideo, resumeForVideo, useLibrary } from "@/lib/videos/store";
 import type { Folder, SourceId } from "@/lib/videos/types";
 
 function NavItem({
@@ -86,6 +86,7 @@ export function SidebarNav({
   const lockAdults = useLibrary((s) => s.lockAdults);
   const favorites = useLibrary((s) => s.favorites);
   const progress = useLibrary((s) => s.progress);
+  const resumeProgress = useLibrary((s) => s.resumeProgress);
   const history = useLibrary((s) => s.history);
   const [followingOpen, setFollowingOpen] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
@@ -121,8 +122,8 @@ export function SidebarNav({
       if (adult) { adultCount += 1; continue; }
       if (!(hideDemo && video.isSample)) {
         publicCount += 1;
-        const mark = progress[video.id];
-        if (mark?.d && mark.t / mark.d > 0.04 && mark.t / mark.d < 0.96) continueCount += 1;
+        const mark = resumeForVideo({ progress, resumeProgress }, video);
+        if (mark && mark.t >= (video.remote ? 2 : 5) && mark.t / mark.d < (video.remote ? 0.992 : 0.985)) continueCount += 1;
       }
       if (video.remote?.kind === "youtube") ytCount += 1;
       if (video.remote?.kind === "twitch") twitchCount += 1;
@@ -132,7 +133,7 @@ export function SidebarNav({
     for (const id of Object.keys(favorites)) if (videosById.get(id) && !folderById.get(videosById.get(id)!.folderId)?.adult) favCount += 1;
     for (const entry of history) { const video = videosById.get(entry.id); if (video && !folderById.get(video.folderId)?.adult && !(hideDemo && video.isSample)) historyCount += 1; }
     return { publicFolders, networkFolders, adultFolders, counts: { publicCount, adultCount: adultsUnlocked ? adultCount : undefined, ytCount, twitchCount, liveCount, continueCount, favCount, historyCount } };
-  }, [adultsUnlocked, favorites, folders, hideDemo, history, progress, videos]);
+  }, [adultsUnlocked, favorites, folders, hideDemo, history, progress, resumeProgress, videos]);
   const demo = folders.find((f) => f.kind === "demo" && !hideDemo);
   const youtubeFollowing = networkFolders.filter((folder) => folder.kind === "youtube");
   const twitchFollowing = networkFolders.filter((folder) => folder.kind === "twitch");

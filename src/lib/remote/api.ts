@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import type { FollowedChannel, LibraryVideo, RemoteKind } from "@/lib/videos/types";
+import { LIBRARY_LIMITS } from "@/lib/library-limits";
 
 type FollowInput = { query: string; kind: "auto" | RemoteKind };
 type RefreshInput = { channels: FollowedChannel[] };
@@ -219,24 +220,83 @@ function parsePublicViewCount(text: string) {
   return Number.isFinite(value) ? Math.round(value * multiplier) : undefined;
 }
 
-function channelPageRenderers(html: string): YoutubeRenderer[] {
+function youtubeInitialData(html: string): unknown | null {
   const match = html.match(/var ytInitialData\s*=\s*({[\s\S]*?});<\/script>/);
-  if (!match?.[1]) return [];
+  if (!match?.[1]) return null;
   try {
-    const root = JSON.parse(match[1]) as unknown;
-    const found: YoutubeRenderer[] = [];
-    const stack: unknown[] = [root];
-    while (stack.length && found.length < 1_200) {
-      const current = stack.pop();
-      if (!current || typeof current !== "object") continue;
-      if (Array.isArray(current)) { stack.push(...current); continue; }
-      const record = current as Record<string, unknown>;
-      const renderer = record.videoRenderer as YoutubeRenderer | undefined;
-      if (renderer?.videoId) found.push(renderer);
-      for (const value of Object.values(record)) if (value && typeof value === "object") stack.push(value);
-    }
-    return found;
-  } catch { return []; }
+    return JSON.parse(match[1]) as unknown;
+  } catch { return null; }
+}
+
+function youtubeRenderers(root: unknown, maximum: number): YoutubeRenderer[] {
+  const found: YoutubeRenderer[] = [];
+  const stack: unknown[] = [root];
+  while (stack.length && found.length < maximum) {
+    const current = stack.pop();
+    if (!current || typeof current !== "object") continue;
+    if (Array.isArray(current)) { stack.push(...current); continue; }
+    const record = current as Record<string, unknown>;
+    const renderer = record.videoRenderer as YoutubeRenderer | undefined;
+    if (renderer?.videoId) found.push(renderer);
+    for (const value of Object.values(record)) if (value && typeof value === "object") stack.push(value);
+  }
+  return found;
+}
+
+function channelPageRenderers(html: string): YoutubeRenderer[] {
+  const root = youtubeInitialData(html);
+  return root ? youtubeRenderers(root, LIBRARY_LIMITS.youtubeFocusedVideosPerChannel) : [];
+}
+
+function youtubeContinuation(root: unknown): string | null {
+  const stack: unknown[] = [root];
+  while (stack.length) {
+    const current = stack.pop();
+    if (!current || typeof current !== "object") continue;
+    if (Array.isArray(current)) { stack.push(...current); continue; }
+    const record = current as Record<string, unknown>;
+    const command = record.continuationCommand;
+    if (command && typeof command === "object" && typeof (command as Record<string, unknown>).token === "string") return (command as Record<string, string>).token;
+    for (const value of Object.values(record)) if (value && typeof value === "object") stack.push(value);
+  }
+  return null;
+}
+
+function youtubeBrowseConfig(html: string, root: unknown) {
+  const apiKey = html.match(/"INNERTUBE_API_KEY":"([^"]+)"/)?.[1];
+  const clientVersion = html.match(/"INNERTUBE_CLIENT_VERSION":"([^"]+)"/)?.[1] ?? "2.20250101.00.00";
+  const continuation = youtubeContinuation(root);
+  return apiKey && continuation ? { apiKey, clientVersion, continuation } : null;
+}
+
+async function youtubeContinuationBackfill(html: string, knownIds: Set<string>, channelId: string, channelName: string, limit: number): Promise<LibraryVideo[]> {
+  const root = youtubeInitialData(html);
+  const config = root ? youtubeBrowseConfig(html, root) : null;
+  if (!config || limit <= 0) return [];
+  const seen = new Set(knownIds);
+  const videos: LibraryVideo[] = [];
+  let continuation: string | null = config.continuation;
+  for (let page = 0; continuation && page < LIBRARY_LIMITS.youtubeArchivePagesPerPull && videos.length < limit; page += 1) {
+    try {
+      const response = await fetch(`https://www.youtube.com/youtubei/v1/browse?key=${encodeURIComponent(config.apiKey)}`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-youtube-client-name": "1", "x-youtube-client-version": config.clientVersion },
+        body: JSON.stringify({ context: { client: { clientName: "WEB", clientVersion: config.clientVersion } }, continuation }),
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!response.ok) break;
+      const pageData = await response.json() as unknown;
+      for (const renderer of youtubeRenderers(pageData, limit - videos.length)) {
+        const id = renderer.videoId;
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        videos.push(ytVideo({ id, title: rendererText(renderer.title) || `${channelName} video`, published: "1970-01-01T00:00:00.000Z", thumb: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, desc: rendererText(renderer.descriptionSnippet) || `${channelName} public channel catalog item.`, channelId, channelName, views: parsePublicViewCount(rendererText(renderer.viewCountText)) }));
+      }
+      const next = youtubeContinuation(pageData);
+      continuation = next && next !== continuation ? next : null;
+    } catch { break; }
+  }
+  return videos;
 }
 
 async function youtubeChannelBackfill(channelId: string, channelName: string, knownIds: Set<string>, limit: number): Promise<LibraryVideo[]> {
@@ -349,7 +409,7 @@ function boundedFollowResult(result: FollowResult, limit: number): FollowResult 
   return { ...result, channel: { ...result.channel, lastResponseCount: videos.length }, videos };
 }
 
-async function youtubeFromChannelUncoalesced(query: string, limit = 720, deepCatalog = true): Promise<FollowResult> {
+async function youtubeFromChannelUncoalesced(query: string, limit: number = LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, deepCatalog = true): Promise<FollowResult> {
   let channelId = "";
   const trimmed = query.trim();
   if (/^UC[\w-]{20,}$/.test(trimmed)) channelId = trimmed;
@@ -364,7 +424,7 @@ async function youtubeFromChannelUncoalesced(query: string, limit = 720, deepCat
     channelId = ytChannelIdFromText(html) ?? "";
     if (!channelId) throw new Error("Could not find that YouTube channel.");
   }
-  const boundedLimit = Math.max(24, Math.min(720, Math.floor(limit)));
+  const boundedLimit = Math.max(24, Math.min(LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, Math.floor(limit)));
   const cached = youtubeChannelCache.get(channelId);
   if (cached && Date.now() - cached.at < YOUTUBE_CHANNEL_CACHE_TTL_MS && cached.result.videos.length >= Math.min(144, boundedLimit)) return boundedFollowResult(cached.result, boundedLimit);
   const [xml, channelPage] = await Promise.all([
@@ -402,6 +462,9 @@ async function youtubeFromChannelUncoalesced(query: string, limit = 720, deepCat
       rows.push(ytVideo({ id, title: rendererText(renderer.title) || `${author} video`, published: "1970-01-01T00:00:00.000Z", thumb: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, desc: rendererText(renderer.descriptionSnippet) || `${author} public channel catalog item.`, channelId, channelName: author, views: parsePublicViewCount(rendererText(renderer.viewCountText)) }));
       if (rows.length >= Math.max(0, boundedLimit - videos.length)) break;
     }
+    if (rows.length < Math.max(0, boundedLimit - videos.length)) {
+      rows.push(...await youtubeContinuationBackfill(channelPage, new Set([...feedIds, ...rows.map((video) => video.remote?.videoId).filter((id): id is string => Boolean(id))]), channelId, author, Math.max(0, boundedLimit - videos.length - rows.length)));
+    }
     return rows;
   })() : deepCatalog ? await youtubeChannelBackfill(channelId, author, feedIds, Math.max(0, boundedLimit - videos.length)) : [];
   videos.push(...backfill);
@@ -434,7 +497,7 @@ function twitchLogin(input: string): string {
   }
 }
 
-function youtubeFromChannel(query: string, limit = 720, focused = true, deepCatalog = focused): Promise<FollowResult> {
+function youtubeFromChannel(query: string, limit: number = LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, focused = true, deepCatalog = focused): Promise<FollowResult> {
   return providerRequest("youtube", query, focused, () => youtubeFromChannelUncoalesced(query, limit, deepCatalog));
 }
 
@@ -471,11 +534,11 @@ type GqlUser = {
 // Twitch accepts a 160-row initial archive window without its web-client
 // integrity proof. Keep that established baseline; deeper cursor pages are
 // attempted only for focused pulls and fall back to this window if challenged.
-const TWITCH_ARCHIVE_PAGE_SIZE = 160;
-const TWITCH_FOCUSED_VOD_LIMIT = 2_000;
-const TWITCH_REFRESH_VOD_LIMIT = 160;
+const TWITCH_ARCHIVE_PAGE_SIZE = LIBRARY_LIMITS.twitchArchivePageSize;
+const TWITCH_FOCUSED_VOD_LIMIT = LIBRARY_LIMITS.twitchFocusedVodsPerChannel;
+const TWITCH_REFRESH_VOD_LIMIT = LIBRARY_LIMITS.twitchRoutineVodsPerChannel;
 
-async function twitchUser(login: string, after?: string | null, archivePageSize = TWITCH_ARCHIVE_PAGE_SIZE): Promise<GqlUser | null> {
+async function twitchUser(login: string, after?: string | null, archivePageSize: number = TWITCH_ARCHIVE_PAGE_SIZE): Promise<GqlUser | null> {
   const res = await fetch("https://gql.twitch.tv/gql", {
     signal: AbortSignal.timeout(12000),
     method: "POST",
@@ -532,7 +595,7 @@ async function twitchArchive(login: string, limit: number): Promise<GqlUser | nu
 // Keep a useful VOD window per channel. The public query asks for 160 rows;
 // retaining 96 gives large follow lists enough history without sending the
 // entire archive through every rotating background refresh.
-function twitchVideos(login: string, user: GqlUser, vodLimit = 160): LibraryVideo[] {
+function twitchVideos(login: string, user: GqlUser, vodLimit: number = TWITCH_ARCHIVE_PAGE_SIZE): LibraryVideo[] {
   const title = user.displayName ?? login;
   const folderId = `tw:${login}`;
   // One observation timestamp is shared by all facts in this provider reply.
@@ -676,9 +739,11 @@ export const refreshRemotes = createServerFn({ method: "POST" })
           videos.push(...next.videos.map((video) => ({ ...video, folderId: ch.id })));
         } else {
           const q = ch.channelId ? `https://www.youtube.com/channel/${ch.channelId}` : ch.handle;
-          // A routine refresh only needs the feed and live state. Deep archive
-          // parsing belongs to an explicit follow/import, not first paint.
-          const next = await youtubeFromChannel(q, 48, false, false);
+          // RSS only exposes a short recent window. Include the public channel
+          // catalog so a routine refresh can backfill older uploads up to the
+          // configured per-channel budget; server coalescing/cache protects
+          // repeated refreshes from duplicating this work.
+          const next = await youtubeFromChannel(q, LIBRARY_LIMITS.youtubeRoutineVideosPerChannel, false, true);
           channels.push({ ...ch, ...next.channel, id: ch.id });
           videos.push(...next.videos.map((video) => ({ ...video, folderId: ch.id })));
         }
@@ -747,7 +812,7 @@ export const importChannels = createServerFn({ method: "POST" })
           // Bulk imports used to request only eight entries per creator, which
           // made a healthy library look arbitrarily capped. RSS availability
           // ultimately controls the ceiling, but ask for a practical window.
-          return await youtubeFromChannel(item.query, compact ? 48 : 720, true, !compact);
+          return await youtubeFromChannel(item.query, compact ? LIBRARY_LIMITS.youtubeBulkImportVideosPerChannel : LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, true, !compact);
         } catch {
           if (!attempt) await new Promise((resolve) => setTimeout(resolve, 350));
         }

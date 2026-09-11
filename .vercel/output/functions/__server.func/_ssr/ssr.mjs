@@ -89,7 +89,7 @@ var HEADERS = { TSS_SHELL: "X-TSS_SHELL" };
 * the dev styles URL for route-scoped CSS collection.
 */
 async function getStartManifest(matchedRoutes) {
-	const { tsrStartManifest } = await import("../_tanstack-start-manifest_v-P2jC4bri.mjs");
+	const { tsrStartManifest } = await import("../_tanstack-start-manifest_v-3arKnkny.mjs");
 	const startManifest = tsrStartManifest();
 	let routes = startManifest.routes;
 	routes[rootRouteId];
@@ -111,19 +111,19 @@ async function getStartManifest(matchedRoutes) {
 var manifest = {
 	"0c214d4b031988870bdc1c9a42a92ccbf9e9579cd8ab478f2d173e66fe73e2f0": {
 		functionName: "followRemote_createServerFn_handler",
-		importer: () => import("./api-BM8KSC1c.mjs")
+		importer: () => import("./api-DZn_0qjx.mjs")
 	},
 	"298e45714281c48abde137e2b56dd5a9336fcd5d739cb85235ad8f876afe9a48": {
 		functionName: "fetchTwitchFollowing_createServerFn_handler",
-		importer: () => import("./api-BM8KSC1c.mjs")
+		importer: () => import("./api-DZn_0qjx.mjs")
 	},
 	"ac1a300259a0cb0e7b027567a01868e6019bb4d175aa2aacdf50dd329b558123": {
 		functionName: "refreshRemotes_createServerFn_handler",
-		importer: () => import("./api-BM8KSC1c.mjs")
+		importer: () => import("./api-DZn_0qjx.mjs")
 	},
 	"d7a9de260cc8839e45abd41f5c96ef881c8fdf9d186bdd087f29f6faeff9bd1d": {
 		functionName: "importChannels_createServerFn_handler",
-		importer: () => import("./api-BM8KSC1c.mjs")
+		importer: () => import("./api-DZn_0qjx.mjs")
 	}
 };
 async function getServerFnById(id, access) {
@@ -1393,7 +1393,7 @@ var getBaseManifest = getProdBaseManifest;
 var createEarlyHintsForRequest = createEarlyHintsCollector;
 async function loadEntries() {
 	const [routerEntry, startEntry, pluginAdapters] = await Promise.all([
-		import("./router-CjvI2c78.mjs").then((n) => n.t),
+		import("./router-BJvy28pt.mjs").then((n) => n.t),
 		import("./start-5Z2QO8AU.mjs"),
 		import("./empty-plugin-adapters-D9UWiqvJ.mjs")
 	]);

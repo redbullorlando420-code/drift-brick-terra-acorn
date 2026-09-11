@@ -124,7 +124,7 @@ export function TitleRail({
         <div className="min-w-0">{onTitleClick ? <button type="button" onClick={onTitleClick} className="block min-w-0 truncate font-display text-xl text-fg hover:text-accent sm:text-2xl">{title} <span className="text-sm text-muted">Open source →</span></button> : <h2 className="min-w-0 truncate font-display text-xl text-fg sm:text-2xl">{title}</h2>}{reason && <p className="mt-1 truncate text-xs text-muted">{reason}</p>}</div>
         {videos.length > limit && <Button size="sm" variant="ghost" className="shrink-0 text-xs" onClick={() => setLimit((value) => Math.min(videos.length, value + 16))}>Show 16 more · {videos.length - limit}</Button>}
       </div>
-      {nearViewport && <div ref={(rail) => { if (rail) rail.scrollLeft = scrollLeft.current; }} onScroll={(event) => { scrollLeft.current = event.currentTarget.scrollLeft; }} className="rail-scroll flex gap-3 overflow-x-auto pb-3 sm:gap-4">
+      {nearViewport && <div ref={(rail) => { if (rail) rail.scrollLeft = scrollLeft.current; }} onScroll={(event) => { const rail = event.currentTarget; scrollLeft.current = rail.scrollLeft; if (rail.scrollLeft + rail.clientWidth >= rail.scrollWidth - 160) setLimit((value) => Math.min(videos.length, value + 16)); }} className="rail-scroll flex gap-3 overflow-x-auto pb-3 sm:gap-4">
         {shown.map((video, i) => (
           <div
             key={video.id}

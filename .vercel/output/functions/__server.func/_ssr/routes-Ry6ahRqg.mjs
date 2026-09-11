@@ -1,16 +1,17 @@
 import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { r as Slot, s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
+import { t as LIBRARY_LIMITS } from "./library-limits-LYRl2QVK.mjs";
 import { n as create, t as useShallow } from "../_libs/zustand.mjs";
 import { n as clsx, t as cva } from "../_libs/class-variance-authority+clsx.mjs";
 import { t as twMerge } from "../_libs/tailwind-merge.mjs";
-import { $ as FolderPlus, A as Monitor, B as List, C as RefreshCw, D as Pause, E as PictureInPicture2, F as Maximize, G as Image, J as Heart, L as Lock, M as Minimize, P as Menu, Q as FolderSearch, R as LockOpen, T as Play, U as LayoutGrid, V as ListPlus, W as Images, X as Gamepad2, Y as Glasses, Z as Folder, _ as Shuffle, _t as ArrowLeft, a as Volume2, b as Settings2, c as Upload, ct as CircleAlert, d as Tag, dt as Check, et as Film, f as Star, ft as ChartColumn, g as SkipBack, gt as BellOff, h as SkipForward, ht as Bell, i as VolumeX, it as Cpu, j as MonitorPlay, k as Music2, lt as ChevronRight, m as Smartphone, mt as Bot, n as X, nt as ExternalLink, o as Video, ot as Clock3, p as Sparkles, pt as Box, q as History, r as Wifi, rt as Download, s as Users, st as Clapperboard, t as Youtube, tt as FileText, u as ThumbsUp, ut as ChevronLeft, v as ShoppingBag, w as Radio, x as Search, z as LoaderCircle } from "../_libs/lucide-react.mjs";
+import { $ as FolderSearch, A as Monitor, B as List, C as RefreshCw, D as Pause, E as PictureInPicture2, F as Maximize, G as Images, J as History, K as Image, L as Lock, M as Minimize, P as Menu, Q as Folder, R as LockOpen, T as Play, U as LayoutGrid, V as ListPlus, X as Glasses, Y as Heart, Z as Gamepad2, _ as Shuffle, _t as BellOff, a as Volume2, at as Cpu, b as Settings2, c as Upload, ct as Clapperboard, d as Tag, dt as ChevronLeft, et as FolderPlus, f as Star, ft as Check, g as SkipBack, gt as Bell, h as SkipForward, ht as Bot, i as VolumeX, it as Download, j as MonitorPlay, k as Music2, lt as CircleAlert, m as Smartphone, mt as Box, n as X, nt as FileText, o as Video, p as Sparkles, pt as ChartColumn, r as Wifi, rt as ExternalLink, s as Users, st as Clock3, t as Youtube, tt as Film, u as ThumbsUp, ut as ChevronRight, v as ShoppingBag, vt as ArrowLeft, w as Radio, x as Search, z as LoaderCircle } from "../_libs/lucide-react.mjs";
 import { n as toast, t as Toaster } from "../_libs/sonner.mjs";
 import { a as DialogPortal, i as DialogOverlay, n as DialogClose, o as DialogTitle, r as DialogContent, t as Dialog } from "../_libs/@radix-ui/react-dialog+[...].mjs";
 import { t as Root } from "../_libs/radix-ui__react-separator.mjs";
 import { a as Trigger, i as Root2, n as Item2, r as Portal2, t as Content2 } from "../_libs/@radix-ui/react-dropdown-menu+[...].mjs";
 import { i as SliderTrack, n as SliderRange, r as SliderThumb, t as Slider$1 } from "../_libs/@radix-ui/react-slider+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-DZWPtWp3.js
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-Ry6ahRqg.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var __defProp = Object.defineProperty;
@@ -1112,7 +1113,25 @@ var TOPICS = /* @__PURE__ */ new Set([
 	"wellbeing",
 	"skills",
 	"hardware",
-	"legal"
+	"legal",
+	"animation",
+	"documentary",
+	"history",
+	"true-crime",
+	"photography",
+	"art",
+	"design",
+	"family",
+	"animals",
+	"lifestyle",
+	"beauty",
+	"fashion",
+	"home",
+	"outdoors",
+	"space",
+	"environment",
+	"politics",
+	"finance"
 ]);
 var aliases = {
 	tech: "technology",
@@ -1126,7 +1145,18 @@ var aliases = {
 	education: "learning",
 	meditation: "wellbeing",
 	football: "sports",
-	podcast: "talk"
+	podcast: "talk",
+	photos: "photography",
+	photo: "photography",
+	artworks: "art",
+	documentaries: "documentary",
+	truecrime: "true-crime",
+	pets: "animals",
+	makeup: "beauty",
+	skincare: "beauty",
+	investing: "finance",
+	money: "finance",
+	hiking: "outdoors"
 };
 function canonicalTopic(tag) {
 	const clean = tag.trim().toLowerCase().replace(/^#/, "").replace(/\s+/g, "-");
@@ -1134,13 +1164,13 @@ function canonicalTopic(tag) {
 }
 var isTopicTag = (tag) => Boolean(canonicalTopic(tag));
 var rules = [
-	["gaming", /\b(gaming|gameplay|playthrough|speedrun|walkthrough|minecraft|fortnite|valorant|counter.strike|grand theft auto|gta [v56]|call of duty|cod zombies|elden ring|roblox|league of legends)\b/i],
+	["gaming", /\b(gaming|gameplay|playthrough|speedrun|walkthrough|minecraft|fortnite|valorant|counter.strike|grand theft auto|gta [v56]|call of duty|cod zombies|zombies|elden ring|roblox|league of legends|streamer games|nba 2k\d*|cozy games|\barc\b)\b/i],
 	["technology", /\b(software|programming|coding|artificial intelligence|machine learning|linux|javascript)\b/i],
 	["hardware", /\b(pc build|graphics card|gpu|cpu|keyboard|smartphone|iphone|computer hardware)\b/i],
-	["motors", /\b(dash.?cam|tesla.?cam|car repair|motorcycle|automotive|formula (one|1)|nascar)\b/i],
+	["motors", /\b(dash.?cam|tesla.?cam|car repair|motorcycle|automotive|formula (one|1)|nascar|simucube|racing rig)\b/i],
 	["legal", /\b(police chase|body.?cam|courtroom|lawsuit|trial verdict)\b/i],
-	["food", /\b(cooking|recipe|baking|restaurant|street food|chef)\b/i],
-	["travel", /\b(travel|vacation|bali|backpacking|road trip|walking tour)\b/i],
+	["food", /\b(cooking|recipe|baking|restaurant|street food|chef|cake|cake decorating)\b/i],
+	["travel", /\b(travel|vacation|bali|backpacking|road trip|walking tour|pool party)\b/i],
 	["music", /\b(music|concert|song|album|guitar|piano|dj set|karaoke)\b/i],
 	["film", /\b(movie|cinema|film review|movie trailer)\b/i],
 	["anime", /\b(anime|manga)\b/i],
@@ -1149,11 +1179,29 @@ var rules = [
 	["science", /\b(physics|chemistry|astronomy|biology|space telescope|scientific)\b/i],
 	["maker", /\b(woodworking|diy|3d printing|restoration|soldering)\b/i],
 	["creative", /\b(painting|drawing|photography|sculpture|animation tutorial)\b/i],
+	["animation", /\b(animation|animated|animator|cartoon)\b/i],
+	["documentary", /\b(documentary|docuseries)\b/i],
+	["history", /\b(history|historical|ancient|medieval|world war|archaeology)\b/i],
+	["true-crime", /\b(true crime|murder case|missing person|serial killer|crime documentary)\b/i],
+	["photography", /\b(photography|photo shoot|camera review|street photography)\b/i],
+	["art", /\b(fine art|artwork|watercolor|illustration|digital art)\b/i],
+	["design", /\b(interior design|graphic design|ui design|architecture)\b/i],
+	["family", /\b(family|parenting|parenthood|baby)\b/i],
+	["animals", /\b(animals?|pets?|dogs?|cats?|wildlife)\b/i],
+	["lifestyle", /\b(lifestyle|daily vlog|day in the life|routine)\b/i],
+	["beauty", /\b(makeup|skincare|beauty|hair tutorial)\b/i],
+	["fashion", /\b(fashion|outfit|streetwear|clothing haul)\b/i],
+	["home", /\b(home tour|home decor|organization|clean with me)\b/i],
+	["outdoors", /\b(hiking|camping|fishing|outdoors?|backpacking)\b/i],
+	["space", /\b(space|nasa|astronomy|rocket launch|astronaut)\b/i],
+	["environment", /\b(climate|environment|sustainability|recycling|conservation)\b/i],
+	["politics", /\b(politics?|election|government|congress|parliament)\b/i],
+	["finance", /\b(finance|stock market|personal finance|budgeting|investing)\b/i],
 	["learning", /\b(tutorial|lesson|lecture|course|how to)\b/i],
 	["talk", /\b(podcast|interview|just chatting)\b/i],
 	["comedy", /\b(comedy|stand.up|sketch comedy)\b/i],
 	["nature", /\b(wildlife|birdwatching|rainforest|coral reef)\b/i],
-	["wellbeing", /\b(meditation|mental health|mindfulness)\b/i],
+	["wellbeing", /\b(meditation|mental health|mindfulness|acupuncture)\b/i],
 	["business", /\b(entrepreneur|small business|startup funding|investing)\b/i],
 	["news-commentary", /\b(election|political|breaking news)\b/i]
 ];
@@ -1372,7 +1420,7 @@ var remoteRefreshCursor = 0;
 var twitchRefreshCursor = 0;
 var youtubeRefreshCursor = 0;
 var historyRecoveryCardCache = /* @__PURE__ */ new Map();
-var REMOTE_REFRESH_BATCH_SIZE = 80;
+var REMOTE_REFRESH_BATCH_SIZE = LIBRARY_LIMITS.remoteRefreshChannelBatch;
 var STARTER_FOLLOWS = [
 	{
 		id: "yt:starter-h3",
@@ -1491,6 +1539,12 @@ function newestResume(...marks) {
 		return normalized && (!best || normalized.at > best.at) ? normalized : best;
 	}, void 0);
 }
+function isResumable(video, mark) {
+	if (!mark) return false;
+	const minimumSeconds = video.remote ? 2 : 5;
+	const completeAt = video.remote ? .992 : .985;
+	return mark.t >= minimumSeconds && mark.t / mark.d < completeAt;
+}
 function reconcileResumeForVideos(videos, progress, resumeProgress) {
 	const next = { ...progress };
 	for (const video of videos) {
@@ -1592,7 +1646,7 @@ function remoteMetadataTags(video) {
 		twitchGame,
 		...semanticTags(video),
 		...descriptionKeywordTags(video)
-	].filter(Boolean))].slice(0, 40);
+	].filter(Boolean))].slice(0, LIBRARY_LIMITS.remoteMetadataTagsPerTitle);
 }
 /** Upgrade cached provider cards with the same safe tags created for new pulls. */
 function enrichRemoteTags(existing, videos) {
@@ -1614,7 +1668,7 @@ function compactIngestedTags(existing, inferred) {
 		if (!tag || tag === "http" || tag === "https" || seen.has(tag)) continue;
 		seen.add(tag);
 		compact.push(tag);
-		if (compact.length >= 40) break;
+		if (compact.length >= LIBRARY_LIMITS.remoteMetadataTagsPerTitle) break;
 	}
 	return compact;
 }
@@ -1657,7 +1711,7 @@ function descriptionKeywordTags(video) {
 		if (ignored.has(word) || seen.has(word)) continue;
 		seen.add(word);
 		tags.push(word);
-		if (tags.length >= 20) break;
+		if (tags.length >= LIBRARY_LIMITS.descriptionKeywordTagsPerTitle) break;
 	}
 	return tags;
 }
@@ -1665,25 +1719,26 @@ function descriptionKeywordTags(video) {
 function semanticTags(video) {
 	const text = `${video.name} ${video.path} ${video.tagline ?? ""} ${video.description ?? ""}`.toLowerCase();
 	const tags = [
-		[/\b(game|gaming|playthrough|speedrun|walkthrough|minecraft|steam)\b/, "gaming"],
+		[/\b(game|gaming|playthrough|speedrun|walkthrough|minecraft|steam|zombies|streamer games|nba 2k\d*|cozy games|\barc\b)\b/, "gaming"],
 		[/\b(tech|software|coding|programming|computer|ai|gadget)\b/, "technology"],
 		[/\b(news|politic|election|debate|commentary)\b/, "news-commentary"],
 		[/\b(music|song|album|concert|cover|playlist)\b/, "music"],
 		[/\b(movie|film|cinema|trailer|review)\b/, "film"],
 		[/\b(anime|manga|japan|otaku)\b/, "anime"],
-		[/\b(food|cook|recipe|restaurant|kitchen)\b/, "food"],
-		[/\b(travel|trip|tour|flight|hotel|beach)\b/, "travel"],
+		[/\b(food|cook|recipe|restaurant|kitchen|cake|baking|cake decorating)\b/, "food"],
+		[/\b(travel|trip|tour|flight|hotel|beach|bali|pool party)\b/, "travel"],
 		[/\b(fitness|workout|gym|health|sport)\b/, "fitness"],
 		[/\b(science|space|history|documentary|education)\b/, "learning"],
 		[/\b(comedy|funny|sketch|standup|meme)\b/, "comedy"],
 		[/\b(asmr|relax|sleep|ambient|meditation)\b/, "relaxing"],
+		[/\b(acupuncture|wellness|self care)\b/, "wellbeing"],
 		[/\b(podcast|interview|talk|discussion)\b/, "talk"],
 		[/\b(react|reaction|drama|tea|opinion)\b/, "commentary"],
 		[/\b(art|drawing|painting|design|animation)\b/, "creative"],
 		[/\b(animal|wildlife|zoo|nature)\b/, "nature"],
 		[/\b(finance|money|business|investing)\b/, "business"],
 		[/\b(fashion|beauty|makeup|style)\b/, "style"],
-		[/\b(car|cars|driving|racing|automotive|motorcycle)\b/, "motors"],
+		[/\b(car|cars|driving|racing|automotive|motorcycle|simucube|racing rig)\b/, "motors"],
 		[/\b(horror|scary|creepy|ghost|true crime)\b/, "horror"],
 		[/\b(diy|repair|build|woodwork|maker|restoration)\b/, "maker"],
 		[/\b(soccer|football|basketball|baseball|esports|tournament)\b/, "sports"],
@@ -1692,7 +1747,19 @@ function semanticTags(video) {
 		[/\b(mental health|therapy|psychology|mindfulness)\b/, "wellbeing"],
 		[/\b(language|linguistics|learn \w+|lesson|tutorial)\b/, "skills"],
 		[/\b(hardware|pc build|keyboard|phone|camera)\b/, "hardware"],
-		[/\b(legal|court|law|lawsuit)\b/, "legal"]
+		[/\b(legal|court|law|lawsuit)\b/, "legal"],
+		[/\b(documentary|docuseries)\b/, "documentary"],
+		[/\b(history|historical|ancient|archaeology)\b/, "history"],
+		[/\b(true crime|murder|missing person|serial killer)\b/, "true-crime"],
+		[/\b(photo|photography|camera review|photographer)\b/, "photography"],
+		[/\b(artwork|watercolor|illustration|digital art)\b/, "art"],
+		[/\b(animation|animated|cartoon|animator)\b/, "animation"],
+		[/\b(animals?|pets?|dogs?|cats?|wildlife)\b/, "animals"],
+		[/\b(hiking|camping|fishing|backpacking|outdoors?)\b/, "outdoors"],
+		[/\b(climate|environment|sustainability|conservation)\b/, "environment"],
+		[/\b(makeup|skincare|beauty|hair tutorial)\b/, "beauty"],
+		[/\b(fashion|outfit|streetwear|clothing)\b/, "fashion"],
+		[/\b(home decor|home tour|interior design|organization)\b/, "home"]
 	].filter(([pattern]) => pattern.test(text)).map(([, tag]) => tag);
 	if (video.remote?.kind === "youtube" && ((video.duration ?? 0) > 0 && (video.duration ?? 0) < 90 || /(?:#|\b)shorts?\b/i.test(text))) tags.push("shorts", "short-form");
 	if (video.remote?.kind === "twitch" && !video.remote.live && (video.duration ?? 0) > 0 && (video.duration ?? 0) < 120) tags.push("clip");
@@ -1848,7 +1915,7 @@ var useLibrary = create((set, get) => ({
 		const video = state.videos.find((item) => item.id === id);
 		if (video) librarySearchIndex.updateMetadata(video, state.videos, state.tags, state.categories);
 		saveTagEdit(id, state.tags[id] ?? []);
-		persistNow(get);
+		persistSoon(get);
 	},
 	autoTagLibrary: () => {
 		let changed = 0;
@@ -2769,7 +2836,7 @@ var useLibrary = create((set, get) => ({
 		};
 		const twitch = allFollows.filter((follow) => follow.kind === "twitch");
 		const youtube = allFollows.filter((follow) => follow.kind === "youtube");
-		const current = twitch.length && youtube.length ? [...rotate(twitch, Math.min(24, REMOTE_REFRESH_BATCH_SIZE), "twitch"), ...rotate(youtube, REMOTE_REFRESH_BATCH_SIZE - Math.min(24, REMOTE_REFRESH_BATCH_SIZE), "youtube")] : rotate(allFollows, REMOTE_REFRESH_BATCH_SIZE, "all");
+		const current = twitch.length && youtube.length ? [...rotate(twitch, Math.min(LIBRARY_LIMITS.twitchChannelsReservedPerRefresh, REMOTE_REFRESH_BATCH_SIZE), "twitch"), ...rotate(youtube, REMOTE_REFRESH_BATCH_SIZE - Math.min(LIBRARY_LIMITS.twitchChannelsReservedPerRefresh, REMOTE_REFRESH_BATCH_SIZE), "youtube")] : rotate(allFollows, REMOTE_REFRESH_BATCH_SIZE, "all");
 		set({ refreshing: true });
 		const beforeLive = new Set(get().videos.filter((v) => v.remote?.live).map((v) => v.id));
 		const beforeIds = new Set(get().videos.map((v) => v.id));
@@ -2941,12 +3008,7 @@ function selectVisible(state) {
 	const inAdults = state.sourceId === "adults";
 	let list = inAdults ? adultList(state) : publicList(state);
 	if (state.sourceId === "favorites") list = list.filter((v) => state.favorites[v.id]);
-	else if (state.sourceId === "continue") list = list.filter((v) => {
-		const p = resumeForVideo(state, v);
-		if (!p) return false;
-		const r = p.t / p.d;
-		return r > (v.remote ? .01 : .04) && r < (v.remote ? .985 : .96);
-	});
+	else if (state.sourceId === "continue") list = recoveryList(state, false).filter((video) => isResumable(video, resumeForVideo(state, video)));
 	else if (state.sourceId === "history") {
 		const byId = new Map(list.map((v) => [v.id, v]));
 		list = state.history.map((h) => byId.get(h.id)).filter((v) => v != null);
@@ -2991,12 +3053,7 @@ function selectContinue(state, adult = false) {
 	const memo = memoFor(state);
 	const existing = adult ? memo.continueAdult : memo.continuePublic;
 	if (existing) return existing;
-	const items = scoped(state, adult).filter((v) => {
-		const p = resumeForVideo(state, v);
-		if (!p) return false;
-		const r = p.t / p.d;
-		return r > (v.remote ? .01 : .04) && r < (v.remote ? .985 : .96);
-	});
+	const items = recoveryList(state, adult).filter((video) => isResumable(video, resumeForVideo(state, video)));
 	items.sort((a, b) => (resumeForVideo(state, b)?.at ?? 0) - (resumeForVideo(state, a)?.at ?? 0));
 	if (adult) memo.continueAdult = items;
 	else memo.continuePublic = items;
@@ -3814,8 +3871,8 @@ var VideoCard = (0, import_react.memo)(function VideoCard({ video, variant = "gr
 				})
 			}),
 			live && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-				className: "absolute top-2 left-2 flex items-center gap-1.5 rounded-xs bg-bg/80 px-1.5 py-0.5 text-xs font-medium tracking-wide text-fg uppercase",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "live-dot size-1.5 rounded-full bg-danger" }), "Live"]
+				className: "absolute top-2 left-2 flex items-center gap-1.5 rounded-full border border-danger/40 bg-danger px-2.5 py-1 text-[11px] font-bold tracking-[0.12em] text-white uppercase shadow-lift",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "live-dot size-1.5 rounded-full bg-white shadow-[0_0_0_3px_rgb(255_255_255_/_0.2)]" }), "Live"]
 			}),
 			video.remote?.kind === "youtube" && !live && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 				className: "absolute top-2 left-2 rounded-xs bg-bg/75 px-1.5 py-0.5 text-xs text-muted",
@@ -4058,6 +4115,55 @@ function markFirstShelf(title, cards) {
 function getFirstShelfTrace() {
 	return trace;
 }
+var DEVICE_ID_KEY = "reelcase.network-device.v1";
+function newDeviceId() {
+	if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+	return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (letter) => {
+		const value = Math.floor(Math.random() * 16);
+		return (letter === "x" ? value : value & 3 | 8).toString(16);
+	});
+}
+function getDeviceId() {
+	try {
+		const saved = localStorage.getItem(DEVICE_ID_KEY);
+		if (saved && /^[a-z0-9-]{8,64}$/i.test(saved)) return saved;
+		const next = newDeviceId();
+		localStorage.setItem(DEVICE_ID_KEY, next);
+		return next;
+	} catch {
+		return newDeviceId();
+	}
+}
+function deviceDetails() {
+	const mobile = /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent);
+	const browser = /edg\//i.test(navigator.userAgent) ? "Edge" : /firefox\//i.test(navigator.userAgent) ? "Firefox" : /chrome\//i.test(navigator.userAgent) ? "Chrome" : "Browser";
+	return {
+		label: `${mobile ? "Mobile" : "Desktop"} · ${browser}`,
+		kind: mobile ? "mobile" : "desktop"
+	};
+}
+function getNetworkDeviceId() {
+	return getDeviceId();
+}
+async function announceNetworkPresence() {
+	const details = deviceDetails();
+	const response = await fetch("/api/network-presence", {
+		method: "POST",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify({
+			id: getDeviceId(),
+			...details
+		}),
+		keepalive: true
+	});
+	if (!response.ok) throw new Error("Network presence could not be updated");
+	return response.json();
+}
+async function listNetworkDevices() {
+	const response = await fetch("/api/network-presence", { cache: "no-store" });
+	if (!response.ok) throw new Error("Network devices could not be read");
+	return response.json();
+}
 function Sheet(props) {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Dialog, { ...props });
 }
@@ -4235,7 +4341,9 @@ function TitleRail({ title, videos, variant = "poster", playedAt, onTitleClick, 
 				if (rail) rail.scrollLeft = scrollLeft.current;
 			},
 			onScroll: (event) => {
-				scrollLeft.current = event.currentTarget.scrollLeft;
+				const rail = event.currentTarget;
+				scrollLeft.current = rail.scrollLeft;
+				if (rail.scrollLeft + rail.clientWidth >= rail.scrollWidth - 160) setLimit((value) => Math.min(videos.length, value + 16));
 			},
 			className: "rail-scroll flex gap-3 overflow-x-auto pb-3 sm:gap-4",
 			children: [shown.map((video, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
@@ -4502,6 +4610,7 @@ function LiveDesk({ videos }) {
 	const [search, setSearch] = (0, import_react.useState)("");
 	const [sort, setSort] = (0, import_react.useState)("favorites");
 	const [columns, setColumns] = (0, import_react.useState)(4);
+	const [visibleLimit, setVisibleLimit] = (0, import_react.useState)(120);
 	const [ready, setReady] = (0, import_react.useState)(false);
 	const [adding, setAdding] = (0, import_react.useState)("");
 	(0, import_react.useEffect)(() => {
@@ -4548,6 +4657,11 @@ function LiveDesk({ videos }) {
 		likes,
 		sort,
 		search
+	]);
+	(0, import_react.useEffect)(() => setVisibleLimit(120), [
+		filter,
+		search,
+		sort
 	]);
 	const youtubeLiveCount = videos.filter((video) => video.remote?.kind === "youtube").length;
 	const recommendedChannels = [
@@ -4795,6 +4909,7 @@ function SidebarNav({ onAddFolder, onNavigate }) {
 	const lockAdults = useLibrary((s) => s.lockAdults);
 	const favorites = useLibrary((s) => s.favorites);
 	const progress = useLibrary((s) => s.progress);
+	const resumeProgress = useLibrary((s) => s.resumeProgress);
 	const history = useLibrary((s) => s.history);
 	const [followingOpen, setFollowingOpen] = (0, import_react.useState)(false);
 	const [sourcesOpen, setSourcesOpen] = (0, import_react.useState)(false);
@@ -4845,8 +4960,11 @@ function SidebarNav({ onAddFolder, onNavigate }) {
 			}
 			if (!(hideDemo && video.isSample)) {
 				publicCount += 1;
-				const mark = progress[video.id];
-				if (mark?.d && mark.t / mark.d > .04 && mark.t / mark.d < .96) continueCount += 1;
+				const mark = resumeForVideo({
+					progress,
+					resumeProgress
+				}, video);
+				if (mark && mark.t >= (video.remote ? 2 : 5) && mark.t / mark.d < (video.remote ? .992 : .985)) continueCount += 1;
 			}
 			if (video.remote?.kind === "youtube") ytCount += 1;
 			if (video.remote?.kind === "twitch") twitchCount += 1;
@@ -4880,6 +4998,7 @@ function SidebarNav({ onAddFolder, onNavigate }) {
 		hideDemo,
 		history,
 		progress,
+		resumeProgress,
 		videos
 	]);
 	const demo = folders.find((f) => f.kind === "demo" && !hideDemo);
@@ -5327,6 +5446,77 @@ function NoticeBell() {
 		})]
 	});
 }
+var worker = null;
+var sequence = 0;
+var pending = /* @__PURE__ */ new Map();
+var status = "idle";
+var listeners = /* @__PURE__ */ new Set();
+function setStatus(next) {
+	status = next;
+	listeners.forEach((listener) => listener(status));
+}
+function instance() {
+	if (!worker) {
+		worker = new Worker(new URL("./search.worker.ts", import.meta.url), { type: "module" });
+		worker.onmessage = ({ data }) => {
+			if (data.type === "ready") {
+				setStatus("ready");
+				return;
+			}
+			pending.get(data.requestId)?.(data.ids);
+		};
+	}
+	return worker;
+}
+var searchWorkerIndex = {
+	sync(videos, tags, categories) {
+		const documents = videos.map((v) => ({
+			id: v.id,
+			text: [
+				v.name,
+				v.path,
+				v.genre,
+				v.tagline,
+				v.collection,
+				v.description,
+				categories[v.id],
+				...tags[v.id] ?? [],
+				...topicsForVideo(v, tags[v.id]),
+				v.remote?.channelName,
+				v.remote?.channelId,
+				v.remote?.kind
+			].filter(Boolean).join(" ")
+		}));
+		setStatus("building");
+		instance().postMessage({
+			type: "sync",
+			documents
+		});
+	},
+	search(query) {
+		return new Promise((resolve) => {
+			const requestId = ++sequence;
+			pending.set(requestId, (ids) => {
+				pending.delete(requestId);
+				resolve(ids);
+			});
+			instance().postMessage({
+				type: "search",
+				requestId,
+				query
+			});
+		});
+	},
+	getStatus() {
+		return status;
+	},
+	subscribe(listener) {
+		listeners.add(listener);
+		return () => {
+			listeners.delete(listener);
+		};
+	}
+};
 var SORTS = [
 	{
 		key: "name",
@@ -5412,10 +5602,26 @@ function TopBar({ onMenu, onAddFolder }) {
 	const sourceLabel = sourceId === "home" ? "Home" : sourceId === "movies" ? "Movies" : sourceId === "photos" ? "Photos" : sourceId === "twitch" ? "Twitch" : sourceId === "youtube" ? "YouTube" : folders.find((folder) => folder.id === sourceId)?.name ?? "Library";
 	const sourceCount = sourceId === "home" ? videos.length : folders.find((folder) => folder.id === sourceId)?.videoCount;
 	const needle = lookup.trim().toLowerCase();
+	const [workerIds, setWorkerIds] = (0, import_react.useState)(null);
+	const [searchIndexStatus, setSearchIndexStatus] = (0, import_react.useState)(searchWorkerIndex.getStatus());
+	(0, import_react.useEffect)(() => searchWorkerIndex.subscribe(setSearchIndexStatus), []);
+	(0, import_react.useEffect)(() => {
+		let active = true;
+		if (!needle) {
+			setWorkerIds(null);
+			return;
+		}
+		searchWorkerIndex.search(needle).then((ids) => {
+			if (active) setWorkerIds(ids);
+		});
+		return () => {
+			active = false;
+		};
+	}, [needle]);
 	const videoById = (0, import_react.useMemo)(() => new Map(videos.map((video) => [video.id, video])), [videos]);
 	const hits = (0, import_react.useMemo)(() => {
 		if (!needle) return [];
-		const indexedIds = librarySearchIndex.search(needle);
+		const indexedIds = workerIds ? new Set(workerIds) : librarySearchIndex.search(needle);
 		return (indexedIds ? Array.from(indexedIds, (id) => videoById.get(id)).filter((video) => Boolean(video)) : videos).filter((video) => {
 			if (folders.find((item) => item.id === video.folderId)?.adult && !(sourceId === "adults" && adultsUnlocked)) return false;
 			return indexedIds ? true : `${video.name} ${video.path} ${video.description ?? ""} ${video.remote?.channelName ?? ""} ${(tags[video.id] ?? []).join(" ")}`.toLowerCase().includes(needle);
@@ -5427,7 +5633,8 @@ function TopBar({ onMenu, onAddFolder }) {
 		sourceId,
 		tags,
 		videoById,
-		videos
+		videos,
+		workerIds
 	]);
 	const suggestionTags = (0, import_react.useMemo)(() => [...new Set(hits.flatMap((video) => tags[video.id] ?? []))].filter((tag) => tag.length >= 3).slice(0, 5), [hits, tags]);
 	const commit = (value = draft) => {
@@ -5492,126 +5699,133 @@ function TopBar({ onMenu, onAddFolder }) {
 					}),
 					focused && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "absolute top-[calc(100%+0.5rem)] z-40 w-full overflow-hidden rounded-lg bg-surface p-2 shadow-lift shadow-border",
-						children: [hits.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "px-3 py-2 text-xs font-medium tracking-[0.14em] text-accent uppercase",
-								children: "Best matches"
+						children: [
+							searchIndexStatus === "building" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "px-3 py-2 text-xs text-muted",
+								children: "Warming the local search index… suggestions are using the fast fallback."
 							}),
-							hits.map((video) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-								type: "button",
-								onMouseDown: (event) => event.preventDefault(),
-								onClick: () => {
-									openPreview(video.id);
-									setFocused(false);
-								},
-								className: "flex w-full items-center gap-3 rounded-sm px-3 py-2 text-left hover:bg-elevated",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "flex size-8 shrink-0 items-center justify-center rounded-sm bg-bg/60 text-accent",
-									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FolderSearch, { className: "size-4" })
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-									className: "min-w-0 flex-1",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-										className: "block truncate text-sm font-medium text-fg",
-										children: video.name
-									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-										className: "block truncate text-xs text-muted",
-										children: video.remote?.channelName ?? video.path
-									})]
-								})]
-							}, video.id)),
-							suggestionTags.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "flex flex-wrap gap-2 border-t border-border px-3 py-2",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "self-center text-xs text-muted",
-									children: "Related tags"
-								}), suggestionTags.map((tag) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-									size: "sm",
-									variant: "secondary",
-									onMouseDown: (event) => event.preventDefault(),
-									onClick: () => {
-										setDraft(tag);
-										commit(tag);
-									},
-									children: ["#", tag]
-								}, tag))]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-								type: "button",
-								onMouseDown: (event) => event.preventDefault(),
-								onClick: () => commit(),
-								className: "mt-1 flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm text-accent hover:bg-elevated",
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Search, { className: "size-4" }),
-									" See all results for “",
-									draft,
-									"”"
-								]
-							})
-						] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "px-3 py-2 text-xs font-medium tracking-[0.14em] text-accent uppercase",
-								children: "Search everywhere"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "flex flex-wrap gap-2 px-3 py-2",
-								children: [
-									"favorites",
-									"4k",
-									"documentary",
-									"watch later"
-								].map((term) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-									size: "sm",
-									variant: "secondary",
-									onMouseDown: (event) => event.preventDefault(),
-									onClick: () => {
-										setDraft(term);
-										commit(term);
-									},
-									children: term
-								}, term))
-							}),
-							recent.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "border-t border-border px-3 pt-2",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "text-xs text-muted",
-									children: "Recent"
-								}), recent.map((term) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+							hits.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "px-3 py-2 text-xs font-medium tracking-[0.14em] text-accent uppercase",
+									children: "Best matches"
+								}),
+								hits.map((video) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 									type: "button",
 									onMouseDown: (event) => event.preventDefault(),
 									onClick: () => {
-										setDraft(term);
-										commit(term);
+										openPreview(video.id);
+										setFocused(false);
 									},
-									className: "mt-1 flex w-full items-center gap-2 py-1 text-left text-sm text-fg hover:text-accent",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Sparkles, { className: "size-3.5" }), term]
-								}, term))]
-							})
-						] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "mt-2 flex gap-2 border-t border-border px-3 pt-2",
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-									size: "sm",
-									variant: "ghost",
-									onMouseDown: (event) => event.preventDefault(),
-									onClick: () => setSource("home"),
-									children: "Library"
+									className: "flex w-full items-center gap-3 rounded-sm px-3 py-2 text-left hover:bg-elevated",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "flex size-8 shrink-0 items-center justify-center rounded-sm bg-bg/60 text-accent",
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FolderSearch, { className: "size-4" })
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+										className: "min-w-0 flex-1",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "block truncate text-sm font-medium text-fg",
+											children: video.name
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "block truncate text-xs text-muted",
+											children: video.remote?.channelName ?? video.path
+										})]
+									})]
+								}, video.id)),
+								suggestionTags.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "flex flex-wrap gap-2 border-t border-border px-3 py-2",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "self-center text-xs text-muted",
+										children: "Related tags"
+									}), suggestionTags.map((tag) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+										size: "sm",
+										variant: "secondary",
+										onMouseDown: (event) => event.preventDefault(),
+										onClick: () => {
+											setDraft(tag);
+											commit(tag);
+										},
+										children: ["#", tag]
+									}, tag))]
 								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-									size: "sm",
-									variant: "ghost",
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+									type: "button",
 									onMouseDown: (event) => event.preventDefault(),
-									onClick: () => setSource("youtube"),
-									children: "YouTube"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-									size: "sm",
-									variant: "ghost",
-									onMouseDown: (event) => event.preventDefault(),
-									onClick: () => setSource("twitch"),
-									children: "Twitch"
+									onClick: () => commit(),
+									className: "mt-1 flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm text-accent hover:bg-elevated",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Search, { className: "size-4" }),
+										" See all results for “",
+										draft,
+										"”"
+									]
 								})
-							]
-						})]
+							] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "px-3 py-2 text-xs font-medium tracking-[0.14em] text-accent uppercase",
+									children: "Search everywhere"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "flex flex-wrap gap-2 px-3 py-2",
+									children: [
+										"favorites",
+										"4k",
+										"documentary",
+										"watch later"
+									].map((term) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										size: "sm",
+										variant: "secondary",
+										onMouseDown: (event) => event.preventDefault(),
+										onClick: () => {
+											setDraft(term);
+											commit(term);
+										},
+										children: term
+									}, term))
+								}),
+								recent.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "border-t border-border px-3 pt-2",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "text-xs text-muted",
+										children: "Recent"
+									}), recent.map((term) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+										type: "button",
+										onMouseDown: (event) => event.preventDefault(),
+										onClick: () => {
+											setDraft(term);
+											commit(term);
+										},
+										className: "mt-1 flex w-full items-center gap-2 py-1 text-left text-sm text-fg hover:text-accent",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Sparkles, { className: "size-3.5" }), term]
+									}, term))]
+								})
+							] }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "mt-2 flex gap-2 border-t border-border px-3 pt-2",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										size: "sm",
+										variant: "ghost",
+										onMouseDown: (event) => event.preventDefault(),
+										onClick: () => setSource("home"),
+										children: "Library"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										size: "sm",
+										variant: "ghost",
+										onMouseDown: (event) => event.preventDefault(),
+										onClick: () => setSource("youtube"),
+										children: "YouTube"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										size: "sm",
+										variant: "ghost",
+										onMouseDown: (event) => event.preventDefault(),
+										onClick: () => setSource("twitch"),
+										children: "Twitch"
+									})
+								]
+							})
+						]
 					})
 				]
 			}),
@@ -6280,6 +6494,7 @@ function Player({ playlist }) {
 		return () => document.removeEventListener("fullscreenchange", onFs);
 	}, []);
 	const togglePlay = (0, import_react.useCallback)(() => {
+		measureInteraction("playback");
 		const el = mediaRef.current;
 		if (!el) return;
 		if (el.paused) el.play();
@@ -6848,6 +7063,7 @@ function PreVideo() {
 	const setVideoCategory = useLibrary((s) => s.setVideoCategory);
 	const toggleFavorite = useLibrary((s) => s.toggleFavorite);
 	const recordPlay = useLibrary((s) => s.recordPlay);
+	const markProgress = useLibrary((s) => s.markProgress);
 	const toggleLike = useLibrary((s) => s.toggleLike);
 	const followRemoteQuery = useLibrary((s) => s.followRemoteQuery);
 	const favorite = useLibrary((s) => previewId ? Boolean(s.favorites[previewId]) : false);
@@ -6859,6 +7075,7 @@ function PreVideo() {
 	const [categoryText, setCategoryText] = (0, import_react.useState)("");
 	const [vrAvailable, setVrAvailable] = (0, import_react.useState)(false);
 	const [rating, setRating$1] = (0, import_react.useState)(0);
+	const [ratingRevision, setRatingRevision] = (0, import_react.useState)(0);
 	const [creatorRevision, setCreatorRevision] = (0, import_react.useState)(0);
 	const [creatorLoading, setCreatorLoading] = (0, import_react.useState)(false);
 	const [tagRevision, setTagRevision] = (0, import_react.useState)(0);
@@ -6871,15 +7088,57 @@ function PreVideo() {
 	(0, import_react.useEffect)(() => {
 		if (video) recordPlay(video.id, "open");
 	}, [recordPlay, video?.id]);
+	(0, import_react.useEffect)(() => {
+		if (!video?.remote) return;
+		const openedAt = Date.now();
+		const durationHint = Math.max(video.duration ?? 0, 120);
+		const savePreviewWatch = () => {
+			const watched = (Date.now() - openedAt) / 1e3;
+			if (watched >= 8) markProgress(video.id, Math.min(watched, durationHint * .94), durationHint);
+		};
+		const timer = window.setInterval(savePreviewWatch, 5e3);
+		return () => {
+			savePreviewWatch();
+			window.clearInterval(timer);
+		};
+	}, [
+		markProgress,
+		video?.id,
+		video?.remote
+	]);
 	const creator = video?.remote?.channelName?.trim() ?? "";
 	const creatorKeyword = creator.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-	const visibleTags = (creatorKeyword && !tags.includes(creatorKeyword) ? [creatorKeyword, ...tags] : tags).map((tag) => tag.replace(/^(?:keyword-|creator-)/i, ""));
+	const tagScores = (0, import_react.useMemo)(() => {
+		const scores = /* @__PURE__ */ new Map();
+		for (const item of videos) for (const rawTag of allTags[item.id] ?? EMPTY_TAGS) {
+			const tag = rawTag.replace(/^(?:keyword-|creator-)/i, "");
+			const entry = scores.get(tag) ?? {
+				total: 0,
+				count: 0
+			};
+			entry.total += getRating(item.id);
+			entry.count += 1;
+			scores.set(tag, entry);
+		}
+		return scores;
+	}, [
+		allTags,
+		ratingRevision,
+		videos
+	]);
+	const allVisibleTags = (creatorKeyword && !tags.includes(creatorKeyword) ? [creatorKeyword, ...tags] : tags).map((tag) => tag.replace(/^(?:keyword-|creator-)/i, ""));
+	const visibleTags = allVisibleTags.slice(0, 80);
 	const creatorRating = creator ? getCreatorRating(creator) : 0;
 	const creatorLiked = creator ? creatorIsLiked(creator) : false;
 	(0, import_react.useEffect)(() => {
 		if (!previewId) return;
 		setRating$1(getRating(previewId));
 	}, [previewId]);
+	(0, import_react.useEffect)(() => {
+		const refresh = () => setRatingRevision((value) => value + 1);
+		window.addEventListener("reelcase:rating-change", refresh);
+		return () => window.removeEventListener("reelcase:rating-change", refresh);
+	}, []);
 	(0, import_react.useEffect)(() => {
 		setShelfReady(false);
 		const timer = window.setTimeout(() => setShelfReady(true), 140);
@@ -6987,7 +7246,7 @@ function PreVideo() {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 		className: "fixed inset-0 z-50 overflow-y-auto bg-bg/98 px-4 py-5 sm:px-8 sm:py-8",
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-			className: video.remote?.kind === "twitch" ? "w-full max-w-none" : "mx-auto max-w-6xl",
+			className: video.remote ? "w-full max-w-none" : "mx-auto max-w-6xl",
 			children: [
 				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "flex items-center justify-between gap-3",
@@ -7004,7 +7263,7 @@ function PreVideo() {
 					})]
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					className: video.remote?.kind === "twitch" ? "mt-5 grid gap-7" : "mt-5 grid gap-7 lg:grid-cols-[minmax(0,1.55fr)_minmax(18rem,0.7fr)]",
+					className: video.remote?.kind === "twitch" ? "mt-5 grid gap-7" : video.remote?.kind === "youtube" ? "mt-5 grid gap-7 xl:grid-cols-[minmax(0,2.35fr)_minmax(20rem,0.65fr)]" : "mt-5 grid gap-7 lg:grid-cols-[minmax(0,1.55fr)_minmax(18rem,0.7fr)]",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 							className: "overflow-hidden rounded-lg bg-elevated shadow-border",
@@ -7022,7 +7281,11 @@ function PreVideo() {
 								autoPlay: true,
 								preload: "metadata",
 								playsInline: true,
-								controls: true
+								controls: true,
+								onTimeUpdate: (event) => {
+									const element = event.currentTarget;
+									if (Number.isFinite(element.duration) && element.duration > 0) markProgress(video.id, element.currentTime, element.duration);
+								}
 							}) : previewError ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 								className: "flex aspect-video items-center justify-center bg-bg px-6 text-center text-sm text-muted",
 								children: previewError
@@ -7198,14 +7461,22 @@ function PreVideo() {
 									className: "inline-flex overflow-hidden rounded-xs bg-bg/50 text-xs text-muted",
 									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 										type: "button",
-										title: `Show videos tagged ${tag}`,
+										title: `Show videos tagged ${tag} · score ${Math.round((tagScores.get(tag)?.total ?? 0) / Math.max(1, tagScores.get(tag)?.count ?? 1) * 1e3).toLocaleString()}`,
 										onClick: () => {
 											setSource(video.remote?.kind === "twitch" ? "twitch" : video.remote?.kind === "youtube" ? "youtube" : "all");
 											setQuery(tag);
 											closePreview();
 										},
 										className: "px-2 py-1 transition-colors hover:bg-accent/15 hover:text-accent focus-visible:outline-2 focus-visible:outline-accent",
-										children: ["#", tag]
+										children: [
+											"#",
+											tag,
+											" ",
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+												className: "text-accent",
+												children: ["· ", Math.round((tagScores.get(tag)?.total ?? 0) / Math.max(1, tagScores.get(tag)?.count ?? 1) * 1e3).toLocaleString()]
+											})
+										]
 									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 										type: "button",
 										title: tagIsLiked(tag) ? `Unlike tag ${tag}` : `Like tag ${tag}`,
@@ -7221,6 +7492,16 @@ function PreVideo() {
 									className: "text-xs text-subtle",
 									children: "No keywords yet"
 								})
+							}),
+							allVisibleTags.length > visibleTags.length && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+								className: "mt-2 text-xs text-muted",
+								children: [
+									"Showing ",
+									visibleTags.length,
+									" of ",
+									allVisibleTags.length,
+									" saved provider tags. Search the source to use the rest."
+								]
 							}),
 							editing && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "mt-5 space-y-3 border-t border-border pt-4",
@@ -8049,7 +8330,7 @@ ytFilm({
 	tagline: "A Blender Studio open project.",
 	channel: "Blender Studio"
 });
-var loadHub = () => import("./hub-sections-KfxdgYIc.mjs");
+var loadHub = () => import("./hub-sections-D4nTPE5m.mjs");
 var hubSection = (name) => (0, import_react.lazy)(async () => ({ default: (await loadHub())[name] }));
 var GamesSection = hubSection("GamesSection");
 var FindPhoneSection = hubSection("FindPhoneSection");
@@ -8107,6 +8388,18 @@ function isOfflineChannelCard(video) {
 var isTasteTag = isTopicTag;
 function LibraryApp() {
 	(0, import_react.useEffect)(() => {
+		const announce = () => {
+			if (document.visibilityState === "visible") announceNetworkPresence().catch(() => void 0);
+		};
+		announce();
+		const timer = window.setInterval(announce, 25e3);
+		document.addEventListener("visibilitychange", announce);
+		return () => {
+			window.clearInterval(timer);
+			document.removeEventListener("visibilitychange", announce);
+		};
+	}, []);
+	(0, import_react.useEffect)(() => {
 		const failed = () => toast.error("Library changes could not be saved. Browser storage is unavailable or full.");
 		window.addEventListener("reelcase:save-error", failed);
 		return () => window.removeEventListener("reelcase:save-error", failed);
@@ -8162,6 +8455,7 @@ function LibraryApp() {
 	const setSource = useLibrary((s) => s.setSource);
 	const hydrated = useLibrary((s) => s.hydrated);
 	const query = useLibrary((s) => s.query);
+	const setQuery = useLibrary((s) => s.setQuery);
 	const scanning = useLibrary((s) => s.scanning);
 	const activeId = useLibrary((s) => s.activeId);
 	const previewId = useLibrary((s) => s.previewId);
@@ -8215,10 +8509,61 @@ function LibraryApp() {
 			resumable
 		};
 	}, [history]);
+	const favorites = useLibrary((s) => s.favorites);
+	const likes = useLibrary((s) => s.likes);
+	const viewCounts = useLibrary((s) => s.viewCounts);
 	const filteredYoutube = (0, import_react.useMemo)(() => youtubeTagFilter === "all" ? newestYoutube : newestYoutube.filter((video) => topicsForVideo(video, tags[video.id]).includes(youtubeTagFilter)), [
 		newestYoutube,
 		tags,
 		youtubeTagFilter
+	]);
+	const searchInsights = (0, import_react.useMemo)(() => {
+		const needle = query.trim().toLowerCase();
+		if (!needle) return {
+			ranked: videos,
+			tags: []
+		};
+		const terms = needle.split(/[^a-z0-9]+/).filter(Boolean);
+		const score = (video) => {
+			const title = video.name.toLowerCase();
+			const creator = (video.remote?.channelName ?? "").toLowerCase();
+			const exactTagHits = [...new Set([...topicsForVideo(video, tags[video.id]), ...tags[video.id] ?? []].map((tag) => tag.toLowerCase()))].filter((tag) => terms.some((term) => tag === term || tag.includes(term))).length;
+			const titleHits = terms.filter((term) => title.includes(term)).length;
+			const creatorHits = terms.filter((term) => creator.includes(term)).length;
+			return (title.includes(needle) ? 120 : 0) + (creator.includes(needle) ? 95 : 0) + titleHits * 28 + creatorHits * 22 + exactTagHits * 18 + getRating(video.id) * 7 + (favorites[video.id] ? 12 : 0) + (likes[video.id] ? 6 : 0) + Math.min(8, viewCounts[video.id] ?? 0);
+		};
+		const rankedRows = videos.map((video) => ({
+			video,
+			score: score(video)
+		})).sort((a, b) => b.score - a.score || b.video.addedAt - a.video.addedAt || a.video.name.localeCompare(b.video.name));
+		const tagRows = /* @__PURE__ */ new Map();
+		for (const row of rankedRows.slice(0, 240)) for (const tag of topicsForVideo(row.video, tags[row.video.id])) {
+			const clean = tag.toLowerCase();
+			if (clean.length < 3 || /^(?:year|month|day|type|format|source|provider)-/.test(clean)) continue;
+			const previous = tagRows.get(clean) ?? {
+				count: 0,
+				score: 0
+			};
+			tagRows.set(clean, {
+				count: previous.count + 1,
+				score: previous.score + row.score
+			});
+		}
+		return {
+			ranked: rankedRows.map((row) => row.video),
+			tags: [...tagRows.entries()].map(([tag, value]) => ({
+				tag,
+				...value
+			})).sort((a, b) => b.score - a.score || b.count - a.count || a.tag.localeCompare(b.tag)).slice(0, 12)
+		};
+	}, [
+		favorites,
+		likes,
+		query,
+		ratingRevision,
+		tags,
+		videos,
+		viewCounts
 	]);
 	const trendingYoutube = (0, import_react.useMemo)(() => sourceId === "youtube" && youtubeExploreVisible ? diversifyCreators([...filteredYoutube].sort((a, b) => (b.remote?.views ?? 0) - (a.remote?.views ?? 0) || b.addedAt - a.addedAt)) : [], [
 		filteredYoutube,
@@ -8227,11 +8572,8 @@ function LibraryApp() {
 	]);
 	const categories = useLibrary((s) => s.categories);
 	const catalogVideos = useLibrary((s) => s.videos);
-	const favorites = useLibrary((s) => s.favorites);
 	const progress = useLibrary((s) => s.progress);
 	const resumeProgress = useLibrary((s) => s.resumeProgress);
-	const likes = useLibrary((s) => s.likes);
-	const viewCounts = useLibrary((s) => s.viewCounts);
 	const unavailable = useLibrary((s) => s.unavailable);
 	const follows = useLibrary((s) => s.follows);
 	const remoteCheckedAt = useLibrary((s) => s.remoteCheckedAt);
@@ -8589,7 +8931,7 @@ function LibraryApp() {
 			return {
 				creator,
 				live,
-				vods: twitchVodPicks.filter((video) => video.remote?.channelName?.trim().toLowerCase() === creator.toLowerCase()).slice(0, 24)
+				vods: twitchVodPicks.filter((video) => video.remote?.channelName?.trim().toLowerCase() === creator.toLowerCase())
 			};
 		}).filter((group) => group.vods.length > 0).slice(0, 8);
 	}, [sortedTwitch, twitchVodPicks]);
@@ -8728,7 +9070,10 @@ function LibraryApp() {
 	}, []);
 	(0, import_react.useEffect)(() => {
 		if (!hydrated) return;
-		const build = () => librarySearchIndex.sync(catalogVideos, tags, categories);
+		const build = () => {
+			librarySearchIndex.sync(catalogVideos, tags, categories);
+			searchWorkerIndex.sync(catalogVideos, tags, categories);
+		};
 		const scheduleIdle = window.requestIdleCallback;
 		if (typeof scheduleIdle === "function") {
 			const id = scheduleIdle(build, { timeout: 2e3 });
@@ -8769,13 +9114,15 @@ function LibraryApp() {
 	};
 	const queueArchivePull = (id, handle) => {
 		if (channelRefreshing === id || archiveQueueRef.current.some((item) => item.id === id)) return;
-		if (archiveQueueRef.current.length >= 3) return;
 		archiveQueueRef.current.push({
 			id,
 			handle
 		});
 		setArchiveQueued(archiveQueueRef.current.map((item) => item.id));
 		drainArchiveQueue();
+	};
+	const queueAllArchivePulls = () => {
+		for (const channel of follows.filter((item) => item.kind === "twitch")) queueArchivePull(channel.id, channel.handle);
 	};
 	(0, import_react.useEffect)(() => {
 		if (!hydrated || !follows.length) return;
@@ -9478,112 +9825,6 @@ function LibraryApp() {
 									})
 								]
 							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
-								className: "mb-5 rounded-lg border border-border bg-surface p-4 shadow-border",
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "flex flex-wrap items-end justify-between gap-3",
-										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-												className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
-												children: "Archive coverage"
-											}),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-												className: "mt-1 text-sm text-fg",
-												children: [
-													twitchArchiveDepth.total.toLocaleString(),
-													" cached VODs across ",
-													twitchArchiveDepth.channels.length,
-													" channels · ",
-													twitchArchiveDepth.sparse,
-													" sparse channel",
-													twitchArchiveDepth.sparse === 1 ? "" : "s",
-													" under 24 VODs."
-												]
-											}),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-												className: "mt-1 text-xs text-muted",
-												children: "Background checks use a fast recent-VOD window. Focused pulls queue up to three creators and run serially, so live-state checks retain their budget. Partial responses preserve the existing archive."
-											})
-										] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-											size: "sm",
-											variant: "secondary",
-											disabled: channelRefreshing === "twitch-archives",
-											onClick: () => void (async () => {
-												setChannelRefreshing("twitch-archives");
-												try {
-													await refreshFollows();
-												} finally {
-													setChannelRefreshing("");
-												}
-											})(),
-											children: channelRefreshing === "twitch-archives" ? "Refreshing archives…" : "Refresh Twitch archives"
-										})]
-									}),
-									archiveQueued.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-										className: "mt-3 rounded-sm bg-bg/45 px-3 py-2 text-xs text-accent",
-										children: [
-											"Focused archive queue · ",
-											archiveQueued.length,
-											" waiting. Each pull starts after the current creator finishes."
-										]
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-										className: "mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3",
-										children: twitchArchiveDepth.channels.map((channel) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-											className: "rounded-sm bg-bg/45 p-3",
-											children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-												className: "flex items-start justify-between gap-2",
-												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-													className: "min-w-0",
-													children: [
-														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-															className: "truncate text-sm font-medium text-fg",
-															children: channel.name
-														}),
-														/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-															className: "mt-1 text-xs text-muted",
-															children: [
-																channel.count.toLocaleString(),
-																" cached VODs · ",
-																channel.clips,
-																" confirmed clip",
-																channel.clips === 1 ? "" : "s",
-																" · last result ",
-																channel.lastResponseCount ?? 0,
-																" rows"
-															]
-														}),
-														/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-															className: "mt-1 text-xs text-muted",
-															children: [channel.oldest ? `${new Date(channel.oldest).toLocaleDateString()} – ${new Date(channel.newest).toLocaleDateString()}` : "No archive dates yet", " · public depth may be limited"]
-														}),
-														/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-															className: "mt-1 text-xs text-muted",
-															children: [channel.lastCheckedAt ? `Checked ${new Date(channel.lastCheckedAt).toLocaleString([], {
-																month: "short",
-																day: "numeric",
-																hour: "numeric",
-																minute: "2-digit"
-															})}` : "Not checked yet", channel.retryAt && channel.retryAt > Date.now() ? ` · cooldown until ${new Date(channel.retryAt).toLocaleTimeString([], {
-																hour: "numeric",
-																minute: "2-digit",
-																second: "2-digit"
-															})}` : " · ready"]
-														})
-													]
-												}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-													size: "sm",
-													variant: "secondary",
-													disabled: channelRefreshing === channel.id || archiveQueued.includes(channel.id) || archiveQueued.length >= 3,
-													onClick: () => queueArchivePull(channel.id, channel.id.replace(/^tw:/, "")),
-													children: channelRefreshing === channel.id ? "Pulling…" : archiveQueued.includes(channel.id) ? "Queued" : "Queue deep pull"
-												})]
-											})
-										}, channel.id))
-									})
-								]
-							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 								className: "mb-5 flex flex-wrap gap-2",
 								children: [
@@ -9690,6 +9931,142 @@ function LibraryApp() {
 									variant: "rail"
 								}, `twitch-tag-${shelf.tag}`))
 							] }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
+								className: "mb-5 rounded-lg border border-border bg-surface p-4 shadow-border",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("summary", {
+										className: "cursor-pointer list-none",
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "flex items-center justify-between gap-3",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+												className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+												children: "Archive coverage"
+											}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+												className: "mt-1 text-sm text-muted",
+												children: [
+													twitchArchiveDepth.total.toLocaleString(),
+													" cached VODs across ",
+													twitchArchiveDepth.channels.length,
+													" channels · expand to review and queue deep pulls."
+												]
+											})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+												className: "text-xs text-accent",
+												children: "Expand"
+											})]
+										})
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "mt-4 flex flex-wrap items-end justify-between gap-3",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+												className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+												children: "Archive coverage"
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+												className: "mt-1 text-sm text-fg",
+												children: [
+													twitchArchiveDepth.total.toLocaleString(),
+													" cached VODs across ",
+													twitchArchiveDepth.channels.length,
+													" channels · ",
+													twitchArchiveDepth.sparse,
+													" sparse channel",
+													twitchArchiveDepth.sparse === 1 ? "" : "s",
+													" under 24 VODs."
+												]
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+												className: "mt-1 text-xs text-muted",
+												children: "Background checks use a fast recent-VOD window. Focused pulls run serially through the queued creators, so live-state checks retain their budget. Partial responses preserve the existing archive."
+											})
+										] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "flex flex-wrap gap-2",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+												size: "sm",
+												variant: "secondary",
+												disabled: channelRefreshing === "twitch-archives",
+												onClick: () => void (async () => {
+													setChannelRefreshing("twitch-archives");
+													try {
+														await refreshFollows();
+													} finally {
+														setChannelRefreshing("");
+													}
+												})(),
+												children: channelRefreshing === "twitch-archives" ? "Refreshing archives…" : "Refresh Twitch archives"
+											}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+												size: "sm",
+												variant: "secondary",
+												disabled: Boolean(channelRefreshing) || archiveQueued.length > 0,
+												onClick: queueAllArchivePulls,
+												children: "Queue all deep pulls"
+											})]
+										})]
+									}),
+									archiveQueued.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "mt-3 rounded-sm bg-bg/45 px-3 py-2 text-xs text-accent",
+										children: [
+											"Focused archive queue · ",
+											archiveQueued.length,
+											" waiting. Reelcase continues creator-by-creator toward the oldest public VOD available; it retains every accepted page."
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3",
+										children: twitchArchiveDepth.channels.map((channel) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "rounded-sm bg-bg/45 p-3",
+											children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												className: "flex items-start justify-between gap-2",
+												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "min-w-0",
+													children: [
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+															className: "truncate text-sm font-medium text-fg",
+															children: channel.name
+														}),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+															className: "mt-1 text-xs text-muted",
+															children: [
+																channel.count.toLocaleString(),
+																" cached VODs · ",
+																channel.clips,
+																" confirmed clip",
+																channel.clips === 1 ? "" : "s",
+																" · last result ",
+																channel.lastResponseCount ?? 0,
+																" rows"
+															]
+														}),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+															className: "mt-1 text-xs text-muted",
+															children: [channel.oldest ? `${new Date(channel.oldest).toLocaleDateString()} – ${new Date(channel.newest).toLocaleDateString()}` : "No archive dates yet", " · public depth may be limited"]
+														}),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+															className: "mt-1 text-xs text-muted",
+															children: [channel.lastCheckedAt ? `Checked ${new Date(channel.lastCheckedAt).toLocaleString([], {
+																month: "short",
+																day: "numeric",
+																hour: "numeric",
+																minute: "2-digit"
+															})}` : "Not checked yet", channel.retryAt && channel.retryAt > Date.now() ? ` · cooldown until ${new Date(channel.retryAt).toLocaleTimeString([], {
+																hour: "numeric",
+																minute: "2-digit",
+																second: "2-digit"
+															})}` : " · ready"]
+														})
+													]
+												}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+													size: "sm",
+													variant: "secondary",
+													disabled: channelRefreshing === channel.id || archiveQueued.includes(channel.id),
+													onClick: () => queueArchivePull(channel.id, channel.id.replace(/^tw:/, "")),
+													children: channelRefreshing === channel.id ? "Pulling…" : archiveQueued.includes(channel.id) ? "Queued" : "Queue deep pull"
+												})]
+											})
+										}, channel.id))
+									})
+								]
+							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PosterGrid, { videos: sortedTwitch.filter((video) => (twitchFilter === "all" || (twitchFilter === "favorites" ? favorites[video.id] : likes[video.id])) && (twitchTagFilter === "all" || topicsForVideo(video, tags[video.id]).includes(twitchTagFilter))) }),
 							!twitchVideos.length && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 								className: "text-sm text-muted",
@@ -10093,6 +10470,63 @@ function LibraryApp() {
 									]
 								})]
 							}),
+							query && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+								className: "mb-5 rounded-lg border border-border bg-surface p-4 shadow-border",
+								"aria-label": "Search ranking and matching tags",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "flex flex-wrap items-baseline justify-between gap-3",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+											children: "Search ranking"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "mt-1 text-sm text-muted",
+											children: "Exact title and creator matches lead, followed by matching tags and your saved reactions."
+										})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+											className: "text-xs text-accent",
+											children: [searchInsights.ranked.length.toLocaleString(), " ranked results"]
+										})]
+									}),
+									searchInsights.tags.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "mt-3 flex flex-wrap gap-2",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "self-center text-xs text-muted",
+											children: "Top tags"
+										}), searchInsights.tags.map(({ tag, count }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+											size: "sm",
+											variant: "secondary",
+											onClick: () => setQuery(tag),
+											children: [
+												"#",
+												tag,
+												" · ",
+												count
+											]
+										}, tag))]
+									}),
+									searchInsights.ranked.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "mt-3 grid gap-2 md:grid-cols-3",
+										children: searchInsights.ranked.slice(0, 3).map((video, index) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+											type: "button",
+											onClick: () => openVideo(video.id),
+											className: "flex min-w-0 items-center gap-3 rounded-md bg-elevated px-3 py-3 text-left hover:bg-bg",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+												className: "shrink-0 rounded-full bg-accent/15 px-2 py-1 text-xs font-medium text-accent",
+												children: ["#", index + 1]
+											}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+												className: "min-w-0",
+												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+													className: "block truncate text-sm font-medium text-fg",
+													children: video.name
+												}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+													className: "block truncate text-xs text-muted",
+													children: (video.remote?.channelName ?? topicsForVideo(video, tags[video.id]).slice(0, 2).join(" · ")) || "Library match"
+												})]
+											})]
+										}, video.id))
+									})
+								]
+							}),
 							sourceId === "continue" && !query && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 								className: "mb-5 rounded-lg border border-border bg-surface p-4 shadow-border",
 								"aria-label": "Continue recovery details",
@@ -10137,10 +10571,10 @@ function LibraryApp() {
 												className: "rounded-md bg-elevated px-3 py-2",
 												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 													className: "text-xs text-muted",
-													children: "Completion rule"
+													children: "Resume rule"
 												}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 													className: "mt-1 text-sm font-medium text-fg",
-													children: "Local 96% · providers 98.5%"
+													children: "Local 5 sec · providers 2 sec"
 												})]
 											})
 										]
@@ -10388,7 +10822,7 @@ function LibraryApp() {
 								})]
 							}) : null,
 							sourceId === "history" || sourceId === "continue" || query ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(VideoGrid, {
-								videos: sourceId === "history" ? historyFilteredVideos : videos,
+								videos: sourceId === "history" ? historyFilteredVideos : query ? searchInsights.ranked : videos,
 								playedAt: sourceId === "history" ? playedAt : void 0
 							}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PosterGrid, { videos })
 						] }),
@@ -10466,4 +10900,4 @@ function Home() {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LibraryApp, {});
 }
 //#endregion
-export { topicsForVideo as _, VideoCard as a, getFeedbackDiagnostics as c, Button as d, useLibrary as f, topicEvidence as g, isTopicTag as h, openTopic as i, getThumbDiagnostics as l, canonicalTopic as m, getFirstShelfTrace as n, getRenderBudgetSnapshot as o, useSourceAssets as p, Input as r, exportFeedback as s, routes_exports as t, useThumbs as u, getInteractionBudgetSnapshot as v };
+export { topicsForVideo as C, topicEvidence as S, measureInteraction as T, resumeForVideo as _, Input as a, canonicalTopic as b, getRenderBudgetSnapshot as c, getRating as d, tagIsLiked as f, Button as g, useThumbs as h, getFirstShelfTrace as i, exportFeedback as l, getThumbDiagnostics as m, getNetworkDeviceId as n, openTopic as o, toggleTagLike as p, listNetworkDevices as r, VideoCard as s, routes_exports as t, getFeedbackDiagnostics as u, useLibrary as v, getInteractionBudgetSnapshot as w, isTopicTag as x, useSourceAssets as y };

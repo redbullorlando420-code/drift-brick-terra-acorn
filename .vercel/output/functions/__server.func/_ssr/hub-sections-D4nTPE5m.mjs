@@ -1,10 +1,10 @@
 import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
-import { C as RefreshCw, D as Pause, H as Lightbulb, I as Maximize2, K as ImagePlus, N as MessageCircle, O as PackageSearch, S as Rocket, T as Play, W as Images, X as Gamepad2, _ as Shuffle, at as Copy, b as Settings2, f as Star, ft as ChartColumn, j as MonitorPlay, k as Music2, lt as ChevronRight, mt as Bot, n as X, nt as ExternalLink, pt as Box, r as Wifi, rt as Download, s as Users, st as Clapperboard, ut as ChevronLeft, v as ShoppingBag, w as Radio, x as Search, y as ShieldCheck } from "../_libs/lucide-react.mjs";
-import { _ as topicsForVideo, a as VideoCard, c as getFeedbackDiagnostics, d as Button, f as useLibrary, g as topicEvidence, h as isTopicTag, i as openTopic, l as getThumbDiagnostics, m as canonicalTopic, n as getFirstShelfTrace, o as getRenderBudgetSnapshot, p as useSourceAssets, r as Input, s as exportFeedback, u as useThumbs, v as getInteractionBudgetSnapshot } from "./routes-DZWPtWp3.mjs";
+import { C as RefreshCw, D as Pause, G as Images, H as Lightbulb, I as Maximize2, N as MessageCircle, O as PackageSearch, S as Rocket, T as Play, W as Laptop, Z as Gamepad2, _ as Shuffle, b as Settings2, ct as Clapperboard, dt as ChevronLeft, f as Star, ht as Bot, it as Download, j as MonitorPlay, k as Music2, m as Smartphone, mt as Box, n as X, ot as Copy, pt as ChartColumn, q as ImagePlus, r as Wifi, rt as ExternalLink, s as Users, ut as ChevronRight, v as ShoppingBag, w as Radio, x as Search, y as ShieldCheck } from "../_libs/lucide-react.mjs";
+import { C as topicsForVideo, S as topicEvidence, T as measureInteraction, _ as resumeForVideo, a as Input, b as canonicalTopic, c as getRenderBudgetSnapshot, d as getRating, f as tagIsLiked, g as Button, h as useThumbs, i as getFirstShelfTrace, l as exportFeedback, m as getThumbDiagnostics, n as getNetworkDeviceId, o as openTopic, p as toggleTagLike, r as listNetworkDevices, s as VideoCard, u as getFeedbackDiagnostics, v as useLibrary, w as getInteractionBudgetSnapshot, x as isTopicTag, y as useSourceAssets } from "./routes-Ry6ahRqg.mjs";
 import { a as ResponsiveContainer, i as Bar, n as YAxis, o as Tooltip, r as XAxis, t as BarChart } from "../_libs/recharts+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/hub-sections-KfxdgYIc.js
+//#region node_modules/.nitro/vite/services/ssr/assets/hub-sections-D4nTPE5m.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function TopicLinks({ explorer = false }) {
@@ -16,6 +16,12 @@ function TopicLinks({ explorer = false }) {
 	const query = useLibrary((s) => s.query);
 	const [provider, setProvider] = (0, import_react.useState)("all");
 	const [limit, setLimit] = (0, import_react.useState)(48);
+	const [favoriteRevision, setFavoriteRevision] = (0, import_react.useState)(0);
+	(0, import_react.useEffect)(() => {
+		const refresh = () => setFavoriteRevision((value) => value + 1);
+		window.addEventListener("reelcase:rating-change", refresh);
+		return () => window.removeEventListener("reelcase:rating-change", refresh);
+	}, []);
 	const selected = explorer ? canonicalTopic(query) : void 0;
 	const selectedGenre = explorer && query.startsWith("genre:") ? query.slice(6) : void 0;
 	const index = (0, import_react.useMemo)(() => {
@@ -42,9 +48,11 @@ function TopicLinks({ explorer = false }) {
 			for (const topic of row.topics) {
 				const entry = counts.get(topic) ?? {
 					count: 0,
-					providers: /* @__PURE__ */ new Set()
+					providers: /* @__PURE__ */ new Set(),
+					ratingTotal: 0
 				};
 				entry.count++;
+				entry.ratingTotal += getRating(row.video.id);
 				entry.providers.add(row.provider);
 				counts.set(topic, entry);
 			}
@@ -53,7 +61,7 @@ function TopicLinks({ explorer = false }) {
 			rows,
 			saved,
 			linked,
-			counts: [...counts].sort((a, b) => b[1].count - a[1].count),
+			counts: [...counts].sort((a, b) => Number(tagIsLiked(b[0])) - Number(tagIsLiked(a[0])) || b[1].ratingTotal / b[1].count - a[1].ratingTotal / a[1].count || b[1].count - a[1].count || a[0].localeCompare(b[0])),
 			gaps: [...sources].map(([id, s]) => ({
 				id,
 				...s
@@ -64,7 +72,8 @@ function TopicLinks({ explorer = false }) {
 		tags,
 		folders,
 		unavailable,
-		hideDemo
+		hideDemo,
+		favoriteRevision
 	]);
 	const genres = (0, import_react.useMemo)(() => [...new Set(index.rows.map((r) => r.video.genre).filter((g) => Boolean(g)))].sort(), [index]);
 	const matching = (0, import_react.useMemo)(() => index.rows.filter((row) => (!selected || row.topics.includes(selected)) && (!selectedGenre || row.video.genre === selectedGenre) && (provider === "all" || provider === row.provider)), [
@@ -76,9 +85,17 @@ function TopicLinks({ explorer = false }) {
 	const related = (0, import_react.useMemo)(() => {
 		const counts = /* @__PURE__ */ new Map();
 		if (selected) {
-			for (const row of matching) for (const topic of row.topics) if (topic !== selected) counts.set(topic, (counts.get(topic) ?? 0) + 1);
+			for (const row of matching) for (const topic of row.topics) if (topic !== selected) {
+				const entry = counts.get(topic) ?? {
+					shared: 0,
+					ratingTotal: 0
+				};
+				entry.shared++;
+				entry.ratingTotal += getRating(row.video.id);
+				counts.set(topic, entry);
+			}
 		}
-		return [...counts].sort((a, b) => b[1] - a[1]).slice(0, 8);
+		return [...counts].sort((a, b) => b[1].ratingTotal / b[1].shared - a[1].ratingTotal / a[1].shared || b[1].shared - a[1].shared || a[0].localeCompare(b[0])).slice(0, 12);
 	}, [matching, selected]);
 	const choose = (topic) => {
 		setLimit(48);
@@ -89,6 +106,8 @@ function TopicLinks({ explorer = false }) {
 		const body = [[
 			"topic",
 			"public_titles",
+			"rating_score_0_to_5000",
+			"ratings_total",
 			"providers",
 			"saved_tag_titles",
 			"inferred_only_titles"
@@ -97,6 +116,8 @@ function TopicLinks({ explorer = false }) {
 			return [
 				topic,
 				data.count,
+				String(Math.round(data.ratingTotal / data.count * 1e3)),
+				data.ratingTotal.toFixed(1),
 				[...data.providers].join(" + "),
 				saved,
 				data.count - saved
@@ -109,6 +130,7 @@ function TopicLinks({ explorer = false }) {
 		anchor.click();
 		setTimeout(() => URL.revokeObjectURL(url), 1e3);
 	};
+	const selectedScore = selected ? index.counts.find(([topic]) => topic === selected)?.[1] : void 0;
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 		className: "mt-6 rounded-lg bg-elevated p-5 shadow-border",
 		children: [
@@ -133,6 +155,38 @@ function TopicLinks({ explorer = false }) {
 					" connected by title or category evidence. Saved tags are unchanged."
 				]
 			}),
+			selected && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "mt-4 flex flex-wrap items-center gap-2 rounded-md border border-border bg-bg/45 px-3 py-2",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+						className: "text-sm text-fg",
+						children: ["#", selected]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						size: "sm",
+						variant: tagIsLiked(selected) ? "default" : "secondary",
+						onClick: () => {
+							toggleTagLike(selected);
+							setFavoriteRevision((value) => value + 1);
+						},
+						children: tagIsLiked(selected) ? "★ Favorite topic" : "☆ Favorite topic"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+						className: "text-xs text-muted",
+						children: "Favorite topics stay at the start of Topics and Stats."
+					}),
+					selectedScore && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+						className: "text-xs text-muted",
+						children: [
+							"score ",
+							Math.round(selectedScore.ratingTotal / selectedScore.count * 1e3).toLocaleString(),
+							"/5,000 from ",
+							selectedScore.count.toLocaleString(),
+							" linked titles"
+						]
+					})
+				]
+			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 				className: "mt-4 flex flex-wrap gap-2",
 				children: index.counts.map(([topic, data]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
@@ -141,10 +195,13 @@ function TopicLinks({ explorer = false }) {
 					onClick: () => choose(topic),
 					title: [...data.providers].join(" + "),
 					children: [
+						tagIsLiked(topic) ? "★ " : "",
 						"#",
 						topic,
 						" · ",
 						data.count.toLocaleString(),
+						" · score ",
+						Math.round(data.ratingTotal / data.count * 1e3).toLocaleString(),
 						data.providers.size > 1 ? " · ↔" : ""
 					]
 				}, topic))
@@ -208,7 +265,7 @@ function TopicLinks({ explorer = false }) {
 						children: "Related through titles in this view"
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "mt-2 flex flex-wrap gap-2",
-						children: related.map(([topic, count]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+						children: related.map(([topic, data]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 							size: "sm",
 							variant: "secondary",
 							onClick: () => choose(topic),
@@ -216,8 +273,9 @@ function TopicLinks({ explorer = false }) {
 								"#",
 								topic,
 								" · ",
-								count,
-								" shared"
+								data.shared,
+								" shared · score ",
+								Math.round(data.ratingTotal / data.shared * 1e3).toLocaleString()
 							]
 						}, topic))
 					})]
@@ -766,27 +824,187 @@ function useP2PRoom(room, name) {
 		}, [])
 	};
 }
+var VISION_MODELS = {
+	semantic: {
+		name: "CLIP open-vocabulary",
+		purpose: "Accurate review tags",
+		model: "Xenova/clip-vit-base-patch32",
+		revision: "d15189d7028b43f1d3e65039190477f6af591c2a"
+	},
+	semanticPlus: {
+		name: "SigLIP semantic+",
+		purpose: "Stronger semantic photo review",
+		model: "Xenova/siglip-base-patch16-224",
+		revision: "4649052"
+	},
+	semanticPro: {
+		name: "SigLIP large+",
+		purpose: "Highest-detail browser semantic review",
+		model: "Xenova/siglip-large-patch16-256"
+	}
+};
+var SEMANTIC_TOPICS = [
+	"a person",
+	"a portrait",
+	"a selfie",
+	"a group of people",
+	"a baby",
+	"a child",
+	"a pet",
+	"a dog",
+	"a cat",
+	"a bird",
+	"a horse",
+	"wildlife",
+	"food",
+	"a meal",
+	"dessert",
+	"a drink",
+	"a restaurant",
+	"a kitchen",
+	"a recipe",
+	"travel",
+	"a vacation",
+	"a hotel",
+	"an airport",
+	"a beach",
+	"an ocean",
+	"a lake",
+	"a mountain",
+	"a forest",
+	"a sunset",
+	"a sunrise",
+	"a landscape",
+	"nature",
+	"a garden",
+	"a flower",
+	"a tree",
+	"a vehicle",
+	"a car",
+	"a truck",
+	"a motorcycle",
+	"a bicycle",
+	"a boat",
+	"an airplane",
+	"a train",
+	"a building",
+	"a house",
+	"an apartment",
+	"a city",
+	"a street",
+	"architecture",
+	"a landmark",
+	"a bridge",
+	"a pool",
+	"a party",
+	"a wedding",
+	"a birthday",
+	"a concert",
+	"a festival",
+	"a sport",
+	"a game",
+	"fitness",
+	"a team",
+	"a trophy",
+	"a stage",
+	"a crowd",
+	"a document",
+	"a receipt",
+	"an invoice",
+	"a form",
+	"a book",
+	"a screen",
+	"a screenshot",
+	"a computer",
+	"a phone",
+	"a television",
+	"a video game",
+	"a chart",
+	"a map",
+	"a product",
+	"clothing",
+	"shoes",
+	"jewelry",
+	"furniture",
+	"a toy",
+	"art",
+	"a drawing",
+	"a painting",
+	"a meme",
+	"an indoor scene",
+	"an outdoor scene",
+	"night",
+	"low light",
+	"snow",
+	"rain",
+	"autumn",
+	"spring",
+	"summer",
+	"winter",
+	"black and white photo",
+	"close-up photo"
+];
+var classifiers = /* @__PURE__ */ new Map();
+function cleanLabel(label) {
+	return label.toLowerCase().split(",")[0].replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+function device() {
+	return typeof navigator !== "undefined" && "gpu" in navigator ? "webgpu" : "wasm";
+}
+async function classifierFor(model, onStatus) {
+	let classifier = classifiers.get(model);
+	if (!classifier) {
+		classifier = (async () => {
+			const { pipeline } = await import("../_libs/@huggingface/transformers+[...].mjs").then((n) => n.t);
+			const definition = VISION_MODELS[model];
+			const task = "zero-shot-image-classification";
+			const options = {
+				progress_callback: onStatus,
+				..."revision" in definition ? { revision: definition.revision } : {}
+			};
+			try {
+				return await pipeline(task, definition.model, {
+					device: device(),
+					...options
+				});
+			} catch (error) {
+				if (device() !== "webgpu") throw error;
+				onStatus?.({ status: "WebGPU unavailable; retrying locally with WASM" });
+				return pipeline(task, definition.model, {
+					device: "wasm",
+					...options
+				});
+			}
+		})();
+		classifiers.set(model, classifier);
+	}
+	try {
+		return await classifier;
+	} catch (error) {
+		classifiers.delete(model);
+		throw error;
+	}
+}
 /**
 * Optional, user-initiated image classification. The model executes in the
 * browser (WebGPU when available, otherwise WASM); photo bytes stay local.
 * The model download is cached by the browser for later passes.
 */
-async function classifyImagesLocally(urls, onProgress) {
-	const { pipeline } = await import("../_libs/@huggingface/transformers+[...].mjs").then((n) => n.t);
-	const classifier = await pipeline("image-classification", "onnx-community/mobilenetv4_conv_small.e2400_r224_in1k", { device: typeof navigator !== "undefined" && "gpu" in navigator ? "webgpu" : "wasm" });
+async function classifyImagesLocally(urls, onProgress, model = "semanticPro", onModelStatus) {
+	const classifier = await classifierFor(model, onModelStatus);
 	const results = Array.from({ length: urls.length }, () => []);
 	let cursor = 0;
 	let completed = 0;
-	const workers = Array.from({ length: Math.min(3, urls.length) }, async () => {
+	const workers = Array.from({ length: Math.min(1, urls.length) }, async () => {
 		while (true) {
 			const index = cursor++;
 			if (index >= urls.length) return;
-			const labels = await classifier(urls[index], { topk: 5 });
+			const labels = await classifier(urls[index], SEMANTIC_TOPICS);
 			const seen = /* @__PURE__ */ new Set();
 			results[index] = labels.map((item) => ({
-				label: item.label.toLowerCase().split(",")[0].replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+				label: cleanLabel(item.label),
 				score: item.score
-			})).filter((item) => item.score >= .045 && item.label.length >= 3 && !seen.has(item.label) && Boolean(seen.add(item.label))).slice(0, 5);
+			})).filter((item) => item.score >= .018 && item.label.length >= 3 && !seen.has(item.label) && Boolean(seen.add(item.label))).slice(0, 5);
 			completed += 1;
 			onProgress?.(completed, urls.length);
 		}
@@ -794,6 +1012,31 @@ async function classifyImagesLocally(urls, onProgress) {
 	await Promise.all(workers);
 	return results;
 }
+/** Measures preparation and inference on the same local sample; it never changes defaults. */
+async function benchmarkVisionModelsLocally(urls, onProgress, onModelStatus) {
+	const run = async (model) => {
+		const started = performance.now();
+		onModelStatus?.(model, { status: `Preparing ${VISION_MODELS[model].name}` });
+		return {
+			model,
+			labels: await classifyImagesLocally(urls, (done, total) => onProgress?.(model, done, total), model, (status) => onModelStatus?.(model, status)),
+			elapsedMs: performance.now() - started
+		};
+	};
+	return {
+		sampleSize: urls.length,
+		semantic: await run("semantic"),
+		semanticPro: await run("semanticPro")
+	};
+}
+var LOCAL_UPSCALER = {
+	name: "Swin2SR x2 beta",
+	model: "Xenova/swin2SR-classical-sr-x2-64",
+	revision: "93dfc9089abda257351d3a58d5771e2c1ff69442",
+	sha256: "49ffa7b96532edb9553c74be11b623dafa26db1645611096a208449451a960df",
+	artifactUrl: "https://huggingface.co/Xenova/swin2SR-classical-sr-x2-64/resolve/93dfc9089abda257351d3a58d5771e2c1ff69442/onnx/model_q4f16.onnx",
+	shippedArtifactUrl: "/models/swin2sr-x2-q4f16.onnx"
+};
 var widgetScript;
 function loadWidgets() {
 	return widgetScript ??= new Promise((resolve, reject) => {
@@ -1164,13 +1407,21 @@ function StatsSection() {
 	const history = useLibrary((s) => s.history);
 	const unavailable = useLibrary((s) => s.unavailable);
 	const progress = useLibrary((s) => s.progress);
+	const resumeProgress = useLibrary((s) => s.resumeProgress);
 	const viewCounts = useLibrary((s) => s.viewCounts);
 	const [showAllSources, setShowAllSources] = (0, import_react.useState)(false);
 	const [remediationView, setRemediationView] = (0, import_react.useState)("");
+	const [favoriteRevision, setFavoriteRevision] = (0, import_react.useState)(0);
+	(0, import_react.useEffect)(() => {
+		const refresh = () => setFavoriteRevision((value) => value + 1);
+		window.addEventListener("reelcase:rating-change", refresh);
+		return () => window.removeEventListener("reelcase:rating-change", refresh);
+	}, []);
 	const summary = (0, import_react.useMemo)(() => {
 		const byFolder = /* @__PURE__ */ new Map();
 		const byGenre = /* @__PURE__ */ new Map();
 		const byTag = /* @__PURE__ */ new Map();
+		const topicRatings = /* @__PURE__ */ new Map();
 		let totalBytes = 0;
 		let localTitles = 0;
 		let remoteTitles = 0;
@@ -1202,7 +1453,10 @@ function StatsSection() {
 				knownDuration += video.duration ?? 0;
 				durationTitles += 1;
 			}
-			if (progress[video.id] && progress[video.id].t > 0) resumedTitles += 1;
+			if (resumeForVideo({
+				progress,
+				resumeProgress
+			}, video)?.t) resumedTitles += 1;
 			totalViews += viewCounts[video.id] ?? 0;
 			const videoTags = tags[video.id] ?? [];
 			const usefulTopics = new Set(videoTags.map(canonicalTopic).filter((tag) => Boolean(tag)));
@@ -1212,6 +1466,13 @@ function StatsSection() {
 			if (!videoTags.some(isTopicTag)) untaggedTitles += 1;
 			for (const topic of usefulTopics) {
 				byTag.set(topic, (byTag.get(topic) ?? 0) + 1);
+				const rating = topicRatings.get(topic) ?? {
+					total: 0,
+					newest: 0
+				};
+				rating.total += getRating(video.id);
+				rating.newest = Math.max(rating.newest, video.addedAt);
+				topicRatings.set(topic, rating);
 				const sources = topicSources.get(topic) ?? /* @__PURE__ */ new Set();
 				sources.add(video.remote?.kind ?? "local");
 				topicSources.set(topic, sources);
@@ -1233,6 +1494,12 @@ function StatsSection() {
 		}
 		const tagAssignments = [...byTag.values()].reduce((sum, count) => sum + count, 0);
 		const bridgeTopics = [...topicSources.values()].filter((sources) => sources.size >= 2).length;
+		const topicRows = [...byTag.entries()].filter(([, count]) => count >= 2).sort((a, b) => {
+			const aRating = (topicRatings.get(a[0])?.total ?? 0) / a[1];
+			const bRating = (topicRatings.get(b[0])?.total ?? 0) / b[1];
+			return Number(tagIsLiked(b[0])) - Number(tagIsLiked(a[0])) || bRating - aRating || (topicRatings.get(b[0])?.newest ?? 0) - (topicRatings.get(a[0])?.newest ?? 0) || b[1] - a[1] || a[0].localeCompare(b[0]);
+		});
+		const ratedTopicRows = topicRows.filter(([topic, count]) => (topicRatings.get(topic)?.total ?? 0) / count > 0);
 		return {
 			totalBytes,
 			byFolder,
@@ -1255,13 +1522,17 @@ function StatsSection() {
 			resumedTitles,
 			totalViews,
 			genreRows: [...byGenre.entries()].filter(([, count]) => count >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
-			topTags: [...byTag.entries()].filter(([, count]) => count >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 14),
+			topicRows,
+			topicRatings,
+			topTags: (ratedTopicRows.length ? ratedTopicRows : topicRows).slice(0, 14),
 			tagAssignments,
 			tagDensity: tagAssignments / Math.max(videos.length, 1),
 			remoteShare: remoteTitles / Math.max(videos.length, 1)
 		};
 	}, [
+		favoriteRevision,
 		progress,
+		resumeProgress,
 		tags,
 		videos,
 		viewCounts
@@ -1526,6 +1797,107 @@ function StatsSection() {
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "mt-5 rounded-lg border border-border bg-surface p-5 shadow-border",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+						children: "Fast paths from your library"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+						className: "mt-2 font-display text-2xl text-fg",
+						children: "Use the small, useful slice first."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-1 max-w-3xl text-sm leading-6 text-muted",
+						children: "Topic, Continue, and source views now reuse saved metadata and mount cards progressively. Favorite topics lead every topic list so the first results match what you actually want to browse."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 grid gap-3 md:grid-cols-3",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rounded-md bg-elevated p-3",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "text-xs text-muted",
+										children: "Favorite topics"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "mt-1 text-lg font-medium text-fg",
+										children: summary.topicRows.filter(([topic]) => tagIsLiked(topic)).length
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "mt-1 text-xs text-muted",
+										children: "Pinned ahead of large catalog scans."
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rounded-md bg-elevated p-3",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "text-xs text-muted",
+										children: "Ready to resume"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "mt-1 text-lg font-medium text-fg",
+										children: summary.resumedTitles.toLocaleString()
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "mt-1 text-xs text-muted",
+										children: "Stable resume records survive catalog refreshes."
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										className: "mt-3",
+										size: "sm",
+										variant: "secondary",
+										onClick: () => useLibrary.getState().setSource("continue"),
+										children: "Open Continue"
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rounded-md bg-elevated p-3",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "text-xs text-muted",
+										children: "Metadata-first catalog"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "mt-1 text-lg font-medium text-fg",
+										children: [Math.round(summary.metadataTaggedTitles / Math.max(videos.length, 1) * 100), "%"]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "mt-1 text-xs text-muted",
+										children: "Existing metadata is used before slower title-only inference."
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										className: "mt-3",
+										size: "sm",
+										variant: "secondary",
+										onClick: () => useLibrary.getState().setSource("genres"),
+										children: "Open Topics"
+									})
+								]
+							})
+						]
+					}),
+					summary.topicRows.filter(([topic]) => tagIsLiked(topic)).length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "mt-4 flex flex-wrap gap-2",
+						children: summary.topicRows.filter(([topic]) => tagIsLiked(topic)).slice(0, 12).map(([topic, count]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+							size: "sm",
+							variant: "secondary",
+							onClick: () => openTopic(topic),
+							children: [
+								"★ #",
+								topic,
+								" · ",
+								count.toLocaleString()
+							]
+						}, topic))
+					})
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 				className: "mt-5 grid gap-5 xl:grid-cols-2",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "h-72 rounded-lg bg-elevated p-5 shadow-border",
@@ -1571,41 +1943,49 @@ function StatsSection() {
 					})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "h-72 rounded-lg bg-elevated p-5 shadow-border",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
-						className: "font-display text-2xl text-fg",
-						children: "Most useful topics"
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ResponsiveContainer, {
-						width: "100%",
-						height: "85%",
-						children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(BarChart, {
-							layout: "vertical",
-							margin: { left: 16 },
-							data: summary.topTags.slice(0, 8).map(([name, titles]) => ({
-								name,
-								titles
-							})),
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(XAxis, {
-									type: "number",
-									stroke: "currentColor",
-									fontSize: 12
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(YAxis, {
-									type: "category",
-									dataKey: "name",
-									width: 150,
-									stroke: "currentColor",
-									fontSize: 10
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tooltip, {}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bar, {
-									dataKey: "titles",
-									fill: "var(--color-accent)",
-									radius: 4
-								})
-							]
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+							className: "font-display text-2xl text-fg",
+							children: "Most useful topics"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "mt-1 text-xs text-muted",
+							children: "Only topics with a saved rating appear here. Score is scaled to 5,000."
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ResponsiveContainer, {
+							width: "100%",
+							height: "80%",
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(BarChart, {
+								layout: "vertical",
+								margin: { left: 16 },
+								data: summary.topTags.map(([name, titles]) => ({
+									name,
+									titles,
+									score: Math.round((summary.topicRatings.get(name)?.total ?? 0) / titles * 1e3)
+								})).filter((topic) => topic.score > 0).slice(0, 8),
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(XAxis, {
+										type: "number",
+										stroke: "currentColor",
+										fontSize: 12
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(YAxis, {
+										type: "category",
+										dataKey: "name",
+										width: 150,
+										stroke: "currentColor",
+										fontSize: 10
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tooltip, {}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bar, {
+										dataKey: "score",
+										fill: "var(--color-accent)",
+										radius: 4
+									})
+								]
+							})
 						})
-					})]
+					]
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
@@ -1877,11 +2257,26 @@ function LanConnectionSection() {
 	const [origin, setOrigin] = (0, import_react.useState)("");
 	const [copied, setCopied] = (0, import_react.useState)(false);
 	const [companion, setCompanion] = (0, import_react.useState)("checking");
+	const [devices, setDevices] = (0, import_react.useState)([]);
+	const [mapStatus, setMapStatus] = (0, import_react.useState)("Checking devices…");
+	const ownDeviceId = (0, import_react.useMemo)(() => getNetworkDeviceId(), []);
+	const refreshDeviceMap = async () => {
+		try {
+			const result = await listNetworkDevices();
+			setDevices(result.devices);
+			setMapStatus(result.devices.length ? `${result.devices.length} active device${result.devices.length === 1 ? "" : "s"}` : "Waiting for another device to open Reelcase");
+		} catch {
+			setMapStatus("Device map is temporarily unavailable");
+		}
+	};
 	(0, import_react.useEffect)(() => {
 		const current = window.location;
 		const loopback = current.hostname === "localhost" || current.hostname === "127.0.0.1" || current.hostname === "::1";
 		setOrigin(loopback ? "" : current.origin);
 		fetch("http://127.0.0.1:43123/health").then((response) => setCompanion(response.ok ? "ready" : "offline")).catch(() => setCompanion("offline"));
+		refreshDeviceMap();
+		const timer = window.setInterval(() => void refreshDeviceMap(), 1e4);
+		return () => window.clearInterval(timer);
 	}, []);
 	const copyAddress = async () => {
 		if (!origin) return;
@@ -1892,133 +2287,196 @@ function LanConnectionSection() {
 			setCopied(false);
 		}
 	};
+	const visibleDevices = devices.slice(0, 12);
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(HubShell, {
 		eyebrow: "Home network",
 		icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Wifi, { className: "size-4" }),
-		title: "Connect another screen, clearly.",
-		copy: "Use this page before Watch Room. It separates reaching Reelcase from joining a synchronized room, so connection problems have an obvious next step.",
-		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
-			className: "mt-6 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]",
-			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "rounded-lg bg-elevated p-5 shadow-border",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-					className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
-					children: "Shareable Reelcase address"
-				}), origin ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-						className: "mt-2 break-all font-mono text-sm text-fg",
-						children: origin
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "mt-4 flex flex-wrap gap-2",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-							onClick: () => void copyAddress(),
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Copy, { className: "size-4" }), copied ? "Address copied" : "Copy address"]
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-							variant: "secondary",
-							onClick: () => useLibrary.getState().setSource("watch-room"),
-							children: "Open Watch Room"
-						})]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-						className: "mt-4 text-xs leading-5 text-muted",
-						children: "On the other computer or phone, connect to the same home Wi‑Fi, open this address, then use the Watch Room invitation or room code."
-					})
-				] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+		title: "Bring another screen into Reelcase.",
+		copy: "Share one address, watch the device map appear, then start a room when everyone is connected.",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "mt-6 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "rounded-lg bg-elevated p-5 shadow-border",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+						children: "Share this address"
+					}), origin ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "mt-2 break-all font-mono text-sm text-fg",
+							children: origin
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "mt-4 flex flex-wrap gap-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+								onClick: () => void copyAddress(),
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Copy, { className: "size-4" }), copied ? "Address copied" : "Copy address"]
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								variant: "secondary",
+								onClick: () => useLibrary.getState().setSource("watch-room"),
+								children: "Open Watch Room"
+							})]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "mt-4 text-xs leading-5 text-muted",
+							children: "On another computer, phone, or TV browser: join the same normal home Wi‑Fi, open this exact address, and leave Reelcase open. It will appear in the map below within about 25 seconds."
+						})
+					] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "mt-2 text-sm text-fg",
-						children: "This computer is using a local-only address."
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						children: "Open Reelcase through the Ethernet address before sharing."
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "mt-2 text-sm leading-6 text-muted",
-						children: "It cannot be opened from another device, so Reelcase will not recommend it. Open Reelcase from its shared site address, or use the Companion’s LAN host option when it is available; then return here to copy that address."
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						children: "This local-only address cannot be reached by another device. Use the Connection guide from the shared Ethernet address, then copy the address it shows."
+					})] })]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "rounded-lg border border-border bg-surface p-5",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+							children: "Local companion"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "mt-2 font-display text-2xl text-fg",
+							children: companion === "ready" ? "Ready on this computer" : companion === "checking" ? "Checking…" : "Not detected"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "mt-2 text-sm text-muted",
+							children: "The companion speeds up local folders on this computer. Other devices can join the Reelcase page and Watch Rooms, but do not receive its local files."
+						})
+					]
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "mt-5 rounded-lg bg-elevated p-5 shadow-border",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "flex flex-wrap items-start justify-between gap-3",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+							children: "Available device map"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+							className: "mt-2 font-display text-2xl text-fg",
+							children: mapStatus
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "mt-1 text-sm text-muted",
+							children: "Devices appear only after they open Reelcase. The map stores a short-lived browser label, never network addresses or files."
+						})
+					] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+						size: "sm",
 						variant: "secondary",
-						className: "mt-4",
-						onClick: () => useLibrary.getState().setSource("watch-room"),
-						children: "Open Watch Room on this device"
-					})
-				] })]
-			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "rounded-lg border border-border bg-surface p-5",
+						onClick: () => void refreshDeviceMap(),
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(RefreshCw, { className: "size-4" }), "Refresh map"]
+					})]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "mt-5 grid gap-3 md:grid-cols-[minmax(12rem,0.75fr)_minmax(0,1.25fr)]",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "rounded-md border border-border bg-bg/45 p-4",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "flex items-center gap-3",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Wifi, { className: "size-5 text-accent" }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-sm font-medium text-fg",
+								children: "Reelcase host"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-xs text-muted",
+								children: origin || "Local preview"
+							})] })]
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "mt-4 text-xs leading-5 text-muted",
+							children: "This computer shares the app address and coordinates the active-device map."
+						})]
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "grid gap-2 sm:grid-cols-2 xl:grid-cols-3",
+						children: [visibleDevices.map((device) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "rounded-md bg-bg/45 p-3",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "flex items-center gap-2",
+									children: [device.kind === "mobile" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Smartphone, { className: "size-4 text-accent" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Laptop, { className: "size-4 text-accent" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "min-w-0 truncate text-sm font-medium text-fg",
+										children: device.id === ownDeviceId ? "This device" : device.label
+									})]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-2 text-xs text-muted",
+									children: device.id === ownDeviceId ? device.label : "Connected to Reelcase"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-1 text-[11px] text-accent",
+									children: "Active now"
+								})
+							]
+						}, device.id)), !visibleDevices.length && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "rounded-md border border-dashed border-border p-3 text-sm text-muted sm:col-span-2 xl:col-span-3",
+							children: "Waiting for a device to open the shared address."
+						})]
+					})]
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "mt-5 rounded-lg bg-elevated p-5 shadow-border",
 				children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
-						children: "Local companion"
+						children: "Four steps to connect"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("ol", {
+						className: "mt-4 grid gap-4 md:grid-cols-2",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
+								className: "rounded-md bg-bg/45 p-4 text-sm text-muted",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "font-medium text-fg",
+										children: "1. Use the Ethernet address."
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
+									"Use the address shown above for normal home Wi‑Fi and Ethernet. The NordLynx address is for VPN peers."
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
+								className: "rounded-md bg-bg/45 p-4 text-sm text-muted",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "font-medium text-fg",
+										children: "2. Keep guests off isolated Wi‑Fi."
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
+									"Guest Wi‑Fi often blocks device-to-device traffic. Join the normal household network instead."
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
+								className: "rounded-md bg-bg/45 p-4 text-sm text-muted",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "font-medium text-fg",
+										children: "3. Look for the device map."
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
+									"A guest that opens Reelcase shows up here automatically. Refresh the map if it has just joined."
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
+								className: "rounded-md bg-bg/45 p-4 text-sm text-muted",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "font-medium text-fg",
+										children: "4. Start or join a Watch Room."
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
+									"After the guest is visible, open Watch Room and use the same invitation or room code."
+								]
+							})
+						]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-						className: "mt-2 font-display text-2xl text-fg",
-						children: companion === "ready" ? "Ready on this computer" : companion === "checking" ? "Checking…" : "Not detected"
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-						className: "mt-2 text-sm text-muted",
-						children: "The companion accelerates local folders only on the computer where it is running. It does not expose your files to other devices and it cannot bypass X’s public access limits."
+						className: "mt-4 text-xs leading-5 text-subtle",
+						children: "If the shared page does not open, allow Reelcase through the host computer’s private-network firewall and confirm the guest is on the same normal home network."
 					})
 				]
-			})]
-		}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
-			className: "mt-5 rounded-lg bg-elevated p-5 shadow-border",
-			children: [
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-					className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
-					children: "Ethernet and Wi‑Fi connection check"
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("ol", {
-					className: "mt-4 grid gap-4 md:grid-cols-2",
-					children: [
-						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
-							className: "rounded-md bg-bg/45 p-4 text-sm text-muted",
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "font-medium text-fg",
-									children: "1. Use the host’s shared address."
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
-								"This computer may be wired by Ethernet while the guest uses Wi‑Fi; that is expected when both connect through the same home router."
-							]
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
-							className: "rounded-md bg-bg/45 p-4 text-sm text-muted",
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "font-medium text-fg",
-									children: "2. Avoid guest Wi‑Fi."
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
-								"Guest/isolated Wi‑Fi blocks device-to-device traffic. Move the guest to the normal home network, then open the copied address."
-							]
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
-							className: "rounded-md bg-bg/45 p-4 text-sm text-muted",
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "font-medium text-fg",
-									children: "3. Confirm Reelcase opens first."
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
-								"The guest must see this library before joining the room. If it cannot load, use the Companion LAN host option or a shared Reelcase site address; a local-only address cannot be reached by another device."
-							]
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
-							className: "rounded-md bg-bg/45 p-4 text-sm text-muted",
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "font-medium text-fg",
-									children: "4. Join the same room code."
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
-								"Open the invitation or enter the exact code, then use Room diagnostics. Roster confirms signaling; Direct confirms playback/chat transport."
-							]
-						})
-					]
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-					className: "mt-4 text-xs leading-5 text-subtle",
-					children: "Ethernet-to-Wi‑Fi is not the problem by itself. The likely blockers are a local-only address, guest-network isolation, a router client-isolation setting, or a firewall rule on the host computer."
-				})
-			]
-		})]
+			})
+		]
 	});
 }
 function FindPhoneSection() {
@@ -3649,13 +4107,30 @@ function PhotosSection() {
 	const [visionBusy, setVisionBusy] = (0, import_react.useState)(false);
 	const [visionProgress, setVisionProgress] = (0, import_react.useState)("");
 	const [visionReport, setVisionReport] = (0, import_react.useState)([]);
+	const [visionModel, setVisionModel] = (0, import_react.useState)("semanticPro");
+	const [visionReviewOpen, setVisionReviewOpen] = (0, import_react.useState)(true);
+	const [visionBenchmark, setVisionBenchmark] = (0, import_react.useState)(() => {
+		try {
+			const saved = JSON.parse(localStorage.getItem("reelcase.photo-vision-benchmark.v1") ?? "null");
+			return saved?.semantic && saved.semanticPro ? saved : null;
+		} catch {
+			return null;
+		}
+	});
+	const [visionBenchmarkPhotos, setVisionBenchmarkPhotos] = (0, import_react.useState)([]);
+	const [visionBenchmarkBusy, setVisionBenchmarkBusy] = (0, import_react.useState)(false);
+	const [visionBenchmarkProgress, setVisionBenchmarkProgress] = (0, import_react.useState)("");
+	const [visionBenchmarkError, setVisionBenchmarkError] = (0, import_react.useState)("");
 	const [upscalerHealth, setUpscalerHealth] = (0, import_react.useState)({
 		state: "checking",
 		detail: "Checking local model cache…"
 	});
-	const [upscalerUrl, setUpscalerUrl] = (0, import_react.useState)("");
-	const [upscalerChecksum, setUpscalerChecksum] = (0, import_react.useState)("");
+	const [upscalerUrl, setUpscalerUrl] = (0, import_react.useState)(LOCAL_UPSCALER.artifactUrl);
+	const [upscalerChecksum, setUpscalerChecksum] = (0, import_react.useState)(LOCAL_UPSCALER.sha256);
 	const [upscalerInstalling, setUpscalerInstalling] = (0, import_react.useState)(false);
+	const [upscalePreview, setUpscalePreview] = (0, import_react.useState)("");
+	const [upscaleBusy, setUpscaleBusy] = (0, import_react.useState)(false);
+	const [upscaleStatus, setUpscaleStatus] = (0, import_react.useState)("");
 	const [companionCache, setCompanionCache] = (0, import_react.useState)(null);
 	const [companionDeltaNote, setCompanionDeltaNote] = (0, import_react.useState)("");
 	const appliedCompanionChanges = (0, import_react.useRef)(/* @__PURE__ */ new Set());
@@ -3669,15 +4144,20 @@ function PhotosSection() {
 	const checkUpscalerHealth = async () => {
 		try {
 			const raw = localStorage.getItem("reelcase.photo-upscaler.model.v1");
-			const model = raw ? JSON.parse(raw) : null;
+			const cache = "caches" in window ? await caches.open("reelcase-local-models-v1") : null;
+			const manifest = cache ? await cache.match("/reelcase-local-models/upscaler.manifest.json") : null;
+			const model = raw ? JSON.parse(raw) : manifest ? await manifest.json() : null;
 			if (model?.name && model.verifiedAt) {
-				const cache = "caches" in window ? await caches.open("reelcase-local-models-v1") : null;
 				if (!(cache && model.cacheKey ? await cache.match(model.cacheKey) : null)) throw new Error("Cached model artifact is unavailable");
 				setUpscalerHealth({
 					state: "ready",
-					detail: `${model.name}${model.version ? ` · ${model.version}` : ""} verified ${new Date(model.verifiedAt).toLocaleDateString()} · ${bytes(model.bytes ?? 0)} cached locally. Originals remain untouched; execution and export stay disabled until runtime compatibility is verified.`
+					detail: `${model.name}${model.version ? ` · ${model.version}` : ""} verified ${new Date(model.verifiedAt).toLocaleDateString()} · ${bytes(model.bytes ?? 0)} cached locally. Ready for local preview runs; originals remain untouched.`
 				});
-			} else setUpscalerHealth({
+			} else if ((await fetch(LOCAL_UPSCALER.shippedArtifactUrl, { method: "HEAD" })).ok) setUpscalerHealth({
+				state: "ready",
+				detail: "Swin2SR x2 beta is bundled and SHA-256 verified. It is ready for local preview runs; originals remain untouched."
+			});
+			else setUpscalerHealth({
 				state: "missing",
 				detail: "No verified local super-resolution model is installed. Upscaling is disabled, so no photo is ever mislabeled as enhanced."
 			});
@@ -3714,17 +4194,21 @@ function PhotosSection() {
 			const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", await blob.arrayBuffer()))).map((part) => part.toString(16).padStart(2, "0")).join("");
 			if (digest !== expected) throw new Error("Checksum mismatch — the model was not stored");
 			const cacheKey = "/reelcase-local-models/upscaler.onnx";
-			await (await caches.open("reelcase-local-models-v1")).put(cacheKey, new Response(blob, { headers: { "content-type": blob.type || "application/octet-stream" } }));
-			const name = new URL(url).pathname.split("/").pop() || "local-upscaler.onnx";
-			localStorage.setItem("reelcase.photo-upscaler.model.v1", JSON.stringify({
-				name,
+			const cache = await caches.open("reelcase-local-models-v1");
+			await cache.put(cacheKey, new Response(blob, { headers: { "content-type": blob.type || "application/octet-stream" } }));
+			const model = {
+				name: new URL(url).pathname.split("/").pop() || "local-upscaler.onnx",
 				version: "user-verified",
 				verifiedAt: Date.now(),
 				cacheKey,
 				bytes: blob.size,
 				sha256: digest,
 				url
-			}));
+			};
+			await cache.put("/reelcase-local-models/upscaler.manifest.json", new Response(JSON.stringify(model), { headers: { "content-type": "application/json" } }));
+			try {
+				localStorage.setItem("reelcase.photo-upscaler.model.v1", JSON.stringify(model));
+			} catch {}
 			await checkUpscalerHealth();
 		} catch (error) {
 			setUpscalerHealth({
@@ -3737,7 +4221,9 @@ function PhotosSection() {
 	};
 	const removeUpscalerModel = async () => {
 		try {
-			await (await caches.open("reelcase-local-models-v1")).delete("/reelcase-local-models/upscaler.onnx");
+			const cache = await caches.open("reelcase-local-models-v1");
+			await cache.delete("/reelcase-local-models/upscaler.onnx");
+			await cache.delete("/reelcase-local-models/upscaler.manifest.json");
 			localStorage.removeItem("reelcase.photo-upscaler.model.v1");
 		} finally {
 			await checkUpscalerHealth();
@@ -3807,6 +4293,8 @@ function PhotosSection() {
 				addedAt: file.lastModified,
 				width: remembered[id]?.width,
 				height: remembered[id]?.height,
+				vision: remembered[id]?.vision ?? [],
+				visionModel: remembered[id]?.visionModel,
 				file
 			};
 		}).filter((photo) => photo !== null);
@@ -3835,7 +4323,7 @@ function PhotosSection() {
 			try {
 				cachedPhotoMetadata = {
 					...photoMetadata(),
-					...Object.fromEntries(photos.map(({ id, path, people, tags, album, favorite, rating, width, height }) => [id, {
+					...Object.fromEntries(photos.map(({ id, path, people, tags, album, favorite, rating, width, height, vision, visionModel }) => [id, {
 						path,
 						people,
 						tags,
@@ -3843,7 +4331,9 @@ function PhotosSection() {
 						favorite,
 						rating,
 						width,
-						height
+						height,
+						vision,
+						visionModel
 					}]))
 				};
 				localStorage.setItem("reelcase.photo-meta.v1", JSON.stringify(cachedPhotoMetadata));
@@ -4002,8 +4492,9 @@ function PhotosSection() {
 	const people = (0, import_react.useMemo)(() => [...new Set(photos.flatMap((photo) => photo.people))], [photos]);
 	const albums = (0, import_react.useMemo)(() => [...new Set(photos.map((photo) => photo.album))], [photos]);
 	const photoTags = (0, import_react.useMemo)(() => [...new Set(photos.flatMap((photo) => photo.tags))].sort(), [photos]);
-	const visionProcessed = (0, import_react.useMemo)(() => photos.filter((photo) => photo.tags.some((tag) => tag.startsWith("vision-"))).length, [photos]);
+	const visionProcessed = (0, import_react.useMemo)(() => photos.filter((photo) => photo.tags.includes("auto-tagged")).length, [photos]);
 	const visionPending = Math.max(0, photos.length - visionProcessed);
+	const visionReviewedPhotos = (0, import_react.useMemo)(() => photos.filter((photo) => photo.tags.includes("auto-tagged")).sort((a, b) => b.addedAt - a.addedAt), [photos]);
 	const visible = (0, import_react.useMemo)(() => photos.filter((photo) => (selectedPerson === "All photos" || photo.people.includes(selectedPerson)) && (selectedAlbum === "All albums" || photo.album === selectedAlbum) && (selectedTag === "All tags" || photo.tags.includes(selectedTag)) && (!favoritesOnly || photo.favorite) && (ratingFilter === "all" || (ratingFilter === "unrated" ? !photo.rating : photo.rating >= Number(ratingFilter))) && (discoveryFilter === "all" || (discoveryFilter === "screenshots" ? /screenshot|screen[_ -]?shot/i.test(photo.name) : discoveryFilter === "camera" ? /^(img|dsc|pxl|photo)[_ -]?\d/i.test(photo.name) : /download|image|copy|edited/i.test(photo.name))) && `${photo.name} ${photo.path} ${photo.people.join(" ")} ${photo.tags.join(" ")} ${photo.album}`.toLowerCase().includes(photoSearch.toLowerCase())).sort((a, b) => {
 		if (photoSort === "name") return a.name.localeCompare(b.name);
 		if (photoSort === "rating") return b.rating - a.rating || b.addedAt - a.addedAt;
@@ -4107,41 +4598,110 @@ function PhotosSection() {
 		}));
 		setHelperNote(changed ? `Added local filename-based auto tags to ${changed} photo${changed === 1 ? "" : "s"}. You can edit any tag on its card.` : "Everything already has the available local auto tags.");
 	};
-	const autoTagPhotosWithVision = async () => {
-		const candidates = photos.filter((photo) => !photo.tags.some((tag) => tag.startsWith("vision-"))).slice(0, 48);
+	const applyVisionTags = (batch, labels) => {
+		const byId = new Map(batch.map((photo, index) => [photo.id, labels[index] ?? []]));
+		setPhotos((items) => items.map((photo) => {
+			const report = byId.get(photo.id);
+			if (!report) return photo;
+			const additions = [
+				"auto-tagged",
+				`auto-tag-${visionModel}-v2`,
+				...report.map((item) => `vision-${item.label}`)
+			];
+			return {
+				...photo,
+				tags: [.../* @__PURE__ */ new Set([...photo.tags, ...additions])],
+				vision: report,
+				visionModel
+			};
+		}));
+		setVisionReport((current) => [...batch.map((photo, index) => ({
+			id: photo.id,
+			name: photo.name,
+			labels: labels[index] ?? []
+		})), ...current.filter((row) => !byId.has(row.id))].slice(0, 48));
+	};
+	const runVisionQueue = async (candidates, allPhotos) => {
 		if (!candidates.length) {
 			setHelperNote("Every loaded photo already has a local vision pass. Add more photos or edit tags to review them.");
 			return;
 		}
 		setVisionBusy(true);
-		setVisionProgress(`Preparing a local model for ${candidates.length} photos…`);
+		setVisionReviewOpen(true);
+		setVisionReport([]);
+		setVisionProgress(`Preparing ${VISION_MODELS[visionModel].name} for ${candidates.length.toLocaleString()} photos…`);
 		try {
-			const labels = await classifyImagesLocally(candidates.map((photo) => photo.url), (done, total) => setVisionProgress(`Classifying locally · ${done}/${total}`));
-			const byId = new Map(candidates.map((photo, index) => [photo.id, labels[index]]));
-			setVisionReport(candidates.map((photo, index) => ({
-				id: photo.id,
-				name: photo.name,
-				labels: labels[index]
-			})));
-			let changed = 0;
-			setPhotos((items) => items.map((photo) => {
-				const report = byId.get(photo.id);
-				const additions = report?.map((item) => `vision-${item.label}`) ?? [];
-				const tags = [.../* @__PURE__ */ new Set([...photo.tags, ...additions])];
-				if (tags.length === photo.tags.length && report === photo.vision) return photo;
-				changed += 1;
-				return {
-					...photo,
-					tags,
-					vision: report
-				};
-			}));
-			setHelperNote(`Local vision report ready for ${candidates.length} photo${candidates.length === 1 ? "" : "s"}. Labels and confidence scores are shown below and remain review-only.`);
-		} catch {
-			setHelperNote("The local vision model could not start. It needs browser storage and an initial model download; filename auto-tagging remains available.");
+			for (let start = 0; start < candidates.length; start += 12) {
+				const batch = candidates.slice(start, start + 12);
+				const labels = await classifyImagesLocally(batch.map((photo) => photo.url), (done, total) => setVisionProgress(`${VISION_MODELS[visionModel].name} · ${start + done}/${candidates.length} photos`), visionModel, (status) => {
+					const transfer = status.total ? ` · ${Math.round((status.loaded ?? 0) / status.total * 100)}%` : "";
+					setVisionProgress(`${VISION_MODELS[visionModel].name} · ${status.status ?? status.file ?? "loading"}${transfer} · ${start}/${candidates.length} complete`);
+				});
+				applyVisionTags(batch, labels);
+				await new Promise((resolve) => window.setTimeout(resolve, 0));
+			}
+			setHelperNote(`${VISION_MODELS[visionModel].name} reviewed ${candidates.length.toLocaleString()} photo${candidates.length === 1 ? "" : "s"}${allPhotos ? " in the full queued library" : ""}. Labels and confidence scores are ready for review.`);
+		} catch (error) {
+			setHelperNote(`${VISION_MODELS[visionModel].name} stopped after saving every completed checkpoint: ${error instanceof Error ? error.message : "unknown error"}. Retry continues with the remaining photos.`);
 		} finally {
 			setVisionBusy(false);
 			setVisionProgress("");
+		}
+	};
+	const autoTagPhotosWithVision = async () => runVisionQueue(photos.filter((photo) => !photo.tags.includes("auto-tagged")).slice(0, 48), false);
+	const autoTagAllPhotosWithVision = async () => runVisionQueue(photos.filter((photo) => !photo.tags.includes("auto-tagged")), true);
+	const autoTagOnePhoto = async (photo) => {
+		setVisionBusy(true);
+		setVisionProgress(`Preparing ${VISION_MODELS[visionModel].name} for ${photo.name}…`);
+		try {
+			const [labels] = await classifyImagesLocally([photo.url], (done, total) => setVisionProgress(`${VISION_MODELS[visionModel].name} · ${done}/${total}`), visionModel, (status) => {
+				const transfer = status.total ? ` · ${Math.round((status.loaded ?? 0) / status.total * 100)}%` : "";
+				setVisionProgress(`${VISION_MODELS[visionModel].name} · ${status.status ?? status.file ?? "loading"}${transfer}`);
+			});
+			applyVisionTags([photo], [labels ?? []]);
+			setVisionReviewOpen(true);
+			setSelectedTag("auto-tagged");
+			setHelperNote(`${VISION_MODELS[visionModel].name} reviewed ${photo.name}. The photo is now in the Auto-tagged review filter with its new visible tags.`);
+		} catch (error) {
+			setHelperNote(`${VISION_MODELS[visionModel].name} could not tag ${photo.name}: ${error instanceof Error ? error.message : "unknown error"}.`);
+		} finally {
+			setVisionBusy(false);
+			setVisionProgress("");
+		}
+	};
+	const runVisionBenchmark = async () => {
+		const sample = photos.filter((photo) => Boolean(photo.url)).slice(0, 24);
+		if (!sample.length) {
+			setHelperNote("Add photos first. The benchmark only uses photos already loaded in this browser.");
+			return;
+		}
+		setVisionBenchmarkBusy(true);
+		setVisionBenchmarkError("");
+		setVisionBenchmarkProgress(`Preparing a ${sample.length}-photo local comparison…`);
+		try {
+			const benchmark = await benchmarkVisionModelsLocally(sample.map((photo) => photo.url), (model, done, total) => setVisionBenchmarkProgress(`${VISION_MODELS[model].name} · ${done}/${total}`), (model, status) => {
+				const transfer = status.total ? ` · ${Math.round((status.loaded ?? 0) / status.total * 100)}%` : "";
+				setVisionBenchmarkProgress(`${VISION_MODELS[model].name} · ${status.status ?? status.file ?? "loading"}${transfer}`);
+			});
+			setVisionBenchmark(benchmark);
+			setVisionBenchmarkPhotos(sample.map((photo, index) => ({
+				id: photo.id,
+				name: photo.name,
+				url: photo.url,
+				clip: benchmark.semantic.labels[index] ?? [],
+				siglip: benchmark.semanticPro.labels[index] ?? []
+			})));
+			try {
+				localStorage.setItem("reelcase.photo-vision-benchmark.v1", JSON.stringify(benchmark));
+			} catch {}
+			setHelperNote(`Vision comparison completed on ${sample.length} local photos. SigLIP large+ is ready for the highest-detail browser review tags.`);
+		} catch (error) {
+			const message = `${error instanceof Error ? error.message : "The semantic model could not start"}. No tags or defaults were changed.`;
+			setVisionBenchmarkError(message);
+			setHelperNote(message);
+		} finally {
+			setVisionBenchmarkBusy(false);
+			setVisionBenchmarkProgress("");
 		}
 	};
 	const downloadPhoto = (photo) => {
@@ -4341,7 +4901,14 @@ function PhotosSection() {
 								onClick: () => setSelectedTag("All tags"),
 								children: "All tags"
 							}),
-							photoTags.slice(0, 16).map((tag) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+								size: "sm",
+								variant: selectedTag === "auto-tagged" ? "default" : "secondary",
+								disabled: !visionProcessed,
+								onClick: () => setSelectedTag("auto-tagged"),
+								children: ["Auto-tagged · ", visionProcessed]
+							}),
+							photoTags.filter((tag) => tag !== "auto-tagged").slice(0, 16).map((tag) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 								size: "sm",
 								variant: selectedTag === tag ? "default" : "secondary",
 								onClick: () => setSelectedTag(tag),
@@ -4506,26 +5073,51 @@ function PhotosSection() {
 								className: "flex flex-wrap items-center justify-between gap-3",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 									className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
-									children: "Local vision report"
+									children: "Local vision"
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 									className: "mt-1 text-sm text-fg",
 									children: [
 										visionProcessed.toLocaleString(),
 										" processed · ",
 										visionPending.toLocaleString(),
-										" waiting · 3 bounded local workers"
+										" waiting · SigLIP large+ is the current quality-first default"
 									]
-								})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-									size: "sm",
-									variant: "secondary",
-									disabled: visionBusy || !photos.length,
-									onClick: () => void autoTagPhotosWithVision(),
-									children: visionBusy ? visionProgress || "Starting model…" : `Process next ${Math.min(48, visionPending)}`
+								})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "flex flex-wrap gap-2",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										size: "sm",
+										variant: "secondary",
+										disabled: visionBusy || !visionPending,
+										onClick: () => void autoTagPhotosWithVision(),
+										children: visionBusy ? visionProgress || "Starting model…" : `Process next ${Math.min(48, visionPending)}`
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										size: "sm",
+										disabled: visionBusy || !visionPending,
+										onClick: () => void autoTagAllPhotosWithVision(),
+										children: visionBusy ? "Queue running…" : `Process all ${visionPending.toLocaleString()}`
+									})]
 								})]
 							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "mt-3 flex flex-wrap items-center gap-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									className: "text-xs text-muted",
+									children: "Tagging model"
+								}), [
+									"semanticPro",
+									"semanticPlus",
+									"semantic"
+								].map((model) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+									size: "sm",
+									variant: visionModel === model ? "default" : "ghost",
+									disabled: visionBusy,
+									onClick: () => setVisionModel(model),
+									children: VISION_MODELS[model].name
+								}, model))]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 								className: "mt-2 text-xs leading-5 text-muted",
-								children: "Each result stays on this device and shows its suggested label with confidence. Nothing is applied as a permanent organizer without your tag review."
+								children: [VISION_MODELS[visionModel].purpose, ". Labels stay on this device and are review-only. SigLIP large+ is selected for the most detailed browser-side photo tags; smaller SigLIP and CLIP remain available for comparison."]
 							}),
 							visionReport.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "mt-3 divide-y divide-border rounded-sm border border-border bg-elevated",
@@ -4554,23 +5146,224 @@ function PhotosSection() {
 									})]
 								}, row.id))]
 							}),
+							visionReviewedPhotos.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+								className: "mt-3 rounded-sm border border-border bg-elevated p-3",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "flex flex-wrap items-center justify-between gap-3",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+											className: "text-xs font-medium text-fg",
+											children: ["Tagged photo review · ", visionReviewedPhotos.length]
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "mt-1 text-xs text-muted",
+											children: "Every completed photo is here, including low-confidence results. Filter the gallery with #auto-tagged or its model-version tag."
+										})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+											size: "sm",
+											variant: "ghost",
+											onClick: () => setVisionReviewOpen((open) => !open),
+											children: visionReviewOpen ? "Hide review" : `Review ${visionReviewedPhotos.length}`
+										})]
+									}),
+									visionReviewOpen && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6",
+										children: visionReviewedPhotos.slice(0, 24).map((photo) => {
+											const labels = photo.vision?.length ? photo.vision : photo.tags.filter((tag) => tag.startsWith("vision-")).map((tag) => ({
+												label: tag.slice(7),
+												score: 0
+											}));
+											return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+												type: "button",
+												className: "overflow-hidden rounded-xs bg-bg/55 text-left",
+												onClick: () => {
+													setPhotoViewerLoading(true);
+													setFocusedPhotoId(photo.id);
+												},
+												"aria-label": `Review tags for ${photo.name}`,
+												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+													src: photo.url,
+													alt: "",
+													loading: "lazy",
+													decoding: "async",
+													className: "aspect-square w-full object-cover"
+												}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+													className: "block p-2",
+													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+														className: "block truncate text-xs font-medium text-fg",
+														children: photo.name
+													}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+														className: "mt-1 flex flex-wrap gap-1",
+														children: labels.length ? labels.slice(0, 3).map((label) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+															className: "rounded-xs bg-elevated px-1.5 py-0.5 text-[11px] text-accent",
+															children: [label.label, label.score ? ` · ${Math.round(label.score * 100)}%` : ""]
+														}, label.label)) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+															className: "text-[11px] text-muted",
+															children: "No confident label — review image"
+														})
+													})]
+												})]
+											}, photo.id);
+										})
+									}),
+									visionReviewOpen && visionReviewedPhotos.length > 24 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "mt-3 text-xs text-muted",
+										children: [
+											"Showing 24 of ",
+											visionReviewedPhotos.length.toLocaleString(),
+											" tagged photos. Use photo tags or search to narrow the gallery."
+										]
+									})
+								]
+							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "mt-3 rounded-sm border border-border bg-elevated p-3",
 								children: [
 									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "flex flex-wrap items-start justify-between gap-2",
-										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-											className: `text-xs ${upscalerHealth.state === "ready" ? "text-accent" : "text-muted"}`,
-											children: [
-												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("strong", {
-													className: "text-fg",
-													children: ["Upscaler beta · ", upscalerHealth.state === "ready" ? "verified artifact" : upscalerHealth.state === "checking" ? "checking" : "model not installed"]
-												}),
-												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
-												upscalerHealth.detail
-											]
+										className: "flex flex-wrap items-start justify-between gap-3",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "text-xs font-medium text-fg",
+											children: "Vision model benchmark"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "mt-1 max-w-2xl text-xs leading-5 text-muted",
+											children: "Compare the pinned CLIP baseline with SigLIP large+ on the same 24 local photos. The first large-model run downloads its optional local model; later runs reuse the browser cache."
+										})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+											size: "sm",
+											disabled: visionBenchmarkBusy || !photos.length,
+											onClick: () => void runVisionBenchmark(),
+											children: visionBenchmarkBusy ? "Comparing…" : "Run local comparison"
+										})]
+									}),
+									visionBenchmarkBusy && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "mt-3 flex items-center gap-2 text-xs text-accent",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(RefreshCw, { className: "size-3 animate-spin" }), visionBenchmarkProgress || "Preparing local models…"]
+									}),
+									visionBenchmarkError && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "mt-3 rounded-xs bg-bg/50 px-3 py-2 text-xs text-muted",
+										children: ["Benchmark stopped · ", visionBenchmarkError]
+									}),
+									visionBenchmark && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "mt-3 grid gap-2 sm:grid-cols-2",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "rounded-xs bg-bg/50 p-3 text-xs",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+												className: "font-medium text-fg",
+												children: VISION_MODELS.semantic.name
+											}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+												className: "mt-1 text-muted",
+												children: [
+													visionBenchmark.semantic.elapsedMs.toFixed(0),
+													" ms · ",
+													visionBenchmark.semantic.labels.flat().length,
+													" labels · ",
+													visionBenchmark.sampleSize,
+													" photos"
+												]
+											})]
 										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-											className: "flex gap-2",
+											className: "rounded-xs bg-bg/50 p-3 text-xs",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+												className: "font-medium text-fg",
+												children: VISION_MODELS.semanticPro.name
+											}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+												className: "mt-1 text-muted",
+												children: [
+													visionBenchmark.semanticPro.elapsedMs.toFixed(0),
+													" ms · ",
+													visionBenchmark.semanticPro.labels.flat().length,
+													" labels · ",
+													visionBenchmark.sampleSize,
+													" photos"
+												]
+											})]
+										})]
+									}),
+									visionBenchmarkPhotos.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+										className: "mt-3",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "flex flex-wrap items-center justify-between gap-2",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+												className: "text-xs font-medium text-fg",
+												children: "Photo-by-photo tag review"
+											}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+												className: "text-[11px] text-muted",
+												children: "CLIP and SigLIP large+ results on the same image"
+											})]
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-3",
+											children: visionBenchmarkPhotos.map((photo) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("article", {
+												className: "overflow-hidden rounded-xs border border-border bg-bg/50",
+												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+													src: photo.url,
+													alt: photo.name,
+													loading: "lazy",
+													decoding: "async",
+													className: "aspect-video w-full object-cover"
+												}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "p-3",
+													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+														className: "truncate text-xs font-medium text-fg",
+														children: photo.name
+													}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+														className: "mt-2 grid gap-2",
+														children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+															className: "text-[11px] font-medium text-muted",
+															children: "CLIP"
+														}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+															className: "mt-1 flex flex-wrap gap-1",
+															children: photo.clip.length ? photo.clip.slice(0, 4).map((label) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+																className: "rounded-xs bg-elevated px-1.5 py-0.5 text-[11px] text-accent",
+																children: [
+																	label.label,
+																	" · ",
+																	Math.round(label.score * 100),
+																	"%"
+																]
+															}, label.label)) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+																className: "text-[11px] text-subtle",
+																children: "No confident label"
+															})
+														})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+															className: "text-[11px] font-medium text-muted",
+															children: "SigLIP large+"
+														}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+															className: "mt-1 flex flex-wrap gap-1",
+															children: photo.siglip.length ? photo.siglip.slice(0, 4).map((label) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+																className: "rounded-xs bg-elevated px-1.5 py-0.5 text-[11px] text-accent",
+																children: [
+																	label.label,
+																	" · ",
+																	Math.round(label.score * 100),
+																	"%"
+																]
+															}, label.label)) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+																className: "text-[11px] text-subtle",
+																children: "No confident label"
+															})
+														})] })]
+													})]
+												})]
+											}, photo.id))
+										})]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "mt-2 text-[11px] leading-4 text-subtle",
+										children: "The CLIP baseline is pinned to a verified revision. Results include model preparation and inference so the comparison reflects the actual browser experience."
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
+								className: "mt-3 rounded-sm border border-border bg-elevated p-3",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("summary", {
+									className: "cursor-pointer text-xs font-medium text-fg",
+									children: ["Upscaler beta · ", upscalerHealth.state === "ready" ? "verified artifact" : "not installed"]
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "mt-3",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: `text-xs leading-5 ${upscalerHealth.state === "ready" ? "text-accent" : "text-muted"}`,
+											children: upscalerHealth.detail
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "mt-3 flex gap-2",
 											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 												size: "sm",
 												variant: "ghost",
@@ -4582,36 +5375,36 @@ function PhotosSection() {
 												onClick: () => void removeUpscalerModel(),
 												children: "Remove"
 											})]
-										})]
-									}),
-									upscalerHealth.state !== "ready" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(14rem,0.7fr)_auto]",
-										children: [
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-												value: upscalerUrl,
-												onChange: (event) => setUpscalerUrl(event.target.value),
-												placeholder: "HTTPS model URL",
-												"aria-label": "Upscaler model URL"
-											}),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-												value: upscalerChecksum,
-												onChange: (event) => setUpscalerChecksum(event.target.value),
-												placeholder: "Publisher SHA-256",
-												"aria-label": "Upscaler model SHA-256 checksum"
-											}),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-												size: "sm",
-												disabled: upscalerInstalling,
-												onClick: () => void installUpscalerModel(),
-												children: upscalerInstalling ? "Verifying…" : "Download + verify"
-											})
-										]
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										className: "mt-2 text-[11px] leading-4 text-subtle",
-										children: "Installation is always user-initiated, requires an exact checksum, stays in this browser cache, and can be removed here. A verified artifact is not used for export until a compatible local runtime is proven."
-									})
-								]
+										}),
+										upscalerHealth.state !== "ready" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(14rem,0.7fr)_auto]",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+													value: upscalerUrl,
+													onChange: (event) => setUpscalerUrl(event.target.value),
+													placeholder: "HTTPS model URL",
+													"aria-label": "Upscaler model URL"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+													value: upscalerChecksum,
+													onChange: (event) => setUpscalerChecksum(event.target.value),
+													placeholder: "Publisher SHA-256",
+													"aria-label": "Upscaler model SHA-256 checksum"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+													size: "sm",
+													disabled: upscalerInstalling,
+													onClick: () => void installUpscalerModel(),
+													children: upscalerInstalling ? "Verifying…" : "Download + verify"
+												})
+											]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "mt-2 text-[11px] leading-4 text-subtle",
+											children: "The verified beta artifact is bundled for local preview. Originals and exports remain untouched until you explicitly save a reviewed result."
+										})
+									]
+								})]
 							})
 						]
 					}),
@@ -4877,21 +5670,31 @@ function PhotosSection() {
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "flex flex-wrap items-center gap-2",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-									size: "sm",
-									variant: focusedPhoto.favorite ? "default" : "secondary",
-									onClick: () => setPhotos((items) => items.map((item) => item.id === focusedPhoto.id ? {
-										...item,
-										favorite: !item.favorite
-									} : item)),
-									children: focusedPhoto.favorite ? "♥ Favorite" : "♡ Favorite"
-								}), focusedPhoto.tags.length ? focusedPhoto.tags.map((tag) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-									className: "rounded-xs bg-elevated px-2 py-1 text-xs text-muted",
-									children: ["#", tag]
-								}, tag)) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "text-xs text-muted",
-									children: "No tags yet"
-								})]
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										size: "sm",
+										variant: focusedPhoto.favorite ? "default" : "secondary",
+										onClick: () => setPhotos((items) => items.map((item) => item.id === focusedPhoto.id ? {
+											...item,
+											favorite: !item.favorite
+										} : item)),
+										children: focusedPhoto.favorite ? "♥ Favorite" : "♡ Favorite"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										size: "sm",
+										variant: "secondary",
+										disabled: visionBusy,
+										onClick: () => void autoTagOnePhoto(focusedPhoto),
+										children: visionBusy ? visionProgress || "Tagging…" : "Run auto tags"
+									}),
+									focusedPhoto.tags.length ? focusedPhoto.tags.map((tag) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+										className: "rounded-xs bg-elevated px-2 py-1 text-xs text-muted",
+										children: ["#", tag]
+									}, tag)) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "text-xs text-muted",
+										children: "No tags yet"
+									})
+								]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PhotoStars, {
 								name: focusedPhoto.name,
@@ -4946,6 +5749,28 @@ function PhotosSection() {
 			] })
 		]
 	});
+}
+function missionSteps(mission) {
+	if (mission.id.startsWith("watch") || mission.id.startsWith("twitch")) return [
+		"Capture the current provider or room state without replacing a healthy cached result.",
+		"Exercise the focused path with a bounded request, retry, and recovery case.",
+		"Record the limit and verification result before increasing any default budget."
+	];
+	if (mission.id.startsWith("youtube")) return [
+		"Keep the first visible shelf interactive while this provider work is deferred.",
+		"Verify a recent refresh, an older-item pull, and duplicate-safe merge behavior.",
+		"Measure payload and render cost before raising the routine refresh budget."
+	];
+	if (mission.id.startsWith("speed") || mission.id.startsWith("smooth") || mission.id.startsWith("warp")) return [
+		"Add a local measurement or bounded scheduler for the affected work.",
+		"Check the large-library path on desktop and phone without console errors or overflow.",
+		"Keep the result behind a repeatable release check so it cannot silently regress."
+	];
+	return [
+		"Implement the smallest durable local change that preserves existing saved data.",
+		"Verify the normal path plus an interrupted or restored-session path.",
+		"Run the production build check and record the remaining external dependency, if any."
+	];
 }
 var DEFAULT_MISSIONS = [
 	{
@@ -5263,7 +6088,7 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "youtube-deep-pagination",
 		title: "YouTube deep pagination",
-		detail: "Creator pulls now use a bounded 720-item deep public catalog window, duplicate suppression, and a short server cache to avoid repeated provider work.",
+		detail: "Creator pulls now use a bounded 2,880-item deep public catalog window, duplicate suppression, and a short server cache to avoid repeated provider work.",
 		done: true
 	},
 	{
@@ -5335,14 +6160,14 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "warp-04",
 		title: "Thumbnail decode governor",
-		detail: "Prioritize visible artwork and pause offscreen image decode when memory pressure rises.",
-		done: false
+		detail: "Done · visible and near-view artwork uses bounded workers, pauses during input or hidden-tab time, and retains a small queue for responsive recovery.",
+		done: true
 	},
 	{
 		id: "warp-05",
 		title: "Search worker index",
-		detail: "Move full-text tokenization and suggestion scoring off the main rendering thread.",
-		done: false
+		detail: "Done · full-text tokenization runs in a dedicated worker, while the search box shows an honest warming state until its local index is ready.",
+		done: true
 	},
 	{
 		id: "warp-06",
@@ -5371,8 +6196,8 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "warp-10",
 		title: "Idle tag batching",
-		detail: "Coalesce tag, like, and rating writes into short idle batches without risking a lost click.",
-		done: false
+		detail: "Done · each tag edit first writes a recoverable per-title journal, then coalesces the broad preference snapshot outside the input frame.",
+		done: true
 	},
 	{
 		id: "warp-11",
@@ -5395,7 +6220,7 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "warp-14",
 		title: "Twitch archive depth",
-		detail: "Twitch now reserves archive checks in every mixed refresh, retains up to 160 public VOD rows on focused checks, and reports sparse channels directly in the Live desk.",
+		detail: "Twitch now reserves archive checks in every mixed refresh, retains up to 640 recent VOD rows on routine checks and up to 8,000 on focused pulls, and reports sparse channels directly in the Live desk.",
 		done: true
 	},
 	{
@@ -5485,8 +6310,8 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "warp-29",
 		title: "Vision model benchmark",
-		detail: "Compare the current MobileNetV4 speed-first classifier against a verified optional semantic model on a local benchmark before changing defaults.",
-		done: false
+		detail: "Compare CLIP with the optional SigLIP semantic model on a broader local sample; the result records preparation plus inference for a quality-focused default.",
+		done: true
 	},
 	{
 		id: "warp-30",
@@ -5899,7 +6724,7 @@ var ROADMAP_EXPANSION = [
 		id,
 		title,
 		detail,
-		done: ["speed-04"].includes(id)
+		done: ["speed-04", "speed-05"].includes(id)
 	})),
 	...[
 		[
@@ -5969,6 +6794,7 @@ var ROADMAP_EXPANSION = [
 		done: [
 			"smooth-03",
 			"smooth-04",
+			"smooth-05",
 			"smooth-06",
 			"smooth-07",
 			"smooth-08"
@@ -6094,13 +6920,26 @@ function MissionPlanSection() {
 							children: `Step ${index + 1}`
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "min-w-0 flex-1",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
-								className: "text-sm font-medium text-fg",
-								children: mission.title
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "mt-1 text-sm text-muted",
-								children: mission.detail
-							})]
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+									className: "text-sm font-medium text-fg",
+									children: mission.title
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-1 text-sm text-muted",
+									children: mission.detail
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
+									className: "mt-3 rounded-sm bg-bg/45 px-3 py-2 text-xs text-muted",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("summary", {
+										className: "cursor-pointer font-medium text-fg",
+										children: "Break this down"
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ol", {
+										className: "mt-2 list-decimal space-y-1 pl-4",
+										children: missionSteps(mission).map((step) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: step }, step))
+									})]
+								})
+							]
 						})]
 					}, mission.id))
 				})]
@@ -7824,6 +8663,7 @@ function WatchRoomSection() {
 		});
 	};
 	const updateQueue = (next) => {
+		measureInteraction("queue");
 		setQueue(next);
 		p2p.send({
 			type: "queue",

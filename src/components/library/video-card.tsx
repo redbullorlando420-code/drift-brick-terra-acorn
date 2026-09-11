@@ -145,8 +145,8 @@ export const VideoCard = memo(function VideoCard({
         </span>
       </div>
       {live && (
-        <span className="absolute top-2 left-2 flex items-center gap-1.5 rounded-xs bg-bg/80 px-1.5 py-0.5 text-xs font-medium tracking-wide text-fg uppercase">
-          <span className="live-dot size-1.5 rounded-full bg-danger" />
+        <span className="absolute top-2 left-2 flex items-center gap-1.5 rounded-full border border-danger/40 bg-danger px-2.5 py-1 text-[11px] font-bold tracking-[0.12em] text-white uppercase shadow-lift">
+          <span className="live-dot size-1.5 rounded-full bg-white shadow-[0_0_0_3px_rgb(255_255_255_/_0.2)]" />
           Live
         </span>
       )}
