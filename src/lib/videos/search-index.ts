@@ -1,4 +1,5 @@
 import type { LibraryVideo } from "./types";
+import { topicsForVideo } from './topics';
 
 /** Tokenize for indexed search: lowercase alphanumerics, keep path-ish separators as splits. */
 export function tokenize(text: string): string[] {
@@ -34,6 +35,7 @@ function haystackFor(
     video.description ?? "",
     categories[video.id] ?? "",
     ...(tags[video.id] ?? []),
+    ...topicsForVideo(video, tags[video.id]),
     video.remote?.channelName ?? "",
     video.remote?.channelId ?? "",
     video.remote?.kind ?? "",

@@ -96,9 +96,57 @@ export async function ingestDirectoryHandle(
   const acc: LibraryVideo[] = [];
   const flushed = { n: 0 };
   const drive = opts.drive ?? isDriveName(dir.name);
+  // The Photos workspace needs useful thumbnails before a complete library
+  // inventory. A depth-first walk can spend minutes inside one giant branch
+  // before it reaches the first camera roll, so photo-only refreshes visit
+  // each directory level across the source before descending further.
+  if (opts.imagesOnly) {
+    await walkImagesBreadthFirst(dir, dir.name, opts, drive);
+    return acc;
+  }
   await walkHandle(dir, "", folderId, acc, dir.name, opts, flushed, 0, drive);
   if (opts.onBatch && acc.length > flushed.n) opts.onBatch(acc.slice(flushed.n));
   return acc;
+}
+
+async function walkImagesBreadthFirst(
+  root: FileSystemDirectoryHandle,
+  folderName: string,
+  opts: ScanOpts,
+  drive: boolean,
+): Promise<void> {
+  const maxDepth = drive ? MAX_DRIVE_DEPTH : MAX_DEPTH;
+  const queue: Array<{ dir: FileSystemDirectoryHandle; prefix: string; depth: number }> = [{ dir: root, prefix: "", depth: 0 }];
+  let cursor = 0;
+  let found = 0;
+  let looked = 0;
+  const progress = { lastAt: 0, lastFound: 0 };
+
+  while (cursor < queue.length && !aborted(opts.signal)) {
+    const { dir, prefix, depth } = queue[cursor++];
+    if (depth > maxDepth) continue;
+    const iterable = dir as FileSystemDirectoryHandle & { entries?: () => AsyncIterableIterator<[string, FileSystemHandle]> };
+    if (typeof iterable.entries !== "function") continue;
+
+    for await (const [name, handle] of iterable.entries()) {
+      if (aborted(opts.signal)) return;
+      looked += 1;
+      if (handle.kind === "directory") {
+        if (!shouldSkipDir(name)) queue.push({ dir: handle as FileSystemDirectoryHandle, prefix: `${prefix}${name}/`, depth: depth + 1 });
+      } else if (handle.kind === "file" && /\.(avif|bmp|gif|heic|heif|jpe?g|png|tiff?|webp)$/i.test(name)) {
+        try {
+          const file = await (handle as FileSystemFileHandle).getFile();
+          found += 1;
+          opts.onImage?.(file, prefix + name);
+          throttleProgress(opts, progress, { found, looked, folderName, current: prefix + name });
+          // Yield frequently while the first preview batch is arriving so
+          // React can paint instead of waiting for the complete source walk.
+          if (found % 8 === 0) await yieldUi();
+        } catch { /* skip unreadable */ }
+      }
+      if (looked % 160 === 0) await yieldUi();
+    }
+  }
 }
 
 async function walkHandle(

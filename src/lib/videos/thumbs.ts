@@ -19,6 +19,15 @@ let active = 0;
 const waiting: Array<() => void> = [];
 const MAX_MEMORY_THUMBS = 360;
 const MAX_ARTWORK_ATTEMPTS = 3;
+const MAX_THUMB_QUEUE = 96;
+let artworkHits = 0;
+let artworkMisses = 0;
+let artworkEvictions = 0;
+
+function inputOrBackgroundWork() {
+  const nav = typeof navigator !== "undefined" ? navigator as Navigator & { scheduling?: { isInputPending?: () => boolean } } : undefined;
+  return Boolean(nav?.scheduling?.isInputPending?.()) || (typeof document !== "undefined" && document.visibilityState !== "visible");
+}
 
 function maxThumbnailWorkers() {
   const nav = typeof navigator !== "undefined" ? navigator as Navigator & { deviceMemory?: number; scheduling?: { isInputPending?: () => boolean } } : undefined;
@@ -35,12 +44,21 @@ function maxThumbnailWorkers() {
 }
 
 async function acquire() {
-  if (active < maxThumbnailWorkers()) {
-    active += 1;
-    return;
+  // Do not start a decode in the same slice as typing, scrolling, or a hidden
+  // tab. The bounded queue remains intact and wakes quickly when input ends.
+  while (inputOrBackgroundWork() || active >= maxThumbnailWorkers()) {
+    if (inputOrBackgroundWork()) {
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 80));
+    } else {
+      await new Promise<void>((resolve) => waiting.push(resolve));
+    }
   }
-  await new Promise<void>((resolve) => waiting.push(resolve));
   active += 1;
+}
+
+/** Local-only artwork queue/cache numbers for the opt-in diagnostics panel. */
+export function getThumbDiagnostics() {
+  return { active, queued: waiting.length, inflight: inflight.size, hits: artworkHits, misses: artworkMisses, evictions: artworkEvictions };
 }
 
 function release() {
@@ -126,8 +144,11 @@ export const useThumbs = create<ThumbState>((set, get) => ({
   diagnostics: {},
   request: (video) => {
     const { byId, failed, diagnostics } = get();
-    if (byId[video.id] || failed[video.id] || inflight.has(video.id)) return;
+    if (byId[video.id]) { artworkHits += 1; return; }
+    if (failed[video.id] || inflight.has(video.id)) return;
     if ((diagnostics[video.id]?.attempts ?? 0) >= MAX_ARTWORK_ATTEMPTS) return;
+    if (inflight.size >= MAX_THUMB_QUEUE) return;
+    artworkMisses += 1;
     if (video.remote) {
       const youtubeId = video.remote.kind === "youtube" ? video.remote.videoId ?? video.remote.embedUrl?.match(/(?:embed\/|v=)([A-Za-z0-9_-]{11})/)?.[1] : undefined;
       const providerArtwork = video.poster || (youtubeId ? `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg` : undefined) || video.remote.previewUrl;
@@ -147,7 +168,7 @@ export const useThumbs = create<ThumbState>((set, get) => ({
           set((s) => {
             const nextThumbs = { ...s.byId, [video.id]: thumb };
             const ids = Object.keys(nextThumbs);
-            if (ids.length > MAX_MEMORY_THUMBS) delete nextThumbs[ids[0]];
+            if (ids.length > MAX_MEMORY_THUMBS) { delete nextThumbs[ids[0]]; artworkEvictions += 1; }
             return {
             byId: nextThumbs,
             durations:

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Play, Shuffle, Radio, RefreshCw, Heart, ThumbsUp } from "lucide-react";
+import { Play, Shuffle, Radio, RefreshCw, Heart, ThumbsUp, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLibrary } from "@/lib/videos/store";
 import type { LibraryVideo } from "@/lib/videos/types";
 import { TitleRail } from "./browse";
 import { VideoCard } from "./video-card";
+import { getRatingStreakSnapshot, RATING_GOALS, setRatingWeeklyGoal, type RatingStreakSnapshot } from "@/lib/rating-streaks";
 
 export function DiscoveryDesk({ videos }: { videos: LibraryVideo[] }) {
   const [seed, setSeed] = useState(1);
@@ -23,22 +24,41 @@ export function DiscoveryDesk({ videos }: { videos: LibraryVideo[] }) {
     const random = () => { state ^= state << 13; state ^= state >>> 17; state ^= state << 5; return (state >>> 0) / 4294967296; };
     const currentChoices = videos.filter((video) => !video.remote?.live && !video.isSample);
     const candidatePool = currentChoices;
-    const weighted = candidatePool.map((video) => {
+    // Keep only the best small candidate set while walking the catalog. The
+    // old map + full-array sort made the Home welcome card do O(n log n) work.
+    const chosen: Array<{ video: LibraryVideo; score: number }> = [];
+    for (const video of candidatePool) {
       const classicFallback = video.collection === "classics" || /classic|noir/i.test(`${video.name} ${video.remote?.channelName ?? ""}`);
       const freshness = Math.max(1, Math.min(8, (video.addedAt - Date.now() + 31_536_000_000) / 3_942_000_000));
       const weight = (video.remote ? 7 : 2) + freshness + (classicFallback ? -6 : 0);
-      return { video, score: random() * Math.max(0.25, weight) };
-    });
-    const chosen = weighted
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 12)
-      .map((entry) => entry.video);
-    for (let i = chosen.length - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [chosen[i], chosen[j]] = [chosen[j], chosen[i]]; }
-    return chosen;
+      const entry = { video, score: random() * Math.max(0.25, weight) };
+      if (chosen.length < 12) { chosen.push(entry); continue; }
+      let weakest = 0;
+      for (let index = 1; index < chosen.length; index += 1) if (chosen[index].score < chosen[weakest].score) weakest = index;
+      if (entry.score > chosen[weakest].score) chosen[weakest] = entry;
+    }
+    return chosen.map((entry) => entry.video);
   }, [videos, seed]);
   return <section className="mb-8 rounded-xl border border-border bg-surface p-5 sm:p-7">
     <div className="mb-6 flex flex-wrap items-end justify-between gap-5"><div><p className="mb-3 text-xs font-semibold uppercase tracking-widest text-accent">Your daily detour</p><h1 className="discovery-heading font-display">Something worth finding.</h1><p className="mt-3 text-sm text-muted">A fresh mix from your library. Follow your curiosity.</p></div><div className="flex flex-wrap gap-2"><Button disabled={!picks.length} onClick={() => open(picks[0].id)}><Play className="size-4"/>Surprise me</Button><Button variant="secondary" onClick={() => setSeed(Math.floor(Math.random() * 0xffffffff) || 1)}><Shuffle className="size-4"/>Shuffle picks</Button></div></div>
     {picks.length ? <TitleRail title="Random discoveries" videos={picks} variant="rail"/> : <p className="py-6 text-sm text-muted">Add videos or follow a channel to start discovering.</p>}
+  </section>;
+}
+
+export function RatingStreakCard() {
+  const [snapshot, setSnapshot] = useState<RatingStreakSnapshot>(() => getRatingStreakSnapshot());
+  useEffect(() => {
+    const refresh = () => setSnapshot(getRatingStreakSnapshot());
+    window.addEventListener("reelcase:rating-streak-change", refresh);
+    return () => window.removeEventListener("reelcase:rating-streak-change", refresh);
+  }, []);
+  const remaining = Math.max(0, snapshot.weeklyGoal - snapshot.thisWeek);
+  return <section className="mb-8 rounded-xl border border-border bg-surface p-5 shadow-border sm:p-6" aria-label="Rating streak">
+    <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="flex items-center gap-2 text-xs font-semibold tracking-widest text-accent uppercase"><Star className="size-4"/>Rating rhythm</p><h2 className="mt-2 font-display text-2xl text-fg">Small ratings, clearer shelves.</h2><p className="mt-1 text-sm text-muted">{remaining ? `${remaining} more distinct rating${remaining === 1 ? "" : "s"} unlocks this week’s local reward.` : "This week’s local reward is unlocked."}</p></div><div className="rounded-lg bg-elevated px-4 py-3 text-right"><p className="text-xs text-muted">Weekly streak</p><p className="mt-1 font-display text-2xl text-fg">{snapshot.weeklyStreak} week{snapshot.weeklyStreak === 1 ? "" : "s"}</p></div></div>
+    <div className="mt-5 h-2 overflow-hidden rounded-full bg-bg/70"><div className="h-full rounded-full bg-accent transition-[width] duration-200 ease-out" style={{ width: `${Math.min(100, snapshot.thisWeek / snapshot.weeklyGoal * 100)}%` }}/></div>
+    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted"><span>{snapshot.thisWeek} of {snapshot.weeklyGoal} rated this week</span><span>{snapshot.nextReward}</span></div>
+    <div className="mt-4 flex flex-wrap items-center gap-2"><span className="mr-1 text-xs text-muted">Weekly goal</span>{RATING_GOALS.map((goal) => <Button key={goal} size="sm" variant={snapshot.weeklyGoal === goal ? "default" : "secondary"} onClick={() => { setRatingWeeklyGoal(goal); setSnapshot(getRatingStreakSnapshot()); }}>{goal} ratings</Button>)}</div>
+    <div className="mt-4 grid gap-2 sm:grid-cols-3">{snapshot.rewards.map((reward) => <div key={reward.label} className="rounded-md bg-elevated px-3 py-2"><p className="text-sm font-medium text-fg">{reward.earned ? "Earned · " : "Next · "}{reward.label}</p><p className="mt-1 text-xs leading-5 text-muted">{reward.detail}</p></div>)}</div>
   </section>;
 }
 

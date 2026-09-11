@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Reelcase",
+      "hasCanvas": false,
+      "bodyTextLen": 924,
+      "bodyTextHash": "1027b8aa5aa84c53e43ec2054764e2415e9852a7c00b7f69fb45e06d67f0f904",
+      "bodyTextPrefix": "Reelcase Vault · networks · live Home 0 Movies Topics YouTube 0 ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-metrics.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Reelcase",
+      "hasCanvas": false,
+      "bodyTextLen": 626,
+      "bodyTextHash": "8fab3b2eb84654cb40b14a09b23b2063fbb7ea278253f35f3f66f9e969851e5d",
+      "bodyTextPrefix": "Home 0 indexed Date added YOUR DAILY DETOUR Something worth find",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-metrics-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-metrics.json"
+}

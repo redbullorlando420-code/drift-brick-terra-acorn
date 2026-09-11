@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Reelcase",
+      "hasCanvas": false,
+      "bodyTextLen": 924,
+      "bodyTextHash": "b770e3b4586952ccb23affebf3cf03b45ee6ea7c01d65f6495575f0944717f0b",
+      "bodyTextPrefix": "Reelcase Vault · networks · live Home 0 Movies Topics YouTube 0 ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\history-overhaul-smoke.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Reelcase",
+      "hasCanvas": false,
+      "bodyTextLen": 626,
+      "bodyTextHash": "8fab3b2eb84654cb40b14a09b23b2063fbb7ea278253f35f3f66f9e969851e5d",
+      "bodyTextPrefix": "Home 0 indexed Date added YOUR DAILY DETOUR Something worth find",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\history-overhaul-smoke-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\history-overhaul-smoke.json"
+}

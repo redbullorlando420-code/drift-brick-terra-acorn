@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Reelcase",
+      "hasCanvas": false,
+      "bodyTextLen": 1317,
+      "bodyTextHash": "7a97127da1fbd22ffcc779485627a8fe8422d77f495ba173ea61c2baf41b3355",
+      "bodyTextPrefix": "Reelcase Vault · networks · live Home 0 Movies Topics YouTube 0 ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\mission-progress.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Reelcase",
+      "hasCanvas": false,
+      "bodyTextLen": 1019,
+      "bodyTextHash": "59032196c867a9f77b805939a84c17431ecff600ee53e359982aa89a4696e5ac",
+      "bodyTextPrefix": "Home 0 indexed Date added YOUR DAILY DETOUR Something worth find",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\mission-progress-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\mission-progress.json"
+}

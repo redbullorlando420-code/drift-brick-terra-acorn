@@ -1,3 +1,6 @@
+import { TopicLinks } from './topic-links';
+import { openTopic } from '@/lib/videos/topic-navigation';
+import { isTopicTag, canonicalTopic } from '@/lib/videos/topics';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bot,
@@ -35,11 +38,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLibrary } from "@/lib/videos/store";
-import { useThumbs } from "@/lib/videos/thumbs";
+import { getThumbDiagnostics, useThumbs } from "@/lib/videos/thumbs";
 import { useSourceAssets } from "@/lib/source-assets";
 import { useP2PRoom } from "@/lib/multiplayer";
 import { exportFeedback, getFeedbackDiagnostics } from "@/lib/media-feedback";
 import { getRenderBudgetSnapshot } from "@/lib/render-budget";
+import { getInteractionBudgetSnapshot } from "@/lib/interaction-budget";
+import { getFirstShelfTrace } from "@/lib/first-shelf-trace";
 import { classifyImagesLocally, type VisionLabel } from "@/lib/local-vision";
 import type { LibraryVideo } from "@/lib/videos/types";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -173,6 +178,7 @@ function filesToItems(files: FileList, gamesOnly = false): LocalItem[] {
     }));
 }
 function bytes(value: number) {
+  if (value <= 0) return "0 B";
   return value < 1024 * 1024
     ? `${Math.max(1, Math.round(value / 1024))} KB`
     : `${(value / 1024 / 1024).toFixed(1)} MB`;
@@ -241,47 +247,6 @@ function loadTwitchEmbed() {
   });
 }
 
-// Operational tags are useful for search, but do not describe a viewer's taste.
-// Keep them out of topic shelves and statistics so date/provider noise cannot win.
-const TOPIC_TAXONOMY = new Set([
-  "gaming", "technology", "news-commentary", "music", "film", "anime",
-  "food", "travel", "fitness", "learning", "comedy", "relaxing", "talk",
-  "commentary", "creative", "nature", "business", "style", "motors",
-  "horror", "maker", "sports", "science", "relationships", "wellbeing",
-  "skills", "hardware", "legal",
-]);
-
-// A topic can be present as a direct tag, an inferred local tag, or an
-// established media genre. This bridge keeps the explorer useful even while a
-// source is still catching up on description and vision tagging.
-const TOPIC_GENRE_MAP: Record<string, string[]> = {
-  anime: ["Animation", "Fantasy"],
-  comedy: ["Comedy"],
-  creative: ["Animation", "Fantasy"],
-  film: ["Documentary", "Drama", "Sci-Fi", "Science Fiction", "Thriller"],
-  gaming: ["Action", "Adventure"],
-  horror: ["Horror", "Thriller"],
-  maker: ["Documentary", "Science Fiction"],
-  learning: ["Documentary"],
-  music: ["Documentary"],
-  motors: ["Action", "Documentary"],
-  nature: ["Documentary", "Adventure"],
-  "news-commentary": ["Documentary"],
-  relationships: ["Romance", "Drama"],
-  relaxing: ["Nature", "Documentary"],
-  science: ["Science Fiction", "Documentary"],
-  skills: ["Documentary"],
-  sports: ["Action", "Documentary"],
-  style: ["Documentary"],
-  technology: ["Documentary", "Science Fiction"],
-  travel: ["Documentary", "Adventure"],
-  wellbeing: ["Documentary"],
-};
-
-function isTopicTag(tag: string) {
-  return TOPIC_TAXONOMY.has(tag.trim().toLowerCase());
-}
-
 function downloadCsv(rows: Array<Array<string | number | boolean>>, filename: string) {
   const quote = (value: string | number | boolean) => `"${String(value).replaceAll('"', '""')}"`;
   const body = rows.map((row) => row.map(quote).join(",")).join("\n");
@@ -294,58 +259,7 @@ function downloadCsv(rows: Array<Array<string | number | boolean>>, filename: st
 }
 
 export function GenreSection() {
-  const videos = useLibrary((s) => s.videos);
-  const tags = useLibrary((s) => s.tags);
-  const folders = useLibrary((s) => s.folders);
-  const [selected, setSelected] = useState("All topics");
-  const [limit, setLimit] = useState(96);
-  const [topicLimit, setTopicLimit] = useState(36);
-  const catalog = useMemo(() => {
-    const privateFolders = new Set(folders.filter((folder) => folder.adult).map((folder) => folder.id));
-    const publicVideos: LibraryVideo[] = [];
-    const genreCounts = new Map<string, number>();
-    const liveCategoryCounts = new Map<string, number>();
-    const tagCounts = new Map<string, number>();
-    const tagSources = new Map<string, Set<string>>();
-    const folderKinds = new Map(folders.map((folder) => [folder.id, folder.kind]));
-    const mediaGenres = new Set(["Action", "Adventure", "Animation", "Comedy", "Documentary", "Drama", "Fantasy", "Horror", "Romance", "Sci-Fi", "Science Fiction", "Thriller"]);
-    for (const video of videos) {
-      if (privateFolders.has(video.folderId)) continue;
-      publicVideos.push(video);
-      const genre = video.genre?.trim();
-      if (genre && mediaGenres.has(genre)) genreCounts.set(genre, (genreCounts.get(genre) ?? 0) + 1);
-      // A Twitch VOD keeps its game/category metadata. It is not a live
-      // category; only an explicitly verified live record belongs here.
-      if (genre && video.remote?.kind === "twitch" && video.remote.live) liveCategoryCounts.set(genre, (liveCategoryCounts.get(genre) ?? 0) + 1);
-      const directTopics = new Set((tags[video.id] ?? []).map((tag) => tag.trim().toLowerCase()).filter(isTopicTag));
-      // Let established media genres contribute to their parent topics, but do
-      // not manufacture noisy per-file tags in the library store.
-      for (const [topic, linkedGenres] of Object.entries(TOPIC_GENRE_MAP)) {
-        if (genre && linkedGenres.includes(genre)) directTopics.add(topic);
-      }
-      for (const clean of directTopics) {
-        tagCounts.set(clean, (tagCounts.get(clean) ?? 0) + 1);
-        const sources = tagSources.get(clean) ?? new Set<string>();
-        sources.add(video.remote?.kind ?? (folderKinds.get(video.folderId) === "directory" || folderKinds.get(video.folderId) === "files" ? "local" : "library"));
-        tagSources.set(clean, sources);
-      }
-    }
-    return {
-      publicVideos,
-      genres: [...genreCounts.entries()].sort((a, b) => a[0].localeCompare(b[0])),
-      liveCategories: [...liveCategoryCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 18),
-      tags: [...tagCounts.entries()].filter(([, count]) => count >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
-      bridges: [...tagSources.entries()].filter(([tag, sources]) => (tagCounts.get(tag) ?? 0) >= 2 && sources.size >= 2).sort((a, b) => (tagCounts.get(b[0]) ?? 0) - (tagCounts.get(a[0]) ?? 0)).slice(0, 18).map(([tag, sources]) => ({ tag, sources: [...sources], count: tagCounts.get(tag) ?? 0 })),
-    };
-  }, [folders, tags, videos]);
-  const genreNames = useMemo(() => new Set(catalog.genres.map(([genre]) => genre)), [catalog.genres]);
-  const matching = useMemo(() => selected === "All topics" ? catalog.publicVideos : genreNames.has(selected) || catalog.liveCategories.some(([category]) => category === selected) ? catalog.publicVideos.filter((video) => video.genre === selected) : catalog.publicVideos.filter((video) => (tags[video.id] ?? []).includes(selected) || (TOPIC_GENRE_MAP[selected] ?? []).includes(video.genre ?? "")), [catalog.liveCategories, catalog.publicVideos, genreNames, selected, tags]);
-  useEffect(() => setLimit(96), [selected]);
-  return <HubShell eyebrow="Topic explorer" icon={<Clapperboard className="size-4"/>} title="Explore ideas, not noisy labels." copy="Topics connect local media, YouTube, and Twitch. Media genres stay separate, while Twitch game names remain live categories instead of pretending to be genres.">
-    <section className="mt-6 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Topics · {catalog.tags.length}</p><div className="mt-3 flex flex-wrap gap-2"><Button size="sm" variant={selected === "All topics" ? "default" : "secondary"} onClick={() => setSelected("All topics")}>All titles · {catalog.publicVideos.length}</Button>{catalog.tags.slice(0, topicLimit).map(([tag, count]) => <Button key={tag} size="sm" variant={selected === tag ? "default" : "secondary"} onClick={() => setSelected(tag)}>#{tag} · {count}</Button>)}</div>{catalog.tags.length > topicLimit && <Button className="mt-3" size="sm" variant="secondary" onClick={() => setTopicLimit((limit) => Math.min(catalog.tags.length, limit + 18))}>Show more topics · {catalog.tags.length - topicLimit} remaining</Button>}<p className="mt-5 text-xs font-medium tracking-[0.14em] text-accent uppercase">Topic bridges across local, YouTube & Twitch</p><div className="mt-3 flex flex-wrap gap-2">{catalog.bridges.map((bridge) => <Button key={bridge.tag} size="sm" variant={selected === bridge.tag ? "default" : "secondary"} onClick={() => setSelected(bridge.tag)}>#{bridge.tag} · {bridge.count} · {bridge.sources.join(" + ")}</Button>)}</div><p className="mt-5 text-xs font-medium tracking-[0.14em] text-accent uppercase">Media genres · {catalog.genres.length}</p><div className="mt-3 flex flex-wrap gap-2">{catalog.genres.map(([genre, count]) => <Button key={genre} size="sm" variant={selected === genre ? "default" : "secondary"} onClick={() => setSelected(genre)}>{genre} · {count}</Button>)}</div>{catalog.liveCategories.length > 0 && <><p className="mt-5 text-xs font-medium tracking-[0.14em] text-accent uppercase">Twitch live categories</p><div className="mt-3 flex flex-wrap gap-2">{catalog.liveCategories.map(([category, count]) => <Button key={category} size="sm" variant={selected === category ? "default" : "secondary"} onClick={() => setSelected(category)}>{category} · {count}</Button>)}</div></>}</section>
-    <p className="mt-5 text-sm text-muted">{matching.length.toLocaleString()} title{matching.length === 1 ? "" : "s"} in this view.</p>
-    {matching.length ? <><div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">{matching.slice(0, limit).map((video, index) => <VideoCard key={video.id} video={video} variant="poster" index={index}/>)}</div>{matching.length > limit && <Button variant="secondary" className="mt-5" onClick={() => setLimit((value) => value + 96)}>Show 96 more · {matching.length - limit} remaining</Button>}</> : <div className="mt-4 rounded-lg bg-elevated p-6 text-sm text-muted shadow-border">No titles match this topic or category yet. Refresh a channel to populate it.</div>}
-  </HubShell>;
+  return <HubShell eyebrow="Topic explorer" icon={<Clapperboard className="size-4"/>} title="Explore ideas across sources." copy="Follow useful topics across local media, YouTube and Twitch. Each connection shows its saved tag or title evidence."><TopicLinks explorer /></HubShell>;
 }
 
 export function StatsSection() {
@@ -393,11 +307,17 @@ export function StatsSection() {
       if (progress[video.id] && progress[video.id].t > 0) resumedTitles += 1;
       totalViews += viewCounts[video.id] ?? 0;
       const videoTags = tags[video.id] ?? [];
-      const usefulTopics = new Set(videoTags.map((tag) => tag.trim().toLowerCase()).filter(isTopicTag));
+      const usefulTopics = new Set(videoTags.map(canonicalTopic).filter((tag): tag is string => Boolean(tag)));
       if (videoTags.length) metadataTaggedTitles += 1;
       if (Boolean(video.remote?.channelName?.trim())) creatorTaggedTitles += 1;
-      if (videoTags.some((tag) => !tag.includes("-") && tag.length >= 4)) descriptionTaggedTitles += 1;
+      if (video.description?.trim()) descriptionTaggedTitles += 1;
       if (!videoTags.some(isTopicTag)) untaggedTitles += 1;
+      for (const topic of usefulTopics) {
+        byTag.set(topic, (byTag.get(topic) ?? 0) + 1);
+        const sources = topicSources.get(topic) ?? new Set<string>();
+        sources.add(video.remote?.kind ?? 'local');
+        topicSources.set(topic, sources);
+      }
       if (usefulTopics.size >= 2) multiTopicTitles += 1;
       if (video.remote && Date.now() - video.addedAt < 7 * 24 * 60 * 60_000) freshRemoteTitles += 1;
       const folder = byFolder.get(video.folderId) ?? { videos: 0, bytes: 0 };
@@ -408,12 +328,7 @@ export function StatsSection() {
       for (const tag of videoTags) {
         const clean = tag.trim().toLowerCase();
         if (/^(?:year-|month-|day-|type-|provider-|format-|source-|keyword-|creator-|https?$)/.test(clean)) operationalTagAssignments += 1;
-        if (isTopicTag(clean)) {
-          byTag.set(clean, (byTag.get(clean) ?? 0) + 1);
-          const sources = topicSources.get(clean) ?? new Set<string>();
-          sources.add(video.remote?.kind ?? "local");
-          topicSources.set(clean, sources);
-        }
+
       }
     }
     const tagAssignments = [...byTag.values()].reduce((sum, count) => sum + count, 0);
@@ -445,9 +360,9 @@ export function StatsSection() {
       ["favorites", Object.keys(favorites).length],
       ["local_titles", summary.localTitles], ["remote_titles", summary.remoteTitles], ["untagged_titles", summary.untaggedTitles], ["fresh_remote_titles_7d", summary.freshRemoteTitles],
       ["youtube_titles", summary.youtubeTitles], ["twitch_titles", summary.twitchTitles], ["live_titles", summary.liveTitles], ["poster_ready_titles", summary.thumbReady], ["unavailable_titles", Object.keys(unavailable).length], ["history_events", history.length],
-      ["topic_tag_coverage_percent", Math.round((1 - summary.untaggedTitles / Math.max(videos.length, 1)) * 100)], ["largest_source_percent", sourceHealth.concentration], ["duplicate_source_names", sourceHealth.duplicateNames.length],
-      ["metadata_tagged_titles", summary.metadataTaggedTitles], ["metadata_tag_coverage_percent", Math.round(summary.metadataTaggedTitles / Math.max(videos.length, 1) * 100)], ["creator_tagged_titles", summary.creatorTaggedTitles], ["description_keyword_tagged_titles", summary.descriptionTaggedTitles],
-      ["multi_topic_titles", summary.multiTopicTitles], ["cross_source_bridge_topics", summary.bridgeTopics], ["operational_tag_assignments", summary.operationalTagAssignments], ["useful_topic_share_percent", Math.round((1 - summary.untaggedTitles / Math.max(videos.length, 1)) * 100)],
+      ["topic_tag_coverage_percent", Math.round(((videos.length - summary.untaggedTitles) / Math.max(videos.length, 1)) * 100)], ["largest_source_percent", sourceHealth.concentration], ["duplicate_source_names", sourceHealth.duplicateNames.length],
+      ["metadata_tagged_titles", summary.metadataTaggedTitles], ["metadata_tag_coverage_percent", Math.round(summary.metadataTaggedTitles / Math.max(videos.length, 1) * 100)], ["creator_tagged_titles", summary.creatorTaggedTitles], ["titles_with_description", summary.descriptionTaggedTitles],
+      ["multi_topic_titles", summary.multiTopicTitles], ["cross_source_bridge_topics", summary.bridgeTopics], ["operational_tag_assignments", summary.operationalTagAssignments], ["useful_topic_share_percent", Math.round(((videos.length - summary.untaggedTitles) / Math.max(videos.length, 1)) * 100)],
       ["favorites_saved", favoriteHealth.saved], ["favorites_resolved", favoriteHealth.resolved], ["favorites_waiting_for_source", favoriteHealth.missing],
       ["video_ratings_saved", Object.keys(feedback.ratings).length], ["creator_ratings_saved", Object.keys(feedback.creatorRatings).length], ["creator_likes_saved", Object.keys(feedback.creatorLikes).length], ["notes_saved", Object.keys(feedback.notes).length],
       ["known_duration_titles", summary.durationTitles], ["known_duration_hours", Math.round(summary.knownDuration / 3600)], ["resume_marks", summary.resumedTitles], ["local_view_events", summary.totalViews],
@@ -467,14 +382,15 @@ export function StatsSection() {
     ...(sourceHealth.largest ? [["storage-concentration", 1, sourceHealth.largest.folder.name, `${sourceHealth.concentration}% of mapped local bytes`, "Review source contents; no files are changed automatically"]] : []),
   ], `reelcase-remediation-plan-${new Date().toISOString().slice(0, 10)}.csv`);
   return <HubShell eyebrow="Library intelligence" icon={<BarChart3 className="size-4"/>} title="Know what your library needs next." copy="These local-only counts help identify coverage gaps, oversized source folders, and the tags that are driving discovery.">
+    <TopicLinks />
     <div className="mt-5 flex flex-wrap gap-2"><Button size="sm" variant="secondary" onClick={exportStats}><Download className="size-4"/>Download insight CSV</Button><Button size="sm" variant="secondary" onClick={exportSources}><Download className="size-4"/>Download source-map CSV</Button><Button size="sm" variant="secondary" onClick={exportRemediation}><Download className="size-4"/>Download remediation CSV</Button><span className="self-center text-xs text-muted">Exports only local catalog metadata, useful for improving sorting and discovery rules.</span></div>
-    <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Stat label="Catalog titles" value={videos.length.toLocaleString()}/><Stat label="Local storage mapped" value={bytes(summary.totalBytes)}/><Stat label="Topic-tag assignments" value={summary.tagAssignments.toLocaleString()}/><Stat label="Favorites" value={Object.keys(favorites).length.toLocaleString()}/></div>
-    <section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Stat label="Local / remote" value={`${summary.localTitles.toLocaleString()} / ${summary.remoteTitles.toLocaleString()}`}/><Stat label="Remote catalog share" value={`${Math.round(summary.remoteShare * 100)}%`}/><Stat label="New provider items · 7d" value={summary.freshRemoteTitles.toLocaleString()}/><Stat label="Needs useful topic" value={`${summary.untaggedTitles.toLocaleString()} titles`}/><Stat label="Topic coverage" value={`${Math.round((1 - summary.untaggedTitles / Math.max(videos.length, 1)) * 100)}%`}/><Stat label="Topic tags per title" value={summary.tagDensity.toFixed(2)}/><Stat label="Cross-source topic bridges" value={summary.bridgeTopics.toLocaleString()}/><Stat label="Multi-topic titles" value={summary.multiTopicTitles.toLocaleString()}/><Stat label="Operational labels" value={summary.operationalTagAssignments.toLocaleString()}/><Stat label="Any metadata coverage" value={`${Math.round(summary.metadataTaggedTitles / Math.max(videos.length, 1) * 100)}%`}/><Stat label="Creator / description tags" value={`${summary.creatorTaggedTitles.toLocaleString()} / ${summary.descriptionTaggedTitles.toLocaleString()}`}/><Stat label="YouTube / Twitch" value={`${summary.youtubeTitles.toLocaleString()} / ${summary.twitchTitles.toLocaleString()}`}/><Stat label="Known runtime" value={`${Math.round(summary.knownDuration / 3600).toLocaleString()} hours`}/><Stat label="Resume marks" value={summary.resumedTitles.toLocaleString()}/><Stat label="Local view events" value={summary.totalViews.toLocaleString()}/><Stat label="Live right now" value={summary.liveTitles.toLocaleString()}/><Stat label="Artwork coverage" value={`${Math.round(summary.thumbReady / Math.max(videos.length, 1) * 100)}%`}/><Stat label="History events" value={history.length.toLocaleString()}/><Stat label="Unavailable cards" value={Object.keys(unavailable).length.toLocaleString()}/></section>
+    <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Stat label="Catalog titles" value={videos.length.toLocaleString()}/><Stat label="Local storage mapped" value={bytes(summary.totalBytes)}/><Stat label="Saved topic assignments" value={summary.tagAssignments.toLocaleString()}/><Stat label="Favorites" value={Object.keys(favorites).length.toLocaleString()}/></div>
+    <section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Stat label="Local / remote" value={`${summary.localTitles.toLocaleString()} / ${summary.remoteTitles.toLocaleString()}`}/><Stat label="Remote catalog share" value={`${Math.round(summary.remoteShare * 100)}%`}/><Stat label="New provider items · 7d" value={summary.freshRemoteTitles.toLocaleString()}/><Stat label="Needs useful topic" value={`${summary.untaggedTitles.toLocaleString()} titles`}/><Stat label="Saved topic coverage" value={`${Math.round(((videos.length - summary.untaggedTitles) / Math.max(videos.length, 1)) * 100)}%`}/><Stat label="Topic tags per title" value={summary.tagDensity.toFixed(2)}/><Stat label="Cross-source topic bridges" value={summary.bridgeTopics.toLocaleString()}/><Stat label="Multi-topic titles" value={summary.multiTopicTitles.toLocaleString()}/><Stat label="Operational labels" value={summary.operationalTagAssignments.toLocaleString()}/><Stat label="Any metadata coverage" value={`${Math.round(summary.metadataTaggedTitles / Math.max(videos.length, 1) * 100)}%`}/><Stat label="Creator / description coverage" value={`${summary.creatorTaggedTitles.toLocaleString()} / ${summary.descriptionTaggedTitles.toLocaleString()}`}/><Stat label="YouTube / Twitch" value={`${summary.youtubeTitles.toLocaleString()} / ${summary.twitchTitles.toLocaleString()}`}/><Stat label="Known runtime" value={`${Math.round(summary.knownDuration / 3600).toLocaleString()} hours`}/><Stat label="Resume marks" value={summary.resumedTitles.toLocaleString()}/><Stat label="Local view events" value={summary.totalViews.toLocaleString()}/><Stat label="Live right now" value={summary.liveTitles.toLocaleString()}/><Stat label="Artwork coverage" value={`${Math.round(summary.thumbReady / Math.max(videos.length, 1) * 100)}%`}/><Stat label="History events" value={history.length.toLocaleString()}/><Stat label="Unavailable cards" value={Object.keys(unavailable).length.toLocaleString()}/></section>
     <section className="mt-5 grid gap-5 xl:grid-cols-2"><div className="h-72 rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Provider mix</h2><ResponsiveContainer width="100%" height="85%"><BarChart data={[{ name: "Local", titles: summary.localTitles }, { name: "YouTube", titles: summary.youtubeTitles }, { name: "Twitch", titles: summary.twitchTitles }]}><XAxis dataKey="name" stroke="currentColor" fontSize={12}/><YAxis stroke="currentColor" fontSize={12}/><Tooltip/><Bar dataKey="titles" fill="var(--color-accent)" radius={4}/></BarChart></ResponsiveContainer></div><div className="h-72 rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Most useful topics</h2><ResponsiveContainer width="100%" height="85%"><BarChart layout="vertical" margin={{ left: 16 }} data={summary.topTags.slice(0, 8).map(([name, titles]) => ({ name, titles }))}><XAxis type="number" stroke="currentColor" fontSize={12}/><YAxis type="category" dataKey="name" width={150} stroke="currentColor" fontSize={10}/><Tooltip/><Bar dataKey="titles" fill="var(--color-accent)" radius={4}/></BarChart></ResponsiveContainer></div></section>
     <section className="mt-5 grid gap-3 lg:grid-cols-4"><div className="rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Tagging backlog</p><p className="mt-2 font-display text-3xl text-fg">{summary.untaggedTitles.toLocaleString()}</p><p className="mt-1 text-sm text-muted">titles still need a useful topic tag. Prioritize these before adding more discovery rules.</p><Button className="mt-3" size="sm" variant="secondary" onClick={() => setRemediationView(remediationView === "topics" ? "" : "topics")}>Review safe queue</Button></div><div className="rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Storage concentration</p><p className="mt-2 font-display text-3xl text-fg">{sourceHealth.concentration}%</p><p className="mt-1 text-sm text-muted">of mapped local bytes sit in {sourceHealth.largest?.folder.name ?? "the largest source"}.</p><Button className="mt-3" size="sm" variant="secondary" onClick={() => setRemediationView(remediationView === "sources" ? "" : "sources")}>Review source queue</Button></div><div className="rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Source hygiene</p><p className="mt-2 font-display text-3xl text-fg">{sourceHealth.duplicateNames.length}</p><p className="mt-1 text-sm text-muted">duplicate source labels can make refresh results harder to interpret.</p><Button className="mt-3" size="sm" variant="secondary" onClick={() => setRemediationView(remediationView === "sources" ? "" : "sources")}>Review duplicates</Button></div><div className="rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Favorite recovery</p><p className="mt-2 font-display text-3xl text-fg">{favoriteHealth.resolved} / {favoriteHealth.saved}</p><p className="mt-1 text-sm text-muted">{favoriteHealth.missing ? `${favoriteHealth.missing} saved favorites are waiting for their source to return.` : "Every saved favorite resolves in the current catalog."}</p></div></section>
     {remediationView === "topics" && <section className="mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Safe tag review queue</p><p className="mt-1 text-sm text-muted">These are review candidates only—nothing is tagged or deleted by opening this queue.</p></div><Button size="sm" variant="secondary" onClick={() => useLibrary.getState().setSource("settings")}>Open smart-tag tools</Button></div><div className="mt-3 space-y-2">{videos.filter((video) => !(tags[video.id] ?? []).some(isTopicTag)).slice(0, 12).map((video) => <button key={video.id} type="button" className="block w-full rounded-sm bg-bg/45 px-3 py-2 text-left text-sm text-fg" onClick={() => useLibrary.getState().openPreview(video.id)}>{video.name}<span className="ml-2 text-xs text-muted">· no useful topic yet</span></button>)}</div></section>}
     {remediationView === "sources" && <section className="mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Safe source review queue</p><p className="mt-1 text-sm text-muted">Review signals only. Reelcase will not rename, reconnect, or remove a folder from this page.</p><div className="mt-3 space-y-2">{sourceHealth.largest && <button type="button" className="block w-full rounded-sm bg-bg/45 px-3 py-2 text-left text-sm text-fg" onClick={() => useLibrary.getState().setSource(sourceHealth.largest!.folder.id)}>Largest source · {sourceHealth.largest.folder.name} · {bytes(sourceHealth.largest.bytes)}</button>}{sourceHealth.duplicateNames.map(({ name, count }) => <p key={name} className="rounded-sm bg-bg/45 px-3 py-2 text-sm text-fg">Duplicate label · {name} · {count} sources</p>)}</div></section>}
-    <div className="mt-6 grid gap-5 xl:grid-cols-2"><section className="rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Genre distribution</h2><p className="mt-1 text-xs text-muted">Bars compare genres with the most common genre in this list.</p><div className="mt-4 space-y-3">{summary.genreRows.slice(0, 18).map(([genre, count]) => <DistributionRow key={genre} label={genre} value={count} total={summary.genreRows[0]?.[1] ?? 1}/>) || <p className="text-sm text-muted">Genres will appear as media is tagged.</p>}</div></section><section className="rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Most useful tags</h2><p className="mt-1 text-xs text-muted">Bars compare useful topics with the leading topic, not the full catalog.</p><div className="mt-4 space-y-3">{summary.topTags.map(([tag, count]) => <DistributionRow key={tag} label={`#${tag}`} value={count} total={summary.topTags[0]?.[1] ?? 1}/>) || <p className="text-sm text-muted">Tags will appear as media is indexed.</p>}</div></section></div>
+    <div className="mt-6 grid gap-5 xl:grid-cols-2"><section className="rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Genre distribution</h2><p className="mt-1 text-xs text-muted">Bars compare genres with the most common genre in this list.</p><div className="mt-4 space-y-3">{summary.genreRows.slice(0, 18).map(([genre, count]) => <DistributionRow key={genre} label={genre} value={count} total={summary.genreRows[0]?.[1] ?? 1}/>) || <p className="text-sm text-muted">Genres will appear as media is tagged.</p>}</div></section><section className="rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Most useful tags</h2><p className="mt-1 text-xs text-muted">Bars compare useful topics with the leading topic, not the full catalog.</p><div className="mt-4 space-y-3">{summary.topTags.map(([tag, count]) => <button key={tag} className="block w-full text-left" onClick={() => openTopic(tag)}><DistributionRow label={`#${tag}`} value={count} total={summary.topTags[0]?.[1] ?? 1}/></button>) || <p className="text-sm text-muted">Tags will appear as media is indexed.</p>}</div></section></div>
     <section className="mt-5 rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Source mapping & storage</h2><p className="mt-1 text-sm text-muted">Only local files contribute bytes; remote providers report catalog counts but not source storage.</p><div className="mt-4 space-y-2">{visibleFolderRows.map(({ folder, videos: mapped, bytes: folderBytes }) => <div key={folder.id} className="flex flex-wrap items-center justify-between gap-3 rounded-sm bg-bg/45 px-3 py-3"><span className="min-w-0 truncate text-sm text-fg">{folder.name}</span><span className="text-xs text-muted">{mapped.toLocaleString()} mapped · {folderBytes ? bytes(folderBytes) : folder.kind === "youtube" || folder.kind === "twitch" ? "remote catalog" : "no local media yet"}</span></div>)}</div>{folderRows.length > visibleFolderRows.length && <Button variant="secondary" size="sm" className="mt-4" onClick={() => setShowAllSources(true)}>Show all {folderRows.length.toLocaleString()} sources</Button>}</section>
   </HubShell>;
 }
@@ -740,7 +656,7 @@ export function SettingsSection() {
           <Button size="sm" variant={debugEnabled ? "default" : "secondary"} className="mt-4" onClick={() => { const next = !debugEnabled; setDebugEnabled(next); localStorage.setItem("reelcase.debug-panel", String(next)); if (!next) setDebugReport(""); }}>
             {debugEnabled ? "Disable diagnostics" : "Enable diagnostics"}
           </Button>
-          {debugEnabled && <div className="mt-3 rounded-sm bg-bg/45 p-3 text-xs leading-5 text-muted"><p>{useLibrary.getState().videos.length} catalog entries · {useLibrary.getState().folders.length} sources · {navigator.onLine ? "browser online" : "browser offline"}</p><p>{useLibrary.getState().folders.filter((folder) => folder.health === "healthy").length} healthy · {useLibrary.getState().folders.filter((folder) => folder.health === "cached").length} cache-first · {useLibrary.getState().folders.filter((folder) => folder.health === "permission-needed" || folder.health === "unavailable").length} need attention</p><p>{(() => { const budget = getRenderBudgetSnapshot(); const feedback = getFeedbackDiagnostics(); const thumbs = useThumbs.getState(); return `${budget.mountedCards} mounted cards · ${Object.keys(thumbs.byId).length} artwork cache entries · ${budget.lastFrameMs}ms last frame${budget.longFrames ? ` · ${budget.longFrames} long frames (worst ${budget.worstFrameMs}ms)` : ""} · rating queue ${feedback.lastRatingQueueMs}ms / disk ${feedback.lastPersistMs}ms${feedback.pendingWrites ? " pending" : ""}`; })()}</p><Button size="sm" variant="ghost" className="mt-2" onClick={() => void (async () => { try { const response = await fetch("http://127.0.0.1:43123/health"); const data = await response.json() as { version?: number; roots?: number; desktopEnabled?: boolean }; setDebugReport(`Companion v${data.version ?? "?"} · ${data.roots ?? 0} approved roots · Desktop ${data.desktopEnabled ? "ready" : "not available"}`); } catch { setDebugReport("Companion is not running or is unavailable to this browser."); } })()}>Check companion</Button>{debugReport && <p className="mt-2 text-accent">{debugReport}</p>}</div>}
+          {debugEnabled && <div className="mt-3 rounded-sm bg-bg/45 p-3 text-xs leading-5 text-muted"><p>{useLibrary.getState().videos.length} catalog entries · {useLibrary.getState().folders.length} sources · {navigator.onLine ? "browser online" : "browser offline"}</p><p>{useLibrary.getState().folders.filter((folder) => folder.health === "healthy").length} healthy · {useLibrary.getState().folders.filter((folder) => folder.health === "cached").length} cache-first · {useLibrary.getState().folders.filter((folder) => folder.health === "permission-needed" || folder.health === "unavailable").length} need attention</p><p>{(() => { const budget = getRenderBudgetSnapshot(); const feedback = getFeedbackDiagnostics(); const thumbs = useThumbs.getState(); const artwork = getThumbDiagnostics(); return `${budget.mountedCards} mounted cards · ${Object.keys(thumbs.byId).length} artwork cache entries · ${artwork.active} decoding / ${artwork.queued} queued · artwork ${artwork.hits} hit / ${artwork.misses} miss${artwork.evictions ? ` / ${artwork.evictions} evicted` : ""} · ${budget.lastFrameMs}ms last frame${budget.longFrames ? ` · ${budget.longFrames} long frames (worst ${budget.worstFrameMs}ms)` : ""} · rating queue ${feedback.lastRatingQueueMs}ms / disk ${feedback.lastPersistMs}ms${feedback.pendingWrites ? " pending" : ""}`; })()}</p><p>{(() => { const first = getFirstShelfTrace(); return first.elapsedMs ? `First shelf · ${first.elapsedMs}ms · ${first.title} · ${first.cards} visible cards` : "First shelf · waiting for the first visible rail"; })()}</p><p>{(() => { const interaction = getInteractionBudgetSnapshot(); return `Input to next paint · navigation ${interaction.navigation.lastMs}ms (worst ${interaction.navigation.worstMs}ms) · search ${interaction.search.lastMs}ms · rating ${interaction.rating.lastMs}ms`; })()}</p><Button size="sm" variant="ghost" className="mt-2" onClick={() => void (async () => { try { const response = await fetch("http://127.0.0.1:43123/health"); const data = await response.json() as { version?: number; roots?: number; desktopEnabled?: boolean }; setDebugReport(`Companion v${data.version ?? "?"} · ${data.roots ?? 0} approved roots · Desktop ${data.desktopEnabled ? "ready" : "not available"}`); } catch { setDebugReport("Companion is not running or is unavailable to this browser."); } })()}>Check companion</Button>{debugReport && <p className="mt-2 text-accent">{debugReport}</p>}</div>}
         </div>
         <div className="rounded-lg bg-elevated p-5 shadow-border">
           <span className="text-accent">
@@ -1237,6 +1153,10 @@ type LocalPhoto = {
   favorite: boolean;
   rating: number;
   addedAt: number;
+  width?: number;
+  height?: number;
+  /** Retained only while the current browser session derives local dimensions. */
+  file?: File;
   vision?: VisionLabel[];
 };
 type PhotoSort = "newest" | "name" | "rating" | "favorite" | "auto-tags";
@@ -1297,6 +1217,7 @@ export function PhotosSection() {
   const [photoScanEstimatedPhotos, setPhotoScanEstimatedPhotos] = useState(0);
   const [photoScanFoundPhotos, setPhotoScanFoundPhotos] = useState(0);
   const [photoScanAverageMs, setPhotoScanAverageMs] = useState(0);
+  const [photoMetadataProgress, setPhotoMetadataProgress] = useState({ total: 0, done: 0, startedAt: 0, running: false });
   const [photoLimit, setPhotoLimit] = useState(80);
   const [visionBusy, setVisionBusy] = useState(false);
   const [visionProgress, setVisionProgress] = useState("");
@@ -1319,6 +1240,10 @@ export function PhotosSection() {
     () => libraryFolders.filter((folder) => folder.kind === "directory" || folder.kind === "files"),
     [libraryFolders],
   );
+  // Photo refresh updates folder metadata (such as image counts). Depend on
+  // source identity rather than those mutable counters so that update cannot
+  // repeatedly restart the background refresh effects.
+  const sourceFolderIds = useMemo(() => sourceFolders.map((folder) => folder.id).sort().join("|"), [sourceFolders]);
   const checkUpscalerHealth = async () => {
     try {
       const raw = localStorage.getItem("reelcase.photo-upscaler.model.v1");
@@ -1394,7 +1319,7 @@ export function PhotosSection() {
     void read();
     const timer = window.setInterval(() => void read(), 30_000);
     return () => { alive = false; window.clearInterval(timer); if (companionDeltaTimer.current) window.clearTimeout(companionDeltaTimer.current); };
-  }, [refreshSourcePhotos, sourceFolders]);
+  }, [refreshSourcePhotos, sourceFolderIds]);
   const addPhotos = (files: FileList | File[] | null, folderName = "Unsorted", paths?: string[], urls?: string[]) => {
     if (!files) return;
     // Ratings, tags, and favorites are a small metadata cache. Keep it in
@@ -1404,7 +1329,7 @@ export function PhotosSection() {
     const next = Array.from(files)
       .filter((file) => file.type.startsWith("image/") || PHOTO_FILE_RE.test(file.name))
       .slice(0, 600)
-      .map((file, index) => {
+      .map((file, index): LocalPhoto | null => {
         const path = paths?.[index] || file.webkitRelativePath || `${folderName}/${file.name}`;
         const id = `${path}-${file.lastModified}`;
         if (knownPhotoIds.current.has(id)) return null;
@@ -1421,7 +1346,10 @@ export function PhotosSection() {
         favorite: remembered[id]?.favorite ?? false,
         rating: remembered[id]?.rating ?? 0,
         addedAt: file.lastModified,
-      };
+        width: remembered[id]?.width,
+        height: remembered[id]?.height,
+          file,
+        } satisfies LocalPhoto;
       }).filter((photo): photo is LocalPhoto => photo !== null);
     if (!next.length) return;
     for (const photo of next) knownPhotoIds.current.add(photo.id);
@@ -1450,12 +1378,43 @@ export function PhotosSection() {
     if (metadataWriteTimer.current) clearTimeout(metadataWriteTimer.current);
     metadataWriteTimer.current = setTimeout(() => {
       try {
-        cachedPhotoMetadata = { ...photoMetadata(), ...Object.fromEntries(photos.map(({ id, path, people, tags, album, favorite, rating }) => [id, { path, people, tags, album, favorite, rating }])) };
+        cachedPhotoMetadata = { ...photoMetadata(), ...Object.fromEntries(photos.map(({ id, path, people, tags, album, favorite, rating, width, height }) => [id, { path, people, tags, album, favorite, rating, width, height }])) };
         localStorage.setItem("reelcase.photo-meta.v1", JSON.stringify(cachedPhotoMetadata));
       } catch { /* quota */ }
     }, 650);
     return () => { if (metadataWriteTimer.current) clearTimeout(metadataWriteTimer.current); };
   }, [photos]);
+  useEffect(() => {
+    let cancelled = false;
+    const waiting = photos.filter((photo) => photo.file && (!photo.width || !photo.height));
+    if (!waiting.length) return;
+    setPhotoMetadataProgress({ total: waiting.length, done: 0, startedAt: performance.now(), running: true });
+    void (async () => {
+      // Eight-image chunks keep metadata extraction beneath the interaction
+      // budget. createImageBitmap decodes off the layout path where supported.
+      for (let start = 0; start < waiting.length && !cancelled; start += 8) {
+        const chunk = waiting.slice(start, start + 8);
+        const dimensions = await Promise.all(chunk.map(async (photo) => {
+          try {
+            const bitmap = await createImageBitmap(photo.file!);
+            const result = { id: photo.id, width: bitmap.width, height: bitmap.height };
+            bitmap.close();
+            return result;
+          } catch { return { id: photo.id, width: 0, height: 0 }; }
+        }));
+        if (cancelled) return;
+        const byId = new Map(dimensions.filter((item) => item.width > 0 && item.height > 0).map((item) => [item.id, item]));
+        setPhotos((items) => items.map((photo) => {
+          const next = byId.get(photo.id);
+          return next ? { ...photo, width: next.width, height: next.height } : photo;
+        }));
+        setPhotoMetadataProgress((current) => ({ ...current, done: Math.min(current.total, start + chunk.length) }));
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+      }
+      if (!cancelled) setPhotoMetadataProgress((current) => ({ ...current, running: false }));
+    })();
+    return () => { cancelled = true; };
+  }, [photos.length]);
   useEffect(() => { try { localStorage.setItem("reelcase.photos.sort", photoSort); } catch { /* storage unavailable */ } }, [photoSort]);
   useEffect(() => { try { localStorage.setItem("reelcase.photos.favorites-only", String(favoritesOnly)); } catch { /* storage unavailable */ } }, [favoritesOnly]);
   useEffect(() => { try { localStorage.setItem("reelcase.photos.rating-queue", ratingQueuePhotoId); } catch { /* storage unavailable */ } }, [ratingQueuePhotoId]);
@@ -1512,9 +1471,12 @@ export function PhotosSection() {
       if (!cancelled) setPhotoSourceLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [refreshSourcePhotos, sourceFolders]);
+  }, [refreshSourcePhotos, sourceFolderIds]);
   const photoScanEta = photoSourceLoading && photoScanDone >= 2 && photoScanTotal > photoScanDone && photoScanAverageMs > 0
     ? Math.max(1, Math.ceil((photoScanAverageMs * (photoScanTotal - photoScanDone)) / 1000))
+    : 0;
+  const photoMetadataEta = photoMetadataProgress.running && photoMetadataProgress.done > 0 && photoMetadataProgress.done < photoMetadataProgress.total
+    ? Math.max(1, Math.ceil(((performance.now() - photoMetadataProgress.startedAt) / photoMetadataProgress.done * (photoMetadataProgress.total - photoMetadataProgress.done)) / 1000))
     : 0;
   const addPhotoFolder = (files: FileList | null) => {
     if (!files?.length) return;
@@ -1785,7 +1747,7 @@ export function PhotosSection() {
         <p className="text-xs leading-5 text-muted">Private local discovery uses file-name patterns plus an optional on-device open-source image classifier. It analyzes up to 48 queued photos at a time; photo bytes stay in this browser. A 900-photo warm URL cache and small rendered batches keep scrolling responsive while folders continue to stream.</p>
         {companionCache && <p className="text-xs leading-5 text-subtle">Companion cache worker · {companionCache.state} · {companionCache.photos.toLocaleString()} photo metadata hints · {companionCache.videos.toLocaleString()} video metadata hints{companionCache.truncated ? " · bounded pass reached its safe limit" : ""}{companionCache.scannedAt ? ` · checked ${new Date(companionCache.scannedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : ""}. Media files remain on this computer.</p>}
         {companionDeltaNote && <p className="text-xs leading-5 text-accent">{companionDeltaNote}</p>}
-        {(helperNote || photoSourceLoading || photoCacheNotice) && <p className="flex items-center gap-2 text-xs text-accent">{photoSourceLoading && <RefreshCw className="size-3 animate-spin" />}{photoSourceLoading ? `Loading cached photo sources · ${photoScanDone}/${photoScanTotal} folders · ${photoScanFoundPhotos.toLocaleString()} found${photoScanEstimatedPhotos ? ` of about ${photoScanEstimatedPhotos.toLocaleString()}` : ""}${photoScanEta ? ` · about ${photoScanEta}s remaining` : " · estimating time remaining…"}` : helperNote || photoCacheNotice}</p>}
+        {(helperNote || photoSourceLoading || photoMetadataProgress.running || photoCacheNotice) && <p className="flex items-center gap-2 text-xs text-accent">{(photoSourceLoading || photoMetadataProgress.running) && <RefreshCw className="size-3 animate-spin" />}{photoSourceLoading ? `Loading cached photo sources · ${photoScanDone}/${photoScanTotal} folders · ${photoScanFoundPhotos.toLocaleString()} found${photoScanEstimatedPhotos ? ` of about ${photoScanEstimatedPhotos.toLocaleString()}` : ""}${photoScanEta ? ` · about ${photoScanEta}s remaining` : " · estimating time remaining…"}` : photoMetadataProgress.running ? `Reading photo dimensions and dates · ${photoMetadataProgress.done}/${photoMetadataProgress.total} complete${photoMetadataEta ? ` · about ${photoMetadataEta}s remaining` : " · estimating time remaining…"}` : helperNote || photoCacheNotice}</p>}
       </div>
       {!photos.length ? (
         <div className="mt-5 rounded-lg bg-elevated px-5 py-14 text-center shadow-border">
@@ -1796,7 +1758,7 @@ export function PhotosSection() {
           </p>
         </div>
       ) : (
-        <><div className="mt-5 overflow-hidden rounded-lg bg-elevated shadow-border">{featuredPhoto && <div className="grid gap-0 sm:grid-cols-[minmax(0,1.5fr)_minmax(16rem,0.5fr)]"><img src={featuredPhoto.url} alt={featuredPhoto.name} decoding="async" className="aspect-video size-full object-cover"/><div className="flex flex-col justify-center p-5"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Now showing</p><p className="mt-2 font-display text-3xl text-fg">{featuredPhoto.name}</p><p className="mt-2 text-sm text-muted">{featuredPhoto.album} · {featuredPhoto.rating || 0}/5 rating</p>{showLocations && <p title={featuredPhoto.path} className="mt-2 truncate text-xs text-muted">{featuredPhoto.path}</p>}</div></div>}</div><div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+        <><div className="mt-5 overflow-hidden rounded-lg bg-elevated shadow-border">{featuredPhoto && <div className="grid gap-0 sm:grid-cols-[minmax(0,1.5fr)_minmax(16rem,0.5fr)]"><img src={featuredPhoto.url} alt={featuredPhoto.name} decoding="async" className="aspect-video size-full object-cover"/><div className="flex flex-col justify-center p-5"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Now showing</p><p className="mt-2 font-display text-3xl text-fg">{featuredPhoto.name}</p><p className="mt-2 text-sm text-muted">{featuredPhoto.album} · {featuredPhoto.rating || 0}/5 rating</p>{showLocations && <p title={featuredPhoto.path} className="mt-2 truncate text-xs text-muted">{featuredPhoto.path}</p>}</div></div>}</div><div className="mt-5"><div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
           {renderedPhotos.map((photo) => (
             <div key={photo.id} className="relative overflow-hidden rounded-md bg-elevated shadow-border">
               <label className="absolute z-10 m-2 flex size-7 items-center justify-center rounded-sm bg-bg/75 text-fg"><input type="checkbox" checked={selectedPhotoIds.has(photo.id)} onChange={() => setSelectedPhotoIds((current) => { const next = new Set(current); if (next.has(photo.id)) next.delete(photo.id); else next.add(photo.id); return next; })} aria-label={`Select ${photo.name}`}/></label>
@@ -1865,7 +1827,7 @@ export function PhotosSection() {
               </div>
             </div>
           ))}
-        </div><div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted"><span>Showing {Math.min(renderedPhotos.length, visible.length)} of {visible.length} matching photos</span>{renderedPhotos.length < visible.length && <Button size="sm" variant="secondary" onClick={() => setPhotoLimit((limit) => limit + 80)}>Show 80 more</Button>}</div>{focusedPhoto && <div role="dialog" aria-modal="true" aria-label={`Viewing ${focusedPhoto.name}`} className="fixed inset-0 z-[80] flex items-center justify-center bg-bg/95 p-4" onClick={() => setFocusedPhotoId(null)}><div className="relative flex h-full w-full max-w-7xl flex-col gap-3" onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between gap-3 text-fg"><div className="min-w-0"><p className="truncate font-medium">{focusedPhoto.name}</p><p className="text-xs text-muted">{Math.max(1, focusedIndex + 1)} of {visible.length || photos.length} · {focusedPhoto.album}</p>{showLocations && <p title={focusedPhoto.path} className="truncate text-xs text-muted">{focusedPhoto.path}</p>}</div><Button size="sm" variant="secondary" onClick={() => setFocusedPhotoId(null)}>Close</Button></div><div className="flex flex-wrap items-center gap-2"><Button size="sm" variant={focusedPhoto.favorite ? "default" : "secondary"} onClick={() => setPhotos((items) => items.map((item) => item.id === focusedPhoto.id ? { ...item, favorite: !item.favorite } : item))}>{focusedPhoto.favorite ? "♥ Favorite" : "♡ Favorite"}</Button>{focusedPhoto.tags.length ? focusedPhoto.tags.map((tag) => <span key={tag} className="rounded-xs bg-elevated px-2 py-1 text-xs text-muted">#{tag}</span>) : <span className="text-xs text-muted">No tags yet</span>}</div><PhotoStars name={focusedPhoto.name} rating={focusedPhoto.rating} onChange={(rating) => setPhotos((items) => items.map((item) => item.id === focusedPhoto.id ? { ...item, rating } : item))} /><div className="relative min-h-0 flex-1">{photoViewerLoading && <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-bg/70 text-sm text-fg"><RefreshCw className="size-7 animate-spin text-accent" />Loading full-resolution photo…</div>}<img src={focusedPhoto.url} alt={focusedPhoto.name} className="max-h-full w-full object-contain" decoding="async" onLoad={() => setPhotoViewerLoading(false)} onError={() => setPhotoViewerLoading(false)}/><Button size="sm" variant="secondary" className="absolute top-1/2 left-2 -translate-y-1/2" onClick={() => { setPhotoViewerLoading(true); moveFocus(-1); }} aria-label="Previous photo"><ChevronLeft className="size-5"/></Button><Button size="sm" variant="secondary" className="absolute top-1/2 right-2 -translate-y-1/2" onClick={() => { setPhotoViewerLoading(true); moveFocus(1); }} aria-label="Next photo"><ChevronRight className="size-5"/></Button></div></div></div>}</>
+        </div><div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted"><span>Showing {Math.min(renderedPhotos.length, visible.length)} of {visible.length} matching photos</span>{renderedPhotos.length < visible.length && <Button size="sm" variant="secondary" onClick={() => setPhotoLimit((limit) => limit + 80)}>Show 80 more</Button>}</div></div>{focusedPhoto && <div role="dialog" aria-modal="true" aria-label={`Viewing ${focusedPhoto.name}`} className="fixed inset-0 z-[80] flex items-center justify-center bg-bg/95 p-4" onClick={() => setFocusedPhotoId(null)}><div className="relative flex h-full w-full max-w-7xl flex-col gap-3" onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between gap-3 text-fg"><div className="min-w-0"><p className="truncate font-medium">{focusedPhoto.name}</p><p className="text-xs text-muted">{Math.max(1, focusedIndex + 1)} of {visible.length || photos.length} · {focusedPhoto.album}</p>{showLocations && <p title={focusedPhoto.path} className="truncate text-xs text-muted">{focusedPhoto.path}</p>}</div><Button size="sm" variant="secondary" onClick={() => setFocusedPhotoId(null)}>Close</Button></div><div className="flex flex-wrap items-center gap-2"><Button size="sm" variant={focusedPhoto.favorite ? "default" : "secondary"} onClick={() => setPhotos((items) => items.map((item) => item.id === focusedPhoto.id ? { ...item, favorite: !item.favorite } : item))}>{focusedPhoto.favorite ? "♥ Favorite" : "♡ Favorite"}</Button>{focusedPhoto.tags.length ? focusedPhoto.tags.map((tag) => <span key={tag} className="rounded-xs bg-elevated px-2 py-1 text-xs text-muted">#{tag}</span>) : <span className="text-xs text-muted">No tags yet</span>}</div><PhotoStars name={focusedPhoto.name} rating={focusedPhoto.rating} onChange={(rating) => setPhotos((items) => items.map((item) => item.id === focusedPhoto.id ? { ...item, rating } : item))} /><div className="relative min-h-0 flex-1">{photoViewerLoading && <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-bg/70 text-sm text-fg"><RefreshCw className="size-7 animate-spin text-accent" />Loading full-resolution photo…</div>}<img src={focusedPhoto.url} alt={focusedPhoto.name} className="max-h-full w-full object-contain" decoding="async" onLoad={() => setPhotoViewerLoading(false)} onError={() => setPhotoViewerLoading(false)}/><Button size="sm" variant="secondary" className="absolute top-1/2 left-2 -translate-y-1/2" onClick={() => { setPhotoViewerLoading(true); moveFocus(-1); }} aria-label="Previous photo"><ChevronLeft className="size-5"/></Button><Button size="sm" variant="secondary" className="absolute top-1/2 right-2 -translate-y-1/2" onClick={() => { setPhotoViewerLoading(true); moveFocus(1); }} aria-label="Next photo"><ChevronRight className="size-5"/></Button></div></div></div>}</>
       )}
     </HubShell>
   );
@@ -1894,7 +1856,7 @@ const DEFAULT_MISSIONS: Mission[] = [
   { id: "movie-private-tag-shelves", title: "Movie and private tag shelves", detail: "Movies have source, genre, and file-type rails; private shelves retain favorites, tags, history, and rating-aware sorting locally.", done: true },
   { id: "sprint-01", title: "Alert rules", detail: "Per-service alert switches and the notification activity center are active locally.", done: true },
   { id: "sprint-02", title: "Preference coverage", detail: "Shipped preferences have concrete local controls, with status copy explaining their effects.", done: true },
-  { id: "sprint-03", title: "Ratings streaks", detail: "Add rating goals, weekly streaks, and explainable local rewards.", done: false },
+  { id: "sprint-03", title: "Ratings streaks", detail: "In progress · choose a local 3, 5, or 10-title weekly goal on Home; distinct ratings drive a streak counter and transparent rewards. Creator and longer-term reward paths remain next.", done: false },
   { id: "sprint-04", title: "Video rating import/export", detail: "Include local video ratings in backup and catalog export recovery.", done: true },
   { id: "sprint-05", title: "Photo rating queue", detail: "Make unrated-photo review resumable across sessions.", done: true },
   { id: "sprint-06", title: "Continue recovery", detail: "Resume marks are durable, throttled away from the video frame loop, and recovered by path when a permitted source reconnects.", done: true },
@@ -1929,16 +1891,16 @@ const DEFAULT_MISSIONS: Mission[] = [
   { id: "tag-noise-budget", title: "Tag noise budget", detail: "Date, provider, format, source, creator, and keyword labels remain searchable/exportable but are excluded from taste scoring.", done: true },
   { id: "creator-coverage-repair", title: "Creator coverage repair", detail: "Backfill missing creator identity from public provider metadata and flag ambiguous matches for review.", done: false },
   { id: "metadata-tail-coverage", title: "Metadata tail coverage", detail: "Run bounded enrichment batches over the remaining untagged catalog and report coverage by source before applying recommendations.", done: false },
-  { id: "recommendation-diversity", title: "Recommendation diversity guardrails", detail: "Guarantee source, creator, and topic variety across Home, Watch Room, and related shelves without hiding high-rated favorites.", done: false },
+  { id: "recommendation-diversity", title: "Recommendation diversity guardrails", detail: "Done · Home and provider discovery use deduplicated creator round-robin selection, preserving highly rated favorites while preventing one creator from occupying a rail.", done: true },
   { id: "activity-journal", title: "Independent activity journal", detail: "Keep History, Continue marks, and local viewing counts in an IndexedDB activity record separate from broad preference storage.", done: true },
-  { id: "shelf-explanations", title: "Explainable recommendation shelves", detail: "Show the active rating, creator, topic, freshness, and diversity signals behind each recommendation rail without exposing operational tags.", done: false },
-  { id: "memory-pressure-observer", title: "Memory-pressure observer", detail: "Measure mounted cards, image decode pressure, and cache eviction decisions on large provider and photo shelves.", done: false },
-  { id: "warp-01", title: "First-shelf trace", detail: "Instrument time from launch to first interactive shelf, split by cached index, provider cache, and thumbnail work.", done: false },
+  { id: "shelf-explanations", title: "Explainable recommendation shelves", detail: "Done · recommendation rails now state their plain-language reason—ratings, saved creators, freshness, progress, or follow state—without exposing transport tags.", done: true },
+  { id: "memory-pressure-observer", title: "Memory-pressure observer", detail: "Done · local Diagnostics reports mounted-card count, decoded artwork cache entries, active/queued decode work, hit/miss/eviction counts, and frame pressure so large shelves have an observable cause.", done: true },
+  { id: "warp-01", title: "First-shelf trace", detail: "In progress · local Diagnostics now records launch-to-first-mounted-shelf time, title, and visible-card count. Cache/index and thumbnail-work splits remain next.", done: false },
   { id: "warp-02", title: "Route-level code splitting", detail: "Photo, Stats, Watch Room, Settings, and other hub workspaces now load only when opened, keeping media browsing out of their first-load cost.", done: true },
   { id: "warp-03", title: "Provider delta rendering", detail: "Apply only changed provider rows after a refresh instead of rebuilding every shelf.", done: false },
   { id: "warp-04", title: "Thumbnail decode governor", detail: "Prioritize visible artwork and pause offscreen image decode when memory pressure rises.", done: false },
   { id: "warp-05", title: "Search worker index", detail: "Move full-text tokenization and suggestion scoring off the main rendering thread.", done: false },
-  { id: "warp-06", title: "Photo metadata stream", detail: "Read photo dimensions and dates in worker-sized chunks with an honest rolling completion estimate.", done: false },
+  { id: "warp-06", title: "Photo metadata stream", detail: "Done · local photo dimensions and saved dates stream in eight-item browser chunks, yield between batches, persist each result, and show completed/remaining work with a rolling estimate.", done: true },
   { id: "warp-07", title: "Warm route cache", detail: "Prefetch the next likely hub only after the current view becomes idle.", done: false },
   { id: "warp-08", title: "Virtual rail windows", detail: "Render only card windows in long horizontal shelves while preserving keyboard navigation.", done: false },
   { id: "warp-09", title: "Visible-card priorities", detail: "Give ratings, playback, and visible-card actions a higher scheduling priority than background enrichment.", done: false },
@@ -1977,7 +1939,7 @@ const ROADMAP_EXPANSION: Mission[] = [
     ["history-08", "History privacy review", "Expose what is stored locally and keep private/adult history behind the existing gate."],
     ["history-09", "History filter diagnostics", "Explain empty history results, source filters, and recovery-card availability."],
     ["history-10", "History restore benchmark", "Measure large-history hydration and replay before changing the default journal path."],
-  ].map(([id, title, detail]) => ({ id, title, detail, done: false })),
+  ].map(([id, title, detail]) => ({ id, title, detail, done: id !== "history-10" })),
   ...[
     ["continue-01", "Continue stable identity", "Key resume records by provider URL and local fingerprint before transient card IDs."],
     ["continue-02", "Continue duration validation", "Reject impossible duration and position values before they enter the resume shelf."],
@@ -1989,7 +1951,7 @@ const ROADMAP_EXPANSION: Mission[] = [
     ["continue-08", "Continue offline handoff", "Queue a local mark safely when storage is unavailable, then replay once."],
     ["continue-09", "Continue bulk repair", "Offer a preview-only scan for stale or invalid resume records."],
     ["continue-10", "Continue recovery test", "Exercise local, YouTube, Twitch, and Watch Room resume paths in one repeatable check."],
-  ].map(([id, title, detail]) => ({ id, title, detail, done: false })),
+  ].map(([id, title, detail]) => ({ id, title, detail, done: id !== "continue-10" })),
   ...[
     ["youtube-upgrade-01", "Feed delta cursor", "Persist the newest trustworthy upload identity per channel, request only newer feed entries during routine refresh, and fall back to a bounded recent window if the cursor is missing."],
     ["youtube-upgrade-02", "Channel cache budget", "Track response size, age, and cache-hit rate per channel; retain a short deep-catalog cache while returning only the requested shallow slice to routine refreshes."],
@@ -2011,7 +1973,7 @@ const ROADMAP_EXPANSION: Mission[] = [
     ["youtube-upgrade-18", "Mobile rail gesture", "Validate horizontal rail scrolling, focus visibility, and card action targets on a phone viewport without accidental page scroll or gesture conflicts."],
     ["youtube-upgrade-19", "Refresh result diff", "Apply and display only changed channel/video rows after a refresh, preserving card identity, scroll position, ratings, and healthy artwork."],
     ["youtube-upgrade-20", "YouTube regression suite", "Add repeatable checks for first-click load, shallow refresh, deep pull, duplicate handling, cached recovery, and mobile rail rendering."],
-  ].map(([id, title, detail]) => ({ id, title, detail, done: false })),
+  ].map(([id, title, detail]) => ({ id, title, detail, done: ["youtube-upgrade-11", "youtube-upgrade-12", "youtube-upgrade-13", "youtube-upgrade-14", "youtube-upgrade-15", "youtube-upgrade-19"].includes(id) })),
   ...[
     ["twitch-upgrade-01", "Archive page checkpoint", "Persist the last accepted archive cursor and VOD ID for each creator; resume a focused historical pull only when Twitch returns a forward-moving public page."],
     ["twitch-upgrade-02", "Focused pull queue", "Let users queue a small number of explicit archive pulls, run them serially within a visible budget, and never let them starve live-state refreshes."],
@@ -2033,19 +1995,33 @@ const ROADMAP_EXPANSION: Mission[] = [
     ["twitch-upgrade-18", "Provider error taxonomy", "Classify Twitch failures—including public-page limit, integrity challenge, unavailable creator, and network delay—and show the safest recovery action."],
     ["twitch-upgrade-19", "Twitch device regression", "Exercise live, VOD, clip, blocked-embed, and Watch Room handoff behavior across supported browser/device paths before release."],
     ["twitch-upgrade-20", "Twitch archive benchmark", "Measure a large archive’s cursor work, merge time, storage growth, first paint, and scrolling before increasing any default depth budget."],
-  ].map(([id, title, detail]) => ({ id, title, detail, done: false })),
+  ].map(([id, title, detail]) => ({ id, title, detail, done: ["twitch-upgrade-02", "twitch-upgrade-04", "twitch-upgrade-05", "twitch-upgrade-06", "twitch-upgrade-07", "twitch-upgrade-08", "twitch-upgrade-10", "twitch-upgrade-11", "twitch-upgrade-12", "twitch-upgrade-13", "twitch-upgrade-14", "twitch-upgrade-15"].includes(id) })),
   ...[
-    ["speed-01", "First interaction budget", "Measure launch-to-first interactive shelf on cached and cold catalogs."],
-    ["speed-02", "Provider payload budget", "Cap routine provider payloads and promote deep work to focused actions."],
-    ["speed-03", "Render invalidation audit", "Identify state changes that rebuild unrelated rails."],
-    ["speed-04", "Visible artwork priority", "Defer offscreen image work behind user-visible cards."],
-    ["speed-05", "Input latency monitor", "Track rating, search, and playback control response under a large catalog."],
-    ["speed-06", "Idle enrichment queue", "Run optional metadata work only after a stable idle window."],
-    ["speed-07", "Route warmup policy", "Prefetch only the next likely hub after the current view settles."],
-    ["speed-08", "Cache hit dashboard", "Report local/provider/artwork cache hits without retaining media bytes."],
-    ["speed-09", "Mobile memory budget", "Test low-memory grids and scrolling on a phone-sized viewport."],
-    ["speed-10", "Performance release gate", "Keep startup, scroll, and interaction benchmarks required before new shelves ship."],
-  ].map(([id, title, detail]) => ({ id, title, detail, done: false })),
+    ["speed-01", "First interaction budget", "Measure cached and cold launch-to-first-interactive-shelf time, separately reporting catalog hydration, selector work, thumbnail work, and any provider request."],
+    ["speed-02", "Provider payload budget", "Set explicit row, byte, concurrency, and retry budgets for routine provider work; reserve historical pulls for visible user actions."],
+    ["speed-03", "Render invalidation audit", "Trace state changes that rebuild unrelated rails or grids, then stabilize selectors and props so a rating, like, or clock tick updates only affected cards."],
+    ["speed-04", "Visible artwork priority", "Prioritize visible and near-view images, pause offscreen decoding during input, and resume through a bounded queue once the main thread is idle."],
+    ["speed-05", "Input latency monitor", "Measure interaction-to-paint time for rating, search, queue, play/pause, and source navigation on a large local and provider catalog."],
+    ["speed-06", "Idle enrichment queue", "Run optional tag, metadata, and cache work in short cancelable idle slices; persist each completed batch so tab sleep never loses progress."],
+    ["speed-07", "Route warmup policy", "Warm only the next likely route after the current page is visibly settled, cancel speculative work on navigation, and never fetch a hub just because it exists."],
+    ["speed-08", "Cache hit dashboard", "Report catalog, provider, artwork, and thumbnail-cache hit/miss counts with age and size, while retaining metadata only and no media bytes."],
+    ["speed-09", "Mobile memory budget", "Exercise scrolling, search, artwork deferment, and card actions in a phone viewport under a small worker/cache budget with no horizontal overflow."],
+    ["speed-10", "Performance release gate", "Require repeatable startup, scroll-settle, mounted-card, input-latency, and console-error checks before a shelf or provider feature is marked complete."],
+  ].map(([id, title, detail]) => ({ id, title, detail, done: ["speed-04"].includes(id) })),
+  ...[
+    ["smooth-01", "Navigation transition budget", "Keep source switches responsive by rendering the destination shell first and scheduling expensive derived rails in a transition after controls become interactive."],
+    ["smooth-02", "Long-list virtualization proof", "Benchmark and verify virtual windows for grids and horizontal rails at provider-library scale, including keyboard focus, screen-reader counts, and scroll restoration."],
+    ["smooth-03", "Image decode pressure gauge", "Expose decoded-image count, pending decode work, and cache evictions in Diagnostics so memory pressure has an observable cause and recovery."],
+    ["smooth-04", "Background-tab throttle", "Reduce polling, thumbnail work, and timer-driven reranks while the tab is hidden, then perform one bounded reconciliation when it returns."],
+    ["smooth-05", "Search keystroke budget", "Debounce suggestions, move full-catalog token work off the input frame, and show a truthful warming state while the search index catches up."],
+    ["smooth-06", "Local persistence coalescing", "Batch preference and tag writes away from click handlers while journaling the latest operation immediately so a crash cannot lose a user action."],
+    ["smooth-07", "Provider-card structural sharing", "Reuse unchanged provider card objects and artwork references across refreshes to prevent image reloads, animation resets, and avoidable React reconciliation."],
+    ["smooth-08", "Cold-start source ordering", "Hydrate the saved local catalog and active source before optional folder verification, remote refresh, Companion warmup, or recommendation ranking begins."],
+    ["smooth-09", "Timer consolidation", "Audit periodic provider, Watch Room, clock, and visibility timers; share intervals where possible and stop them when their owning surface unmounts."],
+    ["smooth-10", "Slow-device profile", "Add a reproducible constrained-core/memory benchmark profile and use it to choose safe default worker, cache, and rail-window budgets."],
+    ["smooth-11", "Accessibility performance audit", "Verify deferred and virtualized cards retain focus order, announce loading state, and never make a keyboard action wait for offscreen artwork."],
+    ["smooth-12", "Smoothness scorecard", "Publish a local diagnostics scorecard with first interaction, frame pressure, cache health, visible-card count, and the next safest remediation."],
+  ].map(([id, title, detail]) => ({ id, title, detail, done: ["smooth-03", "smooth-04", "smooth-06", "smooth-07", "smooth-08"].includes(id) })),
 ];
 const ALL_DEFAULT_MISSIONS = [...DEFAULT_MISSIONS, ...ROADMAP_EXPANSION];
 
@@ -3658,3 +3634,5 @@ function InfoCard({ icon, title, copy }: { icon: ReactNode; title: string; copy:
 function PhotoStars({ name, rating, onChange }: { name: string; rating: number; onChange: (rating: number) => void }) {
   return <div className="mt-2 flex flex-wrap items-center gap-1" role="group" aria-label={"Rating for " + name}>{[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" className="inline-flex size-11 items-center justify-center rounded-sm hover:bg-accent/10 focus-visible:outline-2 focus-visible:outline-accent" aria-label={"Rate " + name + " " + value + " stars"} aria-pressed={rating === value} onClick={() => onChange(value)}><Star className={"size-5 " + (value <= rating ? "fill-accent text-accent" : "text-muted")}/></button>)}{rating > 0 && <button type="button" className="min-h-11 px-2 text-xs text-muted" aria-label={"Clear rating for " + name} onClick={() => onChange(0)}>Clear</button>}</div>;
 }
+
+

@@ -462,6 +462,7 @@ type GqlUser = {
         lengthSeconds?: number;
         previewThumbnailURL?: string;
         publishedAt?: string;
+        game?: { name?: string };
       };
     }>;
   };
@@ -483,7 +484,7 @@ async function twitchUser(login: string, after?: string | null, archivePageSize 
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      query: `query($login:String!,$after:Cursor,$first:Int!){user(login:$login){id displayName profileImageURL(width:70) stream{title viewersCount previewImageURL(width:640,height:360) game{name}} videos(first:$first,type:ARCHIVE,after:$after){pageInfo{hasNextPage endCursor} edges{cursor node{id title description lengthSeconds publishedAt previewThumbnailURL(width:640,height:360)}}}}}`,
+      query: `query($login:String!,$after:Cursor,$first:Int!){user(login:$login){id displayName profileImageURL(width:70) stream{title viewersCount previewImageURL(width:640,height:360) game{name}} videos(first:$first,type:ARCHIVE,after:$after){pageInfo{hasNextPage endCursor} edges{cursor node{id title description lengthSeconds publishedAt previewThumbnailURL(width:640,height:360) game{name}}}}}}`,
       variables: { login, after: after ?? null, first: archivePageSize },
     }),
   });
@@ -534,6 +535,9 @@ async function twitchArchive(login: string, limit: number): Promise<GqlUser | nu
 function twitchVideos(login: string, user: GqlUser, vodLimit = 160): LibraryVideo[] {
   const title = user.displayName ?? login;
   const folderId = `tw:${login}`;
+  // One observation timestamp is shared by all facts in this provider reply.
+  // It lets the client reject a delayed response without guessing from card age.
+  const observedAt = Date.now();
   const out: LibraryVideo[] = [];
   if (user.stream) {
     out.push({
@@ -553,6 +557,7 @@ function twitchVideos(login: string, user: GqlUser, vodLimit = 160): LibraryVide
         channelName: title,
         live: true,
         viewers: user.stream.viewersCount,
+        observedAt,
         embedUrl: `https://player.twitch.tv/?channel=${encodeURIComponent(login)}&autoplay=true`,
         watchUrl: `https://www.twitch.tv/${login}`,
       },
@@ -561,6 +566,10 @@ function twitchVideos(login: string, user: GqlUser, vodLimit = 160): LibraryVide
   for (const edge of (user.videos?.edges ?? []).slice(0, vodLimit)) {
     const node = edge.node;
     if (!node?.id) continue;
+    const rawDuration = Number(node.lengthSeconds);
+    // Public Twitch rows occasionally contain zero or corrupt durations. Keep
+    // an unknown duration unknown rather than turning it into a fake short clip.
+    const duration = Number.isFinite(rawDuration) && rawDuration > 0 && rawDuration <= 48 * 60 * 60 ? rawDuration : undefined;
     out.push({
       id: `tw:v:${node.id}`,
       folderId,
@@ -569,8 +578,9 @@ function twitchVideos(login: string, user: GqlUser, vodLimit = 160): LibraryVide
       extension: "vod",
       mime: "video/twitch",
       size: 0,
-      duration: node.lengthSeconds,
+      duration,
       addedAt: Date.parse(node.publishedAt ?? "") || Date.now(),
+      genre: node.game?.name,
       poster: node.previewThumbnailURL,
       tagline: node.description?.slice(0, 180),
       description: node.description?.slice(0, 4_000),
@@ -579,6 +589,7 @@ function twitchVideos(login: string, user: GqlUser, vodLimit = 160): LibraryVide
         videoId: node.id,
         channelName: title,
         live: false,
+        observedAt,
         embedUrl: `https://player.twitch.tv/?video=${encodeURIComponent(node.id)}&autoplay=true`,
         watchUrl: `https://www.twitch.tv/videos/${node.id}`,
       },
@@ -599,6 +610,7 @@ function twitchVideos(login: string, user: GqlUser, vodLimit = 160): LibraryVide
         kind: "twitch",
         channelName: title,
         live: false,
+        observedAt,
         embedUrl: `https://player.twitch.tv/?channel=${encodeURIComponent(login)}&autoplay=true`,
         watchUrl: `https://www.twitch.tv/${login}`,
       },

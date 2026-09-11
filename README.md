@@ -1,37 +1,65 @@
 # Reelcase
 
-Reelcase is a browser-first personal media desk. It organizes local video, public YouTube and Twitch follows, photos, print files, game shortcuts, and optional LAN Watch Rooms without silently uploading a personal library.
+Reelcase is a fast, browser-first personal media desk. It brings local video, public YouTube and Twitch follows, photos, print files, game shortcuts, history, and optional LAN Watch Rooms into one private library—without uploading a personal catalog behind the scenes.
 
-## What works today
+## Why Reelcase
 
-- Scan local folders and play browser-compatible media; retain watch progress, favorites, ratings, categories, tags, notes, and history locally.
-- Browse movie shelves including classics, quick watches, genre browsing, top picks, and randomized playback.
-- Follow public YouTube and Twitch channels, with a dedicated live-first Twitch view.
-- Build private adult-library shelves behind a local PIN. Tags and metadata stay isolated from public browsing.
-- Add `.url` game shortcuts and launch their explicit web destination; catalog `.exe`, `.lnk`, and app-reference files with optional custom cover icons. Browsers cannot safely start a local executable.
-- Create LAN Watch Rooms with room codes, direct peer presence, chat, local-video clock sync, guest consent, an editable next-up queue, and a compact/theater/cinema stage size.
+Your library stays useful even when a provider is slow, a folder is temporarily unavailable, or a tab is resumed days later. Reelcase keeps its catalog, feedback, history, and recovery records in the browser, makes provider refreshes additive, and treats expensive enrichment as background work rather than a reason to block the first screen.
 
-## Architecture
+## Highlights
 
-| Area | Location | Notes |
+- **Local-first media library** — Scan approved folders or files, play browser-compatible video, and keep favorites, tags, notes, ratings, and category choices on this device.
+- **Continue and history recovery** — Resume with stable provider URLs or local fingerprints, retain an append-only activity journal, filter by source, export records, and keep recovery cards when a source disappears.
+- **YouTube and Twitch that preserve archives** — Follow public channels, retain cached provider cards during failures, separate live streams, clips, and VODs, and run focused historical pulls within visible budgets.
+- **Fast Home** — The Home shell, search, and core controls paint first. Discovery ranking, artwork-heavy rails, and optional recommendations wait for idle time.
+- **Explainable recommendations** — Shelf copy explains whether a rail is driven by freshness, ratings, saved creators, follow state, or unfinished progress—never opaque provider transport tags.
+- **Rating rhythm** — A local weekly rating goal, streak counter, and clear rewards turn lightweight feedback into better shelves without sending activity anywhere.
+- **Private library controls** — Adult sources stay behind a local PIN and remain separate from public browsing and metadata exports.
+- **Optional Companion support** — The local Companion can inspect approved folders and prepare bounded metadata or thumbnail work. It never receives broad filesystem access from the browser.
+- **LAN Watch Rooms** — Create room codes for direct peer presence, chat, next-up voting, local-video sync, and provider embed fallbacks. Exact timeline control is reserved for playable local media.
+
+## Product map
+
+| Area | What it does | Main implementation |
 | --- | --- | --- |
-| Main library UI | `src/components/library/library-app.tsx` | Composes media shelves and locked private browsing. |
-| Hub tools | `src/components/library/hub-sections.tsx` | Settings, games, photos, prints, watch rooms, and external handoffs. |
-| Local state | `src/lib/videos/store.ts` | Zustand store persisted in the browser. |
-| Remote discovery | `src/lib/remote/api.ts` | Server-side public YouTube/Twitch lookup boundary. |
-| LAN peer layer | `src/lib/multiplayer/` | WebRTC room protocol and signaling client. |
+| Home and provider shelves | Immediate first screen, idle recommendation work, visual rails | `src/components/library/library-app.tsx` |
+| Cards and browsing | Virtual-friendly card surfaces, artwork and feedback actions | `src/components/library/browse.tsx`, `src/components/library/video-card.tsx` |
+| Local catalog state | Durable browser store, scans, progress, history, follows | `src/lib/videos/store.ts` |
+| Provider boundary | Public YouTube/Twitch retrieval, backoff, cache-safe merge | `src/lib/remote/api.ts`, `src/lib/remote-merge.ts` |
+| Feedback and streaks | Ratings, creator taste, local weekly rhythm | `src/lib/media-feedback.ts`, `src/lib/rating-streaks.ts` |
+| Performance observability | Render, interaction, thumbnail, cache diagnostics | `src/lib/interaction-budget.ts`, `src/lib/videos/thumbs.ts` |
+| Watch Rooms | Signaling, peer protocol, queue, reconciliation | `src/lib/multiplayer/`, `src/components/library/hub-sections.tsx` |
 
-## Privacy and capability limits
+## Privacy and boundaries
 
-Local paths, media bytes, browser permissions, and adult-library metadata are never included in exports. An export contains catalog metadata only. Roku and desktop launchers need platform-specific native integration for confirmed device control; the browser offers an explicit manual handoff path instead. Embedded provider players may not expose precise timestamp controls, so exact Watch Room sync is for local/library video.
+Reelcase is designed around local control:
+
+- Catalog metadata, ratings, notes, history, and mission-plan state are stored in the browser.
+- Library exports contain metadata only—never media bytes, local file permissions, or adult-library metadata.
+- Provider cards use public provider data and keep known-good cached cards when a refresh is unavailable or rate-limited.
+- Browsers cannot launch arbitrary local executables. Game and desktop-launcher entries make that boundary explicit and use an approved Companion path when available.
+- Embedded provider players may not expose exact timeline APIs. Watch Room exact sync therefore applies to local/library video; provider rooms offer an honest synchronized control path with direct-link fallback.
 
 ## Development
 
-Run the usual checks before publishing changes:
+Install dependencies with the project’s normal package workflow, then use:
 
 ```bash
+npm run dev
 npm run typecheck
 npm run build
 ```
 
-See [PROJECT_GUIDE.md](PROJECT_GUIDE.md) for product-maintenance conventions and [LAN_WATCH_ROOM.md](LAN_WATCH_ROOM.md) for the peer-room protocol and rollout requirements.
+Useful quality checks:
+
+```bash
+npm run test
+npm run lint
+node scripts/browser-smoke.mjs http://127.0.0.1:8080/ screenshots/smoke.png
+```
+
+## Project notes
+
+- [PROJECT_GUIDE.md](PROJECT_GUIDE.md) covers product-maintenance conventions.
+- [LAN_WATCH_ROOM.md](LAN_WATCH_ROOM.md) documents the LAN peer-room protocol and rollout expectations.
+- The in-app **Mission plan** is the live delivery queue. It distinguishes completed safeguards from work still in progress so roadmap status stays useful rather than aspirational.

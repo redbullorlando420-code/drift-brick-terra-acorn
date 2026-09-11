@@ -1,3 +1,5 @@
+import { topicEvidence } from '@/lib/videos/topics';
+import { openTopic } from '@/lib/videos/topic-navigation';
 import { startTransition, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ExternalLink, Glasses, Heart, Play, Star, Tag, ThumbsUp, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -49,6 +51,9 @@ export function PreVideo() {
   const [shelfReady, setShelfReady] = useState(false);
   const markUnavailable = useLibrary((s) => s.markUnavailable);
   const video = videos.find((item) => item.id === previewId);
+  useEffect(() => {
+    if (video) recordPlay(video.id, "open");
+  }, [recordPlay, video?.id]);
   const creator = video?.remote?.channelName?.trim() ?? "";
   const creatorKeyword = creator.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   const visibleTags = (creatorKeyword && !tags.includes(creatorKeyword) ? [creatorKeyword, ...tags] : tags).map((tag) => tag.replace(/^(?:keyword-|creator-)/i, ""));
@@ -144,7 +149,7 @@ export function PreVideo() {
     : null;
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-bg/98 px-4 py-5 sm:px-8 sm:py-8">
-      <div className="mx-auto max-w-6xl">
+      <div className={video.remote?.kind === "twitch" ? "w-full max-w-none" : "mx-auto max-w-6xl"}>
         <div className="flex items-center justify-between gap-3">
           <Button variant="ghost" onClick={closePreview}>
             <ArrowLeft className="size-4" /> Browse
@@ -153,7 +158,7 @@ export function PreVideo() {
             <X className="size-5" />
           </Button>
         </div>
-        <div className="mt-5 grid gap-7 lg:grid-cols-[minmax(0,1.55fr)_minmax(18rem,0.7fr)]">
+        <div className={video.remote?.kind === "twitch" ? "mt-5 grid gap-7" : "mt-5 grid gap-7 lg:grid-cols-[minmax(0,1.55fr)_minmax(18rem,0.7fr)]"}>
           <div>
             <div className="overflow-hidden rounded-lg bg-elevated shadow-border">
               {embed ? (
@@ -231,6 +236,8 @@ export function PreVideo() {
           </div>
           <aside className="rounded-lg bg-elevated p-5 shadow-border">
             <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Details</p>
+            <div className="mt-3 flex flex-wrap gap-2">{topicEvidence(video, tags).map((link) => <Button key={link.topic} size="sm" variant="secondary" title={link.reason} onClick={() => { openTopic(link.topic); closePreview(); }}>#{link.topic} ↔</Button>)}</div>
+            <p className="mt-2 text-xs text-muted">Topic links explore all public sources. Hover a topic for its evidence.</p>
             <p className="mt-3 text-sm text-fg">
               {video.year ?? "New"} · {video.genre ?? "Uncategorized"}
             </p>

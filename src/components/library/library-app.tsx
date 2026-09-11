@@ -1,11 +1,12 @@
+import { topicsForVideo, isTopicTag } from '@/lib/videos/topics';
 import { lazy, startTransition, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentType } from "react";
 import { toast, Toaster } from "sonner";
 import { useShallow } from "zustand/react/shallow";
-import { Lock, Shuffle } from "lucide-react";
+import { LoaderCircle, Lock, Shuffle } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { DiscoveryDesk, LiveDesk } from "./discovery-desk";
+import { DiscoveryDesk, LiveDesk, RatingStreakCard } from "./discovery-desk";
 import { SidebarNav } from "./sidebar";
 import { TopBar } from "./top-bar";
 import { InviteStrip } from "./invite";
@@ -41,6 +42,7 @@ import {
   selectFeatured,
   selectHistory,
   selectLive,
+  resumeForVideo,
   selectTwitch,
   selectVisible,
   selectYoutube,
@@ -49,7 +51,7 @@ import {
 } from "@/lib/videos/store";
 import { DEMO_FOLDER_ID } from "@/lib/videos/samples";
 import type { WellKnownStart } from "@/lib/videos/types";
-import { isClassicVideo } from "@/lib/videos/types";
+import { hasFreshViewerCount, isClassicVideo } from "@/lib/videos/types";
 import { useThumbs } from "@/lib/videos/thumbs";
 import { librarySearchIndex } from "@/lib/videos/search-index";
 import { creatorIsLiked, getCreatorRating, getRating, tagIsLiked } from "@/lib/media-feedback";
@@ -113,13 +115,14 @@ function isFreshRemoteUpload(video: { addedAt: number }) {
   const age = Date.now() - video.addedAt;
   return age >= -5 * 60_000 && age <= 14 * 24 * 60 * 60_000;
 }
-function isTasteTag(tag: string) {
-  // Keep operational labels searchable and exportable, but never allow them to
-  // masquerade as taste signals in recommendations.
-  return !/^(?:year-|month-|day-|type-|provider-|format-|source-|keyword-|creator-|https?$|youtube$|twitch$|vod$|live$)/i.test(tag.trim());
-}
+const isTasteTag = isTopicTag;
 
 export function LibraryApp() {
+  useEffect(() => {
+    const failed = () => toast.error("Library changes could not be saved. Browser storage is unavailable or full.");
+    window.addEventListener("reelcase:save-error", failed);
+    return () => window.removeEventListener("reelcase:save-error", failed);
+  }, []);
   const dirInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingAdult = useRef(false);
@@ -135,9 +138,16 @@ export function LibraryApp() {
   const [youtubeTagFilter, setYoutubeTagFilter] = useState("all");
   const [youtubeExploreVisible, setYoutubeExploreVisible] = useState(false);
   const [youtubeDeepVisible, setYoutubeDeepVisible] = useState(false);
+  const [youtubeHealthVisible, setYoutubeHealthVisible] = useState(false);
+  const archiveQueueRef = useRef<Array<{ id: string; handle: string }>>([]);
+  const archiveQueueBusyRef = useRef(false);
+  const [archiveQueued, setArchiveQueued] = useState<string[]>([]);
   const [twitchTagFilter, setTwitchTagFilter] = useState("all");
   const [historyWindow, setHistoryWindow] = useState<"all" | "day" | "week">("all");
+  const [historySource, setHistorySource] = useState<"all" | "open" | "progress" | "watch-room">("all");
+  const [historyRetention, setHistoryRetention] = useState<"forever" | "week" | "month" | "year">("forever");
   const [homeExpanded, setHomeExpanded] = useState(false);
+  const [homeRecommendationsReady, setHomeRecommendationsReady] = useState(false);
   const [remoteRefreshMs, setRemoteRefreshMs] = useState(() => {
     try { const seconds = Number(localStorage.getItem("reelcase.twitch-refresh-seconds") ?? "30"); return [15, 30, 60, 120, 300].includes(seconds) ? seconds * 1_000 : 30_000; }
     catch { return 30_000; }
@@ -149,6 +159,7 @@ export function LibraryApp() {
   const ingestFromInput = useLibrary((s) => s.ingestFromInput);
   const ingestDrop = useLibrary((s) => s.ingestDrop);
   const clearHistory = useLibrary((s) => s.clearHistory);
+  const pruneHistory = useLibrary((s) => s.pruneHistory);
   const folders = useLibrary((s) => s.folders);
   const sourceId = useLibrary((s) => s.sourceId);
   const setSource = useLibrary((s) => s.setSource);
@@ -172,7 +183,7 @@ export function LibraryApp() {
   // full-array sort whenever a rating or thumbnail state changes.
   const newestYoutube = youtubeVideos;
   const twitchVideos = useLibrary(useShallow(selectTwitch));
-  const newThisWeek = useMemo(() => [...youtubeVideos, ...twitchVideos].filter((video) => video.remote && Date.now() - video.addedAt >= -5 * 60_000 && Date.now() - video.addedAt < 7 * 24 * 60 * 60_000).sort((a, b) => b.addedAt - a.addedAt), [twitchVideos, youtubeVideos]);
+  const newThisWeek = useMemo(() => sourceId !== "home" || !homeRecommendationsReady ? [] : [...youtubeVideos, ...twitchVideos].filter((video) => video.remote && Date.now() - video.addedAt >= -5 * 60_000 && Date.now() - video.addedAt < 7 * 24 * 60 * 60_000).sort((a, b) => b.addedAt - a.addedAt), [homeRecommendationsReady, sourceId, twitchVideos, youtubeVideos]);
   const liveVideos = useLibrary(useShallow(selectLive));
   const adultContinue = useLibrary(useShallow((s) => selectContinue(s, true)));
   const adultFavorites = useLibrary(useShallow((s) => selectFavorites(s, true)));
@@ -204,7 +215,7 @@ export function LibraryApp() {
     }
     return { sources, resumable };
   }, [history]);
-  const filteredYoutube = useMemo(() => youtubeTagFilter === "all" ? newestYoutube : newestYoutube.filter((video) => (tags[video.id] ?? []).includes(youtubeTagFilter)), [newestYoutube, tags, youtubeTagFilter]);
+  const filteredYoutube = useMemo(() => youtubeTagFilter === "all" ? newestYoutube : newestYoutube.filter((video) => topicsForVideo(video, tags[video.id]).includes(youtubeTagFilter)), [newestYoutube, tags, youtubeTagFilter]);
   const trendingYoutube = useMemo(
     () => sourceId === "youtube" && youtubeExploreVisible ? diversifyCreators([...filteredYoutube].sort((a, b) => (b.remote?.views ?? 0) - (a.remote?.views ?? 0) || b.addedAt - a.addedAt)) : [],
     [filteredYoutube, sourceId, youtubeExploreVisible],
@@ -213,17 +224,43 @@ export function LibraryApp() {
   const catalogVideos = useLibrary((s) => s.videos);
   const favorites = useLibrary((s) => s.favorites);
   const progress = useLibrary((s) => s.progress);
+  const resumeProgress = useLibrary((s) => s.resumeProgress);
   const likes = useLibrary((s) => s.likes);
   const viewCounts = useLibrary((s) => s.viewCounts);
   const unavailable = useLibrary((s) => s.unavailable);
   const follows = useLibrary((s) => s.follows);
   const remoteCheckedAt = useLibrary((s) => s.remoteCheckedAt);
-  const adultTagNames = useMemo(() => [...new Set(videos.flatMap((video) => tags[video.id] ?? []))].sort(), [tags, videos]);
+  const remoteRetryAt = useLibrary((s) => s.remoteRetryAt);
+  const youtubeHealth = useMemo(() => {
+    if (sourceId !== "youtube" || !youtubeHealthVisible) return [];
+    const counts = new Map<string, { cached: number; newest: number }>();
+    for (const video of youtubeVideos) {
+      const row = counts.get(video.folderId) ?? { cached: 0, newest: 0 };
+      row.cached++;
+      row.newest = Math.max(row.newest, video.addedAt);
+      counts.set(video.folderId, row);
+    }
+    return follows.filter((channel) => channel.kind === "youtube").map((channel) => ({ ...channel, ...(counts.get(channel.id) ?? { cached: 0, newest: 0 }), retryAt: remoteRetryAt[channel.id] }))
+      .sort((a, b) => (a.lastCheckedAt ?? 0) - (b.lastCheckedAt ?? 0) || a.title.localeCompare(b.title));
+  }, [follows, remoteRetryAt, sourceId, youtubeHealthVisible, youtubeVideos]);
+  const continueInsights = useMemo(() => {
+    const marks = Object.values(progress);
+    const staleBefore = Date.now() - 180 * 24 * 60 * 60_000;
+    const valid = marks.filter((mark) => Number.isFinite(mark.t) && Number.isFinite(mark.d) && mark.d > 0.25 && mark.d <= 30 * 24 * 60 * 60 && mark.t >= 0 && mark.t <= mark.d * 1.015);
+    return {
+      valid: valid.length,
+      stale: valid.filter((mark) => mark.at < staleBefore).length,
+      linked: continueVideos.filter((video) => Boolean(resumeForVideo({ progress, resumeProgress }, video))).length,
+    };
+  }, [continueVideos, progress, resumeProgress]);
+  const adultPageVideos = useMemo(() => sourceId === "adults" ? videos : [], [sourceId, videos]);
+  const adultTagNames = useMemo(() => [...new Set(adultPageVideos.flatMap((video) => tags[video.id] ?? []))].sort(), [tags, adultPageVideos]);
   const moviesByGenre = useMemo(() => [...videos].filter((video) => Boolean(video.genre)).sort((a, b) => a.genre!.localeCompare(b.genre!)), [videos]);
   const movieCatalog = useMemo(() => {
+    if (sourceId !== "movies") return [];
     const adultIds = new Set(folders.filter((folder) => folder.adult).map((folder) => folder.id));
     return catalogVideos.filter((video) => !video.remote && !video.isSample && !adultIds.has(video.folderId) && !unavailable[video.id]);
-  }, [catalogVideos, folders, unavailable]);
+  }, [catalogVideos, folders, sourceId, unavailable]);
   const randomSourceMovies = useMemo(() => movieCatalog.map((video) => ({ video, rank: shuffleRank(video.id, movieShuffle) })).sort((a, b) => a.rank - b.rank).map((entry) => entry.video), [movieCatalog, movieShuffle]);
   const priorityMovieGenres = useMemo(() => ["Comedy", "Action", "Horror", "Drama", "Documentary", "Science Fiction"].map((genre) => ({ genre, videos: movieCatalog.filter((video) => video.genre?.toLowerCase() === genre.toLowerCase()) })).filter((shelf) => shelf.videos.length > 0), [movieCatalog]);
   const movieTypeShelves = useMemo(() => {
@@ -236,25 +273,27 @@ export function LibraryApp() {
     }
     return [...groups.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0])).slice(0, 10).map(([type, videos]) => ({ type, videos }));
   }, [movieCatalog]);
-  const adultSorted = useMemo(() => [...videos].sort((a, b) => adultSort === "name" ? a.name.localeCompare(b.name) : adultSort === "favorites" ? Number(Boolean(favorites[b.id])) - Number(Boolean(favorites[a.id])) || b.addedAt - a.addedAt : adultSort === "tagged" ? (tags[b.id] ?? []).length - (tags[a.id] ?? []).length || b.addedAt - a.addedAt : adultSort === "played" ? (progress[b.id]?.at ?? 0) - (progress[a.id]?.at ?? 0) || b.addedAt - a.addedAt : b.addedAt - a.addedAt), [adultSort, favorites, progress, tags, videos]);
-  const adultTagged = useMemo(() => videos.filter((video) => (tags[video.id] ?? []).length > 0).sort((a, b) => (tags[b.id] ?? []).length - (tags[a.id] ?? []).length), [tags, videos]);
-  const adultNeedsTags = useMemo(() => videos.filter((video) => !(tags[video.id] ?? []).length), [tags, videos]);
+  const adultSorted = useMemo(() => [...adultPageVideos].sort((a, b) => adultSort === "name" ? a.name.localeCompare(b.name) : adultSort === "favorites" ? Number(Boolean(favorites[b.id])) - Number(Boolean(favorites[a.id])) || b.addedAt - a.addedAt : adultSort === "tagged" ? (tags[b.id] ?? []).length - (tags[a.id] ?? []).length || b.addedAt - a.addedAt : adultSort === "played" ? (progress[b.id]?.at ?? 0) - (progress[a.id]?.at ?? 0) || b.addedAt - a.addedAt : b.addedAt - a.addedAt), [adultSort, favorites, progress, tags, adultPageVideos]);
+  const adultTagged = useMemo(() => adultPageVideos.filter((video) => (tags[video.id] ?? []).length > 0).sort((a, b) => (tags[b.id] ?? []).length - (tags[a.id] ?? []).length), [tags, adultPageVideos]);
+  const adultNeedsTags = useMemo(() => adultPageVideos.filter((video) => !(tags[video.id] ?? []).length), [tags, adultPageVideos]);
   const highlyRatedTags = useMemo(() => {
     const preferred = new Set<string>();
+    if (sourceId !== "twitch") return preferred;
     for (const video of videos) {
       const rating = getRating(video.id);
-      for (const tag of tags[video.id] ?? []) if (rating >= 4 || tagIsLiked(tag)) preferred.add(tag);
+      for (const tag of topicsForVideo(video, tags[video.id])) if (rating >= 4 || tagIsLiked(tag)) preferred.add(tag);
     }
     return preferred;
-  }, [ratingRevision, tags, videos]);
+  }, [ratingRevision, sourceId, tags, videos]);
   const tasteAverages = useMemo(() => {
+    if (!homeRecommendationsReady && sourceId === "home") return { tag: new Map<string, { score: number; confidence: number }>(), creator: new Map<string, { score: number; confidence: number }>() };
     const tagsByScore = new Map<string, { total: number; count: number }>();
     const creatorsByScore = new Map<string, { total: number; count: number }>();
     for (const video of videos) {
       const rating = getRating(video.id);
       const signal = Math.max(rating, favorites[video.id] ? 4 : 0, likes[video.id] ? 3 : 0);
       if (!signal) continue;
-      for (const tag of (tags[video.id] ?? []).filter(isTasteTag)) {
+      for (const tag of topicsForVideo(video, tags[video.id])) {
         const row = tagsByScore.get(tag) ?? { total: 0, count: 0 };
         row.total += signal;
         row.count += 1;
@@ -277,27 +316,30 @@ export function LibraryApp() {
       tag: new Map([...tagsByScore].map(([key, row]) => [key, { score: score(row), confidence: confidence(row) }])),
       creator: new Map([...creatorsByScore].map(([key, row]) => [key, { score: score(row), confidence: confidence(row) }])),
     };
-  }, [favorites, likes, ratingRevision, tags, videos]);
+  }, [favorites, homeRecommendationsReady, likes, ratingRevision, sourceId, tags, videos]);
   const personalizedPicks = useMemo(() => {
+    if (sourceId !== "home" || !homeRecommendationsReady) return [];
     const watched = new Set(history.map((entry) => entry.id));
-    const preferredTags = new Set(videos.filter((video) => favorites[video.id] || likes[video.id] || getRating(video.id) >= 4).flatMap((video) => (tags[video.id] ?? []).filter(isTasteTag)));
-    return [...videos].filter((video) => !video.isSample && !watched.has(video.id)).sort((a, b) => {
-      const score = (video: typeof a) => {
+    const preferredTags = new Set(videos.filter((video) => favorites[video.id] || likes[video.id] || getRating(video.id) >= 4).flatMap((video) => topicsForVideo(video, tags[video.id])));
+    // Compute expensive taste/tag scores once per title, not on both sides of
+    // every sort comparison (which multiplied the work by log(catalog size)).
+    const score = (video: typeof videos[number]) => {
       const creatorAverage = tasteAverages.creator.get(video.remote?.channelName?.trim().toLowerCase() ?? "");
-      const tagAverage = (tags[video.id] ?? []).filter(isTasteTag).reduce((total, tag) => {
+      const tagAverage = topicsForVideo(video, tags[video.id]).reduce((total, tag) => {
         const signal = tasteAverages.tag.get(tag);
         return total + (signal ? (signal.score - 3) * signal.confidence : 0);
       }, 0);
       const creatorLift = creatorAverage ? (creatorAverage.score - 3) * creatorAverage.confidence : 0;
-      return getRating(video.id) * 18 + getCreatorRating(video.remote?.channelName ?? "") * 10 + creatorLift * 9 + tagAverage * 7 + (creatorIsLiked(video.remote?.channelName ?? "") ? 9 : 0) + (favorites[video.id] ? 6 : 0) + (likes[video.id] ? 4 : 0) + (tags[video.id] ?? []).filter((tag) => isTasteTag(tag) && preferredTags.has(tag)).length * 2 + (video.remote?.live ? 1 : 0);
+      return getRating(video.id) * 18 + getCreatorRating(video.remote?.channelName ?? "") * 10 + creatorLift * 9 + tagAverage * 7 + (creatorIsLiked(video.remote?.channelName ?? "") ? 9 : 0) + (favorites[video.id] ? 6 : 0) + (likes[video.id] ? 4 : 0) + topicsForVideo(video, tags[video.id]).filter((tag) => isTasteTag(tag) && preferredTags.has(tag)).length * 2 + (video.remote?.live ? 1 : 0);
       };
       // A recommendation shelf should have a bias, not a fixed handful of
       // winners. Blend preference signals with a fresh shuffle so lower-score
       // local titles still get a real chance to reach the first cards.
-      const rank = (video: typeof a) => score(video) * 0.45 + shuffleRank(`${video.id}:${homePickShuffle}`, homePickShuffle) / 0xffffffff;
-      return rank(b) - rank(a);
-    });
-  }, [favorites, history, homePickShuffle, likes, ratingRevision, tags, tasteAverages, videos]);
+    return videos.filter((video) => !video.isSample && !watched.has(video.id))
+      .map((video) => ({ video, rank: score(video) * 0.45 + shuffleRank(`${video.id}:${homePickShuffle}`, homePickShuffle) / 0xffffffff }))
+      .sort((a, b) => b.rank - a.rank)
+      .map(({ video }) => video);
+  }, [favorites, history, homePickShuffle, homeRecommendationsReady, likes, ratingRevision, sourceId, tags, tasteAverages, videos]);
   const topRatedLocalPicks = useMemo(() => {
     // The previous shelf inherited the global score wholesale, which let a
     // handful of old five-star files occupy every visit. Keep the taste bias,
@@ -319,6 +361,7 @@ export function LibraryApp() {
       .map(({ video }) => video);
   }, [favorites, homePickShuffle, likes, personalizedPicks]);
   const freshPicks = useMemo(() => {
+    if (sourceId !== "home" || !homeRecommendationsReady) return [];
     const seed = Math.floor(Date.now() / 3_600_000);
     return videos
       .filter((video) => !video.isSample && !video.remote?.live)
@@ -326,41 +369,50 @@ export function LibraryApp() {
       .sort((a, b) => a.views - b.views || a.rank - b.rank)
       .slice(0, 48)
       .map(({ video }) => video);
-  }, [videos, viewCounts]);
-  const homeLocalRecent = useMemo(() => videos
+  }, [homeRecommendationsReady, sourceId, videos, viewCounts]);
+  const homeLocalRecent = useMemo(() => sourceId !== "home" || !homeRecommendationsReady ? [] : videos
     .filter((video) => !video.remote && !video.isSample)
     .map((video) => ({ video, ageBucket: Math.floor(Math.max(0, Date.now() - video.addedAt) / (7 * 86_400_000)), rank: shuffleRank(`${video.id}:recent`, homePickShuffle) }))
     .sort((a, b) => a.ageBucket - b.ageBucket || a.rank - b.rank)
     .slice(0, 48)
-    .map(({ video }) => video), [homePickShuffle, videos]);
-  const homeLatestChannels = useMemo(() => [...youtubeVideos, ...twitchVideos].filter((video) => !video.remote?.live && !video.isSample && !isOfflineChannelCard(video)).sort((a, b) => b.addedAt - a.addedAt).slice(0, 48), [twitchVideos, youtubeVideos]);
+    .map(({ video }) => video), [homePickShuffle, homeRecommendationsReady, sourceId, videos]);
+  const homeLatestChannels = useMemo(() => sourceId !== "home" || !homeRecommendationsReady ? [] : [...youtubeVideos, ...twitchVideos].filter((video) => !video.remote?.live && !video.isSample && !isOfflineChannelCard(video)).sort((a, b) => b.addedAt - a.addedAt).slice(0, 48), [homeRecommendationsReady, sourceId, twitchVideos, youtubeVideos]);
   const sortedTwitch = useMemo(() => {
     // Sorting thousands of remote cards is only useful while the Twitch desk is
     // visible. Keeping this work off Home and the local views prevents a refresh
     // from blocking their next paint.
     if (sourceId !== "twitch") return [];
     return [...twitchVideos].filter((video) => !isOfflineChannelCard(video)).sort((a, b) => {
-    if (twitchSort === "viewers") return (b.remote?.viewers ?? 0) - (a.remote?.viewers ?? 0) || a.name.localeCompare(b.name);
+    const viewers = (video: typeof a) => hasFreshViewerCount(video.remote) ? video.remote?.viewers ?? 0 : 0;
+    if (twitchSort === "viewers") return viewers(b) - viewers(a) || a.name.localeCompare(b.name);
     if (twitchSort === "name") return a.name.localeCompare(b.name);
-    return Number(Boolean(b.remote?.live)) - Number(Boolean(a.remote?.live)) || (b.remote?.viewers ?? 0) - (a.remote?.viewers ?? 0) || b.addedAt - a.addedAt;
+    return Number(Boolean(b.remote?.live)) - Number(Boolean(a.remote?.live)) || viewers(b) - viewers(a) || b.addedAt - a.addedAt;
     });
   }, [sourceId, twitchSort, twitchVideos]);
   const twitchVodPicks = useMemo(() => {
     if (sourceId !== "twitch") return [];
-    const popularity = (video: typeof sortedTwitch[number]) => (video.remote?.viewers ?? 0) + getRating(video.id) * 40 + (favorites[video.id] ? 28 : 0) + (likes[video.id] ? 16 : 0) + (viewCounts[video.id] ?? 0) * 5 + (tags[video.id] ?? []).filter((tag) => highlyRatedTags.has(tag)).length * 8;
+    const popularity = (video: typeof sortedTwitch[number]) => (hasFreshViewerCount(video.remote) ? video.remote?.viewers ?? 0 : 0) + getRating(video.id) * 40 + (favorites[video.id] ? 28 : 0) + (likes[video.id] ? 16 : 0) + (viewCounts[video.id] ?? 0) * 5 + topicsForVideo(video, tags[video.id]).filter((tag) => highlyRatedTags.has(tag)).length * 8;
     return sortedTwitch.filter((video) => !video.remote?.live).sort((a, b) => popularity(b) - popularity(a) || b.addedAt - a.addedAt);
   }, [favorites, highlyRatedTags, likes, ratingRevision, sortedTwitch, sourceId, tags, viewCounts]);
   const twitchArchiveDepth = useMemo(() => {
-    if (sourceId !== "twitch") return { total: 0, sparse: 0, channels: [] as Array<{ name: string; count: number }> };
-    const rows = new Map<string, number>();
+    if (sourceId !== "twitch") return { total: 0, sparse: 0, channels: [] as Array<{ id: string; name: string; count: number; oldest: number; newest: number; clips: number; lastCheckedAt?: number; lastResponseCount?: number; retryAt?: number }> };
+    const rows = new Map<string, { count: number; oldest: number; newest: number; clips: number }>();
     for (const video of twitchVodPicks) {
       const name = video.remote?.channelName?.trim() || "Unknown creator";
-      rows.set(name, (rows.get(name) ?? 0) + 1);
+      const previous = rows.get(name) ?? { count: 0, oldest: Number.MAX_SAFE_INTEGER, newest: 0, clips: 0 };
+      rows.set(name, { count: previous.count + 1, oldest: Math.min(previous.oldest, video.addedAt), newest: Math.max(previous.newest, video.addedAt), clips: previous.clips + ((video.duration ?? 0) > 0 && (video.duration ?? 0) <= 120 ? 1 : 0) });
     }
-    const channels = [...rows.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => a.count - b.count || a.name.localeCompare(b.name));
+    const channels = follows.filter((channel) => channel.kind === "twitch").map((channel) => ({
+      id: channel.id,
+      name: channel.title,
+      ...(rows.get(channel.title) ?? { count: 0, oldest: 0, newest: 0, clips: 0 }),
+      lastCheckedAt: channel.lastCheckedAt,
+      lastResponseCount: channel.lastResponseCount,
+      retryAt: remoteRetryAt[channel.id],
+    })).sort((a, b) => a.count - b.count || a.name.localeCompare(b.name));
     return { total: twitchVodPicks.length, sparse: channels.filter((channel) => channel.count < 24).length, channels };
-  }, [sourceId, twitchVodPicks]);
-  const twitchClips = useMemo(() => twitchVodPicks.filter((video) => (video.duration ?? 0) > 0 && (video.duration ?? 0) <= 1200).slice(0, 24), [twitchVodPicks]);
+  }, [follows, remoteRetryAt, sourceId, twitchVodPicks]);
+  const twitchClips = useMemo(() => twitchVodPicks.filter((video) => (video.duration ?? 0) > 0 && (video.duration ?? 0) <= 120).slice(0, 24), [twitchVodPicks]);
   const favoriteTwitchPicks = useMemo(() => sortedTwitch.filter((video) => favorites[video.id]).sort((a, b) => (viewCounts[b.id] ?? 0) - (viewCounts[a.id] ?? 0) || b.addedAt - a.addedAt), [favorites, sortedTwitch, viewCounts]);
   const likedTwitchPicks = useMemo(() => sortedTwitch.filter((video) => likes[video.id] && !favorites[video.id]).sort((a, b) => getRating(b.id) - getRating(a.id) || (viewCounts[a.id] ?? 0) - (viewCounts[b.id] ?? 0) || b.addedAt - a.addedAt), [favorites, likes, ratingRevision, sortedTwitch, viewCounts]);
   const twitchVodChannels = useMemo(() => {
@@ -394,20 +446,20 @@ export function LibraryApp() {
   const relatedYoutube = useMemo(() => {
     if (sourceId !== "youtube" || !youtubeExploreVisible) return [];
     const likedChannels = new Set(youtubeVideos.filter((video) => favorites[video.id] || likes[video.id]).map((video) => video.remote?.channelName).filter(Boolean));
-    const favoriteTags = new Set(youtubeVideos.filter((video) => getRating(video.id) >= 3).flatMap((video) => (tags[video.id] ?? []).filter(isTasteTag)));
-    return [...youtubeVideos].sort((a, b) => {
-      const score = (video: typeof a) => {
+    const favoriteTags = new Set(youtubeVideos.filter((video) => getRating(video.id) >= 3).flatMap((video) => topicsForVideo(video, tags[video.id])));
+    const score = (video: typeof youtubeVideos[number]) => {
       const creatorAverage = tasteAverages.creator.get(video.remote?.channelName?.trim().toLowerCase() ?? "");
-      const tagAverage = (tags[video.id] ?? []).filter(isTasteTag).reduce((total, tag) => {
+      const tagAverage = topicsForVideo(video, tags[video.id]).reduce((total, tag) => {
         const signal = tasteAverages.tag.get(tag);
         return total + (signal ? (signal.score - 3) * signal.confidence : 0);
       }, 0);
-      const sharedFavoriteTopics = (tags[video.id] ?? []).filter((tag) => isTasteTag(tag) && favoriteTags.has(tag)).length;
+      const sharedFavoriteTopics = topicsForVideo(video, tags[video.id]).filter((tag) => isTasteTag(tag) && favoriteTags.has(tag)).length;
       const creatorLift = creatorAverage ? (creatorAverage.score - 3) * creatorAverage.confidence : 0;
       return getRating(video.id) * 14 + getCreatorRating(video.remote?.channelName ?? "") * 15 + creatorLift * 14 + tagAverage * 11 + (creatorIsLiked(video.remote?.channelName ?? "") ? 16 : 0) + (likedChannels.has(video.remote?.channelName) ? 12 : 0) + sharedFavoriteTopics * 18;
       };
-      return score(b) - score(a) || b.addedAt - a.addedAt || shuffleRank(`${a.id}:${homePickShuffle}`, homePickShuffle) - shuffleRank(`${b.id}:${homePickShuffle}`, homePickShuffle);
-    });
+    return youtubeVideos.map((video) => ({ video, score: score(video), shuffle: shuffleRank(`${video.id}:${homePickShuffle}`, homePickShuffle) }))
+      .sort((a, b) => b.score - a.score || b.video.addedAt - a.video.addedAt || a.shuffle - b.shuffle)
+      .map(({ video }) => video);
   }, [favorites, homePickShuffle, likes, ratingRevision, sourceId, tags, tasteAverages, youtubeExploreVisible, youtubeVideos]);
   const youtubeDiscovery = useMemo(() => {
     if (sourceId !== "youtube" || !youtubeExploreVisible) return [];
@@ -420,7 +472,7 @@ export function LibraryApp() {
       const groups = new Map<string, typeof videos>();
       for (const video of items) {
         if (video.remote?.kind !== kind) continue;
-        for (const tag of tags[video.id] ?? []) {
+        for (const tag of topicsForVideo(video, tags[video.id])) {
           const clean = tag.toLowerCase();
           if ([kind, "vod", "live"].includes(clean) || clean.length < 4) continue;
           const list = groups.get(clean) ?? [];
@@ -428,10 +480,10 @@ export function LibraryApp() {
           groups.set(clean, list);
         }
       }
-      return [...groups.entries()].filter(([, items]) => items.length >= 2).sort((a, b) => {
-        const taste = (list: typeof a[1]) => list.reduce((score, video) => score + getRating(video.id) * 2, 0);
-        return taste(b[1]) - taste(a[1]) || b[1].length - a[1].length || a[0].localeCompare(b[0]);
-      }).slice(0, 40).map(([tag, videos]) => ({ tag, videos: diversifyCreators(videos) }));
+      return [...groups.entries()].filter(([, items]) => items.length >= 2)
+        .map(([tag, videos]) => ({ tag, videos, score: videos.reduce((score, video) => score + getRating(video.id) * 2, 0) }))
+        .sort((a, b) => b.score - a.score || b.videos.length - a.videos.length || a.tag.localeCompare(b.tag))
+        .slice(0, 40).map(({ tag, videos }) => ({ tag, videos: diversifyCreators(videos) }));
     };
     if (sourceId === "youtube") return { youtube: youtubeExploreVisible ? build(youtubeVideos, "youtube") : [], twitch: [] };
     return { youtube: [], twitch: build(twitchVideos, "twitch") };
@@ -445,6 +497,16 @@ export function LibraryApp() {
     // even if the app itself stayed mounted in the background.
     if (sourceId === "home") setHomePickShuffle(Date.now());
   }, [sourceId]);
+  useEffect(() => {
+    if (sourceId !== "home") { setHomeRecommendationsReady(false); return; }
+    let cancelled = false;
+    const ready = () => { if (!cancelled) startTransition(() => setHomeRecommendationsReady(true)); };
+    // requestIdleCallback can be postponed indefinitely while a large library
+    // paints thumbnails. Yield one frame so the Home shell appears, then
+    // continue deterministically instead of making the page look stuck.
+    const frame = window.requestAnimationFrame(() => window.setTimeout(ready, 0));
+    return () => { cancelled = true; window.cancelAnimationFrame(frame); };
+  }, [sourceId, videos.length]);
   useEffect(() => {
     // Keep the star/like response immediate.  Ranking every large shelf is
     // useful work, but it belongs in a transition rather than on the button's
@@ -483,10 +545,35 @@ export function LibraryApp() {
 
   const refreshFollows = useLibrary((s) => s.refreshFollows);
   const remoteRefreshStatus = useLibrary((s) => s.remoteRefreshStatus);
-  const remoteRetryAt = useLibrary((s) => s.remoteRetryAt);
   const followRemoteQuery = useLibrary((s) => s.followRemoteQuery);
   const pushNotice = useLibrary((s) => s.pushNotice);
   const [channelRefreshing, setChannelRefreshing] = useState("");
+  const drainArchiveQueue = async () => {
+    if (archiveQueueBusyRef.current) return;
+    const next = archiveQueueRef.current.shift();
+    if (!next) return;
+    archiveQueueBusyRef.current = true;
+    setArchiveQueued(archiveQueueRef.current.map((item) => item.id));
+    setChannelRefreshing(next.id);
+    try {
+      // Focused pulls run one at a time so they cannot consume the rotating
+      // live-state budget. The provider merge remains additive on failure.
+      await followRemoteQuery(next.handle, "twitch");
+    } catch {
+      // The visible channel cooldown/result explains a failed public pull.
+    } finally {
+      setChannelRefreshing("");
+      archiveQueueBusyRef.current = false;
+      void drainArchiveQueue();
+    }
+  };
+  const queueArchivePull = (id: string, handle: string) => {
+    if (channelRefreshing === id || archiveQueueRef.current.some((item) => item.id === id)) return;
+    if (archiveQueueRef.current.length >= 3) return;
+    archiveQueueRef.current.push({ id, handle });
+    setArchiveQueued(archiveQueueRef.current.map((item) => item.id));
+    void drainArchiveQueue();
+  };
 
   useEffect(() => {
     if (!hydrated || !follows.length) return;
@@ -507,22 +594,20 @@ export function LibraryApp() {
           videoId: `tw:${ch.handle}:live`,
         });
       }
-      for (const v of newVideos.filter((video) => video.remote?.kind === "youtube" && isFreshRemoteUpload(video) && preferences["alerts-new-youtube-upload-alerts"] === true).slice(0, 3)) {
-        pushNotice({
-          title: v.name,
-          body: `${v.remote?.channelName ?? "YouTube"} · published ${new Date(v.addedAt).toLocaleDateString()}`,
-          kind: "youtube",
-          videoId: v.id,
-        });
-      }
+      // Routine YouTube sweeps are deliberately quiet. The cache/status line
+      // records their outcome without turning a multi-channel refresh into a
+      // constant stream of notifications. Explicit Refresh now stays visible.
       for (const v of newVideos.filter((video) => video.remote?.kind === "twitch" && preferences["alerts-new-twitch-vod-alerts"] === true).slice(0, 3)) pushNotice({ title: v.name, body: v.remote?.channelName ?? "New Twitch video", kind: "twitch", videoId: v.id });
     };
     const id = window.setInterval(() => void tick(), remoteRefreshMs);
     const first = window.setTimeout(() => void tick(), 1500);
+    const onVisibilityChange = () => { if (!document.hidden) void tick(); };
+    document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       cancelled = true;
       window.clearInterval(id);
       window.clearTimeout(first);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [hydrated, follows.length, refreshFollows, pushNotice, remoteRefreshMs]);
 
@@ -606,10 +691,35 @@ export function LibraryApp() {
     for (const h of history) if (map[h.id] == null) map[h.id] = h.at;
     return map;
   }, [history]);
-  const historyFilteredVideos = useMemo(() => {
+  const historyVisibleEntries = useMemo(() => {
     const cutoff = historyWindow === "day" ? Date.now() - 86_400_000 : historyWindow === "week" ? Date.now() - 604_800_000 : 0;
-    return historyWindow === "all" ? historyVideos : historyVideos.filter((video) => (playedAt[video.id] ?? 0) >= cutoff);
-  }, [historyVideos, historyWindow, playedAt]);
+    return history.filter((entry) => entry.at >= cutoff && (historySource === "all" || (entry.source ?? "open") === historySource));
+  }, [history, historySource, historyWindow]);
+  const historyFilteredVideos = useMemo(() => {
+    const visibleIds = new Set(historyVisibleEntries.map((entry) => entry.id));
+    return historyVideos.filter((video) => visibleIds.has(video.id));
+  }, [historyVideos, historyVisibleEntries]);
+  const historyVideoById = useMemo(() => new Map(catalogVideos.map((video) => [video.id, video])), [catalogVideos]);
+  const historyOrphans = useMemo(() => history.filter((entry) => !historyVideoById.has(entry.id) && Boolean(entry.url)).length, [history, historyVideoById]);
+  const historyRetentionCutoff = historyRetention === "week" ? Date.now() - 7 * 86_400_000 : historyRetention === "month" ? Date.now() - 30 * 86_400_000 : historyRetention === "year" ? Date.now() - 365 * 86_400_000 : 0;
+  const exportHistory = () => {
+    const rows = historyVisibleEntries.map((entry) => ({
+      eventId: entry.eventId ?? `${entry.id}:${entry.at}:${entry.source ?? "open"}`,
+      occurredAt: new Date(entry.at).toISOString(),
+      localTime: new Date(entry.at).toLocaleString(),
+      source: entry.source ?? "open",
+      positionSeconds: entry.position ?? null,
+      durationSeconds: entry.duration ?? null,
+      url: entry.url ?? null,
+      title: historyVideoById.get(entry.id)?.name ?? "Recovered activity",
+    }));
+    const blob = new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `reelcase-history-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
 
   const browsing =
     !query &&
@@ -710,37 +820,39 @@ export function LibraryApp() {
               {sourceId === "home" && browsing && (
                 <>
                   <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-elevated px-4 py-3 shadow-border"><p className="text-sm text-muted">Local picks rotate inside your taste matches, so the same few titles do not take over Home.</p><Button size="sm" variant="secondary" onClick={() => setHomePickShuffle(Date.now())}><Shuffle className="size-4" /> Mix local picks</Button></div>
-                  <TitleRail title="Recently added from your folders" videos={homeLocalRecent} variant="rail" />
-                  <TitleRail title="Unseen & ready to discover" videos={freshPicks} variant="rail" />
-                  <TitleRail title="Top-rated local picks" videos={topRatedLocalPicks} variant="rail" />
-                  <TitleRail title="Live now" videos={liveVideos} variant="rail" />
-                  <TitleRail title="New this week" videos={newThisWeek} variant="rail" />
+                  {!homeRecommendationsReady && <div className="mb-8 flex min-h-12 items-center gap-3 rounded-lg bg-elevated/70 px-4 py-3 text-sm text-muted shadow-border" role="status" aria-live="polite"><LoaderCircle className="size-4 animate-spin text-accent"/>Preparing recommendations after the first screen…</div>}
+                  {homeRecommendationsReady && <><RatingStreakCard /><TitleRail title="Recently added from your folders" reason="Fresh additions from your local folders." videos={homeLocalRecent} variant="rail" />
+                  <TitleRail title="Unseen & ready to discover" reason="Less-played titles, rotated so familiar picks do not take over." videos={freshPicks} variant="rail" />
+                  <TitleRail title="Top-rated local picks" reason="Built from your ratings, likes, and saved favorites." videos={topRatedLocalPicks} variant="rail" />
+                  <TitleRail title="Live now" reason="Channels confirmed live in the latest check." videos={liveVideos} variant="rail" />
+                  <TitleRail title="New this week" reason="Recently published or added from your saved sources." videos={newThisWeek} variant="rail" />
                   <TitleRail
                     title={follows.length ? "Latest from your channels" : "Fresh from YouTube"}
+                    reason="The newest uploads from creators you follow."
                     videos={homeLatestChannels}
                     variant="rail"
                   />
                   <Button className="mb-8" variant="secondary" onClick={() => setHomeExpanded((value) => !value)}>{homeExpanded ? "Show fewer home shelves" : "Show more home shelves"}</Button>
                   {homeExpanded && <>
-                    <TitleRail title="Continue watching" videos={continueVideos} variant="rail" />
-                    <TitleRail title="From YouTube" videos={youtubeVideos.filter((video) => !video.isSample)} variant="rail" />
-                    <TitleRail title="Twitch" videos={twitchVideos.filter((video) => !video.isSample && !isOfflineChannelCard(video))} variant="rail" />
+                    <TitleRail title="Continue watching" reason="Items with a saved, unfinished watch position." videos={continueVideos} variant="rail" />
+                    <TitleRail title="From YouTube" reason="Your saved YouTube channel cache." videos={youtubeVideos.filter((video) => !video.isSample)} variant="rail" />
+                    <TitleRail title="Twitch" reason="Live and archived videos from your followed Twitch creators." videos={twitchVideos.filter((video) => !video.isSample && !isOfflineChannelCard(video))} variant="rail" />
                     <TitleRail title="Every local source" videos={homeLocalRecent} variant="rail" />
-                    <TitleRail title="Favorites" videos={favoriteVideos} variant="rail" />
+                    <TitleRail title="Favorites" reason="Titles you explicitly saved." videos={favoriteVideos} variant="rail" />
                     <TitleRail title="Short films & quick watches" videos={videos.filter((video) => !video.isSample && (video.collection === "shorts" || (video.duration ?? 0) > 0 && (video.duration ?? 0) < 1800)).slice(0, 18)} variant="rail" />
                     <TitleRail title="Browse by genre" videos={moviesByGenre.filter((video) => !video.isSample).slice(0, 24)} variant="rail" />
                     <TitleRail title="History" videos={historyVideos} variant="rail" playedAt={playedAt} />
                     {publicFolders.slice(0, 12).map((folder) => <TitleRail key={folder.id} title={`${folder.name} · local source`} videos={videos.filter((v) => v.folderId === folder.id).slice(0, 24)} variant="rail" onTitleClick={() => setSource(folder.id)} />)}
-                  </>}
+                  </>}</>}
                 </>
               )}
 
               {sourceId === "youtube" && browsing && (
                 <>
-                  <section className="mb-7 rounded-xl bg-elevated p-5 shadow-border sm:p-6"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Discovery desk</p><h1 className="mt-2 font-display text-4xl text-fg">YouTube, tuned to you.</h1><p className="mt-2 max-w-2xl text-sm text-muted">Fresh uploads are ordered by YouTube’s published date, not title. Alerts only fire for uploads published within the last 14 days, so importing an older channel does not flood your notices. {follows.filter((channel) => channel.kind === "youtube").length} channel{follows.filter((channel) => channel.kind === "youtube").length === 1 ? "" : "s"} tracked locally · {youtubeVideos.length.toLocaleString()} cached videos.</p><p className="mt-2 text-xs text-accent">{remoteCheckedAt ? `Automatic refresh last checked ${new Date(remoteCheckedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Automatic refresh will begin after the first channel check."}{remoteRefreshStatus ? ` · last batch: ${remoteRefreshStatus.refreshed}/${remoteRefreshStatus.checked} channels refreshed, ${remoteRefreshStatus.youtube.toLocaleString()} YouTube entries returned${remoteRefreshStatus.failed ? `, ${remoteRefreshStatus.failed} unavailable` : ""}` : ""}</p><div className="mt-4 flex flex-wrap gap-2"><Button size="sm" variant="secondary" disabled={channelRefreshing === "youtube-refresh"} onClick={() => void (async () => { setChannelRefreshing("youtube-refresh"); try { const result = await refreshFollows(); pushNotice({ title: "YouTube refresh complete", body: `${result.newVideos.filter((video) => video.remote?.kind === "youtube").length} new YouTube video${result.newVideos.filter((video) => video.remote?.kind === "youtube").length === 1 ? "" : "s"} found.`, kind: "youtube" }); } finally { setChannelRefreshing(""); } })()}>{channelRefreshing === "youtube-refresh" ? "Refreshing YouTube…" : "Refresh now"}</Button><span className="self-center text-xs text-muted">Saved channels retry in rotating background batches; each result adds to this cached count.</span></div></section>
+                  <section className="mb-7 rounded-xl bg-elevated p-5 shadow-border sm:p-6"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Discovery desk</p><h1 className="mt-2 font-display text-4xl text-fg">YouTube, tuned to you.</h1><p className="mt-2 max-w-2xl text-sm text-muted">Fresh uploads are ordered by YouTube’s published date, not title. Background cache pulls are quiet; only an explicit refresh reports its result. {follows.filter((channel) => channel.kind === "youtube").length} channel{follows.filter((channel) => channel.kind === "youtube").length === 1 ? "" : "s"} tracked locally · {youtubeVideos.length.toLocaleString()} cached videos.</p><p className="mt-2 text-xs text-accent">{remoteCheckedAt ? `Automatic refresh last checked ${new Date(remoteCheckedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Automatic refresh will begin after the first channel check."}{remoteRefreshStatus ? ` · last batch: ${remoteRefreshStatus.refreshed}/${remoteRefreshStatus.checked} channels refreshed, ${remoteRefreshStatus.youtube.toLocaleString()} YouTube entries returned${remoteRefreshStatus.failed ? `, ${remoteRefreshStatus.failed} unavailable` : ""}` : ""}</p><div className="mt-4 flex flex-wrap gap-2"><Button size="sm" variant="secondary" disabled={channelRefreshing === "youtube-refresh"} onClick={() => void (async () => { setChannelRefreshing("youtube-refresh"); try { const result = await refreshFollows(); pushNotice({ title: "YouTube refresh complete", body: `${result.newVideos.filter((video) => video.remote?.kind === "youtube").length} new YouTube video${result.newVideos.filter((video) => video.remote?.kind === "youtube").length === 1 ? "" : "s"} found.`, kind: "youtube" }); } finally { setChannelRefreshing(""); } })()}>{channelRefreshing === "youtube-refresh" ? "Refreshing YouTube…" : "Refresh now"}</Button><Button size="sm" variant="ghost" onClick={() => setYoutubeHealthVisible((value) => !value)}>{youtubeHealthVisible ? "Hide channel health" : "Channel health"}</Button><span className="self-center text-xs text-muted">Saved channels retry in rotating background batches; each result adds to this cached count.</span></div>{youtubeHealthVisible && <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{youtubeHealth.map((channel) => <article key={channel.id} className="rounded-sm bg-bg/45 p-3"><p className="truncate text-sm font-medium text-fg">{channel.title}</p><p className="mt-1 text-xs text-muted">{channel.cached.toLocaleString()} cached · last result {channel.lastResponseCount ?? 0} rows</p><p className="mt-1 text-xs text-muted">{channel.newest ? `Newest ${new Date(channel.newest).toLocaleDateString()}` : "No published item cached"} · {channel.lastCheckedAt ? `checked ${new Date(channel.lastCheckedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "not checked yet"}</p><p className="mt-1 text-xs text-muted">{channel.retryAt && channel.retryAt > Date.now() ? `Retry ${new Date(channel.retryAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Provider ready"}</p></article>)}</div>}</section>
                   <TitleRail title="Latest uploads" videos={filteredYoutube} variant="rail" />
                   {!youtubeExploreVisible && <section className="mb-6 rounded-xl border border-border bg-surface p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Fast start</p><h2 className="mt-2 font-display text-2xl text-fg">Open YouTube fast, then deepen the catalog when you want it.</h2><p className="mt-1 text-sm text-muted">Recommendations, artwork-heavy discovery shelves, tag filters, and the full grid wait until requested. Your newest uploads are ready immediately.</p><Button className="mt-4" variant="secondary" onClick={() => setYoutubeExploreVisible(true)}>Explore recommendations and full catalog</Button></section>}
-                  {youtubeExploreVisible && <><TitleRail title="Trending in your tracked channels" videos={trendingYoutube} variant="rail" /><TitleRail title="New to you on YouTube" videos={freshPicks.filter((video) => video.remote?.kind === "youtube" && (youtubeTagFilter === "all" || (tags[video.id] ?? []).includes(youtubeTagFilter)))} variant="rail" /><TitleRail title="More from your rated YouTube" videos={relatedYoutube.filter((video) => youtubeTagFilter === "all" || (tags[video.id] ?? []).includes(youtubeTagFilter))} variant="rail" /><TitleRail title="Quick picks" videos={filteredYoutube.filter((video) => (video.duration ?? 0) > 0 && (video.duration ?? 0) < 1200)} variant="rail" /><div className="mb-5 flex flex-wrap gap-2"><Button size="sm" variant={youtubeTagFilter === "all" ? "default" : "secondary"} onClick={() => setYoutubeTagFilter("all")}>All tags</Button>{channelTagShelves.youtube.map((shelf) => <Button key={shelf.tag} size="sm" variant={youtubeTagFilter === shelf.tag ? "default" : "secondary"} onClick={() => setYoutubeTagFilter(shelf.tag)}>#{shelf.tag} · {shelf.videos.length}</Button>)}</div>{youtubeTagFilter !== "all" && <p className="-mt-2 mb-5 text-xs text-accent">Filtering every YouTube shelf and the full catalog by #{youtubeTagFilter} · {filteredYoutube.length.toLocaleString()} matching videos.</p>}<section className="mb-6 rounded-xl border border-border bg-surface p-5"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Creator discovery</p><h2 className="mt-2 font-display text-2xl text-fg">Outside your known follows.</h2><p className="mt-1 text-sm text-muted">Discovery stays in its own shelf so saved channels never get mixed with suggestions. Follow adds a channel to your saved refresh list.</p><div className="mt-4"><TitleRail title="Explore new YouTube" videos={youtubeDiscovery} variant="rail" /></div><div className="mt-4 flex flex-wrap gap-2">{[["Kurzgesagt", "kurzgesagt"], ["Veritasium", "veritasium"], ["PBS Space Time", "pbsspacetime"]].filter(([, handle]) => !follows.some((channel) => channel.kind === "youtube" && channel.handle.toLowerCase() === handle)).map(([label, handle]) => <Button key={handle} size="sm" variant="secondary" disabled={channelRefreshing === handle} onClick={() => void (async () => { setChannelRefreshing(handle); try { await followRemoteQuery(handle, "youtube"); } finally { setChannelRefreshing(""); } })()}>{channelRefreshing === handle ? "Checking…" : `Follow ${label}`}</Button>)}</div></section>{!youtubeDeepVisible && <section className="mb-6 rounded-xl border border-border bg-surface p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Deep discovery</p><h2 className="mt-2 font-display text-2xl text-fg">Browse creator and topic shelves.</h2><p className="mt-1 text-sm text-muted">These shelves remain optional so opening YouTube stays responsive even with a very large archive.</p><Button className="mt-4" variant="secondary" onClick={() => setYoutubeDeepVisible(true)}>Load creator and topic shelves</Button></section>}{youtubeDeepVisible && <>{[...new Set(newestYoutube.map((video) => video.remote?.channelName).filter(Boolean))].slice(0, 16).map((channel) => <TitleRail key={channel} title={`From ${channel}`} videos={newestYoutube.filter((video) => video.remote?.channelName === channel)} variant="rail" />)}{channelTagShelves.youtube.map((shelf) => <TitleRail key={`youtube-tag-${shelf.tag}`} title={`YouTube · ${shelf.tag}`} videos={shelf.videos} variant="rail" />)}</>}<PosterGrid videos={filteredYoutube} /></>}
+                  {youtubeExploreVisible && <><TitleRail title="Trending in your tracked channels" videos={trendingYoutube} variant="rail" /><TitleRail title="New to you on YouTube" videos={freshPicks.filter((video) => video.remote?.kind === "youtube" && (youtubeTagFilter === "all" || topicsForVideo(video, tags[video.id]).includes(youtubeTagFilter)))} variant="rail" /><TitleRail title="More from your rated YouTube" videos={relatedYoutube.filter((video) => youtubeTagFilter === "all" || topicsForVideo(video, tags[video.id]).includes(youtubeTagFilter))} variant="rail" /><TitleRail title="Quick picks" videos={filteredYoutube.filter((video) => (video.duration ?? 0) > 0 && (video.duration ?? 0) < 1200)} variant="rail" /><div className="mb-5 flex flex-wrap gap-2"><Button size="sm" variant={youtubeTagFilter === "all" ? "default" : "secondary"} onClick={() => setYoutubeTagFilter("all")}>All tags</Button>{channelTagShelves.youtube.map((shelf) => <Button key={shelf.tag} size="sm" variant={youtubeTagFilter === shelf.tag ? "default" : "secondary"} onClick={() => setYoutubeTagFilter(shelf.tag)}>#{shelf.tag} · {shelf.videos.length}</Button>)}</div>{youtubeTagFilter !== "all" && <p className="-mt-2 mb-5 text-xs text-accent">Filtering every YouTube shelf and the full catalog by #{youtubeTagFilter} · {filteredYoutube.length.toLocaleString()} matching videos.</p>}<section className="mb-6 rounded-xl border border-border bg-surface p-5"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Creator discovery</p><h2 className="mt-2 font-display text-2xl text-fg">Outside your known follows.</h2><p className="mt-1 text-sm text-muted">Discovery stays in its own shelf so saved channels never get mixed with suggestions. Follow adds a channel to your saved refresh list.</p><div className="mt-4"><TitleRail title="Explore new YouTube" videos={youtubeDiscovery} variant="rail" /></div><div className="mt-4 flex flex-wrap gap-2">{[["Kurzgesagt", "kurzgesagt"], ["Veritasium", "veritasium"], ["PBS Space Time", "pbsspacetime"]].filter(([, handle]) => !follows.some((channel) => channel.kind === "youtube" && channel.handle.toLowerCase() === handle)).map(([label, handle]) => <Button key={handle} size="sm" variant="secondary" disabled={channelRefreshing === handle} onClick={() => void (async () => { setChannelRefreshing(handle); try { await followRemoteQuery(handle, "youtube"); } finally { setChannelRefreshing(""); } })()}>{channelRefreshing === handle ? "Checking…" : `Follow ${label}`}</Button>)}</div></section>{!youtubeDeepVisible && <section className="mb-6 rounded-xl border border-border bg-surface p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Deep discovery</p><h2 className="mt-2 font-display text-2xl text-fg">Browse creator and topic shelves.</h2><p className="mt-1 text-sm text-muted">These shelves remain optional so opening YouTube stays responsive even with a very large archive.</p><Button className="mt-4" variant="secondary" onClick={() => setYoutubeDeepVisible(true)}>Load creator and topic shelves</Button></section>}{youtubeDeepVisible && <>{[...new Set(newestYoutube.map((video) => video.remote?.channelName).filter(Boolean))].slice(0, 16).map((channel) => <TitleRail key={channel} title={`From ${channel}`} videos={newestYoutube.filter((video) => video.remote?.channelName === channel)} variant="rail" />)}{channelTagShelves.youtube.map((shelf) => <TitleRail key={`youtube-tag-${shelf.tag}`} title={`YouTube · ${shelf.tag}`} videos={shelf.videos} variant="rail" />)}</>}<PosterGrid videos={filteredYoutube} /></>}
                   <ConnectPanel key="youtube-imports" defaultKind="youtube" lockedKind="youtube" />
                 </>
               )}
@@ -748,7 +860,7 @@ export function LibraryApp() {
               {sourceId === "twitch" && browsing && (
                 <>
                   <section className="mb-7 rounded-xl bg-elevated p-5 shadow-border sm:p-6"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Live desk</p><h1 className="mt-2 font-display text-4xl text-fg">Twitch, live first.</h1><p className="mt-2 max-w-2xl text-sm text-muted">Sort live streams and VODs by what matters right now. {follows.filter((channel) => channel.kind === "twitch").length} channel{follows.filter((channel) => channel.kind === "twitch").length === 1 ? "" : "s"} tracked locally. A different rotating batch checks every minute; a successful check removes stale live cards.</p><p className="mt-2 text-xs text-accent">{remoteCheckedAt ? `Live state checked ${new Date(remoteCheckedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Live state has not been checked yet."} · {sortedTwitch.filter((video) => video.remote?.live).length} live · {twitchVodPicks.length} VODs · {twitchClips.length} clips{remoteRefreshStatus ? ` · last batch returned ${remoteRefreshStatus.twitch.toLocaleString()} VODs from ${remoteRefreshStatus.refreshed}/${remoteRefreshStatus.checked} checked channels${remoteRefreshStatus.failed ? ` (${remoteRefreshStatus.failed} unavailable)` : ""}` : ""}</p><div className="mt-4 flex flex-wrap gap-2">{(["live", "viewers", "name"] as const).map((sort) => <Button key={sort} size="sm" variant={twitchSort === sort ? "default" : "secondary"} onClick={() => setTwitchSort(sort)}>{sort === "live" ? "Live first" : sort === "viewers" ? "Most viewers" : "A–Z"}</Button>)}<Button size="sm" variant="secondary" onClick={() => void refreshFollows()}>Refresh next live batch</Button>{follows.filter((channel) => channel.kind === "twitch").slice(0, 12).map((channel) => <Button key={channel.id} size="sm" variant="ghost" disabled={channelRefreshing === channel.id} onClick={() => void (async () => { setChannelRefreshing(channel.id); try { await followRemoteQuery(channel.handle, "twitch"); } finally { setChannelRefreshing(""); } })()}>{channelRefreshing === channel.id ? "Checking…" : `Refresh ${channel.title}`}</Button>)}</div></section>
-                  <section className="mb-5 rounded-lg border border-border bg-surface p-4 shadow-border"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Archive depth</p><p className="mt-1 text-sm text-fg">{twitchArchiveDepth.total.toLocaleString()} cached VODs across {twitchArchiveDepth.channels.length} channels · {twitchArchiveDepth.sparse} sparse channel{twitchArchiveDepth.sparse === 1 ? "" : "s"} under 24 VODs.</p><p className="mt-1 text-xs text-muted">Background checks use a fast recent-VOD window. Focused pulls request deeper public pages when Twitch allows them; partial provider responses always preserve the cached archive.</p></div><Button size="sm" variant="secondary" disabled={channelRefreshing === "twitch-archives"} onClick={() => void (async () => { setChannelRefreshing("twitch-archives"); try { await refreshFollows(); } finally { setChannelRefreshing(""); } })()}>{channelRefreshing === "twitch-archives" ? "Refreshing archives…" : "Refresh Twitch archives"}</Button></div>{Object.entries(remoteRetryAt).filter(([id, retryAt]) => id.startsWith("tw:") && retryAt > Date.now()).map(([id, retryAt]) => <p key={id} className="mt-2 rounded-sm bg-bg/45 px-3 py-2 text-xs text-muted">Automatic retry for {follows.find((channel) => channel.id === id)?.title ?? "a Twitch channel"} at {new Date(retryAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })} · use its focused Refresh button to override.</p>)}{twitchArchiveDepth.channels.filter((channel) => channel.count < 24).slice(0, 12).map((channel) => <p key={channel.name} className="mt-2 rounded-sm bg-bg/45 px-3 py-2 text-xs text-muted">{channel.name} · {channel.count} cached VODs · public archive may be limited or still warming</p>)}</section>
+                  <section className="mb-5 rounded-lg border border-border bg-surface p-4 shadow-border"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Archive coverage</p><p className="mt-1 text-sm text-fg">{twitchArchiveDepth.total.toLocaleString()} cached VODs across {twitchArchiveDepth.channels.length} channels · {twitchArchiveDepth.sparse} sparse channel{twitchArchiveDepth.sparse === 1 ? "" : "s"} under 24 VODs.</p><p className="mt-1 text-xs text-muted">Background checks use a fast recent-VOD window. Focused pulls queue up to three creators and run serially, so live-state checks retain their budget. Partial responses preserve the existing archive.</p></div><Button size="sm" variant="secondary" disabled={channelRefreshing === "twitch-archives"} onClick={() => void (async () => { setChannelRefreshing("twitch-archives"); try { await refreshFollows(); } finally { setChannelRefreshing(""); } })()}>{channelRefreshing === "twitch-archives" ? "Refreshing archives…" : "Refresh Twitch archives"}</Button></div>{archiveQueued.length > 0 && <p className="mt-3 rounded-sm bg-bg/45 px-3 py-2 text-xs text-accent">Focused archive queue · {archiveQueued.length} waiting. Each pull starts after the current creator finishes.</p>}<div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{twitchArchiveDepth.channels.map((channel) => <div key={channel.id} className="rounded-sm bg-bg/45 p-3"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-sm font-medium text-fg">{channel.name}</p><p className="mt-1 text-xs text-muted">{channel.count.toLocaleString()} cached VODs · {channel.clips} confirmed clip{channel.clips === 1 ? "" : "s"} · last result {channel.lastResponseCount ?? 0} rows</p><p className="mt-1 text-xs text-muted">{channel.oldest ? `${new Date(channel.oldest).toLocaleDateString()} – ${new Date(channel.newest).toLocaleDateString()}` : "No archive dates yet"} · public depth may be limited</p><p className="mt-1 text-xs text-muted">{channel.lastCheckedAt ? `Checked ${new Date(channel.lastCheckedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "Not checked yet"}{channel.retryAt && channel.retryAt > Date.now() ? ` · cooldown until ${new Date(channel.retryAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}` : " · ready"}</p></div><Button size="sm" variant="secondary" disabled={channelRefreshing === channel.id || archiveQueued.includes(channel.id) || archiveQueued.length >= 3} onClick={() => queueArchivePull(channel.id, channel.id.replace(/^tw:/, ""))}>{channelRefreshing === channel.id ? "Pulling…" : archiveQueued.includes(channel.id) ? "Queued" : "Queue deep pull"}</Button></div></div>)}</div></section>
                   <div className="mb-5 flex flex-wrap gap-2">{[["all", "All Twitch"], ["favorites", "Favorites"], ["likes", "Liked"]].map(([value, label]) => <Button key={value} variant={twitchFilter === value ? "default" : "secondary"} onClick={() => setTwitchFilter(value)}>{label}{value === "all" ? "" : " · " + twitchVideos.filter((video) => value === "favorites" ? favorites[video.id] : likes[video.id]).length}</Button>)}</div>
                   <div className="mb-5 flex flex-wrap gap-2"><Button size="sm" variant={twitchTagFilter === "all" ? "default" : "secondary"} onClick={() => setTwitchTagFilter("all")}>All tags</Button>{channelTagShelves.twitch.map((shelf) => <Button key={shelf.tag} size="sm" variant={twitchTagFilter === shelf.tag ? "default" : "secondary"} onClick={() => setTwitchTagFilter(shelf.tag)}>#{shelf.tag} · {shelf.videos.length}</Button>)}</div>
                   {twitchFilter === "all" ? <><TitleRail title="Favorite Twitch videos" videos={favoriteTwitchPicks} variant="rail"/><TitleRail title="Liked on Twitch · discovery" videos={likedTwitchPicks} variant="rail"/></> : null}
@@ -765,7 +877,7 @@ export function LibraryApp() {
                   <TitleRail title="Clips & quick watches" videos={twitchClips} variant="rail" />
                   {channelTagShelves.twitch.map((shelf) => <TitleRail key={`twitch-tag-${shelf.tag}`} title={`Twitch · ${shelf.tag}`} videos={shelf.videos} variant="rail" />)}
                   </>}
-                  <PosterGrid videos={sortedTwitch.filter((video) => (twitchFilter === "all" || (twitchFilter === "favorites" ? favorites[video.id] : likes[video.id])) && (twitchTagFilter === "all" || (tags[video.id] ?? []).includes(twitchTagFilter)))} />
+                  <PosterGrid videos={sortedTwitch.filter((video) => (twitchFilter === "all" || (twitchFilter === "favorites" ? favorites[video.id] : likes[video.id])) && (twitchTagFilter === "all" || topicsForVideo(video, tags[video.id]).includes(twitchTagFilter)))} />
                   {!twitchVideos.length && (
                     <p className="text-sm text-muted">Add a channel from the follow manager below to fill this shelf.</p>
                   )}
@@ -912,9 +1024,50 @@ export function LibraryApp() {
                       </p>
                     </div>
                     {sourceId === "history" && history.length > 0 && (
-                      <div className="flex flex-wrap gap-2"><Button size="sm" variant={historyWindow === "all" ? "default" : "secondary"} onClick={() => setHistoryWindow("all")}>All time</Button><Button size="sm" variant={historyWindow === "day" ? "default" : "secondary"} onClick={() => setHistoryWindow("day")}>24 hours</Button><Button size="sm" variant={historyWindow === "week" ? "default" : "secondary"} onClick={() => setHistoryWindow("week")}>7 days</Button><Button variant="ghost" size="sm" onClick={clearHistory}>Clear history</Button></div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" variant={historyWindow === "all" ? "default" : "secondary"} onClick={() => setHistoryWindow("all")}>All time</Button>
+                        <Button size="sm" variant={historyWindow === "day" ? "default" : "secondary"} onClick={() => setHistoryWindow("day")}>24 hours</Button>
+                        <Button size="sm" variant={historyWindow === "week" ? "default" : "secondary"} onClick={() => setHistoryWindow("week")}>7 days</Button>
+                        <Button size="sm" variant="secondary" onClick={exportHistory}>Export visible</Button>
+                        <Button variant="ghost" size="sm" onClick={clearHistory}>Clear history</Button>
+                      </div>
                     )}
                   </div>
+                  {sourceId === "continue" && !query && (
+                    <section className="mb-5 rounded-lg border border-border bg-surface p-4 shadow-border" aria-label="Continue recovery details">
+                      <div className="flex flex-wrap items-baseline justify-between gap-3">
+                        <div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Resume recovery</p><p className="mt-1 text-sm text-muted">Continue uses a provider URL or approved local path when a catalog card changes, then keeps the newest credible mark.</p></div>
+                        <span className="text-xs text-subtle">{continueInsights.linked} ready to resume</span>
+                      </div>
+                      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                        <div className="rounded-md bg-elevated px-3 py-2"><p className="text-xs text-muted">Durable marks</p><p className="mt-1 font-display text-xl text-fg">{continueInsights.valid}</p></div>
+                        <div className="rounded-md bg-elevated px-3 py-2"><p className="text-xs text-muted">Stale, review-only</p><p className="mt-1 font-display text-xl text-fg">{continueInsights.stale}</p></div>
+                        <div className="rounded-md bg-elevated px-3 py-2"><p className="text-xs text-muted">Completion rule</p><p className="mt-1 text-sm font-medium text-fg">Local 96% · providers 98.5%</p></div>
+                      </div>
+                      <p className="mt-3 text-xs leading-5 text-subtle">Repair preview is non-destructive: invalid marks are rejected on recovery, while older marks remain visible for review and no file handle is reopened automatically.</p>
+                      {continueVideos.length > 0 && <div className="mt-4 border-t border-border pt-3"><p className="text-xs font-medium tracking-[0.12em] text-muted uppercase">Why these are here</p><div className="mt-2 grid gap-2">{continueVideos.slice(0, 8).map((video) => { const mark = resumeForVideo({ progress, resumeProgress }, video); const percent = mark ? Math.round(mark.t / mark.d * 100) : 0; return <button key={video.id} onClick={() => openVideo(video.id)} className="flex min-h-11 items-center gap-3 rounded-md border border-border px-3 text-left"><span className="shrink-0 rounded-full bg-accent/15 px-2 py-1 text-[11px] font-medium text-accent">{video.remote ? "Provider key" : "Local path"}</span><span className="min-w-0 flex-1 truncate text-sm text-fg">{video.name}</span><span className="shrink-0 text-xs text-muted">{percent}% · {mark ? new Date(mark.at).toLocaleString() : "awaiting mark"}</span></button>; })}</div></div>}
+                    </section>
+                  )}
+                  {sourceId === "history" && history.length > 0 && (
+                    <section className="mb-5 rounded-lg border border-border bg-surface p-4 shadow-border" aria-label="History controls">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="mr-1 text-xs font-medium tracking-[0.12em] text-muted uppercase">Activity source</span>
+                        {(["all", "open", "progress", "watch-room"] as const).map((kind) => (
+                          <Button key={kind} size="sm" variant={historySource === kind ? "default" : "secondary"} onClick={() => setHistorySource(kind)}>
+                            {kind === "all" ? "Everything" : kind === "open" ? "Direct opens" : kind === "progress" ? "Playback" : "Watch Room"}
+                          </Button>
+                        ))}
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+                        <label className="text-xs text-muted" htmlFor="history-retention">Keep activity</label>
+                        <select id="history-retention" value={historyRetention} onChange={(event) => setHistoryRetention(event.target.value as typeof historyRetention)} className="min-h-9 rounded-md border border-border bg-elevated px-2 text-sm text-fg">
+                          <option value="forever">Until I remove it</option><option value="week">7 days</option><option value="month">30 days</option><option value="year">1 year</option>
+                        </select>
+                        {historyRetention !== "forever" && <Button size="sm" variant="secondary" onClick={() => pruneHistory(historyRetentionCutoff)}>Remove older entries</Button>}
+                        <span className="text-xs text-subtle">Export first if you want a copy.</span>
+                      </div>
+                    </section>
+                  )}
                   {sourceId === "history" && historyTopTags.length > 0 && (
                     <div className="mb-5 rounded-lg bg-elevated px-4 py-3 shadow-border">
                       <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Historical interests</p>
@@ -928,6 +1081,30 @@ export function LibraryApp() {
                       <span>· {historyRecovery.sources.watchRoom} Watch Room</span>
                       <span>· {historyRecovery.sources.open} direct opens</span>
                     </div>
+                  )}
+                  {sourceId === "history" && history.length > 0 && (
+                    <section className="mb-5 rounded-lg bg-elevated px-4 py-3 shadow-border" aria-label="History privacy and recovery">
+                      <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Local record</p>
+                      <p className="mt-1 text-xs leading-5 text-muted">This device stores event time, source, optional playback position, and a provider URL only when available. Private and adult items remain behind the existing library gate.</p>
+                      <p className="mt-1 text-xs text-subtle">{historyOrphans ? `${historyOrphans} recovered event${historyOrphans === 1 ? "" : "s"} can still use a saved provider link after its card left the catalog.` : "Saved provider links are retained so an evicted card can be recovered."}</p>
+                    </section>
+                  )}
+                  {sourceId === "history" && history.length > 0 && (
+                    <section className="mb-5 rounded-lg border border-border bg-surface p-4 shadow-border" aria-label="Recent history activity">
+                      <div className="flex items-baseline justify-between gap-3"><p className="text-sm font-medium text-fg">Recent activity</p><p className="text-xs text-subtle">Times shown in your local timezone</p></div>
+                      <div className="mt-3 grid gap-2">
+                        {historyVisibleEntries.slice(0, 12).map((entry) => {
+                          const video = historyVideoById.get(entry.id);
+                          const label = entry.source === "watch-room" ? "Watch Room" : entry.source === "progress" ? "Playback" : "Direct open";
+                          return <button key={entry.eventId ?? `${entry.id}:${entry.at}:${entry.source ?? "open"}`} disabled={!video} onClick={() => video && openVideo(video.id)} className="flex min-h-11 items-center gap-3 rounded-md border border-border px-3 text-left disabled:cursor-default disabled:opacity-75">
+                            <span className="shrink-0 rounded-full bg-accent/15 px-2 py-1 text-[11px] font-medium text-accent">{label}</span>
+                            <span className="min-w-0 flex-1 truncate text-sm text-fg">{video?.name ?? "Recovered activity — source card unavailable"}</span>
+                            <time className="shrink-0 text-xs text-muted" dateTime={new Date(entry.at).toISOString()} title={new Date(entry.at).toISOString()}>{new Date(entry.at).toLocaleString()}</time>
+                          </button>;
+                        })}
+                      </div>
+                      {historyVisibleEntries.length === 0 && <p className="mt-3 text-sm text-muted">No activity matches this time and source filter. Try Everything or a longer time window; recovered cards appear when a saved provider URL is available.</p>}
+                    </section>
                   )}
                   {folders.find((folder) => folder.id === sourceId)?.photoCount ? <div className="mb-4 flex items-center justify-between gap-3 rounded-lg bg-elevated px-4 py-3 shadow-border"><p className="text-sm text-fg">This source also has {folders.find((folder) => folder.id === sourceId)?.photoCount} discovered photos.</p><Button size="sm" variant="secondary" onClick={() => { const folder = folders.find((item) => item.id === sourceId); if (folder) localStorage.setItem("reelcase.photos.source-filter", folder.name); setSource("photos"); }}>Browse this source’s photos</Button></div> : null}
                   {sourceId === "history" || sourceId === "continue" || query ? (
@@ -1016,4 +1193,5 @@ export function LibraryApp() {
     </div>
   );
 }
+
 

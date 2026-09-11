@@ -1,19 +1,20 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { Heart, Play, Tag, ThumbsUp, RefreshCw, Star, Users } from "lucide-react";
 import { cn, formatAgo, formatBytes, formatTime } from "@/lib/utils";
 import type { LibraryVideo } from "@/lib/videos/types";
-import { isLikelyPlayable, titleOf } from "@/lib/videos/types";
+import { hasFreshViewerCount, isLikelyPlayable, titleOf } from "@/lib/videos/types";
 import { useThumbs } from "@/lib/videos/thumbs";
 import { useLibrary } from "@/lib/videos/store";
 import { getRating, setRating as setMediaRating } from "@/lib/media-feedback";
 import { registerMountedCard } from "@/lib/render-budget";
+import { measureInteraction } from "@/lib/interaction-budget";
 
 type Variant = "grid" | "list" | "rail" | "poster";
 const EMPTY_TAGS: string[] = [];
 const artworkRepairRequested = new Set<string>();
 const remoteArtworkRepairRequested = new Set<string>();
 
-export function VideoCard({
+export const VideoCard = memo(function VideoCard({
   video,
   variant = "grid",
   index = 0,
@@ -90,6 +91,7 @@ export function VideoCard({
     });
   }, [failed, repairArtworkSource, retry, video]);
   const rate = (value: number) => {
+    measureInteraction("rating");
     setRating(value);
     // Keep the card responsive; the persisted feedback write is coalesced by
     // media-feedback so a quick sequence of ratings does not stall the rail.
@@ -215,10 +217,10 @@ export function VideoCard({
             ) : live ? (
               <>
                 {video.remote?.channelName ?? "Twitch"}
-                {video.remote?.viewers ? (
+                {hasFreshViewerCount(video.remote) ? (
                   <>
                     <span className="text-subtle"> · </span>
-                    {video.remote.viewers.toLocaleString()} watching
+                    {video.remote?.viewers?.toLocaleString()} watching
                   </>
                 ) : null}
               </>
@@ -323,4 +325,4 @@ export function VideoCard({
       </div>}
     </div>
   );
-}
+});

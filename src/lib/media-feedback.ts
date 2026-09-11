@@ -1,3 +1,5 @@
+import { recordRatingForStreak } from "./rating-streaks";
+
 type Feedback = { ratings: Record<string, number>; notes: Record<string, string>; creatorRatings: Record<string, number>; creatorLikes: Record<string, true>; tagLikes: Record<string, true> };
 const KEY = "reelcase.media-feedback.v1";
 let cached: Feedback | null = null;
@@ -6,6 +8,9 @@ let persistTimer: number | undefined;
 let lastRatingQueueMs = 0;
 let lastPersistMs = 0;
 let pendingWrites = 0;
+// Missing ratings are common in large libraries. Remember the legacy lookup
+// too, so recommendation passes never repeat synchronous storage reads.
+const legacyRatings = new Map<string, number>();
 
 function read(): Feedback {
   if (cached) return cached;
@@ -24,6 +29,19 @@ function persist() {
     pendingWrites = 0;
   }
 }
+
+/** Finish a queued rating write before a reload, tab close, or mobile app switch. */
+function flush() {
+  if (persistTimer !== undefined) window.clearTimeout(persistTimer);
+  persist();
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("pagehide", flush);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flush();
+  });
+}
 // Ratings are used on dense rails. Coalesce the JSON write so a star press
 // paints immediately instead of serializing the entire feedback archive on the
 // input frame. The in-memory version remains authoritative for this session.
@@ -41,11 +59,24 @@ function notifyChange() {
     window.dispatchEvent(new Event("reelcase:rating-change"));
   }, 48);
 }
-export function getRating(id: string): number { const value = read().ratings[id]; if (Number.isFinite(value)) return value; try { return Number(localStorage.getItem(`reelcase.rating.${id}`) ?? 0); } catch { return 0; } }
+export function getRating(id: string): number {
+  const value = read().ratings[id];
+  if (Number.isFinite(value)) return value;
+  if (typeof window === "undefined") return 0;
+  const known = legacyRatings.get(id);
+  if (known !== undefined) return known;
+  let legacy = 0;
+  try { legacy = Number(localStorage.getItem(`reelcase.rating.${id}`) ?? 0); } catch { /* session only */ }
+  const rating = Number.isFinite(legacy) ? legacy : 0;
+  legacyRatings.set(id, rating);
+  return rating;
+}
 export function setRating(id: string, rating: number) {
   const started = typeof performance !== "undefined" ? performance.now() : Date.now();
   const next = read();
   next.ratings[id] = Math.max(0, Math.min(5, Math.round(rating)));
+  legacyRatings.set(id, next.ratings[id]);
+  recordRatingForStreak(id, next.ratings[id]);
   write(next);
   notifyChange();
   lastRatingQueueMs = Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - started);

@@ -121,12 +121,29 @@ export type RemoteRef = {
   channelName?: string;
   live?: boolean;
   viewers?: number;
+  /** Epoch time of the provider response that supplied live metadata. */
+  observedAt?: number;
   /** Public provider view total when the source exposes one. */
   views?: number;
   embedUrl?: string;
   watchUrl?: string;
   previewUrl?: string;
 };
+
+export const VIEWER_FRESHNESS_MS = 5 * 60_000;
+
+/** Old cached viewer counts are intentionally not treated as current demand. */
+export function hasFreshViewerCount(remote?: RemoteRef, now = Date.now()) {
+  return Boolean(
+    remote
+      && typeof remote.viewers === "number"
+      && Number.isFinite(remote.viewers)
+      && remote.viewers >= 0
+      && typeof remote.observedAt === "number"
+      && now >= remote.observedAt
+      && now - remote.observedAt <= VIEWER_FRESHNESS_MS,
+  );
+}
 
 export type FollowedChannel = {
   id: string;
@@ -185,7 +202,12 @@ export type SourceId =
 
 export type ProgressMark = { t: number; d: number; at: number };
 
+/** A recovery-safe resume point retained under stable provider or local identities. */
+export type ResumeMark = ProgressMark;
+
 export type HistoryEntry = {
+  /** Monotonic, device-local event identity used to replay the append-only journal safely. */
+  eventId?: string;
   id: string;
   at: number;
   /** Provider or local URL retained so a remote history entry remains useful if its card is later evicted. */

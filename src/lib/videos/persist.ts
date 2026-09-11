@@ -5,6 +5,7 @@ import type {
   GroupBy,
   HistoryEntry,
   LibraryVideo,
+  ResumeMark,
   SizeFilter,
   SortDir,
   SortKey,
@@ -19,6 +20,36 @@ const ACTIVITY_STORE = "activity";
 const ACTIVITY_JOURNAL_STORE = "activity-journal";
 const PREFS_KEY = "reelcase.prefs.v4";
 const LEGACY_KEYS = ["reelcase.prefs.v3", "reelcase.prefs.v2", "reelcase.prefs.v1"];
+let durablePrefs: Prefs | null = null;
+let prefsWrites: Promise<void> = Promise.resolve();
+
+export async function restoreDurablePrefs(): Promise<void> {
+  const db = await openDb();
+  try {
+    const saved = await new Promise<Prefs | undefined>((resolve, reject) => {
+      const req = db.transaction(ACTIVITY_STORE).objectStore(ACTIVITY_STORE).get("preferences");
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    if (saved) durablePrefs = saved;
+  } finally { db.close(); }
+}
+
+export function waitForPrefsWrites() { return prefsWrites; }
+const TAG_EDITS_KEY = "reelcase.tag-edits.v1";
+const HISTORY_PENDING_KEY = "reelcase.history-pending.v1";
+function readPending<T>(key: string, fallback: T): T {
+  try { return JSON.parse(localStorage.getItem(key) ?? "null") ?? fallback; }
+  catch { return fallback; }
+}
+export function saveTagEdit(id: string, tags: string[]) {
+  const edits = readPending<Record<string, string[]>>(TAG_EDITS_KEY, {});
+  edits[id] = tags;
+  try { localStorage.setItem(TAG_EDITS_KEY, JSON.stringify(edits)); } catch { /* IndexedDB still saves the full record. */ }
+}
+export function restoreTagEdits(tags: Record<string, string[]>) {
+  return { ...tags, ...readPending<Record<string, string[]>>(TAG_EDITS_KEY, {}) };
+}
 
 export type StoredDir = {
   id: string;
@@ -35,6 +66,7 @@ export type Prefs = {
   tags: Record<string, string[]>;
   categories: Record<string, string>;
   progress: Record<string, { t: number; d: number; at: number }>;
+  resumeProgress?: Record<string, ResumeMark>;
   history: HistoryEntry[];
   viewCounts?: Record<string, number>;
   view: "grid" | "list";
@@ -235,7 +267,7 @@ export async function saveRemoteSnapshot(snapshot: RemoteSnapshot): Promise<void
   }); } finally { db.close(); }
 }
 
-export type ActivitySnapshot = Pick<Prefs, "history" | "progress"> & { viewCounts: Record<string, number>; savedAt: number };
+export type ActivitySnapshot = Pick<Prefs, "history" | "progress" | "resumeProgress"> & { viewCounts: Record<string, number>; savedAt: number };
 export async function loadActivitySnapshot(): Promise<ActivitySnapshot | undefined> {
   const db = await openDb();
   try {
@@ -259,11 +291,15 @@ export async function saveActivitySnapshot(snapshot: ActivitySnapshot): Promise<
 
 /** Append-only playback journal: a snapshot write can never erase an earlier event. */
 export async function appendActivityJournal(entry: HistoryEntry): Promise<void> {
+  const pending = readPending<HistoryEntry[]>(HISTORY_PENDING_KEY, []);
+  try { localStorage.setItem(HISTORY_PENDING_KEY, JSON.stringify([entry, ...pending].slice(0, 50))); } catch { /* journal remains primary */ }
   const db = await openDb();
   try {
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(ACTIVITY_JOURNAL_STORE, "readwrite");
-      tx.objectStore(ACTIVITY_JOURNAL_STORE).put({ key: `${entry.id}:${entry.at}:${entry.source ?? "open"}`, entry });
+      // eventId survives a snapshot race and makes journal replay idempotent.
+      // Old entries retain the deterministic legacy key during migration.
+      tx.objectStore(ACTIVITY_JOURNAL_STORE).put({ key: entry.eventId ?? `${entry.id}:${entry.at}:${entry.source ?? "open"}`, entry });
       tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
     });
   } finally { db.close(); }
@@ -273,17 +309,38 @@ export async function loadActivityJournal(): Promise<HistoryEntry[]> {
   try {
     return await new Promise((resolve, reject) => {
       const req = db.transaction(ACTIVITY_JOURNAL_STORE, "readonly").objectStore(ACTIVITY_JOURNAL_STORE).getAll();
-      req.onsuccess = () => resolve((req.result as Array<{ entry?: HistoryEntry }>).map((row) => row.entry).filter((entry): entry is HistoryEntry => Boolean(entry)));
+      req.onsuccess = () => resolve([...(req.result as Array<{ entry?: HistoryEntry }>).map((row) => row.entry).filter((entry): entry is HistoryEntry => Boolean(entry)), ...readPending<HistoryEntry[]>(HISTORY_PENDING_KEY, [])]);
       req.onerror = () => reject(req.error);
     });
   } finally { db.close(); }
 }
 export async function clearActivityJournal(): Promise<void> {
+  try { localStorage.removeItem(HISTORY_PENDING_KEY); } catch { /* optional fallback */ }
   const db = await openDb();
   try {
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(ACTIVITY_JOURNAL_STORE, "readwrite");
       tx.objectStore(ACTIVITY_JOURNAL_STORE).clear();
+      tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
+    });
+  } finally { db.close(); }
+}
+
+export async function pruneActivityJournal(before: number): Promise<void> {
+  try { localStorage.setItem(HISTORY_PENDING_KEY, JSON.stringify(readPending<HistoryEntry[]>(HISTORY_PENDING_KEY, []).filter((entry) => entry.at >= before))); } catch { /* optional fallback */ }
+  const db = await openDb();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(ACTIVITY_JOURNAL_STORE, "readwrite");
+      const store = tx.objectStore(ACTIVITY_JOURNAL_STORE);
+      const req = store.openCursor();
+      req.onsuccess = () => {
+        const cursor = req.result;
+        if (!cursor) return;
+        const entry = (cursor.value as { entry?: HistoryEntry }).entry;
+        if (entry && entry.at < before) cursor.delete();
+        cursor.continue();
+      };
       tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
     });
   } finally { db.close(); }
@@ -324,6 +381,7 @@ function normalize(raw: Record<string, unknown>): Prefs {
     tags: (raw.tags as Record<string, string[]> | undefined) ?? {},
     categories: (raw.categories as Record<string, string> | undefined) ?? {},
     progress: (raw.progress as Prefs["progress"]) ?? {},
+    resumeProgress: (raw.resumeProgress as Prefs["resumeProgress"]) ?? {},
     history: (raw.history as Prefs["history"]) ?? [],
     view: (raw.view as Prefs["view"]) ?? "grid",
     sort,
@@ -345,6 +403,7 @@ function normalize(raw: Record<string, unknown>): Prefs {
 
 export function loadPrefs(): Prefs | null {
   if (typeof window === "undefined") return null;
+  if (durablePrefs) return durablePrefs;
   try {
     const raw = localStorage.getItem(PREFS_KEY);
     if (raw) return normalize(JSON.parse(raw) as Record<string, unknown>);
@@ -360,9 +419,23 @@ export function loadPrefs(): Prefs | null {
 
 export function savePrefs(prefs: Prefs) {
   if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
-  } catch {
-    // quota
-  }
+  durablePrefs = prefs;
+  // Keep large metadata out of synchronous, quota-limited localStorage.
+  // Ordered transactions prevent an older edit overwriting a newer one.
+  prefsWrites = prefsWrites.catch(() => undefined).then(async () => {
+    const db = await openDb();
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(ACTIVITY_STORE, "readwrite");
+        tx.objectStore(ACTIVITY_STORE).put(prefs, "preferences");
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error);
+      });
+    } finally { db.close(); }
+  });
+  void prefsWrites.catch(() => {
+    try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); }
+    catch { window.dispatchEvent(new CustomEvent("reelcase:save-error")); }
+  });
 }

@@ -5,7 +5,8 @@ import { cn } from "@/lib/utils";
 import { titleOf, type LibraryVideo } from "@/lib/videos/types";
 import { useLibrary } from "@/lib/videos/store";
 import { useThumbs } from "@/lib/videos/thumbs";
-import { useEffect, useState } from "react";
+import { markFirstShelf } from "@/lib/first-shelf-trace";
+import { useEffect, useRef, useState } from "react";
 
 const RAIL_SIZES = [8, 16, 32, 48];
 const GRID_SIZES = [24, 48, 96, 144];
@@ -75,29 +76,55 @@ export function TitleRail({
   variant = "poster",
   playedAt,
   onTitleClick,
+  reason,
 }: {
   title: string;
   videos: LibraryVideo[];
   variant?: "poster" | "rail";
   playedAt?: Record<string, number>;
   onTitleClick?: () => void;
+  /** Human explanation for a recommendation shelf; never exposes provider tags. */
+  reason?: string;
 }) {
+  const shelfRef = useRef<HTMLElement>(null);
+  const scrollLeft = useRef(0);
+  const [nearViewport, setNearViewport] = useState(false);
+  const [shelfHeight, setShelfHeight] = useState<number>();
+  useEffect(() => {
+    const shelf = shelfRef.current;
+    if (!shelf || !videos.length) return;
+    if (typeof IntersectionObserver === "undefined") { setNearViewport(true); return; }
+    const observer = new IntersectionObserver(([entry]) => {
+      // Never discard a keyboard user's active card while it has focus.
+      setNearViewport(entry.isIntersecting || shelf.contains(document.activeElement));
+    }, { rootMargin: "400px 0px" });
+    observer.observe(shelf);
+    return () => observer.disconnect();
+  }, [Boolean(videos.length)]);
+  useEffect(() => {
+    const shelf = shelfRef.current;
+    if (!shelf || !nearViewport) return;
+    const observer = new ResizeObserver(() => setShelfHeight(shelf.getBoundingClientRect().height));
+    observer.observe(shelf);
+    return () => observer.disconnect();
+  }, [nearViewport]);
   const [limit, setLimit] = useState(() => savedRenderBudget("reelcase.home-rail-limit", RAIL_SIZES, 8));
   useEffect(() => {
     const sync = () => setLimit(savedRenderBudget("reelcase.home-rail-limit", RAIL_SIZES, 8));
     window.addEventListener("reelcase:render-settings", sync);
     return () => window.removeEventListener("reelcase:render-settings", sync);
   }, []);
+  useEffect(() => { if (nearViewport && videos.length) markFirstShelf(title, Math.min(videos.length, limit)); }, [nearViewport, limit, title, videos.length]);
   if (!videos.length) return null;
   const shown = videos.slice(0, limit);
   const endCaps = Math.max(0, Math.min(6, Math.min(limit, 8) - shown.length));
   return (
-    <section className="media-shelf mb-8">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        {onTitleClick ? <button type="button" onClick={onTitleClick} className="block min-w-0 truncate font-display text-xl text-fg hover:text-accent sm:text-2xl">{title} <span className="text-sm text-muted">Open source →</span></button> : <h2 className="min-w-0 truncate font-display text-xl text-fg sm:text-2xl">{title}</h2>}
+    <section ref={shelfRef} className="media-shelf mb-8" style={!nearViewport ? { minHeight: shelfHeight ?? (variant === "poster" ? 320 : 250) } : undefined}>
+      <div className="mb-3 flex items-end justify-between gap-3">
+        <div className="min-w-0">{onTitleClick ? <button type="button" onClick={onTitleClick} className="block min-w-0 truncate font-display text-xl text-fg hover:text-accent sm:text-2xl">{title} <span className="text-sm text-muted">Open source →</span></button> : <h2 className="min-w-0 truncate font-display text-xl text-fg sm:text-2xl">{title}</h2>}{reason && <p className="mt-1 truncate text-xs text-muted">{reason}</p>}</div>
         {videos.length > limit && <Button size="sm" variant="ghost" className="shrink-0 text-xs" onClick={() => setLimit((value) => Math.min(videos.length, value + 16))}>Show 16 more · {videos.length - limit}</Button>}
       </div>
-      <div className="rail-scroll flex gap-3 overflow-x-auto pb-3 sm:gap-4">
+      {nearViewport && <div ref={(rail) => { if (rail) rail.scrollLeft = scrollLeft.current; }} onScroll={(event) => { scrollLeft.current = event.currentTarget.scrollLeft; }} className="rail-scroll flex gap-3 overflow-x-auto pb-3 sm:gap-4">
         {shown.map((video, i) => (
           <div
             key={video.id}
@@ -114,12 +141,15 @@ export function TitleRail({
         {Array.from({ length: endCaps }, (_, index) => (
           <div key={`end-cap-${index}`} aria-hidden="true" className={cn("shrink-0 rounded-md border border-border/50 bg-elevated/35", variant === "poster" ? "aspect-poster w-32 sm:w-36 md:w-40" : "h-36 w-56")} />
         ))}
-      </div>
+      </div>}
     </section>
   );
 }
 
 export function PosterGrid({ videos }: { videos: LibraryVideo[] }) {
+  const gridRef = useRef<HTMLElement>(null);
+  const [nearViewport, setNearViewport] = useState(false);
+  const [gridHeight, setGridHeight] = useState<number>();
   const [pageSize, setPageSize] = useState(() => savedRenderBudget("reelcase.grid-page-size", GRID_SIZES, 48));
   useEffect(() => {
     const sync = () => setPageSize(savedRenderBudget("reelcase.grid-page-size", GRID_SIZES, 48));
@@ -132,15 +162,40 @@ export function PosterGrid({ videos }: { videos: LibraryVideo[] }) {
   // changes. Reset only when the displayed catalog size or chosen page budget
   // actually changes, otherwise a grid can feed its own state update loop.
   useEffect(() => setLimit(safePageSize), [safePageSize, videos.length]);
+  useEffect(() => {
+    const grid = gridRef.current;
+    if (!grid || !videos.length) return;
+    if (typeof IntersectionObserver === "undefined") { setNearViewport(true); return; }
+    const observer = new IntersectionObserver(([entry]) => {
+      // Keep a focused card mounted for keyboard users, even when its shelf is
+      // just outside the viewport.
+      const next = entry.isIntersecting || grid.contains(document.activeElement);
+      setNearViewport((current) => current === next ? current : next);
+    }, { rootMargin: "500px 0px" });
+    observer.observe(grid);
+    return () => observer.disconnect();
+  }, [videos.length]);
+  useEffect(() => {
+    const grid = gridRef.current;
+    if (!grid || !nearViewport || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      const next = Math.round(grid.getBoundingClientRect().height);
+      setGridHeight((current) => current === next ? current : next);
+    });
+    observer.observe(grid);
+    return () => observer.disconnect();
+  }, [nearViewport]);
   if (!videos.length) return null;
   return (
-    <>
-    <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 sm:gap-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7">
-      {videos.slice(0, limit).map((video, i) => (
-        <VideoCard key={video.id} video={video} variant="poster" index={i} className="w-full" />
-      ))}
-    </div>
-    {videos.length > limit && <div className="mt-5 flex items-center justify-between gap-3"><p className="text-xs text-muted">Page {Math.ceil(limit / safePageSize)} · showing {limit.toLocaleString()} of {videos.length.toLocaleString()} titles</p><Button variant="secondary" onClick={() => setLimit((value) => Math.min(value + safePageSize, videos.length))}>Next page · {safePageSize}</Button></div>}
-    </>
+    <section ref={gridRef} className="media-shelf" style={!nearViewport ? { minHeight: gridHeight ?? 900 } : undefined}>
+      {nearViewport && <>
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 sm:gap-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7">
+          {videos.slice(0, limit).map((video, i) => (
+            <VideoCard key={video.id} video={video} variant="poster" index={i} className="w-full" />
+          ))}
+        </div>
+        {videos.length > limit && <div className="mt-5 flex items-center justify-between gap-3"><p className="text-xs text-muted">Page {Math.ceil(limit / safePageSize)} · showing {limit.toLocaleString()} of {videos.length.toLocaleString()} titles</p><Button variant="secondary" onClick={() => setLimit((value) => Math.min(value + safePageSize, videos.length))}>Next page · {safePageSize}</Button></div>}
+      </>}
+    </section>
   );
 }

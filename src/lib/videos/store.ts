@@ -1,9 +1,11 @@
 import { create } from "zustand";
 import { mergeRemoteRefresh } from "./remote-merge";
+import { measureInteraction } from "@/lib/interaction-budget";
 import {
   appendCatalogVideos,
   appendActivityJournal,
   clearActivityJournal,
+  pruneActivityJournal,
   loadActivityJournal,
   loadActivitySnapshot,
   loadRemoteSnapshot,
@@ -13,6 +15,9 @@ import {
   loadCatalogVideos,
   loadDirHandles,
   loadPrefs,
+  restoreDurablePrefs,
+  saveTagEdit,
+  restoreTagEdits,
   loadSourceHealth,
   saveDirHandle,
   saveActivitySnapshot,
@@ -39,6 +44,7 @@ import type {
   HistoryEntry,
   LibraryVideo,
   ProgressMark,
+  ResumeMark,
   SortKey,
   SourceId,
   ViewMode,
@@ -78,6 +84,7 @@ type LibraryState = {
   tags: Record<string, string[]>;
   categories: Record<string, string>;
   progress: Record<string, ProgressMark>;
+  resumeProgress: Record<string, ResumeMark>;
   history: HistoryEntry[];
   viewCounts: Record<string, number>;
   hideDemo: boolean;
@@ -111,6 +118,8 @@ type LibraryState = {
   markProgress: (id: string, t: number, d: number) => void;
   recordPlay: (id: string, source?: HistoryEntry["source"]) => void;
   clearHistory: () => void;
+  pruneHistory: (before: number) => void;
+  getResumeRepairPreview: () => { valid: number; invalid: number; stale: number; recoverable: number };
   openVideo: (id: string) => void;
   openPreview: (id: string) => void;
   closePreview: () => void;
@@ -149,7 +158,9 @@ type LibraryState = {
   markUnavailable: (id: string, reason: string) => void;
 };
 
+let preferencesRestored = false;
 function persistNow(get: () => LibraryState) {
+  if (!preferencesRestored) return;
   const s = get();
   const prefs: Prefs = {
     favorites: Object.keys(s.favorites),
@@ -157,6 +168,7 @@ function persistNow(get: () => LibraryState) {
     tags: s.tags,
     categories: s.categories,
     progress: s.progress,
+    resumeProgress: s.resumeProgress,
     history: s.history,
     viewCounts: s.viewCounts,
     view: s.view,
@@ -177,22 +189,74 @@ function persistNow(get: () => LibraryState) {
     unavailableVideoIds: Object.keys(s.unavailable),
   };
   savePrefs(prefs);
-  void saveActivitySnapshot({ history: s.history, progress: s.progress, viewCounts: s.viewCounts, savedAt: Date.now() }).catch(() => undefined);
+  void saveActivitySnapshot({ history: s.history, progress: s.progress, resumeProgress: s.resumeProgress, viewCounts: s.viewCounts, savedAt: Date.now() }).catch(() => queueResumeReplay(s.resumeProgress));
 }
 
 function persistActivity(get: () => LibraryState) {
+  if (!preferencesRestored) return;
   const s = get();
-  void saveActivitySnapshot({ history: s.history, progress: s.progress, viewCounts: s.viewCounts, savedAt: Date.now() }).catch(() => undefined);
+  void saveActivitySnapshot({ history: s.history, progress: s.progress, resumeProgress: s.resumeProgress, viewCounts: s.viewCounts, savedAt: Date.now() }).catch(() => queueResumeReplay(s.resumeProgress));
 }
 
 function mergeHistory(a: HistoryEntry[], b: HistoryEntry[]): HistoryEntry[] {
   const rows = new Map<string, HistoryEntry>();
   for (const entry of [...a, ...b]) {
     if (!entry?.id || !Number.isFinite(entry.at)) continue;
-    const key = `${entry.id}:${entry.at}:${entry.source ?? "open"}`;
+    const key = entry.eventId ?? `${entry.id}:${entry.at}:${entry.source ?? "open"}`;
     if (!rows.has(key)) rows.set(key, entry);
   }
   return [...rows.values()].sort((left, right) => right.at - left.at);
+}
+
+const historyJournalSession = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+  ? crypto.randomUUID().slice(0, 8)
+  : Math.random().toString(36).slice(2, 10);
+let historyEventSequence = 0;
+function nextHistoryEventId(now: number) {
+  historyEventSequence = (historyEventSequence + 1) % 1_000_000;
+  return `h:${historyJournalSession}:${now.toString(36)}:${historyEventSequence.toString(36)}`;
+}
+
+const RESUME_QUEUE_KEY = "reelcase.resume-replay.v1";
+const MAX_RESUME_DURATION = 30 * 24 * 60 * 60;
+function validResumeMark(mark: ProgressMark | undefined): mark is ResumeMark {
+  return Boolean(mark && Number.isFinite(mark.t) && Number.isFinite(mark.d) && Number.isFinite(mark.at) && mark.d > 0.25 && mark.d <= MAX_RESUME_DURATION && mark.t >= 0 && mark.t <= mark.d * 1.015);
+}
+function normalizeResumeMark(mark: ProgressMark | undefined): ResumeMark | undefined {
+  if (!validResumeMark(mark)) return undefined;
+  return { t: Math.min(mark.t, mark.d), d: mark.d, at: mark.at };
+}
+function stableResumeKeys(video: LibraryVideo): string[] {
+  return [...new Set([`id:${video.id}`, video.remote?.watchUrl, video.remote?.embedUrl, video.src, video.path].filter((key): key is string => Boolean(key)))];
+}
+function newestResume(...marks: Array<ProgressMark | undefined>): ResumeMark | undefined {
+  return marks.reduce<ResumeMark | undefined>((best, mark) => {
+    const normalized = normalizeResumeMark(mark);
+    return normalized && (!best || normalized.at > best.at) ? normalized : best;
+  }, undefined);
+}
+function reconcileResumeForVideos(videos: LibraryVideo[], progress: Record<string, ProgressMark>, resumeProgress: Record<string, ResumeMark>) {
+  const next = { ...progress };
+  for (const video of videos) {
+    const mark = newestResume(next[video.id], ...stableResumeKeys(video).map((key) => resumeProgress[key]));
+    if (mark) next[video.id] = mark;
+  }
+  return next;
+}
+function queueResumeReplay(records: Record<string, ResumeMark>) {
+  try {
+    const existing = JSON.parse(localStorage.getItem(RESUME_QUEUE_KEY) ?? "{}") as Record<string, ResumeMark>;
+    const next = { ...existing, ...records };
+    const kept = Object.entries(next).filter(([, mark]) => validResumeMark(mark)).sort((a, b) => b[1].at - a[1].at).slice(0, 600);
+    localStorage.setItem(RESUME_QUEUE_KEY, JSON.stringify(Object.fromEntries(kept)));
+  } catch { /* storage is unavailable too; the in-memory point remains usable */ }
+}
+function takeQueuedResumeReplay(): Record<string, ResumeMark> {
+  try {
+    const queued = JSON.parse(localStorage.getItem(RESUME_QUEUE_KEY) ?? "{}") as Record<string, ResumeMark>;
+    localStorage.removeItem(RESUME_QUEUE_KEY);
+    return Object.fromEntries(Object.entries(queued).filter(([, mark]) => validResumeMark(mark)));
+  } catch { return {}; }
 }
 
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
@@ -284,6 +348,16 @@ function remoteMetadataTags(video: LibraryVideo) {
   // a concrete provider category rather than only title-keyword guesses.
   const twitchGame = video.remote?.kind === "twitch" && genre ? `twitch-game-${genre}` : "";
   return [...new Set([provider, creator, format, twitchFormat, genre ? `genre-${genre}` : "", twitchGame, ...semanticTags(video), ...descriptionKeywordTags(video)].filter(Boolean))].slice(0, 40);
+}
+
+/** Upgrade cached provider cards with the same safe tags created for new pulls. */
+function enrichRemoteTags(existing: Record<string, string[]>, videos: LibraryVideo[]) {
+  const tags = { ...existing };
+  for (const video of videos) {
+    if (!video.remote) continue;
+    tags[video.id] = compactIngestedTags(tags[video.id] ?? [], remoteMetadataTags(video));
+  }
+  return tags;
 }
 
 /** Normalize provider enrichment once when it enters the catalog. Manual tags
@@ -405,7 +479,14 @@ function applyPrefs(partial: Partial<LibraryState>): Partial<LibraryState> {
     likes,
     tags: prefs.tags ?? {},
     categories: prefs.categories ?? {},
-    progress: prefs.progress ?? {},
+    progress: Object.fromEntries(Object.entries(prefs.progress ?? {}).flatMap(([id, mark]) => {
+      const normalized = normalizeResumeMark(mark);
+      return normalized ? [[id, normalized]] : [];
+    })),
+    resumeProgress: Object.fromEntries(Object.entries(prefs.resumeProgress ?? {}).flatMap(([key, mark]) => {
+      const normalized = normalizeResumeMark(mark);
+      return normalized ? [[key, normalized]] : [];
+    })),
     history: prefs.history ?? [],
     viewCounts: prefs.viewCounts ?? {},
     view: prefs.view ?? "grid",
@@ -444,6 +525,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   tags: {},
   categories: {},
   progress: {},
+  resumeProgress: {},
   history: [],
   viewCounts: {},
   hideDemo: true,
@@ -464,7 +546,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   remoteRefreshStatus: null,
   remoteRetryAt: {},
   importProgress: null,
-  setQuery: (query) => set({ query }),
+  setQuery: (query) => { measureInteraction("search"); set({ query }); },
   setSort: (sort) => {
     set({ sort });
     persistNow(get);
@@ -474,6 +556,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     persistNow(get);
   },
   setSource: (sourceId) => {
+    measureInteraction("navigation");
     set({ sourceId });
     persistNow(get);
   },
@@ -488,6 +571,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     cacheRemotesSoon(get);
   },
   toggleLike: (id) => {
+    measureInteraction("rating");
     set((s) => {
       const likes = { ...s.likes };
       if (likes[id]) delete likes[id];
@@ -510,6 +594,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     const state = get();
     const video = state.videos.find((item) => item.id === id);
     if (video) librarySearchIndex.updateMetadata(video, state.videos, state.tags, state.categories);
+    saveTagEdit(id, state.tags[id] ?? []);
     persistNow(get);
   },
   autoTagLibrary: () => {
@@ -535,10 +620,13 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     const state = get();
     const video = state.videos.find((item) => item.id === id);
     if (video) librarySearchIndex.updateMetadata(video, state.videos, state.tags, state.categories);
+    saveTagEdit(id, state.tags[id] ?? []);
     persistNow(get);
   },
   markProgress: (id, t, d) => {
     const now = Date.now();
+    const incoming = normalizeResumeMark({ t, d, at: now });
+    if (!incoming) return;
     const previous = get().progress[id];
     // Frame callbacks can fire 60 times per second. A progress mark needs to
     // be durable, not frame-perfect: suppress tiny updates while still saving
@@ -546,11 +634,15 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     if (previous && now - previous.at < 2_500 && Math.abs(previous.t - t) < 4) return;
     set((s) => {
       const latest = s.history[0];
-      const shouldRecord = t >= 2 && (!latest || latest.id !== id || now - latest.at > 60_000);
+      const shouldRecord = incoming.t >= 2 && (!latest || latest.id !== id || now - latest.at > 60_000);
       const history = shouldRecord
-        ? [{ id, at: now, position: t, duration: d, source: "progress" as const }, ...s.history]
+        ? [{ eventId: nextHistoryEventId(now), id, at: now, position: incoming.t, duration: incoming.d, source: "progress" as const }, ...s.history]
         : s.history;
-      return { progress: { ...s.progress, [id]: { t, d, at: now } }, history };
+      const mark = incoming;
+      const video = s.videos.find((item) => item.id === id);
+      const resumeProgress = { ...s.resumeProgress };
+      if (video) for (const key of stableResumeKeys(video)) resumeProgress[key] = newestResume(resumeProgress[key], mark) ?? mark;
+      return { progress: { ...s.progress, [id]: mark }, resumeProgress, history };
     });
     const event = get().history[0];
     if (event?.id === id && event.at === now) void appendActivityJournal(event).catch(() => undefined);
@@ -568,7 +660,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       const mark = s.progress[id];
       const video = s.videos.find((item) => item.id === id);
       const url = video?.remote?.embedUrl ?? video?.src;
-      const next = [{ id, at: now, position: mark?.t, duration: mark?.d, source, ...(url ? { url } : {}) }, ...s.history];
+      const next = [{ eventId: nextHistoryEventId(now), id, at: now, position: mark?.t, duration: mark?.d, source, ...(url ? { url } : {}) }, ...s.history];
       return { history: next, viewCounts: { ...s.viewCounts, [id]: (s.viewCounts[id] ?? 0) + 1 } };
     });
     const event = get().history[0];
@@ -712,7 +804,6 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     set((s) => ({
       folders: [...s.folders.filter((f) => f.id !== folderId), folder],
       scanning: { found: 0, looked: 0, folderName: handle.name },
-      sourceId: adult ? "adults" : folderId,
     }));
     let writeChain: Promise<void> = clearFolderVideos(folderId).catch(() => undefined);
     let discoveredPhotos = 0;
@@ -742,7 +833,6 @@ export const useLibrary = create<LibraryState>((set, get) => ({
             f.id === folderId ? { ...f, videoCount: videos.length, photoCount: discoveredPhotos } : f,
           ),
           scanning: null,
-          sourceId: adult ? "adults" : videos.length ? folderId : discoveredPhotos ? "photos" : s.sourceId,
       }));
       if (videos.length) set((s) => ({ tags: addLocalNameTags(s.tags, videos) }));
       flushPersist(get);
@@ -777,7 +867,6 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     set((s) => ({
       folders: [...s.folders, folder],
       scanning: { found: 0, looked: 0, folderName },
-      sourceId: adult ? "adults" : folderId,
     }));
     let writeChain: Promise<void> = Promise.resolve();
     const videos = await ingestFileList(files, folderId, folderName, {
@@ -801,7 +890,6 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         f.id === folderId ? { ...f, videoCount: videos.length } : f,
       ),
       scanning: null,
-      sourceId: adult ? "adults" : videos.length ? folderId : s.sourceId,
     }));
     if (videos.length) set((s) => ({ tags: addLocalNameTags(s.tags, videos) }));
     flushPersist(get);
@@ -857,7 +945,6 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           : f,
       ),
       scanning: null,
-      sourceId: adult ? "adults" : videos.length ? folderId : s.sourceId,
     }));
     if (videos.length) set((s) => ({ tags: addLocalNameTags(s.tags, videos) }));
     flushPersist(get);
@@ -866,7 +953,10 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   restoreFolders: async () => {
     if (get().hydrated || restoring) return;
     restoring = true;
+    await restoreDurablePrefs().catch(() => undefined);
+    preferencesRestored = true;
     const prefsState = applyPrefs({});
+    prefsState.tags = restoreTagEdits(prefsState.tags ?? {});
     const adultIds = new Set(loadPrefs()?.privateFolderIds ?? []);
     let cachedFolderIds = new Set<string>();
     let savedHealth = new Map<string, Awaited<ReturnType<typeof loadSourceHealth>>[number]>();
@@ -875,22 +965,32 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     // merges after first paint, so a massive tag payload cannot wipe history
     // or block startup recovery.
     void Promise.all([loadActivitySnapshot(), loadActivityJournal()]).then(([activity, journal]) => {
-      if (!activity && !journal.length) return;
-      set((s) => ({
-        history: mergeHistory(mergeHistory(s.history, activity?.history ?? []), journal),
-        progress: { ...(activity?.progress ?? {}), ...s.progress },
-        viewCounts: { ...(activity?.viewCounts ?? {}), ...s.viewCounts },
-      }));
+      const queuedResume = takeQueuedResumeReplay();
+      if (!activity && !journal.length && !Object.keys(queuedResume).length) return;
+      set((s) => {
+        const resumeProgress = { ...(activity?.resumeProgress ?? {}), ...queuedResume, ...s.resumeProgress };
+        return {
+          history: mergeHistory(mergeHistory(s.history, activity?.history ?? []), journal),
+          resumeProgress,
+          progress: reconcileResumeForVideos(s.videos, { ...(activity?.progress ?? {}), ...s.progress }, resumeProgress),
+          viewCounts: { ...(activity?.viewCounts ?? {}), ...s.viewCounts },
+        };
+      });
     }).catch(() => undefined);
     try {
       const snapshot = await loadRemoteSnapshot();
       if (snapshot) {
         const ids = new Set(get().follows.map((channel) => channel.id));
-        set((s) => ({
-          videos: mergeVideos(s.videos, snapshot.videos.filter((v) => ids.has(v.folderId) || s.favorites[v.id] || s.likes[v.id])),
-          folders: [...s.folders.filter((f) => !snapshot.folders.some((saved) => saved.id === f.id)), ...snapshot.folders.filter((f) => ids.has(f.id))],
-          remoteCheckedAt: snapshot.checkedAt,
-        }));
+        set((s) => {
+          const videos = mergeVideos(s.videos, snapshot.videos.filter((v) => ids.has(v.folderId) || s.favorites[v.id] || s.likes[v.id]));
+          return {
+            videos,
+            tags: enrichRemoteTags(s.tags, snapshot.videos),
+            progress: reconcileResumeForVideos(videos, s.progress, s.resumeProgress),
+            folders: [...s.folders.filter((f) => !snapshot.folders.some((saved) => saved.id === f.id)), ...snapshot.folders.filter((f) => ids.has(f.id))],
+            remoteCheckedAt: snapshot.checkedAt,
+          };
+        });
       }
     } catch { /* The catalog remains usable when storage is unavailable. */ }
     set({ hydrated: true });
@@ -920,8 +1020,12 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       if (catalog.length) {
         const counts = new Map<string, number>();
         for (const v of catalog) counts.set(v.folderId, (counts.get(v.folderId) ?? 0) + 1);
-        set((s) => ({
-          videos: mergeVideos(s.videos, catalog),
+        set((s) => {
+          const videos = mergeVideos(s.videos, catalog);
+          return {
+          videos,
+          tags: enrichRemoteTags(s.tags, catalog),
+          progress: reconcileResumeForVideos(videos, s.progress, s.resumeProgress),
           folders: [
             ...s.folders,
             ...[...counts.entries()]
@@ -937,7 +1041,8 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           ].map((f) =>
             counts.has(f.id) ? { ...f, videoCount: counts.get(f.id) ?? f.videoCount, ...(savedHealth.get(f.id) ?? {}) } : f,
           ),
-        }));
+        };
+        });
       }
     } catch {
       // catalog optional
@@ -1102,7 +1207,6 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         f.id === folderId ? { ...f, videoCount: videos.length, needsPermission: false } : f,
       ),
       scanning: null,
-      sourceId: folder?.adult ? "adults" : folderId,
       progress: { ...s.progress, ...recoveredProgress },
     }));
     if (videos.length) await saveFolderVideos(folderId, videos).catch(() => undefined);
@@ -1210,22 +1314,14 @@ export const useLibrary = create<LibraryState>((set, get) => ({
             result.videos,
           ),
           tags: { ...s.tags, ...Object.fromEntries(result.videos.map((video) => [video.id, compactIngestedTags(s.tags[video.id] ?? [], remoteMetadataTags(video))])) },
-          sourceId: result.channel.kind,
           remoteBusy: false,
         };
       });
       persistNow(get);
       cacheRemotes(get);
-      get().pushNotice({
-        title: `Following ${result.channel.title}`,
-        body:
-          result.channel.kind === "twitch"
-            ? result.channel.live
-              ? "Live right now."
-              : "You'll be notified when they go live."
-            : `${result.videos.length} latest video${result.videos.length === 1 ? "" : "s"} pulled in.`,
-        kind: result.channel.kind,
-      });
+      // A focused pull may add hundreds of old VODs. It updates its visible
+      // creator card, not the notification center; bulk import emits one
+      // completion summary after every requested channel has finished.
     } catch (err) {
       set({ remoteBusy: false });
       throw err;
@@ -1400,6 +1496,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           })),
         ],
         videos: mergedVideos,
+        progress: reconcileResumeForVideos(mergedVideos, s.progress, s.resumeProgress),
         tags: { ...s.tags, ...Object.fromEntries(result.videos.map((video) => [video.id, compactIngestedTags(s.tags[video.id] ?? [], remoteMetadataTags(video))])) },
         remoteRefreshStatus: {
           at: Date.now(),
@@ -1465,6 +1562,23 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     get().pushNotice({ title: "Hidden unavailable video", body: `${video.name} · ${reason}`, kind: "system" });
     persistNow(get);
   },
+  pruneHistory: (before) => {
+    set((s) => ({ history: s.history.filter((entry) => entry.at >= before) }));
+    persistNow(get);
+    void pruneActivityJournal(before).catch(() => undefined);
+  },
+  getResumeRepairPreview: () => {
+    const state = get();
+    const marks = Object.values(state.progress);
+    const staleBefore = Date.now() - 180 * 24 * 60 * 60_000;
+    const linkedKeys = new Set(state.videos.flatMap(stableResumeKeys));
+    return {
+      valid: marks.filter(validResumeMark).length,
+      invalid: marks.filter((mark) => !validResumeMark(mark)).length,
+      stale: marks.filter((mark) => validResumeMark(mark) && mark.at < staleBefore).length,
+      recoverable: Object.entries(state.resumeProgress).filter(([key, mark]) => validResumeMark(mark) && linkedKeys.has(key)).length,
+    };
+  },
 }));
 
 type SelectorMemo = { public?: LibraryVideo[]; youtube?: LibraryVideo[]; twitch?: LibraryVideo[]; live?: LibraryVideo[]; classics?: LibraryVideo[]; continuePublic?: LibraryVideo[]; continueAdult?: LibraryVideo[] };
@@ -1511,10 +1625,10 @@ export function selectVisible(state: LibraryState): LibraryVideo[] {
     list = list.filter((v) => state.favorites[v.id]);
   } else if (state.sourceId === "continue") {
     list = list.filter((v) => {
-      const p = state.progress[v.id];
-      if (!p || p.d <= 0) return false;
+      const p = resumeForVideo(state, v);
+      if (!p) return false;
       const r = p.t / p.d;
-      return r > 0.04 && r < 0.96;
+      return r > (v.remote ? 0.01 : 0.04) && r < (v.remote ? 0.985 : 0.96);
     });
   } else if (state.sourceId === "history") {
     const byId = new Map(list.map((v) => [v.id, v]));
@@ -1597,15 +1711,12 @@ export function selectContinue(state: LibraryState, adult = false): LibraryVideo
   const existing = adult ? memo.continueAdult : memo.continuePublic;
   if (existing) return existing;
   const items = scoped(state, adult).filter((v) => {
-    const p = state.progress[v.id];
-    if (!p || p.d <= 0) return false;
+    const p = resumeForVideo(state, v);
+    if (!p) return false;
     const r = p.t / p.d;
-    // Short clips and resumed providers often persist only a small first
-    // progress mark. Keep them visible once meaningful playback began, while
-    // still clearing genuinely completed titles from Continue.
-    return r > 0.01 && r < 0.985;
+    return r > (v.remote ? 0.01 : 0.04) && r < (v.remote ? 0.985 : 0.96);
   });
-  items.sort((a, b) => (state.progress[b.id]?.at ?? 0) - (state.progress[a.id]?.at ?? 0));
+  items.sort((a, b) => (resumeForVideo(state, b)?.at ?? 0) - (resumeForVideo(state, a)?.at ?? 0));
   // VideoGrid progressively mounts pages, so Continue itself must not silently
   // truncate a large resume list before the view gets a chance to paginate it.
   if (adult) memo.continueAdult = items;
@@ -1615,6 +1726,10 @@ export function selectContinue(state: LibraryState, adult = false): LibraryVideo
 
 export function selectFavorites(state: LibraryState, adult = false): LibraryVideo[] {
   return recoveryList(state, adult).filter((v) => state.favorites[v.id]);
+}
+
+export function resumeForVideo(state: Pick<LibraryState, "progress" | "resumeProgress">, video: LibraryVideo): ResumeMark | undefined {
+  return newestResume(state.progress[video.id], ...stableResumeKeys(video).map((key) => state.resumeProgress[key]));
 }
 
 export function selectHistory(state: LibraryState, adult = false): LibraryVideo[] {

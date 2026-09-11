@@ -2,11 +2,289 @@ import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
 import { C as RefreshCw, D as Pause, H as Lightbulb, I as Maximize2, K as ImagePlus, N as MessageCircle, O as PackageSearch, S as Rocket, T as Play, W as Images, X as Gamepad2, _ as Shuffle, at as Copy, b as Settings2, f as Star, ft as ChartColumn, j as MonitorPlay, k as Music2, lt as ChevronRight, mt as Bot, n as X, nt as ExternalLink, pt as Box, r as Wifi, rt as Download, s as Users, st as Clapperboard, ut as ChevronLeft, v as ShoppingBag, w as Radio, x as Search, y as ShieldCheck } from "../_libs/lucide-react.mjs";
-import { a as getFeedbackDiagnostics, c as useSourceAssets, i as exportFeedback, l as Input, n as VideoCard, o as useThumbs, r as getRenderBudgetSnapshot, s as useLibrary, u as Button } from "./routes-DQWWAt2o.mjs";
+import { _ as topicsForVideo, a as VideoCard, c as getFeedbackDiagnostics, d as Button, f as useLibrary, g as topicEvidence, h as isTopicTag, i as openTopic, l as getThumbDiagnostics, m as canonicalTopic, n as getFirstShelfTrace, o as getRenderBudgetSnapshot, p as useSourceAssets, r as Input, s as exportFeedback, u as useThumbs, v as getInteractionBudgetSnapshot } from "./routes-DZWPtWp3.mjs";
 import { a as ResponsiveContainer, i as Bar, n as YAxis, o as Tooltip, r as XAxis, t as BarChart } from "../_libs/recharts+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/hub-sections-Cww7Y0Es.js
+//#region node_modules/.nitro/vite/services/ssr/assets/hub-sections-KfxdgYIc.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
+function TopicLinks({ explorer = false }) {
+	const videos = useLibrary((s) => s.videos);
+	const tags = useLibrary((s) => s.tags);
+	const folders = useLibrary((s) => s.folders);
+	const unavailable = useLibrary((s) => s.unavailable);
+	const hideDemo = useLibrary((s) => s.hideDemo);
+	const query = useLibrary((s) => s.query);
+	const [provider, setProvider] = (0, import_react.useState)("all");
+	const [limit, setLimit] = (0, import_react.useState)(48);
+	const selected = explorer ? canonicalTopic(query) : void 0;
+	const selectedGenre = explorer && query.startsWith("genre:") ? query.slice(6) : void 0;
+	const index = (0, import_react.useMemo)(() => {
+		const hidden = new Set(folders.filter((f) => f.adult).map((f) => f.id));
+		const known = new Set(folders.map((f) => f.id));
+		const rows = videos.filter((v) => !hidden.has(v.folderId) && !unavailable[v.id] && !(hideDemo && v.isSample) && (known.has(v.folderId) || v.remote || v.isSample)).map((video) => ({
+			video,
+			topics: topicsForVideo(video, tags[video.id]),
+			provider: video.remote?.kind ?? "local"
+		}));
+		const counts = /* @__PURE__ */ new Map();
+		const sources = /* @__PURE__ */ new Map();
+		let saved = 0, linked = 0;
+		for (const row of rows) {
+			const source = sources.get(row.video.folderId) ?? {
+				total: 0,
+				linked: 0
+			};
+			source.total++;
+			source.linked += Number(row.topics.length > 0);
+			sources.set(row.video.folderId, source);
+			if (row.topics.length) linked++;
+			if (topicEvidence(row.video, tags[row.video.id]).some((link) => link.saved)) saved++;
+			for (const topic of row.topics) {
+				const entry = counts.get(topic) ?? {
+					count: 0,
+					providers: /* @__PURE__ */ new Set()
+				};
+				entry.count++;
+				entry.providers.add(row.provider);
+				counts.set(topic, entry);
+			}
+		}
+		return {
+			rows,
+			saved,
+			linked,
+			counts: [...counts].sort((a, b) => b[1].count - a[1].count),
+			gaps: [...sources].map(([id, s]) => ({
+				id,
+				...s
+			})).sort((a, b) => b.total - b.linked - (a.total - a.linked)).slice(0, 8)
+		};
+	}, [
+		videos,
+		tags,
+		folders,
+		unavailable,
+		hideDemo
+	]);
+	const genres = (0, import_react.useMemo)(() => [...new Set(index.rows.map((r) => r.video.genre).filter((g) => Boolean(g)))].sort(), [index]);
+	const matching = (0, import_react.useMemo)(() => index.rows.filter((row) => (!selected || row.topics.includes(selected)) && (!selectedGenre || row.video.genre === selectedGenre) && (provider === "all" || provider === row.provider)), [
+		index,
+		selected,
+		selectedGenre,
+		provider
+	]);
+	const related = (0, import_react.useMemo)(() => {
+		const counts = /* @__PURE__ */ new Map();
+		if (selected) {
+			for (const row of matching) for (const topic of row.topics) if (topic !== selected) counts.set(topic, (counts.get(topic) ?? 0) + 1);
+		}
+		return [...counts].sort((a, b) => b[1] - a[1]).slice(0, 8);
+	}, [matching, selected]);
+	const choose = (topic) => {
+		setLimit(48);
+		setProvider("all");
+		openTopic(topic);
+	};
+	const exportLinks = () => {
+		const body = [[
+			"topic",
+			"public_titles",
+			"providers",
+			"saved_tag_titles",
+			"inferred_only_titles"
+		], ...index.counts.map(([topic, data]) => {
+			const saved = index.rows.filter((r) => topicEvidence(r.video, tags[r.video.id]).some((link) => link.topic === topic && link.saved)).length;
+			return [
+				topic,
+				data.count,
+				[...data.providers].join(" + "),
+				saved,
+				data.count - saved
+			];
+		})].map((row) => row.map((cell) => `"${String(cell).replaceAll("\"", "\"\"")}"`).join(",")).join("\n");
+		const url = URL.createObjectURL(new Blob([body], { type: "text/csv;charset=utf-8" }));
+		const anchor = document.createElement("a");
+		anchor.href = url;
+		anchor.download = `reelcase-topic-links-${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.csv`;
+		anchor.click();
+		setTimeout(() => URL.revokeObjectURL(url), 1e3);
+	};
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+		className: "mt-6 rounded-lg bg-elevated p-5 shadow-border",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+				children: "Connected topics"
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+				className: "mt-2 font-display text-2xl text-fg",
+				children: selected || selectedGenre ? `Explore ${selected ?? selectedGenre}` : "Follow an idea across your library."
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+				className: "mt-2 text-sm text-muted",
+				children: [
+					index.linked.toLocaleString(),
+					" of ",
+					index.rows.length.toLocaleString(),
+					" public titles linked · ",
+					index.saved.toLocaleString(),
+					" with saved topics · ",
+					(index.linked - index.saved).toLocaleString(),
+					" connected by title or category evidence. Saved tags are unchanged."
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "mt-4 flex flex-wrap gap-2",
+				children: index.counts.map(([topic, data]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+					size: "sm",
+					variant: selected === topic ? "default" : "secondary",
+					onClick: () => choose(topic),
+					title: [...data.providers].join(" + "),
+					children: [
+						"#",
+						topic,
+						" · ",
+						data.count.toLocaleString(),
+						data.providers.size > 1 ? " · ↔" : ""
+					]
+				}, topic))
+			}),
+			!index.counts.length && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				className: "mt-4 text-sm text-muted",
+				children: "No supported topics yet. Add descriptive titles or saved topic tags to connect your media."
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+				className: "mt-4",
+				size: "sm",
+				variant: "secondary",
+				onClick: exportLinks,
+				children: "Export topic connections"
+			}),
+			explorer ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+				genres.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
+					className: "mt-4 text-sm text-muted",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("summary", {
+						className: "cursor-pointer",
+						children: ["Media genres and Twitch categories · ", genres.length]
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "mt-3 flex flex-wrap gap-2",
+						children: genres.map((genre) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							size: "sm",
+							variant: selectedGenre === genre ? "default" : "secondary",
+							onClick: () => choose(`genre:${genre}`),
+							children: genre
+						}, genre))
+					})]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "mt-5 flex flex-wrap gap-2",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						size: "sm",
+						variant: "secondary",
+						onClick: () => {
+							useLibrary.getState().setQuery("");
+							setLimit(48);
+						},
+						children: "All topics"
+					}), [
+						"all",
+						"local",
+						"youtube",
+						"twitch"
+					].map((kind) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						size: "sm",
+						variant: provider === kind ? "default" : "secondary",
+						onClick: () => {
+							setProvider(kind);
+							setLimit(48);
+						},
+						children: kind === "all" ? "All sources" : kind
+					}, kind))]
+				}),
+				related.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "mt-4",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-xs text-muted",
+						children: "Related through titles in this view"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "mt-2 flex flex-wrap gap-2",
+						children: related.map(([topic, count]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+							size: "sm",
+							variant: "secondary",
+							onClick: () => choose(topic),
+							children: [
+								"#",
+								topic,
+								" · ",
+								count,
+								" shared"
+							]
+						}, topic))
+					})]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+					className: "mt-4 text-sm text-muted",
+					children: [
+						matching.length.toLocaleString(),
+						" matching ",
+						matching.length === 1 ? "title" : "titles"
+					]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					className: "mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6",
+					children: matching.slice(0, limit).map(({ video }, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(VideoCard, {
+						video,
+						variant: "grid",
+						index: i
+					}), selected && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-2 text-xs text-muted",
+						children: topicEvidence(video, tags[video.id]).find((link) => link.topic === selected)?.reason
+					})] }, video.id))
+				}),
+				matching.length > limit && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+					className: "mt-4",
+					variant: "secondary",
+					onClick: () => setLimit((n) => n + 48),
+					children: "Show 48 more"
+				})
+			] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "mt-5",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
+						className: "font-medium text-fg",
+						children: "Where topic coverage needs work"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-1 text-xs text-muted",
+						children: "Public sources ranked by titles without a supported topic. Counts refresh with your catalog."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "mt-3 space-y-2",
+						children: index.gaps.map((s) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "flex flex-wrap justify-between gap-2 text-sm",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								className: "text-fg hover:text-accent",
+								onClick: () => {
+									useLibrary.getState().setQuery("");
+									useLibrary.getState().setSource(s.id);
+								},
+								children: folders.find((f) => f.id === s.id)?.name ?? "Unavailable source"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+								className: "text-muted",
+								children: [
+									s.total - s.linked,
+									" unlinked · ",
+									Math.round(s.linked / s.total * 100),
+									"% connected"
+								]
+							})]
+						}, s.id))
+					})
+				]
+			})
+		]
+	});
+}
 var FAST_POLL_MS = 400;
 var IDLE_POLL_MS = 2e3;
 var PING_INTERVAL_MS = 2e3;
@@ -807,6 +1085,7 @@ function filesToItems(files, gamesOnly = false) {
 	}));
 }
 function bytes(value) {
+	if (value <= 0) return "0 B";
 	return value < 1048576 ? `${Math.max(1, Math.round(value / 1024))} KB` : `${(value / 1024 / 1024).toFixed(1)} MB`;
 }
 function watchRoomEmbed(video) {
@@ -858,68 +1137,6 @@ function loadTwitchEmbed() {
 		document.head.append(script);
 	});
 }
-var TOPIC_TAXONOMY = /* @__PURE__ */ new Set([
-	"gaming",
-	"technology",
-	"news-commentary",
-	"music",
-	"film",
-	"anime",
-	"food",
-	"travel",
-	"fitness",
-	"learning",
-	"comedy",
-	"relaxing",
-	"talk",
-	"commentary",
-	"creative",
-	"nature",
-	"business",
-	"style",
-	"motors",
-	"horror",
-	"maker",
-	"sports",
-	"science",
-	"relationships",
-	"wellbeing",
-	"skills",
-	"hardware",
-	"legal"
-]);
-var TOPIC_GENRE_MAP = {
-	anime: ["Animation", "Fantasy"],
-	comedy: ["Comedy"],
-	creative: ["Animation", "Fantasy"],
-	film: [
-		"Documentary",
-		"Drama",
-		"Sci-Fi",
-		"Science Fiction",
-		"Thriller"
-	],
-	gaming: ["Action", "Adventure"],
-	horror: ["Horror", "Thriller"],
-	maker: ["Documentary", "Science Fiction"],
-	learning: ["Documentary"],
-	music: ["Documentary"],
-	motors: ["Action", "Documentary"],
-	nature: ["Documentary", "Adventure"],
-	"news-commentary": ["Documentary"],
-	relationships: ["Romance", "Drama"],
-	relaxing: ["Nature", "Documentary"],
-	science: ["Science Fiction", "Documentary"],
-	skills: ["Documentary"],
-	sports: ["Action", "Documentary"],
-	style: ["Documentary"],
-	technology: ["Documentary", "Science Fiction"],
-	travel: ["Documentary", "Adventure"],
-	wellbeing: ["Documentary"]
-};
-function isTopicTag(tag) {
-	return TOPIC_TAXONOMY.has(tag.trim().toLowerCase());
-}
 function downloadCsv(rows, filename) {
 	const quote = (value) => `"${String(value).replaceAll("\"", "\"\"")}"`;
 	const body = rows.map((row) => row.map(quote).join(",")).join("\n");
@@ -931,202 +1148,12 @@ function downloadCsv(rows, filename) {
 	URL.revokeObjectURL(url);
 }
 function GenreSection() {
-	const videos = useLibrary((s) => s.videos);
-	const tags = useLibrary((s) => s.tags);
-	const folders = useLibrary((s) => s.folders);
-	const [selected, setSelected] = (0, import_react.useState)("All topics");
-	const [limit, setLimit] = (0, import_react.useState)(96);
-	const [topicLimit, setTopicLimit] = (0, import_react.useState)(36);
-	const catalog = (0, import_react.useMemo)(() => {
-		const privateFolders = new Set(folders.filter((folder) => folder.adult).map((folder) => folder.id));
-		const publicVideos = [];
-		const genreCounts = /* @__PURE__ */ new Map();
-		const liveCategoryCounts = /* @__PURE__ */ new Map();
-		const tagCounts = /* @__PURE__ */ new Map();
-		const tagSources = /* @__PURE__ */ new Map();
-		const folderKinds = new Map(folders.map((folder) => [folder.id, folder.kind]));
-		const mediaGenres = /* @__PURE__ */ new Set([
-			"Action",
-			"Adventure",
-			"Animation",
-			"Comedy",
-			"Documentary",
-			"Drama",
-			"Fantasy",
-			"Horror",
-			"Romance",
-			"Sci-Fi",
-			"Science Fiction",
-			"Thriller"
-		]);
-		for (const video of videos) {
-			if (privateFolders.has(video.folderId)) continue;
-			publicVideos.push(video);
-			const genre = video.genre?.trim();
-			if (genre && mediaGenres.has(genre)) genreCounts.set(genre, (genreCounts.get(genre) ?? 0) + 1);
-			if (genre && video.remote?.kind === "twitch" && video.remote.live) liveCategoryCounts.set(genre, (liveCategoryCounts.get(genre) ?? 0) + 1);
-			const directTopics = new Set((tags[video.id] ?? []).map((tag) => tag.trim().toLowerCase()).filter(isTopicTag));
-			for (const [topic, linkedGenres] of Object.entries(TOPIC_GENRE_MAP)) if (genre && linkedGenres.includes(genre)) directTopics.add(topic);
-			for (const clean of directTopics) {
-				tagCounts.set(clean, (tagCounts.get(clean) ?? 0) + 1);
-				const sources = tagSources.get(clean) ?? /* @__PURE__ */ new Set();
-				sources.add(video.remote?.kind ?? (folderKinds.get(video.folderId) === "directory" || folderKinds.get(video.folderId) === "files" ? "local" : "library"));
-				tagSources.set(clean, sources);
-			}
-		}
-		return {
-			publicVideos,
-			genres: [...genreCounts.entries()].sort((a, b) => a[0].localeCompare(b[0])),
-			liveCategories: [...liveCategoryCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 18),
-			tags: [...tagCounts.entries()].filter(([, count]) => count >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
-			bridges: [...tagSources.entries()].filter(([tag, sources]) => (tagCounts.get(tag) ?? 0) >= 2 && sources.size >= 2).sort((a, b) => (tagCounts.get(b[0]) ?? 0) - (tagCounts.get(a[0]) ?? 0)).slice(0, 18).map(([tag, sources]) => ({
-				tag,
-				sources: [...sources],
-				count: tagCounts.get(tag) ?? 0
-			}))
-		};
-	}, [
-		folders,
-		tags,
-		videos
-	]);
-	const genreNames = (0, import_react.useMemo)(() => new Set(catalog.genres.map(([genre]) => genre)), [catalog.genres]);
-	const matching = (0, import_react.useMemo)(() => selected === "All topics" ? catalog.publicVideos : genreNames.has(selected) || catalog.liveCategories.some(([category]) => category === selected) ? catalog.publicVideos.filter((video) => video.genre === selected) : catalog.publicVideos.filter((video) => (tags[video.id] ?? []).includes(selected) || (TOPIC_GENRE_MAP[selected] ?? []).includes(video.genre ?? "")), [
-		catalog.liveCategories,
-		catalog.publicVideos,
-		genreNames,
-		selected,
-		tags
-	]);
-	(0, import_react.useEffect)(() => setLimit(96), [selected]);
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(HubShell, {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(HubShell, {
 		eyebrow: "Topic explorer",
 		icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Clapperboard, { className: "size-4" }),
-		title: "Explore ideas, not noisy labels.",
-		copy: "Topics connect local media, YouTube, and Twitch. Media genres stay separate, while Twitch game names remain live categories instead of pretending to be genres.",
-		children: [
-			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
-				className: "mt-6 rounded-lg bg-elevated p-5 shadow-border",
-				children: [
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
-						children: ["Topics · ", catalog.tags.length]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "mt-3 flex flex-wrap gap-2",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-							size: "sm",
-							variant: selected === "All topics" ? "default" : "secondary",
-							onClick: () => setSelected("All topics"),
-							children: ["All titles · ", catalog.publicVideos.length]
-						}), catalog.tags.slice(0, topicLimit).map(([tag, count]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-							size: "sm",
-							variant: selected === tag ? "default" : "secondary",
-							onClick: () => setSelected(tag),
-							children: [
-								"#",
-								tag,
-								" · ",
-								count
-							]
-						}, tag))]
-					}),
-					catalog.tags.length > topicLimit && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-						className: "mt-3",
-						size: "sm",
-						variant: "secondary",
-						onClick: () => setTopicLimit((limit) => Math.min(catalog.tags.length, limit + 18)),
-						children: [
-							"Show more topics · ",
-							catalog.tags.length - topicLimit,
-							" remaining"
-						]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-						className: "mt-5 text-xs font-medium tracking-[0.14em] text-accent uppercase",
-						children: "Topic bridges across local, YouTube & Twitch"
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "mt-3 flex flex-wrap gap-2",
-						children: catalog.bridges.map((bridge) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-							size: "sm",
-							variant: selected === bridge.tag ? "default" : "secondary",
-							onClick: () => setSelected(bridge.tag),
-							children: [
-								"#",
-								bridge.tag,
-								" · ",
-								bridge.count,
-								" · ",
-								bridge.sources.join(" + ")
-							]
-						}, bridge.tag))
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-						className: "mt-5 text-xs font-medium tracking-[0.14em] text-accent uppercase",
-						children: ["Media genres · ", catalog.genres.length]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "mt-3 flex flex-wrap gap-2",
-						children: catalog.genres.map(([genre, count]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-							size: "sm",
-							variant: selected === genre ? "default" : "secondary",
-							onClick: () => setSelected(genre),
-							children: [
-								genre,
-								" · ",
-								count
-							]
-						}, genre))
-					}),
-					catalog.liveCategories.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-						className: "mt-5 text-xs font-medium tracking-[0.14em] text-accent uppercase",
-						children: "Twitch live categories"
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "mt-3 flex flex-wrap gap-2",
-						children: catalog.liveCategories.map(([category, count]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-							size: "sm",
-							variant: selected === category ? "default" : "secondary",
-							onClick: () => setSelected(category),
-							children: [
-								category,
-								" · ",
-								count
-							]
-						}, category))
-					})] })
-				]
-			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-				className: "mt-5 text-sm text-muted",
-				children: [
-					matching.length.toLocaleString(),
-					" title",
-					matching.length === 1 ? "" : "s",
-					" in this view."
-				]
-			}),
-			matching.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-				className: "mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6",
-				children: matching.slice(0, limit).map((video, index) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(VideoCard, {
-					video,
-					variant: "poster",
-					index
-				}, video.id))
-			}), matching.length > limit && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-				variant: "secondary",
-				className: "mt-5",
-				onClick: () => setLimit((value) => value + 96),
-				children: [
-					"Show 96 more · ",
-					matching.length - limit,
-					" remaining"
-				]
-			})] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-				className: "mt-4 rounded-lg bg-elevated p-6 text-sm text-muted shadow-border",
-				children: "No titles match this topic or category yet. Refresh a channel to populate it."
-			})
-		]
+		title: "Explore ideas across sources.",
+		copy: "Follow useful topics across local media, YouTube and Twitch. Each connection shows its saved tag or title evidence.",
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TopicLinks, { explorer: true })
 	});
 }
 function StatsSection() {
@@ -1178,11 +1205,17 @@ function StatsSection() {
 			if (progress[video.id] && progress[video.id].t > 0) resumedTitles += 1;
 			totalViews += viewCounts[video.id] ?? 0;
 			const videoTags = tags[video.id] ?? [];
-			const usefulTopics = new Set(videoTags.map((tag) => tag.trim().toLowerCase()).filter(isTopicTag));
+			const usefulTopics = new Set(videoTags.map(canonicalTopic).filter((tag) => Boolean(tag)));
 			if (videoTags.length) metadataTaggedTitles += 1;
 			if (Boolean(video.remote?.channelName?.trim())) creatorTaggedTitles += 1;
-			if (videoTags.some((tag) => !tag.includes("-") && tag.length >= 4)) descriptionTaggedTitles += 1;
+			if (video.description?.trim()) descriptionTaggedTitles += 1;
 			if (!videoTags.some(isTopicTag)) untaggedTitles += 1;
+			for (const topic of usefulTopics) {
+				byTag.set(topic, (byTag.get(topic) ?? 0) + 1);
+				const sources = topicSources.get(topic) ?? /* @__PURE__ */ new Set();
+				sources.add(video.remote?.kind ?? "local");
+				topicSources.set(topic, sources);
+			}
 			if (usefulTopics.size >= 2) multiTopicTitles += 1;
 			if (video.remote && Date.now() - video.addedAt < 6048e5) freshRemoteTitles += 1;
 			const folder = byFolder.get(video.folderId) ?? {
@@ -1196,12 +1229,6 @@ function StatsSection() {
 			for (const tag of videoTags) {
 				const clean = tag.trim().toLowerCase();
 				if (/^(?:year-|month-|day-|type-|provider-|format-|source-|keyword-|creator-|https?$)/.test(clean)) operationalTagAssignments += 1;
-				if (isTopicTag(clean)) {
-					byTag.set(clean, (byTag.get(clean) ?? 0) + 1);
-					const sources = topicSources.get(clean) ?? /* @__PURE__ */ new Set();
-					sources.add(video.remote?.kind ?? "local");
-					topicSources.set(clean, sources);
-				}
 			}
 		}
 		const tagAssignments = [...byTag.values()].reduce((sum, count) => sum + count, 0);
@@ -1292,17 +1319,17 @@ function StatsSection() {
 			["poster_ready_titles", summary.thumbReady],
 			["unavailable_titles", Object.keys(unavailable).length],
 			["history_events", history.length],
-			["topic_tag_coverage_percent", Math.round((1 - summary.untaggedTitles / Math.max(videos.length, 1)) * 100)],
+			["topic_tag_coverage_percent", Math.round((videos.length - summary.untaggedTitles) / Math.max(videos.length, 1) * 100)],
 			["largest_source_percent", sourceHealth.concentration],
 			["duplicate_source_names", sourceHealth.duplicateNames.length],
 			["metadata_tagged_titles", summary.metadataTaggedTitles],
 			["metadata_tag_coverage_percent", Math.round(summary.metadataTaggedTitles / Math.max(videos.length, 1) * 100)],
 			["creator_tagged_titles", summary.creatorTaggedTitles],
-			["description_keyword_tagged_titles", summary.descriptionTaggedTitles],
+			["titles_with_description", summary.descriptionTaggedTitles],
 			["multi_topic_titles", summary.multiTopicTitles],
 			["cross_source_bridge_topics", summary.bridgeTopics],
 			["operational_tag_assignments", summary.operationalTagAssignments],
-			["useful_topic_share_percent", Math.round((1 - summary.untaggedTitles / Math.max(videos.length, 1)) * 100)],
+			["useful_topic_share_percent", Math.round((videos.length - summary.untaggedTitles) / Math.max(videos.length, 1) * 100)],
 			["favorites_saved", favoriteHealth.saved],
 			["favorites_resolved", favoriteHealth.resolved],
 			["favorites_waiting_for_source", favoriteHealth.missing],
@@ -1368,6 +1395,7 @@ function StatsSection() {
 		title: "Know what your library needs next.",
 		copy: "These local-only counts help identify coverage gaps, oversized source folders, and the tags that are driving discovery.",
 		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TopicLinks, {}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "mt-5 flex flex-wrap gap-2",
 				children: [
@@ -1407,7 +1435,7 @@ function StatsSection() {
 						value: bytes(summary.totalBytes)
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Stat, {
-						label: "Topic-tag assignments",
+						label: "Saved topic assignments",
 						value: summary.tagAssignments.toLocaleString()
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Stat, {
@@ -1436,8 +1464,8 @@ function StatsSection() {
 						value: `${summary.untaggedTitles.toLocaleString()} titles`
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Stat, {
-						label: "Topic coverage",
-						value: `${Math.round((1 - summary.untaggedTitles / Math.max(videos.length, 1)) * 100)}%`
+						label: "Saved topic coverage",
+						value: `${Math.round((videos.length - summary.untaggedTitles) / Math.max(videos.length, 1) * 100)}%`
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Stat, {
 						label: "Topic tags per title",
@@ -1460,7 +1488,7 @@ function StatsSection() {
 						value: `${Math.round(summary.metadataTaggedTitles / Math.max(videos.length, 1) * 100)}%`
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Stat, {
-						label: "Creator / description tags",
+						label: "Creator / description coverage",
 						value: `${summary.creatorTaggedTitles.toLocaleString()} / ${summary.descriptionTaggedTitles.toLocaleString()}`
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Stat, {
@@ -1785,10 +1813,14 @@ function StatsSection() {
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 							className: "mt-4 space-y-3",
-							children: summary.topTags.map(([tag, count]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DistributionRow, {
-								label: `#${tag}`,
-								value: count,
-								total: summary.topTags[0]?.[1] ?? 1
+							children: summary.topTags.map(([tag, count]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								className: "block w-full text-left",
+								onClick: () => openTopic(tag),
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DistributionRow, {
+									label: `#${tag}`,
+									value: count,
+									total: summary.topTags[0]?.[1] ?? 1
+								})
 							}, tag)) || /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 								className: "text-sm text-muted",
 								children: "Tags will appear as media is indexed."
@@ -2704,7 +2736,16 @@ function SettingsSection() {
 											const budget = getRenderBudgetSnapshot();
 											const feedback = getFeedbackDiagnostics();
 											const thumbs = useThumbs.getState();
-											return `${budget.mountedCards} mounted cards · ${Object.keys(thumbs.byId).length} artwork cache entries · ${budget.lastFrameMs}ms last frame${budget.longFrames ? ` · ${budget.longFrames} long frames (worst ${budget.worstFrameMs}ms)` : ""} · rating queue ${feedback.lastRatingQueueMs}ms / disk ${feedback.lastPersistMs}ms${feedback.pendingWrites ? " pending" : ""}`;
+											const artwork = getThumbDiagnostics();
+											return `${budget.mountedCards} mounted cards · ${Object.keys(thumbs.byId).length} artwork cache entries · ${artwork.active} decoding / ${artwork.queued} queued · artwork ${artwork.hits} hit / ${artwork.misses} miss${artwork.evictions ? ` / ${artwork.evictions} evicted` : ""} · ${budget.lastFrameMs}ms last frame${budget.longFrames ? ` · ${budget.longFrames} long frames (worst ${budget.worstFrameMs}ms)` : ""} · rating queue ${feedback.lastRatingQueueMs}ms / disk ${feedback.lastPersistMs}ms${feedback.pendingWrites ? " pending" : ""}`;
+										})() }),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: (() => {
+											const first = getFirstShelfTrace();
+											return first.elapsedMs ? `First shelf · ${first.elapsedMs}ms · ${first.title} · ${first.cards} visible cards` : "First shelf · waiting for the first visible rail";
+										})() }),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: (() => {
+											const interaction = getInteractionBudgetSnapshot();
+											return `Input to next paint · navigation ${interaction.navigation.lastMs}ms (worst ${interaction.navigation.worstMs}ms) · search ${interaction.search.lastMs}ms · rating ${interaction.rating.lastMs}ms`;
 										})() }),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 											size: "sm",
@@ -3598,6 +3639,12 @@ function PhotosSection() {
 	const [photoScanEstimatedPhotos, setPhotoScanEstimatedPhotos] = (0, import_react.useState)(0);
 	const [photoScanFoundPhotos, setPhotoScanFoundPhotos] = (0, import_react.useState)(0);
 	const [photoScanAverageMs, setPhotoScanAverageMs] = (0, import_react.useState)(0);
+	const [photoMetadataProgress, setPhotoMetadataProgress] = (0, import_react.useState)({
+		total: 0,
+		done: 0,
+		startedAt: 0,
+		running: false
+	});
 	const [photoLimit, setPhotoLimit] = (0, import_react.useState)(80);
 	const [visionBusy, setVisionBusy] = (0, import_react.useState)(false);
 	const [visionProgress, setVisionProgress] = (0, import_react.useState)("");
@@ -3618,6 +3665,7 @@ function PhotosSection() {
 	const sourcePhotos = useSourceAssets((s) => s.photos);
 	const refreshSourcePhotos = useLibrary((s) => s.refreshSourcePhotos);
 	const sourceFolders = (0, import_react.useMemo)(() => libraryFolders.filter((folder) => folder.kind === "directory" || folder.kind === "files"), [libraryFolders]);
+	const sourceFolderIds = (0, import_react.useMemo)(() => sourceFolders.map((folder) => folder.id).sort().join("|"), [sourceFolders]);
 	const checkUpscalerHealth = async () => {
 		try {
 			const raw = localStorage.getItem("reelcase.photo-upscaler.model.v1");
@@ -3736,7 +3784,7 @@ function PhotosSection() {
 			window.clearInterval(timer);
 			if (companionDeltaTimer.current) window.clearTimeout(companionDeltaTimer.current);
 		};
-	}, [refreshSourcePhotos, sourceFolders]);
+	}, [refreshSourcePhotos, sourceFolderIds]);
 	const addPhotos = (files, folderName = "Unsorted", paths, urls) => {
 		if (!files) return;
 		const remembered = photoMetadata();
@@ -3756,7 +3804,10 @@ function PhotosSection() {
 				album: remembered[id]?.album ?? paths?.[index]?.split("/")[0] ?? folderName,
 				favorite: remembered[id]?.favorite ?? false,
 				rating: remembered[id]?.rating ?? 0,
-				addedAt: file.lastModified
+				addedAt: file.lastModified,
+				width: remembered[id]?.width,
+				height: remembered[id]?.height,
+				file
 			};
 		}).filter((photo) => photo !== null);
 		if (!next.length) return;
@@ -3784,13 +3835,15 @@ function PhotosSection() {
 			try {
 				cachedPhotoMetadata = {
 					...photoMetadata(),
-					...Object.fromEntries(photos.map(({ id, path, people, tags, album, favorite, rating }) => [id, {
+					...Object.fromEntries(photos.map(({ id, path, people, tags, album, favorite, rating, width, height }) => [id, {
 						path,
 						people,
 						tags,
 						album,
 						favorite,
-						rating
+						rating,
+						width,
+						height
 					}]))
 				};
 				localStorage.setItem("reelcase.photo-meta.v1", JSON.stringify(cachedPhotoMetadata));
@@ -3800,6 +3853,62 @@ function PhotosSection() {
 			if (metadataWriteTimer.current) clearTimeout(metadataWriteTimer.current);
 		};
 	}, [photos]);
+	(0, import_react.useEffect)(() => {
+		let cancelled = false;
+		const waiting = photos.filter((photo) => photo.file && (!photo.width || !photo.height));
+		if (!waiting.length) return;
+		setPhotoMetadataProgress({
+			total: waiting.length,
+			done: 0,
+			startedAt: performance.now(),
+			running: true
+		});
+		(async () => {
+			for (let start = 0; start < waiting.length && !cancelled; start += 8) {
+				const chunk = waiting.slice(start, start + 8);
+				const dimensions = await Promise.all(chunk.map(async (photo) => {
+					try {
+						const bitmap = await createImageBitmap(photo.file);
+						const result = {
+							id: photo.id,
+							width: bitmap.width,
+							height: bitmap.height
+						};
+						bitmap.close();
+						return result;
+					} catch {
+						return {
+							id: photo.id,
+							width: 0,
+							height: 0
+						};
+					}
+				}));
+				if (cancelled) return;
+				const byId = new Map(dimensions.filter((item) => item.width > 0 && item.height > 0).map((item) => [item.id, item]));
+				setPhotos((items) => items.map((photo) => {
+					const next = byId.get(photo.id);
+					return next ? {
+						...photo,
+						width: next.width,
+						height: next.height
+					} : photo;
+				}));
+				setPhotoMetadataProgress((current) => ({
+					...current,
+					done: Math.min(current.total, start + chunk.length)
+				}));
+				await new Promise((resolve) => window.setTimeout(resolve, 0));
+			}
+			if (!cancelled) setPhotoMetadataProgress((current) => ({
+				...current,
+				running: false
+			}));
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [photos.length]);
 	(0, import_react.useEffect)(() => {
 		try {
 			localStorage.setItem("reelcase.photos.sort", photoSort);
@@ -3881,8 +3990,9 @@ function PhotosSection() {
 		return () => {
 			cancelled = true;
 		};
-	}, [refreshSourcePhotos, sourceFolders]);
+	}, [refreshSourcePhotos, sourceFolderIds]);
 	const photoScanEta = photoSourceLoading && photoScanDone >= 2 && photoScanTotal > photoScanDone && photoScanAverageMs > 0 ? Math.max(1, Math.ceil(photoScanAverageMs * (photoScanTotal - photoScanDone) / 1e3)) : 0;
+	const photoMetadataEta = photoMetadataProgress.running && photoMetadataProgress.done > 0 && photoMetadataProgress.done < photoMetadataProgress.total ? Math.max(1, Math.ceil((performance.now() - photoMetadataProgress.startedAt) / photoMetadataProgress.done * (photoMetadataProgress.total - photoMetadataProgress.done) / 1e3)) : 0;
 	const addPhotoFolder = (files) => {
 		if (!files?.length) return;
 		const first = [...files].find((file) => file.webkitRelativePath)?.webkitRelativePath.split("/")[0] ?? "Photo folder";
@@ -4531,9 +4641,9 @@ function PhotosSection() {
 						className: "text-xs leading-5 text-accent",
 						children: companionDeltaNote
 					}),
-					(helperNote || photoSourceLoading || photoCacheNotice) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+					(helperNote || photoSourceLoading || photoMetadataProgress.running || photoCacheNotice) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 						className: "flex items-center gap-2 text-xs text-accent",
-						children: [photoSourceLoading && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(RefreshCw, { className: "size-3 animate-spin" }), photoSourceLoading ? `Loading cached photo sources · ${photoScanDone}/${photoScanTotal} folders · ${photoScanFoundPhotos.toLocaleString()} found${photoScanEstimatedPhotos ? ` of about ${photoScanEstimatedPhotos.toLocaleString()}` : ""}${photoScanEta ? ` · about ${photoScanEta}s remaining` : " · estimating time remaining…"}` : helperNote || photoCacheNotice]
+						children: [(photoSourceLoading || photoMetadataProgress.running) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(RefreshCw, { className: "size-3 animate-spin" }), photoSourceLoading ? `Loading cached photo sources · ${photoScanDone}/${photoScanTotal} folders · ${photoScanFoundPhotos.toLocaleString()} found${photoScanEstimatedPhotos ? ` of about ${photoScanEstimatedPhotos.toLocaleString()}` : ""}${photoScanEta ? ` · about ${photoScanEta}s remaining` : " · estimating time remaining…"}` : photoMetadataProgress.running ? `Reading photo dimensions and dates · ${photoMetadataProgress.done}/${photoMetadataProgress.total} complete${photoMetadataEta ? ` · about ${photoMetadataEta}s remaining` : " · estimating time remaining…"}` : helperNote || photoCacheNotice]
 					})
 				]
 			}),
@@ -4589,136 +4699,138 @@ function PhotosSection() {
 						})]
 					})
 				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-					className: "mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6",
-					children: renderedPhotos.map((photo) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "relative overflow-hidden rounded-md bg-elevated shadow-border",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", {
-								className: "absolute z-10 m-2 flex size-7 items-center justify-center rounded-sm bg-bg/75 text-fg",
-								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-									type: "checkbox",
-									checked: selectedPhotoIds.has(photo.id),
-									onChange: () => setSelectedPhotoIds((current) => {
-										const next = new Set(current);
-										if (next.has(photo.id)) next.delete(photo.id);
-										else next.add(photo.id);
-										return next;
-									}),
-									"aria-label": `Select ${photo.name}`
-								})
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-								type: "button",
-								className: "group relative block w-full",
-								onClick: () => {
-									setPhotoViewerLoading(true);
-									setFocusedPhotoId(photo.id);
-								},
-								"aria-label": `Open ${photo.name} full screen`,
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
-									src: photo.url,
-									alt: photo.name,
-									loading: "lazy",
-									decoding: "async",
-									className: "aspect-square w-full object-cover"
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "absolute inset-0 flex items-center justify-center bg-bg/45 opacity-0 transition-opacity group-hover:opacity-100",
-									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Maximize2, { className: "size-6 text-fg" })
-								})]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "p-3",
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "flex items-center gap-2",
-										children: [
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-												className: "min-w-0 flex-1 truncate text-sm text-fg",
-												children: photo.name
-											}),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-												size: "sm",
-												variant: photo.favorite ? "default" : "secondary",
-												onClick: () => setPhotos((items) => items.map((item) => item.id === photo.id ? {
-													...item,
-													favorite: !item.favorite
-												} : item)),
-												children: "♥"
-											}),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-												size: "sm",
-												variant: "secondary",
-												"aria-label": `Download ${photo.name}`,
-												onClick: () => downloadPhoto(photo),
-												children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Download, { className: "size-4" })
-											})
-										]
-									}),
-									showLocations && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										title: photo.path,
-										className: "mt-1 truncate text-xs text-muted",
-										children: photo.path
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PhotoStars, {
-										name: photo.name,
-										rating: photo.rating,
-										onChange: (rating) => setPhotos((items) => items.map((item) => item.id === photo.id ? {
-											...item,
-											rating
-										} : item))
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-										className: "mt-2 h-9",
-										placeholder: "People: Alex, Sam",
-										value: photo.people.join(", "),
-										onChange: (event) => {
-											const names = event.target.value.split(",").map((value) => value.trim()).filter(Boolean);
-											setPhotos((items) => items.map((item) => item.id === photo.id ? {
-												...item,
-												people: names
-											} : item));
-										}
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-										className: "mt-2 h-9",
-										placeholder: "Tags: travel, pets, event",
-										value: photo.tags.join(", "),
-										onChange: (event) => {
-											const tags = event.target.value.split(",").map((value) => value.trim().toLowerCase()).filter(Boolean).slice(0, 20);
-											setPhotos((items) => items.map((item) => item.id === photo.id ? {
-												...item,
-												tags: [...new Set(tags)]
-											} : item));
-										}
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-										className: "mt-2 h-9",
-										placeholder: "Album, e.g. Summer 2026",
-										value: photo.album,
-										onChange: (event) => setPhotos((items) => items.map((item) => item.id === photo.id ? {
-											...item,
-											album: event.target.value || "Unsorted"
-										} : item))
-									})
-								]
-							})
-						]
-					}, photo.id))
-				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					className: "mt-4 flex items-center justify-between gap-3 text-xs text-muted",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
-						"Showing ",
-						Math.min(renderedPhotos.length, visible.length),
-						" of ",
-						visible.length,
-						" matching photos"
-					] }), renderedPhotos.length < visible.length && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-						size: "sm",
-						variant: "secondary",
-						onClick: () => setPhotoLimit((limit) => limit + 80),
-						children: "Show 80 more"
+					className: "mt-5",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6",
+						children: renderedPhotos.map((photo) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "relative overflow-hidden rounded-md bg-elevated shadow-border",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", {
+									className: "absolute z-10 m-2 flex size-7 items-center justify-center rounded-sm bg-bg/75 text-fg",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+										type: "checkbox",
+										checked: selectedPhotoIds.has(photo.id),
+										onChange: () => setSelectedPhotoIds((current) => {
+											const next = new Set(current);
+											if (next.has(photo.id)) next.delete(photo.id);
+											else next.add(photo.id);
+											return next;
+										}),
+										"aria-label": `Select ${photo.name}`
+									})
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+									type: "button",
+									className: "group relative block w-full",
+									onClick: () => {
+										setPhotoViewerLoading(true);
+										setFocusedPhotoId(photo.id);
+									},
+									"aria-label": `Open ${photo.name} full screen`,
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+										src: photo.url,
+										alt: photo.name,
+										loading: "lazy",
+										decoding: "async",
+										className: "aspect-square w-full object-cover"
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "absolute inset-0 flex items-center justify-center bg-bg/45 opacity-0 transition-opacity group-hover:opacity-100",
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Maximize2, { className: "size-6 text-fg" })
+									})]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "p-3",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "flex items-center gap-2",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+													className: "min-w-0 flex-1 truncate text-sm text-fg",
+													children: photo.name
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+													size: "sm",
+													variant: photo.favorite ? "default" : "secondary",
+													onClick: () => setPhotos((items) => items.map((item) => item.id === photo.id ? {
+														...item,
+														favorite: !item.favorite
+													} : item)),
+													children: "♥"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+													size: "sm",
+													variant: "secondary",
+													"aria-label": `Download ${photo.name}`,
+													onClick: () => downloadPhoto(photo),
+													children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Download, { className: "size-4" })
+												})
+											]
+										}),
+										showLocations && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											title: photo.path,
+											className: "mt-1 truncate text-xs text-muted",
+											children: photo.path
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PhotoStars, {
+											name: photo.name,
+											rating: photo.rating,
+											onChange: (rating) => setPhotos((items) => items.map((item) => item.id === photo.id ? {
+												...item,
+												rating
+											} : item))
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+											className: "mt-2 h-9",
+											placeholder: "People: Alex, Sam",
+											value: photo.people.join(", "),
+											onChange: (event) => {
+												const names = event.target.value.split(",").map((value) => value.trim()).filter(Boolean);
+												setPhotos((items) => items.map((item) => item.id === photo.id ? {
+													...item,
+													people: names
+												} : item));
+											}
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+											className: "mt-2 h-9",
+											placeholder: "Tags: travel, pets, event",
+											value: photo.tags.join(", "),
+											onChange: (event) => {
+												const tags = event.target.value.split(",").map((value) => value.trim().toLowerCase()).filter(Boolean).slice(0, 20);
+												setPhotos((items) => items.map((item) => item.id === photo.id ? {
+													...item,
+													tags: [...new Set(tags)]
+												} : item));
+											}
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+											className: "mt-2 h-9",
+											placeholder: "Album, e.g. Summer 2026",
+											value: photo.album,
+											onChange: (event) => setPhotos((items) => items.map((item) => item.id === photo.id ? {
+												...item,
+												album: event.target.value || "Unsorted"
+											} : item))
+										})
+									]
+								})
+							]
+						}, photo.id))
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 flex items-center justify-between gap-3 text-xs text-muted",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
+							"Showing ",
+							Math.min(renderedPhotos.length, visible.length),
+							" of ",
+							visible.length,
+							" matching photos"
+						] }), renderedPhotos.length < visible.length && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							size: "sm",
+							variant: "secondary",
+							onClick: () => setPhotoLimit((limit) => limit + 80),
+							children: "Show 80 more"
+						})]
 					})]
 				}),
 				focusedPhoto && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
@@ -4971,7 +5083,7 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "sprint-03",
 		title: "Ratings streaks",
-		detail: "Add rating goals, weekly streaks, and explainable local rewards.",
+		detail: "In progress · choose a local 3, 5, or 10-title weekly goal on Home; distinct ratings drive a streak counter and transparent rewards. Creator and longer-term reward paths remain next.",
 		done: false
 	},
 	{
@@ -5181,8 +5293,8 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "recommendation-diversity",
 		title: "Recommendation diversity guardrails",
-		detail: "Guarantee source, creator, and topic variety across Home, Watch Room, and related shelves without hiding high-rated favorites.",
-		done: false
+		detail: "Done · Home and provider discovery use deduplicated creator round-robin selection, preserving highly rated favorites while preventing one creator from occupying a rail.",
+		done: true
 	},
 	{
 		id: "activity-journal",
@@ -5193,19 +5305,19 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "shelf-explanations",
 		title: "Explainable recommendation shelves",
-		detail: "Show the active rating, creator, topic, freshness, and diversity signals behind each recommendation rail without exposing operational tags.",
-		done: false
+		detail: "Done · recommendation rails now state their plain-language reason—ratings, saved creators, freshness, progress, or follow state—without exposing transport tags.",
+		done: true
 	},
 	{
 		id: "memory-pressure-observer",
 		title: "Memory-pressure observer",
-		detail: "Measure mounted cards, image decode pressure, and cache eviction decisions on large provider and photo shelves.",
-		done: false
+		detail: "Done · local Diagnostics reports mounted-card count, decoded artwork cache entries, active/queued decode work, hit/miss/eviction counts, and frame pressure so large shelves have an observable cause.",
+		done: true
 	},
 	{
 		id: "warp-01",
 		title: "First-shelf trace",
-		detail: "Instrument time from launch to first interactive shelf, split by cached index, provider cache, and thumbnail work.",
+		detail: "In progress · local Diagnostics now records launch-to-first-mounted-shelf time, title, and visible-card count. Cache/index and thumbnail-work splits remain next.",
 		done: false
 	},
 	{
@@ -5235,8 +5347,8 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "warp-06",
 		title: "Photo metadata stream",
-		detail: "Read photo dimensions and dates in worker-sized chunks with an honest rolling completion estimate.",
-		done: false
+		detail: "Done · local photo dimensions and saved dates stream in eight-item browser chunks, yield between batches, persist each result, and show completed/remaining work with a rolling estimate.",
+		done: true
 	},
 	{
 		id: "warp-07",
@@ -5439,7 +5551,7 @@ var ROADMAP_EXPANSION = [
 		id,
 		title,
 		detail,
-		done: false
+		done: id !== "history-10"
 	})),
 	...[
 		[
@@ -5496,7 +5608,7 @@ var ROADMAP_EXPANSION = [
 		id,
 		title,
 		detail,
-		done: false
+		done: id !== "continue-10"
 	})),
 	...[
 		[
@@ -5603,7 +5715,14 @@ var ROADMAP_EXPANSION = [
 		id,
 		title,
 		detail,
-		done: false
+		done: [
+			"youtube-upgrade-11",
+			"youtube-upgrade-12",
+			"youtube-upgrade-13",
+			"youtube-upgrade-14",
+			"youtube-upgrade-15",
+			"youtube-upgrade-19"
+		].includes(id)
 	})),
 	...[
 		[
@@ -5710,64 +5829,150 @@ var ROADMAP_EXPANSION = [
 		id,
 		title,
 		detail,
-		done: false
+		done: [
+			"twitch-upgrade-02",
+			"twitch-upgrade-04",
+			"twitch-upgrade-05",
+			"twitch-upgrade-06",
+			"twitch-upgrade-07",
+			"twitch-upgrade-08",
+			"twitch-upgrade-10",
+			"twitch-upgrade-11",
+			"twitch-upgrade-12",
+			"twitch-upgrade-13",
+			"twitch-upgrade-14",
+			"twitch-upgrade-15"
+		].includes(id)
 	})),
 	...[
 		[
 			"speed-01",
 			"First interaction budget",
-			"Measure launch-to-first interactive shelf on cached and cold catalogs."
+			"Measure cached and cold launch-to-first-interactive-shelf time, separately reporting catalog hydration, selector work, thumbnail work, and any provider request."
 		],
 		[
 			"speed-02",
 			"Provider payload budget",
-			"Cap routine provider payloads and promote deep work to focused actions."
+			"Set explicit row, byte, concurrency, and retry budgets for routine provider work; reserve historical pulls for visible user actions."
 		],
 		[
 			"speed-03",
 			"Render invalidation audit",
-			"Identify state changes that rebuild unrelated rails."
+			"Trace state changes that rebuild unrelated rails or grids, then stabilize selectors and props so a rating, like, or clock tick updates only affected cards."
 		],
 		[
 			"speed-04",
 			"Visible artwork priority",
-			"Defer offscreen image work behind user-visible cards."
+			"Prioritize visible and near-view images, pause offscreen decoding during input, and resume through a bounded queue once the main thread is idle."
 		],
 		[
 			"speed-05",
 			"Input latency monitor",
-			"Track rating, search, and playback control response under a large catalog."
+			"Measure interaction-to-paint time for rating, search, queue, play/pause, and source navigation on a large local and provider catalog."
 		],
 		[
 			"speed-06",
 			"Idle enrichment queue",
-			"Run optional metadata work only after a stable idle window."
+			"Run optional tag, metadata, and cache work in short cancelable idle slices; persist each completed batch so tab sleep never loses progress."
 		],
 		[
 			"speed-07",
 			"Route warmup policy",
-			"Prefetch only the next likely hub after the current view settles."
+			"Warm only the next likely route after the current page is visibly settled, cancel speculative work on navigation, and never fetch a hub just because it exists."
 		],
 		[
 			"speed-08",
 			"Cache hit dashboard",
-			"Report local/provider/artwork cache hits without retaining media bytes."
+			"Report catalog, provider, artwork, and thumbnail-cache hit/miss counts with age and size, while retaining metadata only and no media bytes."
 		],
 		[
 			"speed-09",
 			"Mobile memory budget",
-			"Test low-memory grids and scrolling on a phone-sized viewport."
+			"Exercise scrolling, search, artwork deferment, and card actions in a phone viewport under a small worker/cache budget with no horizontal overflow."
 		],
 		[
 			"speed-10",
 			"Performance release gate",
-			"Keep startup, scroll, and interaction benchmarks required before new shelves ship."
+			"Require repeatable startup, scroll-settle, mounted-card, input-latency, and console-error checks before a shelf or provider feature is marked complete."
 		]
 	].map(([id, title, detail]) => ({
 		id,
 		title,
 		detail,
-		done: false
+		done: ["speed-04"].includes(id)
+	})),
+	...[
+		[
+			"smooth-01",
+			"Navigation transition budget",
+			"Keep source switches responsive by rendering the destination shell first and scheduling expensive derived rails in a transition after controls become interactive."
+		],
+		[
+			"smooth-02",
+			"Long-list virtualization proof",
+			"Benchmark and verify virtual windows for grids and horizontal rails at provider-library scale, including keyboard focus, screen-reader counts, and scroll restoration."
+		],
+		[
+			"smooth-03",
+			"Image decode pressure gauge",
+			"Expose decoded-image count, pending decode work, and cache evictions in Diagnostics so memory pressure has an observable cause and recovery."
+		],
+		[
+			"smooth-04",
+			"Background-tab throttle",
+			"Reduce polling, thumbnail work, and timer-driven reranks while the tab is hidden, then perform one bounded reconciliation when it returns."
+		],
+		[
+			"smooth-05",
+			"Search keystroke budget",
+			"Debounce suggestions, move full-catalog token work off the input frame, and show a truthful warming state while the search index catches up."
+		],
+		[
+			"smooth-06",
+			"Local persistence coalescing",
+			"Batch preference and tag writes away from click handlers while journaling the latest operation immediately so a crash cannot lose a user action."
+		],
+		[
+			"smooth-07",
+			"Provider-card structural sharing",
+			"Reuse unchanged provider card objects and artwork references across refreshes to prevent image reloads, animation resets, and avoidable React reconciliation."
+		],
+		[
+			"smooth-08",
+			"Cold-start source ordering",
+			"Hydrate the saved local catalog and active source before optional folder verification, remote refresh, Companion warmup, or recommendation ranking begins."
+		],
+		[
+			"smooth-09",
+			"Timer consolidation",
+			"Audit periodic provider, Watch Room, clock, and visibility timers; share intervals where possible and stop them when their owning surface unmounts."
+		],
+		[
+			"smooth-10",
+			"Slow-device profile",
+			"Add a reproducible constrained-core/memory benchmark profile and use it to choose safe default worker, cache, and rail-window budgets."
+		],
+		[
+			"smooth-11",
+			"Accessibility performance audit",
+			"Verify deferred and virtualized cards retain focus order, announce loading state, and never make a keyboard action wait for offscreen artwork."
+		],
+		[
+			"smooth-12",
+			"Smoothness scorecard",
+			"Publish a local diagnostics scorecard with first interaction, frame pressure, cache health, visible-card count, and the next safest remediation."
+		]
+	].map(([id, title, detail]) => ({
+		id,
+		title,
+		detail,
+		done: [
+			"smooth-03",
+			"smooth-04",
+			"smooth-06",
+			"smooth-07",
+			"smooth-08"
+		].includes(id)
 	}))
 ];
 var ALL_DEFAULT_MISSIONS = [...DEFAULT_MISSIONS, ...ROADMAP_EXPANSION];

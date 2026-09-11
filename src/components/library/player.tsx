@@ -33,7 +33,7 @@ import { getNote, getRating, setNote as saveNote, setRating as saveRating } from
 import { useLibrary } from "@/lib/videos/store";
 import { useThumbs } from "@/lib/videos/thumbs";
 import { resolvePlayUrl } from "@/lib/videos/sources";
-import { isLikelyPlayable } from "@/lib/videos/types";
+import { hasFreshViewerCount, isLikelyPlayable } from "@/lib/videos/types";
 import { attachFrameCallback, probeHardwareDecode, type HwInfo } from "@/lib/videos/hw";
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
@@ -478,7 +478,7 @@ export function Player({ playlist }: { playlist: string[] }) {
                 [
                   remote.live ? "Live" : remote.kind === "youtube" ? "YouTube" : "Twitch",
                   remote.channelName,
-                  remote.viewers ? `${remote.viewers.toLocaleString()} watching` : null,
+                  hasFreshViewerCount(remote) ? `${remote.viewers?.toLocaleString()} watching` : null,
                 ]
                   .filter(Boolean)
                   .join(" · ")

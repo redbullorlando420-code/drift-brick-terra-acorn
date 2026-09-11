@@ -11,7 +11,20 @@ export function mergeRemoteRefresh(
   existing: LibraryVideo[], incoming: LibraryVideo[], refreshedIds: string[], savedIds: Set<string>,
 ): LibraryVideo[] {
   const refreshed = new Set(refreshedIds);
-  const fresh = new Map(incoming.map((video) => [video.id, video]));
+  const existingById = new Map(existing.map((video) => [video.id, video]));
+  const fresh = new Map(incoming.map((video) => {
+    const previous = existingById.get(video.id);
+    const incomingObservation = video.remote?.observedAt ?? 0;
+    const previousObservation = previous?.remote?.observedAt ?? 0;
+    // Network responses can resolve out of order. A delayed live response must
+    // never flash an older stream title, category, poster, or viewer count.
+    if (previous?.remote?.live && video.remote?.live && incomingObservation < previousObservation) return [video.id, previous] as const;
+    // Preserve object identity for an unchanged provider card. This prevents
+    // healthy artwork and scroll-position-sensitive rails from re-rendering
+    // just because a routine refresh repeated the same provider row.
+    if (previous && previous.name === video.name && previous.path === video.path && previous.poster === video.poster && previous.genre === video.genre && previous.tagline === video.tagline && previous.description === video.description && previous.addedAt === video.addedAt && previous.duration === video.duration && JSON.stringify(previous.remote) === JSON.stringify(video.remote)) return [video.id, previous] as const;
+    return [video.id, video] as const;
+  }));
   const retained = existing.filter((video) => {
     if (fresh.has(video.id) || !video.remote || !refreshed.has(video.folderId)) return !fresh.has(video.id);
     if (savedIds.has(video.id)) return true;

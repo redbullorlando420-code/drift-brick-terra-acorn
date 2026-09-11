@@ -1,5 +1,5 @@
 import { n as TSS_SERVER_FUNCTION, t as createServerFn } from "./ssr.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/api-B5kvriUb.js
+//#region node_modules/.nitro/vite/services/ssr/assets/api-BM8KSC1c.js
 var createServerRpc = (serverFnMeta, splitImportFn) => {
 	const url = "/_serverFn/" + serverFnMeta.id;
 	return Object.assign(splitImportFn, {
@@ -389,7 +389,7 @@ async function twitchUser(login, after, archivePageSize = TWITCH_ARCHIVE_PAGE_SI
 			"content-type": "application/json"
 		},
 		body: JSON.stringify({
-			query: `query($login:String!,$after:Cursor,$first:Int!){user(login:$login){id displayName profileImageURL(width:70) stream{title viewersCount previewImageURL(width:640,height:360) game{name}} videos(first:$first,type:ARCHIVE,after:$after){pageInfo{hasNextPage endCursor} edges{cursor node{id title description lengthSeconds publishedAt previewThumbnailURL(width:640,height:360)}}}}}`,
+			query: `query($login:String!,$after:Cursor,$first:Int!){user(login:$login){id displayName profileImageURL(width:70) stream{title viewersCount previewImageURL(width:640,height:360) game{name}} videos(first:$first,type:ARCHIVE,after:$after){pageInfo{hasNextPage endCursor} edges{cursor node{id title description lengthSeconds publishedAt previewThumbnailURL(width:640,height:360) game{name}}}}}}`,
 			variables: {
 				login,
 				after: after ?? null,
@@ -437,6 +437,7 @@ async function twitchArchive(login, limit) {
 function twitchVideos(login, user, vodLimit = 160) {
 	const title = user.displayName ?? login;
 	const folderId = `tw:${login}`;
+	const observedAt = Date.now();
 	const out = [];
 	if (user.stream) out.push({
 		id: `tw:${login}:live`,
@@ -455,6 +456,7 @@ function twitchVideos(login, user, vodLimit = 160) {
 			channelName: title,
 			live: true,
 			viewers: user.stream.viewersCount,
+			observedAt,
 			embedUrl: `https://player.twitch.tv/?channel=${encodeURIComponent(login)}&autoplay=true`,
 			watchUrl: `https://www.twitch.tv/${login}`
 		}
@@ -462,6 +464,8 @@ function twitchVideos(login, user, vodLimit = 160) {
 	for (const edge of (user.videos?.edges ?? []).slice(0, vodLimit)) {
 		const node = edge.node;
 		if (!node?.id) continue;
+		const rawDuration = Number(node.lengthSeconds);
+		const duration = Number.isFinite(rawDuration) && rawDuration > 0 && rawDuration <= 172800 ? rawDuration : void 0;
 		out.push({
 			id: `tw:v:${node.id}`,
 			folderId,
@@ -470,8 +474,9 @@ function twitchVideos(login, user, vodLimit = 160) {
 			extension: "vod",
 			mime: "video/twitch",
 			size: 0,
-			duration: node.lengthSeconds,
+			duration,
 			addedAt: Date.parse(node.publishedAt ?? "") || Date.now(),
+			genre: node.game?.name,
 			poster: node.previewThumbnailURL,
 			tagline: node.description?.slice(0, 180),
 			description: node.description?.slice(0, 4e3),
@@ -480,6 +485,7 @@ function twitchVideos(login, user, vodLimit = 160) {
 				videoId: node.id,
 				channelName: title,
 				live: false,
+				observedAt,
 				embedUrl: `https://player.twitch.tv/?video=${encodeURIComponent(node.id)}&autoplay=true`,
 				watchUrl: `https://www.twitch.tv/videos/${node.id}`
 			}
@@ -499,6 +505,7 @@ function twitchVideos(login, user, vodLimit = 160) {
 			kind: "twitch",
 			channelName: title,
 			live: false,
+			observedAt,
 			embedUrl: `https://player.twitch.tv/?channel=${encodeURIComponent(login)}&autoplay=true`,
 			watchUrl: `https://www.twitch.tv/${login}`
 		}
