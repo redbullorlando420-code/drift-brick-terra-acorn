@@ -369,9 +369,13 @@ Branch: `fix/reelcase-updates`
 - **Chaturbate backup pull:** public affiliate rooms JSON + `/embed/{user}/`. Adults “all” continues if Eporner or RedTube errors (per-provider try/catch, partial success). Preview no longer rewrites adult embeds to YouTube.
 - **Pornhub categories as Adult tags:** all ~105 PH categories + 17 languages as chips (keep 18+ labels on Babysitter/College/School/Old-Young). Featured row includes DP, role play, MILF, feet, anal, lesbian, gangbang, cuckold, cosplay, step fantasy, latina, asian, ebony, bbw, hentai, VR, webcam.
 - **I cummed to it:** per-video local counter on adult cards + player; persisted forever with prefs + activity snapshot (IndexedDB); Adults rail + Stats marks; not synced remotely.
+- **Live cams:** CamSoda public `/api/v1/browse/online` (thumbs + room pages, no X-Frame-Options) and MyFreeCams public `php/online_models.php` (#username deep-links). Chaturbate remains the official `/embed/{user}/` player. Stripchat / BongaCams / Cam4 / Flirt4Free / Streamate / LiveJasmin stay live deep-link milestones (no playable public API).
 
 ### In progress / queued
 
+- Reddit NSFW: unauthenticated `.json` is 403 as of 2026; public `.rss` Atom still exists — next commit will pull curated 18+ sub previews or keep link-out if rate-limited.
+- Re-probe of `/workspace/xxx-tubes-reprobe.txt`: no new video+tags APIs (HubTraffic HTML, TXXX invalid_params, XVideos/XNXX/xHamster/SpankBang/Beeg HTML-only). Eporner + RedTube remain the tube pulls.
+- Adults render-only loading (YouTube/Twitch fast-start / explore / deep shelves).
 - Persist/cache larger Eporner + RedTube catalogs in IndexedDB like YouTube (`saveFolderVideos` / `appendCatalogVideos`); raise page/video limits; resume + load-more; keep UI windowed.
 - More photo APIs (XBooru / TBIB / Hypnohub). Skip key-gated, retired HubTraffic, CSAM-risk, and leak sites.
 - Connect adult watch activity into **Continue / History / Stats** (catalog rails stay public-only).
@@ -384,7 +388,7 @@ Branch: `fix/reelcase-updates`
 
 | Pull (API + play/view) | Link-out only |
 |---|---|
-| Eporner, RedTube, Chaturbate | HubTraffic remnants, TXXX/KVS family, major tubes without public JSON, Stripchat (no playable embed), downloads, torrents |
+| Eporner, RedTube, Chaturbate, CamSoda, MyFreeCams | HubTraffic remnants, TXXX/KVS family, major tubes without public JSON, Stripchat/BongaCams/Cam4/etc (no playable public API), downloads, torrents |
 
 ### Verification
 

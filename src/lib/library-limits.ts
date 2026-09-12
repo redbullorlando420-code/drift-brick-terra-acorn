@@ -30,4 +30,6 @@ export const LIBRARY_LIMITS = {
   redtubeVideosPerPull: 3_000,
   adultKeywordTagsPerTitle: 48,
   chaturbateRoomsPerPull: 180,
+  camsodaRoomsPerPull: 180,
+  myfreecamsRoomsPerPull: 180,
 } as const;

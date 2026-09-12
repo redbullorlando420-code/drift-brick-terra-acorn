@@ -4,8 +4,10 @@ import { LIBRARY_LIMITS } from "@/lib/library-limits";
 import {
   ADULT_DEEPEN_FETISH_QUERIES,
   ADULT_PULL_PROVIDERS,
+  CAMSODA_FOLDER_ID,
   CHATURBATE_FOLDER_ID,
   EPORNER_FOLDER_ID,
+  MYFREECAMS_FOLDER_ID,
   REDTUBE_FOLDER_ID,
   type AdultPullProvider,
 } from "@/lib/videos/adult-sites";
@@ -901,7 +903,7 @@ export const fetchTwitchFollowing = createServerFn({ method: "POST" })
     return { channels: [], privateList: true };
   });
 
-/* --- Adult discovery (Eporner + RedTube + Chaturbate official public APIs) --- */
+/* --- Adult discovery (Eporner + RedTube + live cam official public lists) --- */
 
 type AdultSearchIn = {
   query?: string;
@@ -1284,9 +1286,191 @@ async function fetchChaturbateRooms(query: string, maxVideos: number): Promise<{
   };
 }
 
+
+const CAMSODA_TPL = [
+  "user_id",
+  "username",
+  "display_name",
+  "status",
+  "connections",
+  "sort_value",
+  "subject_html",
+  "stream_name",
+  "gender",
+  "edge_servers",
+  "thumb",
+  "pvt_rating",
+  "bitrate",
+  "control_her",
+  "standby",
+  "offline_picture",
+] as const;
+
+function asTplMap(tpl: unknown): Record<string, unknown> {
+  if (Array.isArray(tpl)) return Object.fromEntries(tpl.map((value, index) => [String(index), value]));
+  if (tpl && typeof tpl === "object") return tpl as Record<string, unknown>;
+  return {};
+}
+
+function camsodaValue(tpl: Record<string, unknown>, field: (typeof CAMSODA_TPL)[number]) {
+  return tpl[String(CAMSODA_TPL.indexOf(field))];
+}
+
+function stripMarkup(value: string) {
+  return value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function camsodaVideo(row: { tpl?: unknown }): LibraryVideo | null {
+  const tpl = asTplMap(row.tpl);
+  const username = asString(camsodaValue(tpl, "username")).trim().toLowerCase();
+  if (!username || !/^[a-z0-9_-]+$/.test(username)) return null;
+  const status = asString(camsodaValue(tpl, "status")).trim().toLowerCase();
+  if (status && /private|offline|away|hidden/.test(status)) return null;
+  const display = asString(camsodaValue(tpl, "display_name")).trim() || username;
+  const subject = stripMarkup(asString(camsodaValue(tpl, "subject_html")));
+  if (adultBlockedText(username, display, subject)) return null;
+  const thumb = asString(camsodaValue(tpl, "thumb")).trim();
+  const connections = camsodaValue(tpl, "connections");
+  const viewers = typeof connections === "number" && Number.isFinite(connections) ? connections : undefined;
+  const watch = `https://www.camsoda.com/${encodeURIComponent(username)}`;
+  return {
+    id: `camsoda:${username}`,
+    folderId: CAMSODA_FOLDER_ID,
+    name: display,
+    path: `camsoda/${username}`,
+    extension: "camsoda",
+    mime: "video/camsoda",
+    size: 0,
+    addedAt: Date.now(),
+    tagline: subject.slice(0, 160) || "Live on CamSoda",
+    description: ["live", "cam", subject].filter(Boolean).join(", ") || undefined,
+    poster: thumb || undefined,
+    src: watch,
+    remote: {
+      kind: "camsoda",
+      videoId: username,
+      channelName: display,
+      live: true,
+      viewers,
+      observedAt: Date.now(),
+      embedUrl: watch,
+      watchUrl: watch,
+      previewUrl: thumb || undefined,
+    },
+  };
+}
+
+let camsodaCache: { at: number; rooms: LibraryVideo[] } | null = null;
+const CAMSODA_CACHE_MS = 3 * 60_000;
+
+async function fetchCamSodaRooms(query: string, maxVideos: number): Promise<{
+  videos: LibraryVideo[];
+  totalPages: number;
+  totalCount: number;
+}> {
+  if (!camsodaCache || Date.now() - camsodaCache.at > CAMSODA_CACHE_MS) {
+    const res = await fetch("https://www.camsoda.com/api/v1/browse/online", {
+      signal: AbortSignal.timeout(25000),
+      headers: {
+        accept: "application/json",
+        "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
+      },
+    });
+    if (!res.ok) throw new Error("CamSoda rooms are unavailable right now.");
+    const json = (await res.json()) as { results?: Array<{ tpl?: unknown }> };
+    const rooms = (Array.isArray(json.results) ? json.results : [])
+      .map(camsodaVideo)
+      .filter((video): video is LibraryVideo => video != null);
+    camsodaCache = { at: Date.now(), rooms };
+  }
+  const needle = query.trim().toLowerCase();
+  const filtered =
+    !needle || needle === "all"
+      ? camsodaCache.rooms
+      : camsodaCache.rooms.filter((video) => {
+          const hay = `${video.name} ${video.description ?? ""} ${video.remote?.videoId ?? ""}`.toLowerCase();
+          return hay.includes(needle);
+        });
+  return { videos: filtered.slice(0, maxVideos), totalPages: 1, totalCount: filtered.length };
+}
+
+let myfreecamsCache: { at: number; rooms: LibraryVideo[] } | null = null;
+const MYFREECAMS_CACHE_MS = 3 * 60_000;
+
+function myfreecamsVideo(username: string, status: number): LibraryVideo | null {
+  // 0 = public live, 2 = listed/online-adjacent. 90 is offline; 12+ is private/group.
+  if (status !== 0 && status !== 2) return null;
+  const name = username.trim();
+  if (!/^[A-Za-z0-9_]{2,32}$/.test(name)) return null;
+  if (adultBlockedText(name)) return null;
+  const watch = `https://www.myfreecams.com/#${encodeURIComponent(name)}`;
+  return {
+    id: `myfreecams:${name.toLowerCase()}`,
+    folderId: MYFREECAMS_FOLDER_ID,
+    name,
+    path: `myfreecams/${name}`,
+    extension: "myfreecams",
+    mime: "video/myfreecams",
+    size: 0,
+    addedAt: Date.now(),
+    tagline: status === 0 ? "Live on MyFreeCams" : "Listed on MyFreeCams",
+    description: "live, cam",
+    src: watch,
+    remote: {
+      kind: "myfreecams",
+      videoId: name,
+      channelName: name,
+      live: status === 0,
+      observedAt: Date.now(),
+      embedUrl: watch,
+      watchUrl: watch,
+    },
+  };
+}
+
+async function fetchMyFreeCamsRooms(query: string, maxVideos: number): Promise<{
+  videos: LibraryVideo[];
+  totalPages: number;
+  totalCount: number;
+}> {
+  if (!myfreecamsCache || Date.now() - myfreecamsCache.at > MYFREECAMS_CACHE_MS) {
+    const res = await fetch("https://www.myfreecams.com/php/online_models.php", {
+      signal: AbortSignal.timeout(25000),
+      headers: {
+        accept: "text/plain, text/html;q=0.8",
+        "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
+      },
+    });
+    if (!res.ok) throw new Error("MyFreeCams rooms are unavailable right now.");
+    const text = await res.text();
+    const rooms: LibraryVideo[] = [];
+    for (const line of text.split(/\r?\n/)) {
+      const match = line.match(/^([A-Za-z0-9_]{2,32}),(\d+)$/);
+      if (!match) continue;
+      const video = myfreecamsVideo(match[1], Number(match[2]));
+      if (video) rooms.push(video);
+    }
+    myfreecamsCache = { at: Date.now(), rooms };
+  }
+  const needle = query.trim().toLowerCase();
+  const filtered =
+    !needle || needle === "all"
+      ? myfreecamsCache.rooms
+      : myfreecamsCache.rooms.filter((video) => video.name.toLowerCase().includes(needle));
+  return { videos: filtered.slice(0, maxVideos), totalPages: 1, totalCount: filtered.length };
+}
+
+function liveRoomLimit(provider: AdultPullProvider) {
+  if (provider === "chaturbate") return LIBRARY_LIMITS.chaturbateRoomsPerPull;
+  if (provider === "camsoda") return LIBRARY_LIMITS.camsodaRoomsPerPull;
+  if (provider === "myfreecams") return LIBRARY_LIMITS.myfreecamsRoomsPerPull;
+  return 0;
+}
+
 function providerPageBudget(provider: AdultPullProvider) {
   if (provider === "redtube") return { maxPages: LIBRARY_LIMITS.redtubePagesPerPull, perPage: LIBRARY_LIMITS.redtubePageSize };
-  if (provider === "chaturbate") return { maxPages: 1, perPage: LIBRARY_LIMITS.chaturbateRoomsPerPull };
+  const live = liveRoomLimit(provider);
+  if (live) return { maxPages: 1, perPage: live };
   return { maxPages: LIBRARY_LIMITS.epornerPagesPerPull, perPage: LIBRARY_LIMITS.epornerPageSize };
 }
 
@@ -1297,8 +1481,13 @@ async function pullProviderPages(
   startPage: number,
   maxVideos: number,
 ): Promise<{ videos: LibraryVideo[]; page: number; nextPage: number | null; totalCount: number }> {
-  if (provider === "chaturbate") {
-    const batch = await fetchChaturbateRooms(query, maxVideos);
+  if (provider === "chaturbate" || provider === "camsoda" || provider === "myfreecams") {
+    const batch =
+      provider === "chaturbate"
+        ? await fetchChaturbateRooms(query, maxVideos)
+        : provider === "camsoda"
+          ? await fetchCamSodaRooms(query, maxVideos)
+          : await fetchMyFreeCamsRooms(query, maxVideos);
     return {
       videos: batch.videos,
       page: 1,
@@ -1365,9 +1554,8 @@ export const searchAdultVideos = createServerFn({ method: "POST" })
     for (let i = 0; i < providers.length; i += 1) {
       const provider = providers[i];
       const rawBudget = share + (i === 0 ? leftovers : 0);
-      const budget = provider === "chaturbate"
-        ? Math.min(LIBRARY_LIMITS.chaturbateRoomsPerPull, rawBudget)
-        : rawBudget;
+      const live = liveRoomLimit(provider);
+      const budget = live ? Math.min(live, rawBudget) : rawBudget;
       try {
         const batch = await pullProviderPages(provider, data.query, data.order, data.page, budget);
         for (const video of batch.videos) {
@@ -1422,7 +1610,7 @@ export const searchAdultVideos = createServerFn({ method: "POST" })
       note:
         errors.length
           ? `Partial adult pull — ${errors.join("; ")}. Remaining official APIs still returned titles.`
-          : "Pulled via official public APIs (Eporner, RedTube, and/or Chaturbate). Playback uses public embeds; keywords/tags become local source + fetish tags.",
+          : "Pulled via official public APIs (Eporner, RedTube, Chaturbate, CamSoda, and/or MyFreeCams). Playback uses public embeds or room deep-links; keywords/tags become local source + fetish tags.",
       page: data.page,
       nextPage,
       totalCount,

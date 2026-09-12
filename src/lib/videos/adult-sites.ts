@@ -569,18 +569,53 @@ export const ADULT_MILESTONE_LINKS: AdultSiteLink[] = [
   },
   // Cam / chat
   {
-    name: "MyFreeCams",
-    href: "https://www.myfreecams.com/#Homepage",
-    copy: "Live cam homepage — open on MyFreeCams.",
-    group: "cam",
-    sourceId: "myfreecams",
-  },
-  {
     name: "Emerald Chat",
     href: "https://emeraldchat.com/",
     copy: "Cam / chat — open Emerald Chat.",
     group: "cam",
     sourceId: "emeraldchat",
+  },
+  {
+    name: "Stripchat",
+    href: "https://stripchat.com/",
+    copy: "Live rooms — official embed path is not playable in-app, so this stays a live deep-link.",
+    group: "cam",
+    sourceId: "stripchat",
+  },
+  {
+    name: "BongaCams",
+    href: "https://bongacams.com/",
+    copy: "Live cam directory — no public room-list API we can play, open the live grid.",
+    group: "cam",
+    sourceId: "bongacams",
+  },
+  {
+    name: "Cam4",
+    href: "https://www.cam4.com/",
+    copy: "Live cam directory — public HTML listing only, open the live grid.",
+    group: "cam",
+    sourceId: "cam4",
+  },
+  {
+    name: "Flirt4Free",
+    href: "https://www.flirt4free.com/",
+    copy: "Live cam destination — no stable public JSON, open the live grid.",
+    group: "cam",
+    sourceId: "flirt4free",
+  },
+  {
+    name: "Streamate",
+    href: "https://www.streamate.com/",
+    copy: "Live cam destination — no unauthenticated room API, open the live grid.",
+    group: "cam",
+    sourceId: "streamate",
+  },
+  {
+    name: "LiveJasmin",
+    href: "https://www.livejasmin.com/",
+    copy: "Live cam destination — no public model list, open the live grid.",
+    group: "cam",
+    sourceId: "livejasmin",
   },
   // Community / niche directories via ThePornDude
   {
@@ -612,6 +647,8 @@ export const ADULT_MILESTONE_LINKS: AdultSiteLink[] = [
  * - Eporner API v2 + iframe embeds: https://www.eporner.com/api/v2/
  * - RedTube webmaster API + embed.redtube.com: https://api.redtube.com/
  * - Chaturbate public affiliate rooms JSON + /embed/{user}/
+ * - CamSoda public /api/v1/browse/online + room pages (no X-Frame-Options)
+ * - MyFreeCams public php/online_models.php + #username room deep-links
  */
 export const ADULT_EMBED_LINKS: AdultSiteLink[] = [
   {
@@ -637,6 +674,22 @@ export const ADULT_EMBED_LINKS: AdultSiteLink[] = [
     embeds: true,
     group: "cam",
     sourceId: "chaturbate",
+  },
+  {
+    name: "CamSoda",
+    href: "https://www.camsoda.com/",
+    copy: "Public online-rooms JSON + room pages that iframe without X-Frame-Options — live backup next to Chaturbate.",
+    embeds: true,
+    group: "cam",
+    sourceId: "camsoda",
+  },
+  {
+    name: "MyFreeCams",
+    href: "https://www.myfreecams.com/#Homepage",
+    copy: "Public online-model list + #username room links. No official iframe player, so cards open MFC live.",
+    embeds: true,
+    group: "cam",
+    sourceId: "myfreecams",
   },
 ];
 
@@ -670,13 +723,15 @@ export const ADULT_SOURCE_OPTIONS: { id: string; label: string; href?: string; p
       pull: Boolean(link.embeds),
     }));
 
-export type AdultPullProvider = "eporner" | "redtube" | "chaturbate";
+export type AdultPullProvider = "eporner" | "redtube" | "chaturbate" | "camsoda" | "myfreecams";
 
-export const ADULT_PULL_PROVIDERS: AdultPullProvider[] = ["eporner", "redtube", "chaturbate"];
+export const ADULT_PULL_PROVIDERS: AdultPullProvider[] = ["eporner", "redtube", "chaturbate", "camsoda", "myfreecams"];
 
 export const EPORNER_FOLDER_ID = "eporner:discover";
 export const REDTUBE_FOLDER_ID = "redtube:discover";
 export const CHATURBATE_FOLDER_ID = "chaturbate:discover";
+export const CAMSODA_FOLDER_ID = "camsoda:discover";
+export const MYFREECAMS_FOLDER_ID = "myfreecams:discover";
 
 export const EPORNER_FOLDER = {
   id: EPORNER_FOLDER_ID,
@@ -702,16 +757,36 @@ export const CHATURBATE_FOLDER = {
   adult: true,
 };
 
+export const CAMSODA_FOLDER = {
+  id: CAMSODA_FOLDER_ID,
+  name: "CamSoda",
+  kind: "camsoda" as const,
+  videoCount: 0,
+  adult: true,
+};
+
+export const MYFREECAMS_FOLDER = {
+  id: MYFREECAMS_FOLDER_ID,
+  name: "MyFreeCams",
+  kind: "myfreecams" as const,
+  videoCount: 0,
+  adult: true,
+};
+
 export const ADULT_FOLDER_BY_PROVIDER = {
   eporner: EPORNER_FOLDER,
   redtube: REDTUBE_FOLDER,
   chaturbate: CHATURBATE_FOLDER,
+  camsoda: CAMSODA_FOLDER,
+  myfreecams: MYFREECAMS_FOLDER,
 } as const;
 
 export const ADULT_FOLDER_IDS = [
   EPORNER_FOLDER_ID,
   REDTUBE_FOLDER_ID,
   CHATURBATE_FOLDER_ID,
+  CAMSODA_FOLDER_ID,
+  MYFREECAMS_FOLDER_ID,
 ] as const;
 
 export function adultFolderId(provider: AdultPullProvider) {
@@ -726,6 +801,10 @@ export function adultRemoteLabel(kind?: string) {
       return "RedTube";
     case "chaturbate":
       return "Chaturbate";
+    case "camsoda":
+      return "CamSoda";
+    case "myfreecams":
+      return "MyFreeCams";
     case "youtube":
       return "YouTube";
     case "twitch":
@@ -736,7 +815,7 @@ export function adultRemoteLabel(kind?: string) {
 }
 
 export function isAdultPullKind(kind?: string) {
-  return kind === "eporner" || kind === "redtube" || kind === "chaturbate";
+  return kind === "eporner" || kind === "redtube" || kind === "chaturbate" || kind === "camsoda" || kind === "myfreecams";
 }
 
 export function adultSourceTag(provider: string) {
