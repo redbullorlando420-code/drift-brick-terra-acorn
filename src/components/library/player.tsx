@@ -34,6 +34,8 @@ import { getNote, getRating, setNote as saveNote, setRating as saveRating } from
 import { AdultComments } from "@/components/library/adult-comments";
 import { AdultImageLightbox } from "@/components/library/adult-image-lightbox";
 import { adultRemoteLabel, isAdultImageKind, isAdultPullKind } from "@/lib/videos/adult-sites";
+import { requestAdultOfflineSave } from "@/lib/videos/adult-offline-save";
+import { toast } from "sonner";
 import { isAdultVideo, useLibrary } from "@/lib/videos/store";
 import { useThumbs } from "@/lib/videos/thumbs";
 import { resolvePlayUrl } from "@/lib/videos/sources";
@@ -567,6 +569,22 @@ export function Player({ playlist }: { playlist: string[] }) {
             <X className="size-5" />
           </Button>
           {remote?.watchUrl && <a href={remote.watchUrl} target="_blank" rel="noreferrer" className="hidden items-center gap-1 text-xs text-accent hover:text-fg sm:inline-flex">Open official player <ExternalLink className="size-3" /></a>}
+          {remote && isAdultPullKind(remote.kind) && (remote.watchUrl || remote.embedUrl) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              title="Requires local Companion + yt-dlp"
+              onClick={() => {
+                const url = remote.watchUrl || remote.embedUrl || "";
+                void requestAdultOfflineSave(url).then((result) => {
+                  if (result.ok) toast.success(result.detail);
+                  else toast.error(result.needs?.length ? `${result.error} (${result.needs.join(", ")})` : result.error);
+                });
+              }}
+            >
+              Save offline
+            </Button>
+          )}
           <Button variant="ghost" size="sm" onClick={() => { if (removeReady) removeVideo(video.id); else setRemoveReady(true); }}>{removeReady ? "Confirm remove" : "Remove"}</Button>
         </div>
       </div>

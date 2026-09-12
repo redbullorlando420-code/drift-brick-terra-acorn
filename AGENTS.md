@@ -364,6 +364,8 @@ Refreshed: 2026-09-12 evening ET
 
 ### Shipped (recent → older)
 
+- **Offline save stub**: Player **Save offline** calls Companion `POST /offline/save` (501 until yt-dlp + allowed folder). Not feasible as a pure Vite/browser download for tube embeds; no *arr/torrent stack.
+- **API probes:** Pornhub `/webmasters` returns HTML (dead for JSON). AdultDataLink needs `ADULTDATALINK_API_KEY` (Redgifs wired; pornstar endpoints same key). FapHouse has no public pull API.
 - **Adult comments**: Reddit public comment Atom RSS on player/lightbox (real data only); useful tokens mined into fetish tags. Other providers note no public feed.
 - **Adult photo download**: Download on booru/image lightbox + photo cards (File System Access save picker when available, else browser download).
 - **Adult pull request cache**: in-process TTL cache for Adult HTTP (Eporner/RedTube/Reddit/Booru/cams/Redgifs) + client fingerprints skip identical re-pulls within ~12m.
@@ -379,8 +381,7 @@ Refreshed: 2026-09-12 evening ET
 
 ### In progress / queued
 
-- Simple **yt-dlp-style offline save** investigation (bookmark embeds; no *arr / torrents).
-- More backup embed APIs; **Pornhub `/webmasters`** probe → returns HTML (dead for JSON); AdultDataLink pornstar endpoints need API key.
+- Optional: more backup embed APIs if any new public JSON surfaces.
 - Keep this section + PR #2 body in sync on every push.
 
 ### Pull sources vs link-only

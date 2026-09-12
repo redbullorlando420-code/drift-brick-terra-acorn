@@ -274,6 +274,22 @@ const server = createServer(async (req, res) => {
     catch { reply(res, 500, { ok: false, error: "The launcher could not be started" }); }
     return;
   }
+  if (req.method === "POST" && req.url === "/offline/save") {
+    let text = "";
+    for await (const chunk of req) text += chunk;
+    let body; try { body = JSON.parse(text); } catch { reply(res, 400, { ok: false, error: "Invalid request" }); return; }
+    const url = typeof body.url === "string" ? body.url.trim() : "";
+    if (!/^https:\/\//i.test(url)) { reply(res, 400, { ok: false, error: "A https embed/watch URL is required" }); return; }
+    // yt-dlp is intentionally not bundled. This endpoint documents the future
+    // local save path without downloading media in this foundation build.
+    reply(res, 501, {
+      ok: false,
+      error: "Offline save needs yt-dlp installed on this computer and an allowed download folder.",
+      needs: ["yt-dlp on PATH", "REELCASE_ALLOWED_ROOTS download folder", "companion restart"],
+      url,
+    });
+    return;
+  }
   reply(res, 404, { ok: false, error: "Not found" });
 });
 server.on("error", async (error) => {
