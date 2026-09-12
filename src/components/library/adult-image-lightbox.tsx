@@ -1,6 +1,8 @@
 import { ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { adultRemoteLabel } from "@/lib/videos/adult-sites";
+import { downloadAdultPhoto } from "@/lib/videos/adult-photo-download";
 import type { LibraryVideo } from "@/lib/videos/types";
 
 /** In-app full-bleed image viewer for booru / photo-kind adult pulls. */
@@ -50,15 +52,27 @@ export function AdultImageLightbox({
               ))}
             </div>
           )}
-          {remote?.watchUrl && (
-            <div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="default"
+              onClick={() => {
+                void downloadAdultPhoto(video).then((result) => {
+                  if (result.ok) toast.success(`Saved ${result.name}`);
+                  else toast.error(result.error);
+                });
+              }}
+            >
+              Download photo
+            </Button>
+            {remote?.watchUrl && (
               <a href={remote.watchUrl} target="_blank" rel="noreferrer">
                 <Button size="sm" variant="secondary">
                   Open post page <ExternalLink className="size-3.5" />
                 </Button>
               </a>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>

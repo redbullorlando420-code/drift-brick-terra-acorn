@@ -364,6 +364,7 @@ Refreshed: 2026-09-12 evening ET
 
 ### Shipped (recent → older)
 
+- **Adult photo download**: Download on booru/image lightbox + photo cards (File System Access save picker when available, else browser download).
 - **Adult pull request cache**: in-process TTL cache for Adult HTTP (Eporner/RedTube/Reddit/Booru/cams/Redgifs) + client fingerprints skip identical re-pulls within ~12m.
 - **Merged NSFW Reddit catalog** (~470 curated `r/` names from top300 + ThePornDude extras + Postpone page scrape; underage-adjacent dropped; ListOfSubreddits thread still unauth 403/429). Rotated Atom pulls stamp `source-reddit` + `reddit-<sub>`.
 - **AdultDataLink Redgifs** (`39f209f`): trending pull behind optional `ADULTDATALINK_API_KEY`; skipped cleanly without key.
@@ -377,7 +378,6 @@ Refreshed: 2026-09-12 evening ET
 
 ### In progress / queued
 
-- **Download photos to local disk** from adult image cards/lightbox.
 - Comments from Reddit/adult sources as tags and/or comment UI.
 - Simple **yt-dlp-style offline save** investigation (bookmark embeds; no *arr / torrents).
 - More backup embed APIs; **Pornhub `/webmasters`** probe → returns HTML (dead for JSON); AdultDataLink pornstar endpoints need API key.
