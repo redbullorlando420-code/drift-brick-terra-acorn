@@ -29,4 +29,5 @@ export const LIBRARY_LIMITS = {
   redtubePagesPerPull: 150,
   redtubeVideosPerPull: 3_000,
   adultKeywordTagsPerTitle: 48,
+  chaturbateRoomsPerPull: 180,
 } as const;

@@ -26,7 +26,9 @@ const ORDERS: { id: string; label: string }[] = [
 ];
 
 const PROVIDER_CHOICES: { id: AdultPullProvider[] | "all"; label: string }[] = [
-  { id: "all", label: "Eporner + RedTube" },
+  { id: "all", label: "All pull sources" },
+  { id: ["eporner", "redtube"], label: "Videos (Eporner + RedTube)" },
+  { id: ["chaturbate"], label: "Live (Chaturbate)" },
   { id: ["eporner"], label: "Eporner only" },
   { id: ["redtube"], label: "RedTube only" },
 ];
@@ -172,9 +174,8 @@ export function AdultPanel() {
         <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Adult sites</p>
         <h2 className="mt-2 font-display text-2xl text-fg sm:text-3xl">Embed-ready pull sources</h2>
         <p className="mt-2 max-w-2xl text-sm text-muted">
-          Only sources with an official public API and iframe embed path appear here. Eporner API v2
-          and RedTube&apos;s webmaster API power YouTube/Twitch-scale in-app catalogs; everything else
-          is tracked under Adult milestones as a link-out.
+          Official public APIs with a playable embed: Eporner, RedTube, and Chaturbate live rooms.
+          If one source errors, the others still fill the shelf. Everything else stays a milestone link-out.
         </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {ADULT_EMBED_LINKS.map((site) => (
@@ -253,7 +254,7 @@ export function AdultPanel() {
         <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Remote pull</p>
         <h2 className="mt-2 font-display text-2xl text-fg sm:text-3xl">Adult discovery</h2>
         <p className="mt-2 max-w-2xl text-sm text-muted">
-          Paginated pulls via{" "}
+          Failover-friendly pulls via{" "}
           <a
             href="https://www.eporner.com/api/v2/"
             target="_blank"

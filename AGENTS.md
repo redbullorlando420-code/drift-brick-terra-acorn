@@ -365,12 +365,15 @@ Branch: `fix/reelcase-updates`
 
 - Adult discovery via official **Eporner API v2** + **RedTube webmaster API** (in-app preview/play, `source-*` + fetish tags).
 - Other tubes/cams stay **link-out milestones** (no scrapers / paywall bypass).
-- **Fetish expand (this increment):** featured chips first (`milf`, `double penetration`, `dp`, `roleplay`, `feet`, `cosplay`); expandable ~90-tag catalog including celebrity/manhwa; chip clicks use `fetishSearchQuery` (`dp` → `double penetration`); browsing `all` deep-pulls Eporner + RedTube with `ADULT_DEEPEN_FETISH_QUERIES`.
+- **Fetish expand:** featured chips first (`milf`, `double penetration`, `dp`, `roleplay`, `feet`, `cosplay`); expandable catalog; chip clicks use `fetishSearchQuery`; browsing `all` deep-pulls Eporner + RedTube.
+- **Chaturbate backup pull:** public affiliate rooms JSON + `/embed/{user}/`. Adults “all” continues if Eporner or RedTube errors (per-provider try/catch, partial success). Preview no longer rewrites adult embeds to YouTube.
 
 ### In progress / queued
 
 - Persist/cache larger Eporner + RedTube catalogs in IndexedDB like YouTube (`saveFolderVideos` / `appendCatalogVideos`); raise page/video limits; resume + load-more; keep UI windowed.
-- Wire more official 18+ APIs that actually play or show photos (Chaturbate rooms, XBooru / TBIB / Hypnohub). Skip key-gated, retired HubTraffic, CSAM-risk, and leak sites.
+- More photo APIs (XBooru / TBIB / Hypnohub). Skip key-gated, retired HubTraffic, CSAM-risk, and leak sites.
+- Full Pornhub category chip list (~105 + languages).
+- “I cummed to it” local per-video counter.
 - Connect adult watch activity into **Continue / History / Stats** (catalog rails stay public-only).
 - Seed Social / X accounts from the helper list (once; do not re-add after user removal).
 - Categorized Adult milestones from `adult-niches-user-list.txt` (review/voyeur/blogs/AI/extreme; download + torrent **link-out only**).
@@ -381,7 +384,7 @@ Branch: `fix/reelcase-updates`
 
 | Pull (API + play/view) | Link-out only |
 |---|---|
-| Eporner, RedTube | HubTraffic remnants, TXXX/KVS family, major tubes without public JSON, Stripchat (no playable embed), downloads, torrents |
+| Eporner, RedTube, Chaturbate | HubTraffic remnants, TXXX/KVS family, major tubes without public JSON, Stripchat (no playable embed), downloads, torrents |
 
 ### Verification
 

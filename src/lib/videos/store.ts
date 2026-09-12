@@ -1,9 +1,10 @@
 import { create } from "zustand";
 import {
   ADULT_CURATED_FETISH_TAGS,
-  EPORNER_FOLDER,
+  ADULT_FOLDER_BY_PROVIDER,
+  ADULT_FOLDER_IDS,
+  ADULT_PULL_PROVIDERS,
   EPORNER_FOLDER_ID,
-  REDTUBE_FOLDER,
   REDTUBE_FOLDER_ID,
   adultFetishTags,
   adultKeywordTags,
@@ -785,13 +786,11 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   },
   searchAdultFeed: async (query = "all", order = "top-weekly", opts) => {
     const providers = opts?.providers ?? "all";
-    const providerList = providers === "all" ? ["eporner", "redtube"] : providers;
+    const providerList = providers === "all" ? [...ADULT_PULL_PROVIDERS] : providers;
     const label =
-      providerList.length === 1 && providerList[0] === "eporner"
-        ? "Pulling Eporner catalog…"
-        : providerList.length === 1 && providerList[0] === "redtube"
-          ? "Pulling RedTube catalog…"
-          : "Pulling Eporner + RedTube catalogs…";
+      providerList.length === 1
+        ? `Pulling ${providerList[0]} catalog…`
+        : "Pulling official adult catalogs…";
     set({ remoteBusy: true, importProgress: { done: 0, total: 1, label } });
     try {
       const { searchAdultVideos } = await import("@/lib/remote/api");
@@ -806,7 +805,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         let folders = s.folders;
         const tagPatch: Record<string, string[]> = {};
 
-        for (const folderId of [EPORNER_FOLDER_ID, REDTUBE_FOLDER_ID]) {
+        for (const folderId of ADULT_FOLDER_IDS) {
           if (!touched.has(folderId) && append) continue;
           if (!touched.has(folderId) && !append) {
             // Full replace mode for selected providers only — leave untouched provider shelves.
@@ -819,8 +818,11 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           const byId = new Map(existingRemote.map((v) => [v.id, v]));
           for (const video of incoming) byId.set(video.id, video);
           const merged = [...byId.values()].sort((a, b) => b.addedAt - a.addedAt);
-          const kind = folderId === REDTUBE_FOLDER_ID ? ("redtube" as const) : ("eporner" as const);
-          const baseFolder = folderId === REDTUBE_FOLDER_ID ? REDTUBE_FOLDER : EPORNER_FOLDER;
+          const provider = (Object.keys(ADULT_FOLDER_BY_PROVIDER) as AdultPullProvider[]).find(
+            (key) => ADULT_FOLDER_BY_PROVIDER[key].id === folderId,
+          );
+          const baseFolder = provider ? ADULT_FOLDER_BY_PROVIDER[provider] : ADULT_FOLDER_BY_PROVIDER.eporner;
+          const kind = baseFolder.kind;
           const hasFolder = folders.some((f) => f.id === folderId);
           folders = hasFolder
             ? folders.map((f) =>
@@ -831,7 +833,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         }
 
         for (const video of videos) {
-          const source = video.remote?.kind ?? (video.folderId.startsWith("redtube") ? "redtube" : "eporner");
+          const source = video.remote?.kind ?? video.folderId.split(":")[0] ?? "eporner";
           const fromApi = adultKeywordTags(
             video.description ?? video.tagline ?? "",
             LIBRARY_LIMITS.adultKeywordTagsPerTitle,
@@ -858,9 +860,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         };
       });
       persistNow(get);
-      return get().videos.filter(
-        (v) => v.folderId === EPORNER_FOLDER_ID || v.folderId === REDTUBE_FOLDER_ID,
-      ).length;
+      return get().videos.filter((v) => (ADULT_FOLDER_IDS as readonly string[]).includes(v.folderId)).length;
     } catch (err) {
       set({ remoteBusy: false, importProgress: null });
       throw err;
@@ -1873,8 +1873,8 @@ export function selectAdultRemote(state: LibraryState): LibraryVideo[] {
       (v) =>
         v.remote?.kind === "eporner" ||
         v.remote?.kind === "redtube" ||
-        v.folderId === EPORNER_FOLDER_ID ||
-        v.folderId === REDTUBE_FOLDER_ID,
+        v.remote?.kind === "chaturbate" ||
+        (ADULT_FOLDER_IDS as readonly string[]).includes(v.folderId),
     )
     .sort((a, b) => b.addedAt - a.addedAt);
 }

@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn, formatBytes, formatTime } from "@/lib/utils";
 import { getNote, getRating, setNote as saveNote, setRating as saveRating } from "@/lib/media-feedback";
+import { adultRemoteLabel, isAdultPullKind } from "@/lib/videos/adult-sites";
 import { useLibrary } from "@/lib/videos/store";
 import { useThumbs } from "@/lib/videos/thumbs";
 import { resolvePlayUrl } from "@/lib/videos/sources";
@@ -393,7 +394,7 @@ export function Player({ playlist }: { playlist: string[] }) {
       ? twitchEmbed(remote.embedUrl ?? "")
       : remote.kind === "youtube"
         ? youtubeEmbed(remote.embedUrl ?? video.src ?? "")
-        : remote.kind === "eporner" || remote.kind === "redtube"
+        : isAdultPullKind(remote.kind)
           ? remote.embedUrl ?? video.src ?? null
           : remote.embedUrl
             ? `${remote.embedUrl}${remote.embedUrl.includes("?") ? "&" : "?"}autoplay=1&rel=0&modestbranding=1`
@@ -480,7 +481,7 @@ export function Player({ playlist }: { playlist: string[] }) {
             <p className="truncate text-xs text-muted">
               {remote ? (
                 [
-                  remote.live ? "Live" : remote.kind === "youtube" ? "YouTube" : remote.kind === "eporner" ? "Eporner" : remote.kind === "redtube" ? "RedTube" : "Twitch",
+                  remote.live ? "Live" : adultRemoteLabel(remote.kind),
                   remote.channelName,
                   hasFreshViewerCount(remote) ? `${remote.viewers?.toLocaleString()} watching` : null,
                 ]
@@ -716,7 +717,7 @@ export function Player({ playlist }: { playlist: string[] }) {
               rel="noreferrer"
               className="text-sm text-muted hover:text-fg"
             >
-              Open on {remote.kind === "youtube" ? "YouTube" : remote.kind === "eporner" ? "Eporner" : remote.kind === "redtube" ? "RedTube" : "Twitch"}
+              Open on {adultRemoteLabel(remote.kind)}
             </a>
           )}
           <Button

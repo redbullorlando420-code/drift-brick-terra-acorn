@@ -611,6 +611,7 @@ export const ADULT_MILESTONE_LINKS: AdultSiteLink[] = [
  * Destinations with an official public embed/API path Reelcase actually uses.
  * - Eporner API v2 + iframe embeds: https://www.eporner.com/api/v2/
  * - RedTube webmaster API + embed.redtube.com: https://api.redtube.com/
+ * - Chaturbate public affiliate rooms JSON + /embed/{user}/
  */
 export const ADULT_EMBED_LINKS: AdultSiteLink[] = [
   {
@@ -628,6 +629,14 @@ export const ADULT_EMBED_LINKS: AdultSiteLink[] = [
     embeds: true,
     group: "tube",
     sourceId: "redtube",
+  },
+  {
+    name: "Chaturbate",
+    href: "https://chaturbate.com/",
+    copy: "Public affiliate rooms API + official embed path — live backup when tube APIs fail.",
+    embeds: true,
+    group: "cam",
+    sourceId: "chaturbate",
   },
 ];
 
@@ -661,12 +670,13 @@ export const ADULT_SOURCE_OPTIONS: { id: string; label: string; href?: string; p
       pull: Boolean(link.embeds),
     }));
 
-export type AdultPullProvider = "eporner" | "redtube";
+export type AdultPullProvider = "eporner" | "redtube" | "chaturbate";
 
-export const ADULT_PULL_PROVIDERS: AdultPullProvider[] = ["eporner", "redtube"];
+export const ADULT_PULL_PROVIDERS: AdultPullProvider[] = ["eporner", "redtube", "chaturbate"];
 
 export const EPORNER_FOLDER_ID = "eporner:discover";
 export const REDTUBE_FOLDER_ID = "redtube:discover";
+export const CHATURBATE_FOLDER_ID = "chaturbate:discover";
 
 export const EPORNER_FOLDER = {
   id: EPORNER_FOLDER_ID,
@@ -684,8 +694,49 @@ export const REDTUBE_FOLDER = {
   adult: true,
 };
 
+export const CHATURBATE_FOLDER = {
+  id: CHATURBATE_FOLDER_ID,
+  name: "Chaturbate",
+  kind: "chaturbate" as const,
+  videoCount: 0,
+  adult: true,
+};
+
+export const ADULT_FOLDER_BY_PROVIDER = {
+  eporner: EPORNER_FOLDER,
+  redtube: REDTUBE_FOLDER,
+  chaturbate: CHATURBATE_FOLDER,
+} as const;
+
+export const ADULT_FOLDER_IDS = [
+  EPORNER_FOLDER_ID,
+  REDTUBE_FOLDER_ID,
+  CHATURBATE_FOLDER_ID,
+] as const;
+
 export function adultFolderId(provider: AdultPullProvider) {
-  return provider === "redtube" ? REDTUBE_FOLDER_ID : EPORNER_FOLDER_ID;
+  return ADULT_FOLDER_BY_PROVIDER[provider].id;
+}
+
+export function adultRemoteLabel(kind?: string) {
+  switch (kind) {
+    case "eporner":
+      return "Eporner";
+    case "redtube":
+      return "RedTube";
+    case "chaturbate":
+      return "Chaturbate";
+    case "youtube":
+      return "YouTube";
+    case "twitch":
+      return "Twitch";
+    default:
+      return "Adult";
+  }
+}
+
+export function isAdultPullKind(kind?: string) {
+  return kind === "eporner" || kind === "redtube" || kind === "chaturbate";
 }
 
 export function adultSourceTag(provider: string) {

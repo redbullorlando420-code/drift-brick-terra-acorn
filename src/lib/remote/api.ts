@@ -1,7 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { FollowedChannel, FollowKind, LibraryVideo, RemoteKind } from "@/lib/videos/types";
+import type { FollowedChannel, FollowKind, LibraryVideo } from "@/lib/videos/types";
 import { LIBRARY_LIMITS } from "@/lib/library-limits";
-import { ADULT_DEEPEN_FETISH_QUERIES, EPORNER_FOLDER_ID, REDTUBE_FOLDER_ID } from "@/lib/videos/adult-sites";
+import {
+  ADULT_DEEPEN_FETISH_QUERIES,
+  ADULT_PULL_PROVIDERS,
+  CHATURBATE_FOLDER_ID,
+  EPORNER_FOLDER_ID,
+  REDTUBE_FOLDER_ID,
+  type AdultPullProvider,
+} from "@/lib/videos/adult-sites";
 
 type FollowInput = { query: string; kind: "auto" | FollowKind };
 type RefreshInput = { channels: FollowedChannel[] };
@@ -894,9 +901,7 @@ export const fetchTwitchFollowing = createServerFn({ method: "POST" })
     return { channels: [], privateList: true };
   });
 
-/* --- Adult discovery (Eporner + RedTube official public APIs + embeds) --- */
-
-type AdultPullProvider = "eporner" | "redtube";
+/* --- Adult discovery (Eporner + RedTube + Chaturbate official public APIs) --- */
 
 type AdultSearchIn = {
   query?: string;
@@ -918,13 +923,14 @@ const EPORNER_ORDERS = new Set([
 ]);
 
 function parseAdultProviders(raw: unknown): AdultPullProvider[] {
-  if (raw === "all" || raw == null) return ["eporner", "redtube"];
+  const known = new Set<AdultPullProvider>(ADULT_PULL_PROVIDERS);
+  if (raw === "all" || raw == null) return [...ADULT_PULL_PROVIDERS];
   if (Array.isArray(raw)) {
-    const out = raw.filter((p): p is AdultPullProvider => p === "eporner" || p === "redtube");
-    return out.length ? [...new Set(out)] : ["eporner", "redtube"];
+    const out = raw.filter((p): p is AdultPullProvider => typeof p === "string" && known.has(p as AdultPullProvider));
+    return out.length ? [...new Set(out)] : [...ADULT_PULL_PROVIDERS];
   }
-  if (raw === "eporner" || raw === "redtube") return [raw];
-  return ["eporner", "redtube"];
+  if (typeof raw === "string" && known.has(raw as AdultPullProvider)) return [raw as AdultPullProvider];
+  return [...ADULT_PULL_PROVIDERS];
 }
 
 function parseAdultSearch(data: unknown): Required<AdultSearchIn> & { providers: AdultPullProvider[] } {
@@ -1179,6 +1185,111 @@ async function fetchRedtubePage(query: string, order: string, page: number): Pro
   return { videos, totalCount, totalPages };
 }
 
+const ADULT_CSAM = /loli|shota|lolicon|shotacon|\bchild\b|underage|\bcub\b|toddler|infant|\bbaby\b|pedo|preteen|young.?girl|young.?boy|jailbait/i;
+
+function adultBlockedText(...parts: Array<string | undefined>) {
+  return ADULT_CSAM.test(parts.filter(Boolean).join(" "));
+}
+
+type ChaturbateRoom = {
+  username?: string;
+  display_name?: string;
+  room_subject?: string;
+  tags?: string[];
+  current_show?: string;
+  num_users?: number;
+  image_url?: string;
+  image_url_360x270?: string;
+  age?: number;
+  chat_room_url?: string;
+};
+
+let chaturbateCache: { at: number; rooms: LibraryVideo[] } | null = null;
+const CHATURBATE_CACHE_MS = 3 * 60_000;
+
+function chaturbateVideo(row: ChaturbateRoom): LibraryVideo | null {
+  const username = asString(row.username).trim().toLowerCase();
+  if (!username || !/^[a-z0-9_]+$/.test(username)) return null;
+  const show = asString(row.current_show).trim().toLowerCase() || "public";
+  if (show !== "public" && show !== "group") return null;
+  if (typeof row.age === "number" && Number.isFinite(row.age) && row.age < 18) return null;
+  const tags = Array.isArray(row.tags) ? row.tags.map((tag) => asString(tag).trim()).filter(Boolean) : [];
+  const subject = asString(row.room_subject).trim();
+  const display = asString(row.display_name).trim() || username;
+  if (adultBlockedText(username, display, subject, tags.join(" "))) return null;
+  const embed = `https://chaturbate.com/embed/${encodeURIComponent(username)}/`;
+  const watch = asString(row.chat_room_url).trim() || `https://chaturbate.com/${encodeURIComponent(username)}/`;
+  const thumb = asString(row.image_url_360x270) || asString(row.image_url);
+  const viewers = typeof row.num_users === "number" && Number.isFinite(row.num_users) ? row.num_users : undefined;
+  return {
+    id: `chaturbate:${username}`,
+    folderId: CHATURBATE_FOLDER_ID,
+    name: display,
+    path: `chaturbate/${username}`,
+    extension: "chaturbate",
+    mime: "video/chaturbate",
+    size: 0,
+    addedAt: Date.now(),
+    tagline: subject.slice(0, 160) || undefined,
+    description: [subject, ...tags].filter(Boolean).join(", ") || undefined,
+    poster: thumb || undefined,
+    src: embed,
+    remote: {
+      kind: "chaturbate",
+      videoId: username,
+      channelName: display,
+      live: true,
+      viewers,
+      observedAt: Date.now(),
+      embedUrl: embed,
+      watchUrl: watch,
+      previewUrl: thumb || undefined,
+    },
+  };
+}
+
+async function fetchChaturbateRooms(query: string, maxVideos: number): Promise<{
+  videos: LibraryVideo[];
+  totalPages: number;
+  totalCount: number;
+}> {
+  if (!chaturbateCache || Date.now() - chaturbateCache.at > CHATURBATE_CACHE_MS) {
+    const url = "https://chaturbate.com/affiliates/api/onlinerooms/?format=json&wm=DkfRj";
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(25000),
+      headers: {
+        accept: "application/json",
+        "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
+      },
+    });
+    if (!res.ok) throw new Error("Chaturbate rooms are unavailable right now.");
+    const json = (await res.json()) as ChaturbateRoom[];
+    const rooms = (Array.isArray(json) ? json : [])
+      .map(chaturbateVideo)
+      .filter((video): video is LibraryVideo => video != null);
+    chaturbateCache = { at: Date.now(), rooms };
+  }
+  const needle = query.trim().toLowerCase();
+  const filtered =
+    !needle || needle === "all"
+      ? chaturbateCache.rooms
+      : chaturbateCache.rooms.filter((video) => {
+          const hay = `${video.name} ${video.description ?? ""} ${video.remote?.videoId ?? ""}`.toLowerCase();
+          return hay.includes(needle);
+        });
+  return {
+    videos: filtered.slice(0, maxVideos),
+    totalPages: 1,
+    totalCount: filtered.length,
+  };
+}
+
+function providerPageBudget(provider: AdultPullProvider) {
+  if (provider === "redtube") return { maxPages: LIBRARY_LIMITS.redtubePagesPerPull, perPage: LIBRARY_LIMITS.redtubePageSize };
+  if (provider === "chaturbate") return { maxPages: 1, perPage: LIBRARY_LIMITS.chaturbateRoomsPerPull };
+  return { maxPages: LIBRARY_LIMITS.epornerPagesPerPull, perPage: LIBRARY_LIMITS.epornerPageSize };
+}
+
 async function pullProviderPages(
   provider: AdultPullProvider,
   query: string,
@@ -1186,15 +1297,22 @@ async function pullProviderPages(
   startPage: number,
   maxVideos: number,
 ): Promise<{ videos: LibraryVideo[]; page: number; nextPage: number | null; totalCount: number }> {
+  if (provider === "chaturbate") {
+    const batch = await fetchChaturbateRooms(query, maxVideos);
+    return {
+      videos: batch.videos,
+      page: 1,
+      nextPage: null,
+      totalCount: batch.totalCount,
+    };
+  }
   const collected: LibraryVideo[] = [];
   const seen = new Set<string>();
   let page = startPage;
   let totalPages = page;
   let totalCount = 0;
   let pagesFetched = 0;
-  const maxPages =
-    provider === "redtube" ? LIBRARY_LIMITS.redtubePagesPerPull : LIBRARY_LIMITS.epornerPagesPerPull;
-  const perPage = provider === "redtube" ? LIBRARY_LIMITS.redtubePageSize : LIBRARY_LIMITS.epornerPageSize;
+  const { maxPages, perPage } = providerPageBudget(provider);
 
   while (collected.length < maxVideos && pagesFetched < maxPages) {
     const batch =
@@ -1241,19 +1359,28 @@ export const searchAdultVideos = createServerFn({ method: "POST" })
     const collected: LibraryVideo[] = [];
     let nextPage: number | null = null;
     let totalCount = 0;
+    const errors: string[] = [];
 
     const seen = new Set<string>();
     for (let i = 0; i < providers.length; i += 1) {
       const provider = providers[i];
-      const budget = share + (i === 0 ? leftovers : 0);
-      const batch = await pullProviderPages(provider, data.query, data.order, data.page, budget);
-      for (const video of batch.videos) {
-        if (seen.has(video.id)) continue;
-        seen.add(video.id);
-        collected.push(video);
+      const rawBudget = share + (i === 0 ? leftovers : 0);
+      const budget = provider === "chaturbate"
+        ? Math.min(LIBRARY_LIMITS.chaturbateRoomsPerPull, rawBudget)
+        : rawBudget;
+      try {
+        const batch = await pullProviderPages(provider, data.query, data.order, data.page, budget);
+        for (const video of batch.videos) {
+          if (seen.has(video.id)) continue;
+          seen.add(video.id);
+          collected.push(video);
+        }
+        totalCount += batch.totalCount;
+        if (batch.nextPage != null) nextPage = nextPage == null ? batch.nextPage : Math.min(nextPage, batch.nextPage);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "unavailable";
+        errors.push(`${provider}: ${message}`);
       }
-      totalCount += batch.totalCount;
-      if (batch.nextPage != null) nextPage = nextPage == null ? batch.nextPage : Math.min(nextPage, batch.nextPage);
     }
 
     // When browsing "all", deepen official video APIs with curated fetish
@@ -1267,24 +1394,35 @@ export const searchAdultVideos = createServerFn({ method: "POST" })
       for (const fetish of fetishQueries) {
         for (const provider of deepenProviders) {
           if (collected.length >= data.maxVideos) break;
-          const batch = await pullProviderPages(provider, fetish, data.order, 1, perQuery);
-          for (const video of batch.videos) {
-            if (seen.has(video.id)) continue;
-            seen.add(video.id);
-            collected.push(video);
-            if (collected.length >= data.maxVideos) break;
+          try {
+            const batch = await pullProviderPages(provider, fetish, data.order, 1, perQuery);
+            for (const video of batch.videos) {
+              if (seen.has(video.id)) continue;
+              seen.add(video.id);
+              collected.push(video);
+              if (collected.length >= data.maxVideos) break;
+            }
+            totalCount += batch.totalCount;
+          } catch (err) {
+            const message = err instanceof Error ? err.message : "unavailable";
+            errors.push(`${provider}/${fetish}: ${message}`);
           }
-          totalCount += batch.totalCount;
         }
         if (collected.length >= data.maxVideos) break;
       }
+    }
+
+    if (!collected.length && errors.length) {
+      throw new Error(`Adult pulls failed (${errors.join("; ")}).`);
     }
 
     return {
       videos: collected,
       source: providers.join("+"),
       note:
-        "Pulled via official public APIs (Eporner API v2 and/or RedTube webmaster API). Playback uses public iframe embeds; keywords/tags become local source + fetish tags for browse/filter.",
+        errors.length
+          ? `Partial adult pull — ${errors.join("; ")}. Remaining official APIs still returned titles.`
+          : "Pulled via official public APIs (Eporner, RedTube, and/or Chaturbate). Playback uses public embeds; keywords/tags become local source + fetish tags.",
       page: data.page,
       nextPage,
       totalCount,
