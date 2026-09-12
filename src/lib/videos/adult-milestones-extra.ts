@@ -191,6 +191,13 @@ export const ADULT_EXTRA_MILESTONES = [
     sourceId: 'faphouse-vr',
   },
   {
+    name: 'FapHouse Shorts',
+    href: 'https://faphouse.com/shorts',
+    copy: 'FapHouse shorts feed — deep-link milestone (no public pull API found). Tags as source-faphouse.',
+    group: 'short',
+    sourceId: 'faphouse',
+  },
+  {
     name: 'Brazzers VR',
     href: 'https://www.brazzers.com/',
     copy: 'Brazzers VR — open externally (milestone / link-out).',
