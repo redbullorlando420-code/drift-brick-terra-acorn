@@ -73,7 +73,7 @@ export const SKIP_DIRS = new Set([
   "cache",
 ]);
 
-export type FolderKind = "demo" | "directory" | "files" | "youtube" | "twitch";
+export type FolderKind = "demo" | "directory" | "files" | "youtube" | "twitch" | "eporner";
 
 export type Folder = {
   id: string;
@@ -112,7 +112,8 @@ export type LibraryVideo = {
   remote?: RemoteRef;
 };
 
-export type RemoteKind = "youtube" | "twitch";
+export type FollowKind = "youtube" | "twitch";
+export type RemoteKind = FollowKind | "eporner";
 
 export type RemoteRef = {
   kind: RemoteKind;
@@ -147,7 +148,7 @@ export function hasFreshViewerCount(remote?: RemoteRef, now = Date.now()) {
 
 export type FollowedChannel = {
   id: string;
-  kind: RemoteKind;
+  kind: FollowKind;
   handle: string;
   title: string;
   channelId?: string;

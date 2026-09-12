@@ -19,4 +19,9 @@ export const LIBRARY_LIMITS = {
   twitchArchivePageSize: 160,
   twitchFocusedVodsPerChannel: 8_000,
   twitchRoutineVodsPerChannel: 640,
+  // Eporner API allows up to 1000 results per page; batch pages like YT/Twitch archives.
+  epornerPageSize: 1000,
+  epornerPagesPerPull: 3,
+  epornerVideosPerPull: 3_000,
+  epornerKeywordTagsPerTitle: 24,
 } as const;

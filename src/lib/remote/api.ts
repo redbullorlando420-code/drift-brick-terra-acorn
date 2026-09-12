@@ -1,8 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { FollowedChannel, LibraryVideo, RemoteKind } from "@/lib/videos/types";
+import type { FollowedChannel, FollowKind, LibraryVideo, RemoteKind } from "@/lib/videos/types";
 import { LIBRARY_LIMITS } from "@/lib/library-limits";
+import { EPORNER_FOLDER_ID } from "@/lib/videos/adult-sites";
 
-type FollowInput = { query: string; kind: "auto" | RemoteKind };
+type FollowInput = { query: string; kind: "auto" | FollowKind };
 type RefreshInput = { channels: FollowedChannel[] };
 
 export type FollowResult = {
@@ -75,7 +76,7 @@ function parseRefresh(data: unknown): RefreshInput {
   return { channels: channels.slice(0, 80) };
 }
 
-function guessKind(query: string): RemoteKind {
+function guessKind(query: string): FollowKind {
   const q = query.toLowerCase();
   if (q.includes("twitch.tv") || q.startsWith("tw:")) return "twitch";
   if (q.includes("youtube") || q.includes("youtu.be") || q.startsWith("@")) return "youtube";
@@ -891,4 +892,168 @@ export const fetchTwitchFollowing = createServerFn({ method: "POST" })
       if (channels.length) return { channels, privateList: false };
     }
     return { channels: [], privateList: true };
+  });
+
+/* --- Adult discovery (Eporner official public API + embed URLs) --- */
+
+type AdultSearchIn = { query?: string; order?: string; page?: number; maxVideos?: number; append?: boolean };
+
+const EPORNER_ORDERS = new Set([
+  "latest",
+  "longest",
+  "shortest",
+  "top-rated",
+  "most-popular",
+  "top-weekly",
+  "top-monthly",
+]);
+
+function parseAdultSearch(data: unknown): Required<AdultSearchIn> {
+  const rec = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
+  const query = asString(rec.query).trim() || "all";
+  const orderRaw = asString(rec.order).trim() || "top-weekly";
+  const order = EPORNER_ORDERS.has(orderRaw) ? orderRaw : "top-weekly";
+  const pageNum = typeof rec.page === "number" ? rec.page : Number(rec.page);
+  const page = Number.isFinite(pageNum) && pageNum >= 1 ? Math.min(Math.floor(pageNum), 100000) : 1;
+  const maxRaw = typeof rec.maxVideos === "number" ? rec.maxVideos : Number(rec.maxVideos);
+  const maxVideos = Number.isFinite(maxRaw) && maxRaw > 0
+    ? Math.min(Math.floor(maxRaw), LIBRARY_LIMITS.epornerVideosPerPull)
+    : LIBRARY_LIMITS.epornerVideosPerPull;
+  const append = Boolean(rec.append);
+  return { query: query.slice(0, 80), order, page, maxVideos, append };
+}
+
+type EpornerVideo = {
+  id?: string;
+  title?: string;
+  keywords?: string;
+  views?: number;
+  url?: string;
+  embed?: string;
+  length_sec?: number;
+  added?: string;
+  default_thumb?: { src?: string };
+};
+
+function epornerVideo(row: EpornerVideo): LibraryVideo | null {
+  const id = asString(row.id).trim();
+  const title = asString(row.title).trim();
+  const embed = asString(row.embed).trim();
+  const watch = asString(row.url).trim();
+  if (!id || !title || !embed) return null;
+  if (!embed.startsWith("https://www.eporner.com/embed/")) return null;
+  const added = Date.parse(asString(row.added)) || Date.now();
+  const thumb = asString(row.default_thumb?.src);
+  const keywords = asString(row.keywords).trim();
+  const views = typeof row.views === "number" && Number.isFinite(row.views) ? row.views : undefined;
+  return {
+    id: `eporner:${id}`,
+    folderId: EPORNER_FOLDER_ID,
+    name: title,
+    path: `eporner/${title}`,
+    extension: "eporner",
+    mime: "video/eporner",
+    size: 0,
+    duration: typeof row.length_sec === "number" ? row.length_sec : undefined,
+    addedAt: added,
+    tagline: keywords.slice(0, 160) || undefined,
+    description: keywords || undefined,
+    poster: thumb || undefined,
+    src: embed,
+    remote: {
+      kind: "eporner",
+      videoId: id,
+      channelName: "Eporner",
+      views,
+      observedAt: Date.now(),
+      embedUrl: embed.endsWith("/") ? embed : `${embed}/`,
+      watchUrl: watch || `https://www.eporner.com/video-${id}/`,
+      previewUrl: thumb || undefined,
+    },
+  };
+}
+
+async function fetchEpornerPage(query: string, order: string, page: number, perPage: number): Promise<{
+  videos: LibraryVideo[];
+  totalPages: number;
+  totalCount: number;
+}> {
+  const params = new URLSearchParams({
+    query,
+    per_page: String(perPage),
+    page: String(page),
+    thumbsize: "medium",
+    order,
+    gay: "0",
+    lq: "0",
+    format: "json",
+  });
+  const url = `https://www.eporner.com/api/v2/video/search/?${params.toString()}`;
+  const res = await fetch(url, {
+    signal: AbortSignal.timeout(20000),
+    headers: {
+      accept: "application/json",
+      "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
+    },
+  });
+  if (!res.ok) throw new Error("Eporner search is unavailable right now.");
+  const json = (await res.json()) as {
+    videos?: EpornerVideo[];
+    total_pages?: number;
+    total_count?: number;
+  };
+  const videos = (json.videos ?? [])
+    .map(epornerVideo)
+    .filter((v): v is LibraryVideo => v != null);
+  return {
+    videos,
+    totalPages: typeof json.total_pages === "number" ? json.total_pages : page,
+    totalCount: typeof json.total_count === "number" ? json.total_count : videos.length,
+  };
+}
+
+export const searchAdultVideos = createServerFn({ method: "POST" })
+  .validator((data: unknown) => parseAdultSearch(data))
+  .handler(async ({ data }): Promise<{
+    videos: LibraryVideo[];
+    source: string;
+    note: string;
+    page: number;
+    nextPage: number | null;
+    totalCount: number;
+  }> => {
+    const perPage = LIBRARY_LIMITS.epornerPageSize;
+    const maxPages = LIBRARY_LIMITS.epornerPagesPerPull;
+    const collected: LibraryVideo[] = [];
+    const seen = new Set<string>();
+    let page = data.page;
+    let totalPages = page;
+    let totalCount = 0;
+    let pagesFetched = 0;
+
+    while (collected.length < data.maxVideos && pagesFetched < maxPages) {
+      const batch = await fetchEpornerPage(data.query, data.order, page, perPage);
+      totalPages = batch.totalPages;
+      totalCount = batch.totalCount;
+      pagesFetched += 1;
+      if (!batch.videos.length) break;
+      for (const video of batch.videos) {
+        if (seen.has(video.id)) continue;
+        seen.add(video.id);
+        collected.push(video);
+        if (collected.length >= data.maxVideos) break;
+      }
+      if (page >= totalPages) break;
+      page += 1;
+    }
+
+    const computedNext = data.page + pagesFetched;
+    return {
+      videos: collected,
+      source: "eporner",
+      note: "Pulled via Eporner API v2 (official). Playback uses their public iframe embed; keywords become local tags for browse/filter.",
+      page: data.page,
+      nextPage: computedNext <= totalPages && collected.length ? computedNext : null,
+      totalCount,
+    };
   });

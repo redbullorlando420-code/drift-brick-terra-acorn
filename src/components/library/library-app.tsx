@@ -13,7 +13,7 @@ import { InviteStrip } from "./invite";
 import { VideoGrid } from "./video-grid";
 import { VideoCard } from "./video-card";
 import { Billboard, PosterGrid, TitleRail } from "./browse";
-import { PinGate } from "./pin-gate";
+import { AdultPanel } from "./adult-panel";
 import { Player } from "./player";
 import { PreVideo } from "./pre-video";
 import { AiGuide } from "./ai-guide";
@@ -41,6 +41,7 @@ import {
   selectFavorites,
   selectFeatured,
   selectHistory,
+  selectEporner,
   selectLive,
   resumeForVideo,
   selectTwitch,
@@ -179,7 +180,6 @@ export function LibraryApp() {
   const activeId = useLibrary((s) => s.activeId);
   const previewId = useLibrary((s) => s.previewId);
   const history = useLibrary((s) => s.history);
-  const adultsUnlocked = useLibrary((s) => s.adultsUnlocked);
   const videos = useLibrary(useShallow(selectVisible));
   const continueVideos = useLibrary(useShallow((s) => selectContinue(s, false)));
   const favoriteVideos = useLibrary(useShallow((s) => selectFavorites(s, false)));
@@ -198,12 +198,21 @@ export function LibraryApp() {
   const adultContinue = useLibrary(useShallow((s) => selectContinue(s, true)));
   const adultFavorites = useLibrary(useShallow((s) => selectFavorites(s, true)));
   const adultHistory = useLibrary(useShallow((s) => selectHistory(s, true)));
+  const epornerVideos = useLibrary(useShallow(selectEporner));
   const hasUserFolders = userFolderCount(folders) > 0;
   const publicFolders = folders.filter(
     (f) => f.kind !== "demo" && f.kind !== "youtube" && f.kind !== "twitch" && !f.adult,
   );
   const adultFolders = folders.filter((f) => f.adult);
   const tags = useLibrary((s) => s.tags);
+  const filteredEporner = useMemo(() => {
+    if (adultTag === "All") return epornerVideos;
+    return epornerVideos.filter((video) => (tags[video.id] ?? []).includes(adultTag));
+  }, [adultTag, epornerVideos, tags]);
+  const epornerTagNames = useMemo(
+    () => [...new Set(epornerVideos.flatMap((video) => tags[video.id] ?? []))].sort(),
+    [epornerVideos, tags],
+  );
   const historyTopTags = useMemo(() => {
     const counts = new Map<string, number>();
     for (const entry of history) {
@@ -766,7 +775,6 @@ export function LibraryApp() {
       sourceId === "youtube" ||
       sourceId === "twitch" ||
       sourceId === "live");
-  const lockedAdults = sourceId === "adults" && !adultsUnlocked;
   const invitedToTheater = typeof window !== "undefined" && /^RC[A-Z0-9]{4,12}$/.test(
     (new URLSearchParams(window.location.search).get("room") ?? "").trim().toUpperCase(),
   );
@@ -810,9 +818,7 @@ export function LibraryApp() {
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar onMenu={() => setMenuOpen(true)} onAddFolder={() => onAddFolder()} />
         <main className="w-full max-w-none flex-1 px-4 py-6 sm:px-6 xl:px-8 2xl:px-10">
-          {lockedAdults ? (
-            <PinGate />
-          ) : isHubSection ? (
+          {isHubSection ? (
             <Suspense fallback={<section className="rounded-xl bg-elevated p-8 text-sm text-muted shadow-border">Loading this library workspace…</section>}>
             <>
               {sourceId === "prints" && <PrintsSection />}
@@ -850,7 +856,7 @@ export function LibraryApp() {
               {sourceId === "movies" && !query && (randomSourceMovies[0] || featured) && (
                 <Billboard video={randomSourceMovies[0] ?? featured!} />
               )}
-              {sourceId === "adults" && adultsUnlocked && featured && (
+              {sourceId === "adults" && featured && (
                 <Billboard video={featured} />
               )}
 
@@ -960,8 +966,13 @@ export function LibraryApp() {
                 </>
               )}
 
-              {sourceId === "adults" && adultsUnlocked && browsing && (
+              {sourceId === "adults" && browsing && (
                 <>
+                  <AdultPanel />
+                  <div className="mb-5 flex flex-wrap gap-2"><Button size="sm" variant={adultTag === "All" ? "default" : "secondary"} onClick={() => setAdultTag("All")}>All Eporner tags</Button>{epornerTagNames.slice(0, 40).map((tag) => <Button key={`eporner-tag-${tag}`} size="sm" variant={adultTag === tag ? "default" : "secondary"} onClick={() => setAdultTag(tag)}>#{tag}</Button>)}</div>
+                  {adultTag !== "All" && <p className="-mt-2 mb-5 text-xs text-accent">Filtering Eporner shelves by #{adultTag} · {filteredEporner.length.toLocaleString()} matching videos.</p>}
+                  <TitleRail title="From Eporner" reason="Official Eporner API catalog with provider tags — open a card to preview, then play in the in-app player." videos={filteredEporner} variant="rail" />
+                  <PosterGrid videos={filteredEporner} />
                   <section className="mb-6 rounded-xl bg-elevated p-5 shadow-border"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Private library</p><h1 className="mt-2 font-display text-4xl text-fg">Your shelves, your tags.</h1><p className="mt-2 text-sm text-muted">Tags, history, and organization remain private to this browser. Edit a title’s tags from its preview or player.</p></div><Button disabled={!videos.length} onClick={() => { const choices = adultTag === "All" ? adultSorted : adultSorted.filter((video) => (tags[video.id] ?? []).includes(adultTag)); const pick = choices[Math.floor(Math.random() * choices.length)]; if (pick) openVideo(pick.id); }}><Shuffle className="size-4" /> Random private pick</Button></div><div className="mt-4 flex flex-wrap gap-2"><Button size="sm" variant={adultTag === "All" ? "default" : "secondary"} onClick={() => setAdultTag("All")}>All titles</Button>{adultTagNames.map((tag) => <Button key={tag} size="sm" variant={adultTag === tag ? "default" : "secondary"} onClick={() => setAdultTag(tag)}>{tag}</Button>)}</div><div className="mt-3 flex flex-wrap gap-2"><span className="self-center text-xs text-muted">Sort</span>{(["recent", "name", "favorites", "tagged", "played"] as const).map((sort) => <Button key={sort} size="sm" variant={adultSort === sort ? "default" : "secondary"} onClick={() => setAdultSort(sort)}>{sort === "tagged" ? "Most tagged" : sort === "played" ? "Last played" : sort}</Button>)}</div></section>
                   <div className="mb-6 grid gap-3 sm:grid-cols-2"><div className="rounded-lg bg-surface p-4 shadow-border"><p className="text-sm font-medium text-fg">Private favorite links</p><p className="mt-1 text-xs leading-5 text-muted">Reserved for your personally saved, consented links. Nothing is added or shared automatically.</p></div><div className="rounded-lg bg-surface p-4 shadow-border"><p className="text-sm font-medium text-fg">Recommended sites</p><p className="mt-1 text-xs leading-5 text-muted">Reserved for future opt-in recommendations. Link sorting will stay separate from your private video catalog.</p></div></div>
                   <PrivateWebShortcuts />

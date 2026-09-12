@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { EPORNER_FOLDER, EPORNER_FOLDER_ID, epornerKeywordTags } from "./adult-sites";
 import { mergeRemoteRefresh } from "./remote-merge";
 import { measureInteraction } from "@/lib/interaction-budget";
 import {
@@ -26,7 +27,6 @@ import {
   saveSourceHealth,
   type Prefs,
 } from "./persist";
-import { hashPin, isPinShape } from "./pin";
 import {
   ingestDataTransfer,
   ingestDirectoryHandle,
@@ -130,10 +130,7 @@ type LibraryState = {
   setHideDemo: (hide: boolean) => void;
   setHardwareAccel: (on: boolean) => void;
   setFolderAdult: (folderId: string, adult: boolean) => void;
-  setAdultPin: (pin: string) => Promise<boolean>;
-  unlockAdults: (pin: string) => Promise<boolean>;
-  lockAdults: () => void;
-  resetAdultPin: () => void;
+  searchAdultFeed: (query?: string, order?: string, opts?: { page?: number; maxVideos?: number; append?: boolean }) => Promise<number>;
   addFolder: (
     inputEl?: HTMLInputElement | null,
     startIn?: WellKnownStart,
@@ -516,9 +513,9 @@ function applyPrefs(partial: Partial<LibraryState>): Partial<LibraryState> {
     view: prefs.view ?? "grid",
     sort: prefs.sort ?? "name",
     hideDemo: true,
-    sourceId: prefs.sourceId === "adults" ? "home" : (prefs.sourceId ?? "home"),
+    sourceId: prefs.sourceId ?? "home",
     hardwareAccel: prefs.hardwareAccel ?? true,
-    adultPinHash: prefs.adultPinHash ?? null,
+    adultPinHash: null,
     // An empty saved list is intentional. Do not repopulate it with sample follows.
     follows: dedupeFollows(prefs.follows ?? []),
     notices: prefs.notices ?? [],
@@ -555,7 +552,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   hideDemo: true,
   hardwareAccel: true,
   adultPinHash: null,
-  adultsUnlocked: false,
+  adultsUnlocked: true,
   activeId: null,
   previewId: null,
   scanning: null,
@@ -776,35 +773,56 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     }));
     persistNow(get);
   },
-  setAdultPin: async (pin) => {
-    if (!isPinShape(pin)) return false;
-    const adultPinHash = await hashPin(pin);
-    set({ adultPinHash, adultsUnlocked: true });
-    persistNow(get);
-    return true;
-  },
-  unlockAdults: async (pin) => {
-    const { adultPinHash } = get();
-    if (!adultPinHash || !isPinShape(pin)) return false;
-    const hashed = await hashPin(pin);
-    if (hashed !== adultPinHash) return false;
-    set({ adultsUnlocked: true, sourceId: "adults" });
-    return true;
-  },
-  lockAdults: () => {
-    set((s) => {
-      const current = s.videos.find((v) => v.id === s.activeId);
-      const hidePlayer = current ? isAdultVideo(current, s.folders) : false;
-      return {
-        adultsUnlocked: false,
-        sourceId: s.sourceId === "adults" ? "home" : s.sourceId,
-        activeId: hidePlayer ? null : s.activeId,
-      };
-    });
-  },
-  resetAdultPin: () => {
-    set({ adultPinHash: null, adultsUnlocked: false });
-    persistNow(get);
+  searchAdultFeed: async (query = "all", order = "top-weekly", opts) => {
+    set({ remoteBusy: true, importProgress: { done: 0, total: 1, label: "Pulling Eporner catalog…" } });
+    try {
+      const { searchAdultVideos } = await import("@/lib/remote/api");
+      const page = opts?.page ?? 1;
+      const maxVideos = opts?.maxVideos ?? LIBRARY_LIMITS.epornerVideosPerPull;
+      const append = Boolean(opts?.append);
+      const result = await searchAdultVideos({ data: { query, order, page, maxVideos, append } });
+      const videos = result.videos;
+      set((s) => {
+        const existingRemote = append
+          ? s.videos.filter((v) => v.folderId === EPORNER_FOLDER_ID)
+          : [];
+        const byId = new Map(existingRemote.map((v) => [v.id, v]));
+        for (const video of videos) byId.set(video.id, video);
+        const merged = [...byId.values()].sort((a, b) => b.addedAt - a.addedAt);
+        const hasFolder = s.folders.some((f) => f.id === EPORNER_FOLDER_ID);
+        const folders = hasFolder
+          ? s.folders.map((f) =>
+              f.id === EPORNER_FOLDER_ID
+                ? { ...f, videoCount: merged.length, adult: true, kind: "eporner" as const }
+                : f,
+            )
+          : [...s.folders, { ...EPORNER_FOLDER, videoCount: merged.length }];
+        const tagPatch: Record<string, string[]> = {};
+        for (const video of videos) {
+          const fromApi = epornerKeywordTags(
+            video.description ?? video.tagline ?? "",
+            LIBRARY_LIMITS.epornerKeywordTagsPerTitle,
+          );
+          tagPatch[video.id] = compactIngestedTags(s.tags[video.id] ?? [], [
+            ...remoteMetadataTags(video),
+            ...fromApi,
+          ]);
+        }
+        return {
+          folders,
+          videos: [...s.videos.filter((v) => v.folderId !== EPORNER_FOLDER_ID), ...merged],
+          tags: { ...s.tags, ...tagPatch },
+          adultsUnlocked: true,
+          remoteBusy: false,
+          importProgress: null,
+        };
+      });
+      persistNow(get);
+      return get().videos.filter((v) => v.folderId === EPORNER_FOLDER_ID).length;
+    } catch (err) {
+      set({ remoteBusy: false, importProgress: null });
+      throw err;
+    }
   },
   addFolder: async (inputEl, startIn, opts) => {
     const result = await pickDirectory(startIn);
@@ -1638,7 +1656,7 @@ function publicList(state: LibraryState): LibraryVideo[] {
 }
 
 function adultList(state: LibraryState): LibraryVideo[] {
-  if (!state.adultsUnlocked) return [];
+  // Adults section is open; private shelves still stay off public rails via folder.adult.
   const adult = adultIdSet(state.folders);
   return state.videos.filter((v) => !state.unavailable[v.id] && adult.has(v.folderId));
 }
@@ -1792,6 +1810,12 @@ export function selectHistory(state: LibraryState, adult = false): LibraryVideo[
       return recovered;
     })
     .filter((v): v is LibraryVideo => v != null);
+}
+
+export function selectEporner(state: LibraryState): LibraryVideo[] {
+  return state.videos
+    .filter((v) => v.remote?.kind === "eporner" || v.folderId === EPORNER_FOLDER_ID)
+    .sort((a, b) => b.addedAt - a.addedAt);
 }
 
 export function selectYoutube(state: LibraryState): LibraryVideo[] {

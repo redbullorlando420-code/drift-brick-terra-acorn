@@ -14,7 +14,7 @@ Your library stays useful even when a provider is slow, a folder is temporarily 
 - **Fast Home** — The Home shell, search, and core controls paint first. Discovery ranking, artwork-heavy rails, and optional recommendations wait for idle time.
 - **Explainable recommendations** — Shelf copy explains whether a rail is driven by freshness, ratings, saved creators, follow state, or unfinished progress—never opaque provider transport tags.
 - **Rating rhythm** — A local weekly rating goal, streak counter, and clear rewards turn lightweight feedback into better shelves without sending activity anywhere.
-- **Private library controls** — Adult sources stay behind a local PIN and remain separate from public browsing and metadata exports.
+- **Adult discovery** — Adults opens without a PIN. Private shelves stay separate from public rails; Eporner API v2 powers a paginated in-app catalog with provider tags/embeds, and other destinations appear as Adult milestones link-outs.
 - **Optional Companion support** — The local Companion can inspect approved folders and prepare bounded metadata or thumbnail work. It never receives broad filesystem access from the browser.
 - **LAN Watch Rooms** — Create room codes for direct peer presence, chat, next-up voting, local-video sync, and provider embed fallbacks. Exact timeline control is reserved for playable local media.
 
@@ -25,7 +25,7 @@ Your library stays useful even when a provider is slow, a folder is temporarily 
 | Home and provider shelves | Immediate first screen, idle recommendation work, visual rails | `src/components/library/library-app.tsx` |
 | Cards and browsing | Virtual-friendly card surfaces, artwork and feedback actions | `src/components/library/browse.tsx`, `src/components/library/video-card.tsx` |
 | Local catalog state | Durable browser store, scans, progress, history, follows | `src/lib/videos/store.ts` |
-| Provider boundary | Public YouTube/Twitch retrieval, backoff, cache-safe merge | `src/lib/remote/api.ts`, `src/lib/remote-merge.ts` |
+| Provider boundary | Public YouTube/Twitch/Eporner retrieval, backoff, cache-safe merge | `src/lib/remote/api.ts`, `src/lib/remote-merge.ts` |
 | Feedback and streaks | Ratings, creator taste, local weekly rhythm | `src/lib/media-feedback.ts`, `src/lib/rating-streaks.ts` |
 | Performance observability | Render, interaction, thumbnail, cache diagnostics | `src/lib/interaction-budget.ts`, `src/lib/videos/thumbs.ts` |
 | Watch Rooms | Signaling, peer protocol, queue, reconciliation | `src/lib/multiplayer/`, `src/components/library/hub-sections.tsx` |
