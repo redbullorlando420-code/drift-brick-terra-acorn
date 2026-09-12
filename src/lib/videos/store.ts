@@ -869,6 +869,21 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         };
       });
       persistNow(get);
+      // Durable IndexedDB catalog like YouTube/Twitch folders — keep Adult shelves
+      // across reloads without another full provider pull.
+      let writeChain: Promise<void> = Promise.resolve();
+      for (const folderId of touched) {
+        if (append) {
+          const incoming = videos.filter((v) => v.folderId === folderId);
+          if (!incoming.length) continue;
+          writeChain = writeChain.then(() => appendCatalogVideos(incoming)).catch(() => undefined);
+        } else {
+          const folderVideos = get().videos.filter((v) => v.folderId === folderId);
+          if (!folderVideos.length) continue;
+          writeChain = writeChain.then(() => saveFolderVideos(folderId, folderVideos)).catch(() => undefined);
+        }
+      }
+      await writeChain;
       return get().videos.filter((v) => (ADULT_FOLDER_IDS as readonly string[]).includes(v.folderId)).length;
     } catch (err) {
       set({ remoteBusy: false, importProgress: null });
@@ -1833,23 +1848,30 @@ export function selectHistory(state: LibraryState, adult = false): LibraryVideo[
       if (!h.url) return null;
       const isYoutube = /youtube\.com|youtu\.be/i.test(h.url);
       const isTwitch = /twitch\.tv/i.test(h.url);
+      const isEporner = /eporner\.com/i.test(h.url);
+      const isRedtube = /redtube\.com/i.test(h.url);
+      const isChaturbate = /chaturbate\.com/i.test(h.url);
+      const isCamsoda = /camsoda\.com/i.test(h.url);
+      const isMfc = /myfreecams\.com|mfc\.cdn/i.test(h.url);
+      const isReddit = /reddit\.com|redd\.it/i.test(h.url);
+      const adultKind = isEporner ? "eporner" : isRedtube ? "redtube" : isChaturbate ? "chaturbate" : isCamsoda ? "camsoda" : isMfc ? "myfreecams" : isReddit ? "reddit" : null;
       const signature = `${h.at}:${h.url}:${h.position ?? ""}:${h.duration ?? ""}`;
       const cachedRecovery = historyRecoveryCardCache.get(h.id);
       if (cachedRecovery?.signature === signature) return cachedRecovery.video;
       const recovered = {
         id: h.id,
-        folderId: "history:recovery",
-        name: isYoutube ? "Saved YouTube history" : isTwitch ? "Saved Twitch history" : "Saved playback history",
+        folderId: adultKind ? `history:recovery:${adultKind}` : "history:recovery",
+        name: isYoutube ? "Saved YouTube history" : isTwitch ? "Saved Twitch history" : adultKind ? `Saved ${adultKind} history` : "Saved playback history",
         path: h.url,
         src: h.url,
-        extension: isYoutube ? "yt" : isTwitch ? "vod" : "history",
-        mime: isYoutube ? "video/youtube" : isTwitch ? "video/twitch" : "video/history",
+        extension: isYoutube ? "yt" : isTwitch ? "vod" : adultKind ?? "history",
+        mime: isYoutube ? "video/youtube" : isTwitch ? "video/twitch" : adultKind ? `video/${adultKind}` : "video/history",
         size: 0,
         duration: h.duration,
         addedAt: h.at,
         tagline: "Original card is not cached right now. The saved link is retained for recovery.",
-        remote: isYoutube || isTwitch ? {
-          kind: isYoutube ? "youtube" : "twitch",
+        remote: isYoutube || isTwitch || adultKind ? {
+          kind: isYoutube ? "youtube" : isTwitch ? "twitch" : adultKind!,
           live: false,
           embedUrl: h.url,
           watchUrl: h.url,

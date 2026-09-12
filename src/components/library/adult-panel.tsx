@@ -80,7 +80,15 @@ function SiteCard({
   );
 }
 
-export function AdultPanel() {
+export function AdultPanel({
+  showMilestones = false,
+  autoPull = true,
+}: {
+  /** Link-out hub + milestone catalogs — deferred behind Adults deep shelves. */
+  showMilestones?: boolean;
+  /** Soft first pull when the cache is thin; explore can disable for render-only. */
+  autoPull?: boolean;
+}) {
   const searchAdultFeed = useLibrary((s) => s.searchAdultFeed);
   const remoteBusy = useLibrary((s) => s.remoteBusy);
   const importProgress = useLibrary((s) => s.importProgress);
@@ -121,10 +129,14 @@ export function AdultPanel() {
   }, [adultVideos, tags]);
 
   useEffect(() => {
-    if (booted) return;
+    if (!autoPull || booted) return;
     setBooted(true);
-    if (adultVideos.length >= 200) return;
-    void searchAdultFeed("all", "top-weekly", { providers: "all" })
+    // Cached IndexedDB shelves already paint on fast-start; only top up a thin cache.
+    if (adultVideos.length >= LIBRARY_LIMITS.adultFastStartVideosPerPull) return;
+    void searchAdultFeed("all", "top-weekly", {
+      providers: "all",
+      maxVideos: LIBRARY_LIMITS.adultFastStartVideosPerPull,
+    })
       .then((n) => {
         setNextPage(2);
         if (n) toast.success(`Loaded ${n.toLocaleString()} adult titles`);
@@ -132,7 +144,7 @@ export function AdultPanel() {
       .catch((err: unknown) => {
         toast.error(err instanceof Error ? err.message : "Could not load adult feed.");
       });
-  }, [booted, adultVideos.length, searchAdultFeed]);
+  }, [autoPull, booted, adultVideos.length, searchAdultFeed]);
 
   const runSearch = (append = false) => {
     const q = query.trim() || "all";
@@ -161,6 +173,8 @@ export function AdultPanel() {
 
   return (
     <div className="mb-6 space-y-5">
+      {showMilestones && (
+        <>
       <section className="rounded-xl bg-elevated p-5 shadow-border">
         <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Category hub</p>
         <h2 className="mt-2 font-display text-2xl text-fg sm:text-3xl">ThePornDude directory</h2>
@@ -232,6 +246,17 @@ export function AdultPanel() {
               ["community", "Community / Reddit link-outs"],
               ["directory", "Stores / directories"],
               ["short", "Short-form"],
+              ["review", "Review / niche hubs"],
+              ["voyeur", "Live voyeur"],
+              ["blog", "Blogs"],
+              ["ai", "AI stories"],
+              ["extreme", "Extreme (18+)"],
+              ["download", "Downloads (link-out)"],
+              ["torrent", "Torrents (link-out)"],
+              ["feet", "Feet"],
+              ["cosplay", "Cosplay"],
+              ["celeb", "Celeb / film nudes"],
+              ["manhwa", "Manhwa"],
             ] as const
           ).map(([group, label]) => {
             const sites = milestoneLinks.filter((site) => site.group === group);
@@ -244,7 +269,7 @@ export function AdultPanel() {
                     <SiteCard
                       key={`${site.sourceId ?? site.name}-${site.href}`}
                       {...site}
-                      badge={group === "cam" ? "Cam/chat" : group === "community" ? "Link-out" : "Milestone"}
+                      badge={group === "cam" || group === "voyeur" ? "Cam/chat" : group === "download" || group === "torrent" ? "Link-out only" : group === "community" || group === "blog" ? "Link-out" : "Milestone"}
                     />
                   ))}
                 </div>
@@ -253,6 +278,8 @@ export function AdultPanel() {
           })}
         </div>
       </section>
+        </>
+      )}
 
       <section className="rounded-xl bg-elevated p-5 shadow-border">
         <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Remote pull</p>

@@ -1,6 +1,7 @@
 /** Outbound adult destinations. Non-embeddable sites belong in milestones. */
 
 import { ADULT_EXTRA_MILESTONES } from "./adult-milestones-extra";
+import { ADULT_NICHE_MILESTONES } from "./adult-milestones-niches";
 export {
   ADULT_CURATED_FETISH_TAGS,
   ADULT_DEEPEN_FETISH_QUERIES,
@@ -26,7 +27,18 @@ export type AdultSiteLink = {
     | "games"
     | "comic"
     | "community"
-    | "directory";
+    | "directory"
+    | "review"
+    | "voyeur"
+    | "blog"
+    | "ai"
+    | "extreme"
+    | "download"
+    | "torrent"
+    | "feet"
+    | "cosplay"
+    | "celeb"
+    | "manhwa";
 };
 
 /**
@@ -640,6 +652,7 @@ export const ADULT_MILESTONE_LINKS: AdultSiteLink[] = [
     sourceId: "mrskin",
   },
   ...(ADULT_EXTRA_MILESTONES as unknown as AdultSiteLink[]),
+  ...(ADULT_NICHE_MILESTONES as unknown as AdultSiteLink[]),
 ];
 
 /**
