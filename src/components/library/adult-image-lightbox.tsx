@@ -1,6 +1,7 @@
 import { ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { AdultComments } from "@/components/library/adult-comments";
 import { adultRemoteLabel } from "@/lib/videos/adult-sites";
 import { downloadAdultPhoto } from "@/lib/videos/adult-photo-download";
 import type { LibraryVideo } from "@/lib/videos/types";
@@ -73,6 +74,7 @@ export function AdultImageLightbox({
               </a>
             )}
           </div>
+          <AdultComments video={video} />
         </div>
       </div>
     </div>

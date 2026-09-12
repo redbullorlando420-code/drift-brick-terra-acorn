@@ -2055,3 +2055,69 @@ export const searchAdultVideos = createServerFn({ method: "POST" })
       providerNextPages,
     };
   });
+
+
+/* --- Adult comments (real provider data only; no fake comments) --- */
+
+export type AdultComment = { id: string; author?: string; body: string; score?: number };
+
+function parseRedditCommentEntries(xml: string): AdultComment[] {
+  const out: AdultComment[] = [];
+  for (const chunk of xml.split(/<entry>/i).slice(1).slice(0, 24)) {
+    const id = xmlField(chunk, /<id>([^<]+)<\/id>/i) || `c${out.length}`;
+    const title = xmlField(chunk, /<title>([^<]+)<\/title>/i);
+    const author = xmlField(chunk, /<name>([^<]+)<\/name>/i).replace(/^\/u\//, "");
+    const content = xmlField(chunk, /<content[^>]*>([\s\S]*?)<\/content>/i)
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/\s+/g, " ")
+      .trim();
+    const body = (content || title).slice(0, 400);
+    if (!body || body.length < 2) continue;
+    if (adultBlockedText(body, author)) continue;
+    out.push({ id, author: author || undefined, body });
+  }
+  return out;
+}
+
+export const fetchAdultComments = createServerFn({ method: "POST" })
+  .validator((data: unknown) => {
+    const rec = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
+    return {
+      kind: asString(rec.kind).trim(),
+      videoId: asString(rec.videoId).trim(),
+      watchUrl: asString(rec.watchUrl).trim(),
+    };
+  })
+  .handler(async ({ data }): Promise<{ comments: AdultComment[]; note: string }> => {
+    if (data.kind !== "reddit" || !data.videoId) {
+      return { comments: [], note: "This provider does not expose a public comment feed." };
+    }
+    const id = data.videoId.replace(/^t3_/, "");
+    const url = `https://www.reddit.com/comments/${encodeURIComponent(id)}.rss?limit=20`;
+    try {
+      const res = await cachedAdultFetch(url, {
+        signal: AbortSignal.timeout(12000),
+        cacheTtlMs: 15 * 60_000,
+        headers: {
+          accept: "application/atom+xml, application/rss+xml, application/xml;q=0.9, */*;q=0.8",
+          "user-agent": "linux:reelcase:1.0 (by /u/reelcase)",
+        },
+      });
+      if (res.status === 429) return { comments: [], note: "Reddit comment RSS rate-limited — try again later." };
+      if (!res.ok) return { comments: [], note: `Reddit comments unavailable (HTTP ${res.status}).` };
+      const xml = await res.text();
+      const comments = parseRedditCommentEntries(xml);
+      return {
+        comments,
+        note: comments.length
+          ? "Live Reddit comments via public Atom RSS."
+          : "No comments returned for this post.",
+      };
+    } catch (err) {
+      return { comments: [], note: err instanceof Error ? err.message : "Comments unavailable." };
+    }
+  });
