@@ -367,12 +367,13 @@ Branch: `fix/reelcase-updates`
 - Other tubes/cams stay **link-out milestones** (no scrapers / paywall bypass).
 - **Fetish expand:** featured chips first (`milf`, `double penetration`, `dp`, `roleplay`, `feet`, `cosplay`); expandable catalog; chip clicks use `fetishSearchQuery`; browsing `all` deep-pulls Eporner + RedTube.
 - **Chaturbate backup pull:** public affiliate rooms JSON + `/embed/{user}/`. Adults “all” continues if Eporner or RedTube errors (per-provider try/catch, partial success). Preview no longer rewrites adult embeds to YouTube.
+- **Pornhub categories as Adult tags:** all ~105 PH categories + 17 languages as chips (keep 18+ labels on Babysitter/College/School/Old-Young). Featured row includes DP, role play, MILF, feet, anal, lesbian, gangbang, cuckold, cosplay, step fantasy, latina, asian, ebony, bbw, hentai, VR, webcam.
 
 ### In progress / queued
 
 - Persist/cache larger Eporner + RedTube catalogs in IndexedDB like YouTube (`saveFolderVideos` / `appendCatalogVideos`); raise page/video limits; resume + load-more; keep UI windowed.
 - More photo APIs (XBooru / TBIB / Hypnohub). Skip key-gated, retired HubTraffic, CSAM-risk, and leak sites.
-- Full Pornhub category chip list (~105 + languages).
+- **Pornhub categories as Adult tags:** all ~105 PH categories + 17 languages as chips (keep 18+ labels on Babysitter/College/School/Old-Young). Featured row includes DP, role play, MILF, feet, anal, lesbian, gangbang, cuckold, cosplay, step fantasy, latina, asian, ebony, bbw, hentai, VR, webcam.
 - “I cummed to it” local per-video counter.
 - Connect adult watch activity into **Continue / History / Stats** (catalog rails stay public-only).
 - Seed Social / X accounts from the helper list (once; do not re-add after user removal).
