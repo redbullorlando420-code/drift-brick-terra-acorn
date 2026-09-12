@@ -271,8 +271,8 @@ export function LibraryApp() {
     ratingOf: getRating,
   }), [cameCounts, favorites, likes, ratingRevision, tags, viewCounts]);
   const rankedAdultCatalog = useMemo(
-    () => sortAdultVideos(filteredEporner, adultRankCtx),
-    [adultRankCtx, filteredEporner],
+    () => (sourceId === "adults" ? sortAdultVideos(filteredEporner, adultRankCtx) : filteredEporner),
+    [adultRankCtx, filteredEporner, sourceId],
   );
   const adultTagRank = useMemo(() => {
     if (sourceId !== "adults") return [] as { tag: string; score: number; count: number }[];
@@ -324,6 +324,26 @@ export function LibraryApp() {
       .map(({ video }) => video)
       .slice(0, 48);
   }, [adultContinue, adultFavorites, adultRecommended, adultRemoteVideos, adultTag, adultTagRank, favorites, homePickShuffle, likes, ratingRevision, sourceId, tags]);
+  const adultRecommendedRail = useMemo(
+    () => adultRecommended.filter((video) => videoMatchesAdultTag(video, adultTag, tags)).slice(0, 48),
+    [adultRecommended, adultTag, tags],
+  );
+  const adultRelatedRail = useMemo(
+    () => adultRelatedRecommended.filter((video) => videoMatchesAdultTag(video, adultTag, tags)).slice(0, 48),
+    [adultRelatedRecommended, adultTag, tags],
+  );
+  const adultRedditRail = useMemo(
+    () => rankedAdultCatalog.filter((video) => video.remote?.kind === "reddit").slice(0, 48),
+    [rankedAdultCatalog],
+  );
+  const adultLatestRail = useMemo(
+    () => rankedAdultCatalog.slice(0, LIBRARY_LIMITS.adultFastStartRailSize),
+    [rankedAdultCatalog],
+  );
+  const adultCatalogRail = useMemo(
+    () => rankedAdultCatalog.slice(0, 240),
+    [rankedAdultCatalog],
+  );
 
   const filteredYoutube = useMemo(() => youtubeTagFilter === "all" ? newestYoutube : newestYoutube.filter((video) => topicsForVideo(video, tags[video.id]).includes(youtubeTagFilter)), [newestYoutube, tags, youtubeTagFilter]);
   const searchInsights = useMemo(() => {
@@ -406,9 +426,10 @@ export function LibraryApp() {
     return [...groups.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0])).slice(0, 10).map(([type, videos]) => ({ type, videos }));
   }, [movieCatalog]);
   const adultSorted = useMemo(() => {
+    if (sourceId !== "adults" || !adultDeepVisible) return adultPageVideos;
     if (adultSort === "ranked") return sortAdultVideos(adultPageVideos, { tags, favorites, likes, cameCounts, viewCounts, ratingOf: getRating });
     return [...adultPageVideos].sort((a, b) => adultSort === "name" ? a.name.localeCompare(b.name) : adultSort === "favorites" ? Number(Boolean(favorites[b.id])) - Number(Boolean(favorites[a.id])) || b.addedAt - a.addedAt : adultSort === "tagged" ? (tags[b.id] ?? []).length - (tags[a.id] ?? []).length || b.addedAt - a.addedAt : adultSort === "played" ? (progress[b.id]?.at ?? 0) - (progress[a.id]?.at ?? 0) || b.addedAt - a.addedAt : b.addedAt - a.addedAt);
-  }, [adultSort, adultPageVideos, cameCounts, favorites, likes, progress, tags, viewCounts, ratingRevision]);
+  }, [adultDeepVisible, adultSort, adultPageVideos, cameCounts, favorites, likes, progress, sourceId, tags, viewCounts, ratingRevision]);
   const adultTagged = useMemo(() => adultPageVideos.filter((video) => (tags[video.id] ?? []).length > 0).sort((a, b) => (tags[b.id] ?? []).length - (tags[a.id] ?? []).length), [tags, adultPageVideos]);
   const adultNeedsTags = useMemo(() => adultPageVideos.filter((video) => !(tags[video.id] ?? []).length), [tags, adultPageVideos]);
   const highlyRatedTags = useMemo(() => {
@@ -1106,13 +1127,13 @@ export function LibraryApp() {
                   <TitleRail
                     title="Recommended videos"
                     reason="Ranked from tag overlap, extreme/fetish boosts, I-cummed marks, Reddit signals, ratings, and recency — not just newest tube titles."
-                    videos={adultRecommended.filter((video) => videoMatchesAdultTag(video, adultTag, tags)).slice(0, 48)}
+                    videos={adultRecommendedRail}
                     variant="rail"
                   />
                   <TitleRail
                     title="Related recommended"
                     reason="Nearby titles sharing your top adult tags, continue-watching tags, and favorite fetish overlap."
-                    videos={adultRelatedRecommended.filter((video) => videoMatchesAdultTag(video, adultTag, tags)).slice(0, 48)}
+                    videos={adultRelatedRail}
                     variant="rail"
                   />
                   <TitleRail title="Continue watching" videos={adultContinue} variant="rail" />
@@ -1121,7 +1142,7 @@ export function LibraryApp() {
                     <TitleRail
                       title="Reddit photos & videos"
                       reason="Curated 18+ Atom feeds — photos, gifs, and v.redd.it / redgifs posters."
-                      videos={rankedAdultCatalog.filter((video) => video.remote?.kind === "reddit").slice(0, 48)}
+                      videos={adultRedditRail}
                       variant="rail"
                     />
                   )}
@@ -1181,10 +1202,10 @@ export function LibraryApp() {
                   <TitleRail
                     title="Latest from official adult APIs"
                     reason="Ranked catalog from official APIs and Reddit Atom — source chips actually filter these rails."
-                    videos={rankedAdultCatalog.slice(0, LIBRARY_LIMITS.adultFastStartRailSize)}
+                    videos={adultLatestRail}
                     variant="rail"
                   />
-                  <TitleRail title="From official adult APIs" reason="Full filtered catalog, ranked." videos={rankedAdultCatalog} variant="rail" />
+                  <TitleRail title="From official adult APIs" reason="Windowed filtered catalog, ranked (first 240)." videos={adultCatalogRail} variant="rail" />
                   <PosterGrid videos={rankedAdultCatalog} />
                       {!adultDeepVisible && (
                         <section className="mb-6 rounded-xl border border-border bg-surface p-5 shadow-border">
