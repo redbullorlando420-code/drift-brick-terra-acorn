@@ -732,8 +732,10 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       persistNow(get);
       return;
     }
+    // Open the player shell immediately; durable play history can trail by a tick
+    // so Adult iframe mounts are not blocked behind IndexedDB journal writes.
     set({ activeId, previewId: null });
-    get().recordPlay(activeId);
+    queueMicrotask(() => get().recordPlay(activeId));
   },
   openPreview: (previewId) => set({ previewId }),
   closePreview: () => set({ previewId: null }),

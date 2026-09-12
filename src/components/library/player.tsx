@@ -80,7 +80,7 @@ function youtubeEmbed(base: string) {
 
 export function Player({ playlist }: { playlist: string[] }) {
   const activeId = useLibrary((s) => s.activeId);
-  const video = useLibrary((s) => s.videos.find((v) => v.id === s.activeId));
+  const video = useLibrary((s) => (s.activeId ? s.videos.find((v) => v.id === s.activeId) : undefined));
   const closePlayer = useLibrary((s) => s.closePlayer);
   const openVideo = useLibrary((s) => s.openVideo);
   const playRelative = useLibrary((s) => s.playRelative);
@@ -130,6 +130,7 @@ export function Player({ playlist }: { playlist: string[] }) {
   const capturedDur = useThumbs((s) => (video ? s.durations[video.id] : undefined));
   const scrubbing = useRef(false);
   const remoteStartedAt = useRef(0);
+  const lastProgressWrite = useRef(0);
 
   const enterVrTheater = useCallback(async () => {
     const xr = (navigator as Navigator & { xr?: { requestSession: (mode: string, init?: unknown) => Promise<any> } }).xr;
@@ -245,7 +246,15 @@ export function Player({ playlist }: { playlist: string[] }) {
     const stopFrames = attachFrameCallback(el, (t) => {
       if (scrubbing.current) return;
       setCurrent(t);
-      if (video && el.duration) markProgress(video.id, t, el.duration);
+      // Frame callbacks are ~60Hz; only persist resume marks every few seconds
+      // so selecting/playing titles never floods IndexedDB writes.
+      if (video && el.duration) {
+        const now = Date.now();
+        if (now - lastProgressWrite.current >= 4_000) {
+          lastProgressWrite.current = now;
+          markProgress(video.id, t, el.duration);
+        }
+      }
     });
     el.addEventListener("play", onPlay);
     el.addEventListener("pause", onPause);
@@ -271,12 +280,14 @@ export function Player({ playlist }: { playlist: string[] }) {
     // open so Continue works for YouTube/Twitch without pretending we can read
     // private provider state.
     remoteStartedAt.current = Date.now();
+    lastProgressWrite.current = 0;
     const durationHint = Math.max(video.duration ?? 0, 120);
     const heartbeat = () => {
+      if (document.visibilityState === "hidden") return;
       const elapsed = Math.max(2, (Date.now() - remoteStartedAt.current) / 1000);
       markProgress(video.id, Math.min(elapsed, durationHint * 0.94), durationHint);
     };
-    const timer = window.setInterval(heartbeat, 5_000);
+    const timer = window.setInterval(heartbeat, 10_000);
     return () => {
       heartbeat();
       window.clearInterval(timer);
@@ -431,7 +442,7 @@ export function Player({ playlist }: { playlist: string[] }) {
         <AdultImageLightbox video={video} tags={tags} />
       ) : embedSrc ? (
         <iframe
-          key={embedSrc}
+          key={`embed:${video.id}`}
           title={video.name}
           src={embedSrc}
           className="absolute inset-0 size-full border-0 bg-bg"

@@ -41,6 +41,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { resumeForVideo, useLibrary } from "@/lib/videos/store";
 import { buildAdultStatsSnapshot, exportAdultStats } from "@/lib/videos/adult-stats";
+import { rankAdultTags } from "@/lib/videos/adult-rank";
+import { countAdultBySource } from "@/lib/videos/adult-filter";
 import { getThumbDiagnostics, useThumbs } from "@/lib/videos/thumbs";
 import { useSourceAssets } from "@/lib/source-assets";
 import { useP2PRoom } from "@/lib/multiplayer";
@@ -364,28 +366,20 @@ export function StatsSection() {
   }, [favoriteRevision, progress, resumeProgress, tags, videos, viewCounts]);
   const folderRows = useMemo(() => folders.filter((folder) => folder.kind !== "demo").map((folder) => ({ folder, ...(summary.byFolder.get(folder.id) ?? { videos: 0, bytes: 0 }) })).sort((a, b) => b.bytes - a.bytes || b.videos - a.videos || a.folder.name.localeCompare(b.folder.name)), [folders, summary.byFolder]);
   const adultTagStats = useMemo(() => {
-    const fetish = new Map<string, number>();
-    const sources = new Map<string, number>();
-    let adultTitles = 0;
-    for (const video of videos) {
-      const folder = folders.find((f) => f.id === video.folderId);
-      const isAdult = Boolean(folder?.adult) || Boolean(video.remote && ["eporner", "redtube", "chaturbate", "camsoda", "myfreecams", "reddit", "booru", "redgifs"].includes(video.remote.kind));
-      if (!isAdult) continue;
-      adultTitles += 1;
-      for (const tag of tags[video.id] ?? []) {
-        if (tag.startsWith("source-") || tag.startsWith("provider-")) {
-          sources.set(tag, (sources.get(tag) ?? 0) + 1);
-        } else if (tag.startsWith("fetish-") || (!tag.startsWith("format-") && !tag.startsWith("genre-") && tag.length >= 3)) {
-          fetish.set(tag, (fetish.get(tag) ?? 0) + 1);
-        }
-      }
-    }
+    const adultFolderIds = new Set(folders.filter((folder) => folder.adult).map((folder) => folder.id));
+    const adultVideos = videos.filter((video) => adultFolderIds.has(video.folderId) || Boolean(video.remote && ["eporner", "redtube", "chaturbate", "camsoda", "myfreecams", "reddit", "booru", "redgifs"].includes(video.remote.kind)));
+    const ranked = rankAdultTags(adultVideos, { tags, favorites, likes, cameCounts, viewCounts, ratingOf: getRating }, 80);
+    const fetish = ranked.filter((row) => !row.tag.startsWith("source-") && !row.tag.startsWith("provider-") && !row.tag.startsWith("format-"));
+    const sources = ranked.filter((row) => row.tag.startsWith("source-") || row.tag.startsWith("provider-") || row.tag.startsWith("sub-"));
+    const bySource = countAdultBySource(adultVideos);
     return {
-      adultTitles,
-      topFetish: [...fetish.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 16),
-      topSources: [...sources.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 10),
+      adultTitles: adultVideos.length,
+      sourceMix: Object.entries(bySource).filter(([, count]) => count > 0).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
+      topFetish: fetish.slice(0, 24).map((row) => [row.tag, row.count] as const),
+      topSources: sources.slice(0, 16).map((row) => [row.tag, row.count] as const),
+      rankedPreview: ranked.slice(0, 12),
     };
-  }, [folders, tags, videos]);
+  }, [cameCounts, favorites, folders, likes, tags, videos, viewCounts]);
     const favoriteHealth = useMemo(() => {
     const videoIds = new Set(videos.map((video) => video.id));
     const saved = Object.keys(favorites);
@@ -432,12 +426,55 @@ export function StatsSection() {
     ...(sourceHealth.largest ? [["storage-concentration", 1, sourceHealth.largest.folder.name, `${sourceHealth.concentration}% of mapped local bytes`, "Review source contents; no files are changed automatically"]] : []),
   ], `reelcase-remediation-plan-${new Date().toISOString().slice(0, 10)}.csv`);
   return <HubShell eyebrow="Library intelligence" icon={<BarChart3 className="size-4"/>} title="Know what your library needs next." copy="These local-only counts help identify coverage gaps, oversized source folders, and the tags that are driving discovery.">
+    <section id="adult-stats" className="mt-2 scroll-mt-24 rounded-xl border border-accent/35 bg-elevated p-5 shadow-border">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Adult division</p>
+          <h2 className="mt-2 font-display text-3xl text-fg">Adult tags, sources & export</h2>
+          <p className="mt-1 max-w-3xl text-sm text-muted">Pinned at the top of Stats so Adult coverage is obvious. Counts stay on this device; pull the Adults catalog if this panel is empty.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="secondary" onClick={() => exportAdultStats(buildAdultStatsSnapshot(videos, folders, tags, { favorites, likes, cameCounts, viewCounts, ratingOf: getRating }), "csv")}><Download className="size-4"/>Adult CSV</Button>
+          <Button size="sm" variant="secondary" onClick={() => exportAdultStats(buildAdultStatsSnapshot(videos, folders, tags, { favorites, likes, cameCounts, viewCounts, ratingOf: getRating }), "json")}><Download className="size-4"/>Adult JSON</Button>
+          <Button size="sm" onClick={() => useLibrary.getState().setSource("adults")}>Open Adults</Button>
+        </div>
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-md bg-bg/45 p-3"><p className="text-xs text-muted">Adult titles</p><p className="mt-1 text-lg font-medium text-fg">{adultTagStats.adultTitles.toLocaleString()}</p></div>
+        <div className="rounded-md bg-bg/45 p-3"><p className="text-xs text-muted">Ranked tags</p><p className="mt-1 text-lg font-medium text-fg">{adultTagStats.rankedPreview.length.toLocaleString()}</p></div>
+        <div className="rounded-md bg-bg/45 p-3"><p className="text-xs text-muted">Marked (I cummed)</p><p className="mt-1 text-lg font-medium text-fg">{Object.values(cameCounts).filter((n) => n > 0).length.toLocaleString()}</p></div>
+        <div className="rounded-md bg-bg/45 p-3"><p className="text-xs text-muted">Total marks</p><p className="mt-1 text-lg font-medium text-fg">{Object.values(cameCounts).reduce((sum, n) => sum + n, 0).toLocaleString()}</p></div>
+      </div>
+      {adultTagStats.sourceMix.length > 0 && (
+        <div className="mt-4">
+          <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Source mix</p>
+          <div className="mt-2 flex flex-wrap gap-2">{adultTagStats.sourceMix.map(([source, count]) => <span key={source} className="rounded-full bg-accent/15 px-3 py-1 text-xs font-medium text-accent">{source} · {count.toLocaleString()}</span>)}</div>
+        </div>
+      )}
+      <div className="mt-4">
+        <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Your adult tags</p>
+        {adultTagStats.topFetish.length || adultTagStats.topSources.length ? (
+          <>
+            <div className="mt-2 flex flex-wrap gap-2">{adultTagStats.topFetish.map(([tag, count]) => <span key={tag} className="rounded-full bg-bg/45 px-3 py-1 text-xs text-fg">#{tag} · {count}</span>)}</div>
+            <div className="mt-2 flex flex-wrap gap-2">{adultTagStats.topSources.map(([tag, count]) => <span key={tag} className="rounded-full bg-bg/45 px-3 py-1 text-xs text-muted">#{tag} · {count}</span>)}</div>
+          </>
+        ) : (
+          <p className="mt-2 text-sm text-muted">No adult tags yet. Open Adults and pull the catalog — source/fetish tags appear here automatically.</p>
+        )}
+      </div>
+      {Object.values(cameCounts).some((n) => n > 0) && (
+        <div className="mt-4 space-y-2">
+          <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">I cummed to it</p>
+          {Object.entries(cameCounts).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([id, n]) => {
+            const video = videos.find((item) => item.id === id);
+            return <button key={id} type="button" className="block w-full rounded-sm bg-bg/45 px-3 py-2 text-left text-sm text-fg" onClick={() => video && useLibrary.getState().openPreview(video.id)}>{video?.name ?? id}<span className="ml-2 text-xs text-accent">· {n}×</span></button>;
+          })}
+        </div>
+      )}
+    </section>
     <TopicLinks />
     <div className="mt-5 flex flex-wrap gap-2"><Button size="sm" variant="secondary" onClick={exportStats}><Download className="size-4"/>Download insight CSV</Button><Button size="sm" variant="secondary" onClick={exportSources}><Download className="size-4"/>Download source-map CSV</Button><Button size="sm" variant="secondary" onClick={exportRemediation}><Download className="size-4"/>Download remediation CSV</Button><span className="self-center text-xs text-muted">Exports only local catalog metadata, useful for improving sorting and discovery rules.</span></div>
     <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Stat label="Catalog titles" value={videos.length.toLocaleString()}/><Stat label="Local storage mapped" value={bytes(summary.totalBytes)}/><Stat label="Saved topic assignments" value={summary.tagAssignments.toLocaleString()}/><Stat label="Favorites" value={Object.keys(favorites).length.toLocaleString()}/></div>
-    <section className="mt-5 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Adult marks</p><h2 className="mt-2 font-display text-2xl text-fg">I cummed to it</h2><p className="mt-1 max-w-3xl text-sm text-muted">Private local counters only — stored with watch history on this device, never synced.</p><div className="mt-3 grid gap-3 sm:grid-cols-2"><div className="rounded-md bg-bg/45 p-3"><p className="text-xs text-muted">Marked titles</p><p className="mt-1 text-lg font-medium text-fg">{Object.values(cameCounts).filter((n) => n > 0).length.toLocaleString()}</p></div><div className="rounded-md bg-bg/45 p-3"><p className="text-xs text-muted">Total marks</p><p className="mt-1 text-lg font-medium text-fg">{Object.values(cameCounts).reduce((sum, n) => sum + n, 0).toLocaleString()}</p></div></div><div className="mt-3 space-y-2">{Object.entries(cameCounts).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([id, n]) => { const video = videos.find((item) => item.id === id); return <button key={id} type="button" className="block w-full rounded-sm bg-bg/45 px-3 py-2 text-left text-sm text-fg" onClick={() => video && useLibrary.getState().openPreview(video.id)}>{video?.name ?? id}<span className="ml-2 text-xs text-accent">· {n}×</span></button>; })}</div></section>
-    <section className="mt-5 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Adult tags</p><h2 className="mt-2 font-display text-2xl text-fg">Fetish & source coverage</h2><p className="mt-1 max-w-3xl text-sm text-muted">Pulled from official adult APIs and private adult folders. Public Home rails stay public-only; these counts stay on this device.</p><div className="mt-3 grid gap-3 sm:grid-cols-3"><div className="rounded-md bg-bg/45 p-3"><p className="text-xs text-muted">Adult titles</p><p className="mt-1 text-lg font-medium text-fg">{adultTagStats.adultTitles.toLocaleString()}</p></div><div className="rounded-md bg-bg/45 p-3"><p className="text-xs text-muted">Top fetish tags</p><p className="mt-1 text-lg font-medium text-fg">{adultTagStats.topFetish.length.toLocaleString()}</p></div><div className="rounded-md bg-bg/45 p-3"><p className="text-xs text-muted">Source tags</p><p className="mt-1 text-lg font-medium text-fg">{adultTagStats.topSources.length.toLocaleString()}</p></div></div><div className="mt-4 flex flex-wrap gap-2">{adultTagStats.topFetish.map(([tag, count]) => <span key={tag} className="rounded-full bg-bg/45 px-3 py-1 text-xs text-fg">#{tag} · {count}</span>)}</div><div className="mt-3 flex flex-wrap gap-2">{adultTagStats.topSources.map(([tag, count]) => <span key={tag} className="rounded-full bg-bg/45 px-3 py-1 text-xs text-muted">#{tag} · {count}</span>)}</div><Button className="mt-4" size="sm" variant="secondary" onClick={() => useLibrary.getState().setSource("adults")}>Open Adults</Button></section>
-    <section className="mt-5 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Adult stats</p><h2 className="mt-2 font-display text-2xl text-fg">Exportable Adult rankings</h2><p className="mt-1 max-w-3xl text-sm text-muted">Source mix, ranked tags, Reddit signals, and I-cummed marks — local-only JSON or CSV.</p><div className="mt-3 flex flex-wrap gap-2"><Button size="sm" variant="secondary" onClick={() => exportAdultStats(buildAdultStatsSnapshot(videos, folders, tags, { favorites, likes, cameCounts, viewCounts, ratingOf: getRating }), "csv")}><Download className="size-4"/>Adult stats CSV</Button><Button size="sm" variant="secondary" onClick={() => exportAdultStats(buildAdultStatsSnapshot(videos, folders, tags, { favorites, likes, cameCounts, viewCounts, ratingOf: getRating }), "json")}><Download className="size-4"/>Adult stats JSON</Button></div></section>
     <section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Stat label="Local / remote" value={`${summary.localTitles.toLocaleString()} / ${summary.remoteTitles.toLocaleString()}`}/><Stat label="Remote catalog share" value={`${Math.round(summary.remoteShare * 100)}%`}/><Stat label="New provider items · 7d" value={summary.freshRemoteTitles.toLocaleString()}/><Stat label="Needs useful topic" value={`${summary.untaggedTitles.toLocaleString()} titles`}/><Stat label="Saved topic coverage" value={`${Math.round(((videos.length - summary.untaggedTitles) / Math.max(videos.length, 1)) * 100)}%`}/><Stat label="Topic tags per title" value={summary.tagDensity.toFixed(2)}/><Stat label="Cross-source topic bridges" value={summary.bridgeTopics.toLocaleString()}/><Stat label="Multi-topic titles" value={summary.multiTopicTitles.toLocaleString()}/><Stat label="Operational labels" value={summary.operationalTagAssignments.toLocaleString()}/><Stat label="Any metadata coverage" value={`${Math.round(summary.metadataTaggedTitles / Math.max(videos.length, 1) * 100)}%`}/><Stat label="Creator / description coverage" value={`${summary.creatorTaggedTitles.toLocaleString()} / ${summary.descriptionTaggedTitles.toLocaleString()}`}/><Stat label="YouTube / Twitch" value={`${summary.youtubeTitles.toLocaleString()} / ${summary.twitchTitles.toLocaleString()}`}/><Stat label="Known runtime" value={`${Math.round(summary.knownDuration / 3600).toLocaleString()} hours`}/><Stat label="Resume marks" value={summary.resumedTitles.toLocaleString()}/><Stat label="Local view events" value={summary.totalViews.toLocaleString()}/><Stat label="Live right now" value={summary.liveTitles.toLocaleString()}/><Stat label="Artwork coverage" value={`${Math.round(summary.thumbReady / Math.max(videos.length, 1) * 100)}%`}/><Stat label="History events" value={history.length.toLocaleString()}/><Stat label="Unavailable cards" value={Object.keys(unavailable).length.toLocaleString()}/></section>
     <section className="mt-5 rounded-lg border border-border bg-surface p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Fast paths from your library</p><h2 className="mt-2 font-display text-2xl text-fg">Use the small, useful slice first.</h2><p className="mt-1 max-w-3xl text-sm leading-6 text-muted">Topic, Continue, and source views now reuse saved metadata and mount cards progressively. Favorite topics lead every topic list so the first results match what you actually want to browse.</p><div className="mt-4 grid gap-3 md:grid-cols-3"><div className="rounded-md bg-elevated p-3"><p className="text-xs text-muted">Favorite topics</p><p className="mt-1 text-lg font-medium text-fg">{summary.topicRows.filter(([topic]) => tagIsLiked(topic)).length}</p><p className="mt-1 text-xs text-muted">Pinned ahead of large catalog scans.</p></div><div className="rounded-md bg-elevated p-3"><p className="text-xs text-muted">Ready to resume</p><p className="mt-1 text-lg font-medium text-fg">{summary.resumedTitles.toLocaleString()}</p><p className="mt-1 text-xs text-muted">Stable resume records survive catalog refreshes.</p><Button className="mt-3" size="sm" variant="secondary" onClick={() => useLibrary.getState().setSource("continue")}>Open Continue</Button></div><div className="rounded-md bg-elevated p-3"><p className="text-xs text-muted">Metadata-first catalog</p><p className="mt-1 text-lg font-medium text-fg">{Math.round(summary.metadataTaggedTitles / Math.max(videos.length, 1) * 100)}%</p><p className="mt-1 text-xs text-muted">Existing metadata is used before slower title-only inference.</p><Button className="mt-3" size="sm" variant="secondary" onClick={() => useLibrary.getState().setSource("genres")}>Open Topics</Button></div></div>{summary.topicRows.filter(([topic]) => tagIsLiked(topic)).length > 0 && <div className="mt-4 flex flex-wrap gap-2">{summary.topicRows.filter(([topic]) => tagIsLiked(topic)).slice(0, 12).map(([topic, count]) => <Button key={topic} size="sm" variant="secondary" onClick={() => openTopic(topic)}>★ #{topic} · {count.toLocaleString()}</Button>)}</div>}</section>
     <section className="mt-5 grid gap-5 xl:grid-cols-2"><div className="h-72 rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Provider mix</h2><ResponsiveContainer width="100%" height="85%"><BarChart data={[{ name: "Local", titles: summary.localTitles }, { name: "YouTube", titles: summary.youtubeTitles }, { name: "Twitch", titles: summary.twitchTitles }]}><XAxis dataKey="name" stroke="currentColor" fontSize={12}/><YAxis stroke="currentColor" fontSize={12}/><Tooltip/><Bar dataKey="titles" fill="var(--color-accent)" radius={4}/></BarChart></ResponsiveContainer></div><div className="h-72 rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Most useful topics</h2><p className="mt-1 text-xs text-muted">Only topics with a saved rating appear here. Score is scaled to 5,000.</p><ResponsiveContainer width="100%" height="80%"><BarChart layout="vertical" margin={{ left: 16 }} data={summary.topTags.map(([name, titles]) => ({ name, titles, score: Math.round(((summary.topicRatings.get(name)?.total ?? 0) / titles) * 1000) })).filter((topic) => topic.score > 0).slice(0, 8)}><XAxis type="number" stroke="currentColor" fontSize={12}/><YAxis type="category" dataKey="name" width={150} stroke="currentColor" fontSize={10}/><Tooltip/><Bar dataKey="score" fill="var(--color-accent)" radius={4}/></BarChart></ResponsiveContainer></div></section>

@@ -1,21 +1,23 @@
 # Reelcase — PR living notes
 
-**PR #3** `fix/adults-ux-scale` → `main` · https://github.com/redbullorlando420-code/drift-brick-terra-acorn/pull/3
+**PR #4** `fix/adults-perf` → `main` · https://github.com/redbullorlando420-code/drift-brick-terra-acorn/pull/4
 
-## Ready to merge
+## In progress
 
-Adults opens on recommendations + catalog (no extra explore click). Discovery auto-pulls toward thousands with staggered provider ticks, reserved Reddit budget, and durable URL cache. History stores real titles. Source chips filter by provider kind. Tags are ranked, searchable, and compact. Adult Stats export on Adults and Stats. Reddit photos/videos extract preview/i.redd.it/redgifs/v.redd.it; sub/flair/title/comment tokens feed ranking.
+Adults perf + catalog/stats follow-ups after merged PR #3.
 
-### Shipped
-1. Fewer clicks — Adults lands on Recommended Videos, related, catalog, filters.
-2. RedTube thumbs — skip `/videos//original/` placeholders; mid-strip frames; star names as channel.
-3. Bigger timed pulls — fast-start 1600, target 5000, 75s staggered ticks, append + archive cursors, URL cache.
-4. Ranked Your Tags — high→low, filter box, 12 + Show more, extreme boost.
-5. Source filter + Reddit volume — true provider counts; Reddit 40 subs × hot/new × 3 windows; 35% floor.
-6. History real titles — `title`/`poster` on play; recovery cards use them (not “saved redtube history”).
-7. RedTube creator search — `stars[]` + official star list browse.
-8. Adult Stats — CSV/JSON export (sources, ranked tags, Reddit tags, marks).
-9. Reddit metadata in ranking — sub/flair/title tokens + comment fetish mining.
+### Shipped this PR
+1. **Thumb reliability** — RedTube/Eporner candidate pick + CDN host/frame/size fallbacks; skip placeholders; prefer big thumbs; longer `thumbFallbacks`; visibility-gated lazy decode; concurrent image budget (~5, adaptive).
+2. **Adults less laggy** — idle-deferred full ranking/recs/tag chips; horizontal rail windowing + debounced offscreen unmount; catalog rail 120 / poster 360; deep private memos gated; score-once sorts; leaner card selectors.
+3. **Smoother watch** — throttle local frame progress (~4s); remote heartbeat 10s (skip when tab hidden); stable embed key by video id; `openVideo` records play off the critical path.
+4. **No duplicate Adult rails** — Continue/marks claim first, then Recommended/Related/Reddit/Latest/Catalog skip already-shown ids.
+5. **Your Tags readable** — ranked chips start at 10, Show more pages (+10, hard cap 36), filter/search kept; never dumps hundreds.
+6. **Catalog variety** — RedTube `thumbsize=big`; rotate orderings across pages on `all` pulls.
+7. **Visible Adult Stats** — pinned **Adult division** at top of Stats (`#adult-stats`) with source mix, ranked tags, marks, CSV/JSON export + Open Adults CTA.
+
+### Still open
+- Soak test embed remount limits if any remain after stable iframe key
+- More provider metadata on pull cards if gaps remain
 
 Official public APIs + Reddit Atom only. 18+ only.
 
@@ -381,34 +383,19 @@ never:   build an app for a greeting/number/question; invent imagine_* calls;
 
 ## Living work notes
 
-PR: https://github.com/redbullorlando420-code/drift-brick-terra-acorn/pull/2
-Branch: `fix/reelcase-updates`
+PR: (opening) — branch `fix/adults-perf`
 Refreshed: 2026-09-11 late evening ET
-**Status: ready to merge**
+**Status: in progress**
 
-### Shipped (recent → older)
+### Goals for this PR
+- Reduce Adults section lag; smoother video watching/playback
+- Optimize thumbnail loading (many failing across providers, including RedTube); lazy-load + fallbacks
+- Adult pull catalog: richer metadata, **batched** pulls, wide content variety
+- Stats: visible **Adult division** with adult tags + export (user reports this missing)
 
-- **Full Companion yt-dlp offline save**: `POST /offline/save` spawns yt-dlp into an allowed download root when binary + folder available; `YT_DLP_PATH` / `REELCASE_DOWNLOAD_DIR` / `REELCASE_ALLOWED_ROOTS` documented; graceful 501 + needs/hint if missing. No *arr/torrent stack. Health v8 reports `ytDlp`, `downloadRoot`, `offline-save`.
-- **Backup embed API probe (final)**: **none found** for new public tube JSON suitable for Adult embeds. Re-checked YouPorn/Tube8/Spankwire/KeezMovies/ExtremeTube/Pornhub webmasters (all HTML), Avgle (520), XVideos/XNXX/xHamster/Beeg/SpankBang (no public JSON), porn.com (404). Iwara has public JSON but no reliable embed URL (file-host style) — not wired. Keep Eporner + RedTube as the embed pulls.
-- **API probes (earlier):** Pornhub `/webmasters` HTML (dead for JSON). AdultDataLink needs `ADULTDATALINK_API_KEY` (Redgifs wired). FapHouse has no public pull API.
-- **Adult comments**: Reddit public comment Atom RSS on player/lightbox; fetish token mining.
-- **Adult photo download**: lightbox/cards File System Access + blob fallback.
-- **Adult pull request cache**: TTL HTTP cache + client fingerprints.
-- **Merged NSFW Reddit catalog** (~470 curated `r/`); rotated Atom pulls.
-- **AdultDataLink Redgifs**; **archive resume cursors**; **FapHouse shorts** milestone; **booru lightbox**; **richer tags**.
-- Booru photo pull; Adults fast-start + IndexedDB; cams/Reddit; I-cummed; PH chips; Eporner/RedTube; PIN removed; ThePornDude hub.
-
-### In progress / queued
-
-- None — leftovers closed. Ready to merge.
-
-### Pull sources vs link-only
-
-| Pull (API + play/view) | Link-out / milestone |
-|---|---|
-| Eporner, RedTube, Chaturbate, CamSoda, MyFreeCams, Reddit Atom (rotated catalog), Booru thumbs, Redgifs (AdultDataLink key) | Major tubes without public JSON, most cams without embeds, downloads/torrents, niche hubs, FapHouse shorts, celeb film-nude DBs |
+### Shipped
+- (starter notes commit — feature commits landing next)
 
 ### Verification
-
-- Each increment: `npm run typecheck` + `npm run build` before commit/push.
-- Small reviewable commits; refresh this section and the PR #2 body after every push.
+- Small commits; `npm run typecheck` + `npm run build` before each push
+- Refresh this section + PR body after every push

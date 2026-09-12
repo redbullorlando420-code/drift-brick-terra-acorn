@@ -91,5 +91,9 @@ export function rankAdultTags(
 }
 
 export function sortAdultVideos<T extends LibraryVideo>(videos: T[], ctx: AdultRankContext): T[] {
-  return [...videos].sort((a, b) => scoreAdultVideo(b, ctx) - scoreAdultVideo(a, ctx) || b.addedAt - a.addedAt);
+  // Score once per title — comparator-time scoring was O(n log n) re-walks over tags.
+  return videos
+    .map((video) => ({ video, score: scoreAdultVideo(video, ctx) }))
+    .sort((a, b) => b.score - a.score || b.video.addedAt - a.video.addedAt)
+    .map(({ video }) => video);
 }
