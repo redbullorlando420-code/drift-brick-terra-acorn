@@ -38,6 +38,7 @@ const PROVIDER_CHOICES: { id: AdultPullProvider[] | "all"; label: string }[] = [
   { id: ["myfreecams"], label: "MyFreeCams only" },
   { id: ["reddit"], label: "Reddit (18+)" },
   { id: ["booru"], label: "Booru photos (18+)" },
+  { id: ["redgifs"], label: "Redgifs (needs API key)" },
   { id: ["eporner"], label: "Eporner only" },
   { id: ["redtube"], label: "RedTube only" },
 ];

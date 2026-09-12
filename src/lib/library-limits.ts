@@ -39,4 +39,6 @@ export const LIBRARY_LIMITS = {
   redditPostsPerSub: 8,
   booruVideosPerPull: 120,
   booruPageSize: 40,
+  redgifsVideosPerPull: 80,
+  redgifsPageSize: 40,
 } as const;

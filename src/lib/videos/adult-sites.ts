@@ -728,6 +728,14 @@ export const ADULT_EMBED_LINKS: AdultSiteLink[] = [
     group: "comic",
     sourceId: "booru",
   },
+  {
+    name: "Redgifs (AdultDataLink)",
+    href: "https://www.redgifs.com/",
+    copy: "Trending GIFs via AdultDataLink (/redgifs/trending). Requires ADULTDATALINK_API_KEY on the server; without a key this source is skipped so other providers still fill Adults.",
+    embeds: true,
+    group: "short",
+    sourceId: "redgifs",
+  },
 ];
 
 /** Deduplicate by href while preserving first-seen order. */
@@ -760,9 +768,9 @@ export const ADULT_SOURCE_OPTIONS: { id: string; label: string; href?: string; p
       pull: Boolean(link.embeds),
     }));
 
-export type AdultPullProvider = "eporner" | "redtube" | "chaturbate" | "camsoda" | "myfreecams" | "reddit" | "booru";
+export type AdultPullProvider = "eporner" | "redtube" | "chaturbate" | "camsoda" | "myfreecams" | "reddit" | "booru" | "redgifs";
 
-export const ADULT_PULL_PROVIDERS: AdultPullProvider[] = ["eporner", "redtube", "chaturbate", "camsoda", "myfreecams", "reddit", "booru"];
+export const ADULT_PULL_PROVIDERS: AdultPullProvider[] = ["eporner", "redtube", "chaturbate", "camsoda", "myfreecams", "reddit", "booru", "redgifs"];
 
 /** Curated 18+ subs only. Public Atom RSS — no OAuth, no logged-in scrape. */
 export const ADULT_REDDIT_SUBS = [
@@ -812,6 +820,7 @@ export const CAMSODA_FOLDER_ID = "camsoda:discover";
 export const MYFREECAMS_FOLDER_ID = "myfreecams:discover";
 export const REDDIT_FOLDER_ID = "reddit:discover";
 export const BOORU_FOLDER_ID = "booru:discover";
+export const REDGIFS_FOLDER_ID = "redgifs:discover";
 
 export const EPORNER_FOLDER = {
   id: EPORNER_FOLDER_ID,
@@ -869,6 +878,14 @@ export const BOORU_FOLDER = {
   adult: true,
 };
 
+export const REDGIFS_FOLDER = {
+  id: REDGIFS_FOLDER_ID,
+  name: "Redgifs",
+  kind: "redgifs" as const,
+  videoCount: 0,
+  adult: true,
+};
+
 export const ADULT_FOLDER_BY_PROVIDER = {
   eporner: EPORNER_FOLDER,
   redtube: REDTUBE_FOLDER,
@@ -877,6 +894,7 @@ export const ADULT_FOLDER_BY_PROVIDER = {
   myfreecams: MYFREECAMS_FOLDER,
   reddit: REDDIT_FOLDER,
   booru: BOORU_FOLDER,
+  redgifs: REDGIFS_FOLDER,
 } as const;
 
 export const ADULT_FOLDER_IDS = [
@@ -887,6 +905,7 @@ export const ADULT_FOLDER_IDS = [
   MYFREECAMS_FOLDER_ID,
   REDDIT_FOLDER_ID,
   BOORU_FOLDER_ID,
+  REDGIFS_FOLDER_ID,
 ] as const;
 
 export function adultFolderId(provider: AdultPullProvider) {
@@ -909,6 +928,8 @@ export function adultRemoteLabel(kind?: string) {
       return "Reddit";
     case "booru":
       return "Booru";
+    case "redgifs":
+      return "Redgifs";
     case "youtube":
       return "YouTube";
     case "twitch":
@@ -919,7 +940,7 @@ export function adultRemoteLabel(kind?: string) {
 }
 
 export function isAdultPullKind(kind?: string) {
-  return kind === "eporner" || kind === "redtube" || kind === "chaturbate" || kind === "camsoda" || kind === "myfreecams" || kind === "reddit" || kind === "booru";
+  return kind === "eporner" || kind === "redtube" || kind === "chaturbate" || kind === "camsoda" || kind === "myfreecams" || kind === "reddit" || kind === "booru" || kind === "redgifs";
 }
 
 export function adultSourceTag(provider: string) {
@@ -942,6 +963,7 @@ const ADULT_PROVIDER_BRANDS = new Set([
   "redgifs",
   "adultdatalink",
   "pornhub",
+  "faphouse",
 ]);
 
 /** Stable creator / pornstar / username / channel tag. Returns null for brands or junk. */

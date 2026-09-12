@@ -10,6 +10,7 @@ import {
   MYFREECAMS_FOLDER_ID,
   REDDIT_FOLDER_ID,
   BOORU_FOLDER_ID,
+  REDGIFS_FOLDER_ID,
   REDTUBE_FOLDER_ID,
   ADULT_REDDIT_SUBS,
   type AdultPullProvider,
@@ -1705,6 +1706,125 @@ async function fetchBooruFeed(query: string, maxVideos: number, page: number): P
   return { videos: collected, totalPages: page + (collected.length >= limit ? 1 : 0), totalCount: collected.length };
 }
 
+
+function adultDataLinkApiKey() {
+  return (process.env.ADULTDATALINK_API_KEY || process.env.ADL_API_KEY || "").trim();
+}
+
+type RedgifsRow = Record<string, unknown>;
+
+function asRecord(value: unknown): RedgifsRow | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as RedgifsRow) : null;
+}
+
+function pickString(...values: unknown[]) {
+  for (const value of values) {
+    const s = asString(value).trim();
+    if (s) return s;
+  }
+  return "";
+}
+
+function redgifsVideo(row: RedgifsRow): LibraryVideo | null {
+  const id = pickString(row.id, row.gif_id, row.gifId, row.slug);
+  if (!id) return null;
+  const urls = asRecord(row.urls) ?? {};
+  const user = asRecord(row.user) ?? asRecord(row.creator) ?? {};
+  const tagsRaw = row.tags ?? row.hashtags ?? row.niches;
+  const tagList = Array.isArray(tagsRaw)
+    ? tagsRaw.map((t) => (typeof t === "string" ? t : pickString(asRecord(t)?.name, asRecord(t)?.text))).filter(Boolean)
+    : typeof tagsRaw === "string"
+      ? tagsRaw.split(/[,;\s]+/).filter(Boolean)
+      : [];
+  const title = pickString(row.title, row.description, tagList.slice(0, 6).join(" "), id).slice(0, 160);
+  const author = pickString(user.username, user.name, row.username, row.userName, row.author);
+  const embed = pickString(urls.html, urls.player, row.embedUrl, row.embed_url, `https://www.redgifs.com/ifr/${encodeURIComponent(id)}`);
+  const watch = pickString(urls.webUrl, urls.web_url, row.url, row.webUrl, `https://www.redgifs.com/watch/${encodeURIComponent(id)}`);
+  const thumb = pickString(urls.thumbnail, urls.poster, urls.posterUrl, row.thumbnail, row.poster, row.previewUrl);
+  const file = pickString(urls.hd, urls.sd, urls.silent, urls.giftiny, urls.gif, row.mp4, row.file);
+  if (adultBlockedText(title, author, tagList.join(" "))) return null;
+  return {
+    id: `redgifs:${id}`,
+    folderId: REDGIFS_FOLDER_ID,
+    name: title || `Redgifs ${id}`,
+    path: `redgifs/${id}`,
+    extension: "redgifs",
+    mime: "video/mp4",
+    size: 0,
+    addedAt: Date.now(),
+    tagline: [author, ...tagList.slice(0, 8)].filter(Boolean).join(" · ").slice(0, 160) || undefined,
+    description: tagList.join(", ") || title,
+    poster: thumb || undefined,
+    src: embed || file || undefined,
+    remote: {
+      kind: "redgifs",
+      videoId: id,
+      channelName: author || "Redgifs",
+      observedAt: Date.now(),
+      embedUrl: embed || undefined,
+      watchUrl: watch,
+      previewUrl: thumb || undefined,
+    },
+  };
+}
+
+function collectRedgifsRows(payload: unknown): RedgifsRow[] {
+  if (Array.isArray(payload)) return payload.map(asRecord).filter((r): r is RedgifsRow => Boolean(r));
+  const root = asRecord(payload);
+  if (!root) return [];
+  for (const key of ["gifs", "items", "data", "results", "trending", "feed"]) {
+    const value = root[key];
+    if (Array.isArray(value)) return value.map(asRecord).filter((r): r is RedgifsRow => Boolean(r));
+    const nested = asRecord(value);
+    if (nested) {
+      for (const nestedKey of ["gifs", "items", "data", "results"]) {
+        const inner = nested[nestedKey];
+        if (Array.isArray(inner)) return inner.map(asRecord).filter((r): r is RedgifsRow => Boolean(r));
+      }
+    }
+  }
+  return [];
+}
+
+async function fetchRedgifsFeed(query: string, maxVideos: number, page: number): Promise<{
+  videos: LibraryVideo[];
+  totalPages: number;
+  totalCount: number;
+}> {
+  const key = adultDataLinkApiKey();
+  if (!key) {
+    throw new Error("AdultDataLink key missing — set ADULTDATALINK_API_KEY to enable Redgifs pulls.");
+  }
+  const params = new URLSearchParams({
+    parameter: "gif",
+    page: String(Math.max(1, page)),
+    count: String(Math.min(LIBRARY_LIMITS.redgifsPageSize, maxVideos)),
+  });
+  const needle = query.trim();
+  if (needle && needle.toLowerCase() !== "all") params.set("search", needle.slice(0, 64));
+  const url = `https://api.adultdatalink.com/redgifs/trending?${params.toString()}`;
+  const res = await fetch(url, {
+    signal: AbortSignal.timeout(20000),
+    headers: {
+      accept: "application/json",
+      authorization: `Bearer ${key}`,
+      "x-api-key": key,
+      "user-agent": "Reelcase/1.0",
+    },
+  });
+  if (!res.ok) throw new Error(`AdultDataLink Redgifs HTTP ${res.status}`);
+  const json: unknown = await res.json();
+  const videos = collectRedgifsRows(json)
+    .map(redgifsVideo)
+    .filter((video): video is LibraryVideo => video != null)
+    .slice(0, maxVideos);
+  return {
+    videos,
+    totalPages: page + (videos.length >= Math.min(LIBRARY_LIMITS.redgifsPageSize, maxVideos) ? 1 : 0),
+    totalCount: videos.length,
+  };
+}
+
 function liveRoomLimit(provider: AdultPullProvider) {
   if (provider === "chaturbate") return LIBRARY_LIMITS.chaturbateRoomsPerPull;
   if (provider === "camsoda") return LIBRARY_LIMITS.camsodaRoomsPerPull;
@@ -1732,6 +1852,15 @@ async function pullProviderPages(
   }
   if (provider === "booru") {
     const batch = await fetchBooruFeed(query, maxVideos, startPage);
+    return {
+      videos: batch.videos,
+      page: startPage,
+      nextPage: batch.videos.length ? startPage + 1 : null,
+      totalCount: batch.totalCount,
+    };
+  }
+  if (provider === "redgifs") {
+    const batch = await fetchRedgifsFeed(query, maxVideos, startPage);
     return {
       videos: batch.videos,
       page: startPage,
@@ -1819,6 +1948,8 @@ export const searchAdultVideos = createServerFn({ method: "POST" })
         ? Math.min(LIBRARY_LIMITS.redditVideosPerPull, rawBudget)
         : provider === "booru"
           ? Math.min(LIBRARY_LIMITS.booruVideosPerPull, rawBudget)
+          : provider === "redgifs"
+            ? Math.min(LIBRARY_LIMITS.redgifsVideosPerPull, rawBudget)
         : live ? Math.min(live, rawBudget) : rawBudget;
       const startPage = data.providerPages?.[provider] ?? data.page;
       try {
