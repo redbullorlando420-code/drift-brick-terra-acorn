@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import type { FollowedChannel, FollowKind, LibraryVideo, RemoteKind } from "@/lib/videos/types";
 import { LIBRARY_LIMITS } from "@/lib/library-limits";
-import { EPORNER_FOLDER_ID, REDTUBE_FOLDER_ID } from "@/lib/videos/adult-sites";
+import { ADULT_DEEPEN_FETISH_QUERIES, EPORNER_FOLDER_ID, REDTUBE_FOLDER_ID } from "@/lib/videos/adult-sites";
 
 type FollowInput = { query: string; kind: "auto" | FollowKind };
 type RefreshInput = { channels: FollowedChannel[] };
@@ -1256,22 +1256,27 @@ export const searchAdultVideos = createServerFn({ method: "POST" })
       if (batch.nextPage != null) nextPage = nextPage == null ? batch.nextPage : Math.min(nextPage, batch.nextPage);
     }
 
-    // When browsing "all", deepen RedTube fetish coverage with a few official
-    // tag/search pages so the adult library receives richer keyword tags.
-    if (providers.includes("redtube") && data.query.toLowerCase() === "all" && collected.length < data.maxVideos) {
-      const fetishQueries = ["anal", "lesbian", "milf", "gangbang", "cuckold", "masturbation", "voyeur", "amateur"];
+    // When browsing "all", deepen official video APIs with curated fetish
+    // keyword pages so shelves pick up DP / roleplay / milf / feet and more.
+    if (data.query.toLowerCase() === "all" && collected.length < data.maxVideos) {
+      const fetishQueries = ADULT_DEEPEN_FETISH_QUERIES;
+      const deepenProviders = providers.filter((p) => p === "eporner" || p === "redtube");
       const remaining = data.maxVideos - collected.length;
-      const perQuery = Math.max(20, Math.floor(remaining / fetishQueries.length));
+      const slots = Math.max(1, fetishQueries.length * Math.max(1, deepenProviders.length));
+      const perQuery = Math.max(20, Math.floor(remaining / slots));
       for (const fetish of fetishQueries) {
-        if (collected.length >= data.maxVideos) break;
-        const batch = await pullProviderPages("redtube", fetish, data.order, 1, perQuery);
-        for (const video of batch.videos) {
-          if (seen.has(video.id)) continue;
-          seen.add(video.id);
-          collected.push(video);
+        for (const provider of deepenProviders) {
           if (collected.length >= data.maxVideos) break;
+          const batch = await pullProviderPages(provider, fetish, data.order, 1, perQuery);
+          for (const video of batch.videos) {
+            if (seen.has(video.id)) continue;
+            seen.add(video.id);
+            collected.push(video);
+            if (collected.length >= data.maxVideos) break;
+          }
+          totalCount += batch.totalCount;
         }
-        totalCount += batch.totalCount;
+        if (collected.length >= data.maxVideos) break;
       }
     }
 

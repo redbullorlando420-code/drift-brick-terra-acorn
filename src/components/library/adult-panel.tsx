@@ -9,9 +9,11 @@ import {
   ADULT_CATEGORY_HUB,
   ADULT_CURATED_FETISH_TAGS,
   ADULT_EMBED_LINKS,
+  ADULT_FEATURED_FETISH_TAGS,
   ADULT_MILESTONE_LINKS,
   ADULT_SOURCE_OPTIONS,
   adultSourceTag,
+  fetishSearchQuery,
   type AdultPullProvider,
 } from "@/lib/videos/adult-sites";
 import { selectAdultRemote, useLibrary } from "@/lib/videos/store";
@@ -84,6 +86,7 @@ export function AdultPanel() {
   const [booted, setBooted] = useState(false);
   const [tagFilter, setTagFilter] = useState("all");
   const [nextPage, setNextPage] = useState(2);
+  const [showAllFetishes, setShowAllFetishes] = useState(false);
 
   const sourceFacets = useMemo(() => {
     const counts = new Map<string, number>();
@@ -287,20 +290,21 @@ export function AdultPanel() {
         </div>
 
         <div className="mt-4">
-          <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Curated fetish pulls</p>
+          <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Featured fetish pulls</p>
           <p className="mt-1 text-xs text-muted">
-            These labels come from the helper list. Clicking pulls Eporner/RedTube for that keyword and stamps fetish tags on ingested titles.
+            Clicking a chip searches official APIs for that keyword (DP expands to double penetration) and stamps fetish tags on ingested titles.
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
-            {ADULT_CURATED_FETISH_TAGS.map((tag) => (
+            {ADULT_FEATURED_FETISH_TAGS.map((tag) => (
               <Button
                 key={tag}
                 size="sm"
-                variant="secondary"
+                variant="default"
                 disabled={remoteBusy}
                 onClick={() => {
-                  setQuery(tag);
-                  void searchAdultFeed(tag, order, {
+                  const q = fetishSearchQuery(tag);
+                  setQuery(q);
+                  void searchAdultFeed(q, order, {
                     page: 1,
                     maxVideos: LIBRARY_LIMITS.epornerVideosPerPull,
                     providers,
@@ -311,6 +315,35 @@ export function AdultPanel() {
               </Button>
             ))}
           </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Full fetish catalog</p>
+            <Button size="sm" variant="secondary" onClick={() => setShowAllFetishes((v) => !v)}>
+              {showAllFetishes ? "Hide extra chips" : `Show all ${ADULT_CURATED_FETISH_TAGS.length} chips`}
+            </Button>
+          </div>
+          {showAllFetishes && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {ADULT_CURATED_FETISH_TAGS.filter((tag) => !(ADULT_FEATURED_FETISH_TAGS as readonly string[]).includes(tag)).map((tag) => (
+                <Button
+                  key={tag}
+                  size="sm"
+                  variant="secondary"
+                  disabled={remoteBusy}
+                  onClick={() => {
+                    const q = fetishSearchQuery(tag);
+                    setQuery(q);
+                    void searchAdultFeed(q, order, {
+                      page: 1,
+                      maxVideos: LIBRARY_LIMITS.epornerVideosPerPull,
+                      providers,
+                    }).then((n) => toast.success(`Loaded ${n.toLocaleString()} for #${tag}`));
+                  }}
+                >
+                  #{tag}
+                </Button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
@@ -408,7 +441,7 @@ export function AdultPanel() {
                   variant="secondary"
                   disabled={remoteBusy}
                   onClick={() => {
-                    const q = tagFilter.replace(/^fetish-/, "").replace(/^source-/, "");
+                    const q = fetishSearchQuery(tagFilter.replace(/^fetish-/, "").replace(/^source-/, "").replace(/-/g, " "));
                     setQuery(q);
                     void searchAdultFeed(q, order, {
                       page: 1,

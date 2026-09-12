@@ -1,6 +1,12 @@
 /** Outbound adult destinations. Non-embeddable sites belong in milestones. */
 
-import { ADULT_EXTRA_FETISH_TAGS, ADULT_EXTRA_MILESTONES } from "./adult-milestones-extra";
+import { ADULT_EXTRA_MILESTONES } from "./adult-milestones-extra";
+export {
+  ADULT_CURATED_FETISH_TAGS,
+  ADULT_DEEPEN_FETISH_QUERIES,
+  ADULT_FEATURED_FETISH_TAGS,
+  fetishSearchQuery,
+} from "./adult-fetishes";
 
 export type AdultSiteLink = {
   name: string;
@@ -723,6 +729,3 @@ export function adultFetishTags(labels: string[], limit = 36): string[] {
   return out;
 }
 
-
-/** Curated fetish labels from the helper list — filter chips even before a pull. */
-export const ADULT_CURATED_FETISH_TAGS: string[] = [...new Set(ADULT_EXTRA_FETISH_TAGS.map((t) => t.toLowerCase()))].sort();

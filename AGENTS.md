@@ -353,3 +353,37 @@ auth/db: OFF by default — sign-in, @/lib/db or migrations ONLY on an accounts 
 never:   build an app for a greeting/number/question; invent imagine_* calls;
          ask the user to run commands; delete or abandon /workspace/startup.sh
 ```
+
+---
+
+## Living work notes
+
+PR: https://github.com/redbullorlando420-code/drift-brick-terra-acorn/pull/2
+Branch: `fix/reelcase-updates`
+
+### Shipped
+
+- Adult discovery via official **Eporner API v2** + **RedTube webmaster API** (in-app preview/play, `source-*` + fetish tags).
+- Other tubes/cams stay **link-out milestones** (no scrapers / paywall bypass).
+- **Fetish expand (this increment):** featured chips first (`milf`, `double penetration`, `dp`, `roleplay`, `feet`, `cosplay`); expandable ~90-tag catalog including celebrity/manhwa; chip clicks use `fetishSearchQuery` (`dp` → `double penetration`); browsing `all` deep-pulls Eporner + RedTube with `ADULT_DEEPEN_FETISH_QUERIES`.
+
+### In progress / queued
+
+- Persist/cache larger Eporner + RedTube catalogs in IndexedDB like YouTube (`saveFolderVideos` / `appendCatalogVideos`); raise page/video limits; resume + load-more; keep UI windowed.
+- Wire more official 18+ APIs that actually play or show photos (Chaturbate rooms, XBooru / TBIB / Hypnohub). Skip key-gated, retired HubTraffic, CSAM-risk, and leak sites.
+- Connect adult watch activity into **Continue / History / Stats** (catalog rails stay public-only).
+- Seed Social / X accounts from the helper list (once; do not re-add after user removal).
+- Categorized Adult milestones from `adult-niches-user-list.txt` (review/voyeur/blogs/AI/extreme; download + torrent **link-out only**).
+- Feet / cosplay / celeb / manhwa **milestones** (film nude DBs like AZNude/Nudography OK; skip revenge-porn / fappening leak sites).
+- Preview/player: do not rewrite adult embed URLs to YouTube; photo kinds render as images.
+
+### Pull sources vs link-only
+
+| Pull (API + play/view) | Link-out only |
+|---|---|
+| Eporner, RedTube | HubTraffic remnants, TXXX/KVS family, major tubes without public JSON, Stripchat (no playable embed), downloads, torrents |
+
+### Verification
+
+- Each increment: `npm run typecheck` + `npm run build` before commit/push.
+- Small reviewable commits; refresh this section and the PR #2 body after every push.
