@@ -1,9 +1,10 @@
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Download, Flame, Heart, Play, Tag, ThumbsUp, RefreshCw, Star, Users } from "lucide-react";
 import { cn, formatAgo, formatBytes, formatTime } from "@/lib/utils";
 import type { LibraryVideo } from "@/lib/videos/types";
 import { hasFreshViewerCount, isLikelyPlayable, titleOf } from "@/lib/videos/types";
 import { useThumbs } from "@/lib/videos/thumbs";
+import { adultThumbCandidatesForVideo } from "@/lib/videos/adult-thumbs";
 import { isAdultImageKind } from "@/lib/videos/adult-sites";
 import { downloadAdultPhoto } from "@/lib/videos/adult-photo-download";
 import { isAdultVideo, useLibrary } from "@/lib/videos/store";
@@ -11,6 +12,7 @@ import { toast } from "sonner";
 import { getRating, setRating as setMediaRating } from "@/lib/media-feedback";
 import { registerMountedCard } from "@/lib/render-budget";
 import { measureInteraction } from "@/lib/interaction-budget";
+import { acquireImageSlot } from "@/lib/videos/image-load-budget";
 
 type Variant = "grid" | "list" | "rail" | "poster";
 const EMPTY_TAGS: string[] = [];
@@ -59,6 +61,20 @@ export const VideoCard = memo(function VideoCard({
   const playable = isLikelyPlayable(video.extension);
   const youtubeId = video.remote?.kind === "youtube" ? video.remote.videoId ?? video.remote.embedUrl?.match(/(?:embed\/|v=)([A-Za-z0-9_-]{11})/)?.[1] : undefined;
   const youtubeFallback = youtubeId ? `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg` : undefined;
+  const youtubeFallbacks = youtubeId
+    ? [
+        `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg`,
+        `https://i.ytimg.com/vi/${youtubeId}/mqdefault.jpg`,
+        `https://i.ytimg.com/vi/${youtubeId}/sddefault.jpg`,
+        `https://i.ytimg.com/vi/${youtubeId}/default.jpg`,
+      ]
+    : [];
+  const adultCandidates = useMemo(
+    () => (video.remote && video.remote.kind !== "youtube" && video.remote.kind !== "twitch"
+      ? adultThumbCandidatesForVideo(video)
+      : []),
+    [video],
+  );
   const providerArt = video.poster || youtubeFallback || video.remote?.previewUrl;
   // Provider artwork is already the authoritative thumbnail. Never route it
   // through the local video-frame worker, which cannot decode cross-origin
@@ -68,23 +84,78 @@ export const VideoCard = memo(function VideoCard({
   const live = Boolean(video.remote?.live);
   const preview = video.remote?.previewUrl;
   const [hovered, setHovered] = useState(false);
-  const [imageFailed, setImageFailed] = useState(false);
+  const [thumbIndex, setThumbIndex] = useState(0);
+  const [artVisible, setArtVisible] = useState(false);
+  const [artAllowed, setArtAllowed] = useState(false);
   const [textFirst, setTextFirst] = useState(false);
   const [rating, setRating] = useState(0);
 
+  const thumbCandidates = useMemo(() => {
+    const out: string[] = [];
+    const seen = new Set<string>();
+    const push = (url?: string) => {
+      if (!url || seen.has(url)) return;
+      seen.add(url);
+      out.push(url);
+    };
+    if (variant === "poster") {
+      push(providerArt);
+      push(thumb);
+    } else {
+      push(thumb);
+      push(providerArt);
+    }
+    for (const url of adultCandidates) push(url);
+    for (const url of youtubeFallbacks) push(url);
+    push(preview);
+    return out;
+  }, [adultCandidates, preview, providerArt, thumb, variant, youtubeId]);
+
+  const thumbsExhausted = thumbCandidates.length === 0 || thumbIndex >= thumbCandidates.length;
+  const activeThumb = thumbsExhausted ? undefined : thumbCandidates[thumbIndex];
+  const showPreview = Boolean(hovered && preview && preview !== activeThumb && thumbIndex === 0);
+
+  useEffect(() => {
+    setThumbIndex(0);
+  }, [video.id, video.poster, video.remote?.previewUrl]);
 
   useEffect(() => {
     const el = ref.current;
-    if (!el || video.remote) return;
+    if (!el) return;
     const io = new IntersectionObserver(
       (entries) => {
-        if (entries.some((e) => e.isIntersecting)) request(video);
+        if (!entries.some((e) => e.isIntersecting)) return;
+        setArtVisible(true);
+        if (!video.remote) request(video);
       },
-      { rootMargin: "160px" },
+      { rootMargin: "220px" },
     );
     io.observe(el);
     return () => io.disconnect();
   }, [request, video]);
+
+  useEffect(() => {
+    if (!artVisible || !activeThumb) {
+      setArtAllowed(false);
+      return;
+    }
+    let release: (() => void) | undefined;
+    let cancelled = false;
+    void acquireImageSlot().then((done) => {
+      if (cancelled) {
+        done();
+        return;
+      }
+      release = done;
+      setArtAllowed(true);
+    });
+    return () => {
+      cancelled = true;
+      release?.();
+      setArtAllowed(false);
+    };
+  }, [activeThumb, artVisible, thumbIndex]);
+
   useEffect(() => { setRating(getRating(video.id)); }, [video.id]);
   useEffect(() => { setTextFirst(document.documentElement.dataset.artworkMode === "text"); }, []);
   useEffect(() => registerMountedCard(), []);
@@ -124,14 +195,22 @@ export const VideoCard = memo(function VideoCard({
         (variant === "grid" || variant === "rail") && "aspect-video w-full rounded-md",
       )}
     >
-      {!textFirst && (imageFailed && youtubeFallback ? youtubeFallback : art) ? (
+      {!textFirst && artVisible && artAllowed && !thumbsExhausted && (showPreview ? preview : activeThumb) ? (
         <img
+          key={`${video.id}:${thumbIndex}:${showPreview ? "p" : "a"}`}
           loading="lazy"
           decoding="async"
           referrerPolicy="no-referrer"
-          src={imageFailed && youtubeFallback ? youtubeFallback : hovered && preview ? preview : art}
+          src={showPreview ? preview! : activeThumb!}
           alt=""
-          onError={() => { setImageFailed(true); repairRemoteArtwork(); }}
+          onError={() => {
+            if (showPreview) return;
+            setThumbIndex((index) => {
+              const next = index + 1;
+              if (next >= thumbCandidates.length) repairRemoteArtwork();
+              return next;
+            });
+          }}
           className="size-full object-cover outline outline-1 -outline-offset-1 outline-fg/10"
         />
       ) : (

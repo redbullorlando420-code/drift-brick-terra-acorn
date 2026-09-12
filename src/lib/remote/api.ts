@@ -18,7 +18,7 @@ import {
 } from "@/lib/videos/adult-sites";
 import { extractRedditMedia, shouldKeepRedditEntry } from "@/lib/videos/adult-reddit-media";
 import { extractRedditFlair } from "@/lib/videos/adult-reddit-tags";
-import { pickRedtubeThumb, redtubeStarNames } from "@/lib/videos/adult-thumbs";
+import { expandAdultThumbFallbacks, isUsableAdultThumb, pickRedtubeThumb, redtubeStarNames } from "@/lib/videos/adult-thumbs";
 
 type FollowInput = { query: string; kind: "auto" | FollowKind };
 type RefreshInput = { channels: FollowedChannel[] };
@@ -1001,7 +1001,9 @@ function epornerVideo(row: EpornerVideo): LibraryVideo | null {
   if (!id || !title || !embed) return null;
   if (!embed.startsWith("https://www.eporner.com/embed/")) return null;
   const added = Date.parse(asString(row.added)) || Date.now();
-  const thumb = asString(row.default_thumb?.src);
+  const rawThumb = asString(row.default_thumb?.src);
+  const thumbFallbacks = expandAdultThumbFallbacks(rawThumb);
+  const thumb = thumbFallbacks[0] ?? (isUsableAdultThumb(rawThumb) ? rawThumb : "");
   const keywords = asString(row.keywords).trim();
   const views = typeof row.views === "number" && Number.isFinite(row.views) ? row.views : undefined;
   return {
@@ -1026,7 +1028,8 @@ function epornerVideo(row: EpornerVideo): LibraryVideo | null {
       observedAt: Date.now(),
       embedUrl: embed.endsWith("/") ? embed : `${embed}/`,
       watchUrl: watch || `https://www.eporner.com/video-${id}/`,
-      previewUrl: thumb || undefined,
+      previewUrl: (thumbFallbacks[1] ?? thumb) || undefined,
+      thumbFallbacks: thumbFallbacks.length ? thumbFallbacks.slice(0, 8) : undefined,
     },
   };
 }
@@ -1152,6 +1155,7 @@ function redtubeVideo(row: RedtubeVideo): LibraryVideo | null {
       embedUrl: embed,
       watchUrl: watch || `https://www.redtube.com/${id}`,
       previewUrl: picked.previewUrl || thumb || undefined,
+      thumbFallbacks: picked.thumbFallbacks,
     },
   };
 }
@@ -1181,7 +1185,7 @@ async function fetchRedtubePage(query: string, order: string, page: number): Pro
   const params = new URLSearchParams({
     data: "redtube.Videos.searchVideos",
     output: "json",
-    thumbsize: "medium",
+    thumbsize: "big",
     page: String(page),
     ordering,
   });
@@ -1955,11 +1959,19 @@ async function pullProviderPages(
   let pagesFetched = 0;
   const { maxPages, perPage } = providerPageBudget(provider);
 
+  // Rotate RedTube/Eporner orderings every few pages so "all" pulls are not
+  // one weekly ranking slice — newest, rated, and popular archives mix in.
+  const varietyOrders = ["top-weekly", "latest", "top-rated", "most-popular", "top-monthly"] as const;
   while (collected.length < maxVideos && pagesFetched < maxPages) {
+    const varietyOrder = provider === "redtube" || provider === "eporner"
+      ? (query.trim().toLowerCase() === "all"
+          ? varietyOrders[(page - 1) % varietyOrders.length]!
+          : order)
+      : order;
     const batch =
       provider === "redtube"
-        ? await fetchRedtubePage(query, order, page)
-        : await fetchEpornerPage(query, order, page, perPage);
+        ? await fetchRedtubePage(query, varietyOrder, page)
+        : await fetchEpornerPage(query, varietyOrder, page, perPage);
     totalPages = batch.totalPages;
     totalCount = batch.totalCount;
     pagesFetched += 1;

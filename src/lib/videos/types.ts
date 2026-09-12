@@ -129,6 +129,8 @@ export type RemoteRef = {
   embedUrl?: string;
   watchUrl?: string;
   previewUrl?: string;
+  /** Alternate poster URLs tried when the primary CDN frame 404/410s. */
+  thumbFallbacks?: string[];
   /** Real provider comments when an official public feed exposes them. */
   comments?: Array<{ id: string; author?: string; body: string; score?: number }>;
 };
