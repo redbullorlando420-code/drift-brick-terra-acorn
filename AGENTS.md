@@ -1,28 +1,22 @@
 # Reelcase — PR living notes
 
-**PR #4** `fix/adults-perf` → `main` · https://github.com/redbullorlando420-code/drift-brick-terra-acorn/pull/4
+**PR** `fix/adults-preview-thumbs` → `main` · Adults preview thumbs follow-up after merged PR #4.
 
 ## In progress
 
-Adults perf + catalog/stats follow-ups after merged PR #3.
+Quick fix: faster Adult card previews + fewer blanks (RedTube especially).
 
 ### Shipped this PR
-1. **Thumb reliability** — RedTube/Eporner candidate pick + CDN host/frame/size fallbacks; skip placeholders; prefer big thumbs; longer `thumbFallbacks`; visibility-gated lazy decode; concurrent image budget (~5, adaptive).
-2. **Adults less laggy** — idle-deferred full ranking/recs/tag chips; horizontal rail windowing + debounced offscreen unmount; catalog rail 120 / poster 360; deep private memos gated; score-once sorts; leaner card selectors.
-3. **Smoother watch** — throttle local frame progress (~4s); remote heartbeat 10s (skip when tab hidden); stable embed key by video id; `openVideo` records play off the critical path.
-4. **No duplicate Adult rails** — Continue/marks claim first, then Recommended/Related/Reddit/Latest/Catalog skip already-shown ids.
-5. **Your Tags readable** — ranked chips start at 10, Show more pages (+10, hard cap 36), filter/search kept; never dumps hundreds.
-6. **Catalog variety** — RedTube `thumbsize=big`; rotate orderings across pages on `all` pulls.
-7. **Visible Adult Stats** — pinned **Adult division** at top of Stats (`#adult-stats`) with source mix, ranked tags, marks, CSV/JSON export + Open Adults CTA.
+1. **Prefer API primary thumb** — `default_thumb` / `thumb` before speculative `thumbs[]` / CDN expansion.
+2. **Shorter fallback chains** — fewer host/frame/size retries; cap ~6–8 candidates so onError does not serialize rails.
+3. **Raise image concurrency** — default budget 12 (was 5); keep slot across thumbIndex retries (no blank flash re-queue).
 
 ### Still open
-- Soak test embed remount limits if any remain after stable iframe key
-- More provider metadata on pull cards if gaps remain
+- Soak test RedTube CDN reliability after shorter chains
 
 Official public APIs + Reddit Atom only. 18+ only.
 
 ---
-
 # App Builder Workspace
 
 **The single source of truth** for the App Builder sandbox contract. You are

@@ -39,7 +39,7 @@ export function isUsableAdultThumb(url: string): boolean {
   return true;
 }
 
-/** Alternate CDN hosts / frame numbers / size folders for tube posters that sometimes 410. */
+/** Short host/size fallbacks for tube posters — keep primary URL first, avoid long speculative chains. */
 export function expandAdultThumbFallbacks(url: string): string[] {
   if (!isUsableAdultThumb(url)) return [];
   const out: string[] = [];
@@ -51,51 +51,37 @@ export function expandAdultThumbFallbacks(url: string): string[] {
   };
   push(url);
 
-  // RedTube / Tube CDN host swarm — several ph mirrors serve the same strip.
   const hostSwap = (host: string) => url.replace(/https:\/\/[a-z0-9.-]+\//i, `https://${host}/`);
   if (/rdtcdn\.com|phncdn\.com|rtcdn\.com/i.test(url)) {
-    for (const host of [
-      "ei-ph.rdtcdn.com",
-      "di-ph.rdtcdn.com",
-      "ci-ph.rdtcdn.com",
-      "bi-ph.rdtcdn.com",
-      "ai-ph.rdtcdn.com",
-      "ev-ph.rdtcdn.com",
-    ]) {
+    // Only the two mirrors that historically serve the same strip.
+    for (const host of ["ei-ph.rdtcdn.com", "di-ph.rdtcdn.com"]) {
       push(hostSwap(host));
     }
-    // Nearby strip frames (…1.jpg …16.jpg) when a specific frame is gone.
+    // One nearby frame + one size folder — enough for onError without serializing rails.
     const frameMatch = url.match(/^(.*?)(\d+)(\.(?:jpg|jpeg|webp|png))(?:\?.*)?$/i);
     if (frameMatch) {
       const base = frameMatch[1];
       const n = Number(frameMatch[2]);
       const ext = frameMatch[3];
       if (Number.isFinite(n)) {
-        for (const delta of [1, -1, 2, -2, 8, 7, 9, 0, 15, 16]) {
+        for (const delta of [1, -1]) {
           const next = n + delta;
-          if (next < 0 || next > 30) continue;
+          if (next < 0 || next > 20) continue;
           push(`${base}${next}${ext}`);
         }
       }
     }
-    // Size / original folder swaps common on webmaster CDN paths.
     push(url.replace(/\/original\//i, "/320x180/"));
-    push(url.replace(/\/original\//i, "/640x360/"));
-    push(url.replace(/\/\d+x\d+\//i, "/640x360/"));
     push(url.replace(/\/\d+x\d+\//i, "/320x180/"));
-    push(url.replace(/\/\d+x\d+\//i, "/original/"));
-    // Drop cache-buster query noise so onError can retry a clean twin.
     push(url.replace(/\?.*$/, ""));
   }
 
-  // Eporner / static CDN path variants.
   if (/eporner\.com|woofcdn|cdn\.eporner/i.test(url)) {
     push(url.replace(/\/\d+x\d+\//i, "/320x180/"));
     push(url.replace(/\/\d+x\d+\//i, "/640x360/"));
-    push(url.replace(/\/\d+x\d+\//i, "/1280x720/"));
   }
 
-  return out;
+  return out.slice(0, 6);
 }
 
 export function collectRedtubeThumbCandidates(row: {
@@ -113,18 +99,18 @@ export function collectRedtubeThumbCandidates(row: {
     out.push(url);
   };
 
-  // Prefer explicitly sized big thumbs from the thumbs[] array first.
+  // API primary first — default_thumb / thumb usually work; speculative thumbs[] later.
+  push(row.default_thumb);
+  push(row.thumb);
   if (Array.isArray(row.thumbs)) {
     const ranked = [...row.thumbs].sort((a, b) => thumbSizeRank(b) - thumbSizeRank(a));
-    const mid = ranked[Math.min(8, Math.max(0, ranked.length - 1))];
     for (const item of ranked) {
       if (thumbSizeRank(item) >= 3) push(item);
     }
+    const mid = ranked[Math.min(8, Math.max(0, ranked.length - 1))];
     push(mid);
-    for (const item of ranked) push(item);
+    for (const item of ranked.slice(0, 4)) push(item);
   }
-  push(row.default_thumb);
-  push(row.thumb);
 
   // Last-resort reconstruction when the API only returned the empty placeholder.
   const id = String(row.video_id ?? "").trim();
@@ -155,8 +141,9 @@ export function pickRedtubeThumb(row: {
   }
   return {
     poster: unique[0],
-    previewUrl: unique[Math.min(1, unique.length - 1)] ?? unique[0],
-    thumbFallbacks: unique.slice(0, 16),
+    // Keep hover preview on the same primary (avoid speculative CDN twin blanks).
+    previewUrl: unique[0],
+    thumbFallbacks: unique.slice(0, 6),
   };
 }
 
@@ -164,7 +151,12 @@ export function pickRedtubeThumb(row: {
 export function adultThumbCandidatesForVideo(video: LibraryVideo): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
-  const push = (raw?: string) => {
+  const pushExact = (raw?: string) => {
+    if (!raw || seen.has(raw) || !isUsableAdultThumb(raw)) return;
+    seen.add(raw);
+    out.push(raw);
+  };
+  const pushExpanded = (raw?: string) => {
     if (!raw) return;
     for (const url of expandAdultThumbFallbacks(raw)) {
       if (seen.has(url)) continue;
@@ -172,16 +164,19 @@ export function adultThumbCandidatesForVideo(video: LibraryVideo): string[] {
       out.push(url);
     }
   };
-  push(video.poster);
-  push(video.remote?.previewUrl);
-  for (const url of video.remote?.thumbFallbacks ?? []) push(url);
-  // Rebuild RedTube candidates from the stored video id when every CDN URL 410s.
-  if (video.remote?.kind === "redtube" && video.remote.videoId) {
+  // Prefer exact API poster/preview before any speculative CDN expansion.
+  pushExact(video.poster);
+  pushExact(video.remote?.previewUrl);
+  for (const url of video.remote?.thumbFallbacks ?? []) pushExact(url);
+  pushExpanded(video.poster);
+  pushExpanded(video.remote?.previewUrl);
+  // Rebuild RedTube only when no usable API thumbs were stored.
+  if (!out.length && video.remote?.kind === "redtube" && video.remote.videoId) {
     for (const url of collectRedtubeThumbCandidates({ video_id: video.remote.videoId })) {
-      push(url);
+      pushExpanded(url);
     }
   }
-  return out;
+  return out.slice(0, 8);
 }
 
 export function redtubeStarNames(stars: unknown): string[] {

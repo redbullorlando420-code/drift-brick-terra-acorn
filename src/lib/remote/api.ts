@@ -1029,7 +1029,7 @@ function epornerVideo(row: EpornerVideo): LibraryVideo | null {
       embedUrl: embed.endsWith("/") ? embed : `${embed}/`,
       watchUrl: watch || `https://www.eporner.com/video-${id}/`,
       previewUrl: (thumbFallbacks[1] ?? thumb) || undefined,
-      thumbFallbacks: thumbFallbacks.length ? thumbFallbacks.slice(0, 16) : undefined,
+      thumbFallbacks: thumbFallbacks.length ? thumbFallbacks.slice(0, 6) : undefined,
     },
   };
 }

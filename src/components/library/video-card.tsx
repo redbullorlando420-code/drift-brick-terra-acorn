@@ -135,8 +135,10 @@ export const VideoCard = memo(function VideoCard({
     return () => io.disconnect();
   }, [request, video]);
 
+  // Hold one decode slot for the whole visible card — do not re-queue on each
+  // thumbIndex fallback (that was flashing blanks and serializing Adult rails).
   useEffect(() => {
-    if (!artVisible || !activeThumb) {
+    if (!artVisible || thumbsExhausted) {
       setArtAllowed(false);
       return;
     }
@@ -155,7 +157,7 @@ export const VideoCard = memo(function VideoCard({
       release?.();
       setArtAllowed(false);
     };
-  }, [activeThumb, artVisible, thumbIndex]);
+  }, [artVisible, thumbsExhausted, video.id]);
 
   useEffect(() => { setRating(getRating(video.id)); }, [video.id]);
   useEffect(() => { setTextFirst(document.documentElement.dataset.artworkMode === "text"); }, []);
