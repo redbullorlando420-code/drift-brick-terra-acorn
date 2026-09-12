@@ -5,9 +5,9 @@ import type { LibraryVideo } from "@/lib/videos/types";
 import { hasFreshViewerCount, isLikelyPlayable, titleOf } from "@/lib/videos/types";
 import { useThumbs } from "@/lib/videos/thumbs";
 import { adultThumbCandidatesForVideo } from "@/lib/videos/adult-thumbs";
-import { isAdultImageKind } from "@/lib/videos/adult-sites";
+import { isAdultImageKind, isAdultPullKind } from "@/lib/videos/adult-sites";
 import { downloadAdultPhoto } from "@/lib/videos/adult-photo-download";
-import { isAdultVideo, useLibrary } from "@/lib/videos/store";
+import { useLibrary } from "@/lib/videos/store";
 import { toast } from "sonner";
 import { getRating, setRating as setMediaRating } from "@/lib/media-feedback";
 import { registerMountedCard } from "@/lib/render-budget";
@@ -48,9 +48,10 @@ export const VideoCard = memo(function VideoCard({
   const category = useLibrary((s) => s.categories[video.id] ?? "");
   const viewCount = useLibrary((s) => s.viewCounts[video.id] ?? 0);
   const cameCount = useLibrary((s) => s.cameCounts[video.id] ?? 0);
-  const folders = useLibrary((s) => s.folders);
+  // Primitive folder.adult check — avoids re-rendering every card when folders[] identity changes.
+  const adultFolder = useLibrary((s) => Boolean(s.folders.find((folder) => folder.id === video.folderId)?.adult));
   const markCame = useLibrary((s) => s.markCame);
-  const adult = isAdultVideo(video, folders);
+  const adult = adultFolder || isAdultPullKind(video.remote?.kind);
   const adultPhoto = Boolean(adult && isAdultImageKind(video.remote?.kind, video.mime, video.extension));
   const toggleLike = useLibrary((s) => s.toggleLike);
   const openPreview = useLibrary((s) => s.openPreview);
@@ -128,7 +129,7 @@ export const VideoCard = memo(function VideoCard({
         setArtVisible(true);
         if (!video.remote) request(video);
       },
-      { rootMargin: "220px" },
+      { rootMargin: "120px" },
     );
     io.observe(el);
     return () => io.disconnect();
@@ -341,10 +342,10 @@ export const VideoCard = memo(function VideoCard({
           {rating > 0 && <p className="mt-1 flex items-center gap-1 text-xs text-accent"><Star className="size-3 fill-current" /> Your rating {rating}/5</p>}
           {viewCount > 0 && <p className="mt-1 text-xs text-subtle">Watched {viewCount} time{viewCount === 1 ? "" : "s"}</p>}
           {adult && cameCount > 0 && <p className="mt-1 text-xs text-accent">I cummed to it · {cameCount}×</p>}
-          {(category || tags.length > 0) && variant !== "list" && (
+          {(category || tags.length > 0) && variant !== "list" && variant !== "rail" && (
             <p className="mt-1 flex items-center gap-1 truncate text-xs text-subtle">
               <Tag className="size-3 shrink-0" />
-              {[category, ...tags].filter(Boolean).join(" · ")}
+              {[category, ...tags.slice(0, 6)].filter(Boolean).join(" · ")}
             </p>
           )}
         </div>

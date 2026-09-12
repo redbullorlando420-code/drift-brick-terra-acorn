@@ -135,6 +135,7 @@ export function LibraryApp() {
     document.addEventListener("visibilitychange", announce);
     return () => { window.clearInterval(timer); document.removeEventListener("visibilitychange", announce); };
   }, []);
+
   useEffect(() => {
     const failed = () => toast.error("Library changes could not be saved. Browser storage is unavailable or full.");
     window.addEventListener("reelcase:save-error", failed);
@@ -160,6 +161,8 @@ export function LibraryApp() {
   const [youtubeDeepVisible, setYoutubeDeepVisible] = useState(false);
   const [youtubeHealthVisible, setYoutubeHealthVisible] = useState(false);
   const [adultDeepVisible, setAdultDeepVisible] = useState(false);
+  /** Heavy Adult ranking (full catalog sort + tag chips + recs) runs after first paint. */
+  const [adultRankReady, setAdultRankReady] = useState(false);
   const archiveQueueRef = useRef<Array<{ id: string; handle: string }>>([]);
   const archiveQueueBusyRef = useRef(false);
   const [archiveQueued, setArchiveQueued] = useState<string[]>([]);
@@ -270,14 +273,16 @@ export function LibraryApp() {
     viewCounts,
     ratingOf: getRating,
   }), [cameCounts, favorites, likes, ratingRevision, tags, viewCounts]);
-  const rankedAdultCatalog = useMemo(
-    () => (sourceId === "adults" ? sortAdultVideos(filteredEporner, adultRankCtx) : filteredEporner),
-    [adultRankCtx, filteredEporner, sourceId],
-  );
+  const rankedAdultCatalog = useMemo(() => {
+    if (sourceId !== "adults") return filteredEporner;
+    // First paint: keep ingest order (cheap). Idle swap brings full ranking.
+    if (!adultRankReady) return filteredEporner;
+    return sortAdultVideos(filteredEporner, adultRankCtx);
+  }, [adultRankCtx, adultRankReady, filteredEporner, sourceId]);
   const adultTagRank = useMemo(() => {
-    if (sourceId !== "adults") return [] as { tag: string; score: number; count: number }[];
+    if (sourceId !== "adults" || !adultRankReady) return [] as { tag: string; score: number; count: number }[];
     return rankAdultTags(sourceMatchedAdult, adultRankCtx, 80);
-  }, [adultRankCtx, sourceId, sourceMatchedAdult]);
+  }, [adultRankCtx, adultRankReady, sourceId, sourceMatchedAdult]);
   const visibleAdultTags = useMemo(() => {
     const needle = adultTagQuery.trim().toLowerCase();
     const rows = needle
@@ -286,10 +291,14 @@ export function LibraryApp() {
     return adultTagsExpanded ? rows : rows.slice(0, 12);
   }, [adultTagQuery, adultTagRank, adultTagsExpanded]);
   const adultRecommended = useMemo(() => {
-    if (sourceId !== "adults") return [] as typeof adultRemoteVideos;
+    if (sourceId !== "adults" || !adultRankReady) return [] as typeof adultRemoteVideos;
     const preferred = new Set(adultTagRank.slice(0, 16).map((row) => row.tag));
     const likedTags = new Set(sourceMatchedAdult.filter((video) => favorites[video.id] || likes[video.id] || getRating(video.id) >= 4 || (cameCounts[video.id] ?? 0) > 0).flatMap((video) => tags[video.id] ?? []));
-    return sortAdultVideos(sourceMatchedAdult, adultRankCtx)
+    // Reuse already-ranked catalog when filters align; otherwise rank the source set once.
+    const rankedBase = adultTag === "All" && adultSource === "all"
+      ? rankedAdultCatalog
+      : sortAdultVideos(sourceMatchedAdult, adultRankCtx);
+    return rankedBase
       .map((video) => {
         const itemTags = tags[video.id] ?? [];
         const overlap = itemTags.filter((tag) => preferred.has(tag)).length;
@@ -300,9 +309,9 @@ export function LibraryApp() {
       .sort((a, b) => b.score - a.score)
       .map(({ video }) => video)
       .slice(0, 48);
-  }, [adultRankCtx, adultTagRank, cameCounts, favorites, likes, ratingRevision, sourceId, sourceMatchedAdult, tags]);
+  }, [adultRankCtx, adultRankReady, adultSource, adultTag, adultTagRank, cameCounts, favorites, likes, rankedAdultCatalog, ratingRevision, sourceId, sourceMatchedAdult, tags]);
   const adultRelatedRecommended = useMemo(() => {
-    if (sourceId !== "adults") return [] as typeof adultRemoteVideos;
+    if (sourceId !== "adults" || !adultRankReady) return [] as typeof adultRemoteVideos;
     const seedTags = new Set(
       (adultTag !== "All" ? [adultTag] : adultTagRank.slice(0, 8).map((row) => row.tag))
         .concat(
@@ -323,7 +332,7 @@ export function LibraryApp() {
       .sort((a, b) => b.score - a.score || a.shuffle - b.shuffle)
       .map(({ video }) => video)
       .slice(0, 48);
-  }, [adultContinue, adultFavorites, adultRecommended, adultRemoteVideos, adultTag, adultTagRank, favorites, homePickShuffle, likes, ratingRevision, sourceId, tags]);
+  }, [adultContinue, adultFavorites, adultRankReady, adultRecommended, adultRemoteVideos, adultTag, adultTagRank, favorites, homePickShuffle, likes, ratingRevision, sourceId, tags]);
   const adultRecommendedRail = useMemo(
     () => adultRecommended.filter((video) => videoMatchesAdultTag(video, adultTag, tags)).slice(0, 48),
     [adultRecommended, adultTag, tags],
@@ -341,9 +350,31 @@ export function LibraryApp() {
     [rankedAdultCatalog],
   );
   const adultCatalogRail = useMemo(
-    () => rankedAdultCatalog.slice(0, 240),
+    () => rankedAdultCatalog.slice(0, 120),
     [rankedAdultCatalog],
   );
+  /** Poster grid input — windowed so React does not hold the full archive as children props work. */
+  const adultPosterCatalog = useMemo(
+    () => rankedAdultCatalog.slice(0, 360),
+    [rankedAdultCatalog],
+  );
+
+  useEffect(() => {
+    if (sourceId !== "adults") {
+      setAdultRankReady(false);
+      return;
+    }
+    setAdultRankReady(false);
+    let cancelled = false;
+    const ready = () => { if (!cancelled) setAdultRankReady(true); };
+    const ric = window.requestIdleCallback;
+    if (typeof ric === "function") {
+      const id = ric(ready, { timeout: 700 });
+      return () => { cancelled = true; window.cancelIdleCallback(id); };
+    }
+    const id = window.setTimeout(ready, 120);
+    return () => { cancelled = true; window.clearTimeout(id); };
+  }, [sourceId, filteredEporner.length, adultSource, adultTag]);
 
   const filteredYoutube = useMemo(() => youtubeTagFilter === "all" ? newestYoutube : newestYoutube.filter((video) => topicsForVideo(video, tags[video.id]).includes(youtubeTagFilter)), [newestYoutube, tags, youtubeTagFilter]);
   const searchInsights = useMemo(() => {
@@ -406,7 +437,10 @@ export function LibraryApp() {
     };
   }, [continueVideos, progress, resumeProgress]);
   const adultPageVideos = useMemo(() => sourceId === "adults" ? videos : [], [sourceId, videos]);
-  const adultTagNames = useMemo(() => [...new Set(adultPageVideos.flatMap((video) => tags[video.id] ?? []))].sort(), [tags, adultPageVideos]);
+  const adultTagNames = useMemo(() => {
+    if (!adultDeepVisible) return [] as string[];
+    return [...new Set(adultPageVideos.flatMap((video) => tags[video.id] ?? []))].sort();
+  }, [adultDeepVisible, tags, adultPageVideos]);
   const moviesByGenre = useMemo(() => [...videos].filter((video) => Boolean(video.genre)).sort((a, b) => a.genre!.localeCompare(b.genre!)), [videos]);
   const movieCatalog = useMemo(() => {
     if (sourceId !== "movies") return [];
@@ -430,8 +464,14 @@ export function LibraryApp() {
     if (adultSort === "ranked") return sortAdultVideos(adultPageVideos, { tags, favorites, likes, cameCounts, viewCounts, ratingOf: getRating });
     return [...adultPageVideos].sort((a, b) => adultSort === "name" ? a.name.localeCompare(b.name) : adultSort === "favorites" ? Number(Boolean(favorites[b.id])) - Number(Boolean(favorites[a.id])) || b.addedAt - a.addedAt : adultSort === "tagged" ? (tags[b.id] ?? []).length - (tags[a.id] ?? []).length || b.addedAt - a.addedAt : adultSort === "played" ? (progress[b.id]?.at ?? 0) - (progress[a.id]?.at ?? 0) || b.addedAt - a.addedAt : b.addedAt - a.addedAt);
   }, [adultDeepVisible, adultSort, adultPageVideos, cameCounts, favorites, likes, progress, sourceId, tags, viewCounts, ratingRevision]);
-  const adultTagged = useMemo(() => adultPageVideos.filter((video) => (tags[video.id] ?? []).length > 0).sort((a, b) => (tags[b.id] ?? []).length - (tags[a.id] ?? []).length), [tags, adultPageVideos]);
-  const adultNeedsTags = useMemo(() => adultPageVideos.filter((video) => !(tags[video.id] ?? []).length), [tags, adultPageVideos]);
+  const adultTagged = useMemo(() => {
+    if (!adultDeepVisible) return [] as typeof adultPageVideos;
+    return adultPageVideos.filter((video) => (tags[video.id] ?? []).length > 0).sort((a, b) => (tags[b.id] ?? []).length - (tags[a.id] ?? []).length);
+  }, [adultDeepVisible, tags, adultPageVideos]);
+  const adultNeedsTags = useMemo(() => {
+    if (!adultDeepVisible) return [] as typeof adultPageVideos;
+    return adultPageVideos.filter((video) => !(tags[video.id] ?? []).length);
+  }, [adultDeepVisible, tags, adultPageVideos]);
   const highlyRatedTags = useMemo(() => {
     const preferred = new Set<string>();
     if (sourceId !== "twitch") return preferred;
@@ -1205,8 +1245,8 @@ export function LibraryApp() {
                     videos={adultLatestRail}
                     variant="rail"
                   />
-                  <TitleRail title="From official adult APIs" reason="Windowed filtered catalog, ranked (first 240)." videos={adultCatalogRail} variant="rail" />
-                  <PosterGrid videos={rankedAdultCatalog} />
+                  <TitleRail title="From official adult APIs" reason="Windowed filtered catalog, ranked (first 120)." videos={adultCatalogRail} variant="rail" />
+                  <PosterGrid videos={adultPosterCatalog} />
                       {!adultDeepVisible && (
                         <section className="mb-6 rounded-xl border border-border bg-surface p-5 shadow-border">
                           <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Deep discovery</p>

@@ -80,7 +80,7 @@ function youtubeEmbed(base: string) {
 
 export function Player({ playlist }: { playlist: string[] }) {
   const activeId = useLibrary((s) => s.activeId);
-  const video = useLibrary((s) => s.videos.find((v) => v.id === s.activeId));
+  const video = useLibrary((s) => (s.activeId ? s.videos.find((v) => v.id === s.activeId) : undefined));
   const closePlayer = useLibrary((s) => s.closePlayer);
   const openVideo = useLibrary((s) => s.openVideo);
   const playRelative = useLibrary((s) => s.playRelative);
@@ -283,10 +283,11 @@ export function Player({ playlist }: { playlist: string[] }) {
     lastProgressWrite.current = 0;
     const durationHint = Math.max(video.duration ?? 0, 120);
     const heartbeat = () => {
+      if (document.visibilityState === "hidden") return;
       const elapsed = Math.max(2, (Date.now() - remoteStartedAt.current) / 1000);
       markProgress(video.id, Math.min(elapsed, durationHint * 0.94), durationHint);
     };
-    const timer = window.setInterval(heartbeat, 8_000);
+    const timer = window.setInterval(heartbeat, 10_000);
     return () => {
       heartbeat();
       window.clearInterval(timer);
@@ -441,7 +442,7 @@ export function Player({ playlist }: { playlist: string[] }) {
         <AdultImageLightbox video={video} tags={tags} />
       ) : embedSrc ? (
         <iframe
-          key={embedSrc}
+          key={`embed:${video.id}`}
           title={video.name}
           src={embedSrc}
           className="absolute inset-0 size-full border-0 bg-bg"

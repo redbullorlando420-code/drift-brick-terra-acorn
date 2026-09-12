@@ -133,7 +133,23 @@ export function AdultPanel({
     [sourceCounts],
   );
 
+  const [facetsReady, setFacetsReady] = useState(false);
+  useEffect(() => {
+    setFacetsReady(false);
+    let cancelled = false;
+    const ready = () => { if (!cancelled) setFacetsReady(true); };
+    const ric = window.requestIdleCallback;
+    if (typeof ric === "function") {
+      const id = ric(ready, { timeout: 1_200 });
+      return () => { cancelled = true; window.cancelIdleCallback(id); };
+    }
+    const id = window.setTimeout(ready, 200);
+    return () => { cancelled = true; window.clearTimeout(id); };
+  }, [adultVideos.length]);
+
+  // Creator / fetish chip walks over the full archive — idle until first paint settles.
   const creatorFacets = useMemo(() => {
+    if (!facetsReady) return [] as Array<readonly [string, number]>;
     const counts = new Map<string, number>();
     for (const video of adultVideos) {
       for (const tag of tags[video.id] ?? []) {
@@ -141,9 +157,10 @@ export function AdultPanel({
       }
     }
     return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 36);
-  }, [adultVideos, tags]);
+  }, [adultVideos, facetsReady, tags]);
 
   const fetishFacets = useMemo(() => {
+    if (!facetsReady) return [] as Array<readonly [string, number]>;
     const counts = new Map<string, number>();
     for (const video of adultVideos) {
       for (const tag of tags[video.id] ?? []) {
@@ -158,7 +175,7 @@ export function AdultPanel({
     return [...counts.entries()]
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .slice(0, 48);
-  }, [adultVideos, tags]);
+  }, [adultVideos, facetsReady, tags]);
 
   useEffect(() => {
     if (!autoPull || booted) return;
