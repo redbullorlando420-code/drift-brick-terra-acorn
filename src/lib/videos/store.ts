@@ -65,6 +65,7 @@ import type {
   ViewMode,
   WellKnownStart,
 } from "./types";
+import { getRating } from "../media-feedback";
 import { librarySearchIndex } from "./search-index";
 import { useSourceAssets } from "@/lib/source-assets";
 import { isClassicVideo, SYSTEM_SOURCES } from "./types";
@@ -147,7 +148,7 @@ type LibraryState = {
   setHideDemo: (hide: boolean) => void;
   setHardwareAccel: (on: boolean) => void;
   setFolderAdult: (folderId: string, adult: boolean) => void;
-  searchAdultFeed: (query?: string, order?: string, opts?: { page?: number; maxVideos?: number; append?: boolean; providers?: AdultPullProvider[] | "all"; providerPages?: Partial<Record<AdultPullProvider, number>>; resumeArchive?: boolean }) => Promise<number>;
+  searchAdultFeed: (query?: string, order?: string, opts?: { page?: number; maxVideos?: number; append?: boolean; providers?: AdultPullProvider[] | "all"; providerPages?: Partial<Record<AdultPullProvider, number>>; redditSources?: Array<{ subreddit: string; priority: number }>; resumeArchive?: boolean }) => Promise<number>;
   addFolder: (
     inputEl?: HTMLInputElement | null,
     startIn?: WellKnownStart,
@@ -711,7 +712,8 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       const url = video?.remote?.embedUrl ?? video?.src ?? video?.remote?.watchUrl;
       const title = video?.name?.trim();
       const poster = video?.poster ?? video?.remote?.previewUrl;
-      const next = [{ eventId: nextHistoryEventId(now), id, at: now, position: mark?.t, duration: mark?.d, source, ...(url ? { url } : {}), ...(title ? { title } : {}), ...(poster ? { poster } : {}) }, ...s.history];
+      const rating = getRating(id);
+      const next = [{ eventId: nextHistoryEventId(now), id, at: now, position: mark?.t, duration: mark?.d, source, ...(url ? { url } : {}), ...(title ? { title } : {}), ...(poster ? { poster } : {}), ...(rating ? { rating } : {}) }, ...s.history];
       return { history: next, viewCounts: { ...s.viewCounts, [id]: (s.viewCounts[id] ?? 0) + 1 } };
     });
     const event = get().history[0];
@@ -817,6 +819,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       const maxVideos = opts?.maxVideos ?? LIBRARY_LIMITS.epornerVideosPerPull;
       const append = Boolean(opts?.append);
       const providerPages = opts?.providerPages;
+      const redditSources = opts?.redditSources;
       const providerKey = providerList.slice().sort().join("+");
       // Skip only a fat, already-balanced catalog. Thin Reddit or a small first pull must refresh.
       if (!append && !providerPages && findFreshAdultPullFingerprint(query, order, page, providerKey)) {
@@ -827,7 +830,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           return have.length;
         }
       }
-      const result = await searchAdultVideos({ data: { query, order, page, maxVideos, append, providers, providerPages } });
+      const result = await searchAdultVideos({ data: { query, order, page, maxVideos, append, providers, providerPages, redditSources } });
       if (result.providerNextPages) {
         saveAdultArchiveCursors(query, order, result.providerNextPages);
       }
@@ -854,9 +857,9 @@ export const useLibrary = create<LibraryState>((set, get) => ({
             continue;
           }
           const incoming = videos.filter((v) => v.folderId === folderId);
-          const existingRemote = append
-            ? nextVideos.filter((v) => v.folderId === folderId)
-            : [];
+          // Catalog refreshes are additive, like YouTube/Twitch. A new query
+          // updates matching ids but never discards an earlier Adult page.
+          const existingRemote = nextVideos.filter((v) => v.folderId === folderId);
           const byId = new Map(existingRemote.map((v) => [v.id, v]));
           for (const video of incoming) byId.set(video.id, video);
           const merged = [...byId.values()].sort((a, b) => b.addedAt - a.addedAt);
@@ -897,7 +900,6 @@ export const useLibrary = create<LibraryState>((set, get) => ({
               })
             : [];
           tagPatch[video.id] = compactIngestedTags(s.tags[video.id] ?? [], [
-            ...remoteMetadataTags(video),
             ...adultIngestTags({
               source,
               extraSources: hostExtra,
@@ -926,15 +928,9 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       // across reloads without another full provider pull.
       let writeChain: Promise<void> = Promise.resolve();
       for (const folderId of touched) {
-        if (append) {
-          const incoming = videos.filter((v) => v.folderId === folderId);
-          if (!incoming.length) continue;
-          writeChain = writeChain.then(() => appendCatalogVideos(incoming)).catch(() => undefined);
-        } else {
-          const folderVideos = get().videos.filter((v) => v.folderId === folderId);
-          if (!folderVideos.length) continue;
-          writeChain = writeChain.then(() => saveFolderVideos(folderId, folderVideos)).catch(() => undefined);
-        }
+        const folderVideos = get().videos.filter((v) => v.folderId === folderId);
+        if (!folderVideos.length) continue;
+        writeChain = writeChain.then(() => appendCatalogVideos(folderVideos)).catch(() => undefined);
       }
       await writeChain;
       return get().videos.filter((v) => (ADULT_FOLDER_IDS as readonly string[]).includes(v.folderId)).length;
@@ -1788,7 +1784,10 @@ export function selectVisible(state: LibraryState): LibraryVideo[] {
   if (state.sourceId === "favorites") {
     list = list.filter((v) => state.favorites[v.id]);
   } else if (state.sourceId === "continue") {
-    list = recoveryList(state, false).filter((video) => isResumable(video, resumeForVideo(state, video)));
+    // Use the same durable recovery path as History. Provider rows can rotate
+    // out of the in-memory catalog while their saved watch position remains
+    // valid and should still be resumable.
+    list = selectContinue(state, false);
   } else if (state.sourceId === "history") {
     const byId = new Map(list.map((v) => [v.id, v]));
     list = state.history.map((h) => byId.get(h.id)).filter((v): v is LibraryVideo => v != null);
@@ -1869,8 +1868,27 @@ export function selectContinue(state: LibraryState, adult = false): LibraryVideo
   const memo = memoFor(state);
   const existing = adult ? memo.continueAdult : memo.continuePublic;
   if (existing) return existing;
-  const items = recoveryList(state, adult).filter((video) => isResumable(video, resumeForVideo(state, video)));
-  items.sort((a, b) => (resumeForVideo(state, b)?.at ?? 0) - (resumeForVideo(state, a)?.at ?? 0));
+  const marks = new Map<string, ResumeMark>();
+  const recordMark = (id: string, mark: ResumeMark | undefined) => {
+    if (!mark || !Number.isFinite(mark.t) || !Number.isFinite(mark.d) || mark.t < 2 || mark.d <= 0 || mark.t / mark.d >= 0.992) return;
+    const current = marks.get(id);
+    if (!current || mark.at > current.at) marks.set(id, mark);
+  };
+  for (const video of recoveryList(state, adult)) recordMark(video.id, resumeForVideo(state, video));
+  // History keeps URL/title snapshots even after a provider refresh evicts a
+  // row. Replay its saved position into Continue using the same recovery card.
+  for (const entry of state.history) {
+    if (!entry.position || !entry.duration || entry.position < 2 || entry.position / entry.duration >= 0.992) continue;
+    recordMark(entry.id, { t: entry.position, d: entry.duration, at: entry.at });
+  }
+  const candidates = [...recoveryList(state, adult), ...selectHistory(state, adult)];
+  const seen = new Set<string>();
+  const items = candidates.filter((video) => {
+    if (seen.has(video.id)) return false;
+    seen.add(video.id);
+    return isResumable(video, marks.get(video.id) ?? resumeForVideo(state, video));
+  });
+  items.sort((a, b) => (marks.get(b.id)?.at ?? resumeForVideo(state, b)?.at ?? 0) - (marks.get(a.id)?.at ?? resumeForVideo(state, a)?.at ?? 0));
   // VideoGrid progressively mounts pages, so Continue itself must not silently
   // truncate a large resume list before the view gets a chance to paginate it.
   if (adult) memo.continueAdult = items;
@@ -1964,7 +1982,7 @@ export function selectRedtube(state: LibraryState): LibraryVideo[] {
 
 /** Combined official adult pull shelves (Eporner + RedTube). */
 export function selectAdultRemote(state: LibraryState): LibraryVideo[] {
-  return state.videos
+  const matching = state.videos
     .filter(
       (v) =>
         v.remote?.kind === "eporner" ||
@@ -1976,7 +1994,8 @@ export function selectAdultRemote(state: LibraryState): LibraryVideo[] {
         v.remote?.kind === "booru" ||
         v.remote?.kind === "redgifs" ||
         (ADULT_FOLDER_IDS as readonly string[]).includes(v.folderId),
-    )
+    );
+  return [...new Map(matching.map((video) => [video.id, video])).values()]
     .sort((a, b) => b.addedAt - a.addedAt);
 }
 

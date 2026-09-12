@@ -101,6 +101,13 @@ export const VideoCard = memo(function VideoCard({
   const [candidateReady, setCandidateReady] = useState(false);
   const [textFirst, setTextFirst] = useState(false);
   const [rating, setRating] = useState(0);
+  const imageSlotRelease = useRef<(() => void) | undefined>(undefined);
+
+  const releaseImageSlot = () => {
+    imageSlotRelease.current?.();
+    imageSlotRelease.current = undefined;
+    setArtAllowed(false);
+  };
 
   const thumbCandidates = useMemo(() => {
     const out: string[] = [];
@@ -174,9 +181,9 @@ export const VideoCard = memo(function VideoCard({
     warmAdultThumbUrls(thumbCandidates, 3);
   }, [artVisible, adultCandidates.length, index, thumbCandidates, variant]);
 
-  // Hold one decode slot for the whole visible card — do not re-queue on each
-  // thumbIndex fallback (that was flashing blanks and serializing Adult rails).
-  // Visible cards take the high-priority lane so offscreen warm waits.
+  // A visible card owns a high-priority slot only while its current candidate
+  // is loading. Releasing it after load/error lets the next card paint; the
+  // last successful image stays mounted underneath every fallback.
   useEffect(() => {
     if (!artVisible || thumbsExhausted) {
       setArtAllowed(false);
@@ -190,14 +197,16 @@ export const VideoCard = memo(function VideoCard({
         return;
       }
       release = done;
+      imageSlotRelease.current = done;
       setArtAllowed(true);
     });
     return () => {
       cancelled = true;
+      if (imageSlotRelease.current === release) imageSlotRelease.current = undefined;
       release?.();
       setArtAllowed(false);
     };
-  }, [artVisible, thumbsExhausted, video.id]);
+  }, [activeThumb, artVisible, thumbsExhausted, video.id]);
 
   useEffect(() => {
     setCandidateReady(false);
@@ -209,6 +218,7 @@ export const VideoCard = memo(function VideoCard({
     if (paintedSrc === activeThumb) return;
     const timer = window.setTimeout(() => {
       markAdultThumbFailed(activeThumb);
+      releaseImageSlot();
       advanceThumb();
     }, THUMB_LOAD_TIMEOUT_MS);
     return () => window.clearTimeout(timer);
@@ -266,7 +276,10 @@ export const VideoCard = memo(function VideoCard({
           className="absolute inset-0 size-full object-cover outline outline-1 -outline-offset-1 outline-fg/10"
         />
       )}
-      {!textFirst && artVisible && artAllowed && !thumbsExhausted && (showPreview ? preview : activeThumb) ? (
+      {/* Once decoded, keep the active image mounted after its scheduling slot
+          is released. Unmounting it immediately forced a second decode of the
+          same CDN asset and caused the visible Adult-card flash. */}
+      {!textFirst && artVisible && (artAllowed || candidateReady || paintedSrc === activeThumb) && !thumbsExhausted && (showPreview ? preview : activeThumb) ? (
         <img
           key={`${video.id}:${resolvedThumbIndex}:${showPreview ? "p" : "a"}`}
           loading={index <= RAIL_WARM_INDEX ? "eager" : "lazy"}
@@ -282,16 +295,19 @@ export const VideoCard = memo(function VideoCard({
             if (!url) return;
             if (!isDecodedAdultThumbLikelyReal(img)) {
               markAdultThumbFailed(url);
+              releaseImageSlot();
               advanceThumb();
               return;
             }
             markAdultThumbGood(url, video.id);
             setPaintedSrc(url);
             setCandidateReady(true);
+            releaseImageSlot();
           }}
           onError={() => {
             if (showPreview) return;
             if (activeThumb) markAdultThumbFailed(activeThumb);
+            releaseImageSlot();
             advanceThumb();
           }}
           className={cn(

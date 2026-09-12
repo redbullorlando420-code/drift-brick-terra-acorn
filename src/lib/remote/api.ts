@@ -3,7 +3,7 @@ import type { FollowedChannel, FollowKind, LibraryVideo } from "@/lib/videos/typ
 import { LIBRARY_LIMITS } from "@/lib/library-limits";
 import { cachedAdultFetch } from "@/lib/remote/adult-pull-cache";
 import {
-  ADULT_DEEPEN_FETISH_QUERIES,
+  adultDeepenQueriesForPage,
   ADULT_PULL_PROVIDERS,
   CAMSODA_FOLDER_ID,
   CHATURBATE_FOLDER_ID,
@@ -922,6 +922,8 @@ type AdultSearchIn = {
   providers?: AdultPullProvider[] | "all";
   /** Per-provider resume pages (archive depth). Overrides shared `page` when set. */
   providerPages?: Partial<Record<AdultPullProvider, number>>;
+  /** Optional user-managed Reddit list. When absent, rotate the curated catalog. */
+  redditSources?: Array<{ subreddit: string; priority: number }>;
 };
 
 const EPORNER_ORDERS = new Set([
@@ -958,6 +960,23 @@ function parseProviderPages(raw: unknown): Partial<Record<AdultPullProvider, num
   return out;
 }
 
+type RedditSourcePreference = { subreddit: string; priority: 1 | 2 | 3 };
+
+function parseRedditSources(raw: unknown): RedditSourcePreference[] {
+  if (!Array.isArray(raw)) return [];
+  const unique = new Map<string, RedditSourcePreference>();
+  for (const value of raw.slice(0, 120)) {
+    const row = asRecord(value);
+    const subreddit = asString(row?.subreddit).trim().replace(/^r\//i, "");
+    // Reddit community names only use letters, numbers, and underscores.
+    if (!/^[a-z0-9_]{3,48}$/i.test(subreddit)) continue;
+    const rawPriority = Number(row?.priority);
+    const priority: 1 | 2 | 3 = rawPriority >= 3 ? 3 : rawPriority <= 1 ? 1 : 2;
+    unique.set(subreddit.toLowerCase(), { subreddit, priority });
+  }
+  return [...unique.values()];
+}
+
 function parseAdultSearch(data: unknown): Required<AdultSearchIn> & { providers: AdultPullProvider[] } {
   const rec = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
   const query = asString(rec.query).trim() || "all";
@@ -978,6 +997,7 @@ function parseAdultSearch(data: unknown): Required<AdultSearchIn> & { providers:
     append,
     providers: parseAdultProviders(rec.providers),
     providerPages: parseProviderPages(rec.providerPages),
+    redditSources: parseRedditSources(rec.redditSources),
   };
 }
 
@@ -1051,7 +1071,7 @@ async function fetchEpornerPage(query: string, order: string, page: number, perP
   });
   const url = `https://www.eporner.com/api/v2/video/search/?${params.toString()}`;
   const res = await cachedAdultFetch(url, {
-    signal: AbortSignal.timeout(20000),
+    signal: AbortSignal.timeout(8_000),
     cacheTtlMs: 12 * 60_000,
     headers: {
       accept: "application/json",
@@ -1352,7 +1372,10 @@ function asTplMap(tpl: unknown): Record<string, unknown> {
 }
 
 function camsodaValue(tpl: Record<string, unknown>, field: (typeof CAMSODA_TPL)[number]) {
-  return tpl[String(CAMSODA_TPL.indexOf(field))];
+  // The public endpoint has shipped both positional `tpl` rows and named
+  // objects. Supporting both prevents a schema rollout from turning a healthy
+  // source into a misleading zero-result filter.
+  return tpl[field] ?? tpl[String(CAMSODA_TPL.indexOf(field))];
 }
 
 function stripMarkup(value: string) {
@@ -1417,8 +1440,9 @@ async function fetchCamSodaRooms(query: string, maxVideos: number): Promise<{
       },
     });
     if (!res.ok) throw new Error("CamSoda rooms are unavailable right now.");
-    const json = (await res.json()) as { results?: Array<{ tpl?: unknown }> };
-    const rooms = (Array.isArray(json.results) ? json.results : [])
+    const json = (await res.json()) as { results?: Array<{ tpl?: unknown }>; rooms?: Array<{ tpl?: unknown }> } | Array<{ tpl?: unknown }>;
+    const resultRows = Array.isArray(json) ? json : Array.isArray(json.results) ? json.results : Array.isArray(json.rooms) ? json.rooms : [];
+    const rooms = resultRows
       .map(camsodaVideo)
       .filter((video): video is LibraryVideo => video != null);
     camsodaCache = { at: Date.now(), rooms };
@@ -1485,8 +1509,11 @@ async function fetchMyFreeCamsRooms(query: string, maxVideos: number): Promise<{
     if (!res.ok) throw new Error("MyFreeCams rooms are unavailable right now.");
     const text = await res.text();
     const rooms: LibraryVideo[] = [];
-    for (const line of text.split(/\r?\n/)) {
-      const match = line.match(/^([A-Za-z0-9_]{2,32}),(\d+)$/);
+    for (const line of text.split(/[\r\n;]+/)) {
+      // MFC has used comma, pipe, and whitespace-separated listings over
+      // time. Keep this strict about the account name/status while accepting
+      // harmless formatting changes from the public listing endpoint.
+      const match = line.trim().match(/^([A-Za-z0-9_]{2,32})\s*[,|\s]\s*(\d+)\b/);
       if (!match) continue;
       const video = myfreecamsVideo(match[1], Number(match[2]));
       if (video) rooms.push(video);
@@ -1559,8 +1586,13 @@ function redditVideo(entry: string, subreddit: string): LibraryVideo | null {
 }
 
 /** Rotate through the curated catalog so refreshes sample many subs over time. */
-function redditSubWindow(page: number): { subs: string[]; start: number; totalPages: number } {
-  const all = ADULT_REDDIT_SUBS as readonly string[];
+function redditSubWindow(page: number, configuredSources: readonly RedditSourcePreference[] = []): { subs: string[]; start: number; totalPages: number } {
+  const configured = configuredSources.length
+    ? [...configuredSources]
+        .sort((a, b) => b.priority - a.priority || a.subreddit.localeCompare(b.subreddit))
+        .map((row) => row.subreddit)
+    : [...ADULT_REDDIT_SUBS];
+  const all = configured.length ? configured : [...ADULT_REDDIT_SUBS];
   const size = Math.max(1, LIBRARY_LIMITS.redditSubsPerPull);
   const totalPages = Math.max(1, Math.ceil(all.length / size));
   const tick = Math.floor(Date.now() / (20 * 60_000));
@@ -1595,7 +1627,7 @@ async function fetchRedditSubRss(sub: string, sort: "hot" | "new"): Promise<Libr
   return posts;
 }
 
-async function fetchRedditFeed(query: string, maxVideos: number, page = 1): Promise<{
+async function fetchRedditFeed(query: string, maxVideos: number, page = 1, configuredSources: readonly RedditSourcePreference[] = []): Promise<{
   videos: LibraryVideo[];
   totalPages: number;
   totalCount: number;
@@ -1608,7 +1640,7 @@ async function fetchRedditFeed(query: string, maxVideos: number, page = 1): Prom
   let lastTotalPages = 1;
 
   for (let offset = 0; offset < windows && collected.length < maxVideos; offset += 1) {
-    const { subs, start, totalPages } = redditSubWindow(page + offset);
+    const { subs, start, totalPages } = redditSubWindow(page + offset, configuredSources);
     lastTotalPages = totalPages;
     const jobs = subs.flatMap((sub) => [
       { sub, sort: "hot" as const },
@@ -1790,7 +1822,15 @@ function pickString(...values: unknown[]) {
 function redgifsVideo(row: RedgifsRow): LibraryVideo | null {
   const id = pickString(row.id, row.gif_id, row.gifId, row.slug);
   if (!id) return null;
-  const urls = asRecord(row.urls) ?? {};
+  // AdultDataLink has used a few Redgifs response shapes. Read the documented
+  // media containers before falling back to a player, so posters and direct
+  // playback keep working when a provider rolls out a field rename.
+  const urls = {
+    ...(asRecord(row.urls) ?? {}),
+    ...(asRecord(row.media) ?? {}),
+    ...(asRecord(row.gif) ?? {}),
+    ...(asRecord(row.video) ?? {}),
+  };
   const user = asRecord(row.user) ?? asRecord(row.creator) ?? {};
   const tagsRaw = row.tags ?? row.hashtags ?? row.niches;
   const tagList = Array.isArray(tagsRaw)
@@ -1802,8 +1842,8 @@ function redgifsVideo(row: RedgifsRow): LibraryVideo | null {
   const author = pickString(user.username, user.name, row.username, row.userName, row.author);
   const embed = pickString(urls.html, urls.player, row.embedUrl, row.embed_url, `https://www.redgifs.com/ifr/${encodeURIComponent(id)}`);
   const watch = pickString(urls.webUrl, urls.web_url, row.url, row.webUrl, `https://www.redgifs.com/watch/${encodeURIComponent(id)}`);
-  const thumb = pickString(urls.thumbnail, urls.poster, urls.posterUrl, row.thumbnail, row.poster, row.previewUrl);
-  const file = pickString(urls.hd, urls.sd, urls.silent, urls.giftiny, urls.gif, row.mp4, row.file);
+  const thumb = pickString(urls.thumbnail, urls.thumb, urls.preview, urls.poster, urls.posterUrl, urls.previewUrl, row.thumbnail, row.thumb, row.poster, row.previewUrl);
+  const file = pickString(urls.hd, urls.sd, urls.silent, urls.mobile, urls.mp4, urls.giftiny, urls.gif, row.mp4, row.file);
   if (adultBlockedText(title, author, tagList.join(" "))) return null;
   return {
     id: `redgifs:${id}`,
@@ -1817,7 +1857,9 @@ function redgifsVideo(row: RedgifsRow): LibraryVideo | null {
     tagline: [author, ...tagList.slice(0, 8)].filter(Boolean).join(" · ").slice(0, 160) || undefined,
     description: tagList.join(", ") || title,
     poster: thumb || undefined,
-    src: embed || file || undefined,
+    // Direct media starts promptly and avoids waiting for the Redgifs iframe
+    // boot path. Retain the iframe as a fallback when the API omits a file.
+    src: file || embed || undefined,
     remote: {
       kind: "redgifs",
       videoId: id,
@@ -1897,10 +1939,30 @@ function liveRoomLimit(provider: AdultPullProvider) {
 }
 
 function providerPageBudget(provider: AdultPullProvider) {
-  if (provider === "redtube") return { maxPages: LIBRARY_LIMITS.redtubePagesPerPull, perPage: LIBRARY_LIMITS.redtubePageSize };
+  // A direct RedTube pull used to walk up to 300 pages serially before the
+  // request could resolve. Keep deep archive cursors, but cap one foreground
+  // batch so the catalog paints partial results promptly.
+  if (provider === "redtube") return { maxPages: Math.min(LIBRARY_LIMITS.redtubePagesPerPull, 24), perPage: LIBRARY_LIMITS.redtubePageSize };
   const live = liveRoomLimit(provider);
   if (live) return { maxPages: 1, perPage: live };
   return { maxPages: LIBRARY_LIMITS.epornerPagesPerPull, perPage: LIBRARY_LIMITS.epornerPageSize };
+}
+
+/** A mixed foreground pull should return its healthy providers promptly. A
+ * slow public feed is reported as partial work instead of freezing the whole
+ * Adults screen behind its retry window. */
+async function withinAdultPullDeadline<T>(work: Promise<T>, provider: AdultPullProvider): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<T>((_, reject) => {
+        timeout = setTimeout(() => reject(new Error(`${provider} timed out; try it alone or Load more.`)), 18_000);
+      }),
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
 }
 
 async function pullProviderPages(
@@ -1909,9 +1971,10 @@ async function pullProviderPages(
   order: string,
   startPage: number,
   maxVideos: number,
+  redditSources: readonly RedditSourcePreference[] = [],
 ): Promise<{ videos: LibraryVideo[]; page: number; nextPage: number | null; totalCount: number }> {
   if (provider === "reddit") {
-    const batch = await fetchRedditFeed(query, maxVideos, startPage);
+    const batch = await fetchRedditFeed(query, maxVideos, startPage, redditSources);
     return {
       videos: batch.videos,
       page: startPage,
@@ -1929,12 +1992,31 @@ async function pullProviderPages(
     };
   }
   if (provider === "redgifs") {
-    const batch = await fetchRedgifsFeed(query, maxVideos, startPage);
+    const collected: LibraryVideo[] = [];
+    const seen = new Set<string>();
+    let page = startPage;
+    let totalCount = 0;
+    let hasNext = false;
+    // Pull enough documented API pages to meet the Redgifs budget. This keeps
+    // its representation comparable with the other catalog providers.
+    const pages = Math.max(1, Math.ceil(maxVideos / LIBRARY_LIMITS.redgifsPageSize));
+    for (let index = 0; index < pages && collected.length < maxVideos; index += 1) {
+      const batch = await fetchRedgifsFeed(query, Math.min(LIBRARY_LIMITS.redgifsPageSize, maxVideos - collected.length), page);
+      totalCount += batch.totalCount;
+      for (const video of batch.videos) {
+        if (seen.has(video.id)) continue;
+        seen.add(video.id);
+        collected.push(video);
+      }
+      if (batch.videos.length < LIBRARY_LIMITS.redgifsPageSize) break;
+      page += 1;
+      hasNext = true;
+    }
     return {
-      videos: batch.videos,
+      videos: collected,
       page: startPage,
-      nextPage: batch.videos.length ? startPage + 1 : null,
-      totalCount: batch.totalCount,
+      nextPage: collected.length && hasNext ? page : null,
+      totalCount,
     };
   }
   if (provider === "chaturbate" || provider === "camsoda" || provider === "myfreecams") {
@@ -2016,25 +2098,35 @@ export const searchAdultVideos = createServerFn({ method: "POST" })
     const errors: string[] = [];
     const providerNextPages: Partial<Record<AdultPullProvider, number | null>> = {};
 
-    const seen = new Set<string>();
-    for (let i = 0; i < providers.length; i += 1) {
-      const provider = providers[i];
+    const batches = await Promise.allSettled(providers.map(async (provider) => {
       const rawBudget = share + (provider === "reddit" ? leftovers : 0);
       const live = liveRoomLimit(provider);
       const redditFloor = Math.min(
         LIBRARY_LIMITS.redditVideosPerPull,
-        Math.max(rawBudget, Math.floor(data.maxVideos * 0.35), 480),
+        Math.max(rawBudget, Math.floor(data.maxVideos * 0.65), 720),
       );
+      const underrepresentedFloor = Math.min(160, Math.max(rawBudget, Math.floor(data.maxVideos * 0.2)));
       const budget = provider === "reddit"
         ? redditFloor
         : provider === "booru"
-          ? Math.min(LIBRARY_LIMITS.booruVideosPerPull, rawBudget)
+          ? Math.min(LIBRARY_LIMITS.booruVideosPerPull, underrepresentedFloor)
           : provider === "redgifs"
-            ? Math.min(LIBRARY_LIMITS.redgifsVideosPerPull, rawBudget)
-        : live ? Math.min(live, rawBudget) : rawBudget;
+            ? Math.min(LIBRARY_LIMITS.redgifsVideosPerPull, underrepresentedFloor)
+        // Keep the established Eporner / RedTube allocation. Smaller live
+        // providers receive a viable sample when every source is selected.
+        : live ? Math.min(live, underrepresentedFloor) : rawBudget;
       const startPage = data.providerPages?.[provider] ?? data.page;
-      try {
-        const batch = await pullProviderPages(provider, data.query, data.order, startPage, budget);
+      const batch = await withinAdultPullDeadline(
+        pullProviderPages(provider, data.query, data.order, startPage, budget, data.redditSources),
+        provider,
+      );
+      return { provider, batch };
+    }));
+
+    const seen = new Set<string>();
+    for (const result of batches) {
+      if (result.status === "fulfilled") {
+        const { provider, batch } = result.value;
         for (const video of batch.videos) {
           if (seen.has(video.id)) continue;
           seen.add(video.id);
@@ -2043,19 +2135,20 @@ export const searchAdultVideos = createServerFn({ method: "POST" })
         totalCount += batch.totalCount;
         providerNextPages[provider] = batch.nextPage;
         if (batch.nextPage != null) nextPage = nextPage == null ? batch.nextPage : Math.min(nextPage, batch.nextPage);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "unavailable";
-        errors.push(`${provider}: ${message}`);
-        providerNextPages[provider] = null;
+        continue;
       }
+      const provider = providers[batches.indexOf(result)]!;
+      const message = result.reason instanceof Error ? result.reason.message : "unavailable";
+      errors.push(`${provider}: ${message}`);
+      providerNextPages[provider] = null;
     }
 
     const redditHave = collected.filter((video) => video.remote?.kind === "reddit").length;
-    const redditWant = Math.min(LIBRARY_LIMITS.redditVideosPerPull, Math.max(480, Math.floor(data.maxVideos * 0.35)));
+    const redditWant = Math.min(LIBRARY_LIMITS.redditVideosPerPull, Math.max(720, Math.floor(data.maxVideos * 0.65)));
     if (providers.includes("reddit") && redditHave < redditWant) {
       const extraPage = (data.providerPages?.reddit ?? data.page) + LIBRARY_LIMITS.redditWindowsPerPull;
       try {
-        const batch = await pullProviderPages("reddit", data.query, data.order, extraPage, redditWant - redditHave);
+        const batch = await pullProviderPages("reddit", data.query, data.order, extraPage, redditWant - redditHave, data.redditSources);
         for (const video of batch.videos) {
           if (seen.has(video.id)) continue;
           seen.add(video.id);
@@ -2072,8 +2165,8 @@ export const searchAdultVideos = createServerFn({ method: "POST" })
     // When browsing "all", deepen official video APIs with curated fetish
     // keyword pages so shelves pick up DP / roleplay / milf / feet and more.
     // Leave headroom so RedTube/Eporner cannot refill the entire catalog after Reddit.
-    if (data.query.toLowerCase() === "all" && collected.length < data.maxVideos) {
-      const fetishQueries = ADULT_DEEPEN_FETISH_QUERIES;
+    if (data.append && data.query.toLowerCase() === "all" && collected.length < data.maxVideos) {
+      const fetishQueries = adultDeepenQueriesForPage(data.page, 12);
       const deepenProviders = providers.filter((p) => p === "eporner" || p === "redtube");
       const remaining = Math.max(0, data.maxVideos - collected.length);
       const slots = Math.max(1, fetishQueries.length * Math.max(1, deepenProviders.length));
@@ -2159,26 +2252,20 @@ export const fetchAdultComments = createServerFn({ method: "POST" })
       return { comments: [], note: "This provider does not expose a public comment feed." };
     }
     const id = data.videoId.replace(/^t3_/, "");
-    const url = `https://www.reddit.com/comments/${encodeURIComponent(id)}.rss?limit=40`;
+    const canonical = `https://www.reddit.com/comments/${encodeURIComponent(id)}.rss?limit=40`;
+    const permalink = data.watchUrl.match(/^https:\/\/www\.reddit\.com\/r\/[^/]+\/comments\/[a-z0-9]+/i)?.[0];
+    const urls = permalink ? [`${permalink}.rss?limit=40`, canonical] : [canonical];
     try {
-      const res = await cachedAdultFetch(url, {
-        signal: AbortSignal.timeout(12000),
-        cacheTtlMs: 15 * 60_000,
-        headers: {
-          accept: "application/atom+xml, application/rss+xml, application/xml;q=0.9, */*;q=0.8",
-          "user-agent": "linux:reelcase:1.0 (by /u/reelcase)",
-        },
-      });
-      if (res.status === 429) return { comments: [], note: "Reddit comment RSS rate-limited — try again later." };
-      if (!res.ok) return { comments: [], note: `Reddit comments unavailable (HTTP ${res.status}).` };
-      const xml = await res.text();
-      const comments = parseRedditCommentEntries(xml);
-      return {
-        comments,
-        note: comments.length
-          ? "Live Reddit comments via public Atom RSS."
-          : "No comments returned for this post.",
-      };
+      let lastStatus = 0;
+      for (const url of urls) {
+        const res = await cachedAdultFetch(url, { signal: AbortSignal.timeout(12_000), cacheTtlMs: 15 * 60_000, headers: { accept: "application/atom+xml, application/rss+xml, application/xml;q=0.9, */*;q=0.8", "user-agent": "linux:reelcase:1.0 (by /u/reelcase)" } });
+        lastStatus = res.status;
+        if (res.status === 429) continue;
+        if (!res.ok) continue;
+        const comments = parseRedditCommentEntries(await res.text());
+        return { comments, note: comments.length ? "Live Reddit comments via public Atom RSS." : "No public comments returned for this post." };
+      }
+      return { comments: [], note: lastStatus === 429 ? "Reddit comment RSS rate-limited — try again later." : `Reddit comments unavailable (HTTP ${lastStatus || "network"}).` };
     } catch (err) {
       return { comments: [], note: err instanceof Error ? err.message : "Comments unavailable." };
     }

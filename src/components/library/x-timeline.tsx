@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { ExternalLink, RefreshCw, Search, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type XWidgets = { widgets: { load: (element: HTMLElement) => Promise<unknown> | void } };
+type XWidgets = { widgets: {
+  load: (element: HTMLElement) => Promise<unknown> | void;
+  createTimeline?: (source: { sourceType: "profile"; screenName: string } | { sourceType: "url"; url: string }, element: HTMLElement, options: Record<string, string | number | boolean>) => Promise<unknown>;
+} };
 let widgetScript: Promise<XWidgets> | undefined;
 function loadWidgets() {
   return widgetScript ??= new Promise<XWidgets>((resolve, reject) => {
@@ -30,14 +33,9 @@ export function XTimeline({ account, topic }: { account?: string; topic?: { labe
     let cancelled = false;
     setStatus("Loading public posts…");
     element.replaceChildren();
-    const link = document.createElement("a");
-    link.className = "twitter-timeline";
-    link.href = topic ? `https://twitter.com/search?q=${encodeURIComponent(topic.query)}&src=typed_query&f=live` : `https://twitter.com/${account}`;
-    link.dataset.height = "640";
-    link.dataset.theme = document.documentElement.dataset.theme === "day" ? "light" : "dark";
-    link.dataset.dnt = "true";
-    link.textContent = topic ? `Public posts about ${topic.label}` : `Public posts by @${account}`;
-    element.append(link);
+    const timelineUrl = topic
+      ? `https://twitter.com/search?q=${encodeURIComponent(topic.query)}&src=typed_query&f=live`
+      : `https://twitter.com/${account}`;
     const timeout = window.setTimeout(() => {
       if (!cancelled) setStatus("X hasn’t supplied a timeline. Open the profile to view posts, or retry.");
     }, 15000);
@@ -46,7 +44,26 @@ export function XTimeline({ account, topic }: { account?: string; topic?: { labe
       if (frame) frame.addEventListener("load", () => { if (!cancelled) { clearTimeout(timeout); const now = Date.now(); localStorage.setItem(deskKey, String(now)); setLastReadAt(now); setStatus("Public timeline supplied by X. If posts are unavailable, open the profile."); } }, { once: true });
     });
     observer.observe(element, { childList: true, subtree: true });
-    void loadWidgets().then((api) => { if (!cancelled) return api.widgets.load(element); }).catch(() => {
+    void loadWidgets().then(async (api) => {
+      if (cancelled) return;
+      const options = { height: 640, theme: document.documentElement.dataset.theme === "day" ? "light" : "dark", dnt: true, chrome: "noheader nofooter" };
+      // The explicit official widget API is more reliable than asking it to
+      // rediscover a prebuilt anchor, especially after React remounts this
+      // panel. Keep the anchor/load path for older widget builds.
+      if (api.widgets.createTimeline) {
+        await api.widgets.createTimeline(topic ? { sourceType: "url", url: timelineUrl } : { sourceType: "profile", screenName: account ?? "" }, element, options);
+        return;
+      }
+      const link = document.createElement("a");
+      link.className = "twitter-timeline";
+      link.href = timelineUrl;
+      link.dataset.height = "640";
+      link.dataset.theme = options.theme;
+      link.dataset.dnt = "true";
+      link.textContent = topic ? `Public posts about ${topic.label}` : `Public posts by @${account}`;
+      element.append(link);
+      return api.widgets.load(element);
+    }).catch(() => {
       if (!cancelled) { clearTimeout(timeout); setStatus("X is unavailable here. Your saved accounts are still ready to open."); }
     });
     return () => { cancelled = true; clearTimeout(timeout); observer.disconnect(); element.replaceChildren(); };

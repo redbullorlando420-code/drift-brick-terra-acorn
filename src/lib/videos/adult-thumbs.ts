@@ -124,12 +124,19 @@ export function collectRedtubeThumbCandidates(row: {
       if (++taken >= 2) break;
     }
     if (taken === 0 && ranked[0]) push(ranked[0]);
+  } else if (row.thumbs && typeof row.thumbs === "object") {
+    // Some webmaster responses return a size-keyed object rather than thumbs[].
+    for (const item of Object.values(row.thumbs as Record<string, unknown>).slice(0, 4)) push(item);
   }
 
-  // Last-resort: one solid reconstruction from video_id (ei-ph only, no size spam).
+  // Official RedTube CDN mirrors. These are last-resort candidates after API
+  // artwork, but remain available even when a supplied CDN host has gone cold.
   const id = String(row.video_id ?? "").trim();
-  if (!out.length && /^\d{5,}$/.test(id)) {
-    push(`https://ei-ph.rdtcdn.com/videos/${id.slice(0, 4)}/${id.slice(4, 6)}/${id}/${id}_320x180.jpg`);
+  if (/^\d{5,}$/.test(id)) {
+    const path = `videos/${id.slice(0, 4)}/${id.slice(4, 6)}/${id}`;
+    for (const host of ["ei-ph.rdtcdn.com", "di-ph.rdtcdn.com", "ei.rdtcdn.com"]) {
+      push(`https://${host}/${path}/${id}_320x180.jpg`);
+    }
   }
 
   return out;
@@ -190,7 +197,9 @@ export function adultThumbCandidatesForVideo(video: LibraryVideo): string[] {
       pushExact(url);
     }
   }
-  return filterAndRankAdultThumbs(out).slice(0, 8);
+  // A few extra *distinct* backups are cheap with the session blacklist and
+  // prevent a single flaky CDN host from leaving a card blank.
+  return filterAndRankAdultThumbs(out).slice(0, 12);
 }
 
 export function redtubeStarNames(stars: unknown): string[] {

@@ -31,9 +31,12 @@ function decode(value: string) {
 function upgradePreview(url: string): string {
   let next = url.replace(/&amp;/g, "&");
   if (/preview\.redd\.it|external-preview\.redd\.it/i.test(next)) {
-    next = next.replace(/[?&]width=\d+/ig, "").replace(/[?&]height=\d+/ig, "");
+    // Preserve Reddit's signed crop token while replacing only the cheap
+    // display dimensions. Multiple `width` parameters made some CDN edges
+    // return a tiny placeholder instead of the actual post preview.
+    next = next.replace(/([?&])(?:width|height)=\d+&?/ig, "$1").replace(/[?&]$/, "");
     const join = next.includes("?") ? "&" : "?";
-    next = `${next}${join}width=640&auto=webp`;
+    next = `${next}${join}width=960&auto=webp`;
   }
   return next;
 }
@@ -68,11 +71,17 @@ function collectUrls(entryXml: string, contentHtml: string): string[] {
   for (const match of blob.matchAll(/<media:thumbnail[^>]+url="([^"]+)"/gi)) push(match[1]);
   for (const match of blob.matchAll(/<media:content[^>]+url="([^"]+)"/gi)) push(match[1]);
   for (const match of blob.matchAll(/<img[^>]+src="([^"]+)"/gi)) push(match[1]);
-  for (const match of blob.matchAll(/<a href="(https?:[^"]+)">\s*\[link\]/gi)) push(match[1]);
+  // Reddit changes feed markup frequently. Capture normal post links, lazy
+  // image attributes, source tags, and quoted URLs instead of depending on
+  // the old literal "[link]" anchor shape.
+  for (const match of blob.matchAll(/<(?:a|source|video)[^>]+(?:href|src|data-url)="(https?:[^"]+)"/gi)) push(match[1]);
+  for (const match of blob.matchAll(/https?:\\\/\\\/(?:i|preview|external-preview)\\\.redd\\\.it\\\/[^\s"'<]+/gi)) push(match[0].replace(/\\\//g, "/"));
   for (const match of blob.matchAll(/https?:\/\/(?:i|preview|external-preview)\.redd\.it\/[^\s"'<]+/gi)) push(match[0]);
   for (const match of blob.matchAll(/https?:\/\/(?:i\.)?imgur\.com\/[^\s"'<]+/gi)) push(match[0]);
   for (const match of blob.matchAll(/https?:\/\/(?:www\.)?redgifs\.com\/[^\s"'<]+/gi)) push(match[0]);
   for (const match of blob.matchAll(/https?:\/\/v\.redd\.it\/[^\s"'<]+/gi)) push(match[0]);
+  for (const match of blob.matchAll(/https?:\/\/(?:i\.)?redd\.it\/[^\s"'<]+/gi)) push(match[0]);
+  for (const match of blob.matchAll(/https?:\/\/[^\s"'<]+\.(?:jpe?g|png|gif|webp|mp4|webm)(?:\?[^\s"'<]*)?/gi)) push(match[0]);
   return found;
 }
 

@@ -1,10 +1,11 @@
-import { Heart, Play } from "lucide-react";
+import { ChevronDown, ChevronRight, Heart, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { VideoCard } from "./video-card";
 import { cn } from "@/lib/utils";
 import { titleOf, type LibraryVideo } from "@/lib/videos/types";
 import { useLibrary } from "@/lib/videos/store";
 import { useThumbs } from "@/lib/videos/thumbs";
+import { adultThumbCandidatesForVideo } from "@/lib/videos/adult-thumbs";
 import { markFirstShelf } from "@/lib/first-shelf-trace";
 import { useEffect, useRef, useState } from "react";
 
@@ -23,17 +24,21 @@ export function Billboard({ video }: { video: LibraryVideo }) {
   const openVideo = useLibrary((s) => s.openVideo);
   const toggleFavorite = useLibrary((s) => s.toggleFavorite);
   const fav = useLibrary((s) => Boolean(s.favorites[video.id]));
-  const art = thumb || video.poster;
+  const [artIndex, setArtIndex] = useState(0);
+  const artwork = [thumb, video.poster, video.remote?.previewUrl, ...adultThumbCandidatesForVideo(video)]
+    .filter((url, index, all): url is string => Boolean(url) && all.indexOf(url) === index);
+  const art = artwork[artIndex];
 
   useEffect(() => {
     request(video);
   }, [request, video]);
+  useEffect(() => setArtIndex(0), [video.id]);
 
   return (
     <section className="relative mb-8 overflow-hidden rounded-xl bg-elevated shadow-border">
       <div className="relative aspect-video max-h-[min(72vh,560px)] w-full min-h-64">
         {art ? (
-          <img src={art} alt="" className="absolute inset-0 size-full object-cover" />
+          <img src={art} alt="" decoding="async" referrerPolicy="no-referrer" onError={() => setArtIndex((index) => Math.min(index + 1, artwork.length))} className="absolute inset-0 size-full object-cover" />
         ) : (
           <div className="absolute inset-0 bg-elevated" />
         )}
@@ -91,6 +96,7 @@ export function TitleRail({
   const scrollLeft = useRef(0);
   const leaveTimer = useRef<number | undefined>(undefined);
   const [nearViewport, setNearViewport] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const [shelfHeight, setShelfHeight] = useState<number>();
   const [railWidth, setRailWidth] = useState(0);
   const [windowStart, setWindowStart] = useState(0);
@@ -165,9 +171,9 @@ export function TitleRail({
     <section ref={shelfRef} className="media-shelf mb-8" style={!nearViewport ? { minHeight: shelfHeight ?? (variant === "poster" ? 320 : 250) } : undefined}>
       <div className="mb-3 flex items-end justify-between gap-3">
         <div className="min-w-0">{onTitleClick ? <button type="button" onClick={onTitleClick} className="block min-w-0 truncate font-display text-xl text-fg hover:text-accent sm:text-2xl">{title} <span className="text-sm text-muted">Open source →</span></button> : <h2 className="min-w-0 truncate font-display text-xl text-fg sm:text-2xl">{title}</h2>}{reason && <p className="mt-1 truncate text-xs text-muted">{reason}</p>}</div>
-        {videos.length > limit && <Button size="sm" variant="ghost" className="shrink-0 text-xs" onClick={() => setLimit((value) => Math.min(videos.length, value + 16))}>Show 16 more · {videos.length - limit}</Button>}
+        <div className="flex shrink-0 items-center gap-1">{videos.length > limit && !collapsed && <Button size="sm" variant="ghost" className="text-xs" onClick={() => setLimit((value) => Math.min(videos.length, value + 16))}>Show 16 more · {videos.length - limit}</Button>}<Button size="sm" variant="ghost" aria-expanded={!collapsed} aria-label={`${collapsed ? "Expand" : "Minimize"} ${title}`} onClick={() => setCollapsed((value) => !value)}>{collapsed ? <ChevronRight className="size-4"/> : <ChevronDown className="size-4"/>}{collapsed ? "Expand" : "Minimize"}</Button></div>
       </div>
-      {nearViewport && <div ref={(rail) => { railRef.current = rail; if (rail) rail.scrollLeft = scrollLeft.current; }} onScroll={(event) => onRailScroll(event.currentTarget)} className="rail-scroll flex gap-3 overflow-x-auto pb-3 sm:gap-4">
+      {nearViewport && !collapsed && <div ref={(rail) => { railRef.current = rail; if (rail) rail.scrollLeft = scrollLeft.current; }} onScroll={(event) => onRailScroll(event.currentTarget)} className="rail-scroll flex gap-3 overflow-x-auto pb-3 sm:gap-4">
         {leadPx > 0 && <div aria-hidden="true" className="shrink-0" style={{ width: leadPx, height: 1 }} />}
         {windowed.map((video, i) => (
           <div

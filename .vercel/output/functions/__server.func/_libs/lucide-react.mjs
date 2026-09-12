@@ -222,6 +222,16 @@ var Check = createLucideIcon("check", [["path", {
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
+var ChevronDown = createLucideIcon("chevron-down", [["path", {
+	d: "m6 9 6 6 6-6",
+	key: "qrunsl"
+}]]);
+/**
+* @license lucide-react v0.510.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
 var ChevronLeft = createLucideIcon("chevron-left", [["path", {
 	d: "m15 18-6-6 6-6",
 	key: "1wnfg3"
@@ -508,6 +518,32 @@ var Film = createLucideIcon("film", [
 		key: "go4c1d"
 	}]
 ]);
+/**
+* @license lucide-react v0.510.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
+var Flag = createLucideIcon("flag", [["path", {
+	d: "M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z",
+	key: "i9b6wo"
+}], ["line", {
+	x1: "4",
+	x2: "4",
+	y1: "22",
+	y2: "15",
+	key: "1cm3nv"
+}]]);
+/**
+* @license lucide-react v0.510.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
+var Flame = createLucideIcon("flame", [["path", {
+	d: "M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z",
+	key: "96xj49"
+}]]);
 /**
 * @license lucide-react v0.510.0 - ISC
 *
@@ -1676,4 +1712,4 @@ var Youtube = createLucideIcon("youtube", [["path", {
 	key: "1jp15x"
 }]]);
 //#endregion
-export { FolderSearch as $, Monitor as A, List as B, RefreshCw as C, Pause as D, PictureInPicture2 as E, Maximize as F, Images as G, Lightbulb as H, Maximize2 as I, History as J, Image as K, Lock as L, Minimize as M, MessageCircle as N, PackageSearch as O, Menu as P, Folder as Q, LockOpen as R, Rocket as S, Play as T, LayoutGrid as U, ListPlus as V, Laptop as W, Glasses as X, Heart as Y, Gamepad2 as Z, Shuffle as _, BellOff as _t, Volume2 as a, Cpu as at, Settings2 as b, Upload as c, Clapperboard as ct, Tag as d, ChevronLeft as dt, FolderPlus as et, Star as f, Check as ft, SkipBack as g, Bell as gt, SkipForward as h, Bot as ht, VolumeX as i, Download as it, MonitorPlay as j, Music2 as k, TriangleAlert as l, CircleAlert as lt, Smartphone as m, Box as mt, X as n, FileText as nt, Video as o, Copy as ot, Sparkles as p, ChartColumn as pt, ImagePlus as q, Wifi as r, ExternalLink as rt, Users as s, Clock3 as st, Youtube as t, Film as tt, ThumbsUp as u, ChevronRight as ut, ShoppingBag as v, ArrowLeft as vt, Radio as w, Search as x, ShieldCheck as y, LoaderCircle as z };
+export { FolderSearch as $, Monitor as A, List as B, RefreshCw as C, Pause as D, PictureInPicture2 as E, Maximize as F, Images as G, Lightbulb as H, Maximize2 as I, History as J, Image as K, Lock as L, Minimize as M, MessageCircle as N, PackageSearch as O, Menu as P, Folder as Q, LockOpen as R, Rocket as S, Play as T, LayoutGrid as U, ListPlus as V, Laptop as W, Glasses as X, Heart as Y, Gamepad2 as Z, Shuffle as _, Box as _t, Volume2 as a, ExternalLink as at, Settings2 as b, BellOff as bt, Upload as c, Copy as ct, Tag as d, CircleAlert as dt, FolderPlus as et, Star as f, ChevronRight as ft, SkipBack as g, ChartColumn as gt, SkipForward as h, Check as ht, VolumeX as i, FileText as it, MonitorPlay as j, Music2 as k, TriangleAlert as l, Clock3 as lt, Smartphone as m, ChevronDown as mt, X as n, Flag as nt, Video as o, Download as ot, Sparkles as p, ChevronLeft as pt, ImagePlus as q, Wifi as r, Film as rt, Users as s, Cpu as st, Youtube as t, Flame as tt, ThumbsUp as u, Clapperboard as ut, ShoppingBag as v, Bot as vt, Radio as w, Search as x, ArrowLeft as xt, ShieldCheck as y, Bell as yt, LoaderCircle as z };

@@ -2,7 +2,12 @@ export type VisionProgress = (completed: number, total: number) => void;
 export type VisionLabel = { label: string; score: number };
 export type VisionModelId = "semantic" | "semanticPlus" | "semanticPro";
 export type VisionModelResult = { model: VisionModelId; labels: VisionLabel[][]; elapsedMs: number };
-export type VisionBenchmark = { sampleSize: number; semantic: VisionModelResult; semanticPro: VisionModelResult };
+export type VisionBenchmark = {
+  sampleSize: number;
+  semantic: VisionModelResult;
+  semanticPlus: VisionModelResult;
+  semanticPro: VisionModelResult;
+};
 export type VisionModelStatus = { status?: string; file?: string; loaded?: number; total?: number };
 
 export const VISION_MODELS = {
@@ -67,15 +72,15 @@ async function classifierFor(model: VisionModelId, onStatus?: (status: VisionMod
  * browser (WebGPU when available, otherwise WASM); photo bytes stay local.
  * The model download is cached by the browser for later passes.
  */
-export async function classifyImagesLocally(urls: string[], onProgress?: VisionProgress, model: VisionModelId = "semanticPro", onModelStatus?: (status: VisionModelStatus) => void): Promise<VisionLabel[][]> {
+export async function classifyImagesLocally(urls: string[], onProgress?: VisionProgress, model: VisionModelId = "semanticPlus", onModelStatus?: (status: VisionModelStatus) => void): Promise<VisionLabel[][]> {
   const classifier = await classifierFor(model, onModelStatus);
-  // A small bounded pool takes advantage of WebGPU/WASM workers without
-  // flooding memory with decoded image tensors.  Five candidates gives the
-  // tag review desk more useful coverage than the old three-label pass.
+  // WebGPU can keep two inferences in flight; WASM stays serial because a
+  // second large tensor normally makes it slower and less responsive.
   const results: VisionLabel[][] = Array.from({ length: urls.length }, () => [] as VisionLabel[]);
   let cursor = 0;
   let completed = 0;
-  const workers = Array.from({ length: Math.min(1, urls.length) }, async () => {
+  const workerCount = device() === "webgpu" ? 2 : 1;
+  const workers = Array.from({ length: Math.min(workerCount, urls.length) }, async () => {
     while (true) {
       const index = cursor++;
       if (index >= urls.length) return;
@@ -101,5 +106,10 @@ export async function benchmarkVisionModelsLocally(urls: string[], onProgress?: 
     const labels = await classifyImagesLocally(urls, (done, total) => onProgress?.(model, done, total), model, (status) => onModelStatus?.(model, status));
     return { model, labels, elapsedMs: performance.now() - started };
   };
-  return { sampleSize: urls.length, semantic: await run("semantic"), semanticPro: await run("semanticPro") };
+  return {
+    sampleSize: urls.length,
+    semantic: await run("semantic"),
+    semanticPlus: await run("semanticPlus"),
+    semanticPro: await run("semanticPro"),
+  };
 }

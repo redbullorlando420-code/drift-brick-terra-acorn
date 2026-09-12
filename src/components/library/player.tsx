@@ -411,6 +411,7 @@ export function Player({ playlist }: { playlist: string[] }) {
   const adultImage = Boolean(
     remote && isAdultImageKind(remote.kind, video.mime, video.extension),
   );
+  const redgifsDirectMedia = remote?.kind === "redgifs" && Boolean(video.src && video.src !== remote.embedUrl);
   const embedSrc = adultImage
     ? null
     : remote
@@ -419,7 +420,7 @@ export function Player({ playlist }: { playlist: string[] }) {
         : remote.kind === "youtube"
           ? youtubeEmbed(remote.embedUrl ?? video.src ?? "")
           : isAdultPullKind(remote.kind)
-            ? remote.embedUrl ?? video.src ?? null
+            ? redgifsDirectMedia ? null : remote.embedUrl ?? video.src ?? null
             : remote.embedUrl
               ? `${remote.embedUrl}${remote.embedUrl.includes("?") ? "&" : "?"}autoplay=1&rel=0&modestbranding=1`
               : null
@@ -478,6 +479,14 @@ export function Player({ playlist }: { playlist: string[] }) {
             hardwareAccel && "hw-video",
           )}
           playsInline
+          autoPlay
+          preload="auto"
+          onCanPlay={(event) => {
+            // Direct Redgifs media can finish buffering while the element is
+            // still below a newly mounted fullscreen layer. Retry on the
+            // browser's ready signal so it starts without a scroll nudge.
+            if (remote?.kind === "redgifs") void event.currentTarget.play().catch(() => undefined);
+          }}
           onClick={togglePlay}
           onDoubleClick={() => void toggleFs()}
         />

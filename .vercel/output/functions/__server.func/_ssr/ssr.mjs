@@ -89,7 +89,7 @@ var HEADERS = { TSS_SHELL: "X-TSS_SHELL" };
 * the dev styles URL for route-scoped CSS collection.
 */
 async function getStartManifest(matchedRoutes) {
-	const { tsrStartManifest } = await import("../_tanstack-start-manifest_v-3arKnkny.mjs");
+	const { tsrStartManifest } = await import("../_tanstack-start-manifest_v-CzlsJNZg.mjs");
 	const startManifest = tsrStartManifest();
 	let routes = startManifest.routes;
 	routes[rootRouteId];
@@ -111,19 +111,31 @@ async function getStartManifest(matchedRoutes) {
 var manifest = {
 	"0c214d4b031988870bdc1c9a42a92ccbf9e9579cd8ab478f2d173e66fe73e2f0": {
 		functionName: "followRemote_createServerFn_handler",
-		importer: () => import("./api-DZn_0qjx.mjs")
+		importer: () => import("./api-D3uy3MyJ.mjs")
 	},
 	"298e45714281c48abde137e2b56dd5a9336fcd5d739cb85235ad8f876afe9a48": {
 		functionName: "fetchTwitchFollowing_createServerFn_handler",
-		importer: () => import("./api-DZn_0qjx.mjs")
+		importer: () => import("./api-D3uy3MyJ.mjs")
+	},
+	"49eff4fc659c625b4ff6b2ae76ba10b0db89905b9626afe89893193d4d2e7884": {
+		functionName: "searchRedtubeStars_createServerFn_handler",
+		importer: () => import("./api-D3uy3MyJ.mjs")
 	},
 	"ac1a300259a0cb0e7b027567a01868e6019bb4d175aa2aacdf50dd329b558123": {
 		functionName: "refreshRemotes_createServerFn_handler",
-		importer: () => import("./api-DZn_0qjx.mjs")
+		importer: () => import("./api-D3uy3MyJ.mjs")
+	},
+	"b67bda5afb0e1fb905845cee088441086d5bba37e933c8edb45ef4d6c5182360": {
+		functionName: "searchAdultVideos_createServerFn_handler",
+		importer: () => import("./api-D3uy3MyJ.mjs")
+	},
+	"c94242a255b5578005d0637a8c72789ab5d9dbe21861256590a340456a1ea9f6": {
+		functionName: "fetchAdultComments_createServerFn_handler",
+		importer: () => import("./api-D3uy3MyJ.mjs")
 	},
 	"d7a9de260cc8839e45abd41f5c96ef881c8fdf9d186bdd087f29f6faeff9bd1d": {
 		functionName: "importChannels_createServerFn_handler",
-		importer: () => import("./api-DZn_0qjx.mjs")
+		importer: () => import("./api-D3uy3MyJ.mjs")
 	}
 };
 async function getServerFnById(id, access) {
@@ -1393,7 +1405,7 @@ var getBaseManifest = getProdBaseManifest;
 var createEarlyHintsForRequest = createEarlyHintsCollector;
 async function loadEntries() {
 	const [routerEntry, startEntry, pluginAdapters] = await Promise.all([
-		import("./router-BJvy28pt.mjs").then((n) => n.t),
+		import("./router-Ch5wopyM.mjs").then((n) => n.t),
 		import("./start-5Z2QO8AU.mjs"),
 		import("./empty-plugin-adapters-D9UWiqvJ.mjs")
 	]);

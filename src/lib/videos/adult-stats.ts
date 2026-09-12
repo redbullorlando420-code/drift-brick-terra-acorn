@@ -4,13 +4,18 @@
 
 import type { Folder, LibraryVideo } from "./types";
 import { ADULT_SOURCE_FILTERS, adultProviderKind, countAdultBySource } from "./adult-filter";
-import { rankAdultTags, type AdultRankContext } from "./adult-rank";
+import { rankAdultMetaTags, rankAdultTags, type AdultRankContext } from "./adult-rank";
+import { adultTaxonomyLabel, isAdultGenreTag } from "./adult-taxonomy";
+import { ADULT_PULL_PROVIDERS, adultRemoteLabel } from "./adult-sites";
 
 export type AdultStatsSnapshot = {
   at: number;
   titles: number;
   sources: Record<string, number>;
+  providerMix: Array<{ provider: string; label: string; titles: number; share: number; status: "active" | "empty" }>;
+  genres: Array<{ tag: string; label: string; count: number; score: number }>;
   topTags: Array<{ tag: string; count: number; score: number }>;
+  metaTags: Array<{ tag: string; count: number; score: number }>;
   fetishTags: Array<{ tag: string; count: number; score: number }>;
   redditTags: Array<{ tag: string; count: number; score: number }>;
   markedTitles: number;
@@ -24,17 +29,30 @@ export function buildAdultStatsSnapshot(
   ctx: Omit<AdultRankContext, "tags">,
 ): AdultStatsSnapshot {
   const adultIds = new Set(folders.filter((folder) => folder.adult).map((folder) => folder.id));
-  const adultVideos = videos.filter(
+  const matchedAdults = videos.filter(
     (video) => adultIds.has(video.folderId) || Boolean(adultProviderKind(video)),
   );
+  const adultVideos = [...new Map(matchedAdults.map((video) => [video.id, video])).values()];
   const rankCtx: AdultRankContext = { ...ctx, tags };
   const ranked = rankAdultTags(adultVideos, rankCtx, 120);
+  const metaRanked = rankAdultMetaTags(adultVideos, rankCtx, 120);
+  const sources = countAdultBySource(adultVideos);
+  const providerMix = ADULT_PULL_PROVIDERS.map((provider) => ({
+    provider,
+    label: adultRemoteLabel(provider),
+    titles: sources[provider] ?? 0,
+    share: adultVideos.length ? (sources[provider] ?? 0) / adultVideos.length : 0,
+    status: (sources[provider] ?? 0) ? "active" as const : "empty" as const,
+  })).sort((a, b) => b.titles - a.titles || a.label.localeCompare(b.label));
   return {
     at: Date.now(),
     titles: adultVideos.length,
-    sources: countAdultBySource(adultVideos),
+    sources,
+    providerMix,
+    genres: ranked.filter((row) => isAdultGenreTag(row.tag)).slice(0, 40).map((row) => ({ ...row, label: adultTaxonomyLabel(row.tag) })),
     topTags: ranked.slice(0, 60),
-    fetishTags: ranked.filter((row) => row.tag.startsWith("fetish-") || !row.tag.startsWith("source-")).slice(0, 40),
+    metaTags: metaRanked.slice(0, 60),
+    fetishTags: ranked.filter((row) => row.tag.startsWith("fetish-")).slice(0, 40),
     redditTags: ranked.filter((row) => row.tag.includes("reddit") || row.tag.startsWith("sub-")).slice(0, 40),
     markedTitles: adultVideos.filter((video) => (ctx.cameCounts[video.id] ?? 0) > 0).length,
     totalMarks: adultVideos.reduce((sum, video) => sum + (ctx.cameCounts[video.id] ?? 0), 0),
@@ -52,7 +70,10 @@ export function adultStatsToCsv(snapshot: AdultStatsSnapshot): string {
   for (const [key, count] of Object.entries(snapshot.sources)) {
     rows.push(["source", key, count, ""]);
   }
+  for (const row of snapshot.providerMix) rows.push(["provider_mix", `${row.provider}:${row.status}:${Math.round(row.share * 100)}%`, row.titles, ""]);
+  for (const row of snapshot.genres) rows.push(["genre", row.tag, row.count, row.score.toFixed(2)]);
   for (const row of snapshot.topTags) rows.push(["tag", row.tag, row.count, row.score.toFixed(2)]);
+  for (const row of snapshot.metaTags) rows.push(["meta_tag", row.tag, row.count, row.score.toFixed(2)]);
   for (const row of snapshot.redditTags) rows.push(["reddit_tag", row.tag, row.count, row.score.toFixed(2)]);
   return rows.map((row) => row.map(quote).join(",")).join("\n");
 }

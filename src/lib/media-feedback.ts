@@ -1,6 +1,7 @@
 import { recordRatingForStreak } from "./rating-streaks";
 
-type Feedback = { ratings: Record<string, number>; notes: Record<string, string>; creatorRatings: Record<string, number>; creatorLikes: Record<string, true>; tagLikes: Record<string, true> };
+export type RatingLedgerEntry = { rating: number; updatedAt: number };
+type Feedback = { ratings: Record<string, number>; ratingHistory: Record<string, RatingLedgerEntry>; notes: Record<string, string>; creatorRatings: Record<string, number>; creatorLikes: Record<string, true>; tagLikes: Record<string, true> };
 const KEY = "reelcase.media-feedback.v1";
 let cached: Feedback | null = null;
 let changeTimer: number | undefined;
@@ -16,8 +17,8 @@ function read(): Feedback {
   if (cached) return cached;
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) ?? "{}") as Partial<Feedback>;
-    cached = { ratings: saved.ratings ?? {}, notes: saved.notes ?? {}, creatorRatings: saved.creatorRatings ?? {}, creatorLikes: saved.creatorLikes ?? {}, tagLikes: saved.tagLikes ?? {} };
-  } catch { cached = { ratings: {}, notes: {}, creatorRatings: {}, creatorLikes: {}, tagLikes: {} }; }
+    cached = { ratings: saved.ratings ?? {}, ratingHistory: saved.ratingHistory ?? {}, notes: saved.notes ?? {}, creatorRatings: saved.creatorRatings ?? {}, creatorLikes: saved.creatorLikes ?? {}, tagLikes: saved.tagLikes ?? {} };
+  } catch { cached = { ratings: {}, ratingHistory: {}, notes: {}, creatorRatings: {}, creatorLikes: {}, tagLikes: {} }; }
   return cached;
 }
 function persist() {
@@ -75,12 +76,17 @@ export function setRating(id: string, rating: number) {
   const started = typeof performance !== "undefined" ? performance.now() : Date.now();
   const next = read();
   next.ratings[id] = Math.max(0, Math.min(5, Math.round(rating)));
+  // Keep a durable timestamped ledger in the system feedback payload. This
+  // survives remote catalog refreshes, so YouTube, Twitch, and Adult ratings
+  // remain attributable even when a provider card is later replaced.
+  next.ratingHistory[id] = { rating: next.ratings[id], updatedAt: Date.now() };
   legacyRatings.set(id, next.ratings[id]);
   recordRatingForStreak(id, next.ratings[id]);
   write(next);
   notifyChange();
   lastRatingQueueMs = Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - started);
 }
+export function getRatingLedger(): Record<string, RatingLedgerEntry> { return { ...read().ratingHistory }; }
 /** Local timing only. This never transmits library feedback or usage data. */
 export function getFeedbackDiagnostics() { return { lastRatingQueueMs, lastPersistMs, pendingWrites }; }
 function creatorKey(name: string) { return name.trim().toLowerCase(); }
@@ -92,6 +98,6 @@ function tagKey(tag: string) { return tag.trim().toLowerCase(); }
 export function tagIsLiked(tag: string): boolean { return Boolean(read().tagLikes[tagKey(tag)]); }
 export function toggleTagLike(tag: string) { const next = read(); const key = tagKey(tag); if (next.tagLikes[key]) delete next.tagLikes[key]; else next.tagLikes[key] = true; write(next); notifyChange(); }
 /** Versioned rating/note payload used by the full library backup. */
-export function exportFeedback() { return { version: 3, ...read() }; }
+export function exportFeedback() { return { version: 4, ...read() }; }
 export function getNote(id: string): string { const value = read().notes[id]; if (typeof value === "string") return value; try { return localStorage.getItem(`reelcase.note.${id}`) ?? ""; } catch { return ""; } }
 export function setNote(id: string, note: string) { const next = read(); if (note.trim()) next.notes[id] = note.trim(); else delete next.notes[id]; write(next); }

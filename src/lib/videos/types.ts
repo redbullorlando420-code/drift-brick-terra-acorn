@@ -224,6 +224,8 @@ export type HistoryEntry = {
   /** Real card title captured at play time so recovery rows stay named. */
   title?: string;
   poster?: string;
+  /** Rating captured at activity time; the current value remains in the durable feedback ledger. */
+  rating?: number;
 };
 
 export type ViewMode = "grid" | "list";

@@ -1,10 +1,10 @@
 import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
-import { C as RefreshCw, D as Pause, G as Images, H as Lightbulb, I as Maximize2, N as MessageCircle, O as PackageSearch, S as Rocket, T as Play, W as Laptop, Z as Gamepad2, _ as Shuffle, b as Settings2, ct as Clapperboard, dt as ChevronLeft, f as Star, ht as Bot, it as Download, j as MonitorPlay, k as Music2, m as Smartphone, mt as Box, n as X, ot as Copy, pt as ChartColumn, q as ImagePlus, r as Wifi, rt as ExternalLink, s as Users, ut as ChevronRight, v as ShoppingBag, w as Radio, x as Search, y as ShieldCheck } from "../_libs/lucide-react.mjs";
-import { C as topicsForVideo, S as topicEvidence, T as measureInteraction, _ as resumeForVideo, a as Input, b as canonicalTopic, c as getRenderBudgetSnapshot, d as getRating, f as tagIsLiked, g as Button, h as useThumbs, i as getFirstShelfTrace, l as exportFeedback, m as getThumbDiagnostics, n as getNetworkDeviceId, o as openTopic, p as toggleTagLike, r as listNetworkDevices, s as VideoCard, u as getFeedbackDiagnostics, v as useLibrary, w as getInteractionBudgetSnapshot, x as isTopicTag, y as useSourceAssets } from "./routes-Ry6ahRqg.mjs";
+import { C as RefreshCw, D as Pause, G as Images, H as Lightbulb, I as Maximize2, N as MessageCircle, O as PackageSearch, S as Rocket, T as Play, W as Laptop, Z as Gamepad2, _ as Shuffle, _t as Box, at as ExternalLink, b as Settings2, ct as Copy, f as Star, ft as ChevronRight, gt as ChartColumn, j as MonitorPlay, k as Music2, m as Smartphone, n as X, ot as Download, pt as ChevronLeft, q as ImagePlus, r as Wifi, s as Users, ut as Clapperboard, v as ShoppingBag, vt as Bot, w as Radio, x as Search, y as ShieldCheck } from "../_libs/lucide-react.mjs";
+import { C as exportFeedback, D as toggleTagLike, E as tagIsLiked, O as getInteractionBudgetSnapshot, S as topicsForVideo, T as getRating, _ as useLibrary, a as buildAdultStatsSnapshot, b as isTopicTag, c as countAdultBySource, d as VideoCard, f as getRenderBudgetSnapshot, g as resumeForVideo, h as Button, i as getFirstShelfTrace, k as measureInteraction, l as Input, m as useThumbs, n as getNetworkDeviceId, o as exportAdultStats, p as getThumbDiagnostics, r as listNetworkDevices, s as rankAdultTags, u as openTopic, v as useSourceAssets, w as getFeedbackDiagnostics, x as topicEvidence, y as canonicalTopic } from "./routes-DrdK1N9K.mjs";
 import { a as ResponsiveContainer, i as Bar, n as YAxis, o as Tooltip, r as XAxis, t as BarChart } from "../_libs/recharts+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/hub-sections-D4nTPE5m.js
+//#region node_modules/.nitro/vite/services/ssr/assets/hub-sections-C_SD3X6F.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function TopicLinks({ explorer = false }) {
@@ -990,12 +990,13 @@ async function classifierFor(model, onStatus) {
 * browser (WebGPU when available, otherwise WASM); photo bytes stay local.
 * The model download is cached by the browser for later passes.
 */
-async function classifyImagesLocally(urls, onProgress, model = "semanticPro", onModelStatus) {
+async function classifyImagesLocally(urls, onProgress, model = "semanticPlus", onModelStatus) {
 	const classifier = await classifierFor(model, onModelStatus);
 	const results = Array.from({ length: urls.length }, () => []);
 	let cursor = 0;
 	let completed = 0;
-	const workers = Array.from({ length: Math.min(1, urls.length) }, async () => {
+	const workerCount = device() === "webgpu" ? 2 : 1;
+	const workers = Array.from({ length: Math.min(workerCount, urls.length) }, async () => {
 		while (true) {
 			const index = cursor++;
 			if (index >= urls.length) return;
@@ -1026,6 +1027,7 @@ async function benchmarkVisionModelsLocally(urls, onProgress, onModelStatus) {
 	return {
 		sampleSize: urls.length,
 		semantic: await run("semantic"),
+		semanticPlus: await run("semanticPlus"),
 		semanticPro: await run("semanticPro")
 	};
 }
@@ -1080,14 +1082,7 @@ function XTimeline({ account, topic }) {
 		let cancelled = false;
 		setStatus("Loading public posts…");
 		element.replaceChildren();
-		const link = document.createElement("a");
-		link.className = "twitter-timeline";
-		link.href = topic ? `https://twitter.com/search?q=${encodeURIComponent(topic.query)}&src=typed_query&f=live` : `https://twitter.com/${account}`;
-		link.dataset.height = "640";
-		link.dataset.theme = document.documentElement.dataset.theme === "day" ? "light" : "dark";
-		link.dataset.dnt = "true";
-		link.textContent = topic ? `Public posts about ${topic.label}` : `Public posts by @${account}`;
-		element.append(link);
+		const timelineUrl = topic ? `https://twitter.com/search?q=${encodeURIComponent(topic.query)}&src=typed_query&f=live` : `https://twitter.com/${account}`;
 		const timeout = window.setTimeout(() => {
 			if (!cancelled) setStatus("X hasn’t supplied a timeline. Open the profile to view posts, or retry.");
 		}, 15e3);
@@ -1107,8 +1102,33 @@ function XTimeline({ account, topic }) {
 			childList: true,
 			subtree: true
 		});
-		loadWidgets().then((api) => {
-			if (!cancelled) return api.widgets.load(element);
+		loadWidgets().then(async (api) => {
+			if (cancelled) return;
+			const options = {
+				height: 640,
+				theme: document.documentElement.dataset.theme === "day" ? "light" : "dark",
+				dnt: true,
+				chrome: "noheader nofooter"
+			};
+			if (api.widgets.createTimeline) {
+				await api.widgets.createTimeline(topic ? {
+					sourceType: "url",
+					url: timelineUrl
+				} : {
+					sourceType: "profile",
+					screenName: account ?? ""
+				}, element, options);
+				return;
+			}
+			const link = document.createElement("a");
+			link.className = "twitter-timeline";
+			link.href = timelineUrl;
+			link.dataset.height = "640";
+			link.dataset.theme = options.theme;
+			link.dataset.dnt = "true";
+			link.textContent = topic ? `Public posts about ${topic.label}` : `Public posts by @${account}`;
+			element.append(link);
+			return api.widgets.load(element);
 		}).catch(() => {
 			if (!cancelled) {
 				clearTimeout(timeout);
@@ -1195,6 +1215,41 @@ function XTimeline({ account, topic }) {
 		]
 	});
 }
+/** Curated public X handles for one-time Adults / Social seeding (18+). */
+var X_ADULT_SEED_HANDLES = [
+	"ThePornDude",
+	"Brazzers",
+	"Pornhub",
+	"MiaMalkova",
+	"soogsx",
+	"Amouranth",
+	"KittyxKum",
+	"RileyReid",
+	"EsperanzaGomez",
+	"SophieRainx",
+	"AngelaWhite",
+	"puppiwi",
+	"belle_delphine",
+	"Abella_Danger",
+	"Vladislava_",
+	"RealityPornKing",
+	"EmarrB",
+	"BaybeKimchi",
+	"BrittanyaRazavi",
+	"BishoujoMom",
+	"TheLisaAnn",
+	"BambiDoe",
+	"miakhalifa",
+	"TeannaTrump",
+	"AndiiPoops",
+	"GiselleMontesX",
+	"Playboy",
+	"PurpleBitch1",
+	"SashaGrey",
+	"JennaLynnMeowri",
+	"AlinaRoseASMR",
+	"WaifuMia"
+].map((h) => h.replace(/^@/, "").toLowerCase()).filter((h) => /^[a-z0-9_]{1,15}$/.test(h));
 var HUB_KEY = "reelcase.hub.v1";
 function gameKind(item) {
 	if (item.launchUrl) return "web-ready";
@@ -1404,7 +1459,9 @@ function StatsSection() {
 	const folders = useLibrary((s) => s.folders);
 	const tags = useLibrary((s) => s.tags);
 	const favorites = useLibrary((s) => s.favorites);
+	const likes = useLibrary((s) => s.likes);
 	const history = useLibrary((s) => s.history);
+	const cameCounts = useLibrary((s) => s.cameCounts);
 	const unavailable = useLibrary((s) => s.unavailable);
 	const progress = useLibrary((s) => s.progress);
 	const resumeProgress = useLibrary((s) => s.resumeProgress);
@@ -1459,11 +1516,21 @@ function StatsSection() {
 			}, video)?.t) resumedTitles += 1;
 			totalViews += viewCounts[video.id] ?? 0;
 			const videoTags = tags[video.id] ?? [];
-			const usefulTopics = new Set(videoTags.map(canonicalTopic).filter((tag) => Boolean(tag)));
+			const adultRemote = Boolean(video.remote && [
+				"eporner",
+				"redtube",
+				"chaturbate",
+				"camsoda",
+				"myfreecams",
+				"reddit",
+				"booru",
+				"redgifs"
+			].includes(video.remote.kind));
+			const usefulTopics = adultRemote ? /* @__PURE__ */ new Set() : new Set(videoTags.map(canonicalTopic).filter((tag) => Boolean(tag)));
 			if (videoTags.length) metadataTaggedTitles += 1;
 			if (Boolean(video.remote?.channelName?.trim())) creatorTaggedTitles += 1;
 			if (video.description?.trim()) descriptionTaggedTitles += 1;
-			if (!videoTags.some(isTopicTag)) untaggedTitles += 1;
+			if (!adultRemote && !videoTags.some(isTopicTag)) untaggedTitles += 1;
 			for (const topic of usefulTopics) {
 				byTag.set(topic, (byTag.get(topic) ?? 0) + 1);
 				const rating = topicRatings.get(topic) ?? {
@@ -1544,6 +1611,55 @@ function StatsSection() {
 			bytes: 0
 		}
 	})).sort((a, b) => b.bytes - a.bytes || b.videos - a.videos || a.folder.name.localeCompare(b.folder.name)), [folders, summary.byFolder]);
+	const adultTagStats = (0, import_react.useMemo)(() => {
+		const adultFolderIds = new Set(folders.filter((folder) => folder.adult).map((folder) => folder.id));
+		const adultVideos = videos.filter((video) => adultFolderIds.has(video.folderId) || Boolean(video.remote && [
+			"eporner",
+			"redtube",
+			"chaturbate",
+			"camsoda",
+			"myfreecams",
+			"reddit",
+			"booru",
+			"redgifs"
+		].includes(video.remote.kind)));
+		const ranked = rankAdultTags(adultVideos, {
+			tags,
+			favorites,
+			likes,
+			cameCounts,
+			viewCounts,
+			ratingOf: getRating
+		}, 80);
+		const fetish = ranked.filter((row) => !row.tag.startsWith("source-") && !row.tag.startsWith("provider-") && !row.tag.startsWith("format-"));
+		const sources = ranked.filter((row) => row.tag.startsWith("source-") || row.tag.startsWith("provider-") || row.tag.startsWith("sub-"));
+		const bySource = countAdultBySource(adultVideos);
+		const snapshot = buildAdultStatsSnapshot(videos, folders, tags, {
+			favorites,
+			likes,
+			cameCounts,
+			viewCounts,
+			ratingOf: getRating
+		});
+		return {
+			adultTitles: adultVideos.length,
+			sourceMix: Object.entries(bySource).filter(([, count]) => count > 0).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
+			topFetish: fetish.slice(0, 24).map((row) => [row.tag, row.count]),
+			topSources: sources.slice(0, 16).map((row) => [row.tag, row.count]),
+			rankedPreview: ranked.slice(0, 12),
+			providerMix: snapshot.providerMix,
+			genres: snapshot.genres.slice(0, 12),
+			metaTags: snapshot.metaTags.slice(0, 12)
+		};
+	}, [
+		cameCounts,
+		favorites,
+		folders,
+		likes,
+		tags,
+		videos,
+		viewCounts
+	]);
 	const favoriteHealth = (0, import_react.useMemo)(() => {
 		const videoIds = new Set(videos.map((video) => video.id));
 		const saved = Object.keys(favorites);
@@ -1666,6 +1782,218 @@ function StatsSection() {
 		title: "Know what your library needs next.",
 		copy: "These local-only counts help identify coverage gaps, oversized source folders, and the tags that are driving discovery.",
 		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				id: "adult-stats",
+				className: "mt-2 scroll-mt-24 rounded-xl border border-accent/35 bg-elevated p-5 shadow-border",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "flex flex-wrap items-start justify-between gap-3",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+								children: "Adult division"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+								className: "mt-2 font-display text-3xl text-fg",
+								children: "Adult tags, sources & export"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-1 max-w-3xl text-sm text-muted",
+								children: "Pinned at the top of Stats so Adult coverage is obvious. Counts stay on this device; pull the Adults catalog if this panel is empty."
+							})
+						] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "flex flex-wrap gap-2",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+									size: "sm",
+									variant: "secondary",
+									onClick: () => exportAdultStats(buildAdultStatsSnapshot(videos, folders, tags, {
+										favorites,
+										likes,
+										cameCounts,
+										viewCounts,
+										ratingOf: getRating
+									}), "csv"),
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Download, { className: "size-4" }), "Adult CSV"]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+									size: "sm",
+									variant: "secondary",
+									onClick: () => exportAdultStats(buildAdultStatsSnapshot(videos, folders, tags, {
+										favorites,
+										likes,
+										cameCounts,
+										viewCounts,
+										ratingOf: getRating
+									}), "json"),
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Download, { className: "size-4" }), "Adult JSON"]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+									size: "sm",
+									onClick: () => useLibrary.getState().setSource("adults"),
+									children: "Open Adults"
+								})
+							]
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rounded-md bg-bg/45 p-3",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-xs text-muted",
+									children: "Adult titles"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-1 text-lg font-medium text-fg",
+									children: adultTagStats.adultTitles.toLocaleString()
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rounded-md bg-bg/45 p-3",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-xs text-muted",
+									children: "Ranked tags"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-1 text-lg font-medium text-fg",
+									children: adultTagStats.rankedPreview.length.toLocaleString()
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rounded-md bg-bg/45 p-3",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-xs text-muted",
+									children: "Marked (I cummed)"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-1 text-lg font-medium text-fg",
+									children: Object.values(cameCounts).filter((n) => n > 0).length.toLocaleString()
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rounded-md bg-bg/45 p-3",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-xs text-muted",
+									children: "Total marks"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-1 text-lg font-medium text-fg",
+									children: Object.values(cameCounts).reduce((sum, n) => sum + n, 0).toLocaleString()
+								})]
+							})
+						]
+					}),
+					adultTagStats.providerMix.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+								children: "Adult provider mix"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-1 text-xs text-muted",
+								children: "Every configured Adult source is shown. Empty means the current catalog has no returned titles yet."
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "mt-2 flex flex-wrap gap-2",
+								children: adultTagStats.providerMix.map((source) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+									className: `rounded-full px-3 py-1 text-xs font-medium ${source.status === "active" ? "bg-accent/15 text-accent" : "bg-bg/45 text-muted"}`,
+									children: [
+										source.label,
+										" · ",
+										source.titles.toLocaleString(),
+										" · ",
+										Math.round(source.share * 100),
+										"%"
+									]
+								}, source.provider))
+							})
+						]
+					}),
+					(adultTagStats.genres.length > 0 || adultTagStats.metaTags.length > 0) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 grid gap-3 lg:grid-cols-2",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+							children: "Mapped genres"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "mt-2 flex flex-wrap gap-2",
+							children: adultTagStats.genres.map((row) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+								className: "rounded-full bg-bg/45 px-3 py-1 text-xs text-fg",
+								children: [
+									row.label,
+									" · ",
+									row.count
+								]
+							}, row.tag))
+						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+							children: "Recommendation metatags"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "mt-2 flex flex-wrap gap-2",
+							children: adultTagStats.metaTags.map((row) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+								className: "rounded-full bg-bg/45 px-3 py-1 text-xs text-fg",
+								children: [
+									row.tag.replace(/^meta-/, "").replace(/-/g, " "),
+									" · ",
+									row.count
+								]
+							}, row.tag))
+						})] })]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+							children: "Your adult tags"
+						}), adultTagStats.topFetish.length || adultTagStats.topSources.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "mt-2 flex flex-wrap gap-2",
+							children: adultTagStats.topFetish.map(([tag, count]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+								className: "rounded-full bg-bg/45 px-3 py-1 text-xs text-fg",
+								children: [
+									"#",
+									tag,
+									" · ",
+									count
+								]
+							}, tag))
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "mt-2 flex flex-wrap gap-2",
+							children: adultTagStats.topSources.map(([tag, count]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+								className: "rounded-full bg-bg/45 px-3 py-1 text-xs text-muted",
+								children: [
+									"#",
+									tag,
+									" · ",
+									count
+								]
+							}, tag))
+						})] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "mt-2 text-sm text-muted",
+							children: "No adult tags yet. Open Adults and pull the catalog — source/fetish tags appear here automatically."
+						})]
+					}),
+					Object.values(cameCounts).some((n) => n > 0) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 space-y-2",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+							children: "I cummed to it"
+						}), Object.entries(cameCounts).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([id, n]) => {
+							const video = videos.find((item) => item.id === id);
+							return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+								type: "button",
+								className: "block w-full rounded-sm bg-bg/45 px-3 py-2 text-left text-sm text-fg",
+								onClick: () => video && useLibrary.getState().openPreview(video.id),
+								children: [video?.name ?? id, /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+									className: "ml-2 text-xs text-accent",
+									children: [
+										"· ",
+										n,
+										"×"
+									]
+								})]
+							}, id);
+						})]
+					})
+				]
+			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TopicLinks, {}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "mt-5 flex flex-wrap gap-2",
@@ -1901,46 +2229,61 @@ function StatsSection() {
 				className: "mt-5 grid gap-5 xl:grid-cols-2",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "h-72 rounded-lg bg-elevated p-5 shadow-border",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
-						className: "font-display text-2xl text-fg",
-						children: "Provider mix"
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ResponsiveContainer, {
-						width: "100%",
-						height: "85%",
-						children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(BarChart, {
-							data: [
-								{
-									name: "Local",
-									titles: summary.localTitles
-								},
-								{
-									name: "YouTube",
-									titles: summary.youtubeTitles
-								},
-								{
-									name: "Twitch",
-									titles: summary.twitchTitles
-								}
-							],
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(XAxis, {
-									dataKey: "name",
-									stroke: "currentColor",
-									fontSize: 12
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(YAxis, {
-									stroke: "currentColor",
-									fontSize: 12
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tooltip, {}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bar, {
-									dataKey: "titles",
-									fill: "var(--color-accent)",
-									radius: 4
-								})
-							]
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+							className: "font-display text-2xl text-fg",
+							children: "Provider mix"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "mt-1 text-xs text-muted",
+							children: "Includes local, public video providers, and the active Adult catalog sources."
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ResponsiveContainer, {
+							width: "100%",
+							height: "80%",
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(BarChart, {
+								data: [
+									{
+										name: "Local",
+										titles: summary.localTitles
+									},
+									{
+										name: "YouTube",
+										titles: summary.youtubeTitles
+									},
+									{
+										name: "Twitch",
+										titles: summary.twitchTitles
+									},
+									...adultTagStats.providerMix.filter((row) => row.titles > 0).map((row) => ({
+										name: row.label,
+										titles: row.titles
+									}))
+								],
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(XAxis, {
+										dataKey: "name",
+										stroke: "currentColor",
+										fontSize: 10,
+										interval: 0,
+										angle: -24,
+										textAnchor: "end",
+										height: 50
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(YAxis, {
+										stroke: "currentColor",
+										fontSize: 12
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tooltip, {}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bar, {
+										dataKey: "titles",
+										fill: "var(--color-accent)",
+										radius: 4
+									})
+								]
+							})
 						})
-					})]
+					]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "h-72 rounded-lg bg-elevated p-5 shadow-border",
 					children: [
@@ -2556,6 +2899,8 @@ function SettingsSection() {
 	const [preferenceGroup, setPreferenceGroup] = (0, import_react.useState)("Playback");
 	const [zoom, setZoom] = (0, import_react.useState)(100);
 	const [railLimit, setRailLimit] = (0, import_react.useState)(8);
+	const [adultRailLimit, setAdultRailLimit] = (0, import_react.useState)(48);
+	const [adultPullLimit, setAdultPullLimit] = (0, import_react.useState)(1200);
 	const [gridPageSize, setGridPageSize] = (0, import_react.useState)(48);
 	const [thumbnailWorkers, setThumbnailWorkers] = (0, import_react.useState)(0);
 	const [textFirstArtwork, setTextFirstArtwork] = (0, import_react.useState)(false);
@@ -2598,6 +2943,22 @@ function SettingsSection() {
 		} catch {
 			setPreferences({});
 		}
+	}, []);
+	(0, import_react.useEffect)(() => {
+		const rail = Number(localStorage.getItem("reelcase.adult-rail-limit") ?? "48");
+		const pull = Number(localStorage.getItem("reelcase.adult-pull-limit") ?? "1200");
+		setAdultRailLimit([
+			16,
+			24,
+			48,
+			72
+		].includes(rail) ? rail : 48);
+		setAdultPullLimit([
+			240,
+			480,
+			800,
+			1200
+		].includes(pull) ? pull : 1200);
 	}, []);
 	(0, import_react.useEffect)(() => {
 		const saved = Number(localStorage.getItem("reelcase.ui-zoom") ?? "100");
@@ -3382,6 +3743,67 @@ function SettingsSection() {
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
 									className: "mt-3 font-display text-2xl text-fg",
+									children: "Adult performance"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-2 text-sm leading-6 text-muted",
+									children: "Tune Adult rails and one catalog request separately. Smaller choices reduce decoding and keep filtering responsive."
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-4 text-xs text-muted",
+									children: "Cards per Adult rail"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "mt-2 flex flex-wrap gap-2",
+									children: [
+										16,
+										24,
+										48,
+										72
+									].map((value) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+										size: "sm",
+										variant: adultRailLimit === value ? "default" : "secondary",
+										onClick: () => {
+											setAdultRailLimit(value);
+											localStorage.setItem("reelcase.adult-rail-limit", String(value));
+											window.dispatchEvent(new Event("reelcase:adult-render-settings"));
+										},
+										children: [value, " cards"]
+									}, value))
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-4 text-xs text-muted",
+									children: "Maximum titles per Adult pull"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "mt-2 flex flex-wrap gap-2",
+									children: [
+										240,
+										480,
+										800,
+										1200
+									].map((value) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										size: "sm",
+										variant: adultPullLimit === value ? "default" : "secondary",
+										onClick: () => {
+											setAdultPullLimit(value);
+											localStorage.setItem("reelcase.adult-pull-limit", String(value));
+											window.dispatchEvent(new Event("reelcase:adult-render-settings"));
+										},
+										children: value
+									}, value))
+								})
+							]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "rounded-lg bg-elevated p-5 shadow-border",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									className: "text-accent",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PackageSearch, { className: "size-5" })
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+									className: "mt-3 font-display text-2xl text-fg",
 									children: "Grid memory budget"
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
@@ -4107,12 +4529,12 @@ function PhotosSection() {
 	const [visionBusy, setVisionBusy] = (0, import_react.useState)(false);
 	const [visionProgress, setVisionProgress] = (0, import_react.useState)("");
 	const [visionReport, setVisionReport] = (0, import_react.useState)([]);
-	const [visionModel, setVisionModel] = (0, import_react.useState)("semanticPro");
+	const [visionModel, setVisionModel] = (0, import_react.useState)("semanticPlus");
 	const [visionReviewOpen, setVisionReviewOpen] = (0, import_react.useState)(true);
 	const [visionBenchmark, setVisionBenchmark] = (0, import_react.useState)(() => {
 		try {
 			const saved = JSON.parse(localStorage.getItem("reelcase.photo-vision-benchmark.v1") ?? "null");
-			return saved?.semantic && saved.semanticPro ? saved : null;
+			return saved?.semantic && saved.semanticPlus && saved.semanticPro ? saved : null;
 		} catch {
 			return null;
 		}
@@ -4598,21 +5020,21 @@ function PhotosSection() {
 		}));
 		setHelperNote(changed ? `Added local filename-based auto tags to ${changed} photo${changed === 1 ? "" : "s"}. You can edit any tag on its card.` : "Everything already has the available local auto tags.");
 	};
-	const applyVisionTags = (batch, labels) => {
+	const applyVisionTags = (batch, labels, model) => {
 		const byId = new Map(batch.map((photo, index) => [photo.id, labels[index] ?? []]));
 		setPhotos((items) => items.map((photo) => {
 			const report = byId.get(photo.id);
 			if (!report) return photo;
 			const additions = [
 				"auto-tagged",
-				`auto-tag-${visionModel}-v2`,
+				`auto-tag-${model}-v2`,
 				...report.map((item) => `vision-${item.label}`)
 			];
 			return {
 				...photo,
 				tags: [.../* @__PURE__ */ new Set([...photo.tags, ...additions])],
 				vision: report,
-				visionModel
+				visionModel: model
 			};
 		}));
 		setVisionReport((current) => [...batch.map((photo, index) => ({
@@ -4637,7 +5059,7 @@ function PhotosSection() {
 					const transfer = status.total ? ` · ${Math.round((status.loaded ?? 0) / status.total * 100)}%` : "";
 					setVisionProgress(`${VISION_MODELS[visionModel].name} · ${status.status ?? status.file ?? "loading"}${transfer} · ${start}/${candidates.length} complete`);
 				});
-				applyVisionTags(batch, labels);
+				applyVisionTags(batch, labels, visionModel);
 				await new Promise((resolve) => window.setTimeout(resolve, 0));
 			}
 			setHelperNote(`${VISION_MODELS[visionModel].name} reviewed ${candidates.length.toLocaleString()} photo${candidates.length === 1 ? "" : "s"}${allPhotos ? " in the full queued library" : ""}. Labels and confidence scores are ready for review.`);
@@ -4658,10 +5080,9 @@ function PhotosSection() {
 				const transfer = status.total ? ` · ${Math.round((status.loaded ?? 0) / status.total * 100)}%` : "";
 				setVisionProgress(`${VISION_MODELS[visionModel].name} · ${status.status ?? status.file ?? "loading"}${transfer}`);
 			});
-			applyVisionTags([photo], [labels ?? []]);
+			applyVisionTags([photo], [labels ?? []], visionModel);
 			setVisionReviewOpen(true);
-			setSelectedTag("auto-tagged");
-			setHelperNote(`${VISION_MODELS[visionModel].name} reviewed ${photo.name}. The photo is now in the Auto-tagged review filter with its new visible tags.`);
+			setHelperNote(`${VISION_MODELS[visionModel].name} reviewed ${photo.name}. Its tags updated in place and are immediately searchable.`);
 		} catch (error) {
 			setHelperNote(`${VISION_MODELS[visionModel].name} could not tag ${photo.name}: ${error instanceof Error ? error.message : "unknown error"}.`);
 		} finally {
@@ -4689,7 +5110,8 @@ function PhotosSection() {
 				name: photo.name,
 				url: photo.url,
 				clip: benchmark.semantic.labels[index] ?? [],
-				siglip: benchmark.semanticPro.labels[index] ?? []
+				siglipBase: benchmark.semanticPlus.labels[index] ?? [],
+				siglipLarge: benchmark.semanticPro.labels[index] ?? []
 			})));
 			try {
 				localStorage.setItem("reelcase.photo-vision-benchmark.v1", JSON.stringify(benchmark));
@@ -5080,7 +5502,7 @@ function PhotosSection() {
 										visionProcessed.toLocaleString(),
 										" processed · ",
 										visionPending.toLocaleString(),
-										" waiting · SigLIP large+ is the current quality-first default"
+										" waiting · SigLIP semantic+ is the balanced fast default"
 									]
 								})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 									className: "flex flex-wrap gap-2",
@@ -5117,7 +5539,7 @@ function PhotosSection() {
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 								className: "mt-2 text-xs leading-5 text-muted",
-								children: [VISION_MODELS[visionModel].purpose, ". Labels stay on this device and are review-only. SigLIP large+ is selected for the most detailed browser-side photo tags; smaller SigLIP and CLIP remain available for comparison."]
+								children: [VISION_MODELS[visionModel].purpose, ". Labels stay on this device and are review-only. Semantic+ balances throughput and detail for batch jobs; CLIP and SigLIP large+ remain available for benchmarked comparison."]
 							}),
 							visionReport.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "mt-3 divide-y divide-border rounded-sm border border-border bg-elevated",
@@ -5224,12 +5646,12 @@ function PhotosSection() {
 											children: "Vision model benchmark"
 										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 											className: "mt-1 max-w-2xl text-xs leading-5 text-muted",
-											children: "Compare the pinned CLIP baseline with SigLIP large+ on the same 24 local photos. The first large-model run downloads its optional local model; later runs reuse the browser cache."
+											children: "Compare CLIP, SigLIP semantic+, and SigLIP large+ on the same 24 local photos. The first run downloads optional local models; later runs reuse the browser cache."
 										})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 											size: "sm",
 											disabled: visionBenchmarkBusy || !photos.length,
 											onClick: () => void runVisionBenchmark(),
-											children: visionBenchmarkBusy ? "Comparing…" : "Run local comparison"
+											children: visionBenchmarkBusy ? "Comparing…" : "Run 3-model comparison"
 										})]
 									}),
 									visionBenchmarkBusy && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
@@ -5241,40 +5663,60 @@ function PhotosSection() {
 										children: ["Benchmark stopped · ", visionBenchmarkError]
 									}),
 									visionBenchmark && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "mt-3 grid gap-2 sm:grid-cols-2",
-										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-											className: "rounded-xs bg-bg/50 p-3 text-xs",
-											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-												className: "font-medium text-fg",
-												children: VISION_MODELS.semantic.name
-											}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-												className: "mt-1 text-muted",
-												children: [
-													visionBenchmark.semantic.elapsedMs.toFixed(0),
-													" ms · ",
-													visionBenchmark.semantic.labels.flat().length,
-													" labels · ",
-													visionBenchmark.sampleSize,
-													" photos"
-												]
-											})]
-										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-											className: "rounded-xs bg-bg/50 p-3 text-xs",
-											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-												className: "font-medium text-fg",
-												children: VISION_MODELS.semanticPro.name
-											}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-												className: "mt-1 text-muted",
-												children: [
-													visionBenchmark.semanticPro.elapsedMs.toFixed(0),
-													" ms · ",
-													visionBenchmark.semanticPro.labels.flat().length,
-													" labels · ",
-													visionBenchmark.sampleSize,
-													" photos"
-												]
-											})]
-										})]
+										className: "mt-3 grid gap-2 sm:grid-cols-3",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												className: "rounded-xs bg-bg/50 p-3 text-xs",
+												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+													className: "font-medium text-fg",
+													children: VISION_MODELS.semantic.name
+												}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+													className: "mt-1 text-muted",
+													children: [
+														visionBenchmark.semantic.elapsedMs.toFixed(0),
+														" ms · ",
+														visionBenchmark.semantic.labels.flat().length,
+														" labels · ",
+														visionBenchmark.sampleSize,
+														" photos"
+													]
+												})]
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												className: "rounded-xs bg-bg/50 p-3 text-xs",
+												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+													className: "font-medium text-fg",
+													children: VISION_MODELS.semanticPlus.name
+												}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+													className: "mt-1 text-muted",
+													children: [
+														visionBenchmark.semanticPlus.elapsedMs.toFixed(0),
+														" ms · ",
+														visionBenchmark.semanticPlus.labels.flat().length,
+														" labels · ",
+														visionBenchmark.sampleSize,
+														" photos"
+													]
+												})]
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												className: "rounded-xs bg-bg/50 p-3 text-xs",
+												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+													className: "font-medium text-fg",
+													children: VISION_MODELS.semanticPro.name
+												}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+													className: "mt-1 text-muted",
+													children: [
+														visionBenchmark.semanticPro.elapsedMs.toFixed(0),
+														" ms · ",
+														visionBenchmark.semanticPro.labels.flat().length,
+														" labels · ",
+														visionBenchmark.sampleSize,
+														" photos"
+													]
+												})]
+											})
+										]
 									}),
 									visionBenchmarkPhotos.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 										className: "mt-3",
@@ -5285,7 +5727,7 @@ function PhotosSection() {
 												children: "Photo-by-photo tag review"
 											}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 												className: "text-[11px] text-muted",
-												children: "CLIP and SigLIP large+ results on the same image"
+												children: "CLIP, SigLIP semantic+, and SigLIP large+ results on the same image"
 											})]
 										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 											className: "mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-3",
@@ -5304,41 +5746,62 @@ function PhotosSection() {
 														children: photo.name
 													}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 														className: "mt-2 grid gap-2",
-														children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-															className: "text-[11px] font-medium text-muted",
-															children: "CLIP"
-														}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-															className: "mt-1 flex flex-wrap gap-1",
-															children: photo.clip.length ? photo.clip.slice(0, 4).map((label) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-																className: "rounded-xs bg-elevated px-1.5 py-0.5 text-[11px] text-accent",
-																children: [
-																	label.label,
-																	" · ",
-																	Math.round(label.score * 100),
-																	"%"
-																]
-															}, label.label)) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-																className: "text-[11px] text-subtle",
-																children: "No confident label"
-															})
-														})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-															className: "text-[11px] font-medium text-muted",
-															children: "SigLIP large+"
-														}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-															className: "mt-1 flex flex-wrap gap-1",
-															children: photo.siglip.length ? photo.siglip.slice(0, 4).map((label) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-																className: "rounded-xs bg-elevated px-1.5 py-0.5 text-[11px] text-accent",
-																children: [
-																	label.label,
-																	" · ",
-																	Math.round(label.score * 100),
-																	"%"
-																]
-															}, label.label)) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-																className: "text-[11px] text-subtle",
-																children: "No confident label"
-															})
-														})] })]
+														children: [
+															/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+																className: "text-[11px] font-medium text-muted",
+																children: "CLIP"
+															}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+																className: "mt-1 flex flex-wrap gap-1",
+																children: photo.clip.length ? photo.clip.slice(0, 4).map((label) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+																	className: "rounded-xs bg-elevated px-1.5 py-0.5 text-[11px] text-accent",
+																	children: [
+																		label.label,
+																		" · ",
+																		Math.round(label.score * 100),
+																		"%"
+																	]
+																}, label.label)) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+																	className: "text-[11px] text-subtle",
+																	children: "No confident label"
+																})
+															})] }),
+															/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+																className: "text-[11px] font-medium text-muted",
+																children: "SigLIP semantic+"
+															}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+																className: "mt-1 flex flex-wrap gap-1",
+																children: photo.siglipBase.length ? photo.siglipBase.slice(0, 4).map((label) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+																	className: "rounded-xs bg-elevated px-1.5 py-0.5 text-[11px] text-accent",
+																	children: [
+																		label.label,
+																		" · ",
+																		Math.round(label.score * 100),
+																		"%"
+																	]
+																}, label.label)) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+																	className: "text-[11px] text-subtle",
+																	children: "No confident label"
+																})
+															})] }),
+															/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+																className: "text-[11px] font-medium text-muted",
+																children: "SigLIP large+"
+															}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+																className: "mt-1 flex flex-wrap gap-1",
+																children: photo.siglipLarge.length ? photo.siglipLarge.slice(0, 4).map((label) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+																	className: "rounded-xs bg-elevated px-1.5 py-0.5 text-[11px] text-accent",
+																	children: [
+																		label.label,
+																		" · ",
+																		Math.round(label.score * 100),
+																		"%"
+																	]
+																}, label.label)) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+																	className: "text-[11px] text-subtle",
+																	children: "No confident label"
+																})
+															})] })
+														]
 													})]
 												})]
 											}, photo.id))
@@ -5687,8 +6150,23 @@ function PhotosSection() {
 										onClick: () => void autoTagOnePhoto(focusedPhoto),
 										children: visionBusy ? visionProgress || "Tagging…" : "Run auto tags"
 									}),
-									focusedPhoto.tags.length ? focusedPhoto.tags.map((tag) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+										className: "h-8 min-w-56 flex-1",
+										"aria-label": "Edit photo tags",
+										value: focusedPhoto.tags.join(", "),
+										placeholder: "Add tags, separated by commas",
+										onChange: (event) => {
+											const nextTags = [...new Set(event.target.value.split(",").map((tag) => tag.trim().toLowerCase()).filter(Boolean))];
+											setPhotos((items) => items.map((item) => item.id === focusedPhoto.id ? {
+												...item,
+												tags: nextTags
+											} : item));
+										}
+									}),
+									focusedPhoto.tags.length ? focusedPhoto.tags.map((tag) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+										type: "button",
 										className: "rounded-xs bg-elevated px-2 py-1 text-xs text-muted",
+										onClick: () => setSelectedTag(tag),
 										children: ["#", tag]
 									}, tag)) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 										className: "text-xs text-muted",
@@ -7998,7 +8476,13 @@ function SocialSection() {
 	(0, import_react.useEffect)(() => {
 		try {
 			const raw = JSON.parse(localStorage.getItem("reelcase.x-accounts") ?? "[]");
-			const saved = Array.isArray(raw) ? raw.filter((value) => typeof value === "string" && /^[A-Za-z0-9_]{1,15}$/.test(value)) : [];
+			let saved = Array.isArray(raw) ? raw.filter((value) => typeof value === "string" && /^[A-Za-z0-9_]{1,15}$/.test(value)) : [];
+			const seededFlag = localStorage.getItem("reelcase.x-adult-seeded") === "1";
+			if (!saved.length && !seededFlag) {
+				saved = [...new Set(X_ADULT_SEED_HANDLES)].slice(0, 50);
+				localStorage.setItem("reelcase.x-accounts", JSON.stringify(saved));
+				localStorage.setItem("reelcase.x-adult-seeded", "1");
+			} else if (!seededFlag) localStorage.setItem("reelcase.x-adult-seeded", "1");
 			setAccounts(saved);
 			const last = localStorage.getItem("reelcase.x-active") ?? "";
 			setActive(saved.includes(last) ? last : saved[0] ?? "");

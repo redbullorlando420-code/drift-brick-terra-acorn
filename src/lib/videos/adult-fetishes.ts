@@ -200,6 +200,18 @@ export const ADULT_DEEPEN_FETISH_QUERIES: string[] = uniqueLower([
   'japanese',
 ]);
 
+/**
+ * Rotate append pulls through the complete catalog instead of continually
+ * deepening the featured tags. Each page uses a compact, bounded slice so
+ * discovery stays responsive while successive pulls cover the full taxonomy.
+ */
+export function adultDeepenQueriesForPage(page: number, size = 12): string[] {
+  const catalog = ADULT_CURATED_FETISH_TAGS;
+  if (!catalog.length || size <= 0) return [];
+  const start = ((Math.max(1, page) - 1) * size) % catalog.length;
+  return Array.from({ length: Math.min(size, catalog.length) }, (_, index) => catalog[(start + index) % catalog.length]!);
+}
+
 const FETISH_SEARCH_ALIASES: Record<string, string> = {
   'dp': 'double penetration',
   'roleplay': 'role play',

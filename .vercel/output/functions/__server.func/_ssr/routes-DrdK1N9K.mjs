@@ -1,17 +1,17 @@
 import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { r as Slot, s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
-import { t as LIBRARY_LIMITS } from "./library-limits-LYRl2QVK.mjs";
+import { B as markAdultThumbFailed, C as adultTagRankBoost, D as adultThumbCandidatesForVideo, E as adultTextFetishTags, F as isAdultMetaTaxonomyTag, G as redditTitleTokens, H as mineRedditCommentTags, I as isAdultPullKind, J as warmAdultThumbUrls, L as isAdultThumbBlacklisted, M as findFreshAdultPullFingerprint, N as isAdultGenreTag, P as isAdultImageKind, R as isDecodedAdultThumbLikelyReal, S as adultSourceTag, T as adultTaxonomyTags, V as markAdultThumbGood, W as redditIngestExtras, a as ADULT_FOLDER_BY_PROVIDER, b as adultIngestTags, c as ADULT_PULL_PROVIDERS, i as ADULT_FEATURED_FETISH_TAGS, j as fetishSearchQuery, l as ADULT_SOURCE_OPTIONS, m as LIBRARY_LIMITS, n as ADULT_CURATED_FETISH_TAGS, o as ADULT_FOLDER_IDS, q as rememberAdultPullFingerprint, r as ADULT_EMBED_LINKS, s as ADULT_MILESTONE_LINKS, t as ADULT_CATEGORY_HUB, w as adultTaxonomyLabel, x as adultRemoteLabel, z as isUsableAdultThumb } from "./library-limits-D-UjAuZX.mjs";
 import { n as create, t as useShallow } from "../_libs/zustand.mjs";
 import { n as clsx, t as cva } from "../_libs/class-variance-authority+clsx.mjs";
 import { t as twMerge } from "../_libs/tailwind-merge.mjs";
-import { $ as FolderSearch, A as Monitor, B as List, C as RefreshCw, D as Pause, E as PictureInPicture2, F as Maximize, G as Images, J as History, K as Image, L as Lock, M as Minimize, P as Menu, Q as Folder, R as LockOpen, T as Play, U as LayoutGrid, V as ListPlus, X as Glasses, Y as Heart, Z as Gamepad2, _ as Shuffle, _t as BellOff, a as Volume2, at as Cpu, b as Settings2, c as Upload, ct as Clapperboard, d as Tag, dt as ChevronLeft, et as FolderPlus, f as Star, ft as Check, g as SkipBack, gt as Bell, h as SkipForward, ht as Bot, i as VolumeX, it as Download, j as MonitorPlay, k as Music2, lt as CircleAlert, m as Smartphone, mt as Box, n as X, nt as FileText, o as Video, p as Sparkles, pt as ChartColumn, r as Wifi, rt as ExternalLink, s as Users, st as Clock3, t as Youtube, tt as Film, u as ThumbsUp, ut as ChevronRight, v as ShoppingBag, vt as ArrowLeft, w as Radio, x as Search, z as LoaderCircle } from "../_libs/lucide-react.mjs";
+import { $ as FolderSearch, A as Monitor, B as List, C as RefreshCw, D as Pause, E as PictureInPicture2, F as Maximize, G as Images, J as History, K as Image, L as Lock, M as Minimize, N as MessageCircle, P as Menu, Q as Folder, R as LockOpen, T as Play, U as LayoutGrid, V as ListPlus, X as Glasses, Y as Heart, Z as Gamepad2, _ as Shuffle, _t as Box, a as Volume2, at as ExternalLink, b as Settings2, bt as BellOff, c as Upload, d as Tag, dt as CircleAlert, et as FolderPlus, f as Star, ft as ChevronRight, g as SkipBack, gt as ChartColumn, h as SkipForward, ht as Check, i as VolumeX, it as FileText, j as MonitorPlay, k as Music2, lt as Clock3, m as Smartphone, mt as ChevronDown, n as X, nt as Flag, o as Video, ot as Download, p as Sparkles, pt as ChevronLeft, r as Wifi, rt as Film, s as Users, st as Cpu, t as Youtube, tt as Flame, u as ThumbsUp, ut as Clapperboard, v as ShoppingBag, vt as Bot, w as Radio, x as Search, xt as ArrowLeft, yt as Bell, z as LoaderCircle } from "../_libs/lucide-react.mjs";
 import { n as toast, t as Toaster } from "../_libs/sonner.mjs";
 import { a as DialogPortal, i as DialogOverlay, n as DialogClose, o as DialogTitle, r as DialogContent, t as Dialog } from "../_libs/@radix-ui/react-dialog+[...].mjs";
 import { t as Root } from "../_libs/radix-ui__react-separator.mjs";
 import { a as Trigger, i as Root2, n as Item2, r as Portal2, t as Content2 } from "../_libs/@radix-ui/react-dropdown-menu+[...].mjs";
 import { i as SliderTrack, n as SliderRange, r as SliderThumb, t as Slider$1 } from "../_libs/@radix-ui/react-slider+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-Ry6ahRqg.js
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-DrdK1N9K.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var __defProp = Object.defineProperty;
@@ -24,87 +24,60 @@ var __exportAll = (all, no_symbols) => {
 	if (!no_symbols) __defProp(target, Symbol.toStringTag, { value: "Module" });
 	return target;
 };
-/**
-* Merge a provider refresh without letting a shallow public response erase a
-* known Twitch archive. Twitch's public archive endpoint can legitimately
-* return a partial window (or no rows while it is rate-limited), so archive
-* rows are additive per channel. Fresh rows still win by id, and stale live
-* cards are turned offline when their channel has checked successfully.
-*/
-function mergeRemoteRefresh(existing, incoming, refreshedIds, savedIds) {
-	const refreshed = new Set(refreshedIds);
-	const existingById = new Map(existing.map((video) => [video.id, video]));
-	const fresh = new Map(incoming.map((video) => {
-		const previous = existingById.get(video.id);
-		const incomingObservation = video.remote?.observedAt ?? 0;
-		const previousObservation = previous?.remote?.observedAt ?? 0;
-		if (previous?.remote?.live && video.remote?.live && incomingObservation < previousObservation) return [video.id, previous];
-		if (previous && previous.name === video.name && previous.path === video.path && previous.poster === video.poster && previous.genre === video.genre && previous.tagline === video.tagline && previous.description === video.description && previous.addedAt === video.addedAt && previous.duration === video.duration && JSON.stringify(previous.remote) === JSON.stringify(video.remote)) return [video.id, previous];
-		return [video.id, video];
-	}));
-	return [...existing.filter((video) => {
-		if (fresh.has(video.id) || !video.remote || !refreshed.has(video.folderId)) return !fresh.has(video.id);
-		if (savedIds.has(video.id)) return true;
-		return video.remote.kind === "twitch" && !video.remote.live;
-	}).map((video) => video.remote?.live && refreshed.has(video.folderId) ? {
-		...video,
-		tagline: "Offline · saved channel",
-		remote: {
-			...video.remote,
-			live: false
-		}
-	} : video), ...fresh.values()];
-}
-var samples = {
-	navigation: {
-		count: 0,
-		lastMs: 0,
-		worstMs: 0,
-		at: 0
-	},
-	search: {
-		count: 0,
-		lastMs: 0,
-		worstMs: 0,
-		at: 0
-	},
-	rating: {
-		count: 0,
-		lastMs: 0,
-		worstMs: 0,
-		at: 0
-	},
-	playback: {
-		count: 0,
-		lastMs: 0,
-		worstMs: 0,
-		at: 0
-	},
-	queue: {
-		count: 0,
-		lastMs: 0,
-		worstMs: 0,
-		at: 0
+var KEY$2 = "reelcase.adult-archive-cursors.v1";
+function readRaw() {
+	try {
+		const raw = localStorage.getItem(KEY$2);
+		if (!raw) return {};
+		const parsed = JSON.parse(raw);
+		return parsed && typeof parsed === "object" ? parsed : {};
+	} catch {
+		return {};
 	}
-};
-var lastStarted = {};
-/** Records a local input-to-next-paint approximation without collecting media data. */
-function measureInteraction(kind) {
-	if (typeof window === "undefined" || typeof performance === "undefined") return;
-	const now = performance.now();
-	if (now - (lastStarted[kind] ?? -Infinity) < 120) return;
-	lastStarted[kind] = now;
-	window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
-		const elapsed = Math.round(performance.now() - now);
-		const sample = samples[kind];
-		sample.count += 1;
-		sample.lastMs = elapsed;
-		sample.worstMs = Math.max(sample.worstMs, elapsed);
-		sample.at = Date.now();
-	}));
 }
-function getInteractionBudgetSnapshot() {
-	return Object.fromEntries(Object.entries(samples).map(([kind, sample]) => [kind, { ...sample }]));
+function writeRaw(map) {
+	try {
+		localStorage.setItem(KEY$2, JSON.stringify(map));
+	} catch {}
+}
+function slotKey(provider, query, order) {
+	return `${provider}::${query.trim().toLowerCase() || "all"}::${order}`;
+}
+/** Load next-page cursors for the active query/order across providers. */
+function loadAdultArchiveCursors(query, order) {
+	const raw = readRaw();
+	const out = {};
+	for (const provider of ADULT_PULL_PROVIDERS) {
+		const row = raw[slotKey(provider, query, order)];
+		if (row && typeof row.page === "number" && row.page >= 1) out[provider] = row;
+	}
+	return out;
+}
+/** Persist the next page each provider should resume from. */
+function saveAdultArchiveCursors(query, order, pages) {
+	const raw = readRaw();
+	const now = Date.now();
+	for (const provider of ADULT_PULL_PROVIDERS) {
+		const next = pages[provider];
+		const key = slotKey(provider, query, order);
+		if (next == null || next < 1) {
+			delete raw[key];
+			continue;
+		}
+		raw[key] = {
+			page: next,
+			query: query.trim().toLowerCase() || "all",
+			order,
+			updatedAt: now
+		};
+	}
+	writeRaw(raw);
+}
+/** Summarize how deep the archive resume points go for UI copy. */
+function adultArchiveDepthLabel(cursors) {
+	const rows = Object.entries(cursors);
+	if (!rows.length) return "No saved archive depth yet — Pull catalog starts at page 1.";
+	return `Resume cursors · ${rows.sort((a, b) => a[0].localeCompare(b[0])).map(([provider, row]) => `${provider}→p${row.page}`).join(" · ")}`;
 }
 var DB_NAME = "reelcase";
 var STORE = "dirs";
@@ -450,6 +423,12 @@ async function loadSourceHealth() {
 	db.close();
 	return rows;
 }
+function asCountMap(raw) {
+	if (!raw || typeof raw !== "object") return {};
+	const out = {};
+	for (const [id, value] of Object.entries(raw)) if (typeof value === "number" && Number.isFinite(value) && value > 0) out[id] = Math.floor(value);
+	return out;
+}
 function normalize(raw) {
 	const starred = raw.starred ?? [];
 	const favorites = raw.favorites ?? starred;
@@ -462,6 +441,8 @@ function normalize(raw) {
 		progress: raw.progress ?? {},
 		resumeProgress: raw.resumeProgress ?? {},
 		history: raw.history ?? [],
+		viewCounts: asCountMap(raw.viewCounts),
+		cameCounts: asCountMap(raw.cameCounts),
 		view: raw.view ?? "grid",
 		sort,
 		sortDir: raw.sortDir ?? (sort === "name" ? "asc" : "desc"),
@@ -519,13 +500,144 @@ function savePrefs(prefs) {
 		}
 	});
 }
-async function hashPin(pin) {
-	const data = new TextEncoder().encode(`reelcase.adults.v1:${pin}`);
-	const buf = await crypto.subtle.digest("SHA-256", data);
-	return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
+var LS_KEY = "reelcase.adult-preview-urls.v1";
+var MAX_LS = 2400;
+function readMap() {
+	if (typeof localStorage === "undefined") return {};
+	try {
+		const raw = JSON.parse(localStorage.getItem(LS_KEY) ?? "{}");
+		return raw && typeof raw === "object" ? raw : {};
+	} catch {
+		return {};
+	}
 }
-function isPinShape(pin) {
-	return /^\d{4}$/.test(pin);
+function writeMap(map) {
+	if (typeof localStorage === "undefined") return;
+	const rows = Object.entries(map).sort((a, b) => (b[1].at ?? 0) - (a[1].at ?? 0)).slice(0, MAX_LS);
+	try {
+		localStorage.setItem(LS_KEY, JSON.stringify(Object.fromEntries(rows)));
+	} catch {}
+}
+function rememberAdultPreviewUrl(id, poster, previewUrl) {
+	const goodPoster = poster && isUsableAdultThumb(poster) ? poster : void 0;
+	const goodPreview = previewUrl && isUsableAdultThumb(previewUrl) ? previewUrl : goodPoster;
+	if (!goodPoster && !goodPreview) return;
+	const map = readMap();
+	map[id] = {
+		poster: goodPoster,
+		previewUrl: goodPreview,
+		at: Date.now()
+	};
+	writeMap(map);
+	saveThumbCache({
+		id,
+		thumb: goodPoster ?? goodPreview ?? "",
+		at: Date.now()
+	}).catch(() => void 0);
+}
+/** Fill missing/broken incoming artwork from the durable URL cache. */
+function applyCachedAdultUrls(videos) {
+	const map = readMap();
+	return videos.map((video) => {
+		const cached = map[video.id];
+		const posterOk = video.poster && isUsableAdultThumb(video.poster);
+		const previewOk = video.remote?.previewUrl && isUsableAdultThumb(video.remote.previewUrl);
+		if (posterOk && previewOk) return video;
+		if (!cached?.poster && !cached?.previewUrl) return video;
+		return {
+			...video,
+			poster: posterOk ? video.poster : cached.poster ?? video.poster,
+			remote: video.remote ? {
+				...video.remote,
+				previewUrl: previewOk ? video.remote.previewUrl : cached.previewUrl ?? cached.poster ?? video.remote.previewUrl
+			} : video.remote
+		};
+	});
+}
+function cacheAdultVideoUrls(videos) {
+	for (const video of videos) rememberAdultPreviewUrl(video.id, video.poster, video.remote?.previewUrl);
+}
+/**
+* Merge a provider refresh without letting a shallow public response erase a
+* known Twitch archive. Twitch's public archive endpoint can legitimately
+* return a partial window (or no rows while it is rate-limited), so archive
+* rows are additive per channel. Fresh rows still win by id, and stale live
+* cards are turned offline when their channel has checked successfully.
+*/
+function mergeRemoteRefresh(existing, incoming, refreshedIds, savedIds) {
+	const refreshed = new Set(refreshedIds);
+	const existingById = new Map(existing.map((video) => [video.id, video]));
+	const fresh = new Map(incoming.map((video) => {
+		const previous = existingById.get(video.id);
+		const incomingObservation = video.remote?.observedAt ?? 0;
+		const previousObservation = previous?.remote?.observedAt ?? 0;
+		if (previous?.remote?.live && video.remote?.live && incomingObservation < previousObservation) return [video.id, previous];
+		if (previous && previous.name === video.name && previous.path === video.path && previous.poster === video.poster && previous.genre === video.genre && previous.tagline === video.tagline && previous.description === video.description && previous.addedAt === video.addedAt && previous.duration === video.duration && JSON.stringify(previous.remote) === JSON.stringify(video.remote)) return [video.id, previous];
+		return [video.id, video];
+	}));
+	return [...existing.filter((video) => {
+		if (fresh.has(video.id) || !video.remote || !refreshed.has(video.folderId)) return !fresh.has(video.id);
+		if (savedIds.has(video.id)) return true;
+		return video.remote.kind === "twitch" && !video.remote.live;
+	}).map((video) => video.remote?.live && refreshed.has(video.folderId) ? {
+		...video,
+		tagline: "Offline · saved channel",
+		remote: {
+			...video.remote,
+			live: false
+		}
+	} : video), ...fresh.values()];
+}
+var samples = {
+	navigation: {
+		count: 0,
+		lastMs: 0,
+		worstMs: 0,
+		at: 0
+	},
+	search: {
+		count: 0,
+		lastMs: 0,
+		worstMs: 0,
+		at: 0
+	},
+	rating: {
+		count: 0,
+		lastMs: 0,
+		worstMs: 0,
+		at: 0
+	},
+	playback: {
+		count: 0,
+		lastMs: 0,
+		worstMs: 0,
+		at: 0
+	},
+	queue: {
+		count: 0,
+		lastMs: 0,
+		worstMs: 0,
+		at: 0
+	}
+};
+var lastStarted = {};
+/** Records a local input-to-next-paint approximation without collecting media data. */
+function measureInteraction(kind) {
+	if (typeof window === "undefined" || typeof performance === "undefined") return;
+	const now = performance.now();
+	if (now - (lastStarted[kind] ?? -Infinity) < 120) return;
+	lastStarted[kind] = now;
+	window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+		const elapsed = Math.round(performance.now() - now);
+		const sample = samples[kind];
+		sample.count += 1;
+		sample.lastMs = elapsed;
+		sample.worstMs = Math.max(sample.worstMs, elapsed);
+		sample.at = Date.now();
+	}));
+}
+function getInteractionBudgetSnapshot() {
+	return Object.fromEntries(Object.entries(samples).map(([kind, sample]) => [kind, { ...sample }]));
 }
 function cn(...inputs) {
 	return twMerge(clsx(inputs));
@@ -1085,6 +1197,273 @@ async function requestDirPermission(handle) {
 	if (typeof h.requestPermission !== "function") return false;
 	return await h.requestPermission({ mode: "read" }) === "granted";
 }
+var KEY$1 = "reelcase.rating-streaks.v1";
+var GOAL_KEY = "reelcase.rating-weekly-goal.v1";
+var DEFAULT_WEEKLY_GOAL = 5;
+var RATING_GOALS = [
+	3,
+	5,
+	10
+];
+function weeklyGoal() {
+	try {
+		const saved = Number(localStorage.getItem(GOAL_KEY) ?? DEFAULT_WEEKLY_GOAL);
+		return RATING_GOALS.includes(saved) ? saved : DEFAULT_WEEKLY_GOAL;
+	} catch {
+		return DEFAULT_WEEKLY_GOAL;
+	}
+}
+function setRatingWeeklyGoal(goal) {
+	if (!RATING_GOALS.includes(goal) || typeof window === "undefined") return;
+	try {
+		localStorage.setItem(GOAL_KEY, String(goal));
+	} catch {}
+	window.dispatchEvent(new Event("reelcase:rating-streak-change"));
+}
+function dayKey(at = /* @__PURE__ */ new Date()) {
+	return `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, "0")}-${String(at.getDate()).padStart(2, "0")}`;
+}
+function weekKey(at = /* @__PURE__ */ new Date()) {
+	const date = new Date(at);
+	date.setHours(0, 0, 0, 0);
+	date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
+	const firstThursday = new Date(date.getFullYear(), 0, 4);
+	const week = 1 + Math.round(((date.getTime() - firstThursday.getTime()) / 864e5 - 3 + (firstThursday.getDay() + 6) % 7) / 7);
+	return `${date.getFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+function read$1() {
+	try {
+		const saved = JSON.parse(localStorage.getItem(KEY$1) ?? "[]");
+		return Array.isArray(saved) ? saved.filter((row) => typeof row?.day === "string" && Array.isArray(row?.ids)).slice(-400) : [];
+	} catch {
+		return [];
+	}
+}
+function write$1(days) {
+	try {
+		localStorage.setItem(KEY$1, JSON.stringify(days.slice(-400)));
+	} catch {}
+}
+function recordRatingForStreak(id, rating) {
+	if (!id || rating < 1 || typeof window === "undefined") return;
+	const days = read$1();
+	const today = dayKey();
+	const row = days.find((entry) => entry.day === today);
+	if (row) {
+		if (!row.ids.includes(id)) row.ids.push(id);
+	} else days.push({
+		day: today,
+		ids: [id]
+	});
+	write$1(days);
+	window.dispatchEvent(new Event("reelcase:rating-streak-change"));
+}
+function getRatingStreakSnapshot(now = /* @__PURE__ */ new Date()) {
+	const days = read$1();
+	const weeklyGoalValue = weeklyGoal();
+	const currentWeek = weekKey(now);
+	const weekTotals = /* @__PURE__ */ new Map();
+	for (const row of days) {
+		const key = weekKey(/* @__PURE__ */ new Date(`${row.day}T12:00:00`));
+		weekTotals.set(key, (weekTotals.get(key) ?? 0) + new Set(row.ids).size);
+	}
+	const thisWeek = weekTotals.get(currentWeek) ?? 0;
+	let weeklyStreak = 0;
+	const cursor = new Date(now);
+	while (true) {
+		if ((weekTotals.get(weekKey(cursor)) ?? 0) < weeklyGoalValue) break;
+		weeklyStreak += 1;
+		cursor.setDate(cursor.getDate() - 7);
+	}
+	const rewards = [
+		{
+			label: "First impression",
+			earned: thisWeek >= 1,
+			detail: "Rate one title this week."
+		},
+		{
+			label: "Weekly curator",
+			earned: thisWeek >= weeklyGoalValue,
+			detail: `Rate ${weeklyGoalValue} distinct titles this week.`
+		},
+		{
+			label: "Two-week rhythm",
+			earned: weeklyStreak >= 2,
+			detail: "Complete your weekly goal two weeks in a row."
+		}
+	];
+	const next = rewards.find((reward) => !reward.earned);
+	return {
+		weekKey: currentWeek,
+		thisWeek,
+		weeklyGoal: weeklyGoalValue,
+		weeklyStreak,
+		nextReward: next ? next.detail : "All current local rewards earned.",
+		rewards
+	};
+}
+var KEY = "reelcase.media-feedback.v1";
+var cached = null;
+var changeTimer;
+var persistTimer$1;
+var lastRatingQueueMs = 0;
+var lastPersistMs = 0;
+var pendingWrites = 0;
+var legacyRatings = /* @__PURE__ */ new Map();
+function read() {
+	if (cached) return cached;
+	try {
+		const saved = JSON.parse(localStorage.getItem(KEY) ?? "{}");
+		cached = {
+			ratings: saved.ratings ?? {},
+			ratingHistory: saved.ratingHistory ?? {},
+			notes: saved.notes ?? {},
+			creatorRatings: saved.creatorRatings ?? {},
+			creatorLikes: saved.creatorLikes ?? {},
+			tagLikes: saved.tagLikes ?? {}
+		};
+	} catch {
+		cached = {
+			ratings: {},
+			ratingHistory: {},
+			notes: {},
+			creatorRatings: {},
+			creatorLikes: {},
+			tagLikes: {}
+		};
+	}
+	return cached;
+}
+function persist() {
+	persistTimer$1 = void 0;
+	const started = typeof performance !== "undefined" ? performance.now() : Date.now();
+	try {
+		if (cached) localStorage.setItem(KEY, JSON.stringify(cached));
+	} catch {} finally {
+		lastPersistMs = Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - started);
+		pendingWrites = 0;
+	}
+}
+/** Finish a queued rating write before a reload, tab close, or mobile app switch. */
+function flush() {
+	if (persistTimer$1 !== void 0) window.clearTimeout(persistTimer$1);
+	persist();
+}
+if (typeof window !== "undefined") {
+	window.addEventListener("pagehide", flush);
+	document.addEventListener("visibilitychange", () => {
+		if (document.visibilityState === "hidden") flush();
+	});
+}
+function write(next) {
+	cached = next;
+	if (typeof window === "undefined") return;
+	pendingWrites = 1;
+	if (persistTimer$1) window.clearTimeout(persistTimer$1);
+	persistTimer$1 = window.setTimeout(persist, 90);
+}
+function notifyChange() {
+	if (typeof window === "undefined" || changeTimer) return;
+	changeTimer = window.setTimeout(() => {
+		changeTimer = void 0;
+		window.dispatchEvent(new Event("reelcase:rating-change"));
+	}, 48);
+}
+function getRating(id) {
+	const value = read().ratings[id];
+	if (Number.isFinite(value)) return value;
+	if (typeof window === "undefined") return 0;
+	const known = legacyRatings.get(id);
+	if (known !== void 0) return known;
+	let legacy = 0;
+	try {
+		legacy = Number(localStorage.getItem(`reelcase.rating.${id}`) ?? 0);
+	} catch {}
+	const rating = Number.isFinite(legacy) ? legacy : 0;
+	legacyRatings.set(id, rating);
+	return rating;
+}
+function setRating(id, rating) {
+	const started = typeof performance !== "undefined" ? performance.now() : Date.now();
+	const next = read();
+	next.ratings[id] = Math.max(0, Math.min(5, Math.round(rating)));
+	next.ratingHistory[id] = {
+		rating: next.ratings[id],
+		updatedAt: Date.now()
+	};
+	legacyRatings.set(id, next.ratings[id]);
+	recordRatingForStreak(id, next.ratings[id]);
+	write(next);
+	notifyChange();
+	lastRatingQueueMs = Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - started);
+}
+/** Local timing only. This never transmits library feedback or usage data. */
+function getFeedbackDiagnostics() {
+	return {
+		lastRatingQueueMs,
+		lastPersistMs,
+		pendingWrites
+	};
+}
+function creatorKey(name) {
+	return name.trim().toLowerCase();
+}
+function getCreatorRating(name) {
+	return read().creatorRatings[creatorKey(name)] ?? 0;
+}
+function setCreatorRating(name, rating) {
+	const next = read();
+	next.creatorRatings[creatorKey(name)] = Math.max(0, Math.min(5, Math.round(rating)));
+	write(next);
+	notifyChange();
+}
+function creatorIsLiked(name) {
+	return Boolean(read().creatorLikes[creatorKey(name)]);
+}
+function toggleCreatorLike(name) {
+	const next = read();
+	const key = creatorKey(name);
+	if (next.creatorLikes[key]) delete next.creatorLikes[key];
+	else next.creatorLikes[key] = true;
+	write(next);
+	notifyChange();
+}
+function tagKey(tag) {
+	return tag.trim().toLowerCase();
+}
+function tagIsLiked(tag) {
+	return Boolean(read().tagLikes[tagKey(tag)]);
+}
+function toggleTagLike(tag) {
+	const next = read();
+	const key = tagKey(tag);
+	if (next.tagLikes[key]) delete next.tagLikes[key];
+	else next.tagLikes[key] = true;
+	write(next);
+	notifyChange();
+}
+/** Versioned rating/note payload used by the full library backup. */
+function exportFeedback() {
+	return {
+		version: 4,
+		...read()
+	};
+}
+function getNote(id) {
+	const value = read().notes[id];
+	if (typeof value === "string") return value;
+	try {
+		return localStorage.getItem(`reelcase.note.${id}`) ?? "";
+	} catch {
+		return "";
+	}
+}
+function setNote(id, note) {
+	const next = read();
+	if (note.trim()) next.notes[id] = note.trim();
+	else delete next.notes[id];
+	write(next);
+}
 var TOPICS = /* @__PURE__ */ new Set([
 	"gaming",
 	"technology",
@@ -1460,6 +1839,7 @@ function persistNow(get) {
 		resumeProgress: s.resumeProgress,
 		history: s.history,
 		viewCounts: s.viewCounts,
+		cameCounts: s.cameCounts,
 		view: s.view,
 		sort: s.sort,
 		hideDemo: s.hideDemo,
@@ -1482,6 +1862,7 @@ function persistNow(get) {
 		progress: s.progress,
 		resumeProgress: s.resumeProgress,
 		viewCounts: s.viewCounts,
+		cameCounts: s.cameCounts,
 		savedAt: Date.now()
 	}).catch(() => queueResumeReplay(s.resumeProgress));
 }
@@ -1493,6 +1874,7 @@ function persistActivity(get) {
 		progress: s.progress,
 		resumeProgress: s.resumeProgress,
 		viewCounts: s.viewCounts,
+		cameCounts: s.cameCounts,
 		savedAt: Date.now()
 	}).catch(() => queueResumeReplay(s.resumeProgress));
 }
@@ -1572,22 +1954,22 @@ function takeQueuedResumeReplay() {
 		return {};
 	}
 }
-var persistTimer$1 = null;
+var persistTimer = null;
 function persistSoon(get) {
 	if (typeof window === "undefined") {
 		persistNow(get);
 		return;
 	}
-	if (persistTimer$1 != null) return;
-	persistTimer$1 = setTimeout(() => {
-		persistTimer$1 = null;
+	if (persistTimer != null) return;
+	persistTimer = setTimeout(() => {
+		persistTimer = null;
 		persistNow(get);
 	}, 900);
 }
 function flushPersist(get) {
-	if (persistTimer$1 != null) {
-		clearTimeout(persistTimer$1);
-		persistTimer$1 = null;
+	if (persistTimer != null) {
+		clearTimeout(persistTimer);
+		persistTimer = null;
 	}
 	persistNow(get);
 }
@@ -1664,7 +2046,7 @@ function compactIngestedTags(existing, inferred) {
 	const seen = /* @__PURE__ */ new Set();
 	const compact = [];
 	for (const raw of [...existing, ...inferred]) {
-		const tag = raw.trim().toLowerCase().replace(/^keyword-/, "").replace(/^creator-/, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+		let tag = raw.trim().toLowerCase().replace(/^keyword-/, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
 		if (!tag || tag === "http" || tag === "https" || seen.has(tag)) continue;
 		seen.add(tag);
 		compact.push(tag);
@@ -1817,12 +2199,13 @@ function applyPrefs(partial) {
 		})),
 		history: prefs.history ?? [],
 		viewCounts: prefs.viewCounts ?? {},
+		cameCounts: prefs.cameCounts ?? {},
 		view: prefs.view ?? "grid",
 		sort: prefs.sort ?? "name",
 		hideDemo: true,
-		sourceId: prefs.sourceId === "adults" ? "home" : prefs.sourceId ?? "home",
+		sourceId: prefs.sourceId ?? "home",
 		hardwareAccel: prefs.hardwareAccel ?? true,
-		adultPinHash: prefs.adultPinHash ?? null,
+		adultPinHash: null,
 		follows: dedupeFollows(prefs.follows ?? []),
 		notices: prefs.notices ?? [],
 		notifyPush: prefs.notifyPush ?? false,
@@ -1850,10 +2233,11 @@ var useLibrary = create((set, get) => ({
 	resumeProgress: {},
 	history: [],
 	viewCounts: {},
+	cameCounts: {},
 	hideDemo: true,
 	hardwareAccel: true,
 	adultPinHash: null,
-	adultsUnlocked: false,
+	adultsUnlocked: true,
 	activeId: null,
 	previewId: null,
 	scanning: null,
@@ -1905,6 +2289,13 @@ var useLibrary = create((set, get) => ({
 		});
 		persistSoon(get);
 		cacheRemotesSoon(get);
+	},
+	markCame: (id) => {
+		set((s) => ({ cameCounts: {
+			...s.cameCounts,
+			[id]: (s.cameCounts[id] ?? 0) + 1
+		} }));
+		persistNow(get);
 	},
 	setVideoTags: (id, tags) => {
 		set((s) => ({ tags: {
@@ -1991,7 +2382,10 @@ var useLibrary = create((set, get) => ({
 			if (latest?.id === id && now - latest.at < 2e4) return {};
 			const mark = s.progress[id];
 			const video = s.videos.find((item) => item.id === id);
-			const url = video?.remote?.embedUrl ?? video?.src;
+			const url = video?.remote?.embedUrl ?? video?.src ?? video?.remote?.watchUrl;
+			const title = video?.name?.trim();
+			const poster = video?.poster ?? video?.remote?.previewUrl;
+			const rating = getRating(id);
 			return {
 				history: [{
 					eventId: nextHistoryEventId(now),
@@ -2000,7 +2394,10 @@ var useLibrary = create((set, get) => ({
 					position: mark?.t,
 					duration: mark?.d,
 					source,
-					...url ? { url } : {}
+					...url ? { url } : {},
+					...title ? { title } : {},
+					...poster ? { poster } : {},
+					...rating ? { rating } : {}
 				}, ...s.history],
 				viewCounts: {
 					...s.viewCounts,
@@ -2030,7 +2427,7 @@ var useLibrary = create((set, get) => ({
 			activeId,
 			previewId: null
 		});
-		get().recordPlay(activeId);
+		queueMicrotask(() => get().recordPlay(activeId));
 	},
 	openPreview: (previewId) => set({ previewId }),
 	closePreview: () => set({ previewId: null }),
@@ -2095,42 +2492,134 @@ var useLibrary = create((set, get) => ({
 		}));
 		persistNow(get);
 	},
-	setAdultPin: async (pin) => {
-		if (!isPinShape(pin)) return false;
+	searchAdultFeed: async (query = "all", order = "top-weekly", opts) => {
+		const providers = opts?.providers ?? "all";
+		const providerList = providers === "all" ? [...ADULT_PULL_PROVIDERS] : providers;
 		set({
-			adultPinHash: await hashPin(pin),
-			adultsUnlocked: true
+			remoteBusy: true,
+			importProgress: {
+				done: 0,
+				total: 1,
+				label: providerList.length === 1 ? `Pulling ${providerList[0]} catalog…` : "Pulling official adult catalogs…"
+			}
 		});
-		persistNow(get);
-		return true;
-	},
-	unlockAdults: async (pin) => {
-		const { adultPinHash } = get();
-		if (!adultPinHash || !isPinShape(pin)) return false;
-		if (await hashPin(pin) !== adultPinHash) return false;
-		set({
-			adultsUnlocked: true,
-			sourceId: "adults"
-		});
-		return true;
-	},
-	lockAdults: () => {
-		set((s) => {
-			const current = s.videos.find((v) => v.id === s.activeId);
-			const hidePlayer = current ? isAdultVideo(current, s.folders) : false;
-			return {
-				adultsUnlocked: false,
-				sourceId: s.sourceId === "adults" ? "home" : s.sourceId,
-				activeId: hidePlayer ? null : s.activeId
-			};
-		});
-	},
-	resetAdultPin: () => {
-		set({
-			adultPinHash: null,
-			adultsUnlocked: false
-		});
-		persistNow(get);
+		try {
+			const { searchAdultVideos } = await import("./api-DrSMGXpo.mjs");
+			const page = opts?.page ?? 1;
+			const maxVideos = opts?.maxVideos ?? LIBRARY_LIMITS.epornerVideosPerPull;
+			const append = Boolean(opts?.append);
+			const providerPages = opts?.providerPages;
+			const redditSources = opts?.redditSources;
+			const providerKey = providerList.slice().sort().join("+");
+			if (!append && !providerPages && findFreshAdultPullFingerprint(query, order, page, providerKey)) {
+				const have = get().videos.filter((v) => ADULT_FOLDER_IDS.includes(v.folderId));
+				const reddit = have.filter((v) => v.remote?.kind === "reddit").length;
+				if (have.length >= LIBRARY_LIMITS.adultFastStartVideosPerPull && reddit >= 200) {
+					set({
+						remoteBusy: false,
+						importProgress: null
+					});
+					return have.length;
+				}
+			}
+			const result = await searchAdultVideos({ data: {
+				query,
+				order,
+				page,
+				maxVideos,
+				append,
+				providers,
+				providerPages,
+				redditSources
+			} });
+			if (result.providerNextPages) saveAdultArchiveCursors(query, order, result.providerNextPages);
+			rememberAdultPullFingerprint({
+				at: Date.now(),
+				query: query.trim().toLowerCase() || "all",
+				order,
+				page,
+				providers: providerKey,
+				count: result.videos.length
+			});
+			const videos = applyCachedAdultUrls(result.videos);
+			cacheAdultVideoUrls(videos);
+			const touched = new Set(videos.map((v) => v.folderId));
+			set((s) => {
+				let nextVideos = s.videos;
+				let folders = s.folders;
+				const tagPatch = {};
+				for (const folderId of ADULT_FOLDER_IDS) {
+					if (!touched.has(folderId) && append) continue;
+					if (!touched.has(folderId) && !append) continue;
+					const incoming = videos.filter((v) => v.folderId === folderId);
+					const existingRemote = nextVideos.filter((v) => v.folderId === folderId);
+					const byId = new Map(existingRemote.map((v) => [v.id, v]));
+					for (const video of incoming) byId.set(video.id, video);
+					const merged = [...byId.values()].sort((a, b) => b.addedAt - a.addedAt);
+					const provider = Object.keys(ADULT_FOLDER_BY_PROVIDER).find((key) => ADULT_FOLDER_BY_PROVIDER[key].id === folderId);
+					const baseFolder = provider ? ADULT_FOLDER_BY_PROVIDER[provider] : ADULT_FOLDER_BY_PROVIDER.eporner;
+					const kind = baseFolder.kind;
+					folders = folders.some((f) => f.id === folderId) ? folders.map((f) => f.id === folderId ? {
+						...f,
+						videoCount: merged.length,
+						adult: true,
+						kind
+					} : f) : [...folders, {
+						...baseFolder,
+						videoCount: merged.length
+					}];
+					nextVideos = [...nextVideos.filter((v) => v.folderId !== folderId), ...merged];
+				}
+				for (const video of videos) {
+					const source = video.remote?.kind ?? video.folderId.split(":")[0] ?? "eporner";
+					const hostExtra = source === "booru" && video.remote?.channelId ? [video.remote.channelId] : source === "reddit" && video.remote?.channelId ? [`reddit-${video.remote.channelId}`] : [];
+					const creatorNames = [video.remote?.channelName, video.remote?.videoId && (source === "chaturbate" || source === "camsoda" || source === "myfreecams") ? video.remote.videoId : void 0];
+					const redditExtra = source === "reddit" ? redditIngestExtras({
+						subreddit: video.remote?.channelId,
+						title: video.name,
+						extraText: `${video.description ?? ""} ${video.tagline ?? ""}`,
+						mediaKind: video.extension === "image" ? "image" : /video/i.test(video.mime) ? "video" : void 0
+					}) : [];
+					tagPatch[video.id] = compactIngestedTags(s.tags[video.id] ?? [], [...adultIngestTags({
+						source,
+						extraSources: hostExtra,
+						creatorNames,
+						apiKeywords: video.description ?? video.tagline ?? "",
+						title: video.name,
+						description: video.description ?? video.tagline ?? "",
+						extraTags: redditExtra,
+						extraText: source === "reddit" ? `${video.name} ${video.tagline ?? ""}` : void 0,
+						limit: LIBRARY_LIMITS.adultKeywordTagsPerTitle + 36
+					})]);
+				}
+				return {
+					folders,
+					videos: nextVideos,
+					tags: {
+						...s.tags,
+						...tagPatch
+					},
+					adultsUnlocked: true,
+					remoteBusy: false,
+					importProgress: null
+				};
+			});
+			persistNow(get);
+			let writeChain = Promise.resolve();
+			for (const folderId of touched) {
+				const folderVideos = get().videos.filter((v) => v.folderId === folderId);
+				if (!folderVideos.length) continue;
+				writeChain = writeChain.then(() => appendCatalogVideos(folderVideos)).catch(() => void 0);
+			}
+			await writeChain;
+			return get().videos.filter((v) => ADULT_FOLDER_IDS.includes(v.folderId)).length;
+		} catch (err) {
+			set({
+				remoteBusy: false,
+				importProgress: null
+			});
+			throw err;
+		}
 	},
 	addFolder: async (inputEl, startIn, opts) => {
 		const result = await pickDirectory(startIn);
@@ -2333,6 +2822,10 @@ var useLibrary = create((set, get) => ({
 					viewCounts: {
 						...activity?.viewCounts ?? {},
 						...s.viewCounts
+					},
+					cameCounts: {
+						...activity?.cameCounts ?? {},
+						...s.cameCounts
 					}
 				};
 			});
@@ -2653,7 +3146,7 @@ var useLibrary = create((set, get) => ({
 	followRemoteQuery: async (query, kind = "auto") => {
 		set({ remoteBusy: true });
 		try {
-			const { followRemote } = await import("./api-CHra3-by.mjs");
+			const { followRemote } = await import("./api-DrSMGXpo.mjs");
 			const result = await followRemote({ data: {
 				query,
 				kind
@@ -2718,7 +3211,7 @@ var useLibrary = create((set, get) => ({
 		const failedReasons = {};
 		const chunk = 20;
 		try {
-			const { importChannels } = await import("./api-CHra3-by.mjs");
+			const { importChannels } = await import("./api-DrSMGXpo.mjs");
 			for (let i = 0; i < unique.length; i += chunk) {
 				const slice = unique.slice(i, i + chunk);
 				let result;
@@ -2841,7 +3334,7 @@ var useLibrary = create((set, get) => ({
 		const beforeLive = new Set(get().videos.filter((v) => v.remote?.live).map((v) => v.id));
 		const beforeIds = new Set(get().videos.map((v) => v.id));
 		try {
-			const { refreshRemotes } = await import("./api-CHra3-by.mjs");
+			const { refreshRemotes } = await import("./api-DrSMGXpo.mjs");
 			const result = await refreshRemotes({ data: { channels: current } });
 			new Set(result.refreshedIds);
 			set((s) => {
@@ -2999,7 +3492,6 @@ function publicList(state) {
 	return list;
 }
 function adultList(state) {
-	if (!state.adultsUnlocked) return [];
 	const adult = adultIdSet(state.folders);
 	return state.videos.filter((v) => !state.unavailable[v.id] && adult.has(v.folderId));
 }
@@ -3008,7 +3500,7 @@ function selectVisible(state) {
 	const inAdults = state.sourceId === "adults";
 	let list = inAdults ? adultList(state) : publicList(state);
 	if (state.sourceId === "favorites") list = list.filter((v) => state.favorites[v.id]);
-	else if (state.sourceId === "continue") list = recoveryList(state, false).filter((video) => isResumable(video, resumeForVideo(state, video)));
+	else if (state.sourceId === "continue") list = selectContinue(state, false);
 	else if (state.sourceId === "history") {
 		const byId = new Map(list.map((v) => [v.id, v]));
 		list = state.history.map((h) => byId.get(h.id)).filter((v) => v != null);
@@ -3053,8 +3545,29 @@ function selectContinue(state, adult = false) {
 	const memo = memoFor(state);
 	const existing = adult ? memo.continueAdult : memo.continuePublic;
 	if (existing) return existing;
-	const items = recoveryList(state, adult).filter((video) => isResumable(video, resumeForVideo(state, video)));
-	items.sort((a, b) => (resumeForVideo(state, b)?.at ?? 0) - (resumeForVideo(state, a)?.at ?? 0));
+	const marks = /* @__PURE__ */ new Map();
+	const recordMark = (id, mark) => {
+		if (!mark || !Number.isFinite(mark.t) || !Number.isFinite(mark.d) || mark.t < 2 || mark.d <= 0 || mark.t / mark.d >= .992) return;
+		const current = marks.get(id);
+		if (!current || mark.at > current.at) marks.set(id, mark);
+	};
+	for (const video of recoveryList(state, adult)) recordMark(video.id, resumeForVideo(state, video));
+	for (const entry of state.history) {
+		if (!entry.position || !entry.duration || entry.position < 2 || entry.position / entry.duration >= .992) continue;
+		recordMark(entry.id, {
+			t: entry.position,
+			d: entry.duration,
+			at: entry.at
+		});
+	}
+	const candidates = [...recoveryList(state, adult), ...selectHistory(state, adult)];
+	const seen = /* @__PURE__ */ new Set();
+	const items = candidates.filter((video) => {
+		if (seen.has(video.id)) return false;
+		seen.add(video.id);
+		return isResumable(video, marks.get(video.id) ?? resumeForVideo(state, video));
+	});
+	items.sort((a, b) => (marks.get(b.id)?.at ?? resumeForVideo(state, b)?.at ?? 0) - (marks.get(a.id)?.at ?? resumeForVideo(state, a)?.at ?? 0));
 	if (adult) memo.continueAdult = items;
 	else memo.continuePublic = items;
 	return items;
@@ -3071,26 +3584,44 @@ function selectHistory(state, adult = false) {
 	return state.history.filter((h) => !seen.has(h.id) && Boolean(seen.add(h.id))).map((h) => {
 		const cached = byId.get(h.id) ?? (h.url ? byId.get(h.url) : void 0);
 		if (cached) return cached;
-		if (!h.url) return null;
-		const isYoutube = /youtube\.com|youtu\.be/i.test(h.url);
-		const isTwitch = /twitch\.tv/i.test(h.url);
-		const signature = `${h.at}:${h.url}:${h.position ?? ""}:${h.duration ?? ""}`;
+		const live = state.videos.find((item) => item.id === h.id);
+		if (live) {
+			const isAdult = adultIdSet(state.folders).has(live.folderId);
+			if (adult === isAdult) return live;
+			if (!adult && isAdult) return null;
+		}
+		if (!h.url && !h.title) return null;
+		const historyUrl = h.url ?? "";
+		const isYoutube = /youtube\.com|youtu\.be/i.test(historyUrl);
+		const isTwitch = /twitch\.tv/i.test(historyUrl);
+		const isEporner = /eporner\.com/i.test(historyUrl);
+		const isRedtube = /redtube\.com/i.test(historyUrl);
+		const isChaturbate = /chaturbate\.com/i.test(historyUrl);
+		const isCamsoda = /camsoda\.com/i.test(historyUrl);
+		const isMfc = /myfreecams\.com|mfc\.cdn/i.test(historyUrl);
+		const isReddit = /reddit\.com|redd\.it/i.test(historyUrl);
+		const isBooru = /xbooru\.com|tbib\.org|hypnohub\.net/i.test(historyUrl);
+		const isRedgifs = /redgifs\.com/i.test(historyUrl);
+		const adultKind = isEporner ? "eporner" : isRedtube ? "redtube" : isChaturbate ? "chaturbate" : isCamsoda ? "camsoda" : isMfc ? "myfreecams" : isReddit ? "reddit" : isBooru ? "booru" : isRedgifs ? "redgifs" : null;
+		if (!adult && (isEporner || isRedtube || isChaturbate || isCamsoda || isMfc || isReddit || isBooru || isRedgifs)) return null;
+		const signature = `${h.at}:${h.url}:${h.position ?? ""}:${h.duration ?? ""}:${h.title ?? ""}`;
 		const cachedRecovery = historyRecoveryCardCache.get(h.id);
 		if (cachedRecovery?.signature === signature) return cachedRecovery.video;
 		const recovered = {
 			id: h.id,
-			folderId: "history:recovery",
-			name: isYoutube ? "Saved YouTube history" : isTwitch ? "Saved Twitch history" : "Saved playback history",
-			path: h.url,
+			folderId: adultKind ? `history:recovery:${adultKind}` : "history:recovery",
+			name: h.title?.trim() || (isYoutube ? "Saved YouTube history" : isTwitch ? "Saved Twitch history" : adultKind ? `Saved ${adultKind} history` : "Saved playback history"),
+			path: h.url ?? h.id,
 			src: h.url,
-			extension: isYoutube ? "yt" : isTwitch ? "vod" : "history",
-			mime: isYoutube ? "video/youtube" : isTwitch ? "video/twitch" : "video/history",
+			extension: isYoutube ? "yt" : isTwitch ? "vod" : adultKind ?? "history",
+			mime: isYoutube ? "video/youtube" : isTwitch ? "video/twitch" : adultKind ? `video/${adultKind}` : "video/history",
 			size: 0,
 			duration: h.duration,
 			addedAt: h.at,
-			tagline: "Original card is not cached right now. The saved link is retained for recovery.",
-			remote: isYoutube || isTwitch ? {
-				kind: isYoutube ? "youtube" : "twitch",
+			poster: h.poster,
+			tagline: h.title ? "Saved from watch history." : "Original card is not cached right now. The saved link is retained for recovery.",
+			remote: isYoutube || isTwitch || adultKind ? {
+				kind: isYoutube ? "youtube" : isTwitch ? "twitch" : adultKind,
 				live: false,
 				embedUrl: h.url,
 				watchUrl: h.url
@@ -3103,6 +3634,11 @@ function selectHistory(state, adult = false) {
 		if (historyRecoveryCardCache.size > 1500) historyRecoveryCardCache.delete(historyRecoveryCardCache.keys().next().value);
 		return recovered;
 	}).filter((v) => v != null);
+}
+/** Combined official adult pull shelves (Eporner + RedTube). */
+function selectAdultRemote(state) {
+	const matching = state.videos.filter((v) => v.remote?.kind === "eporner" || v.remote?.kind === "redtube" || v.remote?.kind === "chaturbate" || v.remote?.kind === "camsoda" || v.remote?.kind === "myfreecams" || v.remote?.kind === "reddit" || v.remote?.kind === "booru" || v.remote?.kind === "redgifs" || ADULT_FOLDER_IDS.includes(v.folderId));
+	return [...new Map(matching.map((video) => [video.id, video])).values()].sort((a, b) => b.addedAt - a.addedAt);
 }
 function selectYoutube(state) {
 	const memo = memoFor(state);
@@ -3237,7 +3773,7 @@ async function bitmapFromVideo(video) {
 	return null;
 }
 var inflight = /* @__PURE__ */ new Set();
-var active = 0;
+var active$1 = 0;
 var waiting = [];
 var MAX_MEMORY_THUMBS = 360;
 var MAX_ARTWORK_ATTEMPTS = 3;
@@ -3266,14 +3802,14 @@ function maxThumbnailWorkers() {
 	}
 }
 async function acquire() {
-	while (inputOrBackgroundWork() || active >= maxThumbnailWorkers()) if (inputOrBackgroundWork()) await new Promise((resolve) => window.setTimeout(resolve, 80));
+	while (inputOrBackgroundWork() || active$1 >= maxThumbnailWorkers()) if (inputOrBackgroundWork()) await new Promise((resolve) => window.setTimeout(resolve, 80));
 	else await new Promise((resolve) => waiting.push(resolve));
-	active += 1;
+	active$1 += 1;
 }
 /** Local-only artwork queue/cache numbers for the opt-in diagnostics panel. */
 function getThumbDiagnostics() {
 	return {
-		active,
+		active: active$1,
 		queued: waiting.length,
 		inflight: inflight.size,
 		hits: artworkHits,
@@ -3282,7 +3818,7 @@ function getThumbDiagnostics() {
 	};
 }
 function release() {
-	active = Math.max(0, active - 1);
+	active$1 = Math.max(0, active$1 - 1);
 	const next = waiting.shift();
 	if (next) next();
 }
@@ -3462,266 +3998,94 @@ var useThumbs = create((set, get) => ({
 		} catch {}
 	}
 }));
-var KEY$1 = "reelcase.rating-streaks.v1";
-var GOAL_KEY = "reelcase.rating-weekly-goal.v1";
-var DEFAULT_WEEKLY_GOAL = 5;
-var RATING_GOALS = [
-	3,
-	5,
-	10
-];
-function weeklyGoal() {
-	try {
-		const saved = Number(localStorage.getItem(GOAL_KEY) ?? DEFAULT_WEEKLY_GOAL);
-		return RATING_GOALS.includes(saved) ? saved : DEFAULT_WEEKLY_GOAL;
-	} catch {
-		return DEFAULT_WEEKLY_GOAL;
+/** Resolve the best direct image URL for an adult photo-kind card. */
+function adultPhotoDownloadUrl(video) {
+	if (!isAdultImageKind(video.remote?.kind, video.mime, video.extension)) {
+		if (!(video.mime?.startsWith("image/") || video.extension === "image")) return null;
 	}
+	const url = video.src || video.remote?.embedUrl || video.remote?.previewUrl || video.poster || "";
+	if (!url || !/^https?:\/\//i.test(url)) return null;
+	return url;
 }
-function setRatingWeeklyGoal(goal) {
-	if (!RATING_GOALS.includes(goal) || typeof window === "undefined") return;
+function filenameFor(video, url) {
+	const ext = (url.split("?")[0]?.split("/").pop() || "").match(/\.(jpe?g|png|gif|webp|avif)$/i)?.[1]?.toLowerCase() || "jpg";
+	return `${(video.name || video.id || "adult-photo").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 72) || "adult-photo"}.${ext}`;
+}
+/**
+* Save an adult photo to the user's local disk via browser download.
+* Uses File System Access `showSaveFilePicker` when available; otherwise
+* falls back to an anchor download of a fetched blob.
+*/
+async function downloadAdultPhoto(video) {
+	const url = adultPhotoDownloadUrl(video);
+	if (!url) return {
+		ok: false,
+		error: "No downloadable image on this title."
+	};
+	const name = filenameFor(video, url);
 	try {
-		localStorage.setItem(GOAL_KEY, String(goal));
-	} catch {}
-	window.dispatchEvent(new Event("reelcase:rating-streak-change"));
-}
-function dayKey(at = /* @__PURE__ */ new Date()) {
-	return `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, "0")}-${String(at.getDate()).padStart(2, "0")}`;
-}
-function weekKey(at = /* @__PURE__ */ new Date()) {
-	const date = new Date(at);
-	date.setHours(0, 0, 0, 0);
-	date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
-	const firstThursday = new Date(date.getFullYear(), 0, 4);
-	const week = 1 + Math.round(((date.getTime() - firstThursday.getTime()) / 864e5 - 3 + (firstThursday.getDay() + 6) % 7) / 7);
-	return `${date.getFullYear()}-W${String(week).padStart(2, "0")}`;
-}
-function read$1() {
-	try {
-		const saved = JSON.parse(localStorage.getItem(KEY$1) ?? "[]");
-		return Array.isArray(saved) ? saved.filter((row) => typeof row?.day === "string" && Array.isArray(row?.ids)).slice(-400) : [];
-	} catch {
-		return [];
-	}
-}
-function write$1(days) {
-	try {
-		localStorage.setItem(KEY$1, JSON.stringify(days.slice(-400)));
-	} catch {}
-}
-function recordRatingForStreak(id, rating) {
-	if (!id || rating < 1 || typeof window === "undefined") return;
-	const days = read$1();
-	const today = dayKey();
-	const row = days.find((entry) => entry.day === today);
-	if (row) {
-		if (!row.ids.includes(id)) row.ids.push(id);
-	} else days.push({
-		day: today,
-		ids: [id]
-	});
-	write$1(days);
-	window.dispatchEvent(new Event("reelcase:rating-streak-change"));
-}
-function getRatingStreakSnapshot(now = /* @__PURE__ */ new Date()) {
-	const days = read$1();
-	const weeklyGoalValue = weeklyGoal();
-	const currentWeek = weekKey(now);
-	const weekTotals = /* @__PURE__ */ new Map();
-	for (const row of days) {
-		const key = weekKey(/* @__PURE__ */ new Date(`${row.day}T12:00:00`));
-		weekTotals.set(key, (weekTotals.get(key) ?? 0) + new Set(row.ids).size);
-	}
-	const thisWeek = weekTotals.get(currentWeek) ?? 0;
-	let weeklyStreak = 0;
-	const cursor = new Date(now);
-	while (true) {
-		if ((weekTotals.get(weekKey(cursor)) ?? 0) < weeklyGoalValue) break;
-		weeklyStreak += 1;
-		cursor.setDate(cursor.getDate() - 7);
-	}
-	const rewards = [
-		{
-			label: "First impression",
-			earned: thisWeek >= 1,
-			detail: "Rate one title this week."
-		},
-		{
-			label: "Weekly curator",
-			earned: thisWeek >= weeklyGoalValue,
-			detail: `Rate ${weeklyGoalValue} distinct titles this week.`
-		},
-		{
-			label: "Two-week rhythm",
-			earned: weeklyStreak >= 2,
-			detail: "Complete your weekly goal two weeks in a row."
+		const res = await fetch(url, {
+			mode: "cors",
+			credentials: "omit"
+		});
+		if (!res.ok) throw new Error(`HTTP ${res.status}`);
+		const blob = await res.blob();
+		const handlePicker = window.showSaveFilePicker;
+		if (typeof handlePicker === "function") try {
+			const handle = await handlePicker({
+				suggestedName: name,
+				types: [{
+					description: "Image",
+					accept: { [blob.type || "image/jpeg"]: [`.${name.split(".").pop()}`] }
+				}]
+			});
+			const writable = await handle.createWritable();
+			await writable.write(blob);
+			await writable.close();
+			return {
+				ok: true,
+				name: handle.name || name
+			};
+		} catch (err) {
+			if (err instanceof DOMException && err.name === "AbortError") return {
+				ok: false,
+				error: "Save cancelled."
+			};
 		}
-	];
-	const next = rewards.find((reward) => !reward.earned);
-	return {
-		weekKey: currentWeek,
-		thisWeek,
-		weeklyGoal: weeklyGoalValue,
-		weeklyStreak,
-		nextReward: next ? next.detail : "All current local rewards earned.",
-		rewards
-	};
-}
-var KEY = "reelcase.media-feedback.v1";
-var cached = null;
-var changeTimer;
-var persistTimer;
-var lastRatingQueueMs = 0;
-var lastPersistMs = 0;
-var pendingWrites = 0;
-var legacyRatings = /* @__PURE__ */ new Map();
-function read() {
-	if (cached) return cached;
-	try {
-		const saved = JSON.parse(localStorage.getItem(KEY) ?? "{}");
-		cached = {
-			ratings: saved.ratings ?? {},
-			notes: saved.notes ?? {},
-			creatorRatings: saved.creatorRatings ?? {},
-			creatorLikes: saved.creatorLikes ?? {},
-			tagLikes: saved.tagLikes ?? {}
+		const objectUrl = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = objectUrl;
+		a.download = name;
+		a.rel = "noopener";
+		document.body.appendChild(a);
+		a.click();
+		a.remove();
+		window.setTimeout(() => URL.revokeObjectURL(objectUrl), 3e4);
+		return {
+			ok: true,
+			name
 		};
-	} catch {
-		cached = {
-			ratings: {},
-			notes: {},
-			creatorRatings: {},
-			creatorLikes: {},
-			tagLikes: {}
-		};
+	} catch (err) {
+		try {
+			const a = document.createElement("a");
+			a.href = url;
+			a.target = "_blank";
+			a.rel = "noreferrer";
+			a.download = name;
+			document.body.appendChild(a);
+			a.click();
+			a.remove();
+			return {
+				ok: true,
+				name
+			};
+		} catch {
+			return {
+				ok: false,
+				error: err instanceof Error ? err.message : "Download failed."
+			};
+		}
 	}
-	return cached;
-}
-function persist() {
-	persistTimer = void 0;
-	const started = typeof performance !== "undefined" ? performance.now() : Date.now();
-	try {
-		if (cached) localStorage.setItem(KEY, JSON.stringify(cached));
-	} catch {} finally {
-		lastPersistMs = Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - started);
-		pendingWrites = 0;
-	}
-}
-/** Finish a queued rating write before a reload, tab close, or mobile app switch. */
-function flush() {
-	if (persistTimer !== void 0) window.clearTimeout(persistTimer);
-	persist();
-}
-if (typeof window !== "undefined") {
-	window.addEventListener("pagehide", flush);
-	document.addEventListener("visibilitychange", () => {
-		if (document.visibilityState === "hidden") flush();
-	});
-}
-function write(next) {
-	cached = next;
-	if (typeof window === "undefined") return;
-	pendingWrites = 1;
-	if (persistTimer) window.clearTimeout(persistTimer);
-	persistTimer = window.setTimeout(persist, 90);
-}
-function notifyChange() {
-	if (typeof window === "undefined" || changeTimer) return;
-	changeTimer = window.setTimeout(() => {
-		changeTimer = void 0;
-		window.dispatchEvent(new Event("reelcase:rating-change"));
-	}, 48);
-}
-function getRating(id) {
-	const value = read().ratings[id];
-	if (Number.isFinite(value)) return value;
-	if (typeof window === "undefined") return 0;
-	const known = legacyRatings.get(id);
-	if (known !== void 0) return known;
-	let legacy = 0;
-	try {
-		legacy = Number(localStorage.getItem(`reelcase.rating.${id}`) ?? 0);
-	} catch {}
-	const rating = Number.isFinite(legacy) ? legacy : 0;
-	legacyRatings.set(id, rating);
-	return rating;
-}
-function setRating(id, rating) {
-	const started = typeof performance !== "undefined" ? performance.now() : Date.now();
-	const next = read();
-	next.ratings[id] = Math.max(0, Math.min(5, Math.round(rating)));
-	legacyRatings.set(id, next.ratings[id]);
-	recordRatingForStreak(id, next.ratings[id]);
-	write(next);
-	notifyChange();
-	lastRatingQueueMs = Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - started);
-}
-/** Local timing only. This never transmits library feedback or usage data. */
-function getFeedbackDiagnostics() {
-	return {
-		lastRatingQueueMs,
-		lastPersistMs,
-		pendingWrites
-	};
-}
-function creatorKey(name) {
-	return name.trim().toLowerCase();
-}
-function getCreatorRating(name) {
-	return read().creatorRatings[creatorKey(name)] ?? 0;
-}
-function setCreatorRating(name, rating) {
-	const next = read();
-	next.creatorRatings[creatorKey(name)] = Math.max(0, Math.min(5, Math.round(rating)));
-	write(next);
-	notifyChange();
-}
-function creatorIsLiked(name) {
-	return Boolean(read().creatorLikes[creatorKey(name)]);
-}
-function toggleCreatorLike(name) {
-	const next = read();
-	const key = creatorKey(name);
-	if (next.creatorLikes[key]) delete next.creatorLikes[key];
-	else next.creatorLikes[key] = true;
-	write(next);
-	notifyChange();
-}
-function tagKey(tag) {
-	return tag.trim().toLowerCase();
-}
-function tagIsLiked(tag) {
-	return Boolean(read().tagLikes[tagKey(tag)]);
-}
-function toggleTagLike(tag) {
-	const next = read();
-	const key = tagKey(tag);
-	if (next.tagLikes[key]) delete next.tagLikes[key];
-	else next.tagLikes[key] = true;
-	write(next);
-	notifyChange();
-}
-/** Versioned rating/note payload used by the full library backup. */
-function exportFeedback() {
-	return {
-		version: 3,
-		...read()
-	};
-}
-function getNote(id) {
-	const value = read().notes[id];
-	if (typeof value === "string") return value;
-	try {
-		return localStorage.getItem(`reelcase.note.${id}`) ?? "";
-	} catch {
-		return "";
-	}
-}
-function setNote(id, note) {
-	const next = read();
-	if (note.trim()) next.notes[id] = note.trim();
-	else delete next.notes[id];
-	write(next);
 }
 var mountedCards = 0;
 var longFrames = 0;
@@ -3762,6 +4126,51 @@ function getRenderBudgetSnapshot() {
 		startedAt: startedAt$1
 	};
 }
+var active = 0;
+var waitingHigh = [];
+var waitingLow = [];
+/** Default ceiling — aggressive enough that dense Adult rails stay scrollable. */
+var MAX_CONCURRENT = 12;
+/** Reserve a few slots so visible cards are not starved by speculative warm. */
+var HIGH_RESERVED = 4;
+function maxConcurrent() {
+	const nav = typeof navigator !== "undefined" ? navigator : void 0;
+	if (nav?.connection?.saveData) return 3;
+	if (nav?.deviceMemory && nav.deviceMemory <= 2) return 4;
+	if (nav?.deviceMemory && nav.deviceMemory <= 4) return 6;
+	if (nav?.hardwareConcurrency && nav.hardwareConcurrency <= 4) return 6;
+	const type = nav?.connection?.effectiveType;
+	if (type === "slow-2g" || type === "2g") return 3;
+	if (type === "3g") return 6;
+	if (typeof nav?.connection?.downlink === "number" && nav.connection.downlink > 0 && nav.connection.downlink < 1.5) return 6;
+	return MAX_CONCURRENT;
+}
+function wakeNext() {
+	const next = waitingHigh.shift() ?? waitingLow.shift();
+	if (next) next();
+}
+function canStart(priority) {
+	const max = maxConcurrent();
+	if (active >= max) return false;
+	if (priority === "high") return true;
+	if (waitingHigh.length > 0 && active >= Math.max(1, max - HIGH_RESERVED)) return false;
+	return true;
+}
+async function acquireImageSlot(opts) {
+	const priority = opts?.priority ?? "low";
+	const queue = priority === "high" ? waitingHigh : waitingLow;
+	while (!canStart(priority)) await new Promise((resolve) => queue.push(resolve));
+	active += 1;
+	let released = false;
+	return () => {
+		if (released) return;
+		released = true;
+		active = Math.max(0, active - 1);
+		wakeNext();
+	};
+}
+var THUMB_LOAD_TIMEOUT_MS = 4500;
+var RAIL_WARM_INDEX = 8;
 var EMPTY_TAGS$2 = [];
 var artworkRepairRequested = /* @__PURE__ */ new Set();
 var remoteArtworkRepairRequested = /* @__PURE__ */ new Set();
@@ -3781,6 +4190,11 @@ var VideoCard = (0, import_react.memo)(function VideoCard({ video, variant = "gr
 	const tags = useLibrary((s) => s.tags[video.id] ?? EMPTY_TAGS$2);
 	const category = useLibrary((s) => s.categories[video.id] ?? "");
 	const viewCount = useLibrary((s) => s.viewCounts[video.id] ?? 0);
+	const cameCount = useLibrary((s) => s.cameCounts[video.id] ?? 0);
+	const adultFolder = useLibrary((s) => Boolean(s.folders.find((folder) => folder.id === video.folderId)?.adult));
+	const markCame = useLibrary((s) => s.markCame);
+	const adult = adultFolder || isAdultPullKind(video.remote?.kind);
+	const adultPhoto = Boolean(adult && isAdultImageKind(video.remote?.kind, video.mime, video.extension));
 	const toggleLike = useLibrary((s) => s.toggleLike);
 	const openPreview = useLibrary((s) => s.openPreview);
 	const toggleFavorite = useLibrary((s) => s.toggleFavorite);
@@ -3790,24 +4204,155 @@ var VideoCard = (0, import_react.memo)(function VideoCard({ video, variant = "gr
 	const playable = isLikelyPlayable(video.extension);
 	const youtubeId = video.remote?.kind === "youtube" ? video.remote.videoId ?? video.remote.embedUrl?.match(/(?:embed\/|v=)([A-Za-z0-9_-]{11})/)?.[1] : void 0;
 	const youtubeFallback = youtubeId ? `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg` : void 0;
+	const youtubeFallbacks = youtubeId ? [
+		`https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg`,
+		`https://i.ytimg.com/vi/${youtubeId}/mqdefault.jpg`,
+		`https://i.ytimg.com/vi/${youtubeId}/sddefault.jpg`,
+		`https://i.ytimg.com/vi/${youtubeId}/default.jpg`
+	] : [];
+	const adultCandidates = (0, import_react.useMemo)(() => video.remote && video.remote.kind !== "youtube" && video.remote.kind !== "twitch" ? adultThumbCandidatesForVideo(video) : [], [video]);
 	const providerArt = video.poster || youtubeFallback || video.remote?.previewUrl;
-	const art = variant === "poster" ? providerArt || thumb : thumb || providerArt;
 	const isPoster = variant === "poster";
 	const live = Boolean(video.remote?.live);
 	const preview = video.remote?.previewUrl;
 	const [hovered, setHovered] = (0, import_react.useState)(false);
-	const [imageFailed, setImageFailed] = (0, import_react.useState)(false);
+	const [thumbIndex, setThumbIndex] = (0, import_react.useState)(0);
+	const [artVisible, setArtVisible] = (0, import_react.useState)(false);
+	const [artAllowed, setArtAllowed] = (0, import_react.useState)(false);
+	const [paintedSrc, setPaintedSrc] = (0, import_react.useState)();
+	const [candidateReady, setCandidateReady] = (0, import_react.useState)(false);
 	const [textFirst, setTextFirst] = (0, import_react.useState)(false);
 	const [rating, setRating$3] = (0, import_react.useState)(0);
+	const imageSlotRelease = (0, import_react.useRef)(void 0);
+	const releaseImageSlot = () => {
+		imageSlotRelease.current?.();
+		imageSlotRelease.current = void 0;
+		setArtAllowed(false);
+	};
+	const thumbCandidates = (0, import_react.useMemo)(() => {
+		const out = [];
+		const seen = /* @__PURE__ */ new Set();
+		const push = (url) => {
+			if (!url || seen.has(url)) return;
+			seen.add(url);
+			out.push(url);
+		};
+		if (variant === "poster") {
+			push(providerArt);
+			push(thumb);
+		} else {
+			push(thumb);
+			push(providerArt);
+		}
+		for (const url of adultCandidates) push(url);
+		for (const url of youtubeFallbacks) push(url);
+		push(preview);
+		return out;
+	}, [
+		adultCandidates,
+		preview,
+		providerArt,
+		thumb,
+		variant,
+		youtubeId
+	]);
+	const resolvedThumbIndex = (() => {
+		for (let i = thumbIndex; i < thumbCandidates.length; i++) if (!isAdultThumbBlacklisted(thumbCandidates[i])) return i;
+		return thumbCandidates.length;
+	})();
+	const thumbsExhausted = thumbCandidates.length === 0 || resolvedThumbIndex >= thumbCandidates.length;
+	const activeThumb = thumbsExhausted ? void 0 : thumbCandidates[resolvedThumbIndex];
+	const showPreview = Boolean(hovered && preview && preview !== activeThumb && resolvedThumbIndex === 0 && !isAdultThumbBlacklisted(preview));
+	const advanceThumb = () => {
+		setCandidateReady(false);
+		setThumbIndex((index) => {
+			let next = index + 1;
+			while (next < thumbCandidates.length && isAdultThumbBlacklisted(thumbCandidates[next])) next += 1;
+			if (next >= thumbCandidates.length) repairRemoteArtwork();
+			return next;
+		});
+	};
+	(0, import_react.useEffect)(() => {
+		setThumbIndex(0);
+		setPaintedSrc(void 0);
+		setCandidateReady(false);
+	}, [
+		video.id,
+		video.poster,
+		video.remote?.previewUrl
+	]);
 	(0, import_react.useEffect)(() => {
 		const el = ref.current;
-		if (!el || video.remote) return;
+		if (!el) return;
 		const io = new IntersectionObserver((entries) => {
-			if (entries.some((e) => e.isIntersecting)) request(video);
+			const visible = entries.some((e) => e.isIntersecting);
+			setArtVisible(visible);
+			if (visible && !video.remote) request(video);
 		}, { rootMargin: "160px" });
 		io.observe(el);
 		return () => io.disconnect();
 	}, [request, video]);
+	(0, import_react.useEffect)(() => {
+		if (!artVisible || !adultCandidates.length) return;
+		if (variant !== "rail" && variant !== "grid") return;
+		if (index > RAIL_WARM_INDEX) return;
+		warmAdultThumbUrls(thumbCandidates, 3);
+	}, [
+		artVisible,
+		adultCandidates.length,
+		index,
+		thumbCandidates,
+		variant
+	]);
+	(0, import_react.useEffect)(() => {
+		if (!artVisible || thumbsExhausted) {
+			setArtAllowed(false);
+			return;
+		}
+		let release;
+		let cancelled = false;
+		acquireImageSlot({ priority: "high" }).then((done) => {
+			if (cancelled) {
+				done();
+				return;
+			}
+			release = done;
+			imageSlotRelease.current = done;
+			setArtAllowed(true);
+		});
+		return () => {
+			cancelled = true;
+			if (imageSlotRelease.current === release) imageSlotRelease.current = void 0;
+			release?.();
+			setArtAllowed(false);
+		};
+	}, [
+		activeThumb,
+		artVisible,
+		thumbsExhausted,
+		video.id
+	]);
+	(0, import_react.useEffect)(() => {
+		setCandidateReady(false);
+	}, [activeThumb]);
+	(0, import_react.useEffect)(() => {
+		if (!artVisible || !artAllowed || !activeThumb || showPreview || candidateReady) return;
+		if (paintedSrc === activeThumb) return;
+		const timer = window.setTimeout(() => {
+			markAdultThumbFailed(activeThumb);
+			releaseImageSlot();
+			advanceThumb();
+		}, THUMB_LOAD_TIMEOUT_MS);
+		return () => window.clearTimeout(timer);
+	}, [
+		activeThumb,
+		artAllowed,
+		artVisible,
+		candidateReady,
+		paintedSrc,
+		showPreview,
+		thumbIndex
+	]);
 	(0, import_react.useEffect)(() => {
 		setRating$3(getRating(video.id));
 	}, [video.id]);
@@ -3833,7 +4378,7 @@ var VideoCard = (0, import_react.memo)(function VideoCard({ video, variant = "gr
 		window.requestAnimationFrame(() => setRating(video.id, value));
 	};
 	const repairRemoteArtwork = () => {
-		if (!video.remote || remoteArtworkRepairRequested.has(video.folderId)) return;
+		if (!video.remote || video.remote.kind !== "youtube" && video.remote.kind !== "twitch" || remoteArtworkRepairRequested.has(video.folderId)) return;
 		remoteArtworkRepairRequested.add(video.folderId);
 		const query = video.remote.channelId ?? video.folderId.replace(/^(?:yt|tw):/, "");
 		followRemoteQuery(query, video.remote.kind).catch(() => void 0);
@@ -3841,17 +4386,45 @@ var VideoCard = (0, import_react.memo)(function VideoCard({ video, variant = "gr
 	const poster = /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 		className: cn("relative overflow-hidden bg-elevated", variant === "list" && "h-16 w-28 shrink-0 rounded-sm", variant === "poster" && "aspect-poster w-full rounded-md", (variant === "grid" || variant === "rail") && "aspect-video w-full rounded-md"),
 		children: [
-			!textFirst && (imageFailed && youtubeFallback ? youtubeFallback : art) ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
-				loading: "lazy",
-				decoding: "async",
-				src: imageFailed && youtubeFallback ? youtubeFallback : hovered && preview ? preview : art,
+			paintedSrc && !textFirst && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+				src: paintedSrc,
 				alt: "",
-				onError: () => {
-					setImageFailed(true);
-					repairRemoteArtwork();
+				"aria-hidden": true,
+				decoding: "async",
+				referrerPolicy: "no-referrer",
+				className: "absolute inset-0 size-full object-cover outline outline-1 -outline-offset-1 outline-fg/10"
+			}),
+			!textFirst && artVisible && (artAllowed || candidateReady || paintedSrc === activeThumb) && !thumbsExhausted && (showPreview ? preview : activeThumb) ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+				loading: index <= RAIL_WARM_INDEX ? "eager" : "lazy",
+				decoding: "async",
+				fetchPriority: index <= 3 && artVisible ? "high" : "auto",
+				referrerPolicy: "no-referrer",
+				src: showPreview ? preview : activeThumb,
+				alt: "",
+				onLoad: (event) => {
+					if (showPreview) return;
+					const img = event.currentTarget;
+					const url = activeThumb;
+					if (!url) return;
+					if (!isDecodedAdultThumbLikelyReal(img)) {
+						markAdultThumbFailed(url);
+						releaseImageSlot();
+						advanceThumb();
+						return;
+					}
+					markAdultThumbGood(url, video.id);
+					setPaintedSrc(url);
+					setCandidateReady(true);
+					releaseImageSlot();
 				},
-				className: "size-full object-cover outline outline-1 -outline-offset-1 outline-fg/10"
-			}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				onError: () => {
+					if (showPreview) return;
+					if (activeThumb) markAdultThumbFailed(activeThumb);
+					releaseImageSlot();
+					advanceThumb();
+				},
+				className: cn("relative size-full object-cover outline outline-1 -outline-offset-1 outline-fg/10 transition-opacity duration-150", candidateReady || paintedSrc === activeThumb ? "opacity-100" : "opacity-0")
+			}, `${video.id}:${resolvedThumbIndex}:${showPreview ? "p" : "a"}`) : !paintedSrc ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "absolute inset-0 flex items-center justify-center bg-elevated outline outline-1 -outline-offset-1 outline-fg/10",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 					className: cn("flex size-10 items-center justify-center rounded-full bg-bg/40 text-muted", !failed && "animate-pulse"),
@@ -3861,7 +4434,7 @@ var VideoCard = (0, import_react.memo)(function VideoCard({ video, variant = "gr
 					className: "absolute bottom-2 left-2 right-2 rounded-xs bg-bg/80 px-2 py-1 text-center text-[11px] text-muted",
 					children: ["Local artwork unavailable", artworkDiagnostic ? ` · ${artworkDiagnostic.attempts}/3` : ""]
 				})]
-			}),
+			}) : null,
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "absolute inset-0 bg-linear-to-t from-bg/80 via-transparent to-transparent opacity-90" }),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 				className: "absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100",
@@ -3984,9 +4557,17 @@ var VideoCard = (0, import_react.memo)(function VideoCard({ video, variant = "gr
 									viewCount === 1 ? "" : "s"
 								]
 							}),
-							(category || tags.length > 0) && variant !== "list" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+							adult && cameCount > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+								className: "mt-1 text-xs text-accent",
+								children: [
+									"I cummed to it · ",
+									cameCount,
+									"×"
+								]
+							}),
+							(category || tags.length > 0) && variant !== "list" && variant !== "rail" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 								className: "mt-1 flex items-center gap-1 truncate text-xs text-subtle",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tag, { className: "size-3 shrink-0" }), [category, ...tags].filter(Boolean).join(" · ")]
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tag, { className: "size-3 shrink-0" }), [category, ...tags.slice(0, 6)].filter(Boolean).join(" · ")]
 							})
 						]
 					}),
@@ -4036,6 +4617,30 @@ var VideoCard = (0, import_react.memo)(function VideoCard({ video, variant = "gr
 				},
 				className: cn("absolute top-11 right-2 flex size-9 items-center justify-center rounded-sm bg-bg/55 text-fg opacity-0 backdrop-blur-sm transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100", liked && "opacity-100", variant === "list" && "top-12 right-3"),
 				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ThumbsUp, { className: cn("size-3.5", liked && "fill-accent text-accent") })
+			}),
+			adult && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+				type: "button",
+				"aria-label": "I cummed to it",
+				onClick: (event) => {
+					event.stopPropagation();
+					markCame(video.id);
+				},
+				className: cn("absolute top-20 right-2 flex min-h-9 items-center gap-1 rounded-sm bg-bg/55 px-1.5 text-[10px] text-fg opacity-0 backdrop-blur-sm transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100", cameCount > 0 && "opacity-100 text-accent", variant === "list" && "top-[4.75rem] right-3"),
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Flame, { className: cn("size-3.5", cameCount > 0 && "fill-accent text-accent") }), cameCount > 0 ? cameCount : ""]
+			}),
+			adultPhoto && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+				type: "button",
+				"aria-label": "Download photo",
+				title: "Download photo to this device",
+				onClick: (event) => {
+					event.stopPropagation();
+					downloadAdultPhoto(video).then((result) => {
+						if (result.ok) toast.success(`Saved ${result.name}`);
+						else if (result.error !== "Save cancelled.") toast.error(result.error);
+					});
+				},
+				className: cn("absolute top-[7.25rem] right-2 flex size-9 items-center justify-center rounded-sm bg-bg/55 text-fg opacity-0 backdrop-blur-sm transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100", variant === "list" && "top-[6.5rem] right-3"),
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Download, { className: "size-3.5" })
 			}),
 			live && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "mt-2 flex items-center justify-between border-t border-border pt-2",
@@ -4097,6 +4702,318 @@ function Input({ className, type, ...props }) {
 		className: cn("h-11 w-full min-w-0 rounded-md bg-elevated px-3 text-sm text-fg shadow-border outline-none transition-[box-shadow] duration-150 placeholder:text-subtle", "focus-visible:shadow-border-hover focus-visible:ring-2 focus-visible:ring-ring/50", "disabled:cursor-not-allowed disabled:opacity-40", className),
 		...props
 	});
+}
+var ADULT_SOURCE_FILTERS = [
+	{
+		id: "all",
+		label: "All sources"
+	},
+	{
+		id: "reddit",
+		label: "Reddit"
+	},
+	{
+		id: "redtube",
+		label: "RedTube"
+	},
+	{
+		id: "eporner",
+		label: "Eporner"
+	},
+	{
+		id: "chaturbate",
+		label: "Chaturbate"
+	},
+	{
+		id: "camsoda",
+		label: "CamSoda"
+	},
+	{
+		id: "myfreecams",
+		label: "MyFreeCams"
+	},
+	{
+		id: "booru",
+		label: "Booru"
+	},
+	{
+		id: "redgifs",
+		label: "Redgifs"
+	}
+];
+function adultProviderKind(video) {
+	const kind = video.remote?.kind;
+	if (kind && ADULT_PULL_PROVIDERS.includes(kind)) return kind;
+	const folder = video.folderId.split(":")[0] ?? "";
+	if (ADULT_PULL_PROVIDERS.includes(folder)) return folder;
+	return "";
+}
+function videoMatchesAdultSource(video, source) {
+	if (!source || source === "all" || source === "All") return true;
+	const kind = adultProviderKind(video);
+	const needle = source.replace(/^source-/, "").toLowerCase();
+	if (kind && (kind === needle || needle.startsWith(`${kind}-`) || needle === kind)) return true;
+	if (needle.startsWith("reddit") && kind === "reddit") return true;
+	return false;
+}
+function videoMatchesAdultTag(video, tag, tags) {
+	if (!tag || tag === "All" || tag === "all") return true;
+	if (tag.startsWith("source-")) return videoMatchesAdultSource(video, tag);
+	const itemTags = tags[video.id] ?? [];
+	if (itemTags.includes(tag)) return true;
+	if (itemTags.some((item) => adultTaxonomyTags(item).includes(tag))) return true;
+	if (tag.startsWith("creator-")) {
+		const slug = tag.slice(8);
+		const name = (video.remote?.channelName ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+		return Boolean(slug) && name === slug;
+	}
+	return false;
+}
+function countAdultBySource(videos) {
+	const counts = { all: videos.length };
+	for (const provider of ADULT_PULL_PROVIDERS) counts[provider] = 0;
+	for (const video of videos) {
+		const kind = adultProviderKind(video);
+		if (kind) counts[kind] = (counts[kind] ?? 0) + 1;
+	}
+	return counts;
+}
+/** Stable personal-interest tags for the main Adults browser. Sources and
+* creators already have dedicated filters; raw API keyword dumps stay
+* searchable without flooding the browse chips. */
+function isAdultInterestTag(tag) {
+	return tag.startsWith("fetish-") || isAdultGenreTag(tag);
+}
+function redditSignal(tags) {
+	let score = 0;
+	for (const tag of tags) {
+		if (tag.startsWith("source-reddit") || tag.startsWith("sub-")) score += 2;
+		if (tag === "reddit-photo" || tag === "reddit-video") score += 1.5;
+		if (tag.startsWith("fetish-")) score += .6;
+	}
+	return score;
+}
+function scoreAdultVideo(video, ctx) {
+	const itemTags = ctx.tags[video.id] ?? [];
+	const rating = ctx.ratingOf(video.id);
+	const came = Math.min(24, (ctx.cameCounts[video.id] ?? 0) * 7);
+	const views = Math.min(8, (ctx.viewCounts?.[video.id] ?? 0) * 1.2);
+	const boost = itemTags.reduce((sum, tag) => sum + adultTagRankBoost(tag), 0);
+	const recency = Math.max(0, 1 - (Date.now() - video.addedAt) / 18144e5) * 8;
+	const reddit = video.remote?.kind === "reddit" ? 6 + redditSignal(itemTags) : redditSignal(itemTags);
+	return rating * 14 + (ctx.favorites[video.id] ? 10 : 0) + (ctx.likes[video.id] ? 6 : 0) + came + views + boost + recency + reddit + Math.min(6, itemTags.length) * .35;
+}
+/**
+* Metadata stays searchable and useful to recommendations without becoming an
+* unmanageable filter list.  Provider/source, creator and mechanical ingest
+* labels remain dedicated facets; the remaining verified provider metadata is
+* scored with the same personal signals as curated interests.
+*/
+function isAdultMetaTag(tag) {
+	return isAdultMetaTaxonomyTag(tag) || Boolean(tag) && !isAdultInterestTag(tag) && !tag.startsWith("source-") && !tag.startsWith("creator-") && !tag.startsWith("auto-") && !tag.startsWith("sub-") && !tag.startsWith("provider-") && !tag.startsWith("format-") && !/^(?:adult|video|photo|live|cam|image|explicit|https?|www|com|eporner|redtube|reddit|chaturbate|camsoda|myfreecams|booru|redgifs)$/.test(tag) && tag.length >= 3 && !/(?:https?|\bwww\b|redgifs|eporner|redtube)/.test(tag);
+}
+function rankAdultTags(videos, ctx, limit = 64) {
+	const rows = /* @__PURE__ */ new Map();
+	for (const video of videos) {
+		const rating = ctx.ratingOf(video.id);
+		const signal = Math.max(rating, ctx.favorites[video.id] ? 4 : 0, ctx.likes[video.id] ? 3 : 0, Math.min(5, ctx.cameCounts[video.id] ?? 0), 1);
+		const kind = adultProviderKind(video);
+		const itemTags = ctx.tags[video.id] ?? [];
+		for (const tag of /* @__PURE__ */ new Set([...itemTags, ...itemTags.flatMap(adultTaxonomyTags)])) {
+			if (!isAdultInterestTag(tag)) continue;
+			const row = rows.get(tag) ?? {
+				total: 0,
+				count: 0,
+				recent: 0
+			};
+			const redditBoost = kind === "reddit" && (tag.startsWith("source-reddit") || tag.startsWith("sub-") || tag.startsWith("fetish-")) ? 2 : 0;
+			row.total += signal + adultTagRankBoost(tag) + redditBoost;
+			row.count += 1;
+			row.recent = Math.max(row.recent, video.addedAt);
+			rows.set(tag, row);
+		}
+	}
+	const now = Date.now();
+	return [...rows.entries()].map(([tag, row]) => {
+		const engagement = (row.total + 9) / (row.count + 3);
+		const recency = Math.max(0, 1 - (now - row.recent) / 2592e6);
+		return {
+			tag,
+			count: row.count,
+			score: engagement * 12 + row.count * .35 + recency * 4 + adultTagRankBoost(tag)
+		};
+	}).sort((a, b) => b.score - a.score || b.count - a.count || a.tag.localeCompare(b.tag)).slice(0, limit);
+}
+function sortAdultVideos(videos, ctx) {
+	const scored = videos.map((video) => ({
+		video,
+		score: scoreAdultVideo(video, ctx)
+	})).sort((a, b) => b.score - a.score || b.video.addedAt - a.video.addedAt);
+	const byProvider = /* @__PURE__ */ new Map();
+	for (const item of scored) {
+		const provider = adultProviderKind(item.video) || "other";
+		const bucket = byProvider.get(provider) ?? [];
+		bucket.push(item);
+		byProvider.set(provider, bucket);
+	}
+	const providers = [...byProvider.entries()].sort(([, a], [, b]) => (b[0]?.score ?? 0) - (a[0]?.score ?? 0)).map(([provider]) => provider);
+	const ordered = [];
+	while (providers.length) for (let index = providers.length - 1; index >= 0; index -= 1) {
+		const provider = providers[index];
+		const next = byProvider.get(provider)?.shift();
+		if (next) ordered.push(next.video);
+		if (!byProvider.get(provider)?.length) providers.splice(index, 1);
+	}
+	return ordered;
+}
+function rankAdultMetaTags(videos, ctx, limit = 64) {
+	const rows = /* @__PURE__ */ new Map();
+	for (const video of videos) {
+		const engagement = Math.max(ctx.ratingOf(video.id), ctx.favorites[video.id] ? 4 : 0, ctx.likes[video.id] ? 3 : 0, Math.min(5, ctx.cameCounts[video.id] ?? 0), 1);
+		const provider = adultProviderKind(video) || "other";
+		const itemTags = ctx.tags[video.id] ?? [];
+		for (const tag of /* @__PURE__ */ new Set([...itemTags, ...itemTags.flatMap(adultTaxonomyTags)])) {
+			if (!isAdultMetaTag(tag)) continue;
+			const row = rows.get(tag) ?? {
+				total: 0,
+				count: 0,
+				recent: 0,
+				providers: /* @__PURE__ */ new Set()
+			};
+			row.total += engagement;
+			row.count += 1;
+			row.recent = Math.max(row.recent, video.addedAt);
+			row.providers.add(provider);
+			rows.set(tag, row);
+		}
+	}
+	const now = Date.now();
+	return [...rows.entries()].map(([tag, row]) => {
+		const engagement = (row.total + 6) / (row.count + 2);
+		const recency = Math.max(0, 1 - (now - row.recent) / 2592e6);
+		return {
+			tag,
+			count: row.count,
+			score: engagement * 10 + row.count * .25 + recency * 3 + Math.min(4, row.providers.size) * 1.5
+		};
+	}).sort((a, b) => b.score - a.score || b.count - a.count || a.tag.localeCompare(b.tag)).slice(0, limit);
+}
+function buildAdultStatsSnapshot(videos, folders, tags, ctx) {
+	const adultIds = new Set(folders.filter((folder) => folder.adult).map((folder) => folder.id));
+	const matchedAdults = videos.filter((video) => adultIds.has(video.folderId) || Boolean(adultProviderKind(video)));
+	const adultVideos = [...new Map(matchedAdults.map((video) => [video.id, video])).values()];
+	const rankCtx = {
+		...ctx,
+		tags
+	};
+	const ranked = rankAdultTags(adultVideos, rankCtx, 120);
+	const metaRanked = rankAdultMetaTags(adultVideos, rankCtx, 120);
+	const sources = countAdultBySource(adultVideos);
+	const providerMix = ADULT_PULL_PROVIDERS.map((provider) => ({
+		provider,
+		label: adultRemoteLabel(provider),
+		titles: sources[provider] ?? 0,
+		share: adultVideos.length ? (sources[provider] ?? 0) / adultVideos.length : 0,
+		status: sources[provider] ?? 0 ? "active" : "empty"
+	})).sort((a, b) => b.titles - a.titles || a.label.localeCompare(b.label));
+	return {
+		at: Date.now(),
+		titles: adultVideos.length,
+		sources,
+		providerMix,
+		genres: ranked.filter((row) => isAdultGenreTag(row.tag)).slice(0, 40).map((row) => ({
+			...row,
+			label: adultTaxonomyLabel(row.tag)
+		})),
+		topTags: ranked.slice(0, 60),
+		metaTags: metaRanked.slice(0, 60),
+		fetishTags: ranked.filter((row) => row.tag.startsWith("fetish-")).slice(0, 40),
+		redditTags: ranked.filter((row) => row.tag.includes("reddit") || row.tag.startsWith("sub-")).slice(0, 40),
+		markedTitles: adultVideos.filter((video) => (ctx.cameCounts[video.id] ?? 0) > 0).length,
+		totalMarks: adultVideos.reduce((sum, video) => sum + (ctx.cameCounts[video.id] ?? 0), 0)
+	};
+}
+function adultStatsToCsv(snapshot) {
+	const quote = (value) => `"${String(value).replaceAll("\"", "\"\"")}"`;
+	const rows = [
+		[
+			"metric",
+			"key",
+			"count",
+			"score"
+		],
+		[
+			"titles",
+			"all",
+			snapshot.titles,
+			""
+		],
+		[
+			"marked_titles",
+			"i-cummed",
+			snapshot.markedTitles,
+			""
+		],
+		[
+			"total_marks",
+			"i-cummed",
+			snapshot.totalMarks,
+			""
+		]
+	];
+	for (const [key, count] of Object.entries(snapshot.sources)) rows.push([
+		"source",
+		key,
+		count,
+		""
+	]);
+	for (const row of snapshot.providerMix) rows.push([
+		"provider_mix",
+		`${row.provider}:${row.status}:${Math.round(row.share * 100)}%`,
+		row.titles,
+		""
+	]);
+	for (const row of snapshot.genres) rows.push([
+		"genre",
+		row.tag,
+		row.count,
+		row.score.toFixed(2)
+	]);
+	for (const row of snapshot.topTags) rows.push([
+		"tag",
+		row.tag,
+		row.count,
+		row.score.toFixed(2)
+	]);
+	for (const row of snapshot.metaTags) rows.push([
+		"meta_tag",
+		row.tag,
+		row.count,
+		row.score.toFixed(2)
+	]);
+	for (const row of snapshot.redditTags) rows.push([
+		"reddit_tag",
+		row.tag,
+		row.count,
+		row.score.toFixed(2)
+	]);
+	return rows.map((row) => row.map(quote).join(",")).join("\n");
+}
+function downloadTextFile(body, filename, mime) {
+	const url = URL.createObjectURL(new Blob([body], { type: mime }));
+	const link = document.createElement("a");
+	link.href = url;
+	link.download = filename;
+	link.click();
+	URL.revokeObjectURL(url);
+}
+function exportAdultStats(snapshot, format) {
+	const stamp = new Date(snapshot.at).toISOString().slice(0, 10);
+	if (format === "json") {
+		downloadTextFile(JSON.stringify(snapshot, null, 2), `reelcase-adult-stats-${stamp}.json`, "application/json");
+		return;
+	}
+	downloadTextFile(adultStatsToCsv(snapshot), `reelcase-adult-stats-${stamp}.csv`, "text/csv;charset=utf-8");
 }
 var startedAt = typeof performance === "undefined" ? Date.now() : performance.now();
 var trace = { startedAt };
@@ -4209,10 +5126,18 @@ function Billboard({ video }) {
 	const openVideo = useLibrary((s) => s.openVideo);
 	const toggleFavorite = useLibrary((s) => s.toggleFavorite);
 	const fav = useLibrary((s) => Boolean(s.favorites[video.id]));
-	const art = thumb || video.poster;
+	const [artIndex, setArtIndex] = (0, import_react.useState)(0);
+	const artwork = [
+		thumb,
+		video.poster,
+		video.remote?.previewUrl,
+		...adultThumbCandidatesForVideo(video)
+	].filter((url, index, all) => Boolean(url) && all.indexOf(url) === index);
+	const art = artwork[artIndex];
 	(0, import_react.useEffect)(() => {
 		request(video);
 	}, [request, video]);
+	(0, import_react.useEffect)(() => setArtIndex(0), [video.id]);
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("section", {
 		className: "relative mb-8 overflow-hidden rounded-xl bg-elevated shadow-border",
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -4221,6 +5146,9 @@ function Billboard({ video }) {
 				art ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
 					src: art,
 					alt: "",
+					decoding: "async",
+					referrerPolicy: "no-referrer",
+					onError: () => setArtIndex((index) => Math.min(index + 1, artwork.length)),
 					className: "absolute inset-0 size-full object-cover"
 				}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "absolute inset-0 bg-elevated" }),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "absolute inset-0 bg-linear-to-t from-bg via-bg/40 to-bg/10" }),
@@ -4262,9 +5190,15 @@ function Billboard({ video }) {
 }
 function TitleRail({ title, videos, variant = "poster", playedAt, onTitleClick, reason }) {
 	const shelfRef = (0, import_react.useRef)(null);
+	const railRef = (0, import_react.useRef)(null);
 	const scrollLeft = (0, import_react.useRef)(0);
+	const leaveTimer = (0, import_react.useRef)(void 0);
 	const [nearViewport, setNearViewport] = (0, import_react.useState)(false);
+	const [collapsed, setCollapsed] = (0, import_react.useState)(false);
 	const [shelfHeight, setShelfHeight] = (0, import_react.useState)();
+	const [railWidth, setRailWidth] = (0, import_react.useState)(0);
+	const [windowStart, setWindowStart] = (0, import_react.useState)(0);
+	const cardStride = variant === "poster" ? 148 : 236;
 	(0, import_react.useEffect)(() => {
 		const shelf = shelfRef.current;
 		if (!shelf || !videos.length) return;
@@ -4273,10 +5207,20 @@ function TitleRail({ title, videos, variant = "poster", playedAt, onTitleClick, 
 			return;
 		}
 		const observer = new IntersectionObserver(([entry]) => {
-			setNearViewport(entry.isIntersecting || shelf.contains(document.activeElement));
-		}, { rootMargin: "400px 0px" });
+			if (entry.isIntersecting || shelf.contains(document.activeElement)) {
+				if (leaveTimer.current) window.clearTimeout(leaveTimer.current);
+				leaveTimer.current = void 0;
+				setNearViewport(true);
+				return;
+			}
+			if (leaveTimer.current) window.clearTimeout(leaveTimer.current);
+			leaveTimer.current = window.setTimeout(() => setNearViewport(false), 1200);
+		}, { rootMargin: "480px 0px" });
 		observer.observe(shelf);
-		return () => observer.disconnect();
+		return () => {
+			observer.disconnect();
+			if (leaveTimer.current) window.clearTimeout(leaveTimer.current);
+		};
 	}, [Boolean(videos.length)]);
 	(0, import_react.useEffect)(() => {
 		const shelf = shelfRef.current;
@@ -4285,6 +5229,15 @@ function TitleRail({ title, videos, variant = "poster", playedAt, onTitleClick, 
 		observer.observe(shelf);
 		return () => observer.disconnect();
 	}, [nearViewport]);
+	(0, import_react.useEffect)(() => {
+		const rail = railRef.current;
+		if (!rail || !nearViewport) return;
+		const sync = () => setRailWidth(Math.max(320, Math.round(rail.clientWidth)));
+		sync();
+		const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(sync) : void 0;
+		observer?.observe(rail);
+		return () => observer?.disconnect();
+	}, [nearViewport, variant]);
 	const [limit, setLimit] = (0, import_react.useState)(() => savedRenderBudget("reelcase.home-rail-limit", RAIL_SIZES, 8));
 	(0, import_react.useEffect)(() => {
 		const sync = () => setLimit(savedRenderBudget("reelcase.home-rail-limit", RAIL_SIZES, 8));
@@ -4301,7 +5254,21 @@ function TitleRail({ title, videos, variant = "poster", playedAt, onTitleClick, 
 	]);
 	if (!videos.length) return null;
 	const shown = videos.slice(0, limit);
+	const overscan = 3;
+	const visibleSlots = Math.max(6, Math.ceil((railWidth || 800) / cardStride) + 6);
+	const maxStart = Math.max(0, shown.length - visibleSlots);
+	const start = Math.max(0, Math.min(windowStart, maxStart));
+	const end = Math.min(shown.length, start + visibleSlots);
+	const windowed = shown.slice(start, end);
+	const leadPx = start * cardStride;
+	const trailPx = Math.max(0, shown.length - end) * cardStride;
 	const endCaps = Math.max(0, Math.min(6, Math.min(limit, 8) - shown.length));
+	const onRailScroll = (rail) => {
+		scrollLeft.current = rail.scrollLeft;
+		const nextStart = Math.max(0, Math.floor(rail.scrollLeft / cardStride) - overscan);
+		setWindowStart((current) => current === nextStart ? current : nextStart);
+		if (rail.scrollLeft + rail.clientWidth >= rail.scrollWidth - 160) setLimit((value) => Math.min(videos.length, value + 16));
+	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 		ref: shelfRef,
 		className: "media-shelf mb-8",
@@ -4329,40 +5296,67 @@ function TitleRail({ title, videos, variant = "poster", playedAt, onTitleClick, 
 					className: "mt-1 truncate text-xs text-muted",
 					children: reason
 				})]
-			}), videos.length > limit && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-				size: "sm",
-				variant: "ghost",
-				className: "shrink-0 text-xs",
-				onClick: () => setLimit((value) => Math.min(videos.length, value + 16)),
-				children: ["Show 16 more · ", videos.length - limit]
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "flex shrink-0 items-center gap-1",
+				children: [videos.length > limit && !collapsed && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+					size: "sm",
+					variant: "ghost",
+					className: "text-xs",
+					onClick: () => setLimit((value) => Math.min(videos.length, value + 16)),
+					children: ["Show 16 more · ", videos.length - limit]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+					size: "sm",
+					variant: "ghost",
+					"aria-expanded": !collapsed,
+					"aria-label": `${collapsed ? "Expand" : "Minimize"} ${title}`,
+					onClick: () => setCollapsed((value) => !value),
+					children: [collapsed ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChevronRight, { className: "size-4" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChevronDown, { className: "size-4" }), collapsed ? "Expand" : "Minimize"]
+				})]
 			})]
-		}), nearViewport && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		}), nearViewport && !collapsed && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 			ref: (rail) => {
+				railRef.current = rail;
 				if (rail) rail.scrollLeft = scrollLeft.current;
 			},
-			onScroll: (event) => {
-				const rail = event.currentTarget;
-				scrollLeft.current = rail.scrollLeft;
-				if (rail.scrollLeft + rail.clientWidth >= rail.scrollWidth - 160) setLimit((value) => Math.min(videos.length, value + 16));
-			},
+			onScroll: (event) => onRailScroll(event.currentTarget),
 			className: "rail-scroll flex gap-3 overflow-x-auto pb-3 sm:gap-4",
-			children: [shown.map((video, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-				className: cn(variant === "poster" && "w-32 shrink-0 sm:w-36 md:w-40", variant === "rail" && "shrink-0"),
-				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(VideoCard, {
-					video,
-					variant,
-					index: i,
-					playedAt: playedAt?.[video.id]
-				})
-			}, video.id)), Array.from({ length: endCaps }, (_, index) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-				"aria-hidden": "true",
-				className: cn("shrink-0 rounded-md border border-border/50 bg-elevated/35", variant === "poster" ? "aspect-poster w-32 sm:w-36 md:w-40" : "h-36 w-56")
-			}, `end-cap-${index}`))]
+			children: [
+				leadPx > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					"aria-hidden": "true",
+					className: "shrink-0",
+					style: {
+						width: leadPx,
+						height: 1
+					}
+				}),
+				windowed.map((video, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					className: cn(variant === "poster" && "w-32 shrink-0 sm:w-36 md:w-40", variant === "rail" && "shrink-0"),
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(VideoCard, {
+						video,
+						variant,
+						index: start + i,
+						playedAt: playedAt?.[video.id]
+					})
+				}, video.id)),
+				trailPx > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					"aria-hidden": "true",
+					className: "shrink-0",
+					style: {
+						width: trailPx,
+						height: 1
+					}
+				}),
+				Array.from({ length: endCaps }, (_, index) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					"aria-hidden": "true",
+					className: cn("shrink-0 rounded-md border border-border/50 bg-elevated/35", variant === "poster" ? "aspect-poster w-32 sm:w-36 md:w-40" : "h-36 w-56")
+				}, `end-cap-${index}`))
+			]
 		})]
 	});
 }
 function PosterGrid({ videos }) {
 	const gridRef = (0, import_react.useRef)(null);
+	const leaveTimer = (0, import_react.useRef)(void 0);
 	const [nearViewport, setNearViewport] = (0, import_react.useState)(false);
 	const [gridHeight, setGridHeight] = (0, import_react.useState)();
 	const [pageSize, setPageSize] = (0, import_react.useState)(() => savedRenderBudget("reelcase.grid-page-size", GRID_SIZES, 48));
@@ -4382,11 +5376,20 @@ function PosterGrid({ videos }) {
 			return;
 		}
 		const observer = new IntersectionObserver(([entry]) => {
-			const next = entry.isIntersecting || grid.contains(document.activeElement);
-			setNearViewport((current) => current === next ? current : next);
-		}, { rootMargin: "500px 0px" });
+			if (entry.isIntersecting || grid.contains(document.activeElement)) {
+				if (leaveTimer.current) window.clearTimeout(leaveTimer.current);
+				leaveTimer.current = void 0;
+				setNearViewport((current) => current ? current : true);
+				return;
+			}
+			if (leaveTimer.current) window.clearTimeout(leaveTimer.current);
+			leaveTimer.current = window.setTimeout(() => setNearViewport(false), 1400);
+		}, { rootMargin: "560px 0px" });
 		observer.observe(grid);
-		return () => observer.disconnect();
+		return () => {
+			observer.disconnect();
+			if (leaveTimer.current) window.clearTimeout(leaveTimer.current);
+		};
 	}, [videos.length]);
 	(0, import_react.useEffect)(() => {
 		const grid = gridRef.current;
@@ -4399,13 +5402,14 @@ function PosterGrid({ videos }) {
 		return () => observer.disconnect();
 	}, [nearViewport]);
 	if (!videos.length) return null;
+	const visible = videos.slice(0, limit);
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("section", {
 		ref: gridRef,
 		className: "media-shelf",
 		style: !nearViewport ? { minHeight: gridHeight ?? 900 } : void 0,
 		children: nearViewport && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 			className: "grid grid-cols-3 gap-3 sm:grid-cols-4 sm:gap-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7",
-			children: videos.slice(0, limit).map((video, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(VideoCard, {
+			children: visible.map((video, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(VideoCard, {
 				video,
 				variant: "poster",
 				index: i,
@@ -4905,8 +5909,6 @@ function SidebarNav({ onAddFolder, onNavigate }) {
 	const restoreOne = useLibrary((s) => s.restoreOne);
 	const setFolderAdult = useLibrary((s) => s.setFolderAdult);
 	const unfollow = useLibrary((s) => s.unfollow);
-	const adultsUnlocked = useLibrary((s) => s.adultsUnlocked);
-	const lockAdults = useLibrary((s) => s.lockAdults);
 	const favorites = useLibrary((s) => s.favorites);
 	const progress = useLibrary((s) => s.progress);
 	const resumeProgress = useLibrary((s) => s.resumeProgress);
@@ -4982,7 +5984,7 @@ function SidebarNav({ onAddFolder, onNavigate }) {
 			adultFolders,
 			counts: {
 				publicCount,
-				adultCount: adultsUnlocked ? adultCount : void 0,
+				adultCount,
 				ytCount,
 				twitchCount,
 				liveCount,
@@ -4992,7 +5994,6 @@ function SidebarNav({ onAddFolder, onNavigate }) {
 			}
 		};
 	}, [
-		adultsUnlocked,
 		favorites,
 		folders,
 		hideDemo,
@@ -5090,28 +6091,9 @@ function SidebarNav({ onAddFolder, onNavigate }) {
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(NavItem, {
 						active: sourceId === "adults",
 						onClick: () => go("adults"),
-						icon: adultsUnlocked ? LockOpen : Lock,
+						icon: Flame,
 						label: "Adults",
-						count: counts.adultCount,
-						trailing: adultsUnlocked ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-							role: "button",
-							tabIndex: 0,
-							"aria-label": "Lock Adults",
-							onClick: (e) => {
-								e.stopPropagation();
-								lockAdults();
-								onNavigate?.();
-							},
-							onKeyDown: (e) => {
-								if (e.key === "Enter" || e.key === " ") {
-									e.preventDefault();
-									e.stopPropagation();
-									lockAdults();
-								}
-							},
-							className: "flex size-7 items-center justify-center rounded-sm text-subtle hover:bg-bg hover:text-fg",
-							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Lock, { className: "size-3.5" })
-						}) : void 0
+						count: counts.adultCount
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(NavItem, {
 						active: sourceId === "photos",
@@ -5272,7 +6254,7 @@ function SidebarNav({ onAddFolder, onNavigate }) {
 							children: "Show 48 more follows"
 						})
 					] }),
-					adultsUnlocked && adultFolders.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					adultFolders.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "mt-3 px-2 pb-1 text-xs font-medium tracking-wide text-subtle uppercase",
 						children: "Private"
 					}), adultFolders.map((folder) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FolderRow, {
@@ -5293,7 +6275,7 @@ function SidebarNav({ onAddFolder, onNavigate }) {
 					className: "w-full",
 					onClick: () => onAddFolder(false),
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FolderPlus, { className: "size-4" }), "Add folder"]
-				}), sourceId === "adults" && adultsUnlocked && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+				}), sourceId === "adults" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 					variant: "secondary",
 					className: "w-full",
 					onClick: () => onAddFolder(true),
@@ -5958,7 +6940,7 @@ function InviteStrip({ onAddFolder, onAddFiles, onRecommended }) {
 	});
 }
 /** Initial / incremental page size — catalog stays full in memory/IDB; only this many cards mount. */
-var PAGE = 60;
+var PAGE = 36;
 function VideoGrid({ videos, playedAt }) {
 	const view = useLibrary((s) => s.view);
 	const [limit, setLimit] = (0, import_react.useState)(PAGE);
@@ -5972,7 +6954,7 @@ function VideoGrid({ videos, playedAt }) {
 		if (!el || limit >= videos.length) return;
 		const io = new IntersectionObserver((entries) => {
 			if (entries.some((e) => e.isIntersecting)) setLimit((value) => Math.min(videos.length, value + PAGE));
-		}, { rootMargin: "600px 0px" });
+		}, { rootMargin: "400px 0px" });
 		io.observe(el);
 		return () => io.disconnect();
 	}, [limit, videos.length]);
@@ -6033,117 +7015,1005 @@ function VideoGrid({ videos, playedAt }) {
 		]
 	})] })] });
 }
-function PinGate() {
-	const hasPin = useLibrary((s) => Boolean(s.adultPinHash));
-	const setAdultPin = useLibrary((s) => s.setAdultPin);
-	const unlockAdults = useLibrary((s) => s.unlockAdults);
-	const resetAdultPin = useLibrary((s) => s.resetAdultPin);
-	const setSource = useLibrary((s) => s.setSource);
-	const [pin, setPin] = (0, import_react.useState)("");
-	const [confirm, setConfirm] = (0, import_react.useState)("");
-	const [error, setError] = (0, import_react.useState)(null);
-	const [busy, setBusy] = (0, import_react.useState)(false);
-	const submit = async () => {
-		setError(null);
-		if (!isPinShape(pin)) {
-			setError("Use four digits.");
-			return;
+var ADULT_PROVIDER_ADAPTERS = [
+	{
+		id: "eporner",
+		label: "Eporner",
+		transport: "public-api",
+		status: "active",
+		capabilities: [
+			"catalog",
+			"search",
+			"archive",
+			"poster",
+			"playback"
+		]
+	},
+	{
+		id: "redtube",
+		label: "RedTube",
+		transport: "public-api",
+		status: "active",
+		capabilities: [
+			"catalog",
+			"search",
+			"archive",
+			"poster",
+			"playback"
+		]
+	},
+	{
+		id: "reddit",
+		label: "Reddit",
+		transport: "atom-rss",
+		status: "active",
+		capabilities: [
+			"catalog",
+			"search",
+			"archive",
+			"poster"
+		]
+	},
+	{
+		id: "redgifs",
+		label: "Redgifs",
+		transport: "public-api",
+		status: "active",
+		capabilities: [
+			"catalog",
+			"poster",
+			"playback"
+		]
+	},
+	{
+		id: "new-provider",
+		label: "New documented provider",
+		transport: "public-api",
+		status: "planned",
+		capabilities: [
+			"catalog",
+			"search",
+			"poster"
+		]
+	}
+];
+var ORDERS = [
+	{
+		id: "top-weekly",
+		label: "Top this week"
+	},
+	{
+		id: "most-popular",
+		label: "Most popular"
+	},
+	{
+		id: "latest",
+		label: "Latest"
+	},
+	{
+		id: "top-rated",
+		label: "Top rated"
+	}
+];
+var PROVIDER_CHOICES = [
+	{
+		id: "all",
+		label: "All pull sources"
+	},
+	{
+		id: ["eporner", "redtube"],
+		label: "Videos (Eporner + RedTube)"
+	},
+	{
+		id: [
+			"chaturbate",
+			"camsoda",
+			"myfreecams"
+		],
+		label: "Live cams"
+	},
+	{
+		id: ["chaturbate"],
+		label: "Chaturbate only"
+	},
+	{
+		id: ["camsoda"],
+		label: "CamSoda only"
+	},
+	{
+		id: ["myfreecams"],
+		label: "MyFreeCams only"
+	},
+	{
+		id: ["reddit"],
+		label: "Reddit (18+)"
+	},
+	{
+		id: ["booru"],
+		label: "Booru photos (18+)"
+	},
+	{
+		id: ["redgifs"],
+		label: "Redgifs (needs API key)"
+	},
+	{
+		id: ["eporner"],
+		label: "Eporner only"
+	},
+	{
+		id: ["redtube"],
+		label: "RedTube only"
+	}
+];
+var REDDIT_SOURCE_STORAGE_KEY = "reelcase.adult-reddit-sources.v1";
+function readRedditSourceSettings() {
+	try {
+		const raw = JSON.parse(localStorage.getItem(REDDIT_SOURCE_STORAGE_KEY) ?? "[]");
+		if (!Array.isArray(raw)) return [];
+		const seen = /* @__PURE__ */ new Set();
+		const settings = [];
+		for (const item of raw.slice(0, 120)) {
+			const row = item && typeof item === "object" ? item : {};
+			const subreddit = String(row.subreddit ?? "").trim().replace(/^r\//i, "");
+			if (!/^[a-z0-9_]{3,48}$/i.test(subreddit) || seen.has(subreddit.toLowerCase())) continue;
+			seen.add(subreddit.toLowerCase());
+			const priority = Number(row.priority);
+			settings.push({
+				subreddit,
+				priority: priority >= 3 ? 3 : priority <= 1 ? 1 : 2
+			});
 		}
-		setBusy(true);
-		try {
-			if (!hasPin) {
-				if (pin !== confirm) {
-					setError("Those PINs do not match.");
-					return;
-				}
-				await setAdultPin(pin);
-				return;
-			}
-			if (!await unlockAdults(pin)) setError("Wrong PIN.");
-		} finally {
-			setBusy(false);
-		}
-	};
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-		className: "mx-auto flex max-w-md flex-col items-center px-4 py-16 text-center",
+		return settings;
+	} catch {
+		return [];
+	}
+}
+function SiteCard({ name, href, copy, embeds, badge, sourceId, compact = false }) {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
+		href,
+		target: "_blank",
+		rel: "noreferrer",
+		className: `group rounded-lg bg-surface shadow-border transition-[transform,box-shadow] duration-150 hover:-translate-y-0.5 hover:shadow-border-hover ${compact ? "p-2.5" : "p-4"}`,
 		children: [
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-				className: "flex size-12 items-center justify-center rounded-lg bg-elevated text-fg shadow-border",
-				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Lock, { className: "size-5" })
-			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
-				className: "mt-5 font-display text-3xl text-fg",
-				children: "Adults"
-			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-				className: "mt-2 text-sm text-muted",
-				children: hasPin ? "Enter your PIN. Private folders stay off the rest of the library." : "Set a 4-digit PIN. Folders you mark as private only open here."
-			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", {
-				className: "mt-6 flex w-full flex-col gap-3",
-				onSubmit: (e) => {
-					e.preventDefault();
-					submit();
-				},
-				children: [
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-						type: "password",
-						inputMode: "numeric",
-						autoComplete: "off",
-						maxLength: 4,
-						value: pin,
-						onChange: (e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4)),
-						"aria-label": "PIN",
-						placeholder: "••••",
-						className: "text-center font-mono text-lg tracking-[0.4em]"
-					}),
-					!hasPin && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-						type: "password",
-						inputMode: "numeric",
-						autoComplete: "off",
-						maxLength: 4,
-						value: confirm,
-						onChange: (e) => setConfirm(e.target.value.replace(/\D/g, "").slice(0, 4)),
-						"aria-label": "Confirm PIN",
-						placeholder: "Confirm",
-						className: "text-center font-mono text-lg tracking-[0.4em]"
-					}),
-					error && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-						className: "text-sm text-danger",
-						children: error
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-						type: "submit",
-						disabled: busy,
-						className: "w-full",
-						children: hasPin ? "Unlock" : "Set PIN"
-					})
-				]
-			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "mt-4 flex flex-wrap items-center justify-center gap-2",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-					variant: "ghost",
-					size: "sm",
-					onClick: () => setSource("home"),
-					children: "Back to Home"
-				}), hasPin && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-					variant: "ghost",
-					size: "sm",
-					onClick: () => {
-						resetAdultPin();
-						setPin("");
-						setConfirm("");
-						setError(null);
-					},
-					children: "Reset PIN"
+				className: "flex items-start justify-between gap-2",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: compact ? "text-sm font-medium text-fg" : "font-display text-xl text-fg",
+					children: name
+				}), (embeds || badge) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+					className: "rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-medium tracking-wide text-accent uppercase",
+					children: badge ?? "Embeds"
 				})]
 			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-				className: "mt-6 max-w-sm text-xs text-subtle",
-				children: "Nothing is uploaded. The PIN stays on this browser. Resetting it keeps private folders hidden until you set a new one."
+			!compact && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				className: "mt-1 text-xs text-muted",
+				children: copy
+			}),
+			sourceId && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+				className: "mt-2 text-[10px] tracking-wide text-subtle uppercase",
+				children: ["source tag · #", adultSourceTag(sourceId)]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+				className: `${compact ? "mt-1.5 text-xs" : "mt-3 text-sm"} inline-flex items-center gap-1.5 font-medium text-accent`,
+				children: ["Open site ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExternalLink, { className: "size-3.5" })]
 			})
 		]
+	});
+}
+function AdultPanel({ showMilestones = false, autoPull = true, sourceFilter = "all", tagFilter: tagFilterProp, onSourceFilter, onTagFilter }) {
+	const searchAdultFeed = useLibrary((s) => s.searchAdultFeed);
+	const remoteBusy = useLibrary((s) => s.remoteBusy);
+	const importProgress = useLibrary((s) => s.importProgress);
+	const tags = useLibrary((s) => s.tags);
+	const adultVideos = useLibrary(useShallow(selectAdultRemote));
+	const [query, setQuery] = (0, import_react.useState)("");
+	const [order, setOrder] = (0, import_react.useState)("top-weekly");
+	const [providers, setProviders] = (0, import_react.useState)("all");
+	const [booted, setBooted] = (0, import_react.useState)(false);
+	const [localTag, setLocalTag] = (0, import_react.useState)("all");
+	const tagFilter = tagFilterProp ?? localTag;
+	const setTagFilter = (tag) => {
+		setLocalTag(tag);
+		if (tag.startsWith("source-") || tag === "all") onSourceFilter?.(tag === "all" ? "all" : tag.replace(/^source-/, "").split("-")[0] ?? "all");
+		onTagFilter?.(tag === "all" ? "All" : tag);
+	};
+	const [nextPage, setNextPage] = (0, import_react.useState)(2);
+	const [showAllFetishes, setShowAllFetishes] = (0, import_react.useState)(false);
+	const [starQuery, setStarQuery] = (0, import_react.useState)("");
+	const [stars, setStars] = (0, import_react.useState)([]);
+	const [starNote, setStarNote] = (0, import_react.useState)("");
+	const [archiveLabel, setArchiveLabel] = (0, import_react.useState)("No saved archive depth yet — Pull catalog starts at page 1.");
+	const [autoArchiveRounds, setAutoArchiveRounds] = (0, import_react.useState)(0);
+	const [adultMaxVideos, setAdultMaxVideos] = (0, import_react.useState)(LIBRARY_LIMITS.adultInteractiveVideosPerPull);
+	const [useCustomRedditSources, setUseCustomRedditSources] = (0, import_react.useState)(false);
+	const [redditSources, setRedditSources] = (0, import_react.useState)([]);
+	const [redditSourceInput, setRedditSourceInput] = (0, import_react.useState)("");
+	(0, import_react.useEffect)(() => {
+		const load = () => {
+			const saved = Number(localStorage.getItem("reelcase.adult-pull-limit") ?? LIBRARY_LIMITS.adultInteractiveVideosPerPull);
+			setAdultMaxVideos([
+				240,
+				480,
+				800,
+				1200
+			].includes(saved) ? saved : LIBRARY_LIMITS.adultInteractiveVideosPerPull);
+		};
+		load();
+		window.addEventListener("reelcase:adult-render-settings", load);
+		return () => window.removeEventListener("reelcase:adult-render-settings", load);
+	}, []);
+	(0, import_react.useEffect)(() => {
+		const saved = readRedditSourceSettings();
+		setRedditSources(saved);
+		setUseCustomRedditSources(localStorage.getItem(`${REDDIT_SOURCE_STORAGE_KEY}.enabled`) === "true" && saved.length > 0);
+	}, []);
+	(0, import_react.useEffect)(() => {
+		try {
+			localStorage.setItem(REDDIT_SOURCE_STORAGE_KEY, JSON.stringify(redditSources));
+			localStorage.setItem(`${REDDIT_SOURCE_STORAGE_KEY}.enabled`, String(useCustomRedditSources));
+		} catch {}
+	}, [redditSources, useCustomRedditSources]);
+	const redditPullOptions = (0, import_react.useMemo)(() => useCustomRedditSources && redditSources.length ? { redditSources } : {}, [redditSources, useCustomRedditSources]);
+	const sourceCounts = (0, import_react.useMemo)(() => countAdultBySource(adultVideos), [adultVideos]);
+	const sourceFacets = (0, import_react.useMemo)(() => ADULT_SOURCE_FILTERS.filter((row) => row.id !== "all").map((row) => [row.id, sourceCounts[row.id] ?? 0]), [sourceCounts]);
+	const [facetsReady, setFacetsReady] = (0, import_react.useState)(false);
+	(0, import_react.useEffect)(() => {
+		setFacetsReady(false);
+		let cancelled = false;
+		const ready = () => {
+			if (!cancelled) setFacetsReady(true);
+		};
+		const ric = window.requestIdleCallback;
+		if (typeof ric === "function") {
+			const id = ric(ready, { timeout: 1200 });
+			return () => {
+				cancelled = true;
+				window.cancelIdleCallback(id);
+			};
+		}
+		const id = window.setTimeout(ready, 200);
+		return () => {
+			cancelled = true;
+			window.clearTimeout(id);
+		};
+	}, [adultVideos.length]);
+	const creatorFacets = (0, import_react.useMemo)(() => {
+		if (!facetsReady) return [];
+		const counts = /* @__PURE__ */ new Map();
+		for (const video of adultVideos) for (const tag of tags[video.id] ?? []) if (tag.startsWith("creator-")) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+		return [...counts.entries()].filter(([, count]) => count >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 12);
+	}, [
+		adultVideos,
+		facetsReady,
+		tags
+	]);
+	const fetishFacets = (0, import_react.useMemo)(() => {
+		if (!facetsReady) return [];
+		const counts = /* @__PURE__ */ new Map();
+		for (const video of adultVideos) for (const tag of tags[video.id] ?? []) if (tag.startsWith("fetish-")) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+		return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 24);
+	}, [
+		adultVideos,
+		facetsReady,
+		tags
+	]);
+	(0, import_react.useEffect)(() => {
+		if (!autoPull || booted) return;
+		setBooted(true);
+		if (adultVideos.length >= LIBRARY_LIMITS.adultFastStartVideosPerPull) return;
+		searchAdultFeed("all", "top-weekly", {
+			providers: "all",
+			maxVideos: adultMaxVideos,
+			...redditPullOptions
+		}).then((n) => {
+			setNextPage(2);
+			if (n) toast.success(`Loaded ${n.toLocaleString()} adult titles`);
+		}).catch((err) => {
+			toast.error(err instanceof Error ? err.message : "Could not load adult feed.");
+		});
+	}, [
+		adultMaxVideos,
+		autoPull,
+		booted,
+		adultVideos.length,
+		redditPullOptions,
+		searchAdultFeed
+	]);
+	const refreshArchiveLabel = (q, ord) => {
+		setArchiveLabel(adultArchiveDepthLabel(loadAdultArchiveCursors(q, ord)));
+	};
+	(0, import_react.useEffect)(() => {
+		refreshArchiveLabel(query.trim() || "all", order);
+	}, [
+		query,
+		order,
+		adultVideos.length
+	]);
+	const runSearch = (append = false, resume = false) => {
+		const q = query.trim() || "all";
+		const cursors = loadAdultArchiveCursors(q, order);
+		const providerPages = resume ? Object.fromEntries(Object.entries(cursors).map(([provider, row]) => [provider, row.page])) : void 0;
+		const page = append || resume ? resume ? 1 : nextPage : 1;
+		searchAdultFeed(q, order, {
+			page: resume ? 1 : page,
+			maxVideos: adultMaxVideos,
+			append: append || resume,
+			providers,
+			providerPages,
+			...redditPullOptions
+		}).then((n) => {
+			setNextPage((resume ? Math.max(2, ...Object.values(cursors).map((c) => c.page)) : page) + 1);
+			setTagFilter("all");
+			refreshArchiveLabel(q, order);
+			toast.success(n ? `${append || resume ? "Catalog now has" : "Loaded"} ${n.toLocaleString()} adult titles` : "No results");
+		}).catch((err) => {
+			toast.error(err instanceof Error ? err.message : "Search failed");
+		});
+	};
+	(0, import_react.useEffect)(() => {
+		if (!autoPull || remoteBusy || query.trim() || providers !== "all" || adultVideos.length >= LIBRARY_LIMITS.adultTargetCatalogVideos || autoArchiveRounds >= LIBRARY_LIMITS.adultAutoArchivePagesPerVisit) return;
+		const timer = window.setTimeout(() => {
+			setAutoArchiveRounds((rounds) => rounds + 1);
+			runSearch(false, true);
+		}, LIBRARY_LIMITS.adultAutoArchiveDelayMs);
+		return () => window.clearTimeout(timer);
+	}, [
+		adultVideos.length,
+		autoArchiveRounds,
+		autoPull,
+		order,
+		providers,
+		query,
+		redditPullOptions,
+		remoteBusy
+	]);
+	const milestoneLinks = ADULT_MILESTONE_LINKS.filter((site) => site.href !== ADULT_CATEGORY_HUB.href);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "mb-6 flex flex-col gap-5",
+		children: [showMilestones && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
+				className: "rounded-xl bg-elevated shadow-border",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("summary", {
+					className: "cursor-pointer list-none p-5 [&::-webkit-details-marker]:hidden",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+							children: "Category hub"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+							className: "mt-2 font-display text-2xl text-fg sm:text-3xl",
+							children: "ThePornDude directory"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "mt-2 text-xs text-muted",
+							children: "Collapse this section to keep the Adult catalog compact."
+						})
+					]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "px-5 pb-5",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-2 max-w-2xl text-sm text-muted",
+						children: "Use ThePornDude as the main adult category map (tubes, cams, anime, games, niche lists). In-app playback comes from official public APIs below; other destinations stay as milestones with labeled source tags."
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3",
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SiteCard, {
+							...ADULT_CATEGORY_HUB,
+							badge: "Hub"
+						})
+					})]
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
+				className: "rounded-xl bg-elevated shadow-border",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("summary", {
+					className: "cursor-pointer list-none p-5 [&::-webkit-details-marker]:hidden",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+							children: "Adult sites"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+							className: "mt-2 font-display text-2xl text-fg sm:text-3xl",
+							children: "Embed-ready pull sources"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "mt-2 text-xs text-muted",
+							children: "Collapse this section to focus on the catalog."
+						})
+					]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "px-5 pb-5",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-2 max-w-2xl text-sm text-muted",
+						children: "Official public APIs: Eporner, RedTube, Chaturbate embeds, CamSoda room pages, the MyFreeCams online list, Reddit public Atom RSS for curated 18+ subs, and Gelbooru-style booru JSON (XBooru / TBIB / Hypnohub). If one source errors, the others still fill the shelf."
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3",
+						children: ADULT_EMBED_LINKS.map((site) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SiteCard, { ...site }, site.name))
+					})]
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
+				className: "order-last rounded-xl bg-elevated shadow-border",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("summary", {
+					className: "cursor-pointer list-none p-4 [&::-webkit-details-marker]:hidden",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+						children: "Link-out destinations"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						className: "mt-1 text-sm text-muted",
+						children: [
+							"Optional directories grouped below the catalog · ",
+							milestoneLinks.length,
+							" sites."
+						]
+					})]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "border-t border-border px-4 pb-4 pt-3",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "flex items-start gap-3",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								className: "mt-1 flex size-9 items-center justify-center rounded-lg bg-surface text-accent shadow-border",
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Flag, { className: "size-4" })
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-2 max-w-2xl text-sm text-muted",
+								children: "These sites do not expose a documented public discovery/embed API we can use without scraping or bypassing logins/paywalls. Reelcase keeps them as milestones with source tags — open the official page in a new tab."
+							}) })]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "mt-4 flex flex-wrap gap-2",
+							children: ADULT_SOURCE_OPTIONS.filter((s) => !s.pull).slice(0, 36).map((source) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
+								href: source.href,
+								target: "_blank",
+								rel: "noreferrer",
+								className: "rounded-full bg-surface px-3 py-1 text-xs text-muted shadow-border hover:text-fg",
+								children: [
+									"#",
+									adultSourceTag(source.id),
+									" · ",
+									source.label
+								]
+							}, source.id))
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "mt-4 space-y-5",
+							children: [
+								["cam", "Cams / interactive"],
+								["vr", "VR"],
+								["tube", "Tubes / aggregators / hubs"],
+								["games", "Games"],
+								["comic", "Comics"],
+								["anime", "Anime / hentai"],
+								["community", "Community / Reddit link-outs"],
+								["directory", "Stores / directories"],
+								["short", "Short-form"],
+								["review", "Review / niche hubs"],
+								["voyeur", "Live voyeur"],
+								["blog", "Blogs"],
+								["ai", "AI stories"],
+								["extreme", "Extreme (18+)"],
+								["download", "Downloads (link-out)"],
+								["torrent", "Torrents (link-out)"],
+								["feet", "Feet"],
+								["cosplay", "Cosplay"],
+								["celeb", "Celeb / film nudes"],
+								["manhwa", "Manhwa"]
+							].map(([group, label]) => {
+								const sites = milestoneLinks.filter((site) => site.group === group);
+								if (!sites.length) return null;
+								return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mb-2 text-xs font-medium tracking-[0.14em] text-accent uppercase",
+									children: label
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "grid gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6",
+									children: sites.map((site) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SiteCard, {
+										...site,
+										compact: true,
+										badge: group === "cam" || group === "voyeur" ? "Cam/chat" : group === "download" || group === "torrent" ? "Link-out only" : group === "community" || group === "blog" ? "Link-out" : "Milestone"
+									}, `${site.sourceId ?? site.name}-${site.href}`))
+								})] }, group);
+							})
+						})
+					]
+				})]
+			})
+		] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+			className: "rounded-xl bg-elevated p-5 shadow-border",
+			children: [
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+					children: "Remote pull"
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+					className: "mt-2 font-display text-2xl text-fg sm:text-3xl",
+					children: "Adult discovery"
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+					className: "mt-2 max-w-2xl text-sm text-muted",
+					children: [
+						"Failover-friendly pulls via",
+						" ",
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", {
+							href: "https://www.eporner.com/api/v2/",
+							target: "_blank",
+							rel: "noreferrer",
+							className: "text-accent hover:text-fg",
+							children: "Eporner API v2"
+						}),
+						" ",
+						"and",
+						" ",
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", {
+							href: "https://api.redtube.com/",
+							target: "_blank",
+							rel: "noreferrer",
+							className: "text-accent hover:text-fg",
+							children: "RedTube webmaster API"
+						}),
+						" ",
+						"(up to ",
+						LIBRARY_LIMITS.adultInteractiveVideosPerPull.toLocaleString(),
+						" titles per pull). Every pulled item always gets a filterable ",
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", {
+							className: "text-fg",
+							children: "source-*"
+						}),
+						" tag, plus",
+						" ",
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", {
+							className: "text-fg",
+							children: "creator-*"
+						}),
+						" when a username/channel/owner is known, API keywords, and curated fetish tokens mined from titles/descriptions. Cards open the same preview + in-app play window as YouTube and Twitch. Use I cummed to it on a card or in the player to keep a private local count that never leaves this browser."
+					]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					className: "mt-4 flex flex-wrap gap-2",
+					children: PROVIDER_CHOICES.map((choice) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						size: "sm",
+						variant: JSON.stringify(providers) === JSON.stringify(choice.id) ? "default" : "secondary",
+						onClick: () => setProviders(choice.id),
+						children: choice.label
+					}, choice.label))
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
+					className: "mt-4 rounded-md border border-border bg-bg/35 p-3",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("summary", {
+							className: "cursor-pointer text-xs font-medium text-fg",
+							children: "Reddit photo sources · custom list and priority"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+							className: "mt-2 text-xs leading-5 text-muted",
+							children: [
+								"Use the curated rotation, or switch to your own communities. Each imported Reddit photo and video receives both",
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", {
+									className: "mx-1 text-fg",
+									children: "source-reddit-*"
+								}),
+								" and ",
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", {
+									className: "text-fg",
+									children: "sub-*"
+								}),
+								" tags for filtering."
+							]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "mt-3 flex flex-wrap items-center gap-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								size: "sm",
+								variant: useCustomRedditSources ? "default" : "secondary",
+								onClick: () => setUseCustomRedditSources((enabled) => !enabled),
+								disabled: !redditSources.length,
+								children: useCustomRedditSources ? "Using my source list" : "Use my source list"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								className: "text-xs text-muted",
+								children: useCustomRedditSources ? `${redditSources.length} selected communities` : "Curated rotation active"
+							})]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "mt-3 flex flex-col gap-2 sm:flex-row",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+								value: redditSourceInput,
+								onChange: (event) => setRedditSourceInput(event.target.value),
+								onKeyDown: (event) => {
+									if (event.key === "Enter") {
+										event.preventDefault();
+										const subreddit = redditSourceInput.trim().replace(/^r\//i, "");
+										if (!/^[a-z0-9_]{3,48}$/i.test(subreddit)) return toast.error("Enter a valid subreddit name.");
+										setRedditSources((current) => current.some((row) => row.subreddit.toLowerCase() === subreddit.toLowerCase()) ? current : [...current, {
+											subreddit,
+											priority: 2
+										}]);
+										setUseCustomRedditSources(true);
+										setRedditSourceInput("");
+									}
+								},
+								placeholder: "Add subreddit, e.g. ExampleSub",
+								"aria-label": "Add Reddit source"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								size: "sm",
+								variant: "secondary",
+								onClick: () => {
+									const subreddit = redditSourceInput.trim().replace(/^r\//i, "");
+									if (!/^[a-z0-9_]{3,48}$/i.test(subreddit)) return toast.error("Enter a valid subreddit name.");
+									setRedditSources((current) => current.some((row) => row.subreddit.toLowerCase() === subreddit.toLowerCase()) ? current : [...current, {
+										subreddit,
+										priority: 2
+									}]);
+									setUseCustomRedditSources(true);
+									setRedditSourceInput("");
+								},
+								children: "Add source"
+							})]
+						}),
+						redditSources.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "mt-3 flex flex-wrap gap-2",
+							children: redditSources.slice().sort((a, b) => b.priority - a.priority || a.subreddit.localeCompare(b.subreddit)).map((source) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "flex items-center gap-1 rounded-full bg-surface py-1 pl-3 pr-1 text-xs text-muted shadow-border",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: ["r/", source.subreddit] }),
+									[
+										3,
+										2,
+										1
+									].map((priority) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										size: "sm",
+										className: "h-6 px-1.5 text-[10px]",
+										variant: source.priority === priority ? "default" : "ghost",
+										onClick: () => setRedditSources((current) => current.map((row) => row.subreddit === source.subreddit ? {
+											...row,
+											priority
+										} : row)),
+										children: priority === 3 ? "High" : priority === 2 ? "Normal" : "Low"
+									}, priority)),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										size: "sm",
+										className: "h-6 px-1.5 text-[10px]",
+										variant: "ghost",
+										onClick: () => setRedditSources((current) => current.filter((row) => row.subreddit !== source.subreddit)),
+										children: "Remove"
+									})
+								]
+							}, source.subreddit))
+						})
+					]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "mt-4",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+							children: "Featured fetish pulls"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "mt-1 text-xs text-muted",
+							children: "Clicking a chip searches official APIs for that keyword (DP expands to double penetration) and stamps fetish tags on ingested titles."
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "mt-2 flex flex-wrap gap-2",
+							children: ADULT_FEATURED_FETISH_TAGS.map((tag) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+								size: "sm",
+								variant: "default",
+								disabled: remoteBusy,
+								onClick: () => {
+									const q = fetishSearchQuery(tag);
+									setQuery(q);
+									setTagFilter(`fetish-${q.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase()}`);
+									searchAdultFeed(q, order, {
+										page: 1,
+										maxVideos: adultMaxVideos,
+										providers,
+										...redditPullOptions
+									}).then((n) => toast.success(`Loaded ${n.toLocaleString()} for #${tag}`));
+								},
+								children: ["#", tag]
+							}, tag))
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "mt-3 flex flex-wrap items-center gap-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+								children: "Full fetish catalog"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								size: "sm",
+								variant: "secondary",
+								onClick: () => setShowAllFetishes((v) => !v),
+								children: showAllFetishes ? "Hide extra chips" : `Show all ${ADULT_CURATED_FETISH_TAGS.length} chips`
+							})]
+						}),
+						showAllFetishes && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "mt-2 flex flex-wrap gap-2",
+							children: ADULT_CURATED_FETISH_TAGS.filter((tag) => !ADULT_FEATURED_FETISH_TAGS.includes(tag)).map((tag) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+								size: "sm",
+								variant: "secondary",
+								disabled: remoteBusy,
+								onClick: () => {
+									const q = fetishSearchQuery(tag);
+									setQuery(q);
+									setTagFilter(`fetish-${q.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase()}`);
+									searchAdultFeed(q, order, {
+										page: 1,
+										maxVideos: adultMaxVideos,
+										providers,
+										...redditPullOptions
+									}).then((n) => toast.success(`Loaded ${n.toLocaleString()} for #${tag}`));
+								},
+								children: ["#", tag]
+							}, tag))
+						})
+					]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "mt-4 flex flex-col gap-2 sm:flex-row",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "relative flex-1",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Search, { className: "pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+								value: query,
+								onChange: (e) => setQuery(e.target.value),
+								onKeyDown: (e) => {
+									if (e.key === "Enter") runSearch(false);
+								},
+								placeholder: "Search adult feeds (empty = all)",
+								className: "pl-9",
+								"aria-label": "Search adult feed"
+							})]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "flex flex-wrap gap-2",
+							children: ORDERS.map((o) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								size: "sm",
+								variant: order === o.id ? "default" : "secondary",
+								onClick: () => setOrder(o.id),
+								children: o.label
+							}, o.id))
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+							onClick: () => runSearch(false),
+							disabled: remoteBusy,
+							children: [remoteBusy ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, { className: "size-4 animate-spin" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(RefreshCw, { className: "size-4" }), "Pull catalog"]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							variant: "secondary",
+							onClick: () => runSearch(true),
+							disabled: remoteBusy || !adultVideos.length,
+							children: "Load more"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							variant: "secondary",
+							onClick: () => runSearch(false, true),
+							disabled: remoteBusy,
+							title: "Resume each provider from its saved archive cursor",
+							children: "Continue archive"
+						})
+					]
+				}),
+				autoPull && autoArchiveRounds > 0 && adultVideos.length < LIBRARY_LIMITS.adultTargetCatalogVideos && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+					className: "mt-2 text-xs text-muted",
+					children: [
+						"Background archive catch-up · ",
+						autoArchiveRounds,
+						"/",
+						LIBRARY_LIMITS.adultAutoArchivePagesPerVisit,
+						" saved cursor passes this visit · ",
+						adultVideos.length.toLocaleString(),
+						"/",
+						LIBRARY_LIMITS.adultTargetCatalogVideos.toLocaleString(),
+						" title target."
+					]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
+					className: "mt-3 rounded-md border border-border bg-bg/35 p-3",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("summary", {
+							className: "cursor-pointer text-xs font-medium text-fg",
+							children: "Provider adapter platform · active and planned sources"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "mt-2 text-xs leading-5 text-muted",
+							children: "Each adapter needs a documented public API, public feed, or permitted embed before it can enter the catalog. This keeps unsupported sites as safe link-outs until their source contract is implemented."
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "mt-3 flex flex-wrap gap-2",
+							children: ADULT_PROVIDER_ADAPTERS.map((adapter) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+								className: "rounded-xs bg-elevated px-2 py-1 text-xs text-muted",
+								children: [
+									adapter.label,
+									" · ",
+									adapter.status,
+									" · ",
+									adapter.capabilities.join(", ")
+								]
+							}, adapter.id))
+						})
+					]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "mt-4 rounded-md bg-bg/40 p-3",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+							children: "RedTube creator search"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "mt-2 flex flex-wrap gap-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+								value: starQuery,
+								onChange: (event) => setStarQuery(event.target.value),
+								placeholder: "Star or creator name",
+								className: "max-w-xs"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								size: "sm",
+								variant: "secondary",
+								disabled: remoteBusy,
+								onClick: () => {
+									const q = starQuery.trim();
+									if (!q) return;
+									setProviders(["redtube"]);
+									setQuery(q);
+									(async () => {
+										try {
+											const { searchRedtubeStars } = await import("./api-DrSMGXpo.mjs");
+											const result = await searchRedtubeStars({ data: {
+												query: q,
+												page: 1
+											} });
+											setStars(result.stars);
+											setStarNote(result.note);
+										} catch (err) {
+											setStarNote(err instanceof Error ? err.message : "Star list unavailable.");
+										}
+									})();
+									searchAdultFeed(q, order, {
+										providers: ["redtube"],
+										maxVideos: LIBRARY_LIMITS.redtubeStarVideosPerPull
+									}).then((n) => toast.success(`Loaded ${n.toLocaleString()} for ${q}`));
+								},
+								children: "Search creator"
+							})]
+						}),
+						starNote && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "mt-2 text-xs text-muted",
+							children: starNote
+						}),
+						stars.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "mt-2 flex flex-wrap gap-2",
+							children: stars.map((star) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								size: "sm",
+								variant: "secondary",
+								onClick: () => {
+									setStarQuery(star.name);
+									setProviders(["redtube"]);
+									setQuery(star.name);
+									searchAdultFeed(star.name, order, {
+										providers: ["redtube"],
+										maxVideos: LIBRARY_LIMITS.redtubeStarVideosPerPull
+									}).then((n) => toast.success(`Loaded ${n.toLocaleString()} for ${star.name}`));
+								},
+								children: star.name
+							}, star.name))
+						})
+					]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+					className: "mt-3 text-xs text-muted",
+					children: [
+						"Durable adult catalog: ",
+						adultVideos.length.toLocaleString(),
+						" titles · provider pages append to this library across reloads",
+						importProgress ? ` · ${importProgress.label}` : ""
+					]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "mt-1 text-xs text-accent",
+					children: archiveLabel
+				}),
+				sourceFacets.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "mt-4",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+							children: "Source tags"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "mt-1 text-xs text-muted",
+							children: "Every pull stamps source-* so you can filter by provider (and booru host / subreddit when present)."
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "mt-2 flex flex-wrap gap-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+								size: "sm",
+								variant: (tagFilterProp ? sourceFilter : tagFilter) === "all" ? "default" : "secondary",
+								onClick: () => {
+									setTagFilter("all");
+									onSourceFilter?.("all");
+								},
+								children: ["All sources · ", adultVideos.length]
+							}), sourceFacets.map(([id, count]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+								size: "sm",
+								variant: (tagFilterProp ? sourceFilter : tagFilter) === id || tagFilter === `source-${id}` ? "default" : "secondary",
+								onClick: () => {
+									onSourceFilter?.(id);
+									setTagFilter(`source-${id}`);
+								},
+								children: [
+									id,
+									" · ",
+									count
+								]
+							}, id))]
+						})
+					]
+				}),
+				creatorFacets.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "mt-4",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+						children: "Creator tags"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "mt-2 flex flex-wrap gap-2",
+						children: creatorFacets.map(([tag, count]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+							size: "sm",
+							variant: tagFilter === tag ? "default" : "secondary",
+							onClick: () => setTagFilter(tag),
+							children: [
+								"#",
+								tag,
+								" · ",
+								count
+							]
+						}, tag))
+					})]
+				}),
+				fetishFacets.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "mt-4",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+							children: "Interest tags"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "mt-2 flex flex-wrap gap-2",
+							children: fetishFacets.map(([tag, count]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+								size: "sm",
+								variant: tagFilter === tag ? "default" : "secondary",
+								onClick: () => setTagFilter(tag),
+								children: [
+									"#",
+									tag,
+									" · ",
+									count
+								]
+							}, tag))
+						}),
+						tagFilter.toLowerCase() !== "all" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "mt-3 flex flex-wrap items-center gap-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+								className: "text-xs text-accent",
+								children: ["Selected #", tagFilter]
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+								size: "sm",
+								variant: "secondary",
+								disabled: remoteBusy,
+								onClick: () => {
+									const q = fetishSearchQuery(tagFilter.replace(/^fetish-/, "").replace(/^source-/, "").replace(/-/g, " "));
+									setQuery(q);
+									searchAdultFeed(q, order, {
+										page: 1,
+										maxVideos: LIBRARY_LIMITS.adultInteractiveVideosPerPull,
+										providers,
+										...redditPullOptions
+									}).then((n) => toast.success(`Loaded ${n.toLocaleString()} for #${tagFilter}`));
+								},
+								children: ["Search providers for #", tagFilter]
+							})]
+						})
+					]
+				})
+			]
+		})]
 	});
 }
 function Slider({ className, ...props }) {
@@ -6155,6 +8025,198 @@ function Slider({ className, ...props }) {
 			children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SliderRange, { className: "absolute h-full bg-accent" })
 		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SliderThumb, { className: "block size-3 rounded-full bg-accent shadow-lift outline-none transition-transform duration-150 hover:scale-110 focus-visible:ring-2 focus-visible:ring-ring/70" })]
 	});
+}
+function AdultComments({ video }) {
+	const setVideoTags = useLibrary((s) => s.setVideoTags);
+	const [comments, setComments] = (0, import_react.useState)(video.remote?.comments ?? []);
+	const [note, setNote] = (0, import_react.useState)("");
+	const [loading, setLoading] = (0, import_react.useState)(false);
+	(0, import_react.useEffect)(() => {
+		let cancelled = false;
+		if (video.remote?.kind !== "reddit" || !video.remote.videoId) {
+			setComments(video.remote?.comments ?? []);
+			setNote(video.remote?.kind === "reddit" ? "" : "No public comment feed for this source.");
+			return;
+		}
+		setLoading(true);
+		(async () => {
+			try {
+				const { fetchAdultComments } = await import("./api-DrSMGXpo.mjs");
+				const result = await fetchAdultComments({ data: {
+					kind: video.remote?.kind ?? "",
+					videoId: video.remote?.videoId ?? "",
+					watchUrl: video.remote?.watchUrl ?? ""
+				} });
+				if (cancelled) return;
+				setComments(result.comments);
+				setNote(result.note);
+				if (result.comments.length) {
+					const blob = result.comments.map((c) => c.body).join(" ");
+					const mined = [
+						...mineRedditCommentTags(blob, 24),
+						...adultTextFetishTags(blob, 16),
+						...redditTitleTokens(video.name, 8)
+					];
+					if (mined.length) {
+						const existing = useLibrary.getState().tags[video.id] ?? [];
+						const merged = [.../* @__PURE__ */ new Set([...existing, ...mined])].slice(0, 120);
+						setVideoTags(video.id, merged);
+					}
+				}
+			} catch (err) {
+				if (!cancelled) setNote(err instanceof Error ? err.message : "Comments unavailable.");
+			} finally {
+				if (!cancelled) setLoading(false);
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [
+		video.id,
+		video.remote?.kind,
+		video.remote?.videoId,
+		video.remote?.watchUrl,
+		video.remote?.comments,
+		setVideoTags
+	]);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+		className: "mt-3 rounded-lg border border-border bg-bg/40 p-3",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+				className: "flex items-center gap-2 text-xs font-medium tracking-[0.14em] text-accent uppercase",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(MessageCircle, { className: "size-3.5" }), " Comments"]
+			}),
+			loading && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				className: "mt-2 text-xs text-muted",
+				children: "Loading comments…"
+			}),
+			!loading && note && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				className: "mt-2 text-xs text-muted",
+				children: note
+			}),
+			!loading && comments.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
+				className: "mt-2 max-h-48 space-y-2 overflow-y-auto",
+				children: comments.map((comment) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
+					className: "rounded-sm bg-elevated/60 px-2 py-1.5 text-xs text-fg",
+					children: [comment.author && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+						className: "font-medium text-accent",
+						children: [
+							"u/",
+							comment.author,
+							" · "
+						]
+					}), comment.body]
+				}, comment.id))
+			})
+		]
+	});
+}
+/** In-app full-bleed image viewer for booru / photo-kind adult pulls. */
+function AdultImageLightbox({ video, tags = [] }) {
+	const remote = video.remote;
+	const src = video.src || remote?.embedUrl || remote?.previewUrl || video.poster || "";
+	const sourceTags = tags.filter((tag) => tag.startsWith("source-")).slice(0, 4);
+	const creatorTags = tags.filter((tag) => tag.startsWith("creator-")).slice(0, 4);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "absolute inset-0 flex flex-col bg-bg",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+			className: "flex min-h-0 flex-1 items-center justify-center p-3 sm:p-6",
+			children: src ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+				src,
+				alt: video.name,
+				className: "max-h-full max-w-full object-contain",
+				decoding: "async"
+			}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				className: "text-sm text-muted",
+				children: "No image available for this title."
+			})
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+			className: "pointer-events-none absolute inset-x-0 bottom-0 bg-linear-to-t from-bg via-bg/80 to-transparent px-4 pb-20 pt-16 sm:px-6",
+			children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "pointer-events-auto mx-auto flex max-w-4xl flex-col gap-2",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+						children: [adultRemoteLabel(remote?.kind), " photo viewer"]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "truncate text-sm text-fg",
+						children: video.name
+					}),
+					(sourceTags.length > 0 || creatorTags.length > 0) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "flex flex-wrap gap-2",
+						children: [...sourceTags, ...creatorTags].map((tag) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+							className: "rounded-full bg-elevated px-2 py-0.5 text-[11px] text-muted shadow-border",
+							children: ["#", tag]
+						}, tag))
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "flex flex-wrap gap-2",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							size: "sm",
+							variant: "default",
+							onClick: () => {
+								downloadAdultPhoto(video).then((result) => {
+									if (result.ok) toast.success(`Saved ${result.name}`);
+									else toast.error(result.error);
+								});
+							},
+							children: "Download photo"
+						}), remote?.watchUrl && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", {
+							href: remote.watchUrl,
+							target: "_blank",
+							rel: "noreferrer",
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+								size: "sm",
+								variant: "secondary",
+								children: ["Open post page ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExternalLink, { className: "size-3.5" })]
+							})
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AdultComments, { video })
+				]
+			})
+		})]
+	});
+}
+async function requestAdultOfflineSave(url) {
+	const target = url.trim();
+	if (!/^https:\/\//i.test(target)) return {
+		ok: false,
+		error: "No https URL to save."
+	};
+	try {
+		const res = await fetch("http://127.0.0.1:43123/offline/save", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				origin: window.location.origin
+			},
+			body: JSON.stringify({ url: target }),
+			signal: AbortSignal.timeout(6e3)
+		});
+		const data = await res.json();
+		if (res.ok && data.ok) return {
+			ok: true,
+			detail: data.detail || (data.path ? `Download started into ${data.path}` : "Download started.")
+		};
+		return {
+			ok: false,
+			error: data.error || `Companion offline save unavailable (HTTP ${res.status}).`,
+			needs: data.needs
+		};
+	} catch {
+		return {
+			ok: false,
+			error: "Reelcase Companion is not running. Start it locally to enable offline save.",
+			needs: [
+				"Start Reelcase Companion",
+				"Install yt-dlp on PATH or set YT_DLP_PATH",
+				"Set REELCASE_ALLOWED_ROOTS / optional REELCASE_DOWNLOAD_DIR"
+			]
+		};
+	}
 }
 var SPEEDS = [
 	.5,
@@ -6200,7 +8262,7 @@ function youtubeEmbed(base) {
 }
 function Player({ playlist }) {
 	const activeId = useLibrary((s) => s.activeId);
-	const video = useLibrary((s) => s.videos.find((v) => v.id === s.activeId));
+	const video = useLibrary((s) => s.activeId ? s.videos.find((v) => v.id === s.activeId) : void 0);
 	const closePlayer = useLibrary((s) => s.closePlayer);
 	const openVideo = useLibrary((s) => s.openVideo);
 	const playRelative = useLibrary((s) => s.playRelative);
@@ -6217,6 +8279,9 @@ function Player({ playlist }) {
 	const folder = useLibrary((s) => s.folders.find((item) => item.id === video?.folderId));
 	const fav = useLibrary((s) => s.activeId ? Boolean(s.favorites[s.activeId]) : false);
 	const liked = useLibrary((s) => s.activeId ? Boolean(s.likes[s.activeId]) : false);
+	const cameCount = useLibrary((s) => s.activeId ? s.cameCounts[s.activeId] ?? 0 : 0);
+	const markCame = useLibrary((s) => s.markCame);
+	const folders = useLibrary((s) => s.folders);
 	const tags = useLibrary((s) => s.activeId ? s.tags[s.activeId] ?? EMPTY_TAGS$1 : EMPTY_TAGS$1);
 	const category = useLibrary((s) => s.activeId ? s.categories[s.activeId] ?? "" : "");
 	const saved = useLibrary((s) => s.activeId ? s.progress[s.activeId] : void 0);
@@ -6261,6 +8326,7 @@ function Player({ playlist }) {
 	const capturedDur = useThumbs((s) => video ? s.durations[video.id] : void 0);
 	const scrubbing = (0, import_react.useRef)(false);
 	const remoteStartedAt = (0, import_react.useRef)(0);
+	const lastProgressWrite = (0, import_react.useRef)(0);
 	const enterVrTheater = (0, import_react.useCallback)(async () => {
 		const xr = navigator.xr;
 		const media = mediaRef.current;
@@ -6435,7 +8501,13 @@ function Player({ playlist }) {
 		const stopFrames = attachFrameCallback(el, (t) => {
 			if (scrubbing.current) return;
 			setCurrent(t);
-			if (video && el.duration) markProgress(video.id, t, el.duration);
+			if (video && el.duration) {
+				const now = Date.now();
+				if (now - lastProgressWrite.current >= 4e3) {
+					lastProgressWrite.current = now;
+					markProgress(video.id, t, el.duration);
+				}
+			}
 		});
 		el.addEventListener("play", onPlay);
 		el.addEventListener("pause", onPause);
@@ -6455,12 +8527,14 @@ function Player({ playlist }) {
 	(0, import_react.useEffect)(() => {
 		if (!video?.remote) return;
 		remoteStartedAt.current = Date.now();
+		lastProgressWrite.current = 0;
 		const durationHint = Math.max(video.duration ?? 0, 120);
 		const heartbeat = () => {
+			if (document.visibilityState === "hidden") return;
 			const elapsed = Math.max(2, (Date.now() - remoteStartedAt.current) / 1e3);
 			markProgress(video.id, Math.min(elapsed, durationHint * .94), durationHint);
 		};
-		const timer = window.setInterval(heartbeat, 5e3);
+		const timer = window.setInterval(heartbeat, 1e4);
 		return () => {
 			heartbeat();
 			window.clearInterval(timer);
@@ -6588,7 +8662,9 @@ function Player({ playlist }) {
 	]);
 	if (!video) return null;
 	const remote = video.remote;
-	const embedSrc = remote ? remote.kind === "twitch" ? twitchEmbed(remote.embedUrl ?? "") : remote.kind === "youtube" ? youtubeEmbed(remote.embedUrl ?? video.src ?? "") : remote.embedUrl ? `${remote.embedUrl}${remote.embedUrl.includes("?") ? "&" : "?"}autoplay=1&rel=0&modestbranding=1` : null : null;
+	const adultImage = Boolean(remote && isAdultImageKind(remote.kind, video.mime, video.extension));
+	const redgifsDirectMedia = remote?.kind === "redgifs" && Boolean(video.src && video.src !== remote.embedUrl);
+	const embedSrc = adultImage ? null : remote ? remote.kind === "twitch" ? twitchEmbed(remote.embedUrl ?? "") : remote.kind === "youtube" ? youtubeEmbed(remote.embedUrl ?? video.src ?? "") : isAdultPullKind(remote.kind) ? redgifsDirectMedia ? null : remote.embedUrl ?? video.src ?? null : remote.embedUrl ? `${remote.embedUrl}${remote.embedUrl.includes("?") ? "&" : "?"}autoplay=1&rel=0&modestbranding=1` : null : null;
 	const shown = scrub ?? current;
 	const dur = duration || capturedDur || video.duration || 0;
 	const i = playlist.indexOf(video.id);
@@ -6599,14 +8675,17 @@ function Player({ playlist }) {
 		onMouseMove: reveal,
 		onTouchStart: reveal,
 		children: [
-			embedSrc ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("iframe", {
+			adultImage ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AdultImageLightbox, {
+				video,
+				tags
+			}) : embedSrc ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("iframe", {
 				title: video.name,
 				src: embedSrc,
 				className: "absolute inset-0 size-full border-0 bg-bg",
 				allow: "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen",
 				allowFullScreen: true,
 				referrerPolicy: "strict-origin-when-cross-origin"
-			}, embedSrc) : remote?.kind === "youtube" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+			}, `embed:${video.id}`) : remote?.kind === "youtube" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 				className: "absolute inset-0 flex items-center justify-center bg-bg px-6 text-center",
 				children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
@@ -6630,6 +8709,11 @@ function Player({ playlist }) {
 				src: src ?? void 0,
 				className: cn("absolute inset-0 size-full object-contain bg-bg", hardwareAccel && "hw-video"),
 				playsInline: true,
+				autoPlay: true,
+				preload: "auto",
+				onCanPlay: (event) => {
+					if (remote?.kind === "redgifs") event.currentTarget.play().catch(() => void 0);
+				},
 				onClick: togglePlay,
 				onDoubleClick: () => void toggleFs()
 			}),
@@ -6652,7 +8736,7 @@ function Player({ playlist }) {
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 							className: "truncate text-xs text-muted",
 							children: remote ? [
-								remote.live ? "Live" : remote.kind === "youtube" ? "YouTube" : "Twitch",
+								remote.live ? "Live" : adultRemoteLabel(remote.kind),
 								remote.channelName,
 								hasFreshViewerCount(remote) ? `${remote.viewers?.toLocaleString()} watching` : null
 							].filter(Boolean).join(" · ") : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
@@ -6699,6 +8783,17 @@ function Player({ playlist }) {
 							onClick: () => toggleLike(video.id),
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ThumbsUp, { className: cn("size-4", liked && "fill-accent text-accent") })
 						}),
+						isAdultVideo(video, folders) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+							variant: cameCount > 0 ? "secondary" : "ghost",
+							size: "sm",
+							"aria-label": "I cummed to it",
+							onClick: () => markCame(video.id),
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Flame, { className: cn("size-4", cameCount > 0 && "fill-accent text-accent") }),
+								"I cummed to it",
+								cameCount > 0 ? ` · ${cameCount}` : ""
+							]
+						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenu, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DropdownMenuTrigger, {
 							asChild: true,
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
@@ -6733,6 +8828,18 @@ function Player({ playlist }) {
 							rel: "noreferrer",
 							className: "hidden items-center gap-1 text-xs text-accent hover:text-fg sm:inline-flex",
 							children: ["Open official player ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExternalLink, { className: "size-3" })]
+						}),
+						remote && isAdultPullKind(remote.kind) && (remote.watchUrl || remote.embedUrl) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							variant: "ghost",
+							size: "sm",
+							title: "Requires local Companion + yt-dlp",
+							onClick: () => {
+								requestAdultOfflineSave(remote.watchUrl || remote.embedUrl || "").then((result) => {
+									if (result.ok) toast.success(result.detail);
+									else toast.error(result.needs?.length ? `${result.error} (${result.needs.join(", ")})` : result.error);
+								});
+							},
+							children: "Save offline"
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 							variant: "ghost",
@@ -6773,6 +8880,10 @@ function Player({ playlist }) {
 			vrStatus && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 				className: "absolute z-20 right-4 bottom-4 max-w-sm rounded-md bg-surface/95 px-3 py-2 text-xs text-fg shadow-border sm:right-6",
 				children: vrStatus
+			}),
+			remote && isAdultPullKind(remote.kind) && chrome && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "absolute z-20 bottom-24 left-4 right-4 max-w-xl sm:left-6",
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AdultComments, { video })
 			}),
 			!remote && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: cn("relative z-10 mt-auto px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] transition-[opacity,transform] duration-200 ease-[var(--ease-smooth-out)] sm:px-6", chrome ? "opacity-100" : "pointer-events-none opacity-0 translate-y-1"),
@@ -6921,7 +9032,7 @@ function Player({ playlist }) {
 					target: "_blank",
 					rel: "noreferrer",
 					className: "text-sm text-muted hover:text-fg",
-					children: ["Open on ", remote.kind === "youtube" ? "YouTube" : "Twitch"]
+					children: ["Open on ", adultRemoteLabel(remote.kind)]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 					variant: "ghost",
 					size: "icon-sm",
@@ -7232,7 +9343,9 @@ function PreVideo() {
 		videos
 	]);
 	if (!video) return null;
-	const embed = video.remote?.embedUrl ? video.remote.kind === "twitch" ? `${video.remote.embedUrl}${video.remote.embedUrl.includes("?") ? "&" : "?"}parent=${encodeURIComponent(window.location.hostname)}` : (() => {
+	const adultImage = Boolean(video.remote && isAdultImageKind(video.remote.kind, video.mime, video.extension));
+	const imageSrc = adultImage ? video.src || video.remote?.embedUrl || video.remote?.previewUrl || video.poster || null : null;
+	const embed = adultImage ? null : video.remote?.embedUrl ? video.remote.kind === "twitch" ? `${video.remote.embedUrl}${video.remote.embedUrl.includes("?") ? "&" : "?"}parent=${encodeURIComponent(window.location.hostname)}` : video.remote.kind === "youtube" ? (() => {
 		const url = new URL(video.remote.embedUrl, "https://www.youtube.com");
 		url.protocol = "https:";
 		url.hostname = "www.youtube.com";
@@ -7242,7 +9355,7 @@ function PreVideo() {
 		url.searchParams.set("playsinline", "1");
 		url.searchParams.set("origin", window.location.origin);
 		return url.toString();
-	})() : null;
+	})() : video.remote.embedUrl : null;
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 		className: "fixed inset-0 z-50 overflow-y-auto bg-bg/98 px-4 py-5 sm:px-8 sm:py-8",
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -7267,7 +9380,12 @@ function PreVideo() {
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 							className: "overflow-hidden rounded-lg bg-elevated shadow-border",
-							children: embed ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("iframe", {
+							children: imageSrc ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+								src: imageSrc,
+								alt: video.name,
+								className: "aspect-video w-full bg-bg object-contain",
+								decoding: "async"
+							}) : embed ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("iframe", {
 								title: `${video.name} preview`,
 								src: embed,
 								className: "aspect-video w-full border-0",
@@ -7360,7 +9478,7 @@ function PreVideo() {
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 											type: "button",
 											onClick: () => {
-												setSource(video.remote?.kind ?? "youtube");
+												setSource(video.remote?.kind === "twitch" ? "twitch" : video.remote?.kind === "youtube" ? "youtube" : isAdultPullKind(video.remote?.kind) ? "adults" : "youtube");
 												setQuery(creator);
 												closePreview();
 											},
@@ -7404,7 +9522,7 @@ function PreVideo() {
 											if (!video.remote) return;
 											setCreatorLoading(true);
 											try {
-												await followRemoteQuery(creator, video.remote.kind);
+												if (video.remote.kind === "youtube" || video.remote.kind === "twitch") await followRemoteQuery(creator, video.remote.kind);
 												setCreatorRevision((value) => value + 1);
 											} finally {
 												setCreatorLoading(false);
@@ -7883,7 +10001,7 @@ function ConnectPanel({ defaultKind = "youtube", lockedKind }) {
 		if (!login) return;
 		setFinding(true);
 		try {
-			const { fetchTwitchFollowing } = await import("./api-CHra3-by.mjs");
+			const { fetchTwitchFollowing } = await import("./api-DrSMGXpo.mjs");
 			const result = await fetchTwitchFollowing({ data: { login } });
 			const rows = result.channels.map((channel) => ({
 				query: channel.login,
@@ -8330,7 +10448,7 @@ ytFilm({
 	tagline: "A Blender Studio open project.",
 	channel: "Blender Studio"
 });
-var loadHub = () => import("./hub-sections-D4nTPE5m.mjs");
+var loadHub = () => import("./hub-sections-C_SD3X6F.mjs");
 var hubSection = (name) => (0, import_react.lazy)(async () => ({ default: (await loadHub())[name] }));
 var GamesSection = hubSection("GamesSection");
 var FindPhoneSection = hubSection("FindPhoneSection");
@@ -8413,13 +10531,22 @@ function LibraryApp() {
 	const [homePickShuffle, setHomePickShuffle] = (0, import_react.useState)(() => Date.now());
 	const [ratingRevision, setRatingRevision] = (0, import_react.useState)(0);
 	const [adultTag, setAdultTag] = (0, import_react.useState)("All");
-	const [adultSort, setAdultSort] = (0, import_react.useState)("recent");
+	const [adultSource, setAdultSource] = (0, import_react.useState)("all");
+	const [adultView, setAdultView] = (0, import_react.useState)("all");
+	const [adultRailLimit, setAdultRailLimit] = (0, import_react.useState)(48);
+	const [adultTagQuery, setAdultTagQuery] = (0, import_react.useState)("");
+	/** Visible ranked tag chips — starts small; Show more adds a page, never dumps hundreds. */
+	const [adultTagVisibleCount, setAdultTagVisibleCount] = (0, import_react.useState)(10);
+	const [adultSort, setAdultSort] = (0, import_react.useState)("ranked");
 	const [twitchSort, setTwitchSort] = (0, import_react.useState)("live");
 	const [twitchFilter, setTwitchFilter] = (0, import_react.useState)("all");
 	const [youtubeTagFilter, setYoutubeTagFilter] = (0, import_react.useState)("all");
 	const [youtubeExploreVisible, setYoutubeExploreVisible] = (0, import_react.useState)(false);
 	const [youtubeDeepVisible, setYoutubeDeepVisible] = (0, import_react.useState)(false);
 	const [youtubeHealthVisible, setYoutubeHealthVisible] = (0, import_react.useState)(false);
+	const [adultDeepVisible, setAdultDeepVisible] = (0, import_react.useState)(true);
+	/** Heavy Adult ranking (full catalog sort + tag chips + recs) runs after first paint. */
+	const [adultRankReady, setAdultRankReady] = (0, import_react.useState)(false);
 	const archiveQueueRef = (0, import_react.useRef)([]);
 	const archiveQueueBusyRef = (0, import_react.useRef)(false);
 	const [archiveQueued, setArchiveQueued] = (0, import_react.useState)([]);
@@ -8460,7 +10587,6 @@ function LibraryApp() {
 	const activeId = useLibrary((s) => s.activeId);
 	const previewId = useLibrary((s) => s.previewId);
 	const history = useLibrary((s) => s.history);
-	const adultsUnlocked = useLibrary((s) => s.adultsUnlocked);
 	const videos = useLibrary(useShallow(selectVisible));
 	const continueVideos = useLibrary(useShallow((s) => selectContinue(s, false)));
 	const favoriteVideos = useLibrary(useShallow((s) => selectFavorites(s, false)));
@@ -8482,10 +10608,36 @@ function LibraryApp() {
 	const adultContinue = useLibrary(useShallow((s) => selectContinue(s, true)));
 	const adultFavorites = useLibrary(useShallow((s) => selectFavorites(s, true)));
 	const adultHistory = useLibrary(useShallow((s) => selectHistory(s, true)));
+	const adultRemoteVideos = useLibrary(useShallow(selectAdultRemote));
+	const cameCounts = useLibrary((s) => s.cameCounts);
 	const hasUserFolders = userFolderCount(folders) > 0;
 	const publicFolders = folders.filter((f) => f.kind !== "demo" && f.kind !== "youtube" && f.kind !== "twitch" && !f.adult);
 	const adultFolders = folders.filter((f) => f.adult);
 	const tags = useLibrary((s) => s.tags);
+	const markedAdult = (0, import_react.useMemo)(() => [...adultRemoteVideos.filter((video) => (cameCounts[video.id] ?? 0) > 0)].sort((a, b) => (cameCounts[b.id] ?? 0) - (cameCounts[a.id] ?? 0)), [adultRemoteVideos, cameCounts]);
+	const sourceMatchedAdult = (0, import_react.useMemo)(() => adultRemoteVideos.filter((video) => videoMatchesAdultSource(video, adultSource)), [adultRemoteVideos, adultSource]);
+	const adultKind = (video) => video.remote?.live || [
+		"chaturbate",
+		"camsoda",
+		"myfreecams"
+	].includes(video.remote?.kind ?? "") ? "live" : isAdultImageKind(video.remote?.kind, video.mime, video.extension) ? "photos" : "videos";
+	const viewMatchedAdult = (0, import_react.useMemo)(() => adultView === "all" ? sourceMatchedAdult : sourceMatchedAdult.filter((video) => adultKind(video) === adultView), [
+		adultSource,
+		adultView,
+		sourceMatchedAdult
+	]);
+	const filteredEporner = (0, import_react.useMemo)(() => viewMatchedAdult.filter((video) => videoMatchesAdultTag(video, adultTag, tags)), [
+		adultTag,
+		tags,
+		viewMatchedAdult
+	]);
+	const adultSourceCounts = (0, import_react.useMemo)(() => countAdultBySource(adultRemoteVideos), [adultRemoteVideos]);
+	const adultKindCounts = (0, import_react.useMemo)(() => ({
+		videos: adultRemoteVideos.filter((video) => adultKind(video) === "videos").length,
+		live: adultRemoteVideos.filter((video) => adultKind(video) === "live").length,
+		photos: adultRemoteVideos.filter((video) => adultKind(video) === "photos").length
+	}), [adultRemoteVideos]);
+	(0, import_react.useMemo)(() => [...new Set(sourceMatchedAdult.flatMap((video) => tags[video.id] ?? []))].sort(), [sourceMatchedAdult, tags]);
 	const historyTopTags = (0, import_react.useMemo)(() => {
 		const counts = /* @__PURE__ */ new Map();
 		for (const entry of history) for (const tag of tags[entry.id] ?? []) counts.set(tag, (counts.get(tag) ?? 0) + 1);
@@ -8512,6 +10664,222 @@ function LibraryApp() {
 	const favorites = useLibrary((s) => s.favorites);
 	const likes = useLibrary((s) => s.likes);
 	const viewCounts = useLibrary((s) => s.viewCounts);
+	const adultRankCtx = (0, import_react.useMemo)(() => ({
+		tags,
+		favorites,
+		likes,
+		cameCounts,
+		viewCounts,
+		ratingOf: getRating
+	}), [
+		cameCounts,
+		favorites,
+		likes,
+		ratingRevision,
+		tags,
+		viewCounts
+	]);
+	const rankedAdultCatalog = (0, import_react.useMemo)(() => {
+		if (sourceId !== "adults") return filteredEporner;
+		if (!adultRankReady) return filteredEporner;
+		return sortAdultVideos(filteredEporner, adultRankCtx);
+	}, [
+		adultRankCtx,
+		adultRankReady,
+		filteredEporner,
+		sourceId
+	]);
+	const adultTagRank = (0, import_react.useMemo)(() => {
+		if (sourceId !== "adults" || !adultRankReady) return [];
+		return rankAdultTags(sourceMatchedAdult, adultRankCtx, 80);
+	}, [
+		adultRankCtx,
+		adultRankReady,
+		sourceId,
+		sourceMatchedAdult
+	]);
+	const adultMetaTagRank = (0, import_react.useMemo)(() => {
+		if (sourceId !== "adults" || !adultRankReady) return [];
+		return rankAdultMetaTags(sourceMatchedAdult, adultRankCtx, 48);
+	}, [
+		adultRankCtx,
+		adultRankReady,
+		sourceId,
+		sourceMatchedAdult
+	]);
+	const adultTagMatches = (0, import_react.useMemo)(() => {
+		const needle = adultTagQuery.trim().toLowerCase();
+		if (!needle) return adultTagRank;
+		return adultTagRank.filter((row) => row.tag.includes(needle) || row.tag.replace(/-/g, " ").includes(needle));
+	}, [adultTagQuery, adultTagRank]);
+	const visibleAdultTags = (0, import_react.useMemo)(() => {
+		const page = Math.min(Math.max(10, adultTagVisibleCount), 36);
+		return adultTagMatches.slice(0, page);
+	}, [adultTagMatches, adultTagVisibleCount]);
+	const adultRecommended = (0, import_react.useMemo)(() => {
+		if (sourceId !== "adults" || !adultRankReady) return [];
+		const preferred = new Set([...adultTagRank.slice(0, 16), ...adultMetaTagRank.slice(0, 12)].map((row) => row.tag));
+		const likedTags = new Set(sourceMatchedAdult.filter((video) => favorites[video.id] || likes[video.id] || getRating(video.id) >= 4 || (cameCounts[video.id] ?? 0) > 0).flatMap((video) => tags[video.id] ?? []));
+		return (adultTag === "All" && adultSource === "all" ? rankedAdultCatalog : sortAdultVideos(sourceMatchedAdult, adultRankCtx)).map((video) => {
+			const itemTags = tags[video.id] ?? [];
+			const overlap = itemTags.filter((tag) => preferred.has(tag)).length;
+			const likedOverlap = itemTags.filter((tag) => likedTags.has(tag)).length;
+			return {
+				video,
+				score: overlap * 8 + likedOverlap * 10
+			};
+		}).sort((a, b) => b.score - a.score).map(({ video }) => video).slice(0, 48);
+	}, [
+		adultMetaTagRank,
+		adultRankCtx,
+		adultRankReady,
+		adultSource,
+		adultTag,
+		adultTagRank,
+		cameCounts,
+		favorites,
+		likes,
+		rankedAdultCatalog,
+		ratingRevision,
+		sourceId,
+		sourceMatchedAdult,
+		tags
+	]);
+	const adultRelatedRecommended = (0, import_react.useMemo)(() => {
+		if (sourceId !== "adults" || !adultRankReady) return [];
+		const seedTags = new Set((adultTag !== "All" ? [adultTag] : [...adultTagRank.slice(0, 8), ...adultMetaTagRank.slice(0, 6)].map((row) => row.tag)).concat(adultContinue[0] ? tags[adultContinue[0].id] ?? [] : [], adultFavorites[0] ? tags[adultFavorites[0].id] ?? [] : []));
+		const recommendedIds = new Set(adultRecommended.map((video) => video.id));
+		return adultRemoteVideos.filter((video) => !recommendedIds.has(video.id)).map((video) => {
+			return {
+				video,
+				score: (tags[video.id] ?? []).filter((tag) => seedTags.has(tag)).length * 12 + getRating(video.id) * 8 + (favorites[video.id] ? 5 : 0) + (likes[video.id] ? 3 : 0),
+				shuffle: shuffleRank(`adult-rel:${video.id}:${homePickShuffle}`, homePickShuffle)
+			};
+		}).filter((row) => row.score > 0).sort((a, b) => b.score - a.score || a.shuffle - b.shuffle).map(({ video }) => video).slice(0, 48);
+	}, [
+		adultContinue,
+		adultFavorites,
+		adultMetaTagRank,
+		adultRankReady,
+		adultRecommended,
+		adultRemoteVideos,
+		adultTag,
+		adultTagRank,
+		favorites,
+		homePickShuffle,
+		likes,
+		ratingRevision,
+		sourceId,
+		tags
+	]);
+	const adultShelfRails = (0, import_react.useMemo)(() => {
+		const used = /* @__PURE__ */ new Set();
+		const take = (list, limit, claim = true) => {
+			const out = [];
+			for (const video of list) {
+				if (used.has(video.id)) continue;
+				out.push(video);
+				if (claim) used.add(video.id);
+				if (out.length >= limit) break;
+			}
+			return out;
+		};
+		const scoped = (list) => list.filter((video) => videoMatchesAdultSource(video, adultSource) && videoMatchesAdultTag(video, adultTag, tags) && (adultView === "all" || adultKind(video) === adultView));
+		const continueRail = take(scoped(adultContinue), Math.min(24, adultRailLimit));
+		const marked = take(scoped(markedAdult), Math.min(24, adultRailLimit));
+		const recommended = take(scoped(adultRecommended), adultRailLimit);
+		const related = take(scoped(adultRelatedRecommended), adultRailLimit);
+		const reddit = take(scoped(rankedAdultCatalog.filter((video) => video.remote?.kind === "reddit")), adultRailLimit);
+		const latest = take(scoped(rankedAdultCatalog), adultRailLimit);
+		const catalog = take(scoped(rankedAdultCatalog), Math.max(48, adultRailLimit * 3));
+		const posterFresh = take(scoped(rankedAdultCatalog), Math.max(96, adultRailLimit * 6), true);
+		const seenPoster = new Set(posterFresh.map((video) => video.id));
+		return {
+			recommended,
+			related,
+			continueRail,
+			marked,
+			reddit,
+			latest,
+			catalog,
+			poster: posterFresh.length >= 48 ? posterFresh : [...posterFresh, ...scoped(rankedAdultCatalog).filter((video) => !seenPoster.has(video.id))].slice(0, Math.max(96, adultRailLimit * 6))
+		};
+	}, [
+		adultContinue,
+		adultRailLimit,
+		adultRecommended,
+		adultRelatedRecommended,
+		adultTag,
+		adultSource,
+		adultView,
+		markedAdult,
+		rankedAdultCatalog,
+		tags
+	]);
+	const adultRecommendedRail = adultShelfRails.recommended;
+	const adultRelatedRail = adultShelfRails.related;
+	const adultContinueRail = adultShelfRails.continueRail;
+	const adultMarkedRail = adultShelfRails.marked;
+	const adultRedditRail = adultShelfRails.reddit;
+	const adultLatestRail = adultShelfRails.latest;
+	const adultCatalogRail = adultShelfRails.catalog;
+	const adultPosterCatalog = adultShelfRails.poster;
+	const adultFeatured = (0, import_react.useMemo)(() => [
+		...adultRecommendedRail,
+		...adultLatestRail,
+		...adultRemoteVideos
+	].find((video) => Boolean(video.poster || video.remote?.previewUrl)), [
+		adultLatestRail,
+		adultRecommendedRail,
+		adultRemoteVideos
+	]);
+	(0, import_react.useEffect)(() => {
+		setAdultTagVisibleCount(10);
+	}, [adultTagQuery, adultSource]);
+	(0, import_react.useEffect)(() => {
+		const load = () => {
+			const saved = Number(localStorage.getItem("reelcase.adult-rail-limit") ?? "48");
+			setAdultRailLimit([
+				16,
+				24,
+				48,
+				72
+			].includes(saved) ? saved : 48);
+		};
+		load();
+		window.addEventListener("reelcase:adult-render-settings", load);
+		return () => window.removeEventListener("reelcase:adult-render-settings", load);
+	}, []);
+	(0, import_react.useEffect)(() => {
+		if (sourceId !== "adults") {
+			setAdultRankReady(false);
+			setAdultTagVisibleCount(10);
+			return;
+		}
+		setAdultRankReady(false);
+		let cancelled = false;
+		const ready = () => {
+			if (!cancelled) setAdultRankReady(true);
+		};
+		const ric = window.requestIdleCallback;
+		if (typeof ric === "function") {
+			const id = ric(ready, { timeout: 700 });
+			return () => {
+				cancelled = true;
+				window.cancelIdleCallback(id);
+			};
+		}
+		const id = window.setTimeout(ready, 120);
+		return () => {
+			cancelled = true;
+			window.clearTimeout(id);
+		};
+	}, [
+		sourceId,
+		filteredEporner.length,
+		adultSource,
+		adultTag
+	]);
 	const filteredYoutube = (0, import_react.useMemo)(() => youtubeTagFilter === "all" ? newestYoutube : newestYoutube.filter((video) => topicsForVideo(video, tags[video.id]).includes(youtubeTagFilter)), [
 		newestYoutube,
 		tags,
@@ -8623,7 +10991,6 @@ function LibraryApp() {
 		resumeProgress
 	]);
 	const adultPageVideos = (0, import_react.useMemo)(() => sourceId === "adults" ? videos : [], [sourceId, videos]);
-	const adultTagNames = (0, import_react.useMemo)(() => [...new Set(adultPageVideos.flatMap((video) => tags[video.id] ?? []))].sort(), [tags, adultPageVideos]);
 	const moviesByGenre = (0, import_react.useMemo)(() => [...videos].filter((video) => Boolean(video.genre)).sort((a, b) => a.genre.localeCompare(b.genre)), [videos]);
 	const movieCatalog = (0, import_react.useMemo)(() => {
 		if (sourceId !== "movies") return [];
@@ -8663,15 +11030,46 @@ function LibraryApp() {
 			videos
 		}));
 	}, [movieCatalog]);
-	const adultSorted = (0, import_react.useMemo)(() => [...adultPageVideos].sort((a, b) => adultSort === "name" ? a.name.localeCompare(b.name) : adultSort === "favorites" ? Number(Boolean(favorites[b.id])) - Number(Boolean(favorites[a.id])) || b.addedAt - a.addedAt : adultSort === "tagged" ? (tags[b.id] ?? []).length - (tags[a.id] ?? []).length || b.addedAt - a.addedAt : adultSort === "played" ? (progress[b.id]?.at ?? 0) - (progress[a.id]?.at ?? 0) || b.addedAt - a.addedAt : b.addedAt - a.addedAt), [
+	const adultSorted = (0, import_react.useMemo)(() => {
+		if (sourceId !== "adults" || !adultDeepVisible) return adultPageVideos;
+		if (adultSort === "ranked") return sortAdultVideos(adultPageVideos, {
+			tags,
+			favorites,
+			likes,
+			cameCounts,
+			viewCounts,
+			ratingOf: getRating
+		});
+		return [...adultPageVideos].sort((a, b) => adultSort === "name" ? a.name.localeCompare(b.name) : adultSort === "favorites" ? Number(Boolean(favorites[b.id])) - Number(Boolean(favorites[a.id])) || b.addedAt - a.addedAt : adultSort === "tagged" ? (tags[b.id] ?? []).length - (tags[a.id] ?? []).length || b.addedAt - a.addedAt : adultSort === "played" ? (progress[b.id]?.at ?? 0) - (progress[a.id]?.at ?? 0) || b.addedAt - a.addedAt : b.addedAt - a.addedAt);
+	}, [
+		adultDeepVisible,
 		adultSort,
+		adultPageVideos,
+		cameCounts,
 		favorites,
+		likes,
 		progress,
+		sourceId,
+		tags,
+		viewCounts,
+		ratingRevision
+	]);
+	const adultTagged = (0, import_react.useMemo)(() => {
+		if (!adultDeepVisible) return [];
+		return adultPageVideos.filter((video) => (tags[video.id] ?? []).length > 0).sort((a, b) => (tags[b.id] ?? []).length - (tags[a.id] ?? []).length);
+	}, [
+		adultDeepVisible,
 		tags,
 		adultPageVideos
 	]);
-	const adultTagged = (0, import_react.useMemo)(() => adultPageVideos.filter((video) => (tags[video.id] ?? []).length > 0).sort((a, b) => (tags[b.id] ?? []).length - (tags[a.id] ?? []).length), [tags, adultPageVideos]);
-	const adultNeedsTags = (0, import_react.useMemo)(() => adultPageVideos.filter((video) => !(tags[video.id] ?? []).length), [tags, adultPageVideos]);
+	const adultNeedsTags = (0, import_react.useMemo)(() => {
+		if (!adultDeepVisible) return [];
+		return adultPageVideos.filter((video) => !(tags[video.id] ?? []).length);
+	}, [
+		adultDeepVisible,
+		tags,
+		adultPageVideos
+	]);
 	const highlyRatedTags = (0, import_react.useMemo)(() => {
 		const preferred = /* @__PURE__ */ new Set();
 		if (sourceId !== "twitch") return preferred;
@@ -9171,6 +11569,36 @@ function LibraryApp() {
 		pushNotice,
 		remoteRefreshMs
 	]);
+	(0, import_react.useEffect)(() => {
+		if (!hydrated || sourceId !== "adults") return;
+		let cancelled = false;
+		let cursor = 0;
+		const tick = async () => {
+			if (cancelled || document.hidden || !navigator.onLine) return;
+			const state = useLibrary.getState();
+			if (state.remoteBusy) return;
+			const catalog = state.videos.filter((video) => video.remote && ADULT_PULL_PROVIDERS.includes(video.remote.kind));
+			if (catalog.length >= LIBRARY_LIMITS.adultTargetCatalogVideos) return;
+			const provider = catalog.filter((video) => video.remote?.kind === "reddit").length < Math.max(200, Math.floor(catalog.length * .2)) ? "reddit" : ADULT_PULL_PROVIDERS[cursor % ADULT_PULL_PROVIDERS.length];
+			cursor += 1;
+			const page = loadAdultArchiveCursors("all", "top-weekly")[provider]?.page ?? 1;
+			try {
+				await state.searchAdultFeed("all", "top-weekly", {
+					append: true,
+					providers: [provider],
+					maxVideos: LIBRARY_LIMITS.adultRefreshVideosPerTick,
+					providerPages: { [provider]: page }
+				});
+			} catch {}
+		};
+		const first = window.setTimeout(() => void tick(), 8e3);
+		const id = window.setInterval(() => void tick(), LIBRARY_LIMITS.adultRefreshIntervalMs);
+		return () => {
+			cancelled = true;
+			window.clearTimeout(first);
+			window.clearInterval(id);
+		};
+	}, [hydrated, sourceId]);
 	const prevScanning = (0, import_react.useRef)(null);
 	(0, import_react.useEffect)(() => {
 		const was = prevScanning.current;
@@ -9277,7 +11705,6 @@ function LibraryApp() {
 		URL.revokeObjectURL(link.href);
 	};
 	const browsing = !query && (sourceId === "home" || sourceId === "movies" || sourceId === "adults" || sourceId === "youtube" || sourceId === "twitch" || sourceId === "live");
-	const lockedAdults = sourceId === "adults" && !adultsUnlocked;
 	const invitedToTheater = typeof window !== "undefined" && /^RC[A-Z0-9]{4,12}$/.test((new URLSearchParams(window.location.search).get("room") ?? "").trim().toUpperCase());
 	const isHubSection = [
 		"photos",
@@ -9328,7 +11755,7 @@ function LibraryApp() {
 					onAddFolder: () => onAddFolder()
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("main", {
 					className: "w-full max-w-none flex-1 px-4 py-6 sm:px-6 xl:px-8 2xl:px-10",
-					children: lockedAdults ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PinGate, {}) : isHubSection ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_react.Suspense, {
+					children: isHubSection ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_react.Suspense, {
 						fallback: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("section", {
 							className: "rounded-xl bg-elevated p-8 text-sm text-muted shadow-border",
 							children: "Loading this library workspace…"
@@ -9359,7 +11786,7 @@ function LibraryApp() {
 						}),
 						sourceId === "home" && !query && !follows.length && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ConnectPanel, { defaultKind: "youtube" }, "home-imports"),
 						sourceId === "movies" && !query && (randomSourceMovies[0] || featured) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Billboard, { video: randomSourceMovies[0] ?? featured }),
-						sourceId === "adults" && adultsUnlocked && featured && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Billboard, { video: featured }),
+						sourceId === "adults" && adultFeatured && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Billboard, { video: adultFeatured }),
 						sourceId === "home" && browsing && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-elevated px-4 py-3 shadow-border",
@@ -10148,152 +12575,446 @@ function LibraryApp() {
 							}),
 							classics.length === 0 && videos.length === 0 ? null : null
 						] }),
-						sourceId === "adults" && adultsUnlocked && browsing && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+						sourceId === "adults" && browsing && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AdultPanel, {
+								showMilestones: adultDeepVisible,
+								autoPull: true,
+								sourceFilter: adultSource,
+								tagFilter: adultTag,
+								onSourceFilter: setAdultSource,
+								onTagFilter: setAdultTag
+							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
-								className: "mb-6 rounded-xl bg-elevated p-5 shadow-border",
+								className: "mb-5 rounded-xl border border-border bg-surface p-4 shadow-border",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+										children: "Adult media view"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "mt-1 text-sm text-muted",
+										children: "Choose one media type or keep the combined discovery view. Provider and tag filters apply to every rail below."
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "mt-3 flex flex-wrap gap-2",
+										children: [
+											["all", `Combined · ${adultRemoteVideos.length}`],
+											["videos", `Videos · ${adultKindCounts.videos}`],
+											["live", `Live · ${adultKindCounts.live}`],
+											["photos", `Photos · ${adultKindCounts.photos}`]
+										].map(([view, label]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+											size: "sm",
+											variant: adultView === view ? "default" : "secondary",
+											onClick: () => setAdultView(view),
+											children: label
+										}, view))
+									})
+								]
+							}),
+							adultView === "all" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+								className: "mb-5 grid gap-4 xl:grid-cols-3",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+										title: `Adult videos · ${adultKindCounts.videos}`,
+										videos: rankedAdultCatalog.filter((video) => adultKind(video) === "videos").slice(0, adultRailLimit),
+										variant: "rail"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+										title: `Adult live · ${adultKindCounts.live}`,
+										videos: rankedAdultCatalog.filter((video) => adultKind(video) === "live").slice(0, adultRailLimit),
+										variant: "rail"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+										title: `Adult photos · ${adultKindCounts.photos}`,
+										videos: rankedAdultCatalog.filter((video) => adultKind(video) === "photos").slice(0, adultRailLimit),
+										variant: "rail"
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: "Recommended videos",
+								reason: "Ranked from tag overlap, extreme/fetish boosts, I-cummed marks, Reddit signals, ratings, and recency — not just newest tube titles.",
+								videos: adultRecommendedRail,
+								variant: "rail"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: "Related recommended",
+								reason: "Nearby titles sharing your top adult tags, continue-watching tags, and favorite fetish overlap.",
+								videos: adultRelatedRail,
+								variant: "rail"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: "Continue watching",
+								videos: adultContinueRail,
+								variant: "rail"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: "I cummed to it",
+								reason: "Private local marks only — counts stay on this device.",
+								videos: adultMarkedRail,
+								variant: "rail"
+							}),
+							adultSource === "all" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: "Reddit photos & videos",
+								reason: "Curated 18+ Atom feeds — photos, gifs, and v.redd.it / redgifs posters.",
+								videos: adultRedditRail,
+								variant: "rail"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+								className: "mb-5 rounded-xl border border-border bg-surface p-4 shadow-border",
 								children: [
 									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between",
-										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-												className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
-												children: "Private library"
-											}),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
-												className: "mt-2 font-display text-4xl text-fg",
-												children: "Your shelves, your tags."
-											}),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-												className: "mt-2 text-sm text-muted",
-												children: "Tags, history, and organization remain private to this browser. Edit a title’s tags from its preview or player."
-											})
-										] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-											disabled: !videos.length,
-											onClick: () => {
-												const choices = adultTag === "All" ? adultSorted : adultSorted.filter((video) => (tags[video.id] ?? []).includes(adultTag));
-												const pick = choices[Math.floor(Math.random() * choices.length)];
-												if (pick) openVideo(pick.id);
-											},
-											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Shuffle, { className: "size-4" }), " Random private pick"]
+										className: "flex flex-wrap items-end justify-between gap-3",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+											children: "Interest tags"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "mt-1 text-sm text-muted",
+											children: "Curated interests only. Sources and creators stay in their own filters, then tap an interest to narrow every Adult rail."
+										})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+											value: adultTagQuery,
+											onChange: (event) => setAdultTagQuery(event.target.value),
+											placeholder: "Filter tags…",
+											className: "max-w-xs"
 										})]
 									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "mt-4 flex flex-wrap gap-2",
-										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "mt-3 flex flex-wrap gap-2",
+										children: ADULT_SOURCE_FILTERS.map((source) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 											size: "sm",
-											variant: adultTag === "All" ? "default" : "secondary",
-											onClick: () => setAdultTag("All"),
-											children: "All titles"
-										}), adultTagNames.map((tag) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-											size: "sm",
-											variant: adultTag === tag ? "default" : "secondary",
-											onClick: () => setAdultTag(tag),
-											children: tag
-										}, tag))]
+											variant: adultSource === source.id ? "default" : "secondary",
+											onClick: () => setAdultSource(source.id),
+											children: [
+												source.label,
+												" · ",
+												source.id === "all" ? adultRemoteVideos.length : adultSourceCounts[source.id] ?? 0
+											]
+										}, source.id))
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 										className: "mt-3 flex flex-wrap gap-2",
-										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-											className: "self-center text-xs text-muted",
-											children: "Sort"
-										}), [
-											"recent",
-											"name",
-											"favorites",
-											"tagged",
-											"played"
-										].map((sort) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-											size: "sm",
-											variant: adultSort === sort ? "default" : "secondary",
-											onClick: () => setAdultSort(sort),
-											children: sort === "tagged" ? "Most tagged" : sort === "played" ? "Last played" : sort
-										}, sort))]
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+												size: "sm",
+												variant: adultTag === "All" ? "default" : "secondary",
+												onClick: () => setAdultTag("All"),
+												children: "All adult tags"
+											}),
+											visibleAdultTags.map((row) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+												size: "sm",
+												variant: adultTag === row.tag ? "default" : "secondary",
+												onClick: () => setAdultTag(row.tag),
+												children: [
+													"#",
+													row.tag,
+													" · ",
+													row.count
+												]
+											}, `adult-tag-${row.tag}`)),
+											adultTagMatches.length > visibleAdultTags.length && visibleAdultTags.length < 36 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+												size: "sm",
+												variant: "secondary",
+												onClick: () => setAdultTagVisibleCount((count) => Math.min(36, count + 10)),
+												children: [
+													"Show more · ",
+													Math.min(10, Math.min(36, adultTagMatches.length) - visibleAdultTags.length),
+													" of ",
+													adultTagMatches.length
+												]
+											}),
+											visibleAdultTags.length > 10 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+												size: "sm",
+												variant: "ghost",
+												onClick: () => setAdultTagVisibleCount(10),
+												children: "Show fewer"
+											})
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "mt-2 text-xs text-muted",
+										children: [
+											"Showing ",
+											visibleAdultTags.length,
+											" of ",
+											adultTagMatches.length || adultTagRank.length,
+											" ranked tags",
+											adultTagQuery.trim() ? " (filtered)" : "",
+											" · cap 36 on screen."
+										]
+									}),
+									adultMetaTagRank.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "mt-4 border-t border-border pt-3",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+												className: "text-xs font-medium tracking-[0.12em] text-accent uppercase",
+												children: "Ranked metadata"
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+												className: "mt-1 text-xs text-muted",
+												children: "Verified provider descriptors scored by ratings, saves, marks, recency, and cross-provider coverage. Use one to focus every Adult rail."
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+												className: "mt-2 flex flex-wrap gap-2",
+												children: adultMetaTagRank.slice(0, 18).map((row) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+													size: "sm",
+													variant: adultTag === row.tag ? "default" : "secondary",
+													onClick: () => setAdultTag(row.tag),
+													children: [
+														"#",
+														row.tag,
+														" · ",
+														row.count,
+														" · ",
+														Math.round(row.score)
+													]
+												}, `adult-meta-${row.tag}`))
+											})
+										]
+									}),
+									(adultTag !== "All" || adultSource !== "all") && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "mt-2 text-xs text-accent",
+										children: [
+											"Showing ",
+											rankedAdultCatalog.length.toLocaleString(),
+											" titles",
+											adultSource !== "all" ? ` · ${adultSource}` : "",
+											adultTag !== "All" ? ` · #${adultTag}` : "",
+											"."
+										]
 									})
 								]
 							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "mb-6 grid gap-3 sm:grid-cols-2",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "rounded-lg bg-surface p-4 shadow-border",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										className: "text-sm font-medium text-fg",
-										children: "Private favorite links"
-									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										className: "mt-1 text-xs leading-5 text-muted",
-										children: "Reserved for your personally saved, consented links. Nothing is added or shared automatically."
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("section", {
+								className: "mb-5 rounded-xl bg-elevated p-4 shadow-border",
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "flex flex-wrap items-center justify-between gap-3",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+										children: "Adult stats"
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "mt-1 text-sm text-muted",
+										children: [
+											adultRemoteVideos.length.toLocaleString(),
+											" cached titles · Reddit ",
+											adultSourceCounts.reddit ?? 0,
+											" · export tag ranks and source counts."
+										]
+									})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "flex flex-wrap gap-2",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+											size: "sm",
+											variant: "secondary",
+											onClick: () => exportAdultStats(buildAdultStatsSnapshot(adultRemoteVideos, folders, tags, {
+												favorites,
+												likes,
+												cameCounts,
+												viewCounts,
+												ratingOf: getRating
+											}), "csv"),
+											children: "Export CSV"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+											size: "sm",
+											variant: "secondary",
+											onClick: () => exportAdultStats(buildAdultStatsSnapshot(adultRemoteVideos, folders, tags, {
+												favorites,
+												likes,
+												cameCounts,
+												viewCounts,
+												ratingOf: getRating
+											}), "json"),
+											children: "Export JSON"
+										})]
 									})]
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "rounded-lg bg-surface p-4 shadow-border",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										className: "text-sm font-medium text-fg",
-										children: "Recommended sites"
-									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										className: "mt-1 text-xs leading-5 text-muted",
-										children: "Reserved for future opt-in recommendations. Link sorting will stay separate from your private video catalog."
-									})]
-								})]
+								})
 							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PrivateWebShortcuts, {}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
-								title: "Continue watching",
-								videos: adultContinue,
+								title: "Latest from official adult APIs",
+								reason: "Ranked catalog from official APIs and Reddit Atom — source chips actually filter these rails.",
+								videos: adultLatestRail,
 								variant: "rail"
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
-								title: "Favorites",
-								videos: adultFavorites,
-								variant: "poster"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
-								title: "Most organized",
-								videos: adultTagged,
+								title: "From official adult APIs",
+								reason: "Windowed filtered catalog, ranked (first 120).",
+								videos: adultCatalogRail,
 								variant: "rail"
 							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
-								title: "Needs a tag",
-								videos: adultNeedsTags,
-								variant: "rail"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
-								title: "Recently added",
-								videos: [...videos].sort((a, b) => b.addedAt - a.addedAt).slice(0, 24),
-								variant: "rail"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
-								title: adultTag === "All" ? "All private titles" : `Tagged · ${adultTag}`,
-								videos: adultTag === "All" ? adultSorted : adultSorted.filter((video) => (tags[video.id] ?? []).includes(adultTag)),
-								variant: "poster"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
-								title: "History",
-								videos: adultHistory,
-								variant: "rail",
-								playedAt
-							}),
-							adultFolders.map((folder) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
-								title: folder.name,
-								videos: videos.filter((v) => v.folderId === folder.id),
-								variant: "rail"
-							}, folder.id)),
-							adultFolders.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "rounded-xl bg-surface px-6 py-14 text-center shadow-border",
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PosterGrid, { videos: adultPosterCatalog }),
+							!adultDeepVisible && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+								className: "mb-6 rounded-xl border border-border bg-surface p-5 shadow-border",
 								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Lock, { className: "mx-auto size-6 text-muted" }),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										className: "mt-3 font-display text-2xl text-fg",
-										children: "No private folders yet"
+										className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+										children: "Deep discovery"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+										className: "mt-2 font-display text-2xl text-fg",
+										children: "Milestones, private shelves, and history."
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										className: "mx-auto mt-2 max-w-sm text-sm text-muted",
-										children: "Add a private folder, or lock an existing source. Those titles stay off Home, Movies, and Favorites."
+										className: "mt-1 text-sm text-muted",
+										children: "Link-out catalogs, private folder rails, and full adult history stay optional so opening Adults stays responsive with a large cached archive."
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-										className: "mt-5",
-										onClick: () => onAddFolder(void 0, true),
-										children: "Add private folder"
+										className: "mt-4",
+										variant: "secondary",
+										onClick: () => setAdultDeepVisible(true),
+										children: "Load milestones and private shelves"
 									})
 								]
-							})
+							}),
+							adultDeepVisible && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+									className: "mb-6 rounded-xl bg-elevated p-5 shadow-border",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+													className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+													children: "Private library"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
+													className: "mt-2 font-display text-4xl text-fg",
+													children: "Your shelves, your tags."
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+													className: "mt-2 text-sm text-muted",
+													children: "Tags, history, and organization remain private to this browser. Edit a title’s tags from its preview or player."
+												})
+											] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+												disabled: !videos.length,
+												onClick: () => {
+													const choices = adultTag === "All" ? adultSorted : adultSorted.filter((video) => (tags[video.id] ?? []).includes(adultTag));
+													const pick = choices[Math.floor(Math.random() * choices.length)];
+													if (pick) openVideo(pick.id);
+												},
+												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Shuffle, { className: "size-4" }), " Random private pick"]
+											})]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "mt-4 flex flex-wrap gap-2",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+													size: "sm",
+													variant: adultTag === "All" ? "default" : "secondary",
+													onClick: () => setAdultTag("All"),
+													children: "All titles"
+												}),
+												visibleAdultTags.map((row) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+													size: "sm",
+													variant: adultTag === row.tag ? "default" : "secondary",
+													onClick: () => setAdultTag(row.tag),
+													children: ["#", row.tag]
+												}, row.tag)),
+												adultTagMatches.length > visibleAdultTags.length && visibleAdultTags.length < 36 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+													size: "sm",
+													variant: "secondary",
+													onClick: () => setAdultTagVisibleCount((count) => Math.min(36, count + 10)),
+													children: "Show more tags"
+												})
+											]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "mt-3 flex flex-wrap gap-2",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+												className: "self-center text-xs text-muted",
+												children: "Sort"
+											}), [
+												"ranked",
+												"recent",
+												"name",
+												"favorites",
+												"tagged",
+												"played"
+											].map((sort) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+												size: "sm",
+												variant: adultSort === sort ? "default" : "secondary",
+												onClick: () => setAdultSort(sort),
+												children: sort === "tagged" ? "Most tagged" : sort === "played" ? "Last played" : sort === "ranked" ? "Ranked" : sort
+											}, sort))]
+										})
+									]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "mb-6 grid gap-3 sm:grid-cols-2",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "rounded-lg bg-surface p-4 shadow-border",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "text-sm font-medium text-fg",
+											children: "Private favorite links"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "mt-1 text-xs leading-5 text-muted",
+											children: "Reserved for your personally saved, consented links. Nothing is added or shared automatically."
+										})]
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "rounded-lg bg-surface p-4 shadow-border",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "text-sm font-medium text-fg",
+											children: "Recommended sites"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "mt-1 text-xs leading-5 text-muted",
+											children: "Reserved for future opt-in recommendations. Link sorting will stay separate from your private video catalog."
+										})]
+									})]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PrivateWebShortcuts, {}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+									title: "Favorites",
+									videos: adultFavorites,
+									variant: "poster"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+									title: "Most organized",
+									videos: adultTagged,
+									variant: "rail"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+									title: "Needs a tag",
+									videos: adultNeedsTags,
+									variant: "rail"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+									title: "Recently added",
+									videos: [...videos].sort((a, b) => b.addedAt - a.addedAt).slice(0, 24),
+									variant: "rail"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+									title: adultTag === "All" ? "All private titles" : `Tagged · ${adultTag}`,
+									videos: adultTag === "All" ? adultSorted : adultSorted.filter((video) => (tags[video.id] ?? []).includes(adultTag)),
+									variant: "poster"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+									title: "History",
+									videos: adultHistory,
+									variant: "rail",
+									playedAt
+								}),
+								adultFolders.map((folder) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+									title: folder.name,
+									videos: videos.filter((v) => v.folderId === folder.id),
+									variant: "rail"
+								}, folder.id)),
+								adultFolders.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "rounded-xl bg-surface px-6 py-14 text-center shadow-border",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Lock, { className: "mx-auto size-6 text-muted" }),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "mt-3 font-display text-2xl text-fg",
+											children: "No private folders yet"
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "mx-auto mt-2 max-w-sm text-sm text-muted",
+											children: "Add a private folder, or lock an existing source. Those titles stay off Home, Movies, and Favorites."
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+											className: "mt-4",
+											onClick: () => onAddFolder(void 0, true),
+											children: "Add private folder"
+										})
+									]
+								})
+							] })
 						] }),
 						sourceId === "favorites" && !query && favoriteVideos.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "mb-6",
@@ -10524,6 +13245,56 @@ function LibraryApp() {
 												})]
 											})]
 										}, video.id))
+									})
+								]
+							}),
+							(sourceId === "continue" || sourceId === "history") && !query && (adultContinue.length > 0 || adultHistory.length > 0) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+								className: "mb-5 rounded-xl border border-border bg-surface p-5 shadow-border",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+										children: "Adults activity"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+										className: "mt-2 font-display text-2xl text-fg",
+										children: "Private continue & history stay in Adults."
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "mt-1 text-sm text-muted",
+										children: "Public Continue / History rails stay clean. Open Adults for private resume marks, fetish-tagged history, and I-cummed counters — catalog shelves on Home stay public-only."
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "mt-4 flex flex-wrap gap-2",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+											size: "sm",
+											onClick: () => setSource("adults"),
+											children: "Open Adults"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+											size: "sm",
+											variant: "secondary",
+											onClick: () => {
+												setSource("adults");
+												setAdultDeepVisible(true);
+											},
+											children: "Adults history & shelves"
+										})]
+									}),
+									sourceId === "continue" && adultContinue.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "mt-4",
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+											title: "Adults · continue watching",
+											videos: adultContinue.slice(0, 18),
+											variant: "rail"
+										})
+									}),
+									sourceId === "history" && adultHistory.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "mt-4",
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+											title: "Adults · recent history",
+											videos: adultHistory.slice(0, 18),
+											variant: "rail",
+											playedAt
+										})
 									})
 								]
 							}),
@@ -10900,4 +13671,4 @@ function Home() {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LibraryApp, {});
 }
 //#endregion
-export { topicsForVideo as C, topicEvidence as S, measureInteraction as T, resumeForVideo as _, Input as a, canonicalTopic as b, getRenderBudgetSnapshot as c, getRating as d, tagIsLiked as f, Button as g, useThumbs as h, getFirstShelfTrace as i, exportFeedback as l, getThumbDiagnostics as m, getNetworkDeviceId as n, openTopic as o, toggleTagLike as p, listNetworkDevices as r, VideoCard as s, routes_exports as t, getFeedbackDiagnostics as u, useLibrary as v, getInteractionBudgetSnapshot as w, isTopicTag as x, useSourceAssets as y };
+export { exportFeedback as C, toggleTagLike as D, tagIsLiked as E, getInteractionBudgetSnapshot as O, topicsForVideo as S, getRating as T, useLibrary as _, buildAdultStatsSnapshot as a, isTopicTag as b, countAdultBySource as c, VideoCard as d, getRenderBudgetSnapshot as f, resumeForVideo as g, Button as h, getFirstShelfTrace as i, measureInteraction as k, Input as l, useThumbs as m, getNetworkDeviceId as n, exportAdultStats as o, getThumbDiagnostics as p, listNetworkDevices as r, rankAdultTags as s, routes_exports as t, openTopic as u, useSourceAssets as v, getFeedbackDiagnostics as w, topicEvidence as x, canonicalTopic as y };

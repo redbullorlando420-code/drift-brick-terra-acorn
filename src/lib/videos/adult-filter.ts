@@ -7,6 +7,7 @@
 import type { LibraryVideo } from "./types";
 import type { AdultPullProvider } from "./adult-sites";
 import { ADULT_PULL_PROVIDERS } from "./adult-sites";
+import { adultTaxonomyTags } from "./adult-taxonomy";
 
 export const ADULT_SOURCE_FILTERS: { id: AdultPullProvider | "all"; label: string }[] = [
   { id: "all", label: "All sources" },
@@ -46,6 +47,8 @@ export function videoMatchesAdultTag(
   if (tag.startsWith("source-")) return videoMatchesAdultSource(video, tag);
   const itemTags = tags[video.id] ?? [];
   if (itemTags.includes(tag)) return true;
+  // Taxonomy rows are derived from provider tags for older cached titles too.
+  if (itemTags.some((item) => adultTaxonomyTags(item).includes(tag))) return true;
   if (tag.startsWith("creator-")) {
     const slug = tag.slice("creator-".length);
     const name = (video.remote?.channelName ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");

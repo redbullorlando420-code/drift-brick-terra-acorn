@@ -16,9 +16,9 @@ import { Billboard, PosterGrid, TitleRail } from "./browse";
 import { AdultPanel } from "./adult-panel";
 import { LIBRARY_LIMITS } from "@/lib/library-limits";
 import { Input } from "@/components/ui/input";
-import { ADULT_PULL_PROVIDERS } from "@/lib/videos/adult-sites";
+import { ADULT_PULL_PROVIDERS, isAdultImageKind } from "@/lib/videos/adult-sites";
 import { ADULT_SOURCE_FILTERS, countAdultBySource, videoMatchesAdultSource, videoMatchesAdultTag } from "@/lib/videos/adult-filter";
-import { rankAdultTags, sortAdultVideos, type AdultRankContext } from "@/lib/videos/adult-rank";
+import { rankAdultMetaTags, rankAdultTags, sortAdultVideos, type AdultRankContext } from "@/lib/videos/adult-rank";
 import { buildAdultStatsSnapshot, exportAdultStats } from "@/lib/videos/adult-stats";
 import { loadAdultArchiveCursors } from "@/lib/videos/adult-archive-cursors";
 import { Player } from "./player";
@@ -151,6 +151,8 @@ export function LibraryApp() {
   const [ratingRevision, setRatingRevision] = useState(0);
   const [adultTag, setAdultTag] = useState("All");
   const [adultSource, setAdultSource] = useState("all");
+  const [adultView, setAdultView] = useState<"all" | "videos" | "live" | "photos">("all");
+  const [adultRailLimit, setAdultRailLimit] = useState(48);
   const [adultTagQuery, setAdultTagQuery] = useState("");
   /** Visible ranked tag chips — starts small; Show more adds a page, never dumps hundreds. */
   const [adultTagVisibleCount, setAdultTagVisibleCount] = useState(10);
@@ -161,7 +163,7 @@ export function LibraryApp() {
   const [youtubeExploreVisible, setYoutubeExploreVisible] = useState(false);
   const [youtubeDeepVisible, setYoutubeDeepVisible] = useState(false);
   const [youtubeHealthVisible, setYoutubeHealthVisible] = useState(false);
-  const [adultDeepVisible, setAdultDeepVisible] = useState(false);
+  const [adultDeepVisible, setAdultDeepVisible] = useState(true);
   /** Heavy Adult ranking (full catalog sort + tag chips + recs) runs after first paint. */
   const [adultRankReady, setAdultRankReady] = useState(false);
   const archiveQueueRef = useRef<Array<{ id: string; handle: string }>>([]);
@@ -232,11 +234,24 @@ export function LibraryApp() {
     () => adultRemoteVideos.filter((video) => videoMatchesAdultSource(video, adultSource)),
     [adultRemoteVideos, adultSource],
   );
+  const adultKind = (video: typeof adultRemoteVideos[number]) => video.remote?.live || ["chaturbate", "camsoda", "myfreecams"].includes(video.remote?.kind ?? "")
+    ? "live" as const
+    : isAdultImageKind(video.remote?.kind, video.mime, video.extension) ? "photos" as const
+    : "videos" as const;
+  const viewMatchedAdult = useMemo(
+    () => adultView === "all" ? sourceMatchedAdult : sourceMatchedAdult.filter((video) => adultKind(video) === adultView),
+    [adultSource, adultView, sourceMatchedAdult],
+  );
   const filteredEporner = useMemo(
-    () => sourceMatchedAdult.filter((video) => videoMatchesAdultTag(video, adultTag, tags)),
-    [adultTag, sourceMatchedAdult, tags],
+    () => viewMatchedAdult.filter((video) => videoMatchesAdultTag(video, adultTag, tags)),
+    [adultTag, tags, viewMatchedAdult],
   );
   const adultSourceCounts = useMemo(() => countAdultBySource(adultRemoteVideos), [adultRemoteVideos]);
+  const adultKindCounts = useMemo(() => ({
+    videos: adultRemoteVideos.filter((video) => adultKind(video) === "videos").length,
+    live: adultRemoteVideos.filter((video) => adultKind(video) === "live").length,
+    photos: adultRemoteVideos.filter((video) => adultKind(video) === "photos").length,
+  }), [adultRemoteVideos]);
   const epornerTagNames = useMemo(
     () => [...new Set(sourceMatchedAdult.flatMap((video) => tags[video.id] ?? []))].sort(),
     [sourceMatchedAdult, tags],
@@ -284,6 +299,10 @@ export function LibraryApp() {
     if (sourceId !== "adults" || !adultRankReady) return [] as { tag: string; score: number; count: number }[];
     return rankAdultTags(sourceMatchedAdult, adultRankCtx, 80);
   }, [adultRankCtx, adultRankReady, sourceId, sourceMatchedAdult]);
+  const adultMetaTagRank = useMemo(() => {
+    if (sourceId !== "adults" || !adultRankReady) return [] as { tag: string; score: number; count: number }[];
+    return rankAdultMetaTags(sourceMatchedAdult, adultRankCtx, 48);
+  }, [adultRankCtx, adultRankReady, sourceId, sourceMatchedAdult]);
   const adultTagMatches = useMemo(() => {
     const needle = adultTagQuery.trim().toLowerCase();
     if (!needle) return adultTagRank;
@@ -296,7 +315,7 @@ export function LibraryApp() {
   }, [adultTagMatches, adultTagVisibleCount]);
   const adultRecommended = useMemo(() => {
     if (sourceId !== "adults" || !adultRankReady) return [] as typeof adultRemoteVideos;
-    const preferred = new Set(adultTagRank.slice(0, 16).map((row) => row.tag));
+    const preferred = new Set([...adultTagRank.slice(0, 16), ...adultMetaTagRank.slice(0, 12)].map((row) => row.tag));
     const likedTags = new Set(sourceMatchedAdult.filter((video) => favorites[video.id] || likes[video.id] || getRating(video.id) >= 4 || (cameCounts[video.id] ?? 0) > 0).flatMap((video) => tags[video.id] ?? []));
     // Reuse already-ranked catalog when filters align; otherwise rank the source set once.
     const rankedBase = adultTag === "All" && adultSource === "all"
@@ -313,11 +332,11 @@ export function LibraryApp() {
       .sort((a, b) => b.score - a.score)
       .map(({ video }) => video)
       .slice(0, 48);
-  }, [adultRankCtx, adultRankReady, adultSource, adultTag, adultTagRank, cameCounts, favorites, likes, rankedAdultCatalog, ratingRevision, sourceId, sourceMatchedAdult, tags]);
+  }, [adultMetaTagRank, adultRankCtx, adultRankReady, adultSource, adultTag, adultTagRank, cameCounts, favorites, likes, rankedAdultCatalog, ratingRevision, sourceId, sourceMatchedAdult, tags]);
   const adultRelatedRecommended = useMemo(() => {
     if (sourceId !== "adults" || !adultRankReady) return [] as typeof adultRemoteVideos;
     const seedTags = new Set(
-      (adultTag !== "All" ? [adultTag] : adultTagRank.slice(0, 8).map((row) => row.tag))
+      (adultTag !== "All" ? [adultTag] : [...adultTagRank.slice(0, 8), ...adultMetaTagRank.slice(0, 6)].map((row) => row.tag))
         .concat(
           adultContinue[0] ? tags[adultContinue[0].id] ?? [] : [],
           adultFavorites[0] ? tags[adultFavorites[0].id] ?? [] : [],
@@ -336,7 +355,7 @@ export function LibraryApp() {
       .sort((a, b) => b.score - a.score || a.shuffle - b.shuffle)
       .map(({ video }) => video)
       .slice(0, 48);
-  }, [adultContinue, adultFavorites, adultRankReady, adultRecommended, adultRemoteVideos, adultTag, adultTagRank, favorites, homePickShuffle, likes, ratingRevision, sourceId, tags]);
+  }, [adultContinue, adultFavorites, adultMetaTagRank, adultRankReady, adultRecommended, adultRemoteVideos, adultTag, adultTagRank, favorites, homePickShuffle, likes, ratingRevision, sourceId, tags]);
   const adultShelfRails = useMemo(() => {
     // Claim ids top-down so Recommended / Related / Continue / marks stay unique
     // across the separate Adults rails (catalog + poster still may revisit).
@@ -351,35 +370,40 @@ export function LibraryApp() {
       }
       return out;
     };
+    const scoped = (list: typeof adultRemoteVideos) => list.filter((video) =>
+      videoMatchesAdultSource(video, adultSource)
+      && videoMatchesAdultTag(video, adultTag, tags)
+      && (adultView === "all" || adultKind(video) === adultView),
+    );
     // Personal shelves claim first so resume/marks never disappear behind recs.
-    const continueRail = take(adultContinue, 24);
-    const marked = take(markedAdult, 24);
+    const continueRail = take(scoped(adultContinue), Math.min(24, adultRailLimit));
+    const marked = take(scoped(markedAdult), Math.min(24, adultRailLimit));
     const recommended = take(
-      adultRecommended.filter((video) => videoMatchesAdultTag(video, adultTag, tags)),
-      48,
+      scoped(adultRecommended), adultRailLimit,
     );
     const related = take(
-      adultRelatedRecommended.filter((video) => videoMatchesAdultTag(video, adultTag, tags)),
-      48,
+      scoped(adultRelatedRecommended), adultRailLimit,
     );
     const reddit = take(
-      rankedAdultCatalog.filter((video) => video.remote?.kind === "reddit"),
-      48,
+      scoped(rankedAdultCatalog.filter((video) => video.remote?.kind === "reddit")), adultRailLimit,
     );
-    const latest = take(rankedAdultCatalog, LIBRARY_LIMITS.adultFastStartRailSize);
-    const catalog = take(rankedAdultCatalog, 120);
+    const latest = take(scoped(rankedAdultCatalog), adultRailLimit);
+    const catalog = take(scoped(rankedAdultCatalog), Math.max(48, adultRailLimit * 3));
     // Poster grid prefers titles not already on a rail, then fills from ranked catalog.
-    const posterFresh = take(rankedAdultCatalog, 360, true);
+    const posterFresh = take(scoped(rankedAdultCatalog), Math.max(96, adultRailLimit * 6), true);
     const seenPoster = new Set(posterFresh.map((video) => video.id));
     const poster = posterFresh.length >= 48
       ? posterFresh
-      : [...posterFresh, ...rankedAdultCatalog.filter((video) => !seenPoster.has(video.id))].slice(0, 360);
+      : [...posterFresh, ...scoped(rankedAdultCatalog).filter((video) => !seenPoster.has(video.id))].slice(0, Math.max(96, adultRailLimit * 6));
     return { recommended, related, continueRail, marked, reddit, latest, catalog, poster };
   }, [
     adultContinue,
+    adultRailLimit,
     adultRecommended,
     adultRelatedRecommended,
     adultTag,
+    adultSource,
+    adultView,
     markedAdult,
     rankedAdultCatalog,
     tags,
@@ -392,10 +416,24 @@ export function LibraryApp() {
   const adultLatestRail = adultShelfRails.latest;
   const adultCatalogRail = adultShelfRails.catalog;
   const adultPosterCatalog = adultShelfRails.poster;
+  const adultFeatured = useMemo(
+    () => [...adultRecommendedRail, ...adultLatestRail, ...adultRemoteVideos].find((video) => Boolean(video.poster || video.remote?.previewUrl)),
+    [adultLatestRail, adultRecommendedRail, adultRemoteVideos],
+  );
 
   useEffect(() => {
     setAdultTagVisibleCount(10);
   }, [adultTagQuery, adultSource]);
+
+  useEffect(() => {
+    const load = () => {
+      const saved = Number(localStorage.getItem("reelcase.adult-rail-limit") ?? "48");
+      setAdultRailLimit([16, 24, 48, 72].includes(saved) ? saved : 48);
+    };
+    load();
+    window.addEventListener("reelcase:adult-render-settings", load);
+    return () => window.removeEventListener("reelcase:adult-render-settings", load);
+  }, []);
 
   useEffect(() => {
     if (sourceId !== "adults") {
@@ -1079,8 +1117,8 @@ export function LibraryApp() {
               {sourceId === "movies" && !query && (randomSourceMovies[0] || featured) && (
                 <Billboard video={randomSourceMovies[0] ?? featured!} />
               )}
-              {sourceId === "adults" && featured && (
-                <Billboard video={featured} />
+              {sourceId === "adults" && adultFeatured && (
+                <Billboard video={adultFeatured} />
               )}
 
               {sourceId === "home" && browsing && (
@@ -1199,6 +1237,14 @@ export function LibraryApp() {
                     onSourceFilter={setAdultSource}
                     onTagFilter={setAdultTag}
                   />
+                  <section className="mb-5 rounded-xl border border-border bg-surface p-4 shadow-border">
+                    <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Adult media view</p>
+                    <p className="mt-1 text-sm text-muted">Choose one media type or keep the combined discovery view. Provider and tag filters apply to every rail below.</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {([['all', `Combined · ${adultRemoteVideos.length}`], ['videos', `Videos · ${adultKindCounts.videos}`], ['live', `Live · ${adultKindCounts.live}`], ['photos', `Photos · ${adultKindCounts.photos}`]] as const).map(([view, label]) => <Button key={view} size="sm" variant={adultView === view ? "default" : "secondary"} onClick={() => setAdultView(view)}>{label}</Button>)}
+                    </div>
+                  </section>
+                  {adultView === "all" && <section className="mb-5 grid gap-4 xl:grid-cols-3"><TitleRail title={`Adult videos · ${adultKindCounts.videos}`} videos={rankedAdultCatalog.filter((video) => adultKind(video) === "videos").slice(0, adultRailLimit)} variant="rail"/><TitleRail title={`Adult live · ${adultKindCounts.live}`} videos={rankedAdultCatalog.filter((video) => adultKind(video) === "live").slice(0, adultRailLimit)} variant="rail"/><TitleRail title={`Adult photos · ${adultKindCounts.photos}`} videos={rankedAdultCatalog.filter((video) => adultKind(video) === "photos").slice(0, adultRailLimit)} variant="rail"/></section>}
                   <TitleRail
                     title="Recommended videos"
                     reason="Ranked from tag overlap, extreme/fetish boosts, I-cummed marks, Reddit signals, ratings, and recency — not just newest tube titles."
@@ -1224,8 +1270,8 @@ export function LibraryApp() {
                   <section className="mb-5 rounded-xl border border-border bg-surface p-4 shadow-border">
                     <div className="flex flex-wrap items-end justify-between gap-3">
                       <div>
-                        <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Your tags</p>
-                        <p className="mt-1 text-sm text-muted">Ranked high → low. Filter the list, then tap a tag to narrow every Adult rail.</p>
+                        <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Interest tags</p>
+                        <p className="mt-1 text-sm text-muted">Curated interests only. Sources and creators stay in their own filters, then tap an interest to narrow every Adult rail.</p>
                       </div>
                       <Input
                         value={adultTagQuery}
@@ -1263,6 +1309,19 @@ export function LibraryApp() {
                       Showing {visibleAdultTags.length} of {adultTagMatches.length || adultTagRank.length} ranked tags
                       {adultTagQuery.trim() ? " (filtered)" : ""} · cap 36 on screen.
                     </p>
+                    {adultMetaTagRank.length > 0 && (
+                      <div className="mt-4 border-t border-border pt-3">
+                        <p className="text-xs font-medium tracking-[0.12em] text-accent uppercase">Ranked metadata</p>
+                        <p className="mt-1 text-xs text-muted">Verified provider descriptors scored by ratings, saves, marks, recency, and cross-provider coverage. Use one to focus every Adult rail.</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {adultMetaTagRank.slice(0, 18).map((row) => (
+                            <Button key={`adult-meta-${row.tag}`} size="sm" variant={adultTag === row.tag ? "default" : "secondary"} onClick={() => setAdultTag(row.tag)}>
+                              #{row.tag} · {row.count} · {Math.round(row.score)}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     {(adultTag !== "All" || adultSource !== "all") && (
                       <p className="mt-2 text-xs text-accent">
                         Showing {rankedAdultCatalog.length.toLocaleString()} titles

@@ -103,6 +103,10 @@ export function filterAndRankAdultThumbs(urls: string[]): string[] {
 /** Fire-and-forget warm of the first few candidates (visible rail priority). */
 export function warmAdultThumbUrls(urls: string[], limit = 4) {
   if (typeof Image === "undefined") return;
+  // A visible card already owns a scheduler slot for its active poster. Warming
+  // several fallback URLs outside that budget competes with the posters,
+  // especially when a rail mounts many cards at once.
+  const warmLimit = Math.min(1, limit);
   let n = 0;
   for (const url of urls) {
     if (!url || failedUrls.has(url)) continue;
@@ -110,6 +114,6 @@ export function warmAdultThumbUrls(urls: string[], limit = 4) {
     img.referrerPolicy = "no-referrer";
     img.decoding = "async";
     img.src = url;
-    if (++n >= limit) break;
+    if (++n >= warmLimit) break;
   }
 }

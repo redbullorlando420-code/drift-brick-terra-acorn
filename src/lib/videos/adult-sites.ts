@@ -5,15 +5,18 @@ import { ADULT_NICHE_MILESTONES } from "./adult-milestones-niches";
 import {
   ADULT_CURATED_FETISH_TAGS,
   ADULT_DEEPEN_FETISH_QUERIES,
+  adultDeepenQueriesForPage,
   ADULT_EXTREME_RANK_TAGS,
   ADULT_FEATURED_FETISH_TAGS,
   adultTagRankBoost,
   fetishSearchQuery,
 } from "./adult-fetishes";
+import { adultTaxonomyTags } from "./adult-taxonomy";
 
 export {
   ADULT_CURATED_FETISH_TAGS,
   ADULT_DEEPEN_FETISH_QUERIES,
+  adultDeepenQueriesForPage,
   ADULT_EXTREME_RANK_TAGS,
   ADULT_FEATURED_FETISH_TAGS,
   adultTagRankBoost,
@@ -950,6 +953,7 @@ export function adultKeywordTags(keywords: string, limit = 24): string[] {
   for (const part of keywords.split(/[,|;/]+/)) {
     const tag = part.trim().toLowerCase().replace(/\s+/g, " ");
     if (tag.length < 2 || tag.length > 48) continue;
+    if (/https?|\bwww\b|\.com\b|\/(?:watch|videos?)\b/.test(tag)) continue;
     if (seen.has(tag)) continue;
     seen.add(tag);
     out.push(tag);
@@ -975,6 +979,7 @@ export function adultFetishTags(labels: string[], limit = 36): string[] {
     seen.add(slug);
     out.push(base);
     out.push(`fetish-${slug}`);
+    for (const taxonomy of adultTaxonomyTags(base)) out.push(taxonomy);
     if (out.length >= limit) break;
   }
   return out;
@@ -1031,7 +1036,13 @@ export function adultIngestTags(input: {
   for (const extra of input.extraSources ?? []) push(adultSourceTag(extra));
   for (const name of input.creatorNames ?? []) push(adultCreatorTag(name));
 
-  const api = adultKeywordTags(input.apiKeywords ?? "", 32);
+  const evidence = `${input.title ?? ""} ${input.description ?? ""} ${input.extraText ?? ""}`.toLowerCase();
+  // Provider keyword arrays can be stale or carry tags from a related item.
+  // Keep compact generic terms, then require longer claimed keywords to have
+  // evidence in this title's own metadata before promoting them to facets.
+  const api = adultKeywordTags(input.apiKeywords ?? "", 32).filter((tag) =>
+    tag.length <= 4 || evidence.includes(tag.toLowerCase()),
+  );
   for (const tag of api) push(tag);
   for (const tag of adultFetishTags(api, 36)) push(tag);
 
