@@ -28,17 +28,29 @@ export const LIBRARY_LIMITS = {
   redtubePageSize: 20,
   redtubePagesPerPull: 300,
   redtubeVideosPerPull: 6_000,
+  redtubeStarsPerPage: 40,
+  redtubeStarVideosPerPull: 120,
   adultKeywordTagsPerTitle: 48,
-  // Fast-start Adult pull stays small so the first paint mirrors YouTube/Twitch.
-  adultFastStartVideosPerPull: 240,
-  adultFastStartRailSize: 36,
+  // Fast-start Adult pull is larger than the old 240 cap; background ticks keep topping up.
+  adultFastStartVideosPerPull: 1_600,
+  adultFastStartRailSize: 48,
+  /** Keep auto-pulling until the Adult catalog reaches this many cached titles. */
+  adultTargetCatalogVideos: 5_000,
+  /** Titles added per staggered background refresh tick (one provider at a time). */
+  adultRefreshVideosPerTick: 320,
+  /** Pause between Adult provider refresh ticks. */
+  adultRefreshIntervalMs: 75_000,
   chaturbateRoomsPerPull: 180,
   camsodaRoomsPerPull: 180,
   myfreecamsRoomsPerPull: 180,
-  redditVideosPerPull: 120,
-  redditPostsPerSub: 6,
-  /** How many subs to sample per Reddit pull (rotate through the curated catalog). */
-  redditSubsPerPull: 12,
+  redditVideosPerPull: 1_200,
+  redditPostsPerSub: 25,
+  /** How many subs to sample per Reddit window (rotate through the curated catalog). */
+  redditSubsPerPull: 40,
+  /** Extra Reddit windows walked in one pull so discovery is not RedTube-heavy. */
+  redditWindowsPerPull: 3,
+  /** Concurrent RSS fetches per wave (stay under Reddit rate limits). */
+  redditFetchConcurrency: 8,
   booruVideosPerPull: 120,
   booruPageSize: 40,
   redgifsVideosPerPull: 80,

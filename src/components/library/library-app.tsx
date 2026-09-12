@@ -15,6 +15,12 @@ import { VideoCard } from "./video-card";
 import { Billboard, PosterGrid, TitleRail } from "./browse";
 import { AdultPanel } from "./adult-panel";
 import { LIBRARY_LIMITS } from "@/lib/library-limits";
+import { Input } from "@/components/ui/input";
+import { ADULT_PULL_PROVIDERS } from "@/lib/videos/adult-sites";
+import { ADULT_SOURCE_FILTERS, countAdultBySource, videoMatchesAdultSource, videoMatchesAdultTag } from "@/lib/videos/adult-filter";
+import { rankAdultTags, sortAdultVideos, type AdultRankContext } from "@/lib/videos/adult-rank";
+import { buildAdultStatsSnapshot, exportAdultStats } from "@/lib/videos/adult-stats";
+import { loadAdultArchiveCursors } from "@/lib/videos/adult-archive-cursors";
 import { Player } from "./player";
 import { PreVideo } from "./pre-video";
 import { AiGuide } from "./ai-guide";
@@ -143,14 +149,16 @@ export function LibraryApp() {
   const [homePickShuffle, setHomePickShuffle] = useState(() => Date.now());
   const [ratingRevision, setRatingRevision] = useState(0);
   const [adultTag, setAdultTag] = useState("All");
-  const [adultSort, setAdultSort] = useState<"recent" | "name" | "favorites" | "tagged" | "played">("recent");
+  const [adultSource, setAdultSource] = useState("all");
+  const [adultTagQuery, setAdultTagQuery] = useState("");
+  const [adultTagsExpanded, setAdultTagsExpanded] = useState(false);
+  const [adultSort, setAdultSort] = useState<"recent" | "name" | "favorites" | "tagged" | "played" | "ranked">("ranked");
   const [twitchSort, setTwitchSort] = useState<"live" | "viewers" | "name">("live");
   const [twitchFilter, setTwitchFilter] = useState("all");
   const [youtubeTagFilter, setYoutubeTagFilter] = useState("all");
   const [youtubeExploreVisible, setYoutubeExploreVisible] = useState(false);
   const [youtubeDeepVisible, setYoutubeDeepVisible] = useState(false);
   const [youtubeHealthVisible, setYoutubeHealthVisible] = useState(false);
-  const [adultExploreVisible, setAdultExploreVisible] = useState(false);
   const [adultDeepVisible, setAdultDeepVisible] = useState(false);
   const archiveQueueRef = useRef<Array<{ id: string; handle: string }>>([]);
   const archiveQueueBusyRef = useRef(false);
@@ -216,13 +224,18 @@ export function LibraryApp() {
       ),
     [adultRemoteVideos, cameCounts],
   );
-  const filteredEporner = useMemo(() => {
-    if (adultTag === "All") return adultRemoteVideos;
-    return adultRemoteVideos.filter((video) => (tags[video.id] ?? []).includes(adultTag));
-  }, [adultTag, adultRemoteVideos, tags]);
+  const sourceMatchedAdult = useMemo(
+    () => adultRemoteVideos.filter((video) => videoMatchesAdultSource(video, adultSource)),
+    [adultRemoteVideos, adultSource],
+  );
+  const filteredEporner = useMemo(
+    () => sourceMatchedAdult.filter((video) => videoMatchesAdultTag(video, adultTag, tags)),
+    [adultTag, sourceMatchedAdult, tags],
+  );
+  const adultSourceCounts = useMemo(() => countAdultBySource(adultRemoteVideos), [adultRemoteVideos]);
   const epornerTagNames = useMemo(
-    () => [...new Set(adultRemoteVideos.flatMap((video) => tags[video.id] ?? []))].sort(),
-    [adultRemoteVideos, tags],
+    () => [...new Set(sourceMatchedAdult.flatMap((video) => tags[video.id] ?? []))].sort(),
+    [sourceMatchedAdult, tags],
   );
   const historyTopTags = useMemo(() => {
     const counts = new Map<string, number>();
@@ -247,56 +260,49 @@ export function LibraryApp() {
   }, [history]);
   const favorites = useLibrary((s) => s.favorites);
   const likes = useLibrary((s) => s.likes);
+  const viewCounts = useLibrary((s) => s.viewCounts);
 
+  const adultRankCtx: AdultRankContext = useMemo(() => ({
+    tags,
+    favorites,
+    likes,
+    cameCounts,
+    viewCounts,
+    ratingOf: getRating,
+  }), [cameCounts, favorites, likes, ratingRevision, tags, viewCounts]);
+  const rankedAdultCatalog = useMemo(
+    () => sortAdultVideos(filteredEporner, adultRankCtx),
+    [adultRankCtx, filteredEporner],
+  );
   const adultTagRank = useMemo(() => {
-    if (sourceId !== "adults" || !adultExploreVisible) return [] as { tag: string; score: number; count: number }[];
-    const rows = new Map<string, { total: number; count: number; recent: number }>();
-    for (const video of adultRemoteVideos) {
-      const rating = getRating(video.id);
-      const signal = Math.max(rating, favorites[video.id] ? 4 : 0, likes[video.id] ? 3 : 0, 1);
-      for (const tag of tags[video.id] ?? []) {
-        if (tag.startsWith("provider-") || tag.startsWith("format-") || tag.length < 3) continue;
-        const row = rows.get(tag) ?? { total: 0, count: 0, recent: 0 };
-        row.total += signal;
-        row.count += 1;
-        row.recent = Math.max(row.recent, video.addedAt);
-        rows.set(tag, row);
-      }
-    }
-    const now = Date.now();
-    return [...rows.entries()]
-      .map(([tag, row]) => {
-        const engagement = (row.total + 9) / (row.count + 3);
-        const recency = Math.max(0, 1 - (now - row.recent) / (30 * 86_400_000));
-        return { tag, count: row.count, score: engagement * 12 + row.count * 0.35 + recency * 4 };
-      })
-      .sort((a, b) => b.score - a.score || b.count - a.count || a.tag.localeCompare(b.tag))
-      .slice(0, 48);
-  }, [adultExploreVisible, adultRemoteVideos, favorites, likes, ratingRevision, sourceId, tags]);
+    if (sourceId !== "adults") return [] as { tag: string; score: number; count: number }[];
+    return rankAdultTags(sourceMatchedAdult, adultRankCtx, 80);
+  }, [adultRankCtx, sourceId, sourceMatchedAdult]);
+  const visibleAdultTags = useMemo(() => {
+    const needle = adultTagQuery.trim().toLowerCase();
+    const rows = needle
+      ? adultTagRank.filter((row) => row.tag.includes(needle) || row.tag.replace(/-/g, " ").includes(needle))
+      : adultTagRank;
+    return adultTagsExpanded ? rows : rows.slice(0, 12);
+  }, [adultTagQuery, adultTagRank, adultTagsExpanded]);
   const adultRecommended = useMemo(() => {
-    if (sourceId !== "adults" || !adultExploreVisible) return [] as typeof adultRemoteVideos;
+    if (sourceId !== "adults") return [] as typeof adultRemoteVideos;
     const preferred = new Set(adultTagRank.slice(0, 16).map((row) => row.tag));
-    const likedTags = new Set(adultRemoteVideos.filter((video) => favorites[video.id] || likes[video.id] || getRating(video.id) >= 4).flatMap((video) => tags[video.id] ?? []));
-    const score = (video: (typeof adultRemoteVideos)[number]) => {
-      const itemTags = tags[video.id] ?? [];
-      const overlap = itemTags.filter((tag) => preferred.has(tag)).length;
-      const likedOverlap = itemTags.filter((tag) => likedTags.has(tag)).length;
-      return getRating(video.id) * 14
-        + (favorites[video.id] ? 10 : 0)
-        + (likes[video.id] ? 6 : 0)
-        + overlap * 8
-        + likedOverlap * 10
-        + Math.min(6, itemTags.length) * 0.4
-        + (video.addedAt / 1e13);
-    };
-    return [...adultRemoteVideos]
-      .map((video) => ({ video, score: score(video), shuffle: shuffleRank(`adult-rec:${video.id}:${homePickShuffle}`, homePickShuffle) }))
-      .sort((a, b) => b.score - a.score || a.shuffle - b.shuffle)
+    const likedTags = new Set(sourceMatchedAdult.filter((video) => favorites[video.id] || likes[video.id] || getRating(video.id) >= 4 || (cameCounts[video.id] ?? 0) > 0).flatMap((video) => tags[video.id] ?? []));
+    return sortAdultVideos(sourceMatchedAdult, adultRankCtx)
+      .map((video) => {
+        const itemTags = tags[video.id] ?? [];
+        const overlap = itemTags.filter((tag) => preferred.has(tag)).length;
+        const likedOverlap = itemTags.filter((tag) => likedTags.has(tag)).length;
+        const bonus = overlap * 8 + likedOverlap * 10;
+        return { video, score: bonus };
+      })
+      .sort((a, b) => b.score - a.score)
       .map(({ video }) => video)
       .slice(0, 48);
-  }, [adultExploreVisible, adultRemoteVideos, adultTagRank, favorites, homePickShuffle, likes, ratingRevision, sourceId, tags]);
+  }, [adultRankCtx, adultTagRank, cameCounts, favorites, likes, ratingRevision, sourceId, sourceMatchedAdult, tags]);
   const adultRelatedRecommended = useMemo(() => {
-    if (sourceId !== "adults" || !adultExploreVisible) return [] as typeof adultRemoteVideos;
+    if (sourceId !== "adults") return [] as typeof adultRemoteVideos;
     const seedTags = new Set(
       (adultTag !== "All" ? [adultTag] : adultTagRank.slice(0, 8).map((row) => row.tag))
         .concat(
@@ -317,9 +323,8 @@ export function LibraryApp() {
       .sort((a, b) => b.score - a.score || a.shuffle - b.shuffle)
       .map(({ video }) => video)
       .slice(0, 48);
-  }, [adultContinue, adultExploreVisible, adultFavorites, adultRecommended, adultRemoteVideos, adultTag, adultTagRank, favorites, homePickShuffle, likes, ratingRevision, sourceId, tags]);
+  }, [adultContinue, adultFavorites, adultRecommended, adultRemoteVideos, adultTag, adultTagRank, favorites, homePickShuffle, likes, ratingRevision, sourceId, tags]);
 
-  const viewCounts = useLibrary((s) => s.viewCounts);
   const filteredYoutube = useMemo(() => youtubeTagFilter === "all" ? newestYoutube : newestYoutube.filter((video) => topicsForVideo(video, tags[video.id]).includes(youtubeTagFilter)), [newestYoutube, tags, youtubeTagFilter]);
   const searchInsights = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -400,7 +405,10 @@ export function LibraryApp() {
     }
     return [...groups.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0])).slice(0, 10).map(([type, videos]) => ({ type, videos }));
   }, [movieCatalog]);
-  const adultSorted = useMemo(() => [...adultPageVideos].sort((a, b) => adultSort === "name" ? a.name.localeCompare(b.name) : adultSort === "favorites" ? Number(Boolean(favorites[b.id])) - Number(Boolean(favorites[a.id])) || b.addedAt - a.addedAt : adultSort === "tagged" ? (tags[b.id] ?? []).length - (tags[a.id] ?? []).length || b.addedAt - a.addedAt : adultSort === "played" ? (progress[b.id]?.at ?? 0) - (progress[a.id]?.at ?? 0) || b.addedAt - a.addedAt : b.addedAt - a.addedAt), [adultSort, favorites, progress, tags, adultPageVideos]);
+  const adultSorted = useMemo(() => {
+    if (adultSort === "ranked") return sortAdultVideos(adultPageVideos, { tags, favorites, likes, cameCounts, viewCounts, ratingOf: getRating });
+    return [...adultPageVideos].sort((a, b) => adultSort === "name" ? a.name.localeCompare(b.name) : adultSort === "favorites" ? Number(Boolean(favorites[b.id])) - Number(Boolean(favorites[a.id])) || b.addedAt - a.addedAt : adultSort === "tagged" ? (tags[b.id] ?? []).length - (tags[a.id] ?? []).length || b.addedAt - a.addedAt : adultSort === "played" ? (progress[b.id]?.at ?? 0) - (progress[a.id]?.at ?? 0) || b.addedAt - a.addedAt : b.addedAt - a.addedAt);
+  }, [adultSort, adultPageVideos, cameCounts, favorites, likes, progress, tags, viewCounts, ratingRevision]);
   const adultTagged = useMemo(() => adultPageVideos.filter((video) => (tags[video.id] ?? []).length > 0).sort((a, b) => (tags[b.id] ?? []).length - (tags[a.id] ?? []).length), [tags, adultPageVideos]);
   const adultNeedsTags = useMemo(() => adultPageVideos.filter((video) => !(tags[video.id] ?? []).length), [tags, adultPageVideos]);
   const highlyRatedTags = useMemo(() => {
@@ -740,6 +748,42 @@ export function LibraryApp() {
     };
   }, [hydrated, follows.length, refreshFollows, pushNotice, remoteRefreshMs]);
 
+  useEffect(() => {
+    if (!hydrated || sourceId !== "adults") return;
+    let cancelled = false;
+    let cursor = 0;
+    const tick = async () => {
+      if (cancelled || document.hidden || !navigator.onLine) return;
+      const state = useLibrary.getState();
+      if (state.remoteBusy) return;
+      const catalog = state.videos.filter((video) => video.remote && (ADULT_PULL_PROVIDERS as readonly string[]).includes(video.remote.kind));
+      if (catalog.length >= LIBRARY_LIMITS.adultTargetCatalogVideos) return;
+      const redditCount = catalog.filter((video) => video.remote?.kind === "reddit").length;
+      const redditFloor = Math.max(200, Math.floor(catalog.length * 0.2));
+      const provider = redditCount < redditFloor ? "reddit" : ADULT_PULL_PROVIDERS[cursor % ADULT_PULL_PROVIDERS.length]!;
+      cursor += 1;
+      const cursors = loadAdultArchiveCursors("all", "top-weekly");
+      const page = cursors[provider]?.page ?? 1;
+      try {
+        await state.searchAdultFeed("all", "top-weekly", {
+          append: true,
+          providers: [provider],
+          maxVideos: LIBRARY_LIMITS.adultRefreshVideosPerTick,
+          providerPages: { [provider]: page },
+        });
+      } catch {
+        /* next tick retries */
+      }
+    };
+    const first = window.setTimeout(() => void tick(), 8_000);
+    const id = window.setInterval(() => void tick(), LIBRARY_LIMITS.adultRefreshIntervalMs);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(first);
+      window.clearInterval(id);
+    };
+  }, [hydrated, sourceId]);
+
   const prevScanning = useRef<typeof scanning>(null);
   useEffect(() => {
     const was = prevScanning.current;
@@ -1051,35 +1095,97 @@ export function LibraryApp() {
 
               {sourceId === "adults" && browsing && (
                 <>
-                  <TitleRail title="Continue watching" videos={adultContinue} variant="rail" />
-                  <TitleRail title="I cummed to it" reason="Private local marks only — counts stay on this device." videos={markedAdult} variant="rail" />
+                  <AdultPanel
+                    showMilestones={adultDeepVisible}
+                    autoPull
+                    sourceFilter={adultSource}
+                    tagFilter={adultTag}
+                    onSourceFilter={setAdultSource}
+                    onTagFilter={setAdultTag}
+                  />
                   <TitleRail
-                    title="Latest from official adult APIs"
-                    reason="Cached Eporner / RedTube / live / Reddit shelves paint immediately from IndexedDB; explore deepens recommendations and discovery."
-                    videos={filteredEporner.slice(0, LIBRARY_LIMITS.adultFastStartRailSize)}
+                    title="Recommended videos"
+                    reason="Ranked from tag overlap, extreme/fetish boosts, I-cummed marks, Reddit signals, ratings, and recency — not just newest tube titles."
+                    videos={adultRecommended.filter((video) => videoMatchesAdultTag(video, adultTag, tags)).slice(0, 48)}
                     variant="rail"
                   />
-                  {!adultExploreVisible && (
-                    <section className="mb-6 rounded-xl border border-border bg-surface p-5 shadow-border">
-                      <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Fast start</p>
-                      <h2 className="mt-2 font-display text-2xl text-fg">Open Adults fast, then deepen discovery when you want it.</h2>
-                      <p className="mt-1 text-sm text-muted">
-                        Continue, marks, and the latest cached API titles are ready immediately. Recommendations, fetish filters, the full poster grid, and milestone catalogs wait until requested — same pattern as YouTube and Twitch.
-                      </p>
-                      <Button className="mt-4" variant="secondary" onClick={() => setAdultExploreVisible(true)}>
-                        Explore recommendations and full catalog
-                      </Button>
-                    </section>
+                  <TitleRail
+                    title="Related recommended"
+                    reason="Nearby titles sharing your top adult tags, continue-watching tags, and favorite fetish overlap."
+                    videos={adultRelatedRecommended.filter((video) => videoMatchesAdultTag(video, adultTag, tags)).slice(0, 48)}
+                    variant="rail"
+                  />
+                  <TitleRail title="Continue watching" videos={adultContinue} variant="rail" />
+                  <TitleRail title="I cummed to it" reason="Private local marks only — counts stay on this device." videos={markedAdult} variant="rail" />
+                  {adultSource === "all" && (
+                    <TitleRail
+                      title="Reddit photos & videos"
+                      reason="Curated 18+ Atom feeds — photos, gifs, and v.redd.it / redgifs posters."
+                      videos={rankedAdultCatalog.filter((video) => video.remote?.kind === "reddit").slice(0, 48)}
+                      variant="rail"
+                    />
                   )}
-                  {adultExploreVisible && (
-                    <>
-                      <AdultPanel showMilestones={adultDeepVisible} autoPull />
-                      <TitleRail title="Recommended" reason="YouTube-style ranking from ratings, favorites, liked overlap, and recent source/fetish tags." videos={adultTag === "All" ? adultRecommended : adultRecommended.filter((video) => (tags[video.id] ?? []).includes(adultTag))} variant="rail" />
-                      <TitleRail title="Related recommended" reason="Nearby titles sharing your top adult tags, continue-watching tags, and favorite fetish overlap." videos={adultTag === "All" ? adultRelatedRecommended : adultRelatedRecommended.filter((video) => (tags[video.id] ?? []).includes(adultTag))} variant="rail" />
-                      <div className="mb-5 flex flex-wrap gap-2"><Button size="sm" variant={adultTag === "All" ? "default" : "secondary"} onClick={() => setAdultTag("All")}>All adult tags</Button>{(adultTagRank.length ? adultTagRank.map((row) => row.tag) : epornerTagNames).slice(0, 40).map((tag) => <Button key={`adult-tag-${tag}`} size="sm" variant={adultTag === tag ? "default" : "secondary"} onClick={() => setAdultTag(tag)}>#{tag}</Button>)}</div>
-                      {adultTag !== "All" && <p className="-mt-2 mb-5 text-xs text-accent">Filtering adult shelves by #{adultTag} · {filteredEporner.length.toLocaleString()} matching videos.</p>}
-                      <TitleRail title="From official adult APIs" reason="Official adult APIs and live room lists with source and fetish tags — one source failing still leaves the others." videos={filteredEporner} variant="rail" />
-                      <PosterGrid videos={filteredEporner} />
+                  <section className="mb-5 rounded-xl border border-border bg-surface p-4 shadow-border">
+                    <div className="flex flex-wrap items-end justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Your tags</p>
+                        <p className="mt-1 text-sm text-muted">Ranked high → low. Filter the list, then tap a tag to narrow every Adult rail.</p>
+                      </div>
+                      <Input
+                        value={adultTagQuery}
+                        onChange={(event) => setAdultTagQuery(event.target.value)}
+                        placeholder="Filter tags…"
+                        className="max-w-xs"
+                      />
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {ADULT_SOURCE_FILTERS.map((source) => (
+                        <Button key={source.id} size="sm" variant={adultSource === source.id ? "default" : "secondary"} onClick={() => setAdultSource(source.id)}>
+                          {source.label} · {source.id === "all" ? adultRemoteVideos.length : adultSourceCounts[source.id] ?? 0}
+                        </Button>
+                      ))}
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button size="sm" variant={adultTag === "All" ? "default" : "secondary"} onClick={() => setAdultTag("All")}>All adult tags</Button>
+                      {visibleAdultTags.map((row) => (
+                        <Button key={`adult-tag-${row.tag}`} size="sm" variant={adultTag === row.tag ? "default" : "secondary"} onClick={() => setAdultTag(row.tag)}>
+                          #{row.tag} · {row.count}
+                        </Button>
+                      ))}
+                      {adultTagRank.length > 12 && (
+                        <Button size="sm" variant="secondary" onClick={() => setAdultTagsExpanded((open) => !open)}>
+                          {adultTagsExpanded ? "Show fewer tags" : `Show more · ${adultTagRank.length - 12}`}
+                        </Button>
+                      )}
+                    </div>
+                    {(adultTag !== "All" || adultSource !== "all") && (
+                      <p className="mt-2 text-xs text-accent">
+                        Showing {rankedAdultCatalog.length.toLocaleString()} titles
+                        {adultSource !== "all" ? ` · ${adultSource}` : ""}
+                        {adultTag !== "All" ? ` · #${adultTag}` : ""}.
+                      </p>
+                    )}
+                  </section>
+                  <section className="mb-5 rounded-xl bg-elevated p-4 shadow-border">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Adult stats</p>
+                        <p className="mt-1 text-sm text-muted">{adultRemoteVideos.length.toLocaleString()} cached titles · Reddit {adultSourceCounts.reddit ?? 0} · export tag ranks and source counts.</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" variant="secondary" onClick={() => exportAdultStats(buildAdultStatsSnapshot(adultRemoteVideos, folders, tags, { favorites, likes, cameCounts, viewCounts, ratingOf: getRating }), "csv")}>Export CSV</Button>
+                        <Button size="sm" variant="secondary" onClick={() => exportAdultStats(buildAdultStatsSnapshot(adultRemoteVideos, folders, tags, { favorites, likes, cameCounts, viewCounts, ratingOf: getRating }), "json")}>Export JSON</Button>
+                      </div>
+                    </div>
+                  </section>
+                  <TitleRail
+                    title="Latest from official adult APIs"
+                    reason="Ranked catalog from official APIs and Reddit Atom — source chips actually filter these rails."
+                    videos={rankedAdultCatalog.slice(0, LIBRARY_LIMITS.adultFastStartRailSize)}
+                    variant="rail"
+                  />
+                  <TitleRail title="From official adult APIs" reason="Full filtered catalog, ranked." videos={rankedAdultCatalog} variant="rail" />
+                  <PosterGrid videos={rankedAdultCatalog} />
                       {!adultDeepVisible && (
                         <section className="mb-6 rounded-xl border border-border bg-surface p-5 shadow-border">
                           <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Deep discovery</p>
@@ -1090,7 +1196,7 @@ export function LibraryApp() {
                       )}
                       {adultDeepVisible && (
                         <>
-                          <section className="mb-6 rounded-xl bg-elevated p-5 shadow-border"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Private library</p><h1 className="mt-2 font-display text-4xl text-fg">Your shelves, your tags.</h1><p className="mt-2 text-sm text-muted">Tags, history, and organization remain private to this browser. Edit a title’s tags from its preview or player.</p></div><Button disabled={!videos.length} onClick={() => { const choices = adultTag === "All" ? adultSorted : adultSorted.filter((video) => (tags[video.id] ?? []).includes(adultTag)); const pick = choices[Math.floor(Math.random() * choices.length)]; if (pick) openVideo(pick.id); }}><Shuffle className="size-4" /> Random private pick</Button></div><div className="mt-4 flex flex-wrap gap-2"><Button size="sm" variant={adultTag === "All" ? "default" : "secondary"} onClick={() => setAdultTag("All")}>All titles</Button>{adultTagNames.map((tag) => <Button key={tag} size="sm" variant={adultTag === tag ? "default" : "secondary"} onClick={() => setAdultTag(tag)}>{tag}</Button>)}</div><div className="mt-3 flex flex-wrap gap-2"><span className="self-center text-xs text-muted">Sort</span>{(["recent", "name", "favorites", "tagged", "played"] as const).map((sort) => <Button key={sort} size="sm" variant={adultSort === sort ? "default" : "secondary"} onClick={() => setAdultSort(sort)}>{sort === "tagged" ? "Most tagged" : sort === "played" ? "Last played" : sort}</Button>)}</div></section>
+                          <section className="mb-6 rounded-xl bg-elevated p-5 shadow-border"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Private library</p><h1 className="mt-2 font-display text-4xl text-fg">Your shelves, your tags.</h1><p className="mt-2 text-sm text-muted">Tags, history, and organization remain private to this browser. Edit a title’s tags from its preview or player.</p></div><Button disabled={!videos.length} onClick={() => { const choices = adultTag === "All" ? adultSorted : adultSorted.filter((video) => (tags[video.id] ?? []).includes(adultTag)); const pick = choices[Math.floor(Math.random() * choices.length)]; if (pick) openVideo(pick.id); }}><Shuffle className="size-4" /> Random private pick</Button></div><div className="mt-4 flex flex-wrap gap-2"><Button size="sm" variant={adultTag === "All" ? "default" : "secondary"} onClick={() => setAdultTag("All")}>All titles</Button>{adultTagNames.map((tag) => <Button key={tag} size="sm" variant={adultTag === tag ? "default" : "secondary"} onClick={() => setAdultTag(tag)}>{tag}</Button>)}</div><div className="mt-3 flex flex-wrap gap-2"><span className="self-center text-xs text-muted">Sort</span>{(["ranked", "recent", "name", "favorites", "tagged", "played"] as const).map((sort) => <Button key={sort} size="sm" variant={adultSort === sort ? "default" : "secondary"} onClick={() => setAdultSort(sort)}>{sort === "tagged" ? "Most tagged" : sort === "played" ? "Last played" : sort === "ranked" ? "Ranked" : sort}</Button>)}</div></section>
                           <div className="mb-6 grid gap-3 sm:grid-cols-2"><div className="rounded-lg bg-surface p-4 shadow-border"><p className="text-sm font-medium text-fg">Private favorite links</p><p className="mt-1 text-xs leading-5 text-muted">Reserved for your personally saved, consented links. Nothing is added or shared automatically.</p></div><div className="rounded-lg bg-surface p-4 shadow-border"><p className="text-sm font-medium text-fg">Recommended sites</p><p className="mt-1 text-xs leading-5 text-muted">Reserved for future opt-in recommendations. Link sorting will stay separate from your private video catalog.</p></div></div>
                           <PrivateWebShortcuts />
                           <TitleRail title="Favorites" videos={adultFavorites} variant="poster" />
@@ -1122,8 +1228,6 @@ export function LibraryApp() {
                           )}
                         </>
                       )}
-                    </>
-                  )}
                 </>
               )}
 
@@ -1207,7 +1311,7 @@ export function LibraryApp() {
                       </p>
                       <div className="mt-4 flex flex-wrap gap-2">
                         <Button size="sm" onClick={() => setSource("adults")}>Open Adults</Button>
-                        <Button size="sm" variant="secondary" onClick={() => { setSource("adults"); setAdultExploreVisible(true); setAdultDeepVisible(true); }}>
+                        <Button size="sm" variant="secondary" onClick={() => { setSource("adults"); setAdultDeepVisible(true); }}>
                           Adults history & shelves
                         </Button>
                       </div>

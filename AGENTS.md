@@ -1,3 +1,26 @@
+# Reelcase — PR living notes
+
+**PR #3** `fix/adults-ux-scale` → `main` · https://github.com/redbullorlando420-code/drift-brick-terra-acorn/pull/3
+
+## Ready to merge
+
+Adults opens on recommendations + catalog (no extra explore click). Discovery auto-pulls toward thousands with staggered provider ticks, reserved Reddit budget, and durable URL cache. History stores real titles. Source chips filter by provider kind. Tags are ranked, searchable, and compact. Adult Stats export on Adults and Stats. Reddit photos/videos extract preview/i.redd.it/redgifs/v.redd.it; sub/flair/title/comment tokens feed ranking.
+
+### Shipped
+1. Fewer clicks — Adults lands on Recommended Videos, related, catalog, filters.
+2. RedTube thumbs — skip `/videos//original/` placeholders; mid-strip frames; star names as channel.
+3. Bigger timed pulls — fast-start 1600, target 5000, 75s staggered ticks, append + archive cursors, URL cache.
+4. Ranked Your Tags — high→low, filter box, 12 + Show more, extreme boost.
+5. Source filter + Reddit volume — true provider counts; Reddit 40 subs × hot/new × 3 windows; 35% floor.
+6. History real titles — `title`/`poster` on play; recovery cards use them (not “saved redtube history”).
+7. RedTube creator search — `stars[]` + official star list browse.
+8. Adult Stats — CSV/JSON export (sources, ranked tags, Reddit tags, marks).
+9. Reddit metadata in ranking — sub/flair/title tokens + comment fetish mining.
+
+Official public APIs + Reddit Atom only. 18+ only.
+
+---
+
 # App Builder Workspace
 
 **The single source of truth** for the App Builder sandbox contract. You are

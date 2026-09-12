@@ -128,6 +128,7 @@ export const VideoCard = memo(function VideoCard({
         <img
           loading="lazy"
           decoding="async"
+          referrerPolicy="no-referrer"
           src={imageFailed && youtubeFallback ? youtubeFallback : hovered && preview ? preview : art}
           alt=""
           onError={() => { setImageFailed(true); repairRemoteArtwork(); }}
