@@ -4,7 +4,13 @@ import { cn, formatAgo, formatBytes, formatTime } from "@/lib/utils";
 import type { LibraryVideo } from "@/lib/videos/types";
 import { hasFreshViewerCount, isLikelyPlayable, titleOf } from "@/lib/videos/types";
 import { useThumbs } from "@/lib/videos/thumbs";
-import { adultThumbCandidatesForVideo } from "@/lib/videos/adult-thumbs";
+import { adultThumbCandidatesForVideo, isDecodedAdultThumbLikelyReal } from "@/lib/videos/adult-thumbs";
+import {
+  isAdultThumbBlacklisted,
+  markAdultThumbFailed,
+  markAdultThumbGood,
+  warmAdultThumbUrls,
+} from "@/lib/videos/adult-thumb-session";
 import { isAdultImageKind, isAdultPullKind } from "@/lib/videos/adult-sites";
 import { downloadAdultPhoto } from "@/lib/videos/adult-photo-download";
 import { useLibrary } from "@/lib/videos/store";
@@ -13,6 +19,9 @@ import { getRating, setRating as setMediaRating } from "@/lib/media-feedback";
 import { registerMountedCard } from "@/lib/render-budget";
 import { measureInteraction } from "@/lib/interaction-budget";
 import { acquireImageSlot } from "@/lib/videos/image-load-budget";
+
+const THUMB_LOAD_TIMEOUT_MS = 4500;
+const RAIL_WARM_INDEX = 8;
 
 type Variant = "grid" | "list" | "rail" | "poster";
 const EMPTY_TAGS: string[] = [];
@@ -88,6 +97,8 @@ export const VideoCard = memo(function VideoCard({
   const [thumbIndex, setThumbIndex] = useState(0);
   const [artVisible, setArtVisible] = useState(false);
   const [artAllowed, setArtAllowed] = useState(false);
+  const [paintedSrc, setPaintedSrc] = useState<string | undefined>();
+  const [candidateReady, setCandidateReady] = useState(false);
   const [textFirst, setTextFirst] = useState(false);
   const [rating, setRating] = useState(0);
 
@@ -95,6 +106,8 @@ export const VideoCard = memo(function VideoCard({
     const out: string[] = [];
     const seen = new Set<string>();
     const push = (url?: string) => {
+      // Keep the list identity-stable across blacklist updates so thumbIndex
+      // does not skip a still-good neighbor when a dead URL is removed.
       if (!url || seen.has(url)) return;
       seen.add(url);
       out.push(url);
@@ -112,12 +125,29 @@ export const VideoCard = memo(function VideoCard({
     return out;
   }, [adultCandidates, preview, providerArt, thumb, variant, youtubeId]);
 
-  const thumbsExhausted = thumbCandidates.length === 0 || thumbIndex >= thumbCandidates.length;
-  const activeThumb = thumbsExhausted ? undefined : thumbCandidates[thumbIndex];
-  const showPreview = Boolean(hovered && preview && preview !== activeThumb && thumbIndex === 0);
+  const resolvedThumbIndex = (() => {
+    for (let i = thumbIndex; i < thumbCandidates.length; i++) {
+      if (!isAdultThumbBlacklisted(thumbCandidates[i])) return i;
+    }
+    return thumbCandidates.length;
+  })();
+  const thumbsExhausted = thumbCandidates.length === 0 || resolvedThumbIndex >= thumbCandidates.length;
+  const activeThumb = thumbsExhausted ? undefined : thumbCandidates[resolvedThumbIndex];
+  const showPreview = Boolean(hovered && preview && preview !== activeThumb && resolvedThumbIndex === 0 && !isAdultThumbBlacklisted(preview));
+  const advanceThumb = () => {
+    setCandidateReady(false);
+    setThumbIndex((index) => {
+      let next = index + 1;
+      while (next < thumbCandidates.length && isAdultThumbBlacklisted(thumbCandidates[next])) next += 1;
+      if (next >= thumbCandidates.length) repairRemoteArtwork();
+      return next;
+    });
+  };
 
   useEffect(() => {
     setThumbIndex(0);
+    setPaintedSrc(undefined);
+    setCandidateReady(false);
   }, [video.id, video.poster, video.remote?.previewUrl]);
 
   useEffect(() => {
@@ -125,18 +155,28 @@ export const VideoCard = memo(function VideoCard({
     if (!el) return;
     const io = new IntersectionObserver(
       (entries) => {
-        if (!entries.some((e) => e.isIntersecting)) return;
-        setArtVisible(true);
-        if (!video.remote) request(video);
+        const visible = entries.some((e) => e.isIntersecting);
+        setArtVisible(visible);
+        // Leaving the viewport cancels speculative retries via the slot effect.
+        if (visible && !video.remote) request(video);
       },
-      { rootMargin: "120px" },
+      { rootMargin: "160px" },
     );
     io.observe(el);
     return () => io.disconnect();
   }, [request, video]);
 
+  // Warm first N rail/grid cards once they enter the near-viewport band.
+  useEffect(() => {
+    if (!artVisible || !adultCandidates.length) return;
+    if (variant !== "rail" && variant !== "grid") return;
+    if (index > RAIL_WARM_INDEX) return;
+    warmAdultThumbUrls(thumbCandidates, 3);
+  }, [artVisible, adultCandidates.length, index, thumbCandidates, variant]);
+
   // Hold one decode slot for the whole visible card — do not re-queue on each
   // thumbIndex fallback (that was flashing blanks and serializing Adult rails).
+  // Visible cards take the high-priority lane so offscreen warm waits.
   useEffect(() => {
     if (!artVisible || thumbsExhausted) {
       setArtAllowed(false);
@@ -144,7 +184,7 @@ export const VideoCard = memo(function VideoCard({
     }
     let release: (() => void) | undefined;
     let cancelled = false;
-    void acquireImageSlot().then((done) => {
+    void acquireImageSlot({ priority: "high" }).then((done) => {
       if (cancelled) {
         done();
         return;
@@ -158,6 +198,23 @@ export const VideoCard = memo(function VideoCard({
       setArtAllowed(false);
     };
   }, [artVisible, thumbsExhausted, video.id]);
+
+  useEffect(() => {
+    setCandidateReady(false);
+  }, [activeThumb]);
+
+  // Stuck CDN loads: advance fallback instead of sitting on a blank forever.
+  useEffect(() => {
+    if (!artVisible || !artAllowed || !activeThumb || showPreview || candidateReady) return;
+    if (paintedSrc === activeThumb) return;
+    const timer = window.setTimeout(() => {
+      markAdultThumbFailed(activeThumb);
+      advanceThumb();
+    }, THUMB_LOAD_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+    // advanceThumb closes over thumbCandidates; thumbIndex drives activeThumb.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeThumb, artAllowed, artVisible, candidateReady, paintedSrc, showPreview, thumbIndex]);
 
   useEffect(() => { setRating(getRating(video.id)); }, [video.id]);
   useEffect(() => { setTextFirst(document.documentElement.dataset.artworkMode === "text"); }, []);
@@ -198,25 +255,51 @@ export const VideoCard = memo(function VideoCard({
         (variant === "grid" || variant === "rail") && "aspect-video w-full rounded-md",
       )}
     >
+      {/* Hold last good paint under the candidate so fallbacks never flash blank. */}
+      {paintedSrc && !textFirst && (
+        <img
+          src={paintedSrc}
+          alt=""
+          aria-hidden
+          decoding="async"
+          referrerPolicy="no-referrer"
+          className="absolute inset-0 size-full object-cover outline outline-1 -outline-offset-1 outline-fg/10"
+        />
+      )}
       {!textFirst && artVisible && artAllowed && !thumbsExhausted && (showPreview ? preview : activeThumb) ? (
         <img
-          key={`${video.id}:${thumbIndex}:${showPreview ? "p" : "a"}`}
-          loading="lazy"
+          key={`${video.id}:${resolvedThumbIndex}:${showPreview ? "p" : "a"}`}
+          loading={index <= RAIL_WARM_INDEX ? "eager" : "lazy"}
           decoding="async"
+          fetchPriority={index <= 3 && artVisible ? "high" : "auto"}
           referrerPolicy="no-referrer"
           src={showPreview ? preview! : activeThumb!}
           alt=""
+          onLoad={(event) => {
+            if (showPreview) return;
+            const img = event.currentTarget;
+            const url = activeThumb;
+            if (!url) return;
+            if (!isDecodedAdultThumbLikelyReal(img)) {
+              markAdultThumbFailed(url);
+              advanceThumb();
+              return;
+            }
+            markAdultThumbGood(url, video.id);
+            setPaintedSrc(url);
+            setCandidateReady(true);
+          }}
           onError={() => {
             if (showPreview) return;
-            setThumbIndex((index) => {
-              const next = index + 1;
-              if (next >= thumbCandidates.length) repairRemoteArtwork();
-              return next;
-            });
+            if (activeThumb) markAdultThumbFailed(activeThumb);
+            advanceThumb();
           }}
-          className="size-full object-cover outline outline-1 -outline-offset-1 outline-fg/10"
+          className={cn(
+            "relative size-full object-cover outline outline-1 -outline-offset-1 outline-fg/10 transition-opacity duration-150",
+            candidateReady || paintedSrc === activeThumb ? "opacity-100" : "opacity-0",
+          )}
         />
-      ) : (
+      ) : !paintedSrc ? (
         <div className="absolute inset-0 flex items-center justify-center bg-elevated outline outline-1 -outline-offset-1 outline-fg/10">
           <span
             className={cn(
@@ -228,7 +311,7 @@ export const VideoCard = memo(function VideoCard({
           </span>
           {failed && !video.remote && <span title={artworkDiagnostic ? `${artworkDiagnostic.lastError} · attempt ${artworkDiagnostic.attempts}/3` : undefined} className="absolute bottom-2 left-2 right-2 rounded-xs bg-bg/80 px-2 py-1 text-center text-[11px] text-muted">Local artwork unavailable{artworkDiagnostic ? ` · ${artworkDiagnostic.attempts}/3` : ""}</span>}
         </div>
-      )}
+      ) : null}
       <div className="absolute inset-0 bg-linear-to-t from-bg/80 via-transparent to-transparent opacity-90" />
       <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100">
         <span className="flex size-11 items-center justify-center rounded-full bg-accent text-accent-fg shadow-lift">
