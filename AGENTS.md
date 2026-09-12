@@ -4,15 +4,22 @@
 
 ## In progress
 
-Quick fix: faster Adult card previews + fewer blanks (RedTube especially).
+Defensive Adult preview hardening: fewer blanks, faster recover, stay filled.
 
 ### Shipped this PR
 1. **Prefer API primary thumb** — `default_thumb` / `thumb` before speculative `thumbs[]` / CDN expansion.
 2. **Shorter fallback chains** — fewer host/frame/size retries; cap ~6–8 candidates so onError does not serialize rails.
 3. **Raise image concurrency** — default budget 12 (was 5); keep slot across thumbIndex retries (no blank flash re-queue).
+4. **Broken/placeholder detection** — URL heuristics + post-decode size/aspect reject before counting success.
+5. **Host prefer / demote** — ei-ph and known-good hosts ranked; session fail scores demote flaky CDNs.
+6. **Session URL cache + failed blacklist** — do not re-hit the same dead URL across cards; remember good per video.
+7. **Hold last good paint** — skeleton/previous poster stays under the next candidate (no blank flash between fallbacks).
+8. **Load timeout → advance** — ~4.5s stuck CDN load marks failed and tries the next candidate.
+9. **Viewport priority** — high-priority image slots for visible cards; offscreen releases cancel speculative work; warm first ~N rail thumbs.
+10. **RedTube solid candidates** — API thumbs + at most one video_id reconstruction; no frame-number spam.
 
 ### Still open
-- Soak test RedTube CDN reliability after shorter chains
+- Soak test RedTube CDN reliability under the new session blacklist + timeouts
 
 Official public APIs + Reddit Atom only. 18+ only.
 
