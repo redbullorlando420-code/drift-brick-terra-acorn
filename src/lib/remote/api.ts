@@ -1526,7 +1526,7 @@ function redditVideo(entry: string, subreddit: string): LibraryVideo | null {
     size: 0,
     addedAt: Number.isFinite(addedAt) ? addedAt : Date.now(),
     tagline: `r/${subreddit}${author ? ` · u/${author}` : ""}`,
-    description: `live, reddit, r/${subreddit}, ${title}`,
+    description: `reddit, r/${subreddit}, ${subreddit.replace(/_/g, " ")}, ${title}`,
     poster: thumb || image || undefined,
     src: image || permalink,
     remote: {
@@ -1542,23 +1542,41 @@ function redditVideo(entry: string, subreddit: string): LibraryVideo | null {
   };
 }
 
-let redditCache: { at: number; posts: LibraryVideo[] } | null = null;
-const REDDIT_CACHE_MS = 10 * 60_000;
+let redditCache: { at: number; key: string; posts: LibraryVideo[]; windowStart: number } | null = null;
+const REDDIT_CACHE_MS = 8 * 60_000;
 
-async function fetchRedditFeed(query: string, maxVideos: number): Promise<{
+/** Rotate through the curated catalog so refreshes sample many subs over time. */
+function redditSubWindow(page: number): { subs: string[]; start: number; totalPages: number } {
+  const all = ADULT_REDDIT_SUBS as readonly string[];
+  const size = Math.max(1, LIBRARY_LIMITS.redditSubsPerPull);
+  const totalPages = Math.max(1, Math.ceil(all.length / size));
+  // 30-minute tick nudges the window so routine refreshes do not hammer the same slice.
+  const tick = Math.floor(Date.now() / (30 * 60_000));
+  const start = (((Math.max(1, page) - 1) * size) + (tick * 3)) % all.length;
+  const subs: string[] = [];
+  for (let i = 0; i < size; i += 1) {
+    subs.push(all[(start + i) % all.length]!);
+  }
+  return { subs, start, totalPages };
+}
+
+async function fetchRedditFeed(query: string, maxVideos: number, page = 1): Promise<{
   videos: LibraryVideo[];
   totalPages: number;
   totalCount: number;
+  nextPage: number | null;
 }> {
-  if (!redditCache || Date.now() - redditCache.at > REDDIT_CACHE_MS) {
+  const { subs, start, totalPages } = redditSubWindow(page);
+  const cacheKey = `p${page}:s${start}:${subs.join(",")}`;
+  if (!redditCache || redditCache.key !== cacheKey || Date.now() - redditCache.at > REDDIT_CACHE_MS) {
     const posts: LibraryVideo[] = [];
     const seen = new Set<string>();
     const errors: string[] = [];
-    for (const sub of ADULT_REDDIT_SUBS) {
+    for (const sub of subs) {
       const url = `https://www.reddit.com/r/${encodeURIComponent(sub)}/.rss?limit=${LIBRARY_LIMITS.redditPostsPerSub}`;
       try {
         const res = await fetch(url, {
-          signal: AbortSignal.timeout(15000),
+          signal: AbortSignal.timeout(12000),
           headers: {
             accept: "application/atom+xml, application/rss+xml, application/xml;q=0.9, */*;q=0.8",
             "user-agent": "linux:reelcase:1.0 (by /u/reelcase)",
@@ -1578,8 +1596,8 @@ async function fetchRedditFeed(query: string, maxVideos: number): Promise<{
         errors.push(`r/${sub}: ${message}`);
       }
     }
-    if (!posts.length && errors.length) throw new Error(`Reddit RSS unavailable (${errors.join("; ")}).`);
-    redditCache = { at: Date.now(), posts };
+    if (!posts.length && errors.length) throw new Error(`Reddit RSS unavailable (${errors.slice(0, 6).join("; ")}).`);
+    redditCache = { at: Date.now(), key: cacheKey, posts, windowStart: start };
   }
   const needle = query.trim().toLowerCase();
   const filtered =
@@ -1589,7 +1607,13 @@ async function fetchRedditFeed(query: string, maxVideos: number): Promise<{
           const hay = `${video.name} ${video.tagline ?? ""} ${video.description ?? ""}`.toLowerCase();
           return hay.includes(needle);
         });
-  return { videos: filtered.slice(0, maxVideos), totalPages: 1, totalCount: filtered.length };
+  const nextPage = page < totalPages * 4 ? page + 1 : null; // allow multi-pass rotation
+  return {
+    videos: filtered.slice(0, maxVideos),
+    totalPages,
+    totalCount: filtered.length,
+    nextPage,
+  };
 }
 
 
@@ -1847,8 +1871,13 @@ async function pullProviderPages(
   maxVideos: number,
 ): Promise<{ videos: LibraryVideo[]; page: number; nextPage: number | null; totalCount: number }> {
   if (provider === "reddit") {
-    const batch = await fetchRedditFeed(query, maxVideos);
-    return { videos: batch.videos, page: 1, nextPage: null, totalCount: batch.totalCount };
+    const batch = await fetchRedditFeed(query, maxVideos, startPage);
+    return {
+      videos: batch.videos,
+      page: startPage,
+      nextPage: batch.nextPage,
+      totalCount: batch.totalCount,
+    };
   }
   if (provider === "booru") {
     const batch = await fetchBooruFeed(query, maxVideos, startPage);

@@ -772,46 +772,8 @@ export type AdultPullProvider = "eporner" | "redtube" | "chaturbate" | "camsoda"
 
 export const ADULT_PULL_PROVIDERS: AdultPullProvider[] = ["eporner", "redtube", "chaturbate", "camsoda", "myfreecams", "reddit", "booru", "redgifs"];
 
-/** Curated 18+ subs only. Public Atom RSS — no OAuth, no logged-in scrape. */
-export const ADULT_REDDIT_SUBS = [
-  "nsfw",
-  "RealGirls",
-  "NSFW_GIF",
-  "Amateur",
-  "gonewild",
-  "nsfw_gifs",
-  "adorableporn",
-  "maturemilf",
-  // Fetish / niche 18+ expansions (Atom RSS only; .json stays 403 unauth).
-  "milf",
-  "GoneWildPlus",
-  "curvy",
-  "pawg",
-  "latinas",
-  "AsiansGoneWild",
-  "BlackGirlsGW",
-  "altgonewild",
-  "OnOff",
-  "holdthemoan",
-  "nsfw_videos",
-  "porn",
-  "BDSM",
-  "bondage",
-  "anal",
-  "Lesbian_gifs",
-  "cosplaygirls",
-  "NSFWCosplay",
-  "feet",
-  "Feet_NSFW",
-  "goddesses",
-  "thick",
-  "boobs",
-  "ass",
-  "pussy",
-  "rearpussy",
-  "spreadeagle",
-  "SheFucksHim",
-] as const;
+/** Curated 18+ subs — full list in adult-reddit-subs.ts. Public Atom RSS only. */
+export { ADULT_REDDIT_SUBS } from "./adult-reddit-subs";
 
 export const EPORNER_FOLDER_ID = "eporner:discover";
 export const REDTUBE_FOLDER_ID = "redtube:discover";
