@@ -5,8 +5,8 @@ import { useLibrary } from "@/lib/videos/store";
 import type { LibraryVideo } from "@/lib/videos/types";
 
 /** Initial / incremental page size — catalog stays full in memory/IDB; only this many cards mount. */
-const PAGE = 60;
-const RAIL_CAP = 24;
+const PAGE = 36;
+const RAIL_CAP = 18;
 
 export function ContinueRail({ videos }: { videos: LibraryVideo[] }) {
   if (!videos.length) return null;
@@ -90,7 +90,7 @@ export function VideoGrid({
           setLimit((value) => Math.min(videos.length, value + PAGE));
         }
       },
-      { rootMargin: "600px 0px" },
+      { rootMargin: "400px 0px" },
     );
     io.observe(el);
     return () => io.disconnect();
