@@ -915,6 +915,8 @@ type AdultSearchIn = {
   maxVideos?: number;
   append?: boolean;
   providers?: AdultPullProvider[] | "all";
+  /** Per-provider resume pages (archive depth). Overrides shared `page` when set. */
+  providerPages?: Partial<Record<AdultPullProvider, number>>;
 };
 
 const EPORNER_ORDERS = new Set([
@@ -938,6 +940,19 @@ function parseAdultProviders(raw: unknown): AdultPullProvider[] {
   return [...ADULT_PULL_PROVIDERS];
 }
 
+function parseProviderPages(raw: unknown): Partial<Record<AdultPullProvider, number>> {
+  if (!raw || typeof raw !== "object") return {};
+  const known = new Set<AdultPullProvider>(ADULT_PULL_PROVIDERS);
+  const out: Partial<Record<AdultPullProvider, number>> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!known.has(key as AdultPullProvider)) continue;
+    const n = typeof value === "number" ? value : Number(value);
+    if (!Number.isFinite(n) || n < 1) continue;
+    out[key as AdultPullProvider] = Math.min(Math.floor(n), 100000);
+  }
+  return out;
+}
+
 function parseAdultSearch(data: unknown): Required<AdultSearchIn> & { providers: AdultPullProvider[] } {
   const rec = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
   const query = asString(rec.query).trim() || "all";
@@ -957,6 +972,7 @@ function parseAdultSearch(data: unknown): Required<AdultSearchIn> & { providers:
     maxVideos,
     append,
     providers: parseAdultProviders(rec.providers),
+    providerPages: parseProviderPages(rec.providerPages),
   };
 }
 
@@ -1783,6 +1799,7 @@ export const searchAdultVideos = createServerFn({ method: "POST" })
     nextPage: number | null;
     totalCount: number;
     providers: AdultPullProvider[];
+    providerNextPages: Partial<Record<AdultPullProvider, number | null>>;
   }> => {
     const providers = data.providers;
     const share = Math.max(1, Math.floor(data.maxVideos / providers.length));
@@ -1791,6 +1808,7 @@ export const searchAdultVideos = createServerFn({ method: "POST" })
     let nextPage: number | null = null;
     let totalCount = 0;
     const errors: string[] = [];
+    const providerNextPages: Partial<Record<AdultPullProvider, number | null>> = {};
 
     const seen = new Set<string>();
     for (let i = 0; i < providers.length; i += 1) {
@@ -1802,18 +1820,21 @@ export const searchAdultVideos = createServerFn({ method: "POST" })
         : provider === "booru"
           ? Math.min(LIBRARY_LIMITS.booruVideosPerPull, rawBudget)
         : live ? Math.min(live, rawBudget) : rawBudget;
+      const startPage = data.providerPages?.[provider] ?? data.page;
       try {
-        const batch = await pullProviderPages(provider, data.query, data.order, data.page, budget);
+        const batch = await pullProviderPages(provider, data.query, data.order, startPage, budget);
         for (const video of batch.videos) {
           if (seen.has(video.id)) continue;
           seen.add(video.id);
           collected.push(video);
         }
         totalCount += batch.totalCount;
+        providerNextPages[provider] = batch.nextPage;
         if (batch.nextPage != null) nextPage = nextPage == null ? batch.nextPage : Math.min(nextPage, batch.nextPage);
       } catch (err) {
         const message = err instanceof Error ? err.message : "unavailable";
         errors.push(`${provider}: ${message}`);
+        providerNextPages[provider] = null;
       }
     }
 
@@ -1861,5 +1882,6 @@ export const searchAdultVideos = createServerFn({ method: "POST" })
       nextPage,
       totalCount,
       providers,
+      providerNextPages,
     };
   });

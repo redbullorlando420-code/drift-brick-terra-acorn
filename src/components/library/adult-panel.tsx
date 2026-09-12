@@ -6,6 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LIBRARY_LIMITS } from "@/lib/library-limits";
 import {
+  adultArchiveDepthLabel,
+  loadAdultArchiveCursors,
+} from "@/lib/videos/adult-archive-cursors";
+import {
   ADULT_CATEGORY_HUB,
   ADULT_CURATED_FETISH_TAGS,
   ADULT_EMBED_LINKS,
@@ -102,6 +106,7 @@ export function AdultPanel({
   const [tagFilter, setTagFilter] = useState("all");
   const [nextPage, setNextPage] = useState(2);
   const [showAllFetishes, setShowAllFetishes] = useState(false);
+  const [archiveLabel, setArchiveLabel] = useState("No saved archive depth yet — Pull catalog starts at page 1.");
 
   const sourceFacets = useMemo(() => {
     const counts = new Map<string, number>();
@@ -158,21 +163,37 @@ export function AdultPanel({
       });
   }, [autoPull, booted, adultVideos.length, searchAdultFeed]);
 
-  const runSearch = (append = false) => {
+  const refreshArchiveLabel = (q: string, ord: string) => {
+    setArchiveLabel(adultArchiveDepthLabel(loadAdultArchiveCursors(q, ord)));
+  };
+
+  useEffect(() => {
+    refreshArchiveLabel(query.trim() || "all", order);
+  }, [query, order, adultVideos.length]);
+
+  const runSearch = (append = false, resume = false) => {
     const q = query.trim() || "all";
-    const page = append ? nextPage : 1;
+    const cursors = loadAdultArchiveCursors(q, order);
+    const providerPages = resume
+      ? Object.fromEntries(
+          Object.entries(cursors).map(([provider, row]) => [provider, row.page]),
+        ) as Partial<Record<AdultPullProvider, number>>
+      : undefined;
+    const page = append || resume ? (resume ? 1 : nextPage) : 1;
     void searchAdultFeed(q, order, {
-      page,
+      page: resume ? 1 : page,
       maxVideos: LIBRARY_LIMITS.epornerVideosPerPull,
-      append,
+      append: append || resume,
       providers,
+      providerPages,
     })
       .then((n) => {
-        setNextPage(page + 1);
+        setNextPage((resume ? Math.max(2, ...Object.values(cursors).map((c) => c.page)) : page) + 1);
         setTagFilter("all");
+        refreshArchiveLabel(q, order);
         toast.success(
           n
-            ? `${append ? "Catalog now has" : "Loaded"} ${n.toLocaleString()} adult titles`
+            ? `${append || resume ? "Catalog now has" : "Loaded"} ${n.toLocaleString()} adult titles`
             : "No results",
         );
       })
@@ -433,11 +454,20 @@ export function AdultPanel({
           >
             Load more
           </Button>
+          <Button
+            variant="secondary"
+            onClick={() => runSearch(false, true)}
+            disabled={remoteBusy}
+            title="Resume each provider from its saved archive cursor"
+          >
+            Continue archive
+          </Button>
         </div>
         <p className="mt-3 text-xs text-muted">
           Cached adult titles: {adultVideos.length.toLocaleString()}
           {importProgress ? ` · ${importProgress.label}` : ""}
         </p>
+        <p className="mt-1 text-xs text-accent">{archiveLabel}</p>
         {sourceFacets.length > 0 && (
           <div className="mt-4">
             <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Source tags</p>

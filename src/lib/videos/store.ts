@@ -8,6 +8,7 @@ import {
   adultIngestTags,
   type AdultPullProvider,
 } from "./adult-sites";
+import { saveAdultArchiveCursors } from "./adult-archive-cursors";
 import { mergeRemoteRefresh } from "./remote-merge";
 import { measureInteraction } from "@/lib/interaction-budget";
 import {
@@ -140,7 +141,7 @@ type LibraryState = {
   setHideDemo: (hide: boolean) => void;
   setHardwareAccel: (on: boolean) => void;
   setFolderAdult: (folderId: string, adult: boolean) => void;
-  searchAdultFeed: (query?: string, order?: string, opts?: { page?: number; maxVideos?: number; append?: boolean; providers?: AdultPullProvider[] | "all" }) => Promise<number>;
+  searchAdultFeed: (query?: string, order?: string, opts?: { page?: number; maxVideos?: number; append?: boolean; providers?: AdultPullProvider[] | "all"; providerPages?: Partial<Record<AdultPullProvider, number>>; resumeArchive?: boolean }) => Promise<number>;
   addFolder: (
     inputEl?: HTMLInputElement | null,
     startIn?: WellKnownStart,
@@ -805,7 +806,11 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       const page = opts?.page ?? 1;
       const maxVideos = opts?.maxVideos ?? LIBRARY_LIMITS.epornerVideosPerPull;
       const append = Boolean(opts?.append);
-      const result = await searchAdultVideos({ data: { query, order, page, maxVideos, append, providers } });
+      const providerPages = opts?.providerPages;
+      const result = await searchAdultVideos({ data: { query, order, page, maxVideos, append, providers, providerPages } });
+      if (result.providerNextPages) {
+        saveAdultArchiveCursors(query, order, result.providerNextPages);
+      }
       const videos = result.videos;
       const touched = new Set(videos.map((v) => v.folderId));
       set((s) => {
