@@ -32,6 +32,7 @@ const PROVIDER_CHOICES: { id: AdultPullProvider[] | "all"; label: string }[] = [
   { id: ["chaturbate"], label: "Chaturbate only" },
   { id: ["camsoda"], label: "CamSoda only" },
   { id: ["myfreecams"], label: "MyFreeCams only" },
+  { id: ["reddit"], label: "Reddit (18+)" },
   { id: ["eporner"], label: "Eporner only" },
   { id: ["redtube"], label: "RedTube only" },
 ];
@@ -177,8 +178,8 @@ export function AdultPanel() {
         <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Adult sites</p>
         <h2 className="mt-2 font-display text-2xl text-fg sm:text-3xl">Embed-ready pull sources</h2>
         <p className="mt-2 max-w-2xl text-sm text-muted">
-          Official public APIs: Eporner, RedTube, Chaturbate embeds, CamSoda room pages, and the MyFreeCams online list.
-          If one source errors, the others still fill the shelf. Other cams stay live deep-link milestones.
+          Official public APIs: Eporner, RedTube, Chaturbate embeds, CamSoda room pages, the MyFreeCams online list,
+          and Reddit public Atom RSS for curated 18+ subs. If one source errors, the others still fill the shelf.
         </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {ADULT_EMBED_LINKS.map((site) => (

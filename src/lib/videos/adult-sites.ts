@@ -649,6 +649,7 @@ export const ADULT_MILESTONE_LINKS: AdultSiteLink[] = [
  * - Chaturbate public affiliate rooms JSON + /embed/{user}/
  * - CamSoda public /api/v1/browse/online + room pages (no X-Frame-Options)
  * - MyFreeCams public php/online_models.php + #username room deep-links
+ * - Reddit public Atom RSS (.json is 403 unauthenticated) for curated 18+ subs
  */
 export const ADULT_EMBED_LINKS: AdultSiteLink[] = [
   {
@@ -691,6 +692,14 @@ export const ADULT_EMBED_LINKS: AdultSiteLink[] = [
     group: "cam",
     sourceId: "myfreecams",
   },
+  {
+    name: "Reddit (18+)",
+    href: "https://www.reddit.com/r/nsfw/",
+    copy: "Public Atom RSS previews from curated 18+ subs. Unauthenticated .json is blocked; posts open on Reddit.",
+    embeds: true,
+    group: "community",
+    sourceId: "reddit",
+  },
 ];
 
 /** Deduplicate by href while preserving first-seen order. */
@@ -723,15 +732,28 @@ export const ADULT_SOURCE_OPTIONS: { id: string; label: string; href?: string; p
       pull: Boolean(link.embeds),
     }));
 
-export type AdultPullProvider = "eporner" | "redtube" | "chaturbate" | "camsoda" | "myfreecams";
+export type AdultPullProvider = "eporner" | "redtube" | "chaturbate" | "camsoda" | "myfreecams" | "reddit";
 
-export const ADULT_PULL_PROVIDERS: AdultPullProvider[] = ["eporner", "redtube", "chaturbate", "camsoda", "myfreecams"];
+export const ADULT_PULL_PROVIDERS: AdultPullProvider[] = ["eporner", "redtube", "chaturbate", "camsoda", "myfreecams", "reddit"];
+
+/** Curated 18+ subs only. Public Atom RSS — no OAuth, no logged-in scrape. */
+export const ADULT_REDDIT_SUBS = [
+  "nsfw",
+  "RealGirls",
+  "NSFW_GIF",
+  "Amateur",
+  "gonewild",
+  "nsfw_gifs",
+  "adorableporn",
+  "maturemilf",
+] as const;
 
 export const EPORNER_FOLDER_ID = "eporner:discover";
 export const REDTUBE_FOLDER_ID = "redtube:discover";
 export const CHATURBATE_FOLDER_ID = "chaturbate:discover";
 export const CAMSODA_FOLDER_ID = "camsoda:discover";
 export const MYFREECAMS_FOLDER_ID = "myfreecams:discover";
+export const REDDIT_FOLDER_ID = "reddit:discover";
 
 export const EPORNER_FOLDER = {
   id: EPORNER_FOLDER_ID,
@@ -773,12 +795,21 @@ export const MYFREECAMS_FOLDER = {
   adult: true,
 };
 
+export const REDDIT_FOLDER = {
+  id: REDDIT_FOLDER_ID,
+  name: "Reddit (18+)",
+  kind: "reddit" as const,
+  videoCount: 0,
+  adult: true,
+};
+
 export const ADULT_FOLDER_BY_PROVIDER = {
   eporner: EPORNER_FOLDER,
   redtube: REDTUBE_FOLDER,
   chaturbate: CHATURBATE_FOLDER,
   camsoda: CAMSODA_FOLDER,
   myfreecams: MYFREECAMS_FOLDER,
+  reddit: REDDIT_FOLDER,
 } as const;
 
 export const ADULT_FOLDER_IDS = [
@@ -787,6 +818,7 @@ export const ADULT_FOLDER_IDS = [
   CHATURBATE_FOLDER_ID,
   CAMSODA_FOLDER_ID,
   MYFREECAMS_FOLDER_ID,
+  REDDIT_FOLDER_ID,
 ] as const;
 
 export function adultFolderId(provider: AdultPullProvider) {
@@ -805,6 +837,8 @@ export function adultRemoteLabel(kind?: string) {
       return "CamSoda";
     case "myfreecams":
       return "MyFreeCams";
+    case "reddit":
+      return "Reddit";
     case "youtube":
       return "YouTube";
     case "twitch":
@@ -815,7 +849,7 @@ export function adultRemoteLabel(kind?: string) {
 }
 
 export function isAdultPullKind(kind?: string) {
-  return kind === "eporner" || kind === "redtube" || kind === "chaturbate" || kind === "camsoda" || kind === "myfreecams";
+  return kind === "eporner" || kind === "redtube" || kind === "chaturbate" || kind === "camsoda" || kind === "myfreecams" || kind === "reddit";
 }
 
 export function adultSourceTag(provider: string) {

@@ -8,7 +8,9 @@ import {
   CHATURBATE_FOLDER_ID,
   EPORNER_FOLDER_ID,
   MYFREECAMS_FOLDER_ID,
+  REDDIT_FOLDER_ID,
   REDTUBE_FOLDER_ID,
+  ADULT_REDDIT_SUBS,
   type AdultPullProvider,
 } from "@/lib/videos/adult-sites";
 
@@ -1460,6 +1462,117 @@ async function fetchMyFreeCamsRooms(query: string, maxVideos: number): Promise<{
   return { videos: filtered.slice(0, maxVideos), totalPages: 1, totalCount: filtered.length };
 }
 
+
+function htmlDecode(value: string) {
+  return value
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#32;/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#39;/g, "'");
+}
+
+function xmlField(xml: string, pattern: RegExp) {
+  return htmlDecode(pattern.exec(xml)?.[1] ?? "").trim();
+}
+
+function redditDirectMedia(content: string) {
+  const decoded = htmlDecode(content);
+  return /<a href="(https?:[^"]+)">\[link\]/i.exec(decoded)?.[1] ?? "";
+}
+
+function isDirectImage(url: string) {
+  return /\.(jpe?g|png|gif|webp)(\?|$)/i.test(url) || /(?:^|\/\/)(?:i\.redd\.it|preview\.redd\.it|i\.imgur\.com)\//i.test(url);
+}
+
+function redditVideo(entry: string, subreddit: string): LibraryVideo | null {
+  const id = xmlField(entry, /<id>([^<]+)<\/id>/i).replace(/^t3_/, "") || xmlField(entry, /\/comments\/([a-z0-9]+)\//i);
+  const title = xmlField(entry, /<title>([^<]+)<\/title>/i);
+  const permalink = xmlField(entry, /<link href="([^"]+)"/i);
+  const thumb = xmlField(entry, /<media:thumbnail url="([^"]+)"/i);
+  const author = xmlField(entry, /<name>([^<]+)<\/name>/i).replace(/^\/u\//, "");
+  const published = xmlField(entry, /<published>([^<]+)<\/published>/i);
+  const media = redditDirectMedia(xmlField(entry, /<content[^>]*>([\s\S]*?)<\/content>/i));
+  if (!id || !title || !permalink) return null;
+  if (adultBlockedText(title, author, subreddit, media)) return null;
+  const addedAt = Date.parse(published);
+  const image = isDirectImage(media) ? media : thumb;
+  return {
+    id: `reddit:${id}`,
+    folderId: REDDIT_FOLDER_ID,
+    name: title.slice(0, 160),
+    path: `reddit/${subreddit}/${id}`,
+    extension: image ? "image" : "reddit",
+    mime: image ? "image/jpeg" : "text/html",
+    size: 0,
+    addedAt: Number.isFinite(addedAt) ? addedAt : Date.now(),
+    tagline: `r/${subreddit}${author ? ` · u/${author}` : ""}`,
+    description: `live, reddit, r/${subreddit}, ${title}`,
+    poster: thumb || image || undefined,
+    src: image || permalink,
+    remote: {
+      kind: "reddit",
+      videoId: id,
+      channelName: `r/${subreddit}`,
+      observedAt: Date.now(),
+      embedUrl: image || undefined,
+      watchUrl: permalink,
+      previewUrl: thumb || image || undefined,
+    },
+  };
+}
+
+let redditCache: { at: number; posts: LibraryVideo[] } | null = null;
+const REDDIT_CACHE_MS = 10 * 60_000;
+
+async function fetchRedditFeed(query: string, maxVideos: number): Promise<{
+  videos: LibraryVideo[];
+  totalPages: number;
+  totalCount: number;
+}> {
+  if (!redditCache || Date.now() - redditCache.at > REDDIT_CACHE_MS) {
+    const posts: LibraryVideo[] = [];
+    const seen = new Set<string>();
+    const errors: string[] = [];
+    for (const sub of ADULT_REDDIT_SUBS) {
+      const url = `https://www.reddit.com/r/${encodeURIComponent(sub)}/.rss?limit=${LIBRARY_LIMITS.redditPostsPerSub}`;
+      try {
+        const res = await fetch(url, {
+          signal: AbortSignal.timeout(15000),
+          headers: {
+            accept: "application/atom+xml, application/rss+xml, application/xml;q=0.9, */*;q=0.8",
+            "user-agent": "linux:reelcase:1.0 (by /u/reelcase)",
+          },
+        });
+        if (res.status === 429) throw new Error("rate limited");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const xml = await res.text();
+        for (const chunk of xml.split(/<entry>/i).slice(1)) {
+          const video = redditVideo(chunk, sub);
+          if (!video || seen.has(video.id)) continue;
+          seen.add(video.id);
+          posts.push(video);
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "unavailable";
+        errors.push(`r/${sub}: ${message}`);
+      }
+    }
+    if (!posts.length && errors.length) throw new Error(`Reddit RSS unavailable (${errors.join("; ")}).`);
+    redditCache = { at: Date.now(), posts };
+  }
+  const needle = query.trim().toLowerCase();
+  const filtered =
+    !needle || needle === "all"
+      ? redditCache.posts
+      : redditCache.posts.filter((video) => {
+          const hay = `${video.name} ${video.tagline ?? ""} ${video.description ?? ""}`.toLowerCase();
+          return hay.includes(needle);
+        });
+  return { videos: filtered.slice(0, maxVideos), totalPages: 1, totalCount: filtered.length };
+}
+
 function liveRoomLimit(provider: AdultPullProvider) {
   if (provider === "chaturbate") return LIBRARY_LIMITS.chaturbateRoomsPerPull;
   if (provider === "camsoda") return LIBRARY_LIMITS.camsodaRoomsPerPull;
@@ -1481,6 +1594,10 @@ async function pullProviderPages(
   startPage: number,
   maxVideos: number,
 ): Promise<{ videos: LibraryVideo[]; page: number; nextPage: number | null; totalCount: number }> {
+  if (provider === "reddit") {
+    const batch = await fetchRedditFeed(query, maxVideos);
+    return { videos: batch.videos, page: 1, nextPage: null, totalCount: batch.totalCount };
+  }
   if (provider === "chaturbate" || provider === "camsoda" || provider === "myfreecams") {
     const batch =
       provider === "chaturbate"
@@ -1555,7 +1672,9 @@ export const searchAdultVideos = createServerFn({ method: "POST" })
       const provider = providers[i];
       const rawBudget = share + (i === 0 ? leftovers : 0);
       const live = liveRoomLimit(provider);
-      const budget = live ? Math.min(live, rawBudget) : rawBudget;
+      const budget = provider === "reddit"
+        ? Math.min(LIBRARY_LIMITS.redditVideosPerPull, rawBudget)
+        : live ? Math.min(live, rawBudget) : rawBudget;
       try {
         const batch = await pullProviderPages(provider, data.query, data.order, data.page, budget);
         for (const video of batch.videos) {
@@ -1610,7 +1729,7 @@ export const searchAdultVideos = createServerFn({ method: "POST" })
       note:
         errors.length
           ? `Partial adult pull — ${errors.join("; ")}. Remaining official APIs still returned titles.`
-          : "Pulled via official public APIs (Eporner, RedTube, Chaturbate, CamSoda, and/or MyFreeCams). Playback uses public embeds or room deep-links; keywords/tags become local source + fetish tags.",
+          : "Pulled via official public APIs and public Reddit Atom feeds. Playback uses public embeds, room deep-links, or Reddit permalinks; keywords/tags become local source + fetish tags.",
       page: data.page,
       nextPage,
       totalCount,

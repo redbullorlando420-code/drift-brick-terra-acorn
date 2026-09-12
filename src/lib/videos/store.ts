@@ -1886,6 +1886,7 @@ export function selectAdultRemote(state: LibraryState): LibraryVideo[] {
         v.remote?.kind === "chaturbate" ||
         v.remote?.kind === "camsoda" ||
         v.remote?.kind === "myfreecams" ||
+        v.remote?.kind === "reddit" ||
         (ADULT_FOLDER_IDS as readonly string[]).includes(v.folderId),
     )
     .sort((a, b) => b.addedAt - a.addedAt);

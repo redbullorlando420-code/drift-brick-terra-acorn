@@ -32,4 +32,6 @@ export const LIBRARY_LIMITS = {
   chaturbateRoomsPerPull: 180,
   camsodaRoomsPerPull: 180,
   myfreecamsRoomsPerPull: 180,
+  redditVideosPerPull: 80,
+  redditPostsPerSub: 10,
 } as const;
