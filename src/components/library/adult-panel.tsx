@@ -275,7 +275,7 @@ export function AdultPanel() {
           (up to {LIBRARY_LIMITS.epornerVideosPerPull.toLocaleString()} titles per pull). Provider
           keywords become local fetish tags; each title also gets a{" "}
           <code className="text-fg">source-*</code> tag. Cards open the same preview + in-app play
-          window as YouTube and Twitch.
+          window as YouTube and Twitch. Use I cummed to it on a card or in the player to keep a private local count that never leaves this browser.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           {PROVIDER_CHOICES.map((choice) => (

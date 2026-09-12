@@ -1,10 +1,10 @@
 import { memo, useEffect, useRef, useState } from "react";
-import { Heart, Play, Tag, ThumbsUp, RefreshCw, Star, Users } from "lucide-react";
+import { Flame, Heart, Play, Tag, ThumbsUp, RefreshCw, Star, Users } from "lucide-react";
 import { cn, formatAgo, formatBytes, formatTime } from "@/lib/utils";
 import type { LibraryVideo } from "@/lib/videos/types";
 import { hasFreshViewerCount, isLikelyPlayable, titleOf } from "@/lib/videos/types";
 import { useThumbs } from "@/lib/videos/thumbs";
-import { useLibrary } from "@/lib/videos/store";
+import { isAdultVideo, useLibrary } from "@/lib/videos/store";
 import { getRating, setRating as setMediaRating } from "@/lib/media-feedback";
 import { registerMountedCard } from "@/lib/render-budget";
 import { measureInteraction } from "@/lib/interaction-budget";
@@ -42,6 +42,10 @@ export const VideoCard = memo(function VideoCard({
   const tags = useLibrary((s) => s.tags[video.id] ?? EMPTY_TAGS);
   const category = useLibrary((s) => s.categories[video.id] ?? "");
   const viewCount = useLibrary((s) => s.viewCounts[video.id] ?? 0);
+  const cameCount = useLibrary((s) => s.cameCounts[video.id] ?? 0);
+  const folders = useLibrary((s) => s.folders);
+  const markCame = useLibrary((s) => s.markCame);
+  const adult = isAdultVideo(video, folders);
   const toggleLike = useLibrary((s) => s.toggleLike);
   const openPreview = useLibrary((s) => s.openPreview);
   const toggleFavorite = useLibrary((s) => s.toggleFavorite);
@@ -252,6 +256,7 @@ export const VideoCard = memo(function VideoCard({
           </p>
           {rating > 0 && <p className="mt-1 flex items-center gap-1 text-xs text-accent"><Star className="size-3 fill-current" /> Your rating {rating}/5</p>}
           {viewCount > 0 && <p className="mt-1 text-xs text-subtle">Watched {viewCount} time{viewCount === 1 ? "" : "s"}</p>}
+          {adult && cameCount > 0 && <p className="mt-1 text-xs text-accent">I cummed to it · {cameCount}×</p>}
           {(category || tags.length > 0) && variant !== "list" && (
             <p className="mt-1 flex items-center gap-1 truncate text-xs text-subtle">
               <Tag className="size-3 shrink-0" />
@@ -310,6 +315,22 @@ export const VideoCard = memo(function VideoCard({
         )}
       >
         <ThumbsUp className={cn("size-3.5", liked && "fill-accent text-accent")} />
+      </button>}
+      {adult && <button
+        type="button"
+        aria-label="I cummed to it"
+        onClick={(event) => {
+          event.stopPropagation();
+          markCame(video.id);
+        }}
+        className={cn(
+          "absolute top-20 right-2 flex min-h-9 items-center gap-1 rounded-sm bg-bg/55 px-1.5 text-[10px] text-fg opacity-0 backdrop-blur-sm transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100",
+          cameCount > 0 && "opacity-100 text-accent",
+          variant === "list" && "top-[4.75rem] right-3",
+        )}
+      >
+        <Flame className={cn("size-3.5", cameCount > 0 && "fill-accent text-accent")} />
+        {cameCount > 0 ? cameCount : ""}
       </button>}
       {live && (
         <div className="mt-2 flex items-center justify-between border-t border-border pt-2">

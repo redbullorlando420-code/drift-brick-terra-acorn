@@ -99,6 +99,7 @@ type LibraryState = {
   resumeProgress: Record<string, ResumeMark>;
   history: HistoryEntry[];
   viewCounts: Record<string, number>;
+  cameCounts: Record<string, number>;
   hideDemo: boolean;
   hardwareAccel: boolean;
   adultPinHash: string | null;
@@ -124,6 +125,7 @@ type LibraryState = {
   setSource: (id: SourceId) => void;
   toggleFavorite: (id: string) => void;
   toggleLike: (id: string) => void;
+  markCame: (id: string) => void;
   setVideoTags: (id: string, tags: string[]) => void;
   autoTagLibrary: () => number;
   setVideoCategory: (id: string, category: string) => void;
@@ -180,6 +182,7 @@ function persistNow(get: () => LibraryState) {
     resumeProgress: s.resumeProgress,
     history: s.history,
     viewCounts: s.viewCounts,
+    cameCounts: s.cameCounts,
     view: s.view,
     sort: s.sort,
     hideDemo: s.hideDemo,
@@ -198,13 +201,13 @@ function persistNow(get: () => LibraryState) {
     unavailableVideoIds: Object.keys(s.unavailable),
   };
   savePrefs(prefs);
-  void saveActivitySnapshot({ history: s.history, progress: s.progress, resumeProgress: s.resumeProgress, viewCounts: s.viewCounts, savedAt: Date.now() }).catch(() => queueResumeReplay(s.resumeProgress));
+  void saveActivitySnapshot({ history: s.history, progress: s.progress, resumeProgress: s.resumeProgress, viewCounts: s.viewCounts, cameCounts: s.cameCounts, savedAt: Date.now() }).catch(() => queueResumeReplay(s.resumeProgress));
 }
 
 function persistActivity(get: () => LibraryState) {
   if (!preferencesRestored) return;
   const s = get();
-  void saveActivitySnapshot({ history: s.history, progress: s.progress, resumeProgress: s.resumeProgress, viewCounts: s.viewCounts, savedAt: Date.now() }).catch(() => queueResumeReplay(s.resumeProgress));
+  void saveActivitySnapshot({ history: s.history, progress: s.progress, resumeProgress: s.resumeProgress, viewCounts: s.viewCounts, cameCounts: s.cameCounts, savedAt: Date.now() }).catch(() => queueResumeReplay(s.resumeProgress));
 }
 
 function mergeHistory(a: HistoryEntry[], b: HistoryEntry[]): HistoryEntry[] {
@@ -521,6 +524,7 @@ function applyPrefs(partial: Partial<LibraryState>): Partial<LibraryState> {
     })),
     history: prefs.history ?? [],
     viewCounts: prefs.viewCounts ?? {},
+    cameCounts: prefs.cameCounts ?? {},
     view: prefs.view ?? "grid",
     sort: prefs.sort ?? "name",
     hideDemo: true,
@@ -560,6 +564,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   resumeProgress: {},
   history: [],
   viewCounts: {},
+  cameCounts: {},
   hideDemo: true,
   hardwareAccel: true,
   adultPinHash: null,
@@ -612,6 +617,10 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     });
     persistSoon(get);
     cacheRemotesSoon(get);
+  },
+  markCame: (id) => {
+    set((s) => ({ cameCounts: { ...s.cameCounts, [id]: (s.cameCounts[id] ?? 0) + 1 } }));
+    persistNow(get);
   },
   setVideoTags: (id, tags) => {
     set((s) => ({
@@ -1060,6 +1069,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           resumeProgress,
           progress: reconcileResumeForVideos(s.videos, { ...(activity?.progress ?? {}), ...s.progress }, resumeProgress),
           viewCounts: { ...(activity?.viewCounts ?? {}), ...s.viewCounts },
+          cameCounts: { ...(activity?.cameCounts ?? {}), ...s.cameCounts },
         };
       });
     }).catch(() => undefined);

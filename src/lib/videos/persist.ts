@@ -69,6 +69,7 @@ export type Prefs = {
   resumeProgress?: Record<string, ResumeMark>;
   history: HistoryEntry[];
   viewCounts?: Record<string, number>;
+  cameCounts?: Record<string, number>;
   view: "grid" | "list";
   sort: SortKey;
   sortDir: SortDir;
@@ -267,7 +268,7 @@ export async function saveRemoteSnapshot(snapshot: RemoteSnapshot): Promise<void
   }); } finally { db.close(); }
 }
 
-export type ActivitySnapshot = Pick<Prefs, "history" | "progress" | "resumeProgress"> & { viewCounts: Record<string, number>; savedAt: number };
+export type ActivitySnapshot = Pick<Prefs, "history" | "progress" | "resumeProgress"> & { viewCounts: Record<string, number>; cameCounts?: Record<string, number>; savedAt: number };
 export async function loadActivitySnapshot(): Promise<ActivitySnapshot | undefined> {
   const db = await openDb();
   try {
@@ -369,6 +370,15 @@ export async function loadSourceHealth(): Promise<StoredSourceHealth[]> {
   return rows;
 }
 
+function asCountMap(raw: unknown): Record<string, number> {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<string, number> = {};
+  for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === "number" && Number.isFinite(value) && value > 0) out[id] = Math.floor(value);
+  }
+  return out;
+}
+
 function normalize(raw: Record<string, unknown>): Prefs {
   const starred = (raw.starred as string[] | undefined) ?? [];
   const favorites = (raw.favorites as string[] | undefined) ?? starred;
@@ -383,6 +393,8 @@ function normalize(raw: Record<string, unknown>): Prefs {
     progress: (raw.progress as Prefs["progress"]) ?? {},
     resumeProgress: (raw.resumeProgress as Prefs["resumeProgress"]) ?? {},
     history: (raw.history as Prefs["history"]) ?? [],
+    viewCounts: asCountMap(raw.viewCounts),
+    cameCounts: asCountMap(raw.cameCounts),
     view: (raw.view as Prefs["view"]) ?? "grid",
     sort,
     sortDir: (raw.sortDir as SortDir | undefined) ?? (sort === "name" ? "asc" : "desc"),

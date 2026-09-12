@@ -368,18 +368,17 @@ Branch: `fix/reelcase-updates`
 - **Fetish expand:** featured chips first (`milf`, `double penetration`, `dp`, `roleplay`, `feet`, `cosplay`); expandable catalog; chip clicks use `fetishSearchQuery`; browsing `all` deep-pulls Eporner + RedTube.
 - **Chaturbate backup pull:** public affiliate rooms JSON + `/embed/{user}/`. Adults “all” continues if Eporner or RedTube errors (per-provider try/catch, partial success). Preview no longer rewrites adult embeds to YouTube.
 - **Pornhub categories as Adult tags:** all ~105 PH categories + 17 languages as chips (keep 18+ labels on Babysitter/College/School/Old-Young). Featured row includes DP, role play, MILF, feet, anal, lesbian, gangbang, cuckold, cosplay, step fantasy, latina, asian, ebony, bbw, hentai, VR, webcam.
+- **I cummed to it:** per-video local counter on adult cards + player; persisted forever with prefs + activity snapshot (IndexedDB); Adults rail + Stats marks; not synced remotely.
 
 ### In progress / queued
 
 - Persist/cache larger Eporner + RedTube catalogs in IndexedDB like YouTube (`saveFolderVideos` / `appendCatalogVideos`); raise page/video limits; resume + load-more; keep UI windowed.
 - More photo APIs (XBooru / TBIB / Hypnohub). Skip key-gated, retired HubTraffic, CSAM-risk, and leak sites.
-- **Pornhub categories as Adult tags:** all ~105 PH categories + 17 languages as chips (keep 18+ labels on Babysitter/College/School/Old-Young). Featured row includes DP, role play, MILF, feet, anal, lesbian, gangbang, cuckold, cosplay, step fantasy, latina, asian, ebony, bbw, hentai, VR, webcam.
-- “I cummed to it” local per-video counter.
 - Connect adult watch activity into **Continue / History / Stats** (catalog rails stay public-only).
 - Seed Social / X accounts from the helper list (once; do not re-add after user removal).
 - Categorized Adult milestones from `adult-niches-user-list.txt` (review/voyeur/blogs/AI/extreme; download + torrent **link-out only**).
 - Feet / cosplay / celeb / manhwa **milestones** (film nude DBs like AZNude/Nudography OK; skip revenge-porn / fappening leak sites).
-- Preview/player: do not rewrite adult embed URLs to YouTube; photo kinds render as images.
+- Photo kinds (booru) still need an image viewer path.
 
 ### Pull sources vs link-only
 

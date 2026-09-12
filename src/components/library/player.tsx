@@ -4,6 +4,7 @@ import {
   Cpu,
   ExternalLink,
   Glasses,
+  Flame,
   Heart,
   Maximize,
   Minimize,
@@ -31,7 +32,7 @@ import {
 import { cn, formatBytes, formatTime } from "@/lib/utils";
 import { getNote, getRating, setNote as saveNote, setRating as saveRating } from "@/lib/media-feedback";
 import { adultRemoteLabel, isAdultPullKind } from "@/lib/videos/adult-sites";
-import { useLibrary } from "@/lib/videos/store";
+import { isAdultVideo, useLibrary } from "@/lib/videos/store";
 import { useThumbs } from "@/lib/videos/thumbs";
 import { resolvePlayUrl } from "@/lib/videos/sources";
 import { hasFreshViewerCount, isLikelyPlayable } from "@/lib/videos/types";
@@ -92,6 +93,9 @@ export function Player({ playlist }: { playlist: string[] }) {
   const folder = useLibrary((s) => s.folders.find((item) => item.id === video?.folderId));
   const fav = useLibrary((s) => (s.activeId ? Boolean(s.favorites[s.activeId]) : false));
   const liked = useLibrary((s) => (s.activeId ? Boolean(s.likes[s.activeId]) : false));
+  const cameCount = useLibrary((s) => (s.activeId ? (s.cameCounts[s.activeId] ?? 0) : 0));
+  const markCame = useLibrary((s) => s.markCame);
+  const folders = useLibrary((s) => s.folders);
   const tags = useLibrary((s) => (s.activeId ? (s.tags[s.activeId] ?? EMPTY_TAGS) : EMPTY_TAGS));
   const category = useLibrary((s) => (s.activeId ? (s.categories[s.activeId] ?? "") : ""));
   const saved = useLibrary((s) => (s.activeId ? s.progress[s.activeId] : undefined));
@@ -521,6 +525,17 @@ export function Player({ playlist }: { playlist: string[] }) {
           >
             <ThumbsUp className={cn("size-4", liked && "fill-accent text-accent")} />
           </Button>
+          {isAdultVideo(video, folders) && (
+            <Button
+              variant={cameCount > 0 ? "secondary" : "ghost"}
+              size="sm"
+              aria-label="I cummed to it"
+              onClick={() => markCame(video.id)}
+            >
+              <Flame className={cn("size-4", cameCount > 0 && "fill-accent text-accent")} />
+              I cummed to it{cameCount > 0 ? ` · ${cameCount}` : ""}
+            </Button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" aria-label="Edit tags and category">
