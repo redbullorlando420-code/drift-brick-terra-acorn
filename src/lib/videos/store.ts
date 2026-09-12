@@ -9,6 +9,10 @@ import {
   type AdultPullProvider,
 } from "./adult-sites";
 import { saveAdultArchiveCursors } from "./adult-archive-cursors";
+import {
+  findFreshAdultPullFingerprint,
+  rememberAdultPullFingerprint,
+} from "@/lib/remote/adult-pull-cache";
 import { mergeRemoteRefresh } from "./remote-merge";
 import { measureInteraction } from "@/lib/interaction-budget";
 import {
@@ -807,10 +811,24 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       const maxVideos = opts?.maxVideos ?? LIBRARY_LIMITS.epornerVideosPerPull;
       const append = Boolean(opts?.append);
       const providerPages = opts?.providerPages;
+      const providerKey = providerList.slice().sort().join("+");
+      // Fresh identical pulls reuse the durable catalog instead of re-hitting APIs.
+      if (!append && !providerPages && findFreshAdultPullFingerprint(query, order, page, providerKey)) {
+        set({ remoteBusy: false, importProgress: null });
+        return get().videos.filter((v) => (ADULT_FOLDER_IDS as readonly string[]).includes(v.folderId)).length;
+      }
       const result = await searchAdultVideos({ data: { query, order, page, maxVideos, append, providers, providerPages } });
       if (result.providerNextPages) {
         saveAdultArchiveCursors(query, order, result.providerNextPages);
       }
+      rememberAdultPullFingerprint({
+        at: Date.now(),
+        query: query.trim().toLowerCase() || "all",
+        order,
+        page,
+        providers: providerKey,
+        count: result.videos.length,
+      });
       const videos = result.videos;
       const touched = new Set(videos.map((v) => v.folderId));
       set((s) => {

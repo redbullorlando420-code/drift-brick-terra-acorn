@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import type { FollowedChannel, FollowKind, LibraryVideo } from "@/lib/videos/types";
 import { LIBRARY_LIMITS } from "@/lib/library-limits";
+import { cachedAdultFetch } from "@/lib/remote/adult-pull-cache";
 import {
   ADULT_DEEPEN_FETISH_QUERIES,
   ADULT_PULL_PROVIDERS,
@@ -1043,8 +1044,9 @@ async function fetchEpornerPage(query: string, order: string, page: number, perP
     format: "json",
   });
   const url = `https://www.eporner.com/api/v2/video/search/?${params.toString()}`;
-  const res = await fetch(url, {
+  const res = await cachedAdultFetch(url, {
     signal: AbortSignal.timeout(20000),
+    cacheTtlMs: 12 * 60_000,
     headers: {
       accept: "application/json",
       "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
@@ -1179,8 +1181,9 @@ async function fetchRedtubePage(query: string, order: string, page: number): Pro
   const q = query.trim();
   if (q && q.toLowerCase() !== "all") params.set("search", q);
   const url = `https://api.redtube.com/?${params.toString()}`;
-  const res = await fetch(url, {
+  const res = await cachedAdultFetch(url, {
     signal: AbortSignal.timeout(20000),
+    cacheTtlMs: 12 * 60_000,
     headers: {
       accept: "application/json",
       "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
@@ -1277,8 +1280,9 @@ async function fetchChaturbateRooms(query: string, maxVideos: number): Promise<{
 }> {
   if (!chaturbateCache || Date.now() - chaturbateCache.at > CHATURBATE_CACHE_MS) {
     const url = "https://chaturbate.com/affiliates/api/onlinerooms/?format=json&wm=DkfRj";
-    const res = await fetch(url, {
+    const res = await cachedAdultFetch(url, {
       signal: AbortSignal.timeout(25000),
+      cacheTtlMs: 3 * 60_000,
       headers: {
         accept: "application/json",
         "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
@@ -1389,7 +1393,8 @@ async function fetchCamSodaRooms(query: string, maxVideos: number): Promise<{
   totalCount: number;
 }> {
   if (!camsodaCache || Date.now() - camsodaCache.at > CAMSODA_CACHE_MS) {
-    const res = await fetch("https://www.camsoda.com/api/v1/browse/online", {
+    const res = await cachedAdultFetch("https://www.camsoda.com/api/v1/browse/online", {
+      cacheTtlMs: 3 * 60_000,
       signal: AbortSignal.timeout(25000),
       headers: {
         accept: "application/json",
@@ -1454,7 +1459,8 @@ async function fetchMyFreeCamsRooms(query: string, maxVideos: number): Promise<{
   totalCount: number;
 }> {
   if (!myfreecamsCache || Date.now() - myfreecamsCache.at > MYFREECAMS_CACHE_MS) {
-    const res = await fetch("https://www.myfreecams.com/php/online_models.php", {
+    const res = await cachedAdultFetch("https://www.myfreecams.com/php/online_models.php", {
+      cacheTtlMs: 3 * 60_000,
       signal: AbortSignal.timeout(25000),
       headers: {
         accept: "text/plain, text/html;q=0.8",
@@ -1575,8 +1581,9 @@ async function fetchRedditFeed(query: string, maxVideos: number, page = 1): Prom
     for (const sub of subs) {
       const url = `https://www.reddit.com/r/${encodeURIComponent(sub)}/.rss?limit=${LIBRARY_LIMITS.redditPostsPerSub}`;
       try {
-        const res = await fetch(url, {
+        const res = await cachedAdultFetch(url, {
           signal: AbortSignal.timeout(12000),
+          cacheTtlMs: 8 * 60_000,
           headers: {
             accept: "application/atom+xml, application/rss+xml, application/xml;q=0.9, */*;q=0.8",
             "user-agent": "linux:reelcase:1.0 (by /u/reelcase)",
@@ -1684,8 +1691,9 @@ async function fetchBooruHost(host: (typeof BOORU_HOSTS)[number], tags: string, 
     tags,
   });
   const url = `${host.base}/index.php?${params.toString()}`;
-  const res = await fetch(url, {
+  const res = await cachedAdultFetch(url, {
     signal: AbortSignal.timeout(15000),
+    cacheTtlMs: 10 * 60_000,
     headers: { accept: "application/json,text/plain,*/*", "user-agent": "Reelcase/1.0" },
   });
   if (!res.ok) throw new Error(`${host.id} HTTP ${res.status}`);
@@ -1827,8 +1835,10 @@ async function fetchRedgifsFeed(query: string, maxVideos: number, page: number):
   const needle = query.trim();
   if (needle && needle.toLowerCase() !== "all") params.set("search", needle.slice(0, 64));
   const url = `https://api.adultdatalink.com/redgifs/trending?${params.toString()}`;
-  const res = await fetch(url, {
+  const res = await cachedAdultFetch(url, {
     signal: AbortSignal.timeout(20000),
+    cacheTtlMs: 8 * 60_000,
+    cacheKey: `GET:${url}:adl`,
     headers: {
       accept: "application/json",
       authorization: `Bearer ${key}`,
