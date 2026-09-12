@@ -13,7 +13,8 @@ import { InviteStrip } from "./invite";
 import { VideoGrid } from "./video-grid";
 import { VideoCard } from "./video-card";
 import { Billboard, PosterGrid, TitleRail } from "./browse";
-import { PinGate } from "./pin-gate";
+import { AdultPanel } from "./adult-panel";
+import { LIBRARY_LIMITS } from "@/lib/library-limits";
 import { Player } from "./player";
 import { PreVideo } from "./pre-video";
 import { AiGuide } from "./ai-guide";
@@ -41,6 +42,7 @@ import {
   selectFavorites,
   selectFeatured,
   selectHistory,
+  selectAdultRemote,
   selectLive,
   resumeForVideo,
   selectTwitch,
@@ -148,6 +150,8 @@ export function LibraryApp() {
   const [youtubeExploreVisible, setYoutubeExploreVisible] = useState(false);
   const [youtubeDeepVisible, setYoutubeDeepVisible] = useState(false);
   const [youtubeHealthVisible, setYoutubeHealthVisible] = useState(false);
+  const [adultExploreVisible, setAdultExploreVisible] = useState(false);
+  const [adultDeepVisible, setAdultDeepVisible] = useState(false);
   const archiveQueueRef = useRef<Array<{ id: string; handle: string }>>([]);
   const archiveQueueBusyRef = useRef(false);
   const [archiveQueued, setArchiveQueued] = useState<string[]>([]);
@@ -179,7 +183,6 @@ export function LibraryApp() {
   const activeId = useLibrary((s) => s.activeId);
   const previewId = useLibrary((s) => s.previewId);
   const history = useLibrary((s) => s.history);
-  const adultsUnlocked = useLibrary((s) => s.adultsUnlocked);
   const videos = useLibrary(useShallow(selectVisible));
   const continueVideos = useLibrary(useShallow((s) => selectContinue(s, false)));
   const favoriteVideos = useLibrary(useShallow((s) => selectFavorites(s, false)));
@@ -198,12 +201,29 @@ export function LibraryApp() {
   const adultContinue = useLibrary(useShallow((s) => selectContinue(s, true)));
   const adultFavorites = useLibrary(useShallow((s) => selectFavorites(s, true)));
   const adultHistory = useLibrary(useShallow((s) => selectHistory(s, true)));
+  const adultRemoteVideos = useLibrary(useShallow(selectAdultRemote));
+  const cameCounts = useLibrary((s) => s.cameCounts);
   const hasUserFolders = userFolderCount(folders) > 0;
   const publicFolders = folders.filter(
     (f) => f.kind !== "demo" && f.kind !== "youtube" && f.kind !== "twitch" && !f.adult,
   );
   const adultFolders = folders.filter((f) => f.adult);
   const tags = useLibrary((s) => s.tags);
+  const markedAdult = useMemo(
+    () =>
+      [...adultRemoteVideos.filter((video) => (cameCounts[video.id] ?? 0) > 0)].sort(
+        (a, b) => (cameCounts[b.id] ?? 0) - (cameCounts[a.id] ?? 0),
+      ),
+    [adultRemoteVideos, cameCounts],
+  );
+  const filteredEporner = useMemo(() => {
+    if (adultTag === "All") return adultRemoteVideos;
+    return adultRemoteVideos.filter((video) => (tags[video.id] ?? []).includes(adultTag));
+  }, [adultTag, adultRemoteVideos, tags]);
+  const epornerTagNames = useMemo(
+    () => [...new Set(adultRemoteVideos.flatMap((video) => tags[video.id] ?? []))].sort(),
+    [adultRemoteVideos, tags],
+  );
   const historyTopTags = useMemo(() => {
     const counts = new Map<string, number>();
     for (const entry of history) {
@@ -227,6 +247,78 @@ export function LibraryApp() {
   }, [history]);
   const favorites = useLibrary((s) => s.favorites);
   const likes = useLibrary((s) => s.likes);
+
+  const adultTagRank = useMemo(() => {
+    if (sourceId !== "adults" || !adultExploreVisible) return [] as { tag: string; score: number; count: number }[];
+    const rows = new Map<string, { total: number; count: number; recent: number }>();
+    for (const video of adultRemoteVideos) {
+      const rating = getRating(video.id);
+      const signal = Math.max(rating, favorites[video.id] ? 4 : 0, likes[video.id] ? 3 : 0, 1);
+      for (const tag of tags[video.id] ?? []) {
+        if (tag.startsWith("provider-") || tag.startsWith("format-") || tag.length < 3) continue;
+        const row = rows.get(tag) ?? { total: 0, count: 0, recent: 0 };
+        row.total += signal;
+        row.count += 1;
+        row.recent = Math.max(row.recent, video.addedAt);
+        rows.set(tag, row);
+      }
+    }
+    const now = Date.now();
+    return [...rows.entries()]
+      .map(([tag, row]) => {
+        const engagement = (row.total + 9) / (row.count + 3);
+        const recency = Math.max(0, 1 - (now - row.recent) / (30 * 86_400_000));
+        return { tag, count: row.count, score: engagement * 12 + row.count * 0.35 + recency * 4 };
+      })
+      .sort((a, b) => b.score - a.score || b.count - a.count || a.tag.localeCompare(b.tag))
+      .slice(0, 48);
+  }, [adultExploreVisible, adultRemoteVideos, favorites, likes, ratingRevision, sourceId, tags]);
+  const adultRecommended = useMemo(() => {
+    if (sourceId !== "adults" || !adultExploreVisible) return [] as typeof adultRemoteVideos;
+    const preferred = new Set(adultTagRank.slice(0, 16).map((row) => row.tag));
+    const likedTags = new Set(adultRemoteVideos.filter((video) => favorites[video.id] || likes[video.id] || getRating(video.id) >= 4).flatMap((video) => tags[video.id] ?? []));
+    const score = (video: (typeof adultRemoteVideos)[number]) => {
+      const itemTags = tags[video.id] ?? [];
+      const overlap = itemTags.filter((tag) => preferred.has(tag)).length;
+      const likedOverlap = itemTags.filter((tag) => likedTags.has(tag)).length;
+      return getRating(video.id) * 14
+        + (favorites[video.id] ? 10 : 0)
+        + (likes[video.id] ? 6 : 0)
+        + overlap * 8
+        + likedOverlap * 10
+        + Math.min(6, itemTags.length) * 0.4
+        + (video.addedAt / 1e13);
+    };
+    return [...adultRemoteVideos]
+      .map((video) => ({ video, score: score(video), shuffle: shuffleRank(`adult-rec:${video.id}:${homePickShuffle}`, homePickShuffle) }))
+      .sort((a, b) => b.score - a.score || a.shuffle - b.shuffle)
+      .map(({ video }) => video)
+      .slice(0, 48);
+  }, [adultExploreVisible, adultRemoteVideos, adultTagRank, favorites, homePickShuffle, likes, ratingRevision, sourceId, tags]);
+  const adultRelatedRecommended = useMemo(() => {
+    if (sourceId !== "adults" || !adultExploreVisible) return [] as typeof adultRemoteVideos;
+    const seedTags = new Set(
+      (adultTag !== "All" ? [adultTag] : adultTagRank.slice(0, 8).map((row) => row.tag))
+        .concat(
+          adultContinue[0] ? tags[adultContinue[0].id] ?? [] : [],
+          adultFavorites[0] ? tags[adultFavorites[0].id] ?? [] : [],
+        ),
+    );
+    const recommendedIds = new Set(adultRecommended.map((video) => video.id));
+    return adultRemoteVideos
+      .filter((video) => !recommendedIds.has(video.id))
+      .map((video) => {
+        const itemTags = tags[video.id] ?? [];
+        const overlap = itemTags.filter((tag) => seedTags.has(tag)).length;
+        const score = overlap * 12 + getRating(video.id) * 8 + (favorites[video.id] ? 5 : 0) + (likes[video.id] ? 3 : 0);
+        return { video, score, shuffle: shuffleRank(`adult-rel:${video.id}:${homePickShuffle}`, homePickShuffle) };
+      })
+      .filter((row) => row.score > 0)
+      .sort((a, b) => b.score - a.score || a.shuffle - b.shuffle)
+      .map(({ video }) => video)
+      .slice(0, 48);
+  }, [adultContinue, adultExploreVisible, adultFavorites, adultRecommended, adultRemoteVideos, adultTag, adultTagRank, favorites, homePickShuffle, likes, ratingRevision, sourceId, tags]);
+
   const viewCounts = useLibrary((s) => s.viewCounts);
   const filteredYoutube = useMemo(() => youtubeTagFilter === "all" ? newestYoutube : newestYoutube.filter((video) => topicsForVideo(video, tags[video.id]).includes(youtubeTagFilter)), [newestYoutube, tags, youtubeTagFilter]);
   const searchInsights = useMemo(() => {
@@ -766,7 +858,6 @@ export function LibraryApp() {
       sourceId === "youtube" ||
       sourceId === "twitch" ||
       sourceId === "live");
-  const lockedAdults = sourceId === "adults" && !adultsUnlocked;
   const invitedToTheater = typeof window !== "undefined" && /^RC[A-Z0-9]{4,12}$/.test(
     (new URLSearchParams(window.location.search).get("room") ?? "").trim().toUpperCase(),
   );
@@ -810,9 +901,7 @@ export function LibraryApp() {
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar onMenu={() => setMenuOpen(true)} onAddFolder={() => onAddFolder()} />
         <main className="w-full max-w-none flex-1 px-4 py-6 sm:px-6 xl:px-8 2xl:px-10">
-          {lockedAdults ? (
-            <PinGate />
-          ) : isHubSection ? (
+          {isHubSection ? (
             <Suspense fallback={<section className="rounded-xl bg-elevated p-8 text-sm text-muted shadow-border">Loading this library workspace…</section>}>
             <>
               {sourceId === "prints" && <PrintsSection />}
@@ -850,7 +939,7 @@ export function LibraryApp() {
               {sourceId === "movies" && !query && (randomSourceMovies[0] || featured) && (
                 <Billboard video={randomSourceMovies[0] ?? featured!} />
               )}
-              {sourceId === "adults" && adultsUnlocked && featured && (
+              {sourceId === "adults" && featured && (
                 <Billboard video={featured} />
               )}
 
@@ -960,43 +1049,80 @@ export function LibraryApp() {
                 </>
               )}
 
-              {sourceId === "adults" && adultsUnlocked && browsing && (
+              {sourceId === "adults" && browsing && (
                 <>
-                  <section className="mb-6 rounded-xl bg-elevated p-5 shadow-border"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Private library</p><h1 className="mt-2 font-display text-4xl text-fg">Your shelves, your tags.</h1><p className="mt-2 text-sm text-muted">Tags, history, and organization remain private to this browser. Edit a title’s tags from its preview or player.</p></div><Button disabled={!videos.length} onClick={() => { const choices = adultTag === "All" ? adultSorted : adultSorted.filter((video) => (tags[video.id] ?? []).includes(adultTag)); const pick = choices[Math.floor(Math.random() * choices.length)]; if (pick) openVideo(pick.id); }}><Shuffle className="size-4" /> Random private pick</Button></div><div className="mt-4 flex flex-wrap gap-2"><Button size="sm" variant={adultTag === "All" ? "default" : "secondary"} onClick={() => setAdultTag("All")}>All titles</Button>{adultTagNames.map((tag) => <Button key={tag} size="sm" variant={adultTag === tag ? "default" : "secondary"} onClick={() => setAdultTag(tag)}>{tag}</Button>)}</div><div className="mt-3 flex flex-wrap gap-2"><span className="self-center text-xs text-muted">Sort</span>{(["recent", "name", "favorites", "tagged", "played"] as const).map((sort) => <Button key={sort} size="sm" variant={adultSort === sort ? "default" : "secondary"} onClick={() => setAdultSort(sort)}>{sort === "tagged" ? "Most tagged" : sort === "played" ? "Last played" : sort}</Button>)}</div></section>
-                  <div className="mb-6 grid gap-3 sm:grid-cols-2"><div className="rounded-lg bg-surface p-4 shadow-border"><p className="text-sm font-medium text-fg">Private favorite links</p><p className="mt-1 text-xs leading-5 text-muted">Reserved for your personally saved, consented links. Nothing is added or shared automatically.</p></div><div className="rounded-lg bg-surface p-4 shadow-border"><p className="text-sm font-medium text-fg">Recommended sites</p><p className="mt-1 text-xs leading-5 text-muted">Reserved for future opt-in recommendations. Link sorting will stay separate from your private video catalog.</p></div></div>
-                  <PrivateWebShortcuts />
                   <TitleRail title="Continue watching" videos={adultContinue} variant="rail" />
-                  <TitleRail title="Favorites" videos={adultFavorites} variant="poster" />
-                  <TitleRail title="Most organized" videos={adultTagged} variant="rail" />
-                  <TitleRail title="Needs a tag" videos={adultNeedsTags} variant="rail" />
-                  <TitleRail title="Recently added" videos={[...videos].sort((a, b) => b.addedAt - a.addedAt).slice(0, 24)} variant="rail" />
-                  <TitleRail title={adultTag === "All" ? "All private titles" : `Tagged · ${adultTag}`} videos={adultTag === "All" ? adultSorted : adultSorted.filter((video) => (tags[video.id] ?? []).includes(adultTag))} variant="poster" />
+                  <TitleRail title="I cummed to it" reason="Private local marks only — counts stay on this device." videos={markedAdult} variant="rail" />
                   <TitleRail
-                    title="History"
-                    videos={adultHistory}
+                    title="Latest from official adult APIs"
+                    reason="Cached Eporner / RedTube / live / Reddit shelves paint immediately from IndexedDB; explore deepens recommendations and discovery."
+                    videos={filteredEporner.slice(0, LIBRARY_LIMITS.adultFastStartRailSize)}
                     variant="rail"
-                    playedAt={playedAt}
                   />
-                  {adultFolders.map((folder) => (
-                    <TitleRail
-                      key={folder.id}
-                      title={folder.name}
-                      videos={videos.filter((v) => v.folderId === folder.id)}
-                      variant="rail"
-                    />
-                  ))}
-                  {adultFolders.length === 0 && (
-                    <div className="rounded-xl bg-surface px-6 py-14 text-center shadow-border">
-                      <Lock className="mx-auto size-6 text-muted" />
-                      <p className="mt-3 font-display text-2xl text-fg">No private folders yet</p>
-                      <p className="mx-auto mt-2 max-w-sm text-sm text-muted">
-                        Add a private folder, or lock an existing source. Those titles stay off
-                        Home, Movies, and Favorites.
+                  {!adultExploreVisible && (
+                    <section className="mb-6 rounded-xl border border-border bg-surface p-5 shadow-border">
+                      <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Fast start</p>
+                      <h2 className="mt-2 font-display text-2xl text-fg">Open Adults fast, then deepen discovery when you want it.</h2>
+                      <p className="mt-1 text-sm text-muted">
+                        Continue, marks, and the latest cached API titles are ready immediately. Recommendations, fetish filters, the full poster grid, and milestone catalogs wait until requested — same pattern as YouTube and Twitch.
                       </p>
-                      <Button className="mt-5" onClick={() => onAddFolder(undefined, true)}>
-                        Add private folder
+                      <Button className="mt-4" variant="secondary" onClick={() => setAdultExploreVisible(true)}>
+                        Explore recommendations and full catalog
                       </Button>
-                    </div>
+                    </section>
+                  )}
+                  {adultExploreVisible && (
+                    <>
+                      <AdultPanel showMilestones={adultDeepVisible} autoPull />
+                      <TitleRail title="Recommended" reason="YouTube-style ranking from ratings, favorites, liked overlap, and recent source/fetish tags." videos={adultTag === "All" ? adultRecommended : adultRecommended.filter((video) => (tags[video.id] ?? []).includes(adultTag))} variant="rail" />
+                      <TitleRail title="Related recommended" reason="Nearby titles sharing your top adult tags, continue-watching tags, and favorite fetish overlap." videos={adultTag === "All" ? adultRelatedRecommended : adultRelatedRecommended.filter((video) => (tags[video.id] ?? []).includes(adultTag))} variant="rail" />
+                      <div className="mb-5 flex flex-wrap gap-2"><Button size="sm" variant={adultTag === "All" ? "default" : "secondary"} onClick={() => setAdultTag("All")}>All adult tags</Button>{(adultTagRank.length ? adultTagRank.map((row) => row.tag) : epornerTagNames).slice(0, 40).map((tag) => <Button key={`adult-tag-${tag}`} size="sm" variant={adultTag === tag ? "default" : "secondary"} onClick={() => setAdultTag(tag)}>#{tag}</Button>)}</div>
+                      {adultTag !== "All" && <p className="-mt-2 mb-5 text-xs text-accent">Filtering adult shelves by #{adultTag} · {filteredEporner.length.toLocaleString()} matching videos.</p>}
+                      <TitleRail title="From official adult APIs" reason="Official adult APIs and live room lists with source and fetish tags — one source failing still leaves the others." videos={filteredEporner} variant="rail" />
+                      <PosterGrid videos={filteredEporner} />
+                      {!adultDeepVisible && (
+                        <section className="mb-6 rounded-xl border border-border bg-surface p-5 shadow-border">
+                          <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Deep discovery</p>
+                          <h2 className="mt-2 font-display text-2xl text-fg">Milestones, private shelves, and history.</h2>
+                          <p className="mt-1 text-sm text-muted">Link-out catalogs, private folder rails, and full adult history stay optional so opening Adults stays responsive with a large cached archive.</p>
+                          <Button className="mt-4" variant="secondary" onClick={() => setAdultDeepVisible(true)}>Load milestones and private shelves</Button>
+                        </section>
+                      )}
+                      {adultDeepVisible && (
+                        <>
+                          <section className="mb-6 rounded-xl bg-elevated p-5 shadow-border"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Private library</p><h1 className="mt-2 font-display text-4xl text-fg">Your shelves, your tags.</h1><p className="mt-2 text-sm text-muted">Tags, history, and organization remain private to this browser. Edit a title’s tags from its preview or player.</p></div><Button disabled={!videos.length} onClick={() => { const choices = adultTag === "All" ? adultSorted : adultSorted.filter((video) => (tags[video.id] ?? []).includes(adultTag)); const pick = choices[Math.floor(Math.random() * choices.length)]; if (pick) openVideo(pick.id); }}><Shuffle className="size-4" /> Random private pick</Button></div><div className="mt-4 flex flex-wrap gap-2"><Button size="sm" variant={adultTag === "All" ? "default" : "secondary"} onClick={() => setAdultTag("All")}>All titles</Button>{adultTagNames.map((tag) => <Button key={tag} size="sm" variant={adultTag === tag ? "default" : "secondary"} onClick={() => setAdultTag(tag)}>{tag}</Button>)}</div><div className="mt-3 flex flex-wrap gap-2"><span className="self-center text-xs text-muted">Sort</span>{(["recent", "name", "favorites", "tagged", "played"] as const).map((sort) => <Button key={sort} size="sm" variant={adultSort === sort ? "default" : "secondary"} onClick={() => setAdultSort(sort)}>{sort === "tagged" ? "Most tagged" : sort === "played" ? "Last played" : sort}</Button>)}</div></section>
+                          <div className="mb-6 grid gap-3 sm:grid-cols-2"><div className="rounded-lg bg-surface p-4 shadow-border"><p className="text-sm font-medium text-fg">Private favorite links</p><p className="mt-1 text-xs leading-5 text-muted">Reserved for your personally saved, consented links. Nothing is added or shared automatically.</p></div><div className="rounded-lg bg-surface p-4 shadow-border"><p className="text-sm font-medium text-fg">Recommended sites</p><p className="mt-1 text-xs leading-5 text-muted">Reserved for future opt-in recommendations. Link sorting will stay separate from your private video catalog.</p></div></div>
+                          <PrivateWebShortcuts />
+                          <TitleRail title="Favorites" videos={adultFavorites} variant="poster" />
+                          <TitleRail title="Most organized" videos={adultTagged} variant="rail" />
+                          <TitleRail title="Needs a tag" videos={adultNeedsTags} variant="rail" />
+                          <TitleRail title="Recently added" videos={[...videos].sort((a, b) => b.addedAt - a.addedAt).slice(0, 24)} variant="rail" />
+                          <TitleRail title={adultTag === "All" ? "All private titles" : `Tagged · ${adultTag}`} videos={adultTag === "All" ? adultSorted : adultSorted.filter((video) => (tags[video.id] ?? []).includes(adultTag))} variant="poster" />
+                          <TitleRail title="History" videos={adultHistory} variant="rail" playedAt={playedAt} />
+                          {adultFolders.map((folder) => (
+                            <TitleRail
+                              key={folder.id}
+                              title={folder.name}
+                              videos={videos.filter((v) => v.folderId === folder.id)}
+                              variant="rail"
+                            />
+                          ))}
+                          {adultFolders.length === 0 && (
+                            <div className="rounded-xl bg-surface px-6 py-14 text-center shadow-border">
+                              <Lock className="mx-auto size-6 text-muted" />
+                              <p className="mt-3 font-display text-2xl text-fg">No private folders yet</p>
+                              <p className="mx-auto mt-2 max-w-sm text-sm text-muted">
+                                Add a private folder, or lock an existing source. Those titles stay off
+                                Home, Movies, and Favorites.
+                              </p>
+                              <Button className="mt-4" onClick={() => onAddFolder(undefined, true)}>
+                                Add private folder
+                              </Button>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </>
                   )}
                 </>
               )}
@@ -1072,7 +1198,28 @@ export function LibraryApp() {
                     )}
                   </div>
                   {query && <section className="mb-5 rounded-lg border border-border bg-surface p-4 shadow-border" aria-label="Search ranking and matching tags"><div className="flex flex-wrap items-baseline justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Search ranking</p><p className="mt-1 text-sm text-muted">Exact title and creator matches lead, followed by matching tags and your saved reactions.</p></div><span className="text-xs text-accent">{searchInsights.ranked.length.toLocaleString()} ranked results</span></div>{searchInsights.tags.length > 0 && <div className="mt-3 flex flex-wrap gap-2"><span className="self-center text-xs text-muted">Top tags</span>{searchInsights.tags.map(({ tag, count }) => <Button key={tag} size="sm" variant="secondary" onClick={() => setQuery(tag)}>#{tag} · {count}</Button>)}</div>}{searchInsights.ranked.length > 0 && <div className="mt-3 grid gap-2 md:grid-cols-3">{searchInsights.ranked.slice(0, 3).map((video, index) => <button key={video.id} type="button" onClick={() => openVideo(video.id)} className="flex min-w-0 items-center gap-3 rounded-md bg-elevated px-3 py-3 text-left hover:bg-bg"><span className="shrink-0 rounded-full bg-accent/15 px-2 py-1 text-xs font-medium text-accent">#{index + 1}</span><span className="min-w-0"><span className="block truncate text-sm font-medium text-fg">{video.name}</span><span className="block truncate text-xs text-muted">{(video.remote?.channelName ?? topicsForVideo(video, tags[video.id]).slice(0, 2).join(" · ")) || "Library match"}</span></span></button>)}</div>}</section>}
-                  {sourceId === "continue" && !query && (
+                                    {(sourceId === "continue" || sourceId === "history") && !query && (adultContinue.length > 0 || adultHistory.length > 0) && (
+                    <section className="mb-5 rounded-xl border border-border bg-surface p-5 shadow-border">
+                      <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Adults activity</p>
+                      <h2 className="mt-2 font-display text-2xl text-fg">Private continue & history stay in Adults.</h2>
+                      <p className="mt-1 text-sm text-muted">
+                        Public Continue / History rails stay clean. Open Adults for private resume marks, fetish-tagged history, and I-cummed counters — catalog shelves on Home stay public-only.
+                      </p>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <Button size="sm" onClick={() => setSource("adults")}>Open Adults</Button>
+                        <Button size="sm" variant="secondary" onClick={() => { setSource("adults"); setAdultExploreVisible(true); setAdultDeepVisible(true); }}>
+                          Adults history & shelves
+                        </Button>
+                      </div>
+                      {sourceId === "continue" && adultContinue.length > 0 && (
+                        <div className="mt-4"><TitleRail title="Adults · continue watching" videos={adultContinue.slice(0, 18)} variant="rail" /></div>
+                      )}
+                      {sourceId === "history" && adultHistory.length > 0 && (
+                        <div className="mt-4"><TitleRail title="Adults · recent history" videos={adultHistory.slice(0, 18)} variant="rail" playedAt={playedAt} /></div>
+                      )}
+                    </section>
+                  )}
+{sourceId === "continue" && !query && (
                     <section className="mb-5 rounded-lg border border-border bg-surface p-4 shadow-border" aria-label="Continue recovery details">
                       <div className="flex flex-wrap items-baseline justify-between gap-3">
                         <div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Resume recovery</p><p className="mt-1 text-sm text-muted">Continue uses a provider URL or approved local path when a catalog card changes, then keeps the newest credible mark.</p></div>

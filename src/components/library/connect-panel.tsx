@@ -14,11 +14,11 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useLibrary } from "@/lib/videos/store";
-import type { RemoteKind } from "@/lib/videos/types";
+import type { FollowKind } from "@/lib/videos/types";
 
 type ImportCandidate = { query: string; kind: "youtube" | "twitch" };
 /** Split pasted lists on newlines, commas, or whitespace (URLs never contain spaces). */
-function linesToCandidates(value: string, kind: RemoteKind): ImportCandidate[] {
+function linesToCandidates(value: string, kind: FollowKind): ImportCandidate[] {
   return [
     ...new Set(
       value
@@ -32,13 +32,13 @@ function linesToCandidates(value: string, kind: RemoteKind): ImportCandidate[] {
   ].map((query) => ({ query, kind }));
 }
 
-export function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultKind?: RemoteKind; lockedKind?: RemoteKind }) {
+export function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultKind?: FollowKind; lockedKind?: FollowKind }) {
   const followRemoteQuery = useLibrary((s) => s.followRemoteQuery);
   const importBatch = useLibrary((s) => s.importBatch);
   const remoteBusy = useLibrary((s) => s.remoteBusy);
   const importProgress = useLibrary((s) => s.importProgress);
   const follows = useLibrary((s) => s.follows);
-  const [kind, setKind] = useState<RemoteKind>(lockedKind ?? defaultKind);
+  const [kind, setKind] = useState<FollowKind>(lockedKind ?? defaultKind);
   const [query, setQuery] = useState("");
   const [discovery, setDiscovery] = useState("");
   const [bulk, setBulk] = useState("");

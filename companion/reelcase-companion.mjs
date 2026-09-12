@@ -4,8 +4,8 @@
  * explicitly configured allowed roots.
  */
 import { createServer } from "node:http";
-import { existsSync, realpathSync, readdirSync, readFileSync, watch } from "node:fs";
-import { spawn } from "node:child_process";
+import { existsSync, mkdirSync, realpathSync, readdirSync, readFileSync, watch } from "node:fs";
+import { spawn, execFileSync } from "node:child_process";
 import { resolve, sep } from "node:path";
 import { networkInterfaces } from "node:os";
 import dgram from "node:dgram";
@@ -119,6 +119,79 @@ function allowedPath(rawPath) {
     return allowedRoots.some((root) => entry === root || entry.startsWith(`${root}${sep}`)) ? entry : null;
   } catch { return null; }
 }
+
+function whichBinary(name) {
+  try {
+    const out = execFileSync(process.platform === "win32" ? "where" : "which", [name], {
+      encoding: "utf8",
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: 2_000,
+    });
+    const first = String(out).split(/\r?\n/).map((line) => line.trim()).find(Boolean);
+    if (!first || !existsSync(first)) return null;
+    return realpathSync(first);
+  } catch {
+    return null;
+  }
+}
+
+function resolveYtDlpBinary() {
+  const configured = typeof process.env.YT_DLP_PATH === "string" ? process.env.YT_DLP_PATH.trim() : "";
+  if (configured) {
+    try {
+      const resolved = resolve(configured);
+      if (existsSync(resolved)) return realpathSync(resolved);
+    } catch { /* ignore bad YT_DLP_PATH */ }
+  }
+  return whichBinary(process.platform === "win32" ? "yt-dlp.exe" : "yt-dlp")
+    || (process.platform === "win32" ? whichBinary("yt-dlp") : null);
+}
+
+function underAllowedRoot(candidate) {
+  try {
+    const entry = realpathSync(candidate);
+    return allowedRoots.some((root) => entry === root || entry.startsWith(`${root}${sep}`)) ? entry : null;
+  } catch {
+    return null;
+  }
+}
+
+function resolveDownloadRoot() {
+  if (!allowedRoots.length) return null;
+  const configured = typeof process.env.REELCASE_DOWNLOAD_DIR === "string" ? process.env.REELCASE_DOWNLOAD_DIR.trim() : "";
+  if (configured) {
+    const candidate = resolve(configured);
+    // Allow creating a new folder only when an ancestor already sits under an approved root.
+    if (existsSync(candidate)) return underAllowedRoot(candidate);
+    let cursor = candidate;
+    for (let i = 0; i < 8; i += 1) {
+      const parent = resolve(cursor, "..");
+      if (parent === cursor) break;
+      if (existsSync(parent) && underAllowedRoot(parent)) {
+        try {
+          mkdirSync(candidate, { recursive: true });
+          return underAllowedRoot(candidate);
+        } catch {
+          return null;
+        }
+      }
+      cursor = parent;
+    }
+    return null;
+  }
+  const fallback = resolve(allowedRoots[0], "Reelcase Offline");
+  try {
+    if (!existsSync(fallback)) mkdirSync(fallback, { recursive: true });
+    return underAllowedRoot(fallback);
+  } catch {
+    return null;
+  }
+}
+
+const ytDlpBinary = resolveYtDlpBinary();
+const downloadRoot = resolveDownloadRoot();
+
 function inspectMedia(rawPath) {
   const path = allowedPath(rawPath);
   const ext = path?.slice(path.lastIndexOf(".")).toLowerCase();
@@ -187,7 +260,7 @@ const server = createServer(async (req, res) => {
   if (req.method === "OPTIONS") { cors(req, res); res.writeHead(204); res.end(); return; }
   if (!cors(req, res)) { reply(res, 403, { ok: false, error: "Untrusted origin" }); return; }
   if (req.method === "GET" && req.url === "/health") {
-    reply(res, 200, { ok: true, service: "reelcase-companion", version: 7, roots: allowedRoots.length, desktopEnabled: desktopRoots.some((root) => { try { return allowedRoots.includes(realpathSync(root)); } catch { return false; } }), capabilities: ["launch", "shortcut-catalog", "file-health", "batch-verify", "folder-watch", "watch-status", "cache-status", "cache-warmup", "media-inspection", "roku-ssdp-discovery"] });
+    reply(res, 200, { ok: true, service: "reelcase-companion", version: 8, roots: allowedRoots.length, desktopEnabled: desktopRoots.some((root) => { try { return allowedRoots.includes(realpathSync(root)); } catch { return false; } }), ytDlp: Boolean(ytDlpBinary), downloadRoot: downloadRoot || null, capabilities: ["launch", "shortcut-catalog", "file-health", "batch-verify", "folder-watch", "watch-status", "cache-status", "cache-warmup", "media-inspection", "roku-ssdp-discovery", "offline-save"] });
     return;
   }
   if (req.method === "GET" && req.url === "/source-health") {
@@ -272,6 +345,58 @@ const server = createServer(async (req, res) => {
       child.unref(); launches.unshift({ path: file, at: Date.now() }); launches.splice(50); reply(res, 200, { ok: true, path: file });
     }
     catch { reply(res, 500, { ok: false, error: "The launcher could not be started" }); }
+    return;
+  }
+  if (req.method === "POST" && req.url === "/offline/save") {
+    let text = "";
+    for await (const chunk of req) text += chunk;
+    let body; try { body = JSON.parse(text); } catch { reply(res, 400, { ok: false, error: "Invalid request" }); return; }
+    const url = typeof body.url === "string" ? body.url.trim() : "";
+    if (!/^https:\/\//i.test(url)) { reply(res, 400, { ok: false, error: "A https embed/watch URL is required" }); return; }
+    const binary = ytDlpBinary || resolveYtDlpBinary();
+    const outDir = downloadRoot || resolveDownloadRoot();
+    const needs = [];
+    if (!binary) needs.push("Install yt-dlp (or set YT_DLP_PATH) and restart Companion");
+    if (!outDir) needs.push("Set REELCASE_ALLOWED_ROOTS and optional REELCASE_DOWNLOAD_DIR under an allowed root");
+    if (needs.length) {
+      reply(res, 501, {
+        ok: false,
+        error: "Offline save needs yt-dlp and an allowed download folder.",
+        needs,
+        hint: {
+          YT_DLP_PATH: "Absolute path to yt-dlp if it is not on PATH",
+          REELCASE_DOWNLOAD_DIR: "Folder under REELCASE_ALLOWED_ROOTS (defaults to <first-root>/Reelcase Offline)",
+          REELCASE_ALLOWED_ROOTS: "Semicolon-separated approved roots",
+        },
+        url,
+      });
+      return;
+    }
+    try {
+      // Detached spawn: Companion acknowledges quickly; yt-dlp writes into the approved folder only.
+      const outputTemplate = `${outDir}${sep}%(title).200B [%(id)s].%(ext)s`;
+      const child = spawn(binary, ["--no-playlist", "--no-mtime", "--restrict-filenames", "-o", outputTemplate, url], {
+        detached: true,
+        stdio: "ignore",
+        windowsHide: true,
+        cwd: outDir,
+      });
+      child.unref();
+      reply(res, 202, {
+        ok: true,
+        detail: `Download started into ${outDir}`,
+        path: outDir,
+        binary,
+        url,
+      });
+    } catch (error) {
+      reply(res, 500, {
+        ok: false,
+        error: error?.message || "yt-dlp could not be started",
+        needs: ["Confirm yt-dlp runs from a terminal", "Restart Companion after installing"],
+        url,
+      });
+    }
     return;
   }
   reply(res, 404, { ok: false, error: "Not found" });

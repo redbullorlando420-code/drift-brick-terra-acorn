@@ -3,6 +3,7 @@ import {
   Clapperboard,
   Clock3,
   Film,
+  Flame,
   Folder as FolderIcon,
   FolderPlus,
   Gamepad2,
@@ -82,8 +83,6 @@ export function SidebarNav({
   const restoreOne = useLibrary((s) => s.restoreOne);
   const setFolderAdult = useLibrary((s) => s.setFolderAdult);
   const unfollow = useLibrary((s) => s.unfollow);
-  const adultsUnlocked = useLibrary((s) => s.adultsUnlocked);
-  const lockAdults = useLibrary((s) => s.lockAdults);
   const favorites = useLibrary((s) => s.favorites);
   const progress = useLibrary((s) => s.progress);
   const resumeProgress = useLibrary((s) => s.resumeProgress);
@@ -132,8 +131,8 @@ export function SidebarNav({
     let favCount = 0, historyCount = 0;
     for (const id of Object.keys(favorites)) if (videosById.get(id) && !folderById.get(videosById.get(id)!.folderId)?.adult) favCount += 1;
     for (const entry of history) { const video = videosById.get(entry.id); if (video && !folderById.get(video.folderId)?.adult && !(hideDemo && video.isSample)) historyCount += 1; }
-    return { publicFolders, networkFolders, adultFolders, counts: { publicCount, adultCount: adultsUnlocked ? adultCount : undefined, ytCount, twitchCount, liveCount, continueCount, favCount, historyCount } };
-  }, [adultsUnlocked, favorites, folders, hideDemo, history, progress, resumeProgress, videos]);
+    return { publicFolders, networkFolders, adultFolders, counts: { publicCount, adultCount, ytCount, twitchCount, liveCount, continueCount, favCount, historyCount } };
+  }, [favorites, folders, hideDemo, history, progress, resumeProgress, videos]);
   const demo = folders.find((f) => f.kind === "demo" && !hideDemo);
   const youtubeFollowing = networkFolders.filter((folder) => folder.kind === "youtube");
   const twitchFollowing = networkFolders.filter((folder) => folder.kind === "twitch");
@@ -212,33 +211,9 @@ export function SidebarNav({
         <NavItem
           active={sourceId === "adults"}
           onClick={() => go("adults")}
-          icon={adultsUnlocked ? LockOpen : Lock}
+          icon={Flame}
           label="Adults"
           count={counts.adultCount}
-          trailing={
-            adultsUnlocked ? (
-              <span
-                role="button"
-                tabIndex={0}
-                aria-label="Lock Adults"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  lockAdults();
-                  onNavigate?.();
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    lockAdults();
-                  }
-                }}
-                className="flex size-7 items-center justify-center rounded-sm text-subtle hover:bg-bg hover:text-fg"
-              >
-                <Lock className="size-3.5" />
-              </span>
-            ) : undefined
-          }
         />
         <NavItem
           active={sourceId === "photos"}
@@ -381,7 +356,7 @@ export function SidebarNav({
             {followingOpen && (youtubeFollowing.length > followingLimit || twitchFollowing.length > followingLimit) && <Button variant="ghost" size="sm" className="mx-1 mt-1" onClick={() => setFollowingLimit((value) => value + 48)}>Show 48 more follows</Button>}
           </>
         )}
-        {adultsUnlocked && adultFolders.length > 0 && (
+        {adultFolders.length > 0 && (
           <>
             <p className="mt-3 px-2 pb-1 text-xs font-medium tracking-wide text-subtle uppercase">
               Private
@@ -407,7 +382,7 @@ export function SidebarNav({
           <FolderPlus className="size-4" />
           Add folder
         </Button>
-        {sourceId === "adults" && adultsUnlocked && (
+        {sourceId === "adults" && (
           <Button variant="secondary" className="w-full" onClick={() => onAddFolder(true)}>
             <Lock className="size-4" />
             Private folder

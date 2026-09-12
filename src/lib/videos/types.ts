@@ -73,7 +73,7 @@ export const SKIP_DIRS = new Set([
   "cache",
 ]);
 
-export type FolderKind = "demo" | "directory" | "files" | "youtube" | "twitch";
+export type FolderKind = "demo" | "directory" | "files" | "youtube" | "twitch" | "eporner" | "redtube" | "chaturbate" | "camsoda" | "myfreecams" | "reddit" | "booru" | "redgifs";
 
 export type Folder = {
   id: string;
@@ -112,7 +112,8 @@ export type LibraryVideo = {
   remote?: RemoteRef;
 };
 
-export type RemoteKind = "youtube" | "twitch";
+export type FollowKind = "youtube" | "twitch";
+export type RemoteKind = FollowKind | "eporner" | "redtube" | "chaturbate" | "camsoda" | "myfreecams" | "reddit" | "booru" | "redgifs";
 
 export type RemoteRef = {
   kind: RemoteKind;
@@ -128,6 +129,8 @@ export type RemoteRef = {
   embedUrl?: string;
   watchUrl?: string;
   previewUrl?: string;
+  /** Real provider comments when an official public feed exposes them. */
+  comments?: Array<{ id: string; author?: string; body: string; score?: number }>;
 };
 
 export const VIEWER_FRESHNESS_MS = 5 * 60_000;
@@ -147,7 +150,7 @@ export function hasFreshViewerCount(remote?: RemoteRef, now = Date.now()) {
 
 export type FollowedChannel = {
   id: string;
-  kind: RemoteKind;
+  kind: FollowKind;
   handle: string;
   title: string;
   channelId?: string;

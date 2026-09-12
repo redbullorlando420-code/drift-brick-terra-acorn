@@ -1,4 +1,18 @@
 import { create } from "zustand";
+import {
+  ADULT_FOLDER_BY_PROVIDER,
+  ADULT_FOLDER_IDS,
+  ADULT_PULL_PROVIDERS,
+  EPORNER_FOLDER_ID,
+  REDTUBE_FOLDER_ID,
+  adultIngestTags,
+  type AdultPullProvider,
+} from "./adult-sites";
+import { saveAdultArchiveCursors } from "./adult-archive-cursors";
+import {
+  findFreshAdultPullFingerprint,
+  rememberAdultPullFingerprint,
+} from "@/lib/remote/adult-pull-cache";
 import { mergeRemoteRefresh } from "./remote-merge";
 import { measureInteraction } from "@/lib/interaction-budget";
 import {
@@ -26,7 +40,6 @@ import {
   saveSourceHealth,
   type Prefs,
 } from "./persist";
-import { hashPin, isPinShape } from "./pin";
 import {
   ingestDataTransfer,
   ingestDirectoryHandle,
@@ -88,6 +101,7 @@ type LibraryState = {
   resumeProgress: Record<string, ResumeMark>;
   history: HistoryEntry[];
   viewCounts: Record<string, number>;
+  cameCounts: Record<string, number>;
   hideDemo: boolean;
   hardwareAccel: boolean;
   adultPinHash: string | null;
@@ -113,6 +127,7 @@ type LibraryState = {
   setSource: (id: SourceId) => void;
   toggleFavorite: (id: string) => void;
   toggleLike: (id: string) => void;
+  markCame: (id: string) => void;
   setVideoTags: (id: string, tags: string[]) => void;
   autoTagLibrary: () => number;
   setVideoCategory: (id: string, category: string) => void;
@@ -130,10 +145,7 @@ type LibraryState = {
   setHideDemo: (hide: boolean) => void;
   setHardwareAccel: (on: boolean) => void;
   setFolderAdult: (folderId: string, adult: boolean) => void;
-  setAdultPin: (pin: string) => Promise<boolean>;
-  unlockAdults: (pin: string) => Promise<boolean>;
-  lockAdults: () => void;
-  resetAdultPin: () => void;
+  searchAdultFeed: (query?: string, order?: string, opts?: { page?: number; maxVideos?: number; append?: boolean; providers?: AdultPullProvider[] | "all"; providerPages?: Partial<Record<AdultPullProvider, number>>; resumeArchive?: boolean }) => Promise<number>;
   addFolder: (
     inputEl?: HTMLInputElement | null,
     startIn?: WellKnownStart,
@@ -172,6 +184,7 @@ function persistNow(get: () => LibraryState) {
     resumeProgress: s.resumeProgress,
     history: s.history,
     viewCounts: s.viewCounts,
+    cameCounts: s.cameCounts,
     view: s.view,
     sort: s.sort,
     hideDemo: s.hideDemo,
@@ -190,13 +203,13 @@ function persistNow(get: () => LibraryState) {
     unavailableVideoIds: Object.keys(s.unavailable),
   };
   savePrefs(prefs);
-  void saveActivitySnapshot({ history: s.history, progress: s.progress, resumeProgress: s.resumeProgress, viewCounts: s.viewCounts, savedAt: Date.now() }).catch(() => queueResumeReplay(s.resumeProgress));
+  void saveActivitySnapshot({ history: s.history, progress: s.progress, resumeProgress: s.resumeProgress, viewCounts: s.viewCounts, cameCounts: s.cameCounts, savedAt: Date.now() }).catch(() => queueResumeReplay(s.resumeProgress));
 }
 
 function persistActivity(get: () => LibraryState) {
   if (!preferencesRestored) return;
   const s = get();
-  void saveActivitySnapshot({ history: s.history, progress: s.progress, resumeProgress: s.resumeProgress, viewCounts: s.viewCounts, savedAt: Date.now() }).catch(() => queueResumeReplay(s.resumeProgress));
+  void saveActivitySnapshot({ history: s.history, progress: s.progress, resumeProgress: s.resumeProgress, viewCounts: s.viewCounts, cameCounts: s.cameCounts, savedAt: Date.now() }).catch(() => queueResumeReplay(s.resumeProgress));
 }
 
 function mergeHistory(a: HistoryEntry[], b: HistoryEntry[]): HistoryEntry[] {
@@ -377,7 +390,9 @@ function compactIngestedTags(existing: string[], inferred: string[]) {
   const seen = new Set<string>();
   const compact: string[] = [];
   for (const raw of [...existing, ...inferred]) {
-    const tag = raw.trim().toLowerCase().replace(/^keyword-/, "").replace(/^creator-/, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+    // Preserve source- / creator- / fetish- / provider- families for Adult filters.
+    // Only strip the legacy keyword- wrapper so cards stay readable.
+    let tag = raw.trim().toLowerCase().replace(/^keyword-/, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
     if (!tag || tag === "http" || tag === "https" || seen.has(tag)) continue;
     seen.add(tag);
     compact.push(tag);
@@ -513,12 +528,13 @@ function applyPrefs(partial: Partial<LibraryState>): Partial<LibraryState> {
     })),
     history: prefs.history ?? [],
     viewCounts: prefs.viewCounts ?? {},
+    cameCounts: prefs.cameCounts ?? {},
     view: prefs.view ?? "grid",
     sort: prefs.sort ?? "name",
     hideDemo: true,
-    sourceId: prefs.sourceId === "adults" ? "home" : (prefs.sourceId ?? "home"),
+    sourceId: prefs.sourceId ?? "home",
     hardwareAccel: prefs.hardwareAccel ?? true,
-    adultPinHash: prefs.adultPinHash ?? null,
+    adultPinHash: null,
     // An empty saved list is intentional. Do not repopulate it with sample follows.
     follows: dedupeFollows(prefs.follows ?? []),
     notices: prefs.notices ?? [],
@@ -552,10 +568,11 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   resumeProgress: {},
   history: [],
   viewCounts: {},
+  cameCounts: {},
   hideDemo: true,
   hardwareAccel: true,
   adultPinHash: null,
-  adultsUnlocked: false,
+  adultsUnlocked: true,
   activeId: null,
   previewId: null,
   scanning: null,
@@ -604,6 +621,10 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     });
     persistSoon(get);
     cacheRemotesSoon(get);
+  },
+  markCame: (id) => {
+    set((s) => ({ cameCounts: { ...s.cameCounts, [id]: (s.cameCounts[id] ?? 0) + 1 } }));
+    persistNow(get);
   },
   setVideoTags: (id, tags) => {
     set((s) => ({
@@ -776,35 +797,131 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     }));
     persistNow(get);
   },
-  setAdultPin: async (pin) => {
-    if (!isPinShape(pin)) return false;
-    const adultPinHash = await hashPin(pin);
-    set({ adultPinHash, adultsUnlocked: true });
-    persistNow(get);
-    return true;
-  },
-  unlockAdults: async (pin) => {
-    const { adultPinHash } = get();
-    if (!adultPinHash || !isPinShape(pin)) return false;
-    const hashed = await hashPin(pin);
-    if (hashed !== adultPinHash) return false;
-    set({ adultsUnlocked: true, sourceId: "adults" });
-    return true;
-  },
-  lockAdults: () => {
-    set((s) => {
-      const current = s.videos.find((v) => v.id === s.activeId);
-      const hidePlayer = current ? isAdultVideo(current, s.folders) : false;
-      return {
-        adultsUnlocked: false,
-        sourceId: s.sourceId === "adults" ? "home" : s.sourceId,
-        activeId: hidePlayer ? null : s.activeId,
-      };
-    });
-  },
-  resetAdultPin: () => {
-    set({ adultPinHash: null, adultsUnlocked: false });
-    persistNow(get);
+  searchAdultFeed: async (query = "all", order = "top-weekly", opts) => {
+    const providers = opts?.providers ?? "all";
+    const providerList = providers === "all" ? [...ADULT_PULL_PROVIDERS] : providers;
+    const label =
+      providerList.length === 1
+        ? `Pulling ${providerList[0]} catalog…`
+        : "Pulling official adult catalogs…";
+    set({ remoteBusy: true, importProgress: { done: 0, total: 1, label } });
+    try {
+      const { searchAdultVideos } = await import("@/lib/remote/api");
+      const page = opts?.page ?? 1;
+      const maxVideos = opts?.maxVideos ?? LIBRARY_LIMITS.epornerVideosPerPull;
+      const append = Boolean(opts?.append);
+      const providerPages = opts?.providerPages;
+      const providerKey = providerList.slice().sort().join("+");
+      // Fresh identical pulls reuse the durable catalog instead of re-hitting APIs.
+      if (!append && !providerPages && findFreshAdultPullFingerprint(query, order, page, providerKey)) {
+        set({ remoteBusy: false, importProgress: null });
+        return get().videos.filter((v) => (ADULT_FOLDER_IDS as readonly string[]).includes(v.folderId)).length;
+      }
+      const result = await searchAdultVideos({ data: { query, order, page, maxVideos, append, providers, providerPages } });
+      if (result.providerNextPages) {
+        saveAdultArchiveCursors(query, order, result.providerNextPages);
+      }
+      rememberAdultPullFingerprint({
+        at: Date.now(),
+        query: query.trim().toLowerCase() || "all",
+        order,
+        page,
+        providers: providerKey,
+        count: result.videos.length,
+      });
+      const videos = result.videos;
+      const touched = new Set(videos.map((v) => v.folderId));
+      set((s) => {
+        let nextVideos = s.videos;
+        let folders = s.folders;
+        const tagPatch: Record<string, string[]> = {};
+
+        for (const folderId of ADULT_FOLDER_IDS) {
+          if (!touched.has(folderId) && append) continue;
+          if (!touched.has(folderId) && !append) {
+            // Full replace mode for selected providers only — leave untouched provider shelves.
+            continue;
+          }
+          const incoming = videos.filter((v) => v.folderId === folderId);
+          const existingRemote = append
+            ? nextVideos.filter((v) => v.folderId === folderId)
+            : [];
+          const byId = new Map(existingRemote.map((v) => [v.id, v]));
+          for (const video of incoming) byId.set(video.id, video);
+          const merged = [...byId.values()].sort((a, b) => b.addedAt - a.addedAt);
+          const provider = (Object.keys(ADULT_FOLDER_BY_PROVIDER) as AdultPullProvider[]).find(
+            (key) => ADULT_FOLDER_BY_PROVIDER[key].id === folderId,
+          );
+          const baseFolder = provider ? ADULT_FOLDER_BY_PROVIDER[provider] : ADULT_FOLDER_BY_PROVIDER.eporner;
+          const kind = baseFolder.kind;
+          const hasFolder = folders.some((f) => f.id === folderId);
+          folders = hasFolder
+            ? folders.map((f) =>
+                f.id === folderId ? { ...f, videoCount: merged.length, adult: true, kind } : f,
+              )
+            : [...folders, { ...baseFolder, videoCount: merged.length }];
+          nextVideos = [...nextVideos.filter((v) => v.folderId !== folderId), ...merged];
+        }
+
+        for (const video of videos) {
+          const source = video.remote?.kind ?? video.folderId.split(":")[0] ?? "eporner";
+          const hostExtra =
+            source === "booru" && video.remote?.channelId
+              ? [video.remote.channelId]
+              : source === "reddit" && video.remote?.channelId
+                ? [`reddit-${video.remote.channelId}`]
+                : [];
+          const creatorNames = [
+            video.remote?.channelName,
+            video.remote?.videoId && (source === "chaturbate" || source === "camsoda" || source === "myfreecams")
+              ? video.remote.videoId
+              : undefined,
+          ];
+          // Booru owners live in description/tagline as space tags; prefer remote.channelName when it is an owner.
+          tagPatch[video.id] = compactIngestedTags(s.tags[video.id] ?? [], [
+            ...remoteMetadataTags(video),
+            ...adultIngestTags({
+              source,
+              extraSources: hostExtra,
+              creatorNames,
+              apiKeywords: video.description ?? video.tagline ?? "",
+              title: video.name,
+              description: video.description ?? video.tagline ?? "",
+              limit: LIBRARY_LIMITS.adultKeywordTagsPerTitle + 24,
+            }),
+          ]);
+        }
+
+        return {
+          folders,
+          videos: nextVideos,
+          tags: { ...s.tags, ...tagPatch },
+          adultsUnlocked: true,
+          remoteBusy: false,
+          importProgress: null,
+        };
+      });
+      persistNow(get);
+      // Durable IndexedDB catalog like YouTube/Twitch folders — keep Adult shelves
+      // across reloads without another full provider pull.
+      let writeChain: Promise<void> = Promise.resolve();
+      for (const folderId of touched) {
+        if (append) {
+          const incoming = videos.filter((v) => v.folderId === folderId);
+          if (!incoming.length) continue;
+          writeChain = writeChain.then(() => appendCatalogVideos(incoming)).catch(() => undefined);
+        } else {
+          const folderVideos = get().videos.filter((v) => v.folderId === folderId);
+          if (!folderVideos.length) continue;
+          writeChain = writeChain.then(() => saveFolderVideos(folderId, folderVideos)).catch(() => undefined);
+        }
+      }
+      await writeChain;
+      return get().videos.filter((v) => (ADULT_FOLDER_IDS as readonly string[]).includes(v.folderId)).length;
+    } catch (err) {
+      set({ remoteBusy: false, importProgress: null });
+      throw err;
+    }
   },
   addFolder: async (inputEl, startIn, opts) => {
     const result = await pickDirectory(startIn);
@@ -1000,6 +1117,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           resumeProgress,
           progress: reconcileResumeForVideos(s.videos, { ...(activity?.progress ?? {}), ...s.progress }, resumeProgress),
           viewCounts: { ...(activity?.viewCounts ?? {}), ...s.viewCounts },
+          cameCounts: { ...(activity?.cameCounts ?? {}), ...s.cameCounts },
         };
       });
     }).catch(() => undefined);
@@ -1638,7 +1756,7 @@ function publicList(state: LibraryState): LibraryVideo[] {
 }
 
 function adultList(state: LibraryState): LibraryVideo[] {
-  if (!state.adultsUnlocked) return [];
+  // Adults section is open; private shelves still stay off public rails via folder.adult.
   const adult = adultIdSet(state.folders);
   return state.videos.filter((v) => !state.unavailable[v.id] && adult.has(v.folderId));
 }
@@ -1763,23 +1881,32 @@ export function selectHistory(state: LibraryState, adult = false): LibraryVideo[
       if (!h.url) return null;
       const isYoutube = /youtube\.com|youtu\.be/i.test(h.url);
       const isTwitch = /twitch\.tv/i.test(h.url);
+      const isEporner = /eporner\.com/i.test(h.url);
+      const isRedtube = /redtube\.com/i.test(h.url);
+      const isChaturbate = /chaturbate\.com/i.test(h.url);
+      const isCamsoda = /camsoda\.com/i.test(h.url);
+      const isMfc = /myfreecams\.com|mfc\.cdn/i.test(h.url);
+      const isReddit = /reddit\.com|redd\.it/i.test(h.url);
+      const isBooru = /xbooru\.com|tbib\.org|hypnohub\.net/i.test(h.url);
+      const isRedgifs = /redgifs\.com/i.test(h.url);
+      const adultKind = isEporner ? "eporner" : isRedtube ? "redtube" : isChaturbate ? "chaturbate" : isCamsoda ? "camsoda" : isMfc ? "myfreecams" : isReddit ? "reddit" : isBooru ? "booru" : isRedgifs ? "redgifs" : null;
       const signature = `${h.at}:${h.url}:${h.position ?? ""}:${h.duration ?? ""}`;
       const cachedRecovery = historyRecoveryCardCache.get(h.id);
       if (cachedRecovery?.signature === signature) return cachedRecovery.video;
       const recovered = {
         id: h.id,
-        folderId: "history:recovery",
-        name: isYoutube ? "Saved YouTube history" : isTwitch ? "Saved Twitch history" : "Saved playback history",
+        folderId: adultKind ? `history:recovery:${adultKind}` : "history:recovery",
+        name: isYoutube ? "Saved YouTube history" : isTwitch ? "Saved Twitch history" : adultKind ? `Saved ${adultKind} history` : "Saved playback history",
         path: h.url,
         src: h.url,
-        extension: isYoutube ? "yt" : isTwitch ? "vod" : "history",
-        mime: isYoutube ? "video/youtube" : isTwitch ? "video/twitch" : "video/history",
+        extension: isYoutube ? "yt" : isTwitch ? "vod" : adultKind ?? "history",
+        mime: isYoutube ? "video/youtube" : isTwitch ? "video/twitch" : adultKind ? `video/${adultKind}` : "video/history",
         size: 0,
         duration: h.duration,
         addedAt: h.at,
         tagline: "Original card is not cached right now. The saved link is retained for recovery.",
-        remote: isYoutube || isTwitch ? {
-          kind: isYoutube ? "youtube" : "twitch",
+        remote: isYoutube || isTwitch || adultKind ? {
+          kind: isYoutube ? "youtube" : isTwitch ? "twitch" : adultKind!,
           live: false,
           embedUrl: h.url,
           watchUrl: h.url,
@@ -1792,6 +1919,36 @@ export function selectHistory(state: LibraryState, adult = false): LibraryVideo[
       return recovered;
     })
     .filter((v): v is LibraryVideo => v != null);
+}
+
+export function selectEporner(state: LibraryState): LibraryVideo[] {
+  return state.videos
+    .filter((v) => v.remote?.kind === "eporner" || v.folderId === EPORNER_FOLDER_ID)
+    .sort((a, b) => b.addedAt - a.addedAt);
+}
+
+export function selectRedtube(state: LibraryState): LibraryVideo[] {
+  return state.videos
+    .filter((v) => v.remote?.kind === "redtube" || v.folderId === REDTUBE_FOLDER_ID)
+    .sort((a, b) => b.addedAt - a.addedAt);
+}
+
+/** Combined official adult pull shelves (Eporner + RedTube). */
+export function selectAdultRemote(state: LibraryState): LibraryVideo[] {
+  return state.videos
+    .filter(
+      (v) =>
+        v.remote?.kind === "eporner" ||
+        v.remote?.kind === "redtube" ||
+        v.remote?.kind === "chaturbate" ||
+        v.remote?.kind === "camsoda" ||
+        v.remote?.kind === "myfreecams" ||
+        v.remote?.kind === "reddit" ||
+        v.remote?.kind === "booru" ||
+        v.remote?.kind === "redgifs" ||
+        (ADULT_FOLDER_IDS as readonly string[]).includes(v.folderId),
+    )
+    .sort((a, b) => b.addedAt - a.addedAt);
 }
 
 export function selectYoutube(state: LibraryState): LibraryVideo[] {

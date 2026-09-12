@@ -4,6 +4,7 @@ import {
   Cpu,
   ExternalLink,
   Glasses,
+  Flame,
   Heart,
   Maximize,
   Minimize,
@@ -30,7 +31,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn, formatBytes, formatTime } from "@/lib/utils";
 import { getNote, getRating, setNote as saveNote, setRating as saveRating } from "@/lib/media-feedback";
-import { useLibrary } from "@/lib/videos/store";
+import { AdultComments } from "@/components/library/adult-comments";
+import { AdultImageLightbox } from "@/components/library/adult-image-lightbox";
+import { adultRemoteLabel, isAdultImageKind, isAdultPullKind } from "@/lib/videos/adult-sites";
+import { requestAdultOfflineSave } from "@/lib/videos/adult-offline-save";
+import { toast } from "sonner";
+import { isAdultVideo, useLibrary } from "@/lib/videos/store";
 import { useThumbs } from "@/lib/videos/thumbs";
 import { resolvePlayUrl } from "@/lib/videos/sources";
 import { hasFreshViewerCount, isLikelyPlayable } from "@/lib/videos/types";
@@ -91,6 +97,9 @@ export function Player({ playlist }: { playlist: string[] }) {
   const folder = useLibrary((s) => s.folders.find((item) => item.id === video?.folderId));
   const fav = useLibrary((s) => (s.activeId ? Boolean(s.favorites[s.activeId]) : false));
   const liked = useLibrary((s) => (s.activeId ? Boolean(s.likes[s.activeId]) : false));
+  const cameCount = useLibrary((s) => (s.activeId ? (s.cameCounts[s.activeId] ?? 0) : 0));
+  const markCame = useLibrary((s) => s.markCame);
+  const folders = useLibrary((s) => s.folders);
   const tags = useLibrary((s) => (s.activeId ? (s.tags[s.activeId] ?? EMPTY_TAGS) : EMPTY_TAGS));
   const category = useLibrary((s) => (s.activeId ? (s.categories[s.activeId] ?? "") : ""));
   const saved = useLibrary((s) => (s.activeId ? s.progress[s.activeId] : undefined));
@@ -388,15 +397,22 @@ export function Player({ playlist }: { playlist: string[] }) {
 
   if (!video) return null;
   const remote = video.remote;
-  const embedSrc = remote
-    ? remote.kind === "twitch"
-      ? twitchEmbed(remote.embedUrl ?? "")
-      : remote.kind === "youtube"
-        ? youtubeEmbed(remote.embedUrl ?? video.src ?? "")
-        : remote.embedUrl
-          ? `${remote.embedUrl}${remote.embedUrl.includes("?") ? "&" : "?"}autoplay=1&rel=0&modestbranding=1`
-          : null
-    : null;
+  const adultImage = Boolean(
+    remote && isAdultImageKind(remote.kind, video.mime, video.extension),
+  );
+  const embedSrc = adultImage
+    ? null
+    : remote
+      ? remote.kind === "twitch"
+        ? twitchEmbed(remote.embedUrl ?? "")
+        : remote.kind === "youtube"
+          ? youtubeEmbed(remote.embedUrl ?? video.src ?? "")
+          : isAdultPullKind(remote.kind)
+            ? remote.embedUrl ?? video.src ?? null
+            : remote.embedUrl
+              ? `${remote.embedUrl}${remote.embedUrl.includes("?") ? "&" : "?"}autoplay=1&rel=0&modestbranding=1`
+              : null
+      : null;
 
   const shown = scrub ?? current;
   const dur = duration || capturedDur || video.duration || 0;
@@ -411,7 +427,9 @@ export function Player({ playlist }: { playlist: string[] }) {
       onMouseMove={reveal}
       onTouchStart={reveal}
     >
-      {embedSrc ? (
+      {adultImage ? (
+        <AdultImageLightbox video={video} tags={tags} />
+      ) : embedSrc ? (
         <iframe
           key={embedSrc}
           title={video.name}
@@ -478,7 +496,7 @@ export function Player({ playlist }: { playlist: string[] }) {
             <p className="truncate text-xs text-muted">
               {remote ? (
                 [
-                  remote.live ? "Live" : remote.kind === "youtube" ? "YouTube" : "Twitch",
+                  remote.live ? "Live" : adultRemoteLabel(remote.kind),
                   remote.channelName,
                   hasFreshViewerCount(remote) ? `${remote.viewers?.toLocaleString()} watching` : null,
                 ]
@@ -518,6 +536,17 @@ export function Player({ playlist }: { playlist: string[] }) {
           >
             <ThumbsUp className={cn("size-4", liked && "fill-accent text-accent")} />
           </Button>
+          {isAdultVideo(video, folders) && (
+            <Button
+              variant={cameCount > 0 ? "secondary" : "ghost"}
+              size="sm"
+              aria-label="I cummed to it"
+              onClick={() => markCame(video.id)}
+            >
+              <Flame className={cn("size-4", cameCount > 0 && "fill-accent text-accent")} />
+              I cummed to it{cameCount > 0 ? ` · ${cameCount}` : ""}
+            </Button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" aria-label="Edit tags and category">
@@ -540,6 +569,22 @@ export function Player({ playlist }: { playlist: string[] }) {
             <X className="size-5" />
           </Button>
           {remote?.watchUrl && <a href={remote.watchUrl} target="_blank" rel="noreferrer" className="hidden items-center gap-1 text-xs text-accent hover:text-fg sm:inline-flex">Open official player <ExternalLink className="size-3" /></a>}
+          {remote && isAdultPullKind(remote.kind) && (remote.watchUrl || remote.embedUrl) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              title="Requires local Companion + yt-dlp"
+              onClick={() => {
+                const url = remote.watchUrl || remote.embedUrl || "";
+                void requestAdultOfflineSave(url).then((result) => {
+                  if (result.ok) toast.success(result.detail);
+                  else toast.error(result.needs?.length ? `${result.error} (${result.needs.join(", ")})` : result.error);
+                });
+              }}
+            >
+              Save offline
+            </Button>
+          )}
           <Button variant="ghost" size="sm" onClick={() => { if (removeReady) removeVideo(video.id); else setRemoveReady(true); }}>{removeReady ? "Confirm remove" : "Remove"}</Button>
         </div>
       </div>
@@ -559,6 +604,11 @@ export function Player({ playlist }: { playlist: string[] }) {
         </div>
       )}
       {vrStatus && <p className="absolute z-20 right-4 bottom-4 max-w-sm rounded-md bg-surface/95 px-3 py-2 text-xs text-fg shadow-border sm:right-6">{vrStatus}</p>}
+      {remote && isAdultPullKind(remote.kind) && chrome && (
+        <div className="absolute z-20 bottom-24 left-4 right-4 max-w-xl sm:left-6">
+          <AdultComments video={video} />
+        </div>
+      )}
 
 
       {!remote && (
@@ -714,7 +764,7 @@ export function Player({ playlist }: { playlist: string[] }) {
               rel="noreferrer"
               className="text-sm text-muted hover:text-fg"
             >
-              Open on {remote.kind === "youtube" ? "YouTube" : "Twitch"}
+              Open on {adultRemoteLabel(remote.kind)}
             </a>
           )}
           <Button

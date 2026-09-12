@@ -353,3 +353,39 @@ auth/db: OFF by default — sign-in, @/lib/db or migrations ONLY on an accounts 
 never:   build an app for a greeting/number/question; invent imagine_* calls;
          ask the user to run commands; delete or abandon /workspace/startup.sh
 ```
+
+---
+
+## Living work notes
+
+PR: https://github.com/redbullorlando420-code/drift-brick-terra-acorn/pull/2
+Branch: `fix/reelcase-updates`
+Refreshed: 2026-09-11 late evening ET
+**Status: ready to merge**
+
+### Shipped (recent → older)
+
+- **Full Companion yt-dlp offline save**: `POST /offline/save` spawns yt-dlp into an allowed download root when binary + folder available; `YT_DLP_PATH` / `REELCASE_DOWNLOAD_DIR` / `REELCASE_ALLOWED_ROOTS` documented; graceful 501 + needs/hint if missing. No *arr/torrent stack. Health v8 reports `ytDlp`, `downloadRoot`, `offline-save`.
+- **Backup embed API probe (final)**: **none found** for new public tube JSON suitable for Adult embeds. Re-checked YouPorn/Tube8/Spankwire/KeezMovies/ExtremeTube/Pornhub webmasters (all HTML), Avgle (520), XVideos/XNXX/xHamster/Beeg/SpankBang (no public JSON), porn.com (404). Iwara has public JSON but no reliable embed URL (file-host style) — not wired. Keep Eporner + RedTube as the embed pulls.
+- **API probes (earlier):** Pornhub `/webmasters` HTML (dead for JSON). AdultDataLink needs `ADULTDATALINK_API_KEY` (Redgifs wired). FapHouse has no public pull API.
+- **Adult comments**: Reddit public comment Atom RSS on player/lightbox; fetish token mining.
+- **Adult photo download**: lightbox/cards File System Access + blob fallback.
+- **Adult pull request cache**: TTL HTTP cache + client fingerprints.
+- **Merged NSFW Reddit catalog** (~470 curated `r/`); rotated Atom pulls.
+- **AdultDataLink Redgifs**; **archive resume cursors**; **FapHouse shorts** milestone; **booru lightbox**; **richer tags**.
+- Booru photo pull; Adults fast-start + IndexedDB; cams/Reddit; I-cummed; PH chips; Eporner/RedTube; PIN removed; ThePornDude hub.
+
+### In progress / queued
+
+- None — leftovers closed. Ready to merge.
+
+### Pull sources vs link-only
+
+| Pull (API + play/view) | Link-out / milestone |
+|---|---|
+| Eporner, RedTube, Chaturbate, CamSoda, MyFreeCams, Reddit Atom (rotated catalog), Booru thumbs, Redgifs (AdultDataLink key) | Major tubes without public JSON, most cams without embeds, downloads/torrents, niche hubs, FapHouse shorts, celeb film-nude DBs |
+
+### Verification
+
+- Each increment: `npm run typecheck` + `npm run build` before commit/push.
+- Small reviewable commits; refresh this section and the PR #2 body after every push.

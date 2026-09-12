@@ -1,8 +1,23 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { FollowedChannel, LibraryVideo, RemoteKind } from "@/lib/videos/types";
+import type { FollowedChannel, FollowKind, LibraryVideo } from "@/lib/videos/types";
 import { LIBRARY_LIMITS } from "@/lib/library-limits";
+import { cachedAdultFetch } from "@/lib/remote/adult-pull-cache";
+import {
+  ADULT_DEEPEN_FETISH_QUERIES,
+  ADULT_PULL_PROVIDERS,
+  CAMSODA_FOLDER_ID,
+  CHATURBATE_FOLDER_ID,
+  EPORNER_FOLDER_ID,
+  MYFREECAMS_FOLDER_ID,
+  REDDIT_FOLDER_ID,
+  BOORU_FOLDER_ID,
+  REDGIFS_FOLDER_ID,
+  REDTUBE_FOLDER_ID,
+  ADULT_REDDIT_SUBS,
+  type AdultPullProvider,
+} from "@/lib/videos/adult-sites";
 
-type FollowInput = { query: string; kind: "auto" | RemoteKind };
+type FollowInput = { query: string; kind: "auto" | FollowKind };
 type RefreshInput = { channels: FollowedChannel[] };
 
 export type FollowResult = {
@@ -75,7 +90,7 @@ function parseRefresh(data: unknown): RefreshInput {
   return { channels: channels.slice(0, 80) };
 }
 
-function guessKind(query: string): RemoteKind {
+function guessKind(query: string): FollowKind {
   const q = query.toLowerCase();
   if (q.includes("twitch.tv") || q.startsWith("tw:")) return "twitch";
   if (q.includes("youtube") || q.includes("youtu.be") || q.startsWith("@")) return "youtube";
@@ -891,4 +906,1218 @@ export const fetchTwitchFollowing = createServerFn({ method: "POST" })
       if (channels.length) return { channels, privateList: false };
     }
     return { channels: [], privateList: true };
+  });
+
+/* --- Adult discovery (Eporner + RedTube + live cam official public lists) --- */
+
+type AdultSearchIn = {
+  query?: string;
+  order?: string;
+  page?: number;
+  maxVideos?: number;
+  append?: boolean;
+  providers?: AdultPullProvider[] | "all";
+  /** Per-provider resume pages (archive depth). Overrides shared `page` when set. */
+  providerPages?: Partial<Record<AdultPullProvider, number>>;
+};
+
+const EPORNER_ORDERS = new Set([
+  "latest",
+  "longest",
+  "shortest",
+  "top-rated",
+  "most-popular",
+  "top-weekly",
+  "top-monthly",
+]);
+
+function parseAdultProviders(raw: unknown): AdultPullProvider[] {
+  const known = new Set<AdultPullProvider>(ADULT_PULL_PROVIDERS);
+  if (raw === "all" || raw == null) return [...ADULT_PULL_PROVIDERS];
+  if (Array.isArray(raw)) {
+    const out = raw.filter((p): p is AdultPullProvider => typeof p === "string" && known.has(p as AdultPullProvider));
+    return out.length ? [...new Set(out)] : [...ADULT_PULL_PROVIDERS];
+  }
+  if (typeof raw === "string" && known.has(raw as AdultPullProvider)) return [raw as AdultPullProvider];
+  return [...ADULT_PULL_PROVIDERS];
+}
+
+function parseProviderPages(raw: unknown): Partial<Record<AdultPullProvider, number>> {
+  if (!raw || typeof raw !== "object") return {};
+  const known = new Set<AdultPullProvider>(ADULT_PULL_PROVIDERS);
+  const out: Partial<Record<AdultPullProvider, number>> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!known.has(key as AdultPullProvider)) continue;
+    const n = typeof value === "number" ? value : Number(value);
+    if (!Number.isFinite(n) || n < 1) continue;
+    out[key as AdultPullProvider] = Math.min(Math.floor(n), 100000);
+  }
+  return out;
+}
+
+function parseAdultSearch(data: unknown): Required<AdultSearchIn> & { providers: AdultPullProvider[] } {
+  const rec = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
+  const query = asString(rec.query).trim() || "all";
+  const orderRaw = asString(rec.order).trim() || "top-weekly";
+  const order = EPORNER_ORDERS.has(orderRaw) ? orderRaw : "top-weekly";
+  const pageNum = typeof rec.page === "number" ? rec.page : Number(rec.page);
+  const page = Number.isFinite(pageNum) && pageNum >= 1 ? Math.min(Math.floor(pageNum), 100000) : 1;
+  const maxRaw = typeof rec.maxVideos === "number" ? rec.maxVideos : Number(rec.maxVideos);
+  const maxVideos = Number.isFinite(maxRaw) && maxRaw > 0
+    ? Math.min(Math.floor(maxRaw), LIBRARY_LIMITS.epornerVideosPerPull)
+    : LIBRARY_LIMITS.epornerVideosPerPull;
+  const append = Boolean(rec.append);
+  return {
+    query: query.slice(0, 80),
+    order,
+    page,
+    maxVideos,
+    append,
+    providers: parseAdultProviders(rec.providers),
+    providerPages: parseProviderPages(rec.providerPages),
+  };
+}
+
+type EpornerVideo = {
+  id?: string;
+  title?: string;
+  keywords?: string;
+  views?: number;
+  url?: string;
+  embed?: string;
+  length_sec?: number;
+  added?: string;
+  default_thumb?: { src?: string };
+};
+
+function epornerVideo(row: EpornerVideo): LibraryVideo | null {
+  const id = asString(row.id).trim();
+  const title = asString(row.title).trim();
+  const embed = asString(row.embed).trim();
+  const watch = asString(row.url).trim();
+  if (!id || !title || !embed) return null;
+  if (!embed.startsWith("https://www.eporner.com/embed/")) return null;
+  const added = Date.parse(asString(row.added)) || Date.now();
+  const thumb = asString(row.default_thumb?.src);
+  const keywords = asString(row.keywords).trim();
+  const views = typeof row.views === "number" && Number.isFinite(row.views) ? row.views : undefined;
+  return {
+    id: `eporner:${id}`,
+    folderId: EPORNER_FOLDER_ID,
+    name: title,
+    path: `eporner/${title}`,
+    extension: "eporner",
+    mime: "video/eporner",
+    size: 0,
+    duration: typeof row.length_sec === "number" ? row.length_sec : undefined,
+    addedAt: added,
+    tagline: keywords.slice(0, 160) || undefined,
+    description: keywords || undefined,
+    poster: thumb || undefined,
+    src: embed,
+    remote: {
+      kind: "eporner",
+      videoId: id,
+      channelName: "Eporner",
+      views,
+      observedAt: Date.now(),
+      embedUrl: embed.endsWith("/") ? embed : `${embed}/`,
+      watchUrl: watch || `https://www.eporner.com/video-${id}/`,
+      previewUrl: thumb || undefined,
+    },
+  };
+}
+
+async function fetchEpornerPage(query: string, order: string, page: number, perPage: number): Promise<{
+  videos: LibraryVideo[];
+  totalPages: number;
+  totalCount: number;
+}> {
+  const params = new URLSearchParams({
+    query,
+    per_page: String(perPage),
+    page: String(page),
+    thumbsize: "medium",
+    order,
+    gay: "0",
+    lq: "0",
+    format: "json",
+  });
+  const url = `https://www.eporner.com/api/v2/video/search/?${params.toString()}`;
+  const res = await cachedAdultFetch(url, {
+    signal: AbortSignal.timeout(20000),
+    cacheTtlMs: 12 * 60_000,
+    headers: {
+      accept: "application/json",
+      "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
+    },
+  });
+  if (!res.ok) throw new Error("Eporner search is unavailable right now.");
+  const json = (await res.json()) as {
+    videos?: EpornerVideo[];
+    total_pages?: number;
+    total_count?: number;
+  };
+  const videos = (json.videos ?? [])
+    .map(epornerVideo)
+    .filter((v): v is LibraryVideo => v != null);
+  return {
+    videos,
+    totalPages: typeof json.total_pages === "number" ? json.total_pages : page,
+    totalCount: typeof json.total_count === "number" ? json.total_count : videos.length,
+  };
+}
+
+type RedtubeTag = { tag_name?: string } | { tag?: { tag_name?: string } };
+
+type RedtubeVideo = {
+  duration?: string;
+  views?: number;
+  video_id?: string | number;
+  rating?: string | number;
+  title?: string;
+  url?: string;
+  embed_url?: string;
+  default_thumb?: string;
+  thumb?: string;
+  publish_date?: string;
+  tags?: RedtubeTag[];
+};
+
+function parseClockDuration(raw: string): number | undefined {
+  const parts = raw.trim().split(":").map((p) => Number(p));
+  if (!parts.length || parts.some((n) => !Number.isFinite(n))) return undefined;
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  if (parts.length === 1) return parts[0];
+  return undefined;
+}
+
+function redtubeTagNames(tags: RedtubeTag[] | undefined): string[] {
+  if (!Array.isArray(tags)) return [];
+  const out: string[] = [];
+  for (const row of tags) {
+    const name =
+      typeof row === "object" && row !== null
+        ? "tag_name" in row
+          ? asString((row as { tag_name?: string }).tag_name)
+          : asString((row as { tag?: { tag_name?: string } }).tag?.tag_name)
+        : "";
+    const clean = name.trim();
+    if (clean) out.push(clean);
+  }
+  return out;
+}
+
+function redtubeVideo(row: RedtubeVideo): LibraryVideo | null {
+  const id = String(row.video_id ?? "").trim();
+  const title = asString(row.title).trim();
+  const embed = asString(row.embed_url).trim();
+  const watch = asString(row.url).trim();
+  if (!id || !title || !embed) return null;
+  if (!embed.startsWith("https://embed.redtube.com/")) return null;
+  const tags = redtubeTagNames(row.tags);
+  const keywords = tags.join(", ");
+  const thumb = asString(row.default_thumb) || asString(row.thumb);
+  const added = Date.parse(asString(row.publish_date)) || Date.now();
+  const views = typeof row.views === "number" && Number.isFinite(row.views) ? row.views : undefined;
+  return {
+    id: `redtube:${id}`,
+    folderId: REDTUBE_FOLDER_ID,
+    name: title,
+    path: `redtube/${title}`,
+    extension: "redtube",
+    mime: "video/redtube",
+    size: 0,
+    duration: parseClockDuration(asString(row.duration)),
+    addedAt: added,
+    tagline: keywords.slice(0, 160) || undefined,
+    description: keywords || undefined,
+    poster: thumb || undefined,
+    src: embed,
+    remote: {
+      kind: "redtube",
+      videoId: id,
+      channelName: "RedTube",
+      views,
+      observedAt: Date.now(),
+      embedUrl: embed,
+      watchUrl: watch || `https://www.redtube.com/${id}`,
+      previewUrl: thumb || undefined,
+    },
+  };
+}
+
+function redtubeOrdering(order: string): { ordering: string; period?: string } {
+  switch (order) {
+    case "latest":
+      return { ordering: "newest" };
+    case "top-rated":
+      return { ordering: "rating", period: "alltime" };
+    case "most-popular":
+      return { ordering: "mostviewed", period: "alltime" };
+    case "top-monthly":
+      return { ordering: "mostviewed", period: "monthly" };
+    case "top-weekly":
+    default:
+      return { ordering: "mostviewed", period: "weekly" };
+  }
+}
+
+async function fetchRedtubePage(query: string, order: string, page: number): Promise<{
+  videos: LibraryVideo[];
+  totalCount: number;
+  totalPages: number;
+}> {
+  const { ordering, period } = redtubeOrdering(order);
+  const params = new URLSearchParams({
+    data: "redtube.Videos.searchVideos",
+    output: "json",
+    thumbsize: "medium",
+    page: String(page),
+    ordering,
+  });
+  if (period) params.set("period", period);
+  const q = query.trim();
+  if (q && q.toLowerCase() !== "all") params.set("search", q);
+  const url = `https://api.redtube.com/?${params.toString()}`;
+  const res = await cachedAdultFetch(url, {
+    signal: AbortSignal.timeout(20000),
+    cacheTtlMs: 12 * 60_000,
+    headers: {
+      accept: "application/json",
+      "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
+    },
+  });
+  if (!res.ok) throw new Error("RedTube search is unavailable right now.");
+  const json = (await res.json()) as {
+    videos?: Array<{ video?: RedtubeVideo } | RedtubeVideo>;
+    count?: number;
+    message?: string;
+    code?: number;
+  };
+  if (json.message && json.code) throw new Error(json.message);
+  const rows = json.videos ?? [];
+  const videos = rows
+    .map((row) => {
+      const video = row && typeof row === "object" && "video" in row ? row.video : (row as RedtubeVideo);
+      return video ? redtubeVideo(video) : null;
+    })
+    .filter((v): v is LibraryVideo => v != null);
+  const totalCount = typeof json.count === "number" ? json.count : videos.length;
+  const perPage = LIBRARY_LIMITS.redtubePageSize;
+  const totalPages = Math.max(1, Math.ceil(totalCount / perPage));
+  return { videos, totalCount, totalPages };
+}
+
+const ADULT_CSAM = /loli|shota|lolicon|shotacon|\bchild\b|underage|\bcub\b|toddler|infant|\bbaby\b|pedo|preteen|young.?girl|young.?boy|jailbait/i;
+
+function adultBlockedText(...parts: Array<string | undefined>) {
+  return ADULT_CSAM.test(parts.filter(Boolean).join(" "));
+}
+
+type ChaturbateRoom = {
+  username?: string;
+  display_name?: string;
+  room_subject?: string;
+  tags?: string[];
+  current_show?: string;
+  num_users?: number;
+  image_url?: string;
+  image_url_360x270?: string;
+  age?: number;
+  chat_room_url?: string;
+};
+
+let chaturbateCache: { at: number; rooms: LibraryVideo[] } | null = null;
+const CHATURBATE_CACHE_MS = 3 * 60_000;
+
+function chaturbateVideo(row: ChaturbateRoom): LibraryVideo | null {
+  const username = asString(row.username).trim().toLowerCase();
+  if (!username || !/^[a-z0-9_]+$/.test(username)) return null;
+  const show = asString(row.current_show).trim().toLowerCase() || "public";
+  if (show !== "public" && show !== "group") return null;
+  if (typeof row.age === "number" && Number.isFinite(row.age) && row.age < 18) return null;
+  const tags = Array.isArray(row.tags) ? row.tags.map((tag) => asString(tag).trim()).filter(Boolean) : [];
+  const subject = asString(row.room_subject).trim();
+  const display = asString(row.display_name).trim() || username;
+  if (adultBlockedText(username, display, subject, tags.join(" "))) return null;
+  const embed = `https://chaturbate.com/embed/${encodeURIComponent(username)}/`;
+  const watch = asString(row.chat_room_url).trim() || `https://chaturbate.com/${encodeURIComponent(username)}/`;
+  const thumb = asString(row.image_url_360x270) || asString(row.image_url);
+  const viewers = typeof row.num_users === "number" && Number.isFinite(row.num_users) ? row.num_users : undefined;
+  return {
+    id: `chaturbate:${username}`,
+    folderId: CHATURBATE_FOLDER_ID,
+    name: display,
+    path: `chaturbate/${username}`,
+    extension: "chaturbate",
+    mime: "video/chaturbate",
+    size: 0,
+    addedAt: Date.now(),
+    tagline: subject.slice(0, 160) || undefined,
+    description: [subject, ...tags].filter(Boolean).join(", ") || undefined,
+    poster: thumb || undefined,
+    src: embed,
+    remote: {
+      kind: "chaturbate",
+      videoId: username,
+      channelName: username,
+      live: true,
+      viewers,
+      observedAt: Date.now(),
+      embedUrl: embed,
+      watchUrl: watch,
+      previewUrl: thumb || undefined,
+    },
+  };
+}
+
+async function fetchChaturbateRooms(query: string, maxVideos: number): Promise<{
+  videos: LibraryVideo[];
+  totalPages: number;
+  totalCount: number;
+}> {
+  if (!chaturbateCache || Date.now() - chaturbateCache.at > CHATURBATE_CACHE_MS) {
+    const url = "https://chaturbate.com/affiliates/api/onlinerooms/?format=json&wm=DkfRj";
+    const res = await cachedAdultFetch(url, {
+      signal: AbortSignal.timeout(25000),
+      cacheTtlMs: 3 * 60_000,
+      headers: {
+        accept: "application/json",
+        "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
+      },
+    });
+    if (!res.ok) throw new Error("Chaturbate rooms are unavailable right now.");
+    const json = (await res.json()) as ChaturbateRoom[];
+    const rooms = (Array.isArray(json) ? json : [])
+      .map(chaturbateVideo)
+      .filter((video): video is LibraryVideo => video != null);
+    chaturbateCache = { at: Date.now(), rooms };
+  }
+  const needle = query.trim().toLowerCase();
+  const filtered =
+    !needle || needle === "all"
+      ? chaturbateCache.rooms
+      : chaturbateCache.rooms.filter((video) => {
+          const hay = `${video.name} ${video.description ?? ""} ${video.remote?.videoId ?? ""}`.toLowerCase();
+          return hay.includes(needle);
+        });
+  return {
+    videos: filtered.slice(0, maxVideos),
+    totalPages: 1,
+    totalCount: filtered.length,
+  };
+}
+
+
+const CAMSODA_TPL = [
+  "user_id",
+  "username",
+  "display_name",
+  "status",
+  "connections",
+  "sort_value",
+  "subject_html",
+  "stream_name",
+  "gender",
+  "edge_servers",
+  "thumb",
+  "pvt_rating",
+  "bitrate",
+  "control_her",
+  "standby",
+  "offline_picture",
+] as const;
+
+function asTplMap(tpl: unknown): Record<string, unknown> {
+  if (Array.isArray(tpl)) return Object.fromEntries(tpl.map((value, index) => [String(index), value]));
+  if (tpl && typeof tpl === "object") return tpl as Record<string, unknown>;
+  return {};
+}
+
+function camsodaValue(tpl: Record<string, unknown>, field: (typeof CAMSODA_TPL)[number]) {
+  return tpl[String(CAMSODA_TPL.indexOf(field))];
+}
+
+function stripMarkup(value: string) {
+  return value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function camsodaVideo(row: { tpl?: unknown }): LibraryVideo | null {
+  const tpl = asTplMap(row.tpl);
+  const username = asString(camsodaValue(tpl, "username")).trim().toLowerCase();
+  if (!username || !/^[a-z0-9_-]+$/.test(username)) return null;
+  const status = asString(camsodaValue(tpl, "status")).trim().toLowerCase();
+  if (status && /private|offline|away|hidden/.test(status)) return null;
+  const display = asString(camsodaValue(tpl, "display_name")).trim() || username;
+  const subject = stripMarkup(asString(camsodaValue(tpl, "subject_html")));
+  if (adultBlockedText(username, display, subject)) return null;
+  const thumb = asString(camsodaValue(tpl, "thumb")).trim();
+  const connections = camsodaValue(tpl, "connections");
+  const viewers = typeof connections === "number" && Number.isFinite(connections) ? connections : undefined;
+  const watch = `https://www.camsoda.com/${encodeURIComponent(username)}`;
+  return {
+    id: `camsoda:${username}`,
+    folderId: CAMSODA_FOLDER_ID,
+    name: display,
+    path: `camsoda/${username}`,
+    extension: "camsoda",
+    mime: "video/camsoda",
+    size: 0,
+    addedAt: Date.now(),
+    tagline: subject.slice(0, 160) || "Live on CamSoda",
+    description: ["live", "cam", subject].filter(Boolean).join(", ") || undefined,
+    poster: thumb || undefined,
+    src: watch,
+    remote: {
+      kind: "camsoda",
+      videoId: username,
+      channelName: display,
+      live: true,
+      viewers,
+      observedAt: Date.now(),
+      embedUrl: watch,
+      watchUrl: watch,
+      previewUrl: thumb || undefined,
+    },
+  };
+}
+
+let camsodaCache: { at: number; rooms: LibraryVideo[] } | null = null;
+const CAMSODA_CACHE_MS = 3 * 60_000;
+
+async function fetchCamSodaRooms(query: string, maxVideos: number): Promise<{
+  videos: LibraryVideo[];
+  totalPages: number;
+  totalCount: number;
+}> {
+  if (!camsodaCache || Date.now() - camsodaCache.at > CAMSODA_CACHE_MS) {
+    const res = await cachedAdultFetch("https://www.camsoda.com/api/v1/browse/online", {
+      cacheTtlMs: 3 * 60_000,
+      signal: AbortSignal.timeout(25000),
+      headers: {
+        accept: "application/json",
+        "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
+      },
+    });
+    if (!res.ok) throw new Error("CamSoda rooms are unavailable right now.");
+    const json = (await res.json()) as { results?: Array<{ tpl?: unknown }> };
+    const rooms = (Array.isArray(json.results) ? json.results : [])
+      .map(camsodaVideo)
+      .filter((video): video is LibraryVideo => video != null);
+    camsodaCache = { at: Date.now(), rooms };
+  }
+  const needle = query.trim().toLowerCase();
+  const filtered =
+    !needle || needle === "all"
+      ? camsodaCache.rooms
+      : camsodaCache.rooms.filter((video) => {
+          const hay = `${video.name} ${video.description ?? ""} ${video.remote?.videoId ?? ""}`.toLowerCase();
+          return hay.includes(needle);
+        });
+  return { videos: filtered.slice(0, maxVideos), totalPages: 1, totalCount: filtered.length };
+}
+
+let myfreecamsCache: { at: number; rooms: LibraryVideo[] } | null = null;
+const MYFREECAMS_CACHE_MS = 3 * 60_000;
+
+function myfreecamsVideo(username: string, status: number): LibraryVideo | null {
+  // 0 = public live, 2 = listed/online-adjacent. 90 is offline; 12+ is private/group.
+  if (status !== 0 && status !== 2) return null;
+  const name = username.trim();
+  if (!/^[A-Za-z0-9_]{2,32}$/.test(name)) return null;
+  if (adultBlockedText(name)) return null;
+  const watch = `https://www.myfreecams.com/#${encodeURIComponent(name)}`;
+  return {
+    id: `myfreecams:${name.toLowerCase()}`,
+    folderId: MYFREECAMS_FOLDER_ID,
+    name,
+    path: `myfreecams/${name}`,
+    extension: "myfreecams",
+    mime: "video/myfreecams",
+    size: 0,
+    addedAt: Date.now(),
+    tagline: status === 0 ? "Live on MyFreeCams" : "Listed on MyFreeCams",
+    description: "live, cam",
+    src: watch,
+    remote: {
+      kind: "myfreecams",
+      videoId: name,
+      channelName: name,
+      live: status === 0,
+      observedAt: Date.now(),
+      embedUrl: watch,
+      watchUrl: watch,
+    },
+  };
+}
+
+async function fetchMyFreeCamsRooms(query: string, maxVideos: number): Promise<{
+  videos: LibraryVideo[];
+  totalPages: number;
+  totalCount: number;
+}> {
+  if (!myfreecamsCache || Date.now() - myfreecamsCache.at > MYFREECAMS_CACHE_MS) {
+    const res = await cachedAdultFetch("https://www.myfreecams.com/php/online_models.php", {
+      cacheTtlMs: 3 * 60_000,
+      signal: AbortSignal.timeout(25000),
+      headers: {
+        accept: "text/plain, text/html;q=0.8",
+        "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
+      },
+    });
+    if (!res.ok) throw new Error("MyFreeCams rooms are unavailable right now.");
+    const text = await res.text();
+    const rooms: LibraryVideo[] = [];
+    for (const line of text.split(/\r?\n/)) {
+      const match = line.match(/^([A-Za-z0-9_]{2,32}),(\d+)$/);
+      if (!match) continue;
+      const video = myfreecamsVideo(match[1], Number(match[2]));
+      if (video) rooms.push(video);
+    }
+    myfreecamsCache = { at: Date.now(), rooms };
+  }
+  const needle = query.trim().toLowerCase();
+  const filtered =
+    !needle || needle === "all"
+      ? myfreecamsCache.rooms
+      : myfreecamsCache.rooms.filter((video) => video.name.toLowerCase().includes(needle));
+  return { videos: filtered.slice(0, maxVideos), totalPages: 1, totalCount: filtered.length };
+}
+
+
+function htmlDecode(value: string) {
+  return value
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#32;/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#39;/g, "'");
+}
+
+function xmlField(xml: string, pattern: RegExp) {
+  return htmlDecode(pattern.exec(xml)?.[1] ?? "").trim();
+}
+
+function redditDirectMedia(content: string) {
+  const decoded = htmlDecode(content);
+  return /<a href="(https?:[^"]+)">\[link\]/i.exec(decoded)?.[1] ?? "";
+}
+
+function isDirectImage(url: string) {
+  return /\.(jpe?g|png|gif|webp)(\?|$)/i.test(url) || /(?:^|\/\/)(?:i\.redd\.it|preview\.redd\.it|i\.imgur\.com)\//i.test(url);
+}
+
+function redditVideo(entry: string, subreddit: string): LibraryVideo | null {
+  const id = xmlField(entry, /<id>([^<]+)<\/id>/i).replace(/^t3_/, "") || xmlField(entry, /\/comments\/([a-z0-9]+)\//i);
+  const title = xmlField(entry, /<title>([^<]+)<\/title>/i);
+  const permalink = xmlField(entry, /<link href="([^"]+)"/i);
+  const thumb = xmlField(entry, /<media:thumbnail url="([^"]+)"/i);
+  const author = xmlField(entry, /<name>([^<]+)<\/name>/i).replace(/^\/u\//, "");
+  const published = xmlField(entry, /<published>([^<]+)<\/published>/i);
+  const media = redditDirectMedia(xmlField(entry, /<content[^>]*>([\s\S]*?)<\/content>/i));
+  if (!id || !title || !permalink) return null;
+  if (adultBlockedText(title, author, subreddit, media)) return null;
+  const addedAt = Date.parse(published);
+  const image = isDirectImage(media) ? media : thumb;
+  return {
+    id: `reddit:${id}`,
+    folderId: REDDIT_FOLDER_ID,
+    name: title.slice(0, 160),
+    path: `reddit/${subreddit}/${id}`,
+    extension: image ? "image" : "reddit",
+    mime: image ? "image/jpeg" : "text/html",
+    size: 0,
+    addedAt: Number.isFinite(addedAt) ? addedAt : Date.now(),
+    tagline: `r/${subreddit}${author ? ` · u/${author}` : ""}`,
+    description: `reddit, r/${subreddit}, ${subreddit.replace(/_/g, " ")}, ${title}`,
+    poster: thumb || image || undefined,
+    src: image || permalink,
+    remote: {
+      kind: "reddit",
+      videoId: id,
+      channelName: author || `r/${subreddit}`,
+      channelId: subreddit,
+      observedAt: Date.now(),
+      embedUrl: image || undefined,
+      watchUrl: permalink,
+      previewUrl: thumb || image || undefined,
+    },
+  };
+}
+
+let redditCache: { at: number; key: string; posts: LibraryVideo[]; windowStart: number } | null = null;
+const REDDIT_CACHE_MS = 8 * 60_000;
+
+/** Rotate through the curated catalog so refreshes sample many subs over time. */
+function redditSubWindow(page: number): { subs: string[]; start: number; totalPages: number } {
+  const all = ADULT_REDDIT_SUBS as readonly string[];
+  const size = Math.max(1, LIBRARY_LIMITS.redditSubsPerPull);
+  const totalPages = Math.max(1, Math.ceil(all.length / size));
+  // 30-minute tick nudges the window so routine refreshes do not hammer the same slice.
+  const tick = Math.floor(Date.now() / (30 * 60_000));
+  const start = (((Math.max(1, page) - 1) * size) + (tick * 3)) % all.length;
+  const subs: string[] = [];
+  for (let i = 0; i < size; i += 1) {
+    subs.push(all[(start + i) % all.length]!);
+  }
+  return { subs, start, totalPages };
+}
+
+async function fetchRedditFeed(query: string, maxVideos: number, page = 1): Promise<{
+  videos: LibraryVideo[];
+  totalPages: number;
+  totalCount: number;
+  nextPage: number | null;
+}> {
+  const { subs, start, totalPages } = redditSubWindow(page);
+  const cacheKey = `p${page}:s${start}:${subs.join(",")}`;
+  if (!redditCache || redditCache.key !== cacheKey || Date.now() - redditCache.at > REDDIT_CACHE_MS) {
+    const posts: LibraryVideo[] = [];
+    const seen = new Set<string>();
+    const errors: string[] = [];
+    for (const sub of subs) {
+      const url = `https://www.reddit.com/r/${encodeURIComponent(sub)}/.rss?limit=${LIBRARY_LIMITS.redditPostsPerSub}`;
+      try {
+        const res = await cachedAdultFetch(url, {
+          signal: AbortSignal.timeout(12000),
+          cacheTtlMs: 8 * 60_000,
+          headers: {
+            accept: "application/atom+xml, application/rss+xml, application/xml;q=0.9, */*;q=0.8",
+            "user-agent": "linux:reelcase:1.0 (by /u/reelcase)",
+          },
+        });
+        if (res.status === 429) throw new Error("rate limited");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const xml = await res.text();
+        for (const chunk of xml.split(/<entry>/i).slice(1)) {
+          const video = redditVideo(chunk, sub);
+          if (!video || seen.has(video.id)) continue;
+          seen.add(video.id);
+          posts.push(video);
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "unavailable";
+        errors.push(`r/${sub}: ${message}`);
+      }
+    }
+    if (!posts.length && errors.length) throw new Error(`Reddit RSS unavailable (${errors.slice(0, 6).join("; ")}).`);
+    redditCache = { at: Date.now(), key: cacheKey, posts, windowStart: start };
+  }
+  const needle = query.trim().toLowerCase();
+  const filtered =
+    !needle || needle === "all"
+      ? redditCache.posts
+      : redditCache.posts.filter((video) => {
+          const hay = `${video.name} ${video.tagline ?? ""} ${video.description ?? ""}`.toLowerCase();
+          return hay.includes(needle);
+        });
+  const nextPage = page < totalPages * 4 ? page + 1 : null; // allow multi-pass rotation
+  return {
+    videos: filtered.slice(0, maxVideos),
+    totalPages,
+    totalCount: filtered.length,
+    nextPage,
+  };
+}
+
+
+type BooruPost = {
+  id?: number | string;
+  preview_url?: string;
+  sample_url?: string;
+  file_url?: string;
+  tags?: string;
+  width?: number;
+  height?: number;
+  score?: number;
+  owner?: string;
+};
+
+const BOORU_HOSTS = [
+  { id: "xbooru", base: "https://xbooru.com", postPath: "/index.php?page=post&s=view&id=" },
+  { id: "tbib", base: "https://tbib.org", postPath: "/index.php?page=post&s=view&id=" },
+  { id: "hypnohub", base: "https://hypnohub.net", postPath: "/index.php?page=post&s=view&id=" },
+] as const;
+
+function booruVideo(row: BooruPost, host: (typeof BOORU_HOSTS)[number]): LibraryVideo | null {
+  const id = asString(row.id).trim();
+  const tags = asString(row.tags).trim();
+  const owner = asString(row.owner).trim();
+  const preview = asString(row.preview_url).trim();
+  const sample = asString(row.sample_url).trim();
+  const file = asString(row.file_url).trim();
+  const image = sample || preview || file;
+  if (!id || !image) return null;
+  if (adultBlockedText(tags, owner)) return null;
+  const title = (tags.split(/\s+/).filter(Boolean).slice(0, 8).join(" ") || `${host.id} #${id}`).slice(0, 160);
+  const watch = `${host.base}${host.postPath}${encodeURIComponent(id)}`;
+  return {
+    id: `booru:${host.id}:${id}`,
+    folderId: BOORU_FOLDER_ID,
+    name: title,
+    path: `booru/${host.id}/${id}`,
+    extension: "image",
+    mime: "image/jpeg",
+    size: 0,
+    addedAt: Date.now(),
+    tagline: `${host.id} · photo${owner ? ` · ${owner}` : ""}`,
+    description: tags.slice(0, 400),
+    poster: preview || sample || undefined,
+    src: image,
+    remote: {
+      kind: "booru",
+      videoId: id,
+      channelName: owner || host.id,
+      channelId: host.id,
+      observedAt: Date.now(),
+      embedUrl: image,
+      watchUrl: watch,
+      previewUrl: preview || sample || undefined,
+    },
+  };
+}
+
+async function fetchBooruHost(host: (typeof BOORU_HOSTS)[number], tags: string, limit: number, pid: number): Promise<LibraryVideo[]> {
+  const params = new URLSearchParams({
+    page: "dapi",
+    s: "post",
+    q: "index",
+    json: "1",
+    limit: String(limit),
+    pid: String(Math.max(0, pid)),
+    tags,
+  });
+  const url = `${host.base}/index.php?${params.toString()}`;
+  const res = await cachedAdultFetch(url, {
+    signal: AbortSignal.timeout(15000),
+    cacheTtlMs: 10 * 60_000,
+    headers: { accept: "application/json,text/plain,*/*", "user-agent": "Reelcase/1.0" },
+  });
+  if (!res.ok) throw new Error(`${host.id} HTTP ${res.status}`);
+  const raw: unknown = await res.json();
+  const rows = Array.isArray(raw) ? raw : [];
+  const out: LibraryVideo[] = [];
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+    const video = booruVideo(row as BooruPost, host);
+    if (video) out.push(video);
+  }
+  return out;
+}
+
+async function fetchBooruFeed(query: string, maxVideos: number, page: number): Promise<{
+  videos: LibraryVideo[];
+  totalPages: number;
+  totalCount: number;
+}> {
+  const needle = query.trim().toLowerCase();
+  const tagQuery = !needle || needle === "all" ? "rating:explicit" : `rating:explicit ${needle}`;
+  const limit = LIBRARY_LIMITS.booruPageSize;
+  const pid = Math.max(0, page - 1);
+  const collected: LibraryVideo[] = [];
+  const seen = new Set<string>();
+  const errors: string[] = [];
+  for (const host of BOORU_HOSTS) {
+    if (collected.length >= maxVideos) break;
+    try {
+      const batch = await fetchBooruHost(host, tagQuery, Math.min(limit, maxVideos - collected.length), pid);
+      for (const video of batch) {
+        if (seen.has(video.id)) continue;
+        seen.add(video.id);
+        collected.push(video);
+        if (collected.length >= maxVideos) break;
+      }
+    } catch (err) {
+      errors.push(`${host.id}: ${err instanceof Error ? err.message : "unavailable"}`);
+    }
+  }
+  if (!collected.length && errors.length) throw new Error(`Booru unavailable (${errors.join("; ")}).`);
+  return { videos: collected, totalPages: page + (collected.length >= limit ? 1 : 0), totalCount: collected.length };
+}
+
+
+function adultDataLinkApiKey() {
+  return (process.env.ADULTDATALINK_API_KEY || process.env.ADL_API_KEY || "").trim();
+}
+
+type RedgifsRow = Record<string, unknown>;
+
+function asRecord(value: unknown): RedgifsRow | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as RedgifsRow) : null;
+}
+
+function pickString(...values: unknown[]) {
+  for (const value of values) {
+    const s = asString(value).trim();
+    if (s) return s;
+  }
+  return "";
+}
+
+function redgifsVideo(row: RedgifsRow): LibraryVideo | null {
+  const id = pickString(row.id, row.gif_id, row.gifId, row.slug);
+  if (!id) return null;
+  const urls = asRecord(row.urls) ?? {};
+  const user = asRecord(row.user) ?? asRecord(row.creator) ?? {};
+  const tagsRaw = row.tags ?? row.hashtags ?? row.niches;
+  const tagList = Array.isArray(tagsRaw)
+    ? tagsRaw.map((t) => (typeof t === "string" ? t : pickString(asRecord(t)?.name, asRecord(t)?.text))).filter(Boolean)
+    : typeof tagsRaw === "string"
+      ? tagsRaw.split(/[,;\s]+/).filter(Boolean)
+      : [];
+  const title = pickString(row.title, row.description, tagList.slice(0, 6).join(" "), id).slice(0, 160);
+  const author = pickString(user.username, user.name, row.username, row.userName, row.author);
+  const embed = pickString(urls.html, urls.player, row.embedUrl, row.embed_url, `https://www.redgifs.com/ifr/${encodeURIComponent(id)}`);
+  const watch = pickString(urls.webUrl, urls.web_url, row.url, row.webUrl, `https://www.redgifs.com/watch/${encodeURIComponent(id)}`);
+  const thumb = pickString(urls.thumbnail, urls.poster, urls.posterUrl, row.thumbnail, row.poster, row.previewUrl);
+  const file = pickString(urls.hd, urls.sd, urls.silent, urls.giftiny, urls.gif, row.mp4, row.file);
+  if (adultBlockedText(title, author, tagList.join(" "))) return null;
+  return {
+    id: `redgifs:${id}`,
+    folderId: REDGIFS_FOLDER_ID,
+    name: title || `Redgifs ${id}`,
+    path: `redgifs/${id}`,
+    extension: "redgifs",
+    mime: "video/mp4",
+    size: 0,
+    addedAt: Date.now(),
+    tagline: [author, ...tagList.slice(0, 8)].filter(Boolean).join(" · ").slice(0, 160) || undefined,
+    description: tagList.join(", ") || title,
+    poster: thumb || undefined,
+    src: embed || file || undefined,
+    remote: {
+      kind: "redgifs",
+      videoId: id,
+      channelName: author || "Redgifs",
+      observedAt: Date.now(),
+      embedUrl: embed || undefined,
+      watchUrl: watch,
+      previewUrl: thumb || undefined,
+    },
+  };
+}
+
+function collectRedgifsRows(payload: unknown): RedgifsRow[] {
+  if (Array.isArray(payload)) return payload.map(asRecord).filter((r): r is RedgifsRow => Boolean(r));
+  const root = asRecord(payload);
+  if (!root) return [];
+  for (const key of ["gifs", "items", "data", "results", "trending", "feed"]) {
+    const value = root[key];
+    if (Array.isArray(value)) return value.map(asRecord).filter((r): r is RedgifsRow => Boolean(r));
+    const nested = asRecord(value);
+    if (nested) {
+      for (const nestedKey of ["gifs", "items", "data", "results"]) {
+        const inner = nested[nestedKey];
+        if (Array.isArray(inner)) return inner.map(asRecord).filter((r): r is RedgifsRow => Boolean(r));
+      }
+    }
+  }
+  return [];
+}
+
+async function fetchRedgifsFeed(query: string, maxVideos: number, page: number): Promise<{
+  videos: LibraryVideo[];
+  totalPages: number;
+  totalCount: number;
+}> {
+  const key = adultDataLinkApiKey();
+  if (!key) {
+    throw new Error("AdultDataLink key missing — set ADULTDATALINK_API_KEY to enable Redgifs pulls.");
+  }
+  const params = new URLSearchParams({
+    parameter: "gif",
+    page: String(Math.max(1, page)),
+    count: String(Math.min(LIBRARY_LIMITS.redgifsPageSize, maxVideos)),
+  });
+  const needle = query.trim();
+  if (needle && needle.toLowerCase() !== "all") params.set("search", needle.slice(0, 64));
+  const url = `https://api.adultdatalink.com/redgifs/trending?${params.toString()}`;
+  const res = await cachedAdultFetch(url, {
+    signal: AbortSignal.timeout(20000),
+    cacheTtlMs: 8 * 60_000,
+    cacheKey: `GET:${url}:adl`,
+    headers: {
+      accept: "application/json",
+      authorization: `Bearer ${key}`,
+      "x-api-key": key,
+      "user-agent": "Reelcase/1.0",
+    },
+  });
+  if (!res.ok) throw new Error(`AdultDataLink Redgifs HTTP ${res.status}`);
+  const json: unknown = await res.json();
+  const videos = collectRedgifsRows(json)
+    .map(redgifsVideo)
+    .filter((video): video is LibraryVideo => video != null)
+    .slice(0, maxVideos);
+  return {
+    videos,
+    totalPages: page + (videos.length >= Math.min(LIBRARY_LIMITS.redgifsPageSize, maxVideos) ? 1 : 0),
+    totalCount: videos.length,
+  };
+}
+
+function liveRoomLimit(provider: AdultPullProvider) {
+  if (provider === "chaturbate") return LIBRARY_LIMITS.chaturbateRoomsPerPull;
+  if (provider === "camsoda") return LIBRARY_LIMITS.camsodaRoomsPerPull;
+  if (provider === "myfreecams") return LIBRARY_LIMITS.myfreecamsRoomsPerPull;
+  return 0;
+}
+
+function providerPageBudget(provider: AdultPullProvider) {
+  if (provider === "redtube") return { maxPages: LIBRARY_LIMITS.redtubePagesPerPull, perPage: LIBRARY_LIMITS.redtubePageSize };
+  const live = liveRoomLimit(provider);
+  if (live) return { maxPages: 1, perPage: live };
+  return { maxPages: LIBRARY_LIMITS.epornerPagesPerPull, perPage: LIBRARY_LIMITS.epornerPageSize };
+}
+
+async function pullProviderPages(
+  provider: AdultPullProvider,
+  query: string,
+  order: string,
+  startPage: number,
+  maxVideos: number,
+): Promise<{ videos: LibraryVideo[]; page: number; nextPage: number | null; totalCount: number }> {
+  if (provider === "reddit") {
+    const batch = await fetchRedditFeed(query, maxVideos, startPage);
+    return {
+      videos: batch.videos,
+      page: startPage,
+      nextPage: batch.nextPage,
+      totalCount: batch.totalCount,
+    };
+  }
+  if (provider === "booru") {
+    const batch = await fetchBooruFeed(query, maxVideos, startPage);
+    return {
+      videos: batch.videos,
+      page: startPage,
+      nextPage: batch.videos.length ? startPage + 1 : null,
+      totalCount: batch.totalCount,
+    };
+  }
+  if (provider === "redgifs") {
+    const batch = await fetchRedgifsFeed(query, maxVideos, startPage);
+    return {
+      videos: batch.videos,
+      page: startPage,
+      nextPage: batch.videos.length ? startPage + 1 : null,
+      totalCount: batch.totalCount,
+    };
+  }
+  if (provider === "chaturbate" || provider === "camsoda" || provider === "myfreecams") {
+    const batch =
+      provider === "chaturbate"
+        ? await fetchChaturbateRooms(query, maxVideos)
+        : provider === "camsoda"
+          ? await fetchCamSodaRooms(query, maxVideos)
+          : await fetchMyFreeCamsRooms(query, maxVideos);
+    return {
+      videos: batch.videos,
+      page: 1,
+      nextPage: null,
+      totalCount: batch.totalCount,
+    };
+  }
+  const collected: LibraryVideo[] = [];
+  const seen = new Set<string>();
+  let page = startPage;
+  let totalPages = page;
+  let totalCount = 0;
+  let pagesFetched = 0;
+  const { maxPages, perPage } = providerPageBudget(provider);
+
+  while (collected.length < maxVideos && pagesFetched < maxPages) {
+    const batch =
+      provider === "redtube"
+        ? await fetchRedtubePage(query, order, page)
+        : await fetchEpornerPage(query, order, page, perPage);
+    totalPages = batch.totalPages;
+    totalCount = batch.totalCount;
+    pagesFetched += 1;
+    if (!batch.videos.length) break;
+    for (const video of batch.videos) {
+      if (seen.has(video.id)) continue;
+      seen.add(video.id);
+      collected.push(video);
+      if (collected.length >= maxVideos) break;
+    }
+    if (page >= totalPages) break;
+    page += 1;
+  }
+
+  const computedNext = startPage + pagesFetched;
+  return {
+    videos: collected,
+    page: startPage,
+    nextPage: computedNext <= totalPages && collected.length ? computedNext : null,
+    totalCount,
+  };
+}
+
+export const searchAdultVideos = createServerFn({ method: "POST" })
+  .validator((data: unknown) => parseAdultSearch(data))
+  .handler(async ({ data }): Promise<{
+    videos: LibraryVideo[];
+    source: string;
+    note: string;
+    page: number;
+    nextPage: number | null;
+    totalCount: number;
+    providers: AdultPullProvider[];
+    providerNextPages: Partial<Record<AdultPullProvider, number | null>>;
+  }> => {
+    const providers = data.providers;
+    const share = Math.max(1, Math.floor(data.maxVideos / providers.length));
+    const leftovers = data.maxVideos - share * providers.length;
+    const collected: LibraryVideo[] = [];
+    let nextPage: number | null = null;
+    let totalCount = 0;
+    const errors: string[] = [];
+    const providerNextPages: Partial<Record<AdultPullProvider, number | null>> = {};
+
+    const seen = new Set<string>();
+    for (let i = 0; i < providers.length; i += 1) {
+      const provider = providers[i];
+      const rawBudget = share + (i === 0 ? leftovers : 0);
+      const live = liveRoomLimit(provider);
+      const budget = provider === "reddit"
+        ? Math.min(LIBRARY_LIMITS.redditVideosPerPull, rawBudget)
+        : provider === "booru"
+          ? Math.min(LIBRARY_LIMITS.booruVideosPerPull, rawBudget)
+          : provider === "redgifs"
+            ? Math.min(LIBRARY_LIMITS.redgifsVideosPerPull, rawBudget)
+        : live ? Math.min(live, rawBudget) : rawBudget;
+      const startPage = data.providerPages?.[provider] ?? data.page;
+      try {
+        const batch = await pullProviderPages(provider, data.query, data.order, startPage, budget);
+        for (const video of batch.videos) {
+          if (seen.has(video.id)) continue;
+          seen.add(video.id);
+          collected.push(video);
+        }
+        totalCount += batch.totalCount;
+        providerNextPages[provider] = batch.nextPage;
+        if (batch.nextPage != null) nextPage = nextPage == null ? batch.nextPage : Math.min(nextPage, batch.nextPage);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "unavailable";
+        errors.push(`${provider}: ${message}`);
+        providerNextPages[provider] = null;
+      }
+    }
+
+    // When browsing "all", deepen official video APIs with curated fetish
+    // keyword pages so shelves pick up DP / roleplay / milf / feet and more.
+    if (data.query.toLowerCase() === "all" && collected.length < data.maxVideos) {
+      const fetishQueries = ADULT_DEEPEN_FETISH_QUERIES;
+      const deepenProviders = providers.filter((p) => p === "eporner" || p === "redtube");
+      const remaining = data.maxVideos - collected.length;
+      const slots = Math.max(1, fetishQueries.length * Math.max(1, deepenProviders.length));
+      const perQuery = Math.max(20, Math.floor(remaining / slots));
+      for (const fetish of fetishQueries) {
+        for (const provider of deepenProviders) {
+          if (collected.length >= data.maxVideos) break;
+          try {
+            const batch = await pullProviderPages(provider, fetish, data.order, 1, perQuery);
+            for (const video of batch.videos) {
+              if (seen.has(video.id)) continue;
+              seen.add(video.id);
+              collected.push(video);
+              if (collected.length >= data.maxVideos) break;
+            }
+            totalCount += batch.totalCount;
+          } catch (err) {
+            const message = err instanceof Error ? err.message : "unavailable";
+            errors.push(`${provider}/${fetish}: ${message}`);
+          }
+        }
+        if (collected.length >= data.maxVideos) break;
+      }
+    }
+
+    if (!collected.length && errors.length) {
+      throw new Error(`Adult pulls failed (${errors.join("; ")}).`);
+    }
+
+    return {
+      videos: collected,
+      source: providers.join("+"),
+      note:
+        errors.length
+          ? `Partial adult pull — ${errors.join("; ")}. Remaining official APIs still returned titles.`
+          : "Pulled via official public APIs and public Reddit Atom feeds. Playback uses public embeds, room deep-links, or Reddit permalinks; keywords/tags become local source + fetish tags.",
+      page: data.page,
+      nextPage,
+      totalCount,
+      providers,
+      providerNextPages,
+    };
+  });
+
+
+/* --- Adult comments (real provider data only; no fake comments) --- */
+
+export type AdultComment = { id: string; author?: string; body: string; score?: number };
+
+function parseRedditCommentEntries(xml: string): AdultComment[] {
+  const out: AdultComment[] = [];
+  for (const chunk of xml.split(/<entry>/i).slice(1).slice(0, 24)) {
+    const id = xmlField(chunk, /<id>([^<]+)<\/id>/i) || `c${out.length}`;
+    const title = xmlField(chunk, /<title>([^<]+)<\/title>/i);
+    const author = xmlField(chunk, /<name>([^<]+)<\/name>/i).replace(/^\/u\//, "");
+    const content = xmlField(chunk, /<content[^>]*>([\s\S]*?)<\/content>/i)
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/\s+/g, " ")
+      .trim();
+    const body = (content || title).slice(0, 400);
+    if (!body || body.length < 2) continue;
+    if (adultBlockedText(body, author)) continue;
+    out.push({ id, author: author || undefined, body });
+  }
+  return out;
+}
+
+export const fetchAdultComments = createServerFn({ method: "POST" })
+  .validator((data: unknown) => {
+    const rec = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
+    return {
+      kind: asString(rec.kind).trim(),
+      videoId: asString(rec.videoId).trim(),
+      watchUrl: asString(rec.watchUrl).trim(),
+    };
+  })
+  .handler(async ({ data }): Promise<{ comments: AdultComment[]; note: string }> => {
+    if (data.kind !== "reddit" || !data.videoId) {
+      return { comments: [], note: "This provider does not expose a public comment feed." };
+    }
+    const id = data.videoId.replace(/^t3_/, "");
+    const url = `https://www.reddit.com/comments/${encodeURIComponent(id)}.rss?limit=20`;
+    try {
+      const res = await cachedAdultFetch(url, {
+        signal: AbortSignal.timeout(12000),
+        cacheTtlMs: 15 * 60_000,
+        headers: {
+          accept: "application/atom+xml, application/rss+xml, application/xml;q=0.9, */*;q=0.8",
+          "user-agent": "linux:reelcase:1.0 (by /u/reelcase)",
+        },
+      });
+      if (res.status === 429) return { comments: [], note: "Reddit comment RSS rate-limited — try again later." };
+      if (!res.ok) return { comments: [], note: `Reddit comments unavailable (HTTP ${res.status}).` };
+      const xml = await res.text();
+      const comments = parseRedditCommentEntries(xml);
+      return {
+        comments,
+        note: comments.length
+          ? "Live Reddit comments via public Atom RSS."
+          : "No comments returned for this post.",
+      };
+    } catch (err) {
+      return { comments: [], note: err instanceof Error ? err.message : "Comments unavailable." };
+    }
   });

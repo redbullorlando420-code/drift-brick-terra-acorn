@@ -19,4 +19,28 @@ export const LIBRARY_LIMITS = {
   twitchArchivePageSize: 160,
   twitchFocusedVodsPerChannel: 8_000,
   twitchRoutineVodsPerChannel: 640,
+  // Eporner API allows up to 1000 results per page; batch pages like YT/Twitch archives.
+  epornerPageSize: 1000,
+  epornerPagesPerPull: 6,
+  epornerVideosPerPull: 6_000,
+  epornerKeywordTagsPerTitle: 24,
+  // RedTube webmaster API returns 20 videos per page; paginate like archive pulls.
+  redtubePageSize: 20,
+  redtubePagesPerPull: 300,
+  redtubeVideosPerPull: 6_000,
+  adultKeywordTagsPerTitle: 48,
+  // Fast-start Adult pull stays small so the first paint mirrors YouTube/Twitch.
+  adultFastStartVideosPerPull: 240,
+  adultFastStartRailSize: 36,
+  chaturbateRoomsPerPull: 180,
+  camsodaRoomsPerPull: 180,
+  myfreecamsRoomsPerPull: 180,
+  redditVideosPerPull: 120,
+  redditPostsPerSub: 6,
+  /** How many subs to sample per Reddit pull (rotate through the curated catalog). */
+  redditSubsPerPull: 12,
+  booruVideosPerPull: 120,
+  booruPageSize: 40,
+  redgifsVideosPerPull: 80,
+  redgifsPageSize: 40,
 } as const;
