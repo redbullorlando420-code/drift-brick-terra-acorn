@@ -219,6 +219,9 @@ export type HistoryEntry = {
   position?: number;
   duration?: number;
   source?: "open" | "progress" | "watch-room";
+  /** Real card title captured at play time so recovery rows stay named. */
+  title?: string;
+  poster?: string;
 };
 
 export type ViewMode = "grid" | "list";

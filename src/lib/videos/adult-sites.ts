@@ -1011,6 +1011,9 @@ export function adultIngestTags(input: {
   apiKeywords?: string;
   title?: string;
   description?: string;
+  extraText?: string;
+  flair?: string;
+  extraTags?: string[];
   limit?: number;
 }): string[] {
   const limit = input.limit ?? 64;
@@ -1032,8 +1035,14 @@ export function adultIngestTags(input: {
   for (const tag of api) push(tag);
   for (const tag of adultFetishTags(api, 36)) push(tag);
 
+  if (input.flair) {
+    push(input.flair);
+    for (const tag of adultFetishTags([input.flair], 6)) push(tag);
+  }
+  for (const tag of input.extraTags ?? []) push(tag);
+
   const textTags = adultTextFetishTags(
-    `${input.title ?? ""} ${input.description ?? ""} ${input.apiKeywords ?? ""}`,
+    `${input.title ?? ""} ${input.description ?? ""} ${input.apiKeywords ?? ""} ${input.extraText ?? ""} ${input.flair ?? ""}`,
     24,
   );
   for (const tag of textTags) push(tag);

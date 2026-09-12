@@ -9,6 +9,8 @@ import {
   type AdultPullProvider,
 } from "./adult-sites";
 import { saveAdultArchiveCursors } from "./adult-archive-cursors";
+import { applyCachedAdultUrls, cacheAdultVideoUrls } from "./adult-url-cache";
+import { redditIngestExtras } from "./adult-reddit-tags";
 import {
   findFreshAdultPullFingerprint,
   rememberAdultPullFingerprint,
@@ -706,8 +708,10 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       if (latest?.id === id && now - latest.at < 20_000) return {};
       const mark = s.progress[id];
       const video = s.videos.find((item) => item.id === id);
-      const url = video?.remote?.embedUrl ?? video?.src;
-      const next = [{ eventId: nextHistoryEventId(now), id, at: now, position: mark?.t, duration: mark?.d, source, ...(url ? { url } : {}) }, ...s.history];
+      const url = video?.remote?.embedUrl ?? video?.src ?? video?.remote?.watchUrl;
+      const title = video?.name?.trim();
+      const poster = video?.poster ?? video?.remote?.previewUrl;
+      const next = [{ eventId: nextHistoryEventId(now), id, at: now, position: mark?.t, duration: mark?.d, source, ...(url ? { url } : {}), ...(title ? { title } : {}), ...(poster ? { poster } : {}) }, ...s.history];
       return { history: next, viewCounts: { ...s.viewCounts, [id]: (s.viewCounts[id] ?? 0) + 1 } };
     });
     const event = get().history[0];
@@ -812,10 +816,14 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       const append = Boolean(opts?.append);
       const providerPages = opts?.providerPages;
       const providerKey = providerList.slice().sort().join("+");
-      // Fresh identical pulls reuse the durable catalog instead of re-hitting APIs.
+      // Skip only a fat, already-balanced catalog. Thin Reddit or a small first pull must refresh.
       if (!append && !providerPages && findFreshAdultPullFingerprint(query, order, page, providerKey)) {
-        set({ remoteBusy: false, importProgress: null });
-        return get().videos.filter((v) => (ADULT_FOLDER_IDS as readonly string[]).includes(v.folderId)).length;
+        const have = get().videos.filter((v) => (ADULT_FOLDER_IDS as readonly string[]).includes(v.folderId));
+        const reddit = have.filter((v) => v.remote?.kind === "reddit").length;
+        if (have.length >= LIBRARY_LIMITS.adultFastStartVideosPerPull && reddit >= 200) {
+          set({ remoteBusy: false, importProgress: null });
+          return have.length;
+        }
       }
       const result = await searchAdultVideos({ data: { query, order, page, maxVideos, append, providers, providerPages } });
       if (result.providerNextPages) {
@@ -829,7 +837,8 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         providers: providerKey,
         count: result.videos.length,
       });
-      const videos = result.videos;
+      const videos = applyCachedAdultUrls(result.videos);
+      cacheAdultVideoUrls(videos);
       const touched = new Set(videos.map((v) => v.folderId));
       set((s) => {
         let nextVideos = s.videos;
@@ -877,7 +886,14 @@ export const useLibrary = create<LibraryState>((set, get) => ({
               ? video.remote.videoId
               : undefined,
           ];
-          // Booru owners live in description/tagline as space tags; prefer remote.channelName when it is an owner.
+          const redditExtra = source === "reddit"
+            ? redditIngestExtras({
+                subreddit: video.remote?.channelId,
+                title: video.name,
+                extraText: `${video.description ?? ""} ${video.tagline ?? ""}`,
+                mediaKind: video.extension === "image" ? "image" : /video/i.test(video.mime) ? "video" : undefined,
+              })
+            : [];
           tagPatch[video.id] = compactIngestedTags(s.tags[video.id] ?? [], [
             ...remoteMetadataTags(video),
             ...adultIngestTags({
@@ -887,7 +903,9 @@ export const useLibrary = create<LibraryState>((set, get) => ({
               apiKeywords: video.description ?? video.tagline ?? "",
               title: video.name,
               description: video.description ?? video.tagline ?? "",
-              limit: LIBRARY_LIMITS.adultKeywordTagsPerTitle + 24,
+              extraTags: redditExtra,
+              extraText: source === "reddit" ? `${video.name} ${video.tagline ?? ""}` : undefined,
+              limit: LIBRARY_LIMITS.adultKeywordTagsPerTitle + 36,
             }),
           ]);
         }
@@ -1875,36 +1893,45 @@ export function selectHistory(state: LibraryState, adult = false): LibraryVideo[
     .map((h) => {
       const cached = byId.get(h.id) ?? (h.url ? byId.get(h.url) : undefined);
       if (cached) return cached;
+      const live = state.videos.find((item) => item.id === h.id);
+      if (live) {
+        const isAdult = adultIdSet(state.folders).has(live.folderId);
+        if (adult === isAdult) return live;
+        if (!adult && isAdult) return null;
+      }
       // Provider cards may be evicted or a local source may be temporarily
       // disconnected. History must still be a durable timeline, not a view of
       // whichever catalog rows happen to be mounted today.
-      if (!h.url) return null;
-      const isYoutube = /youtube\.com|youtu\.be/i.test(h.url);
-      const isTwitch = /twitch\.tv/i.test(h.url);
-      const isEporner = /eporner\.com/i.test(h.url);
-      const isRedtube = /redtube\.com/i.test(h.url);
-      const isChaturbate = /chaturbate\.com/i.test(h.url);
-      const isCamsoda = /camsoda\.com/i.test(h.url);
-      const isMfc = /myfreecams\.com|mfc\.cdn/i.test(h.url);
-      const isReddit = /reddit\.com|redd\.it/i.test(h.url);
-      const isBooru = /xbooru\.com|tbib\.org|hypnohub\.net/i.test(h.url);
-      const isRedgifs = /redgifs\.com/i.test(h.url);
+      if (!h.url && !h.title) return null;
+      const historyUrl = h.url ?? "";
+      const isYoutube = /youtube\.com|youtu\.be/i.test(historyUrl);
+      const isTwitch = /twitch\.tv/i.test(historyUrl);
+      const isEporner = /eporner\.com/i.test(historyUrl);
+      const isRedtube = /redtube\.com/i.test(historyUrl);
+      const isChaturbate = /chaturbate\.com/i.test(historyUrl);
+      const isCamsoda = /camsoda\.com/i.test(historyUrl);
+      const isMfc = /myfreecams\.com|mfc\.cdn/i.test(historyUrl);
+      const isReddit = /reddit\.com|redd\.it/i.test(historyUrl);
+      const isBooru = /xbooru\.com|tbib\.org|hypnohub\.net/i.test(historyUrl);
+      const isRedgifs = /redgifs\.com/i.test(historyUrl);
       const adultKind = isEporner ? "eporner" : isRedtube ? "redtube" : isChaturbate ? "chaturbate" : isCamsoda ? "camsoda" : isMfc ? "myfreecams" : isReddit ? "reddit" : isBooru ? "booru" : isRedgifs ? "redgifs" : null;
-      const signature = `${h.at}:${h.url}:${h.position ?? ""}:${h.duration ?? ""}`;
+      if (!adult && (isEporner || isRedtube || isChaturbate || isCamsoda || isMfc || isReddit || isBooru || isRedgifs)) return null;
+      const signature = `${h.at}:${h.url}:${h.position ?? ""}:${h.duration ?? ""}:${h.title ?? ""}`;
       const cachedRecovery = historyRecoveryCardCache.get(h.id);
       if (cachedRecovery?.signature === signature) return cachedRecovery.video;
       const recovered = {
         id: h.id,
         folderId: adultKind ? `history:recovery:${adultKind}` : "history:recovery",
-        name: isYoutube ? "Saved YouTube history" : isTwitch ? "Saved Twitch history" : adultKind ? `Saved ${adultKind} history` : "Saved playback history",
-        path: h.url,
+        name: h.title?.trim() || (isYoutube ? "Saved YouTube history" : isTwitch ? "Saved Twitch history" : adultKind ? `Saved ${adultKind} history` : "Saved playback history"),
+        path: h.url ?? h.id,
         src: h.url,
         extension: isYoutube ? "yt" : isTwitch ? "vod" : adultKind ?? "history",
         mime: isYoutube ? "video/youtube" : isTwitch ? "video/twitch" : adultKind ? `video/${adultKind}` : "video/history",
         size: 0,
         duration: h.duration,
         addedAt: h.at,
-        tagline: "Original card is not cached right now. The saved link is retained for recovery.",
+        poster: h.poster,
+        tagline: h.title ? "Saved from watch history." : "Original card is not cached right now. The saved link is retained for recovery.",
         remote: isYoutube || isTwitch || adultKind ? {
           kind: isYoutube ? "youtube" : isTwitch ? "twitch" : adultKind!,
           live: false,
