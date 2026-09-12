@@ -7,14 +7,16 @@
 Adults perf + catalog/stats follow-ups after merged PR #3.
 
 ### Shipped this PR
-1. **Thumb reliability** — expanded RedTube/Eporner candidate pick + CDN host/frame fallbacks; `thumbFallbacks` on remote; video-card onError chain; visibility-gated lazy decode; concurrent image budget (max ~8).
-2. **Adults less laggy** — rank only while Adults is open; memoized rails; catalog rail windowed to 240; deep private sort deferred until milestones open.
-3. **Smoother watch** — throttle local frame progress writes (~4s); remote heartbeat 8s; `openVideo` records play off the critical path.
-4. **Catalog variety** — RedTube `thumbsize=big`; rotate orderings across pages (weekly/latest/rated/popular/monthly) on `all` pulls.
-5. **Visible Adult Stats** — pinned **Adult division** at top of Stats (`#adult-stats`) with source mix, ranked tags, marks, CSV/JSON export + Open Adults CTA (empty-state copy when catalog not pulled).
+1. **Thumb reliability** — RedTube/Eporner candidate pick + CDN host/frame/size fallbacks; skip placeholders; prefer big thumbs; longer `thumbFallbacks`; visibility-gated lazy decode; concurrent image budget (~5, adaptive).
+2. **Adults less laggy** — idle-deferred full ranking/recs/tag chips; horizontal rail windowing + debounced offscreen unmount; catalog rail 120 / poster 360; deep private memos gated; score-once sorts; leaner card selectors.
+3. **Smoother watch** — throttle local frame progress (~4s); remote heartbeat 10s (skip when tab hidden); stable embed key by video id; `openVideo` records play off the critical path.
+4. **No duplicate Adult rails** — Continue/marks claim first, then Recommended/Related/Reddit/Latest/Catalog skip already-shown ids.
+5. **Your Tags readable** — ranked chips start at 10, Show more pages (+10, hard cap 36), filter/search kept; never dumps hundreds.
+6. **Catalog variety** — RedTube `thumbsize=big`; rotate orderings across pages on `all` pulls.
+7. **Visible Adult Stats** — pinned **Adult division** at top of Stats (`#adult-stats`) with source mix, ranked tags, marks, CSV/JSON export + Open Adults CTA.
 
 ### Still open
-- Further player unload / embed mount limits if needed after soak
+- Soak test embed remount limits if any remain after stable iframe key
 - More provider metadata on pull cards if gaps remain
 
 Official public APIs + Reddit Atom only. 18+ only.
