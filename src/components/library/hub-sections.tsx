@@ -367,7 +367,7 @@ export function StatsSection() {
     let adultTitles = 0;
     for (const video of videos) {
       const folder = folders.find((f) => f.id === video.folderId);
-      const isAdult = Boolean(folder?.adult) || Boolean(video.remote && ["eporner", "redtube", "chaturbate", "camsoda", "myfreecams", "reddit"].includes(video.remote.kind));
+      const isAdult = Boolean(folder?.adult) || Boolean(video.remote && ["eporner", "redtube", "chaturbate", "camsoda", "myfreecams", "reddit", "booru"].includes(video.remote.kind));
       if (!isAdult) continue;
       adultTitles += 1;
       for (const tag of tags[video.id] ?? []) {

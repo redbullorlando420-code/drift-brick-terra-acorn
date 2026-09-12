@@ -37,4 +37,6 @@ export const LIBRARY_LIMITS = {
   myfreecamsRoomsPerPull: 180,
   redditVideosPerPull: 80,
   redditPostsPerSub: 10,
+  booruVideosPerPull: 120,
+  booruPageSize: 40,
 } as const;

@@ -1854,7 +1854,8 @@ export function selectHistory(state: LibraryState, adult = false): LibraryVideo[
       const isCamsoda = /camsoda\.com/i.test(h.url);
       const isMfc = /myfreecams\.com|mfc\.cdn/i.test(h.url);
       const isReddit = /reddit\.com|redd\.it/i.test(h.url);
-      const adultKind = isEporner ? "eporner" : isRedtube ? "redtube" : isChaturbate ? "chaturbate" : isCamsoda ? "camsoda" : isMfc ? "myfreecams" : isReddit ? "reddit" : null;
+      const isBooru = /xbooru\.com|tbib\.org|hypnohub\.net/i.test(h.url);
+      const adultKind = isEporner ? "eporner" : isRedtube ? "redtube" : isChaturbate ? "chaturbate" : isCamsoda ? "camsoda" : isMfc ? "myfreecams" : isReddit ? "reddit" : isBooru ? "booru" : null;
       const signature = `${h.at}:${h.url}:${h.position ?? ""}:${h.duration ?? ""}`;
       const cachedRecovery = historyRecoveryCardCache.get(h.id);
       if (cachedRecovery?.signature === signature) return cachedRecovery.video;
@@ -1909,6 +1910,7 @@ export function selectAdultRemote(state: LibraryState): LibraryVideo[] {
         v.remote?.kind === "camsoda" ||
         v.remote?.kind === "myfreecams" ||
         v.remote?.kind === "reddit" ||
+        v.remote?.kind === "booru" ||
         (ADULT_FOLDER_IDS as readonly string[]).includes(v.folderId),
     )
     .sort((a, b) => b.addedAt - a.addedAt);

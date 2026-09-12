@@ -73,7 +73,7 @@ export const SKIP_DIRS = new Set([
   "cache",
 ]);
 
-export type FolderKind = "demo" | "directory" | "files" | "youtube" | "twitch" | "eporner" | "redtube" | "chaturbate" | "camsoda" | "myfreecams" | "reddit";
+export type FolderKind = "demo" | "directory" | "files" | "youtube" | "twitch" | "eporner" | "redtube" | "chaturbate" | "camsoda" | "myfreecams" | "reddit" | "booru";
 
 export type Folder = {
   id: string;
@@ -113,7 +113,7 @@ export type LibraryVideo = {
 };
 
 export type FollowKind = "youtube" | "twitch";
-export type RemoteKind = FollowKind | "eporner" | "redtube" | "chaturbate" | "camsoda" | "myfreecams" | "reddit";
+export type RemoteKind = FollowKind | "eporner" | "redtube" | "chaturbate" | "camsoda" | "myfreecams" | "reddit" | "booru";
 
 export type RemoteRef = {
   kind: RemoteKind;

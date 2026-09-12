@@ -9,6 +9,7 @@ import {
   EPORNER_FOLDER_ID,
   MYFREECAMS_FOLDER_ID,
   REDDIT_FOLDER_ID,
+  BOORU_FOLDER_ID,
   REDTUBE_FOLDER_ID,
   ADULT_REDDIT_SUBS,
   type AdultPullProvider,
@@ -1573,6 +1574,118 @@ async function fetchRedditFeed(query: string, maxVideos: number): Promise<{
   return { videos: filtered.slice(0, maxVideos), totalPages: 1, totalCount: filtered.length };
 }
 
+
+type BooruPost = {
+  id?: number | string;
+  preview_url?: string;
+  sample_url?: string;
+  file_url?: string;
+  tags?: string;
+  width?: number;
+  height?: number;
+  score?: number;
+  owner?: string;
+};
+
+const BOORU_HOSTS = [
+  { id: "xbooru", base: "https://xbooru.com", postPath: "/index.php?page=post&s=view&id=" },
+  { id: "tbib", base: "https://tbib.org", postPath: "/index.php?page=post&s=view&id=" },
+  { id: "hypnohub", base: "https://hypnohub.net", postPath: "/index.php?page=post&s=view&id=" },
+] as const;
+
+function booruVideo(row: BooruPost, host: (typeof BOORU_HOSTS)[number]): LibraryVideo | null {
+  const id = asString(row.id).trim();
+  const tags = asString(row.tags).trim();
+  const preview = asString(row.preview_url).trim();
+  const sample = asString(row.sample_url).trim();
+  const file = asString(row.file_url).trim();
+  const image = sample || preview || file;
+  if (!id || !image) return null;
+  if (adultBlockedText(tags, asString(row.owner))) return null;
+  const title = (tags.split(/\s+/).filter(Boolean).slice(0, 8).join(" ") || `${host.id} #${id}`).slice(0, 160);
+  const watch = `${host.base}${host.postPath}${encodeURIComponent(id)}`;
+  return {
+    id: `booru:${host.id}:${id}`,
+    folderId: BOORU_FOLDER_ID,
+    name: title,
+    path: `booru/${host.id}/${id}`,
+    extension: "image",
+    mime: "image/jpeg",
+    size: 0,
+    addedAt: Date.now(),
+    tagline: `${host.id} · photo`,
+    description: tags.slice(0, 400),
+    poster: preview || sample || undefined,
+    src: image,
+    remote: {
+      kind: "booru",
+      videoId: id,
+      channelName: host.id,
+      observedAt: Date.now(),
+      embedUrl: image,
+      watchUrl: watch,
+      previewUrl: preview || sample || undefined,
+    },
+  };
+}
+
+async function fetchBooruHost(host: (typeof BOORU_HOSTS)[number], tags: string, limit: number, pid: number): Promise<LibraryVideo[]> {
+  const params = new URLSearchParams({
+    page: "dapi",
+    s: "post",
+    q: "index",
+    json: "1",
+    limit: String(limit),
+    pid: String(Math.max(0, pid)),
+    tags,
+  });
+  const url = `${host.base}/index.php?${params.toString()}`;
+  const res = await fetch(url, {
+    signal: AbortSignal.timeout(15000),
+    headers: { accept: "application/json,text/plain,*/*", "user-agent": "Reelcase/1.0" },
+  });
+  if (!res.ok) throw new Error(`${host.id} HTTP ${res.status}`);
+  const raw: unknown = await res.json();
+  const rows = Array.isArray(raw) ? raw : [];
+  const out: LibraryVideo[] = [];
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+    const video = booruVideo(row as BooruPost, host);
+    if (video) out.push(video);
+  }
+  return out;
+}
+
+async function fetchBooruFeed(query: string, maxVideos: number, page: number): Promise<{
+  videos: LibraryVideo[];
+  totalPages: number;
+  totalCount: number;
+}> {
+  const needle = query.trim().toLowerCase();
+  const tagQuery = !needle || needle === "all" ? "rating:explicit" : `rating:explicit ${needle}`;
+  const limit = LIBRARY_LIMITS.booruPageSize;
+  const pid = Math.max(0, page - 1);
+  const collected: LibraryVideo[] = [];
+  const seen = new Set<string>();
+  const errors: string[] = [];
+  for (const host of BOORU_HOSTS) {
+    if (collected.length >= maxVideos) break;
+    try {
+      const batch = await fetchBooruHost(host, tagQuery, Math.min(limit, maxVideos - collected.length), pid);
+      for (const video of batch) {
+        if (seen.has(video.id)) continue;
+        seen.add(video.id);
+        collected.push(video);
+        if (collected.length >= maxVideos) break;
+      }
+    } catch (err) {
+      errors.push(`${host.id}: ${err instanceof Error ? err.message : "unavailable"}`);
+    }
+  }
+  if (!collected.length && errors.length) throw new Error(`Booru unavailable (${errors.join("; ")}).`);
+  return { videos: collected, totalPages: page + (collected.length >= limit ? 1 : 0), totalCount: collected.length };
+}
+
 function liveRoomLimit(provider: AdultPullProvider) {
   if (provider === "chaturbate") return LIBRARY_LIMITS.chaturbateRoomsPerPull;
   if (provider === "camsoda") return LIBRARY_LIMITS.camsodaRoomsPerPull;
@@ -1597,6 +1710,15 @@ async function pullProviderPages(
   if (provider === "reddit") {
     const batch = await fetchRedditFeed(query, maxVideos);
     return { videos: batch.videos, page: 1, nextPage: null, totalCount: batch.totalCount };
+  }
+  if (provider === "booru") {
+    const batch = await fetchBooruFeed(query, maxVideos, startPage);
+    return {
+      videos: batch.videos,
+      page: startPage,
+      nextPage: batch.videos.length ? startPage + 1 : null,
+      totalCount: batch.totalCount,
+    };
   }
   if (provider === "chaturbate" || provider === "camsoda" || provider === "myfreecams") {
     const batch =
@@ -1674,6 +1796,8 @@ export const searchAdultVideos = createServerFn({ method: "POST" })
       const live = liveRoomLimit(provider);
       const budget = provider === "reddit"
         ? Math.min(LIBRARY_LIMITS.redditVideosPerPull, rawBudget)
+        : provider === "booru"
+          ? Math.min(LIBRARY_LIMITS.booruVideosPerPull, rawBudget)
         : live ? Math.min(live, rawBudget) : rawBudget;
       try {
         const batch = await pullProviderPages(provider, data.query, data.order, data.page, budget);
