@@ -17,6 +17,7 @@ import {
   type AdultPullProvider,
 } from "@/lib/videos/adult-sites";
 import { extractRedditMedia, shouldKeepRedditEntry } from "@/lib/videos/adult-reddit-media";
+import { extractRedditFlair } from "@/lib/videos/adult-reddit-tags";
 import { pickRedtubeThumb, redtubeStarNames } from "@/lib/videos/adult-thumbs";
 
 type FollowInput = { query: string; kind: "auto" | FollowKind };
@@ -1186,7 +1187,10 @@ async function fetchRedtubePage(query: string, order: string, page: number): Pro
   });
   if (period) params.set("period", period);
   const q = query.trim();
-  if (q && q.toLowerCase() !== "all") params.set("search", q);
+  if (q && q.toLowerCase() !== "all") {
+    params.set("search", q);
+    params.append("stars[]", q);
+  }
   const url = `https://api.redtube.com/?${params.toString()}`;
   const res = await cachedAdultFetch(url, {
     signal: AbortSignal.timeout(20000),
@@ -1518,7 +1522,8 @@ function redditVideo(entry: string, subreddit: string): LibraryVideo | null {
   if (!id || !title || !permalink) return null;
   const media = extractRedditMedia(entry, content);
   if (!shouldKeepRedditEntry(media, title)) return null;
-  if (adultBlockedText(title, author, subreddit, media.poster, media.src, media.watch)) return null;
+  const flair = extractRedditFlair(entry, content);
+  if (adultBlockedText(title, author, subreddit, flair, media.poster, media.src, media.watch)) return null;
   const addedAt = Date.parse(published);
   const poster = media.poster;
   const isImage = media.kind === "image";
@@ -1532,8 +1537,8 @@ function redditVideo(entry: string, subreddit: string): LibraryVideo | null {
     mime: isImage ? "image/jpeg" : isVideo ? "video/reddit" : "text/html",
     size: 0,
     addedAt: Number.isFinite(addedAt) ? addedAt : Date.now(),
-    tagline: `r/${subreddit}${author ? ` · u/${author}` : ""}${isVideo ? " · video" : isImage ? " · photo" : ""}`,
-    description: `reddit, r/${subreddit}, ${subreddit.replace(/_/g, " ")}, ${title}, ${media.watch ?? ""}`,
+    tagline: `r/${subreddit}${author ? ` · u/${author}` : ""}${flair ? ` · ${flair}` : ""}${isVideo ? " · video" : isImage ? " · photo" : ""}`,
+    description: `reddit, r/${subreddit}, ${subreddit.replace(/_/g, " ")}, ${title}, ${flair}, ${media.watch ?? ""}`,
     poster: poster || undefined,
     src: media.src || poster || permalink,
     remote: {
@@ -1597,12 +1602,10 @@ async function fetchRedditFeed(query: string, maxVideos: number, page = 1): Prom
   const seen = new Set<string>();
   const errors: string[] = [];
   let lastTotalPages = 1;
-  let lastStart = 0;
 
   for (let offset = 0; offset < windows && collected.length < maxVideos; offset += 1) {
     const { subs, start, totalPages } = redditSubWindow(page + offset);
     lastTotalPages = totalPages;
-    lastStart = start;
     const jobs = subs.flatMap((sub) => [
       { sub, sort: "hot" as const },
       { sub, sort: "new" as const },
@@ -2110,7 +2113,7 @@ export type AdultComment = { id: string; author?: string; body: string; score?: 
 
 function parseRedditCommentEntries(xml: string): AdultComment[] {
   const out: AdultComment[] = [];
-  for (const chunk of xml.split(/<entry>/i).slice(1).slice(0, 24)) {
+  for (const chunk of xml.split(/<entry>/i).slice(1).slice(0, 40)) {
     const id = xmlField(chunk, /<id>([^<]+)<\/id>/i) || `c${out.length}`;
     const title = xmlField(chunk, /<title>([^<]+)<\/title>/i);
     const author = xmlField(chunk, /<name>([^<]+)<\/name>/i).replace(/^\/u\//, "");
@@ -2144,7 +2147,7 @@ export const fetchAdultComments = createServerFn({ method: "POST" })
       return { comments: [], note: "This provider does not expose a public comment feed." };
     }
     const id = data.videoId.replace(/^t3_/, "");
-    const url = `https://www.reddit.com/comments/${encodeURIComponent(id)}.rss?limit=20`;
+    const url = `https://www.reddit.com/comments/${encodeURIComponent(id)}.rss?limit=40`;
     try {
       const res = await cachedAdultFetch(url, {
         signal: AbortSignal.timeout(12000),
@@ -2167,4 +2170,54 @@ export const fetchAdultComments = createServerFn({ method: "POST" })
     } catch (err) {
       return { comments: [], note: err instanceof Error ? err.message : "Comments unavailable." };
     }
+  });
+
+
+export const searchRedtubeStars = createServerFn({ method: "POST" })
+  .validator((data: unknown) => {
+    const rec = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
+    const page = Number(rec.page);
+    return {
+      query: asString(rec.query).trim(),
+      page: Number.isFinite(page) && page > 0 ? Math.floor(page) : 1,
+    };
+  })
+  .handler(async ({ data }): Promise<{ stars: { name: string; thumb?: string; url?: string }[]; note: string }> => {
+    const params = new URLSearchParams({
+      data: "redtube.Stars.getStarDetailedList",
+      output: "json",
+      page: String(data.page),
+    });
+    const url = `https://api.redtube.com/?${params.toString()}`;
+    const res = await cachedAdultFetch(url, {
+      signal: AbortSignal.timeout(20000),
+      cacheTtlMs: 30 * 60_000,
+      headers: {
+        accept: "application/json",
+        "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
+      },
+    });
+    if (!res.ok) throw new Error("RedTube star list is unavailable right now.");
+    const json = (await res.json()) as { stars?: unknown[]; message?: string; code?: number };
+    if (json.message && json.code) throw new Error(json.message);
+    const stars: { name: string; thumb?: string; url?: string }[] = [];
+    for (const row of json.stars ?? []) {
+      if (!row || typeof row !== "object") continue;
+      const rec = row as Record<string, unknown>;
+      const inner = (rec.star && typeof rec.star === "object" ? rec.star : rec) as Record<string, unknown>;
+      const name = asString(inner.star_name) || asString(inner.star) || asString(rec.star_name);
+      const clean = name.trim();
+      if (!clean) continue;
+      stars.push({
+        name: clean,
+        thumb: asString(inner.star_thumb) || asString(inner.thumb) || undefined,
+        url: asString(inner.star_url) || asString(inner.url) || undefined,
+      });
+    }
+    const needle = data.query.toLowerCase();
+    const filtered = needle ? stars.filter((star) => star.name.toLowerCase().includes(needle)) : stars;
+    return {
+      stars: filtered.slice(0, LIBRARY_LIMITS.redtubeStarsPerPage),
+      note: filtered.length ? "Official RedTube star list." : "No matching RedTube creators on this page.",
+    };
   });

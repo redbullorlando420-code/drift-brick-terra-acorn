@@ -20,6 +20,7 @@ import {
   fetishSearchQuery,
   type AdultPullProvider,
 } from "@/lib/videos/adult-sites";
+import { ADULT_SOURCE_FILTERS, countAdultBySource } from "@/lib/videos/adult-filter";
 import { selectAdultRemote, useLibrary } from "@/lib/videos/store";
 
 const ORDERS: { id: string; label: string }[] = [
@@ -89,11 +90,19 @@ function SiteCard({
 export function AdultPanel({
   showMilestones = false,
   autoPull = true,
+  sourceFilter = "all",
+  tagFilter: tagFilterProp,
+  onSourceFilter,
+  onTagFilter,
 }: {
   /** Link-out hub + milestone catalogs — deferred behind Adults deep shelves. */
   showMilestones?: boolean;
   /** Soft first pull when the cache is thin; explore can disable for render-only. */
   autoPull?: boolean;
+  sourceFilter?: string;
+  tagFilter?: string;
+  onSourceFilter?: (source: string) => void;
+  onTagFilter?: (tag: string) => void;
 }) {
   const searchAdultFeed = useLibrary((s) => s.searchAdultFeed);
   const remoteBusy = useLibrary((s) => s.remoteBusy);
@@ -104,20 +113,25 @@ export function AdultPanel({
   const [order, setOrder] = useState("top-weekly");
   const [providers, setProviders] = useState<AdultPullProvider[] | "all">("all");
   const [booted, setBooted] = useState(false);
-  const [tagFilter, setTagFilter] = useState("all");
+  const [localTag, setLocalTag] = useState("all");
+  const tagFilter = tagFilterProp ?? localTag;
+  const setTagFilter = (tag: string) => {
+    setLocalTag(tag);
+    if (tag.startsWith("source-") || tag === "all") onSourceFilter?.(tag === "all" ? "all" : tag.replace(/^source-/, "").split("-")[0] ?? "all");
+    onTagFilter?.(tag === "all" ? "All" : tag);
+  };
   const [nextPage, setNextPage] = useState(2);
   const [showAllFetishes, setShowAllFetishes] = useState(false);
+  const [starQuery, setStarQuery] = useState("");
+  const [stars, setStars] = useState<Array<{ name: string; thumb?: string; url?: string }>>([]);
+  const [starNote, setStarNote] = useState("");
   const [archiveLabel, setArchiveLabel] = useState("No saved archive depth yet — Pull catalog starts at page 1.");
 
-  const sourceFacets = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const video of adultVideos) {
-      for (const tag of tags[video.id] ?? []) {
-        if (tag.startsWith("source-")) counts.set(tag, (counts.get(tag) ?? 0) + 1);
-      }
-    }
-    return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  }, [adultVideos, tags]);
+  const sourceCounts = useMemo(() => countAdultBySource(adultVideos), [adultVideos]);
+  const sourceFacets = useMemo(
+    () => ADULT_SOURCE_FILTERS.filter((row) => row.id !== "all").map((row) => [row.id, sourceCounts[row.id] ?? 0] as const),
+    [sourceCounts],
+  );
 
   const creatorFacets = useMemo(() => {
     const counts = new Map<string, number>();
@@ -464,6 +478,67 @@ export function AdultPanel({
             Continue archive
           </Button>
         </div>
+        <div className="mt-4 rounded-md bg-bg/40 p-3">
+          <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">RedTube creator search</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Input
+              value={starQuery}
+              onChange={(event) => setStarQuery(event.target.value)}
+              placeholder="Star or creator name"
+              className="max-w-xs"
+            />
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={remoteBusy}
+              onClick={() => {
+                const q = starQuery.trim();
+                if (!q) return;
+                setProviders(["redtube"]);
+                setQuery(q);
+                void (async () => {
+                  try {
+                    const { searchRedtubeStars } = await import("@/lib/remote/api");
+                    const result = await searchRedtubeStars({ data: { query: q, page: 1 } });
+                    setStars(result.stars);
+                    setStarNote(result.note);
+                  } catch (err) {
+                    setStarNote(err instanceof Error ? err.message : "Star list unavailable.");
+                  }
+                })();
+                void searchAdultFeed(q, order, {
+                  providers: ["redtube"],
+                  maxVideos: LIBRARY_LIMITS.redtubeStarVideosPerPull,
+                }).then((n) => toast.success(`Loaded ${n.toLocaleString()} for ${q}`));
+              }}
+            >
+              Search creator
+            </Button>
+          </div>
+          {starNote && <p className="mt-2 text-xs text-muted">{starNote}</p>}
+          {stars.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {stars.map((star) => (
+                <Button
+                  key={star.name}
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    setStarQuery(star.name);
+                    setProviders(["redtube"]);
+                    setQuery(star.name);
+                    void searchAdultFeed(star.name, order, {
+                      providers: ["redtube"],
+                      maxVideos: LIBRARY_LIMITS.redtubeStarVideosPerPull,
+                    }).then((n) => toast.success(`Loaded ${n.toLocaleString()} for ${star.name}`));
+                  }}
+                >
+                  {star.name}
+                </Button>
+              ))}
+            </div>
+          )}
+        </div>
         <p className="mt-3 text-xs text-muted">
           Cached adult titles: {adultVideos.length.toLocaleString()}
           {importProgress ? ` · ${importProgress.label}` : ""}
@@ -476,19 +551,19 @@ export function AdultPanel({
             <div className="mt-2 flex flex-wrap gap-2">
               <Button
                 size="sm"
-                variant={tagFilter === "all" ? "default" : "secondary"}
-                onClick={() => setTagFilter("all")}
+                variant={(tagFilterProp ? sourceFilter : tagFilter) === "all" ? "default" : "secondary"}
+                onClick={() => { setTagFilter("all"); onSourceFilter?.("all"); }}
               >
                 All sources · {adultVideos.length}
               </Button>
-              {sourceFacets.map(([tag, count]) => (
+              {sourceFacets.map(([id, count]) => (
                 <Button
-                  key={tag}
+                  key={id}
                   size="sm"
-                  variant={tagFilter === tag ? "default" : "secondary"}
-                  onClick={() => setTagFilter(tag)}
+                  variant={(tagFilterProp ? sourceFilter : tagFilter) === id || tagFilter === `source-${id}` ? "default" : "secondary"}
+                  onClick={() => { onSourceFilter?.(id); setTagFilter(`source-${id}`); }}
                 >
-                  #{tag} · {count}
+                  {id} · {count}
                 </Button>
               ))}
             </div>

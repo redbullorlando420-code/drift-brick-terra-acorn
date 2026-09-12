@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { MessageCircle } from "lucide-react";
 import { adultTextFetishTags } from "@/lib/videos/adult-sites";
+import { mineRedditCommentTags, redditTitleTokens } from "@/lib/videos/adult-reddit-tags";
 import { useLibrary } from "@/lib/videos/store";
 import type { LibraryVideo } from "@/lib/videos/types";
 import type { AdultComment } from "@/lib/remote/api";
@@ -34,10 +35,14 @@ export function AdultComments({ video }: { video: LibraryVideo }) {
         setNote(result.note);
         if (result.comments.length) {
           const blob = result.comments.map((c) => c.body).join(" ");
-          const mined = adultTextFetishTags(blob, 12);
+          const mined = [
+            ...mineRedditCommentTags(blob, 24),
+            ...adultTextFetishTags(blob, 16),
+            ...redditTitleTokens(video.name, 8),
+          ];
           if (mined.length) {
             const existing = useLibrary.getState().tags[video.id] ?? [];
-            const merged = [...new Set([...existing, ...mined])].slice(0, 96);
+            const merged = [...new Set([...existing, ...mined])].slice(0, 120);
             setVideoTags(video.id, merged);
           }
         }
