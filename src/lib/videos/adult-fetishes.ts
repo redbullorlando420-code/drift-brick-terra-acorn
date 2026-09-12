@@ -225,3 +225,38 @@ export function fetishSearchQuery(tag: string): string {
   const clean = tag.trim().toLowerCase();
   return FETISH_SEARCH_ALIASES[clean] ?? clean;
 }
+
+/** High-signal fetish / engagement tokens that should rise in Adult tag + rec ranking. */
+export const ADULT_EXTREME_RANK_TAGS = uniqueLower([
+  "extreme",
+  "fisting",
+  "bondage",
+  "bdsm",
+  "gangbang",
+  "double penetration",
+  "dp",
+  "anal",
+  "rough sex",
+  "rough",
+  "femdom",
+  "pegging",
+  "bukkake",
+  "creampie",
+  "cuckold",
+  "taboo",
+  "threesome",
+  "orgy",
+  "hardcore",
+  "bbc",
+]);
+
+const EXTREME_SET = new Set(ADULT_EXTREME_RANK_TAGS);
+
+/** Extra rank points for extreme / high-signal Adult tags (0 when not a hit). */
+export function adultTagRankBoost(tag: string): number {
+  const raw = tag.trim().toLowerCase();
+  const bare = raw.replace(/^fetish-/, "").replace(/^source-/, "").replace(/^creator-/, "").replace(/-/g, " ");
+  if (EXTREME_SET.has(raw) || EXTREME_SET.has(bare) || raw.includes("extreme") || bare.includes("extreme")) return 10;
+  if (ADULT_FEATURED_FETISH_TAGS.some((item) => item === raw || item === bare)) return 3;
+  return 0;
+}

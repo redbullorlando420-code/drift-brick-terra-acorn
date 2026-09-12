@@ -5,14 +5,18 @@ import { ADULT_NICHE_MILESTONES } from "./adult-milestones-niches";
 import {
   ADULT_CURATED_FETISH_TAGS,
   ADULT_DEEPEN_FETISH_QUERIES,
+  ADULT_EXTREME_RANK_TAGS,
   ADULT_FEATURED_FETISH_TAGS,
+  adultTagRankBoost,
   fetishSearchQuery,
 } from "./adult-fetishes";
 
 export {
   ADULT_CURATED_FETISH_TAGS,
   ADULT_DEEPEN_FETISH_QUERIES,
+  ADULT_EXTREME_RANK_TAGS,
   ADULT_FEATURED_FETISH_TAGS,
+  adultTagRankBoost,
   fetishSearchQuery,
 };
 

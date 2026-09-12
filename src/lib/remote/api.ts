@@ -16,6 +16,8 @@ import {
   ADULT_REDDIT_SUBS,
   type AdultPullProvider,
 } from "@/lib/videos/adult-sites";
+import { extractRedditMedia, shouldKeepRedditEntry } from "@/lib/videos/adult-reddit-media";
+import { pickRedtubeThumb, redtubeStarNames } from "@/lib/videos/adult-thumbs";
 
 type FollowInput = { query: string; kind: "auto" | FollowKind };
 type RefreshInput = { channels: FollowedChannel[] };
@@ -1078,8 +1080,10 @@ type RedtubeVideo = {
   title?: string;
   url?: string;
   embed_url?: string;
-  default_thumb?: string;
-  thumb?: string;
+  default_thumb?: unknown;
+  thumb?: unknown;
+  thumbs?: unknown;
+  stars?: unknown;
   publish_date?: string;
   tags?: RedtubeTag[];
 };
@@ -1117,10 +1121,13 @@ function redtubeVideo(row: RedtubeVideo): LibraryVideo | null {
   if (!id || !title || !embed) return null;
   if (!embed.startsWith("https://embed.redtube.com/")) return null;
   const tags = redtubeTagNames(row.tags);
-  const keywords = tags.join(", ");
-  const thumb = asString(row.default_thumb) || asString(row.thumb);
+  const stars = redtubeStarNames(row.stars);
+  const keywords = [...stars, ...tags].join(", ");
+  const picked = pickRedtubeThumb(row);
+  const thumb = picked.poster ?? "";
   const added = Date.parse(asString(row.publish_date)) || Date.now();
   const views = typeof row.views === "number" && Number.isFinite(row.views) ? row.views : undefined;
+  const creator = stars[0] || "RedTube";
   return {
     id: `redtube:${id}`,
     folderId: REDTUBE_FOLDER_ID,
@@ -1138,12 +1145,12 @@ function redtubeVideo(row: RedtubeVideo): LibraryVideo | null {
     remote: {
       kind: "redtube",
       videoId: id,
-      channelName: "RedTube",
+      channelName: creator,
       views,
       observedAt: Date.now(),
       embedUrl: embed,
       watchUrl: watch || `https://www.redtube.com/${id}`,
-      previewUrl: thumb || undefined,
+      previewUrl: picked.previewUrl || thumb || undefined,
     },
   };
 }
@@ -1501,69 +1508,82 @@ function xmlField(xml: string, pattern: RegExp) {
   return htmlDecode(pattern.exec(xml)?.[1] ?? "").trim();
 }
 
-function redditDirectMedia(content: string) {
-  const decoded = htmlDecode(content);
-  return /<a href="(https?:[^"]+)">\[link\]/i.exec(decoded)?.[1] ?? "";
-}
-
-function isDirectImage(url: string) {
-  return /\.(jpe?g|png|gif|webp)(\?|$)/i.test(url) || /(?:^|\/\/)(?:i\.redd\.it|preview\.redd\.it|i\.imgur\.com)\//i.test(url);
-}
-
 function redditVideo(entry: string, subreddit: string): LibraryVideo | null {
   const id = xmlField(entry, /<id>([^<]+)<\/id>/i).replace(/^t3_/, "") || xmlField(entry, /\/comments\/([a-z0-9]+)\//i);
   const title = xmlField(entry, /<title>([^<]+)<\/title>/i);
   const permalink = xmlField(entry, /<link href="([^"]+)"/i);
-  const thumb = xmlField(entry, /<media:thumbnail url="([^"]+)"/i);
   const author = xmlField(entry, /<name>([^<]+)<\/name>/i).replace(/^\/u\//, "");
   const published = xmlField(entry, /<published>([^<]+)<\/published>/i);
-  const media = redditDirectMedia(xmlField(entry, /<content[^>]*>([\s\S]*?)<\/content>/i));
+  const content = xmlField(entry, /<content[^>]*>([\s\S]*?)<\/content>/i);
   if (!id || !title || !permalink) return null;
-  if (adultBlockedText(title, author, subreddit, media)) return null;
+  const media = extractRedditMedia(entry, content);
+  if (!shouldKeepRedditEntry(media, title)) return null;
+  if (adultBlockedText(title, author, subreddit, media.poster, media.src, media.watch)) return null;
   const addedAt = Date.parse(published);
-  const image = isDirectImage(media) ? media : thumb;
+  const poster = media.poster;
+  const isImage = media.kind === "image";
+  const isVideo = media.kind === "video";
   return {
     id: `reddit:${id}`,
     folderId: REDDIT_FOLDER_ID,
     name: title.slice(0, 160),
     path: `reddit/${subreddit}/${id}`,
-    extension: image ? "image" : "reddit",
-    mime: image ? "image/jpeg" : "text/html",
+    extension: isImage ? "image" : isVideo ? "reddit" : "reddit",
+    mime: isImage ? "image/jpeg" : isVideo ? "video/reddit" : "text/html",
     size: 0,
     addedAt: Number.isFinite(addedAt) ? addedAt : Date.now(),
-    tagline: `r/${subreddit}${author ? ` · u/${author}` : ""}`,
-    description: `reddit, r/${subreddit}, ${subreddit.replace(/_/g, " ")}, ${title}`,
-    poster: thumb || image || undefined,
-    src: image || permalink,
+    tagline: `r/${subreddit}${author ? ` · u/${author}` : ""}${isVideo ? " · video" : isImage ? " · photo" : ""}`,
+    description: `reddit, r/${subreddit}, ${subreddit.replace(/_/g, " ")}, ${title}, ${media.watch ?? ""}`,
+    poster: poster || undefined,
+    src: media.src || poster || permalink,
     remote: {
       kind: "reddit",
       videoId: id,
       channelName: author || `r/${subreddit}`,
       channelId: subreddit,
       observedAt: Date.now(),
-      embedUrl: image || undefined,
-      watchUrl: permalink,
-      previewUrl: thumb || image || undefined,
+      embedUrl: media.src || media.watch || undefined,
+      watchUrl: media.watch && !/reddit\.com\/r\//i.test(media.watch) ? media.watch : permalink,
+      previewUrl: poster || undefined,
     },
   };
 }
-
-let redditCache: { at: number; key: string; posts: LibraryVideo[]; windowStart: number } | null = null;
-const REDDIT_CACHE_MS = 8 * 60_000;
 
 /** Rotate through the curated catalog so refreshes sample many subs over time. */
 function redditSubWindow(page: number): { subs: string[]; start: number; totalPages: number } {
   const all = ADULT_REDDIT_SUBS as readonly string[];
   const size = Math.max(1, LIBRARY_LIMITS.redditSubsPerPull);
   const totalPages = Math.max(1, Math.ceil(all.length / size));
-  // 30-minute tick nudges the window so routine refreshes do not hammer the same slice.
-  const tick = Math.floor(Date.now() / (30 * 60_000));
-  const start = (((Math.max(1, page) - 1) * size) + (tick * 3)) % all.length;
+  const tick = Math.floor(Date.now() / (20 * 60_000));
+  const start = (((Math.max(1, page) - 1) * size) + (tick * 5)) % all.length;
   const subs: string[] = [];
   for (let i = 0; i < size; i += 1) {
     subs.push(all[(start + i) % all.length]!);
   }
   return { subs, start, totalPages };
+}
+
+
+async function fetchRedditSubRss(sub: string, sort: "hot" | "new"): Promise<LibraryVideo[]> {
+  const path = sort === "new" ? `/r/${encodeURIComponent(sub)}/new/.rss` : `/r/${encodeURIComponent(sub)}/.rss`;
+  const url = `https://www.reddit.com${path}?limit=${LIBRARY_LIMITS.redditPostsPerSub}`;
+  const res = await cachedAdultFetch(url, {
+    signal: AbortSignal.timeout(12000),
+    cacheTtlMs: 6 * 60_000,
+    headers: {
+      accept: "application/atom+xml, application/rss+xml, application/xml;q=0.9, */*;q=0.8",
+      "user-agent": "linux:reelcase:1.0 (by /u/reelcase)",
+    },
+  });
+  if (res.status === 429) throw new Error("rate limited");
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const xml = await res.text();
+  const posts: LibraryVideo[] = [];
+  for (const chunk of xml.split(/<entry>/i).slice(1)) {
+    const video = redditVideo(chunk, sub);
+    if (video) posts.push(video);
+  }
+  return posts;
 }
 
 async function fetchRedditFeed(query: string, maxVideos: number, page = 1): Promise<{
@@ -1572,52 +1592,55 @@ async function fetchRedditFeed(query: string, maxVideos: number, page = 1): Prom
   totalCount: number;
   nextPage: number | null;
 }> {
-  const { subs, start, totalPages } = redditSubWindow(page);
-  const cacheKey = `p${page}:s${start}:${subs.join(",")}`;
-  if (!redditCache || redditCache.key !== cacheKey || Date.now() - redditCache.at > REDDIT_CACHE_MS) {
-    const posts: LibraryVideo[] = [];
-    const seen = new Set<string>();
-    const errors: string[] = [];
-    for (const sub of subs) {
-      const url = `https://www.reddit.com/r/${encodeURIComponent(sub)}/.rss?limit=${LIBRARY_LIMITS.redditPostsPerSub}`;
+  const windows = Math.max(1, LIBRARY_LIMITS.redditWindowsPerPull);
+  const collected: LibraryVideo[] = [];
+  const seen = new Set<string>();
+  const errors: string[] = [];
+  let lastTotalPages = 1;
+  let lastStart = 0;
+
+  for (let offset = 0; offset < windows && collected.length < maxVideos; offset += 1) {
+    const { subs, start, totalPages } = redditSubWindow(page + offset);
+    lastTotalPages = totalPages;
+    lastStart = start;
+    const jobs = subs.flatMap((sub) => [
+      { sub, sort: "hot" as const },
+      { sub, sort: "new" as const },
+    ]);
+    const batches = await mapPool(jobs, LIBRARY_LIMITS.redditFetchConcurrency, async (job) => {
       try {
-        const res = await cachedAdultFetch(url, {
-          signal: AbortSignal.timeout(12000),
-          cacheTtlMs: 8 * 60_000,
-          headers: {
-            accept: "application/atom+xml, application/rss+xml, application/xml;q=0.9, */*;q=0.8",
-            "user-agent": "linux:reelcase:1.0 (by /u/reelcase)",
-          },
-        });
-        if (res.status === 429) throw new Error("rate limited");
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const xml = await res.text();
-        for (const chunk of xml.split(/<entry>/i).slice(1)) {
-          const video = redditVideo(chunk, sub);
-          if (!video || seen.has(video.id)) continue;
-          seen.add(video.id);
-          posts.push(video);
-        }
+        return await fetchRedditSubRss(job.sub, job.sort);
       } catch (err) {
         const message = err instanceof Error ? err.message : "unavailable";
-        errors.push(`r/${sub}: ${message}`);
+        errors.push(`r/${job.sub}/${job.sort}: ${message}`);
+        return [] as LibraryVideo[];
       }
+    });
+    for (const batch of batches) {
+      for (const video of batch) {
+        if (seen.has(video.id)) continue;
+        seen.add(video.id);
+        collected.push(video);
+        if (collected.length >= maxVideos) break;
+      }
+      if (collected.length >= maxVideos) break;
     }
-    if (!posts.length && errors.length) throw new Error(`Reddit RSS unavailable (${errors.slice(0, 6).join("; ")}).`);
-    redditCache = { at: Date.now(), key: cacheKey, posts, windowStart: start };
   }
+
+  if (!collected.length && errors.length) throw new Error(`Reddit RSS unavailable (${errors.slice(0, 6).join("; ")}).`);
+
   const needle = query.trim().toLowerCase();
   const filtered =
     !needle || needle === "all"
-      ? redditCache.posts
-      : redditCache.posts.filter((video) => {
+      ? collected
+      : collected.filter((video) => {
           const hay = `${video.name} ${video.tagline ?? ""} ${video.description ?? ""}`.toLowerCase();
           return hay.includes(needle);
         });
-  const nextPage = page < totalPages * 4 ? page + 1 : null; // allow multi-pass rotation
+  const nextPage = page + windows <= lastTotalPages * 6 ? page + windows : null;
   return {
     videos: filtered.slice(0, maxVideos),
-    totalPages,
+    totalPages: lastTotalPages,
     totalCount: filtered.length,
     nextPage,
   };
@@ -1969,8 +1992,8 @@ export const searchAdultVideos = createServerFn({ method: "POST" })
     providers: AdultPullProvider[];
     providerNextPages: Partial<Record<AdultPullProvider, number | null>>;
   }> => {
-    const providers = data.providers;
-    const share = Math.max(1, Math.floor(data.maxVideos / providers.length));
+    const providers = [...data.providers].sort((a, b) => (a === "reddit" ? -1 : b === "reddit" ? 1 : 0));
+    const share = Math.max(1, Math.floor(data.maxVideos / Math.max(1, providers.length)));
     const leftovers = data.maxVideos - share * providers.length;
     const collected: LibraryVideo[] = [];
     let nextPage: number | null = null;
@@ -1981,10 +2004,14 @@ export const searchAdultVideos = createServerFn({ method: "POST" })
     const seen = new Set<string>();
     for (let i = 0; i < providers.length; i += 1) {
       const provider = providers[i];
-      const rawBudget = share + (i === 0 ? leftovers : 0);
+      const rawBudget = share + (provider === "reddit" ? leftovers : 0);
       const live = liveRoomLimit(provider);
+      const redditFloor = Math.min(
+        LIBRARY_LIMITS.redditVideosPerPull,
+        Math.max(rawBudget, Math.floor(data.maxVideos * 0.35), 480),
+      );
       const budget = provider === "reddit"
-        ? Math.min(LIBRARY_LIMITS.redditVideosPerPull, rawBudget)
+        ? redditFloor
         : provider === "booru"
           ? Math.min(LIBRARY_LIMITS.booruVideosPerPull, rawBudget)
           : provider === "redgifs"
@@ -2008,12 +2035,32 @@ export const searchAdultVideos = createServerFn({ method: "POST" })
       }
     }
 
+    const redditHave = collected.filter((video) => video.remote?.kind === "reddit").length;
+    const redditWant = Math.min(LIBRARY_LIMITS.redditVideosPerPull, Math.max(480, Math.floor(data.maxVideos * 0.35)));
+    if (providers.includes("reddit") && redditHave < redditWant) {
+      const extraPage = (data.providerPages?.reddit ?? data.page) + LIBRARY_LIMITS.redditWindowsPerPull;
+      try {
+        const batch = await pullProviderPages("reddit", data.query, data.order, extraPage, redditWant - redditHave);
+        for (const video of batch.videos) {
+          if (seen.has(video.id)) continue;
+          seen.add(video.id);
+          collected.push(video);
+        }
+        totalCount += batch.totalCount;
+        if (batch.nextPage != null) providerNextPages.reddit = batch.nextPage;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "unavailable";
+        errors.push(`reddit/extra: ${message}`);
+      }
+    }
+
     // When browsing "all", deepen official video APIs with curated fetish
     // keyword pages so shelves pick up DP / roleplay / milf / feet and more.
+    // Leave headroom so RedTube/Eporner cannot refill the entire catalog after Reddit.
     if (data.query.toLowerCase() === "all" && collected.length < data.maxVideos) {
       const fetishQueries = ADULT_DEEPEN_FETISH_QUERIES;
       const deepenProviders = providers.filter((p) => p === "eporner" || p === "redtube");
-      const remaining = data.maxVideos - collected.length;
+      const remaining = Math.max(0, data.maxVideos - collected.length);
       const slots = Math.max(1, fetishQueries.length * Math.max(1, deepenProviders.length));
       const perQuery = Math.max(20, Math.floor(remaining / slots));
       for (const fetish of fetishQueries) {
