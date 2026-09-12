@@ -113,14 +113,25 @@ export function AdultPanel({
     return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   }, [adultVideos, tags]);
 
+  const creatorFacets = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const video of adultVideos) {
+      for (const tag of tags[video.id] ?? []) {
+        if (tag.startsWith("creator-")) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+      }
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 36);
+  }, [adultVideos, tags]);
+
   const fetishFacets = useMemo(() => {
     const counts = new Map<string, number>();
     for (const video of adultVideos) {
       for (const tag of tags[video.id] ?? []) {
-        if (tag.startsWith("fetish-") || (!tag.startsWith("source-") && !tag.startsWith("provider-") && !tag.startsWith("format-") && !tag.startsWith("genre-"))) {
-          if (tag.startsWith("fetish-") || tag.length >= 3) {
-            counts.set(tag, (counts.get(tag) ?? 0) + 1);
-          }
+        if (tag.startsWith("source-") || tag.startsWith("provider-") || tag.startsWith("format-") || tag.startsWith("genre-") || tag.startsWith("creator-")) {
+          continue;
+        }
+        if (tag.startsWith("fetish-") || tag.length >= 3) {
+          counts.set(tag, (counts.get(tag) ?? 0) + 1);
         }
       }
     }
@@ -304,10 +315,12 @@ export function AdultPanel({
           >
             RedTube webmaster API
           </a>{" "}
-          (up to {LIBRARY_LIMITS.epornerVideosPerPull.toLocaleString()} titles per pull). Provider
-          keywords become local fetish tags; each title also gets a{" "}
-          <code className="text-fg">source-*</code> tag. Cards open the same preview + in-app play
-          window as YouTube and Twitch. Use I cummed to it on a card or in the player to keep a private local count that never leaves this browser.
+          (up to {LIBRARY_LIMITS.epornerVideosPerPull.toLocaleString()} titles per pull). Every pulled
+          item always gets a filterable <code className="text-fg">source-*</code> tag, plus{" "}
+          <code className="text-fg">creator-*</code> when a username/channel/owner is known, API
+          keywords, and curated fetish tokens mined from titles/descriptions. Cards open the same
+          preview + in-app play window as YouTube and Twitch. Use I cummed to it on a card or in the
+          player to keep a private local count that never leaves this browser.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           {PROVIDER_CHOICES.map((choice) => (
@@ -428,6 +441,7 @@ export function AdultPanel({
         {sourceFacets.length > 0 && (
           <div className="mt-4">
             <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Source tags</p>
+            <p className="mt-1 text-xs text-muted">Every pull stamps source-* so you can filter by provider (and booru host / subreddit when present).</p>
             <div className="mt-2 flex flex-wrap gap-2">
               <Button
                 size="sm"
@@ -437,6 +451,23 @@ export function AdultPanel({
                 All sources · {adultVideos.length}
               </Button>
               {sourceFacets.map(([tag, count]) => (
+                <Button
+                  key={tag}
+                  size="sm"
+                  variant={tagFilter === tag ? "default" : "secondary"}
+                  onClick={() => setTagFilter(tag)}
+                >
+                  #{tag} · {count}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+        {creatorFacets.length > 0 && (
+          <div className="mt-4">
+            <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Creator tags</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {creatorFacets.map(([tag, count]) => (
                 <Button
                   key={tag}
                   size="sm"

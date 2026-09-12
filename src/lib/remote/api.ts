@@ -1242,7 +1242,7 @@ function chaturbateVideo(row: ChaturbateRoom): LibraryVideo | null {
     remote: {
       kind: "chaturbate",
       videoId: username,
-      channelName: display,
+      channelName: username,
       live: true,
       viewers,
       observedAt: Date.now(),
@@ -1515,7 +1515,8 @@ function redditVideo(entry: string, subreddit: string): LibraryVideo | null {
     remote: {
       kind: "reddit",
       videoId: id,
-      channelName: `r/${subreddit}`,
+      channelName: author || `r/${subreddit}`,
+      channelId: subreddit,
       observedAt: Date.now(),
       embedUrl: image || undefined,
       watchUrl: permalink,
@@ -1596,12 +1597,13 @@ const BOORU_HOSTS = [
 function booruVideo(row: BooruPost, host: (typeof BOORU_HOSTS)[number]): LibraryVideo | null {
   const id = asString(row.id).trim();
   const tags = asString(row.tags).trim();
+  const owner = asString(row.owner).trim();
   const preview = asString(row.preview_url).trim();
   const sample = asString(row.sample_url).trim();
   const file = asString(row.file_url).trim();
   const image = sample || preview || file;
   if (!id || !image) return null;
-  if (adultBlockedText(tags, asString(row.owner))) return null;
+  if (adultBlockedText(tags, owner)) return null;
   const title = (tags.split(/\s+/).filter(Boolean).slice(0, 8).join(" ") || `${host.id} #${id}`).slice(0, 160);
   const watch = `${host.base}${host.postPath}${encodeURIComponent(id)}`;
   return {
@@ -1613,14 +1615,15 @@ function booruVideo(row: BooruPost, host: (typeof BOORU_HOSTS)[number]): Library
     mime: "image/jpeg",
     size: 0,
     addedAt: Date.now(),
-    tagline: `${host.id} · photo`,
+    tagline: `${host.id} · photo${owner ? ` · ${owner}` : ""}`,
     description: tags.slice(0, 400),
     poster: preview || sample || undefined,
     src: image,
     remote: {
       kind: "booru",
       videoId: id,
-      channelName: host.id,
+      channelName: owner || host.id,
+      channelId: host.id,
       observedAt: Date.now(),
       embedUrl: image,
       watchUrl: watch,

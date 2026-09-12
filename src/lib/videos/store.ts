@@ -1,14 +1,11 @@
 import { create } from "zustand";
 import {
-  ADULT_CURATED_FETISH_TAGS,
   ADULT_FOLDER_BY_PROVIDER,
   ADULT_FOLDER_IDS,
   ADULT_PULL_PROVIDERS,
   EPORNER_FOLDER_ID,
   REDTUBE_FOLDER_ID,
-  adultFetishTags,
-  adultKeywordTags,
-  adultSourceTag,
+  adultIngestTags,
   type AdultPullProvider,
 } from "./adult-sites";
 import { mergeRemoteRefresh } from "./remote-merge";
@@ -388,7 +385,9 @@ function compactIngestedTags(existing: string[], inferred: string[]) {
   const seen = new Set<string>();
   const compact: string[] = [];
   for (const raw of [...existing, ...inferred]) {
-    const tag = raw.trim().toLowerCase().replace(/^keyword-/, "").replace(/^creator-/, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+    // Preserve source- / creator- / fetish- / provider- families for Adult filters.
+    // Only strip the legacy keyword- wrapper so cards stay readable.
+    let tag = raw.trim().toLowerCase().replace(/^keyword-/, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
     if (!tag || tag === "http" || tag === "https" || seen.has(tag)) continue;
     seen.add(tag);
     compact.push(tag);
@@ -843,19 +842,30 @@ export const useLibrary = create<LibraryState>((set, get) => ({
 
         for (const video of videos) {
           const source = video.remote?.kind ?? video.folderId.split(":")[0] ?? "eporner";
-          const fromApi = adultKeywordTags(
-            video.description ?? video.tagline ?? "",
-            LIBRARY_LIMITS.adultKeywordTagsPerTitle,
-          );
-          const haystack = `${video.name} ${video.description ?? ""} ${fromApi.join(" ")}`.toLowerCase();
-          const curatedHits = ADULT_CURATED_FETISH_TAGS.filter((tag) => haystack.includes(tag));
-          const fetish = adultFetishTags([...fromApi, ...curatedHits], LIBRARY_LIMITS.adultKeywordTagsPerTitle);
+          const hostExtra =
+            source === "booru" && video.remote?.channelId
+              ? [video.remote.channelId]
+              : source === "reddit" && video.remote?.channelId
+                ? [`reddit-${video.remote.channelId}`]
+                : [];
+          const creatorNames = [
+            video.remote?.channelName,
+            video.remote?.videoId && (source === "chaturbate" || source === "camsoda" || source === "myfreecams")
+              ? video.remote.videoId
+              : undefined,
+          ];
+          // Booru owners live in description/tagline as space tags; prefer remote.channelName when it is an owner.
           tagPatch[video.id] = compactIngestedTags(s.tags[video.id] ?? [], [
             ...remoteMetadataTags(video),
-            adultSourceTag(source),
-            ...fromApi,
-            ...curatedHits,
-            ...fetish,
+            ...adultIngestTags({
+              source,
+              extraSources: hostExtra,
+              creatorNames,
+              apiKeywords: video.description ?? video.tagline ?? "",
+              title: video.name,
+              description: video.description ?? video.tagline ?? "",
+              limit: LIBRARY_LIMITS.adultKeywordTagsPerTitle + 24,
+            }),
           ]);
         }
 

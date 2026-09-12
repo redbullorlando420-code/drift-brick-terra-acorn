@@ -2,12 +2,19 @@
 
 import { ADULT_EXTRA_MILESTONES } from "./adult-milestones-extra";
 import { ADULT_NICHE_MILESTONES } from "./adult-milestones-niches";
-export {
+import {
   ADULT_CURATED_FETISH_TAGS,
   ADULT_DEEPEN_FETISH_QUERIES,
   ADULT_FEATURED_FETISH_TAGS,
   fetishSearchQuery,
 } from "./adult-fetishes";
+
+export {
+  ADULT_CURATED_FETISH_TAGS,
+  ADULT_DEEPEN_FETISH_QUERIES,
+  ADULT_FEATURED_FETISH_TAGS,
+  fetishSearchQuery,
+};
 
 export type AdultSiteLink = {
   name: string;
@@ -887,7 +894,36 @@ export function isAdultPullKind(kind?: string) {
 }
 
 export function adultSourceTag(provider: string) {
-  return `source-${provider.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
+  const slug = provider.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return slug ? `source-${slug}` : "source-adult";
+}
+
+/** Provider brand labels that should not become creator-* tags. */
+const ADULT_PROVIDER_BRANDS = new Set([
+  "eporner",
+  "redtube",
+  "chaturbate",
+  "camsoda",
+  "myfreecams",
+  "reddit",
+  "booru",
+  "xbooru",
+  "tbib",
+  "hypnohub",
+  "redgifs",
+  "adultdatalink",
+  "pornhub",
+]);
+
+/** Stable creator / pornstar / username / channel tag. Returns null for brands or junk. */
+export function adultCreatorTag(name: string | undefined | null): string | null {
+  if (!name) return null;
+  const cleaned = name.trim().replace(/^\/?(?:u|user|r)\//i, "");
+  const slug = cleaned.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  if (!slug || slug.length < 2 || slug.length > 48) return null;
+  if (ADULT_PROVIDER_BRANDS.has(slug)) return null;
+  if (/^(https?|www|null|undefined|unknown|anonymous|guest)$/i.test(slug)) return null;
+  return `creator-${slug}`;
 }
 
 /** Split provider keyword / fetish strings into stable local tags for browse/filter. */
@@ -927,3 +963,70 @@ export function adultFetishTags(labels: string[], limit = 36): string[] {
   return out;
 }
 
+/** Match curated fetish/category tokens inside title + description (no junk spam). */
+export function adultTextFetishTags(text: string, limit = 24): string[] {
+  const hay = text.toLowerCase();
+  if (!hay.trim()) return [];
+  const tokens = [...ADULT_CURATED_FETISH_TAGS].sort((a, b) => b.length - a.length);
+  const hits: string[] = [];
+  const seen = new Set<string>();
+  for (const token of tokens) {
+    const needle = token.toLowerCase();
+    if (needle.length < 2) continue;
+    const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = needle.length <= 3
+      ? new RegExp(`(?:^|[^a-z0-9])${escaped}(?:[^a-z0-9]|$)`)
+      : new RegExp(escaped);
+    if (!re.test(hay)) continue;
+    if (seen.has(needle)) continue;
+    seen.add(needle);
+    hits.push(token);
+    if (hits.length >= limit) break;
+  }
+  return adultFetishTags(hits, limit * 2).slice(0, limit);
+}
+
+/** Build the full adult ingest tag set for one pulled title. Always includes source-*. */
+export function adultIngestTags(input: {
+  source: string;
+  extraSources?: string[];
+  creatorNames?: Array<string | undefined | null>;
+  apiKeywords?: string;
+  title?: string;
+  description?: string;
+  limit?: number;
+}): string[] {
+  const limit = input.limit ?? 64;
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const push = (tag: string | null | undefined) => {
+    if (!tag) return;
+    const clean = tag.trim().toLowerCase();
+    if (!clean || seen.has(clean)) return;
+    seen.add(clean);
+    out.push(clean);
+  };
+
+  push(adultSourceTag(input.source));
+  for (const extra of input.extraSources ?? []) push(adultSourceTag(extra));
+  for (const name of input.creatorNames ?? []) push(adultCreatorTag(name));
+
+  const api = adultKeywordTags(input.apiKeywords ?? "", 32);
+  for (const tag of api) push(tag);
+  for (const tag of adultFetishTags(api, 36)) push(tag);
+
+  const textTags = adultTextFetishTags(
+    `${input.title ?? ""} ${input.description ?? ""} ${input.apiKeywords ?? ""}`,
+    24,
+  );
+  for (const tag of textTags) push(tag);
+
+  return out.slice(0, limit);
+}
+
+export function isAdultImageKind(kind?: string, mime?: string, extension?: string) {
+  if (kind === "booru") return true;
+  if (mime?.startsWith("image/")) return true;
+  if (extension === "image") return true;
+  return false;
+}
