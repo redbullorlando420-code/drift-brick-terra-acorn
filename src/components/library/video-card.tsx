@@ -98,7 +98,7 @@ export const VideoCard = memo(function VideoCard({
     window.requestAnimationFrame(() => setMediaRating(video.id, value));
   };
   const repairRemoteArtwork = () => {
-    if (!video.remote || video.remote.kind === "eporner" || remoteArtworkRepairRequested.has(video.folderId)) return;
+    if (!video.remote || video.remote.kind === "eporner" || video.remote.kind === "redtube" || remoteArtworkRepairRequested.has(video.folderId)) return;
     remoteArtworkRepairRequested.add(video.folderId);
     // A signed/expired provider thumbnail is repaired by refreshing only this
     // creator. The catalog merge is additive, so healthy sibling cards keep

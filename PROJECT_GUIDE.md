@@ -16,7 +16,7 @@ Reelcase is a browser-first personal media hub built with TanStack Start, React,
 - `src/components/library/connect-panel.tsx` owns channel-follow and import UX.
 - `src/components/library/hub-sections.tsx` owns Settings, print catalog, games catalog, and shop shortcuts.
 - `src/lib/videos/store.ts` is the durable in-browser library state.
-- `src/lib/remote/api.ts` owns server-side YouTube, Twitch, and Eporner lookups.
+- `src/lib/remote/api.ts` owns server-side YouTube, Twitch, Eporner, and RedTube lookups.
 
 ## Safe upgrade checklist
 
@@ -35,6 +35,6 @@ Reelcase is a browser-first personal media hub built with TanStack Start, React,
 ## Feature map
 
 - Movie features live in `library-app.tsx` and `player.tsx`: rails, random/next playback, progress, metadata, ratings, quick tags, and private notes.
-- Adult browsing uses the same local tag store with no PIN gate. Never copy adult rows to public rails. Pull remote adult video only via official public APIs/embeds (Eporner); other destinations are link-out milestones.
+- Adult browsing uses the same local tag store with no PIN gate. Never copy adult rows to public rails. Pull remote adult video only via official public APIs/embeds (Eporner, RedTube); other destinations are link-out milestones with source tags.
 - The game section intentionally distinguishes safe web shortcuts from desktop executables. Do not bypass browser security using `file:` paths or shell-like protocols.
 - Watch Room UI belongs in `hub-sections.tsx`; protocol notes and multi-device verification live in `LAN_WATCH_ROOM.md`.

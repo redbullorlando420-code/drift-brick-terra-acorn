@@ -14,7 +14,7 @@ Your library stays useful even when a provider is slow, a folder is temporarily 
 - **Fast Home** — The Home shell, search, and core controls paint first. Discovery ranking, artwork-heavy rails, and optional recommendations wait for idle time.
 - **Explainable recommendations** — Shelf copy explains whether a rail is driven by freshness, ratings, saved creators, follow state, or unfinished progress—never opaque provider transport tags.
 - **Rating rhythm** — A local weekly rating goal, streak counter, and clear rewards turn lightweight feedback into better shelves without sending activity anywhere.
-- **Adult discovery** — Adults opens without a PIN. Private shelves stay separate from public rails; Eporner API v2 powers a paginated in-app catalog with provider tags/embeds, and other destinations appear as Adult milestones link-outs.
+- **Adult discovery** — Adults opens without a PIN. Private shelves stay separate from public rails; Eporner API v2 and RedTube’s webmaster API power paginated in-app catalogs with source + fetish tags/embeds, and other destinations appear as Adult milestones link-outs with labeled source tags.
 - **Optional Companion support** — The local Companion can inspect approved folders and prepare bounded metadata or thumbnail work. It never receives broad filesystem access from the browser.
 - **LAN Watch Rooms** — Create room codes for direct peer presence, chat, next-up voting, local-video sync, and provider embed fallbacks. Exact timeline control is reserved for playable local media.
 

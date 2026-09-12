@@ -393,7 +393,7 @@ export function Player({ playlist }: { playlist: string[] }) {
       ? twitchEmbed(remote.embedUrl ?? "")
       : remote.kind === "youtube"
         ? youtubeEmbed(remote.embedUrl ?? video.src ?? "")
-        : remote.kind === "eporner"
+        : remote.kind === "eporner" || remote.kind === "redtube"
           ? remote.embedUrl ?? video.src ?? null
           : remote.embedUrl
             ? `${remote.embedUrl}${remote.embedUrl.includes("?") ? "&" : "?"}autoplay=1&rel=0&modestbranding=1`
@@ -480,7 +480,7 @@ export function Player({ playlist }: { playlist: string[] }) {
             <p className="truncate text-xs text-muted">
               {remote ? (
                 [
-                  remote.live ? "Live" : remote.kind === "youtube" ? "YouTube" : remote.kind === "eporner" ? "Eporner" : "Twitch",
+                  remote.live ? "Live" : remote.kind === "youtube" ? "YouTube" : remote.kind === "eporner" ? "Eporner" : remote.kind === "redtube" ? "RedTube" : "Twitch",
                   remote.channelName,
                   hasFreshViewerCount(remote) ? `${remote.viewers?.toLocaleString()} watching` : null,
                 ]
@@ -716,7 +716,7 @@ export function Player({ playlist }: { playlist: string[] }) {
               rel="noreferrer"
               className="text-sm text-muted hover:text-fg"
             >
-              Open on {remote.kind === "youtube" ? "YouTube" : remote.kind === "eporner" ? "Eporner" : "Twitch"}
+              Open on {remote.kind === "youtube" ? "YouTube" : remote.kind === "eporner" ? "Eporner" : remote.kind === "redtube" ? "RedTube" : "Twitch"}
             </a>
           )}
           <Button

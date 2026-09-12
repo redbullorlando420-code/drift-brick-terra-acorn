@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import type { FollowedChannel, FollowKind, LibraryVideo, RemoteKind } from "@/lib/videos/types";
 import { LIBRARY_LIMITS } from "@/lib/library-limits";
-import { EPORNER_FOLDER_ID } from "@/lib/videos/adult-sites";
+import { EPORNER_FOLDER_ID, REDTUBE_FOLDER_ID } from "@/lib/videos/adult-sites";
 
 type FollowInput = { query: string; kind: "auto" | FollowKind };
 type RefreshInput = { channels: FollowedChannel[] };
@@ -894,9 +894,18 @@ export const fetchTwitchFollowing = createServerFn({ method: "POST" })
     return { channels: [], privateList: true };
   });
 
-/* --- Adult discovery (Eporner official public API + embed URLs) --- */
+/* --- Adult discovery (Eporner + RedTube official public APIs + embeds) --- */
 
-type AdultSearchIn = { query?: string; order?: string; page?: number; maxVideos?: number; append?: boolean };
+type AdultPullProvider = "eporner" | "redtube";
+
+type AdultSearchIn = {
+  query?: string;
+  order?: string;
+  page?: number;
+  maxVideos?: number;
+  append?: boolean;
+  providers?: AdultPullProvider[] | "all";
+};
 
 const EPORNER_ORDERS = new Set([
   "latest",
@@ -908,7 +917,17 @@ const EPORNER_ORDERS = new Set([
   "top-monthly",
 ]);
 
-function parseAdultSearch(data: unknown): Required<AdultSearchIn> {
+function parseAdultProviders(raw: unknown): AdultPullProvider[] {
+  if (raw === "all" || raw == null) return ["eporner", "redtube"];
+  if (Array.isArray(raw)) {
+    const out = raw.filter((p): p is AdultPullProvider => p === "eporner" || p === "redtube");
+    return out.length ? [...new Set(out)] : ["eporner", "redtube"];
+  }
+  if (raw === "eporner" || raw === "redtube") return [raw];
+  return ["eporner", "redtube"];
+}
+
+function parseAdultSearch(data: unknown): Required<AdultSearchIn> & { providers: AdultPullProvider[] } {
   const rec = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
   const query = asString(rec.query).trim() || "all";
   const orderRaw = asString(rec.order).trim() || "top-weekly";
@@ -920,7 +939,14 @@ function parseAdultSearch(data: unknown): Required<AdultSearchIn> {
     ? Math.min(Math.floor(maxRaw), LIBRARY_LIMITS.epornerVideosPerPull)
     : LIBRARY_LIMITS.epornerVideosPerPull;
   const append = Boolean(rec.append);
-  return { query: query.slice(0, 80), order, page, maxVideos, append };
+  return {
+    query: query.slice(0, 80),
+    order,
+    page,
+    maxVideos,
+    append,
+    providers: parseAdultProviders(rec.providers),
+  };
 }
 
 type EpornerVideo = {
@@ -1012,6 +1038,192 @@ async function fetchEpornerPage(query: string, order: string, page: number, perP
   };
 }
 
+type RedtubeTag = { tag_name?: string } | { tag?: { tag_name?: string } };
+
+type RedtubeVideo = {
+  duration?: string;
+  views?: number;
+  video_id?: string | number;
+  rating?: string | number;
+  title?: string;
+  url?: string;
+  embed_url?: string;
+  default_thumb?: string;
+  thumb?: string;
+  publish_date?: string;
+  tags?: RedtubeTag[];
+};
+
+function parseClockDuration(raw: string): number | undefined {
+  const parts = raw.trim().split(":").map((p) => Number(p));
+  if (!parts.length || parts.some((n) => !Number.isFinite(n))) return undefined;
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  if (parts.length === 1) return parts[0];
+  return undefined;
+}
+
+function redtubeTagNames(tags: RedtubeTag[] | undefined): string[] {
+  if (!Array.isArray(tags)) return [];
+  const out: string[] = [];
+  for (const row of tags) {
+    const name =
+      typeof row === "object" && row !== null
+        ? "tag_name" in row
+          ? asString((row as { tag_name?: string }).tag_name)
+          : asString((row as { tag?: { tag_name?: string } }).tag?.tag_name)
+        : "";
+    const clean = name.trim();
+    if (clean) out.push(clean);
+  }
+  return out;
+}
+
+function redtubeVideo(row: RedtubeVideo): LibraryVideo | null {
+  const id = String(row.video_id ?? "").trim();
+  const title = asString(row.title).trim();
+  const embed = asString(row.embed_url).trim();
+  const watch = asString(row.url).trim();
+  if (!id || !title || !embed) return null;
+  if (!embed.startsWith("https://embed.redtube.com/")) return null;
+  const tags = redtubeTagNames(row.tags);
+  const keywords = tags.join(", ");
+  const thumb = asString(row.default_thumb) || asString(row.thumb);
+  const added = Date.parse(asString(row.publish_date)) || Date.now();
+  const views = typeof row.views === "number" && Number.isFinite(row.views) ? row.views : undefined;
+  return {
+    id: `redtube:${id}`,
+    folderId: REDTUBE_FOLDER_ID,
+    name: title,
+    path: `redtube/${title}`,
+    extension: "redtube",
+    mime: "video/redtube",
+    size: 0,
+    duration: parseClockDuration(asString(row.duration)),
+    addedAt: added,
+    tagline: keywords.slice(0, 160) || undefined,
+    description: keywords || undefined,
+    poster: thumb || undefined,
+    src: embed,
+    remote: {
+      kind: "redtube",
+      videoId: id,
+      channelName: "RedTube",
+      views,
+      observedAt: Date.now(),
+      embedUrl: embed,
+      watchUrl: watch || `https://www.redtube.com/${id}`,
+      previewUrl: thumb || undefined,
+    },
+  };
+}
+
+function redtubeOrdering(order: string): { ordering: string; period?: string } {
+  switch (order) {
+    case "latest":
+      return { ordering: "newest" };
+    case "top-rated":
+      return { ordering: "rating", period: "alltime" };
+    case "most-popular":
+      return { ordering: "mostviewed", period: "alltime" };
+    case "top-monthly":
+      return { ordering: "mostviewed", period: "monthly" };
+    case "top-weekly":
+    default:
+      return { ordering: "mostviewed", period: "weekly" };
+  }
+}
+
+async function fetchRedtubePage(query: string, order: string, page: number): Promise<{
+  videos: LibraryVideo[];
+  totalCount: number;
+  totalPages: number;
+}> {
+  const { ordering, period } = redtubeOrdering(order);
+  const params = new URLSearchParams({
+    data: "redtube.Videos.searchVideos",
+    output: "json",
+    thumbsize: "medium",
+    page: String(page),
+    ordering,
+  });
+  if (period) params.set("period", period);
+  const q = query.trim();
+  if (q && q.toLowerCase() !== "all") params.set("search", q);
+  const url = `https://api.redtube.com/?${params.toString()}`;
+  const res = await fetch(url, {
+    signal: AbortSignal.timeout(20000),
+    headers: {
+      accept: "application/json",
+      "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
+    },
+  });
+  if (!res.ok) throw new Error("RedTube search is unavailable right now.");
+  const json = (await res.json()) as {
+    videos?: Array<{ video?: RedtubeVideo } | RedtubeVideo>;
+    count?: number;
+    message?: string;
+    code?: number;
+  };
+  if (json.message && json.code) throw new Error(json.message);
+  const rows = json.videos ?? [];
+  const videos = rows
+    .map((row) => {
+      const video = row && typeof row === "object" && "video" in row ? row.video : (row as RedtubeVideo);
+      return video ? redtubeVideo(video) : null;
+    })
+    .filter((v): v is LibraryVideo => v != null);
+  const totalCount = typeof json.count === "number" ? json.count : videos.length;
+  const perPage = LIBRARY_LIMITS.redtubePageSize;
+  const totalPages = Math.max(1, Math.ceil(totalCount / perPage));
+  return { videos, totalCount, totalPages };
+}
+
+async function pullProviderPages(
+  provider: AdultPullProvider,
+  query: string,
+  order: string,
+  startPage: number,
+  maxVideos: number,
+): Promise<{ videos: LibraryVideo[]; page: number; nextPage: number | null; totalCount: number }> {
+  const collected: LibraryVideo[] = [];
+  const seen = new Set<string>();
+  let page = startPage;
+  let totalPages = page;
+  let totalCount = 0;
+  let pagesFetched = 0;
+  const maxPages =
+    provider === "redtube" ? LIBRARY_LIMITS.redtubePagesPerPull : LIBRARY_LIMITS.epornerPagesPerPull;
+  const perPage = provider === "redtube" ? LIBRARY_LIMITS.redtubePageSize : LIBRARY_LIMITS.epornerPageSize;
+
+  while (collected.length < maxVideos && pagesFetched < maxPages) {
+    const batch =
+      provider === "redtube"
+        ? await fetchRedtubePage(query, order, page)
+        : await fetchEpornerPage(query, order, page, perPage);
+    totalPages = batch.totalPages;
+    totalCount = batch.totalCount;
+    pagesFetched += 1;
+    if (!batch.videos.length) break;
+    for (const video of batch.videos) {
+      if (seen.has(video.id)) continue;
+      seen.add(video.id);
+      collected.push(video);
+      if (collected.length >= maxVideos) break;
+    }
+    if (page >= totalPages) break;
+    page += 1;
+  }
+
+  const computedNext = startPage + pagesFetched;
+  return {
+    videos: collected,
+    page: startPage,
+    nextPage: computedNext <= totalPages && collected.length ? computedNext : null,
+    totalCount,
+  };
+}
+
 export const searchAdultVideos = createServerFn({ method: "POST" })
   .validator((data: unknown) => parseAdultSearch(data))
   .handler(async ({ data }): Promise<{
@@ -1021,39 +1233,56 @@ export const searchAdultVideos = createServerFn({ method: "POST" })
     page: number;
     nextPage: number | null;
     totalCount: number;
+    providers: AdultPullProvider[];
   }> => {
-    const perPage = LIBRARY_LIMITS.epornerPageSize;
-    const maxPages = LIBRARY_LIMITS.epornerPagesPerPull;
+    const providers = data.providers;
+    const share = Math.max(1, Math.floor(data.maxVideos / providers.length));
+    const leftovers = data.maxVideos - share * providers.length;
     const collected: LibraryVideo[] = [];
-    const seen = new Set<string>();
-    let page = data.page;
-    let totalPages = page;
+    let nextPage: number | null = null;
     let totalCount = 0;
-    let pagesFetched = 0;
 
-    while (collected.length < data.maxVideos && pagesFetched < maxPages) {
-      const batch = await fetchEpornerPage(data.query, data.order, page, perPage);
-      totalPages = batch.totalPages;
-      totalCount = batch.totalCount;
-      pagesFetched += 1;
-      if (!batch.videos.length) break;
+    const seen = new Set<string>();
+    for (let i = 0; i < providers.length; i += 1) {
+      const provider = providers[i];
+      const budget = share + (i === 0 ? leftovers : 0);
+      const batch = await pullProviderPages(provider, data.query, data.order, data.page, budget);
       for (const video of batch.videos) {
         if (seen.has(video.id)) continue;
         seen.add(video.id);
         collected.push(video);
-        if (collected.length >= data.maxVideos) break;
       }
-      if (page >= totalPages) break;
-      page += 1;
+      totalCount += batch.totalCount;
+      if (batch.nextPage != null) nextPage = nextPage == null ? batch.nextPage : Math.min(nextPage, batch.nextPage);
     }
 
-    const computedNext = data.page + pagesFetched;
+    // When browsing "all", deepen RedTube fetish coverage with a few official
+    // tag/search pages so the adult library receives richer keyword tags.
+    if (providers.includes("redtube") && data.query.toLowerCase() === "all" && collected.length < data.maxVideos) {
+      const fetishQueries = ["anal", "lesbian", "milf", "gangbang", "cuckold", "masturbation", "voyeur", "amateur"];
+      const remaining = data.maxVideos - collected.length;
+      const perQuery = Math.max(20, Math.floor(remaining / fetishQueries.length));
+      for (const fetish of fetishQueries) {
+        if (collected.length >= data.maxVideos) break;
+        const batch = await pullProviderPages("redtube", fetish, data.order, 1, perQuery);
+        for (const video of batch.videos) {
+          if (seen.has(video.id)) continue;
+          seen.add(video.id);
+          collected.push(video);
+          if (collected.length >= data.maxVideos) break;
+        }
+        totalCount += batch.totalCount;
+      }
+    }
+
     return {
       videos: collected,
-      source: "eporner",
-      note: "Pulled via Eporner API v2 (official). Playback uses their public iframe embed; keywords become local tags for browse/filter.",
+      source: providers.join("+"),
+      note:
+        "Pulled via official public APIs (Eporner API v2 and/or RedTube webmaster API). Playback uses public iframe embeds; keywords/tags become local source + fetish tags for browse/filter.",
       page: data.page,
-      nextPage: computedNext <= totalPages && collected.length ? computedNext : null,
+      nextPage,
       totalCount,
+      providers,
     };
   });

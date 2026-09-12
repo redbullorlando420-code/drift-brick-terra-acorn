@@ -1,5 +1,15 @@
 import { create } from "zustand";
-import { EPORNER_FOLDER, EPORNER_FOLDER_ID, epornerKeywordTags } from "./adult-sites";
+import {
+  ADULT_CURATED_FETISH_TAGS,
+  EPORNER_FOLDER,
+  EPORNER_FOLDER_ID,
+  REDTUBE_FOLDER,
+  REDTUBE_FOLDER_ID,
+  adultFetishTags,
+  adultKeywordTags,
+  adultSourceTag,
+  type AdultPullProvider,
+} from "./adult-sites";
 import { mergeRemoteRefresh } from "./remote-merge";
 import { measureInteraction } from "@/lib/interaction-budget";
 import {
@@ -130,7 +140,7 @@ type LibraryState = {
   setHideDemo: (hide: boolean) => void;
   setHardwareAccel: (on: boolean) => void;
   setFolderAdult: (folderId: string, adult: boolean) => void;
-  searchAdultFeed: (query?: string, order?: string, opts?: { page?: number; maxVideos?: number; append?: boolean }) => Promise<number>;
+  searchAdultFeed: (query?: string, order?: string, opts?: { page?: number; maxVideos?: number; append?: boolean; providers?: AdultPullProvider[] | "all" }) => Promise<number>;
   addFolder: (
     inputEl?: HTMLInputElement | null,
     startIn?: WellKnownStart,
@@ -774,43 +784,73 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     persistNow(get);
   },
   searchAdultFeed: async (query = "all", order = "top-weekly", opts) => {
-    set({ remoteBusy: true, importProgress: { done: 0, total: 1, label: "Pulling Eporner catalog…" } });
+    const providers = opts?.providers ?? "all";
+    const providerList = providers === "all" ? ["eporner", "redtube"] : providers;
+    const label =
+      providerList.length === 1 && providerList[0] === "eporner"
+        ? "Pulling Eporner catalog…"
+        : providerList.length === 1 && providerList[0] === "redtube"
+          ? "Pulling RedTube catalog…"
+          : "Pulling Eporner + RedTube catalogs…";
+    set({ remoteBusy: true, importProgress: { done: 0, total: 1, label } });
     try {
       const { searchAdultVideos } = await import("@/lib/remote/api");
       const page = opts?.page ?? 1;
       const maxVideos = opts?.maxVideos ?? LIBRARY_LIMITS.epornerVideosPerPull;
       const append = Boolean(opts?.append);
-      const result = await searchAdultVideos({ data: { query, order, page, maxVideos, append } });
+      const result = await searchAdultVideos({ data: { query, order, page, maxVideos, append, providers } });
       const videos = result.videos;
+      const touched = new Set(videos.map((v) => v.folderId));
       set((s) => {
-        const existingRemote = append
-          ? s.videos.filter((v) => v.folderId === EPORNER_FOLDER_ID)
-          : [];
-        const byId = new Map(existingRemote.map((v) => [v.id, v]));
-        for (const video of videos) byId.set(video.id, video);
-        const merged = [...byId.values()].sort((a, b) => b.addedAt - a.addedAt);
-        const hasFolder = s.folders.some((f) => f.id === EPORNER_FOLDER_ID);
-        const folders = hasFolder
-          ? s.folders.map((f) =>
-              f.id === EPORNER_FOLDER_ID
-                ? { ...f, videoCount: merged.length, adult: true, kind: "eporner" as const }
-                : f,
-            )
-          : [...s.folders, { ...EPORNER_FOLDER, videoCount: merged.length }];
+        let nextVideos = s.videos;
+        let folders = s.folders;
         const tagPatch: Record<string, string[]> = {};
+
+        for (const folderId of [EPORNER_FOLDER_ID, REDTUBE_FOLDER_ID]) {
+          if (!touched.has(folderId) && append) continue;
+          if (!touched.has(folderId) && !append) {
+            // Full replace mode for selected providers only — leave untouched provider shelves.
+            continue;
+          }
+          const incoming = videos.filter((v) => v.folderId === folderId);
+          const existingRemote = append
+            ? nextVideos.filter((v) => v.folderId === folderId)
+            : [];
+          const byId = new Map(existingRemote.map((v) => [v.id, v]));
+          for (const video of incoming) byId.set(video.id, video);
+          const merged = [...byId.values()].sort((a, b) => b.addedAt - a.addedAt);
+          const kind = folderId === REDTUBE_FOLDER_ID ? ("redtube" as const) : ("eporner" as const);
+          const baseFolder = folderId === REDTUBE_FOLDER_ID ? REDTUBE_FOLDER : EPORNER_FOLDER;
+          const hasFolder = folders.some((f) => f.id === folderId);
+          folders = hasFolder
+            ? folders.map((f) =>
+                f.id === folderId ? { ...f, videoCount: merged.length, adult: true, kind } : f,
+              )
+            : [...folders, { ...baseFolder, videoCount: merged.length }];
+          nextVideos = [...nextVideos.filter((v) => v.folderId !== folderId), ...merged];
+        }
+
         for (const video of videos) {
-          const fromApi = epornerKeywordTags(
+          const source = video.remote?.kind ?? (video.folderId.startsWith("redtube") ? "redtube" : "eporner");
+          const fromApi = adultKeywordTags(
             video.description ?? video.tagline ?? "",
-            LIBRARY_LIMITS.epornerKeywordTagsPerTitle,
+            LIBRARY_LIMITS.adultKeywordTagsPerTitle,
           );
+          const haystack = `${video.name} ${video.description ?? ""} ${fromApi.join(" ")}`.toLowerCase();
+          const curatedHits = ADULT_CURATED_FETISH_TAGS.filter((tag) => haystack.includes(tag));
+          const fetish = adultFetishTags([...fromApi, ...curatedHits], LIBRARY_LIMITS.adultKeywordTagsPerTitle);
           tagPatch[video.id] = compactIngestedTags(s.tags[video.id] ?? [], [
             ...remoteMetadataTags(video),
+            adultSourceTag(source),
             ...fromApi,
+            ...curatedHits,
+            ...fetish,
           ]);
         }
+
         return {
           folders,
-          videos: [...s.videos.filter((v) => v.folderId !== EPORNER_FOLDER_ID), ...merged],
+          videos: nextVideos,
           tags: { ...s.tags, ...tagPatch },
           adultsUnlocked: true,
           remoteBusy: false,
@@ -818,7 +858,9 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         };
       });
       persistNow(get);
-      return get().videos.filter((v) => v.folderId === EPORNER_FOLDER_ID).length;
+      return get().videos.filter(
+        (v) => v.folderId === EPORNER_FOLDER_ID || v.folderId === REDTUBE_FOLDER_ID,
+      ).length;
     } catch (err) {
       set({ remoteBusy: false, importProgress: null });
       throw err;
@@ -1815,6 +1857,25 @@ export function selectHistory(state: LibraryState, adult = false): LibraryVideo[
 export function selectEporner(state: LibraryState): LibraryVideo[] {
   return state.videos
     .filter((v) => v.remote?.kind === "eporner" || v.folderId === EPORNER_FOLDER_ID)
+    .sort((a, b) => b.addedAt - a.addedAt);
+}
+
+export function selectRedtube(state: LibraryState): LibraryVideo[] {
+  return state.videos
+    .filter((v) => v.remote?.kind === "redtube" || v.folderId === REDTUBE_FOLDER_ID)
+    .sort((a, b) => b.addedAt - a.addedAt);
+}
+
+/** Combined official adult pull shelves (Eporner + RedTube). */
+export function selectAdultRemote(state: LibraryState): LibraryVideo[] {
+  return state.videos
+    .filter(
+      (v) =>
+        v.remote?.kind === "eporner" ||
+        v.remote?.kind === "redtube" ||
+        v.folderId === EPORNER_FOLDER_ID ||
+        v.folderId === REDTUBE_FOLDER_ID,
+    )
     .sort((a, b) => b.addedAt - a.addedAt);
 }
 

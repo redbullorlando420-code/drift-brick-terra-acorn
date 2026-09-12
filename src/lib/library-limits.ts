@@ -24,4 +24,9 @@ export const LIBRARY_LIMITS = {
   epornerPagesPerPull: 3,
   epornerVideosPerPull: 3_000,
   epornerKeywordTagsPerTitle: 24,
+  // RedTube webmaster API returns 20 videos per page; paginate like archive pulls.
+  redtubePageSize: 20,
+  redtubePagesPerPull: 150,
+  redtubeVideosPerPull: 3_000,
+  adultKeywordTagsPerTitle: 48,
 } as const;

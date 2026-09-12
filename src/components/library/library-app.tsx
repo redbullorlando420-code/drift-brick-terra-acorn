@@ -41,7 +41,7 @@ import {
   selectFavorites,
   selectFeatured,
   selectHistory,
-  selectEporner,
+  selectAdultRemote,
   selectLive,
   resumeForVideo,
   selectTwitch,
@@ -198,7 +198,7 @@ export function LibraryApp() {
   const adultContinue = useLibrary(useShallow((s) => selectContinue(s, true)));
   const adultFavorites = useLibrary(useShallow((s) => selectFavorites(s, true)));
   const adultHistory = useLibrary(useShallow((s) => selectHistory(s, true)));
-  const epornerVideos = useLibrary(useShallow(selectEporner));
+  const adultRemoteVideos = useLibrary(useShallow(selectAdultRemote));
   const hasUserFolders = userFolderCount(folders) > 0;
   const publicFolders = folders.filter(
     (f) => f.kind !== "demo" && f.kind !== "youtube" && f.kind !== "twitch" && !f.adult,
@@ -206,12 +206,12 @@ export function LibraryApp() {
   const adultFolders = folders.filter((f) => f.adult);
   const tags = useLibrary((s) => s.tags);
   const filteredEporner = useMemo(() => {
-    if (adultTag === "All") return epornerVideos;
-    return epornerVideos.filter((video) => (tags[video.id] ?? []).includes(adultTag));
-  }, [adultTag, epornerVideos, tags]);
+    if (adultTag === "All") return adultRemoteVideos;
+    return adultRemoteVideos.filter((video) => (tags[video.id] ?? []).includes(adultTag));
+  }, [adultTag, adultRemoteVideos, tags]);
   const epornerTagNames = useMemo(
-    () => [...new Set(epornerVideos.flatMap((video) => tags[video.id] ?? []))].sort(),
-    [epornerVideos, tags],
+    () => [...new Set(adultRemoteVideos.flatMap((video) => tags[video.id] ?? []))].sort(),
+    [adultRemoteVideos, tags],
   );
   const historyTopTags = useMemo(() => {
     const counts = new Map<string, number>();
@@ -236,6 +236,78 @@ export function LibraryApp() {
   }, [history]);
   const favorites = useLibrary((s) => s.favorites);
   const likes = useLibrary((s) => s.likes);
+
+  const adultTagRank = useMemo(() => {
+    if (sourceId !== "adults") return [] as { tag: string; score: number; count: number }[];
+    const rows = new Map<string, { total: number; count: number; recent: number }>();
+    for (const video of adultRemoteVideos) {
+      const rating = getRating(video.id);
+      const signal = Math.max(rating, favorites[video.id] ? 4 : 0, likes[video.id] ? 3 : 0, 1);
+      for (const tag of tags[video.id] ?? []) {
+        if (tag.startsWith("provider-") || tag.startsWith("format-") || tag.length < 3) continue;
+        const row = rows.get(tag) ?? { total: 0, count: 0, recent: 0 };
+        row.total += signal;
+        row.count += 1;
+        row.recent = Math.max(row.recent, video.addedAt);
+        rows.set(tag, row);
+      }
+    }
+    const now = Date.now();
+    return [...rows.entries()]
+      .map(([tag, row]) => {
+        const engagement = (row.total + 9) / (row.count + 3);
+        const recency = Math.max(0, 1 - (now - row.recent) / (30 * 86_400_000));
+        return { tag, count: row.count, score: engagement * 12 + row.count * 0.35 + recency * 4 };
+      })
+      .sort((a, b) => b.score - a.score || b.count - a.count || a.tag.localeCompare(b.tag))
+      .slice(0, 48);
+  }, [adultRemoteVideos, favorites, likes, ratingRevision, sourceId, tags]);
+  const adultRecommended = useMemo(() => {
+    if (sourceId !== "adults") return [] as typeof adultRemoteVideos;
+    const preferred = new Set(adultTagRank.slice(0, 16).map((row) => row.tag));
+    const likedTags = new Set(adultRemoteVideos.filter((video) => favorites[video.id] || likes[video.id] || getRating(video.id) >= 4).flatMap((video) => tags[video.id] ?? []));
+    const score = (video: (typeof adultRemoteVideos)[number]) => {
+      const itemTags = tags[video.id] ?? [];
+      const overlap = itemTags.filter((tag) => preferred.has(tag)).length;
+      const likedOverlap = itemTags.filter((tag) => likedTags.has(tag)).length;
+      return getRating(video.id) * 14
+        + (favorites[video.id] ? 10 : 0)
+        + (likes[video.id] ? 6 : 0)
+        + overlap * 8
+        + likedOverlap * 10
+        + Math.min(6, itemTags.length) * 0.4
+        + (video.addedAt / 1e13);
+    };
+    return [...adultRemoteVideos]
+      .map((video) => ({ video, score: score(video), shuffle: shuffleRank(`adult-rec:${video.id}:${homePickShuffle}`, homePickShuffle) }))
+      .sort((a, b) => b.score - a.score || a.shuffle - b.shuffle)
+      .map(({ video }) => video)
+      .slice(0, 48);
+  }, [adultRemoteVideos, adultTagRank, favorites, homePickShuffle, likes, ratingRevision, sourceId, tags]);
+  const adultRelatedRecommended = useMemo(() => {
+    if (sourceId !== "adults") return [] as typeof adultRemoteVideos;
+    const seedTags = new Set(
+      (adultTag !== "All" ? [adultTag] : adultTagRank.slice(0, 8).map((row) => row.tag))
+        .concat(
+          adultContinue[0] ? tags[adultContinue[0].id] ?? [] : [],
+          adultFavorites[0] ? tags[adultFavorites[0].id] ?? [] : [],
+        ),
+    );
+    const recommendedIds = new Set(adultRecommended.map((video) => video.id));
+    return adultRemoteVideos
+      .filter((video) => !recommendedIds.has(video.id))
+      .map((video) => {
+        const itemTags = tags[video.id] ?? [];
+        const overlap = itemTags.filter((tag) => seedTags.has(tag)).length;
+        const score = overlap * 12 + getRating(video.id) * 8 + (favorites[video.id] ? 5 : 0) + (likes[video.id] ? 3 : 0);
+        return { video, score, shuffle: shuffleRank(`adult-rel:${video.id}:${homePickShuffle}`, homePickShuffle) };
+      })
+      .filter((row) => row.score > 0)
+      .sort((a, b) => b.score - a.score || a.shuffle - b.shuffle)
+      .map(({ video }) => video)
+      .slice(0, 48);
+  }, [adultContinue, adultFavorites, adultRecommended, adultRemoteVideos, adultTag, adultTagRank, favorites, homePickShuffle, likes, ratingRevision, sourceId, tags]);
+
   const viewCounts = useLibrary((s) => s.viewCounts);
   const filteredYoutube = useMemo(() => youtubeTagFilter === "all" ? newestYoutube : newestYoutube.filter((video) => topicsForVideo(video, tags[video.id]).includes(youtubeTagFilter)), [newestYoutube, tags, youtubeTagFilter]);
   const searchInsights = useMemo(() => {
@@ -969,9 +1041,11 @@ export function LibraryApp() {
               {sourceId === "adults" && browsing && (
                 <>
                   <AdultPanel />
-                  <div className="mb-5 flex flex-wrap gap-2"><Button size="sm" variant={adultTag === "All" ? "default" : "secondary"} onClick={() => setAdultTag("All")}>All Eporner tags</Button>{epornerTagNames.slice(0, 40).map((tag) => <Button key={`eporner-tag-${tag}`} size="sm" variant={adultTag === tag ? "default" : "secondary"} onClick={() => setAdultTag(tag)}>#{tag}</Button>)}</div>
-                  {adultTag !== "All" && <p className="-mt-2 mb-5 text-xs text-accent">Filtering Eporner shelves by #{adultTag} · {filteredEporner.length.toLocaleString()} matching videos.</p>}
-                  <TitleRail title="From Eporner" reason="Official Eporner API catalog with provider tags — open a card to preview, then play in the in-app player." videos={filteredEporner} variant="rail" />
+                  <TitleRail title="Recommended" reason="YouTube-style ranking from ratings, favorites, liked overlap, and recent source/fetish tags." videos={adultTag === "All" ? adultRecommended : adultRecommended.filter((video) => (tags[video.id] ?? []).includes(adultTag))} variant="rail" />
+                  <TitleRail title="Related recommended" reason="Nearby titles sharing your top adult tags, continue-watching tags, and favorite fetish overlap." videos={adultTag === "All" ? adultRelatedRecommended : adultRelatedRecommended.filter((video) => (tags[video.id] ?? []).includes(adultTag))} variant="rail" />
+                  <div className="mb-5 flex flex-wrap gap-2"><Button size="sm" variant={adultTag === "All" ? "default" : "secondary"} onClick={() => setAdultTag("All")}>All adult tags</Button>{(adultTagRank.length ? adultTagRank.map((row) => row.tag) : epornerTagNames).slice(0, 40).map((tag) => <Button key={`adult-tag-${tag}`} size="sm" variant={adultTag === tag ? "default" : "secondary"} onClick={() => setAdultTag(tag)}>#{tag}</Button>)}</div>
+                  {adultTag !== "All" && <p className="-mt-2 mb-5 text-xs text-accent">Filtering adult shelves by #{adultTag} · {filteredEporner.length.toLocaleString()} matching videos.</p>}
+                  <TitleRail title="From Eporner + RedTube" reason="Official public API catalogs with source and fetish tags — open a card to preview, then play in the in-app player." videos={filteredEporner} variant="rail" />
                   <PosterGrid videos={filteredEporner} />
                   <section className="mb-6 rounded-xl bg-elevated p-5 shadow-border"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Private library</p><h1 className="mt-2 font-display text-4xl text-fg">Your shelves, your tags.</h1><p className="mt-2 text-sm text-muted">Tags, history, and organization remain private to this browser. Edit a title’s tags from its preview or player.</p></div><Button disabled={!videos.length} onClick={() => { const choices = adultTag === "All" ? adultSorted : adultSorted.filter((video) => (tags[video.id] ?? []).includes(adultTag)); const pick = choices[Math.floor(Math.random() * choices.length)]; if (pick) openVideo(pick.id); }}><Shuffle className="size-4" /> Random private pick</Button></div><div className="mt-4 flex flex-wrap gap-2"><Button size="sm" variant={adultTag === "All" ? "default" : "secondary"} onClick={() => setAdultTag("All")}>All titles</Button>{adultTagNames.map((tag) => <Button key={tag} size="sm" variant={adultTag === tag ? "default" : "secondary"} onClick={() => setAdultTag(tag)}>{tag}</Button>)}</div><div className="mt-3 flex flex-wrap gap-2"><span className="self-center text-xs text-muted">Sort</span>{(["recent", "name", "favorites", "tagged", "played"] as const).map((sort) => <Button key={sort} size="sm" variant={adultSort === sort ? "default" : "secondary"} onClick={() => setAdultSort(sort)}>{sort === "tagged" ? "Most tagged" : sort === "played" ? "Last played" : sort}</Button>)}</div></section>
                   <div className="mb-6 grid gap-3 sm:grid-cols-2"><div className="rounded-lg bg-surface p-4 shadow-border"><p className="text-sm font-medium text-fg">Private favorite links</p><p className="mt-1 text-xs leading-5 text-muted">Reserved for your personally saved, consented links. Nothing is added or shared automatically.</p></div><div className="rounded-lg bg-surface p-4 shadow-border"><p className="text-sm font-medium text-fg">Recommended sites</p><p className="mt-1 text-xs leading-5 text-muted">Reserved for future opt-in recommendations. Link sorting will stay separate from your private video catalog.</p></div></div>
