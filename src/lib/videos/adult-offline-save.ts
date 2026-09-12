@@ -12,10 +12,18 @@ export async function requestAdultOfflineSave(url: string): Promise<OfflineSaveR
       method: "POST",
       headers: { "content-type": "application/json", origin: window.location.origin },
       body: JSON.stringify({ url: target }),
-      signal: AbortSignal.timeout(4000),
+      signal: AbortSignal.timeout(6000),
     });
-    const data = (await res.json()) as { ok?: boolean; error?: string; needs?: string[]; detail?: string };
-    if (res.ok && data.ok) return { ok: true, detail: data.detail || "Saved offline." };
+    const data = (await res.json()) as {
+      ok?: boolean;
+      error?: string;
+      needs?: string[];
+      detail?: string;
+      path?: string;
+    };
+    if (res.ok && data.ok) {
+      return { ok: true, detail: data.detail || (data.path ? `Download started into ${data.path}` : "Download started.") };
+    }
     return {
       ok: false,
       error: data.error || `Companion offline save unavailable (HTTP ${res.status}).`,
@@ -25,7 +33,11 @@ export async function requestAdultOfflineSave(url: string): Promise<OfflineSaveR
     return {
       ok: false,
       error: "Reelcase Companion is not running. Start it locally to enable offline save.",
-      needs: ["Start Reelcase Companion", "Install yt-dlp on PATH", "Set an allowed download folder"],
+      needs: [
+        "Start Reelcase Companion",
+        "Install yt-dlp on PATH or set YT_DLP_PATH",
+        "Set REELCASE_ALLOWED_ROOTS / optional REELCASE_DOWNLOAD_DIR",
+      ],
     };
   }
 }
