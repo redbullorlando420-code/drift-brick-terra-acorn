@@ -360,35 +360,34 @@ never:   build an app for a greeting/number/question; invent imagine_* calls;
 
 PR: https://github.com/redbullorlando420-code/drift-brick-terra-acorn/pull/2
 Branch: `fix/reelcase-updates`
+Refreshed: 2026-09-12 evening ET
 
-### Shipped
+### Shipped (recent → older)
 
-- Adult discovery via official **Eporner API v2** + **RedTube webmaster API** (in-app preview/play, `source-*` + fetish tags).
-- Other tubes/cams stay **link-out milestones** (no scrapers / paywall bypass).
-- **Fetish expand:** featured chips first (`milf`, `double penetration`, `dp`, `roleplay`, `feet`, `cosplay`); expandable catalog; chip clicks use `fetishSearchQuery`; browsing `all` deep-pulls Eporner + RedTube.
-- **Chaturbate backup pull:** public affiliate rooms JSON + `/embed/{user}/`. Adults “all” continues if Eporner or RedTube errors (per-provider try/catch, partial success). Preview no longer rewrites adult embeds to YouTube.
-- **Pornhub categories as Adult tags:** all ~105 PH categories + 17 languages as chips (keep 18+ labels on Babysitter/College/School/Old-Young). Featured row includes DP, role play, MILF, feet, anal, lesbian, gangbang, cuckold, cosplay, step fantasy, latina, asian, ebony, bbw, hentai, VR, webcam.
-- **I cummed to it:** per-video local counter on adult cards + player; persisted forever with prefs + activity snapshot (IndexedDB); Adults rail + Stats marks; not synced remotely.
-- **Live cams:** CamSoda public `/api/v1/browse/online` (thumbs + room pages, no X-Frame-Options) and MyFreeCams public `php/online_models.php` (#username deep-links). Chaturbate remains the official `/embed/{user}/` player. Stripchat / BongaCams / Cam4 / Flirt4Free / Streamate / LiveJasmin stay live deep-link milestones (no playable public API).
-- **Reddit 18+ previews:** unauthenticated `.json` is 403 (2026). Public Atom `.rss` pulls curated subs with thumbs; posts open on Reddit. No OAuth / logged-in scrape. Failover if RSS 429s.
-- **Tube re-probe** (`xxx-tubes-reprobe.txt`): no new video+tags APIs. Eporner + RedTube remain the tube backups.
-- **Adults render-only loading:** YouTube/Twitch-style fast-start → Explore → Deep. Heavy ranking memos gated until Explore.
-- **Durable adult catalog cache:** `searchAdultFeed` → IndexedDB via `saveFolderVideos` / `appendCatalogVideos`. Pull caps 6k/provider; fast-start pull 240.
-- **Continue / History / Stats:** public rails stay public-only; Continue & History show Adults activity bridge; Stats fetish/source coverage; history recovery for adult URLs.
-- **X / Twitter seed:** one-time curated handles; `reelcase.x-adult-seeded` prevents re-add after user removal.
-- **Niche milestones:** review/voyeur/blogs/AI/extreme + download/torrent link-out only + feet/cosplay/celeb (AZNude/Nudography/MrSkin) + manhwa. Revenge-porn / fappening leak sites skipped.
-- **Booru photo pull** (`9a4c158`): XBooru / TBIB / Hypnohub public Gelbooru-style JSON (`rating:explicit`), sample thumbs in Adults catalog, post-page link-out, host failover. CSAM keyword filter reused.
+- **Merged NSFW Reddit catalog** (~470 curated `r/` names from top300 + ThePornDude extras + Postpone page scrape; underage-adjacent dropped; ListOfSubreddits thread still unauth 403/429). Rotated Atom pulls stamp `source-reddit` + `reddit-<sub>`.
+- **AdultDataLink Redgifs** (`39f209f`): trending pull behind optional `ADULTDATALINK_API_KEY`; skipped cleanly without key.
+- **Archive resume cursors** (`fea97ce`): per-provider deeper paging + Continue archive.
+- **FapHouse shorts** milestone (`ec9d542`): `https://faphouse.com/shorts` as `source-faphouse` (no public API).
+- **Booru lightbox** (`d06d3d1`): in-app image viewer for photo kinds.
+- **Richer tags** (`fa9503f`): always `source-*`, `creator-*` when known, API keywords, title/description fetish tokens; Adults source/creator facets.
+- Booru photo pull XBooru/TBIB/Hypnohub (`9a4c158`); Adults fast-start + durable IndexedDB catalog.
+- Reddit Atom previews; CamSoda + MyFreeCams; Chaturbate embed failover; I-cummed-to-it; PH category chips; Continue/History/Stats bridges; X seed; niche milestones (no revenge-porn leak sites).
+- Eporner + RedTube scaled pulls; PIN removed; ThePornDude hub.
 
 ### In progress / queued
 
-- Dedicated adult **image viewer** / lightbox for booru (and similar photo kinds) beyond poster + external open.
-- Optional deeper archive paging UX (resume cursors per provider beyond Load more).
+- Stronger **request pull caching** for Adult API/RSS responses (durable, avoid re-hit).
+- **Download photos to local disk** from adult image cards/lightbox.
+- Comments from Reddit/adult sources as tags and/or comment UI.
+- Simple **yt-dlp-style offline save** investigation (bookmark embeds; no *arr / torrents).
+- More backup embed APIs; **Pornhub `/webmasters`** probe → returns HTML (dead for JSON); AdultDataLink pornstar endpoints need API key.
+- Keep this section + PR #2 body in sync on every push.
 
 ### Pull sources vs link-only
 
-| Pull (API + play/view) | Link-out only |
+| Pull (API + play/view) | Link-out / milestone |
 |---|---|
-| Eporner, RedTube, Chaturbate, CamSoda, MyFreeCams, Reddit Atom, Booru (XBooru/TBIB/Hypnohub thumbs) | HubTraffic remnants, TXXX/KVS family, major tubes without public JSON, Stripchat/BongaCams/Cam4/etc, downloads, torrents, niche hubs/blogs, celeb film-nude DBs |
+| Eporner, RedTube, Chaturbate, CamSoda, MyFreeCams, Reddit Atom (rotated catalog), Booru thumbs, Redgifs (AdultDataLink key) | Major tubes without public JSON, most cams without embeds, downloads/torrents, niche hubs, FapHouse shorts, celeb film-nude DBs |
 
 ### Verification
 
