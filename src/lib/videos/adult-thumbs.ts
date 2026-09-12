@@ -2,10 +2,15 @@
  * Adult / RedTube webmaster thumbs are inconsistently shaped:
  * string URL, { src }, or a thumbs[] array. Recent rows often ship a
  * shared placeholder at /videos//original/ that 410s. Pick usable
- * per-video CDN URLs, expand host/frame/size fallbacks, and skip junk.
+ * per-video CDN URLs, expand short host/size fallbacks, and skip junk.
  */
 
 import type { LibraryVideo } from "./types";
+import {
+  filterAndRankAdultThumbs,
+  isAdultThumbBlacklisted,
+  recallSessionGoodThumb,
+} from "./adult-thumb-session";
 
 function asUrl(value: unknown): string {
   if (typeof value === "string") return value.trim();
@@ -36,6 +41,25 @@ export function isUsableAdultThumb(url: string): boolean {
   if (/\/videos\/\d{4}\/\d{2}\/\//i.test(url)) return false;
   // Generic site logo / default tile often returned when a title has no art.
   if (/\/(?:default|no[_-]?thumb|placeholder|missing)[_-]?(?:thumb)?\.(?:jpg|jpeg|png|webp)/i.test(url)) return false;
+  // Webmaster "empty strip" / shared promo tiles that decode but are not the video.
+  if (/\/(?:promo|affiliate|ads?|blank|spacer|pixel)[_-]?(?:thumb|image)?\.(?:jpg|jpeg|png|gif|webp)/i.test(url)) return false;
+  if (/(?:1x1|blank)\.(?:jpg|jpeg|png|gif|webp)(?:\?|$)/i.test(url)) return false;
+  // Tiny tracking / badge assets mislabeled as thumbs.
+  if (/\/(?:favicon|logo[_-]?small|icon[_-]?\d{1,3})\./i.test(url)) return false;
+  return true;
+}
+
+/**
+ * After decode: reject 1×1 / tiny CDN placeholders that still fire onLoad.
+ * Call from <img onLoad> before treating the URL as a success.
+ */
+export function isDecodedAdultThumbLikelyReal(img: { naturalWidth: number; naturalHeight: number }): boolean {
+  const w = img.naturalWidth || 0;
+  const h = img.naturalHeight || 0;
+  if (w < 48 || h < 48) return false;
+  // Extreme aspect badges / banners are almost never video posters.
+  const ratio = w / Math.max(h, 1);
+  if (ratio > 4.2 || ratio < 0.35) return false;
   return true;
 }
 
@@ -46,6 +70,7 @@ export function expandAdultThumbFallbacks(url: string): string[] {
   const seen = new Set<string>();
   const push = (candidate: string) => {
     if (!candidate || seen.has(candidate) || !isUsableAdultThumb(candidate)) return;
+    if (isAdultThumbBlacklisted(candidate)) return;
     seen.add(candidate);
     out.push(candidate);
   };
@@ -53,24 +78,11 @@ export function expandAdultThumbFallbacks(url: string): string[] {
 
   const hostSwap = (host: string) => url.replace(/https:\/\/[a-z0-9.-]+\//i, `https://${host}/`);
   if (/rdtcdn\.com|phncdn\.com|rtcdn\.com/i.test(url)) {
-    // Only the two mirrors that historically serve the same strip.
+    // Prefer ei-ph (historically healthier); one mirror only.
     for (const host of ["ei-ph.rdtcdn.com", "di-ph.rdtcdn.com"]) {
       push(hostSwap(host));
     }
-    // One nearby frame + one size folder — enough for onError without serializing rails.
-    const frameMatch = url.match(/^(.*?)(\d+)(\.(?:jpg|jpeg|webp|png))(?:\?.*)?$/i);
-    if (frameMatch) {
-      const base = frameMatch[1];
-      const n = Number(frameMatch[2]);
-      const ext = frameMatch[3];
-      if (Number.isFinite(n)) {
-        for (const delta of [1, -1]) {
-          const next = n + delta;
-          if (next < 0 || next > 20) continue;
-          push(`${base}${next}${ext}`);
-        }
-      }
-    }
+    // One size folder swap — no frame-number spam (those 404 heavily).
     push(url.replace(/\/original\//i, "/320x180/"));
     push(url.replace(/\/\d+x\d+\//i, "/320x180/"));
     push(url.replace(/\?.*$/, ""));
@@ -81,7 +93,7 @@ export function expandAdultThumbFallbacks(url: string): string[] {
     push(url.replace(/\/\d+x\d+\//i, "/640x360/"));
   }
 
-  return out.slice(0, 6);
+  return filterAndRankAdultThumbs(out).slice(0, 5);
 }
 
 export function collectRedtubeThumbCandidates(row: {
@@ -94,7 +106,7 @@ export function collectRedtubeThumbCandidates(row: {
   const seen = new Set<string>();
   const push = (raw: unknown) => {
     const url = asUrl(raw);
-    if (!url || seen.has(url) || !isUsableAdultThumb(url)) return;
+    if (!url || seen.has(url) || !isUsableAdultThumb(url) || isAdultThumbBlacklisted(url)) return;
     seen.add(url);
     out.push(url);
   };
@@ -104,20 +116,20 @@ export function collectRedtubeThumbCandidates(row: {
   push(row.thumb);
   if (Array.isArray(row.thumbs)) {
     const ranked = [...row.thumbs].sort((a, b) => thumbSizeRank(b) - thumbSizeRank(a));
+    // At most two strong API frames — avoid expanding every size/frame.
+    let taken = 0;
     for (const item of ranked) {
-      if (thumbSizeRank(item) >= 3) push(item);
+      if (thumbSizeRank(item) < 2) continue;
+      push(item);
+      if (++taken >= 2) break;
     }
-    const mid = ranked[Math.min(8, Math.max(0, ranked.length - 1))];
-    push(mid);
-    for (const item of ranked.slice(0, 4)) push(item);
+    if (taken === 0 && ranked[0]) push(ranked[0]);
   }
 
-  // Last-resort reconstruction when the API only returned the empty placeholder.
+  // Last-resort: one solid reconstruction from video_id (ei-ph only, no size spam).
   const id = String(row.video_id ?? "").trim();
   if (!out.length && /^\d{5,}$/.test(id)) {
-    // Common webmaster strip layout; hosts are expanded below.
     push(`https://ei-ph.rdtcdn.com/videos/${id.slice(0, 4)}/${id.slice(4, 6)}/${id}/${id}_320x180.jpg`);
-    push(`https://ei-ph.rdtcdn.com/videos/${id.slice(0, 6)}/${id}/original/${id}.jpg`);
   }
 
   return out;
@@ -131,14 +143,13 @@ export function pickRedtubeThumb(row: {
 }): { poster?: string; previewUrl?: string; thumbFallbacks?: string[] } {
   const urls = collectRedtubeThumbCandidates(row);
   if (!urls.length) return {};
-  const expanded = urls.flatMap((url) => expandAdultThumbFallbacks(url));
-  const unique: string[] = [];
-  const seen = new Set<string>();
-  for (const url of expanded) {
-    if (seen.has(url)) continue;
-    seen.add(url);
-    unique.push(url);
-  }
+  // Expand only the primary API URL — not every thumbs[] entry (that reintroduced spam).
+  const primary = urls[0];
+  const expanded = [
+    ...expandAdultThumbFallbacks(primary),
+    ...urls.slice(1),
+  ];
+  const unique = filterAndRankAdultThumbs(expanded);
   return {
     poster: unique[0],
     // Keep hover preview on the same primary (avoid speculative CDN twin blanks).
@@ -152,18 +163,21 @@ export function adultThumbCandidatesForVideo(video: LibraryVideo): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
   const pushExact = (raw?: string) => {
-    if (!raw || seen.has(raw) || !isUsableAdultThumb(raw)) return;
+    if (!raw || seen.has(raw) || !isUsableAdultThumb(raw) || isAdultThumbBlacklisted(raw)) return;
     seen.add(raw);
     out.push(raw);
   };
   const pushExpanded = (raw?: string) => {
     if (!raw) return;
     for (const url of expandAdultThumbFallbacks(raw)) {
-      if (seen.has(url)) continue;
+      if (seen.has(url) || isAdultThumbBlacklisted(url)) continue;
       seen.add(url);
       out.push(url);
     }
   };
+
+  // Session-known good first so revisiting a card paints immediately.
+  pushExact(recallSessionGoodThumb(video.id));
   // Prefer exact API poster/preview before any speculative CDN expansion.
   pushExact(video.poster);
   pushExact(video.remote?.previewUrl);
@@ -173,10 +187,10 @@ export function adultThumbCandidatesForVideo(video: LibraryVideo): string[] {
   // Rebuild RedTube only when no usable API thumbs were stored.
   if (!out.length && video.remote?.kind === "redtube" && video.remote.videoId) {
     for (const url of collectRedtubeThumbCandidates({ video_id: video.remote.videoId })) {
-      pushExpanded(url);
+      pushExact(url);
     }
   }
-  return out.slice(0, 8);
+  return filterAndRankAdultThumbs(out).slice(0, 8);
 }
 
 export function redtubeStarNames(stars: unknown): string[] {
