@@ -31,7 +31,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn, formatBytes, formatTime } from "@/lib/utils";
 import { getNote, getRating, setNote as saveNote, setRating as saveRating } from "@/lib/media-feedback";
-import { adultRemoteLabel, isAdultPullKind } from "@/lib/videos/adult-sites";
+import { AdultImageLightbox } from "@/components/library/adult-image-lightbox";
+import { adultRemoteLabel, isAdultImageKind, isAdultPullKind } from "@/lib/videos/adult-sites";
 import { isAdultVideo, useLibrary } from "@/lib/videos/store";
 import { useThumbs } from "@/lib/videos/thumbs";
 import { resolvePlayUrl } from "@/lib/videos/sources";
@@ -393,17 +394,22 @@ export function Player({ playlist }: { playlist: string[] }) {
 
   if (!video) return null;
   const remote = video.remote;
-  const embedSrc = remote
-    ? remote.kind === "twitch"
-      ? twitchEmbed(remote.embedUrl ?? "")
-      : remote.kind === "youtube"
-        ? youtubeEmbed(remote.embedUrl ?? video.src ?? "")
-        : isAdultPullKind(remote.kind)
-          ? remote.embedUrl ?? video.src ?? null
-          : remote.embedUrl
-            ? `${remote.embedUrl}${remote.embedUrl.includes("?") ? "&" : "?"}autoplay=1&rel=0&modestbranding=1`
-            : null
-    : null;
+  const adultImage = Boolean(
+    remote && isAdultImageKind(remote.kind, video.mime, video.extension),
+  );
+  const embedSrc = adultImage
+    ? null
+    : remote
+      ? remote.kind === "twitch"
+        ? twitchEmbed(remote.embedUrl ?? "")
+        : remote.kind === "youtube"
+          ? youtubeEmbed(remote.embedUrl ?? video.src ?? "")
+          : isAdultPullKind(remote.kind)
+            ? remote.embedUrl ?? video.src ?? null
+            : remote.embedUrl
+              ? `${remote.embedUrl}${remote.embedUrl.includes("?") ? "&" : "?"}autoplay=1&rel=0&modestbranding=1`
+              : null
+      : null;
 
   const shown = scrub ?? current;
   const dur = duration || capturedDur || video.duration || 0;
@@ -418,7 +424,9 @@ export function Player({ playlist }: { playlist: string[] }) {
       onMouseMove={reveal}
       onTouchStart={reveal}
     >
-      {embedSrc ? (
+      {adultImage ? (
+        <AdultImageLightbox video={video} tags={tags} />
+      ) : embedSrc ? (
         <iframe
           key={embedSrc}
           title={video.name}

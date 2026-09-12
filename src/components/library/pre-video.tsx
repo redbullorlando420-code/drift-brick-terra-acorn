@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { useLibrary } from "@/lib/videos/store";
 import { creatorIsLiked, getCreatorRating, getRating, setCreatorRating, setRating as saveRating, tagIsLiked, toggleCreatorLike, toggleTagLike } from "@/lib/media-feedback";
 import { resolvePlayUrl } from "@/lib/videos/sources";
-import { isAdultPullKind } from "@/lib/videos/adult-sites";
+import { isAdultImageKind, isAdultPullKind } from "@/lib/videos/adult-sites";
 
 const EMPTY_TAGS: string[] = [];
 function previewShuffle(id: string, seed: number) {
@@ -176,13 +176,19 @@ export function PreVideo() {
     }).sort((a, b) => b.score - a.score || a.random - b.random).slice(0, 6).map((row) => row.item);
   }, [allTags, creatorRevision, recommendationSeed, related, shelfReady, tagRevision, tags, unavailable, video, videos]);
   if (!video) return null;
-  const embed = video.remote?.embedUrl
-    ? video.remote.kind === "twitch"
-      ? `${video.remote.embedUrl}${video.remote.embedUrl.includes("?") ? "&" : "?"}parent=${encodeURIComponent(window.location.hostname)}`
-      : video.remote.kind === "youtube"
-        ? (() => { const url = new URL(video.remote.embedUrl, "https://www.youtube.com"); url.protocol = "https:"; url.hostname = "www.youtube.com"; url.searchParams.set("autoplay", "1"); url.searchParams.set("rel", "0"); url.searchParams.set("modestbranding", "1"); url.searchParams.set("playsinline", "1"); url.searchParams.set("origin", window.location.origin); return url.toString(); })()
-        : video.remote.embedUrl
+  const adultImage = Boolean(video.remote && isAdultImageKind(video.remote.kind, video.mime, video.extension));
+  const imageSrc = adultImage
+    ? (video.src || video.remote?.embedUrl || video.remote?.previewUrl || video.poster || null)
     : null;
+  const embed = adultImage
+    ? null
+    : video.remote?.embedUrl
+      ? video.remote.kind === "twitch"
+        ? `${video.remote.embedUrl}${video.remote.embedUrl.includes("?") ? "&" : "?"}parent=${encodeURIComponent(window.location.hostname)}`
+        : video.remote.kind === "youtube"
+          ? (() => { const url = new URL(video.remote.embedUrl, "https://www.youtube.com"); url.protocol = "https:"; url.hostname = "www.youtube.com"; url.searchParams.set("autoplay", "1"); url.searchParams.set("rel", "0"); url.searchParams.set("modestbranding", "1"); url.searchParams.set("playsinline", "1"); url.searchParams.set("origin", window.location.origin); return url.toString(); })()
+          : video.remote.embedUrl
+      : null;
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-bg/98 px-4 py-5 sm:px-8 sm:py-8">
       <div className={video.remote ? "w-full max-w-none" : "mx-auto max-w-6xl"}>
@@ -197,7 +203,14 @@ export function PreVideo() {
         <div className={video.remote?.kind === "twitch" ? "mt-5 grid gap-7" : video.remote?.kind === "youtube" ? "mt-5 grid gap-7 xl:grid-cols-[minmax(0,2.35fr)_minmax(20rem,0.65fr)]" : "mt-5 grid gap-7 lg:grid-cols-[minmax(0,1.55fr)_minmax(18rem,0.7fr)]"}>
           <div>
             <div className="overflow-hidden rounded-lg bg-elevated shadow-border">
-              {embed ? (
+              {imageSrc ? (
+                <img
+                  src={imageSrc}
+                  alt={video.name}
+                  className="aspect-video w-full bg-bg object-contain"
+                  decoding="async"
+                />
+              ) : embed ? (
                 <iframe
                   title={`${video.name} preview`}
                   src={embed}
