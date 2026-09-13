@@ -190,30 +190,62 @@ async function putVideosChunked(db: IDBDatabase, videos: LibraryVideo[]): Promis
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(VIDEO_STORE, "readwrite");
       const store = tx.objectStore(VIDEO_STORE);
-      for (const video of slice) {
-        if (video.isSample) continue;
-        store.put(video);
-      }
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error ?? new Error("Catalog save was interrupted. Please retry."));
+      try {
+        for (const video of slice) {
+          if (video.isSample) continue;
+          store.put(video);
+        }
+      } catch (error) {
+        tx.abort();
+        reject(error);
+      }
     });
   }
 }
 
-/** Replace one folder's catalog rows in chunked IndexedDB writes. */
+/** Replace a folder atomically: a failed write must retain its previous catalog. */
 export async function saveFolderVideos(folderId: string, videos: LibraryVideo[]): Promise<void> {
+  if (videos.some((video) => video.folderId !== folderId)) {
+    throw new Error("Cannot save catalog entries belonging to another folder.");
+  }
   const db = await openDb();
-  await clearFolderVideosTx(db, folderId);
-  await putVideosChunked(db, videos);
-  db.close();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(VIDEO_STORE, "readwrite");
+      const store = tx.objectStore(VIDEO_STORE);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error ?? new Error("Catalog save was interrupted. Your previous catalog is preserved."));
+      const request = store.index("folderId").openCursor(IDBKeyRange.only(folderId));
+      request.onsuccess = () => {
+        try {
+          const cursor = request.result;
+          if (cursor) {
+            cursor.delete();
+            cursor.continue();
+            return;
+          }
+          for (const video of videos) {
+            if (!video.isSample) store.put(video);
+          }
+        } catch (error) {
+          tx.abort();
+          reject(error);
+        }
+      };
+    });
+  } finally { db.close(); }
 }
 
 /** Append/upsert catalog rows without rewriting the whole folder (batched ingest). */
 export async function appendCatalogVideos(videos: LibraryVideo[]): Promise<void> {
   if (!videos.length) return;
   const db = await openDb();
-  await putVideosChunked(db, videos);
-  db.close();
+  try { await putVideosChunked(db, videos); }
+  finally { db.close(); }
 }
 
 export async function clearFolderVideos(folderId: string): Promise<void> {

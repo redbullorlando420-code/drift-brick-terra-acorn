@@ -5,13 +5,13 @@ import { B as markAdultThumbFailed, C as adultTagRankBoost, D as adultThumbCandi
 import { n as create, t as useShallow } from "../_libs/zustand.mjs";
 import { n as clsx, t as cva } from "../_libs/class-variance-authority+clsx.mjs";
 import { t as twMerge } from "../_libs/tailwind-merge.mjs";
-import { $ as FolderSearch, A as Monitor, B as List, C as RefreshCw, D as Pause, E as PictureInPicture2, F as Maximize, G as Images, J as History, K as Image, L as Lock, M as Minimize, N as MessageCircle, P as Menu, Q as Folder, R as LockOpen, T as Play, U as LayoutGrid, V as ListPlus, X as Glasses, Y as Heart, Z as Gamepad2, _ as Shuffle, _t as Box, a as Volume2, at as ExternalLink, b as Settings2, bt as BellOff, c as Upload, d as Tag, dt as CircleAlert, et as FolderPlus, f as Star, ft as ChevronRight, g as SkipBack, gt as ChartColumn, h as SkipForward, ht as Check, i as VolumeX, it as FileText, j as MonitorPlay, k as Music2, lt as Clock3, m as Smartphone, mt as ChevronDown, n as X, nt as Flag, o as Video, ot as Download, p as Sparkles, pt as ChevronLeft, r as Wifi, rt as Film, s as Users, st as Cpu, t as Youtube, tt as Flame, u as ThumbsUp, ut as Clapperboard, v as ShoppingBag, vt as Bot, w as Radio, x as Search, xt as ArrowLeft, yt as Bell, z as LoaderCircle } from "../_libs/lucide-react.mjs";
+import { $ as Folder, A as Monitor, B as List, C as RefreshCw, D as Pause, E as PictureInPicture2, F as Maximize, G as Images, J as ImageOff, K as Image, L as Lock, M as Minimize, N as MessageCircle, P as Menu, Q as Gamepad2, R as LockOpen, St as ArrowLeft, T as Play, U as LayoutGrid, V as ListPlus, X as Heart, Y as History, Z as Glasses, _ as Shuffle, _t as ChartColumn, a as Volume2, at as FileText, b as Settings2, bt as Bell, c as Upload, ct as Cpu, d as Tag, dt as Clapperboard, et as FolderSearch, f as Star, ft as CircleAlert, g as SkipBack, gt as Check, h as SkipForward, ht as ChevronDown, i as VolumeX, it as Film, j as MonitorPlay, k as Music2, m as Smartphone, mt as ChevronLeft, n as X, nt as Flame, o as Video, ot as ExternalLink, p as Sparkles, pt as ChevronRight, r as Wifi, rt as Flag, s as Users, st as Download, t as Youtube, tt as FolderPlus, u as ThumbsUp, ut as Clock3, v as ShoppingBag, vt as Box, w as Radio, x as Search, xt as BellOff, yt as Bot, z as LoaderCircle } from "../_libs/lucide-react.mjs";
 import { n as toast, t as Toaster } from "../_libs/sonner.mjs";
 import { a as DialogPortal, i as DialogOverlay, n as DialogClose, o as DialogTitle, r as DialogContent, t as Dialog } from "../_libs/@radix-ui/react-dialog+[...].mjs";
 import { t as Root } from "../_libs/radix-ui__react-separator.mjs";
 import { a as Trigger, i as Root2, n as Item2, r as Portal2, t as Content2 } from "../_libs/@radix-ui/react-dropdown-menu+[...].mjs";
 import { i as SliderTrack, n as SliderRange, r as SliderThumb, t as Slider$1 } from "../_libs/@radix-ui/react-slider+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-DrdK1N9K.js
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-BKWyjEfb.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var __defProp = Object.defineProperty;
@@ -218,28 +218,61 @@ async function putVideosChunked(db, videos) {
 		await new Promise((resolve, reject) => {
 			const tx = db.transaction(VIDEO_STORE, "readwrite");
 			const store = tx.objectStore(VIDEO_STORE);
-			for (const video of slice) {
-				if (video.isSample) continue;
-				store.put(video);
-			}
 			tx.oncomplete = () => resolve();
 			tx.onerror = () => reject(tx.error);
+			tx.onabort = () => reject(tx.error ?? /* @__PURE__ */ new Error("Catalog save was interrupted. Please retry."));
+			try {
+				for (const video of slice) {
+					if (video.isSample) continue;
+					store.put(video);
+				}
+			} catch (error) {
+				tx.abort();
+				reject(error);
+			}
 		});
 	}
 }
-/** Replace one folder's catalog rows in chunked IndexedDB writes. */
+/** Replace a folder atomically: a failed write must retain its previous catalog. */
 async function saveFolderVideos(folderId, videos) {
+	if (videos.some((video) => video.folderId !== folderId)) throw new Error("Cannot save catalog entries belonging to another folder.");
 	const db = await openDb();
-	await clearFolderVideosTx(db, folderId);
-	await putVideosChunked(db, videos);
-	db.close();
+	try {
+		await new Promise((resolve, reject) => {
+			const tx = db.transaction(VIDEO_STORE, "readwrite");
+			const store = tx.objectStore(VIDEO_STORE);
+			tx.oncomplete = () => resolve();
+			tx.onerror = () => reject(tx.error);
+			tx.onabort = () => reject(tx.error ?? /* @__PURE__ */ new Error("Catalog save was interrupted. Your previous catalog is preserved."));
+			const request = store.index("folderId").openCursor(IDBKeyRange.only(folderId));
+			request.onsuccess = () => {
+				try {
+					const cursor = request.result;
+					if (cursor) {
+						cursor.delete();
+						cursor.continue();
+						return;
+					}
+					for (const video of videos) if (!video.isSample) store.put(video);
+				} catch (error) {
+					tx.abort();
+					reject(error);
+				}
+			};
+		});
+	} finally {
+		db.close();
+	}
 }
 /** Append/upsert catalog rows without rewriting the whole folder (batched ingest). */
 async function appendCatalogVideos(videos) {
 	if (!videos.length) return;
 	const db = await openDb();
-	await putVideosChunked(db, videos);
-	db.close();
+	try {
+		await putVideosChunked(db, videos);
+	} finally {
+		db.close();
+	}
 }
 async function clearFolderVideos(folderId) {
 	const db = await openDb();
@@ -1795,6 +1828,7 @@ var useSourceAssets = create((set) => ({
 	})
 }));
 var restoring = false;
+var navigationChanged = false;
 var remoteRefreshCursor = 0;
 var twitchRefreshCursor = 0;
 var youtubeRefreshCursor = 0;
@@ -2266,6 +2300,7 @@ var useLibrary = create((set, get) => ({
 	},
 	setSource: (sourceId) => {
 		measureInteraction("navigation");
+		navigationChanged = true;
 		set({ sourceId });
 		persistNow(get);
 	},
@@ -2802,7 +2837,10 @@ var useLibrary = create((set, get) => ({
 		const adultIds = new Set(loadPrefs()?.privateFolderIds ?? []);
 		let cachedFolderIds = /* @__PURE__ */ new Set();
 		let savedHealth = /* @__PURE__ */ new Map();
-		set({ ...prefsState });
+		set((s) => ({
+			...prefsState,
+			...navigationChanged ? { sourceId: s.sourceId } : {}
+		}));
 		Promise.all([loadActivitySnapshot(), loadActivityJournal()]).then(([activity, journal]) => {
 			const queuedResume = takeQueuedResumeReplay();
 			if (!activity && !journal.length && !Object.keys(queuedResume).length) return;
@@ -4386,6 +4424,17 @@ var VideoCard = (0, import_react.memo)(function VideoCard({ video, variant = "gr
 	const poster = /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 		className: cn("relative overflow-hidden bg-elevated", variant === "list" && "h-16 w-28 shrink-0 rounded-sm", variant === "poster" && "aspect-poster w-full rounded-md", (variant === "grid" || variant === "rail") && "aspect-video w-full rounded-md"),
 		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				"aria-hidden": "true",
+				className: "absolute inset-0 flex flex-col items-center justify-center gap-2 bg-surface text-muted",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ImageOff, {
+					className: "size-8",
+					strokeWidth: 1.5
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+					className: "text-xs",
+					children: failed || thumbsExhausted ? "Artwork unavailable" : "Media preview"
+				})]
+			}),
 			paintedSrc && !textFirst && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
 				src: paintedSrc,
 				alt: "",
@@ -4424,16 +4473,13 @@ var VideoCard = (0, import_react.memo)(function VideoCard({ video, variant = "gr
 					advanceThumb();
 				},
 				className: cn("relative size-full object-cover outline outline-1 -outline-offset-1 outline-fg/10 transition-opacity duration-150", candidateReady || paintedSrc === activeThumb ? "opacity-100" : "opacity-0")
-			}, `${video.id}:${resolvedThumbIndex}:${showPreview ? "p" : "a"}`) : !paintedSrc ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "absolute inset-0 flex items-center justify-center bg-elevated outline outline-1 -outline-offset-1 outline-fg/10",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-					className: cn("flex size-10 items-center justify-center rounded-full bg-bg/40 text-muted", !failed && "animate-pulse"),
-					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Play, { className: "ml-0.5 size-4 fill-current" })
-				}), failed && !video.remote && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+			}, `${video.id}:${resolvedThumbIndex}:${showPreview ? "p" : "a"}`) : !paintedSrc ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "absolute inset-0 outline outline-1 -outline-offset-1 outline-fg/10",
+				children: failed && !video.remote && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
 					title: artworkDiagnostic ? `${artworkDiagnostic.lastError} · attempt ${artworkDiagnostic.attempts}/3` : void 0,
 					className: "absolute bottom-2 left-2 right-2 rounded-xs bg-bg/80 px-2 py-1 text-center text-[11px] text-muted",
 					children: ["Local artwork unavailable", artworkDiagnostic ? ` · ${artworkDiagnostic.attempts}/3` : ""]
-				})]
+				})
 			}) : null,
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "absolute inset-0 bg-linear-to-t from-bg/80 via-transparent to-transparent opacity-90" }),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
@@ -10253,13 +10299,17 @@ function ConnectPanel({ defaultKind = "youtube", lockedKind }) {
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Check, { className: "size-4 text-accent" }), " Latest uploads and live streams appear automatically on Home."]
 					}),
 					importProgress && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						role: "status",
+						"aria-live": "polite",
 						className: "font-mono text-xs text-accent",
 						children: [
 							importProgress.label,
-							" ",
-							importProgress.done,
-							"/",
-							importProgress.total
+							" · ",
+							importProgress.done.toLocaleString(),
+							" of ",
+							importProgress.total.toLocaleString(),
+							" sources processed",
+							importProgress.total > 0 ? ` · ${Math.round(Math.min(1, importProgress.done / importProgress.total) * 100)}%` : ""
 						]
 					}),
 					kind === "twitch" && !importProgress && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
@@ -10448,7 +10498,7 @@ ytFilm({
 	tagline: "A Blender Studio open project.",
 	channel: "Blender Studio"
 });
-var loadHub = () => import("./hub-sections-C_SD3X6F.mjs");
+var loadHub = () => import("./hub-sections-BpW_S-Fl.mjs");
 var hubSection = (name) => (0, import_react.lazy)(async () => ({ default: (await loadHub())[name] }));
 var GamesSection = hubSection("GamesSection");
 var FindPhoneSection = hubSection("FindPhoneSection");

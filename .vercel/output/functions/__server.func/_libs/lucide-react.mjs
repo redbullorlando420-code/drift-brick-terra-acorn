@@ -704,6 +704,47 @@ var History = createLucideIcon("history", [
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
+var ImageOff = createLucideIcon("image-off", [
+	["line", {
+		x1: "2",
+		x2: "22",
+		y1: "2",
+		y2: "22",
+		key: "a6p6uj"
+	}],
+	["path", {
+		d: "M10.41 10.41a2 2 0 1 1-2.83-2.83",
+		key: "1bzlo9"
+	}],
+	["line", {
+		x1: "13.5",
+		x2: "6",
+		y1: "13.5",
+		y2: "21",
+		key: "1q0aeu"
+	}],
+	["line", {
+		x1: "18",
+		x2: "21",
+		y1: "12",
+		y2: "15",
+		key: "5mozeu"
+	}],
+	["path", {
+		d: "M3.59 3.59A1.99 1.99 0 0 0 3 5v14a2 2 0 0 0 2 2h14c.55 0 1.052-.22 1.41-.59",
+		key: "mmje98"
+	}],
+	["path", {
+		d: "M21 15V5a2 2 0 0 0-2-2H9",
+		key: "43el77"
+	}]
+]);
+/**
+* @license lucide-react v0.510.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
 var ImagePlus = createLucideIcon("image-plus", [
 	["path", {
 		d: "M16 5h6",
@@ -1712,4 +1753,4 @@ var Youtube = createLucideIcon("youtube", [["path", {
 	key: "1jp15x"
 }]]);
 //#endregion
-export { FolderSearch as $, Monitor as A, List as B, RefreshCw as C, Pause as D, PictureInPicture2 as E, Maximize as F, Images as G, Lightbulb as H, Maximize2 as I, History as J, Image as K, Lock as L, Minimize as M, MessageCircle as N, PackageSearch as O, Menu as P, Folder as Q, LockOpen as R, Rocket as S, Play as T, LayoutGrid as U, ListPlus as V, Laptop as W, Glasses as X, Heart as Y, Gamepad2 as Z, Shuffle as _, Box as _t, Volume2 as a, ExternalLink as at, Settings2 as b, BellOff as bt, Upload as c, Copy as ct, Tag as d, CircleAlert as dt, FolderPlus as et, Star as f, ChevronRight as ft, SkipBack as g, ChartColumn as gt, SkipForward as h, Check as ht, VolumeX as i, FileText as it, MonitorPlay as j, Music2 as k, TriangleAlert as l, Clock3 as lt, Smartphone as m, ChevronDown as mt, X as n, Flag as nt, Video as o, Download as ot, Sparkles as p, ChevronLeft as pt, ImagePlus as q, Wifi as r, Film as rt, Users as s, Cpu as st, Youtube as t, Flame as tt, ThumbsUp as u, Clapperboard as ut, ShoppingBag as v, Bot as vt, Radio as w, Search as x, ArrowLeft as xt, ShieldCheck as y, Bell as yt, LoaderCircle as z };
+export { Folder as $, Monitor as A, List as B, RefreshCw as C, Pause as D, PictureInPicture2 as E, Maximize as F, Images as G, Lightbulb as H, Maximize2 as I, ImageOff as J, Image as K, Lock as L, Minimize as M, MessageCircle as N, PackageSearch as O, Menu as P, Gamepad2 as Q, LockOpen as R, Rocket as S, ArrowLeft as St, Play as T, LayoutGrid as U, ListPlus as V, Laptop as W, Heart as X, History as Y, Glasses as Z, Shuffle as _, ChartColumn as _t, Volume2 as a, FileText as at, Settings2 as b, Bell as bt, Upload as c, Cpu as ct, Tag as d, Clapperboard as dt, FolderSearch as et, Star as f, CircleAlert as ft, SkipBack as g, Check as gt, SkipForward as h, ChevronDown as ht, VolumeX as i, Film as it, MonitorPlay as j, Music2 as k, TriangleAlert as l, Copy as lt, Smartphone as m, ChevronLeft as mt, X as n, Flame as nt, Video as o, ExternalLink as ot, Sparkles as p, ChevronRight as pt, ImagePlus as q, Wifi as r, Flag as rt, Users as s, Download as st, Youtube as t, FolderPlus as tt, ThumbsUp as u, Clock3 as ut, ShoppingBag as v, Box as vt, Radio as w, Search as x, BellOff as xt, ShieldCheck as y, Bot as yt, LoaderCircle as z };

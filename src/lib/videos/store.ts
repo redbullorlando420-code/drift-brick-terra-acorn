@@ -72,6 +72,7 @@ import { isClassicVideo, SYSTEM_SOURCES } from "./types";
 import { LIBRARY_LIMITS } from "@/lib/library-limits";
 
 let restoring = false;
+let navigationChanged = false;
 // A full provider refresh is intentionally bounded. Rotate that window instead
 // of repeatedly checking the first saved channels, which left large Twitch
 // libraries with stale live state forever.
@@ -601,6 +602,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   },
   setSource: (sourceId) => {
     measureInteraction("navigation");
+    navigationChanged = true;
     set({ sourceId });
     persistNow(get);
   },
@@ -1119,7 +1121,9 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     const adultIds = new Set(loadPrefs()?.privateFolderIds ?? []);
     let cachedFolderIds = new Set<string>();
     let savedHealth = new Map<string, Awaited<ReturnType<typeof loadSourceHealth>>[number]>();
-    set({ ...prefsState });
+    // Startup storage can resolve after a user has already chosen a section.
+    // Restore preferences without replacing that newer navigation decision.
+    set((s) => ({ ...prefsState, ...(navigationChanged ? { sourceId: s.sourceId } : {}) }));
     // Keep the durable activity journal separate from broad preferences. It
     // merges after first paint, so a massive tag payload cannot wipe history
     // or block startup recovery.

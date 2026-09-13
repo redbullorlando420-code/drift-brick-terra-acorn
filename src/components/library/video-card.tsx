@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { Download, Flame, Heart, Play, Tag, ThumbsUp, RefreshCw, Star, Users } from "lucide-react";
+import { Download, Flame, Heart, ImageOff, Play, Tag, ThumbsUp, RefreshCw, Star, Users } from "lucide-react";
 import { cn, formatAgo, formatBytes, formatTime } from "@/lib/utils";
 import type { LibraryVideo } from "@/lib/videos/types";
 import { hasFreshViewerCount, isLikelyPlayable, titleOf } from "@/lib/videos/types";
@@ -265,6 +265,10 @@ export const VideoCard = memo(function VideoCard({
         (variant === "grid" || variant === "rail") && "aspect-video w-full rounded-md",
       )}
     >
+      <div aria-hidden="true" className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-surface text-muted">
+        <ImageOff className="size-8" strokeWidth={1.5} />
+        <span className="text-xs">{failed || thumbsExhausted ? "Artwork unavailable" : "Media preview"}</span>
+      </div>
       {/* Hold last good paint under the candidate so fallbacks never flash blank. */}
       {paintedSrc && !textFirst && (
         <img
@@ -316,15 +320,7 @@ export const VideoCard = memo(function VideoCard({
           )}
         />
       ) : !paintedSrc ? (
-        <div className="absolute inset-0 flex items-center justify-center bg-elevated outline outline-1 -outline-offset-1 outline-fg/10">
-          <span
-            className={cn(
-              "flex size-10 items-center justify-center rounded-full bg-bg/40 text-muted",
-              !failed && "animate-pulse",
-            )}
-          >
-            <Play className="ml-0.5 size-4 fill-current" />
-          </span>
+        <div className="absolute inset-0 outline outline-1 -outline-offset-1 outline-fg/10">
           {failed && !video.remote && <span title={artworkDiagnostic ? `${artworkDiagnostic.lastError} · attempt ${artworkDiagnostic.attempts}/3` : undefined} className="absolute bottom-2 left-2 right-2 rounded-xs bg-bg/80 px-2 py-1 text-center text-[11px] text-muted">Local artwork unavailable{artworkDiagnostic ? ` · ${artworkDiagnostic.attempts}/3` : ""}</span>}
         </div>
       ) : null}

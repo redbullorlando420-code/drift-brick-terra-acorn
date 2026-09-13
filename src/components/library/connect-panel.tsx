@@ -334,8 +334,9 @@ export function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultK
           automatically on Home.
         </p>
         {importProgress && (
-          <p className="font-mono text-xs text-accent">
-            {importProgress.label} {importProgress.done}/{importProgress.total}
+          <p role="status" aria-live="polite" className="font-mono text-xs text-accent">
+            {importProgress.label} · {importProgress.done.toLocaleString()} of {importProgress.total.toLocaleString()} sources processed
+            {importProgress.total > 0 ? ` · ${Math.round(Math.min(1, importProgress.done / importProgress.total) * 100)}%` : ""}
           </p>
         )}
         {kind === "twitch" && !importProgress && (
