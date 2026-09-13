@@ -337,6 +337,7 @@ export const SYSTEM_SOURCES = new Set([
   "favorites",
   "history",
   "adults",
+  "adult-fetishes",
   "continue",
   "youtube",
   "twitch",

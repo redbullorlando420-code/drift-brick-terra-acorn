@@ -165,6 +165,22 @@ export function pickRedtubeThumb(row: {
   };
 }
 
+function redgifsPosterCandidates(video: LibraryVideo): string[] {
+  if (video.remote?.kind !== "redgifs" && !video.remote?.sourceKinds?.includes("redgifs")) return [];
+  const id = String(video.remote?.videoId ?? "").trim();
+  if (!/^[a-z0-9_-]{2,128}$/i.test(id)) return [];
+  // Preserve a reliable still-image path for older saved items whose API
+  // response predates thumbFallbacks. thumbs1 is only tried after the current
+  // thumbs2 paths, so it helps a stale CDN edge without delaying the card.
+  return [
+    `https://thumbs2.redgifs.com/${encodeURIComponent(id)}-mobile.jpg`,
+    `https://thumbs2.redgifs.com/${encodeURIComponent(id)}-poster.jpg`,
+    `https://thumbs2.redgifs.com/${encodeURIComponent(id)}-thumb.jpg`,
+    `https://thumbs1.redgifs.com/${encodeURIComponent(id)}-mobile.jpg`,
+    `https://thumbs1.redgifs.com/${encodeURIComponent(id)}-poster.jpg`,
+  ];
+}
+
 /** Ordered poster candidates for any adult (or remote) library card. */
 export function adultThumbCandidatesForVideo(video: LibraryVideo): string[] {
   const out: string[] = [];
@@ -189,6 +205,7 @@ export function adultThumbCandidatesForVideo(video: LibraryVideo): string[] {
   pushExact(video.poster);
   pushExact(video.remote?.previewUrl);
   for (const url of video.remote?.thumbFallbacks ?? []) pushExact(url);
+  for (const url of redgifsPosterCandidates(video)) pushExact(url);
   pushExpanded(video.poster);
   pushExpanded(video.remote?.previewUrl);
   // Rebuild RedTube only when no usable API thumbs were stored.

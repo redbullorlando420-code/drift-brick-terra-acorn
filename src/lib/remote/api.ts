@@ -1293,7 +1293,9 @@ function chaturbateVideo(row: ChaturbateRoom): LibraryVideo | null {
   if (adultBlockedText(username, display, subject, tags.join(" "))) return null;
   const embed = `https://chaturbate.com/embed/${encodeURIComponent(username)}/`;
   const watch = asString(row.chat_room_url).trim() || `https://chaturbate.com/${encodeURIComponent(username)}/`;
-  const thumb = asString(row.image_url_360x270) || asString(row.image_url);
+  const thumb360 = asString(row.image_url_360x270).trim();
+  const thumbOriginal = asString(row.image_url).trim();
+  const thumb = thumb360 || thumbOriginal;
   const viewers = typeof row.num_users === "number" && Number.isFinite(row.num_users) ? row.num_users : undefined;
   return {
     id: `chaturbate:${username}`,
@@ -1318,6 +1320,7 @@ function chaturbateVideo(row: ChaturbateRoom): LibraryVideo | null {
       embedUrl: embed,
       watchUrl: watch,
       previewUrl: thumb || undefined,
+      thumbFallbacks: [thumb360, thumbOriginal].filter(isUsableAdultThumb),
     },
   };
 }
@@ -1406,6 +1409,7 @@ function camsodaVideo(row: { tpl?: unknown }): LibraryVideo | null {
   const subject = stripMarkup(asString(camsodaValue(tpl, "subject_html")));
   if (adultBlockedText(username, display, subject)) return null;
   const thumb = asString(camsodaValue(tpl, "thumb")).trim();
+  const offlinePicture = asString(camsodaValue(tpl, "offline_picture")).trim();
   const connections = camsodaValue(tpl, "connections");
   const viewers = typeof connections === "number" && Number.isFinite(connections) ? connections : undefined;
   const watch = `https://www.camsoda.com/${encodeURIComponent(username)}`;
@@ -1432,6 +1436,7 @@ function camsodaVideo(row: { tpl?: unknown }): LibraryVideo | null {
       embedUrl: watch,
       watchUrl: watch,
       previewUrl: thumb || undefined,
+      thumbFallbacks: [thumb, offlinePicture].filter(isUsableAdultThumb),
     },
   };
 }
@@ -1445,21 +1450,34 @@ async function fetchCamSodaRooms(query: string, maxVideos: number): Promise<{
   totalCount: number;
 }> {
   if (!camsodaCache || Date.now() - camsodaCache.at > CAMSODA_CACHE_MS) {
+    const priorRooms = camsodaCache?.rooms ?? [];
     const res = await cachedAdultFetch("https://www.camsoda.com/api/v1/browse/online", {
       cacheTtlMs: 3 * 60_000,
       signal: AbortSignal.timeout(25000),
       headers: {
         accept: "application/json",
+        referer: "https://www.camsoda.com/",
+        "accept-language": "en-US,en;q=0.8",
         "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
       },
     });
-    if (!res.ok) throw new Error(`CamSoda rooms HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
-    const json = (await res.json()) as { results?: Array<{ tpl?: unknown }>; rooms?: Array<{ tpl?: unknown }> } | Array<{ tpl?: unknown }>;
-    const resultRows = Array.isArray(json) ? json : Array.isArray(json.results) ? json.results : Array.isArray(json.rooms) ? json.rooms : [];
-    const rooms = resultRows
-      .map(camsodaVideo)
-      .filter((video): video is LibraryVideo => video != null);
-    camsodaCache = { at: Date.now(), rooms };
+    // CamSoda may decline server-side public-listing requests. Treat that as an
+    // unavailable listing rather than failing an otherwise useful mixed pull.
+    if (res.status === 403) {
+      // Keep the last known public roster when CamSoda temporarily declines a
+      // listing request. It is more useful than blanking the live rail, and
+      // remains short-lived so a later success replaces it promptly.
+      camsodaCache = { at: Date.now(), rooms: priorRooms };
+    } else if (!res.ok) {
+      throw new Error(`CamSoda rooms HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
+    } else {
+      const json = (await res.json()) as { results?: Array<{ tpl?: unknown }>; rooms?: Array<{ tpl?: unknown }> } | Array<{ tpl?: unknown }>;
+      const resultRows = Array.isArray(json) ? json : Array.isArray(json.results) ? json.results : Array.isArray(json.rooms) ? json.rooms : [];
+      const rooms = resultRows
+        .map(camsodaVideo)
+        .filter((video): video is LibraryVideo => video != null);
+      camsodaCache = { at: Date.now(), rooms: rooms.length ? rooms : priorRooms };
+    }
   }
   const needle = query.trim().toLowerCase();
   const filtered =
@@ -1491,19 +1509,32 @@ function myfreecamsVideo(username: string, status: number): LibraryVideo | null 
     mime: "video/myfreecams",
     size: 0,
     addedAt: Date.now(),
-    tagline: status === 0 ? "Live on MyFreeCams" : "Listed on MyFreeCams",
+    tagline: status === 0 ? "Live on MyFreeCams" : "Online on MyFreeCams",
     description: "live, cam",
     src: watch,
     remote: {
       kind: "myfreecams",
       videoId: name,
       channelName: name,
-      live: status === 0,
+      live: true,
       observedAt: Date.now(),
       embedUrl: watch,
       watchUrl: watch,
     },
   };
+}
+
+function myfreecamsRoomsFromListing(payload: string): LibraryVideo[] {
+  const text = payload.replace(/\\u0022/gi, '"').replace(/\\"/g, '"');
+  const pairs = new Map<string, number>();
+  const add = (name: string, status: string | number | undefined) => {
+    const value = Number(status);
+    if (Number.isFinite(value)) pairs.set(name.toLowerCase(), value);
+  };
+  for (const match of text.matchAll(/["']([A-Za-z0-9_]{2,32})["']\s*:\s*["']?(\d{1,3})\b/g)) add(match[1]!, match[2]);
+  for (const match of text.matchAll(/(?:^|[\[,{;\s])([A-Za-z0-9_]{2,32})\s*[,|\s:]\s*(\d{1,3})\b/gm)) add(match[1]!, match[2]);
+  for (const match of text.matchAll(/["']([A-Za-z0-9_]{2,32})["']\s*,\s*["']?(\d{1,3})\b/g)) add(match[1]!, match[2]);
+  return [...pairs.entries()].map(([name, status]) => myfreecamsVideo(name, status)).filter((video): video is LibraryVideo => video != null);
 }
 
 async function fetchMyFreeCamsRooms(query: string, maxVideos: number): Promise<{
@@ -1512,6 +1543,7 @@ async function fetchMyFreeCamsRooms(query: string, maxVideos: number): Promise<{
   totalCount: number;
 }> {
   if (!myfreecamsCache || Date.now() - myfreecamsCache.at > MYFREECAMS_CACHE_MS) {
+    const priorRooms = myfreecamsCache?.rooms ?? [];
     const res = await cachedAdultFetch("https://www.myfreecams.com/php/online_models.php", {
       cacheTtlMs: 3 * 60_000,
       signal: AbortSignal.timeout(25000),
@@ -1522,17 +1554,10 @@ async function fetchMyFreeCamsRooms(query: string, maxVideos: number): Promise<{
     });
     if (!res.ok) throw new Error(`MyFreeCams rooms HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
     const text = await res.text();
-    const rooms: LibraryVideo[] = [];
-    for (const line of text.split(/[\r\n;]+/)) {
-      // MFC has used comma, pipe, and whitespace-separated listings over
-      // time. Keep this strict about the account name/status while accepting
-      // harmless formatting changes from the public listing endpoint.
-      const match = line.trim().match(/^([A-Za-z0-9_]{2,32})\s*[,|\s]\s*(\d+)\b/);
-      if (!match) continue;
-      const video = myfreecamsVideo(match[1], Number(match[2]));
-      if (video) rooms.push(video);
-    }
-    myfreecamsCache = { at: Date.now(), rooms };
+    const parsedRooms = myfreecamsRoomsFromListing(text);
+    // A public listing can legitimately be empty or change format. Cache the
+    // empty response briefly and leave a precise, non-failing provider status.
+    myfreecamsCache = { at: Date.now(), rooms: parsedRooms.length ? parsedRooms : priorRooms };
   }
   const needle = query.trim().toLowerCase();
   const filtered =
@@ -1578,7 +1603,9 @@ function redditPermalink(entry: string): string {
 }
 
 function redgifsEmbedUrl(url: string | undefined): string | undefined {
-  const slug = url?.match(/https?:\/\/(?:www\.)?redgifs\.com\/(?:watch|ifr)\/([a-z0-9_-]+)/i)?.[1];
+  const slug = url?.match(/https?:\/\/(?:www\.)?redgifs\.com\/(?:watch|ifr)\/([a-z0-9_-]+)/i)?.[1]
+    ?? url?.match(/https?:\/\/thumbs\d*\.redgifs\.com\/([a-z0-9_-]+)-(?:mobile|poster|thumb)\.(?:jpe?g|webp)/i)?.[1]
+    ?? url?.match(/https?:\/\/(?:i|media)\.redgifs\.com\/([a-z0-9_-]+)(?:[._-]|$)/i)?.[1];
   return slug ? `https://www.redgifs.com/ifr/${encodeURIComponent(slug)}` : undefined;
 }
 
@@ -1595,11 +1622,11 @@ function redditVideo(entry: string, subreddit: string): LibraryVideo | null {
   const flair = extractRedditFlair(entry, content);
   if (adultBlockedText(title, author, subreddit, flair, media.poster, media.src, media.watch)) return null;
   const addedAt = Date.parse(published);
-  const poster = media.poster;
+  const poster = media.poster ?? media.thumbFallbacks?.[0];
   const isImage = media.kind === "image";
   const isVideo = media.kind === "video";
   const directMedia = media.src && /\.(?:mp4|webm|gifv)(?:\?|$)/i.test(media.src) ? media.src : undefined;
-  const redgifsEmbed = redgifsEmbedUrl(media.watch);
+  const redgifsEmbed = redgifsEmbedUrl(media.watch ?? media.thumbFallbacks?.[0]);
   // v.redd.it does not expose an iframe-friendly media URL in Atom. Its post
   // embed does, while retaining the permalink for comments and link-out.
   const redditEmbed = isVideo
@@ -1629,8 +1656,8 @@ function redditVideo(entry: string, subreddit: string): LibraryVideo | null {
       // Keep a Reddit permalink here so comments and the official-post action
       // always point at the same post, even for an external media host.
       watchUrl: permalink,
-      previewUrl: poster || media.thumbFallbacks?.[0],
-      thumbFallbacks: media.thumbFallbacks?.slice(0, 4),
+      previewUrl: poster,
+      thumbFallbacks: [poster, ...(media.thumbFallbacks ?? [])].filter((url): url is string => Boolean(url)).slice(0, 8),
     },
   };
 }
@@ -1659,15 +1686,19 @@ function redditSubWindow(page: number, configuredSources: readonly RedditSourceP
 
 async function fetchRedditSubRss(sub: string, sort: "hot" | "new"): Promise<LibraryVideo[]> {
   const path = sort === "new" ? `/r/${encodeURIComponent(sub)}/new/.rss` : `/r/${encodeURIComponent(sub)}/.rss`;
-  const url = `https://www.reddit.com${path}?limit=${LIBRARY_LIMITS.redditPostsPerSub}`;
   let xml = "";
   let failure = "";
-  // A small retry absorbs transient CDN failures without fanning a 429 into a
-  // second request storm. The pull pool is deliberately conservative.
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  // Reddit's primary Atom edge intermittently stalls. The old-reddit Atom
+  // endpoint is the same public feed with an independent cache path, giving a
+  // real backup without scraping post pages or multiplying every list pull.
+  const urls = [
+    `https://www.reddit.com${path}?limit=${LIBRARY_LIMITS.redditPostsPerSub}`,
+    `https://old.reddit.com${path}?limit=${LIBRARY_LIMITS.redditPostsPerSub}`,
+  ];
+  for (const url of urls) {
     try {
       const res = await cachedAdultFetch(url, {
-        signal: AbortSignal.timeout(12000),
+        signal: AbortSignal.timeout(7_000),
         cacheTtlMs: 6 * 60_000,
         headers: {
           accept: "application/atom+xml, application/rss+xml, application/xml;q=0.9, */*;q=0.8",
@@ -1679,11 +1710,11 @@ async function fetchRedditSubRss(sub: string, sort: "hot" | "new"): Promise<Libr
         break;
       }
       failure = res.status === 429 ? "rate limited" : `HTTP ${res.status}`;
-      if (res.status === 429 || res.status < 500) break;
+      if (res.status === 429) break;
     } catch (err) {
       failure = err instanceof Error ? err.message : "network unavailable";
     }
-    await new Promise((resolve) => setTimeout(resolve, 350 * (attempt + 1)));
+    if (!xml) await new Promise((resolve) => setTimeout(resolve, 250));
   }
   if (!xml) throw new Error(failure || "empty feed");
   const posts: LibraryVideo[] = [];
@@ -1713,10 +1744,10 @@ async function fetchRedditFeed(query: string, maxVideos: number, page = 1, confi
   for (let offset = 0; offset < windows && collected.length < maxVideos; offset += 1) {
     const { subs, start, totalPages } = redditSubWindow(page + offset, configuredSources);
     lastTotalPages = totalPages;
-    const jobs = subs.flatMap((sub) => [
-      { sub, sort: "hot" as const },
-      { sub, sort: "new" as const },
-    ]);
+    // One Atom request per community keeps the saved-list pull inside its
+    // foreground deadline. Page rotation covers the whole list over time;
+    // doing hot and new together was the main cause of Reddit timeouts.
+    const jobs = subs.map((sub) => ({ sub, sort: "hot" as const }));
     const batches = await mapPool(jobs, LIBRARY_LIMITS.redditFetchConcurrency, async (job) => {
       try {
         return await fetchRedditSubRss(job.sub, job.sort);
@@ -1736,8 +1767,6 @@ async function fetchRedditFeed(query: string, maxVideos: number, page = 1, confi
       if (collected.length >= maxVideos) break;
     }
   }
-
-  if (!collected.length && errors.length) throw new Error(`Reddit RSS unavailable (${errors.slice(0, 6).join("; ")}).`);
 
   const needle = query.trim().toLowerCase();
   const filtered =
@@ -1767,6 +1796,8 @@ type BooruPost = {
   height?: number;
   score?: number;
   owner?: string;
+  creator?: string;
+  uploader?: string;
 };
 
 const BOORU_HOSTS = [
@@ -1778,7 +1809,7 @@ const BOORU_HOSTS = [
 function booruVideo(row: BooruPost, host: (typeof BOORU_HOSTS)[number]): LibraryVideo | null {
   const id = asString(row.id).trim();
   const tags = asString(row.tags).trim();
-  const owner = asString(row.owner).trim();
+  const owner = pickString(row.owner, row.creator, row.uploader).trim();
   const preview = asString(row.preview_url).trim();
   const sample = asString(row.sample_url).trim();
   const file = asString(row.file_url).trim();
@@ -1809,6 +1840,7 @@ function booruVideo(row: BooruPost, host: (typeof BOORU_HOSTS)[number]): Library
       embedUrl: image,
       watchUrl: watch,
       previewUrl: preview || sample || undefined,
+      thumbFallbacks: [preview, sample, file].filter(isUsableAdultThumb).slice(0, 4),
     },
   };
 }
@@ -1831,7 +1863,13 @@ async function fetchBooruHost(host: (typeof BOORU_HOSTS)[number], tags: string, 
   });
   if (!res.ok) throw new Error(`${host.id} HTTP ${res.status}`);
   const raw: unknown = await res.json();
-  const rows = Array.isArray(raw) ? raw : [];
+  const record = asRecord(raw);
+  // Gelbooru-compatible servers use both a bare JSON array and wrappers such
+  // as { post: [...] } / { posts: [...] }. Wrapped results are still valid.
+  const rows = Array.isArray(raw) ? raw
+    : Array.isArray(record?.post) ? record.post
+    : Array.isArray(record?.posts) ? record.posts
+    : [];
   const out: LibraryVideo[] = [];
   for (const row of rows) {
     if (!row || typeof row !== "object") continue;
@@ -1868,6 +1906,7 @@ async function fetchBooruFeed(query: string, maxVideos: number, page: number): P
     }
   }
   if (!collected.length && errors.length) throw new Error(`Booru unavailable (${errors.join("; ")}).`);
+  // An empty explicit search is a valid provider result, not a failed all-source pull.
   return { videos: collected, totalPages: page + (collected.length >= limit ? 1 : 0), totalCount: collected.length };
 }
 
@@ -1899,6 +1938,9 @@ function redgifsPosterFallbacks(id: string): string[] {
   return [
     `https://thumbs2.redgifs.com/${encodeURIComponent(slug)}-mobile.jpg`,
     `https://thumbs2.redgifs.com/${encodeURIComponent(slug)}-poster.jpg`,
+    `https://thumbs2.redgifs.com/${encodeURIComponent(slug)}-thumb.jpg`,
+    `https://thumbs1.redgifs.com/${encodeURIComponent(slug)}-mobile.jpg`,
+    `https://thumbs1.redgifs.com/${encodeURIComponent(slug)}-poster.jpg`,
   ];
 }
 
@@ -1926,7 +1968,10 @@ function redgifsVideo(row: RedgifsRow): LibraryVideo | null {
   const embed = pickString(urls.html, urls.player, row.embedUrl, row.embed_url, `https://www.redgifs.com/ifr/${encodeURIComponent(id)}`);
   const watch = pickString(urls.webUrl, urls.web_url, row.url, row.webUrl, `https://www.redgifs.com/watch/${encodeURIComponent(id)}`);
   const thumb = pickString(urls.thumbnail, urls.thumb, urls.preview, urls.poster, urls.posterUrl, urls.previewUrl, row.thumbnail, row.thumb, row.poster, row.previewUrl);
-  const thumbFallbacks = [...new Set([thumb, ...redgifsPosterFallbacks(id)])].filter(isUsableAdultThumb).slice(0, 4);
+  // Keep every distinct CDN variant. Direct catalog rows and Reddit-linked
+  // rows should get the same full poster recovery chain when a Redgifs edge
+  // is slow, stale, or returns a placeholder.
+  const thumbFallbacks = [...new Set([thumb, ...redgifsPosterFallbacks(id)])].filter(isUsableAdultThumb).slice(0, 6);
   const file = pickString(urls.hd, urls.sd, urls.silent, urls.mobile, urls.mp4, urls.giftiny, urls.gif, row.mp4, row.file);
   if (adultBlockedText(title, author, tagList.join(" "))) return null;
   return {
@@ -1982,7 +2027,9 @@ async function fetchRedgifsFeed(query: string, maxVideos: number, page: number):
 }> {
   const key = adultDataLinkApiKey();
   if (!key) {
-    throw new Error("AdultDataLink key missing — set ADULTDATALINK_API_KEY to enable Redgifs pulls.");
+    // Reddit still carries Redgifs links and posters without this optional API.
+    // Do not turn a missing optional credential into an all-source failure.
+    return { videos: [], totalPages: page, totalCount: 0 };
   }
   const params = new URLSearchParams({
     parameter: "gif",
@@ -2363,8 +2410,10 @@ export const fetchAdultComments = createServerFn({ method: "POST" })
     }
     const id = data.videoId.replace(/^t3_/, "");
     const canonical = `https://www.reddit.com/comments/${encodeURIComponent(id)}.rss?limit=40`;
+    const oldCanonical = `https://old.reddit.com/comments/${encodeURIComponent(id)}.rss?limit=40`;
     const permalink = data.watchUrl.match(/^https:\/\/www\.reddit\.com\/r\/[^/]+\/comments\/[a-z0-9]+/i)?.[0];
-    const urls = permalink ? [`${permalink}.rss?limit=40`, canonical] : [canonical];
+    const oldPermalink = permalink?.replace(/^https:\/\/www\.reddit\.com/i, "https://old.reddit.com");
+    const urls = permalink ? [`${permalink}.rss?limit=40`, oldPermalink ? `${oldPermalink}.rss?limit=40` : oldCanonical, canonical, oldCanonical] : [canonical, oldCanonical];
     try {
       let lastStatus = 0;
       for (const url of urls) {

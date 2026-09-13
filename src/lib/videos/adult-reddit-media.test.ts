@@ -14,5 +14,20 @@ test("keeps a Redgifs Reddit post and supplies direct poster fallbacks", () => {
   assert.deepEqual(media.thumbFallbacks, [
     "https://thumbs2.redgifs.com/SunnyExample-mobile.jpg",
     "https://thumbs2.redgifs.com/SunnyExample-poster.jpg",
+    "https://thumbs2.redgifs.com/SunnyExample-thumb.jpg",
+    "https://thumbs1.redgifs.com/SunnyExample-mobile.jpg",
+    "https://thumbs1.redgifs.com/SunnyExample-poster.jpg",
   ]);
+});
+
+test("rebuilds a Redgifs watch page from a poster-only Atom reference", () => {
+  const media = extractRedditMedia(
+    "",
+    '<img src="https://thumbs2.redgifs.com/PosterOnlyExample-mobile.jpg" />',
+  );
+
+  assert.equal(media.kind, "image");
+  assert.equal(media.watch, "https://www.redgifs.com/watch/PosterOnlyExample");
+  assert.equal(media.poster, "https://thumbs2.redgifs.com/PosterOnlyExample-mobile.jpg");
+  assert.equal(media.thumbFallbacks?.at(-1), "https://thumbs1.redgifs.com/PosterOnlyExample-poster.jpg");
 });

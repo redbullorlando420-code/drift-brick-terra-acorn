@@ -43,6 +43,24 @@ function read(): RatingDay[] {
 }
 function write(days: RatingDay[]) { try { localStorage.setItem(KEY, JSON.stringify(days.slice(-400))); } catch { /* local rewards are optional */ } }
 
+/** Rebuild current-week progress from the durable feedback ledger. Older
+ * versions saved the rating but did not always update this lightweight UI
+ * counter, especially after a refresh or browser restore. */
+function reconcileRatingLedger(days: RatingDay[]) {
+  try {
+    const feedback = JSON.parse(localStorage.getItem("reelcase.media-feedback.v1") ?? "{}") as { ratingHistory?: Record<string, { rating?: number; updatedAt?: number }> };
+    for (const [id, row] of Object.entries(feedback.ratingHistory ?? {})) {
+      if (!(Number(row.rating) > 0) || !Number.isFinite(Number(row.updatedAt))) continue;
+      const at = new Date(Number(row.updatedAt));
+      const day = dayKey(at);
+      const target = days.find((entry) => entry.day === day);
+      if (target) { if (!target.ids.includes(id)) target.ids.push(id); }
+      else days.push({ day, ids: [id] });
+    }
+  } catch { /* the streak remains usable if old feedback cannot be read */ }
+  return days;
+}
+
 export function recordRatingForStreak(id: string, rating: number) {
   if (!id || rating < 1 || typeof window === "undefined") return;
   const days = read();
@@ -55,7 +73,8 @@ export function recordRatingForStreak(id: string, rating: number) {
 }
 
 export function getRatingStreakSnapshot(now = new Date()): RatingStreakSnapshot {
-  const days = read();
+  const days = reconcileRatingLedger(read());
+  write(days);
   const weeklyGoalValue = weeklyGoal();
   const currentWeek = weekKey(now);
   const weekTotals = new Map<string, number>();

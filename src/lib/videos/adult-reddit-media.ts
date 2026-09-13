@@ -64,22 +64,36 @@ function isJunkLink(url: string): boolean {
   return /icanhazchat|reddithelp\.com|redditstatic\.com|\/faq|sidebar rules|welcome\?gonewild/i.test(url);
 }
 
-function redgifsThumbFallbacks(urls: string[]): string[] {
+function redgifsSlugFromUrl(raw: string): string | undefined {
+  const watch = raw.match(/https?:\/\/(?:www\.)?redgifs\.com\/(?:watch|ifr)\/([a-z0-9_-]+)/i)?.[1];
+  if (watch) return watch;
+  const thumb = raw.match(/https?:\/\/thumbs\d*\.redgifs\.com\/([a-z0-9_-]+)-(?:mobile|poster|thumb)\.(?:jpe?g|webp)/i)?.[1];
+  if (thumb) return thumb;
+  return raw.match(/https?:\/\/(?:i|media)\.redgifs\.com\/([a-z0-9_-]+)(?:[._-]|$)/i)?.[1];
+}
+
+function redgifsThumbFallbacks(urls: string[]): { thumbs: string[]; watch?: string } {
   const out: string[] = [];
   const seen = new Set<string>();
+  let watch: string | undefined;
   for (const raw of urls) {
-    const match = raw.match(/https?:\/\/(?:www\.)?redgifs\.com\/(?:watch|ifr)\/([a-z0-9_-]+)/i);
-    const slug = match?.[1];
+    const slug = redgifsSlugFromUrl(raw);
     if (!slug) continue;
-    for (const suffix of ["mobile.jpg", "poster.jpg"] as const) {
-      const candidate = `https://thumbs2.redgifs.com/${slug}-${suffix}`;
+    watch ??= `https://www.redgifs.com/watch/${slug}`;
+    for (const candidate of [
+      `https://thumbs2.redgifs.com/${slug}-mobile.jpg`,
+      `https://thumbs2.redgifs.com/${slug}-poster.jpg`,
+      `https://thumbs2.redgifs.com/${slug}-thumb.jpg`,
+      `https://thumbs1.redgifs.com/${slug}-mobile.jpg`,
+      `https://thumbs1.redgifs.com/${slug}-poster.jpg`,
+    ]) {
       if (!seen.has(candidate)) {
         seen.add(candidate);
         out.push(candidate);
       }
     }
   }
-  return out;
+  return { thumbs: out, watch };
 }
 
 function collectUrls(entryXml: string, contentHtml: string): string[] {
@@ -115,7 +129,8 @@ export function extractRedditMedia(entryXml: string, contentHtml: string): Reddi
   const images = urls.filter((url) => isImageHost(url) && !isJunkLink(url)).map(upgradePreview);
   const videos = urls.filter((url) => isVideoHost(url) && !isJunkLink(url));
   const pages = urls.filter((url) => /reddit\.com\/gallery\//i.test(url) || /reddit\.com\/r\/[^/]+\/comments\//i.test(url));
-  const redgifsThumbs = redgifsThumbFallbacks(videos);
+  const redgifs = redgifsThumbFallbacks([...urls, ...videos]);
+  const redgifsThumbs = redgifs.thumbs;
 
   const poster = images.find((url) => /i\.redd\.it/i.test(url))
     ?? images.find((url) => /preview\.redd\.it/i.test(url))
@@ -127,7 +142,7 @@ export function extractRedditMedia(entryXml: string, contentHtml: string): Reddi
       kind: "video",
       poster,
       src: videos.find((url) => /\.(mp4|webm|gifv)(\?|$)/i.test(url)),
-      watch: videos[0],
+      watch: videos[0] ?? redgifs.watch,
       thumbFallbacks: [poster, ...redgifsThumbs].filter((url): url is string => Boolean(url)),
     };
   }
@@ -136,10 +151,14 @@ export function extractRedditMedia(entryXml: string, contentHtml: string): Reddi
       kind: "image",
       poster,
       src: /i\.redd\.it|i\.imgur\.com|\.(jpe?g|png|gif|webp)(\?|$)/i.test(poster) ? poster : poster,
-      watch: pages[0],
+      watch: pages[0] ?? redgifs.watch,
       thumbFallbacks: [poster, ...redgifsThumbs].filter((url): url is string => Boolean(url)),
     };
   }
+  // A Redgifs thumbnail or direct CDN asset can arrive without the linked
+  // watch page in Atom. Rebuild its canonical page so the card gets dual
+  // Reddit + Redgifs attribution, an iframe fallback, and stable posters.
+  if (redgifs.watch) return { kind: "video", watch: redgifs.watch, thumbFallbacks: redgifsThumbs };
   return { kind: "page", watch: pages[0] };
 }
 

@@ -197,7 +197,7 @@ function persistNow(get: () => LibraryState) {
     view: s.view,
     sort: s.sort,
     hideDemo: s.hideDemo,
-    sourceId: s.sourceId === "adults" ? "home" : s.sourceId,
+    sourceId: s.sourceId === "adults" || s.sourceId === "adult-fetishes" ? "home" : s.sourceId,
     hardwareAccel: s.hardwareAccel,
     privateFolderIds: s.folders.filter((f) => f.adult).map((f) => f.id),
     adultPinHash: s.adultPinHash,
@@ -372,6 +372,7 @@ function remoteMetadataTags(video: LibraryVideo) {
   // strings from pretending to be interests.
   const creator = video.remote?.channelName?.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") ?? "";
   const provider = video.remote?.kind ? `provider-${video.remote.kind}` : "";
+  const adult = video.remote && (ADULT_PULL_PROVIDERS as readonly string[]).includes(video.remote.kind) ? "adult" : "";
   const format = video.remote?.live ? "format-live" : video.remote ? "format-vod" : "";
   const twitchFormat = video.remote?.kind === "twitch" ? (video.remote.live ? "twitch-live" : "twitch-vod") : "";
   const genre = video.genre?.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -379,7 +380,7 @@ function remoteMetadataTags(video: LibraryVideo) {
   // a richer tag list. Preserve it separately so live and VOD browsing can use
   // a concrete provider category rather than only title-keyword guesses.
   const twitchGame = video.remote?.kind === "twitch" && genre ? `twitch-game-${genre}` : "";
-  return [...new Set([provider, creator, format, twitchFormat, genre ? `genre-${genre}` : "", twitchGame, ...semanticTags(video), ...descriptionKeywordTags(video)].filter(Boolean))].slice(0, LIBRARY_LIMITS.remoteMetadataTagsPerTitle);
+  return [...new Set([adult, provider, creator, format, twitchFormat, genre ? `genre-${genre}` : "", twitchGame, ...semanticTags(video), ...descriptionKeywordTags(video)].filter(Boolean))].slice(0, LIBRARY_LIMITS.remoteMetadataTagsPerTitle);
 }
 
 /** Upgrade cached provider cards with the same safe tags created for new pulls. */
@@ -398,7 +399,7 @@ function enrichRemoteTags(existing: Record<string, string[]>, videos: LibraryVid
 function compactIngestedTags(existing: string[], inferred: string[]) {
   const seen = new Set<string>();
   const compact: string[] = [];
-  const structural = (tag: string) => /^(?:source-|sub-|creator-|provider-|format-|fetish-|genre-|meta-)/.test(tag.trim().toLowerCase());
+  const structural = (tag: string) => tag.trim().toLowerCase() === "adult" || /^(?:source-|sub-|creator-|provider-|format-|fetish-|genre-|meta-)/.test(tag.trim().toLowerCase());
   // Keep filter contracts before historic keyword dumps. Earlier imports could
   // fill the cap with raw metadata and lose a newly repaired source/sub tag.
   const ordered = [
@@ -674,8 +675,11 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     set((s) => {
       const tags = { ...s.tags };
       for (const video of s.videos) {
-        const inferred = video.remote ? remoteMetadataTags(video) : localNameTags(video);
-        const existing = (tags[video.id] ?? []).map((tag) => tag.replace(/^keyword-/i, "").replace(/^creator-/i, ""));
+        const inferred = video.remote ? remoteMetadataTags(video) : [...(isAdultVideo(video, s.folders) ? ["adult"] : []), ...localNameTags(video)];
+        // Creator tags are structural filter data. Only legacy keyword wrappers
+        // are presentation noise; stripping creator- here made attribution
+        // disappear whenever the catalog was auto-tagged again.
+        const existing = (tags[video.id] ?? []).map((tag) => tag.replace(/^keyword-/i, ""));
         const merged = compactIngestedTags(existing, inferred);
         if (merged.length !== (tags[video.id] ?? []).length) changed += 1;
         tags[video.id] = merged;
@@ -816,6 +820,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     if (folderId === "demo") return;
     set((s) => ({
       folders: s.folders.map((f) => (f.id === folderId ? { ...f, adult } : f)),
+      tags: adult ? Object.fromEntries(s.videos.map((video) => [video.id, video.folderId === folderId ? compactIngestedTags(s.tags[video.id] ?? [], ["adult"]) : s.tags[video.id] ?? []])) : s.tags,
       sourceId: adult ? "adults" : s.sourceId === folderId ? "home" : s.sourceId,
       activeId:
         s.activeId &&
@@ -1060,7 +1065,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     const folderId = asDirectory
       ? `folder:${folderName}:${crypto.randomUUID().slice(0, 8)}`
       : `files:${crypto.randomUUID().slice(0, 8)}`;
-    const adult = Boolean(opts?.adult) || get().sourceId === "adults";
+    const adult = Boolean(opts?.adult) || get().sourceId === "adults" || get().sourceId === "adult-fetishes";
     const folder: Folder = {
       id: folderId,
       name: folderName,
@@ -1103,7 +1108,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     const nameGuess =
       dt.files?.[0]?.webkitRelativePath?.split("/")[0] || dt.files?.[0]?.name || "Dropped files";
     const folderId = `drop:${crypto.randomUUID().slice(0, 8)}`;
-    const adult = get().sourceId === "adults";
+    const adult = get().sourceId === "adults" || get().sourceId === "adult-fetishes";
     set((s) => ({
       folders: [
         ...s.folders,
@@ -1826,7 +1831,7 @@ function adultList(state: LibraryState): LibraryVideo[] {
 
 export function selectVisible(state: LibraryState): LibraryVideo[] {
   const q = state.query.trim().toLowerCase();
-  const inAdults = state.sourceId === "adults";
+  const inAdults = state.sourceId === "adults" || state.sourceId === "adult-fetishes";
   let list = inAdults ? adultList(state) : publicList(state);
   if (state.sourceId === "favorites") {
     list = list.filter((v) => state.favorites[v.id]);

@@ -46,7 +46,14 @@ const PROVIDER_CHOICES: { id: AdultPullProvider[] | "all"; label: string }[] = [
   { id: ["redtube"], label: "RedTube only" },
 ];
 
-type RedditSourceSetting = { subreddit: string; priority: 1 | 2 | 3 };
+const FETISH_EXPLORER_GROUPS: Array<{ label: string; tags: readonly string[] }> = [
+  { label: "Featured", tags: ADULT_FEATURED_FETISH_TAGS },
+  { label: "Scenes & styles", tags: ["amateur", "anal", "bondage", "cosplay", "creampie", "double penetration", "feet", "gangbang", "pov", "role play", "threesome", "vr"] },
+  { label: "People & regions", tags: ["asian", "bbw", "ebony", "japanese", "latina", "mature", "milf", "transgender", "verified amateurs"] },
+  { label: "Formats", tags: ["animation", "hentai", "interactive", "live", "solo female", "webcam"] },
+];
+
+type RedditSourceSetting = { subreddit: string; priority: 1 | 2 | 3; hidden?: boolean; favorite?: boolean };
 const REDDIT_SOURCE_STORAGE_KEY = "reelcase.adult-reddit-sources.v1";
 
 function readRedditSourceSettings(): RedditSourceSetting[] {
@@ -61,12 +68,106 @@ function readRedditSourceSettings(): RedditSourceSetting[] {
       if (!/^[a-z0-9_]{3,48}$/i.test(subreddit) || seen.has(subreddit.toLowerCase())) continue;
       seen.add(subreddit.toLowerCase());
       const priority = Number(row.priority);
-      settings.push({ subreddit, priority: priority >= 3 ? 3 : priority <= 1 ? 1 : 2 });
+      settings.push({ subreddit, priority: priority >= 3 ? 3 : priority <= 1 ? 1 : 2, hidden: Boolean(row.hidden), favorite: Boolean(row.favorite) });
     }
     return settings;
   } catch {
     return [];
   }
+}
+
+/**
+ * A dedicated Adult interest browser. This intentionally owns only the topic
+ * selection and pull controls: source-list preferences remain shared with
+ * Adult discovery, while the main catalog stays free to render its rails.
+ */
+export function AdultFetishExplorer({
+  onSelectedTag,
+}: {
+  onSelectedTag?: (tag: string) => void;
+}) {
+  const searchAdultFeed = useLibrary((s) => s.searchAdultFeed);
+  const remoteBusy = useLibrary((s) => s.remoteBusy);
+  const setSource = useLibrary((s) => s.setSource);
+  const [providers, setProviders] = useState<AdultPullProvider[] | "all">("all");
+  const [order, setOrder] = useState("top-weekly");
+  const [query, setQuery] = useState("");
+  const [showAll, setShowAll] = useState(false);
+  const [pullLimit, setPullLimit] = useState(LIBRARY_LIMITS.adultInteractiveVideosPerPull);
+
+  useEffect(() => {
+    try {
+      const saved = Number(localStorage.getItem("reelcase.adult-pull-limit") ?? LIBRARY_LIMITS.adultInteractiveVideosPerPull);
+      setPullLimit([240, 480, 800, 1200].includes(saved) ? saved : LIBRARY_LIMITS.adultInteractiveVideosPerPull);
+    } catch {
+      // The default remains suitable for this visit when preferences are unavailable.
+    }
+  }, []);
+
+  const savedRedditSources = useMemo(() => {
+    const merged = new Map<string, RedditSourceSetting>();
+    for (const subreddit of ADULT_REDDIT_SUBS) merged.set(subreddit.toLowerCase(), { subreddit, priority: 2 });
+    for (const source of readRedditSourceSettings()) merged.set(source.subreddit.toLowerCase(), source);
+    return [...merged.values()]
+      .filter((source) => !source.hidden)
+      .sort((a, b) => Number(b.favorite) - Number(a.favorite) || b.priority - a.priority || a.subreddit.localeCompare(b.subreddit));
+  }, []);
+  const matchingFetishes = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return ADULT_CURATED_FETISH_TAGS.filter((tag) => !needle || tag.includes(needle));
+  }, [query]);
+  const pullTopic = (topic: string) => {
+    if (remoteBusy) return;
+    const normalized = fetishSearchQuery(topic);
+    const selectedTag = `fetish-${normalized.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase()}`;
+    const usesReddit = providers === "all" || providers.includes("reddit");
+    onSelectedTag?.(selectedTag);
+    void searchAdultFeed(normalized, order, {
+      page: 1,
+      maxVideos: pullLimit,
+      providers,
+      ...(usesReddit && savedRedditSources.length ? { redditSources: savedRedditSources } : {}),
+    })
+      .then((count) => toast.success(count ? `Loaded ${count.toLocaleString()} for #${topic}` : `No titles found for #${topic}`))
+      .catch((error: unknown) => toast.error(error instanceof Error ? error.message : `Could not pull #${topic}.`));
+  };
+
+  const topics = query.trim() || showAll ? matchingFetishes : [];
+  return (
+    <section className="mb-6 rounded-xl bg-elevated p-5 shadow-border">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Adult interests</p>
+          <h1 className="mt-2 font-display text-3xl text-fg sm:text-4xl">Fetish Explorer</h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted">Choose a topic, choose which providers should answer it, then pull a varied, tagged Adult shelf. Saved Reddit communities, including favorites and priority, are used whenever Reddit is selected.</p>
+        </div>
+        <Button size="sm" variant="secondary" onClick={() => setSource("adults")}>Open Adult browse</Button>
+      </div>
+      <div className="mt-5 rounded-lg border border-border bg-bg/35 p-4">
+        <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Pull sources</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {PROVIDER_CHOICES.map((choice) => <Button key={choice.label} size="sm" variant={JSON.stringify(providers) === JSON.stringify(choice.id) ? "default" : "secondary"} onClick={() => setProviders(choice.id)}>{choice.label}</Button>)}
+        </div>
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="relative min-w-0 flex-1"><Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle"/><Input value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && query.trim()) pullTopic(query); }} placeholder="Find a fetish, format, or custom topic" className="pl-9" aria-label="Find a fetish to pull"/></div>
+          <div className="flex flex-wrap gap-2">{ORDERS.map((item) => <Button key={item.id} size="sm" variant={order === item.id ? "default" : "secondary"} onClick={() => setOrder(item.id)}>{item.label}</Button>)}</div>
+          <Button disabled={remoteBusy || !query.trim()} onClick={() => pullTopic(query)}>{remoteBusy ? "Pulling…" : "Pull this topic"}</Button>
+        </div>
+        <p className="mt-3 text-xs text-muted">{providers === "all" ? "Every available provider is selected." : `${providers.length} provider${providers.length === 1 ? "" : "s"} selected.`} Reddit uses {savedRedditSources.length} saved community{savedRedditSources.length === 1 ? "" : "ies"} when included.</p>
+      </div>
+      {!query.trim() && !showAll ? (
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {FETISH_EXPLORER_GROUPS.map((group) => <div key={group.label} className="rounded-lg border border-border bg-surface p-4 shadow-border"><p className="text-sm font-medium text-fg">{group.label}</p><div className="mt-3 flex flex-wrap gap-1.5">{group.tags.map((tag) => <Button key={tag} size="sm" className="h-8 px-2 text-xs" variant="secondary" disabled={remoteBusy} onClick={() => pullTopic(tag)}>#{tag}</Button>)}</div></div>)}
+        </div>
+      ) : (
+        <div className="mt-5 flex flex-wrap gap-2">
+          {topics.map((tag) => <Button key={tag} size="sm" variant="secondary" disabled={remoteBusy} onClick={() => pullTopic(tag)}>Pull #{tag}</Button>)}
+          {!topics.length && <p className="text-sm text-muted">No curated topic matches that search. You can still pull the exact text above.</p>}
+        </div>
+      )}
+      <Button className="mt-4" size="sm" variant="ghost" onClick={() => setShowAll((value) => !value)}>{showAll ? "Show topic groups" : `Browse all ${ADULT_CURATED_FETISH_TAGS.length} topics`}</Button>
+    </section>
+  );
 }
 
 function SiteCard({
@@ -135,6 +236,7 @@ export function AdultPanel({
   const remoteBusy = useLibrary((s) => s.remoteBusy);
   const importProgress = useLibrary((s) => s.importProgress);
   const adultPullStatus = useLibrary((s) => s.adultPullStatus);
+  const setSource = useLibrary((s) => s.setSource);
   const tags = useLibrary((s) => s.tags);
   const adultVideos = useLibrary(useShallow(selectAdultRemote));
   const [query, setQuery] = useState("");
@@ -149,7 +251,6 @@ export function AdultPanel({
     onTagFilter?.(tag === "all" ? "All" : tag);
   };
   const [nextPage, setNextPage] = useState(2);
-  const [showAllFetishes, setShowAllFetishes] = useState(false);
   const [starQuery, setStarQuery] = useState("");
   const [stars, setStars] = useState<Array<{ name: string; thumb?: string; url?: string }>>([]);
   const [starNote, setStarNote] = useState("");
@@ -159,8 +260,12 @@ export function AdultPanel({
   const [useCustomRedditSources, setUseCustomRedditSources] = useState(false);
   const [redditSources, setRedditSources] = useState<RedditSourceSetting[]>([]);
   const [redditSourceInput, setRedditSourceInput] = useState("");
+  const [redditSourceQuery, setRedditSourceQuery] = useState("");
+  const [showAllRedditSources, setShowAllRedditSources] = useState(false);
   const [redditSourcesReady, setRedditSourcesReady] = useState(false);
-  const [discoveryCollapsed, setDiscoveryCollapsed] = useState(false);
+  // Discovery is intentionally compact at startup. The background catalog
+  // refresh still runs, and an explicit expansion remains remembered.
+  const [discoveryCollapsed, setDiscoveryCollapsed] = useState(true);
 
   useEffect(() => {
     const load = () => {
@@ -180,7 +285,7 @@ export function AdultPanel({
     // priority. This avoids an empty separate preference silently falling back
     // to the generic rotation.
     setUseCustomRedditSources(true);
-    setDiscoveryCollapsed(localStorage.getItem("reelcase.adult-discovery-collapsed") === "true");
+    setDiscoveryCollapsed(localStorage.getItem("reelcase.adult-discovery-collapsed") !== "false");
     setRedditSourcesReady(true);
   }, []);
 
@@ -212,8 +317,19 @@ export function AdultPanel({
     for (const source of libraryRedditSources) merged.set(source.subreddit.toLowerCase(), source);
     for (const source of redditSources) merged.set(source.subreddit.toLowerCase(), source);
     return [...merged.values()]
-      .sort((a, b) => b.priority - a.priority || a.subreddit.localeCompare(b.subreddit));
+      .filter((source) => !source.hidden)
+      .sort((a, b) => Number(b.favorite) - Number(a.favorite) || b.priority - a.priority || a.subreddit.localeCompare(b.subreddit));
   }, [libraryRedditSources, redditSources]);
+  const redditSourceRows = useMemo(() => {
+    const overrides = new Map(redditSources.map((source) => [source.subreddit.toLowerCase(), source]));
+    const all = new Map(libraryRedditSources.map((source) => [source.subreddit.toLowerCase(), source]));
+    for (const source of redditSources) all.set(source.subreddit.toLowerCase(), { ...(all.get(source.subreddit.toLowerCase()) ?? source), ...source });
+    const needle = redditSourceQuery.trim().toLowerCase();
+    return [...all.values()]
+      .filter((source) => !needle || source.subreddit.toLowerCase().includes(needle))
+      .sort((a, b) => Number(b.favorite) - Number(a.favorite) || Number(a.hidden) - Number(b.hidden) || b.priority - a.priority || a.subreddit.localeCompare(b.subreddit))
+      .map((source) => ({ ...source, isLibrary: libraryRedditSources.some((row) => row.subreddit.toLowerCase() === source.subreddit.toLowerCase()), hasOverride: overrides.has(source.subreddit.toLowerCase()) }));
+  }, [libraryRedditSources, redditSourceQuery, redditSources]);
 
   const redditPullOptions = useMemo(
     () => useCustomRedditSources && selectedRedditSources.length ? { redditSources: selectedRedditSources } : {},
@@ -303,6 +419,10 @@ export function AdultPanel({
   }, [query, order, adultVideos.length]);
 
   const runSearch = (append = false, resume = false) => {
+    if (remoteBusy) {
+      toast.message("A catalog pull is already running.");
+      return;
+    }
     const q = query.trim() || "all";
     const cursors = loadAdultArchiveCursors(q, order);
     const providerPages = resume
@@ -334,8 +454,21 @@ export function AdultPanel({
       });
   };
 
+  const pullRedtubeCreator = (creator: string) => {
+    const q = creator.trim();
+    if (!q || remoteBusy) return;
+    setProviders(["redtube"]);
+    setQuery(q);
+    void searchAdultFeed(q, order, {
+      providers: ["redtube"],
+      maxVideos: LIBRARY_LIMITS.redtubeStarVideosPerPull,
+    })
+      .then((n) => toast.success(n ? `Loaded ${n.toLocaleString()} for ${q}` : `No titles found for ${q}`))
+      .catch((err: unknown) => toast.error(err instanceof Error ? err.message : `Could not pull ${q}.`));
+  };
+
   const pullSavedRedditSources = () => {
-    if (!selectedRedditSources.length) return;
+    if (!selectedRedditSources.length || remoteBusy) return;
     setUseCustomRedditSources(true);
     setProviders(["reddit"]);
     void searchAdultFeed("all", order, {
@@ -356,7 +489,7 @@ export function AdultPanel({
     }
     setRedditSources((current) => {
       const existing = current.find((row) => row.subreddit.toLowerCase() === subreddit.toLowerCase());
-      if (existing) return current;
+      if (existing) return current.map((row) => row.subreddit.toLowerCase() === subreddit.toLowerCase() ? { ...row, hidden: false, favorite: true, priority: 3 } : row);
       return [...current, { subreddit, priority: 2 }];
     });
     setUseCustomRedditSources(true);
@@ -415,6 +548,13 @@ export function AdultPanel({
             <SiteCard key={site.name} {...site} />
           ))}
         </div>
+        </div>
+      </details>
+
+      <details className="rounded-xl bg-elevated shadow-border">
+        <summary className="cursor-pointer list-none p-5 [&::-webkit-details-marker]:hidden"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Catalog milestones</p><h2 className="mt-2 font-display text-2xl text-fg">Current reliability coverage</h2><p className="mt-2 text-xs text-muted">Expand for the active work grouped by catalog area.</p></summary>
+        <div className="grid gap-3 border-t border-border px-5 pb-5 pt-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[['Reddit media', 'Saved community list, priority/favorite and hide controls, Atom pulls, Redgifs dual-source cards, and image recovery.'], ['Live rooms', 'Chaturbate, CamSoda, and MyFreeCams public room lists with live-only placement and provider diagnostics.'], ['Photos & tags', 'Booru response-shape recovery, creator attribution, stable tag scoring, and permanent heart history.'], ['Catalog feedback', 'Pull health explains loaded, empty, and failed providers; ratings rebuild the weekly streak from durable feedback.']].map(([title, copy]) => <div key={title} className="rounded-md bg-surface p-3 shadow-border"><p className="text-sm font-medium text-fg">{title}</p><p className="mt-1 text-xs leading-5 text-muted">{copy}</p></div>)}
         </div>
       </details>
 
@@ -566,7 +706,7 @@ export function AdultPanel({
               variant={useCustomRedditSources ? "default" : "secondary"}
               onClick={() => setUseCustomRedditSources((enabled) => !enabled)}
             >
-              {useCustomRedditSources ? "Using library source list" : "Use library source list"}
+              {useCustomRedditSources ? "Use curated rotation" : "Use library source list"}
             </Button>
             <span className="text-xs text-muted">
               {useCustomRedditSources ? `${selectedRedditSources.length} saved communities · priority overrides first` : "Curated rotation active"}
@@ -598,96 +738,28 @@ export function AdultPanel({
               Pin source
             </Button>
           </div>
-          {redditSources.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {redditSources.slice().sort((a, b) => b.priority - a.priority || a.subreddit.localeCompare(b.subreddit)).map((source) => (
-                <div key={source.subreddit} className="flex items-center gap-1 rounded-full bg-surface py-1 pl-3 pr-1 text-xs text-muted shadow-border">
-                  <span>r/{source.subreddit}</span>
-                  {([3, 2, 1] as const).map((priority) => (
-                    <Button
-                      key={priority}
-                      size="sm"
-                      className="h-6 px-1.5 text-[10px]"
-                      variant={source.priority === priority ? "default" : "ghost"}
-                      onClick={() => setRedditSources((current) => current.map((row) => row.subreddit === source.subreddit ? { ...row, priority } : row))}
-                    >
-                      {priority === 3 ? "High" : priority === 2 ? "Normal" : "Low"}
-                    </Button>
-                  ))}
-                  <Button
-                    size="sm"
-                    className="h-6 px-1.5 text-[10px]"
-                    variant="ghost"
-                    onClick={() => setRedditSources((current) => current.filter((row) => row.subreddit !== source.subreddit))}
-                  >
-                    Remove
-                  </Button>
+          <div className="mt-3 rounded-md border border-border bg-bg/35 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-medium text-fg">Saved library communities · {selectedRedditSources.length} active</p><span className="text-xs text-muted">Favorites pull first · hidden sources stay saved</span></div>
+            <Input value={redditSourceQuery} onChange={(event) => setRedditSourceQuery(event.target.value)} placeholder="Find a saved community…" className="mt-2" aria-label="Find saved Reddit community" />
+            <div className="mt-2 space-y-2">
+              {redditSourceRows.slice(0, showAllRedditSources || redditSourceQuery.trim() ? redditSourceRows.length : 18).map((source) => (
+                <div key={source.subreddit} className="flex flex-wrap items-center gap-1.5 rounded bg-surface px-2 py-1.5 text-xs shadow-border">
+                  <span className={`mr-auto ${source.hidden ? "text-subtle line-through" : "text-fg"}`}>r/{source.subreddit}{source.isLibrary ? " · library" : " · custom"}</span>
+                  <Button size="sm" className="h-6 px-1.5 text-[10px]" variant={source.favorite ? "default" : "ghost"} onClick={() => setRedditSources((current) => { const row = current.find((item) => item.subreddit.toLowerCase() === source.subreddit.toLowerCase()); return row ? current.map((item) => item === row ? { ...item, favorite: !item.favorite, hidden: false, priority: !item.favorite ? 3 : item.priority } : item) : [...current, { subreddit: source.subreddit, priority: 3, favorite: true }]; })}>{source.favorite ? "★ Favorite" : "☆ Favorite"}</Button>
+                  <Button size="sm" className="h-6 px-1.5 text-[10px]" variant="ghost" onClick={() => setRedditSources((current) => { const row = current.find((item) => item.subreddit.toLowerCase() === source.subreddit.toLowerCase()); return row ? current.map((item) => item === row ? { ...item, hidden: !item.hidden } : item) : [...current, { subreddit: source.subreddit, priority: 2, hidden: true }]; })}>{source.hidden ? "Show" : "Hide"}</Button>
+                  {([3, 2, 1] as const).map((priority) => <Button key={priority} size="sm" className="h-6 px-1.5 text-[10px]" variant={source.priority === priority ? "default" : "ghost"} onClick={() => setRedditSources((current) => { const row = current.find((item) => item.subreddit.toLowerCase() === source.subreddit.toLowerCase()); return row ? current.map((item) => item === row ? { ...item, priority, hidden: false } : item) : [...current, { subreddit: source.subreddit, priority }]; })}>{priority === 3 ? "High" : priority === 2 ? "Normal" : "Low"}</Button>)}
+                  <Button size="sm" className="h-6 px-1.5 text-[10px]" variant="ghost" title={source.isLibrary ? "Clear saved preference and restore library defaults" : "Remove custom community"} onClick={() => setRedditSources((current) => current.filter((item) => item.subreddit.toLowerCase() !== source.subreddit.toLowerCase()))}>{source.isLibrary ? "Reset" : "Remove"}</Button>
                 </div>
               ))}
             </div>
-          )}
+            {redditSourceRows.length > 18 && !redditSourceQuery.trim() && <Button size="sm" variant="secondary" className="mt-2" onClick={() => setShowAllRedditSources((shown) => !shown)}>{showAllRedditSources ? "Show fewer communities" : `Show all ${redditSourceRows.length} communities`}</Button>}
+          </div>
         </details>
 
-        <div className="mt-4">
-          <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Featured fetish pulls</p>
-          <p className="mt-1 text-xs text-muted">
-            Clicking a chip searches official APIs for that keyword (DP expands to double penetration) and stamps fetish tags on ingested titles.
-          </p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {ADULT_FEATURED_FETISH_TAGS.map((tag) => (
-              <Button
-                key={tag}
-                size="sm"
-                variant="default"
-                disabled={remoteBusy}
-                onClick={() => {
-                  const q = fetishSearchQuery(tag);
-                  setQuery(q);
-                  setTagFilter(`fetish-${q.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase()}`);
-                  void searchAdultFeed(q, order, {
-                    page: 1,
-                    maxVideos: adultMaxVideos,
-                    providers,
-                    ...redditPullOptions,
-                  }).then((n) => toast.success(`Loaded ${n.toLocaleString()} for #${tag}`));
-                }}
-              >
-                #{tag}
-              </Button>
-            ))}
-          </div>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Full fetish catalog</p>
-            <Button size="sm" variant="secondary" onClick={() => setShowAllFetishes((v) => !v)}>
-              {showAllFetishes ? "Hide extra chips" : `Show all ${ADULT_CURATED_FETISH_TAGS.length} chips`}
-            </Button>
-          </div>
-          {showAllFetishes && (
-            <div className="mt-2 flex flex-wrap gap-2">
-              {ADULT_CURATED_FETISH_TAGS.filter((tag) => !(ADULT_FEATURED_FETISH_TAGS as readonly string[]).includes(tag)).map((tag) => (
-                <Button
-                  key={tag}
-                  size="sm"
-                  variant="secondary"
-                  disabled={remoteBusy}
-                  onClick={() => {
-                    const q = fetishSearchQuery(tag);
-                    setQuery(q);
-                    setTagFilter(`fetish-${q.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase()}`);
-                  void searchAdultFeed(q, order, {
-                    page: 1,
-                    maxVideos: adultMaxVideos,
-                    providers,
-                    ...redditPullOptions,
-                    }).then((n) => toast.success(`Loaded ${n.toLocaleString()} for #${tag}`));
-                  }}
-                >
-                  #{tag}
-                </Button>
-              ))}
-            </div>
-          )}
-        </div>
+        <section className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-bg/35 p-4">
+          <div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Topic pulls</p><p className="mt-1 text-sm text-muted">Choose a fetish and provider combination from the dedicated Explorer, then return here to browse its tagged results.</p></div>
+          <Button size="sm" variant="secondary" onClick={() => setSource("adult-fetishes")}>Open Fetish Explorer</Button>
+        </section>
 
         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
           <div className="relative flex-1">
@@ -775,10 +847,7 @@ export function AdultPanel({
                     setStarNote(err instanceof Error ? err.message : "Star list unavailable.");
                   }
                 })();
-                void searchAdultFeed(q, order, {
-                  providers: ["redtube"],
-                  maxVideos: LIBRARY_LIMITS.redtubeStarVideosPerPull,
-                }).then((n) => toast.success(`Loaded ${n.toLocaleString()} for ${q}`));
+                pullRedtubeCreator(q);
               }}
             >
               Search creator
@@ -796,10 +865,7 @@ export function AdultPanel({
                     setStarQuery(star.name);
                     setProviders(["redtube"]);
                     setQuery(star.name);
-                    void searchAdultFeed(star.name, order, {
-                      providers: ["redtube"],
-                      maxVideos: LIBRARY_LIMITS.redtubeStarVideosPerPull,
-                    }).then((n) => toast.success(`Loaded ${n.toLocaleString()} for ${star.name}`));
+                    pullRedtubeCreator(star.name);
                   }}
                 >
                   {star.name}

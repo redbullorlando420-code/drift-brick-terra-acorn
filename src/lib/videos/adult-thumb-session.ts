@@ -39,6 +39,9 @@ const PREFERRED_HOSTS: Record<string, number> = {
   "cdn.eporner.com": 6,
   "static-cdn-v4.eporner.com": 5,
   "woofcdn.com": 3,
+  "thumbs2.redgifs.com": 7,
+  "thumbs1.redgifs.com": 4,
+  "media.redgifs.com": 3,
 };
 
 export function markAdultThumbFailed(url: string) {

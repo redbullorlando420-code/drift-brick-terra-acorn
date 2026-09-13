@@ -11,12 +11,13 @@ export function AdultComments({ video }: { video: LibraryVideo }) {
   const [comments, setComments] = useState<AdultComment[]>(video.remote?.comments ?? []);
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
+  const linkedRedgifs = Boolean(video.remote?.sourceKinds?.includes("redgifs"));
 
   useEffect(() => {
     let cancelled = false;
     if (video.remote?.kind !== "reddit" || !video.remote.videoId) {
       setComments(video.remote?.comments ?? []);
-      setNote(video.remote?.kind === "reddit" ? "" : "No public comment feed for this source.");
+      setNote(video.remote?.kind === "reddit" ? "" : "No documented public comment feed for this source.");
       return;
     }
     setLoading(true);
@@ -32,7 +33,7 @@ export function AdultComments({ video }: { video: LibraryVideo }) {
         });
         if (cancelled) return;
         setComments(result.comments);
-        setNote(result.note);
+          setNote(linkedRedgifs && result.comments.length ? `${result.note} Linked Redgifs media stays attached to this original Reddit thread.` : result.note);
         if (result.comments.length) {
           const blob = result.comments.map((c) => c.body).join(" ");
           const mined = [
@@ -55,12 +56,12 @@ export function AdultComments({ video }: { video: LibraryVideo }) {
     return () => {
       cancelled = true;
     };
-  }, [video.id, video.remote?.kind, video.remote?.videoId, video.remote?.watchUrl, video.remote?.comments, setVideoTags]);
+  }, [linkedRedgifs, video.id, video.remote?.kind, video.remote?.videoId, video.remote?.watchUrl, video.remote?.comments, setVideoTags]);
 
   return (
     <section className="mt-3 rounded-lg border border-border bg-bg/40 p-3">
       <p className="flex items-center gap-2 text-xs font-medium tracking-[0.14em] text-accent uppercase">
-        <MessageCircle className="size-3.5" /> Comments
+        <MessageCircle className="size-3.5" /> {linkedRedgifs ? "Reddit comments for linked Redgifs media" : "Comments"}
       </p>
       {loading && <p className="mt-2 text-xs text-muted">Loading comments…</p>}
       {!loading && note && <p className="mt-2 text-xs text-muted">{note}</p>}

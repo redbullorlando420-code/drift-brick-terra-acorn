@@ -13,12 +13,12 @@ import { InviteStrip } from "./invite";
 import { VideoGrid } from "./video-grid";
 import { VideoCard } from "./video-card";
 import { Billboard, PosterGrid, TitleRail } from "./browse";
-import { AdultPanel } from "./adult-panel";
+import { AdultFetishExplorer, AdultPanel } from "./adult-panel";
 import { LIBRARY_LIMITS } from "@/lib/library-limits";
 import { Input } from "@/components/ui/input";
 import { ADULT_PULL_PROVIDERS, isAdultImageKind } from "@/lib/videos/adult-sites";
 import { ADULT_SOURCE_FILTERS, countAdultBySource, videoMatchesAdultSource, videoMatchesAdultTag } from "@/lib/videos/adult-filter";
-import { rankAdultMetaTags, rankAdultTags, sortAdultVideos, type AdultRankContext } from "@/lib/videos/adult-rank";
+import { ADULT_TOP_TAG_RAIL_MIN_COUNT, rankAdultMetaTags, rankAdultTags, sortAdultVideos, type AdultRankContext } from "@/lib/videos/adult-rank";
 import { buildAdultStatsSnapshot, exportAdultStats } from "@/lib/videos/adult-stats";
 import { loadAdultArchiveCursors } from "@/lib/videos/adult-archive-cursors";
 import { Player } from "./player";
@@ -63,13 +63,27 @@ import { hasFreshViewerCount, isClassicVideo } from "@/lib/videos/types";
 import { useThumbs } from "@/lib/videos/thumbs";
 import { librarySearchIndex } from "@/lib/videos/search-index";
 import { searchWorkerIndex } from "@/lib/videos/search-worker-index";
-import { creatorIsLiked, getCreatorRating, getRating, tagIsLiked } from "@/lib/media-feedback";
+import { creatorIsLiked, getCreatorRating, getHeartedTagHistory, getRating, tagHasHeartHistory, tagIsLiked } from "@/lib/media-feedback";
 import { announceNetworkPresence } from "@/lib/network-presence";
 
 function shuffleRank(id: string, seed: number) {
   let value = seed >>> 0;
   for (let index = 0; index < id.length; index += 1) value = Math.imul(value ^ id.charCodeAt(index), 0x45d9f3b);
   return value >>> 0;
+}
+/**
+ * Adult catalog quality still leads, but each rail gets a time-stamped shuffle
+ * inside a bounded rank window. That rotates fresh cards into view without
+ * letting low-signal results displace the useful part of the catalog.
+ */
+function rotateAdultRail<T extends { id: string }>(items: T[], rail: string, seed: number): T[] {
+  return items
+    .map((video, index) => ({
+      video,
+      rank: index + (shuffleRank(`${rail}:${video.id}`, seed) / 0xffffffff) * 28,
+    }))
+    .sort((a, b) => a.rank - b.rank)
+    .map(({ video }) => video);
 }
 function diversifyCreators<T extends { id: string; remote?: { channelName?: string } }>(items: T[], limit = 48): T[] {
   const groups = new Map<string, T[]>();
@@ -149,6 +163,7 @@ export function LibraryApp() {
   const [movieShuffle, setMovieShuffle] = useState(() => Date.now());
   const [homePickShuffle, setHomePickShuffle] = useState(() => Date.now());
   const [ratingRevision, setRatingRevision] = useState(0);
+  const [tagHeartRevision, setTagHeartRevision] = useState(0);
   const [adultTag, setAdultTag] = useState("All");
   const [adultSource, setAdultSource] = useState("all");
   const [adultView, setAdultView] = useState<"all" | "videos" | "live" | "photos">("all");
@@ -156,6 +171,8 @@ export function LibraryApp() {
   const [adultTagQuery, setAdultTagQuery] = useState("");
   /** Visible ranked tag chips — starts small; Show more adds a page, never dumps hundreds. */
   const [adultTagVisibleCount, setAdultTagVisibleCount] = useState(10);
+  const [adultExplorerTag, setAdultExplorerTag] = useState("");
+  const [adultRailSeed, setAdultRailSeed] = useState(() => Date.now() >>> 0);
   const [adultSort, setAdultSort] = useState<"recent" | "name" | "favorites" | "tagged" | "played" | "ranked">("ranked");
   const [twitchSort, setTwitchSort] = useState<"live" | "viewers" | "name">("live");
   const [twitchFilter, setTwitchFilter] = useState("all");
@@ -288,7 +305,9 @@ export function LibraryApp() {
     cameCounts,
     viewCounts,
     ratingOf: getRating,
-  }), [cameCounts, favorites, likes, ratingRevision, tags, viewCounts]);
+    tagIsHearted: tagIsLiked,
+    tagHasHeartHistory,
+  }), [cameCounts, favorites, likes, ratingRevision, tagHeartRevision, tags, viewCounts]);
   const rankedAdultCatalog = useMemo(() => {
     if (sourceId !== "adults") return filteredEporner;
     // First paint: keep ingest order (cheap). Idle swap brings full ranking.
@@ -299,19 +318,28 @@ export function LibraryApp() {
     if (sourceId !== "adults" || !adultRankReady) return [] as { tag: string; score: number; count: number }[];
     return rankAdultTags(sourceMatchedAdult, adultRankCtx, 80);
   }, [adultRankCtx, adultRankReady, sourceId, sourceMatchedAdult]);
+  const adultOverviewRails = useMemo(() => {
+    const videos = rotateAdultRail(rankedAdultCatalog.filter((video) => adultKind(video) === "videos"), "overview-videos", adultRailSeed).slice(0, adultRailLimit);
+    const photos = rotateAdultRail(rankedAdultCatalog.filter((video) => adultKind(video) === "photos"), "overview-photos", adultRailSeed).slice(0, adultRailLimit);
+    const alreadyShown = new Set([...videos, ...photos].map((video) => video.id));
+    const picks = rotateAdultRail(rankedAdultCatalog.filter((video) => adultKind(video) !== "live" && !alreadyShown.has(video.id)), "overview-picks", adultRailSeed).slice(0, adultRailLimit);
+    return { videos, photos, picks };
+  }, [adultRailLimit, adultRailSeed, rankedAdultCatalog]);
   const adultTopTagRails = useMemo(() => {
     if (sourceId !== "adults" || !adultRankReady || adultTag !== "All") return [] as Array<{ tag: string; score: number; count: number; videos: typeof rankedAdultCatalog }>;
     return adultTagRank
-      .filter((row) => row.count >= 3)
-      .slice(0, 3)
+      .filter((row) => row.count >= ADULT_TOP_TAG_RAIL_MIN_COUNT)
+      .slice(0, 5)
       .map((row) => ({
         ...row,
-        videos: rankedAdultCatalog
-          .filter((video) => videoMatchesAdultTag(video, row.tag, tags))
-          .slice(0, adultRailLimit),
+        videos: rotateAdultRail(
+          rankedAdultCatalog.filter((video) => videoMatchesAdultTag(video, row.tag, tags)),
+          `tag:${row.tag}`,
+          adultRailSeed,
+        ).slice(0, adultRailLimit),
       }))
       .filter((row) => row.videos.length > 0);
-  }, [adultRailLimit, adultRankReady, adultTag, adultTagRank, rankedAdultCatalog, sourceId, tags]);
+  }, [adultRailLimit, adultRailSeed, adultRankReady, adultTag, adultTagRank, rankedAdultCatalog, sourceId, tags]);
   const adultMetaTagRank = useMemo(() => {
     if (sourceId !== "adults" || !adultRankReady) return [] as { tag: string; score: number; count: number }[];
     return rankAdultMetaTags(sourceMatchedAdult, adultRankCtx, 48);
@@ -321,6 +349,7 @@ export function LibraryApp() {
     if (!needle) return adultTagRank;
     return adultTagRank.filter((row) => row.tag.includes(needle) || row.tag.replace(/-/g, " ").includes(needle));
   }, [adultTagQuery, adultTagRank]);
+  const heartedAdultTags = useMemo(() => getHeartedTagHistory().filter((tag) => adultTagRank.some((row) => row.tag === tag)), [adultTagRank, tagHeartRevision]);
   const visibleAdultTags = useMemo(() => {
     // Hard cap even while searching — never mount hundreds of chip buttons.
     const page = Math.min(Math.max(10, adultTagVisibleCount), 36);
@@ -334,18 +363,23 @@ export function LibraryApp() {
     const rankedBase = adultTag === "All" && adultSource === "all"
       ? rankedAdultCatalog
       : sortAdultVideos(sourceMatchedAdult, adultRankCtx);
-    return rankedBase
+    const overviewIds = new Set([...adultOverviewRails.videos, ...adultOverviewRails.photos, ...adultOverviewRails.picks].map((video) => video.id));
+    const freshBase = rankedBase.filter((video) => !overviewIds.has(video.id));
+    const recommendationBase = freshBase.length >= Math.min(16, adultRailLimit) ? freshBase : rankedBase;
+    return diversifyCreators(recommendationBase
       .map((video) => {
         const itemTags = tags[video.id] ?? [];
         const overlap = itemTags.filter((tag) => preferred.has(tag)).length;
         const likedOverlap = itemTags.filter((tag) => likedTags.has(tag)).length;
-        const bonus = overlap * 8 + likedOverlap * 10;
+        const previewReady = Number(Boolean(video.poster || video.remote?.previewUrl));
+        const rotation = (shuffleRank(`adult-recommended:${video.id}`, adultRailSeed) / 0xffffffff) * 8;
+        const bonus = overlap * 8 + likedOverlap * 10 + previewReady * 3 + rotation;
         return { video, score: bonus };
       })
       .sort((a, b) => b.score - a.score)
       .map(({ video }) => video)
-      .slice(0, 48);
-  }, [adultMetaTagRank, adultRankCtx, adultRankReady, adultSource, adultTag, adultTagRank, cameCounts, favorites, likes, rankedAdultCatalog, ratingRevision, sourceId, sourceMatchedAdult, tags]);
+      .slice(0, 96), 48);
+  }, [adultMetaTagRank, adultOverviewRails, adultRailLimit, adultRailSeed, adultRankCtx, adultRankReady, adultSource, adultTag, adultTagRank, cameCounts, favorites, likes, rankedAdultCatalog, ratingRevision, sourceId, sourceMatchedAdult, tags]);
   const adultRelatedRecommended = useMemo(() => {
     if (sourceId !== "adults" || !adultRankReady) return [] as typeof adultRemoteVideos;
     const seedTags = new Set(
@@ -361,18 +395,19 @@ export function LibraryApp() {
       .map((video) => {
         const itemTags = tags[video.id] ?? [];
         const overlap = itemTags.filter((tag) => seedTags.has(tag)).length;
-        const score = overlap * 12 + getRating(video.id) * 8 + (favorites[video.id] ? 5 : 0) + (likes[video.id] ? 3 : 0);
-        return { video, score, shuffle: shuffleRank(`adult-rel:${video.id}:${homePickShuffle}`, homePickShuffle) };
+        const previewReady = Number(Boolean(video.poster || video.remote?.previewUrl));
+        const score = overlap * 12 + getRating(video.id) * 8 + (favorites[video.id] ? 5 : 0) + (likes[video.id] ? 3 : 0) + previewReady * 3;
+        return { video, score, shuffle: shuffleRank(`adult-rel:${video.id}:${adultRailSeed}`, adultRailSeed) };
       })
       .filter((row) => row.score > 0)
       .sort((a, b) => b.score - a.score || a.shuffle - b.shuffle)
       .map(({ video }) => video)
       .slice(0, 48);
-  }, [adultContinue, adultFavorites, adultMetaTagRank, adultRankReady, adultRecommended, adultRemoteVideos, adultTag, adultTagRank, favorites, homePickShuffle, likes, ratingRevision, sourceId, tags]);
+  }, [adultContinue, adultFavorites, adultMetaTagRank, adultRailSeed, adultRankReady, adultRecommended, adultRemoteVideos, adultTag, adultTagRank, favorites, likes, ratingRevision, sourceId, tags]);
   const adultShelfRails = useMemo(() => {
-    // Claim ids top-down so Recommended / Related / Continue / marks stay unique
-    // across the separate Adults rails (catalog + poster still may revisit).
-    const used = new Set<string>();
+    // Claim ids top-down so the Adult landing rails begin as distinct shelves.
+    // The full poster grid intentionally remains exhaustive further below.
+    const used = new Set<string>([...adultOverviewRails.videos, ...adultOverviewRails.photos, ...adultOverviewRails.picks].map((video) => video.id));
     const take = (list: typeof adultRemoteVideos, limit: number, claim = true) => {
       const out: typeof adultRemoteVideos = [];
       for (const video of list) {
@@ -398,12 +433,13 @@ export function LibraryApp() {
       scoped(adultRelatedRecommended), adultRailLimit,
     );
     const reddit = take(
-      scoped(rankedAdultCatalog.filter((video) => video.remote?.kind === "reddit")), adultRailLimit,
+      scoped(rotateAdultRail(rankedAdultCatalog.filter((video) => video.remote?.kind === "reddit"), "reddit", adultRailSeed)), adultRailLimit,
     );
-    const latest = take(scoped(rankedAdultCatalog), adultRailLimit);
-    const catalog = take(scoped(rankedAdultCatalog), Math.max(48, adultRailLimit * 3));
+    const rotatedCatalog = scoped(rotateAdultRail(rankedAdultCatalog, "latest", adultRailSeed));
+    const latest = take(rotatedCatalog, adultRailLimit);
+    const catalog = take(rotateAdultRail(rotatedCatalog, "catalog", adultRailSeed), Math.max(48, adultRailLimit * 3));
     // Poster grid prefers titles not already on a rail, then fills from ranked catalog.
-    const posterFresh = take(scoped(rankedAdultCatalog), Math.max(96, adultRailLimit * 6), true);
+    const posterFresh = take(rotateAdultRail(rotatedCatalog, "poster", adultRailSeed), Math.max(96, adultRailLimit * 6), true);
     const seenPoster = new Set(posterFresh.map((video) => video.id));
     const poster = posterFresh.length >= 48
       ? posterFresh
@@ -411,7 +447,9 @@ export function LibraryApp() {
     return { recommended, related, continueRail, marked, reddit, latest, catalog, poster };
   }, [
     adultContinue,
+    adultOverviewRails,
     adultRailLimit,
+    adultRailSeed,
     adultRecommended,
     adultRelatedRecommended,
     adultTag,
@@ -433,6 +471,13 @@ export function LibraryApp() {
     () => [...adultRecommendedRail, ...adultLatestRail, ...adultRemoteVideos].find((video) => Boolean(video.poster || video.remote?.previewUrl)),
     [adultLatestRail, adultRecommendedRail, adultRemoteVideos],
   );
+  const adultExplorerResults = useMemo(() => {
+    const selected = adultExplorerTag.trim();
+    const candidates = adultRemoteVideos
+      .filter((video) => selected ? (tags[video.id] ?? []).includes(selected) : (tags[video.id] ?? []).some((tag) => tag.startsWith("fetish-")))
+      .sort((a, b) => b.addedAt - a.addedAt);
+    return rotateAdultRail(candidates, `explorer:${selected || "all"}`, adultRailSeed).slice(0, Math.max(48, adultRailLimit * 2));
+  }, [adultExplorerTag, adultRailLimit, adultRailSeed, adultRemoteVideos, tags]);
 
   useEffect(() => {
     setAdultTagVisibleCount(10);
@@ -447,6 +492,16 @@ export function LibraryApp() {
     window.addEventListener("reelcase:adult-render-settings", load);
     return () => window.removeEventListener("reelcase:adult-render-settings", load);
   }, []);
+
+  useEffect(() => {
+    if (sourceId !== "adults") return;
+    const rotate = () => setAdultRailSeed(Date.now() >>> 0);
+    rotate();
+    // A time-derived seed gives the same catalog a fresh start every few
+    // minutes while the ranking still protects highly relevant items.
+    const timer = window.setInterval(rotate, 180_000);
+    return () => window.clearInterval(timer);
+  }, [sourceId]);
 
   useEffect(() => {
     if (sourceId !== "adults") {
@@ -793,7 +848,7 @@ export function LibraryApp() {
     // Keep the star/like response immediate.  Ranking every large shelf is
     // useful work, but it belongs in a transition rather than on the button's
     // input frame.
-    const refreshRatedShelves = () => startTransition(() => setRatingRevision((value) => value + 1));
+    const refreshRatedShelves = () => startTransition(() => { setRatingRevision((value) => value + 1); setTagHeartRevision((value) => value + 1); });
     window.addEventListener("reelcase:rating-change", refreshRatedShelves);
     return () => window.removeEventListener("reelcase:rating-change", refreshRatedShelves);
   }, []);
@@ -1046,6 +1101,7 @@ export function LibraryApp() {
     (sourceId === "home" ||
       sourceId === "movies" ||
       sourceId === "adults" ||
+      sourceId === "adult-fetishes" ||
       sourceId === "youtube" ||
       sourceId === "twitch" ||
       sourceId === "live");
@@ -1240,6 +1296,28 @@ export function LibraryApp() {
                 </>
               )}
 
+              {sourceId === "adult-fetishes" && browsing && (
+                <>
+                  <AdultFetishExplorer
+                    onSelectedTag={(tag) => {
+                      setAdultExplorerTag(tag);
+                      setAdultTag(tag);
+                    }}
+                  />
+                  <section className="mb-6 rounded-xl border border-border bg-surface p-5 shadow-border">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Explorer results</p>
+                        <h2 className="mt-2 font-display text-2xl text-fg">{adultExplorerTag ? `#${adultExplorerTag.replace(/^fetish-/, "")}` : "Your pulled Adult interests"}</h2>
+                        <p className="mt-1 text-sm text-muted">{adultExplorerTag ? "Freshly pulled and saved matching titles. Results stay tagged for the Adult catalog too." : "Pick a topic above to pull it. Existing fetish-tagged titles appear here while you choose."}</p>
+                      </div>
+                      <Button size="sm" variant="secondary" onClick={() => setSource("adults")}>Browse all Adults</Button>
+                    </div>
+                    {adultExplorerResults.length ? <TitleRail title={adultExplorerTag ? "Matching titles" : "Recently pulled interests"} videos={adultExplorerResults} variant="rail" /> : <p className="mt-5 rounded-lg bg-elevated px-4 py-5 text-sm text-muted">No saved titles match this topic yet. Choose a provider and pull a topic above.</p>}
+                  </section>
+                </>
+              )}
+
               {sourceId === "adults" && browsing && (
                 <>
                   <AdultPanel
@@ -1257,16 +1335,27 @@ export function LibraryApp() {
                       {([['all', `Combined · ${adultRemoteVideos.length}`], ['videos', `Videos · ${adultKindCounts.videos}`], ['live', `Live · ${adultKindCounts.live}`], ['photos', `Photos · ${adultKindCounts.photos}`]] as const).map(([view, label]) => <Button key={view} size="sm" variant={adultView === view ? "default" : "secondary"} onClick={() => setAdultView(view)}>{label}</Button>)}
                     </div>
                   </section>
-                  {adultView === "all" && <section className="mb-5 grid gap-4 xl:grid-cols-3"><TitleRail title={`Adult videos · ${adultKindCounts.videos}`} videos={rankedAdultCatalog.filter((video) => adultKind(video) === "videos").slice(0, adultRailLimit)} variant="rail"/><TitleRail title={`Adult live · ${adultKindCounts.live}`} videos={rankedAdultCatalog.filter((video) => adultKind(video) === "live").slice(0, adultRailLimit)} variant="rail"/><TitleRail title={`Adult photos · ${adultKindCounts.photos}`} videos={rankedAdultCatalog.filter((video) => adultKind(video) === "photos").slice(0, adultRailLimit)} variant="rail"/></section>}
+                  {adultView === "all" && <section className="mb-5 grid gap-4 xl:grid-cols-3"><TitleRail title={`Adult videos · ${adultKindCounts.videos}`} reason="Two catalog rows in one continuous rail." videos={adultOverviewRails.videos} variant="rail"/><TitleRail title={`Adult photos · ${adultKindCounts.photos}`} reason="Reddit and Booru photos with preview fallbacks, combined into one rail." videos={adultOverviewRails.photos} variant="rail"/><TitleRail title="Adult picks" reason="A distinct mixed row after the video and photo cards above." videos={adultOverviewRails.picks} variant="rail"/></section>}
+                  <section className="mb-5 rounded-xl border border-border bg-surface p-4 shadow-border">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">For you right now</p>
+                        <h2 className="mt-1 font-display text-2xl text-fg">Better Adult recommendations</h2>
+                        <p className="mt-1 max-w-3xl text-sm text-muted">Taste signals from ratings, saves, likes, hearted tags, watch history, and private marks lead the mix. Preview-ready cards get a small lift, while a timestamped rotation keeps the opening rails from becoming fixed.</p>
+                      </div>
+                      <Button size="sm" variant="secondary" onClick={() => setAdultRailSeed(Date.now() >>> 0)}><Shuffle className="size-4" /> Refresh mix</Button>
+                    </div>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-3"><div className="rounded-md bg-elevated px-3 py-2 text-xs text-muted">{adultRecommendedRail.length} fresh recommendation{adultRecommendedRail.length === 1 ? "" : "s"}</div><div className="rounded-md bg-elevated px-3 py-2 text-xs text-muted">{adultRelatedRail.length} related by current interests</div><div className="rounded-md bg-elevated px-3 py-2 text-xs text-muted">Overview cards are held out of these first shelves</div></div>
+                  </section>
                   <TitleRail
-                    title="Recommended videos"
-                    reason="Ranked from tag overlap, extreme/fetish boosts, I-cummed marks, Reddit signals, ratings, and recency — not just newest tube titles."
+                    title="Recommended for you"
+                    reason="Tag overlap, hearted interests, ratings, private marks, source variety, thumbnail readiness, and a fresh timestamped mix."
                     videos={adultRecommendedRail}
                     variant="rail"
                   />
                   <TitleRail
-                    title="Related recommended"
-                    reason="Nearby titles sharing your top adult tags, continue-watching tags, and favorite fetish overlap."
+                    title="More from your interests"
+                    reason="Nearby titles sharing your top Adult tags, recent watches, favorites, and pulled fetish topics."
                     videos={adultRelatedRail}
                     variant="rail"
                   />
@@ -1284,7 +1373,7 @@ export function LibraryApp() {
                     <TitleRail
                       key={`adult-tag-rail-${row.tag}`}
                       title={`Top #${row.tag} · ${row.count}`}
-                      reason={`Ranked tag score ${Math.round(row.score)} from title count, ratings, saves, marks, recency, and taxonomy relevance.`}
+                      reason={`Stabilized tag score ${Math.round(row.score)} from ${row.count} titles, ratings, saves, marks, recency, and taxonomy relevance. One-off tags stay out of these rails.`}
                       videos={row.videos}
                       variant="rail"
                     />
@@ -1311,6 +1400,7 @@ export function LibraryApp() {
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
                       <Button size="sm" variant={adultTag === "All" ? "default" : "secondary"} onClick={() => setAdultTag("All")}>All adult tags</Button>
+                      {heartedAdultTags.map((tag) => <Button key={`adult-hearted-${tag}`} size="sm" variant={adultTag === tag ? "default" : "secondary"} onClick={() => setAdultTag(tag)}>♥ #{tag}</Button>)}
                       {visibleAdultTags.map((row) => (
                         <Button key={`adult-tag-${row.tag}`} size="sm" variant={adultTag === row.tag ? "default" : "secondary"} onClick={() => setAdultTag(row.tag)}>
                           #{row.tag} · {row.count} · {Math.round(row.score)}
@@ -1330,6 +1420,7 @@ export function LibraryApp() {
                     <p className="mt-2 text-xs text-muted">
                       Showing {visibleAdultTags.length} of {adultTagMatches.length || adultTagRank.length} ranked tags
                       {adultTagQuery.trim() ? " (filtered)" : ""} · cap 36 on screen.
+                      {heartedAdultTags.length ? ` · ${heartedAdultTags.length} hearted tag${heartedAdultTags.length === 1 ? "" : "s"} stay prioritized and retained in local history.` : ""}
                     </p>
                     {adultMetaTagRank.length > 0 && (
                       <div className="mt-4 border-t border-border pt-3">
@@ -1371,6 +1462,7 @@ export function LibraryApp() {
                     variant="rail"
                   />
                   <TitleRail title="From official adult APIs" reason="Windowed filtered catalog, ranked (first 120)." videos={adultCatalogRail} variant="rail" />
+                  {adultView === "all" && <section className="mt-8 border-t border-border pt-5"><TitleRail title={`Adult live now · ${adultKindCounts.live}`} reason="Public live rooms stay together at the bottom of the combined Adult view, with their own rotating order." videos={rotateAdultRail(rankedAdultCatalog.filter((video) => adultKind(video) === "live"), "live", adultRailSeed).slice(0, Math.max(adultRailLimit, 24))} variant="rail" /></section>}
                   <PosterGrid videos={adultPosterCatalog} />
                       {!adultDeepVisible && (
                         <section className="mb-6 rounded-xl border border-border bg-surface p-5 shadow-border">
@@ -1459,6 +1551,7 @@ export function LibraryApp() {
                   sourceId !== "home" &&
                   sourceId !== "movies" &&
                   sourceId !== "adults" &&
+                  sourceId !== "adult-fetishes" &&
                   sourceId !== "genres" &&
                   sourceId !== "stats" &&
                   sourceId !== "connection" &&

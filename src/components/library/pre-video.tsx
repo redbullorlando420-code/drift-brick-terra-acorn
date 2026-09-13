@@ -22,6 +22,7 @@ function isExcludedPreviewCandidate(video: { isSample?: boolean; name: string; r
 export function PreVideo() {
   const previewId = useLibrary((s) => s.previewId);
   const videos = useLibrary((s) => s.videos);
+  const folders = useLibrary((s) => s.folders);
   const allTags = useLibrary((s) => s.tags);
   const unavailable = useLibrary((s) => s.unavailable);
   const openVideo = useLibrary((s) => s.openVideo);
@@ -54,6 +55,8 @@ export function PreVideo() {
   const [shelfReady, setShelfReady] = useState(false);
   const markUnavailable = useLibrary((s) => s.markUnavailable);
   const video = videos.find((item) => item.id === previewId);
+  const adultFolderIds = useMemo(() => new Set(folders.filter((folder) => folder.adult).map((folder) => folder.id)), [folders]);
+  const previewIsAdult = Boolean(video && (isAdultPullKind(video.remote?.kind) || adultFolderIds.has(video.folderId)));
   useEffect(() => {
     if (video) recordPlay(video.id, "open");
   }, [recordPlay, video?.id]);
@@ -133,7 +136,10 @@ export function PreVideo() {
     const sourceTags = new Set(tags);
     const creatorName = video.remote?.channelName?.trim().toLowerCase();
     const sourceKind = video.remote?.kind;
-    return videos.filter((item) => item.id !== video.id && !isExcludedPreviewCandidate(item) && !unavailable[item.id]).map((item) => {
+    return videos.filter((item) => {
+      const itemIsAdult = isAdultPullKind(item.remote?.kind) || adultFolderIds.has(item.folderId);
+      return item.id !== video.id && !isExcludedPreviewCandidate(item) && !unavailable[item.id] && itemIsAdult === previewIsAdult;
+    }).map((item) => {
       const itemTags = allTags[item.id] ?? EMPTY_TAGS;
       const sharedTopics = itemTags.filter((tag) => sourceTags.has(tag)).length;
       const sameCreator = Boolean(creatorName && item.remote?.channelName?.trim().toLowerCase() === creatorName);
@@ -142,15 +148,15 @@ export function PreVideo() {
         + Number(liveToVod) * 8
         + Number(item.folderId === video.folderId) * 5
         + Number(item.genre === video.genre) * 4
-        + Number(item.remote?.kind === sourceKind) * 2
-        + sharedTopics * 3
+        + Number(item.remote?.kind === sourceKind) * (previewIsAdult ? 5 : 2)
+        + sharedTopics * (previewIsAdult ? 6 : 3)
         + itemTags.filter((tag) => tagIsLiked(tag)).length * 2
         + getRating(item.id) * 1.5
         + getCreatorRating(item.remote?.channelName ?? "") * 2
         + Number(creatorIsLiked(item.remote?.channelName ?? "")) * 3;
       return { item, score, random: previewShuffle(`${video.id}:${item.id}:${recommendationSeed}`, recommendationSeed) };
     }).filter((row) => row.score > 0).sort((a, b) => b.score - a.score || a.random - b.random).slice(0, 8).map((row) => row.item);
-  }, [allTags, creatorRevision, recommendationSeed, shelfReady, tags, unavailable, video, videos]);
+  }, [adultFolderIds, allTags, creatorRevision, previewIsAdult, recommendationSeed, shelfReady, tags, unavailable, video, videos]);
   const recommended = useMemo(() => {
     if (!video || !shelfReady) return [];
     const sourceTags = new Set(tags);
@@ -161,12 +167,15 @@ export function PreVideo() {
       return getRating(item.id) >= 4 ? itemTags : itemTags.filter((tag) => tagIsLiked(tag));
     }));
     const relatedIds = new Set(related.map((relatedItem) => relatedItem.id));
-    return videos.filter((item) => item.id !== video.id && !isExcludedPreviewCandidate(item) && !unavailable[item.id] && !relatedIds.has(item.id)).map((item) => {
+    return videos.filter((item) => {
+      const itemIsAdult = isAdultPullKind(item.remote?.kind) || adultFolderIds.has(item.folderId);
+      return item.id !== video.id && !isExcludedPreviewCandidate(item) && !unavailable[item.id] && !relatedIds.has(item.id) && itemIsAdult === previewIsAdult;
+    }).map((item) => {
       const itemTags = allTags[item.id] ?? EMPTY_TAGS;
       const sharedTopics = itemTags.filter((tag) => sourceTags.has(tag)).length;
       const score = Number(item.genre === video.genre) * 3
-        + Number(item.remote?.kind === sourceKind) * 1.5
-        + sharedTopics * 3
+        + Number(item.remote?.kind === sourceKind) * (previewIsAdult ? 4 : 1.5)
+        + sharedTopics * (previewIsAdult ? 6 : 3)
         + getRating(item.id) * 2
         + getCreatorRating(item.remote?.channelName ?? "") * 2
         + Number(creatorIsLiked(item.remote?.channelName ?? "")) * 3
@@ -174,7 +183,7 @@ export function PreVideo() {
         + itemTags.filter((tag) => tagIsLiked(tag)).length * 2;
       return { item, score, random: previewShuffle(`${video.id}:${item.id}:${seed}`, seed) };
     }).sort((a, b) => b.score - a.score || a.random - b.random).slice(0, 6).map((row) => row.item);
-  }, [allTags, creatorRevision, recommendationSeed, related, shelfReady, tagRevision, tags, unavailable, video, videos]);
+  }, [adultFolderIds, allTags, creatorRevision, previewIsAdult, recommendationSeed, related, shelfReady, tagRevision, tags, unavailable, video, videos]);
   if (!video) return null;
   const adultImage = Boolean(video.remote && isAdultImageKind(video.remote.kind, video.mime, video.extension));
   const directAdultMedia = Boolean(video.remote && isAdultPullKind(video.remote.kind) && video.src && /\.(?:mp4|webm|gifv)(?:\?|$)/i.test(video.src));
@@ -361,7 +370,7 @@ export function PreVideo() {
         </div>
         {related.length > 0 && (
           <section className="mt-9">
-            <h2 className="font-display text-2xl text-fg">More from this shelf</h2>
+            <h2 className="font-display text-2xl text-fg">{previewIsAdult ? "More Adult picks from this shelf" : "More from this shelf"}</h2>
             <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
               {related.map((item) => (
                 <button
@@ -383,8 +392,8 @@ export function PreVideo() {
         )}
         {recommended.length > 0 && (
           <section className="mt-9">
-            <h2 className="font-display text-2xl text-fg">More to try next</h2>
-            <p className="mt-1 text-sm text-muted">A fresh mix based on this title’s genre and what was added recently.</p>
+            <h2 className="font-display text-2xl text-fg">{previewIsAdult ? "More Adult picks to try next" : "More to try next"}</h2>
+            <p className="mt-1 text-sm text-muted">{previewIsAdult ? "A fresh Adult-only mix based on this title’s tags, creator, source, and your saved Adult interests." : "A fresh mix based on this title’s genre and what was added recently."}</p>
             <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
               {recommended.map((item) => <button key={item.id} type="button" onClick={() => useLibrary.getState().openPreview(item.id)} className="overflow-hidden rounded-md bg-elevated text-left shadow-border hover:bg-surface">{item.poster ? <img src={item.poster} alt="" loading="lazy" className="aspect-video w-full object-cover" onError={(event) => { const fallback = item.remote?.kind === "youtube" && item.remote.videoId ? `https://i.ytimg.com/vi/${item.remote.videoId}/mqdefault.jpg` : ""; if (fallback && event.currentTarget.src !== fallback) event.currentTarget.src = fallback; else event.currentTarget.style.display = "none"; }} /> : <span className="block aspect-video bg-bg" />}<span className="block truncate px-3 py-2 text-sm text-fg">{item.name}</span></button>)}
             </div>

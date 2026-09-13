@@ -216,6 +216,12 @@ export function SidebarNav({
           count={counts.adultCount}
         />
         <NavItem
+          active={sourceId === "adult-fetishes"}
+          onClick={() => go("adult-fetishes")}
+          icon={Sparkles}
+          label="Fetish Explorer"
+        />
+        <NavItem
           active={sourceId === "photos"}
           onClick={() => go("photos")}
           icon={Images}
@@ -382,7 +388,7 @@ export function SidebarNav({
           <FolderPlus className="size-4" />
           Add folder
         </Button>
-        {sourceId === "adults" && (
+        {(sourceId === "adults" || sourceId === "adult-fetishes") && (
           <Button variant="secondary" className="w-full" onClick={() => onAddFolder(true)}>
             <Lock className="size-4" />
             Private folder

@@ -1,7 +1,7 @@
 import { recordRatingForStreak } from "./rating-streaks";
 
 export type RatingLedgerEntry = { rating: number; updatedAt: number };
-type Feedback = { ratings: Record<string, number>; ratingHistory: Record<string, RatingLedgerEntry>; notes: Record<string, string>; creatorRatings: Record<string, number>; creatorLikes: Record<string, true>; tagLikes: Record<string, true> };
+type Feedback = { ratings: Record<string, number>; ratingHistory: Record<string, RatingLedgerEntry>; notes: Record<string, string>; creatorRatings: Record<string, number>; creatorLikes: Record<string, true>; tagLikes: Record<string, true>; tagHeartHistory: Record<string, number> };
 const KEY = "reelcase.media-feedback.v1";
 let cached: Feedback | null = null;
 let changeTimer: number | undefined;
@@ -17,8 +17,8 @@ function read(): Feedback {
   if (cached) return cached;
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) ?? "{}") as Partial<Feedback>;
-    cached = { ratings: saved.ratings ?? {}, ratingHistory: saved.ratingHistory ?? {}, notes: saved.notes ?? {}, creatorRatings: saved.creatorRatings ?? {}, creatorLikes: saved.creatorLikes ?? {}, tagLikes: saved.tagLikes ?? {} };
-  } catch { cached = { ratings: {}, ratingHistory: {}, notes: {}, creatorRatings: {}, creatorLikes: {}, tagLikes: {} }; }
+    cached = { ratings: saved.ratings ?? {}, ratingHistory: saved.ratingHistory ?? {}, notes: saved.notes ?? {}, creatorRatings: saved.creatorRatings ?? {}, creatorLikes: saved.creatorLikes ?? {}, tagLikes: saved.tagLikes ?? {}, tagHeartHistory: saved.tagHeartHistory ?? {} };
+  } catch { cached = { ratings: {}, ratingHistory: {}, notes: {}, creatorRatings: {}, creatorLikes: {}, tagLikes: {}, tagHeartHistory: {} }; }
   return cached;
 }
 function persist() {
@@ -96,7 +96,14 @@ export function creatorIsLiked(name: string): boolean { return Boolean(read().cr
 export function toggleCreatorLike(name: string) { const next = read(); const key = creatorKey(name); if (next.creatorLikes[key]) delete next.creatorLikes[key]; else next.creatorLikes[key] = true; write(next); notifyChange(); }
 function tagKey(tag: string) { return tag.trim().toLowerCase(); }
 export function tagIsLiked(tag: string): boolean { return Boolean(read().tagLikes[tagKey(tag)]); }
-export function toggleTagLike(tag: string) { const next = read(); const key = tagKey(tag); if (next.tagLikes[key]) delete next.tagLikes[key]; else next.tagLikes[key] = true; write(next); notifyChange(); }
+export function tagHasHeartHistory(tag: string): boolean { return Boolean(read().tagHeartHistory[tagKey(tag)]); }
+export function getHeartedTagHistory(): string[] { return Object.keys(read().tagHeartHistory).sort((a, b) => (read().tagHeartHistory[b] ?? 0) - (read().tagHeartHistory[a] ?? 0)); }
+export function toggleTagLike(tag: string) {
+  const next = read(); const key = tagKey(tag);
+  if (next.tagLikes[key]) delete next.tagLikes[key];
+  else { next.tagLikes[key] = true; next.tagHeartHistory[key] ??= Date.now(); }
+  write(next); notifyChange();
+}
 /** Versioned rating/note payload used by the full library backup. */
 export function exportFeedback() { return { version: 4, ...read() }; }
 export function getNote(id: string): string { const value = read().notes[id]; if (typeof value === "string") return value; try { return localStorage.getItem(`reelcase.note.${id}`) ?? ""; } catch { return ""; } }

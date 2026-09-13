@@ -18,6 +18,9 @@ export type AdultStatsSnapshot = {
   metaTags: Array<{ tag: string; count: number; score: number }>;
   fetishTags: Array<{ tag: string; count: number; score: number }>;
   redditTags: Array<{ tag: string; count: number; score: number }>;
+  adultTagCoverage: { tagged: number; missing: number; share: number };
+  tagConnections: Array<{ left: string; right: string; count: number }>;
+  noisyTagAssignments: number;
   markedTitles: number;
   totalMarks: number;
 };
@@ -44,6 +47,17 @@ export function buildAdultStatsSnapshot(
     share: adultVideos.length ? (sources[provider] ?? 0) / adultVideos.length : 0,
     status: (sources[provider] ?? 0) ? "active" as const : "empty" as const,
   })).sort((a, b) => b.titles - a.titles || a.label.localeCompare(b.label));
+  const connections = new Map<string, number>();
+  let noisyTagAssignments = 0;
+  for (const video of adultVideos) {
+    const useful = [...new Set((tags[video.id] ?? []).filter((tag) => isAdultGenreTag(tag) || tag.startsWith("fetish-")).filter((tag) => !/(?:https?|www|\.com|redgifs|eporner|redtube|comments|watch)/.test(tag)))].slice(0, 8).sort();
+    for (const tag of tags[video.id] ?? []) if (/(?:https?|www|\.com|redgifs|eporner|redtube|comments|watch)/.test(tag)) noisyTagAssignments += 1;
+    for (let left = 0; left < useful.length; left += 1) for (let right = left + 1; right < useful.length; right += 1) {
+      const key = `${useful[left]}\u0000${useful[right]}`;
+      connections.set(key, (connections.get(key) ?? 0) + 1);
+    }
+  }
+  const adultTagged = adultVideos.filter((video) => (tags[video.id] ?? []).includes("adult")).length;
   return {
     at: Date.now(),
     titles: adultVideos.length,
@@ -54,6 +68,9 @@ export function buildAdultStatsSnapshot(
     metaTags: metaRanked.slice(0, 60),
     fetishTags: ranked.filter((row) => row.tag.startsWith("fetish-")).slice(0, 40),
     redditTags: ranked.filter((row) => row.tag.includes("reddit") || row.tag.startsWith("sub-")).slice(0, 40),
+    adultTagCoverage: { tagged: adultTagged, missing: adultVideos.length - adultTagged, share: adultVideos.length ? adultTagged / adultVideos.length : 1 },
+    tagConnections: [...connections.entries()].map(([key, count]) => { const [left, right] = key.split("\u0000"); return { left: left!, right: right!, count }; }).filter((row) => row.count >= 2).sort((a, b) => b.count - a.count || a.left.localeCompare(b.left) || a.right.localeCompare(b.right)).slice(0, 40),
+    noisyTagAssignments,
     markedTitles: adultVideos.filter((video) => (ctx.cameCounts[video.id] ?? 0) > 0).length,
     totalMarks: adultVideos.reduce((sum, video) => sum + (ctx.cameCounts[video.id] ?? 0), 0),
   };
@@ -64,6 +81,9 @@ export function adultStatsToCsv(snapshot: AdultStatsSnapshot): string {
   const rows: Array<Array<string | number>> = [
     ["metric", "key", "count", "score"],
     ["titles", "all", snapshot.titles, ""],
+    ["adult_tagged_titles", "adult", snapshot.adultTagCoverage.tagged, `${Math.round(snapshot.adultTagCoverage.share * 100)}%`],
+    ["adult_tag_missing", "adult", snapshot.adultTagCoverage.missing, ""],
+    ["noisy_tag_assignments", "transport-or-parser", snapshot.noisyTagAssignments, ""],
     ["marked_titles", "i-cummed", snapshot.markedTitles, ""],
     ["total_marks", "i-cummed", snapshot.totalMarks, ""],
   ];
@@ -75,6 +95,7 @@ export function adultStatsToCsv(snapshot: AdultStatsSnapshot): string {
   for (const row of snapshot.topTags) rows.push(["tag", row.tag, row.count, row.score.toFixed(2)]);
   for (const row of snapshot.metaTags) rows.push(["meta_tag", row.tag, row.count, row.score.toFixed(2)]);
   for (const row of snapshot.redditTags) rows.push(["reddit_tag", row.tag, row.count, row.score.toFixed(2)]);
+  for (const row of snapshot.tagConnections) rows.push(["tag_connection", `${row.left} + ${row.right}`, row.count, ""]);
   return rows.map((row) => row.map(quote).join(",")).join("\n");
 }
 

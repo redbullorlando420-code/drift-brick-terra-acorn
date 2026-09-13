@@ -127,6 +127,7 @@ export function Player({ playlist }: { playlist: string[] }) {
   const [vrAvailable, setVrAvailable] = useState(false);
   const [vrStatus, setVrStatus] = useState("");
   const [removeReady, setRemoveReady] = useState(false);
+  const [twitchTheater, setTwitchTheater] = useState(true);
   const capturedDur = useThumbs((s) => (video ? s.durations[video.id] : undefined));
   const scrubbing = useRef(false);
   const remoteStartedAt = useRef(0);
@@ -432,11 +433,12 @@ export function Player({ playlist }: { playlist: string[] }) {
   const i = playlist.indexOf(video.id);
   const hwLabel =
     hardwareAccel && hw?.powerEfficient ? "GPU decode" : hardwareAccel ? "Hardware on" : "Software";
+  const twitchSideMode = remote?.kind === "twitch" && !twitchTheater;
 
   return (
     <div
       ref={wrapRef}
-      className="fixed inset-0 z-50 flex flex-col bg-bg"
+      className={cn("fixed inset-0 z-50 flex flex-col bg-bg", twitchSideMode && "p-4 sm:p-6")}
       onMouseMove={reveal}
       onTouchStart={reveal}
     >
@@ -447,7 +449,7 @@ export function Player({ playlist }: { playlist: string[] }) {
           key={`embed:${video.id}`}
           title={video.name}
           src={embedSrc}
-          className="absolute inset-0 size-full border-0 bg-bg"
+          className={cn("absolute border-0 bg-bg", twitchSideMode ? "left-4 top-20 h-[58vh] w-[calc(100%-2rem)] rounded-lg sm:left-6 sm:w-[calc(68%-2rem)]" : "inset-0 size-full")}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
           allowFullScreen
           referrerPolicy="strict-origin-when-cross-origin"
@@ -493,6 +495,7 @@ export function Player({ playlist }: { playlist: string[] }) {
         />
       )}
 
+      {twitchSideMode && <aside className="absolute right-4 top-20 hidden w-[28%] rounded-lg bg-elevated p-4 shadow-border sm:block"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Twitch details</p><h3 className="mt-2 font-display text-xl text-fg">{remote?.channelName ?? video.name}</h3><p className="mt-2 text-sm leading-6 text-muted">{video.description || video.tagline || "Live and VOD details stay visible beside the official Twitch player."}</p>{remote?.watchUrl && <a href={remote.watchUrl} target="_blank" rel="noreferrer" className="mt-4 inline-flex text-sm text-accent">Open on Twitch <ExternalLink className="ml-1 size-4"/></a>}</aside>}
       <div
         className={cn(
           "pointer-events-none absolute inset-0 bg-linear-to-t from-bg via-transparent to-bg/50 transition-opacity duration-200 ease-[var(--ease-out)]",
@@ -548,6 +551,7 @@ export function Player({ playlist }: { playlist: string[] }) {
           >
             <Heart className={cn("size-4", fav && "fill-accent text-accent")} />
           </Button>
+          {remote?.kind === "twitch" && <Button variant="ghost" size="sm" onClick={() => setTwitchTheater((value) => !value)}>{twitchTheater ? <Minimize className="size-4"/> : <Maximize className="size-4"/>}{twitchTheater ? "Side details" : "Theater"}</Button>}
           <Button variant="ghost" size="sm" disabled={!vrAvailable} title={vrAvailable ? "Enter the headset theater" : "VR requires Meta Quest Browser on a secure site"} onClick={() => void enterVrTheater()}><Glasses className="size-4" /> VR theater</Button>
           <Button
             variant="ghost"

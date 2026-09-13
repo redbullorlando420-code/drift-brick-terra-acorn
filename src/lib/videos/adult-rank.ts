@@ -12,7 +12,11 @@ import { adultTaxonomyTags, isAdultGenreTag, isAdultMetaTaxonomyTag } from "./ad
  * creators already have dedicated filters; raw API keyword dumps stay
  * searchable without flooding the browse chips. */
 export function isAdultInterestTag(tag: string): boolean {
-  return tag.startsWith("fetish-") || isAdultGenreTag(tag);
+  const clean = tag.trim().toLowerCase();
+  // Parser and transport fragments remain searchable on individual cards, but
+  // are never meaningful preferences or ranked Adult discovery topics.
+  if (/^(?:fetish-)?(?:https?|www|com|watch|comments|reddit|redgifs|eporner|redtube)(?:-|$)/.test(clean) || /(?:https?|www|\.com)/.test(clean)) return false;
+  return clean.startsWith("fetish-") || isAdultGenreTag(clean);
 }
 
 export type AdultRankContext = {
@@ -22,6 +26,8 @@ export type AdultRankContext = {
   cameCounts: Record<string, number>;
   viewCounts?: Record<string, number>;
   ratingOf: (id: string) => number;
+  tagIsHearted?: (tag: string) => boolean;
+  tagHasHeartHistory?: (tag: string) => boolean;
 };
 
 function redditSignal(tags: string[]): number {
@@ -56,6 +62,35 @@ export function scoreAdultVideo(video: LibraryVideo, ctx: AdultRankContext): num
 }
 
 export type AdultTagRankRow = { tag: string; score: number; count: number };
+
+/**
+ * A single highly-rated title must not turn its incidental keyword into a
+ * leading discovery rail. Tags remain searchable on the title, but the ranked
+ * browser waits for independent support before promoting a tag.
+ */
+export const ADULT_RANKED_TAG_MIN_COUNT = 2;
+export const ADULT_TOP_TAG_RAIL_MIN_COUNT = 4;
+
+function stabilizedTagScore(
+  engagement: number,
+  count: number,
+  recency: number,
+  boost: number,
+  providerCoverage = 1,
+): number {
+  // Shrink sparse-tag engagement toward the neutral pull signal. The support
+  // curve reaches half strength at four titles and keeps count meaningful even
+  // when a one-off has a strong personal rating.
+  const support = count / (count + 4);
+  const stableEngagement = 1 + (engagement - 1) * support;
+  return (
+    stableEngagement * 12
+    + Math.log2(count + 1) * 2.4
+    + recency * 4 * support
+    + boost * support
+    + Math.min(4, providerCoverage) * 1.25 * support
+  );
+}
 
 /**
  * Metadata stays searchable and useful to recommendations without becoming an
@@ -112,9 +147,10 @@ export function rankAdultTags(
       return {
         tag,
         count: row.count,
-        score: engagement * 12 + row.count * 0.35 + recency * 4 + adultTagRankBoost(tag),
+        score: stabilizedTagScore(engagement, row.count, recency, adultTagRankBoost(tag)) + (ctx.tagIsHearted?.(tag) ? 48 : 0) + (ctx.tagHasHeartHistory?.(tag) ? 6 : 0),
       };
     })
+    .filter((row) => row.count >= ADULT_RANKED_TAG_MIN_COUNT)
     .sort((a, b) => b.score - a.score || b.count - a.count || a.tag.localeCompare(b.tag))
     .slice(0, limit);
 }
@@ -183,8 +219,13 @@ export function rankAdultMetaTags(
       const recency = Math.max(0, 1 - (now - row.recent) / (30 * 86_400_000));
       // A tag that appears across providers is a stronger recommendation seed
       // than an API-specific keyword dump.
-      return { tag, count: row.count, score: engagement * 10 + row.count * 0.25 + recency * 3 + Math.min(4, row.providers.size) * 1.5 };
+      return {
+        tag,
+        count: row.count,
+        score: stabilizedTagScore(engagement, row.count, recency, 0, row.providers.size) + (ctx.tagIsHearted?.(tag) ? 48 : 0) + (ctx.tagHasHeartHistory?.(tag) ? 6 : 0),
+      };
     })
+    .filter((row) => row.count >= ADULT_RANKED_TAG_MIN_COUNT)
     .sort((a, b) => b.score - a.score || b.count - a.count || a.tag.localeCompare(b.tag))
     .slice(0, limit);
 }
