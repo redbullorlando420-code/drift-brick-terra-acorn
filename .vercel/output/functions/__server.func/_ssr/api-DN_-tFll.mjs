@@ -1,6 +1,6 @@
 import { n as TSS_SERVER_FUNCTION, t as createServerFn } from "./ssr.mjs";
-import { A as expandAdultThumbFallbacks, B as isUsableAdultThumb, W as pickRedtubeThumb, _ as REDDIT_FOLDER_ID, b as adultDeepenQueriesForPage, c as ADULT_PULL_PROVIDERS, d as BOORU_FOLDER_ID, f as CAMSODA_FOLDER_ID, g as MYFREECAMS_FOLDER_ID, h as LIBRARY_LIMITS, j as extractRedditFlair, k as cachedAdultFetch, l as ADULT_REDDIT_SUBS, m as EPORNER_FOLDER_ID, p as CHATURBATE_FOLDER_ID, q as redtubeStarNames, v as REDGIFS_FOLDER_ID, y as REDTUBE_FOLDER_ID } from "./library-limits-baHoJ0tI.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/api-D1pE1AlR.js
+import { A as expandAdultThumbFallbacks, B as isUsableAdultThumb, W as pickRedtubeThumb, _ as REDDIT_FOLDER_ID, b as adultDeepenQueriesForPage, c as ADULT_PULL_PROVIDERS, d as BOORU_FOLDER_ID, f as CAMSODA_FOLDER_ID, g as MYFREECAMS_FOLDER_ID, h as LIBRARY_LIMITS, j as extractRedditFlair, k as cachedAdultFetch, l as ADULT_REDDIT_SUBS, m as EPORNER_FOLDER_ID, p as CHATURBATE_FOLDER_ID, q as redtubeStarNames, v as REDGIFS_FOLDER_ID, y as REDTUBE_FOLDER_ID } from "./library-limits-lu5rb8Fj.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/api-DN_-tFll.js
 var createServerRpc = (serverFnMeta, splitImportFn) => {
 	const url = "/_serverFn/" + serverFnMeta.id;
 	return Object.assign(splitImportFn, {
@@ -32,21 +32,36 @@ function isVideoHost(url) {
 function isJunkLink(url) {
 	return /icanhazchat|reddithelp\.com|redditstatic\.com|\/faq|sidebar rules|welcome\?gonewild/i.test(url);
 }
+function redgifsSlugFromUrl(raw) {
+	const watch = raw.match(/https?:\/\/(?:www\.)?redgifs\.com\/(?:watch|ifr)\/([a-z0-9_-]+)/i)?.[1];
+	if (watch) return watch;
+	const thumb = raw.match(/https?:\/\/thumbs\d*\.redgifs\.com\/([a-z0-9_-]+)-(?:mobile|poster|thumb)\.(?:jpe?g|webp)/i)?.[1];
+	if (thumb) return thumb;
+	return raw.match(/https?:\/\/(?:i|media)\.redgifs\.com\/([a-z0-9_-]+)(?:[._-]|$)/i)?.[1];
+}
 function redgifsThumbFallbacks(urls) {
 	const out = [];
 	const seen = /* @__PURE__ */ new Set();
+	let watch;
 	for (const raw of urls) {
-		const slug = raw.match(/https?:\/\/(?:www\.)?redgifs\.com\/(?:watch|ifr)\/([a-z0-9_-]+)/i)?.[1];
+		const slug = redgifsSlugFromUrl(raw);
 		if (!slug) continue;
-		for (const suffix of ["mobile.jpg", "poster.jpg"]) {
-			const candidate = `https://thumbs2.redgifs.com/${slug}-${suffix}`;
-			if (!seen.has(candidate)) {
-				seen.add(candidate);
-				out.push(candidate);
-			}
+		watch ??= `https://www.redgifs.com/watch/${slug}`;
+		for (const candidate of [
+			`https://thumbs2.redgifs.com/${slug}-mobile.jpg`,
+			`https://thumbs2.redgifs.com/${slug}-poster.jpg`,
+			`https://thumbs2.redgifs.com/${slug}-thumb.jpg`,
+			`https://thumbs1.redgifs.com/${slug}-mobile.jpg`,
+			`https://thumbs1.redgifs.com/${slug}-poster.jpg`
+		]) if (!seen.has(candidate)) {
+			seen.add(candidate);
+			out.push(candidate);
 		}
 	}
-	return out;
+	return {
+		thumbs: out,
+		watch
+	};
 }
 function collectUrls(entryXml, contentHtml) {
 	const blob = `${entryXml}\n${contentHtml}`;
@@ -77,21 +92,27 @@ function extractRedditMedia(entryXml, contentHtml) {
 	const images = urls.filter((url) => isImageHost(url) && !isJunkLink(url)).map(upgradePreview);
 	const videos = urls.filter((url) => isVideoHost(url) && !isJunkLink(url));
 	const pages = urls.filter((url) => /reddit\.com\/gallery\//i.test(url) || /reddit\.com\/r\/[^/]+\/comments\//i.test(url));
-	const redgifsThumbs = redgifsThumbFallbacks(videos);
+	const redgifs = redgifsThumbFallbacks([...urls, ...videos]);
+	const redgifsThumbs = redgifs.thumbs;
 	const poster = images.find((url) => /i\.redd\.it/i.test(url)) ?? images.find((url) => /preview\.redd\.it/i.test(url)) ?? images.find((url) => /i\.imgur\.com/i.test(url)) ?? images[0];
 	if (videos.length) return {
 		kind: "video",
 		poster,
 		src: videos.find((url) => /\.(mp4|webm|gifv)(\?|$)/i.test(url)),
-		watch: videos[0],
+		watch: videos[0] ?? redgifs.watch,
 		thumbFallbacks: [poster, ...redgifsThumbs].filter((url) => Boolean(url))
 	};
 	if (poster) return {
 		kind: "image",
 		poster,
 		src: /i\.redd\.it|i\.imgur\.com|\.(jpe?g|png|gif|webp)(\?|$)/i.test(poster) ? poster : poster,
-		watch: pages[0],
+		watch: pages[0] ?? redgifs.watch,
 		thumbFallbacks: [poster, ...redgifsThumbs].filter((url) => Boolean(url))
+	};
+	if (redgifs.watch) return {
+		kind: "video",
+		watch: redgifs.watch,
+		thumbFallbacks: redgifsThumbs
 	};
 	return {
 		kind: "page",
@@ -1165,7 +1186,9 @@ function chaturbateVideo(row) {
 	if (adultBlockedText(username, display, subject, tags.join(" "))) return null;
 	const embed = `https://chaturbate.com/embed/${encodeURIComponent(username)}/`;
 	const watch = asString(row.chat_room_url).trim() || `https://chaturbate.com/${encodeURIComponent(username)}/`;
-	const thumb = asString(row.image_url_360x270) || asString(row.image_url);
+	const thumb360 = asString(row.image_url_360x270).trim();
+	const thumbOriginal = asString(row.image_url).trim();
+	const thumb = thumb360 || thumbOriginal;
 	const viewers = typeof row.num_users === "number" && Number.isFinite(row.num_users) ? row.num_users : void 0;
 	return {
 		id: `chaturbate:${username}`,
@@ -1189,7 +1212,8 @@ function chaturbateVideo(row) {
 			observedAt: Date.now(),
 			embedUrl: embed,
 			watchUrl: watch,
-			previewUrl: thumb || void 0
+			previewUrl: thumb || void 0,
+			thumbFallbacks: [thumb360, thumbOriginal].filter(isUsableAdultThumb)
 		}
 	};
 }
@@ -1260,6 +1284,7 @@ function camsodaVideo(row) {
 	const subject = stripMarkup(asString(camsodaValue(tpl, "subject_html")));
 	if (adultBlockedText(username, display, subject)) return null;
 	const thumb = asString(camsodaValue(tpl, "thumb")).trim();
+	const offlinePicture = asString(camsodaValue(tpl, "offline_picture")).trim();
 	const connections = camsodaValue(tpl, "connections");
 	const viewers = typeof connections === "number" && Number.isFinite(connections) ? connections : void 0;
 	const watch = `https://www.camsoda.com/${encodeURIComponent(username)}`;
@@ -1289,7 +1314,8 @@ function camsodaVideo(row) {
 			observedAt: Date.now(),
 			embedUrl: watch,
 			watchUrl: watch,
-			previewUrl: thumb || void 0
+			previewUrl: thumb || void 0,
+			thumbFallbacks: [thumb, offlinePicture].filter(isUsableAdultThumb)
 		}
 	};
 }
@@ -1297,21 +1323,30 @@ var camsodaCache = null;
 var CAMSODA_CACHE_MS = 18e4;
 async function fetchCamSodaRooms(query, maxVideos) {
 	if (!camsodaCache || Date.now() - camsodaCache.at > CAMSODA_CACHE_MS) {
+		const priorRooms = camsodaCache?.rooms ?? [];
 		const res = await cachedAdultFetch("https://www.camsoda.com/api/v1/browse/online", {
 			cacheTtlMs: 18e4,
 			signal: AbortSignal.timeout(25e3),
 			headers: {
 				accept: "application/json",
+				referer: "https://www.camsoda.com/",
+				"accept-language": "en-US,en;q=0.8",
 				"user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)"
 			}
 		});
-		if (!res.ok) throw new Error(`CamSoda rooms HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
-		const json = await res.json();
-		const rooms = (Array.isArray(json) ? json : Array.isArray(json.results) ? json.results : Array.isArray(json.rooms) ? json.rooms : []).map(camsodaVideo).filter((video) => video != null);
-		camsodaCache = {
+		if (res.status === 403) camsodaCache = {
 			at: Date.now(),
-			rooms
+			rooms: priorRooms
 		};
+		else if (!res.ok) throw new Error(`CamSoda rooms HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
+		else {
+			const json = await res.json();
+			const rooms = (Array.isArray(json) ? json : Array.isArray(json.results) ? json.results : Array.isArray(json.rooms) ? json.rooms : []).map(camsodaVideo).filter((video) => video != null);
+			camsodaCache = {
+				at: Date.now(),
+				rooms: rooms.length ? rooms : priorRooms
+			};
+		}
 	}
 	const needle = query.trim().toLowerCase();
 	const filtered = !needle || needle === "all" ? camsodaCache.rooms : camsodaCache.rooms.filter((video) => {
@@ -1325,12 +1360,25 @@ async function fetchCamSodaRooms(query, maxVideos) {
 }
 var myfreecamsCache = null;
 var MYFREECAMS_CACHE_MS = 18e4;
+var MYFREECAMS_PUBLIC_STATE = 0;
+var MYFREECAMS_PROFILE_PREVIEWS_PER_REFRESH = 12;
+var MYFREECAMS_PROFILE_PREVIEW_CONCURRENCY = 4;
+var MYFREECAMS_PROFILE_SUCCESS_CACHE_MS = 12e5;
+var MYFREECAMS_PROFILE_MISS_CACHE_MS = 24e4;
+var myfreecamsPreviewCache = /* @__PURE__ */ new Map();
+var myfreecamsPreviewCursor = 0;
+function myfreecamsWatchUrl(username) {
+	return `https://www.myfreecams.com/#${encodeURIComponent(username)}`;
+}
+function myfreecamsAppUrl(username) {
+	return `https://app.myfreecams.com/${encodeURIComponent(username.toLowerCase())}`;
+}
 function myfreecamsVideo(username, status) {
-	if (status !== 0 && status !== 2) return null;
+	if (status !== MYFREECAMS_PUBLIC_STATE) return null;
 	const name = username.trim();
 	if (!/^[A-Za-z0-9_]{2,32}$/.test(name)) return null;
 	if (adultBlockedText(name)) return null;
-	const watch = `https://www.myfreecams.com/#${encodeURIComponent(name)}`;
+	const watch = myfreecamsWatchUrl(name);
 	return {
 		id: `myfreecams:${name.toLowerCase()}`,
 		folderId: MYFREECAMS_FOLDER_ID,
@@ -1340,43 +1388,200 @@ function myfreecamsVideo(username, status) {
 		mime: "video/myfreecams",
 		size: 0,
 		addedAt: Date.now(),
-		tagline: status === 0 ? "Live on MyFreeCams" : "Listed on MyFreeCams",
-		description: "live, cam",
+		tagline: "Live on MyFreeCams",
+		description: "live, cam, public room",
 		src: watch,
 		remote: {
 			kind: "myfreecams",
 			videoId: name,
 			channelName: name,
-			live: status === 0,
+			live: true,
 			observedAt: Date.now(),
-			embedUrl: watch,
 			watchUrl: watch
 		}
 	};
 }
-async function fetchMyFreeCamsRooms(query, maxVideos) {
-	if (!myfreecamsCache || Date.now() - myfreecamsCache.at > MYFREECAMS_CACHE_MS) {
-		const res = await cachedAdultFetch("https://www.myfreecams.com/php/online_models.php", {
-			cacheTtlMs: 18e4,
-			signal: AbortSignal.timeout(25e3),
+function myfreecamsStateNumber(value) {
+	if (typeof value !== "number" && typeof value !== "string") return null;
+	const state = Number(value);
+	return Number.isInteger(state) && state >= 0 && state <= 127 ? state : null;
+}
+function myfreecamsListing(payload) {
+	const text = payload.replace(/\\u0022/gi, "\"").replace(/\\"/g, "\"");
+	const pairs = /* @__PURE__ */ new Map();
+	const add = (name, status) => {
+		if (typeof name !== "string") return;
+		const display = name.trim();
+		const state = myfreecamsStateNumber(status);
+		if (!/^[A-Za-z0-9_]{2,32}$/.test(display) || state == null) return;
+		pairs.set(display.toLowerCase(), {
+			name: display,
+			state
+		});
+	};
+	const walkJson = (value) => {
+		if (Array.isArray(value)) {
+			if (typeof value[0] === "string" && myfreecamsStateNumber(value[1]) != null) add(value[0], value[1]);
+			for (const item of value) walkJson(item);
+			return;
+		}
+		if (!value || typeof value !== "object") return;
+		const row = value;
+		const name = row.username ?? row.user_name ?? row.model ?? row.model_name ?? row.name;
+		const state = row.vs ?? row.video_state ?? row.videoState ?? row.status ?? row.state;
+		if (typeof name === "string" && myfreecamsStateNumber(state) != null) add(name, state);
+		for (const [key, nested] of Object.entries(row)) {
+			if (myfreecamsStateNumber(nested) != null) add(key, nested);
+			if (nested && typeof nested === "object") walkJson(nested);
+		}
+	};
+	try {
+		const trimmed = text.trim();
+		if (trimmed.startsWith("{") || trimmed.startsWith("[")) walkJson(JSON.parse(trimmed));
+	} catch {}
+	for (const line of text.split(/<br\s*\/?>|\r?\n/gi)) {
+		const match = line.replace(/<[^>]+>/g, " ").trim().match(/^([A-Za-z0-9_]{2,32})\s*[,|:]\s*(\d{1,3})\b/);
+		if (match) add(match[1], match[2]);
+	}
+	for (const match of text.matchAll(/["']([A-Za-z0-9_]{2,32})["']\s*:\s*["']?(\d{1,3})\b/g)) add(match[1], match[2]);
+	for (const match of text.matchAll(/(?:^|[\x5B,{;\s>])([A-Za-z0-9_]{2,32})\s*[,|\s:]\s*(\d{1,3})\b/gm)) add(match[1], match[2]);
+	for (const match of text.matchAll(/["']([A-Za-z0-9_]{2,32})["']\s*,\s*["']?(\d{1,3})\b/g)) add(match[1], match[2]);
+	const states = /* @__PURE__ */ new Map();
+	for (const { state } of pairs.values()) states.set(state, (states.get(state) ?? 0) + 1);
+	return {
+		rooms: [...pairs.values()].map(({ name, state }) => myfreecamsVideo(name, state)).filter((video) => video != null),
+		rows: pairs.size,
+		publicRows: states.get(MYFREECAMS_PUBLIC_STATE) ?? 0,
+		states
+	};
+}
+function myfreecamsImageFromAppPage(payload) {
+	const candidates = [];
+	const attr = (tag, name) => {
+		const match = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, "i").exec(tag);
+		return htmlDecode(match?.[1] ?? match?.[2] ?? match?.[3] ?? "").trim();
+	};
+	for (const tag of payload.match(/<meta\b[^>]*>/gi) ?? []) {
+		const key = (attr(tag, "property") || attr(tag, "name")).toLowerCase();
+		if (key === "og:image" || key === "twitter:image") candidates.push(attr(tag, "content"));
+	}
+	for (const match of payload.matchAll(/\b(?:src|data-src)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi)) candidates.push(htmlDecode(match[1] ?? match[2] ?? match[3] ?? "").trim());
+	const usable = [...new Set(candidates)].filter((url) => {
+		try {
+			const parsed = new URL(url);
+			return parsed.protocol === "https:" && /^(?:img|snap)\.mfcimg\.com$/i.test(parsed.hostname);
+		} catch {
+			return false;
+		}
+	});
+	const poster = usable.find((url) => /^https:\/\/snap\.mfcimg\.com\//i.test(url)) ?? usable[0];
+	return {
+		poster,
+		modelId: poster?.match(/\/photos2\/\d+\/(\d+)\/|\/mfc_(\d+)/i)?.[1] ?? poster?.match(/\/mfc_(\d+)/i)?.[1]
+	};
+}
+function myfreecamsPreviewFresh(preview, now) {
+	return now - preview.at <= (preview.poster ? MYFREECAMS_PROFILE_SUCCESS_CACHE_MS : MYFREECAMS_PROFILE_MISS_CACHE_MS);
+}
+async function fetchMyFreeCamsPreview(username) {
+	const key = username.toLowerCase();
+	const now = Date.now();
+	const cached = myfreecamsPreviewCache.get(key);
+	if (cached && myfreecamsPreviewFresh(cached, now)) return cached;
+	let next = { at: now };
+	try {
+		const res = await cachedAdultFetch(myfreecamsAppUrl(username), {
+			cacheTtlMs: MYFREECAMS_PROFILE_SUCCESS_CACHE_MS,
+			cacheKey: `GET:mfc-profile:${key}`,
+			signal: AbortSignal.timeout(3500),
 			headers: {
-				accept: "text/plain, text/html;q=0.8",
+				accept: "text/html,application/xhtml+xml;q=0.9",
+				"accept-language": "en-US,en;q=0.8",
 				"user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)"
 			}
 		});
-		if (!res.ok) throw new Error(`MyFreeCams rooms HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
-		const text = await res.text();
-		const rooms = [];
-		for (const line of text.split(/[\r\n;]+/)) {
-			const match = line.trim().match(/^([A-Za-z0-9_]{2,32})\s*[,|\s]\s*(\d+)\b/);
-			if (!match) continue;
-			const video = myfreecamsVideo(match[1], Number(match[2]));
-			if (video) rooms.push(video);
-		}
-		myfreecamsCache = {
-			at: Date.now(),
-			rooms
+		if (res.ok) next = {
+			at: now,
+			...myfreecamsImageFromAppPage(await res.text())
 		};
+	} catch {}
+	myfreecamsPreviewCache.set(key, next);
+	return next;
+}
+function withMyFreeCamsPreview(video, preview) {
+	if (!preview?.poster || !video.remote) return video;
+	const thumbs = [.../* @__PURE__ */ new Set([preview.poster, ...video.remote.thumbFallbacks ?? []])].filter(isUsableAdultThumb).slice(0, 4);
+	return {
+		...video,
+		poster: preview.poster,
+		remote: {
+			...video.remote,
+			channelId: preview.modelId ?? video.remote.channelId,
+			previewUrl: preview.poster,
+			thumbFallbacks: thumbs
+		}
+	};
+}
+async function myfreecamsRoomsWithPreviews(rooms, maxVideos, query) {
+	const now = Date.now();
+	const previews = /* @__PURE__ */ new Map();
+	let candidates = [];
+	for (const room of rooms) {
+		const username = room.remote?.videoId ?? room.name;
+		const cached = myfreecamsPreviewCache.get(username.toLowerCase());
+		if (cached && myfreecamsPreviewFresh(cached, now)) previews.set(username.toLowerCase(), cached);
+		else candidates.push(username);
+	}
+	const needle = query.trim().toLowerCase();
+	if (needle && needle !== "all") candidates = [...candidates.filter((username) => username.toLowerCase().includes(needle)), ...candidates.filter((username) => !username.toLowerCase().includes(needle))];
+	const take = Math.min(MYFREECAMS_PROFILE_PREVIEWS_PER_REFRESH, Math.max(0, maxVideos), candidates.length);
+	if (take) {
+		const start = myfreecamsPreviewCursor % candidates.length;
+		myfreecamsPreviewCursor += take;
+		const selected = Array.from({ length: take }, (_, index) => candidates[(start + index) % candidates.length]);
+		for (let index = 0; index < selected.length; index += MYFREECAMS_PROFILE_PREVIEW_CONCURRENCY) {
+			const batch = selected.slice(index, index + MYFREECAMS_PROFILE_PREVIEW_CONCURRENCY);
+			const results = await Promise.all(batch.map(async (username) => [username, await fetchMyFreeCamsPreview(username)]));
+			for (const [username, preview] of results) previews.set(username.toLowerCase(), preview);
+		}
+	}
+	return rooms.map((room) => withMyFreeCamsPreview(room, previews.get((room.remote?.videoId ?? room.name).toLowerCase())));
+}
+function myfreecamsStateSummary(states) {
+	return [...states.entries()].sort((a, b) => a[0] - b[0]).map(([state, count]) => `${state}: ${count}`).join(", ");
+}
+async function fetchMyFreeCamsRooms(query, maxVideos) {
+	if (!myfreecamsCache || Date.now() - myfreecamsCache.at > MYFREECAMS_CACHE_MS) {
+		const priorRooms = myfreecamsCache?.rooms ?? [];
+		try {
+			const res = await cachedAdultFetch("https://www.myfreecams.com/php/online_models.php", {
+				cacheTtlMs: 18e4,
+				signal: AbortSignal.timeout(12e3),
+				headers: {
+					accept: "text/plain, text/html;q=0.8",
+					referer: "https://www.myfreecams.com/#Homepage",
+					"accept-language": "en-US,en;q=0.8",
+					"user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)"
+				}
+			});
+			if (!res.ok) throw new Error(`MyFreeCams public list HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
+			const listing = myfreecamsListing(await res.text());
+			if (!listing.rooms.length && listing.rows) {
+				const states = myfreecamsStateSummary(listing.states);
+				throw new Error(listing.publicRows ? `MyFreeCams listed ${listing.publicRows} public broadcast rows, but none had a usable safe room name.` : `MyFreeCams listed ${listing.rows} online rows but no public broadcasts (states: ${states || "unknown"}).`);
+			}
+			const rooms = listing.rooms.length ? await myfreecamsRoomsWithPreviews(listing.rooms, maxVideos, query) : [];
+			myfreecamsCache = {
+				at: Date.now(),
+				rooms: rooms.length ? rooms : priorRooms
+			};
+		} catch (error) {
+			if (priorRooms.length) myfreecamsCache = {
+				at: Date.now(),
+				rooms: priorRooms
+			};
+			else throw error;
+		}
 	}
 	const needle = query.trim().toLowerCase();
 	const filtered = !needle || needle === "all" ? myfreecamsCache.rooms : myfreecamsCache.rooms.filter((video) => video.name.toLowerCase().includes(needle));
@@ -1410,7 +1615,7 @@ function redditPermalink(entry) {
 	return first;
 }
 function redgifsEmbedUrl(url) {
-	const slug = url?.match(/https?:\/\/(?:www\.)?redgifs\.com\/(?:watch|ifr)\/([a-z0-9_-]+)/i)?.[1];
+	const slug = url?.match(/https?:\/\/(?:www\.)?redgifs\.com\/(?:watch|ifr)\/([a-z0-9_-]+)/i)?.[1] ?? url?.match(/https?:\/\/thumbs\d*\.redgifs\.com\/([a-z0-9_-]+)-(?:mobile|poster|thumb)\.(?:jpe?g|webp)/i)?.[1] ?? url?.match(/https?:\/\/(?:i|media)\.redgifs\.com\/([a-z0-9_-]+)(?:[._-]|$)/i)?.[1];
 	return slug ? `https://www.redgifs.com/ifr/${encodeURIComponent(slug)}` : void 0;
 }
 function redditVideo(entry, subreddit) {
@@ -1426,11 +1631,11 @@ function redditVideo(entry, subreddit) {
 	const flair = extractRedditFlair(entry, content);
 	if (adultBlockedText(title, author, subreddit, flair, media.poster, media.src, media.watch)) return null;
 	const addedAt = Date.parse(published);
-	const poster = media.poster;
+	const poster = media.poster ?? media.thumbFallbacks?.[0];
 	const isImage = media.kind === "image";
 	const isVideo = media.kind === "video";
 	const directMedia = media.src && /\.(?:mp4|webm|gifv)(?:\?|$)/i.test(media.src) ? media.src : void 0;
-	const redgifsEmbed = redgifsEmbedUrl(media.watch);
+	const redgifsEmbed = redgifsEmbedUrl(media.watch ?? media.thumbFallbacks?.[0]);
 	const redditEmbed = isVideo ? `https://www.redditmedia.com/r/${encodeURIComponent(subreddit)}/comments/${encodeURIComponent(id)}/?ref_source=embed&ref=share&embed=true` : void 0;
 	return {
 		id: `reddit:${id}`,
@@ -1454,8 +1659,8 @@ function redditVideo(entry, subreddit) {
 			observedAt: Date.now(),
 			embedUrl: directMedia || redgifsEmbed || redditEmbed,
 			watchUrl: permalink,
-			previewUrl: poster || media.thumbFallbacks?.[0],
-			thumbFallbacks: media.thumbFallbacks?.slice(0, 4)
+			previewUrl: poster,
+			thumbFallbacks: [poster, ...media.thumbFallbacks ?? []].filter((url) => Boolean(url)).slice(0, 8)
 		}
 	};
 }
@@ -1476,13 +1681,14 @@ function redditSubWindow(page, configuredSources = []) {
 	};
 }
 async function fetchRedditSubRss(sub, sort) {
-	const url = `https://www.reddit.com${sort === "new" ? `/r/${encodeURIComponent(sub)}/new/.rss` : `/r/${encodeURIComponent(sub)}/.rss`}?limit=${LIBRARY_LIMITS.redditPostsPerSub}`;
+	const path = sort === "new" ? `/r/${encodeURIComponent(sub)}/new/.rss` : `/r/${encodeURIComponent(sub)}/.rss`;
 	let xml = "";
 	let failure = "";
-	for (let attempt = 0; attempt < 2; attempt += 1) {
+	const urls = [`https://www.reddit.com${path}?limit=${LIBRARY_LIMITS.redditPostsPerSub}`, `https://old.reddit.com${path}?limit=${LIBRARY_LIMITS.redditPostsPerSub}`];
+	for (const url of urls) {
 		try {
 			const res = await cachedAdultFetch(url, {
-				signal: AbortSignal.timeout(12e3),
+				signal: AbortSignal.timeout(7e3),
 				cacheTtlMs: 36e4,
 				headers: {
 					accept: "application/atom+xml, application/rss+xml, application/xml;q=0.9, */*;q=0.8",
@@ -1494,11 +1700,11 @@ async function fetchRedditSubRss(sub, sort) {
 				break;
 			}
 			failure = res.status === 429 ? "rate limited" : `HTTP ${res.status}`;
-			if (res.status === 429 || res.status < 500) break;
+			if (res.status === 429) break;
 		} catch (err) {
 			failure = err instanceof Error ? err.message : "network unavailable";
 		}
-		await new Promise((resolve) => setTimeout(resolve, 350 * (attempt + 1)));
+		if (!xml) await new Promise((resolve) => setTimeout(resolve, 250));
 	}
 	if (!xml) throw new Error(failure || "empty feed");
 	const posts = [];
@@ -1518,13 +1724,10 @@ async function fetchRedditFeed(query, maxVideos, page = 1, configuredSources = [
 	for (let offset = 0; offset < windows && collected.length < maxVideos; offset += 1) {
 		const { subs, start, totalPages } = redditSubWindow(page + offset, configuredSources);
 		lastTotalPages = totalPages;
-		const batches = await mapPool(subs.flatMap((sub) => [{
+		const batches = await mapPool(subs.map((sub) => ({
 			sub,
 			sort: "hot"
-		}, {
-			sub,
-			sort: "new"
-		}]), LIBRARY_LIMITS.redditFetchConcurrency, async (job) => {
+		})), LIBRARY_LIMITS.redditFetchConcurrency, async (job) => {
 			try {
 				return await fetchRedditSubRss(job.sub, job.sort);
 			} catch (err) {
@@ -1543,7 +1746,6 @@ async function fetchRedditFeed(query, maxVideos, page = 1, configuredSources = [
 			if (collected.length >= maxVideos) break;
 		}
 	}
-	if (!collected.length && errors.length) throw new Error(`Reddit RSS unavailable (${errors.slice(0, 6).join("; ")}).`);
 	const needle = query.trim().toLowerCase();
 	const filtered = !needle || needle === "all" ? collected : collected.filter((video) => {
 		return `${video.name} ${video.tagline ?? ""} ${video.description ?? ""}`.toLowerCase().includes(needle);
@@ -1576,7 +1778,7 @@ var BOORU_HOSTS = [
 function booruVideo(row, host) {
 	const id = asString(row.id).trim();
 	const tags = asString(row.tags).trim();
-	const owner = asString(row.owner).trim();
+	const owner = pickString(row.owner, row.creator, row.uploader).trim();
 	const preview = asString(row.preview_url).trim();
 	const sample = asString(row.sample_url).trim();
 	const file = asString(row.file_url).trim();
@@ -1606,7 +1808,12 @@ function booruVideo(row, host) {
 			observedAt: Date.now(),
 			embedUrl: image,
 			watchUrl: watch,
-			previewUrl: preview || sample || void 0
+			previewUrl: preview || sample || void 0,
+			thumbFallbacks: [
+				preview,
+				sample,
+				file
+			].filter(isUsableAdultThumb).slice(0, 4)
 		}
 	};
 }
@@ -1631,7 +1838,8 @@ async function fetchBooruHost(host, tags, limit, pid) {
 	});
 	if (!res.ok) throw new Error(`${host.id} HTTP ${res.status}`);
 	const raw = await res.json();
-	const rows = Array.isArray(raw) ? raw : [];
+	const record = asRecord(raw);
+	const rows = Array.isArray(raw) ? raw : Array.isArray(record?.post) ? record.post : Array.isArray(record?.posts) ? record.posts : [];
 	const out = [];
 	for (const row of rows) {
 		if (!row || typeof row !== "object") continue;
@@ -1688,7 +1896,13 @@ function pickString(...values) {
 function redgifsPosterFallbacks(id) {
 	const slug = id.trim();
 	if (!/^[a-z0-9_-]{2,128}$/i.test(slug)) return [];
-	return [`https://thumbs2.redgifs.com/${encodeURIComponent(slug)}-mobile.jpg`, `https://thumbs2.redgifs.com/${encodeURIComponent(slug)}-poster.jpg`];
+	return [
+		`https://thumbs2.redgifs.com/${encodeURIComponent(slug)}-mobile.jpg`,
+		`https://thumbs2.redgifs.com/${encodeURIComponent(slug)}-poster.jpg`,
+		`https://thumbs2.redgifs.com/${encodeURIComponent(slug)}-thumb.jpg`,
+		`https://thumbs1.redgifs.com/${encodeURIComponent(slug)}-mobile.jpg`,
+		`https://thumbs1.redgifs.com/${encodeURIComponent(slug)}-poster.jpg`
+	];
 }
 function redgifsVideo(row) {
 	const id = pickString(row.id, row.gif_id, row.gifId, row.slug);
@@ -1707,7 +1921,7 @@ function redgifsVideo(row) {
 	const embed = pickString(urls.html, urls.player, row.embedUrl, row.embed_url, `https://www.redgifs.com/ifr/${encodeURIComponent(id)}`);
 	const watch = pickString(urls.webUrl, urls.web_url, row.url, row.webUrl, `https://www.redgifs.com/watch/${encodeURIComponent(id)}`);
 	const thumb = pickString(urls.thumbnail, urls.thumb, urls.preview, urls.poster, urls.posterUrl, urls.previewUrl, row.thumbnail, row.thumb, row.poster, row.previewUrl);
-	const thumbFallbacks = [.../* @__PURE__ */ new Set([thumb, ...redgifsPosterFallbacks(id)])].filter(isUsableAdultThumb).slice(0, 4);
+	const thumbFallbacks = [.../* @__PURE__ */ new Set([thumb, ...redgifsPosterFallbacks(id)])].filter(isUsableAdultThumb).slice(0, 6);
 	const file = pickString(urls.hd, urls.sd, urls.silent, urls.mobile, urls.mp4, urls.giftiny, urls.gif, row.mp4, row.file);
 	if (adultBlockedText(title, author, tagList.join(" "))) return null;
 	return {
@@ -1764,7 +1978,11 @@ function collectRedgifsRows(payload) {
 }
 async function fetchRedgifsFeed(query, maxVideos, page) {
 	const key = adultDataLinkApiKey();
-	if (!key) throw new Error("AdultDataLink key missing — set ADULTDATALINK_API_KEY to enable Redgifs pulls.");
+	if (!key) return {
+		videos: [],
+		totalPages: page,
+		totalCount: 0
+	};
 	const params = new URLSearchParams({
 		parameter: "gif",
 		page: String(Math.max(1, page)),
@@ -2087,8 +2305,15 @@ var fetchAdultComments = createServerFn({ method: "POST" }).validator((data) => 
 	};
 	const id = data.videoId.replace(/^t3_/, "");
 	const canonical = `https://www.reddit.com/comments/${encodeURIComponent(id)}.rss?limit=40`;
+	const oldCanonical = `https://old.reddit.com/comments/${encodeURIComponent(id)}.rss?limit=40`;
 	const permalink = data.watchUrl.match(/^https:\/\/www\.reddit\.com\/r\/[^/]+\/comments\/[a-z0-9]+/i)?.[0];
-	const urls = permalink ? [`${permalink}.rss?limit=40`, canonical] : [canonical];
+	const oldPermalink = permalink?.replace(/^https:\/\/www\.reddit\.com/i, "https://old.reddit.com");
+	const urls = permalink ? [
+		`${permalink}.rss?limit=40`,
+		oldPermalink ? `${oldPermalink}.rss?limit=40` : oldCanonical,
+		canonical,
+		oldCanonical
+	] : [canonical, oldCanonical];
 	try {
 		let lastStatus = 0;
 		for (const url of urls) {

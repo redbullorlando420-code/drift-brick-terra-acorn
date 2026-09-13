@@ -327,10 +327,10 @@ export function StatsSection() {
       const videoTags = tags[video.id] ?? [];
       // Adult tags have their own scored taxonomy above. Do not let generic
       // provider keywords (for example "music") displace library topics.
-      const adultRemote = Boolean(video.remote && ["eporner", "redtube", "chaturbate", "camsoda", "myfreecams", "reddit", "booru", "redgifs"].includes(video.remote.kind));
+      const adultRemote = ["eporner", "redtube", "chaturbate", "camsoda", "myfreecams", "reddit", "booru", "redgifs"].includes(video.remote?.kind ?? "");
       const usefulTopics = adultRemote ? new Set<string>() : new Set(videoTags.map(canonicalTopic).filter((tag): tag is string => Boolean(tag)));
       if (videoTags.length) metadataTaggedTitles += 1;
-      if (Boolean(video.remote?.channelName?.trim())) creatorTaggedTitles += 1;
+      if (video.remote?.channelName?.trim()) creatorTaggedTitles += 1;
       if (video.description?.trim()) descriptionTaggedTitles += 1;
       if (!adultRemote && !videoTags.some(isTopicTag)) untaggedTitles += 1;
       for (const topic of usefulTopics) {
@@ -386,6 +386,11 @@ export function StatsSection() {
       genres: snapshot.genres.slice(0, 12),
       metaTags: snapshot.metaTags.slice(0, 12),
       adultTagCoverage: snapshot.adultTagCoverage,
+      previewCoverage: snapshot.previewCoverage,
+      creatorCoverage: snapshot.creatorCoverage,
+      tagQuality: snapshot.tagQuality,
+      dedupe: snapshot.dedupe,
+      redditTags: snapshot.redditTags.slice(0, 12),
       tagConnections: snapshot.tagConnections.slice(0, 12),
       noisyTagAssignments: snapshot.noisyTagAssignments,
     };
@@ -455,15 +460,23 @@ export function StatsSection() {
         <div className="rounded-md bg-bg/45 p-3"><p className="text-xs text-muted">Marked (I cummed)</p><p className="mt-1 text-lg font-medium text-fg">{Object.values(cameCounts).filter((n) => n > 0).length.toLocaleString()}</p></div>
         <div className="rounded-md bg-bg/45 p-3"><p className="text-xs text-muted">Total marks</p><p className="mt-1 text-lg font-medium text-fg">{Object.values(cameCounts).reduce((sum, n) => sum + n, 0).toLocaleString()}</p></div>
       </div>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-md bg-bg/45 p-3"><p className="text-xs text-muted">Preview-ready</p><p className="mt-1 text-lg font-medium text-fg">{Math.round(adultTagStats.previewCoverage.share * 100)}%</p><p className="text-xs text-muted">{adultTagStats.previewCoverage.ready.toLocaleString()} cards declare artwork</p></div>
+        <div className="rounded-md bg-bg/45 p-3"><p className="text-xs text-muted">Backup preview paths</p><p className="mt-1 text-lg font-medium text-fg">{Math.round(adultTagStats.previewCoverage.backedShare * 100)}%</p><p className="text-xs text-muted">Redgifs {Math.round(adultTagStats.previewCoverage.redgifs.share * 100)}% ready</p></div>
+        <div className="rounded-md bg-bg/45 p-3"><p className="text-xs text-muted">Creator credit</p><p className="mt-1 text-lg font-medium text-fg">{Math.round(adultTagStats.creatorCoverage.share * 100)}%</p><p className="text-xs text-muted">{adultTagStats.creatorCoverage.uniqueCreators.toLocaleString()} normalized creators</p></div>
+        <div className="rounded-md bg-bg/45 p-3"><p className="text-xs text-muted">Duplicate candidates</p><p className="mt-1 text-lg font-medium text-fg">{adultTagStats.dedupe.extraTitles.toLocaleString()}</p><p className="text-xs text-muted">across {adultTagStats.dedupe.candidateGroups.toLocaleString()} media groups</p></div>
+      </div>
       {adultTagStats.providerMix.length > 0 && (
         <div className="mt-4">
           <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Adult provider mix</p>
           <p className="mt-1 text-xs text-muted">Every configured Adult source is shown. Empty means the current catalog has no returned titles yet.</p>
           <div className="mt-2 flex flex-wrap gap-2">{adultTagStats.providerMix.map((source) => <span key={source.provider} className={`rounded-full px-3 py-1 text-xs font-medium ${source.status === "active" ? "bg-accent/15 text-accent" : "bg-bg/45 text-muted"}`}>{source.label} · {source.titles.toLocaleString()} · {Math.round(source.share * 100)}%</span>)}</div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">{adultTagStats.providerMix.filter((source) => source.titles || source.linkedTitles).map((source) => <div key={`${source.provider}-quality`} className="rounded-md bg-bg/45 p-3 text-xs text-muted"><p className="font-medium text-fg">{source.label} · {source.titles.toLocaleString()} primary{source.linkedTitles ? ` · ${source.linkedTitles.toLocaleString()} linked` : ""}</p><p className="mt-1">Preview {Math.round(source.previewCoverage.share * 100)}% · backup {Math.round(source.backupPreviewCoverage.share * 100)}%</p><p>Creator {Math.round(source.creatorCoverage.share * 100)}% · interests {Math.round(source.usefulTagCoverage.share * 100)}%</p>{source.duplicateCandidates > 0 && <p className="mt-1 text-accent">{source.duplicateCandidates.toLocaleString()} duplicate candidates</p>}</div>)}</div>
         </div>
       )}
       {(adultTagStats.genres.length > 0 || adultTagStats.metaTags.length > 0) && <div className="mt-4 grid gap-3 lg:grid-cols-2"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Mapped genres</p><div className="mt-2 flex flex-wrap gap-2">{adultTagStats.genres.map((row) => <span key={row.tag} className="rounded-full bg-bg/45 px-3 py-1 text-xs text-fg">{row.label} · {row.count}</span>)}</div></div><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Recommendation metatags</p><div className="mt-2 flex flex-wrap gap-2">{adultTagStats.metaTags.map((row) => <span key={row.tag} className="rounded-full bg-bg/45 px-3 py-1 text-xs text-fg">{row.tag.replace(/^meta-/, "").replace(/-/g, " ")} · {row.count}</span>)}</div></div></div>}
-      <div className="mt-4 rounded-md bg-bg/45 p-3"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Tag health & connections</p><p className="mt-1 text-sm text-muted">Universal Adult filtering covers {adultTagStats.adultTagCoverage.tagged.toLocaleString()} titles. {adultTagStats.noisyTagAssignments ? `${adultTagStats.noisyTagAssignments.toLocaleString()} old parser-style labels are excluded from ranking.` : "No parser-style labels are influencing rankings."}</p></div><Button size="sm" variant="secondary" onClick={() => useLibrary.getState().autoTagLibrary()}>Repair Adult tags</Button></div>{adultTagStats.tagConnections.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{adultTagStats.tagConnections.map((connection) => <span key={`${connection.left}-${connection.right}`} className="rounded-full border border-border px-3 py-1 text-xs text-fg">#{connection.left} + #{connection.right} · {connection.count}</span>)}</div>}</div>
+      <div className="mt-4 rounded-md bg-bg/45 p-3"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Tag health & connections</p><p className="mt-1 text-sm text-muted">{adultTagStats.tagQuality.usefulTagged.toLocaleString()} titles have a useful interest, averaging {adultTagStats.tagQuality.averageUsefulTags.toFixed(1)} interests per title. {adultTagStats.noisyTagAssignments ? `${adultTagStats.noisyTagAssignments.toLocaleString()} old parser-style labels are excluded from ranking.` : "No parser-style labels are influencing rankings."}</p></div><Button size="sm" variant="secondary" onClick={() => useLibrary.getState().autoTagLibrary()}>Repair Adult tags</Button></div>{adultTagStats.tagConnections.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{adultTagStats.tagConnections.map((connection) => <span key={`${connection.left}-${connection.right}`} className="rounded-full border border-border px-3 py-1 text-xs text-fg">#{connection.left} + #{connection.right} · {connection.count} · {connection.lift.toFixed(1)}× · {connection.providerCount} sources</span>)}</div>}</div>
+      {adultTagStats.redditTags.length > 0 && <div className="mt-4 rounded-md bg-bg/45 p-3"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Reddit source coverage</p><p className="mt-1 text-sm text-muted">Your stored community tags are counted separately from generic Reddit labels, so favorites and source-list changes can guide future pulls.</p><div className="mt-3 flex flex-wrap gap-2">{adultTagStats.redditTags.map((row) => <span key={row.tag} className="rounded-full border border-border px-3 py-1 text-xs text-fg">#{row.tag.replace(/^sub-/, "")} · {row.count}</span>)}</div></div>}
       <div className="mt-4">
         <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Your adult tags</p>
         {adultTagStats.topFetish.length || adultTagStats.topSources.length ? (

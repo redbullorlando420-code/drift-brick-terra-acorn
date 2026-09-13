@@ -240,6 +240,13 @@ export function LibraryApp() {
   );
   const adultFolders = folders.filter((f) => f.adult);
   const tags = useLibrary((s) => s.tags);
+  // Adult history is a private, tagged record. An old generic recovery entry
+  // may still exist in durable history, but it cannot appear here unless it
+  // carries the explicit #adult contract.
+  const adultHistoryTagged = useMemo(
+    () => adultHistory.filter((video) => (tags[video.id] ?? []).includes("adult")),
+    [adultHistory, tags],
+  );
   const markedAdult = useMemo(
     () =>
       [...adultRemoteVideos.filter((video) => (cameCounts[video.id] ?? 0) > 0)].sort(
@@ -1482,7 +1489,7 @@ export function LibraryApp() {
                           <TitleRail title="Needs a tag" videos={adultNeedsTags} variant="rail" />
                           <TitleRail title="Recently added" videos={[...videos].sort((a, b) => b.addedAt - a.addedAt).slice(0, 24)} variant="rail" />
                           <TitleRail title={adultTag === "All" ? "All private titles" : `Tagged · ${adultTag}`} videos={adultTag === "All" ? adultSorted : adultSorted.filter((video) => (tags[video.id] ?? []).includes(adultTag))} variant="poster" />
-                          <TitleRail title="History" videos={adultHistory} variant="rail" playedAt={playedAt} />
+                          <TitleRail title="History · #adult" videos={adultHistoryTagged} variant="rail" playedAt={playedAt} />
                           {adultFolders.map((folder) => (
                             <TitleRail
                               key={folder.id}
@@ -1581,7 +1588,7 @@ export function LibraryApp() {
                     )}
                   </div>
                   {query && <section className="mb-5 rounded-lg border border-border bg-surface p-4 shadow-border" aria-label="Search ranking and matching tags"><div className="flex flex-wrap items-baseline justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Search ranking</p><p className="mt-1 text-sm text-muted">Exact title and creator matches lead, followed by matching tags and your saved reactions.</p></div><span className="text-xs text-accent">{searchInsights.ranked.length.toLocaleString()} ranked results</span></div>{searchInsights.tags.length > 0 && <div className="mt-3 flex flex-wrap gap-2"><span className="self-center text-xs text-muted">Top tags</span>{searchInsights.tags.map(({ tag, count }) => <Button key={tag} size="sm" variant="secondary" onClick={() => setQuery(tag)}>#{tag} · {count}</Button>)}</div>}{searchInsights.ranked.length > 0 && <div className="mt-3 grid gap-2 md:grid-cols-3">{searchInsights.ranked.slice(0, 3).map((video, index) => <button key={video.id} type="button" onClick={() => openVideo(video.id)} className="flex min-w-0 items-center gap-3 rounded-md bg-elevated px-3 py-3 text-left hover:bg-bg"><span className="shrink-0 rounded-full bg-accent/15 px-2 py-1 text-xs font-medium text-accent">#{index + 1}</span><span className="min-w-0"><span className="block truncate text-sm font-medium text-fg">{video.name}</span><span className="block truncate text-xs text-muted">{(video.remote?.channelName ?? topicsForVideo(video, tags[video.id]).slice(0, 2).join(" · ")) || "Library match"}</span></span></button>)}</div>}</section>}
-                                    {(sourceId === "continue" || sourceId === "history") && !query && (adultContinue.length > 0 || adultHistory.length > 0) && (
+                                    {(sourceId === "continue" || sourceId === "history") && !query && (adultContinue.length > 0 || adultHistoryTagged.length > 0) && (
                     <section className="mb-5 rounded-xl border border-border bg-surface p-5 shadow-border">
                       <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Adults activity</p>
                       <h2 className="mt-2 font-display text-2xl text-fg">Private continue & history stay in Adults.</h2>
@@ -1597,8 +1604,8 @@ export function LibraryApp() {
                       {sourceId === "continue" && adultContinue.length > 0 && (
                         <div className="mt-4"><TitleRail title="Adults · continue watching" videos={adultContinue.slice(0, 18)} variant="rail" /></div>
                       )}
-                      {sourceId === "history" && adultHistory.length > 0 && (
-                        <div className="mt-4"><TitleRail title="Adults · recent history" videos={adultHistory.slice(0, 18)} variant="rail" playedAt={playedAt} /></div>
+                      {sourceId === "history" && adultHistoryTagged.length > 0 && (
+                        <div className="mt-4"><TitleRail title="Adults · recent history · #adult" videos={adultHistoryTagged.slice(0, 18)} variant="rail" playedAt={playedAt} /></div>
                       )}
                     </section>
                   )}

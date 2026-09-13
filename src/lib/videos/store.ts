@@ -575,6 +575,86 @@ export function isAdultVideo(video: LibraryVideo, folders: Folder[]) {
   return adultIdSet(folders).has(video.folderId);
 }
 
+/** A provider can surface the same remote media through more than one route
+ * (especially a Reddit post linked to Redgifs). Keep the richer card and its
+ * combined source attribution, rather than rendering or caching it twice. */
+function adultMediaIdentity(video: LibraryVideo): string | undefined {
+  const urls = [video.remote?.embedUrl, video.remote?.watchUrl, video.src]
+    .filter((value): value is string => Boolean(value && /^https?:\/\//i.test(value)));
+  for (const raw of urls) {
+    const redgifs = raw.match(/https?:\/\/(?:www\.)?redgifs\.com\/(?:watch|ifr)\/([a-z0-9_-]+)/i)?.[1]
+      ?? raw.match(/https?:\/\/thumbs\d*\.redgifs\.com\/([a-z0-9_-]+)-(?:mobile|poster|thumb)\.(?:jpe?g|webp)/i)?.[1]
+      ?? raw.match(/https?:\/\/(?:i|media)\.redgifs\.com\/([a-z0-9_-]+)(?:[._-]|$)/i)?.[1];
+    if (redgifs) return `redgifs:${redgifs.toLowerCase()}`;
+    try {
+      const url = new URL(raw);
+      const host = url.hostname.replace(/^www\./, "").toLowerCase();
+      const path = url.pathname.replace(/\/+$/, "").toLowerCase();
+      if (host && path && path !== "/") return `url:${host}${path}`;
+    } catch {
+      // Ignore malformed provider fields; their stable provider id still works.
+    }
+  }
+  const kind = video.remote?.kind;
+  const id = video.remote?.videoId?.trim();
+  return kind && id ? `provider:${kind}:${id.toLowerCase()}` : undefined;
+}
+
+function adultCardQuality(video: LibraryVideo) {
+  return Number(Boolean(video.poster || video.remote?.previewUrl)) * 4
+    + Number(Boolean(video.remote?.embedUrl)) * 3
+    + Number(Boolean(video.remote?.watchUrl)) * 2
+    + (video.remote?.sourceKinds?.length ?? 0)
+    + Number(video.remote?.kind === "reddit") * 2
+    + Number(Boolean(video.description || video.tagline));
+}
+
+function mergeAdultDuplicate(first: LibraryVideo, second: LibraryVideo): LibraryVideo {
+  const primary = adultCardQuality(second) > adultCardQuality(first) ? second : first;
+  const secondary = primary === first ? second : first;
+  const primaryRemote = primary.remote;
+  const secondaryRemote = secondary.remote;
+  return {
+    ...primary,
+    addedAt: Math.max(primary.addedAt, secondary.addedAt),
+    poster: primary.poster || secondary.poster,
+    src: primary.src || secondary.src,
+    description: primary.description || secondary.description,
+    tagline: primary.tagline || secondary.tagline,
+    remote: primaryRemote && secondaryRemote ? {
+      ...secondaryRemote,
+      ...primaryRemote,
+      videoId: primaryRemote.videoId || secondaryRemote.videoId,
+      channelName: primaryRemote.channelName || secondaryRemote.channelName,
+      channelId: primaryRemote.channelId || secondaryRemote.channelId,
+      embedUrl: primaryRemote.embedUrl || secondaryRemote.embedUrl,
+      watchUrl: primaryRemote.watchUrl || secondaryRemote.watchUrl,
+      previewUrl: primaryRemote.previewUrl || secondaryRemote.previewUrl,
+      sourceKinds: [...new Set([primaryRemote.kind, secondaryRemote.kind, ...(primaryRemote.sourceKinds ?? []), ...(secondaryRemote.sourceKinds ?? [])].filter(Boolean))],
+    } : primaryRemote,
+  };
+}
+
+function dedupeAdultVideoCards(videos: LibraryVideo[]): LibraryVideo[] {
+  const result: LibraryVideo[] = [];
+  const byIdentity = new Map<string, number>();
+  for (const video of videos) {
+    const key = adultMediaIdentity(video);
+    if (!key) {
+      result.push(video);
+      continue;
+    }
+    const previousIndex = byIdentity.get(key);
+    if (previousIndex == null) {
+      byIdentity.set(key, result.length);
+      result.push(video);
+      continue;
+    }
+    result[previousIndex] = mergeAdultDuplicate(result[previousIndex], video);
+  }
+  return result;
+}
+
 export const useLibrary = create<LibraryState>((set, get) => ({
   // A new library starts empty. Demo movies once helped illustrate the UI, but
   // they should never compete with a person's own sources or provider follows.
@@ -879,7 +959,11 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         providers: providerKey,
         count: result.videos.length,
       });
-      const videos = applyCachedAdultUrls(result.videos);
+      const fetchedVideos = applyCachedAdultUrls(result.videos);
+      // A dual-sourced item can arrive once through Reddit and again through
+      // its media host in the same pull. Merge it before it reaches the cache
+      // or image scheduler so one title never downloads two preview chains.
+      const videos = dedupeAdultVideoCards(fetchedVideos);
       cacheAdultVideoUrls(videos);
       const touched = new Set(videos.map((v) => v.folderId));
       set((s) => {
@@ -960,7 +1044,12 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           adultsUnlocked: true,
           remoteBusy: false,
           importProgress: null,
-          adultPullStatus: { note: result.note, diagnostics: result.providerDiagnostics },
+          adultPullStatus: {
+            note: fetchedVideos.length > videos.length
+              ? `${result.note ?? "Adult catalog updated."} ${fetchedVideos.length - videos.length} duplicate media row${fetchedVideos.length - videos.length === 1 ? " was" : "s were"} merged before display.`
+              : result.note,
+            diagnostics: result.providerDiagnostics,
+          },
         };
       });
       persistNow(get);
@@ -1826,7 +1915,10 @@ function publicList(state: LibraryState): LibraryVideo[] {
 function adultList(state: LibraryState): LibraryVideo[] {
   // Adults section is open; private shelves still stay off public rails via folder.adult.
   const adult = adultIdSet(state.folders);
-  return state.videos.filter((v) => !state.unavailable[v.id] && adult.has(v.folderId));
+  // Older durable catalogs may predate the ingest-time merge. Apply the same
+  // identity merge at the boundary used by every Adult shelf, so a Reddit post
+  // and its direct Redgifs record can never render (and load posters) twice.
+  return dedupeAdultVideoCards(state.videos.filter((v) => !state.unavailable[v.id] && adult.has(v.folderId)));
 }
 
 export function selectVisible(state: LibraryState): LibraryVideo[] {
@@ -1988,6 +2080,10 @@ export function selectHistory(state: LibraryState, adult = false): LibraryVideo[
       const isRedgifs = /redgifs\.com/i.test(historyUrl);
       const adultKind = isEporner ? "eporner" : isRedtube ? "redtube" : isChaturbate ? "chaturbate" : isCamsoda ? "camsoda" : isMfc ? "myfreecams" : isReddit ? "reddit" : isBooru ? "booru" : isRedgifs ? "redgifs" : null;
       if (!adult && (isEporner || isRedtube || isChaturbate || isCamsoda || isMfc || isReddit || isBooru || isRedgifs)) return null;
+      // The Adult history shelf is deliberately strict. Unknown recovered URLs
+      // belong to public history until they carry a known Adult source, so a
+      // generic or stale record can never leak into the private Adult page.
+      if (adult && !adultKind) return null;
       const signature = `${h.at}:${h.url}:${h.position ?? ""}:${h.duration ?? ""}:${h.title ?? ""}`;
       const cachedRecovery = historyRecoveryCardCache.get(h.id);
       if (cachedRecovery?.signature === signature) return cachedRecovery.video;
@@ -2047,7 +2143,7 @@ export function selectAdultRemote(state: LibraryState): LibraryVideo[] {
         v.remote?.kind === "redgifs" ||
         (ADULT_FOLDER_IDS as readonly string[]).includes(v.folderId),
     );
-  return [...new Map(matching.map((video) => [video.id, video])).values()]
+  return dedupeAdultVideoCards([...new Map(matching.map((video) => [video.id, video])).values()])
     .sort((a, b) => b.addedAt - a.addedAt);
 }
 

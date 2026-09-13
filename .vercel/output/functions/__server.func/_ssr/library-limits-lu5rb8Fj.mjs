@@ -1,4 +1,4 @@
-//#region node_modules/.nitro/vite/services/ssr/assets/library-limits-baHoJ0tI.js
+//#region node_modules/.nitro/vite/services/ssr/assets/library-limits-lu5rb8Fj.js
 var ADULT_EXTRA_MILESTONES = [
 	{
 		name: "CooMeet",
@@ -3386,7 +3386,10 @@ var PREFERRED_HOSTS = {
 	"ei.rdtcdn.com": 4,
 	"cdn.eporner.com": 6,
 	"static-cdn-v4.eporner.com": 5,
-	"woofcdn.com": 3
+	"woofcdn.com": 3,
+	"thumbs2.redgifs.com": 7,
+	"thumbs1.redgifs.com": 4,
+	"media.redgifs.com": 3
 };
 function markAdultThumbFailed(url) {
 	if (!url) return;
@@ -3564,6 +3567,18 @@ function pickRedtubeThumb(row) {
 		thumbFallbacks: unique.slice(0, 6)
 	};
 }
+function redgifsPosterCandidates(video) {
+	if (video.remote?.kind !== "redgifs" && !video.remote?.sourceKinds?.includes("redgifs")) return [];
+	const id = String(video.remote?.videoId ?? "").trim();
+	if (!/^[a-z0-9_-]{2,128}$/i.test(id)) return [];
+	return [
+		`https://thumbs2.redgifs.com/${encodeURIComponent(id)}-mobile.jpg`,
+		`https://thumbs2.redgifs.com/${encodeURIComponent(id)}-poster.jpg`,
+		`https://thumbs2.redgifs.com/${encodeURIComponent(id)}-thumb.jpg`,
+		`https://thumbs1.redgifs.com/${encodeURIComponent(id)}-mobile.jpg`,
+		`https://thumbs1.redgifs.com/${encodeURIComponent(id)}-poster.jpg`
+	];
+}
 /** Ordered poster candidates for any adult (or remote) library card. */
 function adultThumbCandidatesForVideo(video) {
 	const out = [];
@@ -3585,6 +3600,7 @@ function adultThumbCandidatesForVideo(video) {
 	pushExact(video.poster);
 	pushExact(video.remote?.previewUrl);
 	for (const url of video.remote?.thumbFallbacks ?? []) pushExact(url);
+	for (const url of redgifsPosterCandidates(video)) pushExact(url);
 	pushExpanded(video.poster);
 	pushExpanded(video.remote?.previewUrl);
 	if (!out.length && video.remote?.kind === "redtube" && video.remote.videoId) for (const url of collectRedtubeThumbCandidates({ video_id: video.remote.videoId })) pushExact(url);

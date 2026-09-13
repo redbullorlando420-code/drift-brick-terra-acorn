@@ -1,7 +1,7 @@
 import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { r as Slot, s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
-import { B as isUsableAdultThumb, C as adultSourceTag, D as adultTextFetishTags, E as adultTaxonomyTags, F as isAdultImageKind, G as redditIngestExtras, H as markAdultThumbGood, I as isAdultMetaTaxonomyTag, J as rememberAdultPullFingerprint, K as redditTitleTokens, L as isAdultPullKind, M as fetishSearchQuery, N as findFreshAdultPullFingerprint, O as adultThumbCandidatesForVideo, P as isAdultGenreTag, R as isAdultThumbBlacklisted, S as adultRemoteLabel, T as adultTaxonomyLabel, U as mineRedditCommentTags, V as markAdultThumbFailed, Y as warmAdultThumbUrls, a as ADULT_FOLDER_BY_PROVIDER, c as ADULT_PULL_PROVIDERS, h as LIBRARY_LIMITS, i as ADULT_FEATURED_FETISH_TAGS, l as ADULT_REDDIT_SUBS, n as ADULT_CURATED_FETISH_TAGS, o as ADULT_FOLDER_IDS, r as ADULT_EMBED_LINKS, s as ADULT_MILESTONE_LINKS, t as ADULT_CATEGORY_HUB, u as ADULT_SOURCE_OPTIONS, w as adultTagRankBoost, x as adultIngestTags, z as isDecodedAdultThumbLikelyReal } from "./library-limits-baHoJ0tI.mjs";
+import { B as isUsableAdultThumb, C as adultSourceTag, D as adultTextFetishTags, E as adultTaxonomyTags, F as isAdultImageKind, G as redditIngestExtras, H as markAdultThumbGood, I as isAdultMetaTaxonomyTag, J as rememberAdultPullFingerprint, K as redditTitleTokens, L as isAdultPullKind, M as fetishSearchQuery, N as findFreshAdultPullFingerprint, O as adultThumbCandidatesForVideo, P as isAdultGenreTag, R as isAdultThumbBlacklisted, S as adultRemoteLabel, T as adultTaxonomyLabel, U as mineRedditCommentTags, V as markAdultThumbFailed, Y as warmAdultThumbUrls, a as ADULT_FOLDER_BY_PROVIDER, c as ADULT_PULL_PROVIDERS, h as LIBRARY_LIMITS, i as ADULT_FEATURED_FETISH_TAGS, l as ADULT_REDDIT_SUBS, n as ADULT_CURATED_FETISH_TAGS, o as ADULT_FOLDER_IDS, r as ADULT_EMBED_LINKS, s as ADULT_MILESTONE_LINKS, t as ADULT_CATEGORY_HUB, u as ADULT_SOURCE_OPTIONS, w as adultTagRankBoost, x as adultIngestTags, z as isDecodedAdultThumbLikelyReal } from "./library-limits-lu5rb8Fj.mjs";
 import { n as create, t as useShallow } from "../_libs/zustand.mjs";
 import { n as clsx, t as cva } from "../_libs/class-variance-authority+clsx.mjs";
 import { t as twMerge } from "../_libs/tailwind-merge.mjs";
@@ -11,7 +11,7 @@ import { a as DialogPortal, i as DialogOverlay, n as DialogClose, o as DialogTit
 import { t as Root } from "../_libs/radix-ui__react-separator.mjs";
 import { a as Trigger, i as Root2, n as Item2, r as Portal2, t as Content2 } from "../_libs/@radix-ui/react-dropdown-menu+[...].mjs";
 import { i as SliderTrack, n as SliderRange, r as SliderThumb, t as Slider$1 } from "../_libs/@radix-ui/react-slider+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-CsYlFxoy.js
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-1K3sQEIs.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var __defProp = Object.defineProperty;
@@ -868,6 +868,7 @@ var SYSTEM_SOURCES = /* @__PURE__ */ new Set([
 	"favorites",
 	"history",
 	"adults",
+	"adult-fetishes",
 	"continue",
 	"youtube",
 	"twitch",
@@ -1277,6 +1278,26 @@ function write$1(days) {
 		localStorage.setItem(KEY$1, JSON.stringify(days.slice(-400)));
 	} catch {}
 }
+/** Rebuild current-week progress from the durable feedback ledger. Older
+* versions saved the rating but did not always update this lightweight UI
+* counter, especially after a refresh or browser restore. */
+function reconcileRatingLedger(days) {
+	try {
+		const feedback = JSON.parse(localStorage.getItem("reelcase.media-feedback.v1") ?? "{}");
+		for (const [id, row] of Object.entries(feedback.ratingHistory ?? {})) {
+			if (!(Number(row.rating) > 0) || !Number.isFinite(Number(row.updatedAt))) continue;
+			const day = dayKey(new Date(Number(row.updatedAt)));
+			const target = days.find((entry) => entry.day === day);
+			if (target) {
+				if (!target.ids.includes(id)) target.ids.push(id);
+			} else days.push({
+				day,
+				ids: [id]
+			});
+		}
+	} catch {}
+	return days;
+}
 function recordRatingForStreak(id, rating) {
 	if (!id || rating < 1 || typeof window === "undefined") return;
 	const days = read$1();
@@ -1292,7 +1313,8 @@ function recordRatingForStreak(id, rating) {
 	window.dispatchEvent(new Event("reelcase:rating-streak-change"));
 }
 function getRatingStreakSnapshot(now = /* @__PURE__ */ new Date()) {
-	const days = read$1();
+	const days = reconcileRatingLedger(read$1());
+	write$1(days);
 	const weeklyGoalValue = weeklyGoal();
 	const currentWeek = weekKey(now);
 	const weekTotals = /* @__PURE__ */ new Map();
@@ -1353,7 +1375,8 @@ function read() {
 			notes: saved.notes ?? {},
 			creatorRatings: saved.creatorRatings ?? {},
 			creatorLikes: saved.creatorLikes ?? {},
-			tagLikes: saved.tagLikes ?? {}
+			tagLikes: saved.tagLikes ?? {},
+			tagHeartHistory: saved.tagHeartHistory ?? {}
 		};
 	} catch {
 		cached = {
@@ -1362,7 +1385,8 @@ function read() {
 			notes: {},
 			creatorRatings: {},
 			creatorLikes: {},
-			tagLikes: {}
+			tagLikes: {},
+			tagHeartHistory: {}
 		};
 	}
 	return cached;
@@ -1467,11 +1491,20 @@ function tagKey(tag) {
 function tagIsLiked(tag) {
 	return Boolean(read().tagLikes[tagKey(tag)]);
 }
+function tagHasHeartHistory(tag) {
+	return Boolean(read().tagHeartHistory[tagKey(tag)]);
+}
+function getHeartedTagHistory() {
+	return Object.keys(read().tagHeartHistory).sort((a, b) => (read().tagHeartHistory[b] ?? 0) - (read().tagHeartHistory[a] ?? 0));
+}
 function toggleTagLike(tag) {
 	const next = read();
 	const key = tagKey(tag);
 	if (next.tagLikes[key]) delete next.tagLikes[key];
-	else next.tagLikes[key] = true;
+	else {
+		next.tagLikes[key] = true;
+		next.tagHeartHistory[key] ??= Date.now();
+	}
 	write(next);
 	notifyChange();
 }
@@ -1877,7 +1910,7 @@ function persistNow(get) {
 		view: s.view,
 		sort: s.sort,
 		hideDemo: s.hideDemo,
-		sourceId: s.sourceId === "adults" ? "home" : s.sourceId,
+		sourceId: s.sourceId === "adults" || s.sourceId === "adult-fetishes" ? "home" : s.sourceId,
 		hardwareAccel: s.hardwareAccel,
 		privateFolderIds: s.folders.filter((f) => f.adult).map((f) => f.id),
 		adultPinHash: s.adultPinHash,
@@ -2049,11 +2082,13 @@ function dedupeFollows(rows) {
 function remoteMetadataTags(video) {
 	const creator = video.remote?.channelName?.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") ?? "";
 	const provider = video.remote?.kind ? `provider-${video.remote.kind}` : "";
+	const adult = video.remote && ADULT_PULL_PROVIDERS.includes(video.remote.kind) ? "adult" : "";
 	const format = video.remote?.live ? "format-live" : video.remote ? "format-vod" : "";
 	const twitchFormat = video.remote?.kind === "twitch" ? video.remote.live ? "twitch-live" : "twitch-vod" : "";
 	const genre = video.genre?.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 	const twitchGame = video.remote?.kind === "twitch" && genre ? `twitch-game-${genre}` : "";
 	return [...new Set([
+		adult,
 		provider,
 		creator,
 		format,
@@ -2079,7 +2114,7 @@ function enrichRemoteTags(existing, videos) {
 function compactIngestedTags(existing, inferred) {
 	const seen = /* @__PURE__ */ new Set();
 	const compact = [];
-	const structural = (tag) => /^(?:source-|sub-|creator-|provider-|format-|fetish-|genre-|meta-)/.test(tag.trim().toLowerCase());
+	const structural = (tag) => tag.trim().toLowerCase() === "adult" || /^(?:source-|sub-|creator-|provider-|format-|fetish-|genre-|meta-)/.test(tag.trim().toLowerCase());
 	const ordered = [
 		...inferred.filter(structural),
 		...existing,
@@ -2262,6 +2297,81 @@ function adultIdSet(folders) {
 function isAdultVideo(video, folders) {
 	return adultIdSet(folders).has(video.folderId);
 }
+/** A provider can surface the same remote media through more than one route
+* (especially a Reddit post linked to Redgifs). Keep the richer card and its
+* combined source attribution, rather than rendering or caching it twice. */
+function adultMediaIdentity(video) {
+	const urls = [
+		video.remote?.embedUrl,
+		video.remote?.watchUrl,
+		video.src
+	].filter((value) => Boolean(value && /^https?:\/\//i.test(value)));
+	for (const raw of urls) {
+		const redgifs = raw.match(/https?:\/\/(?:www\.)?redgifs\.com\/(?:watch|ifr)\/([a-z0-9_-]+)/i)?.[1] ?? raw.match(/https?:\/\/thumbs\d*\.redgifs\.com\/([a-z0-9_-]+)-(?:mobile|poster|thumb)\.(?:jpe?g|webp)/i)?.[1] ?? raw.match(/https?:\/\/(?:i|media)\.redgifs\.com\/([a-z0-9_-]+)(?:[._-]|$)/i)?.[1];
+		if (redgifs) return `redgifs:${redgifs.toLowerCase()}`;
+		try {
+			const url = new URL(raw);
+			const host = url.hostname.replace(/^www\./, "").toLowerCase();
+			const path = url.pathname.replace(/\/+$/, "").toLowerCase();
+			if (host && path && path !== "/") return `url:${host}${path}`;
+		} catch {}
+	}
+	const kind = video.remote?.kind;
+	const id = video.remote?.videoId?.trim();
+	return kind && id ? `provider:${kind}:${id.toLowerCase()}` : void 0;
+}
+function adultCardQuality(video) {
+	return Number(Boolean(video.poster || video.remote?.previewUrl)) * 4 + Number(Boolean(video.remote?.embedUrl)) * 3 + Number(Boolean(video.remote?.watchUrl)) * 2 + (video.remote?.sourceKinds?.length ?? 0) + Number(video.remote?.kind === "reddit") * 2 + Number(Boolean(video.description || video.tagline));
+}
+function mergeAdultDuplicate(first, second) {
+	const primary = adultCardQuality(second) > adultCardQuality(first) ? second : first;
+	const secondary = primary === first ? second : first;
+	const primaryRemote = primary.remote;
+	const secondaryRemote = secondary.remote;
+	return {
+		...primary,
+		addedAt: Math.max(primary.addedAt, secondary.addedAt),
+		poster: primary.poster || secondary.poster,
+		src: primary.src || secondary.src,
+		description: primary.description || secondary.description,
+		tagline: primary.tagline || secondary.tagline,
+		remote: primaryRemote && secondaryRemote ? {
+			...secondaryRemote,
+			...primaryRemote,
+			videoId: primaryRemote.videoId || secondaryRemote.videoId,
+			channelName: primaryRemote.channelName || secondaryRemote.channelName,
+			channelId: primaryRemote.channelId || secondaryRemote.channelId,
+			embedUrl: primaryRemote.embedUrl || secondaryRemote.embedUrl,
+			watchUrl: primaryRemote.watchUrl || secondaryRemote.watchUrl,
+			previewUrl: primaryRemote.previewUrl || secondaryRemote.previewUrl,
+			sourceKinds: [...new Set([
+				primaryRemote.kind,
+				secondaryRemote.kind,
+				...primaryRemote.sourceKinds ?? [],
+				...secondaryRemote.sourceKinds ?? []
+			].filter(Boolean))]
+		} : primaryRemote
+	};
+}
+function dedupeAdultVideoCards(videos) {
+	const result = [];
+	const byIdentity = /* @__PURE__ */ new Map();
+	for (const video of videos) {
+		const key = adultMediaIdentity(video);
+		if (!key) {
+			result.push(video);
+			continue;
+		}
+		const previousIndex = byIdentity.get(key);
+		if (previousIndex == null) {
+			byIdentity.set(key, result.length);
+			result.push(video);
+			continue;
+		}
+		result[previousIndex] = mergeAdultDuplicate(result[previousIndex], video);
+	}
+	return result;
+}
 var useLibrary = create((set, get) => ({
 	folders: [],
 	videos: [],
@@ -2359,8 +2469,8 @@ var useLibrary = create((set, get) => ({
 		set((s) => {
 			const tags = { ...s.tags };
 			for (const video of s.videos) {
-				const inferred = video.remote ? remoteMetadataTags(video) : localNameTags(video);
-				const merged = compactIngestedTags((tags[video.id] ?? []).map((tag) => tag.replace(/^keyword-/i, "").replace(/^creator-/i, "")), inferred);
+				const inferred = video.remote ? remoteMetadataTags(video) : [...isAdultVideo(video, s.folders) ? ["adult"] : [], ...localNameTags(video)];
+				const merged = compactIngestedTags((tags[video.id] ?? []).map((tag) => tag.replace(/^keyword-/i, "")), inferred);
 				if (merged.length !== (tags[video.id] ?? []).length) changed += 1;
 				tags[video.id] = merged;
 			}
@@ -2533,6 +2643,7 @@ var useLibrary = create((set, get) => ({
 				...f,
 				adult
 			} : f),
+			tags: adult ? Object.fromEntries(s.videos.map((video) => [video.id, video.folderId === folderId ? compactIngestedTags(s.tags[video.id] ?? [], ["adult"]) : s.tags[video.id] ?? []])) : s.tags,
 			sourceId: adult ? "adults" : s.sourceId === folderId ? "home" : s.sourceId,
 			activeId: s.activeId && s.videos.some((v) => v.id === s.activeId && v.folderId === folderId) && adult && !s.adultsUnlocked ? null : s.activeId
 		}));
@@ -2551,7 +2662,7 @@ var useLibrary = create((set, get) => ({
 			adultPullStatus: null
 		});
 		try {
-			const { searchAdultVideos } = await import("./api-djS3Gh_Q.mjs");
+			const { searchAdultVideos } = await import("./api-ORUKXm9_.mjs");
 			const page = opts?.page ?? 1;
 			const maxVideos = opts?.maxVideos ?? LIBRARY_LIMITS.epornerVideosPerPull;
 			const append = Boolean(opts?.append);
@@ -2594,7 +2705,8 @@ var useLibrary = create((set, get) => ({
 				providers: providerKey,
 				count: result.videos.length
 			});
-			const videos = applyCachedAdultUrls(result.videos);
+			const fetchedVideos = applyCachedAdultUrls(result.videos);
+			const videos = dedupeAdultVideoCards(fetchedVideos);
 			cacheAdultVideoUrls(videos);
 			const touched = new Set(videos.map((v) => v.folderId));
 			set((s) => {
@@ -2656,7 +2768,7 @@ var useLibrary = create((set, get) => ({
 					remoteBusy: false,
 					importProgress: null,
 					adultPullStatus: {
-						note: result.note,
+						note: fetchedVideos.length > videos.length ? `${result.note ?? "Adult catalog updated."} ${fetchedVideos.length - videos.length} duplicate media row${fetchedVideos.length - videos.length === 1 ? " was" : "s were"} merged before display.` : result.note,
 						diagnostics: result.providerDiagnostics
 					}
 				};
@@ -2767,7 +2879,7 @@ var useLibrary = create((set, get) => ({
 		const rel = files[0].webkitRelativePath || "";
 		const folderName = asDirectory ? rel.split("/")[0] || "Folder" : "Added files";
 		const folderId = asDirectory ? `folder:${folderName}:${crypto.randomUUID().slice(0, 8)}` : `files:${crypto.randomUUID().slice(0, 8)}`;
-		const adult = Boolean(opts?.adult) || get().sourceId === "adults";
+		const adult = Boolean(opts?.adult) || get().sourceId === "adults" || get().sourceId === "adult-fetishes";
 		const folder = {
 			id: folderId,
 			name: folderName,
@@ -2813,7 +2925,7 @@ var useLibrary = create((set, get) => ({
 	ingestDrop: async (dt) => {
 		const nameGuess = dt.files?.[0]?.webkitRelativePath?.split("/")[0] || dt.files?.[0]?.name || "Dropped files";
 		const folderId = `drop:${crypto.randomUUID().slice(0, 8)}`;
-		const adult = get().sourceId === "adults";
+		const adult = get().sourceId === "adults" || get().sourceId === "adult-fetishes";
 		set((s) => ({
 			folders: [...s.folders, {
 				id: folderId,
@@ -3215,7 +3327,7 @@ var useLibrary = create((set, get) => ({
 	followRemoteQuery: async (query, kind = "auto") => {
 		set({ remoteBusy: true });
 		try {
-			const { followRemote } = await import("./api-djS3Gh_Q.mjs");
+			const { followRemote } = await import("./api-ORUKXm9_.mjs");
 			const result = await followRemote({ data: {
 				query,
 				kind
@@ -3280,7 +3392,7 @@ var useLibrary = create((set, get) => ({
 		const failedReasons = {};
 		const chunk = 20;
 		try {
-			const { importChannels } = await import("./api-djS3Gh_Q.mjs");
+			const { importChannels } = await import("./api-ORUKXm9_.mjs");
 			for (let i = 0; i < unique.length; i += chunk) {
 				const slice = unique.slice(i, i + chunk);
 				let result;
@@ -3403,7 +3515,7 @@ var useLibrary = create((set, get) => ({
 		const beforeLive = new Set(get().videos.filter((v) => v.remote?.live).map((v) => v.id));
 		const beforeIds = new Set(get().videos.map((v) => v.id));
 		try {
-			const { refreshRemotes } = await import("./api-djS3Gh_Q.mjs");
+			const { refreshRemotes } = await import("./api-ORUKXm9_.mjs");
 			const result = await refreshRemotes({ data: { channels: current } });
 			new Set(result.refreshedIds);
 			set((s) => {
@@ -3562,11 +3674,11 @@ function publicList(state) {
 }
 function adultList(state) {
 	const adult = adultIdSet(state.folders);
-	return state.videos.filter((v) => !state.unavailable[v.id] && adult.has(v.folderId));
+	return dedupeAdultVideoCards(state.videos.filter((v) => !state.unavailable[v.id] && adult.has(v.folderId)));
 }
 function selectVisible(state) {
 	const q = state.query.trim().toLowerCase();
-	const inAdults = state.sourceId === "adults";
+	const inAdults = state.sourceId === "adults" || state.sourceId === "adult-fetishes";
 	let list = inAdults ? adultList(state) : publicList(state);
 	if (state.sourceId === "favorites") list = list.filter((v) => state.favorites[v.id]);
 	else if (state.sourceId === "continue") list = selectContinue(state, false);
@@ -3673,6 +3785,7 @@ function selectHistory(state, adult = false) {
 		const isRedgifs = /redgifs\.com/i.test(historyUrl);
 		const adultKind = isEporner ? "eporner" : isRedtube ? "redtube" : isChaturbate ? "chaturbate" : isCamsoda ? "camsoda" : isMfc ? "myfreecams" : isReddit ? "reddit" : isBooru ? "booru" : isRedgifs ? "redgifs" : null;
 		if (!adult && (isEporner || isRedtube || isChaturbate || isCamsoda || isMfc || isReddit || isBooru || isRedgifs)) return null;
+		if (adult && !adultKind) return null;
 		const signature = `${h.at}:${h.url}:${h.position ?? ""}:${h.duration ?? ""}:${h.title ?? ""}`;
 		const cachedRecovery = historyRecoveryCardCache.get(h.id);
 		if (cachedRecovery?.signature === signature) return cachedRecovery.video;
@@ -3707,7 +3820,7 @@ function selectHistory(state, adult = false) {
 /** Combined official adult pull shelves (Eporner + RedTube). */
 function selectAdultRemote(state) {
 	const matching = state.videos.filter((v) => v.remote?.kind === "eporner" || v.remote?.kind === "redtube" || v.remote?.kind === "chaturbate" || v.remote?.kind === "camsoda" || v.remote?.kind === "myfreecams" || v.remote?.kind === "reddit" || v.remote?.kind === "booru" || v.remote?.kind === "redgifs" || ADULT_FOLDER_IDS.includes(v.folderId));
-	return [...new Map(matching.map((video) => [video.id, video])).values()].sort((a, b) => b.addedAt - a.addedAt);
+	return dedupeAdultVideoCards([...new Map(matching.map((video) => [video.id, video])).values()]).sort((a, b) => b.addedAt - a.addedAt);
 }
 function selectYoutube(state) {
 	const memo = memoFor(state);
@@ -4867,7 +4980,9 @@ function countAdultBySource(videos) {
 * creators already have dedicated filters; raw API keyword dumps stay
 * searchable without flooding the browse chips. */
 function isAdultInterestTag(tag) {
-	return tag.startsWith("fetish-") || isAdultGenreTag(tag);
+	const clean = tag.trim().toLowerCase();
+	if (/^(?:fetish-)?(?:https?|www|com|watch|comments|reddit|redgifs|eporner|redtube)(?:-|$)/.test(clean) || /(?:https?|www|\.com)/.test(clean)) return false;
+	return clean.startsWith("fetish-") || isAdultGenreTag(clean);
 }
 function redditSignal(tags) {
 	let score = 0;
@@ -4887,6 +5002,10 @@ function scoreAdultVideo(video, ctx) {
 	const recency = Math.max(0, 1 - (Date.now() - video.addedAt) / 18144e5) * 8;
 	const reddit = video.remote?.kind === "reddit" ? 6 + redditSignal(itemTags) : redditSignal(itemTags);
 	return rating * 14 + (ctx.favorites[video.id] ? 10 : 0) + (ctx.likes[video.id] ? 6 : 0) + came + views + boost + recency + reddit + Math.min(6, itemTags.length) * .35;
+}
+function stabilizedTagScore(engagement, count, recency, boost, providerCoverage = 1) {
+	const support = count / (count + 4);
+	return (1 + (engagement - 1) * support) * 12 + Math.log2(count + 1) * 2.4 + recency * 4 * support + boost * support + Math.min(4, providerCoverage) * 1.25 * support;
 }
 /**
 * Metadata stays searchable and useful to recommendations without becoming an
@@ -4925,9 +5044,9 @@ function rankAdultTags(videos, ctx, limit = 64) {
 		return {
 			tag,
 			count: row.count,
-			score: engagement * 12 + row.count * .35 + recency * 4 + adultTagRankBoost(tag)
+			score: stabilizedTagScore(engagement, row.count, recency, adultTagRankBoost(tag)) + (ctx.tagIsHearted?.(tag) ? 48 : 0) + (ctx.tagHasHeartHistory?.(tag) ? 6 : 0)
 		};
-	}).sort((a, b) => b.score - a.score || b.count - a.count || a.tag.localeCompare(b.tag)).slice(0, limit);
+	}).filter((row) => row.count >= 2).sort((a, b) => b.score - a.score || b.count - a.count || a.tag.localeCompare(b.tag)).slice(0, limit);
 }
 function sortAdultVideos(videos, ctx) {
 	const scored = videos.map((video) => ({
@@ -4979,9 +5098,179 @@ function rankAdultMetaTags(videos, ctx, limit = 64) {
 		return {
 			tag,
 			count: row.count,
-			score: engagement * 10 + row.count * .25 + recency * 3 + Math.min(4, row.providers.size) * 1.5
+			score: stabilizedTagScore(engagement, row.count, recency, 0, row.providers.size) + (ctx.tagIsHearted?.(tag) ? 48 : 0) + (ctx.tagHasHeartHistory?.(tag) ? 6 : 0)
 		};
-	}).sort((a, b) => b.score - a.score || b.count - a.count || a.tag.localeCompare(b.tag)).slice(0, limit);
+	}).filter((row) => row.count >= 2).sort((a, b) => b.score - a.score || b.count - a.count || a.tag.localeCompare(b.tag)).slice(0, limit);
+}
+function coverage(ready, total) {
+	return {
+		ready,
+		missing: Math.max(0, total - ready),
+		share: total ? ready / total : 0
+	};
+}
+function isHttpUrl(value) {
+	return Boolean(value && /^https?:\/\//i.test(value.trim()));
+}
+function previewCandidates(video) {
+	const raw = [
+		video.poster,
+		video.remote?.previewUrl,
+		...video.remote?.thumbFallbacks ?? []
+	];
+	const seen = /* @__PURE__ */ new Set();
+	return raw.filter(isHttpUrl).map((url) => url.trim()).filter((url) => {
+		const key = url.toLowerCase();
+		if (seen.has(key)) return false;
+		seen.add(key);
+		return true;
+	});
+}
+/** Legacy transport/parser fragments should stay searchable on a card but
+* must not be exported as a personal preference or a tag connection. */
+function isAdultStatsNoiseTag(raw) {
+	const tag = raw.trim().toLowerCase();
+	if (!tag) return true;
+	if (/(?:https?:|\bwww\b|\.com\b|\/watch\b|\/comments?\b)/.test(tag)) return true;
+	const plain = tag.replace(/^fetish-/, "");
+	return /^(?:https?|www|com|watch|comments?|reddit|redgifs|eporner|redtube|chaturbate|camsoda|myfreecams|booru)(?:-|$)/.test(plain);
+}
+function usefulInterestTags(video, tags) {
+	const raw = tags[video.id] ?? [];
+	return [.../* @__PURE__ */ new Set([...raw, ...raw.flatMap(adultTaxonomyTags)])].filter((tag) => isAdultInterestTag(tag) && !isAdultStatsNoiseTag(tag));
+}
+function usefulMetaTags(video, tags) {
+	const raw = tags[video.id] ?? [];
+	return [.../* @__PURE__ */ new Set([...raw, ...raw.flatMap(adultTaxonomyTags)])].filter((tag) => isAdultMetaTag(tag) && !isAdultStatsNoiseTag(tag));
+}
+function meaningfulCreatorKeys(video, itemTags) {
+	const creatorTags = itemTags.filter((tag) => tag.startsWith("creator-")).map((tag) => tag.slice(8).trim().toLowerCase()).filter((tag) => tag.length >= 2 && !isAdultStatsNoiseTag(tag));
+	if (creatorTags.length) return [...new Set(creatorTags.map((tag) => `tag:${tag}`))];
+	const name = video.remote?.channelName?.trim();
+	if (!name) return [];
+	const normalized = name.toLowerCase().replace(/^@/, "").replace(/\s+/g, " ");
+	const kind = adultProviderKind(video);
+	const providerNames = /* @__PURE__ */ new Set([
+		kind,
+		adultRemoteLabel(kind).toLowerCase(),
+		"adult",
+		"video",
+		"live",
+		"cam"
+	]);
+	if (!normalized || providerNames.has(normalized) || normalized.startsWith("r/")) return [];
+	return [`remote:${normalized}`];
+}
+function hasAmbiguousCreator(video, itemTags) {
+	return Boolean(video.remote?.channelName?.trim()) && meaningfulCreatorKeys(video, itemTags).length === 0;
+}
+function redgifsSlug(raw) {
+	return raw.match(/https?:\/\/(?:www\.)?redgifs\.com\/(?:watch|ifr)\/([a-z0-9_-]+)/i)?.[1] ?? raw.match(/https?:\/\/thumbs\d*\.redgifs\.com\/([a-z0-9_-]+)-(?:mobile|poster|thumb)\.(?:jpe?g|webp)/i)?.[1] ?? raw.match(/https?:\/\/(?:i|media)\.redgifs\.com\/([a-z0-9_-]+)(?:[._-]|$)/i)?.[1];
+}
+function canonicalMediaLink(raw) {
+	const redgifs = redgifsSlug(raw);
+	if (redgifs) return `redgifs:${redgifs.toLowerCase()}`;
+	try {
+		const url = new URL(raw);
+		const host = url.hostname.replace(/^www\./, "").toLowerCase();
+		const path = url.pathname.replace(/\/+$/, "").toLowerCase();
+		const hash = url.hash && url.hash !== "#" ? url.hash.toLowerCase() : "";
+		if (host && path && path !== "/") return `url:${host}${path}${hash}`;
+		return host && hash ? `url:${host}${hash}` : void 0;
+	} catch {
+		return;
+	}
+}
+function duplicateSignalsFor(video) {
+	const rows = [];
+	const kind = adultProviderKind(video);
+	const id = video.remote?.videoId?.trim();
+	if (kind && id) rows.push({
+		signal: "provider-id",
+		key: `provider:${kind}:${id.toLowerCase()}`
+	});
+	for (const url of [
+		video.remote?.embedUrl,
+		video.remote?.watchUrl,
+		video.src,
+		video.poster,
+		video.remote?.previewUrl
+	].filter(isHttpUrl)) {
+		const key = canonicalMediaLink(url);
+		if (key) rows.push({
+			signal: "media-link",
+			key
+		});
+	}
+	const seen = /* @__PURE__ */ new Set();
+	return rows.filter((row) => {
+		const identity = `${row.signal}\u0000${row.key}`;
+		if (seen.has(identity)) return false;
+		seen.add(identity);
+		return true;
+	});
+}
+function duplicateStats(videos) {
+	const bySignal = /* @__PURE__ */ new Map([["provider-id", /* @__PURE__ */ new Map()], ["media-link", /* @__PURE__ */ new Map()]]);
+	for (const video of videos) for (const row of duplicateSignalsFor(video)) {
+		const groups = bySignal.get(row.signal);
+		const group = groups.get(row.key) ?? /* @__PURE__ */ new Set();
+		group.add(video.id);
+		groups.set(row.key, group);
+	}
+	const parent = new Map(videos.map((video) => [video.id, video.id]));
+	const find = (id) => {
+		const root = parent.get(id) ?? id;
+		if (root === id) return id;
+		const canonical = find(root);
+		parent.set(id, canonical);
+		return canonical;
+	};
+	const join = (left, right) => {
+		const a = find(left);
+		const b = find(right);
+		if (a !== b) parent.set(b, a);
+	};
+	for (const groups of bySignal.values()) for (const ids of groups.values()) {
+		const [first, ...rest] = ids;
+		if (!first || ids.size < 2) continue;
+		for (const id of rest) join(first, id);
+	}
+	const components = /* @__PURE__ */ new Map();
+	for (const video of videos) {
+		const root = find(video.id);
+		const group = components.get(root) ?? [];
+		group.push(video.id);
+		components.set(root, group);
+	}
+	const duplicateComponents = [...components.values()].filter((ids) => ids.length > 1);
+	const bySignalRows = ["provider-id", "media-link"].map((signal) => {
+		const groups = [...bySignal.get(signal).values()].filter((ids) => ids.size > 1);
+		return {
+			signal,
+			groups: groups.length,
+			affectedTitles: groups.reduce((sum, ids) => sum + ids.size, 0),
+			extraTitles: groups.reduce((sum, ids) => sum + ids.size - 1, 0)
+		};
+	});
+	const affectedTitles = duplicateComponents.reduce((sum, ids) => sum + ids.length, 0);
+	const extraTitles = duplicateComponents.reduce((sum, ids) => sum + ids.length - 1, 0);
+	return {
+		candidateGroups: duplicateComponents.length,
+		affectedTitles,
+		extraTitles,
+		share: videos.length ? affectedTitles / videos.length : 0,
+		bySignal: bySignalRows
+	};
+}
+function countSubredditTags(videos, tags) {
+	const counts = /* @__PURE__ */ new Map();
+	for (const video of videos) if (adultProviderKinds(video).includes("reddit")) for (const tag of new Set((tags[video.id] ?? []).filter((tag) => tag.startsWith("sub-") && !isAdultStatsNoiseTag(tag)))) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+	return [...counts.entries()].map(([tag, count]) => ({
+		tag,
+		count,
+		score: Math.log2(count + 1) * 10
+	})).sort((a, b) => b.count - a.count || b.score - a.score || a.tag.localeCompare(b.tag)).slice(0, 40);
 }
 function buildAdultStatsSnapshot(videos, folders, tags, ctx) {
 	const adultIds = new Set(folders.filter((folder) => folder.adult).map((folder) => folder.id));
@@ -4991,20 +5280,126 @@ function buildAdultStatsSnapshot(videos, folders, tags, ctx) {
 		...ctx,
 		tags
 	};
-	const ranked = rankAdultTags(adultVideos, rankCtx, 120);
-	const metaRanked = rankAdultMetaTags(adultVideos, rankCtx, 120);
+	const ranked = rankAdultTags(adultVideos, rankCtx, 160).filter((row) => !isAdultStatsNoiseTag(row.tag));
+	const metaRanked = rankAdultMetaTags(adultVideos, rankCtx, 160).filter((row) => !isAdultStatsNoiseTag(row.tag));
 	const sources = countAdultBySource(adultVideos);
-	const providerMix = ADULT_PULL_PROVIDERS.map((provider) => ({
-		provider,
-		label: adultRemoteLabel(provider),
-		titles: sources[provider] ?? 0,
-		share: adultVideos.length ? (sources[provider] ?? 0) / adultVideos.length : 0,
-		status: sources[provider] ?? 0 ? "active" : "empty"
-	})).sort((a, b) => b.titles - a.titles || a.label.localeCompare(b.label));
+	const primarySources = { all: adultVideos.length };
+	for (const provider of ADULT_PULL_PROVIDERS) primarySources[provider] = 0;
+	for (const video of adultVideos) {
+		const provider = adultProviderKind(video);
+		if (provider) primarySources[provider] = (primarySources[provider] ?? 0) + 1;
+	}
+	const dedupe = duplicateStats(adultVideos);
+	const duplicateVideoIds = /* @__PURE__ */ new Set();
+	for (const signal of ["provider-id", "media-link"]) {
+		const seen = /* @__PURE__ */ new Map();
+		for (const video of adultVideos) for (const row of duplicateSignalsFor(video)) if (row.signal === signal) {
+			const previous = seen.get(row.key);
+			if (previous) {
+				duplicateVideoIds.add(previous);
+				duplicateVideoIds.add(video.id);
+			} else seen.set(row.key, video.id);
+		}
+	}
+	const connections = /* @__PURE__ */ new Map();
+	const interestCounts = /* @__PURE__ */ new Map();
+	let noisyTagAssignments = 0;
+	let adultTagged = 0;
+	let declaredPreviews = 0;
+	let backedPreviews = 0;
+	let embeddable = 0;
+	let redgifsTitles = 0;
+	let redgifsPreviews = 0;
+	let redgifsBackedPreviews = 0;
+	let creatorCredited = 0;
+	let creatorTagged = 0;
+	let ambiguousCreators = 0;
+	let usefulTagged = 0;
+	let metadataTagged = 0;
+	let multiInterestTagged = 0;
+	let sourceTagged = 0;
+	let usefulTagAssignments = 0;
+	const creators = /* @__PURE__ */ new Set();
+	for (const video of adultVideos) {
+		const itemTags = tags[video.id] ?? [];
+		const kind = adultProviderKind(video);
+		const providerKinds = adultProviderKinds(video);
+		const previews = previewCandidates(video);
+		const interests = usefulInterestTags(video, tags);
+		const metadata = usefulMetaTags(video, tags);
+		const creatorKeys = meaningfulCreatorKeys(video, itemTags);
+		if (itemTags.includes("adult")) adultTagged += 1;
+		if (previews.length) declaredPreviews += 1;
+		if (previews.length >= 2) backedPreviews += 1;
+		if (video.remote?.embedUrl) embeddable += 1;
+		if (providerKinds.includes("redgifs")) {
+			redgifsTitles += 1;
+			if (previews.length) redgifsPreviews += 1;
+			if (previews.length >= 2) redgifsBackedPreviews += 1;
+		}
+		if (creatorKeys.length) {
+			creatorCredited += 1;
+			for (const creator of creatorKeys) creators.add(creator);
+		}
+		if (itemTags.some((tag) => tag.startsWith("creator-"))) creatorTagged += 1;
+		if (hasAmbiguousCreator(video, itemTags)) ambiguousCreators += 1;
+		if (interests.length) usefulTagged += 1;
+		if (metadata.length) metadataTagged += 1;
+		if (interests.length >= 2) multiInterestTagged += 1;
+		if (providerKinds.length || itemTags.some((tag) => tag.startsWith("source-"))) sourceTagged += 1;
+		usefulTagAssignments += interests.length;
+		for (const tag of itemTags) if (isAdultStatsNoiseTag(tag)) noisyTagAssignments += 1;
+		const useful = interests.slice(0, 8).sort();
+		for (const tag of useful) interestCounts.set(tag, (interestCounts.get(tag) ?? 0) + 1);
+		for (let left = 0; left < useful.length; left += 1) for (let right = left + 1; right < useful.length; right += 1) {
+			const key = `${useful[left]}\u0000${useful[right]}`;
+			const row = connections.get(key) ?? {
+				count: 0,
+				providers: /* @__PURE__ */ new Set()
+			};
+			row.count += 1;
+			row.providers.add(kind || "local");
+			connections.set(key, row);
+		}
+	}
+	const providerMix = ADULT_PULL_PROVIDERS.map((provider) => {
+		const providerVideos = adultVideos.filter((video) => adultProviderKind(video) === provider);
+		const linkedTitles = adultVideos.filter((video) => adultProviderKind(video) !== provider && adultProviderKinds(video).includes(provider)).length;
+		const primaryTitles = providerVideos.length;
+		const previewed = providerVideos.filter((video) => previewCandidates(video).length > 0).length;
+		const backed = providerVideos.filter((video) => previewCandidates(video).length >= 2).length;
+		const credited = providerVideos.filter((video) => meaningfulCreatorKeys(video, tags[video.id] ?? []).length > 0).length;
+		const tagged = providerVideos.filter((video) => usefulInterestTags(video, tags).length > 0).length;
+		return {
+			provider,
+			label: adultRemoteLabel(provider),
+			titles: primaryTitles,
+			share: adultVideos.length ? primaryTitles / adultVideos.length : 0,
+			status: primaryTitles || linkedTitles ? "active" : "empty",
+			linkedTitles,
+			previewCoverage: coverage(previewed, primaryTitles),
+			backupPreviewCoverage: coverage(backed, primaryTitles),
+			creatorCoverage: coverage(credited, primaryTitles),
+			usefulTagCoverage: coverage(tagged, primaryTitles),
+			duplicateCandidates: providerVideos.filter((video) => duplicateVideoIds.has(video.id)).length
+		};
+	}).sort((a, b) => b.titles - a.titles || b.linkedTitles - a.linkedTitles || a.label.localeCompare(b.label));
+	const tagConnections = [...connections.entries()].map(([key, row]) => {
+		const [left, right] = key.split("\0");
+		const expected = (interestCounts.get(left) ?? 0) * (interestCounts.get(right) ?? 0) / Math.max(adultVideos.length, 1);
+		return {
+			left,
+			right,
+			count: row.count,
+			providerCount: row.providers.size,
+			lift: Math.round(row.count / Math.max(expected, .01) * 100) / 100
+		};
+	}).filter((row) => row.count >= 2).sort((a, b) => b.count * Math.min(b.lift, 3) - a.count * Math.min(a.lift, 3) || b.count - a.count || b.providerCount - a.providerCount || a.left.localeCompare(b.left) || a.right.localeCompare(b.right)).slice(0, 40);
 	return {
 		at: Date.now(),
 		titles: adultVideos.length,
 		sources,
+		primarySources,
 		providerMix,
 		genres: ranked.filter((row) => isAdultGenreTag(row.tag)).slice(0, 40).map((row) => ({
 			...row,
@@ -5013,7 +5408,40 @@ function buildAdultStatsSnapshot(videos, folders, tags, ctx) {
 		topTags: ranked.slice(0, 60),
 		metaTags: metaRanked.slice(0, 60),
 		fetishTags: ranked.filter((row) => row.tag.startsWith("fetish-")).slice(0, 40),
-		redditTags: ranked.filter((row) => row.tag.includes("reddit") || row.tag.startsWith("sub-")).slice(0, 40),
+		redditTags: countSubredditTags(adultVideos, tags),
+		adultTagCoverage: {
+			tagged: adultTagged,
+			missing: adultVideos.length - adultTagged,
+			share: adultVideos.length ? adultTagged / adultVideos.length : 0
+		},
+		previewCoverage: {
+			...coverage(declaredPreviews, adultVideos.length),
+			backed: backedPreviews,
+			backedShare: adultVideos.length ? backedPreviews / adultVideos.length : 0,
+			embeddable,
+			redgifs: {
+				...coverage(redgifsPreviews, redgifsTitles),
+				backed: redgifsBackedPreviews,
+				backedShare: redgifsTitles ? redgifsBackedPreviews / redgifsTitles : 0
+			}
+		},
+		creatorCoverage: {
+			...coverage(creatorCredited, adultVideos.length),
+			canonicalTagged: creatorTagged,
+			ambiguous: ambiguousCreators,
+			uniqueCreators: creators.size
+		},
+		tagQuality: {
+			usefulTagged,
+			metadataTagged,
+			multiInterestTagged,
+			noUsefulInterest: adultVideos.length - usefulTagged,
+			averageUsefulTags: adultVideos.length ? usefulTagAssignments / adultVideos.length : 0,
+			sourceTagged
+		},
+		dedupe,
+		tagConnections,
+		noisyTagAssignments,
 		markedTitles: adultVideos.filter((video) => (ctx.cameCounts[video.id] ?? 0) > 0).length,
 		totalMarks: adultVideos.reduce((sum, video) => sum + (ctx.cameCounts[video.id] ?? 0), 0)
 	};
@@ -5034,6 +5462,126 @@ function adultStatsToCsv(snapshot) {
 			""
 		],
 		[
+			"adult_tagged_titles",
+			"adult",
+			snapshot.adultTagCoverage.tagged,
+			`${Math.round(snapshot.adultTagCoverage.share * 100)}%`
+		],
+		[
+			"adult_tag_missing",
+			"adult",
+			snapshot.adultTagCoverage.missing,
+			""
+		],
+		[
+			"preview_declared",
+			"all",
+			snapshot.previewCoverage.ready,
+			`${Math.round(snapshot.previewCoverage.share * 100)}%`
+		],
+		[
+			"preview_backup",
+			"all",
+			snapshot.previewCoverage.backed,
+			`${Math.round(snapshot.previewCoverage.backedShare * 100)}%`
+		],
+		[
+			"preview_missing",
+			"all",
+			snapshot.previewCoverage.missing,
+			""
+		],
+		[
+			"redgifs_preview_declared",
+			"linked-or-primary",
+			snapshot.previewCoverage.redgifs.ready,
+			`${Math.round(snapshot.previewCoverage.redgifs.share * 100)}%`
+		],
+		[
+			"redgifs_preview_backup",
+			"linked-or-primary",
+			snapshot.previewCoverage.redgifs.backed,
+			`${Math.round(snapshot.previewCoverage.redgifs.backedShare * 100)}%`
+		],
+		[
+			"creator_credited",
+			"all",
+			snapshot.creatorCoverage.ready,
+			`${Math.round(snapshot.creatorCoverage.share * 100)}%`
+		],
+		[
+			"creator_canonical_tag",
+			"creator-*",
+			snapshot.creatorCoverage.canonicalTagged,
+			""
+		],
+		[
+			"creator_ambiguous",
+			"provider-label-only",
+			snapshot.creatorCoverage.ambiguous,
+			""
+		],
+		[
+			"unique_creators",
+			"normalized",
+			snapshot.creatorCoverage.uniqueCreators,
+			""
+		],
+		[
+			"useful_interest_tagged",
+			"all",
+			snapshot.tagQuality.usefulTagged,
+			`${Math.round(snapshot.tagQuality.usefulTagged / Math.max(snapshot.titles, 1) * 100)}%`
+		],
+		[
+			"metadata_tagged",
+			"all",
+			snapshot.tagQuality.metadataTagged,
+			`${Math.round(snapshot.tagQuality.metadataTagged / Math.max(snapshot.titles, 1) * 100)}%`
+		],
+		[
+			"multi_interest_tagged",
+			"two-or-more",
+			snapshot.tagQuality.multiInterestTagged,
+			""
+		],
+		[
+			"no_useful_interest",
+			"all",
+			snapshot.tagQuality.noUsefulInterest,
+			""
+		],
+		[
+			"average_useful_tags",
+			"per-title",
+			snapshot.tagQuality.averageUsefulTags.toFixed(2),
+			""
+		],
+		[
+			"duplicate_candidate_groups",
+			"stable-provider-or-media",
+			snapshot.dedupe.candidateGroups,
+			""
+		],
+		[
+			"duplicate_candidate_titles",
+			"affected",
+			snapshot.dedupe.affectedTitles,
+			`${Math.round(snapshot.dedupe.share * 100)}%`
+		],
+		[
+			"duplicate_extra_titles",
+			"after-one-per-group",
+			snapshot.dedupe.extraTitles,
+			""
+		],
+		[
+			"noisy_tag_assignments",
+			"transport-or-parser",
+			snapshot.noisyTagAssignments,
+			""
+		],
+		[
 			"marked_titles",
 			"i-cummed",
 			snapshot.markedTitles,
@@ -5047,16 +5595,66 @@ function adultStatsToCsv(snapshot) {
 		]
 	];
 	for (const [key, count] of Object.entries(snapshot.sources)) rows.push([
-		"source",
+		"source_link",
 		key,
 		count,
 		""
 	]);
-	for (const row of snapshot.providerMix) rows.push([
-		"provider_mix",
-		`${row.provider}:${row.status}:${Math.round(row.share * 100)}%`,
-		row.titles,
+	for (const [key, count] of Object.entries(snapshot.primarySources)) rows.push([
+		"primary_source",
+		key,
+		count,
 		""
+	]);
+	for (const row of snapshot.providerMix) {
+		rows.push([
+			"provider_mix",
+			`${row.provider}:${row.status}:${Math.round(row.share * 100)}%`,
+			row.titles,
+			""
+		]);
+		rows.push([
+			"provider_linked",
+			row.provider,
+			row.linkedTitles,
+			""
+		]);
+		rows.push([
+			"provider_preview",
+			row.provider,
+			row.previewCoverage.ready,
+			`${Math.round(row.previewCoverage.share * 100)}%`
+		]);
+		rows.push([
+			"provider_preview_backup",
+			row.provider,
+			row.backupPreviewCoverage.ready,
+			`${Math.round(row.backupPreviewCoverage.share * 100)}%`
+		]);
+		rows.push([
+			"provider_creator",
+			row.provider,
+			row.creatorCoverage.ready,
+			`${Math.round(row.creatorCoverage.share * 100)}%`
+		]);
+		rows.push([
+			"provider_useful_tag",
+			row.provider,
+			row.usefulTagCoverage.ready,
+			`${Math.round(row.usefulTagCoverage.share * 100)}%`
+		]);
+		rows.push([
+			"provider_duplicate_candidate",
+			row.provider,
+			row.duplicateCandidates,
+			""
+		]);
+	}
+	for (const row of snapshot.dedupe.bySignal) rows.push([
+		"duplicate_signal",
+		row.signal,
+		row.extraTitles,
+		`${row.groups} groups / ${row.affectedTitles} titles`
 	]);
 	for (const row of snapshot.genres) rows.push([
 		"genre",
@@ -5081,6 +5679,12 @@ function adultStatsToCsv(snapshot) {
 		row.tag,
 		row.count,
 		row.score.toFixed(2)
+	]);
+	for (const row of snapshot.tagConnections) rows.push([
+		"tag_connection",
+		`${row.left} + ${row.right}`,
+		row.count,
+		`lift ${row.lift.toFixed(2)} / ${row.providerCount} sources`
 	]);
 	return rows.map((row) => row.map(quote).join(",")).join("\n");
 }
@@ -6181,6 +6785,12 @@ function SidebarNav({ onAddFolder, onNavigate }) {
 						count: counts.adultCount
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(NavItem, {
+						active: sourceId === "adult-fetishes",
+						onClick: () => go("adult-fetishes"),
+						icon: Sparkles,
+						label: "Fetish Explorer"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(NavItem, {
 						active: sourceId === "photos",
 						onClick: () => go("photos"),
 						icon: Images,
@@ -6360,7 +6970,7 @@ function SidebarNav({ onAddFolder, onNavigate }) {
 					className: "w-full",
 					onClick: () => onAddFolder(false),
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FolderPlus, { className: "size-4" }), "Add folder"]
-				}), sourceId === "adults" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+				}), (sourceId === "adults" || sourceId === "adult-fetishes") && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 					variant: "secondary",
 					className: "w-full",
 					onClick: () => onAddFolder(true),
@@ -6690,7 +7300,7 @@ function TopBar({ onMenu, onAddFolder }) {
 		if (!needle) return [];
 		const indexedIds = workerIds ? new Set(workerIds) : librarySearchIndex.search(needle);
 		return (indexedIds ? Array.from(indexedIds, (id) => videoById.get(id)).filter((video) => Boolean(video)) : videos).filter((video) => {
-			if (folders.find((item) => item.id === video.folderId)?.adult && !(sourceId === "adults" && adultsUnlocked)) return false;
+			if (folders.find((item) => item.id === video.folderId)?.adult && !((sourceId === "adults" || sourceId === "adult-fetishes") && adultsUnlocked)) return false;
 			return indexedIds ? true : `${video.name} ${video.path} ${video.description ?? ""} ${video.remote?.channelName ?? ""} ${(tags[video.id] ?? []).join(" ")}`.toLowerCase().includes(needle);
 		}).sort((a, b) => b.addedAt - a.addedAt).slice(0, 6);
 	}, [
@@ -7230,7 +7840,100 @@ var PROVIDER_CHOICES = [
 		label: "RedTube only"
 	}
 ];
+var FETISH_EXPLORER_GROUPS = [
+	{
+		label: "Featured",
+		tags: ADULT_FEATURED_FETISH_TAGS
+	},
+	{
+		label: "Scenes & styles",
+		tags: [
+			"amateur",
+			"anal",
+			"bondage",
+			"cosplay",
+			"creampie",
+			"double penetration",
+			"feet",
+			"gangbang",
+			"pov",
+			"role play",
+			"threesome",
+			"vr"
+		]
+	},
+	{
+		label: "People & regions",
+		tags: [
+			"asian",
+			"bbw",
+			"ebony",
+			"japanese",
+			"latina",
+			"mature",
+			"milf",
+			"transgender",
+			"verified amateurs"
+		]
+	},
+	{
+		label: "Formats & live",
+		tags: [
+			"animation",
+			"hentai",
+			"interactive",
+			"live",
+			"solo female",
+			"virtual reality",
+			"webcam"
+		]
+	},
+	{
+		label: "Kink & power",
+		tags: [
+			"bdsm",
+			"cuckold",
+			"femdom",
+			"pegging",
+			"roleplay",
+			"strap on",
+			"taboo"
+		]
+	}
+];
 var REDDIT_SOURCE_STORAGE_KEY = "reelcase.adult-reddit-sources.v1";
+var FETISH_EXPLORER_TABS = [
+	{
+		id: "topics",
+		label: "Browse topics",
+		hint: "Choose an interest and pull it"
+	},
+	{
+		id: "sources",
+		label: "Pull sources",
+		hint: "Set the provider mix"
+	},
+	{
+		id: "reddit",
+		label: "Reddit list",
+		hint: "Review saved communities"
+	},
+	{
+		id: "interests",
+		label: "For you",
+		hint: "Use hearts and ranked signals"
+	}
+];
+function fetishTopicKey(tag) {
+	return tag.trim().toLowerCase().replace(/^fetish-/, "").replace(/-/g, " ");
+}
+function fetishTagLabel(tag) {
+	return fetishTopicKey(tag).replace(/\s+/g, " ");
+}
+function pullSourceSelectionLabel(providers) {
+	if (providers === "all") return "All available sources";
+	return PROVIDER_CHOICES.find((choice) => JSON.stringify(choice.id) === JSON.stringify(providers))?.label ?? `${providers.length} selected sources`;
+}
 function readRedditSourceSettings() {
 	try {
 		const raw = JSON.parse(localStorage.getItem(REDDIT_SOURCE_STORAGE_KEY) ?? "[]");
@@ -7245,13 +7948,653 @@ function readRedditSourceSettings() {
 			const priority = Number(row.priority);
 			settings.push({
 				subreddit,
-				priority: priority >= 3 ? 3 : priority <= 1 ? 1 : 2
+				priority: priority >= 3 ? 3 : priority <= 1 ? 1 : 2,
+				hidden: Boolean(row.hidden),
+				favorite: Boolean(row.favorite)
 			});
 		}
 		return settings;
 	} catch {
 		return [];
 	}
+}
+/**
+* A dedicated Adult interest browser. This intentionally owns only the topic
+* selection and pull controls: source-list preferences remain shared with
+* Adult discovery, while the main catalog stays free to render its rails.
+*/
+function AdultFetishExplorer({ onSelectedTag }) {
+	const searchAdultFeed = useLibrary((s) => s.searchAdultFeed);
+	const remoteBusy = useLibrary((s) => s.remoteBusy);
+	const setSource = useLibrary((s) => s.setSource);
+	const explorerAdultVideos = useLibrary(useShallow(selectAdultRemote));
+	const explorerTags = useLibrary((s) => s.tags);
+	const explorerFavorites = useLibrary((s) => s.favorites);
+	const explorerLikes = useLibrary((s) => s.likes);
+	const explorerCameCounts = useLibrary((s) => s.cameCounts);
+	const explorerViewCounts = useLibrary((s) => s.viewCounts);
+	const [providers, setProviders] = (0, import_react.useState)("all");
+	const [order, setOrder] = (0, import_react.useState)("top-weekly");
+	const [query, setQuery] = (0, import_react.useState)("");
+	const [showAll, setShowAll] = (0, import_react.useState)(false);
+	const [pullLimit, setPullLimit] = (0, import_react.useState)(LIBRARY_LIMITS.adultInteractiveVideosPerPull);
+	const [activeTab, setActiveTab] = (0, import_react.useState)("topics");
+	const [redditSourceRevision, setRedditSourceRevision] = (0, import_react.useState)(0);
+	const [feedbackRevision, setFeedbackRevision] = (0, import_react.useState)(0);
+	(0, import_react.useEffect)(() => {
+		try {
+			const saved = Number(localStorage.getItem("reelcase.adult-pull-limit") ?? LIBRARY_LIMITS.adultInteractiveVideosPerPull);
+			setPullLimit([
+				240,
+				480,
+				800,
+				1200
+			].includes(saved) ? saved : LIBRARY_LIMITS.adultInteractiveVideosPerPull);
+		} catch {}
+	}, []);
+	(0, import_react.useEffect)(() => {
+		const refresh = () => setFeedbackRevision((revision) => revision + 1);
+		window.addEventListener("reelcase:rating-change", refresh);
+		return () => window.removeEventListener("reelcase:rating-change", refresh);
+	}, []);
+	const redditSourceSettings = (0, import_react.useMemo)(() => readRedditSourceSettings(), [redditSourceRevision]);
+	const savedRedditSources = (0, import_react.useMemo)(() => {
+		const merged = /* @__PURE__ */ new Map();
+		for (const subreddit of ADULT_REDDIT_SUBS) merged.set(subreddit.toLowerCase(), {
+			subreddit,
+			priority: 2
+		});
+		for (const source of redditSourceSettings) merged.set(source.subreddit.toLowerCase(), source);
+		return [...merged.values()].filter((source) => !source.hidden).sort((a, b) => Number(b.favorite) - Number(a.favorite) || b.priority - a.priority || a.subreddit.localeCompare(b.subreddit));
+	}, [redditSourceSettings]);
+	const favoriteRedditSources = (0, import_react.useMemo)(() => savedRedditSources.filter((source) => source.favorite), [savedRedditSources]);
+	const hiddenRedditSources = (0, import_react.useMemo)(() => redditSourceSettings.filter((source) => source.hidden), [redditSourceSettings]);
+	const rankedInterests = (0, import_react.useMemo)(() => rankAdultTags(explorerAdultVideos, {
+		tags: explorerTags,
+		favorites: explorerFavorites,
+		likes: explorerLikes,
+		cameCounts: explorerCameCounts,
+		viewCounts: explorerViewCounts,
+		ratingOf: getRating,
+		tagIsHearted: (tag) => tagIsLiked(tag) || tagIsLiked(fetishTopicKey(tag)),
+		tagHasHeartHistory: (tag) => tagHasHeartHistory(tag) || tagHasHeartHistory(fetishTopicKey(tag))
+	}, 48).filter((row) => row.tag.startsWith("fetish-") || ADULT_CURATED_FETISH_TAGS.includes(fetishTopicKey(row.tag))), [
+		explorerAdultVideos,
+		explorerCameCounts,
+		explorerFavorites,
+		explorerLikes,
+		explorerTags,
+		explorerViewCounts,
+		feedbackRevision
+	]);
+	const historicInterestTags = (0, import_react.useMemo)(() => {
+		const knownCuratedTags = new Set(ADULT_CURATED_FETISH_TAGS.map(fetishTopicKey));
+		const rankedTags = new Set(rankedInterests.map((row) => fetishTopicKey(row.tag)));
+		return getHeartedTagHistory().map(fetishTopicKey).filter((tag, index, all) => knownCuratedTags.has(tag) && !rankedTags.has(tag) && all.indexOf(tag) === index);
+	}, [feedbackRevision, rankedInterests]);
+	const matchingFetishes = (0, import_react.useMemo)(() => {
+		const needle = query.trim().toLowerCase();
+		return ADULT_CURATED_FETISH_TAGS.filter((tag) => !needle || tag.includes(needle));
+	}, [query]);
+	const pullTopic = (topic) => {
+		if (remoteBusy) return;
+		const normalized = fetishSearchQuery(topic);
+		const selectedTag = `fetish-${normalized.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase()}`;
+		const usesReddit = providers === "all" || providers.includes("reddit");
+		onSelectedTag?.(selectedTag);
+		searchAdultFeed(normalized, order, {
+			page: 1,
+			maxVideos: pullLimit,
+			providers,
+			...usesReddit && savedRedditSources.length ? { redditSources: savedRedditSources } : {}
+		}).then((count) => toast.success(count ? `Loaded ${count.toLocaleString()} for #${topic}` : `No titles found for #${topic}`)).catch((error) => toast.error(error instanceof Error ? error.message : `Could not pull #${topic}.`));
+	};
+	const pullSavedRedditSources = () => {
+		if (remoteBusy) return;
+		if (!savedRedditSources.length) {
+			toast.message("No active Reddit communities are saved yet.");
+			return;
+		}
+		searchAdultFeed("all", order, {
+			page: 1,
+			maxVideos: pullLimit,
+			providers: ["reddit"],
+			redditSources: savedRedditSources
+		}).then((count) => toast.success(count ? `Refreshed ${count.toLocaleString()} titles from your Reddit list` : "No new titles from your saved Reddit list")).catch((error) => toast.error(error instanceof Error ? error.message : "Could not refresh your saved Reddit list."));
+	};
+	const openRedditSourceManager = () => {
+		try {
+			localStorage.setItem("reelcase.adult-discovery-collapsed", "false");
+		} catch {}
+		setSource("adults");
+	};
+	const toggleInterestHeart = (tag) => {
+		toggleTagLike(fetishTopicKey(tag));
+		setFeedbackRevision((revision) => revision + 1);
+	};
+	const topics = query.trim() || showAll ? matchingFetishes : [];
+	const usesReddit = providers === "all" || providers.includes("reddit");
+	const heartedRankedInterests = rankedInterests.filter((row) => tagIsLiked(row.tag) || tagIsLiked(fetishTopicKey(row.tag)));
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+		className: "mb-6 rounded-xl bg-elevated p-5 shadow-border",
+		"aria-labelledby": "fetish-explorer-title",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "flex flex-wrap items-start justify-between gap-3",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+						children: "Adult interests"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
+						id: "fetish-explorer-title",
+						className: "mt-2 font-display text-3xl text-fg sm:text-4xl",
+						children: "Fetish Explorer"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-2 max-w-3xl text-sm leading-6 text-muted",
+						children: "A dedicated Adult topic workspace, organized like Movie Topics. Browse what to pull, set the source mix, review your Reddit list, and keep the personal interests that should lead future recommendations."
+					})
+				] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "flex flex-wrap gap-2",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						size: "sm",
+						variant: "secondary",
+						onClick: () => setSource("adults"),
+						children: "Open Adult browse"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						size: "sm",
+						variant: "secondary",
+						onClick: () => setActiveTab("sources"),
+						children: "Source mix"
+					})]
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "mt-5 rounded-lg border border-border bg-bg/35 p-4",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "flex flex-wrap items-center justify-between gap-2",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+							children: "Topic pull composer"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+							className: "text-xs text-muted",
+							children: [pullSourceSelectionLabel(providers), usesReddit ? ` · ${savedRedditSources.length} saved Reddit communities` : ""]
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "mt-3 flex flex-wrap gap-2",
+						children: PROVIDER_CHOICES.map((choice) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							size: "sm",
+							variant: JSON.stringify(providers) === JSON.stringify(choice.id) ? "default" : "secondary",
+							onClick: () => setProviders(choice.id),
+							children: choice.label
+						}, choice.label))
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 flex flex-col gap-2 sm:flex-row sm:items-center",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "relative min-w-0 flex-1",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Search, { className: "pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+									value: query,
+									onChange: (event) => setQuery(event.target.value),
+									onKeyDown: (event) => {
+										if (event.key === "Enter" && query.trim()) pullTopic(query);
+									},
+									placeholder: "Find a fetish, format, or custom topic",
+									className: "pl-9",
+									"aria-label": "Find a fetish to pull"
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "flex flex-wrap gap-2",
+								children: ORDERS.map((item) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+									size: "sm",
+									variant: order === item.id ? "default" : "secondary",
+									onClick: () => setOrder(item.id),
+									children: item.label
+								}, item.id))
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								disabled: remoteBusy || !query.trim(),
+								onClick: () => pullTopic(query),
+								children: remoteBusy ? "Pulling…" : "Pull this topic"
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						className: "mt-3 text-xs text-muted",
+						children: [
+							providers === "all" ? "Every available provider is selected." : `${providers.length} provider${providers.length === 1 ? "" : "s"} selected.`,
+							" Reddit uses ",
+							savedRedditSources.length,
+							" saved community",
+							savedRedditSources.length === 1 ? "" : "ies",
+							" when included."
+						]
+					})
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				role: "tablist",
+				"aria-label": "Fetish Explorer sections",
+				className: "mt-5 flex gap-1 overflow-x-auto border-b border-border pb-px",
+				children: FETISH_EXPLORER_TABS.map((tab) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+					id: `fetish-explorer-tab-${tab.id}`,
+					role: "tab",
+					"aria-selected": activeTab === tab.id,
+					"aria-controls": `fetish-explorer-panel-${tab.id}`,
+					size: "sm",
+					variant: activeTab === tab.id ? "default" : "ghost",
+					className: "shrink-0",
+					title: tab.hint,
+					onClick: () => setActiveTab(tab.id),
+					children: tab.label
+				}, tab.id))
+			}),
+			activeTab === "topics" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				id: "fetish-explorer-panel-topics",
+				role: "tabpanel",
+				"aria-labelledby": "fetish-explorer-tab-topics",
+				children: [!query.trim() && !showAll ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					className: "mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4",
+					children: FETISH_EXPLORER_GROUPS.map((group) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "rounded-lg border border-border bg-surface p-4 shadow-border",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-sm font-medium text-fg",
+							children: group.label
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "mt-3 flex flex-wrap gap-1.5",
+							children: group.tags.map((tag) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+								size: "sm",
+								className: "h-8 px-2 text-xs",
+								variant: "secondary",
+								disabled: remoteBusy,
+								onClick: () => pullTopic(tag),
+								children: ["#", tag]
+							}, tag))
+						})]
+					}, group.label))
+				}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "mt-5 flex flex-wrap gap-2",
+					children: [topics.map((tag) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+						size: "sm",
+						variant: "secondary",
+						disabled: remoteBusy,
+						onClick: () => pullTopic(tag),
+						children: ["Pull #", tag]
+					}, tag)), !topics.length && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-sm text-muted",
+						children: "No curated topic matches that search. You can still pull the exact text above."
+					})]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+					className: "mt-4",
+					size: "sm",
+					variant: "ghost",
+					onClick: () => setShowAll((value) => !value),
+					children: showAll ? "Show topic groups" : `Browse all ${ADULT_CURATED_FETISH_TAGS.length} topics`
+				})]
+			}),
+			activeTab === "sources" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				id: "fetish-explorer-panel-sources",
+				role: "tabpanel",
+				"aria-labelledby": "fetish-explorer-tab-sources",
+				className: "mt-5 rounded-lg border border-border bg-bg/35 p-4",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+						children: "Pull source plan"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+						className: "mt-1 text-lg font-medium text-fg",
+						children: "Use the same source mix for every topic pull"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-1 max-w-3xl text-sm leading-6 text-muted",
+						children: "The composer above is always live. Pick a broad mix for variety, or isolate video, live, Reddit, photo, or one provider before returning to Browse topics."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 grid gap-3 sm:grid-cols-3",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rounded-md bg-surface p-3 shadow-border",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-xs text-muted",
+									children: "Selected mix"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-1 text-sm font-medium text-fg",
+									children: pullSourceSelectionLabel(providers)
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rounded-md bg-surface p-3 shadow-border",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-xs text-muted",
+									children: "Catalog pull size"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+									className: "mt-1 text-sm font-medium text-fg",
+									children: [
+										"Up to ",
+										pullLimit.toLocaleString(),
+										" titles"
+									]
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rounded-md bg-surface p-3 shadow-border",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-xs text-muted",
+									children: "Reddit scope"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-1 text-sm font-medium text-fg",
+									children: usesReddit ? `${savedRedditSources.length} saved communities` : "Not included"
+								})]
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 flex flex-wrap gap-2",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								size: "sm",
+								onClick: () => setActiveTab("topics"),
+								children: "Choose a topic with this mix"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								size: "sm",
+								variant: "secondary",
+								onClick: () => setActiveTab("reddit"),
+								children: "Review Reddit communities"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								size: "sm",
+								variant: "ghost",
+								onClick: () => setSource("adults"),
+								children: "Open full Adult discovery"
+							})
+						]
+					})
+				]
+			}),
+			activeTab === "reddit" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				id: "fetish-explorer-panel-reddit",
+				role: "tabpanel",
+				"aria-labelledby": "fetish-explorer-tab-reddit",
+				className: "mt-5 rounded-lg border border-border bg-bg/35 p-4",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "flex flex-wrap items-start justify-between gap-3",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+								children: "Saved Reddit sources"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+								className: "mt-1 text-lg font-medium text-fg",
+								children: "Your community list feeds photo, GIF, video, and comments pulls"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-1 max-w-3xl text-sm leading-6 text-muted",
+								children: "Favorites and high-priority communities lead a Reddit pull. Hidden communities remain stored so you can restore them later."
+							})
+						] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "flex flex-wrap gap-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								size: "sm",
+								variant: "secondary",
+								onClick: () => setRedditSourceRevision((revision) => revision + 1),
+								children: "Refresh saved list"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								size: "sm",
+								variant: "secondary",
+								onClick: openRedditSourceManager,
+								children: "Manage list in Adult discovery"
+							})]
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 grid gap-3 sm:grid-cols-3",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rounded-md bg-surface p-3 shadow-border",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-xs text-muted",
+									children: "Active"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-1 text-lg font-medium text-fg",
+									children: savedRedditSources.length
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rounded-md bg-surface p-3 shadow-border",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-xs text-muted",
+									children: "Favorites first"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-1 text-lg font-medium text-fg",
+									children: favoriteRedditSources.length
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rounded-md bg-surface p-3 shadow-border",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-xs text-muted",
+									children: "Stored but hidden"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-1 text-lg font-medium text-fg",
+									children: hiddenRedditSources.length
+								})]
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 flex flex-wrap gap-2",
+						children: [savedRedditSources.slice(0, 18).map((source) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+							className: "rounded-full bg-surface px-3 py-1.5 text-xs text-muted shadow-border",
+							children: [
+								source.favorite ? "★ " : "",
+								"r/",
+								source.subreddit,
+								" · ",
+								source.priority === 3 ? "high" : source.priority === 2 ? "normal" : "low"
+							]
+						}, source.subreddit)), !savedRedditSources.length && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-sm text-muted",
+							children: "No active saved communities yet. Add or restore them in Adult discovery."
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 flex flex-wrap gap-2",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								size: "sm",
+								variant: usesReddit ? "default" : "secondary",
+								onClick: () => setProviders(["reddit"]),
+								children: "Use Reddit for the next topic"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								size: "sm",
+								variant: "secondary",
+								disabled: remoteBusy || !savedRedditSources.length,
+								onClick: pullSavedRedditSources,
+								children: remoteBusy ? "Pulling…" : "Refresh active Reddit sources"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								size: "sm",
+								variant: "ghost",
+								onClick: () => setActiveTab("topics"),
+								children: "Choose a Reddit topic"
+							})
+						]
+					})
+				]
+			}),
+			activeTab === "interests" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				id: "fetish-explorer-panel-interests",
+				role: "tabpanel",
+				"aria-labelledby": "fetish-explorer-tab-interests",
+				className: "mt-5",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "rounded-lg border border-border bg-bg/35 p-4",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+								children: "Personal signals"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+								className: "mt-1 text-lg font-medium text-fg",
+								children: "For you: hearted and steadily supported interests"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-1 max-w-3xl text-sm leading-6 text-muted",
+								children: "A heart permanently records an interest in local history. Current hearts lead Adult recommendations; ranked topics also need repeat catalog support, so a single title cannot dominate this list."
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "mt-4 grid gap-3 sm:grid-cols-3",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "rounded-md bg-surface p-3 shadow-border",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "text-xs text-muted",
+											children: "Hearted now"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "mt-1 text-lg font-medium text-fg",
+											children: heartedRankedInterests.length
+										})]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "rounded-md bg-surface p-3 shadow-border",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "text-xs text-muted",
+											children: "Remembered interests"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "mt-1 text-lg font-medium text-fg",
+											children: historicInterestTags.length + heartedRankedInterests.length
+										})]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "rounded-md bg-surface p-3 shadow-border",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "text-xs text-muted",
+											children: "Ranked catalog topics"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "mt-1 text-lg font-medium text-fg",
+											children: rankedInterests.length
+										})]
+									})
+								]
+							})
+						]
+					}),
+					heartedRankedInterests.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-5",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+							children: "Hearted now"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "mt-2 flex flex-wrap gap-2",
+							children: heartedRankedInterests.map((row) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "flex overflow-hidden rounded-md bg-surface shadow-border",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+									size: "sm",
+									variant: "secondary",
+									disabled: remoteBusy,
+									onClick: () => pullTopic(fetishTagLabel(row.tag)),
+									children: ["Pull #", fetishTagLabel(row.tag)]
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+									size: "sm",
+									variant: "ghost",
+									"aria-label": `Remove heart from ${fetishTagLabel(row.tag)}`,
+									onClick: () => toggleInterestHeart(row.tag),
+									children: "★"
+								})]
+							}, row.tag))
+						})]
+					}),
+					historicInterestTags.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-5",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+								children: "Kept in history"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-1 text-xs text-muted",
+								children: "These were hearted before and stay available even if their current catalog count drops away."
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "mt-2 flex flex-wrap gap-2",
+								children: historicInterestTags.slice(0, 18).map((tag) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "flex overflow-hidden rounded-md bg-surface shadow-border",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+										size: "sm",
+										variant: "secondary",
+										disabled: remoteBusy,
+										onClick: () => pullTopic(tag),
+										children: ["Pull #", tag]
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										size: "sm",
+										variant: "ghost",
+										"aria-label": `Heart ${tag} again`,
+										onClick: () => toggleInterestHeart(tag),
+										children: "♡"
+									})]
+								}, tag))
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-5",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "flex flex-wrap items-baseline justify-between gap-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+								children: "Ranked from Adult library"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-xs text-muted",
+								children: "Stabilized across repeat titles, ratings, saves, likes, views, and hearts."
+							})]
+						}), rankedInterests.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "mt-2 flex flex-wrap gap-2",
+							children: rankedInterests.slice(0, 24).map((row) => {
+								const hearted = tagIsLiked(row.tag) || tagIsLiked(fetishTopicKey(row.tag));
+								const label = fetishTagLabel(row.tag);
+								return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "flex overflow-hidden rounded-md bg-surface shadow-border",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+										size: "sm",
+										variant: hearted ? "default" : "secondary",
+										disabled: remoteBusy,
+										title: `score ${Math.round(row.score)} · ${row.count} catalog titles`,
+										onClick: () => pullTopic(label),
+										children: [
+											hearted ? "★ " : "",
+											"Pull #",
+											label,
+											" · ",
+											row.count
+										]
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										size: "sm",
+										variant: "ghost",
+										"aria-label": `${hearted ? "Remove heart from" : "Heart"} ${label}`,
+										onClick: () => toggleInterestHeart(row.tag),
+										children: hearted ? "★" : "☆"
+									})]
+								}, row.tag);
+							})
+						}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "mt-2 text-sm text-muted",
+							children: "Pull a few topics or tag saved Adult titles to build a ranked interest view."
+						})]
+					})
+				]
+			})
+		]
+	});
 }
 function SiteCard({ name, href, copy, embeds, badge, sourceId, compact = false }) {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
@@ -7290,6 +8633,7 @@ function AdultPanel({ showMilestones = false, autoPull = true, sourceFilter = "a
 	const remoteBusy = useLibrary((s) => s.remoteBusy);
 	const importProgress = useLibrary((s) => s.importProgress);
 	const adultPullStatus = useLibrary((s) => s.adultPullStatus);
+	const setSource = useLibrary((s) => s.setSource);
 	const tags = useLibrary((s) => s.tags);
 	const adultVideos = useLibrary(useShallow(selectAdultRemote));
 	const [query, setQuery] = (0, import_react.useState)("");
@@ -7304,7 +8648,6 @@ function AdultPanel({ showMilestones = false, autoPull = true, sourceFilter = "a
 		onTagFilter?.(tag === "all" ? "All" : tag);
 	};
 	const [nextPage, setNextPage] = (0, import_react.useState)(2);
-	const [showAllFetishes, setShowAllFetishes] = (0, import_react.useState)(false);
 	const [starQuery, setStarQuery] = (0, import_react.useState)("");
 	const [stars, setStars] = (0, import_react.useState)([]);
 	const [starNote, setStarNote] = (0, import_react.useState)("");
@@ -7314,8 +8657,10 @@ function AdultPanel({ showMilestones = false, autoPull = true, sourceFilter = "a
 	const [useCustomRedditSources, setUseCustomRedditSources] = (0, import_react.useState)(false);
 	const [redditSources, setRedditSources] = (0, import_react.useState)([]);
 	const [redditSourceInput, setRedditSourceInput] = (0, import_react.useState)("");
+	const [redditSourceQuery, setRedditSourceQuery] = (0, import_react.useState)("");
+	const [showAllRedditSources, setShowAllRedditSources] = (0, import_react.useState)(false);
 	const [redditSourcesReady, setRedditSourcesReady] = (0, import_react.useState)(false);
-	const [discoveryCollapsed, setDiscoveryCollapsed] = (0, import_react.useState)(false);
+	const [discoveryCollapsed, setDiscoveryCollapsed] = (0, import_react.useState)(true);
 	(0, import_react.useEffect)(() => {
 		const load = () => {
 			const saved = Number(localStorage.getItem("reelcase.adult-pull-limit") ?? LIBRARY_LIMITS.adultInteractiveVideosPerPull);
@@ -7334,7 +8679,7 @@ function AdultPanel({ showMilestones = false, autoPull = true, sourceFilter = "a
 		const saved = readRedditSourceSettings();
 		setRedditSources(saved);
 		setUseCustomRedditSources(true);
-		setDiscoveryCollapsed(localStorage.getItem("reelcase.adult-discovery-collapsed") === "true");
+		setDiscoveryCollapsed(localStorage.getItem("reelcase.adult-discovery-collapsed") !== "false");
 		setRedditSourcesReady(true);
 	}, []);
 	(0, import_react.useEffect)(() => {
@@ -7362,8 +8707,26 @@ function AdultPanel({ showMilestones = false, autoPull = true, sourceFilter = "a
 		const merged = /* @__PURE__ */ new Map();
 		for (const source of libraryRedditSources) merged.set(source.subreddit.toLowerCase(), source);
 		for (const source of redditSources) merged.set(source.subreddit.toLowerCase(), source);
-		return [...merged.values()].sort((a, b) => b.priority - a.priority || a.subreddit.localeCompare(b.subreddit));
+		return [...merged.values()].filter((source) => !source.hidden).sort((a, b) => Number(b.favorite) - Number(a.favorite) || b.priority - a.priority || a.subreddit.localeCompare(b.subreddit));
 	}, [libraryRedditSources, redditSources]);
+	const redditSourceRows = (0, import_react.useMemo)(() => {
+		const overrides = new Map(redditSources.map((source) => [source.subreddit.toLowerCase(), source]));
+		const all = new Map(libraryRedditSources.map((source) => [source.subreddit.toLowerCase(), source]));
+		for (const source of redditSources) all.set(source.subreddit.toLowerCase(), {
+			...all.get(source.subreddit.toLowerCase()) ?? source,
+			...source
+		});
+		const needle = redditSourceQuery.trim().toLowerCase();
+		return [...all.values()].filter((source) => !needle || source.subreddit.toLowerCase().includes(needle)).sort((a, b) => Number(b.favorite) - Number(a.favorite) || Number(a.hidden) - Number(b.hidden) || b.priority - a.priority || a.subreddit.localeCompare(b.subreddit)).map((source) => ({
+			...source,
+			isLibrary: libraryRedditSources.some((row) => row.subreddit.toLowerCase() === source.subreddit.toLowerCase()),
+			hasOverride: overrides.has(source.subreddit.toLowerCase())
+		}));
+	}, [
+		libraryRedditSources,
+		redditSourceQuery,
+		redditSources
+	]);
 	const redditPullOptions = (0, import_react.useMemo)(() => useCustomRedditSources && selectedRedditSources.length ? { redditSources: selectedRedditSources } : {}, [selectedRedditSources, useCustomRedditSources]);
 	const sourceCounts = (0, import_react.useMemo)(() => countAdultBySource(adultVideos), [adultVideos]);
 	const sourceFacets = (0, import_react.useMemo)(() => ADULT_SOURCE_FILTERS.filter((row) => row.id !== "all").map((row) => [row.id, sourceCounts[row.id] ?? 0]), [sourceCounts]);
@@ -7442,6 +8805,10 @@ function AdultPanel({ showMilestones = false, autoPull = true, sourceFilter = "a
 		adultVideos.length
 	]);
 	const runSearch = (append = false, resume = false) => {
+		if (remoteBusy) {
+			toast.message("A catalog pull is already running.");
+			return;
+		}
 		const q = query.trim() || "all";
 		const cursors = loadAdultArchiveCursors(q, order);
 		const providerPages = resume ? Object.fromEntries(Object.entries(cursors).map(([provider, row]) => [provider, row.page])) : void 0;
@@ -7462,8 +8829,18 @@ function AdultPanel({ showMilestones = false, autoPull = true, sourceFilter = "a
 			toast.error(err instanceof Error ? err.message : "Search failed");
 		});
 	};
+	const pullRedtubeCreator = (creator) => {
+		const q = creator.trim();
+		if (!q || remoteBusy) return;
+		setProviders(["redtube"]);
+		setQuery(q);
+		searchAdultFeed(q, order, {
+			providers: ["redtube"],
+			maxVideos: LIBRARY_LIMITS.redtubeStarVideosPerPull
+		}).then((n) => toast.success(n ? `Loaded ${n.toLocaleString()} for ${q}` : `No titles found for ${q}`)).catch((err) => toast.error(err instanceof Error ? err.message : `Could not pull ${q}.`));
+	};
 	const pullSavedRedditSources = () => {
-		if (!selectedRedditSources.length) return;
+		if (!selectedRedditSources.length || remoteBusy) return;
 		setUseCustomRedditSources(true);
 		setProviders(["reddit"]);
 		searchAdultFeed("all", order, {
@@ -7480,7 +8857,12 @@ function AdultPanel({ showMilestones = false, autoPull = true, sourceFilter = "a
 			return;
 		}
 		setRedditSources((current) => {
-			if (current.find((row) => row.subreddit.toLowerCase() === subreddit.toLowerCase())) return current;
+			if (current.find((row) => row.subreddit.toLowerCase() === subreddit.toLowerCase())) return current.map((row) => row.subreddit.toLowerCase() === subreddit.toLowerCase() ? {
+				...row,
+				hidden: false,
+				favorite: true,
+				priority: 3
+			} : row);
 			return [...current, {
 				subreddit,
 				priority: 2
@@ -7570,6 +8952,43 @@ function AdultPanel({ showMilestones = false, autoPull = true, sourceFilter = "a
 						className: "mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3",
 						children: ADULT_EMBED_LINKS.map((site) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SiteCard, { ...site }, site.name))
 					})]
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
+				className: "rounded-xl bg-elevated shadow-border",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("summary", {
+					className: "cursor-pointer list-none p-5 [&::-webkit-details-marker]:hidden",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+							children: "Catalog milestones"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+							className: "mt-2 font-display text-2xl text-fg",
+							children: "Current reliability coverage"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "mt-2 text-xs text-muted",
+							children: "Expand for the active work grouped by catalog area."
+						})
+					]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					className: "grid gap-3 border-t border-border px-5 pb-5 pt-4 sm:grid-cols-2 lg:grid-cols-3",
+					children: [
+						["Reddit media", "Saved community list, priority/favorite and hide controls, Atom pulls, Redgifs dual-source cards, and image recovery."],
+						["Live rooms", "Chaturbate, CamSoda, and MyFreeCams public room lists with live-only placement and provider diagnostics."],
+						["Photos & tags", "Booru response-shape recovery, creator attribution, stable tag scoring, and permanent heart history."],
+						["Catalog feedback", "Pull health explains loaded, empty, and failed providers; ratings rebuild the weekly streak from durable feedback."]
+					].map(([title, copy]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "rounded-md bg-surface p-3 shadow-border",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-sm font-medium text-fg",
+							children: title
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "mt-1 text-xs leading-5 text-muted",
+							children: copy
+						})]
+					}, title))
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
@@ -7763,7 +9182,7 @@ function AdultPanel({ showMilestones = false, autoPull = true, sourceFilter = "a
 										size: "sm",
 										variant: useCustomRedditSources ? "default" : "secondary",
 										onClick: () => setUseCustomRedditSources((enabled) => !enabled),
-										children: useCustomRedditSources ? "Using library source list" : "Use library source list"
+										children: useCustomRedditSources ? "Use curated rotation" : "Use library source list"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 										className: "text-xs text-muted",
@@ -7798,102 +9217,136 @@ function AdultPanel({ showMilestones = false, autoPull = true, sourceFilter = "a
 									children: "Pin source"
 								})]
 							}),
-							redditSources.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "mt-3 flex flex-wrap gap-2",
-								children: redditSources.slice().sort((a, b) => b.priority - a.priority || a.subreddit.localeCompare(b.subreddit)).map((source) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "flex items-center gap-1 rounded-full bg-surface py-1 pl-3 pr-1 text-xs text-muted shadow-border",
-									children: [
-										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: ["r/", source.subreddit] }),
-										[
-											3,
-											2,
-											1
-										].map((priority) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-											size: "sm",
-											className: "h-6 px-1.5 text-[10px]",
-											variant: source.priority === priority ? "default" : "ghost",
-											onClick: () => setRedditSources((current) => current.map((row) => row.subreddit === source.subreddit ? {
-												...row,
-												priority
-											} : row)),
-											children: priority === 3 ? "High" : priority === 2 ? "Normal" : "Low"
-										}, priority)),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-											size: "sm",
-											className: "h-6 px-1.5 text-[10px]",
-											variant: "ghost",
-											onClick: () => setRedditSources((current) => current.filter((row) => row.subreddit !== source.subreddit)),
-											children: "Remove"
-										})
-									]
-								}, source.subreddit))
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "mt-3 rounded-md border border-border bg-bg/35 p-3",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "flex flex-wrap items-center justify-between gap-2",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+											className: "text-xs font-medium text-fg",
+											children: [
+												"Saved library communities · ",
+												selectedRedditSources.length,
+												" active"
+											]
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "text-xs text-muted",
+											children: "Favorites pull first · hidden sources stay saved"
+										})]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+										value: redditSourceQuery,
+										onChange: (event) => setRedditSourceQuery(event.target.value),
+										placeholder: "Find a saved community…",
+										className: "mt-2",
+										"aria-label": "Find saved Reddit community"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "mt-2 space-y-2",
+										children: redditSourceRows.slice(0, showAllRedditSources || redditSourceQuery.trim() ? redditSourceRows.length : 18).map((source) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "flex flex-wrap items-center gap-1.5 rounded bg-surface px-2 py-1.5 text-xs shadow-border",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+													className: `mr-auto ${source.hidden ? "text-subtle line-through" : "text-fg"}`,
+													children: [
+														"r/",
+														source.subreddit,
+														source.isLibrary ? " · library" : " · custom"
+													]
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+													size: "sm",
+													className: "h-6 px-1.5 text-[10px]",
+													variant: source.favorite ? "default" : "ghost",
+													onClick: () => setRedditSources((current) => {
+														const row = current.find((item) => item.subreddit.toLowerCase() === source.subreddit.toLowerCase());
+														return row ? current.map((item) => item === row ? {
+															...item,
+															favorite: !item.favorite,
+															hidden: false,
+															priority: !item.favorite ? 3 : item.priority
+														} : item) : [...current, {
+															subreddit: source.subreddit,
+															priority: 3,
+															favorite: true
+														}];
+													}),
+													children: source.favorite ? "★ Favorite" : "☆ Favorite"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+													size: "sm",
+													className: "h-6 px-1.5 text-[10px]",
+													variant: "ghost",
+													onClick: () => setRedditSources((current) => {
+														const row = current.find((item) => item.subreddit.toLowerCase() === source.subreddit.toLowerCase());
+														return row ? current.map((item) => item === row ? {
+															...item,
+															hidden: !item.hidden
+														} : item) : [...current, {
+															subreddit: source.subreddit,
+															priority: 2,
+															hidden: true
+														}];
+													}),
+													children: source.hidden ? "Show" : "Hide"
+												}),
+												[
+													3,
+													2,
+													1
+												].map((priority) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+													size: "sm",
+													className: "h-6 px-1.5 text-[10px]",
+													variant: source.priority === priority ? "default" : "ghost",
+													onClick: () => setRedditSources((current) => {
+														const row = current.find((item) => item.subreddit.toLowerCase() === source.subreddit.toLowerCase());
+														return row ? current.map((item) => item === row ? {
+															...item,
+															priority,
+															hidden: false
+														} : item) : [...current, {
+															subreddit: source.subreddit,
+															priority
+														}];
+													}),
+													children: priority === 3 ? "High" : priority === 2 ? "Normal" : "Low"
+												}, priority)),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+													size: "sm",
+													className: "h-6 px-1.5 text-[10px]",
+													variant: "ghost",
+													title: source.isLibrary ? "Clear saved preference and restore library defaults" : "Remove custom community",
+													onClick: () => setRedditSources((current) => current.filter((item) => item.subreddit.toLowerCase() !== source.subreddit.toLowerCase())),
+													children: source.isLibrary ? "Reset" : "Remove"
+												})
+											]
+										}, source.subreddit))
+									}),
+									redditSourceRows.length > 18 && !redditSourceQuery.trim() && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										size: "sm",
+										variant: "secondary",
+										className: "mt-2",
+										onClick: () => setShowAllRedditSources((shown) => !shown),
+										children: showAllRedditSources ? "Show fewer communities" : `Show all ${redditSourceRows.length} communities`
+									})
+								]
 							})
 						]
 					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "mt-4",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
-								children: "Featured fetish pulls"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "mt-1 text-xs text-muted",
-								children: "Clicking a chip searches official APIs for that keyword (DP expands to double penetration) and stamps fetish tags on ingested titles."
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "mt-2 flex flex-wrap gap-2",
-								children: ADULT_FEATURED_FETISH_TAGS.map((tag) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-									size: "sm",
-									variant: "default",
-									disabled: remoteBusy,
-									onClick: () => {
-										const q = fetishSearchQuery(tag);
-										setQuery(q);
-										setTagFilter(`fetish-${q.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase()}`);
-										searchAdultFeed(q, order, {
-											page: 1,
-											maxVideos: adultMaxVideos,
-											providers,
-											...redditPullOptions
-										}).then((n) => toast.success(`Loaded ${n.toLocaleString()} for #${tag}`));
-									},
-									children: ["#", tag]
-								}, tag))
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "mt-3 flex flex-wrap items-center gap-2",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
-									children: "Full fetish catalog"
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-									size: "sm",
-									variant: "secondary",
-									onClick: () => setShowAllFetishes((v) => !v),
-									children: showAllFetishes ? "Hide extra chips" : `Show all ${ADULT_CURATED_FETISH_TAGS.length} chips`
-								})]
-							}),
-							showAllFetishes && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "mt-2 flex flex-wrap gap-2",
-								children: ADULT_CURATED_FETISH_TAGS.filter((tag) => !ADULT_FEATURED_FETISH_TAGS.includes(tag)).map((tag) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-									size: "sm",
-									variant: "secondary",
-									disabled: remoteBusy,
-									onClick: () => {
-										const q = fetishSearchQuery(tag);
-										setQuery(q);
-										setTagFilter(`fetish-${q.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase()}`);
-										searchAdultFeed(q, order, {
-											page: 1,
-											maxVideos: adultMaxVideos,
-											providers,
-											...redditPullOptions
-										}).then((n) => toast.success(`Loaded ${n.toLocaleString()} for #${tag}`));
-									},
-									children: ["#", tag]
-								}, tag))
-							})
-						]
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+						className: "mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-bg/35 p-4",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+							children: "Topic pulls"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "mt-1 text-sm text-muted",
+							children: "Choose a fetish and provider combination from the dedicated Explorer, then return here to browse its tagged results."
+						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							size: "sm",
+							variant: "secondary",
+							onClick: () => setSource("adult-fetishes"),
+							children: "Open Fetish Explorer"
+						})]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "mt-4 flex flex-col gap-2 sm:flex-row",
@@ -8005,7 +9458,7 @@ function AdultPanel({ showMilestones = false, autoPull = true, sourceFilter = "a
 										setQuery(q);
 										(async () => {
 											try {
-												const { searchRedtubeStars } = await import("./api-djS3Gh_Q.mjs");
+												const { searchRedtubeStars } = await import("./api-ORUKXm9_.mjs");
 												const result = await searchRedtubeStars({ data: {
 													query: q,
 													page: 1
@@ -8016,10 +9469,7 @@ function AdultPanel({ showMilestones = false, autoPull = true, sourceFilter = "a
 												setStarNote(err instanceof Error ? err.message : "Star list unavailable.");
 											}
 										})();
-										searchAdultFeed(q, order, {
-											providers: ["redtube"],
-											maxVideos: LIBRARY_LIMITS.redtubeStarVideosPerPull
-										}).then((n) => toast.success(`Loaded ${n.toLocaleString()} for ${q}`));
+										pullRedtubeCreator(q);
 									},
 									children: "Search creator"
 								})]
@@ -8037,10 +9487,7 @@ function AdultPanel({ showMilestones = false, autoPull = true, sourceFilter = "a
 										setStarQuery(star.name);
 										setProviders(["redtube"]);
 										setQuery(star.name);
-										searchAdultFeed(star.name, order, {
-											providers: ["redtube"],
-											maxVideos: LIBRARY_LIMITS.redtubeStarVideosPerPull
-										}).then((n) => toast.success(`Loaded ${n.toLocaleString()} for ${star.name}`));
+										pullRedtubeCreator(star.name);
 									},
 									children: star.name
 								}, star.name))
@@ -8222,17 +9669,18 @@ function AdultComments({ video }) {
 	const [comments, setComments] = (0, import_react.useState)(video.remote?.comments ?? []);
 	const [note, setNote] = (0, import_react.useState)("");
 	const [loading, setLoading] = (0, import_react.useState)(false);
+	const linkedRedgifs = Boolean(video.remote?.sourceKinds?.includes("redgifs"));
 	(0, import_react.useEffect)(() => {
 		let cancelled = false;
 		if (video.remote?.kind !== "reddit" || !video.remote.videoId) {
 			setComments(video.remote?.comments ?? []);
-			setNote(video.remote?.kind === "reddit" ? "" : "No public comment feed for this source.");
+			setNote(video.remote?.kind === "reddit" ? "" : "No documented public comment feed for this source.");
 			return;
 		}
 		setLoading(true);
 		(async () => {
 			try {
-				const { fetchAdultComments } = await import("./api-djS3Gh_Q.mjs");
+				const { fetchAdultComments } = await import("./api-ORUKXm9_.mjs");
 				const result = await fetchAdultComments({ data: {
 					kind: video.remote?.kind ?? "",
 					videoId: video.remote?.videoId ?? "",
@@ -8240,7 +9688,7 @@ function AdultComments({ video }) {
 				} });
 				if (cancelled) return;
 				setComments(result.comments);
-				setNote(result.note);
+				setNote(linkedRedgifs && result.comments.length ? `${result.note} Linked Redgifs media stays attached to this original Reddit thread.` : result.note);
 				if (result.comments.length) {
 					const blob = result.comments.map((c) => c.body).join(" ");
 					const mined = [
@@ -8264,6 +9712,7 @@ function AdultComments({ video }) {
 			cancelled = true;
 		};
 	}, [
+		linkedRedgifs,
 		video.id,
 		video.remote?.kind,
 		video.remote?.videoId,
@@ -8276,7 +9725,11 @@ function AdultComments({ video }) {
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 				className: "flex items-center gap-2 text-xs font-medium tracking-[0.14em] text-accent uppercase",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(MessageCircle, { className: "size-3.5" }), " Comments"]
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(MessageCircle, { className: "size-3.5" }),
+					" ",
+					linkedRedgifs ? "Reddit comments for linked Redgifs media" : "Comments"
+				]
 			}),
 			loading && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 				className: "mt-2 text-xs text-muted",
@@ -8514,6 +9967,7 @@ function Player({ playlist }) {
 	const [vrAvailable, setVrAvailable] = (0, import_react.useState)(false);
 	const [vrStatus, setVrStatus] = (0, import_react.useState)("");
 	const [removeReady, setRemoveReady] = (0, import_react.useState)(false);
+	const [twitchTheater, setTwitchTheater] = (0, import_react.useState)(true);
 	const capturedDur = useThumbs((s) => video ? s.durations[video.id] : void 0);
 	const scrubbing = (0, import_react.useRef)(false);
 	const remoteStartedAt = (0, import_react.useRef)(0);
@@ -8861,9 +10315,10 @@ function Player({ playlist }) {
 	const dur = duration || capturedDur || video.duration || 0;
 	const i = playlist.indexOf(video.id);
 	const hwLabel = hardwareAccel && hw?.powerEfficient ? "GPU decode" : hardwareAccel ? "Hardware on" : "Software";
+	const twitchSideMode = remote?.kind === "twitch" && !twitchTheater;
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 		ref: wrapRef,
-		className: "fixed inset-0 z-50 flex flex-col bg-bg",
+		className: cn("fixed inset-0 z-50 flex flex-col bg-bg", twitchSideMode && "p-4 sm:p-6"),
 		onMouseMove: reveal,
 		onTouchStart: reveal,
 		children: [
@@ -8873,7 +10328,7 @@ function Player({ playlist }) {
 			}) : embedSrc ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("iframe", {
 				title: video.name,
 				src: embedSrc,
-				className: "absolute inset-0 size-full border-0 bg-bg",
+				className: cn("absolute border-0 bg-bg", twitchSideMode ? "left-4 top-20 h-[58vh] w-[calc(100%-2rem)] rounded-lg sm:left-6 sm:w-[calc(68%-2rem)]" : "inset-0 size-full"),
 				allow: "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen",
 				allowFullScreen: true,
 				referrerPolicy: "strict-origin-when-cross-origin"
@@ -8908,6 +10363,30 @@ function Player({ playlist }) {
 				},
 				onClick: togglePlay,
 				onDoubleClick: () => void toggleFs()
+			}),
+			twitchSideMode && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("aside", {
+				className: "absolute right-4 top-20 hidden w-[28%] rounded-lg bg-elevated p-4 shadow-border sm:block",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+						children: "Twitch details"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
+						className: "mt-2 font-display text-xl text-fg",
+						children: remote?.channelName ?? video.name
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-2 text-sm leading-6 text-muted",
+						children: video.description || video.tagline || "Live and VOD details stay visible beside the official Twitch player."
+					}),
+					remote?.watchUrl && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
+						href: remote.watchUrl,
+						target: "_blank",
+						rel: "noreferrer",
+						className: "mt-4 inline-flex text-sm text-accent",
+						children: ["Open on Twitch ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExternalLink, { className: "ml-1 size-4" })]
+					})
+				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: cn("pointer-events-none absolute inset-0 bg-linear-to-t from-bg via-transparent to-bg/50 transition-opacity duration-200 ease-[var(--ease-out)]", chrome ? "opacity-100" : "opacity-0") }),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -8959,6 +10438,12 @@ function Player({ playlist }) {
 							"aria-label": fav ? "Remove from favorites" : "Add to favorites",
 							onClick: () => toggleFavorite(video.id),
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Heart, { className: cn("size-4", fav && "fill-accent text-accent") })
+						}),
+						remote?.kind === "twitch" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+							variant: "ghost",
+							size: "sm",
+							onClick: () => setTwitchTheater((value) => !value),
+							children: [twitchTheater ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Minimize, { className: "size-4" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Maximize, { className: "size-4" }), twitchTheater ? "Side details" : "Theater"]
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 							variant: "ghost",
@@ -9356,6 +10841,7 @@ function isExcludedPreviewCandidate(video) {
 function PreVideo() {
 	const previewId = useLibrary((s) => s.previewId);
 	const videos = useLibrary((s) => s.videos);
+	const folders = useLibrary((s) => s.folders);
 	const allTags = useLibrary((s) => s.tags);
 	const unavailable = useLibrary((s) => s.unavailable);
 	const openVideo = useLibrary((s) => s.openVideo);
@@ -9388,6 +10874,8 @@ function PreVideo() {
 	const [shelfReady, setShelfReady] = (0, import_react.useState)(false);
 	const markUnavailable = useLibrary((s) => s.markUnavailable);
 	const video = videos.find((item) => item.id === previewId);
+	const adultFolderIds = (0, import_react.useMemo)(() => new Set(folders.filter((folder) => folder.adult).map((folder) => folder.id)), [folders]);
+	const previewIsAdult = Boolean(video && (isAdultPullKind(video.remote?.kind) || adultFolderIds.has(video.folderId)));
 	(0, import_react.useEffect)(() => {
 		if (video) recordPlay(video.id, "open");
 	}, [recordPlay, video?.id]);
@@ -9482,20 +10970,25 @@ function PreVideo() {
 		const sourceTags = new Set(tags);
 		const creatorName = video.remote?.channelName?.trim().toLowerCase();
 		const sourceKind = video.remote?.kind;
-		return videos.filter((item) => item.id !== video.id && !isExcludedPreviewCandidate(item) && !unavailable[item.id]).map((item) => {
+		return videos.filter((item) => {
+			const itemIsAdult = isAdultPullKind(item.remote?.kind) || adultFolderIds.has(item.folderId);
+			return item.id !== video.id && !isExcludedPreviewCandidate(item) && !unavailable[item.id] && itemIsAdult === previewIsAdult;
+		}).map((item) => {
 			const itemTags = allTags[item.id] ?? EMPTY_TAGS;
 			const sharedTopics = itemTags.filter((tag) => sourceTags.has(tag)).length;
 			const sameCreator = Boolean(creatorName && item.remote?.channelName?.trim().toLowerCase() === creatorName);
 			const liveToVod = Boolean(video.remote?.live && !item.remote?.live && sameCreator);
 			return {
 				item,
-				score: Number(sameCreator) * 14 + Number(liveToVod) * 8 + Number(item.folderId === video.folderId) * 5 + Number(item.genre === video.genre) * 4 + Number(item.remote?.kind === sourceKind) * 2 + sharedTopics * 3 + itemTags.filter((tag) => tagIsLiked(tag)).length * 2 + getRating(item.id) * 1.5 + getCreatorRating(item.remote?.channelName ?? "") * 2 + Number(creatorIsLiked(item.remote?.channelName ?? "")) * 3,
+				score: Number(sameCreator) * 14 + Number(liveToVod) * 8 + Number(item.folderId === video.folderId) * 5 + Number(item.genre === video.genre) * 4 + Number(item.remote?.kind === sourceKind) * (previewIsAdult ? 5 : 2) + sharedTopics * (previewIsAdult ? 6 : 3) + itemTags.filter((tag) => tagIsLiked(tag)).length * 2 + getRating(item.id) * 1.5 + getCreatorRating(item.remote?.channelName ?? "") * 2 + Number(creatorIsLiked(item.remote?.channelName ?? "")) * 3,
 				random: previewShuffle(`${video.id}:${item.id}:${recommendationSeed}`, recommendationSeed)
 			};
 		}).filter((row) => row.score > 0).sort((a, b) => b.score - a.score || a.random - b.random).slice(0, 8).map((row) => row.item);
 	}, [
+		adultFolderIds,
 		allTags,
 		creatorRevision,
+		previewIsAdult,
 		recommendationSeed,
 		shelfReady,
 		tags,
@@ -9513,18 +11006,23 @@ function PreVideo() {
 			return getRating(item.id) >= 4 ? itemTags : itemTags.filter((tag) => tagIsLiked(tag));
 		}));
 		const relatedIds = new Set(related.map((relatedItem) => relatedItem.id));
-		return videos.filter((item) => item.id !== video.id && !isExcludedPreviewCandidate(item) && !unavailable[item.id] && !relatedIds.has(item.id)).map((item) => {
+		return videos.filter((item) => {
+			const itemIsAdult = isAdultPullKind(item.remote?.kind) || adultFolderIds.has(item.folderId);
+			return item.id !== video.id && !isExcludedPreviewCandidate(item) && !unavailable[item.id] && !relatedIds.has(item.id) && itemIsAdult === previewIsAdult;
+		}).map((item) => {
 			const itemTags = allTags[item.id] ?? EMPTY_TAGS;
 			const sharedTopics = itemTags.filter((tag) => sourceTags.has(tag)).length;
 			return {
 				item,
-				score: Number(item.genre === video.genre) * 3 + Number(item.remote?.kind === sourceKind) * 1.5 + sharedTopics * 3 + getRating(item.id) * 2 + getCreatorRating(item.remote?.channelName ?? "") * 2 + Number(creatorIsLiked(item.remote?.channelName ?? "")) * 3 + itemTags.filter((tag) => highlyRatedTags.has(tag)).length * 3 + itemTags.filter((tag) => tagIsLiked(tag)).length * 2,
+				score: Number(item.genre === video.genre) * 3 + Number(item.remote?.kind === sourceKind) * (previewIsAdult ? 4 : 1.5) + sharedTopics * (previewIsAdult ? 6 : 3) + getRating(item.id) * 2 + getCreatorRating(item.remote?.channelName ?? "") * 2 + Number(creatorIsLiked(item.remote?.channelName ?? "")) * 3 + itemTags.filter((tag) => highlyRatedTags.has(tag)).length * 3 + itemTags.filter((tag) => tagIsLiked(tag)).length * 2,
 				random: previewShuffle(`${video.id}:${item.id}:${seed}`, seed)
 			};
 		}).sort((a, b) => b.score - a.score || a.random - b.random).slice(0, 6).map((row) => row.item);
 	}, [
+		adultFolderIds,
 		allTags,
 		creatorRevision,
+		previewIsAdult,
 		recommendationSeed,
 		related,
 		shelfReady,
@@ -9878,7 +11376,7 @@ function PreVideo() {
 					className: "mt-9",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
 						className: "font-display text-2xl text-fg",
-						children: "More from this shelf"
+						children: previewIsAdult ? "More Adult picks from this shelf" : "More from this shelf"
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6",
 						children: related.map((item) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
@@ -9907,11 +11405,11 @@ function PreVideo() {
 					children: [
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
 							className: "font-display text-2xl text-fg",
-							children: "More to try next"
+							children: previewIsAdult ? "More Adult picks to try next" : "More to try next"
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 							className: "mt-1 text-sm text-muted",
-							children: "A fresh mix based on this title’s genre and what was added recently."
+							children: previewIsAdult ? "A fresh Adult-only mix based on this title’s tags, creator, source, and your saved Adult interests." : "A fresh mix based on this title’s genre and what was added recently."
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 							className: "mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6",
@@ -10194,7 +11692,7 @@ function ConnectPanel({ defaultKind = "youtube", lockedKind }) {
 		if (!login) return;
 		setFinding(true);
 		try {
-			const { fetchTwitchFollowing } = await import("./api-djS3Gh_Q.mjs");
+			const { fetchTwitchFollowing } = await import("./api-ORUKXm9_.mjs");
 			const result = await fetchTwitchFollowing({ data: { login } });
 			const rows = result.channels.map((channel) => ({
 				query: channel.login,
@@ -10645,7 +12143,7 @@ ytFilm({
 	tagline: "A Blender Studio open project.",
 	channel: "Blender Studio"
 });
-var loadHub = () => import("./hub-sections-BwFLug5M.mjs");
+var loadHub = () => import("./hub-sections-MGkYQ5sw.mjs");
 var hubSection = (name) => (0, import_react.lazy)(async () => ({ default: (await loadHub())[name] }));
 var GamesSection = hubSection("GamesSection");
 var FindPhoneSection = hubSection("FindPhoneSection");
@@ -10666,6 +12164,17 @@ function shuffleRank(id, seed) {
 	let value = seed >>> 0;
 	for (let index = 0; index < id.length; index += 1) value = Math.imul(value ^ id.charCodeAt(index), 73244475);
 	return value >>> 0;
+}
+/**
+* Adult catalog quality still leads, but each rail gets a time-stamped shuffle
+* inside a bounded rank window. That rotates fresh cards into view without
+* letting low-signal results displace the useful part of the catalog.
+*/
+function rotateAdultRail(items, rail, seed) {
+	return items.map((video, index) => ({
+		video,
+		rank: index + shuffleRank(`${rail}:${video.id}`, seed) / 4294967295 * 28
+	})).sort((a, b) => a.rank - b.rank).map(({ video }) => video);
 }
 function diversifyCreators(items, limit = 48) {
 	const groups = /* @__PURE__ */ new Map();
@@ -10727,6 +12236,7 @@ function LibraryApp() {
 	const [movieShuffle, setMovieShuffle] = (0, import_react.useState)(() => Date.now());
 	const [homePickShuffle, setHomePickShuffle] = (0, import_react.useState)(() => Date.now());
 	const [ratingRevision, setRatingRevision] = (0, import_react.useState)(0);
+	const [tagHeartRevision, setTagHeartRevision] = (0, import_react.useState)(0);
 	const [adultTag, setAdultTag] = (0, import_react.useState)("All");
 	const [adultSource, setAdultSource] = (0, import_react.useState)("all");
 	const [adultView, setAdultView] = (0, import_react.useState)("all");
@@ -10734,6 +12244,8 @@ function LibraryApp() {
 	const [adultTagQuery, setAdultTagQuery] = (0, import_react.useState)("");
 	/** Visible ranked tag chips — starts small; Show more adds a page, never dumps hundreds. */
 	const [adultTagVisibleCount, setAdultTagVisibleCount] = (0, import_react.useState)(10);
+	const [adultExplorerTag, setAdultExplorerTag] = (0, import_react.useState)("");
+	const [adultRailSeed, setAdultRailSeed] = (0, import_react.useState)(() => Date.now() >>> 0);
 	const [adultSort, setAdultSort] = (0, import_react.useState)("ranked");
 	const [twitchSort, setTwitchSort] = (0, import_react.useState)("live");
 	const [twitchFilter, setTwitchFilter] = (0, import_react.useState)("all");
@@ -10811,6 +12323,7 @@ function LibraryApp() {
 	const publicFolders = folders.filter((f) => f.kind !== "demo" && f.kind !== "youtube" && f.kind !== "twitch" && !f.adult);
 	const adultFolders = folders.filter((f) => f.adult);
 	const tags = useLibrary((s) => s.tags);
+	const adultHistoryTagged = (0, import_react.useMemo)(() => adultHistory.filter((video) => (tags[video.id] ?? []).includes("adult")), [adultHistory, tags]);
 	const markedAdult = (0, import_react.useMemo)(() => [...adultRemoteVideos.filter((video) => (cameCounts[video.id] ?? 0) > 0)].sort((a, b) => (cameCounts[b.id] ?? 0) - (cameCounts[a.id] ?? 0)), [adultRemoteVideos, cameCounts]);
 	const sourceMatchedAdult = (0, import_react.useMemo)(() => adultRemoteVideos.filter((video) => videoMatchesAdultSource(video, adultSource)), [adultRemoteVideos, adultSource]);
 	const adultKind = (video) => video.remote?.live || [
@@ -10867,12 +12380,15 @@ function LibraryApp() {
 		likes,
 		cameCounts,
 		viewCounts,
-		ratingOf: getRating
+		ratingOf: getRating,
+		tagIsHearted: tagIsLiked,
+		tagHasHeartHistory
 	}), [
 		cameCounts,
 		favorites,
 		likes,
 		ratingRevision,
+		tagHeartRevision,
 		tags,
 		viewCounts
 	]);
@@ -10895,14 +12411,29 @@ function LibraryApp() {
 		sourceId,
 		sourceMatchedAdult
 	]);
+	const adultOverviewRails = (0, import_react.useMemo)(() => {
+		const videos = rotateAdultRail(rankedAdultCatalog.filter((video) => adultKind(video) === "videos"), "overview-videos", adultRailSeed).slice(0, adultRailLimit);
+		const photos = rotateAdultRail(rankedAdultCatalog.filter((video) => adultKind(video) === "photos"), "overview-photos", adultRailSeed).slice(0, adultRailLimit);
+		const alreadyShown = new Set([...videos, ...photos].map((video) => video.id));
+		return {
+			videos,
+			photos,
+			picks: rotateAdultRail(rankedAdultCatalog.filter((video) => adultKind(video) !== "live" && !alreadyShown.has(video.id)), "overview-picks", adultRailSeed).slice(0, adultRailLimit)
+		};
+	}, [
+		adultRailLimit,
+		adultRailSeed,
+		rankedAdultCatalog
+	]);
 	const adultTopTagRails = (0, import_react.useMemo)(() => {
 		if (sourceId !== "adults" || !adultRankReady || adultTag !== "All") return [];
-		return adultTagRank.filter((row) => row.count >= 3).slice(0, 3).map((row) => ({
+		return adultTagRank.filter((row) => row.count >= 4).slice(0, 5).map((row) => ({
 			...row,
-			videos: rankedAdultCatalog.filter((video) => videoMatchesAdultTag(video, row.tag, tags)).slice(0, adultRailLimit)
+			videos: rotateAdultRail(rankedAdultCatalog.filter((video) => videoMatchesAdultTag(video, row.tag, tags)), `tag:${row.tag}`, adultRailSeed).slice(0, adultRailLimit)
 		})).filter((row) => row.videos.length > 0);
 	}, [
 		adultRailLimit,
+		adultRailSeed,
 		adultRankReady,
 		adultTag,
 		adultTagRank,
@@ -10924,6 +12455,7 @@ function LibraryApp() {
 		if (!needle) return adultTagRank;
 		return adultTagRank.filter((row) => row.tag.includes(needle) || row.tag.replace(/-/g, " ").includes(needle));
 	}, [adultTagQuery, adultTagRank]);
+	const heartedAdultTags = (0, import_react.useMemo)(() => getHeartedTagHistory().filter((tag) => adultTagRank.some((row) => row.tag === tag)), [adultTagRank, tagHeartRevision]);
 	const visibleAdultTags = (0, import_react.useMemo)(() => {
 		const page = Math.min(Math.max(10, adultTagVisibleCount), 36);
 		return adultTagMatches.slice(0, page);
@@ -10932,17 +12464,29 @@ function LibraryApp() {
 		if (sourceId !== "adults" || !adultRankReady) return [];
 		const preferred = new Set([...adultTagRank.slice(0, 16), ...adultMetaTagRank.slice(0, 12)].map((row) => row.tag));
 		const likedTags = new Set(sourceMatchedAdult.filter((video) => favorites[video.id] || likes[video.id] || getRating(video.id) >= 4 || (cameCounts[video.id] ?? 0) > 0).flatMap((video) => tags[video.id] ?? []));
-		return (adultTag === "All" && adultSource === "all" ? rankedAdultCatalog : sortAdultVideos(sourceMatchedAdult, adultRankCtx)).map((video) => {
+		const rankedBase = adultTag === "All" && adultSource === "all" ? rankedAdultCatalog : sortAdultVideos(sourceMatchedAdult, adultRankCtx);
+		const overviewIds = new Set([
+			...adultOverviewRails.videos,
+			...adultOverviewRails.photos,
+			...adultOverviewRails.picks
+		].map((video) => video.id));
+		const freshBase = rankedBase.filter((video) => !overviewIds.has(video.id));
+		return diversifyCreators((freshBase.length >= Math.min(16, adultRailLimit) ? freshBase : rankedBase).map((video) => {
 			const itemTags = tags[video.id] ?? [];
 			const overlap = itemTags.filter((tag) => preferred.has(tag)).length;
 			const likedOverlap = itemTags.filter((tag) => likedTags.has(tag)).length;
+			const previewReady = Number(Boolean(video.poster || video.remote?.previewUrl));
+			const rotation = shuffleRank(`adult-recommended:${video.id}`, adultRailSeed) / 4294967295 * 8;
 			return {
 				video,
-				score: overlap * 8 + likedOverlap * 10
+				score: overlap * 8 + likedOverlap * 10 + previewReady * 3 + rotation
 			};
-		}).sort((a, b) => b.score - a.score).map(({ video }) => video).slice(0, 48);
+		}).sort((a, b) => b.score - a.score).map(({ video }) => video).slice(0, 96), 48);
 	}, [
 		adultMetaTagRank,
+		adultOverviewRails,
+		adultRailLimit,
+		adultRailSeed,
 		adultRankCtx,
 		adultRankReady,
 		adultSource,
@@ -10962,30 +12506,36 @@ function LibraryApp() {
 		const seedTags = new Set((adultTag !== "All" ? [adultTag] : [...adultTagRank.slice(0, 8), ...adultMetaTagRank.slice(0, 6)].map((row) => row.tag)).concat(adultContinue[0] ? tags[adultContinue[0].id] ?? [] : [], adultFavorites[0] ? tags[adultFavorites[0].id] ?? [] : []));
 		const recommendedIds = new Set(adultRecommended.map((video) => video.id));
 		return adultRemoteVideos.filter((video) => !recommendedIds.has(video.id)).map((video) => {
+			const overlap = (tags[video.id] ?? []).filter((tag) => seedTags.has(tag)).length;
+			const previewReady = Number(Boolean(video.poster || video.remote?.previewUrl));
 			return {
 				video,
-				score: (tags[video.id] ?? []).filter((tag) => seedTags.has(tag)).length * 12 + getRating(video.id) * 8 + (favorites[video.id] ? 5 : 0) + (likes[video.id] ? 3 : 0),
-				shuffle: shuffleRank(`adult-rel:${video.id}:${homePickShuffle}`, homePickShuffle)
+				score: overlap * 12 + getRating(video.id) * 8 + (favorites[video.id] ? 5 : 0) + (likes[video.id] ? 3 : 0) + previewReady * 3,
+				shuffle: shuffleRank(`adult-rel:${video.id}:${adultRailSeed}`, adultRailSeed)
 			};
 		}).filter((row) => row.score > 0).sort((a, b) => b.score - a.score || a.shuffle - b.shuffle).map(({ video }) => video).slice(0, 48);
 	}, [
 		adultContinue,
 		adultFavorites,
 		adultMetaTagRank,
+		adultRailSeed,
 		adultRankReady,
 		adultRecommended,
 		adultRemoteVideos,
 		adultTag,
 		adultTagRank,
 		favorites,
-		homePickShuffle,
 		likes,
 		ratingRevision,
 		sourceId,
 		tags
 	]);
 	const adultShelfRails = (0, import_react.useMemo)(() => {
-		const used = /* @__PURE__ */ new Set();
+		const used = new Set([
+			...adultOverviewRails.videos,
+			...adultOverviewRails.photos,
+			...adultOverviewRails.picks
+		].map((video) => video.id));
 		const take = (list, limit, claim = true) => {
 			const out = [];
 			for (const video of list) {
@@ -11001,10 +12551,11 @@ function LibraryApp() {
 		const marked = take(scoped(markedAdult), Math.min(24, adultRailLimit));
 		const recommended = take(scoped(adultRecommended), adultRailLimit);
 		const related = take(scoped(adultRelatedRecommended), adultRailLimit);
-		const reddit = take(scoped(rankedAdultCatalog.filter((video) => video.remote?.kind === "reddit")), adultRailLimit);
-		const latest = take(scoped(rankedAdultCatalog), adultRailLimit);
-		const catalog = take(scoped(rankedAdultCatalog), Math.max(48, adultRailLimit * 3));
-		const posterFresh = take(scoped(rankedAdultCatalog), Math.max(96, adultRailLimit * 6), true);
+		const reddit = take(scoped(rotateAdultRail(rankedAdultCatalog.filter((video) => video.remote?.kind === "reddit"), "reddit", adultRailSeed)), adultRailLimit);
+		const rotatedCatalog = scoped(rotateAdultRail(rankedAdultCatalog, "latest", adultRailSeed));
+		const latest = take(rotatedCatalog, adultRailLimit);
+		const catalog = take(rotateAdultRail(rotatedCatalog, "catalog", adultRailSeed), Math.max(48, adultRailLimit * 3));
+		const posterFresh = take(rotateAdultRail(rotatedCatalog, "poster", adultRailSeed), Math.max(96, adultRailLimit * 6), true);
 		const seenPoster = new Set(posterFresh.map((video) => video.id));
 		return {
 			recommended,
@@ -11018,7 +12569,9 @@ function LibraryApp() {
 		};
 	}, [
 		adultContinue,
+		adultOverviewRails,
 		adultRailLimit,
+		adultRailSeed,
 		adultRecommended,
 		adultRelatedRecommended,
 		adultTag,
@@ -11045,6 +12598,16 @@ function LibraryApp() {
 		adultRecommendedRail,
 		adultRemoteVideos
 	]);
+	const adultExplorerResults = (0, import_react.useMemo)(() => {
+		const selected = adultExplorerTag.trim();
+		return rotateAdultRail(adultRemoteVideos.filter((video) => selected ? (tags[video.id] ?? []).includes(selected) : (tags[video.id] ?? []).some((tag) => tag.startsWith("fetish-"))).sort((a, b) => b.addedAt - a.addedAt), `explorer:${selected || "all"}`, adultRailSeed).slice(0, Math.max(48, adultRailLimit * 2));
+	}, [
+		adultExplorerTag,
+		adultRailLimit,
+		adultRailSeed,
+		adultRemoteVideos,
+		tags
+	]);
 	(0, import_react.useEffect)(() => {
 		setAdultTagVisibleCount(10);
 	}, [adultTagQuery, adultSource]);
@@ -11062,6 +12625,13 @@ function LibraryApp() {
 		window.addEventListener("reelcase:adult-render-settings", load);
 		return () => window.removeEventListener("reelcase:adult-render-settings", load);
 	}, []);
+	(0, import_react.useEffect)(() => {
+		if (sourceId !== "adults") return;
+		const rotate = () => setAdultRailSeed(Date.now() >>> 0);
+		rotate();
+		const timer = window.setInterval(rotate, 18e4);
+		return () => window.clearInterval(timer);
+	}, [sourceId]);
 	(0, import_react.useEffect)(() => {
 		if (sourceId !== "adults") {
 			setAdultRankReady(false);
@@ -11653,7 +13223,10 @@ function LibraryApp() {
 		};
 	}, [sourceId, videos.length]);
 	(0, import_react.useEffect)(() => {
-		const refreshRatedShelves = () => (0, import_react.startTransition)(() => setRatingRevision((value) => value + 1));
+		const refreshRatedShelves = () => (0, import_react.startTransition)(() => {
+			setRatingRevision((value) => value + 1);
+			setTagHeartRevision((value) => value + 1);
+		});
 		window.addEventListener("reelcase:rating-change", refreshRatedShelves);
 		return () => window.removeEventListener("reelcase:rating-change", refreshRatedShelves);
 	}, []);
@@ -11916,7 +13489,7 @@ function LibraryApp() {
 		link.click();
 		URL.revokeObjectURL(link.href);
 	};
-	const browsing = !query && (sourceId === "home" || sourceId === "movies" || sourceId === "adults" || sourceId === "youtube" || sourceId === "twitch" || sourceId === "live");
+	const browsing = !query && (sourceId === "home" || sourceId === "movies" || sourceId === "adults" || sourceId === "adult-fetishes" || sourceId === "youtube" || sourceId === "twitch" || sourceId === "live");
 	const invitedToTheater = typeof window !== "undefined" && /^RC[A-Z0-9]{4,12}$/.test((new URLSearchParams(window.location.search).get("room") ?? "").trim().toUpperCase());
 	const isHubSection = [
 		"photos",
@@ -12787,6 +14360,41 @@ function LibraryApp() {
 							}),
 							classics.length === 0 && videos.length === 0 ? null : null
 						] }),
+						sourceId === "adult-fetishes" && browsing && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AdultFetishExplorer, { onSelectedTag: (tag) => {
+							setAdultExplorerTag(tag);
+							setAdultTag(tag);
+						} }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+							className: "mb-6 rounded-xl border border-border bg-surface p-5 shadow-border",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "flex flex-wrap items-start justify-between gap-3",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+										children: "Explorer results"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+										className: "mt-2 font-display text-2xl text-fg",
+										children: adultExplorerTag ? `#${adultExplorerTag.replace(/^fetish-/, "")}` : "Your pulled Adult interests"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "mt-1 text-sm text-muted",
+										children: adultExplorerTag ? "Freshly pulled and saved matching titles. Results stay tagged for the Adult catalog too." : "Pick a topic above to pull it. Existing fetish-tagged titles appear here while you choose."
+									})
+								] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+									size: "sm",
+									variant: "secondary",
+									onClick: () => setSource("adults"),
+									children: "Browse all Adults"
+								})]
+							}), adultExplorerResults.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: adultExplorerTag ? "Matching titles" : "Recently pulled interests",
+								videos: adultExplorerResults,
+								variant: "rail"
+							}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-5 rounded-lg bg-elevated px-4 py-5 text-sm text-muted",
+								children: "No saved titles match this topic yet. Choose a provider and pull a topic above."
+							})]
+						})] }),
 						sourceId === "adults" && browsing && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AdultPanel, {
 								showMilestones: adultDeepVisible,
@@ -12828,30 +14436,78 @@ function LibraryApp() {
 								children: [
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
 										title: `Adult videos · ${adultKindCounts.videos}`,
-										videos: rankedAdultCatalog.filter((video) => adultKind(video) === "videos").slice(0, adultRailLimit),
-										variant: "rail"
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
-										title: `Adult live · ${adultKindCounts.live}`,
-										videos: rankedAdultCatalog.filter((video) => adultKind(video) === "live").slice(0, adultRailLimit),
+										reason: "Two catalog rows in one continuous rail.",
+										videos: adultOverviewRails.videos,
 										variant: "rail"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
 										title: `Adult photos · ${adultKindCounts.photos}`,
-										videos: rankedAdultCatalog.filter((video) => adultKind(video) === "photos").slice(0, adultRailLimit),
+										reason: "Reddit and Booru photos with preview fallbacks, combined into one rail.",
+										videos: adultOverviewRails.photos,
+										variant: "rail"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+										title: "Adult picks",
+										reason: "A distinct mixed row after the video and photo cards above.",
+										videos: adultOverviewRails.picks,
 										variant: "rail"
 									})
 								]
 							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+								className: "mb-5 rounded-xl border border-border bg-surface p-4 shadow-border",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "flex flex-wrap items-start justify-between gap-3",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+											children: "For you right now"
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+											className: "mt-1 font-display text-2xl text-fg",
+											children: "Better Adult recommendations"
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "mt-1 max-w-3xl text-sm text-muted",
+											children: "Taste signals from ratings, saves, likes, hearted tags, watch history, and private marks lead the mix. Preview-ready cards get a small lift, while a timestamped rotation keeps the opening rails from becoming fixed."
+										})
+									] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+										size: "sm",
+										variant: "secondary",
+										onClick: () => setAdultRailSeed(Date.now() >>> 0),
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Shuffle, { className: "size-4" }), " Refresh mix"]
+									})]
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "mt-3 grid gap-2 sm:grid-cols-3",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "rounded-md bg-elevated px-3 py-2 text-xs text-muted",
+											children: [
+												adultRecommendedRail.length,
+												" fresh recommendation",
+												adultRecommendedRail.length === 1 ? "" : "s"
+											]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "rounded-md bg-elevated px-3 py-2 text-xs text-muted",
+											children: [adultRelatedRail.length, " related by current interests"]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "rounded-md bg-elevated px-3 py-2 text-xs text-muted",
+											children: "Overview cards are held out of these first shelves"
+										})
+									]
+								})]
+							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
-								title: "Recommended videos",
-								reason: "Ranked from tag overlap, extreme/fetish boosts, I-cummed marks, Reddit signals, ratings, and recency — not just newest tube titles.",
+								title: "Recommended for you",
+								reason: "Tag overlap, hearted interests, ratings, private marks, source variety, thumbnail readiness, and a fresh timestamped mix.",
 								videos: adultRecommendedRail,
 								variant: "rail"
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
-								title: "Related recommended",
-								reason: "Nearby titles sharing your top adult tags, continue-watching tags, and favorite fetish overlap.",
+								title: "More from your interests",
+								reason: "Nearby titles sharing your top Adult tags, recent watches, favorites, and pulled fetish topics.",
 								videos: adultRelatedRail,
 								variant: "rail"
 							}),
@@ -12874,7 +14530,7 @@ function LibraryApp() {
 							}),
 							adultTopTagRails.map((row) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
 								title: `Top #${row.tag} · ${row.count}`,
-								reason: `Ranked tag score ${Math.round(row.score)} from title count, ratings, saves, marks, recency, and taxonomy relevance.`,
+								reason: `Stabilized tag score ${Math.round(row.score)} from ${row.count} titles, ratings, saves, marks, recency, and taxonomy relevance. One-off tags stay out of these rails.`,
 								videos: row.videos,
 								variant: "rail"
 							}, `adult-tag-rail-${row.tag}`)),
@@ -12918,6 +14574,12 @@ function LibraryApp() {
 												onClick: () => setAdultTag("All"),
 												children: "All adult tags"
 											}),
+											heartedAdultTags.map((tag) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+												size: "sm",
+												variant: adultTag === tag ? "default" : "secondary",
+												onClick: () => setAdultTag(tag),
+												children: ["♥ #", tag]
+											}, `adult-hearted-${tag}`)),
 											visibleAdultTags.map((row) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 												size: "sm",
 												variant: adultTag === row.tag ? "default" : "secondary",
@@ -12959,7 +14621,8 @@ function LibraryApp() {
 											adultTagMatches.length || adultTagRank.length,
 											" ranked tags",
 											adultTagQuery.trim() ? " (filtered)" : "",
-											" · cap 36 on screen."
+											" · cap 36 on screen.",
+											heartedAdultTags.length ? ` · ${heartedAdultTags.length} hearted tag${heartedAdultTags.length === 1 ? "" : "s"} stay prioritized and retained in local history.` : ""
 										]
 									}),
 									adultMetaTagRank.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -13058,6 +14721,15 @@ function LibraryApp() {
 								reason: "Windowed filtered catalog, ranked (first 120).",
 								videos: adultCatalogRail,
 								variant: "rail"
+							}),
+							adultView === "all" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("section", {
+								className: "mt-8 border-t border-border pt-5",
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+									title: `Adult live now · ${adultKindCounts.live}`,
+									reason: "Public live rooms stay together at the bottom of the combined Adult view, with their own rotating order.",
+									videos: rotateAdultRail(rankedAdultCatalog.filter((video) => adultKind(video) === "live"), "live", adultRailSeed).slice(0, Math.max(adultRailLimit, 24)),
+									variant: "rail"
+								})
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PosterGrid, { videos: adultPosterCatalog }),
 							!adultDeepVisible && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
@@ -13205,8 +14877,8 @@ function LibraryApp() {
 									variant: "poster"
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
-									title: "History",
-									videos: adultHistory,
+									title: "History · #adult",
+									videos: adultHistoryTagged,
 									variant: "rail",
 									playedAt
 								}),
@@ -13366,7 +15038,7 @@ function LibraryApp() {
 								children: "Heart a title or use My List on the billboard."
 							})]
 						}) : null,
-						(sourceId === "history" || sourceId === "continue" || query || !browsing && sourceId !== "favorites" && sourceId !== "home" && sourceId !== "movies" && sourceId !== "adults" && sourceId !== "genres" && sourceId !== "stats" && sourceId !== "connection" && sourceId !== "find-phone") && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+						(sourceId === "history" || sourceId === "continue" || query || !browsing && sourceId !== "favorites" && sourceId !== "home" && sourceId !== "movies" && sourceId !== "adults" && sourceId !== "adult-fetishes" && sourceId !== "genres" && sourceId !== "stats" && sourceId !== "connection" && sourceId !== "find-phone") && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "mb-4 flex items-end justify-between gap-3",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
@@ -13468,7 +15140,7 @@ function LibraryApp() {
 									})
 								]
 							}),
-							(sourceId === "continue" || sourceId === "history") && !query && (adultContinue.length > 0 || adultHistory.length > 0) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+							(sourceId === "continue" || sourceId === "history") && !query && (adultContinue.length > 0 || adultHistoryTagged.length > 0) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 								className: "mb-5 rounded-xl border border-border bg-surface p-5 shadow-border",
 								children: [
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
@@ -13507,11 +15179,11 @@ function LibraryApp() {
 											variant: "rail"
 										})
 									}),
-									sourceId === "history" && adultHistory.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									sourceId === "history" && adultHistoryTagged.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 										className: "mt-4",
 										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
-											title: "Adults · recent history",
-											videos: adultHistory.slice(0, 18),
+											title: "Adults · recent history · #adult",
+											videos: adultHistoryTagged.slice(0, 18),
 											variant: "rail",
 											playedAt
 										})

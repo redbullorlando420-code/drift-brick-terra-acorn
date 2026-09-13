@@ -6,6 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LIBRARY_LIMITS } from "@/lib/library-limits";
 import {
+  getHeartedTagHistory,
+  getRating,
+  tagHasHeartHistory,
+  tagIsLiked,
+  toggleTagLike,
+} from "@/lib/media-feedback";
+import {
   adultArchiveDepthLabel,
   loadAdultArchiveCursors,
 } from "@/lib/videos/adult-archive-cursors";
@@ -23,6 +30,7 @@ import {
 } from "@/lib/videos/adult-sites";
 import { ADULT_SOURCE_FILTERS, countAdultBySource } from "@/lib/videos/adult-filter";
 import { ADULT_PROVIDER_ADAPTERS } from "@/lib/videos/adult-provider-adapters";
+import { rankAdultTags } from "@/lib/videos/adult-rank";
 import { selectAdultRemote, useLibrary } from "@/lib/videos/store";
 
 const ORDERS: { id: string; label: string }[] = [
@@ -50,11 +58,34 @@ const FETISH_EXPLORER_GROUPS: Array<{ label: string; tags: readonly string[] }> 
   { label: "Featured", tags: ADULT_FEATURED_FETISH_TAGS },
   { label: "Scenes & styles", tags: ["amateur", "anal", "bondage", "cosplay", "creampie", "double penetration", "feet", "gangbang", "pov", "role play", "threesome", "vr"] },
   { label: "People & regions", tags: ["asian", "bbw", "ebony", "japanese", "latina", "mature", "milf", "transgender", "verified amateurs"] },
-  { label: "Formats", tags: ["animation", "hentai", "interactive", "live", "solo female", "webcam"] },
+  { label: "Formats & live", tags: ["animation", "hentai", "interactive", "live", "solo female", "virtual reality", "webcam"] },
+  { label: "Kink & power", tags: ["bdsm", "cuckold", "femdom", "pegging", "roleplay", "strap on", "taboo"] },
 ];
 
 type RedditSourceSetting = { subreddit: string; priority: 1 | 2 | 3; hidden?: boolean; favorite?: boolean };
 const REDDIT_SOURCE_STORAGE_KEY = "reelcase.adult-reddit-sources.v1";
+type FetishExplorerTab = "topics" | "sources" | "reddit" | "interests";
+
+const FETISH_EXPLORER_TABS: Array<{ id: FetishExplorerTab; label: string; hint: string }> = [
+  { id: "topics", label: "Browse topics", hint: "Choose an interest and pull it" },
+  { id: "sources", label: "Pull sources", hint: "Set the provider mix" },
+  { id: "reddit", label: "Reddit list", hint: "Review saved communities" },
+  { id: "interests", label: "For you", hint: "Use hearts and ranked signals" },
+];
+
+function fetishTopicKey(tag: string): string {
+  return tag.trim().toLowerCase().replace(/^fetish-/, "").replace(/-/g, " ");
+}
+
+function fetishTagLabel(tag: string): string {
+  return fetishTopicKey(tag).replace(/\s+/g, " ");
+}
+
+function pullSourceSelectionLabel(providers: AdultPullProvider[] | "all"): string {
+  if (providers === "all") return "All available sources";
+  const exact = PROVIDER_CHOICES.find((choice) => JSON.stringify(choice.id) === JSON.stringify(providers));
+  return exact?.label ?? `${providers.length} selected sources`;
+}
 
 function readRedditSourceSettings(): RedditSourceSetting[] {
   try {
@@ -89,11 +120,20 @@ export function AdultFetishExplorer({
   const searchAdultFeed = useLibrary((s) => s.searchAdultFeed);
   const remoteBusy = useLibrary((s) => s.remoteBusy);
   const setSource = useLibrary((s) => s.setSource);
+  const explorerAdultVideos = useLibrary(useShallow(selectAdultRemote));
+  const explorerTags = useLibrary((s) => s.tags);
+  const explorerFavorites = useLibrary((s) => s.favorites);
+  const explorerLikes = useLibrary((s) => s.likes);
+  const explorerCameCounts = useLibrary((s) => s.cameCounts);
+  const explorerViewCounts = useLibrary((s) => s.viewCounts);
   const [providers, setProviders] = useState<AdultPullProvider[] | "all">("all");
   const [order, setOrder] = useState("top-weekly");
   const [query, setQuery] = useState("");
   const [showAll, setShowAll] = useState(false);
-  const [pullLimit, setPullLimit] = useState(LIBRARY_LIMITS.adultInteractiveVideosPerPull);
+  const [pullLimit, setPullLimit] = useState<number>(LIBRARY_LIMITS.adultInteractiveVideosPerPull);
+  const [activeTab, setActiveTab] = useState<FetishExplorerTab>("topics");
+  const [redditSourceRevision, setRedditSourceRevision] = useState(0);
+  const [feedbackRevision, setFeedbackRevision] = useState(0);
 
   useEffect(() => {
     try {
@@ -104,14 +144,40 @@ export function AdultFetishExplorer({
     }
   }, []);
 
+  useEffect(() => {
+    const refresh = () => setFeedbackRevision((revision) => revision + 1);
+    window.addEventListener("reelcase:rating-change", refresh);
+    return () => window.removeEventListener("reelcase:rating-change", refresh);
+  }, []);
+
+  const redditSourceSettings = useMemo(() => readRedditSourceSettings(), [redditSourceRevision]);
   const savedRedditSources = useMemo(() => {
     const merged = new Map<string, RedditSourceSetting>();
     for (const subreddit of ADULT_REDDIT_SUBS) merged.set(subreddit.toLowerCase(), { subreddit, priority: 2 });
-    for (const source of readRedditSourceSettings()) merged.set(source.subreddit.toLowerCase(), source);
+    for (const source of redditSourceSettings) merged.set(source.subreddit.toLowerCase(), source);
     return [...merged.values()]
       .filter((source) => !source.hidden)
       .sort((a, b) => Number(b.favorite) - Number(a.favorite) || b.priority - a.priority || a.subreddit.localeCompare(b.subreddit));
-  }, []);
+  }, [redditSourceSettings]);
+  const favoriteRedditSources = useMemo(() => savedRedditSources.filter((source) => source.favorite), [savedRedditSources]);
+  const hiddenRedditSources = useMemo(() => redditSourceSettings.filter((source) => source.hidden), [redditSourceSettings]);
+  const rankedInterests = useMemo(() => rankAdultTags(explorerAdultVideos, {
+    tags: explorerTags,
+    favorites: explorerFavorites,
+    likes: explorerLikes,
+    cameCounts: explorerCameCounts,
+    viewCounts: explorerViewCounts,
+    ratingOf: getRating,
+    tagIsHearted: (tag) => tagIsLiked(tag) || tagIsLiked(fetishTopicKey(tag)),
+    tagHasHeartHistory: (tag) => tagHasHeartHistory(tag) || tagHasHeartHistory(fetishTopicKey(tag)),
+  }, 48).filter((row) => row.tag.startsWith("fetish-") || ADULT_CURATED_FETISH_TAGS.includes(fetishTopicKey(row.tag))), [explorerAdultVideos, explorerCameCounts, explorerFavorites, explorerLikes, explorerTags, explorerViewCounts, feedbackRevision]);
+  const historicInterestTags = useMemo(() => {
+    const knownCuratedTags = new Set(ADULT_CURATED_FETISH_TAGS.map(fetishTopicKey));
+    const rankedTags = new Set(rankedInterests.map((row) => fetishTopicKey(row.tag)));
+    return getHeartedTagHistory()
+      .map(fetishTopicKey)
+      .filter((tag, index, all) => knownCuratedTags.has(tag) && !rankedTags.has(tag) && all.indexOf(tag) === index);
+  }, [feedbackRevision, rankedInterests]);
   const matchingFetishes = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return ADULT_CURATED_FETISH_TAGS.filter((tag) => !needle || tag.includes(needle));
@@ -131,20 +197,52 @@ export function AdultFetishExplorer({
       .then((count) => toast.success(count ? `Loaded ${count.toLocaleString()} for #${topic}` : `No titles found for #${topic}`))
       .catch((error: unknown) => toast.error(error instanceof Error ? error.message : `Could not pull #${topic}.`));
   };
+  const pullSavedRedditSources = () => {
+    if (remoteBusy) return;
+    if (!savedRedditSources.length) {
+      toast.message("No active Reddit communities are saved yet.");
+      return;
+    }
+    void searchAdultFeed("all", order, {
+      page: 1,
+      maxVideos: pullLimit,
+      providers: ["reddit"],
+      redditSources: savedRedditSources,
+    })
+      .then((count) => toast.success(count ? `Refreshed ${count.toLocaleString()} titles from your Reddit list` : "No new titles from your saved Reddit list"))
+      .catch((error: unknown) => toast.error(error instanceof Error ? error.message : "Could not refresh your saved Reddit list."));
+  };
+  const openRedditSourceManager = () => {
+    try {
+      localStorage.setItem("reelcase.adult-discovery-collapsed", "false");
+    } catch {
+      // The destination still opens, even when this session cannot save the view preference.
+    }
+    setSource("adults");
+  };
+  const toggleInterestHeart = (tag: string) => {
+    toggleTagLike(fetishTopicKey(tag));
+    setFeedbackRevision((revision) => revision + 1);
+  };
 
   const topics = query.trim() || showAll ? matchingFetishes : [];
+  const usesReddit = providers === "all" || providers.includes("reddit");
+  const heartedRankedInterests = rankedInterests.filter((row) => tagIsLiked(row.tag) || tagIsLiked(fetishTopicKey(row.tag)));
   return (
-    <section className="mb-6 rounded-xl bg-elevated p-5 shadow-border">
+    <section className="mb-6 rounded-xl bg-elevated p-5 shadow-border" aria-labelledby="fetish-explorer-title">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Adult interests</p>
-          <h1 className="mt-2 font-display text-3xl text-fg sm:text-4xl">Fetish Explorer</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted">Choose a topic, choose which providers should answer it, then pull a varied, tagged Adult shelf. Saved Reddit communities, including favorites and priority, are used whenever Reddit is selected.</p>
+          <h1 id="fetish-explorer-title" className="mt-2 font-display text-3xl text-fg sm:text-4xl">Fetish Explorer</h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted">A dedicated Adult topic workspace, organized like Movie Topics. Browse what to pull, set the source mix, review your Reddit list, and keep the personal interests that should lead future recommendations.</p>
         </div>
-        <Button size="sm" variant="secondary" onClick={() => setSource("adults")}>Open Adult browse</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="secondary" onClick={() => setSource("adults")}>Open Adult browse</Button>
+          <Button size="sm" variant="secondary" onClick={() => setActiveTab("sources")}>Source mix</Button>
+        </div>
       </div>
       <div className="mt-5 rounded-lg border border-border bg-bg/35 p-4">
-        <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Pull sources</p>
+        <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Topic pull composer</p><span className="text-xs text-muted">{pullSourceSelectionLabel(providers)}{usesReddit ? ` · ${savedRedditSources.length} saved Reddit communities` : ""}</span></div>
         <div className="mt-3 flex flex-wrap gap-2">
           {PROVIDER_CHOICES.map((choice) => <Button key={choice.label} size="sm" variant={JSON.stringify(providers) === JSON.stringify(choice.id) ? "default" : "secondary"} onClick={() => setProviders(choice.id)}>{choice.label}</Button>)}
         </div>
@@ -155,6 +253,25 @@ export function AdultFetishExplorer({
         </div>
         <p className="mt-3 text-xs text-muted">{providers === "all" ? "Every available provider is selected." : `${providers.length} provider${providers.length === 1 ? "" : "s"} selected.`} Reddit uses {savedRedditSources.length} saved community{savedRedditSources.length === 1 ? "" : "ies"} when included.</p>
       </div>
+      <div role="tablist" aria-label="Fetish Explorer sections" className="mt-5 flex gap-1 overflow-x-auto border-b border-border pb-px">
+        {FETISH_EXPLORER_TABS.map((tab) => (
+          <Button
+            key={tab.id}
+            id={`fetish-explorer-tab-${tab.id}`}
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            aria-controls={`fetish-explorer-panel-${tab.id}`}
+            size="sm"
+            variant={activeTab === tab.id ? "default" : "ghost"}
+            className="shrink-0"
+            title={tab.hint}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.label}
+          </Button>
+        ))}
+      </div>
+      {activeTab === "topics" && <div id="fetish-explorer-panel-topics" role="tabpanel" aria-labelledby="fetish-explorer-tab-topics">
       {!query.trim() && !showAll ? (
         <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {FETISH_EXPLORER_GROUPS.map((group) => <div key={group.label} className="rounded-lg border border-border bg-surface p-4 shadow-border"><p className="text-sm font-medium text-fg">{group.label}</p><div className="mt-3 flex flex-wrap gap-1.5">{group.tags.map((tag) => <Button key={tag} size="sm" className="h-8 px-2 text-xs" variant="secondary" disabled={remoteBusy} onClick={() => pullTopic(tag)}>#{tag}</Button>)}</div></div>)}
@@ -166,6 +283,70 @@ export function AdultFetishExplorer({
         </div>
       )}
       <Button className="mt-4" size="sm" variant="ghost" onClick={() => setShowAll((value) => !value)}>{showAll ? "Show topic groups" : `Browse all ${ADULT_CURATED_FETISH_TAGS.length} topics`}</Button>
+      </div>}
+      {activeTab === "sources" && (
+        <div id="fetish-explorer-panel-sources" role="tabpanel" aria-labelledby="fetish-explorer-tab-sources" className="mt-5 rounded-lg border border-border bg-bg/35 p-4">
+          <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Pull source plan</p>
+          <h2 className="mt-1 text-lg font-medium text-fg">Use the same source mix for every topic pull</h2>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-muted">The composer above is always live. Pick a broad mix for variety, or isolate video, live, Reddit, photo, or one provider before returning to Browse topics.</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-md bg-surface p-3 shadow-border"><p className="text-xs text-muted">Selected mix</p><p className="mt-1 text-sm font-medium text-fg">{pullSourceSelectionLabel(providers)}</p></div>
+            <div className="rounded-md bg-surface p-3 shadow-border"><p className="text-xs text-muted">Catalog pull size</p><p className="mt-1 text-sm font-medium text-fg">Up to {pullLimit.toLocaleString()} titles</p></div>
+            <div className="rounded-md bg-surface p-3 shadow-border"><p className="text-xs text-muted">Reddit scope</p><p className="mt-1 text-sm font-medium text-fg">{usesReddit ? `${savedRedditSources.length} saved communities` : "Not included"}</p></div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => setActiveTab("topics")}>Choose a topic with this mix</Button>
+            <Button size="sm" variant="secondary" onClick={() => setActiveTab("reddit")}>Review Reddit communities</Button>
+            <Button size="sm" variant="ghost" onClick={() => setSource("adults")}>Open full Adult discovery</Button>
+          </div>
+        </div>
+      )}
+      {activeTab === "reddit" && (
+        <div id="fetish-explorer-panel-reddit" role="tabpanel" aria-labelledby="fetish-explorer-tab-reddit" className="mt-5 rounded-lg border border-border bg-bg/35 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Saved Reddit sources</p>
+              <h2 className="mt-1 text-lg font-medium text-fg">Your community list feeds photo, GIF, video, and comments pulls</h2>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-muted">Favorites and high-priority communities lead a Reddit pull. Hidden communities remain stored so you can restore them later.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="secondary" onClick={() => setRedditSourceRevision((revision) => revision + 1)}>Refresh saved list</Button>
+              <Button size="sm" variant="secondary" onClick={openRedditSourceManager}>Manage list in Adult discovery</Button>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-md bg-surface p-3 shadow-border"><p className="text-xs text-muted">Active</p><p className="mt-1 text-lg font-medium text-fg">{savedRedditSources.length}</p></div>
+            <div className="rounded-md bg-surface p-3 shadow-border"><p className="text-xs text-muted">Favorites first</p><p className="mt-1 text-lg font-medium text-fg">{favoriteRedditSources.length}</p></div>
+            <div className="rounded-md bg-surface p-3 shadow-border"><p className="text-xs text-muted">Stored but hidden</p><p className="mt-1 text-lg font-medium text-fg">{hiddenRedditSources.length}</p></div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {savedRedditSources.slice(0, 18).map((source) => <span key={source.subreddit} className="rounded-full bg-surface px-3 py-1.5 text-xs text-muted shadow-border">{source.favorite ? "★ " : ""}r/{source.subreddit} · {source.priority === 3 ? "high" : source.priority === 2 ? "normal" : "low"}</span>)}
+            {!savedRedditSources.length && <p className="text-sm text-muted">No active saved communities yet. Add or restore them in Adult discovery.</p>}
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button size="sm" variant={usesReddit ? "default" : "secondary"} onClick={() => setProviders(["reddit"])}>Use Reddit for the next topic</Button>
+            <Button size="sm" variant="secondary" disabled={remoteBusy || !savedRedditSources.length} onClick={pullSavedRedditSources}>{remoteBusy ? "Pulling…" : "Refresh active Reddit sources"}</Button>
+            <Button size="sm" variant="ghost" onClick={() => setActiveTab("topics")}>Choose a Reddit topic</Button>
+          </div>
+        </div>
+      )}
+      {activeTab === "interests" && (
+        <div id="fetish-explorer-panel-interests" role="tabpanel" aria-labelledby="fetish-explorer-tab-interests" className="mt-5">
+          <div className="rounded-lg border border-border bg-bg/35 p-4">
+            <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Personal signals</p>
+            <h2 className="mt-1 text-lg font-medium text-fg">For you: hearted and steadily supported interests</h2>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-muted">A heart permanently records an interest in local history. Current hearts lead Adult recommendations; ranked topics also need repeat catalog support, so a single title cannot dominate this list.</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-md bg-surface p-3 shadow-border"><p className="text-xs text-muted">Hearted now</p><p className="mt-1 text-lg font-medium text-fg">{heartedRankedInterests.length}</p></div>
+              <div className="rounded-md bg-surface p-3 shadow-border"><p className="text-xs text-muted">Remembered interests</p><p className="mt-1 text-lg font-medium text-fg">{historicInterestTags.length + heartedRankedInterests.length}</p></div>
+              <div className="rounded-md bg-surface p-3 shadow-border"><p className="text-xs text-muted">Ranked catalog topics</p><p className="mt-1 text-lg font-medium text-fg">{rankedInterests.length}</p></div>
+            </div>
+          </div>
+          {heartedRankedInterests.length > 0 && <div className="mt-5"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Hearted now</p><div className="mt-2 flex flex-wrap gap-2">{heartedRankedInterests.map((row) => <div key={row.tag} className="flex overflow-hidden rounded-md bg-surface shadow-border"><Button size="sm" variant="secondary" disabled={remoteBusy} onClick={() => pullTopic(fetishTagLabel(row.tag))}>Pull #{fetishTagLabel(row.tag)}</Button><Button size="sm" variant="ghost" aria-label={`Remove heart from ${fetishTagLabel(row.tag)}`} onClick={() => toggleInterestHeart(row.tag)}>★</Button></div>)}</div></div>}
+          {historicInterestTags.length > 0 && <div className="mt-5"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Kept in history</p><p className="mt-1 text-xs text-muted">These were hearted before and stay available even if their current catalog count drops away.</p><div className="mt-2 flex flex-wrap gap-2">{historicInterestTags.slice(0, 18).map((tag) => <div key={tag} className="flex overflow-hidden rounded-md bg-surface shadow-border"><Button size="sm" variant="secondary" disabled={remoteBusy} onClick={() => pullTopic(tag)}>Pull #{tag}</Button><Button size="sm" variant="ghost" aria-label={`Heart ${tag} again`} onClick={() => toggleInterestHeart(tag)}>♡</Button></div>)}</div></div>}
+          <div className="mt-5"><div className="flex flex-wrap items-baseline justify-between gap-2"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Ranked from Adult library</p><p className="text-xs text-muted">Stabilized across repeat titles, ratings, saves, likes, views, and hearts.</p></div>{rankedInterests.length ? <div className="mt-2 flex flex-wrap gap-2">{rankedInterests.slice(0, 24).map((row) => { const hearted = tagIsLiked(row.tag) || tagIsLiked(fetishTopicKey(row.tag)); const label = fetishTagLabel(row.tag); return <div key={row.tag} className="flex overflow-hidden rounded-md bg-surface shadow-border"><Button size="sm" variant={hearted ? "default" : "secondary"} disabled={remoteBusy} title={`score ${Math.round(row.score)} · ${row.count} catalog titles`} onClick={() => pullTopic(label)}>{hearted ? "★ " : ""}Pull #{label} · {row.count}</Button><Button size="sm" variant="ghost" aria-label={`${hearted ? "Remove heart from" : "Heart"} ${label}`} onClick={() => toggleInterestHeart(row.tag)}>{hearted ? "★" : "☆"}</Button></div>; })}</div> : <p className="mt-2 text-sm text-muted">Pull a few topics or tag saved Adult titles to build a ranked interest view.</p>}</div>
+        </div>
+      )}
     </section>
   );
 }

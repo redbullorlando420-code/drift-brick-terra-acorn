@@ -82,7 +82,7 @@ export function TopBar({
     const candidates = indexedIds ? Array.from(indexedIds, (id) => videoById.get(id)).filter((video): video is NonNullable<typeof video> => Boolean(video)) : videos;
     return candidates.filter((video) => {
         const folder = folders.find((item) => item.id === video.folderId);
-        if (folder?.adult && !(sourceId === "adults" && adultsUnlocked)) return false;
+        if (folder?.adult && !((sourceId === "adults" || sourceId === "adult-fetishes") && adultsUnlocked)) return false;
         return indexedIds ? true : `${video.name} ${video.path} ${video.description ?? ""} ${video.remote?.channelName ?? ""} ${(tags[video.id] ?? []).join(" ")}`.toLowerCase().includes(needle);
       }).sort((a, b) => b.addedAt - a.addedAt).slice(0, 6);
   }, [adultsUnlocked, folders, needle, sourceId, tags, videoById, videos, workerIds]);

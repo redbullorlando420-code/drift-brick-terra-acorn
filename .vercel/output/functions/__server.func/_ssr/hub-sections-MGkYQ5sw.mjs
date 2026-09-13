@@ -2,9 +2,9 @@ import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
 import { C as RefreshCw, D as Pause, G as Images, H as Lightbulb, I as Maximize2, N as MessageCircle, O as PackageSearch, Q as Gamepad2, S as Rocket, T as Play, W as Laptop, _ as Shuffle, _t as ChartColumn, b as Settings2, dt as Clapperboard, f as Star, j as MonitorPlay, k as Music2, lt as Copy, m as Smartphone, mt as ChevronLeft, n as X, ot as ExternalLink, pt as ChevronRight, q as ImagePlus, r as Wifi, s as Users, st as Download, v as ShoppingBag, vt as Box, w as Radio, x as Search, y as ShieldCheck, yt as Bot } from "../_libs/lucide-react.mjs";
-import { C as exportFeedback, D as toggleTagLike, E as tagIsLiked, O as getInteractionBudgetSnapshot, S as topicsForVideo, T as getRating, _ as useLibrary, a as buildAdultStatsSnapshot, b as isTopicTag, c as countAdultBySource, d as VideoCard, f as getRenderBudgetSnapshot, g as resumeForVideo, h as Button, i as getFirstShelfTrace, k as measureInteraction, l as Input, m as useThumbs, n as getNetworkDeviceId, o as exportAdultStats, p as getThumbDiagnostics, r as listNetworkDevices, s as rankAdultTags, u as openTopic, v as useSourceAssets, w as getFeedbackDiagnostics, x as topicEvidence, y as canonicalTopic } from "./routes-CsYlFxoy.mjs";
+import { C as exportFeedback, D as toggleTagLike, E as tagIsLiked, O as getInteractionBudgetSnapshot, S as topicsForVideo, T as getRating, _ as useLibrary, a as buildAdultStatsSnapshot, b as isTopicTag, c as countAdultBySource, d as VideoCard, f as getRenderBudgetSnapshot, g as resumeForVideo, h as Button, i as getFirstShelfTrace, k as measureInteraction, l as Input, m as useThumbs, n as getNetworkDeviceId, o as exportAdultStats, p as getThumbDiagnostics, r as listNetworkDevices, s as rankAdultTags, u as openTopic, v as useSourceAssets, w as getFeedbackDiagnostics, x as topicEvidence, y as canonicalTopic } from "./routes-1K3sQEIs.mjs";
 import { a as ResponsiveContainer, i as Bar, n as YAxis, o as Tooltip, r as XAxis, t as BarChart } from "../_libs/recharts+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/hub-sections-BwFLug5M.js
+//#region node_modules/.nitro/vite/services/ssr/assets/hub-sections-MGkYQ5sw.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function TopicLinks({ explorer = false }) {
@@ -1516,7 +1516,7 @@ function StatsSection() {
 			}, video)?.t) resumedTitles += 1;
 			totalViews += viewCounts[video.id] ?? 0;
 			const videoTags = tags[video.id] ?? [];
-			const adultRemote = Boolean(video.remote && [
+			const adultRemote = [
 				"eporner",
 				"redtube",
 				"chaturbate",
@@ -1525,10 +1525,10 @@ function StatsSection() {
 				"reddit",
 				"booru",
 				"redgifs"
-			].includes(video.remote.kind));
+			].includes(video.remote?.kind ?? "");
 			const usefulTopics = adultRemote ? /* @__PURE__ */ new Set() : new Set(videoTags.map(canonicalTopic).filter((tag) => Boolean(tag)));
 			if (videoTags.length) metadataTaggedTitles += 1;
-			if (Boolean(video.remote?.channelName?.trim())) creatorTaggedTitles += 1;
+			if (video.remote?.channelName?.trim()) creatorTaggedTitles += 1;
 			if (video.description?.trim()) descriptionTaggedTitles += 1;
 			if (!adultRemote && !videoTags.some(isTopicTag)) untaggedTitles += 1;
 			for (const topic of usefulTopics) {
@@ -1649,7 +1649,15 @@ function StatsSection() {
 			rankedPreview: ranked.slice(0, 12),
 			providerMix: snapshot.providerMix,
 			genres: snapshot.genres.slice(0, 12),
-			metaTags: snapshot.metaTags.slice(0, 12)
+			metaTags: snapshot.metaTags.slice(0, 12),
+			adultTagCoverage: snapshot.adultTagCoverage,
+			previewCoverage: snapshot.previewCoverage,
+			creatorCoverage: snapshot.creatorCoverage,
+			tagQuality: snapshot.tagQuality,
+			dedupe: snapshot.dedupe,
+			redditTags: snapshot.redditTags.slice(0, 12),
+			tagConnections: snapshot.tagConnections.slice(0, 12),
+			noisyTagAssignments: snapshot.noisyTagAssignments
 		};
 	}, [
 		cameCounts,
@@ -1851,13 +1859,20 @@ function StatsSection() {
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "rounded-md bg-bg/45 p-3",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "text-xs text-muted",
-									children: "Ranked tags"
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "mt-1 text-lg font-medium text-fg",
-									children: adultTagStats.rankedPreview.length.toLocaleString()
-								})]
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "text-xs text-muted",
+										children: "Adult tag coverage"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "mt-1 text-lg font-medium text-fg",
+										children: [Math.round(adultTagStats.adultTagCoverage.share * 100), "%"]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "text-xs text-muted",
+										children: [adultTagStats.adultTagCoverage.tagged.toLocaleString(), " tagged"]
+									})
+								]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "rounded-md bg-bg/45 p-3",
@@ -1878,6 +1893,87 @@ function StatsSection() {
 									className: "mt-1 text-lg font-medium text-fg",
 									children: Object.values(cameCounts).reduce((sum, n) => sum + n, 0).toLocaleString()
 								})]
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rounded-md bg-bg/45 p-3",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "text-xs text-muted",
+										children: "Preview-ready"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "mt-1 text-lg font-medium text-fg",
+										children: [Math.round(adultTagStats.previewCoverage.share * 100), "%"]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "text-xs text-muted",
+										children: [adultTagStats.previewCoverage.ready.toLocaleString(), " cards declare artwork"]
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rounded-md bg-bg/45 p-3",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "text-xs text-muted",
+										children: "Backup preview paths"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "mt-1 text-lg font-medium text-fg",
+										children: [Math.round(adultTagStats.previewCoverage.backedShare * 100), "%"]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "text-xs text-muted",
+										children: [
+											"Redgifs ",
+											Math.round(adultTagStats.previewCoverage.redgifs.share * 100),
+											"% ready"
+										]
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rounded-md bg-bg/45 p-3",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "text-xs text-muted",
+										children: "Creator credit"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "mt-1 text-lg font-medium text-fg",
+										children: [Math.round(adultTagStats.creatorCoverage.share * 100), "%"]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "text-xs text-muted",
+										children: [adultTagStats.creatorCoverage.uniqueCreators.toLocaleString(), " normalized creators"]
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rounded-md bg-bg/45 p-3",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "text-xs text-muted",
+										children: "Duplicate candidates"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "mt-1 text-lg font-medium text-fg",
+										children: adultTagStats.dedupe.extraTitles.toLocaleString()
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "text-xs text-muted",
+										children: [
+											"across ",
+											adultTagStats.dedupe.candidateGroups.toLocaleString(),
+											" media groups"
+										]
+									})
+								]
 							})
 						]
 					}),
@@ -1905,6 +2001,45 @@ function StatsSection() {
 										"%"
 									]
 								}, source.provider))
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4",
+								children: adultTagStats.providerMix.filter((source) => source.titles || source.linkedTitles).map((source) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "rounded-md bg-bg/45 p-3 text-xs text-muted",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+											className: "font-medium text-fg",
+											children: [
+												source.label,
+												" · ",
+												source.titles.toLocaleString(),
+												" primary",
+												source.linkedTitles ? ` · ${source.linkedTitles.toLocaleString()} linked` : ""
+											]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+											className: "mt-1",
+											children: [
+												"Preview ",
+												Math.round(source.previewCoverage.share * 100),
+												"% · backup ",
+												Math.round(source.backupPreviewCoverage.share * 100),
+												"%"
+											]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", { children: [
+											"Creator ",
+											Math.round(source.creatorCoverage.share * 100),
+											"% · interests ",
+											Math.round(source.usefulTagCoverage.share * 100),
+											"%"
+										] }),
+										source.duplicateCandidates > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+											className: "mt-1 text-accent",
+											children: [source.duplicateCandidates.toLocaleString(), " duplicate candidates"]
+										})
+									]
+								}, `${source.provider}-quality`))
 							})
 						]
 					}),
@@ -1937,6 +2072,73 @@ function StatsSection() {
 								]
 							}, row.tag))
 						})] })]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 rounded-md bg-bg/45 p-3",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "flex flex-wrap items-start justify-between gap-3",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+								children: "Tag health & connections"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+								className: "mt-1 text-sm text-muted",
+								children: [
+									adultTagStats.tagQuality.usefulTagged.toLocaleString(),
+									" titles have a useful interest, averaging ",
+									adultTagStats.tagQuality.averageUsefulTags.toFixed(1),
+									" interests per title. ",
+									adultTagStats.noisyTagAssignments ? `${adultTagStats.noisyTagAssignments.toLocaleString()} old parser-style labels are excluded from ranking.` : "No parser-style labels are influencing rankings."
+								]
+							})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								size: "sm",
+								variant: "secondary",
+								onClick: () => useLibrary.getState().autoTagLibrary(),
+								children: "Repair Adult tags"
+							})]
+						}), adultTagStats.tagConnections.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "mt-3 flex flex-wrap gap-2",
+							children: adultTagStats.tagConnections.map((connection) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+								className: "rounded-full border border-border px-3 py-1 text-xs text-fg",
+								children: [
+									"#",
+									connection.left,
+									" + #",
+									connection.right,
+									" · ",
+									connection.count,
+									" · ",
+									connection.lift.toFixed(1),
+									"× · ",
+									connection.providerCount,
+									" sources"
+								]
+							}, `${connection.left}-${connection.right}`))
+						})]
+					}),
+					adultTagStats.redditTags.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 rounded-md bg-bg/45 p-3",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+								children: "Reddit source coverage"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-1 text-sm text-muted",
+								children: "Your stored community tags are counted separately from generic Reddit labels, so favorites and source-list changes can guide future pulls."
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "mt-3 flex flex-wrap gap-2",
+								children: adultTagStats.redditTags.map((row) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+									className: "rounded-full border border-border px-3 py-1 text-xs text-fg",
+									children: [
+										"#",
+										row.tag.replace(/^sub-/, ""),
+										" · ",
+										row.count
+									]
+								}, row.tag))
+							})
+						]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "mt-4",
@@ -6143,6 +6345,13 @@ function PhotosSection() {
 										} : item)),
 										children: focusedPhoto.favorite ? "♥ Favorite" : "♡ Favorite"
 									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+										size: "sm",
+										variant: "secondary",
+										"aria-label": `Download ${focusedPhoto.name}`,
+										onClick: () => downloadPhoto(focusedPhoto),
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Download, { className: "size-4" }), " Download"]
+									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 										size: "sm",
 										variant: "secondary",
@@ -6799,6 +7008,33 @@ var DEFAULT_MISSIONS = [
 	}
 ];
 var ROADMAP_EXPANSION = [
+	...[
+		[
+			"adult-thumbnail-coverage",
+			"Adult preview coverage",
+			"Continue scoring usable thumbnails above slow or missing artwork across Reddit, Redgifs, RedTube, and other adult providers."
+		],
+		[
+			"print-file-viewer",
+			"3D print file viewer",
+			"Preview locally added STL, OBJ, and 3MF geometry with file details before opening a slicer."
+		],
+		[
+			"twitch-view-modes",
+			"Twitch viewing modes",
+			"Keep official Twitch playback available in theater or side-details mode, while filtering offline channels and ranking VODs by useful signals."
+		],
+		[
+			"games-shortcut-curation",
+			"Games shortcut curation",
+			"Promote verified game launchers and their icons while keeping unrelated web links and desktop helpers out of game recommendations."
+		]
+	].map(([id, title, detail]) => ({
+		id,
+		title,
+		detail,
+		done: false
+	})),
 	...[
 		[
 			"history-01",

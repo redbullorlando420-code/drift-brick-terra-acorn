@@ -1492,14 +1492,42 @@ async function fetchCamSodaRooms(query: string, maxVideos: number): Promise<{
 
 let myfreecamsCache: { at: number; rooms: LibraryVideo[] } | null = null;
 const MYFREECAMS_CACHE_MS = 3 * 60_000;
+const MYFREECAMS_PUBLIC_STATE = 0;
+const MYFREECAMS_PROFILE_PREVIEWS_PER_REFRESH = 12;
+const MYFREECAMS_PROFILE_PREVIEW_CONCURRENCY = 4;
+const MYFREECAMS_PROFILE_SUCCESS_CACHE_MS = 20 * 60_000;
+const MYFREECAMS_PROFILE_MISS_CACHE_MS = 4 * 60_000;
+
+type MyFreeCamsPreview = { at: number; poster?: string; modelId?: string };
+type MyFreeCamsListing = {
+  rooms: LibraryVideo[];
+  rows: number;
+  publicRows: number;
+  states: Map<number, number>;
+};
+
+const myfreecamsPreviewCache = new Map<string, MyFreeCamsPreview>();
+let myfreecamsPreviewCursor = 0;
+
+function myfreecamsWatchUrl(username: string) {
+  // MFC's documented room route is hash-based. Keep the model's casing so a
+  // copied destination exactly matches links such as #Leya4u.
+  return `https://www.myfreecams.com/#${encodeURIComponent(username)}`;
+}
+
+function myfreecamsAppUrl(username: string) {
+  return `https://app.myfreecams.com/${encodeURIComponent(username.toLowerCase())}`;
+}
 
 function myfreecamsVideo(username: string, status: number): LibraryVideo | null {
-  // 0 = public live, 2 = listed/online-adjacent. 90 is offline; 12+ is private/group.
-  if (status !== 0 && status !== 2) return null;
+  // The public list uses MFC's video-state values: 0 is TX_IDLE, a free/public
+  // broadcast. 2 is Away, 12–14 are private/group/club, and 90 is a viewer
+  // state. Showing any of those as live creates dead room links.
+  if (status !== MYFREECAMS_PUBLIC_STATE) return null;
   const name = username.trim();
   if (!/^[A-Za-z0-9_]{2,32}$/.test(name)) return null;
   if (adultBlockedText(name)) return null;
-  const watch = `https://www.myfreecams.com/#${encodeURIComponent(name)}`;
+  const watch = myfreecamsWatchUrl(name);
   return {
     id: `myfreecams:${name.toLowerCase()}`,
     folderId: MYFREECAMS_FOLDER_ID,
@@ -1509,8 +1537,8 @@ function myfreecamsVideo(username: string, status: number): LibraryVideo | null 
     mime: "video/myfreecams",
     size: 0,
     addedAt: Date.now(),
-    tagline: status === 0 ? "Live on MyFreeCams" : "Online on MyFreeCams",
-    description: "live, cam",
+    tagline: "Live on MyFreeCams",
+    description: "live, cam, public room",
     src: watch,
     remote: {
       kind: "myfreecams",
@@ -1518,23 +1546,183 @@ function myfreecamsVideo(username: string, status: number): LibraryVideo | null 
       channelName: name,
       live: true,
       observedAt: Date.now(),
-      embedUrl: watch,
       watchUrl: watch,
     },
   };
 }
 
-function myfreecamsRoomsFromListing(payload: string): LibraryVideo[] {
+function myfreecamsStateNumber(value: unknown) {
+  if (typeof value !== "number" && typeof value !== "string") return null;
+  const state = Number(value);
+  return Number.isInteger(state) && state >= 0 && state <= 127 ? state : null;
+}
+
+function myfreecamsListing(payload: string): MyFreeCamsListing {
+  // MFC currently responds with `Updated: …<br>username,0<br>…`. It has also
+  // shipped object and tuple payloads, so retain tolerant parsing for a future
+  // listing rollout instead of treating a healthy source as empty.
   const text = payload.replace(/\\u0022/gi, '"').replace(/\\"/g, '"');
-  const pairs = new Map<string, number>();
-  const add = (name: string, status: string | number | undefined) => {
-    const value = Number(status);
-    if (Number.isFinite(value)) pairs.set(name.toLowerCase(), value);
+  const pairs = new Map<string, { name: string; state: number }>();
+  const add = (name: unknown, status: unknown) => {
+    if (typeof name !== "string") return;
+    const display = name.trim();
+    const state = myfreecamsStateNumber(status);
+    if (!/^[A-Za-z0-9_]{2,32}$/.test(display) || state == null) return;
+    pairs.set(display.toLowerCase(), { name: display, state });
   };
-  for (const match of text.matchAll(/["']([A-Za-z0-9_]{2,32})["']\s*:\s*["']?(\d{1,3})\b/g)) add(match[1]!, match[2]);
-  for (const match of text.matchAll(/(?:^|[\[,{;\s])([A-Za-z0-9_]{2,32})\s*[,|\s:]\s*(\d{1,3})\b/gm)) add(match[1]!, match[2]);
-  for (const match of text.matchAll(/["']([A-Za-z0-9_]{2,32})["']\s*,\s*["']?(\d{1,3})\b/g)) add(match[1]!, match[2]);
-  return [...pairs.entries()].map(([name, status]) => myfreecamsVideo(name, status)).filter((video): video is LibraryVideo => video != null);
+
+  const walkJson = (value: unknown): void => {
+    if (Array.isArray(value)) {
+      if (typeof value[0] === "string" && myfreecamsStateNumber(value[1]) != null) add(value[0], value[1]);
+      for (const item of value) walkJson(item);
+      return;
+    }
+    if (!value || typeof value !== "object") return;
+    const row = value as Record<string, unknown>;
+    const name = row.username ?? row.user_name ?? row.model ?? row.model_name ?? row.name;
+    const state = row.vs ?? row.video_state ?? row.videoState ?? row.status ?? row.state;
+    if (typeof name === "string" && myfreecamsStateNumber(state) != null) add(name, state);
+    for (const [key, nested] of Object.entries(row)) {
+      if (myfreecamsStateNumber(nested) != null) add(key, nested);
+      if (nested && typeof nested === "object") walkJson(nested);
+    }
+  };
+
+  try {
+    const trimmed = text.trim();
+    if (trimmed.startsWith("{") || trimmed.startsWith("[")) walkJson(JSON.parse(trimmed));
+  } catch {
+    // The line-oriented listing is still valid even when a response begins
+    // with a non-JSON update marker.
+  }
+
+  for (const line of text.split(/<br\s*\/?>|\r?\n/gi)) {
+    const match = line.replace(/<[^>]+>/g, " ").trim().match(/^([A-Za-z0-9_]{2,32})\s*[,|:]\s*(\d{1,3})\b/);
+    if (match) add(match[1], match[2]);
+  }
+  for (const match of text.matchAll(/["']([A-Za-z0-9_]{2,32})["']\s*:\s*["']?(\d{1,3})\b/g)) add(match[1], match[2]);
+  for (const match of text.matchAll(/(?:^|[\x5B,{;\s>])([A-Za-z0-9_]{2,32})\s*[,|\s:]\s*(\d{1,3})\b/gm)) add(match[1], match[2]);
+  for (const match of text.matchAll(/["']([A-Za-z0-9_]{2,32})["']\s*,\s*["']?(\d{1,3})\b/g)) add(match[1], match[2]);
+
+  const states = new Map<number, number>();
+  for (const { state } of pairs.values()) states.set(state, (states.get(state) ?? 0) + 1);
+  const rooms = [...pairs.values()]
+    .map(({ name, state }) => myfreecamsVideo(name, state))
+    .filter((video): video is LibraryVideo => video != null);
+  return { rooms, rows: pairs.size, publicRows: states.get(MYFREECAMS_PUBLIC_STATE) ?? 0, states };
+}
+
+function myfreecamsImageFromAppPage(payload: string): Pick<MyFreeCamsPreview, "poster" | "modelId"> {
+  const candidates: string[] = [];
+  const attr = (tag: string, name: string) => {
+    const match = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, "i").exec(tag);
+    return htmlDecode(match?.[1] ?? match?.[2] ?? match?.[3] ?? "").trim();
+  };
+  for (const tag of payload.match(/<meta\b[^>]*>/gi) ?? []) {
+    const key = (attr(tag, "property") || attr(tag, "name")).toLowerCase();
+    if (key === "og:image" || key === "twitter:image") candidates.push(attr(tag, "content"));
+  }
+  for (const match of payload.matchAll(/\b(?:src|data-src)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi)) {
+    candidates.push(htmlDecode(match[1] ?? match[2] ?? match[3] ?? "").trim());
+  }
+  const usable = [...new Set(candidates)].filter((url) => {
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol === "https:" && /^(?:img|snap)\.mfcimg\.com$/i.test(parsed.hostname);
+    } catch {
+      return false;
+    }
+  });
+  const poster = usable.find((url) => /^https:\/\/snap\.mfcimg\.com\//i.test(url)) ?? usable[0];
+  const modelId = poster?.match(/\/photos2\/\d+\/(\d+)\/|\/mfc_(\d+)/i)?.[1] ?? poster?.match(/\/mfc_(\d+)/i)?.[1];
+  return { poster, modelId };
+}
+
+function myfreecamsPreviewFresh(preview: MyFreeCamsPreview, now: number) {
+  return now - preview.at <= (preview.poster ? MYFREECAMS_PROFILE_SUCCESS_CACHE_MS : MYFREECAMS_PROFILE_MISS_CACHE_MS);
+}
+
+async function fetchMyFreeCamsPreview(username: string): Promise<MyFreeCamsPreview> {
+  const key = username.toLowerCase();
+  const now = Date.now();
+  const cached = myfreecamsPreviewCache.get(key);
+  if (cached && myfreecamsPreviewFresh(cached, now)) return cached;
+  let next: MyFreeCamsPreview = { at: now };
+  try {
+    // The App route is publicly server-rendered with og:image metadata. It is
+    // used only for a small rotating preview budget; the official online list
+    // remains the source of truth for live status.
+    const res = await cachedAdultFetch(myfreecamsAppUrl(username), {
+      cacheTtlMs: MYFREECAMS_PROFILE_SUCCESS_CACHE_MS,
+      cacheKey: `GET:mfc-profile:${key}`,
+      signal: AbortSignal.timeout(3_500),
+      headers: {
+        accept: "text/html,application/xhtml+xml;q=0.9",
+        "accept-language": "en-US,en;q=0.8",
+        "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
+      },
+    });
+    if (res.ok) next = { at: now, ...myfreecamsImageFromAppPage(await res.text()) };
+  } catch {
+    // A missing profile poster must never make the public live listing fail.
+  }
+  myfreecamsPreviewCache.set(key, next);
+  return next;
+}
+
+function withMyFreeCamsPreview(video: LibraryVideo, preview?: MyFreeCamsPreview): LibraryVideo {
+  if (!preview?.poster || !video.remote) return video;
+  const thumbs = [...new Set([preview.poster, ...(video.remote.thumbFallbacks ?? [])])].filter(isUsableAdultThumb).slice(0, 4);
+  return {
+    ...video,
+    poster: preview.poster,
+    remote: {
+      ...video.remote,
+      channelId: preview.modelId ?? video.remote.channelId,
+      previewUrl: preview.poster,
+      thumbFallbacks: thumbs,
+    },
+  };
+}
+
+async function myfreecamsRoomsWithPreviews(rooms: LibraryVideo[], maxVideos: number, query: string) {
+  const now = Date.now();
+  const previews = new Map<string, MyFreeCamsPreview>();
+  let candidates: string[] = [];
+  for (const room of rooms) {
+    const username = room.remote?.videoId ?? room.name;
+    const cached = myfreecamsPreviewCache.get(username.toLowerCase());
+    if (cached && myfreecamsPreviewFresh(cached, now)) previews.set(username.toLowerCase(), cached);
+    else candidates.push(username);
+  }
+  const needle = query.trim().toLowerCase();
+  if (needle && needle !== "all") {
+    // A direct model search should receive its poster before the rotating
+    // background enrichment window moves on to unrelated public rooms.
+    candidates = [
+      ...candidates.filter((username) => username.toLowerCase().includes(needle)),
+      ...candidates.filter((username) => !username.toLowerCase().includes(needle)),
+    ];
+  }
+  const take = Math.min(MYFREECAMS_PROFILE_PREVIEWS_PER_REFRESH, Math.max(0, maxVideos), candidates.length);
+  if (take) {
+    const start = myfreecamsPreviewCursor % candidates.length;
+    myfreecamsPreviewCursor += take;
+    const selected = Array.from({ length: take }, (_, index) => candidates[(start + index) % candidates.length]!);
+    for (let index = 0; index < selected.length; index += MYFREECAMS_PROFILE_PREVIEW_CONCURRENCY) {
+      const batch = selected.slice(index, index + MYFREECAMS_PROFILE_PREVIEW_CONCURRENCY);
+      const results = await Promise.all(batch.map(async (username) => [username, await fetchMyFreeCamsPreview(username)] as const));
+      for (const [username, preview] of results) previews.set(username.toLowerCase(), preview);
+    }
+  }
+  return rooms.map((room) => withMyFreeCamsPreview(room, previews.get((room.remote?.videoId ?? room.name).toLowerCase())));
+}
+
+function myfreecamsStateSummary(states: Map<number, number>) {
+  return [...states.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([state, count]) => `${state}: ${count}`)
+    .join(", ");
 }
 
 async function fetchMyFreeCamsRooms(query: string, maxVideos: number): Promise<{
@@ -1544,20 +1732,39 @@ async function fetchMyFreeCamsRooms(query: string, maxVideos: number): Promise<{
 }> {
   if (!myfreecamsCache || Date.now() - myfreecamsCache.at > MYFREECAMS_CACHE_MS) {
     const priorRooms = myfreecamsCache?.rooms ?? [];
-    const res = await cachedAdultFetch("https://www.myfreecams.com/php/online_models.php", {
-      cacheTtlMs: 3 * 60_000,
-      signal: AbortSignal.timeout(25000),
-      headers: {
-        accept: "text/plain, text/html;q=0.8",
-        "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
-      },
-    });
-    if (!res.ok) throw new Error(`MyFreeCams rooms HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
-    const text = await res.text();
-    const parsedRooms = myfreecamsRoomsFromListing(text);
-    // A public listing can legitimately be empty or change format. Cache the
-    // empty response briefly and leave a precise, non-failing provider status.
-    myfreecamsCache = { at: Date.now(), rooms: parsedRooms.length ? parsedRooms : priorRooms };
+    try {
+      const res = await cachedAdultFetch("https://www.myfreecams.com/php/online_models.php", {
+        cacheTtlMs: 3 * 60_000,
+        signal: AbortSignal.timeout(12_000),
+        headers: {
+          accept: "text/plain, text/html;q=0.8",
+          referer: "https://www.myfreecams.com/#Homepage",
+          "accept-language": "en-US,en;q=0.8",
+          "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
+        },
+      });
+      if (!res.ok) throw new Error(`MyFreeCams public list HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
+      const listing = myfreecamsListing(await res.text());
+      if (!listing.rooms.length && listing.rows) {
+        const states = myfreecamsStateSummary(listing.states);
+        throw new Error(
+          listing.publicRows
+            ? `MyFreeCams listed ${listing.publicRows} public broadcast rows, but none had a usable safe room name.`
+            : `MyFreeCams listed ${listing.rows} online rows but no public broadcasts (states: ${states || "unknown"}).`,
+        );
+      }
+      const rooms = listing.rooms.length ? await myfreecamsRoomsWithPreviews(listing.rooms, maxVideos, query) : [];
+      myfreecamsCache = { at: Date.now(), rooms: rooms.length ? rooms : priorRooms };
+    } catch (error) {
+      // Keep a short-lived last known public roster if MFC blocks, rate limits,
+      // or changes a listing response. A cold start still returns the exact
+      // reason so Pull sources can explain what happened.
+      if (priorRooms.length) {
+        myfreecamsCache = { at: Date.now(), rooms: priorRooms };
+      } else {
+        throw error;
+      }
+    }
   }
   const needle = query.trim().toLowerCase();
   const filtered =
