@@ -125,6 +125,11 @@ type LibraryState = {
   /** Provider retry deadlines keyed by followed-channel id. Focused refreshes bypass these. */
   remoteRetryAt: Record<string, number>;
   importProgress: { done: number; total: number; label: string } | null;
+  /** Latest adult provider outcomes. Retained after partial success so callers can explain a failed source. */
+  adultPullStatus: {
+    note: string;
+    diagnostics: Array<{ provider: string; status: "loaded" | "empty" | "failed"; titles: number; detail: string }>;
+  } | null;
   setQuery: (q: string) => void;
   setSort: (s: SortKey) => void;
   setView: (v: ViewMode) => void;
@@ -393,10 +398,24 @@ function enrichRemoteTags(existing: Record<string, string[]>, videos: LibraryVid
 function compactIngestedTags(existing: string[], inferred: string[]) {
   const seen = new Set<string>();
   const compact: string[] = [];
-  for (const raw of [...existing, ...inferred]) {
+  const structural = (tag: string) => /^(?:source-|sub-|creator-|provider-|format-|fetish-|genre-|meta-)/.test(tag.trim().toLowerCase());
+  // Keep filter contracts before historic keyword dumps. Earlier imports could
+  // fill the cap with raw metadata and lose a newly repaired source/sub tag.
+  const ordered = [
+    ...inferred.filter(structural),
+    ...existing,
+    ...inferred.filter((tag) => !structural(tag)),
+  ];
+  for (const raw of ordered) {
     // Preserve source- / creator- / fetish- / provider- families for Adult filters.
     // Only strip the legacy keyword- wrapper so cards stay readable.
     let tag = raw.trim().toLowerCase().replace(/^keyword-/, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+    // Same concept can arrive as API spelling, a title phrase, or a taxonomy
+    // label. Keep one stable filter instead of splitting counts and rails.
+    if (tag === "role-play") tag = "roleplay";
+    if (tag === "fetish-role-play") tag = "fetish-roleplay";
+    if (tag === "verified-amateur") tag = "verified-amateurs";
+    if (tag === "fetish-verified-amateur") tag = "fetish-verified-amateurs";
     if (!tag || tag === "http" || tag === "https" || seen.has(tag)) continue;
     seen.add(tag);
     compact.push(tag);
@@ -591,6 +610,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   remoteRefreshStatus: null,
   remoteRetryAt: {},
   importProgress: null,
+  adultPullStatus: null,
   setQuery: (query) => { measureInteraction("search"); set({ query }); },
   setSort: (sort) => {
     set({ sort });
@@ -814,7 +834,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       providerList.length === 1
         ? `Pulling ${providerList[0]} catalog…`
         : "Pulling official adult catalogs…";
-    set({ remoteBusy: true, importProgress: { done: 0, total: 1, label } });
+    set({ remoteBusy: true, importProgress: { done: 0, total: 1, label }, adultPullStatus: null });
     try {
       const { searchAdultVideos } = await import("@/lib/remote/api");
       const page = opts?.page ?? 1;
@@ -822,7 +842,14 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       const append = Boolean(opts?.append);
       const providerPages = opts?.providerPages;
       const redditSources = opts?.redditSources;
-      const providerKey = providerList.slice().sort().join("+");
+      const sourceSignature = (redditSources ?? [])
+        .slice()
+        .sort((a, b) => a.subreddit.localeCompare(b.subreddit) || a.priority - b.priority)
+        .map((source) => `${source.subreddit.toLowerCase()}:${source.priority}`)
+        .join(",");
+      // A changed personal list must never reuse the previous list's warm-pull
+      // fingerprint, even when the same provider button is selected.
+      const providerKey = `${providerList.slice().sort().join("+")}|reddit:${sourceSignature || "curated"}`;
       // Skip only a fat, already-balanced catalog. Thin Reddit or a small first pull must refresh.
       if (!append && !providerPages && findFreshAdultPullFingerprint(query, order, page, providerKey)) {
         const have = get().videos.filter((v) => (ADULT_FOLDER_IDS as readonly string[]).includes(v.folderId));
@@ -831,6 +858,9 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           set({ remoteBusy: false, importProgress: null });
           return have.length;
         }
+      }
+      if (providerList.includes("reddit") && redditSources?.length) {
+        set({ importProgress: { done: 0, total: 1, label: `Pulling ${redditSources.length} saved Reddit communities · photos, GIFs, videos, and post comments load from the original posts…` } });
       }
       const result = await searchAdultVideos({ data: { query, order, page, maxVideos, append, providers, providerPages, redditSources } });
       if (result.providerNextPages) {
@@ -881,12 +911,14 @@ export const useLibrary = create<LibraryState>((set, get) => ({
 
         for (const video of videos) {
           const source = video.remote?.kind ?? video.folderId.split(":")[0] ?? "eporner";
-          const hostExtra =
+          const hostExtra = [
+            ...(video.remote?.sourceKinds ?? []).filter((kind) => kind !== source),
             source === "booru" && video.remote?.channelId
               ? [video.remote.channelId]
               : source === "reddit" && video.remote?.channelId
                 ? [`reddit-${video.remote.channelId}`]
-                : [];
+                : [],
+          ].flat();
           const creatorNames = [
             video.remote?.channelName,
             video.remote?.videoId && (source === "chaturbate" || source === "camsoda" || source === "myfreecams")
@@ -923,6 +955,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           adultsUnlocked: true,
           remoteBusy: false,
           importProgress: null,
+          adultPullStatus: { note: result.note, diagnostics: result.providerDiagnostics },
         };
       });
       persistNow(get);
@@ -937,7 +970,17 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       await writeChain;
       return get().videos.filter((v) => (ADULT_FOLDER_IDS as readonly string[]).includes(v.folderId)).length;
     } catch (err) {
-      set({ remoteBusy: false, importProgress: null });
+      const detail = err instanceof Error && err.message.trim()
+        ? err.message.trim()
+        : "The catalog request could not reach a provider. Check the pull-health details and retry the affected source.";
+      set({
+        remoteBusy: false,
+        importProgress: null,
+        adultPullStatus: {
+          note: "Adult catalog pull did not return a usable source.",
+          diagnostics: [{ provider: "catalog", status: "failed", titles: 0, detail }],
+        },
+      });
       throw err;
     }
   },

@@ -92,6 +92,7 @@ export const VideoCard = memo(function VideoCard({
   const art = variant === "poster" ? providerArt || thumb : thumb || providerArt;
   const isPoster = variant === "poster";
   const live = Boolean(video.remote?.live);
+  const dualSource = video.remote?.sourceKinds?.includes("reddit") && video.remote.sourceKinds.includes("redgifs");
   const preview = video.remote?.previewUrl;
   const [hovered, setHovered] = useState(false);
   const [thumbIndex, setThumbIndex] = useState(0);
@@ -344,6 +345,11 @@ export const VideoCard = memo(function VideoCard({
       {video.remote?.kind === "twitch" && !live && (
         <span className="absolute top-2 left-2 rounded-xs bg-bg/75 px-1.5 py-0.5 text-xs text-muted">
           Twitch
+        </span>
+      )}
+      {dualSource && (
+        <span className="absolute top-2 left-2 rounded-xs bg-bg/80 px-1.5 py-0.5 text-xs text-accent">
+          Reddit + Redgifs
         </span>
       )}
       {duration && !isPoster && !live ? (

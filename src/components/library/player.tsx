@@ -412,6 +412,7 @@ export function Player({ playlist }: { playlist: string[] }) {
     remote && isAdultImageKind(remote.kind, video.mime, video.extension),
   );
   const redgifsDirectMedia = remote?.kind === "redgifs" && Boolean(video.src && video.src !== remote.embedUrl);
+  const directAdultMedia = Boolean(remote && isAdultPullKind(remote.kind) && video.src && /\.(?:mp4|webm|gifv)(?:\?|$)/i.test(video.src));
   const embedSrc = adultImage
     ? null
     : remote
@@ -420,7 +421,7 @@ export function Player({ playlist }: { playlist: string[] }) {
         : remote.kind === "youtube"
           ? youtubeEmbed(remote.embedUrl ?? video.src ?? "")
           : isAdultPullKind(remote.kind)
-            ? redgifsDirectMedia ? null : remote.embedUrl ?? video.src ?? null
+            ? redgifsDirectMedia || directAdultMedia ? null : remote.embedUrl ?? video.src ?? null
             : remote.embedUrl
               ? `${remote.embedUrl}${remote.embedUrl.includes("?") ? "&" : "?"}autoplay=1&rel=0&modestbranding=1`
               : null

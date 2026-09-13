@@ -177,12 +177,13 @@ export function PreVideo() {
   }, [allTags, creatorRevision, recommendationSeed, related, shelfReady, tagRevision, tags, unavailable, video, videos]);
   if (!video) return null;
   const adultImage = Boolean(video.remote && isAdultImageKind(video.remote.kind, video.mime, video.extension));
+  const directAdultMedia = Boolean(video.remote && isAdultPullKind(video.remote.kind) && video.src && /\.(?:mp4|webm|gifv)(?:\?|$)/i.test(video.src));
   const imageSrc = adultImage
     ? (video.src || video.remote?.embedUrl || video.remote?.previewUrl || video.poster || null)
     : null;
   const embed = adultImage
     ? null
-    : video.remote?.embedUrl
+    : video.remote?.embedUrl && !directAdultMedia
       ? video.remote.kind === "twitch"
         ? `${video.remote.embedUrl}${video.remote.embedUrl.includes("?") ? "&" : "?"}parent=${encodeURIComponent(window.location.hostname)}`
         : video.remote.kind === "youtube"

@@ -29,12 +29,19 @@ export function adultProviderKind(video: LibraryVideo): AdultPullProvider | "" {
   return "";
 }
 
+/** Primary provider plus any verified media host attached to the same post. */
+export function adultProviderKinds(video: LibraryVideo): AdultPullProvider[] {
+  const primary = adultProviderKind(video);
+  const extra = video.remote?.sourceKinds ?? [];
+  return [...new Set([primary, ...extra].filter((kind): kind is AdultPullProvider => Boolean(kind) && (ADULT_PULL_PROVIDERS as readonly string[]).includes(kind)))];
+}
+
 export function videoMatchesAdultSource(video: LibraryVideo, source: string): boolean {
   if (!source || source === "all" || source === "All") return true;
-  const kind = adultProviderKind(video);
+  const kinds = adultProviderKinds(video);
   const needle = source.replace(/^source-/, "").toLowerCase();
-  if (kind && (kind === needle || needle.startsWith(`${kind}-`) || needle === kind)) return true;
-  if (needle.startsWith("reddit") && kind === "reddit") return true;
+  if (kinds.some((kind) => kind === needle || needle.startsWith(`${kind}-`))) return true;
+  if (needle.startsWith("reddit") && kinds.includes("reddit")) return true;
   return false;
 }
 
@@ -61,8 +68,7 @@ export function countAdultBySource(videos: LibraryVideo[]): Record<string, numbe
   const counts: Record<string, number> = { all: videos.length };
   for (const provider of ADULT_PULL_PROVIDERS) counts[provider] = 0;
   for (const video of videos) {
-    const kind = adultProviderKind(video);
-    if (kind) counts[kind] = (counts[kind] ?? 0) + 1;
+    for (const kind of adultProviderKinds(video)) counts[kind] = (counts[kind] ?? 0) + 1;
   }
   return counts;
 }

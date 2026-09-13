@@ -1,7 +1,7 @@
 import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { r as Slot, s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
-import { B as markAdultThumbFailed, C as adultTagRankBoost, D as adultThumbCandidatesForVideo, E as adultTextFetishTags, F as isAdultMetaTaxonomyTag, G as redditTitleTokens, H as mineRedditCommentTags, I as isAdultPullKind, J as warmAdultThumbUrls, L as isAdultThumbBlacklisted, M as findFreshAdultPullFingerprint, N as isAdultGenreTag, P as isAdultImageKind, R as isDecodedAdultThumbLikelyReal, S as adultSourceTag, T as adultTaxonomyTags, V as markAdultThumbGood, W as redditIngestExtras, a as ADULT_FOLDER_BY_PROVIDER, b as adultIngestTags, c as ADULT_PULL_PROVIDERS, i as ADULT_FEATURED_FETISH_TAGS, j as fetishSearchQuery, l as ADULT_SOURCE_OPTIONS, m as LIBRARY_LIMITS, n as ADULT_CURATED_FETISH_TAGS, o as ADULT_FOLDER_IDS, q as rememberAdultPullFingerprint, r as ADULT_EMBED_LINKS, s as ADULT_MILESTONE_LINKS, t as ADULT_CATEGORY_HUB, w as adultTaxonomyLabel, x as adultRemoteLabel, z as isUsableAdultThumb } from "./library-limits-D-UjAuZX.mjs";
+import { B as isUsableAdultThumb, C as adultSourceTag, D as adultTextFetishTags, E as adultTaxonomyTags, F as isAdultImageKind, G as redditIngestExtras, H as markAdultThumbGood, I as isAdultMetaTaxonomyTag, J as rememberAdultPullFingerprint, K as redditTitleTokens, L as isAdultPullKind, M as fetishSearchQuery, N as findFreshAdultPullFingerprint, O as adultThumbCandidatesForVideo, P as isAdultGenreTag, R as isAdultThumbBlacklisted, S as adultRemoteLabel, T as adultTaxonomyLabel, U as mineRedditCommentTags, V as markAdultThumbFailed, Y as warmAdultThumbUrls, a as ADULT_FOLDER_BY_PROVIDER, c as ADULT_PULL_PROVIDERS, h as LIBRARY_LIMITS, i as ADULT_FEATURED_FETISH_TAGS, l as ADULT_REDDIT_SUBS, n as ADULT_CURATED_FETISH_TAGS, o as ADULT_FOLDER_IDS, r as ADULT_EMBED_LINKS, s as ADULT_MILESTONE_LINKS, t as ADULT_CATEGORY_HUB, u as ADULT_SOURCE_OPTIONS, w as adultTagRankBoost, x as adultIngestTags, z as isDecodedAdultThumbLikelyReal } from "./library-limits-baHoJ0tI.mjs";
 import { n as create, t as useShallow } from "../_libs/zustand.mjs";
 import { n as clsx, t as cva } from "../_libs/class-variance-authority+clsx.mjs";
 import { t as twMerge } from "../_libs/tailwind-merge.mjs";
@@ -11,7 +11,7 @@ import { a as DialogPortal, i as DialogOverlay, n as DialogClose, o as DialogTit
 import { t as Root } from "../_libs/radix-ui__react-separator.mjs";
 import { a as Trigger, i as Root2, n as Item2, r as Portal2, t as Content2 } from "../_libs/@radix-ui/react-dropdown-menu+[...].mjs";
 import { i as SliderTrack, n as SliderRange, r as SliderThumb, t as Slider$1 } from "../_libs/@radix-ui/react-slider+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-BKWyjEfb.js
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-CsYlFxoy.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var __defProp = Object.defineProperty;
@@ -2079,8 +2079,18 @@ function enrichRemoteTags(existing, videos) {
 function compactIngestedTags(existing, inferred) {
 	const seen = /* @__PURE__ */ new Set();
 	const compact = [];
-	for (const raw of [...existing, ...inferred]) {
+	const structural = (tag) => /^(?:source-|sub-|creator-|provider-|format-|fetish-|genre-|meta-)/.test(tag.trim().toLowerCase());
+	const ordered = [
+		...inferred.filter(structural),
+		...existing,
+		...inferred.filter((tag) => !structural(tag))
+	];
+	for (const raw of ordered) {
 		let tag = raw.trim().toLowerCase().replace(/^keyword-/, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+		if (tag === "role-play") tag = "roleplay";
+		if (tag === "fetish-role-play") tag = "fetish-roleplay";
+		if (tag === "verified-amateur") tag = "verified-amateurs";
+		if (tag === "fetish-verified-amateur") tag = "fetish-verified-amateurs";
 		if (!tag || tag === "http" || tag === "https" || seen.has(tag)) continue;
 		seen.add(tag);
 		compact.push(tag);
@@ -2286,6 +2296,7 @@ var useLibrary = create((set, get) => ({
 	remoteRefreshStatus: null,
 	remoteRetryAt: {},
 	importProgress: null,
+	adultPullStatus: null,
 	setQuery: (query) => {
 		measureInteraction("search");
 		set({ query });
@@ -2536,16 +2547,18 @@ var useLibrary = create((set, get) => ({
 				done: 0,
 				total: 1,
 				label: providerList.length === 1 ? `Pulling ${providerList[0]} catalog…` : "Pulling official adult catalogs…"
-			}
+			},
+			adultPullStatus: null
 		});
 		try {
-			const { searchAdultVideos } = await import("./api-DrSMGXpo.mjs");
+			const { searchAdultVideos } = await import("./api-djS3Gh_Q.mjs");
 			const page = opts?.page ?? 1;
 			const maxVideos = opts?.maxVideos ?? LIBRARY_LIMITS.epornerVideosPerPull;
 			const append = Boolean(opts?.append);
 			const providerPages = opts?.providerPages;
 			const redditSources = opts?.redditSources;
-			const providerKey = providerList.slice().sort().join("+");
+			const sourceSignature = (redditSources ?? []).slice().sort((a, b) => a.subreddit.localeCompare(b.subreddit) || a.priority - b.priority).map((source) => `${source.subreddit.toLowerCase()}:${source.priority}`).join(",");
+			const providerKey = `${providerList.slice().sort().join("+")}|reddit:${sourceSignature || "curated"}`;
 			if (!append && !providerPages && findFreshAdultPullFingerprint(query, order, page, providerKey)) {
 				const have = get().videos.filter((v) => ADULT_FOLDER_IDS.includes(v.folderId));
 				const reddit = have.filter((v) => v.remote?.kind === "reddit").length;
@@ -2557,6 +2570,11 @@ var useLibrary = create((set, get) => ({
 					return have.length;
 				}
 			}
+			if (providerList.includes("reddit") && redditSources?.length) set({ importProgress: {
+				done: 0,
+				total: 1,
+				label: `Pulling ${redditSources.length} saved Reddit communities · photos, GIFs, videos, and post comments load from the original posts…`
+			} });
 			const result = await searchAdultVideos({ data: {
 				query,
 				order,
@@ -2607,7 +2625,7 @@ var useLibrary = create((set, get) => ({
 				}
 				for (const video of videos) {
 					const source = video.remote?.kind ?? video.folderId.split(":")[0] ?? "eporner";
-					const hostExtra = source === "booru" && video.remote?.channelId ? [video.remote.channelId] : source === "reddit" && video.remote?.channelId ? [`reddit-${video.remote.channelId}`] : [];
+					const hostExtra = [...(video.remote?.sourceKinds ?? []).filter((kind) => kind !== source), source === "booru" && video.remote?.channelId ? [video.remote.channelId] : source === "reddit" && video.remote?.channelId ? [`reddit-${video.remote.channelId}`] : []].flat();
 					const creatorNames = [video.remote?.channelName, video.remote?.videoId && (source === "chaturbate" || source === "camsoda" || source === "myfreecams") ? video.remote.videoId : void 0];
 					const redditExtra = source === "reddit" ? redditIngestExtras({
 						subreddit: video.remote?.channelId,
@@ -2636,7 +2654,11 @@ var useLibrary = create((set, get) => ({
 					},
 					adultsUnlocked: true,
 					remoteBusy: false,
-					importProgress: null
+					importProgress: null,
+					adultPullStatus: {
+						note: result.note,
+						diagnostics: result.providerDiagnostics
+					}
 				};
 			});
 			persistNow(get);
@@ -2651,7 +2673,16 @@ var useLibrary = create((set, get) => ({
 		} catch (err) {
 			set({
 				remoteBusy: false,
-				importProgress: null
+				importProgress: null,
+				adultPullStatus: {
+					note: "Adult catalog pull did not return a usable source.",
+					diagnostics: [{
+						provider: "catalog",
+						status: "failed",
+						titles: 0,
+						detail: err instanceof Error && err.message.trim() ? err.message.trim() : "The catalog request could not reach a provider. Check the pull-health details and retry the affected source."
+					}]
+				}
 			});
 			throw err;
 		}
@@ -3184,7 +3215,7 @@ var useLibrary = create((set, get) => ({
 	followRemoteQuery: async (query, kind = "auto") => {
 		set({ remoteBusy: true });
 		try {
-			const { followRemote } = await import("./api-DrSMGXpo.mjs");
+			const { followRemote } = await import("./api-djS3Gh_Q.mjs");
 			const result = await followRemote({ data: {
 				query,
 				kind
@@ -3249,7 +3280,7 @@ var useLibrary = create((set, get) => ({
 		const failedReasons = {};
 		const chunk = 20;
 		try {
-			const { importChannels } = await import("./api-DrSMGXpo.mjs");
+			const { importChannels } = await import("./api-djS3Gh_Q.mjs");
 			for (let i = 0; i < unique.length; i += chunk) {
 				const slice = unique.slice(i, i + chunk);
 				let result;
@@ -3372,7 +3403,7 @@ var useLibrary = create((set, get) => ({
 		const beforeLive = new Set(get().videos.filter((v) => v.remote?.live).map((v) => v.id));
 		const beforeIds = new Set(get().videos.map((v) => v.id));
 		try {
-			const { refreshRemotes } = await import("./api-DrSMGXpo.mjs");
+			const { refreshRemotes } = await import("./api-djS3Gh_Q.mjs");
 			const result = await refreshRemotes({ data: { channels: current } });
 			new Set(result.refreshedIds);
 			set((s) => {
@@ -4252,6 +4283,7 @@ var VideoCard = (0, import_react.memo)(function VideoCard({ video, variant = "gr
 	const providerArt = video.poster || youtubeFallback || video.remote?.previewUrl;
 	const isPoster = variant === "poster";
 	const live = Boolean(video.remote?.live);
+	const dualSource = video.remote?.sourceKinds?.includes("reddit") && video.remote.sourceKinds.includes("redgifs");
 	const preview = video.remote?.previewUrl;
 	const [hovered, setHovered] = (0, import_react.useState)(false);
 	const [thumbIndex, setThumbIndex] = (0, import_react.useState)(0);
@@ -4500,6 +4532,10 @@ var VideoCard = (0, import_react.memo)(function VideoCard({ video, variant = "gr
 			video.remote?.kind === "twitch" && !live && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 				className: "absolute top-2 left-2 rounded-xs bg-bg/75 px-1.5 py-0.5 text-xs text-muted",
 				children: "Twitch"
+			}),
+			dualSource && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+				className: "absolute top-2 left-2 rounded-xs bg-bg/80 px-1.5 py-0.5 text-xs text-accent",
+				children: "Reddit + Redgifs"
 			}),
 			duration && !isPoster && !live ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 				className: "absolute right-2 bottom-2 rounded-xs bg-bg/75 px-1.5 py-0.5 font-mono text-xs tabular-nums text-fg",
@@ -4794,12 +4830,18 @@ function adultProviderKind(video) {
 	if (ADULT_PULL_PROVIDERS.includes(folder)) return folder;
 	return "";
 }
+/** Primary provider plus any verified media host attached to the same post. */
+function adultProviderKinds(video) {
+	const primary = adultProviderKind(video);
+	const extra = video.remote?.sourceKinds ?? [];
+	return [...new Set([primary, ...extra].filter((kind) => Boolean(kind) && ADULT_PULL_PROVIDERS.includes(kind)))];
+}
 function videoMatchesAdultSource(video, source) {
 	if (!source || source === "all" || source === "All") return true;
-	const kind = adultProviderKind(video);
+	const kinds = adultProviderKinds(video);
 	const needle = source.replace(/^source-/, "").toLowerCase();
-	if (kind && (kind === needle || needle.startsWith(`${kind}-`) || needle === kind)) return true;
-	if (needle.startsWith("reddit") && kind === "reddit") return true;
+	if (kinds.some((kind) => kind === needle || needle.startsWith(`${kind}-`))) return true;
+	if (needle.startsWith("reddit") && kinds.includes("reddit")) return true;
 	return false;
 }
 function videoMatchesAdultTag(video, tag, tags) {
@@ -4818,10 +4860,7 @@ function videoMatchesAdultTag(video, tag, tags) {
 function countAdultBySource(videos) {
 	const counts = { all: videos.length };
 	for (const provider of ADULT_PULL_PROVIDERS) counts[provider] = 0;
-	for (const video of videos) {
-		const kind = adultProviderKind(video);
-		if (kind) counts[kind] = (counts[kind] ?? 0) + 1;
-	}
+	for (const video of videos) for (const kind of adultProviderKinds(video)) counts[kind] = (counts[kind] ?? 0) + 1;
 	return counts;
 }
 /** Stable personal-interest tags for the main Adults browser. Sources and
@@ -7250,6 +7289,7 @@ function AdultPanel({ showMilestones = false, autoPull = true, sourceFilter = "a
 	const searchAdultFeed = useLibrary((s) => s.searchAdultFeed);
 	const remoteBusy = useLibrary((s) => s.remoteBusy);
 	const importProgress = useLibrary((s) => s.importProgress);
+	const adultPullStatus = useLibrary((s) => s.adultPullStatus);
 	const tags = useLibrary((s) => s.tags);
 	const adultVideos = useLibrary(useShallow(selectAdultRemote));
 	const [query, setQuery] = (0, import_react.useState)("");
@@ -7274,6 +7314,8 @@ function AdultPanel({ showMilestones = false, autoPull = true, sourceFilter = "a
 	const [useCustomRedditSources, setUseCustomRedditSources] = (0, import_react.useState)(false);
 	const [redditSources, setRedditSources] = (0, import_react.useState)([]);
 	const [redditSourceInput, setRedditSourceInput] = (0, import_react.useState)("");
+	const [redditSourcesReady, setRedditSourcesReady] = (0, import_react.useState)(false);
+	const [discoveryCollapsed, setDiscoveryCollapsed] = (0, import_react.useState)(false);
 	(0, import_react.useEffect)(() => {
 		const load = () => {
 			const saved = Number(localStorage.getItem("reelcase.adult-pull-limit") ?? LIBRARY_LIMITS.adultInteractiveVideosPerPull);
@@ -7291,15 +7333,38 @@ function AdultPanel({ showMilestones = false, autoPull = true, sourceFilter = "a
 	(0, import_react.useEffect)(() => {
 		const saved = readRedditSourceSettings();
 		setRedditSources(saved);
-		setUseCustomRedditSources(localStorage.getItem(`${REDDIT_SOURCE_STORAGE_KEY}.enabled`) === "true" && saved.length > 0);
+		setUseCustomRedditSources(true);
+		setDiscoveryCollapsed(localStorage.getItem("reelcase.adult-discovery-collapsed") === "true");
+		setRedditSourcesReady(true);
 	}, []);
 	(0, import_react.useEffect)(() => {
+		if (!redditSourcesReady) return;
 		try {
 			localStorage.setItem(REDDIT_SOURCE_STORAGE_KEY, JSON.stringify(redditSources));
 			localStorage.setItem(`${REDDIT_SOURCE_STORAGE_KEY}.enabled`, String(useCustomRedditSources));
 		} catch {}
-	}, [redditSources, useCustomRedditSources]);
-	const redditPullOptions = (0, import_react.useMemo)(() => useCustomRedditSources && redditSources.length ? { redditSources } : {}, [redditSources, useCustomRedditSources]);
+	}, [
+		redditSources,
+		redditSourcesReady,
+		useCustomRedditSources
+	]);
+	(0, import_react.useEffect)(() => {
+		if (!redditSourcesReady) return;
+		try {
+			localStorage.setItem("reelcase.adult-discovery-collapsed", String(discoveryCollapsed));
+		} catch {}
+	}, [discoveryCollapsed, redditSourcesReady]);
+	const libraryRedditSources = (0, import_react.useMemo)(() => ADULT_REDDIT_SUBS.map((subreddit) => ({
+		subreddit,
+		priority: 2
+	})), []);
+	const selectedRedditSources = (0, import_react.useMemo)(() => {
+		const merged = /* @__PURE__ */ new Map();
+		for (const source of libraryRedditSources) merged.set(source.subreddit.toLowerCase(), source);
+		for (const source of redditSources) merged.set(source.subreddit.toLowerCase(), source);
+		return [...merged.values()].sort((a, b) => b.priority - a.priority || a.subreddit.localeCompare(b.subreddit));
+	}, [libraryRedditSources, redditSources]);
+	const redditPullOptions = (0, import_react.useMemo)(() => useCustomRedditSources && selectedRedditSources.length ? { redditSources: selectedRedditSources } : {}, [selectedRedditSources, useCustomRedditSources]);
 	const sourceCounts = (0, import_react.useMemo)(() => countAdultBySource(adultVideos), [adultVideos]);
 	const sourceFacets = (0, import_react.useMemo)(() => ADULT_SOURCE_FILTERS.filter((row) => row.id !== "all").map((row) => [row.id, sourceCounts[row.id] ?? 0]), [sourceCounts]);
 	const [facetsReady, setFacetsReady] = (0, import_react.useState)(false);
@@ -7344,7 +7409,7 @@ function AdultPanel({ showMilestones = false, autoPull = true, sourceFilter = "a
 		tags
 	]);
 	(0, import_react.useEffect)(() => {
-		if (!autoPull || booted) return;
+		if (!autoPull || booted || !redditSourcesReady) return;
 		setBooted(true);
 		if (adultVideos.length >= LIBRARY_LIMITS.adultFastStartVideosPerPull) return;
 		searchAdultFeed("all", "top-weekly", {
@@ -7363,6 +7428,7 @@ function AdultPanel({ showMilestones = false, autoPull = true, sourceFilter = "a
 		booted,
 		adultVideos.length,
 		redditPullOptions,
+		redditSourcesReady,
 		searchAdultFeed
 	]);
 	const refreshArchiveLabel = (q, ord) => {
@@ -7396,8 +7462,35 @@ function AdultPanel({ showMilestones = false, autoPull = true, sourceFilter = "a
 			toast.error(err instanceof Error ? err.message : "Search failed");
 		});
 	};
+	const pullSavedRedditSources = () => {
+		if (!selectedRedditSources.length) return;
+		setUseCustomRedditSources(true);
+		setProviders(["reddit"]);
+		searchAdultFeed("all", order, {
+			page: 1,
+			maxVideos: adultMaxVideos,
+			providers: ["reddit"],
+			redditSources: selectedRedditSources
+		}).then((n) => toast.success(`Library Reddit list refreshed · ${n.toLocaleString()} catalog titles available`)).catch((err) => toast.error(err instanceof Error ? err.message : "Could not pull the library Reddit list."));
+	};
+	const pinRedditSource = () => {
+		const subreddit = redditSourceInput.trim().replace(/^r\//i, "");
+		if (!/^[a-z0-9_]{3,48}$/i.test(subreddit)) {
+			toast.error("Enter a valid subreddit name.");
+			return;
+		}
+		setRedditSources((current) => {
+			if (current.find((row) => row.subreddit.toLowerCase() === subreddit.toLowerCase())) return current;
+			return [...current, {
+				subreddit,
+				priority: 2
+			}];
+		});
+		setUseCustomRedditSources(true);
+		setRedditSourceInput("");
+	};
 	(0, import_react.useEffect)(() => {
-		if (!autoPull || remoteBusy || query.trim() || providers !== "all" || adultVideos.length >= LIBRARY_LIMITS.adultTargetCatalogVideos || autoArchiveRounds >= LIBRARY_LIMITS.adultAutoArchivePagesPerVisit) return;
+		if (!autoPull || !redditSourcesReady || remoteBusy || query.trim() || providers !== "all" || adultVideos.length >= LIBRARY_LIMITS.adultTargetCatalogVideos || autoArchiveRounds >= LIBRARY_LIMITS.adultAutoArchivePagesPerVisit) return;
 		const timer = window.setTimeout(() => {
 			setAutoArchiveRounds((rounds) => rounds + 1);
 			runSearch(false, true);
@@ -7411,6 +7504,7 @@ function AdultPanel({ showMilestones = false, autoPull = true, sourceFilter = "a
 		providers,
 		query,
 		redditPullOptions,
+		redditSourcesReady,
 		remoteBusy
 	]);
 	const milestoneLinks = ADULT_MILESTONE_LINKS.filter((site) => site.href !== ADULT_CATEGORY_HUB.href);
@@ -7565,464 +7659,492 @@ function AdultPanel({ showMilestones = false, autoPull = true, sourceFilter = "a
 			})
 		] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 			className: "rounded-xl bg-elevated p-5 shadow-border",
-			children: [
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-					className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
-					children: "Remote pull"
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
-					className: "mt-2 font-display text-2xl text-fg sm:text-3xl",
-					children: "Adult discovery"
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-					className: "mt-2 max-w-2xl text-sm text-muted",
-					children: [
-						"Failover-friendly pulls via",
-						" ",
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", {
-							href: "https://www.eporner.com/api/v2/",
-							target: "_blank",
-							rel: "noreferrer",
-							className: "text-accent hover:text-fg",
-							children: "Eporner API v2"
-						}),
-						" ",
-						"and",
-						" ",
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", {
-							href: "https://api.redtube.com/",
-							target: "_blank",
-							rel: "noreferrer",
-							className: "text-accent hover:text-fg",
-							children: "RedTube webmaster API"
-						}),
-						" ",
-						"(up to ",
-						LIBRARY_LIMITS.adultInteractiveVideosPerPull.toLocaleString(),
-						" titles per pull). Every pulled item always gets a filterable ",
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", {
-							className: "text-fg",
-							children: "source-*"
-						}),
-						" tag, plus",
-						" ",
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", {
-							className: "text-fg",
-							children: "creator-*"
-						}),
-						" when a username/channel/owner is known, API keywords, and curated fetish tokens mined from titles/descriptions. Cards open the same preview + in-app play window as YouTube and Twitch. Use I cummed to it on a card or in the player to keep a private local count that never leaves this browser."
-					]
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-					className: "mt-4 flex flex-wrap gap-2",
-					children: PROVIDER_CHOICES.map((choice) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-						size: "sm",
-						variant: JSON.stringify(providers) === JSON.stringify(choice.id) ? "default" : "secondary",
-						onClick: () => setProviders(choice.id),
-						children: choice.label
-					}, choice.label))
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
-					className: "mt-4 rounded-md border border-border bg-bg/35 p-3",
-					children: [
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("summary", {
-							className: "cursor-pointer text-xs font-medium text-fg",
-							children: "Reddit photo sources · custom list and priority"
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-							className: "mt-2 text-xs leading-5 text-muted",
-							children: [
-								"Use the curated rotation, or switch to your own communities. Each imported Reddit photo and video receives both",
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", {
-									className: "mx-1 text-fg",
-									children: "source-reddit-*"
-								}),
-								" and ",
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", {
-									className: "text-fg",
-									children: "sub-*"
-								}),
-								" tags for filtering."
-							]
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "mt-3 flex flex-wrap items-center gap-2",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-								size: "sm",
-								variant: useCustomRedditSources ? "default" : "secondary",
-								onClick: () => setUseCustomRedditSources((enabled) => !enabled),
-								disabled: !redditSources.length,
-								children: useCustomRedditSources ? "Using my source list" : "Use my source list"
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-								className: "text-xs text-muted",
-								children: useCustomRedditSources ? `${redditSources.length} selected communities` : "Curated rotation active"
-							})]
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "mt-3 flex flex-col gap-2 sm:flex-row",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-								value: redditSourceInput,
-								onChange: (event) => setRedditSourceInput(event.target.value),
-								onKeyDown: (event) => {
-									if (event.key === "Enter") {
-										event.preventDefault();
-										const subreddit = redditSourceInput.trim().replace(/^r\//i, "");
-										if (!/^[a-z0-9_]{3,48}$/i.test(subreddit)) return toast.error("Enter a valid subreddit name.");
-										setRedditSources((current) => current.some((row) => row.subreddit.toLowerCase() === subreddit.toLowerCase()) ? current : [...current, {
-											subreddit,
-											priority: 2
-										}]);
-										setUseCustomRedditSources(true);
-										setRedditSourceInput("");
-									}
-								},
-								placeholder: "Add subreddit, e.g. ExampleSub",
-								"aria-label": "Add Reddit source"
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-								size: "sm",
-								variant: "secondary",
-								onClick: () => {
-									const subreddit = redditSourceInput.trim().replace(/^r\//i, "");
-									if (!/^[a-z0-9_]{3,48}$/i.test(subreddit)) return toast.error("Enter a valid subreddit name.");
-									setRedditSources((current) => current.some((row) => row.subreddit.toLowerCase() === subreddit.toLowerCase()) ? current : [...current, {
-										subreddit,
-										priority: 2
-									}]);
-									setUseCustomRedditSources(true);
-									setRedditSourceInput("");
-								},
-								children: "Add source"
-							})]
-						}),
-						redditSources.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "mt-3 flex flex-wrap gap-2",
-							children: redditSources.slice().sort((a, b) => b.priority - a.priority || a.subreddit.localeCompare(b.subreddit)).map((source) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "flex items-center gap-1 rounded-full bg-surface py-1 pl-3 pr-1 text-xs text-muted shadow-border",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "flex items-start justify-between gap-4",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+						children: "Remote pull"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+						className: "mt-2 font-display text-2xl text-fg sm:text-3xl",
+						children: "Adult discovery"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-1 text-xs text-muted",
+						children: "Saved source scope, provider health, tags, and catalog controls."
+					})
+				] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+					size: "sm",
+					variant: "ghost",
+					"aria-expanded": !discoveryCollapsed,
+					"aria-label": `${discoveryCollapsed ? "Expand" : "Minimize"} Adult discovery`,
+					onClick: () => setDiscoveryCollapsed((collapsed) => !collapsed),
+					children: [discoveryCollapsed ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChevronRight, { className: "size-4" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChevronDown, { className: "size-4" }), discoveryCollapsed ? "Expand" : "Minimize"]
+				})]
+			}), !discoveryCollapsed && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "mt-4",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						className: "max-w-2xl text-sm text-muted",
+						children: [
+							"Failover-friendly pulls via",
+							" ",
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", {
+								href: "https://www.eporner.com/api/v2/",
+								target: "_blank",
+								rel: "noreferrer",
+								className: "text-accent hover:text-fg",
+								children: "Eporner API v2"
+							}),
+							" ",
+							"and",
+							" ",
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", {
+								href: "https://api.redtube.com/",
+								target: "_blank",
+								rel: "noreferrer",
+								className: "text-accent hover:text-fg",
+								children: "RedTube webmaster API"
+							}),
+							" ",
+							"(up to ",
+							LIBRARY_LIMITS.adultInteractiveVideosPerPull.toLocaleString(),
+							" titles per pull). Every pulled item always gets a filterable ",
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", {
+								className: "text-fg",
+								children: "source-*"
+							}),
+							" tag, plus",
+							" ",
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", {
+								className: "text-fg",
+								children: "creator-*"
+							}),
+							" when a username/channel/owner is known, API keywords, and curated fetish tokens mined from titles/descriptions. Cards open the same preview + in-app play window as YouTube and Twitch. Use I cummed to it on a card or in the player to keep a private local count that never leaves this browser."
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "mt-4 flex flex-wrap gap-2",
+						children: PROVIDER_CHOICES.map((choice) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							size: "sm",
+							variant: JSON.stringify(providers) === JSON.stringify(choice.id) ? "default" : "secondary",
+							onClick: () => setProviders(choice.id),
+							children: choice.label
+						}, choice.label))
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
+						className: "mt-4 rounded-md border border-border bg-bg/35 p-3",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("summary", {
+								className: "cursor-pointer text-xs font-medium text-fg",
+								children: "Reddit photo sources · custom list and priority"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+								className: "mt-2 text-xs leading-5 text-muted",
 								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: ["r/", source.subreddit] }),
-									[
-										3,
-										2,
-										1
-									].map((priority) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-										size: "sm",
-										className: "h-6 px-1.5 text-[10px]",
-										variant: source.priority === priority ? "default" : "ghost",
-										onClick: () => setRedditSources((current) => current.map((row) => row.subreddit === source.subreddit ? {
-											...row,
-											priority
-										} : row)),
-										children: priority === 3 ? "High" : priority === 2 ? "Normal" : "Low"
-									}, priority)),
+									"The saved library list is active by default. Add a community below to pin it and set its priority; switch to curated rotation only when you want discovery to rotate evenly. Each imported Reddit photo and video receives both",
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", {
+										className: "mx-1 text-fg",
+										children: "source-reddit-*"
+									}),
+									" and ",
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", {
+										className: "text-fg",
+										children: "sub-*"
+									}),
+									" tags for filtering."
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "mt-3 flex flex-wrap items-center gap-2",
+								children: [
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 										size: "sm",
-										className: "h-6 px-1.5 text-[10px]",
-										variant: "ghost",
-										onClick: () => setRedditSources((current) => current.filter((row) => row.subreddit !== source.subreddit)),
-										children: "Remove"
+										variant: useCustomRedditSources ? "default" : "secondary",
+										onClick: () => setUseCustomRedditSources((enabled) => !enabled),
+										children: useCustomRedditSources ? "Using library source list" : "Use library source list"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "text-xs text-muted",
+										children: useCustomRedditSources ? `${selectedRedditSources.length} saved communities · priority overrides first` : "Curated rotation active"
+									}),
+									selectedRedditSources.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										size: "sm",
+										variant: "secondary",
+										disabled: remoteBusy,
+										onClick: pullSavedRedditSources,
+										children: remoteBusy ? "Pulling library list…" : `Pull my ${selectedRedditSources.length} sources`
 									})
 								]
-							}, source.subreddit))
-						})
-					]
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					className: "mt-4",
-					children: [
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-							className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
-							children: "Featured fetish pulls"
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-							className: "mt-1 text-xs text-muted",
-							children: "Clicking a chip searches official APIs for that keyword (DP expands to double penetration) and stamps fetish tags on ingested titles."
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "mt-2 flex flex-wrap gap-2",
-							children: ADULT_FEATURED_FETISH_TAGS.map((tag) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-								size: "sm",
-								variant: "default",
-								disabled: remoteBusy,
-								onClick: () => {
-									const q = fetishSearchQuery(tag);
-									setQuery(q);
-									setTagFilter(`fetish-${q.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase()}`);
-									searchAdultFeed(q, order, {
-										page: 1,
-										maxVideos: adultMaxVideos,
-										providers,
-										...redditPullOptions
-									}).then((n) => toast.success(`Loaded ${n.toLocaleString()} for #${tag}`));
-								},
-								children: ["#", tag]
-							}, tag))
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "mt-3 flex flex-wrap items-center gap-2",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
-								children: "Full fetish catalog"
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-								size: "sm",
-								variant: "secondary",
-								onClick: () => setShowAllFetishes((v) => !v),
-								children: showAllFetishes ? "Hide extra chips" : `Show all ${ADULT_CURATED_FETISH_TAGS.length} chips`
-							})]
-						}),
-						showAllFetishes && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "mt-2 flex flex-wrap gap-2",
-							children: ADULT_CURATED_FETISH_TAGS.filter((tag) => !ADULT_FEATURED_FETISH_TAGS.includes(tag)).map((tag) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-								size: "sm",
-								variant: "secondary",
-								disabled: remoteBusy,
-								onClick: () => {
-									const q = fetishSearchQuery(tag);
-									setQuery(q);
-									setTagFilter(`fetish-${q.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase()}`);
-									searchAdultFeed(q, order, {
-										page: 1,
-										maxVideos: adultMaxVideos,
-										providers,
-										...redditPullOptions
-									}).then((n) => toast.success(`Loaded ${n.toLocaleString()} for #${tag}`));
-								},
-								children: ["#", tag]
-							}, tag))
-						})
-					]
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					className: "mt-4 flex flex-col gap-2 sm:flex-row",
-					children: [
-						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "relative flex-1",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Search, { className: "pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-								value: query,
-								onChange: (e) => setQuery(e.target.value),
-								onKeyDown: (e) => {
-									if (e.key === "Enter") runSearch(false);
-								},
-								placeholder: "Search adult feeds (empty = all)",
-								className: "pl-9",
-								"aria-label": "Search adult feed"
-							})]
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "flex flex-wrap gap-2",
-							children: ORDERS.map((o) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-								size: "sm",
-								variant: order === o.id ? "default" : "secondary",
-								onClick: () => setOrder(o.id),
-								children: o.label
-							}, o.id))
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-							onClick: () => runSearch(false),
-							disabled: remoteBusy,
-							children: [remoteBusy ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, { className: "size-4 animate-spin" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(RefreshCw, { className: "size-4" }), "Pull catalog"]
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-							variant: "secondary",
-							onClick: () => runSearch(true),
-							disabled: remoteBusy || !adultVideos.length,
-							children: "Load more"
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-							variant: "secondary",
-							onClick: () => runSearch(false, true),
-							disabled: remoteBusy,
-							title: "Resume each provider from its saved archive cursor",
-							children: "Continue archive"
-						})
-					]
-				}),
-				autoPull && autoArchiveRounds > 0 && adultVideos.length < LIBRARY_LIMITS.adultTargetCatalogVideos && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-					className: "mt-2 text-xs text-muted",
-					children: [
-						"Background archive catch-up · ",
-						autoArchiveRounds,
-						"/",
-						LIBRARY_LIMITS.adultAutoArchivePagesPerVisit,
-						" saved cursor passes this visit · ",
-						adultVideos.length.toLocaleString(),
-						"/",
-						LIBRARY_LIMITS.adultTargetCatalogVideos.toLocaleString(),
-						" title target."
-					]
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
-					className: "mt-3 rounded-md border border-border bg-bg/35 p-3",
-					children: [
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("summary", {
-							className: "cursor-pointer text-xs font-medium text-fg",
-							children: "Provider adapter platform · active and planned sources"
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-							className: "mt-2 text-xs leading-5 text-muted",
-							children: "Each adapter needs a documented public API, public feed, or permitted embed before it can enter the catalog. This keeps unsupported sites as safe link-outs until their source contract is implemented."
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "mt-3 flex flex-wrap gap-2",
-							children: ADULT_PROVIDER_ADAPTERS.map((adapter) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-								className: "rounded-xs bg-elevated px-2 py-1 text-xs text-muted",
-								children: [
-									adapter.label,
-									" · ",
-									adapter.status,
-									" · ",
-									adapter.capabilities.join(", ")
-								]
-							}, adapter.id))
-						})
-					]
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					className: "mt-4 rounded-md bg-bg/40 p-3",
-					children: [
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-							className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
-							children: "RedTube creator search"
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "mt-2 flex flex-wrap gap-2",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-								value: starQuery,
-								onChange: (event) => setStarQuery(event.target.value),
-								placeholder: "Star or creator name",
-								className: "max-w-xs"
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-								size: "sm",
-								variant: "secondary",
-								disabled: remoteBusy,
-								onClick: () => {
-									const q = starQuery.trim();
-									if (!q) return;
-									setProviders(["redtube"]);
-									setQuery(q);
-									(async () => {
-										try {
-											const { searchRedtubeStars } = await import("./api-DrSMGXpo.mjs");
-											const result = await searchRedtubeStars({ data: {
-												query: q,
-												page: 1
-											} });
-											setStars(result.stars);
-											setStarNote(result.note);
-										} catch (err) {
-											setStarNote(err instanceof Error ? err.message : "Star list unavailable.");
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "mt-3 flex flex-col gap-2 sm:flex-row",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+									value: redditSourceInput,
+									onChange: (event) => setRedditSourceInput(event.target.value),
+									onKeyDown: (event) => {
+										if (event.key === "Enter") {
+											event.preventDefault();
+											pinRedditSource();
 										}
-									})();
-									searchAdultFeed(q, order, {
-										providers: ["redtube"],
-										maxVideos: LIBRARY_LIMITS.redtubeStarVideosPerPull
-									}).then((n) => toast.success(`Loaded ${n.toLocaleString()} for ${q}`));
-								},
-								children: "Search creator"
-							})]
-						}),
-						starNote && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-							className: "mt-2 text-xs text-muted",
-							children: starNote
-						}),
-						stars.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "mt-2 flex flex-wrap gap-2",
-							children: stars.map((star) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-								size: "sm",
+									},
+									placeholder: "Pin a subreddit, e.g. ExampleSub",
+									"aria-label": "Pin Reddit source"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+									size: "sm",
+									variant: "secondary",
+									onClick: pinRedditSource,
+									children: "Pin source"
+								})]
+							}),
+							redditSources.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "mt-3 flex flex-wrap gap-2",
+								children: redditSources.slice().sort((a, b) => b.priority - a.priority || a.subreddit.localeCompare(b.subreddit)).map((source) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "flex items-center gap-1 rounded-full bg-surface py-1 pl-3 pr-1 text-xs text-muted shadow-border",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: ["r/", source.subreddit] }),
+										[
+											3,
+											2,
+											1
+										].map((priority) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+											size: "sm",
+											className: "h-6 px-1.5 text-[10px]",
+											variant: source.priority === priority ? "default" : "ghost",
+											onClick: () => setRedditSources((current) => current.map((row) => row.subreddit === source.subreddit ? {
+												...row,
+												priority
+											} : row)),
+											children: priority === 3 ? "High" : priority === 2 ? "Normal" : "Low"
+										}, priority)),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+											size: "sm",
+											className: "h-6 px-1.5 text-[10px]",
+											variant: "ghost",
+											onClick: () => setRedditSources((current) => current.filter((row) => row.subreddit !== source.subreddit)),
+											children: "Remove"
+										})
+									]
+								}, source.subreddit))
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+								children: "Featured fetish pulls"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-1 text-xs text-muted",
+								children: "Clicking a chip searches official APIs for that keyword (DP expands to double penetration) and stamps fetish tags on ingested titles."
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "mt-2 flex flex-wrap gap-2",
+								children: ADULT_FEATURED_FETISH_TAGS.map((tag) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+									size: "sm",
+									variant: "default",
+									disabled: remoteBusy,
+									onClick: () => {
+										const q = fetishSearchQuery(tag);
+										setQuery(q);
+										setTagFilter(`fetish-${q.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase()}`);
+										searchAdultFeed(q, order, {
+											page: 1,
+											maxVideos: adultMaxVideos,
+											providers,
+											...redditPullOptions
+										}).then((n) => toast.success(`Loaded ${n.toLocaleString()} for #${tag}`));
+									},
+									children: ["#", tag]
+								}, tag))
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "mt-3 flex flex-wrap items-center gap-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+									children: "Full fetish catalog"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+									size: "sm",
+									variant: "secondary",
+									onClick: () => setShowAllFetishes((v) => !v),
+									children: showAllFetishes ? "Hide extra chips" : `Show all ${ADULT_CURATED_FETISH_TAGS.length} chips`
+								})]
+							}),
+							showAllFetishes && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "mt-2 flex flex-wrap gap-2",
+								children: ADULT_CURATED_FETISH_TAGS.filter((tag) => !ADULT_FEATURED_FETISH_TAGS.includes(tag)).map((tag) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+									size: "sm",
+									variant: "secondary",
+									disabled: remoteBusy,
+									onClick: () => {
+										const q = fetishSearchQuery(tag);
+										setQuery(q);
+										setTagFilter(`fetish-${q.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase()}`);
+										searchAdultFeed(q, order, {
+											page: 1,
+											maxVideos: adultMaxVideos,
+											providers,
+											...redditPullOptions
+										}).then((n) => toast.success(`Loaded ${n.toLocaleString()} for #${tag}`));
+									},
+									children: ["#", tag]
+								}, tag))
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 flex flex-col gap-2 sm:flex-row",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "relative flex-1",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Search, { className: "pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+									value: query,
+									onChange: (e) => setQuery(e.target.value),
+									onKeyDown: (e) => {
+										if (e.key === "Enter") runSearch(false);
+									},
+									placeholder: "Search adult feeds (empty = all)",
+									className: "pl-9",
+									"aria-label": "Search adult feed"
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "flex flex-wrap gap-2",
+								children: ORDERS.map((o) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+									size: "sm",
+									variant: order === o.id ? "default" : "secondary",
+									onClick: () => setOrder(o.id),
+									children: o.label
+								}, o.id))
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+								onClick: () => runSearch(false),
+								disabled: remoteBusy,
+								children: [remoteBusy ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, { className: "size-4 animate-spin" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(RefreshCw, { className: "size-4" }), "Pull catalog"]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 								variant: "secondary",
-								onClick: () => {
-									setStarQuery(star.name);
-									setProviders(["redtube"]);
-									setQuery(star.name);
-									searchAdultFeed(star.name, order, {
-										providers: ["redtube"],
-										maxVideos: LIBRARY_LIMITS.redtubeStarVideosPerPull
-									}).then((n) => toast.success(`Loaded ${n.toLocaleString()} for ${star.name}`));
-								},
-								children: star.name
-							}, star.name))
-						})
-					]
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-					className: "mt-3 text-xs text-muted",
-					children: [
-						"Durable adult catalog: ",
-						adultVideos.length.toLocaleString(),
-						" titles · provider pages append to this library across reloads",
-						importProgress ? ` · ${importProgress.label}` : ""
-					]
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-					className: "mt-1 text-xs text-accent",
-					children: archiveLabel
-				}),
-				sourceFacets.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					className: "mt-4",
-					children: [
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								onClick: () => runSearch(true),
+								disabled: remoteBusy || !adultVideos.length,
+								children: "Load more"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								variant: "secondary",
+								onClick: () => runSearch(false, true),
+								disabled: remoteBusy,
+								title: "Resume each provider from its saved archive cursor",
+								children: "Continue archive"
+							})
+						]
+					}),
+					autoPull && autoArchiveRounds > 0 && adultVideos.length < LIBRARY_LIMITS.adultTargetCatalogVideos && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						className: "mt-2 text-xs text-muted",
+						children: [
+							"Background archive catch-up · ",
+							autoArchiveRounds,
+							"/",
+							LIBRARY_LIMITS.adultAutoArchivePagesPerVisit,
+							" saved cursor passes this visit · ",
+							adultVideos.length.toLocaleString(),
+							"/",
+							LIBRARY_LIMITS.adultTargetCatalogVideos.toLocaleString(),
+							" title target."
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
+						className: "mt-3 rounded-md border border-border bg-bg/35 p-3",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("summary", {
+								className: "cursor-pointer text-xs font-medium text-fg",
+								children: "Provider adapter platform · active and planned sources"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-2 text-xs leading-5 text-muted",
+								children: "Each adapter needs a documented public API, public feed, or permitted embed before it can enter the catalog. This keeps unsupported sites as safe link-outs until their source contract is implemented."
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "mt-3 flex flex-wrap gap-2",
+								children: ADULT_PROVIDER_ADAPTERS.map((adapter) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+									className: "rounded-xs bg-elevated px-2 py-1 text-xs text-muted",
+									children: [
+										adapter.label,
+										" · ",
+										adapter.status,
+										" · ",
+										adapter.capabilities.join(", ")
+									]
+								}, adapter.id))
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 rounded-md bg-bg/40 p-3",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+								children: "RedTube creator search"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "mt-2 flex flex-wrap gap-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+									value: starQuery,
+									onChange: (event) => setStarQuery(event.target.value),
+									placeholder: "Star or creator name",
+									className: "max-w-xs"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+									size: "sm",
+									variant: "secondary",
+									disabled: remoteBusy,
+									onClick: () => {
+										const q = starQuery.trim();
+										if (!q) return;
+										setProviders(["redtube"]);
+										setQuery(q);
+										(async () => {
+											try {
+												const { searchRedtubeStars } = await import("./api-djS3Gh_Q.mjs");
+												const result = await searchRedtubeStars({ data: {
+													query: q,
+													page: 1
+												} });
+												setStars(result.stars);
+												setStarNote(result.note);
+											} catch (err) {
+												setStarNote(err instanceof Error ? err.message : "Star list unavailable.");
+											}
+										})();
+										searchAdultFeed(q, order, {
+											providers: ["redtube"],
+											maxVideos: LIBRARY_LIMITS.redtubeStarVideosPerPull
+										}).then((n) => toast.success(`Loaded ${n.toLocaleString()} for ${q}`));
+									},
+									children: "Search creator"
+								})]
+							}),
+							starNote && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-2 text-xs text-muted",
+								children: starNote
+							}),
+							stars.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "mt-2 flex flex-wrap gap-2",
+								children: stars.map((star) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+									size: "sm",
+									variant: "secondary",
+									onClick: () => {
+										setStarQuery(star.name);
+										setProviders(["redtube"]);
+										setQuery(star.name);
+										searchAdultFeed(star.name, order, {
+											providers: ["redtube"],
+											maxVideos: LIBRARY_LIMITS.redtubeStarVideosPerPull
+										}).then((n) => toast.success(`Loaded ${n.toLocaleString()} for ${star.name}`));
+									},
+									children: star.name
+								}, star.name))
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						className: "mt-3 text-xs text-muted",
+						children: [
+							"Durable adult catalog: ",
+							adultVideos.length.toLocaleString(),
+							" titles · provider pages append to this library across reloads",
+							importProgress ? ` · ${importProgress.label}` : ""
+						]
+					}),
+					adultPullStatus && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-3 rounded-md border border-border bg-bg/35 p-3",
+						"aria-live": "polite",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+								children: "Latest pull health"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-1 text-xs text-muted",
+								children: adultPullStatus.note
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "mt-2 flex flex-wrap gap-2",
+								children: adultPullStatus.diagnostics.map((row) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+									title: row.detail,
+									className: `rounded-full px-2.5 py-1 text-xs ${row.status === "loaded" ? "bg-accent/15 text-accent" : row.status === "empty" ? "bg-surface text-muted" : "bg-destructive/15 text-destructive"}`,
+									children: [
+										row.provider,
+										" · ",
+										row.status === "loaded" ? `${row.titles} loaded` : row.status,
+										" · ",
+										row.detail
+									]
+								}, `${row.provider}:${row.status}:${row.detail}`))
+							})
+						]
+					}),
+					useCustomRedditSources && redditSources.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						className: "mt-1 text-xs text-muted",
+						children: [
+							"Reddit pull scope · ",
+							selectedRedditSources.length,
+							" saved communities · ",
+							redditSources.length,
+							" priority override",
+							redditSources.length === 1 ? "" : "s",
+							" · photos, animated GIFs, video posts, and live comment threads stay attached to each post."
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-1 text-xs text-accent",
+						children: archiveLabel
+					}),
+					sourceFacets.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+								children: "Source tags"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-1 text-xs text-muted",
+								children: "Every pull stamps source-* so you can filter by provider (and booru host / subreddit when present)."
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "mt-2 flex flex-wrap gap-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+									size: "sm",
+									variant: (tagFilterProp ? sourceFilter : tagFilter) === "all" ? "default" : "secondary",
+									onClick: () => {
+										setTagFilter("all");
+										onSourceFilter?.("all");
+									},
+									children: ["All sources · ", adultVideos.length]
+								}), sourceFacets.map(([id, count]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+									size: "sm",
+									variant: (tagFilterProp ? sourceFilter : tagFilter) === id || tagFilter === `source-${id}` ? "default" : "secondary",
+									onClick: () => {
+										onSourceFilter?.(id);
+										setTagFilter(`source-${id}`);
+									},
+									children: [
+										id,
+										" · ",
+										count
+									]
+								}, id))]
+							})
+						]
+					}),
+					creatorFacets.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 							className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
-							children: "Source tags"
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-							className: "mt-1 text-xs text-muted",
-							children: "Every pull stamps source-* so you can filter by provider (and booru host / subreddit when present)."
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							children: "Creator tags"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 							className: "mt-2 flex flex-wrap gap-2",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-								size: "sm",
-								variant: (tagFilterProp ? sourceFilter : tagFilter) === "all" ? "default" : "secondary",
-								onClick: () => {
-									setTagFilter("all");
-									onSourceFilter?.("all");
-								},
-								children: ["All sources · ", adultVideos.length]
-							}), sourceFacets.map(([id, count]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-								size: "sm",
-								variant: (tagFilterProp ? sourceFilter : tagFilter) === id || tagFilter === `source-${id}` ? "default" : "secondary",
-								onClick: () => {
-									onSourceFilter?.(id);
-									setTagFilter(`source-${id}`);
-								},
-								children: [
-									id,
-									" · ",
-									count
-								]
-							}, id))]
-						})
-					]
-				}),
-				creatorFacets.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					className: "mt-4",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
-						children: "Creator tags"
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "mt-2 flex flex-wrap gap-2",
-						children: creatorFacets.map(([tag, count]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-							size: "sm",
-							variant: tagFilter === tag ? "default" : "secondary",
-							onClick: () => setTagFilter(tag),
-							children: [
-								"#",
-								tag,
-								" · ",
-								count
-							]
-						}, tag))
-					})]
-				}),
-				fetishFacets.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					className: "mt-4",
-					children: [
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-							className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
-							children: "Interest tags"
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "mt-2 flex flex-wrap gap-2",
-							children: fetishFacets.map(([tag, count]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+							children: creatorFacets.map(([tag, count]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 								size: "sm",
 								variant: tagFilter === tag ? "default" : "secondary",
 								onClick: () => setTagFilter(tag),
@@ -8033,32 +8155,55 @@ function AdultPanel({ showMilestones = false, autoPull = true, sourceFilter = "a
 									count
 								]
 							}, tag))
-						}),
-						tagFilter.toLowerCase() !== "all" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "mt-3 flex flex-wrap items-center gap-2",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-								className: "text-xs text-accent",
-								children: ["Selected #", tagFilter]
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-								size: "sm",
-								variant: "secondary",
-								disabled: remoteBusy,
-								onClick: () => {
-									const q = fetishSearchQuery(tagFilter.replace(/^fetish-/, "").replace(/^source-/, "").replace(/-/g, " "));
-									setQuery(q);
-									searchAdultFeed(q, order, {
-										page: 1,
-										maxVideos: LIBRARY_LIMITS.adultInteractiveVideosPerPull,
-										providers,
-										...redditPullOptions
-									}).then((n) => toast.success(`Loaded ${n.toLocaleString()} for #${tagFilter}`));
-								},
-								children: ["Search providers for #", tagFilter]
-							})]
-						})
-					]
-				})
-			]
+						})]
+					}),
+					fetishFacets.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+								children: "Interest tags"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "mt-2 flex flex-wrap gap-2",
+								children: fetishFacets.map(([tag, count]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+									size: "sm",
+									variant: tagFilter === tag ? "default" : "secondary",
+									onClick: () => setTagFilter(tag),
+									children: [
+										"#",
+										tag,
+										" · ",
+										count
+									]
+								}, tag))
+							}),
+							tagFilter.toLowerCase() !== "all" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "mt-3 flex flex-wrap items-center gap-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+									className: "text-xs text-accent",
+									children: ["Selected #", tagFilter]
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+									size: "sm",
+									variant: "secondary",
+									disabled: remoteBusy,
+									onClick: () => {
+										const q = fetishSearchQuery(tagFilter.replace(/^fetish-/, "").replace(/^source-/, "").replace(/-/g, " "));
+										setQuery(q);
+										searchAdultFeed(q, order, {
+											page: 1,
+											maxVideos: LIBRARY_LIMITS.adultInteractiveVideosPerPull,
+											providers,
+											...redditPullOptions
+										}).then((n) => toast.success(`Loaded ${n.toLocaleString()} for #${tagFilter}`));
+									},
+									children: ["Search providers for #", tagFilter]
+								})]
+							})
+						]
+					})
+				]
+			})]
 		})]
 	});
 }
@@ -8087,7 +8232,7 @@ function AdultComments({ video }) {
 		setLoading(true);
 		(async () => {
 			try {
-				const { fetchAdultComments } = await import("./api-DrSMGXpo.mjs");
+				const { fetchAdultComments } = await import("./api-djS3Gh_Q.mjs");
 				const result = await fetchAdultComments({ data: {
 					kind: video.remote?.kind ?? "",
 					videoId: video.remote?.videoId ?? "",
@@ -8710,7 +8855,8 @@ function Player({ playlist }) {
 	const remote = video.remote;
 	const adultImage = Boolean(remote && isAdultImageKind(remote.kind, video.mime, video.extension));
 	const redgifsDirectMedia = remote?.kind === "redgifs" && Boolean(video.src && video.src !== remote.embedUrl);
-	const embedSrc = adultImage ? null : remote ? remote.kind === "twitch" ? twitchEmbed(remote.embedUrl ?? "") : remote.kind === "youtube" ? youtubeEmbed(remote.embedUrl ?? video.src ?? "") : isAdultPullKind(remote.kind) ? redgifsDirectMedia ? null : remote.embedUrl ?? video.src ?? null : remote.embedUrl ? `${remote.embedUrl}${remote.embedUrl.includes("?") ? "&" : "?"}autoplay=1&rel=0&modestbranding=1` : null : null;
+	const directAdultMedia = Boolean(remote && isAdultPullKind(remote.kind) && video.src && /\.(?:mp4|webm|gifv)(?:\?|$)/i.test(video.src));
+	const embedSrc = adultImage ? null : remote ? remote.kind === "twitch" ? twitchEmbed(remote.embedUrl ?? "") : remote.kind === "youtube" ? youtubeEmbed(remote.embedUrl ?? video.src ?? "") : isAdultPullKind(remote.kind) ? redgifsDirectMedia || directAdultMedia ? null : remote.embedUrl ?? video.src ?? null : remote.embedUrl ? `${remote.embedUrl}${remote.embedUrl.includes("?") ? "&" : "?"}autoplay=1&rel=0&modestbranding=1` : null : null;
 	const shown = scrub ?? current;
 	const dur = duration || capturedDur || video.duration || 0;
 	const i = playlist.indexOf(video.id);
@@ -9390,8 +9536,9 @@ function PreVideo() {
 	]);
 	if (!video) return null;
 	const adultImage = Boolean(video.remote && isAdultImageKind(video.remote.kind, video.mime, video.extension));
+	const directAdultMedia = Boolean(video.remote && isAdultPullKind(video.remote.kind) && video.src && /\.(?:mp4|webm|gifv)(?:\?|$)/i.test(video.src));
 	const imageSrc = adultImage ? video.src || video.remote?.embedUrl || video.remote?.previewUrl || video.poster || null : null;
-	const embed = adultImage ? null : video.remote?.embedUrl ? video.remote.kind === "twitch" ? `${video.remote.embedUrl}${video.remote.embedUrl.includes("?") ? "&" : "?"}parent=${encodeURIComponent(window.location.hostname)}` : video.remote.kind === "youtube" ? (() => {
+	const embed = adultImage ? null : video.remote?.embedUrl && !directAdultMedia ? video.remote.kind === "twitch" ? `${video.remote.embedUrl}${video.remote.embedUrl.includes("?") ? "&" : "?"}parent=${encodeURIComponent(window.location.hostname)}` : video.remote.kind === "youtube" ? (() => {
 		const url = new URL(video.remote.embedUrl, "https://www.youtube.com");
 		url.protocol = "https:";
 		url.hostname = "www.youtube.com";
@@ -10047,7 +10194,7 @@ function ConnectPanel({ defaultKind = "youtube", lockedKind }) {
 		if (!login) return;
 		setFinding(true);
 		try {
-			const { fetchTwitchFollowing } = await import("./api-DrSMGXpo.mjs");
+			const { fetchTwitchFollowing } = await import("./api-djS3Gh_Q.mjs");
 			const result = await fetchTwitchFollowing({ data: { login } });
 			const rows = result.channels.map((channel) => ({
 				query: channel.login,
@@ -10498,7 +10645,7 @@ ytFilm({
 	tagline: "A Blender Studio open project.",
 	channel: "Blender Studio"
 });
-var loadHub = () => import("./hub-sections-BpW_S-Fl.mjs");
+var loadHub = () => import("./hub-sections-BwFLug5M.mjs");
 var hubSection = (name) => (0, import_react.lazy)(async () => ({ default: (await loadHub())[name] }));
 var GamesSection = hubSection("GamesSection");
 var FindPhoneSection = hubSection("FindPhoneSection");
@@ -10747,6 +10894,21 @@ function LibraryApp() {
 		adultRankReady,
 		sourceId,
 		sourceMatchedAdult
+	]);
+	const adultTopTagRails = (0, import_react.useMemo)(() => {
+		if (sourceId !== "adults" || !adultRankReady || adultTag !== "All") return [];
+		return adultTagRank.filter((row) => row.count >= 3).slice(0, 3).map((row) => ({
+			...row,
+			videos: rankedAdultCatalog.filter((video) => videoMatchesAdultTag(video, row.tag, tags)).slice(0, adultRailLimit)
+		})).filter((row) => row.videos.length > 0);
+	}, [
+		adultRailLimit,
+		adultRankReady,
+		adultTag,
+		adultTagRank,
+		rankedAdultCatalog,
+		sourceId,
+		tags
 	]);
 	const adultMetaTagRank = (0, import_react.useMemo)(() => {
 		if (sourceId !== "adults" || !adultRankReady) return [];
@@ -12710,6 +12872,12 @@ function LibraryApp() {
 								videos: adultRedditRail,
 								variant: "rail"
 							}),
+							adultTopTagRails.map((row) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: `Top #${row.tag} · ${row.count}`,
+								reason: `Ranked tag score ${Math.round(row.score)} from title count, ratings, saves, marks, recency, and taxonomy relevance.`,
+								videos: row.videos,
+								variant: "rail"
+							}, `adult-tag-rail-${row.tag}`)),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 								className: "mb-5 rounded-xl border border-border bg-surface p-4 shadow-border",
 								children: [
@@ -12758,7 +12926,9 @@ function LibraryApp() {
 													"#",
 													row.tag,
 													" · ",
-													row.count
+													row.count,
+													" · ",
+													Math.round(row.score)
 												]
 											}, `adult-tag-${row.tag}`)),
 											adultTagMatches.length > visibleAdultTags.length && visibleAdultTags.length < 36 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {

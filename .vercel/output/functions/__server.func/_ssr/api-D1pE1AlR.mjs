@@ -1,486 +1,6 @@
 import { n as TSS_SERVER_FUNCTION, t as createServerFn } from "./ssr.mjs";
-import { A as extractRedditFlair, K as redtubeStarNames, O as cachedAdultFetch, U as pickRedtubeThumb, _ as REDGIFS_FOLDER_ID, c as ADULT_PULL_PROVIDERS, d as CAMSODA_FOLDER_ID, f as CHATURBATE_FOLDER_ID, g as REDDIT_FOLDER_ID, h as MYFREECAMS_FOLDER_ID, k as expandAdultThumbFallbacks, m as LIBRARY_LIMITS, p as EPORNER_FOLDER_ID, u as BOORU_FOLDER_ID, v as REDTUBE_FOLDER_ID, y as adultDeepenQueriesForPage, z as isUsableAdultThumb } from "./library-limits-D-UjAuZX.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/api-D3uy3MyJ.js
-/** Curated 18+ Reddit subs for Adult Atom RSS pulls.
-* Merged from: reddit-nsfw-top300.txt, reddit-extra-from-porndude.txt,
-* Postpone list page scrape, and prior fetish catalog.
-* ListOfSubreddits ultimate thread unavailable unauthenticated (login/429).
-* Rotated in batches — do not fetch all at once.
-*/
-var ADULT_REDDIT_SUBS = [
-	"18_22",
-	"2busty2hide",
-	"40plusgonewild",
-	"60fpsporn",
-	"abelladanger",
-	"actuallesbians",
-	"adorablenudes",
-	"adorableporn",
-	"adrianachechik",
-	"ahegaogirls",
-	"altgonewild",
-	"amateur",
-	"amateur_milfs",
-	"amateurcumsluts",
-	"amateurporn",
-	"amihot",
-	"anal",
-	"analgonewild",
-	"analgw",
-	"angelawhite",
-	"anriokita",
-	"asiancumsluts",
-	"asiancuties",
-	"asianfetish",
-	"asiangirlswhitecocks",
-	"asianhotties",
-	"asiannsfw",
-	"asianpornx",
-	"asiansgonewild",
-	"ass",
-	"asshole",
-	"assholebehindthong",
-	"assholegonewild",
-	"assmasterpiece",
-	"asstastic",
-	"athleticbabes",
-	"backview",
-	"baddragon",
-	"bbcparadise",
-	"bbw",
-	"bdsm",
-	"bdsmgw",
-	"bigareolas",
-	"bigass",
-	"bigassaltgirls",
-	"bigasses",
-	"bigboobsgw",
-	"bigbootygothiccgf",
-	"bigbootyporn",
-	"bigdickgirl",
-	"biggerthanherhead",
-	"biggerthanyouthought",
-	"bigtiddygothgf",
-	"bigtitsinbikinis",
-	"bimbofetish",
-	"blackchickswhitedicks",
-	"blackgirlsgw",
-	"blowjob",
-	"blowjobgirls",
-	"blowjobs",
-	"blowjobsandwich",
-	"bodyperfection",
-	"boltedontits",
-	"bondage",
-	"boobbounce",
-	"boobies",
-	"boobs",
-	"booty",
-	"booty_queens",
-	"bootypetite",
-	"borntobefucked",
-	"braless",
-	"breedingmaterial",
-	"breedmedaddy",
-	"brownhotties",
-	"brunette",
-	"bubblebutts",
-	"burstout",
-	"bustyasians",
-	"bustynaturals",
-	"bustypetite",
-	"buttplug",
-	"buttsandbarefeet",
-	"buttsharpies",
-	"camgirls",
-	"cartoonporn",
-	"casualjiggles",
-	"celebnsfw",
-	"celebritybutts",
-	"celebs",
-	"centaurgirls",
-	"cfnm",
-	"cheatingpov",
-	"cheatingwives",
-	"chickflixxx",
-	"chubby",
-	"classysexy",
-	"cleavage",
-	"clothedtitfuck",
-	"collegeamateurs",
-	"collegesluts",
-	"cosplaybabes",
-	"cosplaygirls",
-	"cosplaypornvideos",
-	"cougarsforcubs",
-	"countrygirls",
-	"couplesgonewild",
-	"couplesporn",
-	"creampies",
-	"crossdressing",
-	"cuckold",
-	"cuckoldcaptions",
-	"cuckquean",
-	"cumdumpsters",
-	"cumfetish",
-	"cumhaters",
-	"cumhentai",
-	"cuminsideme",
-	"cumonclothes",
-	"cumshots",
-	"cumsluts",
-	"cunnilingus",
-	"curvy",
-	"cutelittlebutts",
-	"cutemodeslutmode",
-	"dadwouldbeproud",
-	"damngoodinterracial",
-	"darkangels",
-	"datgap",
-	"daughtertraining",
-	"deathbysnusnu",
-	"deepthroat",
-	"degradingholes",
-	"description",
-	"dirtyr4r",
-	"dirtysmall",
-	"distension",
-	"doggystyle_nsfw",
-	"downblouse",
-	"draculabiscuits",
-	"dykesgonewild",
-	"ebony",
-	"ebonyhomemade",
-	"ebonythroatqueens",
-	"ecchi",
-	"ediblebuttholes",
-	"egirls",
-	"elsajean",
-	"emogirls",
-	"emogirlsfuck",
-	"engorgedveinybreasts",
-	"erasernipples",
-	"erinashford",
-	"exhibitionistfun",
-	"exposedinpublic",
-	"extramile",
-	"extrasmal",
-	"facedownassup",
-	"facefuck",
-	"facials",
-	"fantasticbreasts",
-	"fantasygirls",
-	"fatpussyinpanties",
-	"fatpussylovers",
-	"feet",
-	"feet_nsfw",
-	"femaleorgasmdenial",
-	"femboys",
-	"femdom",
-	"femyiff",
-	"fingering",
-	"fitgirls",
-	"fitnakedgirls",
-	"flashingandflaunting",
-	"flashinggirls",
-	"forcedcreampie",
-	"freeuse",
-	"fuckdoll",
-	"fuckinglikecrazy",
-	"funsized",
-	"funwithfriends",
-	"futanari",
-	"gabbiecarter",
-	"gangbang",
-	"gaybrosgonewild",
-	"gentlefemdom",
-	"gettingherselfoff",
-	"ghostnipples",
-	"gifsgonewild",
-	"girlsfinishingthejob",
-	"girlsinyogapants",
-	"girlskissing",
-	"girlsmasturbating",
-	"girlsshowering",
-	"girlswhoride",
-	"girlswithglasses",
-	"girlswithneonhair",
-	"godasshole",
-	"goddesses",
-	"godpussy",
-	"goneerotic",
-	"gonewild",
-	"gonewild30plus",
-	"gonewildaudio",
-	"gonewildcd",
-	"gonewildplus",
-	"gonewildstories",
-	"gooned",
-	"gothgirlsgonewild",
-	"gothsluts",
-	"grool",
-	"gwcouples",
-	"gwpublic",
-	"gymgirlsnsfw",
-	"hairypussy",
-	"happyembarrassedgirls",
-	"hardcorensfw",
-	"hentai",
-	"hentai_gif",
-	"hentai_irl",
-	"hentaimemes",
-	"highresnsfw",
-	"holdthemoan",
-	"holewreckers",
-	"home",
-	"homegrowntits",
-	"homemadensfw",
-	"homemadexxx",
-	"hornyamateurgirls",
-	"hotchickswithtattoos",
-	"hotmoms",
-	"hotwife",
-	"hugeboobs",
-	"hungrybutts",
-	"iama",
-	"id6741810251",
-	"indiansgonewild",
-	"influencernsfw_global",
-	"innie",
-	"innocentlynaughty",
-	"iwanttobeher",
-	"iwanttosuckcock",
-	"japaneseporn2",
-	"jav",
-	"jizzedtothis",
-	"joi",
-	"juicyasians",
-	"just18",
-	"justfriendshavingfun",
-	"justhotwomen",
-	"keywords",
-	"kpopfap",
-	"labiagw",
-	"lactation",
-	"lanarhoades",
-	"largemilkers",
-	"latinas",
-	"latinascuties",
-	"lesbian_gifs",
-	"lesbians",
-	"lightskinbeauties",
-	"lingeriegw",
-	"lipsthatgrip",
-	"long_porn",
-	"massivecock",
-	"massivetitsnass",
-	"masturbationgonewild",
-	"maturemilf",
-	"mexicana",
-	"miakhalifa",
-	"milf",
-	"milfie",
-	"militarygonewild",
-	"models",
-	"mombod",
-	"monsterdicks",
-	"nakedadventures",
-	"natalee",
-	"naturaltitties",
-	"naughtychicks",
-	"naughtywives",
-	"needysluts",
-	"nintendowaifus",
-	"nipples",
-	"normalnudes",
-	"notsafefornature",
-	"nsfw",
-	"nsfw2",
-	"nsfw_gif",
-	"nsfw_gifs",
-	"nsfw_html5",
-	"nsfw_japan",
-	"nsfw_plowcam",
-	"nsfw_social",
-	"nsfw_videos",
-	"nsfwcosplay",
-	"nsfwcostumes",
-	"nsfwfashion",
-	"nsfwhardcore",
-	"nsfwverifiedamateurs",
-	"ntrhentaigonewildcd",
-	"nude_selfie",
-	"nudecelebsonly",
-	"nudenonnude",
-	"nudes",
-	"obsf",
-	"oilporn",
-	"onepiecevixens",
-	"onlyfans101",
-	"onlyfansasstastic",
-	"onlyfansbrunette",
-	"onlyfanspetite",
-	"onlyifshespackin",
-	"onoff",
-	"orgasms",
-	"outdoorrecreation",
-	"overwatch_porn",
-	"paag",
-	"page3glamour",
-	"palegirls",
-	"pantypeel",
-	"passionx",
-	"pawg",
-	"pawglove",
-	"pegging",
-	"perfectbody",
-	"perfecttits",
-	"petite",
-	"petitegonewild",
-	"phatasswhitegirls",
-	"phgonewild",
-	"piercednipples",
-	"plastt",
-	"playboy",
-	"pokeporn",
-	"porn",
-	"porn_gifs",
-	"pornhub",
-	"porninfifteenseconds",
-	"pornism",
-	"pornstarhq",
-	"preggoporn",
-	"premiumcheeks",
-	"prettyaltgirls",
-	"prettylittlecumsluts",
-	"pronebone",
-	"public",
-	"publicflashing",
-	"publicnudity",
-	"publicsex",
-	"publicsexporn",
-	"punkgirls",
-	"pussy",
-	"pussy_perfection",
-	"quiver",
-	"ratemyboobs",
-	"ratemypussy",
-	"ratemyrack",
-	"realahegao",
-	"realgirls",
-	"realhomeporn",
-	"realmoms",
-	"realmomsgonewild",
-	"realpublicnudity",
-	"realsexyselfies",
-	"rearpussy",
-	"redheads",
-	"ridingxxx",
-	"rileyreid",
-	"riskyporn",
-	"robots",
-	"roughporn",
-	"rule34",
-	"sabrinanichole",
-	"sashagrey",
-	"schoolgirlsxxx",
-	"scissoring",
-	"scrubsgonewild",
-	"sexcomics",
-	"sextrophies",
-	"sexyfrex",
-	"sexygirls",
-	"shavedpussies",
-	"shefuckshim",
-	"shelikesitrough",
-	"shemales",
-	"short_porn",
-	"shorthairchicks",
-	"sissies",
-	"sissyhypno",
-	"slimthick",
-	"slut",
-	"sluts",
-	"slutsofsnapchat",
-	"sluttyconfessions",
-	"slutwife",
-	"smallboobs",
-	"smallcutie",
-	"smalldickgirls",
-	"smoltiddygothgf",
-	"snowwhites",
-	"solomasturbation",
-	"spreadeagle",
-	"spreadem",
-	"spreading",
-	"squirting",
-	"stacked",
-	"starwarsnsfw",
-	"step_fantasy_gifs",
-	"stockings",
-	"stories",
-	"straightgirlsplaying",
-	"straighttosissy",
-	"stripgirls",
-	"styles",
-	"suctiondildos",
-	"swingers",
-	"swingersgw",
-	"taboo",
-	"tadami",
-	"tbulges",
-	"tentai",
-	"tgifs",
-	"themilfnextdoor",
-	"theunderbun",
-	"thick",
-	"thickloads",
-	"thickthighs",
-	"thickwhitegirls",
-	"thighdeology",
-	"thighhighs",
-	"thong",
-	"threesome",
-	"tightdresses",
-	"tightsqueeze",
-	"tiktoknsfw",
-	"tiktokporn",
-	"tiktokthots",
-	"tinytits",
-	"tits",
-	"titsonastick",
-	"titstouchingtits",
-	"titties",
-	"tittydrop",
-	"toocuteforporn",
-	"totalbabes",
-	"transgoddesses",
-	"transporn",
-	"traphentai",
-	"traps",
-	"twerking",
-	"twingirls",
-	"uncommonposes",
-	"underweargw",
-	"upherbutt",
-	"upskirt",
-	"vagina",
-	"viewport",
-	"voyeurflash",
-	"watchitfortheplot",
-	"wetpussys",
-	"wife_wants_to_be_seen",
-	"wifesharing",
-	"womenbendingover",
-	"womenofcolor",
-	"workgonewild",
-	"wouldyoufuckmywife",
-	"wtss",
-	"xsmallgirls",
-	"yiff",
-	"yogapants",
-	"yuri"
-];
+import { A as expandAdultThumbFallbacks, B as isUsableAdultThumb, W as pickRedtubeThumb, _ as REDDIT_FOLDER_ID, b as adultDeepenQueriesForPage, c as ADULT_PULL_PROVIDERS, d as BOORU_FOLDER_ID, f as CAMSODA_FOLDER_ID, g as MYFREECAMS_FOLDER_ID, h as LIBRARY_LIMITS, j as extractRedditFlair, k as cachedAdultFetch, l as ADULT_REDDIT_SUBS, m as EPORNER_FOLDER_ID, p as CHATURBATE_FOLDER_ID, q as redtubeStarNames, v as REDGIFS_FOLDER_ID, y as REDTUBE_FOLDER_ID } from "./library-limits-baHoJ0tI.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/api-D1pE1AlR.js
 var createServerRpc = (serverFnMeta, splitImportFn) => {
 	const url = "/_serverFn/" + serverFnMeta.id;
 	return Object.assign(splitImportFn, {
@@ -490,7 +10,9 @@ var createServerRpc = (serverFnMeta, splitImportFn) => {
 	});
 };
 function decode(value) {
-	return value.replace(/&amp;/g, "&").replace(/&quot;/g, "\"").replace(/&#32;/g, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;/g, "'").replace(/&apos;/g, "'");
+	let decoded = value.replace(/&amp;/g, "&").replace(/&quot;/g, "\"").replace(/&#32;/g, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;/g, "'").replace(/&apos;/g, "'");
+	for (let pass = 0; pass < 2 && /&(?:amp|quot|lt|gt|#\d+|#x[\da-f]+);/i.test(decoded); pass += 1) decoded = decoded.replace(/&amp;/g, "&").replace(/&quot;/g, "\"").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+	return decoded;
 }
 function upgradePreview(url) {
 	let next = url.replace(/&amp;/g, "&");
@@ -510,6 +32,22 @@ function isVideoHost(url) {
 function isJunkLink(url) {
 	return /icanhazchat|reddithelp\.com|redditstatic\.com|\/faq|sidebar rules|welcome\?gonewild/i.test(url);
 }
+function redgifsThumbFallbacks(urls) {
+	const out = [];
+	const seen = /* @__PURE__ */ new Set();
+	for (const raw of urls) {
+		const slug = raw.match(/https?:\/\/(?:www\.)?redgifs\.com\/(?:watch|ifr)\/([a-z0-9_-]+)/i)?.[1];
+		if (!slug) continue;
+		for (const suffix of ["mobile.jpg", "poster.jpg"]) {
+			const candidate = `https://thumbs2.redgifs.com/${slug}-${suffix}`;
+			if (!seen.has(candidate)) {
+				seen.add(candidate);
+				out.push(candidate);
+			}
+		}
+	}
+	return out;
+}
 function collectUrls(entryXml, contentHtml) {
 	const blob = `${entryXml}\n${contentHtml}`;
 	const found = [];
@@ -524,7 +62,7 @@ function collectUrls(entryXml, contentHtml) {
 	for (const match of blob.matchAll(/<media:thumbnail[^>]+url="([^"]+)"/gi)) push(match[1]);
 	for (const match of blob.matchAll(/<media:content[^>]+url="([^"]+)"/gi)) push(match[1]);
 	for (const match of blob.matchAll(/<img[^>]+src="([^"]+)"/gi)) push(match[1]);
-	for (const match of blob.matchAll(/<(?:a|source|video)[^>]+(?:href|src|data-url)="(https?:[^"]+)"/gi)) push(match[1]);
+	for (const match of blob.matchAll(/<(?:a|img|source|video)[^>]+(?:href|src|data-url|data-lazy-src|data-preview-url)="(https?:[^"]+)"/gi)) push(match[1]);
 	for (const match of blob.matchAll(/https?:\\\/\\\/(?:i|preview|external-preview)\\\.redd\\\.it\\\/[^\s"'<]+/gi)) push(match[0].replace(/\\\//g, "/"));
 	for (const match of blob.matchAll(/https?:\/\/(?:i|preview|external-preview)\.redd\.it\/[^\s"'<]+/gi)) push(match[0]);
 	for (const match of blob.matchAll(/https?:\/\/(?:i\.)?imgur\.com\/[^\s"'<]+/gi)) push(match[0]);
@@ -539,18 +77,21 @@ function extractRedditMedia(entryXml, contentHtml) {
 	const images = urls.filter((url) => isImageHost(url) && !isJunkLink(url)).map(upgradePreview);
 	const videos = urls.filter((url) => isVideoHost(url) && !isJunkLink(url));
 	const pages = urls.filter((url) => /reddit\.com\/gallery\//i.test(url) || /reddit\.com\/r\/[^/]+\/comments\//i.test(url));
+	const redgifsThumbs = redgifsThumbFallbacks(videos);
 	const poster = images.find((url) => /i\.redd\.it/i.test(url)) ?? images.find((url) => /preview\.redd\.it/i.test(url)) ?? images.find((url) => /i\.imgur\.com/i.test(url)) ?? images[0];
 	if (videos.length) return {
 		kind: "video",
 		poster,
 		src: videos.find((url) => /\.(mp4|webm|gifv)(\?|$)/i.test(url)),
-		watch: videos[0]
+		watch: videos[0],
+		thumbFallbacks: [poster, ...redgifsThumbs].filter((url) => Boolean(url))
 	};
 	if (poster) return {
 		kind: "image",
 		poster,
 		src: /i\.redd\.it|i\.imgur\.com|\.(jpe?g|png|gif|webp)(\?|$)/i.test(poster) ? poster : poster,
-		watch: pages[0]
+		watch: pages[0],
+		thumbFallbacks: [poster, ...redgifsThumbs].filter((url) => Boolean(url))
 	};
 	return {
 		kind: "page",
@@ -1381,10 +922,12 @@ function parseProviderPages(raw) {
 	}
 	return out;
 }
+/** Allows the complete saved library collection while keeping request size bounded. */
+var MAX_REDDIT_SOURCE_PREFERENCES = 720;
 function parseRedditSources(raw) {
 	if (!Array.isArray(raw)) return [];
 	const unique = /* @__PURE__ */ new Map();
-	for (const value of raw.slice(0, 120)) {
+	for (const value of raw.slice(0, MAX_REDDIT_SOURCE_PREFERENCES)) {
 		const row = asRecord(value);
 		const subreddit = asString(row?.subreddit).trim().replace(/^r\//i, "");
 		if (!/^[a-z0-9_]{3,48}$/i.test(subreddit)) continue;
@@ -1477,7 +1020,7 @@ async function fetchEpornerPage(query, order, page, perPage) {
 			"user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)"
 		}
 	});
-	if (!res.ok) throw new Error("Eporner search is unavailable right now.");
+	if (!res.ok) throw new Error(`Eporner API HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
 	const json = await res.json();
 	const videos = (json.videos ?? []).map(epornerVideo).filter((v) => v != null);
 	return {
@@ -1589,7 +1132,7 @@ async function fetchRedtubePage(query, order, page) {
 			"user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)"
 		}
 	});
-	if (!res.ok) throw new Error("RedTube search is unavailable right now.");
+	if (!res.ok) throw new Error(`RedTube API HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
 	const json = await res.json();
 	if (json.message && json.code) throw new Error(json.message);
 	const videos = (json.videos ?? []).map((row) => {
@@ -1660,7 +1203,7 @@ async function fetchChaturbateRooms(query, maxVideos) {
 				"user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)"
 			}
 		});
-		if (!res.ok) throw new Error("Chaturbate rooms are unavailable right now.");
+		if (!res.ok) throw new Error(`Chaturbate rooms HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
 		const json = await res.json();
 		const rooms = (Array.isArray(json) ? json : []).map(chaturbateVideo).filter((video) => video != null);
 		chaturbateCache = {
@@ -1762,7 +1305,7 @@ async function fetchCamSodaRooms(query, maxVideos) {
 				"user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)"
 			}
 		});
-		if (!res.ok) throw new Error("CamSoda rooms are unavailable right now.");
+		if (!res.ok) throw new Error(`CamSoda rooms HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
 		const json = await res.json();
 		const rooms = (Array.isArray(json) ? json : Array.isArray(json.results) ? json.results : Array.isArray(json.rooms) ? json.rooms : []).map(camsodaVideo).filter((video) => video != null);
 		camsodaCache = {
@@ -1821,7 +1364,7 @@ async function fetchMyFreeCamsRooms(query, maxVideos) {
 				"user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)"
 			}
 		});
-		if (!res.ok) throw new Error("MyFreeCams rooms are unavailable right now.");
+		if (!res.ok) throw new Error(`MyFreeCams rooms HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
 		const text = await res.text();
 		const rooms = [];
 		for (const line of text.split(/[\r\n;]+/)) {
@@ -1844,15 +1387,36 @@ async function fetchMyFreeCamsRooms(query, maxVideos) {
 	};
 }
 function htmlDecode(value) {
-	return value.replace(/&amp;/g, "&").replace(/&quot;/g, "\"").replace(/&#32;/g, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;/g, "'");
+	return value.replace(/&amp;/g, "&").replace(/&quot;/g, "\"").replace(/&#32;/g, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;/g, "'").replace(/&apos;/g, "'").replace(/&#(?:x([\da-f]+)|(\d+));/gi, (_all, hex, decimal) => {
+		const codePoint = Number.parseInt(hex ?? decimal ?? "", hex ? 16 : 10);
+		return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : _all;
+	});
 }
 function xmlField(xml, pattern) {
 	return htmlDecode(pattern.exec(xml)?.[1] ?? "").trim();
 }
+/** Atom does not prescribe an attribute order. Reddit currently places `rel`
+* before `href`, so never assume the first attribute is the target URL. */
+function redditPermalink(entry) {
+	const links = [...entry.matchAll(/<link\b[^>]*>/gi)];
+	let first = "";
+	for (const [tag] of links) {
+		const href = xmlField(tag, /\bhref\s*=\s*["']([^"']+)["']/i);
+		if (!href) continue;
+		if (!first) first = href;
+		const rel = xmlField(tag, /\brel\s*=\s*["']([^"']+)["']/i);
+		if (/\balternate\b/i.test(rel)) return href;
+	}
+	return first;
+}
+function redgifsEmbedUrl(url) {
+	const slug = url?.match(/https?:\/\/(?:www\.)?redgifs\.com\/(?:watch|ifr)\/([a-z0-9_-]+)/i)?.[1];
+	return slug ? `https://www.redgifs.com/ifr/${encodeURIComponent(slug)}` : void 0;
+}
 function redditVideo(entry, subreddit) {
 	const id = xmlField(entry, /<id>([^<]+)<\/id>/i).replace(/^t3_/, "") || xmlField(entry, /\/comments\/([a-z0-9]+)\//i);
 	const title = xmlField(entry, /<title>([^<]+)<\/title>/i);
-	const permalink = xmlField(entry, /<link href="([^"]+)"/i);
+	const permalink = redditPermalink(entry);
 	const author = xmlField(entry, /<name>([^<]+)<\/name>/i).replace(/^\/u\//, "");
 	const published = xmlField(entry, /<published>([^<]+)<\/published>/i);
 	const content = xmlField(entry, /<content[^>]*>([\s\S]*?)<\/content>/i);
@@ -1865,6 +1429,9 @@ function redditVideo(entry, subreddit) {
 	const poster = media.poster;
 	const isImage = media.kind === "image";
 	const isVideo = media.kind === "video";
+	const directMedia = media.src && /\.(?:mp4|webm|gifv)(?:\?|$)/i.test(media.src) ? media.src : void 0;
+	const redgifsEmbed = redgifsEmbedUrl(media.watch);
+	const redditEmbed = isVideo ? `https://www.redditmedia.com/r/${encodeURIComponent(subreddit)}/comments/${encodeURIComponent(id)}/?ref_source=embed&ref=share&embed=true` : void 0;
 	return {
 		id: `reddit:${id}`,
 		folderId: REDDIT_FOLDER_ID,
@@ -1877,29 +1444,31 @@ function redditVideo(entry, subreddit) {
 		tagline: `r/${subreddit}${author ? ` · u/${author}` : ""}${flair ? ` · ${flair}` : ""}${isVideo ? " · video" : isImage ? " · photo" : ""}`,
 		description: `reddit, r/${subreddit}, ${subreddit.replace(/_/g, " ")}, ${title}, ${flair}, ${media.watch ?? ""}`,
 		poster: poster || void 0,
-		src: media.src || poster || permalink,
+		src: isImage ? media.src || poster || permalink : directMedia || void 0,
 		remote: {
 			kind: "reddit",
+			sourceKinds: redgifsEmbed ? ["reddit", "redgifs"] : ["reddit"],
 			videoId: id,
 			channelName: author || `r/${subreddit}`,
 			channelId: subreddit,
 			observedAt: Date.now(),
-			embedUrl: media.src || media.watch || void 0,
-			watchUrl: media.watch && !/reddit\.com\/r\//i.test(media.watch) ? media.watch : permalink,
-			previewUrl: poster || void 0
+			embedUrl: directMedia || redgifsEmbed || redditEmbed,
+			watchUrl: permalink,
+			previewUrl: poster || media.thumbFallbacks?.[0],
+			thumbFallbacks: media.thumbFallbacks?.slice(0, 4)
 		}
 	};
 }
 /** Rotate through the curated catalog so refreshes sample many subs over time. */
 function redditSubWindow(page, configuredSources = []) {
 	const configured = configuredSources.length ? [...configuredSources].sort((a, b) => b.priority - a.priority || a.subreddit.localeCompare(b.subreddit)).map((row) => row.subreddit) : [...ADULT_REDDIT_SUBS];
-	const all = configured.length ? configured : [...ADULT_REDDIT_SUBS];
+	const all = [...new Map((configured.length ? configured : [...ADULT_REDDIT_SUBS]).map((sub) => [sub.toLowerCase(), sub])).values()];
 	const size = Math.max(1, LIBRARY_LIMITS.redditSubsPerPull);
 	const totalPages = Math.max(1, Math.ceil(all.length / size));
-	const tick = Math.floor(Date.now() / 12e5);
+	const tick = configured.length ? 0 : Math.floor(Date.now() / 12e5);
 	const start = ((Math.max(1, page) - 1) * size + tick * 5) % all.length;
 	const subs = [];
-	for (let i = 0; i < size; i += 1) subs.push(all[(start + i) % all.length]);
+	for (let i = 0; i < Math.min(size, all.length); i += 1) subs.push(all[(start + i) % all.length]);
 	return {
 		subs,
 		start,
@@ -1908,26 +1477,40 @@ function redditSubWindow(page, configuredSources = []) {
 }
 async function fetchRedditSubRss(sub, sort) {
 	const url = `https://www.reddit.com${sort === "new" ? `/r/${encodeURIComponent(sub)}/new/.rss` : `/r/${encodeURIComponent(sub)}/.rss`}?limit=${LIBRARY_LIMITS.redditPostsPerSub}`;
-	const res = await cachedAdultFetch(url, {
-		signal: AbortSignal.timeout(12e3),
-		cacheTtlMs: 36e4,
-		headers: {
-			accept: "application/atom+xml, application/rss+xml, application/xml;q=0.9, */*;q=0.8",
-			"user-agent": "linux:reelcase:1.0 (by /u/reelcase)"
+	let xml = "";
+	let failure = "";
+	for (let attempt = 0; attempt < 2; attempt += 1) {
+		try {
+			const res = await cachedAdultFetch(url, {
+				signal: AbortSignal.timeout(12e3),
+				cacheTtlMs: 36e4,
+				headers: {
+					accept: "application/atom+xml, application/rss+xml, application/xml;q=0.9, */*;q=0.8",
+					"user-agent": "linux:reelcase:1.0 (by /u/reelcase)"
+				}
+			});
+			if (res.ok) {
+				xml = await res.text();
+				break;
+			}
+			failure = res.status === 429 ? "rate limited" : `HTTP ${res.status}`;
+			if (res.status === 429 || res.status < 500) break;
+		} catch (err) {
+			failure = err instanceof Error ? err.message : "network unavailable";
 		}
-	});
-	if (res.status === 429) throw new Error("rate limited");
-	if (!res.ok) throw new Error(`HTTP ${res.status}`);
-	const xml = await res.text();
+		await new Promise((resolve) => setTimeout(resolve, 350 * (attempt + 1)));
+	}
+	if (!xml) throw new Error(failure || "empty feed");
 	const posts = [];
-	for (const chunk of xml.split(/<entry>/i).slice(1)) {
-		const video = redditVideo(chunk, sub);
+	for (const match of xml.matchAll(/<entry\b[^>]*>([\s\S]*?)<\/entry>/gi)) {
+		const video = redditVideo(match[1] ?? "", sub);
 		if (video) posts.push(video);
 	}
 	return posts;
 }
 async function fetchRedditFeed(query, maxVideos, page = 1, configuredSources = []) {
-	const windows = Math.max(1, LIBRARY_LIMITS.redditWindowsPerPull);
+	const configuredPages = configuredSources.length ? Math.max(1, Math.ceil(configuredSources.length / LIBRARY_LIMITS.redditSubsPerPull)) : LIBRARY_LIMITS.redditWindowsPerPull;
+	const windows = Math.min(Math.max(1, LIBRARY_LIMITS.redditWindowsPerPull), configuredPages);
 	const collected = [];
 	const seen = /* @__PURE__ */ new Set();
 	const errors = [];
@@ -2099,6 +1682,14 @@ function pickString(...values) {
 	}
 	return "";
 }
+/** Redgifs' embed boot is often slower than its public poster CDN. Keep the
+* API-provided poster first, then use the stable poster paths before an iframe
+* has to paint a preview. */
+function redgifsPosterFallbacks(id) {
+	const slug = id.trim();
+	if (!/^[a-z0-9_-]{2,128}$/i.test(slug)) return [];
+	return [`https://thumbs2.redgifs.com/${encodeURIComponent(slug)}-mobile.jpg`, `https://thumbs2.redgifs.com/${encodeURIComponent(slug)}-poster.jpg`];
+}
 function redgifsVideo(row) {
 	const id = pickString(row.id, row.gif_id, row.gifId, row.slug);
 	if (!id) return null;
@@ -2116,6 +1707,7 @@ function redgifsVideo(row) {
 	const embed = pickString(urls.html, urls.player, row.embedUrl, row.embed_url, `https://www.redgifs.com/ifr/${encodeURIComponent(id)}`);
 	const watch = pickString(urls.webUrl, urls.web_url, row.url, row.webUrl, `https://www.redgifs.com/watch/${encodeURIComponent(id)}`);
 	const thumb = pickString(urls.thumbnail, urls.thumb, urls.preview, urls.poster, urls.posterUrl, urls.previewUrl, row.thumbnail, row.thumb, row.poster, row.previewUrl);
+	const thumbFallbacks = [.../* @__PURE__ */ new Set([thumb, ...redgifsPosterFallbacks(id)])].filter(isUsableAdultThumb).slice(0, 4);
 	const file = pickString(urls.hd, urls.sd, urls.silent, urls.mobile, urls.mp4, urls.giftiny, urls.gif, row.mp4, row.file);
 	if (adultBlockedText(title, author, tagList.join(" "))) return null;
 	return {
@@ -2129,7 +1721,7 @@ function redgifsVideo(row) {
 		addedAt: Date.now(),
 		tagline: [author, ...tagList.slice(0, 8)].filter(Boolean).join(" · ").slice(0, 160) || void 0,
 		description: tagList.join(", ") || title,
-		poster: thumb || void 0,
+		poster: thumbFallbacks[0],
 		src: file || embed || void 0,
 		remote: {
 			kind: "redgifs",
@@ -2138,7 +1730,8 @@ function redgifsVideo(row) {
 			observedAt: Date.now(),
 			embedUrl: embed || void 0,
 			watchUrl: watch,
-			previewUrl: thumb || void 0
+			previewUrl: thumbFallbacks[0],
+			thumbFallbacks: thumbFallbacks.length ? thumbFallbacks : void 0
 		}
 	};
 }
@@ -2232,6 +1825,12 @@ async function withinAdultPullDeadline(work, provider) {
 	} finally {
 		if (timeout) clearTimeout(timeout);
 	}
+}
+function adultPullFailureDetail(error) {
+	const message = error instanceof Error ? error.message.trim() : "";
+	if (!message || /^(?:failed to fetch|fetch failed|networkerror)$/i.test(message)) return "Network request failed; the provider may be offline, blocked, or rate limited.";
+	if (/abort(?:ed|error)?|timeout/i.test(message)) return "Request timed out before the provider responded.";
+	return message.slice(0, 280);
 }
 async function pullProviderPages(provider, query, order, startPage, maxVideos, redditSources = []) {
 	if (provider === "reddit") {
@@ -2339,10 +1938,11 @@ var searchAdultVideos = createServerFn({ method: "POST" }).validator((data) => p
 	let totalCount = 0;
 	const errors = [];
 	const providerNextPages = {};
+	const providerDiagnostics = [];
 	const batches = await Promise.allSettled(providers.map(async (provider) => {
 		const rawBudget = share + (provider === "reddit" ? leftovers : 0);
 		const live = liveRoomLimit(provider);
-		const redditFloor = Math.min(LIBRARY_LIMITS.redditVideosPerPull, Math.max(rawBudget, Math.floor(data.maxVideos * .65), 720));
+		const redditFloor = Math.min(LIBRARY_LIMITS.redditVideosPerPull, Math.max(rawBudget, Math.min(480, Math.floor(data.maxVideos * .45))));
 		const underrepresentedFloor = Math.min(160, Math.max(rawBudget, Math.floor(data.maxVideos * .2)));
 		const budget = provider === "reddit" ? redditFloor : provider === "booru" ? Math.min(LIBRARY_LIMITS.booruVideosPerPull, underrepresentedFloor) : provider === "redgifs" ? Math.min(LIBRARY_LIMITS.redgifsVideosPerPull, underrepresentedFloor) : live ? Math.min(live, underrepresentedFloor) : rawBudget;
 		const startPage = data.providerPages?.[provider] ?? data.page;
@@ -2362,17 +1962,29 @@ var searchAdultVideos = createServerFn({ method: "POST" }).validator((data) => p
 			}
 			totalCount += batch.totalCount;
 			providerNextPages[provider] = batch.nextPage;
+			providerDiagnostics.push({
+				provider,
+				status: batch.videos.length ? "loaded" : "empty",
+				titles: batch.videos.length,
+				detail: batch.videos.length ? `${batch.videos.length.toLocaleString()} titles from page ${batch.page}${batch.nextPage != null ? ` · next page ${batch.nextPage}` : ""}` : "The provider responded, but had no matching public results."
+			});
 			if (batch.nextPage != null) nextPage = nextPage == null ? batch.nextPage : Math.min(nextPage, batch.nextPage);
 			continue;
 		}
 		const provider = providers[batches.indexOf(result)];
-		const message = result.reason instanceof Error ? result.reason.message : "unavailable";
+		const message = adultPullFailureDetail(result.reason);
 		errors.push(`${provider}: ${message}`);
 		providerNextPages[provider] = null;
+		providerDiagnostics.push({
+			provider,
+			status: "failed",
+			titles: 0,
+			detail: message
+		});
 	}
 	const redditHave = collected.filter((video) => video.remote?.kind === "reddit").length;
-	const redditWant = Math.min(LIBRARY_LIMITS.redditVideosPerPull, Math.max(720, Math.floor(data.maxVideos * .65)));
-	if (providers.includes("reddit") && redditHave < redditWant) {
+	const redditWant = Math.min(LIBRARY_LIMITS.redditVideosPerPull, Math.max(240, Math.min(480, Math.floor(data.maxVideos * .45))));
+	if (providers.includes("reddit") && !data.redditSources.length && redditHave < redditWant) {
 		const extraPage = (data.providerPages?.reddit ?? data.page) + LIBRARY_LIMITS.redditWindowsPerPull;
 		try {
 			const batch = await pullProviderPages("reddit", data.query, data.order, extraPage, redditWant - redditHave, data.redditSources);
@@ -2384,8 +1996,14 @@ var searchAdultVideos = createServerFn({ method: "POST" }).validator((data) => p
 			totalCount += batch.totalCount;
 			if (batch.nextPage != null) providerNextPages.reddit = batch.nextPage;
 		} catch (err) {
-			const message = err instanceof Error ? err.message : "unavailable";
+			const message = adultPullFailureDetail(err);
 			errors.push(`reddit/extra: ${message}`);
+			providerDiagnostics.push({
+				provider: "reddit extra",
+				status: "failed",
+				titles: 0,
+				detail: message
+			});
 		}
 	}
 	if (data.append && data.query.toLowerCase() === "all" && collected.length < data.maxVideos) {
@@ -2407,8 +2025,14 @@ var searchAdultVideos = createServerFn({ method: "POST" }).validator((data) => p
 					}
 					totalCount += batch.totalCount;
 				} catch (err) {
-					const message = err instanceof Error ? err.message : "unavailable";
+					const message = adultPullFailureDetail(err);
 					errors.push(`${provider}/${fetish}: ${message}`);
+					providerDiagnostics.push({
+						provider: `${provider} · ${fetish}`,
+						status: "failed",
+						titles: 0,
+						detail: message
+					});
 				}
 			}
 			if (collected.length >= data.maxVideos) break;
@@ -2423,7 +2047,8 @@ var searchAdultVideos = createServerFn({ method: "POST" }).validator((data) => p
 		nextPage,
 		totalCount,
 		providers,
-		providerNextPages
+		providerNextPages,
+		providerDiagnostics
 	};
 });
 function parseRedditCommentEntries(xml) {
@@ -2521,7 +2146,7 @@ var searchRedtubeStars = createServerFn({ method: "POST" }).validator((data) => 
 			"user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)"
 		}
 	});
-	if (!res.ok) throw new Error("RedTube star list is unavailable right now.");
+	if (!res.ok) throw new Error(`RedTube star API HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
 	const json = await res.json();
 	if (json.message && json.code) throw new Error(json.message);
 	const stars = [];

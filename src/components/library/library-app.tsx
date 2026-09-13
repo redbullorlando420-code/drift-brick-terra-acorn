@@ -299,6 +299,19 @@ export function LibraryApp() {
     if (sourceId !== "adults" || !adultRankReady) return [] as { tag: string; score: number; count: number }[];
     return rankAdultTags(sourceMatchedAdult, adultRankCtx, 80);
   }, [adultRankCtx, adultRankReady, sourceId, sourceMatchedAdult]);
+  const adultTopTagRails = useMemo(() => {
+    if (sourceId !== "adults" || !adultRankReady || adultTag !== "All") return [] as Array<{ tag: string; score: number; count: number; videos: typeof rankedAdultCatalog }>;
+    return adultTagRank
+      .filter((row) => row.count >= 3)
+      .slice(0, 3)
+      .map((row) => ({
+        ...row,
+        videos: rankedAdultCatalog
+          .filter((video) => videoMatchesAdultTag(video, row.tag, tags))
+          .slice(0, adultRailLimit),
+      }))
+      .filter((row) => row.videos.length > 0);
+  }, [adultRailLimit, adultRankReady, adultTag, adultTagRank, rankedAdultCatalog, sourceId, tags]);
   const adultMetaTagRank = useMemo(() => {
     if (sourceId !== "adults" || !adultRankReady) return [] as { tag: string; score: number; count: number }[];
     return rankAdultMetaTags(sourceMatchedAdult, adultRankCtx, 48);
@@ -1267,6 +1280,15 @@ export function LibraryApp() {
                       variant="rail"
                     />
                   )}
+                  {adultTopTagRails.map((row) => (
+                    <TitleRail
+                      key={`adult-tag-rail-${row.tag}`}
+                      title={`Top #${row.tag} · ${row.count}`}
+                      reason={`Ranked tag score ${Math.round(row.score)} from title count, ratings, saves, marks, recency, and taxonomy relevance.`}
+                      videos={row.videos}
+                      variant="rail"
+                    />
+                  ))}
                   <section className="mb-5 rounded-xl border border-border bg-surface p-4 shadow-border">
                     <div className="flex flex-wrap items-end justify-between gap-3">
                       <div>
@@ -1291,7 +1313,7 @@ export function LibraryApp() {
                       <Button size="sm" variant={adultTag === "All" ? "default" : "secondary"} onClick={() => setAdultTag("All")}>All adult tags</Button>
                       {visibleAdultTags.map((row) => (
                         <Button key={`adult-tag-${row.tag}`} size="sm" variant={adultTag === row.tag ? "default" : "secondary"} onClick={() => setAdultTag(row.tag)}>
-                          #{row.tag} · {row.count}
+                          #{row.tag} · {row.count} · {Math.round(row.score)}
                         </Button>
                       ))}
                       {adultTagMatches.length > visibleAdultTags.length && visibleAdultTags.length < 36 && (

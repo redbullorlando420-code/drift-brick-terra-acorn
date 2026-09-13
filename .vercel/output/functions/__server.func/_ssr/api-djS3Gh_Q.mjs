@@ -1,6 +1,6 @@
 import { n as TSS_SERVER_FUNCTION, r as getServerFnById, t as createServerFn } from "./ssr.mjs";
-import { c as ADULT_PULL_PROVIDERS, m as LIBRARY_LIMITS } from "./library-limits-D-UjAuZX.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/api-DrSMGXpo.js
+import { c as ADULT_PULL_PROVIDERS, h as LIBRARY_LIMITS } from "./library-limits-baHoJ0tI.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/api-djS3Gh_Q.js
 var createSsrRpc = (functionId) => {
 	const url = "/_serverFn/" + functionId;
 	const serverFnMeta = { id: functionId };
@@ -105,10 +105,12 @@ function parseProviderPages(raw) {
 	}
 	return out;
 }
+/** Allows the complete saved library collection while keeping request size bounded. */
+var MAX_REDDIT_SOURCE_PREFERENCES = 720;
 function parseRedditSources(raw) {
 	if (!Array.isArray(raw)) return [];
 	const unique = /* @__PURE__ */ new Map();
-	for (const value of raw.slice(0, 120)) {
+	for (const value of raw.slice(0, MAX_REDDIT_SOURCE_PREFERENCES)) {
 		const row = asRecord(value);
 		const subreddit = asString(row?.subreddit).trim().replace(/^r\//i, "");
 		if (!/^[a-z0-9_]{3,48}$/i.test(subreddit)) continue;
@@ -145,6 +147,9 @@ function parseAdultSearch(data) {
 function asRecord(value) {
 	return value && typeof value === "object" && !Array.isArray(value) ? value : null;
 }
+/** Redgifs' embed boot is often slower than its public poster CDN. Keep the
+* API-provided poster first, then use the stable poster paths before an iframe
+* has to paint a preview. */
 /** A mixed foreground pull should return its healthy providers promptly. A
 * slow public feed is reported as partial work instead of freezing the whole
 * Adults screen behind its retry window. */

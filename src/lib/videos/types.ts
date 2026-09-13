@@ -117,6 +117,8 @@ export type RemoteKind = FollowKind | "eporner" | "redtube" | "chaturbate" | "ca
 
 export type RemoteRef = {
   kind: RemoteKind;
+  /** A post can be discovered on one provider while its media is hosted by another. */
+  sourceKinds?: RemoteKind[];
   videoId?: string;
   channelId?: string;
   channelName?: string;

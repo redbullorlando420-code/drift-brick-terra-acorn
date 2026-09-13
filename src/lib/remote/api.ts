@@ -926,6 +926,13 @@ type AdultSearchIn = {
   redditSources?: Array<{ subreddit: string; priority: number }>;
 };
 
+export type AdultPullDiagnostic = {
+  provider: string;
+  status: "loaded" | "empty" | "failed";
+  titles: number;
+  detail: string;
+};
+
 const EPORNER_ORDERS = new Set([
   "latest",
   "longest",
@@ -961,11 +968,13 @@ function parseProviderPages(raw: unknown): Partial<Record<AdultPullProvider, num
 }
 
 type RedditSourcePreference = { subreddit: string; priority: 1 | 2 | 3 };
+/** Allows the complete saved library collection while keeping request size bounded. */
+const MAX_REDDIT_SOURCE_PREFERENCES = 720;
 
 function parseRedditSources(raw: unknown): RedditSourcePreference[] {
   if (!Array.isArray(raw)) return [];
   const unique = new Map<string, RedditSourcePreference>();
-  for (const value of raw.slice(0, 120)) {
+  for (const value of raw.slice(0, MAX_REDDIT_SOURCE_PREFERENCES)) {
     const row = asRecord(value);
     const subreddit = asString(row?.subreddit).trim().replace(/^r\//i, "");
     // Reddit community names only use letters, numbers, and underscores.
@@ -977,7 +986,12 @@ function parseRedditSources(raw: unknown): RedditSourcePreference[] {
   return [...unique.values()];
 }
 
-function parseAdultSearch(data: unknown): Required<AdultSearchIn> & { providers: AdultPullProvider[] } {
+type ParsedAdultSearch = Omit<Required<AdultSearchIn>, "providers" | "redditSources"> & {
+  providers: AdultPullProvider[];
+  redditSources: RedditSourcePreference[];
+};
+
+function parseAdultSearch(data: unknown): ParsedAdultSearch {
   const rec = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
   const query = asString(rec.query).trim() || "all";
   const orderRaw = asString(rec.order).trim() || "top-weekly";
@@ -1078,7 +1092,7 @@ async function fetchEpornerPage(query: string, order: string, page: number, perP
       "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
     },
   });
-  if (!res.ok) throw new Error("Eporner search is unavailable right now.");
+  if (!res.ok) throw new Error(`Eporner API HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
   const json = (await res.json()) as {
     videos?: EpornerVideo[];
     total_pages?: number;
@@ -1224,7 +1238,7 @@ async function fetchRedtubePage(query: string, order: string, page: number): Pro
       "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
     },
   });
-  if (!res.ok) throw new Error("RedTube search is unavailable right now.");
+  if (!res.ok) throw new Error(`RedTube API HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
   const json = (await res.json()) as {
     videos?: Array<{ video?: RedtubeVideo } | RedtubeVideo>;
     count?: number;
@@ -1323,7 +1337,7 @@ async function fetchChaturbateRooms(query: string, maxVideos: number): Promise<{
         "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
       },
     });
-    if (!res.ok) throw new Error("Chaturbate rooms are unavailable right now.");
+    if (!res.ok) throw new Error(`Chaturbate rooms HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
     const json = (await res.json()) as ChaturbateRoom[];
     const rooms = (Array.isArray(json) ? json : [])
       .map(chaturbateVideo)
@@ -1439,7 +1453,7 @@ async function fetchCamSodaRooms(query: string, maxVideos: number): Promise<{
         "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
       },
     });
-    if (!res.ok) throw new Error("CamSoda rooms are unavailable right now.");
+    if (!res.ok) throw new Error(`CamSoda rooms HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
     const json = (await res.json()) as { results?: Array<{ tpl?: unknown }>; rooms?: Array<{ tpl?: unknown }> } | Array<{ tpl?: unknown }>;
     const resultRows = Array.isArray(json) ? json : Array.isArray(json.results) ? json.results : Array.isArray(json.rooms) ? json.rooms : [];
     const rooms = resultRows
@@ -1506,7 +1520,7 @@ async function fetchMyFreeCamsRooms(query: string, maxVideos: number): Promise<{
         "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
       },
     });
-    if (!res.ok) throw new Error("MyFreeCams rooms are unavailable right now.");
+    if (!res.ok) throw new Error(`MyFreeCams rooms HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
     const text = await res.text();
     const rooms: LibraryVideo[] = [];
     for (const line of text.split(/[\r\n;]+/)) {
@@ -1530,23 +1544,48 @@ async function fetchMyFreeCamsRooms(query: string, maxVideos: number): Promise<{
 
 
 function htmlDecode(value: string) {
-  return value
+  const decoded = value
     .replace(/&amp;/g, "&")
     .replace(/&quot;/g, '"')
     .replace(/&#32;/g, " ")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
-    .replace(/&#39;/g, "'");
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'");
+  return decoded.replace(/&#(?:x([\da-f]+)|(\d+));/gi, (_all, hex: string | undefined, decimal: string | undefined) => {
+    const codePoint = Number.parseInt(hex ?? decimal ?? "", hex ? 16 : 10);
+    return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : _all;
+  });
 }
 
 function xmlField(xml: string, pattern: RegExp) {
   return htmlDecode(pattern.exec(xml)?.[1] ?? "").trim();
 }
 
+/** Atom does not prescribe an attribute order. Reddit currently places `rel`
+ * before `href`, so never assume the first attribute is the target URL. */
+function redditPermalink(entry: string): string {
+  const links = [...entry.matchAll(/<link\b[^>]*>/gi)];
+  let first = "";
+  for (const [tag] of links) {
+    const href = xmlField(tag, /\bhref\s*=\s*["']([^"']+)["']/i);
+    if (!href) continue;
+    if (!first) first = href;
+    const rel = xmlField(tag, /\brel\s*=\s*["']([^"']+)["']/i);
+    if (/\balternate\b/i.test(rel)) return href;
+  }
+  return first;
+}
+
+function redgifsEmbedUrl(url: string | undefined): string | undefined {
+  const slug = url?.match(/https?:\/\/(?:www\.)?redgifs\.com\/(?:watch|ifr)\/([a-z0-9_-]+)/i)?.[1];
+  return slug ? `https://www.redgifs.com/ifr/${encodeURIComponent(slug)}` : undefined;
+}
+
 function redditVideo(entry: string, subreddit: string): LibraryVideo | null {
   const id = xmlField(entry, /<id>([^<]+)<\/id>/i).replace(/^t3_/, "") || xmlField(entry, /\/comments\/([a-z0-9]+)\//i);
   const title = xmlField(entry, /<title>([^<]+)<\/title>/i);
-  const permalink = xmlField(entry, /<link href="([^"]+)"/i);
+  const permalink = redditPermalink(entry);
   const author = xmlField(entry, /<name>([^<]+)<\/name>/i).replace(/^\/u\//, "");
   const published = xmlField(entry, /<published>([^<]+)<\/published>/i);
   const content = xmlField(entry, /<content[^>]*>([\s\S]*?)<\/content>/i);
@@ -1559,6 +1598,13 @@ function redditVideo(entry: string, subreddit: string): LibraryVideo | null {
   const poster = media.poster;
   const isImage = media.kind === "image";
   const isVideo = media.kind === "video";
+  const directMedia = media.src && /\.(?:mp4|webm|gifv)(?:\?|$)/i.test(media.src) ? media.src : undefined;
+  const redgifsEmbed = redgifsEmbedUrl(media.watch);
+  // v.redd.it does not expose an iframe-friendly media URL in Atom. Its post
+  // embed does, while retaining the permalink for comments and link-out.
+  const redditEmbed = isVideo
+    ? `https://www.redditmedia.com/r/${encodeURIComponent(subreddit)}/comments/${encodeURIComponent(id)}/?ref_source=embed&ref=share&embed=true`
+    : undefined;
   return {
     id: `reddit:${id}`,
     folderId: REDDIT_FOLDER_ID,
@@ -1571,16 +1617,20 @@ function redditVideo(entry: string, subreddit: string): LibraryVideo | null {
     tagline: `r/${subreddit}${author ? ` · u/${author}` : ""}${flair ? ` · ${flair}` : ""}${isVideo ? " · video" : isImage ? " · photo" : ""}`,
     description: `reddit, r/${subreddit}, ${subreddit.replace(/_/g, " ")}, ${title}, ${flair}, ${media.watch ?? ""}`,
     poster: poster || undefined,
-    src: media.src || poster || permalink,
+    src: isImage ? media.src || poster || permalink : directMedia || undefined,
     remote: {
       kind: "reddit",
+      sourceKinds: redgifsEmbed ? ["reddit", "redgifs"] : ["reddit"],
       videoId: id,
       channelName: author || `r/${subreddit}`,
       channelId: subreddit,
       observedAt: Date.now(),
-      embedUrl: media.src || media.watch || undefined,
-      watchUrl: media.watch && !/reddit\.com\/r\//i.test(media.watch) ? media.watch : permalink,
-      previewUrl: poster || undefined,
+      embedUrl: directMedia || redgifsEmbed || redditEmbed,
+      // Keep a Reddit permalink here so comments and the official-post action
+      // always point at the same post, even for an external media host.
+      watchUrl: permalink,
+      previewUrl: poster || media.thumbFallbacks?.[0],
+      thumbFallbacks: media.thumbFallbacks?.slice(0, 4),
     },
   };
 }
@@ -1592,13 +1642,15 @@ function redditSubWindow(page: number, configuredSources: readonly RedditSourceP
         .sort((a, b) => b.priority - a.priority || a.subreddit.localeCompare(b.subreddit))
         .map((row) => row.subreddit)
     : [...ADULT_REDDIT_SUBS];
-  const all = configured.length ? configured : [...ADULT_REDDIT_SUBS];
+  const all = [...new Map((configured.length ? configured : [...ADULT_REDDIT_SUBS]).map((sub) => [sub.toLowerCase(), sub])).values()];
   const size = Math.max(1, LIBRARY_LIMITS.redditSubsPerPull);
   const totalPages = Math.max(1, Math.ceil(all.length / size));
-  const tick = Math.floor(Date.now() / (20 * 60_000));
+  // A saved source list is explicit user intent: walk it predictably, with
+  // high-priority communities first. Curated discovery keeps its timed rotate.
+  const tick = configured.length ? 0 : Math.floor(Date.now() / (20 * 60_000));
   const start = (((Math.max(1, page) - 1) * size) + (tick * 5)) % all.length;
   const subs: string[] = [];
-  for (let i = 0; i < size; i += 1) {
+  for (let i = 0; i < Math.min(size, all.length); i += 1) {
     subs.push(all[(start + i) % all.length]!);
   }
   return { subs, start, totalPages };
@@ -1608,19 +1660,35 @@ function redditSubWindow(page: number, configuredSources: readonly RedditSourceP
 async function fetchRedditSubRss(sub: string, sort: "hot" | "new"): Promise<LibraryVideo[]> {
   const path = sort === "new" ? `/r/${encodeURIComponent(sub)}/new/.rss` : `/r/${encodeURIComponent(sub)}/.rss`;
   const url = `https://www.reddit.com${path}?limit=${LIBRARY_LIMITS.redditPostsPerSub}`;
-  const res = await cachedAdultFetch(url, {
-    signal: AbortSignal.timeout(12000),
-    cacheTtlMs: 6 * 60_000,
-    headers: {
-      accept: "application/atom+xml, application/rss+xml, application/xml;q=0.9, */*;q=0.8",
-      "user-agent": "linux:reelcase:1.0 (by /u/reelcase)",
-    },
-  });
-  if (res.status === 429) throw new Error("rate limited");
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const xml = await res.text();
+  let xml = "";
+  let failure = "";
+  // A small retry absorbs transient CDN failures without fanning a 429 into a
+  // second request storm. The pull pool is deliberately conservative.
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const res = await cachedAdultFetch(url, {
+        signal: AbortSignal.timeout(12000),
+        cacheTtlMs: 6 * 60_000,
+        headers: {
+          accept: "application/atom+xml, application/rss+xml, application/xml;q=0.9, */*;q=0.8",
+          "user-agent": "linux:reelcase:1.0 (by /u/reelcase)",
+        },
+      });
+      if (res.ok) {
+        xml = await res.text();
+        break;
+      }
+      failure = res.status === 429 ? "rate limited" : `HTTP ${res.status}`;
+      if (res.status === 429 || res.status < 500) break;
+    } catch (err) {
+      failure = err instanceof Error ? err.message : "network unavailable";
+    }
+    await new Promise((resolve) => setTimeout(resolve, 350 * (attempt + 1)));
+  }
+  if (!xml) throw new Error(failure || "empty feed");
   const posts: LibraryVideo[] = [];
-  for (const chunk of xml.split(/<entry>/i).slice(1)) {
+  for (const match of xml.matchAll(/<entry\b[^>]*>([\s\S]*?)<\/entry>/gi)) {
+    const chunk = match[1] ?? "";
     const video = redditVideo(chunk, sub);
     if (video) posts.push(video);
   }
@@ -1633,7 +1701,10 @@ async function fetchRedditFeed(query: string, maxVideos: number, page = 1, confi
   totalCount: number;
   nextPage: number | null;
 }> {
-  const windows = Math.max(1, LIBRARY_LIMITS.redditWindowsPerPull);
+  const configuredPages = configuredSources.length
+    ? Math.max(1, Math.ceil(configuredSources.length / LIBRARY_LIMITS.redditSubsPerPull))
+    : LIBRARY_LIMITS.redditWindowsPerPull;
+  const windows = Math.min(Math.max(1, LIBRARY_LIMITS.redditWindowsPerPull), configuredPages);
   const collected: LibraryVideo[] = [];
   const seen = new Set<string>();
   const errors: string[] = [];
@@ -1819,6 +1890,18 @@ function pickString(...values: unknown[]) {
   return "";
 }
 
+/** Redgifs' embed boot is often slower than its public poster CDN. Keep the
+ * API-provided poster first, then use the stable poster paths before an iframe
+ * has to paint a preview. */
+function redgifsPosterFallbacks(id: string): string[] {
+  const slug = id.trim();
+  if (!/^[a-z0-9_-]{2,128}$/i.test(slug)) return [];
+  return [
+    `https://thumbs2.redgifs.com/${encodeURIComponent(slug)}-mobile.jpg`,
+    `https://thumbs2.redgifs.com/${encodeURIComponent(slug)}-poster.jpg`,
+  ];
+}
+
 function redgifsVideo(row: RedgifsRow): LibraryVideo | null {
   const id = pickString(row.id, row.gif_id, row.gifId, row.slug);
   if (!id) return null;
@@ -1843,6 +1926,7 @@ function redgifsVideo(row: RedgifsRow): LibraryVideo | null {
   const embed = pickString(urls.html, urls.player, row.embedUrl, row.embed_url, `https://www.redgifs.com/ifr/${encodeURIComponent(id)}`);
   const watch = pickString(urls.webUrl, urls.web_url, row.url, row.webUrl, `https://www.redgifs.com/watch/${encodeURIComponent(id)}`);
   const thumb = pickString(urls.thumbnail, urls.thumb, urls.preview, urls.poster, urls.posterUrl, urls.previewUrl, row.thumbnail, row.thumb, row.poster, row.previewUrl);
+  const thumbFallbacks = [...new Set([thumb, ...redgifsPosterFallbacks(id)])].filter(isUsableAdultThumb).slice(0, 4);
   const file = pickString(urls.hd, urls.sd, urls.silent, urls.mobile, urls.mp4, urls.giftiny, urls.gif, row.mp4, row.file);
   if (adultBlockedText(title, author, tagList.join(" "))) return null;
   return {
@@ -1856,7 +1940,7 @@ function redgifsVideo(row: RedgifsRow): LibraryVideo | null {
     addedAt: Date.now(),
     tagline: [author, ...tagList.slice(0, 8)].filter(Boolean).join(" · ").slice(0, 160) || undefined,
     description: tagList.join(", ") || title,
-    poster: thumb || undefined,
+    poster: thumbFallbacks[0],
     // Direct media starts promptly and avoids waiting for the Redgifs iframe
     // boot path. Retain the iframe as a fallback when the API omits a file.
     src: file || embed || undefined,
@@ -1867,7 +1951,8 @@ function redgifsVideo(row: RedgifsRow): LibraryVideo | null {
       observedAt: Date.now(),
       embedUrl: embed || undefined,
       watchUrl: watch,
-      previewUrl: thumb || undefined,
+      previewUrl: thumbFallbacks[0],
+      thumbFallbacks: thumbFallbacks.length ? thumbFallbacks : undefined,
     },
   };
 }
@@ -1963,6 +2048,15 @@ async function withinAdultPullDeadline<T>(work: Promise<T>, provider: AdultPullP
   } finally {
     if (timeout) clearTimeout(timeout);
   }
+}
+
+function adultPullFailureDetail(error: unknown): string {
+  const message = error instanceof Error ? error.message.trim() : "";
+  if (!message || /^(?:failed to fetch|fetch failed|networkerror)$/i.test(message)) {
+    return "Network request failed; the provider may be offline, blocked, or rate limited.";
+  }
+  if (/abort(?:ed|error)?|timeout/i.test(message)) return "Request timed out before the provider responded.";
+  return message.slice(0, 280);
 }
 
 async function pullProviderPages(
@@ -2088,6 +2182,7 @@ export const searchAdultVideos = createServerFn({ method: "POST" })
     totalCount: number;
     providers: AdultPullProvider[];
     providerNextPages: Partial<Record<AdultPullProvider, number | null>>;
+    providerDiagnostics: AdultPullDiagnostic[];
   }> => {
     const providers = [...data.providers].sort((a, b) => (a === "reddit" ? -1 : b === "reddit" ? 1 : 0));
     const share = Math.max(1, Math.floor(data.maxVideos / Math.max(1, providers.length)));
@@ -2097,13 +2192,14 @@ export const searchAdultVideos = createServerFn({ method: "POST" })
     let totalCount = 0;
     const errors: string[] = [];
     const providerNextPages: Partial<Record<AdultPullProvider, number | null>> = {};
+    const providerDiagnostics: AdultPullDiagnostic[] = [];
 
     const batches = await Promise.allSettled(providers.map(async (provider) => {
       const rawBudget = share + (provider === "reddit" ? leftovers : 0);
       const live = liveRoomLimit(provider);
       const redditFloor = Math.min(
         LIBRARY_LIMITS.redditVideosPerPull,
-        Math.max(rawBudget, Math.floor(data.maxVideos * 0.65), 720),
+        Math.max(rawBudget, Math.min(480, Math.floor(data.maxVideos * 0.45))),
       );
       const underrepresentedFloor = Math.min(160, Math.max(rawBudget, Math.floor(data.maxVideos * 0.2)));
       const budget = provider === "reddit"
@@ -2134,18 +2230,29 @@ export const searchAdultVideos = createServerFn({ method: "POST" })
         }
         totalCount += batch.totalCount;
         providerNextPages[provider] = batch.nextPage;
+        providerDiagnostics.push({
+          provider,
+          status: batch.videos.length ? "loaded" : "empty",
+          titles: batch.videos.length,
+          detail: batch.videos.length
+            ? `${batch.videos.length.toLocaleString()} titles from page ${batch.page}${batch.nextPage != null ? ` · next page ${batch.nextPage}` : ""}`
+            : "The provider responded, but had no matching public results.",
+        });
         if (batch.nextPage != null) nextPage = nextPage == null ? batch.nextPage : Math.min(nextPage, batch.nextPage);
         continue;
       }
       const provider = providers[batches.indexOf(result)]!;
-      const message = result.reason instanceof Error ? result.reason.message : "unavailable";
+      const message = adultPullFailureDetail(result.reason);
       errors.push(`${provider}: ${message}`);
       providerNextPages[provider] = null;
+      providerDiagnostics.push({ provider, status: "failed", titles: 0, detail: message });
     }
 
     const redditHave = collected.filter((video) => video.remote?.kind === "reddit").length;
-    const redditWant = Math.min(LIBRARY_LIMITS.redditVideosPerPull, Math.max(720, Math.floor(data.maxVideos * 0.65)));
-    if (providers.includes("reddit") && redditHave < redditWant) {
+    const redditWant = Math.min(LIBRARY_LIMITS.redditVideosPerPull, Math.max(240, Math.min(480, Math.floor(data.maxVideos * 0.45))));
+    // A saved list is fully covered by its first deterministic pass. Repeating
+    // it only replays the same cached Atom window and prolongs the spinner.
+    if (providers.includes("reddit") && !data.redditSources.length && redditHave < redditWant) {
       const extraPage = (data.providerPages?.reddit ?? data.page) + LIBRARY_LIMITS.redditWindowsPerPull;
       try {
         const batch = await pullProviderPages("reddit", data.query, data.order, extraPage, redditWant - redditHave, data.redditSources);
@@ -2157,8 +2264,9 @@ export const searchAdultVideos = createServerFn({ method: "POST" })
         totalCount += batch.totalCount;
         if (batch.nextPage != null) providerNextPages.reddit = batch.nextPage;
       } catch (err) {
-        const message = err instanceof Error ? err.message : "unavailable";
+        const message = adultPullFailureDetail(err);
         errors.push(`reddit/extra: ${message}`);
+        providerDiagnostics.push({ provider: "reddit extra", status: "failed", titles: 0, detail: message });
       }
     }
 
@@ -2184,8 +2292,9 @@ export const searchAdultVideos = createServerFn({ method: "POST" })
             }
             totalCount += batch.totalCount;
           } catch (err) {
-            const message = err instanceof Error ? err.message : "unavailable";
+            const message = adultPullFailureDetail(err);
             errors.push(`${provider}/${fetish}: ${message}`);
+            providerDiagnostics.push({ provider: `${provider} · ${fetish}`, status: "failed", titles: 0, detail: message });
           }
         }
         if (collected.length >= data.maxVideos) break;
@@ -2208,6 +2317,7 @@ export const searchAdultVideos = createServerFn({ method: "POST" })
       totalCount,
       providers,
       providerNextPages,
+      providerDiagnostics,
     };
   });
 
@@ -2296,7 +2406,7 @@ export const searchRedtubeStars = createServerFn({ method: "POST" })
         "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
       },
     });
-    if (!res.ok) throw new Error("RedTube star list is unavailable right now.");
+    if (!res.ok) throw new Error(`RedTube star API HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
     const json = (await res.json()) as { stars?: unknown[]; message?: string; code?: number };
     if (json.message && json.code) throw new Error(json.message);
     const stars: { name: string; thumb?: string; url?: string }[] = [];

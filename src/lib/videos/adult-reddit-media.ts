@@ -15,10 +15,12 @@ export type RedditMedia = {
   src?: string;
   /** Watch / embed page for redgifs, v.redd.it, galleries. */
   watch?: string;
+  /** Stable direct posters for media-hosted Redgifs posts. */
+  thumbFallbacks?: string[];
 };
 
 function decode(value: string) {
-  return value
+  let decoded = value
     .replace(/&amp;/g, "&")
     .replace(/&quot;/g, '"')
     .replace(/&#32;/g, " ")
@@ -26,6 +28,11 @@ function decode(value: string) {
     .replace(/&gt;/g, ">")
     .replace(/&#39;/g, "'")
     .replace(/&apos;/g, "'");
+  // Atom HTML is commonly entity-escaped twice (`&amp;amp;`) in preview URLs.
+  for (let pass = 0; pass < 2 && /&(?:amp|quot|lt|gt|#\d+|#x[\da-f]+);/i.test(decoded); pass += 1) {
+    decoded = decoded.replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+  }
+  return decoded;
 }
 
 function upgradePreview(url: string): string {
@@ -57,6 +64,24 @@ function isJunkLink(url: string): boolean {
   return /icanhazchat|reddithelp\.com|redditstatic\.com|\/faq|sidebar rules|welcome\?gonewild/i.test(url);
 }
 
+function redgifsThumbFallbacks(urls: string[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of urls) {
+    const match = raw.match(/https?:\/\/(?:www\.)?redgifs\.com\/(?:watch|ifr)\/([a-z0-9_-]+)/i);
+    const slug = match?.[1];
+    if (!slug) continue;
+    for (const suffix of ["mobile.jpg", "poster.jpg"] as const) {
+      const candidate = `https://thumbs2.redgifs.com/${slug}-${suffix}`;
+      if (!seen.has(candidate)) {
+        seen.add(candidate);
+        out.push(candidate);
+      }
+    }
+  }
+  return out;
+}
+
 function collectUrls(entryXml: string, contentHtml: string): string[] {
   const blob = `${entryXml}\n${contentHtml}`;
   const found: string[] = [];
@@ -74,7 +99,7 @@ function collectUrls(entryXml: string, contentHtml: string): string[] {
   // Reddit changes feed markup frequently. Capture normal post links, lazy
   // image attributes, source tags, and quoted URLs instead of depending on
   // the old literal "[link]" anchor shape.
-  for (const match of blob.matchAll(/<(?:a|source|video)[^>]+(?:href|src|data-url)="(https?:[^"]+)"/gi)) push(match[1]);
+  for (const match of blob.matchAll(/<(?:a|img|source|video)[^>]+(?:href|src|data-url|data-lazy-src|data-preview-url)="(https?:[^"]+)"/gi)) push(match[1]);
   for (const match of blob.matchAll(/https?:\\\/\\\/(?:i|preview|external-preview)\\\.redd\\\.it\\\/[^\s"'<]+/gi)) push(match[0].replace(/\\\//g, "/"));
   for (const match of blob.matchAll(/https?:\/\/(?:i|preview|external-preview)\.redd\.it\/[^\s"'<]+/gi)) push(match[0]);
   for (const match of blob.matchAll(/https?:\/\/(?:i\.)?imgur\.com\/[^\s"'<]+/gi)) push(match[0]);
@@ -90,6 +115,7 @@ export function extractRedditMedia(entryXml: string, contentHtml: string): Reddi
   const images = urls.filter((url) => isImageHost(url) && !isJunkLink(url)).map(upgradePreview);
   const videos = urls.filter((url) => isVideoHost(url) && !isJunkLink(url));
   const pages = urls.filter((url) => /reddit\.com\/gallery\//i.test(url) || /reddit\.com\/r\/[^/]+\/comments\//i.test(url));
+  const redgifsThumbs = redgifsThumbFallbacks(videos);
 
   const poster = images.find((url) => /i\.redd\.it/i.test(url))
     ?? images.find((url) => /preview\.redd\.it/i.test(url))
@@ -102,6 +128,7 @@ export function extractRedditMedia(entryXml: string, contentHtml: string): Reddi
       poster,
       src: videos.find((url) => /\.(mp4|webm|gifv)(\?|$)/i.test(url)),
       watch: videos[0],
+      thumbFallbacks: [poster, ...redgifsThumbs].filter((url): url is string => Boolean(url)),
     };
   }
   if (poster) {
@@ -110,6 +137,7 @@ export function extractRedditMedia(entryXml: string, contentHtml: string): Reddi
       poster,
       src: /i\.redd\.it|i\.imgur\.com|\.(jpe?g|png|gif|webp)(\?|$)/i.test(poster) ? poster : poster,
       watch: pages[0],
+      thumbFallbacks: [poster, ...redgifsThumbs].filter((url): url is string => Boolean(url)),
     };
   }
   return { kind: "page", watch: pages[0] };

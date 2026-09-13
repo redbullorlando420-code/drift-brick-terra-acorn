@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ExternalLink, Flag, LoaderCircle, RefreshCw, Search } from "lucide-react";
+import { ChevronDown, ChevronRight, ExternalLink, Flag, LoaderCircle, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
   ADULT_EMBED_LINKS,
   ADULT_FEATURED_FETISH_TAGS,
   ADULT_MILESTONE_LINKS,
+  ADULT_REDDIT_SUBS,
   ADULT_SOURCE_OPTIONS,
   adultSourceTag,
   fetishSearchQuery,
@@ -133,6 +134,7 @@ export function AdultPanel({
   const searchAdultFeed = useLibrary((s) => s.searchAdultFeed);
   const remoteBusy = useLibrary((s) => s.remoteBusy);
   const importProgress = useLibrary((s) => s.importProgress);
+  const adultPullStatus = useLibrary((s) => s.adultPullStatus);
   const tags = useLibrary((s) => s.tags);
   const adultVideos = useLibrary(useShallow(selectAdultRemote));
   const [query, setQuery] = useState("");
@@ -157,6 +159,8 @@ export function AdultPanel({
   const [useCustomRedditSources, setUseCustomRedditSources] = useState(false);
   const [redditSources, setRedditSources] = useState<RedditSourceSetting[]>([]);
   const [redditSourceInput, setRedditSourceInput] = useState("");
+  const [redditSourcesReady, setRedditSourcesReady] = useState(false);
+  const [discoveryCollapsed, setDiscoveryCollapsed] = useState(false);
 
   useEffect(() => {
     const load = () => {
@@ -171,21 +175,49 @@ export function AdultPanel({
   useEffect(() => {
     const saved = readRedditSourceSettings();
     setRedditSources(saved);
-    setUseCustomRedditSources(localStorage.getItem(`${REDDIT_SOURCE_STORAGE_KEY}.enabled`) === "true" && saved.length > 0);
+    // The library already carries the prior saved subreddit catalog. It is the
+    // default scope; manual rows below only pin a community and override its
+    // priority. This avoids an empty separate preference silently falling back
+    // to the generic rotation.
+    setUseCustomRedditSources(true);
+    setDiscoveryCollapsed(localStorage.getItem("reelcase.adult-discovery-collapsed") === "true");
+    setRedditSourcesReady(true);
   }, []);
 
   useEffect(() => {
+    if (!redditSourcesReady) return;
     try {
       localStorage.setItem(REDDIT_SOURCE_STORAGE_KEY, JSON.stringify(redditSources));
       localStorage.setItem(`${REDDIT_SOURCE_STORAGE_KEY}.enabled`, String(useCustomRedditSources));
     } catch {
       // Source choices remain usable for this session if local storage is full.
     }
-  }, [redditSources, useCustomRedditSources]);
+  }, [redditSources, redditSourcesReady, useCustomRedditSources]);
+
+  useEffect(() => {
+    if (!redditSourcesReady) return;
+    try {
+      localStorage.setItem("reelcase.adult-discovery-collapsed", String(discoveryCollapsed));
+    } catch {
+      // The section still collapses for the current visit if storage is full.
+    }
+  }, [discoveryCollapsed, redditSourcesReady]);
+
+  const libraryRedditSources = useMemo<RedditSourceSetting[]>(
+    () => ADULT_REDDIT_SUBS.map((subreddit) => ({ subreddit, priority: 2 })),
+    [],
+  );
+  const selectedRedditSources = useMemo(() => {
+    const merged = new Map<string, RedditSourceSetting>();
+    for (const source of libraryRedditSources) merged.set(source.subreddit.toLowerCase(), source);
+    for (const source of redditSources) merged.set(source.subreddit.toLowerCase(), source);
+    return [...merged.values()]
+      .sort((a, b) => b.priority - a.priority || a.subreddit.localeCompare(b.subreddit));
+  }, [libraryRedditSources, redditSources]);
 
   const redditPullOptions = useMemo(
-    () => useCustomRedditSources && redditSources.length ? { redditSources } : {},
-    [redditSources, useCustomRedditSources],
+    () => useCustomRedditSources && selectedRedditSources.length ? { redditSources: selectedRedditSources } : {},
+    [selectedRedditSources, useCustomRedditSources],
   );
 
   const sourceCounts = useMemo(() => countAdultBySource(adultVideos), [adultVideos]);
@@ -244,7 +276,7 @@ export function AdultPanel({
   }, [adultVideos, facetsReady, tags]);
 
   useEffect(() => {
-    if (!autoPull || booted) return;
+    if (!autoPull || booted || !redditSourcesReady) return;
     setBooted(true);
     // Cached IndexedDB shelves already paint on fast-start; only top up a thin cache.
     if (adultVideos.length >= LIBRARY_LIMITS.adultFastStartVideosPerPull) return;
@@ -260,7 +292,7 @@ export function AdultPanel({
       .catch((err: unknown) => {
         toast.error(err instanceof Error ? err.message : "Could not load adult feed.");
       });
-  }, [adultMaxVideos, autoPull, booted, adultVideos.length, redditPullOptions, searchAdultFeed]);
+  }, [adultMaxVideos, autoPull, booted, adultVideos.length, redditPullOptions, redditSourcesReady, searchAdultFeed]);
 
   const refreshArchiveLabel = (q: string, ord: string) => {
     setArchiveLabel(adultArchiveDepthLabel(loadAdultArchiveCursors(q, ord)));
@@ -302,12 +334,42 @@ export function AdultPanel({
       });
   };
 
+  const pullSavedRedditSources = () => {
+    if (!selectedRedditSources.length) return;
+    setUseCustomRedditSources(true);
+    setProviders(["reddit"]);
+    void searchAdultFeed("all", order, {
+      page: 1,
+      maxVideos: adultMaxVideos,
+      providers: ["reddit"],
+      redditSources: selectedRedditSources,
+    })
+      .then((n) => toast.success(`Library Reddit list refreshed · ${n.toLocaleString()} catalog titles available`))
+      .catch((err: unknown) => toast.error(err instanceof Error ? err.message : "Could not pull the library Reddit list."));
+  };
+
+  const pinRedditSource = () => {
+    const subreddit = redditSourceInput.trim().replace(/^r\//i, "");
+    if (!/^[a-z0-9_]{3,48}$/i.test(subreddit)) {
+      toast.error("Enter a valid subreddit name.");
+      return;
+    }
+    setRedditSources((current) => {
+      const existing = current.find((row) => row.subreddit.toLowerCase() === subreddit.toLowerCase());
+      if (existing) return current;
+      return [...current, { subreddit, priority: 2 }];
+    });
+    setUseCustomRedditSources(true);
+    setRedditSourceInput("");
+  };
+
   // After the interactive first pull is usable, quietly advance a few saved
   // provider cursors. This imports more variety without turning first paint
   // into a long blocking crawl or repeatedly hammering an unavailable source.
   useEffect(() => {
     if (
       !autoPull
+      || !redditSourcesReady
       || remoteBusy
       || query.trim()
       || providers !== "all"
@@ -319,7 +381,7 @@ export function AdultPanel({
       runSearch(false, true);
     }, LIBRARY_LIMITS.adultAutoArchiveDelayMs);
     return () => window.clearTimeout(timer);
-  }, [adultVideos.length, autoArchiveRounds, autoPull, order, providers, query, redditPullOptions, remoteBusy]);
+  }, [adultVideos.length, autoArchiveRounds, autoPull, order, providers, query, redditPullOptions, redditSourcesReady, remoteBusy]);
 
   const milestoneLinks = ADULT_MILESTONE_LINKS.filter((site) => site.href !== ADULT_CATEGORY_HUB.href);
 
@@ -434,9 +496,26 @@ export function AdultPanel({
       )}
 
       <section className="rounded-xl bg-elevated p-5 shadow-border">
-        <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Remote pull</p>
-        <h2 className="mt-2 font-display text-2xl text-fg sm:text-3xl">Adult discovery</h2>
-        <p className="mt-2 max-w-2xl text-sm text-muted">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Remote pull</p>
+            <h2 className="mt-2 font-display text-2xl text-fg sm:text-3xl">Adult discovery</h2>
+            <p className="mt-1 text-xs text-muted">Saved source scope, provider health, tags, and catalog controls.</p>
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-expanded={!discoveryCollapsed}
+            aria-label={`${discoveryCollapsed ? "Expand" : "Minimize"} Adult discovery`}
+            onClick={() => setDiscoveryCollapsed((collapsed) => !collapsed)}
+          >
+            {discoveryCollapsed ? <ChevronRight className="size-4" /> : <ChevronDown className="size-4" />}
+            {discoveryCollapsed ? "Expand" : "Minimize"}
+          </Button>
+        </div>
+        {!discoveryCollapsed && (
+          <div className="mt-4">
+        <p className="max-w-2xl text-sm text-muted">
           Failover-friendly pulls via{" "}
           <a
             href="https://www.eporner.com/api/v2/"
@@ -478,7 +557,7 @@ export function AdultPanel({
         <details className="mt-4 rounded-md border border-border bg-bg/35 p-3">
           <summary className="cursor-pointer text-xs font-medium text-fg">Reddit photo sources · custom list and priority</summary>
           <p className="mt-2 text-xs leading-5 text-muted">
-            Use the curated rotation, or switch to your own communities. Each imported Reddit photo and video receives both
+            The saved library list is active by default. Add a community below to pin it and set its priority; switch to curated rotation only when you want discovery to rotate evenly. Each imported Reddit photo and video receives both
             <code className="mx-1 text-fg">source-reddit-*</code> and <code className="text-fg">sub-*</code> tags for filtering.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -486,13 +565,17 @@ export function AdultPanel({
               size="sm"
               variant={useCustomRedditSources ? "default" : "secondary"}
               onClick={() => setUseCustomRedditSources((enabled) => !enabled)}
-              disabled={!redditSources.length}
             >
-              {useCustomRedditSources ? "Using my source list" : "Use my source list"}
+              {useCustomRedditSources ? "Using library source list" : "Use library source list"}
             </Button>
             <span className="text-xs text-muted">
-              {useCustomRedditSources ? `${redditSources.length} selected communities` : "Curated rotation active"}
+              {useCustomRedditSources ? `${selectedRedditSources.length} saved communities · priority overrides first` : "Curated rotation active"}
             </span>
+            {selectedRedditSources.length > 0 && (
+              <Button size="sm" variant="secondary" disabled={remoteBusy} onClick={pullSavedRedditSources}>
+                {remoteBusy ? "Pulling library list…" : `Pull my ${selectedRedditSources.length} sources`}
+              </Button>
+            )}
           </div>
           <div className="mt-3 flex flex-col gap-2 sm:flex-row">
             <Input
@@ -501,28 +584,18 @@ export function AdultPanel({
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
                   event.preventDefault();
-                  const subreddit = redditSourceInput.trim().replace(/^r\//i, "");
-                  if (!/^[a-z0-9_]{3,48}$/i.test(subreddit)) return toast.error("Enter a valid subreddit name.");
-                  setRedditSources((current) => current.some((row) => row.subreddit.toLowerCase() === subreddit.toLowerCase()) ? current : [...current, { subreddit, priority: 2 }]);
-                  setUseCustomRedditSources(true);
-                  setRedditSourceInput("");
+                  pinRedditSource();
                 }
               }}
-              placeholder="Add subreddit, e.g. ExampleSub"
-              aria-label="Add Reddit source"
+              placeholder="Pin a subreddit, e.g. ExampleSub"
+              aria-label="Pin Reddit source"
             />
             <Button
               size="sm"
               variant="secondary"
-              onClick={() => {
-                const subreddit = redditSourceInput.trim().replace(/^r\//i, "");
-                if (!/^[a-z0-9_]{3,48}$/i.test(subreddit)) return toast.error("Enter a valid subreddit name.");
-                setRedditSources((current) => current.some((row) => row.subreddit.toLowerCase() === subreddit.toLowerCase()) ? current : [...current, { subreddit, priority: 2 }]);
-                setUseCustomRedditSources(true);
-                setRedditSourceInput("");
-              }}
+              onClick={pinRedditSource}
             >
-              Add source
+              Pin source
             </Button>
           </div>
           {redditSources.length > 0 && (
@@ -739,6 +812,28 @@ export function AdultPanel({
           Durable adult catalog: {adultVideos.length.toLocaleString()} titles · provider pages append to this library across reloads
           {importProgress ? ` · ${importProgress.label}` : ""}
         </p>
+        {adultPullStatus && (
+          <div className="mt-3 rounded-md border border-border bg-bg/35 p-3" aria-live="polite">
+            <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Latest pull health</p>
+            <p className="mt-1 text-xs text-muted">{adultPullStatus.note}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {adultPullStatus.diagnostics.map((row) => (
+                <span
+                  key={`${row.provider}:${row.status}:${row.detail}`}
+                  title={row.detail}
+                  className={`rounded-full px-2.5 py-1 text-xs ${row.status === "loaded" ? "bg-accent/15 text-accent" : row.status === "empty" ? "bg-surface text-muted" : "bg-destructive/15 text-destructive"}`}
+                >
+                  {row.provider} · {row.status === "loaded" ? `${row.titles} loaded` : row.status} · {row.detail}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+        {useCustomRedditSources && redditSources.length > 0 && (
+          <p className="mt-1 text-xs text-muted">
+            Reddit pull scope · {selectedRedditSources.length} saved communities · {redditSources.length} priority override{redditSources.length === 1 ? "" : "s"} · photos, animated GIFs, video posts, and live comment threads stay attached to each post.
+          </p>
+        )}
         <p className="mt-1 text-xs text-accent">{archiveLabel}</p>
         {sourceFacets.length > 0 && (
           <div className="mt-4">
@@ -821,6 +916,8 @@ export function AdultPanel({
                 </Button>
               </div>
             )}
+          </div>
+        )}
           </div>
         )}
       </section>

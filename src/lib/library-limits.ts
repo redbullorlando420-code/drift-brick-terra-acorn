@@ -39,8 +39,8 @@ export const LIBRARY_LIMITS = {
   /** Keep auto-pulling until the Adult catalog reaches this many cached titles. */
   adultTargetCatalogVideos: 8_000,
   /** Bounded automatic archive pages per visit; users can still continue manually. */
-  adultAutoArchivePagesPerVisit: 6,
-  adultAutoArchiveDelayMs: 2_500,
+  adultAutoArchivePagesPerVisit: 2,
+  adultAutoArchiveDelayMs: 30_000,
   /** Titles added per staggered background refresh tick (one provider at a time). */
   adultRefreshVideosPerTick: 320,
   /** Pause between Adult provider refresh ticks. */
@@ -51,11 +51,11 @@ export const LIBRARY_LIMITS = {
   redditVideosPerPull: 2_400,
   redditPostsPerSub: 50,
   /** How many subs to sample per Reddit window (rotate through the curated catalog). */
-  redditSubsPerPull: 48,
+  redditSubsPerPull: 12,
   /** Extra Reddit windows walked in one pull so discovery is not RedTube-heavy. */
-  redditWindowsPerPull: 4,
+  redditWindowsPerPull: 2,
   /** Concurrent RSS fetches per wave (stay under Reddit rate limits). */
-  redditFetchConcurrency: 10,
+  redditFetchConcurrency: 4,
   booruVideosPerPull: 240,
   booruPageSize: 80,
   redgifsVideosPerPull: 240,
