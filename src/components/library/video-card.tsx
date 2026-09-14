@@ -9,7 +9,6 @@ import {
   isAdultThumbBlacklisted,
   markAdultThumbFailed,
   markAdultThumbGood,
-  warmAdultThumbUrls,
 } from "@/lib/videos/adult-thumb-session";
 import { isAdultImageKind, isAdultPullKind } from "@/lib/videos/adult-sites";
 import { downloadAdultPhoto } from "@/lib/videos/adult-photo-download";
@@ -173,14 +172,6 @@ export const VideoCard = memo(function VideoCard({
     io.observe(el);
     return () => io.disconnect();
   }, [request, video]);
-
-  // Warm first N rail/grid cards once they enter the near-viewport band.
-  useEffect(() => {
-    if (!artVisible || !adultCandidates.length) return;
-    if (variant !== "rail" && variant !== "grid") return;
-    if (index > RAIL_WARM_INDEX) return;
-    warmAdultThumbUrls(thumbCandidates, 3);
-  }, [artVisible, adultCandidates.length, index, thumbCandidates, variant]);
 
   // A visible card owns a high-priority slot only while its current candidate
   // is loading. Releasing it after load/error lets the next card paint; the

@@ -6,7 +6,7 @@
 import type { LibraryVideo } from "./types";
 import { adultTagRankBoost } from "./adult-fetishes";
 import { adultProviderKind } from "./adult-filter";
-import { adultTaxonomyTags, isAdultGenreTag, isAdultMetaTaxonomyTag } from "./adult-taxonomy";
+import { expandedAdultTags, isAdultGenreTag, isAdultMetaTaxonomyTag } from "./adult-taxonomy";
 
 /** Stable personal-interest tags for the main Adults browser. Sources and
  * creators already have dedicated filters; raw API keyword dumps stay
@@ -129,7 +129,7 @@ export function rankAdultTags(
     );
     const kind = adultProviderKind(video);
     const itemTags = ctx.tags[video.id] ?? [];
-    for (const tag of new Set([...itemTags, ...itemTags.flatMap(adultTaxonomyTags)])) {
+    for (const tag of expandedAdultTags(itemTags)) {
       if (!isAdultInterestTag(tag)) continue;
       const row = rows.get(tag) ?? { total: 0, count: 0, recent: 0 };
       const redditBoost = kind === "reddit" && (tag.startsWith("source-reddit") || tag.startsWith("sub-") || tag.startsWith("fetish-")) ? 2 : 0;
@@ -175,12 +175,16 @@ export function sortAdultVideos<T extends LibraryVideo>(videos: T[], ctx: AdultR
     .sort(([, a], [, b]) => (b[0]?.score ?? 0) - (a[0]?.score ?? 0))
     .map(([provider]) => provider);
   const ordered: T[] = [];
+  const offsets = new Map<string, number>();
   while (providers.length) {
     for (let index = providers.length - 1; index >= 0; index -= 1) {
       const provider = providers[index]!;
-      const next = byProvider.get(provider)?.shift();
+      const bucket = byProvider.get(provider)!;
+      const offset = offsets.get(provider) ?? 0;
+      const next = bucket[offset];
       if (next) ordered.push(next.video);
-      if (!byProvider.get(provider)?.length) providers.splice(index, 1);
+      offsets.set(provider, offset + 1);
+      if (offset + 1 >= bucket.length) providers.splice(index, 1);
     }
   }
   return ordered;
@@ -202,7 +206,7 @@ export function rankAdultMetaTags(
     );
     const provider = adultProviderKind(video) || "other";
     const itemTags = ctx.tags[video.id] ?? [];
-    for (const tag of new Set([...itemTags, ...itemTags.flatMap(adultTaxonomyTags)])) {
+    for (const tag of expandedAdultTags(itemTags)) {
       if (!isAdultMetaTag(tag)) continue;
       const row = rows.get(tag) ?? { total: 0, count: 0, recent: 0, providers: new Set<string>() };
       row.total += engagement;

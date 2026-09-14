@@ -265,10 +265,15 @@ export const ADULT_EXTREME_RANK_TAGS = uniqueLower([
 const EXTREME_SET = new Set(ADULT_EXTREME_RANK_TAGS);
 
 /** Extra rank points for extreme / high-signal Adult tags (0 when not a hit). */
+const rankBoostCache = new Map<string, number>();
+const FEATURED_SET = new Set<string>(ADULT_FEATURED_FETISH_TAGS);
 export function adultTagRankBoost(tag: string): number {
+  const cached = rankBoostCache.get(tag);
+  if (cached !== undefined) return cached;
   const raw = tag.trim().toLowerCase();
   const bare = raw.replace(/^fetish-/, "").replace(/^source-/, "").replace(/^creator-/, "").replace(/-/g, " ");
-  if (EXTREME_SET.has(raw) || EXTREME_SET.has(bare) || raw.includes("extreme") || bare.includes("extreme")) return 10;
-  if (ADULT_FEATURED_FETISH_TAGS.some((item) => item === raw || item === bare)) return 3;
-  return 0;
+  const boost = EXTREME_SET.has(raw) || EXTREME_SET.has(bare) || raw.includes("extreme") || bare.includes("extreme") ? 10 : FEATURED_SET.has(raw) || FEATURED_SET.has(bare) ? 3 : 0;
+  if (rankBoostCache.size >= 8192) rankBoostCache.delete(rankBoostCache.keys().next().value!);
+  rankBoostCache.set(tag, boost);
+  return boost;
 }

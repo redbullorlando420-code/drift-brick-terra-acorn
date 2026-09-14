@@ -1,0 +1,20 @@
+import { chromium } from 'playwright';
+import { readdirSync } from 'node:fs';
+const workerFile=readdirSync('.vercel/output/static/assets').find(name=>name.startsWith('adult-browse.worker-'));
+const browser=await chromium.launch({channel:'chrome',headless:true});
+const page=await browser.newPage();
+await page.goto('http://127.0.0.1:8081/');
+const result=await page.evaluate(async workerFile=>{
+ const worker=new Worker('/assets/'+workerFile,{type:'module'});
+ const videos=Array.from({length:20000},(_,i)=>({id:'v'+i,folderId:i%2?'booru:discover':'eporner:discover',addedAt:1700000000000+i,name:'Title',path:'',size:0,extension:i%2?'jpg':'mp4',mime:i%2?'image/jpeg':'video/mp4',remote:{kind:i%2?'booru':'eporner'}}));
+ const tags=Object.fromEntries(videos.map(v=>[v.id,['adult','amateur','pov']]));
+ const response=new Promise((resolve,reject)=>{const timer=setTimeout(()=>{worker.terminate();reject(Error('Worker timed out'));},20000);worker.onerror=reject;worker.onmessage=({data})=>{clearTimeout(timer);resolve(data);};});
+ worker.postMessage({type:'catalog',videos,personalVideos:[],deepVideos:[],tags});
+ worker.postMessage({type:'signals',signals:{ratings:{},favorites:{},likes:{},cameCounts:{},viewCounts:{},heartedTags:[],historicTags:[],continueIds:[],favoriteIds:[]}});
+ worker.postMessage({type:'browse',requestId:1,params:{source:'booru',tag:'genre-pov',view:'photos',limit:16,seed:123}});
+ const data=await response;worker.terminate();
+ if(data.error || data.result.rankedIds.length!==10000 || data.result.overview.videos.length) throw Error('Built worker returned incorrect source/type results');
+ return {titles:videos.length,matching:data.result.rankedIds.length,workerLoaded:true};
+},workerFile);
+console.log(JSON.stringify(result));
+await browser.close();

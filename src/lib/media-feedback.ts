@@ -12,6 +12,36 @@ let pendingWrites = 0;
 // Missing ratings are common in large libraries. Remember the legacy lookup
 // too, so recommendation passes never repeat synchronous storage reads.
 const legacyRatings = new Map<string, number>();
+let legacyScan: Promise<void> | undefined;
+
+/** Read old per-title ratings once, in small batches, rather than doing a
+ * synchronous storage lookup for every unscored title during recommendation. */
+export async function rankingFeedbackSnapshot() {
+  if (typeof window !== "undefined") {
+    legacyScan ??= (async () => {
+      try {
+        for (let index = 0; index < localStorage.length; index++) {
+          const key = localStorage.key(index);
+          if (key?.startsWith("reelcase.rating.")) {
+            const id = key.slice("reelcase.rating.".length);
+            if (!legacyRatings.has(id)) {
+              const value = Number(localStorage.getItem(key));
+              legacyRatings.set(id, Number.isFinite(value) ? value : 0);
+            }
+          }
+          if (index % 100 === 99) await new Promise(resolve => window.setTimeout(resolve, 0));
+        }
+      } catch { /* Current feedback still works when legacy storage is unavailable. */ }
+    })();
+    await legacyScan;
+  }
+  const feedback = read();
+  return {
+    ratings: { ...Object.fromEntries(legacyRatings), ...feedback.ratings },
+    heartedTags: Object.keys(feedback.tagLikes),
+    historicTags: Object.keys(feedback.tagHeartHistory),
+  };
+}
 
 function read(): Feedback {
   if (cached) return cached;

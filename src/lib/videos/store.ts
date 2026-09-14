@@ -1,3 +1,4 @@
+import { memoizeSelector } from "./selector-cache";
 import { create } from "zustand";
 import {
   ADULT_FOLDER_BY_PROVIDER,
@@ -40,6 +41,7 @@ import {
   saveActivitySnapshot,
   saveFolderVideos,
   savePrefs,
+  saveViewPrefs,
   saveSourceHealth,
   type Prefs,
 } from "./persist";
@@ -696,17 +698,17 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   setQuery: (query) => { measureInteraction("search"); set({ query }); },
   setSort: (sort) => {
     set({ sort });
-    persistNow(get);
+    saveViewPrefs(get());
   },
   setView: (view) => {
     set({ view });
-    persistNow(get);
+    saveViewPrefs(get());
   },
   setSource: (sourceId) => {
     measureInteraction("navigation");
     navigationChanged = true;
     set({ sourceId });
-    persistNow(get);
+    saveViewPrefs(get());
   },
   toggleFavorite: (id) => {
     set((s) => {
@@ -1886,9 +1888,9 @@ export const useLibrary = create<LibraryState>((set, get) => ({
 type SelectorMemo = { public?: LibraryVideo[]; adult?: LibraryVideo[]; adultRemote?: LibraryVideo[]; youtube?: LibraryVideo[]; twitch?: LibraryVideo[]; live?: LibraryVideo[]; classics?: LibraryVideo[]; continuePublic?: LibraryVideo[]; continueAdult?: LibraryVideo[] };
 const selectorMemo = new WeakMap<LibraryState, SelectorMemo>();
 function memoFor(state: LibraryState) { let memo = selectorMemo.get(state); if (!memo) { memo = {}; selectorMemo.set(state, memo); } return memo; }
-const resumeLookupMemo = new WeakMap<LibraryState, Map<string, LibraryVideo>>();
-function resumeLookup(state: LibraryState, list: LibraryVideo[]) {
-  const cached = resumeLookupMemo.get(state);
+const resumeLookupMemo = new WeakMap<LibraryVideo[], Map<string, LibraryVideo>>();
+function resumeLookup(list: LibraryVideo[]) {
+  const cached = resumeLookupMemo.get(list);
   if (cached) return cached;
   const index = new Map<string, LibraryVideo>();
   for (const video of list) {
@@ -1896,11 +1898,11 @@ function resumeLookup(state: LibraryState, list: LibraryVideo[]) {
     // a reimport more reliably than a transient catalog row id.
     for (const key of [video.id, video.remote?.watchUrl, video.remote?.embedUrl, video.src, video.path]) if (key) index.set(key, video);
   }
-  resumeLookupMemo.set(state, index);
+  resumeLookupMemo.set(list, index);
   return index;
 }
 
-function publicList(state: LibraryState): LibraryVideo[] {
+function computePublicList(state: LibraryState): LibraryVideo[] {
   const memo = memoFor(state);
   if (memo.public) return memo.public;
   const adult = adultIdSet(state.folders);
@@ -1913,7 +1915,7 @@ function publicList(state: LibraryState): LibraryVideo[] {
   return list;
 }
 
-function adultList(state: LibraryState): LibraryVideo[] {
+function computeAdultList(state: LibraryState): LibraryVideo[] {
   const memo = memoFor(state);
   if (memo.adult) return memo.adult;
   // Adults section is open; private shelves still stay off public rails via folder.adult.
@@ -1925,7 +1927,7 @@ function adultList(state: LibraryState): LibraryVideo[] {
   return memo.adult;
 }
 
-export function selectVisible(state: LibraryState): LibraryVideo[] {
+function computeSelectVisible(state: LibraryState): LibraryVideo[] {
   const q = state.query.trim().toLowerCase();
   const inAdults = state.sourceId === "adults" || state.sourceId === "adult-fetishes";
   let list = inAdults ? adultList(state) : publicList(state);
@@ -1989,7 +1991,7 @@ function scoped(state: LibraryState, adult: boolean): LibraryVideo[] {
 // Favorites and history are recovery views. Unlike a browse shelf, they must
 // retain a title when its folder needs reconnecting or a remote embed was
 // briefly marked unavailable; the card can still explain that state.
-function recoveryList(state: LibraryState, adult: boolean): LibraryVideo[] {
+function computeRecoveryList(state: LibraryState, adult: boolean): LibraryVideo[] {
   const adultIds = adultIdSet(state.folders);
   return state.videos.filter((video) => {
     if (state.hideDemo && video.isSample) return false;
@@ -2012,7 +2014,7 @@ function newestFirst(items: LibraryVideo[], limit: number): LibraryVideo[] {
   return top;
 }
 
-export function selectContinue(state: LibraryState, adult = false): LibraryVideo[] {
+function computeSelectContinue(state: LibraryState, adult = false): LibraryVideo[] {
   const memo = memoFor(state);
   const existing = adult ? memo.continueAdult : memo.continuePublic;
   if (existing) return existing;
@@ -2044,7 +2046,7 @@ export function selectContinue(state: LibraryState, adult = false): LibraryVideo
   return items;
 }
 
-export function selectFavorites(state: LibraryState, adult = false): LibraryVideo[] {
+function computeSelectFavorites(state: LibraryState, adult = false): LibraryVideo[] {
   return recoveryList(state, adult).filter((v) => state.favorites[v.id]);
 }
 
@@ -2052,9 +2054,9 @@ export function resumeForVideo(state: Pick<LibraryState, "progress" | "resumePro
   return newestResume(state.progress[video.id], ...stableResumeKeys(video).map((key) => state.resumeProgress[key]));
 }
 
-export function selectHistory(state: LibraryState, adult = false): LibraryVideo[] {
+function computeSelectHistory(state: LibraryState, adult = false): LibraryVideo[] {
   const list = recoveryList(state, adult);
-  const byId = resumeLookup(state, list);
+  const byId = resumeLookup(list);
   const seen = new Set<string>();
   return state.history
     .filter((h) => !seen.has(h.id) && Boolean(seen.add(h.id)))
@@ -2132,7 +2134,7 @@ export function selectRedtube(state: LibraryState): LibraryVideo[] {
 }
 
 /** Combined official adult pull shelves (Eporner + RedTube). */
-export function selectAdultRemote(state: LibraryState): LibraryVideo[] {
+function computeSelectAdultRemote(state: LibraryState): LibraryVideo[] {
   const memo = memoFor(state);
   if (memo.adultRemote) return memo.adultRemote;
   const matching = state.videos
@@ -2190,3 +2192,20 @@ export function userFolderCount(folders: Folder[]) {
   return folders.filter((f) => f.kind !== "demo").length;
 }
 
+// These dependency lists are the cache invalidation contract. Keep UI and
+// playback-only fields out of catalog selectors. Store slices are immutable.
+const publicList = memoizeSelector(computePublicList, ["videos", "folders", "unavailable", "hideDemo"]);
+
+const adultList = memoizeSelector(computeAdultList, ["videos", "folders", "unavailable"]);
+
+const recoveryList = memoizeSelector(computeRecoveryList, ["videos", "folders", "hideDemo"]);
+
+export const selectAdultRemote = memoizeSelector(computeSelectAdultRemote, ["videos"]);
+
+export const selectFavorites = memoizeSelector(computeSelectFavorites, ["videos", "folders", "hideDemo", "favorites"]);
+
+export const selectHistory = memoizeSelector(computeSelectHistory, ["videos", "folders", "hideDemo", "history"]);
+
+export const selectContinue = memoizeSelector(computeSelectContinue, ["videos", "folders", "hideDemo", "history", "progress", "resumeProgress"]);
+
+export const selectVisible = memoizeSelector(computeSelectVisible, ["videos", "folders", "hideDemo", "unavailable", "sourceId", "query", "tags", "categories", "sort", "favorites", "likes", "history", "progress", "resumeProgress"]);

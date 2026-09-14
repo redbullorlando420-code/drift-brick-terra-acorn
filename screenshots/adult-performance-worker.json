@@ -1,0 +1,162 @@
+[
+  {
+    "name": "desktop",
+    "titles": 20000,
+    "coldMs": 37.80000001192093,
+    "cached100Ms": 0.8999999761581421,
+    "openMs": 501,
+    "width": 1280,
+    "scrollWidth": 1280,
+    "offenders": [
+      {
+        "tag": "DIV",
+        "cls": "shrink-0",
+        "right": 2176
+      },
+      {
+        "tag": "DIV",
+        "cls": "shrink-0",
+        "right": 1306.65625
+      },
+      {
+        "tag": "DIV",
+        "cls": "stagger-in group relative",
+        "right": 1306.65625
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "text-left outline-none block w-56 shrink-0",
+        "right": 1306.65625
+      },
+      {
+        "tag": "DIV",
+        "cls": "relative overflow-hidden bg-elevated aspect-video w-full rounded-md",
+        "right": 1306.65625
+      },
+      {
+        "tag": "DIV",
+        "cls": "min-w-0 mt-2.5",
+        "right": 1306.65625
+      },
+      {
+        "tag": "DIV",
+        "cls": "flex items-start gap-2",
+        "right": 1306.65625
+      },
+      {
+        "tag": "H3",
+        "cls": "min-w-0 flex-1 truncate text-sm font-medium text-fg",
+        "right": 1306.65625
+      },
+      {
+        "tag": "P",
+        "cls": "mt-0.5 truncate text-xs text-muted",
+        "right": 1306.65625
+      },
+      {
+        "tag": "svg",
+        "cls": {},
+        "right": 1287.65625
+      },
+      {
+        "tag": "path",
+        "cls": {},
+        "right": 1286.4896240234375
+      },
+      {
+        "tag": "svg",
+        "cls": {},
+        "right": 1287.65625
+      }
+    ],
+    "overflow": false,
+    "render": {
+      "mountedCards": 40,
+      "longFrames": 6,
+      "lastFrameMs": 6,
+      "worstFrameMs": 106,
+      "startedAt": 1789365891943
+    },
+    "errors": []
+  },
+  {
+    "name": "mobile",
+    "titles": 20000,
+    "coldMs": 37.5,
+    "cached100Ms": 0.800000011920929,
+    "openMs": 281,
+    "width": 390,
+    "scrollWidth": 390,
+    "offenders": [
+      {
+        "tag": "DIV",
+        "cls": "shrink-0",
+        "right": 476
+      },
+      {
+        "tag": "DIV",
+        "cls": "stagger-in group relative",
+        "right": 476
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "text-left outline-none block w-56 shrink-0",
+        "right": 476
+      },
+      {
+        "tag": "DIV",
+        "cls": "relative overflow-hidden bg-elevated aspect-video w-full rounded-md",
+        "right": 476
+      },
+      {
+        "tag": "SPAN",
+        "cls": "text-xs",
+        "right": 402.984375
+      },
+      {
+        "tag": "IMG",
+        "cls": "relative size-full object-cover outline-1 -outline-offset-1 outline-fg/10 transition-opacity duration-150 opacity-100",
+        "right": 476
+      },
+      {
+        "tag": "DIV",
+        "cls": "min-w-0 mt-2.5",
+        "right": 476
+      },
+      {
+        "tag": "DIV",
+        "cls": "flex items-start gap-2",
+        "right": 476
+      },
+      {
+        "tag": "H3",
+        "cls": "min-w-0 flex-1 truncate text-sm font-medium text-fg",
+        "right": 476
+      },
+      {
+        "tag": "P",
+        "cls": "mt-0.5 truncate text-xs text-muted",
+        "right": 476
+      },
+      {
+        "tag": "svg",
+        "cls": {},
+        "right": 457
+      },
+      {
+        "tag": "path",
+        "cls": {},
+        "right": 455.8333435058594
+      }
+    ],
+    "overflow": false,
+    "render": {
+      "mountedCards": 24,
+      "longFrames": 1,
+      "lastFrameMs": 6,
+      "worstFrameMs": 100,
+      "startedAt": 1789365901375
+    },
+    "errors": []
+  }
+]

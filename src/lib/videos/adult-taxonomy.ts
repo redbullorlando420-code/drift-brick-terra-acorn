@@ -15,11 +15,30 @@ const RULES: readonly Rule[] = [
   { genre: "genre-regional", meta: "meta-region", aliases: ["latina", "asian", "ebony", "arab", "brazilian", "euro", "japanese", "korean", "indian", "czech", "russian"] },
 ];
 function clean(value: string) { return value.trim().toLowerCase().replace(/^fetish-/, "").replace(/[-_]+/g, " ").replace(/\s+/g, " "); }
+const taxonomyCache = new Map<string, string[]>();
 export function adultTaxonomyTags(value: string): string[] {
+  const cached = taxonomyCache.get(value);
+  if (cached) return cached;
   const key = clean(value);
   if (!key || /https?|\bwww\b|redgifs|eporner|redtube/.test(key)) return [];
-  return [...new Set(RULES.filter((rule) => rule.aliases.some((alias) => key === alias || key.includes(alias))).flatMap((rule) => [rule.genre, rule.meta]))];
+  const result = [...new Set(RULES.filter((rule) => rule.aliases.some((alias) => key === alias || key.includes(alias))).flatMap((rule) => [rule.genre, rule.meta]))];
+  // Provider metadata can be unbounded; retain only a bounded vocabulary.
+  if (taxonomyCache.size >= 8192) taxonomyCache.delete(taxonomyCache.keys().next().value!);
+  taxonomyCache.set(value, result);
+  return result;
 }
 export function isAdultGenreTag(tag: string) { return tag.startsWith("genre-"); }
 export function isAdultMetaTaxonomyTag(tag: string) { return tag.startsWith("meta-"); }
 export function adultTaxonomyLabel(tag: string) { return tag.replace(/^(?:genre|meta)-/, "").replace(/-/g, " "); }
+
+// Store tag arrays are replaced on edits. Weak keys release evicted titles and
+// let filters and both ranking passes share the same expanded vocabulary.
+const expandedTagCache = new WeakMap<string[], ReadonlySet<string>>();
+export function expandedAdultTags(tags: string[]): ReadonlySet<string> {
+  const cached = expandedTagCache.get(tags);
+  if (cached) return cached;
+  const expanded = new Set(tags);
+  for (const tag of tags) for (const derived of adultTaxonomyTags(tag)) expanded.add(derived);
+  expandedTagCache.set(tags, expanded);
+  return expanded;
+}

@@ -538,7 +538,7 @@ export function AdultPanel({
 
   // Creator / interest chip walks over the full archive — idle until first paint settles.
   const creatorFacets = useMemo(() => {
-    if (!facetsReady) return [] as Array<readonly [string, number]>;
+    if (discoveryCollapsed || !facetsReady) return [] as Array<readonly [string, number]>;
     const counts = new Map<string, number>();
     for (const video of adultVideos) {
       for (const tag of tags[video.id] ?? []) {
@@ -551,10 +551,10 @@ export function AdultPanel({
       .filter(([, count]) => count >= 2)
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .slice(0, 12);
-  }, [adultVideos, facetsReady, tags]);
+  }, [adultVideos, discoveryCollapsed, facetsReady, tags]);
 
   const fetishFacets = useMemo(() => {
-    if (!facetsReady) return [] as Array<readonly [string, number]>;
+    if (discoveryCollapsed || !facetsReady) return [] as Array<readonly [string, number]>;
     const counts = new Map<string, number>();
     for (const video of adultVideos) {
       for (const tag of tags[video.id] ?? []) {
@@ -569,7 +569,7 @@ export function AdultPanel({
     return [...counts.entries()]
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .slice(0, 24);
-  }, [adultVideos, facetsReady, tags]);
+  }, [adultVideos, discoveryCollapsed, facetsReady, tags]);
 
   useEffect(() => {
     if (!autoPull || booted || !redditSourcesReady) return;

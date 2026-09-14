@@ -1,0 +1,82 @@
+[
+  {
+    "name": "desktop",
+    "titles": 20000,
+    "coldMs": 33.89999997615814,
+    "cached100Ms": 0.5999999642372131,
+    "openMs": 1359,
+    "width": 1280,
+    "scrollWidth": 1280,
+    "offenders": [
+      {
+        "tag": "DIV",
+        "cls": "shrink-0",
+        "right": 1456
+      },
+      {
+        "tag": "DIV",
+        "cls": "stagger-in group relative",
+        "right": 1456
+      },
+      {
+        "tag": "BUTTON",
+        "cls": "text-left outline-none block w-56 shrink-0",
+        "right": 1456
+      },
+      {
+        "tag": "DIV",
+        "cls": "relative overflow-hidden bg-elevated aspect-video w-full rounded-md",
+        "right": 1456
+      },
+      {
+        "tag": "svg",
+        "cls": {},
+        "right": 1360
+      },
+      {
+        "tag": "line",
+        "cls": {},
+        "right": 1357.3333740234375
+      },
+      {
+        "tag": "path",
+        "cls": {},
+        "right": 1341.8800048828125
+      },
+      {
+        "tag": "line",
+        "cls": {},
+        "right": 1346
+      },
+      {
+        "tag": "line",
+        "cls": {},
+        "right": 1356
+      },
+      {
+        "tag": "path",
+        "cls": {},
+        "right": 1355.21337890625
+      },
+      {
+        "tag": "path",
+        "cls": {},
+        "right": 1356
+      },
+      {
+        "tag": "SPAN",
+        "cls": "text-xs",
+        "right": 1382.984375
+      }
+    ],
+    "overflow": false,
+    "render": {
+      "mountedCards": 48,
+      "longFrames": 7,
+      "lastFrameMs": 6,
+      "worstFrameMs": 256,
+      "startedAt": 1789365327877
+    },
+    "errors": []
+  }
+]

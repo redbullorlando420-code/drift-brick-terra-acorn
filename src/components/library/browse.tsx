@@ -7,7 +7,7 @@ import { useLibrary } from "@/lib/videos/store";
 import { useThumbs } from "@/lib/videos/thumbs";
 import { adultThumbCandidatesForVideo } from "@/lib/videos/adult-thumbs";
 import { markFirstShelf } from "@/lib/first-shelf-trace";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const RAIL_SIZES = [8, 16, 32, 48];
 const GRID_SIZES = [24, 48, 96, 144];
@@ -94,6 +94,7 @@ export function TitleRail({
   const shelfRef = useRef<HTMLElement>(null);
   const railRef = useRef<HTMLDivElement | null>(null);
   const scrollLeft = useRef(0);
+  const attachRail = useCallback((rail: HTMLDivElement | null) => { railRef.current = rail; if (rail) rail.scrollLeft = scrollLeft.current; }, []);
   const leaveTimer = useRef<number | undefined>(undefined);
   const [nearViewport, setNearViewport] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -149,8 +150,8 @@ export function TitleRail({
   useEffect(() => { if (nearViewport && videos.length) markFirstShelf(title, Math.min(videos.length, limit)); }, [nearViewport, limit, title, videos.length]);
   if (!videos.length) return null;
   const shown = videos.slice(0, limit);
-  const overscan = 3;
-  const visibleSlots = Math.max(6, Math.ceil((railWidth || 800) / cardStride) + overscan * 2);
+  const overscan = 1;
+  const visibleSlots = Math.max(3, Math.ceil((railWidth || 320) / cardStride) + overscan * 2);
   const maxStart = Math.max(0, shown.length - visibleSlots);
   const start = Math.max(0, Math.min(windowStart, maxStart));
   const end = Math.min(shown.length, start + visibleSlots);
@@ -168,12 +169,12 @@ export function TitleRail({
     }
   };
   return (
-    <section ref={shelfRef} className="media-shelf mb-8" style={!nearViewport ? { minHeight: shelfHeight ?? (variant === "poster" ? 320 : 250) } : undefined}>
-      <div className="mb-3 flex items-end justify-between gap-3">
-        <div className="min-w-0">{onTitleClick ? <button type="button" onClick={onTitleClick} className="block min-w-0 truncate font-display text-xl text-fg hover:text-accent sm:text-2xl">{title} <span className="text-sm text-muted">Open source →</span></button> : <h2 className="min-w-0 truncate font-display text-xl text-fg sm:text-2xl">{title}</h2>}{reason && <p className="mt-1 truncate text-xs text-muted">{reason}</p>}</div>
+    <section ref={shelfRef} className="media-shelf mb-8 min-w-0" style={!nearViewport ? { minHeight: shelfHeight ?? (variant === "poster" ? 320 : 250) } : undefined}>
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0 flex-1 basis-48">{onTitleClick ? <button type="button" onClick={onTitleClick} className="block min-w-0 truncate font-display text-xl text-fg hover:text-accent sm:text-2xl">{title} <span className="text-sm text-muted">Open source →</span></button> : <h2 className="min-w-0 truncate font-display text-xl text-fg sm:text-2xl">{title}</h2>}{reason && <p className="mt-1 truncate text-xs text-muted">{reason}</p>}</div>
         <div className="flex shrink-0 items-center gap-1">{videos.length > limit && !collapsed && <Button size="sm" variant="ghost" className="text-xs" onClick={() => setLimit((value) => Math.min(videos.length, value + 16))}>Show 16 more · {videos.length - limit}</Button>}<Button size="sm" variant="ghost" aria-expanded={!collapsed} aria-label={`${collapsed ? "Expand" : "Minimize"} ${title}`} onClick={() => setCollapsed((value) => !value)}>{collapsed ? <ChevronRight className="size-4"/> : <ChevronDown className="size-4"/>}{collapsed ? "Expand" : "Minimize"}</Button></div>
       </div>
-      {nearViewport && !collapsed && <div ref={(rail) => { railRef.current = rail; if (rail) rail.scrollLeft = scrollLeft.current; }} onScroll={(event) => onRailScroll(event.currentTarget)} className="rail-scroll flex gap-3 overflow-x-auto pb-3 sm:gap-4">
+      {nearViewport && !collapsed && <div ref={attachRail} onScroll={(event) => onRailScroll(event.currentTarget)} className="rail-scroll flex gap-3 overflow-x-auto pb-3 sm:gap-4">
         {leadPx > 0 && <div aria-hidden="true" className="shrink-0" style={{ width: leadPx, height: 1 }} />}
         {windowed.map((video, i) => (
           <div

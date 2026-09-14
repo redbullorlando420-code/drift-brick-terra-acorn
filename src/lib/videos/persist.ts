@@ -445,7 +445,16 @@ function normalize(raw: Record<string, unknown>): Prefs {
   };
 }
 
-export function loadPrefs(): Prefs | null {
+const VIEW_PREFS_KEY = "reelcase.view-prefs.v1";
+type ViewPrefs = Pick<Prefs, "view" | "sort" | "sourceId">;
+let viewPrefs: ViewPrefs | undefined;
+export function saveViewPrefs(prefs: ViewPrefs) {
+  viewPrefs = { view: prefs.view, sort: prefs.sort, sourceId: prefs.sourceId === "adults" || prefs.sourceId === "adult-fetishes" ? "home" : prefs.sourceId };
+  try { localStorage.setItem(VIEW_PREFS_KEY, JSON.stringify(viewPrefs)); }
+  catch { /* Keep view preferences in memory; library data remains in IndexedDB. */ }
+}
+
+function loadFullPrefs(): Prefs | null {
   if (typeof window === "undefined") return null;
   if (durablePrefs) return durablePrefs;
   try {
@@ -461,8 +470,21 @@ export function loadPrefs(): Prefs | null {
   }
 }
 
+export function loadPrefs(): Prefs | null {
+  const full = loadFullPrefs();
+  if (typeof window === "undefined") return full;
+  if (!viewPrefs) {
+    try {
+      const saved = JSON.parse(localStorage.getItem(VIEW_PREFS_KEY) ?? "null");
+      if (saved && ["grid", "list"].includes(saved.view) && ["name", "added", "size", "duration", "recent", "type", "folder", "path"].includes(saved.sort) && typeof saved.sourceId === "string") viewPrefs = saved;
+    } catch { /* Ignore malformed display preferences. */ }
+  }
+  return viewPrefs ? { ...(full ?? normalize({})), ...viewPrefs } : full;
+}
+
 export function savePrefs(prefs: Prefs) {
   if (typeof window === "undefined") return;
+  saveViewPrefs(prefs);
   durablePrefs = prefs;
   // Keep large metadata out of synchronous, quota-limited localStorage.
   // Ordered transactions prevent an older edit overwriting a newer one.
