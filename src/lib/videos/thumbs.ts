@@ -150,11 +150,10 @@ export const useThumbs = create<ThumbState>((set, get) => ({
     if (inflight.size >= MAX_THUMB_QUEUE) return;
     artworkMisses += 1;
     if (video.remote) {
-      const youtubeId = video.remote.kind === "youtube" ? video.remote.videoId ?? video.remote.embedUrl?.match(/(?:embed\/|v=)([A-Za-z0-9_-]{11})/)?.[1] : undefined;
-      const providerArtwork = video.poster || (youtubeId ? `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg` : undefined) || video.remote.previewUrl;
-      if (providerArtwork) set((s) => ({ byId: { ...s.byId, [video.id]: providerArtwork } }));
       // Cross-origin embeds cannot be frame-captured. Leave cards on provider
-      // artwork rather than placing them in the local thumbnail failure queue.
+      // artwork rather than duplicating provider URLs for every browsed remote
+      // card in the in-memory thumbnail cache. VideoCard reads those URLs
+      // directly, so this cache entry was redundant.
       return;
     }
     inflight.add(video.id);

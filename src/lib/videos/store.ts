@@ -97,6 +97,7 @@ type LibraryState = {
   folders: Folder[];
   videos: LibraryVideo[];
   query: string;
+  searchResult: { query: string; ids: Set<string>; videos: LibraryVideo[]; tags: Record<string, string[]>; categories: Record<string, string> } | null;
   sort: SortKey;
   view: ViewMode;
   sourceId: SourceId;
@@ -386,12 +387,24 @@ function remoteMetadataTags(video: LibraryVideo) {
   return [...new Set([adult, provider, creator, format, twitchFormat, genre ? `genre-${genre}` : "", twitchGame, ...semanticTags(video), ...descriptionKeywordTags(video)].filter(Boolean))].slice(0, LIBRARY_LIMITS.remoteMetadataTagsPerTitle);
 }
 
-/** Upgrade cached provider cards with the same safe tags created for new pulls. */
+function sameTags(left: string[] | undefined, right: string[]) {
+  return left === right || (left?.length === right.length && left.every((tag, index) => tag === right[index]));
+}
+
+/** Upgrade cached provider cards with the same safe tags created for new pulls.
+ * Already compact cards are deliberately skipped: a recurring refresh should
+ * not rescan their title and description just to reproduce the same tags. */
 function enrichRemoteTags(existing: Record<string, string[]>, videos: LibraryVideo[]) {
-  const tags = { ...existing };
+  let tags = existing;
   for (const video of videos) {
     if (!video.remote) continue;
-    tags[video.id] = compactIngestedTags(tags[video.id] ?? [], remoteMetadataTags(video));
+    const current = existing[video.id] ?? [];
+    const providerTag = `provider-${video.remote.kind}`;
+    if (current.length <= LIBRARY_LIMITS.remoteMetadataTagsPerTitle && current.includes(providerTag)) continue;
+    const compact = compactIngestedTags(current, remoteMetadataTags(video));
+    if (sameTags(current, compact)) continue;
+    if (tags === existing) tags = { ...existing };
+    tags[video.id] = compact;
   }
   return tags;
 }
@@ -664,6 +677,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   folders: [],
   videos: [],
   query: "",
+  searchResult: null,
   sort: "added",
   view: "grid",
   sourceId: "home",
@@ -695,7 +709,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   remoteRetryAt: {},
   importProgress: null,
   adultPullStatus: null,
-  setQuery: (query) => { measureInteraction("search"); set({ query }); },
+  setQuery: (query) => { if (get().query === query) return; measureInteraction("search"); set({ query, searchResult: null }); },
   setSort: (sort) => {
     set({ sort });
     saveViewPrefs(get());
@@ -769,8 +783,6 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       }
       return { tags };
     });
-    const state = get();
-    librarySearchIndex.sync(state.videos, state.tags, state.categories);
     persistNow(get);
     return changed;
   },
@@ -1299,6 +1311,37 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     } catch { /* The catalog remains usable when storage is unavailable. */ }
     set({ hydrated: true });
     restoring = false;
+    // Older catalogs may still carry hundreds of keyword tags per remote card.
+    // Compact them in tiny idle slices after first paint, rather than turning a
+    // restore or tab switch into one catalog-wide text-processing task.
+    if (typeof window !== "undefined") {
+      let index = 0;
+      const schedule = (work: () => void) => {
+        if (typeof window.requestIdleCallback === "function") window.requestIdleCallback(work, { timeout: 2_000 });
+        else window.setTimeout(work, 80);
+      };
+      const compactCachedRemoteTags = () => {
+        const snapshot = get();
+        let tags = snapshot.tags;
+        let changed = false;
+        const end = Math.min(snapshot.videos.length, index + 96);
+        for (; index < end; index += 1) {
+          const video = snapshot.videos[index];
+          if (!video?.remote) continue;
+          const current = tags[video.id] ?? [];
+          const providerTag = `provider-${video.remote.kind}`;
+          if (current.length <= LIBRARY_LIMITS.remoteMetadataTagsPerTitle && current.includes(providerTag)) continue;
+          const compact = compactIngestedTags(current, remoteMetadataTags(video));
+          if (sameTags(current, compact)) continue;
+          if (!changed) tags = { ...tags };
+          tags[video.id] = compact;
+          changed = true;
+        }
+        if (changed) set({ tags });
+        if (index < get().videos.length) schedule(compactCachedRemoteTags);
+      };
+      window.setTimeout(() => schedule(compactCachedRemoteTags), 600);
+    }
     // A pasted import list is a durable recovery queue. Resume every missing
     // entry—not only an entirely empty shelf—so partial Twitch imports keep
     // progressing across reloads without requiring “Load saved list now”.
@@ -1617,7 +1660,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
             ),
             result.videos,
           ),
-          tags: { ...s.tags, ...Object.fromEntries(result.videos.map((video) => [video.id, compactIngestedTags(s.tags[video.id] ?? [], remoteMetadataTags(video))])) },
+          tags: enrichRemoteTags(s.tags, result.videos),
           remoteBusy: false,
         };
       });
@@ -1704,7 +1747,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
             follows: dedupeFollows(follows),
             folders,
             videos,
-            tags: { ...s.tags, ...Object.fromEntries(result.ok.flatMap((row) => row.videos.map((video) => [video.id, compactIngestedTags(s.tags[video.id] ?? [], remoteMetadataTags(video))]))) },
+            tags: enrichRemoteTags(s.tags, result.ok.flatMap((row) => row.videos)),
             importProgress: {
               done: Math.min(i + slice.length, unique.length),
               total: unique.length,
@@ -1801,7 +1844,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         ],
         videos: mergedVideos,
         progress: reconcileResumeForVideos(mergedVideos, s.progress, s.resumeProgress),
-        tags: { ...s.tags, ...Object.fromEntries(result.videos.map((video) => [video.id, compactIngestedTags(s.tags[video.id] ?? [], remoteMetadataTags(video))])) },
+        tags: enrichRemoteTags(s.tags, result.videos),
         remoteRefreshStatus: {
           at: Date.now(),
           checked: current.length,
@@ -1955,9 +1998,9 @@ function computeSelectVisible(state: LibraryState): LibraryVideo[] {
     list = list.filter((v) => v.folderId === state.sourceId);
   }
   if (q) {
-    librarySearchIndex.sync(state.videos, state.tags, state.categories);
-    const hits = librarySearchIndex.search(q);
-    if (hits) list = list.filter((v) => hits.has(v.id));
+    const result = state.searchResult;
+    if (!result || result.query !== q || result.videos !== state.videos || result.tags !== state.tags || result.categories !== state.categories) return [];
+    list = list.filter((v) => result.ids.has(v.id));
   }
   if (state.sourceId === "history") return list;
   const sorted = [...list];
@@ -2154,12 +2197,12 @@ function computeSelectAdultRemote(state: LibraryState): LibraryVideo[] {
   return memo.adultRemote;
 }
 
-export function selectYoutube(state: LibraryState): LibraryVideo[] {
+function computeSelectYoutube(state: LibraryState): LibraryVideo[] {
   const memo = memoFor(state);
   return memo.youtube ?? (memo.youtube = [...publicList(state).filter((v) => v.remote?.kind === "youtube")].sort((a, b) => b.addedAt - a.addedAt));
 }
 
-export function selectTwitch(state: LibraryState): LibraryVideo[] {
+function computeSelectTwitch(state: LibraryState): LibraryVideo[] {
   const memo = memoFor(state);
   if (memo.twitch) return memo.twitch;
   const twitch = publicList(state).filter((v) => v.remote?.kind === "twitch");
@@ -2169,12 +2212,12 @@ export function selectTwitch(state: LibraryState): LibraryVideo[] {
   return memo.twitch;
 }
 
-export function selectLive(state: LibraryState): LibraryVideo[] {
+function computeSelectLive(state: LibraryState): LibraryVideo[] {
   const memo = memoFor(state);
   return memo.live ?? (memo.live = publicList(state).filter((v) => v.remote?.live));
 }
 
-export function selectClassics(state: LibraryState): LibraryVideo[] {
+function computeSelectClassics(state: LibraryState): LibraryVideo[] {
   const memo = memoFor(state);
   return memo.classics ?? (memo.classics = publicList(state).filter((v) => !v.remote && isClassicVideo(v)));
 }
@@ -2208,4 +2251,12 @@ export const selectHistory = memoizeSelector(computeSelectHistory, ["videos", "f
 
 export const selectContinue = memoizeSelector(computeSelectContinue, ["videos", "folders", "hideDemo", "history", "progress", "resumeProgress"]);
 
-export const selectVisible = memoizeSelector(computeSelectVisible, ["videos", "folders", "hideDemo", "unavailable", "sourceId", "query", "tags", "categories", "sort", "favorites", "likes", "history", "progress", "resumeProgress"]);
+export const selectVisible = memoizeSelector(computeSelectVisible, ["videos", "folders", "hideDemo", "unavailable", "sourceId", "query", "searchResult", "tags", "categories", "sort", "favorites", "likes", "history", "progress", "resumeProgress"]);
+
+export const selectYoutube = memoizeSelector(computeSelectYoutube, ["videos", "folders", "unavailable", "hideDemo"]);
+
+export const selectTwitch = memoizeSelector(computeSelectTwitch, ["videos", "folders", "unavailable", "hideDemo"]);
+
+export const selectLive = memoizeSelector(computeSelectLive, ["videos", "folders", "unavailable", "hideDemo"]);
+
+export const selectClassics = memoizeSelector(computeSelectClassics, ["videos", "folders", "unavailable", "hideDemo"]);

@@ -43,11 +43,19 @@ function canStart(priority: ImageSlotPriority) {
   return true;
 }
 
-export async function acquireImageSlot(opts?: { priority?: ImageSlotPriority }): Promise<() => void> {
+export async function acquireImageSlot(opts?: { priority?: ImageSlotPriority; signal?: AbortSignal }): Promise<() => void> {
+  const signal = opts?.signal;
+  if (signal?.aborted) return () => {};
   const priority: ImageSlotPriority = opts?.priority ?? "low";
   const queue = priority === "high" ? waitingHigh : waitingLow;
   while (!canStart(priority)) {
-    await new Promise<void>((resolve) => queue.push(resolve));
+    await new Promise<void>((resolve) => {
+      const wake = () => { signal?.removeEventListener("abort", cancel); resolve(); };
+      const cancel = () => { const index = queue.indexOf(wake); if (index >= 0) queue.splice(index, 1); wake(); };
+      queue.push(wake);
+      signal?.addEventListener("abort", cancel, { once: true });
+    });
+    if (signal?.aborted) { wakeNext(); return () => {}; }
   }
   active += 1;
   let released = false;

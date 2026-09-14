@@ -71,10 +71,10 @@ export function TopBar({
   const [workerIds, setWorkerIds] = useState<string[] | null>(null);
   const [searchIndexStatus, setSearchIndexStatus] = useState(searchWorkerIndex.getStatus());
   useEffect(() => searchWorkerIndex.subscribe(setSearchIndexStatus), []);
-  useEffect(() => { let active = true; if (!needle) { setWorkerIds(null); return; } void searchWorkerIndex.search(needle).then((ids) => { if (active) setWorkerIds(ids); }); return () => { active = false; }; }, [needle]);
+  useEffect(() => { let active = true; setWorkerIds(null); if (!needle) { setWorkerIds(null); return; } void searchWorkerIndex.search(needle).then((ids) => { if (active) setWorkerIds(ids); }); return () => { active = false; }; }, [needle, searchIndexStatus]);
   const videoById = useMemo(() => new Map(videos.map((video) => [video.id, video])), [videos]);
   const hits = useMemo(() => {
-    if (!needle) return [];
+    if (!needle || searchIndexStatus === "building" || (workerIds === null && searchIndexStatus !== "failed")) return [];
     const indexedIds = workerIds ? new Set(workerIds) : librarySearchIndex.search(needle);
     // The index covers title, creator, description, tags, category, source,
     // and local path.  A short fallback keeps search useful during its first
@@ -85,7 +85,7 @@ export function TopBar({
         if (folder?.adult && !((sourceId === "adults" || sourceId === "adult-fetishes") && adultsUnlocked)) return false;
         return indexedIds ? true : `${video.name} ${video.path} ${video.description ?? ""} ${video.remote?.channelName ?? ""} ${(tags[video.id] ?? []).join(" ")}`.toLowerCase().includes(needle);
       }).sort((a, b) => b.addedAt - a.addedAt).slice(0, 6);
-  }, [adultsUnlocked, folders, needle, sourceId, tags, videoById, videos, workerIds]);
+  }, [adultsUnlocked, folders, needle, sourceId, tags, videoById, videos, workerIds, searchIndexStatus]);
   const suggestionTags = useMemo(() => [...new Set(hits.flatMap((video) => tags[video.id] ?? []))].filter((tag) => tag.length >= 3).slice(0, 5), [hits, tags]);
   const commit = (value = draft) => {
     const clean = value.trim();
@@ -130,7 +130,7 @@ export function TopBar({
         {draft && <button type="button" aria-label="Clear search" onClick={() => { setDraft(""); setQuery(""); }} className="absolute top-1/2 right-3 -translate-y-1/2 text-subtle hover:text-fg"><X className="size-4" /></button>}
         {focused && (
           <div className="absolute top-[calc(100%+0.5rem)] z-40 w-full overflow-hidden rounded-lg bg-surface p-2 shadow-lift shadow-border">
-            {searchIndexStatus === "building" && <p className="px-3 py-2 text-xs text-muted">Warming the local search index… suggestions are using the fast fallback.</p>}
+            {searchIndexStatus === "building" && <p className="px-3 py-2 text-xs text-muted">Preparing search… you can keep browsing.</p>}
             {hits.length ? <>
               <p className="px-3 py-2 text-xs font-medium tracking-[0.14em] text-accent uppercase">Best matches</p>
               {hits.map((video) => <button key={video.id} type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => { openPreview(video.id); setFocused(false); }} className="flex w-full items-center gap-3 rounded-sm px-3 py-2 text-left hover:bg-elevated"><span className="flex size-8 shrink-0 items-center justify-center rounded-sm bg-bg/60 text-accent"><FolderSearch className="size-4" /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium text-fg">{video.name}</span><span className="block truncate text-xs text-muted">{video.remote?.channelName ?? video.path}</span></span></button>)}

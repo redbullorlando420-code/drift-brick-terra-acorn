@@ -171,7 +171,8 @@ export function LibraryApp() {
   const [adultTag, setAdultTag] = useState("All");
   const [adultSource, setAdultSource] = useState("all");
   const [adultView, setAdultView] = useState<"all" | "videos" | "live" | "photos">("all");
-  const [adultRailLimit, setAdultRailLimit] = useState(48);
+  // Keep the first Adult paint deliberately small; each rail can expand on demand.
+  const [adultRailLimit, setAdultRailLimit] = useState(24);
   const [adultTagQuery, setAdultTagQuery] = useState("");
   /** Visible ranked tag chips — starts small; Show more adds a page, never dumps hundreds. */
   const [adultTagVisibleCount, setAdultTagVisibleCount] = useState(10);
@@ -211,6 +212,7 @@ export function LibraryApp() {
   const setSource = useLibrary((s) => s.setSource);
   const hydrated = useLibrary((s) => s.hydrated);
   const query = useLibrary((s) => s.query);
+  const searchPending = useLibrary((s) => Boolean(s.query.trim()) && (!s.searchResult || s.searchResult.query !== s.query.trim().toLowerCase() || s.searchResult.videos !== s.videos || s.searchResult.tags !== s.tags || s.searchResult.categories !== s.categories));
   const setQuery = useLibrary((s) => s.setQuery);
   const scanning = useLibrary((s) => s.scanning);
   const activeId = useLibrary((s) => s.activeId);
@@ -228,6 +230,17 @@ export function LibraryApp() {
   // selectYoutube already returns date ordering. Avoid an unnecessary second
   // full-array sort whenever a rating or thumbnail state changes.
   const newestYoutube = youtubeVideos;
+  const youtubeCreatorShelves = useMemo(() => {
+    if (sourceId !== "youtube" || !youtubeExploreVisible || !youtubeDeepVisible) return [];
+    const groups = new Map<string, LibraryVideo[]>();
+    for (const video of newestYoutube) {
+      const creator = video.remote?.channelName;
+      if (!creator || (!groups.has(creator) && groups.size >= 16)) continue;
+      const group = groups.get(creator) ?? [];
+      group.push(video); groups.set(creator, group);
+    }
+    return [...groups].map(([creator, videos]) => ({ creator, videos }));
+  }, [newestYoutube, sourceId, youtubeDeepVisible, youtubeExploreVisible]);
   const twitchVideos = useLibrary(useShallow(selectTwitch));
   const newThisWeek = useMemo(() => sourceId !== "home" || !homeRecommendationsReady ? [] : [...youtubeVideos, ...twitchVideos].filter((video) => video.remote && Date.now() - video.addedAt >= -5 * 60_000 && Date.now() - video.addedAt < 7 * 24 * 60 * 60_000).sort((a, b) => b.addedAt - a.addedAt), [homeRecommendationsReady, sourceId, twitchVideos, youtubeVideos]);
   const liveVideos = useLibrary(useShallow(selectLive));
@@ -389,7 +402,7 @@ export function LibraryApp() {
   useEffect(() => {
     const load = () => {
       const saved = Number(localStorage.getItem("reelcase.adult-rail-limit") ?? "48");
-      setAdultRailLimit([16, 24, 48, 72].includes(saved) ? saved : 48);
+      setAdultRailLimit([16, 24, 48, 72].includes(saved) ? saved : 24);
     };
     load();
     window.addEventListener("reelcase:adult-render-settings", load);
@@ -512,7 +525,7 @@ export function LibraryApp() {
     return preferred;
   }, [ratingRevision, sourceId, tags, videos]);
   const tasteAverages = useMemo(() => {
-    if (!homeRecommendationsReady && sourceId === "home") return { tag: new Map<string, { score: number; confidence: number }>(), creator: new Map<string, { score: number; confidence: number }>() };
+    if (!((sourceId === "home" && homeRecommendationsReady) || (sourceId === "youtube" && youtubeExploreVisible))) return { tag: new Map<string, { score: number; confidence: number }>(), creator: new Map<string, { score: number; confidence: number }>() };
     const tagsByScore = new Map<string, { total: number; count: number }>();
     const creatorsByScore = new Map<string, { total: number; count: number }>();
     for (const video of videos) {
@@ -542,7 +555,7 @@ export function LibraryApp() {
       tag: new Map([...tagsByScore].map(([key, row]) => [key, { score: score(row), confidence: confidence(row) }])),
       creator: new Map([...creatorsByScore].map(([key, row]) => [key, { score: score(row), confidence: confidence(row) }])),
     };
-  }, [favorites, homeRecommendationsReady, likes, ratingRevision, sourceId, tags, videos]);
+  }, [favorites, homeRecommendationsReady, likes, ratingRevision, sourceId, tags, videos, youtubeExploreVisible]);
   const personalizedPicks = useMemo(() => {
     if (sourceId !== "home" || !homeRecommendationsReady) return [];
     const watched = new Set(history.map((entry) => entry.id));
@@ -608,8 +621,9 @@ export function LibraryApp() {
     // visible. Keeping this work off Home and the local views prevents a refresh
     // from blocking their next paint.
     if (sourceId !== "twitch") return [];
-    return [...twitchVideos].filter((video) => !isOfflineChannelCard(video)).sort((a, b) => {
-    const viewers = (video: typeof a) => hasFreshViewerCount(video.remote) ? video.remote?.viewers ?? 0 : 0;
+    const counts = new Map(twitchVideos.map((video) => [video.id, hasFreshViewerCount(video.remote) ? video.remote?.viewers ?? 0 : 0]));
+    return twitchVideos.filter((video) => !isOfflineChannelCard(video)).sort((a, b) => {
+    const viewers = (video: typeof a) => counts.get(video.id) ?? 0;
     if (twitchSort === "viewers") return viewers(b) - viewers(a) || a.name.localeCompare(b.name);
     if (twitchSort === "name") return a.name.localeCompare(b.name);
     return Number(Boolean(b.remote?.live)) - Number(Boolean(a.remote?.live)) || viewers(b) - viewers(a) || b.addedAt - a.addedAt;
@@ -618,7 +632,7 @@ export function LibraryApp() {
   const twitchVodPicks = useMemo(() => {
     if (sourceId !== "twitch") return [];
     const popularity = (video: typeof sortedTwitch[number]) => (hasFreshViewerCount(video.remote) ? video.remote?.viewers ?? 0 : 0) + getRating(video.id) * 40 + (favorites[video.id] ? 28 : 0) + (likes[video.id] ? 16 : 0) + (viewCounts[video.id] ?? 0) * 5 + topicsForVideo(video, tags[video.id]).filter((tag) => highlyRatedTags.has(tag)).length * 8;
-    return sortedTwitch.filter((video) => !video.remote?.live).sort((a, b) => popularity(b) - popularity(a) || b.addedAt - a.addedAt);
+    return sortedTwitch.filter((video) => !video.remote?.live).map((video) => ({ video, score: popularity(video) })).sort((a, b) => b.score - a.score || b.video.addedAt - a.video.addedAt).map(({ video }) => video);
   }, [favorites, highlyRatedTags, likes, ratingRevision, sortedTwitch, sourceId, tags, viewCounts]);
   const twitchArchiveDepth = useMemo(() => {
     if (sourceId !== "twitch") return { total: 0, sparse: 0, channels: [] as Array<{ id: string; name: string; count: number; oldest: number; newest: number; clips: number; lastCheckedAt?: number; lastResponseCount?: number; retryAt?: number }> };
@@ -660,10 +674,18 @@ export function LibraryApp() {
       const creator = video.remote?.channelName?.trim();
       if (video.remote?.live && creator && !liveByCreator.has(creator.toLowerCase())) liveByCreator.set(creator.toLowerCase(), video);
     }
+    const vodsByCreator = new Map<string, typeof twitchVodPicks>();
+    for (const video of twitchVodPicks) {
+      const key = video.remote?.channelName?.trim().toLowerCase();
+      if (!key || !liveByCreator.has(key)) continue;
+      const group = vodsByCreator.get(key) ?? [];
+      group.push(video);
+      vodsByCreator.set(key, group);
+    }
     return [...liveByCreator.values()]
       .map((live) => {
         const creator = live.remote?.channelName?.trim() ?? "";
-        const vods = twitchVodPicks.filter((video) => video.remote?.channelName?.trim().toLowerCase() === creator.toLowerCase());
+        const vods = vodsByCreator.get(creator.toLowerCase()) ?? [];
         return { creator, live, vods };
       })
       .filter((group) => group.vods.length > 0)
@@ -752,7 +774,7 @@ export function LibraryApp() {
     // Build the disk-wide search index after the first screen paints. The old
     // path built it on the first typed character, which was especially visible
     // with several thousand remote cards.
-    const build = () => { librarySearchIndex.sync(catalogVideos, tags, categories); searchWorkerIndex.sync(catalogVideos, tags, categories); };
+    const build = () => { searchWorkerIndex.sync(catalogVideos, tags, categories); };
     const scheduleIdle = window.requestIdleCallback;
     if (typeof scheduleIdle === "function") {
       const id = scheduleIdle(build, { timeout: 2_000 });
@@ -761,6 +783,20 @@ export function LibraryApp() {
     const id = window.setTimeout(build, 350);
     return () => window.clearTimeout(id);
   }, [catalogVideos, categories, hydrated, tags]);
+  useEffect(() => {
+    const needle = query.trim().toLowerCase();
+    if (!hydrated || !needle) return;
+    let active = true;
+    searchWorkerIndex.sync(catalogVideos, tags, categories);
+    void searchWorkerIndex.search(needle).then((ids) => {
+      if (!active) return;
+      // Only browsers without a working worker use the synchronous fallback.
+      if (ids === null) librarySearchIndex.sync(catalogVideos, tags, categories);
+      const matches = ids === null ? librarySearchIndex.search(needle) ?? new Set<string>() : new Set(ids);
+      useLibrary.setState({ searchResult: { query: needle, ids: matches, videos: catalogVideos, tags, categories } });
+    });
+    return () => { active = false; };
+  }, [catalogVideos, categories, hydrated, query, tags]);
   useEffect(() => {
     // Theater invitations are regular shareable links. Route them to the room
     // after saved preferences hydrate so a remembered last page cannot win.
@@ -1114,7 +1150,7 @@ export function LibraryApp() {
                   <section className="mb-7 rounded-xl bg-elevated p-5 shadow-border sm:p-6"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Discovery desk</p><h1 className="mt-2 font-display text-4xl text-fg">YouTube, tuned to you.</h1><p className="mt-2 max-w-2xl text-sm text-muted">Fresh uploads are ordered by YouTube’s published date, not title. Background cache pulls are quiet; only an explicit refresh reports its result. {follows.filter((channel) => channel.kind === "youtube").length} channel{follows.filter((channel) => channel.kind === "youtube").length === 1 ? "" : "s"} tracked locally · {youtubeVideos.length.toLocaleString()} cached videos.</p><p className="mt-2 text-xs text-accent">{remoteCheckedAt ? `Automatic refresh last checked ${new Date(remoteCheckedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Automatic refresh will begin after the first channel check."}{remoteRefreshStatus ? ` · last batch: ${remoteRefreshStatus.refreshed}/${remoteRefreshStatus.checked} channels refreshed, ${remoteRefreshStatus.youtube.toLocaleString()} YouTube entries returned${remoteRefreshStatus.failed ? `, ${remoteRefreshStatus.failed} unavailable` : ""}` : ""}</p><div className="mt-4 flex flex-wrap gap-2"><Button size="sm" variant="secondary" disabled={channelRefreshing === "youtube-refresh"} onClick={() => void (async () => { setChannelRefreshing("youtube-refresh"); try { const result = await refreshFollows(); pushNotice({ title: "YouTube refresh complete", body: `${result.newVideos.filter((video) => video.remote?.kind === "youtube").length} new YouTube video${result.newVideos.filter((video) => video.remote?.kind === "youtube").length === 1 ? "" : "s"} found.`, kind: "youtube" }); } finally { setChannelRefreshing(""); } })()}>{channelRefreshing === "youtube-refresh" ? "Refreshing YouTube…" : "Refresh now"}</Button><Button size="sm" variant="ghost" onClick={() => setYoutubeHealthVisible((value) => !value)}>{youtubeHealthVisible ? "Hide channel health" : "Channel health"}</Button><span className="self-center text-xs text-muted">Saved channels retry in rotating background batches; each result adds to this cached count.</span></div>{youtubeHealthVisible && <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{youtubeHealth.map((channel) => <article key={channel.id} className="rounded-sm bg-bg/45 p-3"><p className="truncate text-sm font-medium text-fg">{channel.title}</p><p className="mt-1 text-xs text-muted">{channel.cached.toLocaleString()} cached · last result {channel.lastResponseCount ?? 0} rows</p><p className="mt-1 text-xs text-muted">{channel.newest ? `Newest ${new Date(channel.newest).toLocaleDateString()}` : "No published item cached"} · {channel.lastCheckedAt ? `checked ${new Date(channel.lastCheckedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "not checked yet"}</p><p className="mt-1 text-xs text-muted">{channel.retryAt && channel.retryAt > Date.now() ? `Retry ${new Date(channel.retryAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Provider ready"}</p></article>)}</div>}</section>
                   <TitleRail title="Latest uploads" videos={filteredYoutube} variant="rail" />
                   {!youtubeExploreVisible && <section className="mb-6 rounded-xl border border-border bg-surface p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Fast start</p><h2 className="mt-2 font-display text-2xl text-fg">Open YouTube fast, then deepen the catalog when you want it.</h2><p className="mt-1 text-sm text-muted">Recommendations, artwork-heavy discovery shelves, tag filters, and the full grid wait until requested. Your newest uploads are ready immediately.</p><Button className="mt-4" variant="secondary" onClick={() => setYoutubeExploreVisible(true)}>Explore recommendations and full catalog</Button></section>}
-                  {youtubeExploreVisible && <><TitleRail title="Trending in your tracked channels" videos={trendingYoutube} variant="rail" /><TitleRail title="New to you on YouTube" videos={freshPicks.filter((video) => video.remote?.kind === "youtube" && (youtubeTagFilter === "all" || topicsForVideo(video, tags[video.id]).includes(youtubeTagFilter)))} variant="rail" /><TitleRail title="More from your rated YouTube" videos={relatedYoutube.filter((video) => youtubeTagFilter === "all" || topicsForVideo(video, tags[video.id]).includes(youtubeTagFilter))} variant="rail" /><TitleRail title="Quick picks" videos={filteredYoutube.filter((video) => (video.duration ?? 0) > 0 && (video.duration ?? 0) < 1200)} variant="rail" /><div className="mb-5 flex flex-wrap gap-2"><Button size="sm" variant={youtubeTagFilter === "all" ? "default" : "secondary"} onClick={() => setYoutubeTagFilter("all")}>All tags</Button>{channelTagShelves.youtube.map((shelf) => <Button key={shelf.tag} size="sm" variant={youtubeTagFilter === shelf.tag ? "default" : "secondary"} onClick={() => setYoutubeTagFilter(shelf.tag)}>#{shelf.tag} · {shelf.videos.length}</Button>)}</div>{youtubeTagFilter !== "all" && <p className="-mt-2 mb-5 text-xs text-accent">Filtering every YouTube shelf and the full catalog by #{youtubeTagFilter} · {filteredYoutube.length.toLocaleString()} matching videos.</p>}<section className="mb-6 rounded-xl border border-border bg-surface p-5"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Creator discovery</p><h2 className="mt-2 font-display text-2xl text-fg">Outside your known follows.</h2><p className="mt-1 text-sm text-muted">Discovery stays in its own shelf so saved channels never get mixed with suggestions. Follow adds a channel to your saved refresh list.</p><div className="mt-4"><TitleRail title="Explore new YouTube" videos={youtubeDiscovery} variant="rail" /></div><div className="mt-4 flex flex-wrap gap-2">{[["Kurzgesagt", "kurzgesagt"], ["Veritasium", "veritasium"], ["PBS Space Time", "pbsspacetime"]].filter(([, handle]) => !follows.some((channel) => channel.kind === "youtube" && channel.handle.toLowerCase() === handle)).map(([label, handle]) => <Button key={handle} size="sm" variant="secondary" disabled={channelRefreshing === handle} onClick={() => void (async () => { setChannelRefreshing(handle); try { await followRemoteQuery(handle, "youtube"); } finally { setChannelRefreshing(""); } })()}>{channelRefreshing === handle ? "Checking…" : `Follow ${label}`}</Button>)}</div></section>{!youtubeDeepVisible && <section className="mb-6 rounded-xl border border-border bg-surface p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Deep discovery</p><h2 className="mt-2 font-display text-2xl text-fg">Browse creator and topic shelves.</h2><p className="mt-1 text-sm text-muted">These shelves remain optional so opening YouTube stays responsive even with a very large archive.</p><Button className="mt-4" variant="secondary" onClick={() => setYoutubeDeepVisible(true)}>Load creator and topic shelves</Button></section>}{youtubeDeepVisible && <>{[...new Set(newestYoutube.map((video) => video.remote?.channelName).filter(Boolean))].slice(0, 16).map((channel) => <TitleRail key={channel} title={`From ${channel}`} videos={newestYoutube.filter((video) => video.remote?.channelName === channel)} variant="rail" />)}{channelTagShelves.youtube.map((shelf) => <TitleRail key={`youtube-tag-${shelf.tag}`} title={`YouTube · ${shelf.tag}`} videos={shelf.videos} variant="rail" />)}</>}<PosterGrid videos={filteredYoutube} /></>}
+                  {youtubeExploreVisible && <><TitleRail title="Trending in your tracked channels" videos={trendingYoutube} variant="rail" /><TitleRail title="New to you on YouTube" videos={freshPicks.filter((video) => video.remote?.kind === "youtube" && (youtubeTagFilter === "all" || topicsForVideo(video, tags[video.id]).includes(youtubeTagFilter)))} variant="rail" /><TitleRail title="More from your rated YouTube" videos={relatedYoutube.filter((video) => youtubeTagFilter === "all" || topicsForVideo(video, tags[video.id]).includes(youtubeTagFilter))} variant="rail" /><TitleRail title="Quick picks" videos={filteredYoutube.filter((video) => (video.duration ?? 0) > 0 && (video.duration ?? 0) < 1200)} variant="rail" /><div className="mb-5 flex flex-wrap gap-2"><Button size="sm" variant={youtubeTagFilter === "all" ? "default" : "secondary"} onClick={() => setYoutubeTagFilter("all")}>All tags</Button>{channelTagShelves.youtube.map((shelf) => <Button key={shelf.tag} size="sm" variant={youtubeTagFilter === shelf.tag ? "default" : "secondary"} onClick={() => setYoutubeTagFilter(shelf.tag)}>#{shelf.tag} · {shelf.videos.length}</Button>)}</div>{youtubeTagFilter !== "all" && <p className="-mt-2 mb-5 text-xs text-accent">Filtering every YouTube shelf and the full catalog by #{youtubeTagFilter} · {filteredYoutube.length.toLocaleString()} matching videos.</p>}<section className="mb-6 rounded-xl border border-border bg-surface p-5"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Creator discovery</p><h2 className="mt-2 font-display text-2xl text-fg">Outside your known follows.</h2><p className="mt-1 text-sm text-muted">Discovery stays in its own shelf so saved channels never get mixed with suggestions. Follow adds a channel to your saved refresh list.</p><div className="mt-4"><TitleRail title="Explore new YouTube" videos={youtubeDiscovery} variant="rail" /></div><div className="mt-4 flex flex-wrap gap-2">{[["Kurzgesagt", "kurzgesagt"], ["Veritasium", "veritasium"], ["PBS Space Time", "pbsspacetime"]].filter(([, handle]) => !follows.some((channel) => channel.kind === "youtube" && channel.handle.toLowerCase() === handle)).map(([label, handle]) => <Button key={handle} size="sm" variant="secondary" disabled={channelRefreshing === handle} onClick={() => void (async () => { setChannelRefreshing(handle); try { await followRemoteQuery(handle, "youtube"); } finally { setChannelRefreshing(""); } })()}>{channelRefreshing === handle ? "Checking…" : `Follow ${label}`}</Button>)}</div></section>{!youtubeDeepVisible && <section className="mb-6 rounded-xl border border-border bg-surface p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Deep discovery</p><h2 className="mt-2 font-display text-2xl text-fg">Browse creator and topic shelves.</h2><p className="mt-1 text-sm text-muted">These shelves remain optional so opening YouTube stays responsive even with a very large archive.</p><Button className="mt-4" variant="secondary" onClick={() => setYoutubeDeepVisible(true)}>Load creator and topic shelves</Button></section>}{youtubeDeepVisible && <>{youtubeCreatorShelves.map(({ creator, videos }) => <TitleRail key={creator} title={`From ${creator}`} videos={videos} variant="rail" />)}{channelTagShelves.youtube.map((shelf) => <TitleRail key={`youtube-tag-${shelf.tag}`} title={`YouTube · ${shelf.tag}`} videos={shelf.videos} variant="rail" />)}</>}<PosterGrid videos={filteredYoutube} /></>}
                   <ConnectPanel key="youtube-imports" defaultKind="youtube" lockedKind="youtube" />
                 </>
               )}
@@ -1471,7 +1507,7 @@ export function LibraryApp() {
                       </div>
                     )}
                   </div>
-                  {query && <section className="mb-5 rounded-lg border border-border bg-surface p-4 shadow-border" aria-label="Search ranking and matching tags"><div className="flex flex-wrap items-baseline justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Search ranking</p><p className="mt-1 text-sm text-muted">Exact title and creator matches lead, followed by matching tags and your saved reactions.</p></div><span className="text-xs text-accent">{searchInsights.ranked.length.toLocaleString()} ranked results</span></div>{searchInsights.tags.length > 0 && <div className="mt-3 flex flex-wrap gap-2"><span className="self-center text-xs text-muted">Top tags</span>{searchInsights.tags.map(({ tag, count }) => <Button key={tag} size="sm" variant="secondary" onClick={() => setQuery(tag)}>#{tag} · {count}</Button>)}</div>}{searchInsights.ranked.length > 0 && <div className="mt-3 grid gap-2 md:grid-cols-3">{searchInsights.ranked.slice(0, 3).map((video, index) => <button key={video.id} type="button" onClick={() => openVideo(video.id)} className="flex min-w-0 items-center gap-3 rounded-md bg-elevated px-3 py-3 text-left hover:bg-bg"><span className="shrink-0 rounded-full bg-accent/15 px-2 py-1 text-xs font-medium text-accent">#{index + 1}</span><span className="min-w-0"><span className="block truncate text-sm font-medium text-fg">{video.name}</span><span className="block truncate text-xs text-muted">{(video.remote?.channelName ?? topicsForVideo(video, tags[video.id]).slice(0, 2).join(" · ")) || "Library match"}</span></span></button>)}</div>}</section>}
+                  {query && <section className="mb-5 rounded-lg border border-border bg-surface p-4 shadow-border" aria-label="Search ranking and matching tags"><div className="flex flex-wrap items-baseline justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Search ranking</p><p className="mt-1 text-sm text-muted">Exact title and creator matches lead, followed by matching tags and your saved reactions.</p></div><span className="text-xs text-accent">{searchPending ? "Searching…" : `${searchInsights.ranked.length.toLocaleString()} ranked results`}</span></div>{searchInsights.tags.length > 0 && <div className="mt-3 flex flex-wrap gap-2"><span className="self-center text-xs text-muted">Top tags</span>{searchInsights.tags.map(({ tag, count }) => <Button key={tag} size="sm" variant="secondary" onClick={() => setQuery(tag)}>#{tag} · {count}</Button>)}</div>}{searchInsights.ranked.length > 0 && <div className="mt-3 grid gap-2 md:grid-cols-3">{searchInsights.ranked.slice(0, 3).map((video, index) => <button key={video.id} type="button" onClick={() => openVideo(video.id)} className="flex min-w-0 items-center gap-3 rounded-md bg-elevated px-3 py-3 text-left hover:bg-bg"><span className="shrink-0 rounded-full bg-accent/15 px-2 py-1 text-xs font-medium text-accent">#{index + 1}</span><span className="min-w-0"><span className="block truncate text-sm font-medium text-fg">{video.name}</span><span className="block truncate text-xs text-muted">{(video.remote?.channelName ?? topicsForVideo(video, tags[video.id]).slice(0, 2).join(" · ")) || "Library match"}</span></span></button>)}</div>}</section>}
                                     {(sourceId === "continue" || sourceId === "history") && !query && (adultContinue.length > 0 || adultHistoryTagged.length > 0) && (
                     <section className="mb-5 rounded-xl border border-border bg-surface p-5 shadow-border">
                       <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Adults activity</p>

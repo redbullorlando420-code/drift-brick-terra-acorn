@@ -4,11 +4,14 @@
  * provider load, browser storage, and first-render work.
  */
 export const LIBRARY_LIMITS = {
-  // Keeps up to 300 real description words plus provider/category signals.
-  remoteMetadataTagsPerTitle: 320,
-  descriptionKeywordTagsPerTitle: 300,
-  remoteRefreshChannelBatch: 96,
-  twitchChannelsReservedPerRefresh: 32,
+  // Remote archive tags are repeated for every card. Keep enough for useful
+  // discovery without retaining a second text index in the app state.
+  remoteMetadataTagsPerTitle: 32,
+  descriptionKeywordTagsPerTitle: 24,
+  // A smaller rotating group prevents one background tick from allocating a
+  // whole library's worth of cards. Each selected creator gets a deeper window.
+  remoteRefreshChannelBatch: 24,
+  twitchChannelsReservedPerRefresh: 8,
   // Keep pace with the Adult catalog without making the first channel paint
   // wait on every archive continuation. Focused pulls retain a deep history;
   // routine and bulk refreshes fill it in wider batches below.
@@ -17,11 +20,11 @@ export const LIBRARY_LIMITS = {
   // A page is usually 30–100 items, so 96 pages has room to reach a creator's
   // older public catalog without leaving an unbounded request running.
   youtubeArchivePagesPerPull: 96,
-  youtubeRoutineVideosPerChannel: 960,
+  youtubeRoutineVideosPerChannel: 1_200,
   youtubeBulkImportVideosPerChannel: 960,
   twitchArchivePageSize: 160,
   twitchFocusedVodsPerChannel: 8_000,
-  twitchRoutineVodsPerChannel: 640,
+  twitchRoutineVodsPerChannel: 960,
   // Eporner API allows up to 1000 results per page; batch pages like YT/Twitch archives.
   epornerPageSize: 1000,
   epornerPagesPerPull: 6,

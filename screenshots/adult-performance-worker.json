@@ -2,9 +2,9 @@
   {
     "name": "desktop",
     "titles": 20000,
-    "coldMs": 37.80000001192093,
-    "cached100Ms": 0.8999999761581421,
-    "openMs": 501,
+    "coldMs": 30.900000035762787,
+    "cached100Ms": 0.5999999642372131,
+    "openMs": 199,
     "width": 1280,
     "scrollWidth": 1280,
     "offenders": [
@@ -72,19 +72,19 @@
     "overflow": false,
     "render": {
       "mountedCards": 40,
-      "longFrames": 6,
+      "longFrames": 186,
       "lastFrameMs": 6,
-      "worstFrameMs": 106,
-      "startedAt": 1789365891943
+      "worstFrameMs": 222,
+      "startedAt": 1789409642695
     },
     "errors": []
   },
   {
     "name": "mobile",
     "titles": 20000,
-    "coldMs": 37.5,
+    "coldMs": 31,
     "cached100Ms": 0.800000011920929,
-    "openMs": 281,
+    "openMs": 176,
     "width": 390,
     "scrollWidth": 390,
     "offenders": [
@@ -152,10 +152,10 @@
     "overflow": false,
     "render": {
       "mountedCards": 24,
-      "longFrames": 1,
+      "longFrames": 139,
       "lastFrameMs": 6,
-      "worstFrameMs": 100,
-      "startedAt": 1789365901375
+      "worstFrameMs": 250,
+      "startedAt": 1789409663658
     },
     "errors": []
   }

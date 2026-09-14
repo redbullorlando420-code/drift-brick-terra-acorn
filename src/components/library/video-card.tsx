@@ -19,6 +19,8 @@ import { registerMountedCard } from "@/lib/render-budget";
 import { measureInteraction } from "@/lib/interaction-budget";
 import { acquireImageSlot } from "@/lib/videos/image-load-budget";
 
+const publishedDateFormat = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" });
+
 const THUMB_LOAD_TIMEOUT_MS = 4500;
 const RAIL_WARM_INDEX = 8;
 
@@ -183,7 +185,8 @@ export const VideoCard = memo(function VideoCard({
     }
     let release: (() => void) | undefined;
     let cancelled = false;
-    void acquireImageSlot({ priority: "high" }).then((done) => {
+    const controller = new AbortController();
+    void acquireImageSlot({ priority: "high", signal: controller.signal }).then((done) => {
       if (cancelled) {
         done();
         return;
@@ -194,6 +197,7 @@ export const VideoCard = memo(function VideoCard({
     });
     return () => {
       cancelled = true;
+      controller.abort();
       if (imageSlotRelease.current === release) imageSlotRelease.current = undefined;
       release?.();
       setArtAllowed(false);
@@ -408,7 +412,7 @@ export const VideoCard = memo(function VideoCard({
                 ) : null}
               </>
             ) : video.remote ? (
-              <>{video.remote.channelName ?? video.remote.kind}{video.remote.views ? <><span className="text-subtle"> · </span>{video.remote.views.toLocaleString()} views</> : null}{(video.remote.kind === "youtube" || (video.remote.kind === "twitch" && !live)) ? <><span className="text-subtle"> · </span>{video.addedAt > Date.UTC(2000, 0, 1) ? `Published ${new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" }).format(video.addedAt)}` : "Older catalog item"}</> : null}</>
+              <>{video.remote.channelName ?? video.remote.kind}{video.remote.views ? <><span className="text-subtle"> · </span>{video.remote.views.toLocaleString()} views</> : null}{(video.remote.kind === "youtube" || (video.remote.kind === "twitch" && !live)) ? <><span className="text-subtle"> · </span>{video.addedAt > Date.UTC(2000, 0, 1) ? `Published ${publishedDateFormat.format(video.addedAt)}` : "Older catalog item"}</> : null}</>
             ) : video.year || video.genre ? (
               <>
                 {video.year ?? video.extension.toUpperCase()}

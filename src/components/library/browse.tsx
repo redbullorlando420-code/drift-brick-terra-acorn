@@ -198,8 +198,44 @@ export function TitleRail({
   );
 }
 
+// Each row owns its visibility and measured placeholder. Scrolling does not
+// rerender the catalog or retain image subscriptions for previously read pages.
+function PosterRow({ videos, start, estimate }: { videos: LibraryVideo[]; start: number; estimate: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const intersecting = useRef(false);
+  const [visible, setVisible] = useState(false);
+  const [height, setHeight] = useState(estimate);
+  useEffect(() => setHeight(estimate), [estimate]);
+  useEffect(() => {
+    const row = ref.current;
+    if (!row) return;
+    if (typeof IntersectionObserver === "undefined") { setVisible(true); return; }
+    const observer = new IntersectionObserver(([entry]) => {
+      intersecting.current = entry.isIntersecting;
+      setVisible(entry.isIntersecting || row.contains(document.activeElement));
+    }, { rootMargin: "300px 0px" });
+    observer.observe(row);
+    return () => observer.disconnect();
+  }, []);
+  useEffect(() => {
+    const row = ref.current;
+    if (!row || !visible) return;
+    const observer = new ResizeObserver(() => setHeight(Math.ceil(row.getBoundingClientRect().height)));
+    observer.observe(row);
+    return () => observer.disconnect();
+  }, [visible]);
+  return <div ref={ref} data-poster-row role="group" aria-label={`Titles ${start + 1}–${start + videos.length}`}
+    tabIndex={visible ? -1 : 0} onFocus={() => setVisible(true)}
+    onBlur={(event) => { if (!intersecting.current && !event.currentTarget.contains(event.relatedTarget)) setVisible(false); }}
+    className="col-span-full grid grid-cols-subgrid gap-3 sm:gap-4" style={!visible ? { height } : undefined}>
+    {visible && videos.map((video, i) => <VideoCard key={video.id} video={video} variant="poster" index={start + i} className="w-full" />)}
+  </div>;
+}
+
 export function PosterGrid({ videos }: { videos: LibraryVideo[] }) {
   const gridRef = useRef<HTMLElement>(null);
+  const layoutRef = useRef<HTMLDivElement>(null);
+  const [layout, setLayout] = useState({ columns: 3, estimate: 260 });
   const leaveTimer = useRef<number | undefined>(undefined);
   const [nearViewport, setNearViewport] = useState(false);
   const [gridHeight, setGridHeight] = useState<number>();
@@ -248,15 +284,29 @@ export function PosterGrid({ videos }: { videos: LibraryVideo[] }) {
     observer.observe(grid);
     return () => observer.disconnect();
   }, [nearViewport]);
+  useEffect(() => {
+    const grid = layoutRef.current;
+    if (!grid) return;
+    const sync = () => {
+      const style = getComputedStyle(grid);
+      const columns = style.gridTemplateColumns.split(" ").length;
+      const gap = parseFloat(style.columnGap) || 12;
+      const estimate = Math.ceil((grid.clientWidth - gap * (columns - 1)) / columns * (9 / 16) + 80);
+      setLayout((old) => old.columns === columns && old.estimate === estimate ? old : { columns, estimate });
+    };
+    sync();
+    const observer = new ResizeObserver(sync);
+    observer.observe(grid);
+    return () => observer.disconnect();
+  }, [nearViewport]);
   if (!videos.length) return null;
   const visible = videos.slice(0, limit);
+  const rows = Array.from({ length: Math.ceil(visible.length / layout.columns) }, (_, row) => row * layout.columns);
   return (
     <section ref={gridRef} className="media-shelf" style={!nearViewport ? { minHeight: gridHeight ?? 900 } : undefined}>
       {nearViewport && <>
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 sm:gap-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7">
-          {visible.map((video, i) => (
-            <VideoCard key={video.id} video={video} variant="poster" index={i} className="w-full" />
-          ))}
+        <div ref={layoutRef} className="grid grid-cols-3 gap-3 sm:grid-cols-4 sm:gap-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7">
+          {rows.map((start) => <PosterRow key={`${layout.columns}:${start}`} start={start} videos={visible.slice(start, start + layout.columns)} estimate={layout.estimate} />)}
         </div>
         {videos.length > limit && <div className="mt-5 flex items-center justify-between gap-3"><p className="text-xs text-muted">Page {Math.ceil(limit / safePageSize)} · showing {limit.toLocaleString()} of {videos.length.toLocaleString()} titles</p><Button variant="secondary" onClick={() => setLimit((value) => Math.min(value + safePageSize, videos.length))}>Next page · {safePageSize}</Button></div>}
       </>}

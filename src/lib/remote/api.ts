@@ -194,7 +194,10 @@ function ytVideo(entry: {
     duration: entry.duration,
     addedAt: published,
     tagline: entry.desc.slice(0, 180),
-    description: entry.desc.slice(0, 4_000),
+    // A compact snippet still supports discovery and local topic matching.
+    // Keeping multi-kilobyte descriptions for deep archives wastes browser
+    // memory and durable storage without helping the card UI.
+    description: entry.desc.slice(0, 800),
     poster: entry.thumb || `https://i.ytimg.com/vi/${entry.id}/hqdefault.jpg`,
     src: `https://www.youtube.com/embed/${entry.id}`,
     remote: {
@@ -222,7 +225,7 @@ type YoutubeRenderer = {
 // server cache so opening a creator, refreshing its shelf, and retrying an
 // embed do not fan out into identical page reads.
 const YOUTUBE_CHANNEL_CACHE_TTL_MS = 4 * 60_000;
-const YOUTUBE_CHANNEL_CACHE_LIMIT = 64;
+const YOUTUBE_CHANNEL_CACHE_LIMIT = 12;
 const youtubeChannelCache = new Map<string, { at: number; result: FollowResult }>();
 
 function rendererText(value: YoutubeRenderer["title"] | YoutubeRenderer["viewCountText"]) {
@@ -498,8 +501,12 @@ async function youtubeFromChannelUncoalesced(query: string, limit: number = LIBR
     lastResponseCount: videos.length,
   };
   const result = { channel, videos };
-  youtubeChannelCache.set(channelId, { at: Date.now(), result });
-  while (youtubeChannelCache.size > YOUTUBE_CHANNEL_CACHE_LIMIT) youtubeChannelCache.delete(youtubeChannelCache.keys().next().value!);
+  // Do not retain a second server-side graph for focused 6,000-title pulls.
+  // Routine windows remain cached briefly to protect rotating refreshes.
+  if (boundedLimit <= LIBRARY_LIMITS.youtubeRoutineVideosPerChannel) {
+    youtubeChannelCache.set(channelId, { at: Date.now(), result });
+    while (youtubeChannelCache.size > YOUTUBE_CHANNEL_CACHE_LIMIT) youtubeChannelCache.delete(youtubeChannelCache.keys().next().value!);
+  }
   return boundedFollowResult(result, boundedLimit);
 }
 
@@ -663,7 +670,7 @@ function twitchVideos(login: string, user: GqlUser, vodLimit: number = TWITCH_AR
       genre: node.game?.name,
       poster: node.previewThumbnailURL,
       tagline: node.description?.slice(0, 180),
-      description: node.description?.slice(0, 4_000),
+      description: node.description?.slice(0, 800),
       remote: {
         kind: "twitch",
         videoId: node.id,

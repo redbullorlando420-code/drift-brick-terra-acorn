@@ -6,10 +6,10 @@ test('a failed or unrequested channel keeps its cached catalog', () => {
   const old = [video('saved'), video('other', 'tw:other')];
   assert.deepEqual(mergeRemoteRefresh(old, [], [], new Set()), old);
 });
-test('saved Twitch entries survive a shorter successful refresh', () => {
+test('Twitch VOD history survives a shorter successful refresh', () => {
   const old = [video('liked'), video('favorite'), video('expired')];
   const result = mergeRemoteRefresh(old, [video('new')], ['tw:creator'], new Set(['liked', 'favorite']));
-  assert.deepEqual(result.map(v => v.id), ['liked', 'favorite', 'new']);
+  assert.deepEqual(result.map(v => v.id), ['liked', 'favorite', 'expired', 'new']);
 });
 test('a saved channel stops appearing live when a successful check finds it offline', () => {
   const result = mergeRemoteRefresh([video('live', 'tw:creator', true)], [], ['tw:creator'], new Set(['live']));

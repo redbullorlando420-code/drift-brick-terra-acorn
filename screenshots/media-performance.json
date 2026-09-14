@@ -1,0 +1,48 @@
+[
+  {
+    "name": "desktop",
+    "catalog": 60000,
+    "rows": [
+      {
+        "source": "Adults",
+        "openMs": 216,
+        "mounted": 8
+      },
+      {
+        "source": "YouTube",
+        "openMs": 104,
+        "mounted": 7
+      },
+      {
+        "source": "Twitch",
+        "openMs": 355,
+        "mounted": 21
+      }
+    ],
+    "mountedGrid": 36,
+    "errors": []
+  },
+  {
+    "name": "mobile",
+    "catalog": 60000,
+    "rows": [
+      {
+        "source": "Adults",
+        "openMs": 283,
+        "mounted": 8
+      },
+      {
+        "source": "YouTube",
+        "openMs": 118,
+        "mounted": 4
+      },
+      {
+        "source": "Twitch",
+        "openMs": 443,
+        "mounted": 8
+      }
+    ],
+    "mountedGrid": 9,
+    "errors": []
+  }
+]
