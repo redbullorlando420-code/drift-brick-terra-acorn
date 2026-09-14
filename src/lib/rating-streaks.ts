@@ -48,7 +48,10 @@ function write(days: RatingDay[]) { try { localStorage.setItem(KEY, JSON.stringi
  * counter, especially after a refresh or browser restore. */
 function reconcileRatingLedger(days: RatingDay[]) {
   try {
-    const feedback = JSON.parse(localStorage.getItem("reelcase.media-feedback.v1") ?? "{}") as { ratingHistory?: Record<string, { rating?: number; updatedAt?: number }> };
+    const feedback = JSON.parse(localStorage.getItem("reelcase.media-feedback.v1") ?? "{}") as {
+      ratings?: Record<string, number>;
+      ratingHistory?: Record<string, { rating?: number; updatedAt?: number }>;
+    };
     for (const [id, row] of Object.entries(feedback.ratingHistory ?? {})) {
       if (!(Number(row.rating) > 0) || !Number.isFinite(Number(row.updatedAt))) continue;
       const at = new Date(Number(row.updatedAt));
@@ -57,17 +60,33 @@ function reconcileRatingLedger(days: RatingDay[]) {
       if (target) { if (!target.ids.includes(id)) target.ids.push(id); }
       else days.push({ day, ids: [id] });
     }
+    // Older feedback saved a rating but no timestamped ledger. Credit each
+    // still-rated title once during the migration instead of leaving Rating
+    // Rhythm stuck at zero after an upgrade.
+    const today = dayKey();
+    const target = days.find((entry) => entry.day === today) ?? (() => {
+      const created = { day: today, ids: [] as string[] };
+      days.push(created);
+      return created;
+    })();
+    for (const [id, rating] of Object.entries(feedback.ratings ?? {})) {
+      if (Number(rating) > 0 && !(id in (feedback.ratingHistory ?? {})) && !target.ids.includes(id)) target.ids.push(id);
+    }
   } catch { /* the streak remains usable if old feedback cannot be read */ }
   return days;
 }
 
 export function recordRatingForStreak(id: string, rating: number) {
-  if (!id || rating < 1 || typeof window === "undefined") return;
+  if (!id || typeof window === "undefined") return;
   const days = read();
   const today = dayKey();
   const row = days.find((entry) => entry.day === today);
-  if (row) { if (!row.ids.includes(id)) row.ids.push(id); }
-  else days.push({ day: today, ids: [id] });
+  if (rating >= 1) {
+    if (row) { if (!row.ids.includes(id)) row.ids.push(id); }
+    else days.push({ day: today, ids: [id] });
+  } else if (row) {
+    row.ids = row.ids.filter((saved) => saved !== id);
+  }
   write(days);
   window.dispatchEvent(new Event("reelcase:rating-streak-change"));
 }
@@ -77,16 +96,18 @@ export function getRatingStreakSnapshot(now = new Date()): RatingStreakSnapshot 
   write(days);
   const weeklyGoalValue = weeklyGoal();
   const currentWeek = weekKey(now);
-  const weekTotals = new Map<string, number>();
+  const weekTotals = new Map<string, Set<string>>();
   for (const row of days) {
     const key = weekKey(new Date(`${row.day}T12:00:00`));
-    weekTotals.set(key, (weekTotals.get(key) ?? 0) + new Set(row.ids).size);
+    const ids = weekTotals.get(key) ?? new Set<string>();
+    for (const id of row.ids) ids.add(id);
+    weekTotals.set(key, ids);
   }
-  const thisWeek = weekTotals.get(currentWeek) ?? 0;
+  const thisWeek = weekTotals.get(currentWeek)?.size ?? 0;
   let weeklyStreak = 0;
   const cursor = new Date(now);
   while (true) {
-    if ((weekTotals.get(weekKey(cursor)) ?? 0) < weeklyGoalValue) break;
+    if ((weekTotals.get(weekKey(cursor))?.size ?? 0) < weeklyGoalValue) break;
     weeklyStreak += 1;
     cursor.setDate(cursor.getDate() - 7);
   }

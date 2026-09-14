@@ -107,7 +107,7 @@ export function isAdultMetaTag(tag: string): boolean {
     && !tag.startsWith("sub-")
     && !tag.startsWith("provider-")
     && !tag.startsWith("format-")
-    && !/^(?:adult|video|photo|live|cam|image|explicit|https?|www|com|eporner|redtube|reddit|chaturbate|camsoda|myfreecams|booru|redgifs)$/.test(tag)
+    && !/^(?:adult|video|photo|live|cam|image|explicit|https?|www|com|eporner|redtube|reddit|chaturbate|myfreecams|booru|redgifs)$/.test(tag)
     && tag.length >= 3
     && !/(?:https?|\bwww\b|redgifs|eporner|redtube)/.test(tag));
 }

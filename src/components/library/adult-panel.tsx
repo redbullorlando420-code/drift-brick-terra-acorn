@@ -43,9 +43,8 @@ const ORDERS: { id: string; label: string }[] = [
 const PROVIDER_CHOICES: { id: AdultPullProvider[] | "all"; label: string }[] = [
   { id: "all", label: "All pull sources" },
   { id: ["eporner", "redtube"], label: "Videos (Eporner + RedTube)" },
-  { id: ["chaturbate", "camsoda", "myfreecams"], label: "Live cams" },
+  { id: ["chaturbate", "myfreecams"], label: "Live cams" },
   { id: ["chaturbate"], label: "Chaturbate only" },
-  { id: ["camsoda"], label: "CamSoda only" },
   { id: ["myfreecams"], label: "MyFreeCams only" },
   { id: ["reddit"], label: "Reddit (18+)" },
   { id: ["booru"], label: "Booru photos (18+)" },
@@ -721,7 +720,7 @@ export function AdultPanel({
         <summary className="cursor-pointer list-none p-5 [&::-webkit-details-marker]:hidden"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Adult sites</p><h2 className="mt-2 font-display text-2xl text-fg sm:text-3xl">Embed-ready pull sources</h2><p className="mt-2 text-xs text-muted">Collapse this section to focus on the catalog.</p></summary>
         <div className="px-5 pb-5">
         <p className="mt-2 max-w-2xl text-sm text-muted">
-          Official public APIs: Eporner, RedTube, Chaturbate embeds, CamSoda room pages, the MyFreeCams online list,
+          Official public APIs: Eporner, RedTube, Chaturbate embeds, the MyFreeCams online list,
           Reddit public Atom RSS for curated 18+ subs, and Gelbooru-style booru JSON (XBooru / TBIB / Hypnohub). If one source errors, the others still fill the shelf.
         </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -735,7 +734,7 @@ export function AdultPanel({
       <details className="rounded-xl bg-elevated shadow-border">
         <summary className="cursor-pointer list-none p-5 [&::-webkit-details-marker]:hidden"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Catalog milestones</p><h2 className="mt-2 font-display text-2xl text-fg">Current reliability coverage</h2><p className="mt-2 text-xs text-muted">Expand for the active work grouped by catalog area.</p></summary>
         <div className="grid gap-3 border-t border-border px-5 pb-5 pt-4 sm:grid-cols-2 lg:grid-cols-3">
-          {[['Reddit media', 'Saved community list, priority/favorite and hide controls, Atom pulls, Redgifs dual-source cards, and image recovery.'], ['Live rooms', 'Chaturbate, CamSoda, and MyFreeCams public room lists with live-only placement and provider diagnostics.'], ['Photos & tags', 'Booru response-shape recovery, creator attribution, stable tag scoring, and permanent heart history.'], ['Catalog feedback', 'Pull health explains loaded, empty, and failed providers; ratings rebuild the weekly streak from durable feedback.']].map(([title, copy]) => <div key={title} className="rounded-md bg-surface p-3 shadow-border"><p className="text-sm font-medium text-fg">{title}</p><p className="mt-1 text-xs leading-5 text-muted">{copy}</p></div>)}
+          {[['Reddit media', 'Saved community list, priority/favorite and hide controls, Atom pulls, Redgifs dual-source cards, and image recovery.'], ['Live rooms', 'Chaturbate and MyFreeCams public room lists with live-only placement and provider diagnostics.'], ['Photos & tags', 'Booru response-shape recovery, creator attribution, stable tag scoring, and permanent heart history.'], ['Catalog feedback', 'Pull health explains loaded, empty, and failed providers; ratings rebuild the weekly streak from durable feedback.']].map(([title, copy]) => <div key={title} className="rounded-md bg-surface p-3 shadow-border"><p className="text-sm font-medium text-fg">{title}</p><p className="mt-1 text-xs leading-5 text-muted">{copy}</p></div>)}
         </div>
       </details>
 
@@ -798,9 +797,9 @@ export function AdultPanel({
               <div key={group}>
                 <p className="mb-2 text-xs font-medium tracking-[0.14em] text-accent uppercase">{label}</p>
                 <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-                  {sites.map((site) => (
+                  {sites.map((site, index) => (
                     <SiteCard
-                      key={`${site.sourceId ?? site.name}-${site.href}`}
+                      key={`${site.sourceId ?? site.name}-${site.href}-${index}`}
                       {...site}
                       compact
                       badge={group === "cam" || group === "voyeur" ? "Cam/chat" : group === "download" || group === "torrent" ? "Link-out only" : group === "community" || group === "blog" ? "Link-out" : "Milestone"}

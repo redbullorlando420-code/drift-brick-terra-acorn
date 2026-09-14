@@ -57,13 +57,6 @@ export const ADULT_NICHE_MILESTONES = [
     sourceId: 'voyeur-house-tv',
   },
   {
-    name: 'CamSoda Voyeur',
-    href: 'https://www.camsoda.com/tags/voyeur',
-    copy: 'CamSoda Voyeur — open externally (milestone / link-out).',
-    group: 'voyeur',
-    sourceId: 'camsoda-voyeur',
-  },
-  {
     name: 'StripChat Spy Shows',
     href: 'https://stripchat.com/tags/spy',
     copy: 'StripChat Spy Shows — open externally (milestone / link-out).',

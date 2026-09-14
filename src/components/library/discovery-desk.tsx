@@ -49,8 +49,16 @@ export function RatingStreakCard() {
   const [snapshot, setSnapshot] = useState<RatingStreakSnapshot>(() => getRatingStreakSnapshot());
   useEffect(() => {
     const refresh = () => setSnapshot(getRatingStreakSnapshot());
+    // The first snapshot can be rendered on the server, where browser-backed
+    // feedback is unavailable. Re-read after hydration so saved ratings do not
+    // remain displayed as zero until someone rates another title.
+    refresh();
     window.addEventListener("reelcase:rating-streak-change", refresh);
-    return () => window.removeEventListener("reelcase:rating-streak-change", refresh);
+    window.addEventListener("reelcase:rating-change", refresh);
+    return () => {
+      window.removeEventListener("reelcase:rating-streak-change", refresh);
+      window.removeEventListener("reelcase:rating-change", refresh);
+    };
   }, []);
   const remaining = Math.max(0, snapshot.weeklyGoal - snapshot.thisWeek);
   return <section className="mb-8 rounded-xl border border-border bg-surface p-5 shadow-border sm:p-6" aria-label="Rating streak">

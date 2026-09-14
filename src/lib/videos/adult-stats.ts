@@ -102,7 +102,7 @@ export function isAdultStatsNoiseTag(raw: string): boolean {
   if (!tag) return true;
   if (/(?:https?:|\bwww\b|\.com\b|\/watch\b|\/comments?\b)/.test(tag)) return true;
   const plain = tag.replace(/^fetish-/, "");
-  return /^(?:https?|www|com|watch|comments?|reddit|redgifs|eporner|redtube|chaturbate|camsoda|myfreecams|booru)(?:-|$)/.test(plain);
+  return /^(?:https?|www|com|watch|comments?|reddit|redgifs|eporner|redtube|chaturbate|myfreecams|booru)(?:-|$)/.test(plain);
 }
 
 function usefulInterestTags(video: LibraryVideo, tags: Record<string, string[]>): string[] {

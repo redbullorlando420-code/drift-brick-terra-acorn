@@ -327,7 +327,7 @@ export function StatsSection() {
       const videoTags = tags[video.id] ?? [];
       // Adult tags have their own scored taxonomy above. Do not let generic
       // provider keywords (for example "music") displace library topics.
-      const adultRemote = ["eporner", "redtube", "chaturbate", "camsoda", "myfreecams", "reddit", "booru", "redgifs"].includes(video.remote?.kind ?? "");
+      const adultRemote = ["eporner", "redtube", "chaturbate", "myfreecams", "reddit", "booru", "redgifs"].includes(video.remote?.kind ?? "");
       const usefulTopics = adultRemote ? new Set<string>() : new Set(videoTags.map(canonicalTopic).filter((tag): tag is string => Boolean(tag)));
       if (videoTags.length) metadataTaggedTitles += 1;
       if (video.remote?.channelName?.trim()) creatorTaggedTitles += 1;
@@ -370,7 +370,7 @@ export function StatsSection() {
   const folderRows = useMemo(() => folders.filter((folder) => folder.kind !== "demo").map((folder) => ({ folder, ...(summary.byFolder.get(folder.id) ?? { videos: 0, bytes: 0 }) })).sort((a, b) => b.bytes - a.bytes || b.videos - a.videos || a.folder.name.localeCompare(b.folder.name)), [folders, summary.byFolder]);
   const adultTagStats = useMemo(() => {
     const adultFolderIds = new Set(folders.filter((folder) => folder.adult).map((folder) => folder.id));
-    const adultVideos = videos.filter((video) => adultFolderIds.has(video.folderId) || Boolean(video.remote && ["eporner", "redtube", "chaturbate", "camsoda", "myfreecams", "reddit", "booru", "redgifs"].includes(video.remote.kind)));
+    const adultVideos = videos.filter((video) => adultFolderIds.has(video.folderId) || Boolean(video.remote && ["eporner", "redtube", "chaturbate", "myfreecams", "reddit", "booru", "redgifs"].includes(video.remote.kind)));
     const ranked = rankAdultTags(adultVideos, { tags, favorites, likes, cameCounts, viewCounts, ratingOf: getRating }, 80);
     const fetish = ranked.filter((row) => !row.tag.startsWith("source-") && !row.tag.startsWith("provider-") && !row.tag.startsWith("format-"));
     const sources = ranked.filter((row) => row.tag.startsWith("source-") || row.tag.startsWith("provider-") || row.tag.startsWith("sub-"));

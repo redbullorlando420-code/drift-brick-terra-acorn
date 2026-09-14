@@ -5,7 +5,6 @@ import { cachedAdultFetch } from "@/lib/remote/adult-pull-cache";
 import {
   adultDeepenQueriesForPage,
   ADULT_PULL_PROVIDERS,
-  CAMSODA_FOLDER_ID,
   CHATURBATE_FOLDER_ID,
   EPORNER_FOLDER_ID,
   MYFREECAMS_FOLDER_ID,
@@ -1363,133 +1362,6 @@ async function fetchChaturbateRooms(query: string, maxVideos: number): Promise<{
 }
 
 
-const CAMSODA_TPL = [
-  "user_id",
-  "username",
-  "display_name",
-  "status",
-  "connections",
-  "sort_value",
-  "subject_html",
-  "stream_name",
-  "gender",
-  "edge_servers",
-  "thumb",
-  "pvt_rating",
-  "bitrate",
-  "control_her",
-  "standby",
-  "offline_picture",
-] as const;
-
-function asTplMap(tpl: unknown): Record<string, unknown> {
-  if (Array.isArray(tpl)) return Object.fromEntries(tpl.map((value, index) => [String(index), value]));
-  if (tpl && typeof tpl === "object") return tpl as Record<string, unknown>;
-  return {};
-}
-
-function camsodaValue(tpl: Record<string, unknown>, field: (typeof CAMSODA_TPL)[number]) {
-  // The public endpoint has shipped both positional `tpl` rows and named
-  // objects. Supporting both prevents a schema rollout from turning a healthy
-  // source into a misleading zero-result filter.
-  return tpl[field] ?? tpl[String(CAMSODA_TPL.indexOf(field))];
-}
-
-function stripMarkup(value: string) {
-  return value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-}
-
-function camsodaVideo(row: { tpl?: unknown }): LibraryVideo | null {
-  const tpl = asTplMap(row.tpl);
-  const username = asString(camsodaValue(tpl, "username")).trim().toLowerCase();
-  if (!username || !/^[a-z0-9_-]+$/.test(username)) return null;
-  const status = asString(camsodaValue(tpl, "status")).trim().toLowerCase();
-  if (status && /private|offline|away|hidden/.test(status)) return null;
-  const display = asString(camsodaValue(tpl, "display_name")).trim() || username;
-  const subject = stripMarkup(asString(camsodaValue(tpl, "subject_html")));
-  if (adultBlockedText(username, display, subject)) return null;
-  const thumb = asString(camsodaValue(tpl, "thumb")).trim();
-  const offlinePicture = asString(camsodaValue(tpl, "offline_picture")).trim();
-  const connections = camsodaValue(tpl, "connections");
-  const viewers = typeof connections === "number" && Number.isFinite(connections) ? connections : undefined;
-  const watch = `https://www.camsoda.com/${encodeURIComponent(username)}`;
-  return {
-    id: `camsoda:${username}`,
-    folderId: CAMSODA_FOLDER_ID,
-    name: display,
-    path: `camsoda/${username}`,
-    extension: "camsoda",
-    mime: "video/camsoda",
-    size: 0,
-    addedAt: Date.now(),
-    tagline: subject.slice(0, 160) || "Live on CamSoda",
-    description: ["live", "cam", subject].filter(Boolean).join(", ") || undefined,
-    poster: thumb || undefined,
-    src: watch,
-    remote: {
-      kind: "camsoda",
-      videoId: username,
-      channelName: display,
-      live: true,
-      viewers,
-      observedAt: Date.now(),
-      embedUrl: watch,
-      watchUrl: watch,
-      previewUrl: thumb || undefined,
-      thumbFallbacks: [thumb, offlinePicture].filter(isUsableAdultThumb),
-    },
-  };
-}
-
-let camsodaCache: { at: number; rooms: LibraryVideo[] } | null = null;
-const CAMSODA_CACHE_MS = 3 * 60_000;
-
-async function fetchCamSodaRooms(query: string, maxVideos: number): Promise<{
-  videos: LibraryVideo[];
-  totalPages: number;
-  totalCount: number;
-}> {
-  if (!camsodaCache || Date.now() - camsodaCache.at > CAMSODA_CACHE_MS) {
-    const priorRooms = camsodaCache?.rooms ?? [];
-    const res = await cachedAdultFetch("https://www.camsoda.com/api/v1/browse/online", {
-      cacheTtlMs: 3 * 60_000,
-      signal: AbortSignal.timeout(25000),
-      headers: {
-        accept: "application/json",
-        referer: "https://www.camsoda.com/",
-        "accept-language": "en-US,en;q=0.8",
-        "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
-      },
-    });
-    // CamSoda may decline server-side public-listing requests. Treat that as an
-    // unavailable listing rather than failing an otherwise useful mixed pull.
-    if (res.status === 403) {
-      // Keep the last known public roster when CamSoda temporarily declines a
-      // listing request. It is more useful than blanking the live rail, and
-      // remains short-lived so a later success replaces it promptly.
-      camsodaCache = { at: Date.now(), rooms: priorRooms };
-    } else if (!res.ok) {
-      throw new Error(`CamSoda rooms HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
-    } else {
-      const json = (await res.json()) as { results?: Array<{ tpl?: unknown }>; rooms?: Array<{ tpl?: unknown }> } | Array<{ tpl?: unknown }>;
-      const resultRows = Array.isArray(json) ? json : Array.isArray(json.results) ? json.results : Array.isArray(json.rooms) ? json.rooms : [];
-      const rooms = resultRows
-        .map(camsodaVideo)
-        .filter((video): video is LibraryVideo => video != null);
-      camsodaCache = { at: Date.now(), rooms: rooms.length ? rooms : priorRooms };
-    }
-  }
-  const needle = query.trim().toLowerCase();
-  const filtered =
-    !needle || needle === "all"
-      ? camsodaCache.rooms
-      : camsodaCache.rooms.filter((video) => {
-          const hay = `${video.name} ${video.description ?? ""} ${video.remote?.videoId ?? ""}`.toLowerCase();
-          return hay.includes(needle);
-        });
-  return { videos: filtered.slice(0, maxVideos), totalPages: 1, totalCount: filtered.length };
-}
-
 let myfreecamsCache: { at: number; rooms: LibraryVideo[] } | null = null;
 const MYFREECAMS_CACHE_MS = 3 * 60_000;
 const MYFREECAMS_PUBLIC_STATE = 0;
@@ -2008,6 +1880,7 @@ type BooruPost = {
 };
 
 const BOORU_HOSTS = [
+  { id: "rule34", base: "https://rule34.xxx", apiBase: "https://api.rule34.xxx", postPath: "/index.php?page=post&s=view&id=" },
   { id: "xbooru", base: "https://xbooru.com", postPath: "/index.php?page=post&s=view&id=" },
   { id: "tbib", base: "https://tbib.org", postPath: "/index.php?page=post&s=view&id=" },
   { id: "hypnohub", base: "https://hypnohub.net", postPath: "/index.php?page=post&s=view&id=" },
@@ -2020,7 +1893,9 @@ function booruVideo(row: BooruPost, host: (typeof BOORU_HOSTS)[number]): Library
   const preview = asString(row.preview_url).trim();
   const sample = asString(row.sample_url).trim();
   const file = asString(row.file_url).trim();
-  const image = sample || preview || file;
+  // Keep the original file for the explicit Download action while cards paint
+  // the smaller preview first. This matters for high-resolution Rule34 posts.
+  const image = file || sample || preview;
   if (!id || !image) return null;
   if (adultBlockedText(tags, owner)) return null;
   const title = (tags.split(/\s+/).filter(Boolean).slice(0, 8).join(" ") || `${host.id} #${id}`).slice(0, 160);
@@ -2052,7 +1927,54 @@ function booruVideo(row: BooruPost, host: (typeof BOORU_HOSTS)[number]): Library
   };
 }
 
+function decodeBooruHtml(value: string) {
+  return value
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+}
+
+async function fetchRule34Listing(host: (typeof BOORU_HOSTS)[number], tags: string, limit: number, pid: number): Promise<LibraryVideo[]> {
+  const params = new URLSearchParams({ page: "post", s: "list", tags, pid: String(Math.max(0, pid)) });
+  const res = await cachedAdultFetch(`${host.base}/index.php?${params.toString()}`, {
+    signal: AbortSignal.timeout(15_000),
+    cacheTtlMs: 10 * 60_000,
+    headers: { accept: "text/html,application/xhtml+xml", "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0)" },
+  });
+  if (!res.ok) throw new Error(`${host.id} HTTP ${res.status}`);
+  const html = await res.text();
+  const rows: BooruPost[] = [];
+  const thumbPattern = /<span\s+id="s(\d+)"[^>]*>[\s\S]*?<img\s+src="([^"]+)"[\s\S]*?\balt="([^"]*)"/gi;
+  for (const match of html.matchAll(thumbPattern)) {
+    rows.push({ id: match[1], preview_url: decodeBooruHtml(match[2] ?? ""), tags: decodeBooruHtml(match[3] ?? "") });
+    if (rows.length >= limit) break;
+  }
+  return rows.map((row) => booruVideo(row, host)).filter((video): video is LibraryVideo => video != null);
+}
+
+function rule34PostIdFromQuery(query: string) {
+  const direct = query.match(/(?:rule34\.xxx\/index\.php\?[^\s]*\bid=|(?:^|\s)rule34:)(\d+)/i)?.[1];
+  return direct && /^\d+$/.test(direct) ? direct : null;
+}
+
+async function fetchRule34Post(host: (typeof BOORU_HOSTS)[number], id: string): Promise<LibraryVideo | null> {
+  const res = await cachedAdultFetch(`${host.base}${host.postPath}${encodeURIComponent(id)}`, {
+    signal: AbortSignal.timeout(15_000),
+    cacheTtlMs: 30 * 60_000,
+    headers: { accept: "text/html,application/xhtml+xml", "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0)" },
+  });
+  if (!res.ok) throw new Error(`${host.id} post ${id} HTTP ${res.status}`);
+  const html = await res.text();
+  const image = html.match(/<img\b(?=[^>]*\bid="image")[^>]*\bsrc="([^"]+)"[^>]*>/i)?.[1];
+  const tags = html.match(/<img\b(?=[^>]*\bid="image")[^>]*\balt="([^"]*)"[^>]*>/i)?.[1] ?? "";
+  if (!image) throw new Error(`${host.id} post ${id} has no public image`);
+  return booruVideo({ id, file_url: decodeBooruHtml(image), preview_url: decodeBooruHtml(image), tags: decodeBooruHtml(tags) }, host);
+}
+
 async function fetchBooruHost(host: (typeof BOORU_HOSTS)[number], tags: string, limit: number, pid: number): Promise<LibraryVideo[]> {
+  if (host.id === "rule34") return fetchRule34Listing(host, tags, limit, pid);
   const params = new URLSearchParams({
     page: "dapi",
     s: "post",
@@ -2062,7 +1984,7 @@ async function fetchBooruHost(host: (typeof BOORU_HOSTS)[number], tags: string, 
     pid: String(Math.max(0, pid)),
     tags,
   });
-  const url = `${host.base}/index.php?${params.toString()}`;
+  const url = `${("apiBase" in host ? host.apiBase : host.base)}/index.php?${params.toString()}`;
   const res = await cachedAdultFetch(url, {
     signal: AbortSignal.timeout(15000),
     cacheTtlMs: 10 * 60_000,
@@ -2092,25 +2014,38 @@ async function fetchBooruFeed(query: string, maxVideos: number, page: number): P
   totalCount: number;
 }> {
   const needle = query.trim().toLowerCase();
+  const directRule34Id = rule34PostIdFromQuery(query);
+  if (directRule34Id) {
+    const rule34 = BOORU_HOSTS.find((host) => host.id === "rule34")!;
+    const video = await fetchRule34Post(rule34, directRule34Id);
+    return { videos: video ? [video] : [], totalPages: page, totalCount: video ? 1 : 0 };
+  }
   const tagQuery = !needle || needle === "all" ? "rating:explicit" : `rating:explicit ${needle}`;
   const limit = LIBRARY_LIMITS.booruPageSize;
   const pid = Math.max(0, page - 1);
   const collected: LibraryVideo[] = [];
   const seen = new Set<string>();
   const errors: string[] = [];
-  for (const host of BOORU_HOSTS) {
-    if (collected.length >= maxVideos) break;
-    try {
-      const batch = await fetchBooruHost(host, tagQuery, Math.min(limit, maxVideos - collected.length), pid);
-      for (const video of batch) {
-        if (seen.has(video.id)) continue;
-        seen.add(video.id);
-        collected.push(video);
-        if (collected.length >= maxVideos) break;
-      }
-    } catch (err) {
-      errors.push(`${host.id}: ${err instanceof Error ? err.message : "unavailable"}`);
+  // Give Rule34 and each failover host a bounded share. The old sequential
+  // fill could let the first host consume the entire window, leaving a healthy
+  // Rule34 catalog invisible even when it had thousands of usable images.
+  const hosts = [...BOORU_HOSTS];
+  const share = Math.max(1, Math.min(limit, Math.ceil(maxVideos / hosts.length)));
+  const ordered = [...hosts.slice(pid % hosts.length), ...hosts.slice(0, pid % hosts.length)];
+  const batches = await Promise.allSettled(ordered.map((host) => fetchBooruHost(host, tagQuery, share, pid)));
+  for (const [index, result] of batches.entries()) {
+    const host = ordered[index]!;
+    if (result.status !== "fulfilled") {
+      errors.push(`${host.id}: ${result.reason instanceof Error ? result.reason.message : "unavailable"}`);
+      continue;
     }
+    for (const video of result.value) {
+      if (seen.has(video.id)) continue;
+      seen.add(video.id);
+      collected.push(video);
+      if (collected.length >= maxVideos) break;
+    }
+    if (collected.length >= maxVideos) break;
   }
   if (!collected.length && errors.length) throw new Error(`Booru unavailable (${errors.join("; ")}).`);
   // An empty explicit search is a valid provider result, not a failed all-source pull.
@@ -2272,7 +2207,6 @@ async function fetchRedgifsFeed(query: string, maxVideos: number, page: number):
 
 function liveRoomLimit(provider: AdultPullProvider) {
   if (provider === "chaturbate") return LIBRARY_LIMITS.chaturbateRoomsPerPull;
-  if (provider === "camsoda") return LIBRARY_LIMITS.camsodaRoomsPerPull;
   if (provider === "myfreecams") return LIBRARY_LIMITS.myfreecamsRoomsPerPull;
   return 0;
 }
@@ -2367,13 +2301,10 @@ async function pullProviderPages(
       totalCount,
     };
   }
-  if (provider === "chaturbate" || provider === "camsoda" || provider === "myfreecams") {
-    const batch =
-      provider === "chaturbate"
-        ? await fetchChaturbateRooms(query, maxVideos)
-        : provider === "camsoda"
-          ? await fetchCamSodaRooms(query, maxVideos)
-          : await fetchMyFreeCamsRooms(query, maxVideos);
+  if (provider === "chaturbate" || provider === "myfreecams") {
+    const batch = provider === "chaturbate"
+      ? await fetchChaturbateRooms(query, maxVideos)
+      : await fetchMyFreeCamsRooms(query, maxVideos);
     return {
       videos: batch.videos,
       page: 1,

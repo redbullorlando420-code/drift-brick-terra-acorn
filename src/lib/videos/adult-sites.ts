@@ -674,7 +674,6 @@ export const ADULT_MILESTONE_LINKS: AdultSiteLink[] = [
  * - Eporner API v2 + iframe embeds: https://www.eporner.com/api/v2/
  * - RedTube webmaster API + embed.redtube.com: https://api.redtube.com/
  * - Chaturbate public affiliate rooms JSON + /embed/{user}/
- * - CamSoda public /api/v1/browse/online + room pages (no X-Frame-Options)
  * - MyFreeCams public php/online_models.php + #username room deep-links
  * - Reddit public Atom RSS (.json is 403 unauthenticated) for curated 18+ subs
  */
@@ -704,14 +703,6 @@ export const ADULT_EMBED_LINKS: AdultSiteLink[] = [
     sourceId: "chaturbate",
   },
   {
-    name: "CamSoda",
-    href: "https://www.camsoda.com/",
-    copy: "Public online-rooms JSON + room pages that iframe without X-Frame-Options — live backup next to Chaturbate.",
-    embeds: true,
-    group: "cam",
-    sourceId: "camsoda",
-  },
-  {
     name: "MyFreeCams",
     href: "https://www.myfreecams.com/#Homepage",
     copy: "Public online-model list + #username room links. No official iframe player, so cards open MFC live.",
@@ -728,9 +719,9 @@ export const ADULT_EMBED_LINKS: AdultSiteLink[] = [
     sourceId: "reddit",
   },
   {
-    name: "XBooru / TBIB / Hypnohub",
-    href: "https://xbooru.com/",
-    copy: "Public Gelbooru-style JSON (18+ rating:explicit). Cards show sample thumbs and open the post page — failover across XBooru, TBIB, and Hypnohub.",
+    name: "Rule34 / Booru image pulls",
+    href: "https://rule34.xxx/index.php?page=post&s=list&tags=all",
+    copy: "Public 18+ image APIs. Rule34, XBooru, TBIB, and Hypnohub each receive a share of a pull; cards retain sample thumbnails and download the original image on demand.",
     embeds: true,
     group: "comic",
     sourceId: "booru",
@@ -775,9 +766,11 @@ export const ADULT_SOURCE_OPTIONS: { id: string; label: string; href?: string; p
       pull: Boolean(link.embeds),
     }));
 
-export type AdultPullProvider = "eporner" | "redtube" | "chaturbate" | "camsoda" | "myfreecams" | "reddit" | "booru" | "redgifs";
+export type AdultPullProvider = "eporner" | "redtube" | "chaturbate" | "myfreecams" | "reddit" | "booru" | "redgifs";
 
-export const ADULT_PULL_PROVIDERS: AdultPullProvider[] = ["eporner", "redtube", "chaturbate", "camsoda", "myfreecams", "reddit", "booru", "redgifs"];
+export const ADULT_PULL_PROVIDERS: AdultPullProvider[] = ["eporner", "redtube", "chaturbate", "myfreecams", "reddit", "booru", "redgifs"];
+/** Retired sources are excluded from all restored catalog views and never fetched. */
+export const RETIRED_ADULT_SOURCE_IDS = ["camsoda"] as const;
 
 /** Curated 18+ subs — full list in adult-reddit-subs.ts. Public Atom RSS only. */
 export { ADULT_REDDIT_SUBS } from "./adult-reddit-subs";
@@ -785,7 +778,6 @@ export { ADULT_REDDIT_SUBS } from "./adult-reddit-subs";
 export const EPORNER_FOLDER_ID = "eporner:discover";
 export const REDTUBE_FOLDER_ID = "redtube:discover";
 export const CHATURBATE_FOLDER_ID = "chaturbate:discover";
-export const CAMSODA_FOLDER_ID = "camsoda:discover";
 export const MYFREECAMS_FOLDER_ID = "myfreecams:discover";
 export const REDDIT_FOLDER_ID = "reddit:discover";
 export const BOORU_FOLDER_ID = "booru:discover";
@@ -811,14 +803,6 @@ export const CHATURBATE_FOLDER = {
   id: CHATURBATE_FOLDER_ID,
   name: "Chaturbate",
   kind: "chaturbate" as const,
-  videoCount: 0,
-  adult: true,
-};
-
-export const CAMSODA_FOLDER = {
-  id: CAMSODA_FOLDER_ID,
-  name: "CamSoda",
-  kind: "camsoda" as const,
   videoCount: 0,
   adult: true,
 };
@@ -859,7 +843,6 @@ export const ADULT_FOLDER_BY_PROVIDER = {
   eporner: EPORNER_FOLDER,
   redtube: REDTUBE_FOLDER,
   chaturbate: CHATURBATE_FOLDER,
-  camsoda: CAMSODA_FOLDER,
   myfreecams: MYFREECAMS_FOLDER,
   reddit: REDDIT_FOLDER,
   booru: BOORU_FOLDER,
@@ -870,7 +853,6 @@ export const ADULT_FOLDER_IDS = [
   EPORNER_FOLDER_ID,
   REDTUBE_FOLDER_ID,
   CHATURBATE_FOLDER_ID,
-  CAMSODA_FOLDER_ID,
   MYFREECAMS_FOLDER_ID,
   REDDIT_FOLDER_ID,
   BOORU_FOLDER_ID,
@@ -889,8 +871,6 @@ export function adultRemoteLabel(kind?: string) {
       return "RedTube";
     case "chaturbate":
       return "Chaturbate";
-    case "camsoda":
-      return "CamSoda";
     case "myfreecams":
       return "MyFreeCams";
     case "reddit":
@@ -909,7 +889,7 @@ export function adultRemoteLabel(kind?: string) {
 }
 
 export function isAdultPullKind(kind?: string) {
-  return kind === "eporner" || kind === "redtube" || kind === "chaturbate" || kind === "camsoda" || kind === "myfreecams" || kind === "reddit" || kind === "booru" || kind === "redgifs";
+  return kind === "eporner" || kind === "redtube" || kind === "chaturbate" || kind === "myfreecams" || kind === "reddit" || kind === "booru" || kind === "redgifs";
 }
 
 export function adultSourceTag(provider: string) {
@@ -922,7 +902,6 @@ const ADULT_PROVIDER_BRANDS = new Set([
   "eporner",
   "redtube",
   "chaturbate",
-  "camsoda",
   "myfreecams",
   "reddit",
   "booru",

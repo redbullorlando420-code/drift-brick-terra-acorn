@@ -9,13 +9,16 @@ export const LIBRARY_LIMITS = {
   descriptionKeywordTagsPerTitle: 300,
   remoteRefreshChannelBatch: 96,
   twitchChannelsReservedPerRefresh: 32,
-  youtubeFocusedVideosPerChannel: 2_880,
+  // Keep pace with the Adult catalog without making the first channel paint
+  // wait on every archive continuation. Focused pulls retain a deep history;
+  // routine and bulk refreshes fill it in wider batches below.
+  youtubeFocusedVideosPerChannel: 6_000,
   // Public browse continuations are the route beyond the first channel shelf.
-  // A page is usually 30–100 items, so 48 pages has room to reach a creator's
+  // A page is usually 30–100 items, so 96 pages has room to reach a creator's
   // older public catalog without leaving an unbounded request running.
-  youtubeArchivePagesPerPull: 48,
-  youtubeRoutineVideosPerChannel: 192,
-  youtubeBulkImportVideosPerChannel: 192,
+  youtubeArchivePagesPerPull: 96,
+  youtubeRoutineVideosPerChannel: 960,
+  youtubeBulkImportVideosPerChannel: 960,
   twitchArchivePageSize: 160,
   twitchFocusedVodsPerChannel: 8_000,
   twitchRoutineVodsPerChannel: 640,
@@ -46,7 +49,6 @@ export const LIBRARY_LIMITS = {
   /** Pause between Adult provider refresh ticks. */
   adultRefreshIntervalMs: 75_000,
   chaturbateRoomsPerPull: 180,
-  camsodaRoomsPerPull: 180,
   myfreecamsRoomsPerPull: 180,
   redditVideosPerPull: 2_400,
   redditPostsPerSub: 50,

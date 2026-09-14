@@ -183,6 +183,8 @@ export function LibraryApp() {
   const [adultDeepVisible, setAdultDeepVisible] = useState(true);
   /** Heavy Adult ranking (full catalog sort + tag chips + recs) runs after first paint. */
   const [adultRankReady, setAdultRankReady] = useState(false);
+  /** Deep rails wait for idle time; the first Adult shelves stay responsive. */
+  const [adultBelowFoldReady, setAdultBelowFoldReady] = useState(false);
   const archiveQueueRef = useRef<Array<{ id: string; handle: string }>>([]);
   const archiveQueueBusyRef = useRef(false);
   const [archiveQueued, setArchiveQueued] = useState<string[]>([]);
@@ -258,7 +260,7 @@ export function LibraryApp() {
     () => adultRemoteVideos.filter((video) => videoMatchesAdultSource(video, adultSource)),
     [adultRemoteVideos, adultSource],
   );
-  const adultKind = (video: typeof adultRemoteVideos[number]) => video.remote?.live || ["chaturbate", "camsoda", "myfreecams"].includes(video.remote?.kind ?? "")
+  const adultKind = (video: typeof adultRemoteVideos[number]) => video.remote?.live || ["chaturbate", "myfreecams"].includes(video.remote?.kind ?? "")
     ? "live" as const
     : isAdultImageKind(video.remote?.kind, video.mime, video.extension) ? "photos" as const
     : "videos" as const;
@@ -333,7 +335,7 @@ export function LibraryApp() {
     return { videos, photos, picks };
   }, [adultRailLimit, adultRailSeed, rankedAdultCatalog]);
   const adultTopTagRails = useMemo(() => {
-    if (sourceId !== "adults" || !adultRankReady || adultTag !== "All") return [] as Array<{ tag: string; score: number; count: number; videos: typeof rankedAdultCatalog }>;
+    if (sourceId !== "adults" || !adultRankReady || !adultBelowFoldReady || adultTag !== "All") return [] as Array<{ tag: string; score: number; count: number; videos: typeof rankedAdultCatalog }>;
     return adultTagRank
       .filter((row) => row.count >= ADULT_TOP_TAG_RAIL_MIN_COUNT)
       .slice(0, 5)
@@ -346,11 +348,11 @@ export function LibraryApp() {
         ).slice(0, adultRailLimit),
       }))
       .filter((row) => row.videos.length > 0);
-  }, [adultRailLimit, adultRailSeed, adultRankReady, adultTag, adultTagRank, rankedAdultCatalog, sourceId, tags]);
+  }, [adultBelowFoldReady, adultRailLimit, adultRailSeed, adultRankReady, adultTag, adultTagRank, rankedAdultCatalog, sourceId, tags]);
   const adultMetaTagRank = useMemo(() => {
-    if (sourceId !== "adults" || !adultRankReady) return [] as { tag: string; score: number; count: number }[];
+    if (sourceId !== "adults" || !adultRankReady || !adultBelowFoldReady) return [] as { tag: string; score: number; count: number }[];
     return rankAdultMetaTags(sourceMatchedAdult, adultRankCtx, 48);
-  }, [adultRankCtx, adultRankReady, sourceId, sourceMatchedAdult]);
+  }, [adultBelowFoldReady, adultRankCtx, adultRankReady, sourceId, sourceMatchedAdult]);
   const adultTagMatches = useMemo(() => {
     const needle = adultTagQuery.trim().toLowerCase();
     if (!needle) return adultTagRank;
@@ -442,6 +444,9 @@ export function LibraryApp() {
     const reddit = take(
       scoped(rotateAdultRail(rankedAdultCatalog.filter((video) => video.remote?.kind === "reddit"), "reddit", adultRailSeed)), adultRailLimit,
     );
+    if (!adultBelowFoldReady) {
+      return { recommended, related, continueRail, marked, reddit, latest: [], catalog: [], poster: [] as typeof adultRemoteVideos };
+    }
     const rotatedCatalog = scoped(rotateAdultRail(rankedAdultCatalog, "latest", adultRailSeed));
     const latest = take(rotatedCatalog, adultRailLimit);
     const catalog = take(rotateAdultRail(rotatedCatalog, "catalog", adultRailSeed), Math.max(48, adultRailLimit * 3));
@@ -453,6 +458,7 @@ export function LibraryApp() {
       : [...posterFresh, ...scoped(rankedAdultCatalog).filter((video) => !seenPoster.has(video.id))].slice(0, Math.max(96, adultRailLimit * 6));
     return { recommended, related, continueRail, marked, reddit, latest, catalog, poster };
   }, [
+    adultBelowFoldReady,
     adultContinue,
     adultOverviewRails,
     adultRailLimit,
@@ -527,6 +533,22 @@ export function LibraryApp() {
     const id = window.setTimeout(ready, 120);
     return () => { cancelled = true; window.clearTimeout(id); };
   }, [sourceId, filteredEporner.length, adultSource, adultTag]);
+
+  useEffect(() => {
+    if (sourceId !== "adults" || !adultRankReady) {
+      setAdultBelowFoldReady(false);
+      return;
+    }
+    let cancelled = false;
+    const ready = () => { if (!cancelled) setAdultBelowFoldReady(true); };
+    const idle = window.requestIdleCallback;
+    if (typeof idle === "function") {
+      const id = idle(ready, { timeout: 1_800 });
+      return () => { cancelled = true; window.cancelIdleCallback(id); };
+    }
+    const id = window.setTimeout(ready, 500);
+    return () => { cancelled = true; window.clearTimeout(id); };
+  }, [adultRankReady, sourceId]);
 
   const filteredYoutube = useMemo(() => youtubeTagFilter === "all" ? newestYoutube : newestYoutube.filter((video) => topicsForVideo(video, tags[video.id]).includes(youtubeTagFilter)), [newestYoutube, tags, youtubeTagFilter]);
   const searchInsights = useMemo(() => {

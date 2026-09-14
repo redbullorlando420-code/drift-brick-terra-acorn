@@ -15,7 +15,6 @@ export const ADULT_SOURCE_FILTERS: { id: AdultPullProvider | "all"; label: strin
   { id: "redtube", label: "RedTube" },
   { id: "eporner", label: "Eporner" },
   { id: "chaturbate", label: "Chaturbate" },
-  { id: "camsoda", label: "CamSoda" },
   { id: "myfreecams", label: "MyFreeCams" },
   { id: "booru", label: "Booru" },
   { id: "redgifs", label: "Redgifs" },

@@ -5,6 +5,7 @@ import {
   ADULT_PULL_PROVIDERS,
   EPORNER_FOLDER_ID,
   REDTUBE_FOLDER_ID,
+  RETIRED_ADULT_SOURCE_IDS,
   adultIngestTags,
   type AdultPullProvider,
 } from "./adult-sites";
@@ -1010,7 +1011,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           ].flat();
           const creatorNames = [
             video.remote?.channelName,
-            video.remote?.videoId && (source === "chaturbate" || source === "camsoda" || source === "myfreecams")
+            video.remote?.videoId && (source === "chaturbate" || source === "myfreecams")
               ? video.remote.videoId
               : undefined,
           ];
@@ -1882,7 +1883,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   },
 }));
 
-type SelectorMemo = { public?: LibraryVideo[]; youtube?: LibraryVideo[]; twitch?: LibraryVideo[]; live?: LibraryVideo[]; classics?: LibraryVideo[]; continuePublic?: LibraryVideo[]; continueAdult?: LibraryVideo[] };
+type SelectorMemo = { public?: LibraryVideo[]; adult?: LibraryVideo[]; adultRemote?: LibraryVideo[]; youtube?: LibraryVideo[]; twitch?: LibraryVideo[]; live?: LibraryVideo[]; classics?: LibraryVideo[]; continuePublic?: LibraryVideo[]; continueAdult?: LibraryVideo[] };
 const selectorMemo = new WeakMap<LibraryState, SelectorMemo>();
 function memoFor(state: LibraryState) { let memo = selectorMemo.get(state); if (!memo) { memo = {}; selectorMemo.set(state, memo); } return memo; }
 const resumeLookupMemo = new WeakMap<LibraryState, Map<string, LibraryVideo>>();
@@ -1913,12 +1914,15 @@ function publicList(state: LibraryState): LibraryVideo[] {
 }
 
 function adultList(state: LibraryState): LibraryVideo[] {
+  const memo = memoFor(state);
+  if (memo.adult) return memo.adult;
   // Adults section is open; private shelves still stay off public rails via folder.adult.
   const adult = adultIdSet(state.folders);
   // Older durable catalogs may predate the ingest-time merge. Apply the same
   // identity merge at the boundary used by every Adult shelf, so a Reddit post
   // and its direct Redgifs record can never render (and load posters) twice.
-  return dedupeAdultVideoCards(state.videos.filter((v) => !state.unavailable[v.id] && adult.has(v.folderId)));
+  memo.adult = dedupeAdultVideoCards(state.videos.filter((v) => !state.unavailable[v.id] && adult.has(v.folderId) && !RETIRED_ADULT_SOURCE_IDS.includes((v.remote?.kind ?? v.folderId.split(":")[0]) as "camsoda")));
+  return memo.adult;
 }
 
 export function selectVisible(state: LibraryState): LibraryVideo[] {
@@ -2073,13 +2077,12 @@ export function selectHistory(state: LibraryState, adult = false): LibraryVideo[
       const isEporner = /eporner\.com/i.test(historyUrl);
       const isRedtube = /redtube\.com/i.test(historyUrl);
       const isChaturbate = /chaturbate\.com/i.test(historyUrl);
-      const isCamsoda = /camsoda\.com/i.test(historyUrl);
       const isMfc = /myfreecams\.com|mfc\.cdn/i.test(historyUrl);
       const isReddit = /reddit\.com|redd\.it/i.test(historyUrl);
       const isBooru = /xbooru\.com|tbib\.org|hypnohub\.net/i.test(historyUrl);
       const isRedgifs = /redgifs\.com/i.test(historyUrl);
-      const adultKind = isEporner ? "eporner" : isRedtube ? "redtube" : isChaturbate ? "chaturbate" : isCamsoda ? "camsoda" : isMfc ? "myfreecams" : isReddit ? "reddit" : isBooru ? "booru" : isRedgifs ? "redgifs" : null;
-      if (!adult && (isEporner || isRedtube || isChaturbate || isCamsoda || isMfc || isReddit || isBooru || isRedgifs)) return null;
+      const adultKind = isEporner ? "eporner" : isRedtube ? "redtube" : isChaturbate ? "chaturbate" : isMfc ? "myfreecams" : isReddit ? "reddit" : isBooru ? "booru" : isRedgifs ? "redgifs" : null;
+      if (!adult && (isEporner || isRedtube || isChaturbate || isMfc || isReddit || isBooru || isRedgifs)) return null;
       // The Adult history shelf is deliberately strict. Unknown recovered URLs
       // belong to public history until they carry a known Adult source, so a
       // generic or stale record can never leak into the private Adult page.
@@ -2130,21 +2133,23 @@ export function selectRedtube(state: LibraryState): LibraryVideo[] {
 
 /** Combined official adult pull shelves (Eporner + RedTube). */
 export function selectAdultRemote(state: LibraryState): LibraryVideo[] {
+  const memo = memoFor(state);
+  if (memo.adultRemote) return memo.adultRemote;
   const matching = state.videos
     .filter(
       (v) =>
         v.remote?.kind === "eporner" ||
         v.remote?.kind === "redtube" ||
         v.remote?.kind === "chaturbate" ||
-        v.remote?.kind === "camsoda" ||
         v.remote?.kind === "myfreecams" ||
         v.remote?.kind === "reddit" ||
         v.remote?.kind === "booru" ||
         v.remote?.kind === "redgifs" ||
         (ADULT_FOLDER_IDS as readonly string[]).includes(v.folderId),
     );
-  return dedupeAdultVideoCards([...new Map(matching.map((video) => [video.id, video])).values()])
+  memo.adultRemote = dedupeAdultVideoCards([...new Map(matching.map((video) => [video.id, video])).values()])
     .sort((a, b) => b.addedAt - a.addedAt);
+  return memo.adultRemote;
 }
 
 export function selectYoutube(state: LibraryState): LibraryVideo[] {
