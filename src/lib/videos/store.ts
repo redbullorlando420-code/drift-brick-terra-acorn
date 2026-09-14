@@ -73,6 +73,12 @@ import { librarySearchIndex } from "./search-index";
 import { useSourceAssets } from "@/lib/source-assets";
 import { isClassicVideo, SYSTEM_SOURCES } from "./types";
 import { LIBRARY_LIMITS } from "@/lib/library-limits";
+import {
+  followRemote,
+  importChannels,
+  refreshRemotes,
+  searchAdultVideos,
+} from "@/lib/remote/api";
 
 let restoring = false;
 let navigationChanged = false;
@@ -936,7 +942,6 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         : "Pulling official adult catalogs…";
     set({ remoteBusy: true, importProgress: { done: 0, total: 1, label }, adultPullStatus: null });
     try {
-      const { searchAdultVideos } = await import("@/lib/remote/api");
       const page = opts?.page ?? 1;
       const maxVideos = opts?.maxVideos ?? LIBRARY_LIMITS.epornerVideosPerPull;
       const append = Boolean(opts?.append);
@@ -1635,7 +1640,6 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   followRemoteQuery: async (query, kind = "auto") => {
     set({ remoteBusy: true });
     try {
-      const { followRemote } = await import("@/lib/remote/api");
       const result = await followRemote({ data: { query, kind } });
       set((s) => {
         const follows = [result.channel, ...s.follows.filter((f) => f.id !== result.channel.id)];
@@ -1701,7 +1705,6 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     // Twitch imports visibly faster without overwhelming public endpoints.
     const chunk = 20;
     try {
-      const { importChannels } = await import("@/lib/remote/api");
       for (let i = 0; i < unique.length; i += chunk) {
         const slice = unique.slice(i, i + chunk);
         let result: Awaited<ReturnType<typeof importChannels>>;
@@ -1820,7 +1823,6 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     );
     const beforeIds = new Set(get().videos.map((v) => v.id));
     try {
-      const { refreshRemotes } = await import("@/lib/remote/api");
       const result = await refreshRemotes({ data: { channels: current } });
       const followIds = new Set(result.refreshedIds);
 

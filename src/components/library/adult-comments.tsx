@@ -4,7 +4,7 @@ import { adultTextFetishTags } from "@/lib/videos/adult-sites";
 import { mineRedditCommentTags, redditTitleTokens } from "@/lib/videos/adult-reddit-tags";
 import { useLibrary } from "@/lib/videos/store";
 import type { LibraryVideo } from "@/lib/videos/types";
-import type { AdultComment } from "@/lib/remote/api";
+import { fetchAdultComments, type AdultComment } from "@/lib/remote/api";
 
 export function AdultComments({ video }: { video: LibraryVideo }) {
   const setVideoTags = useLibrary((s) => s.setVideoTags);
@@ -23,7 +23,6 @@ export function AdultComments({ video }: { video: LibraryVideo }) {
     setLoading(true);
     void (async () => {
       try {
-        const { fetchAdultComments } = await import("@/lib/remote/api");
         const result = await fetchAdultComments({
           data: {
             kind: video.remote?.kind ?? "",

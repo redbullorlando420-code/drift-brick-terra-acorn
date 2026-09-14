@@ -5,6 +5,7 @@ import { useShallow } from "zustand/react/shallow";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LIBRARY_LIMITS } from "@/lib/library-limits";
+import { searchRedtubeStars } from "@/lib/remote/api";
 import {
   getHeartedTagHistory,
   getRating,
@@ -1019,7 +1020,6 @@ export function AdultPanel({
                 setQuery(q);
                 void (async () => {
                   try {
-                    const { searchRedtubeStars } = await import("@/lib/remote/api");
                     const result = await searchRedtubeStars({ data: { query: q, page: 1 } });
                     setStars(result.stars);
                     setStarNote(result.note);

@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { fetchTwitchFollowing } from "@/lib/remote/api";
 import { useLibrary } from "@/lib/videos/store";
 import type { FollowKind } from "@/lib/videos/types";
 
@@ -117,7 +118,6 @@ export function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultK
     if (!login) return;
     setFinding(true);
     try {
-      const { fetchTwitchFollowing } = await import("@/lib/remote/api");
       const result = await fetchTwitchFollowing({ data: { login } });
       const rows = result.channels.map((channel) => ({
         query: channel.login,
