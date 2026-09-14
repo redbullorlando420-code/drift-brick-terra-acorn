@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { Download, Flame, Heart, ImageOff, Play, Tag, ThumbsUp, RefreshCw, Star, Users } from "lucide-react";
+import { Download, Eye, EyeOff, Flame, Heart, ImageOff, LoaderCircle, Play, Tag, ThumbsUp, RefreshCw, Star, Users } from "lucide-react";
 import { cn, formatAgo, formatBytes, formatTime } from "@/lib/utils";
 import type { LibraryVideo } from "@/lib/videos/types";
 import { hasFreshViewerCount, isLikelyPlayable, titleOf } from "@/lib/videos/types";
@@ -66,7 +66,10 @@ export const VideoCard = memo(function VideoCard({
   const toggleLike = useLibrary((s) => s.toggleLike);
   const openPreview = useLibrary((s) => s.openPreview);
   const toggleFavorite = useLibrary((s) => s.toggleFavorite);
+  const setVideoTags = useLibrary((s) => s.setVideoTags);
+  const setQuery = useLibrary((s) => s.setQuery);
   const setSource = useLibrary((s) => s.setSource);
+  const hiddenAdult = adult && tags.includes("hidden");
   const duration = capturedDur ?? video.duration;
   const ratio = progress && progress.d > 0 ? Math.min(1, progress.t / progress.d) : 0;
   const playable = isLikelyPlayable(video.extension);
@@ -93,6 +96,12 @@ export const VideoCard = memo(function VideoCard({
   const art = variant === "poster" ? providerArt || thumb : thumb || providerArt;
   const isPoster = variant === "poster";
   const live = Boolean(video.remote?.live);
+  // Rule34 image hosts can reject a deliberately stripped request. Keep the
+  // normal privacy policy for every other provider, but preserve the ordinary
+  // cross-origin referrer for its public booru thumbnails.
+  const imageReferrerPolicy = video.remote?.kind === "booru" && video.remote.channelId === "rule34"
+    ? "strict-origin-when-cross-origin"
+    : "no-referrer";
   const dualSource = video.remote?.sourceKinds?.includes("reddit") && video.remote.sourceKinds.includes("redgifs");
   const preview = video.remote?.previewUrl;
   const [hovered, setHovered] = useState(false);
@@ -262,8 +271,8 @@ export const VideoCard = memo(function VideoCard({
       )}
     >
       <div aria-hidden="true" className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-surface text-muted">
-        <ImageOff className="size-8" strokeWidth={1.5} />
-        <span className="text-xs">{failed || thumbsExhausted ? "Artwork unavailable" : "Media preview"}</span>
+        {failed || thumbsExhausted ? <ImageOff className="size-8" strokeWidth={1.5} /> : <LoaderCircle className="size-7 animate-spin text-accent" strokeWidth={1.75} />}
+        <span className="text-xs">{failed || thumbsExhausted ? "Artwork unavailable" : "Loading preview"}</span>
       </div>
       {/* Hold last good paint under the candidate so fallbacks never flash blank. */}
       {paintedSrc && !textFirst && (
@@ -272,7 +281,7 @@ export const VideoCard = memo(function VideoCard({
           alt=""
           aria-hidden
           decoding="async"
-          referrerPolicy="no-referrer"
+          referrerPolicy={imageReferrerPolicy}
           className="absolute inset-0 size-full object-cover outline outline-1 -outline-offset-1 outline-fg/10"
         />
       )}
@@ -285,7 +294,7 @@ export const VideoCard = memo(function VideoCard({
           loading={index <= RAIL_WARM_INDEX ? "eager" : "lazy"}
           decoding="async"
           fetchPriority={index <= 3 && artVisible ? "high" : "auto"}
-          referrerPolicy="no-referrer"
+          referrerPolicy={imageReferrerPolicy}
           src={showPreview ? preview! : activeThumb!}
           alt=""
           onLoad={(event) => {
@@ -453,6 +462,25 @@ export const VideoCard = memo(function VideoCard({
           </span>
         )}
       </button>
+      {tags.length > 0 && variant !== "list" && variant !== "rail" && (
+        <div className="mt-1 flex flex-wrap gap-1" aria-label="Tags">
+          {tags.slice(0, 4).map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                setQuery(tag);
+                if (adult) setSource("adults");
+              }}
+              className="rounded-sm bg-elevated px-1.5 py-0.5 text-[10px] text-subtle transition-colors hover:bg-border hover:text-fg"
+              title={`Show titles tagged ${tag}`}
+            >
+              #{tag}
+            </button>
+          ))}
+        </div>
+      )}
       {failed && <button type="button" aria-label={`Retry artwork for ${video.name}`} onClick={(event) => { event.stopPropagation(); retry(video); }} className="absolute bottom-2 right-2 flex size-8 items-center justify-center rounded-sm bg-bg/75 text-fg opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"><RefreshCw className="size-3.5" /></button>}
       {!live && <button
         type="button"
@@ -514,6 +542,24 @@ export const VideoCard = memo(function VideoCard({
       >
         <Flame className={cn("size-3.5", cameCount > 0 && "fill-accent text-accent")} />
         {cameCount > 0 ? cameCount : ""}
+      </button>}
+      {adult && <button
+        type="button"
+        aria-label={hiddenAdult ? "Show this Adult title in rails" : "Hide this Adult title from rails"}
+        title={hiddenAdult ? "Remove #hidden and show in Adult rails" : "Add #hidden and remove from Adult rails"}
+        onClick={(event) => {
+          event.stopPropagation();
+          setVideoTags(video.id, hiddenAdult ? tags.filter((tag) => tag !== "hidden") : [...tags, "hidden"]);
+          toast.message(hiddenAdult ? "Removed #hidden — title is visible again." : "Added #hidden — title is removed from Adult rails.");
+        }}
+        className={cn(
+          "absolute bottom-2 right-2 flex size-9 items-center justify-center rounded-sm bg-bg/75 text-fg opacity-0 backdrop-blur-sm transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100",
+          hiddenAdult && "opacity-100 text-accent",
+          failed && "bottom-11",
+          variant === "list" && "bottom-3 right-3",
+        )}
+      >
+        {hiddenAdult ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
       </button>}
       {adultPhoto && <button
         type="button"

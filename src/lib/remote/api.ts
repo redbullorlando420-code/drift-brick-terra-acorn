@@ -1559,36 +1559,18 @@ function withMyFreeCamsPreview(video: LibraryVideo, preview?: MyFreeCamsPreview)
   };
 }
 
-async function myfreecamsRoomsWithPreviews(rooms: LibraryVideo[], maxVideos: number, query: string) {
+async function myfreecamsRoomsWithPreviews(rooms: LibraryVideo[]) {
   const now = Date.now();
   const previews = new Map<string, MyFreeCamsPreview>();
-  let candidates: string[] = [];
   for (const room of rooms) {
     const username = room.remote?.videoId ?? room.name;
     const cached = myfreecamsPreviewCache.get(username.toLowerCase());
     if (cached && myfreecamsPreviewFresh(cached, now)) previews.set(username.toLowerCase(), cached);
-    else candidates.push(username);
   }
-  const needle = query.trim().toLowerCase();
-  if (needle && needle !== "all") {
-    // A direct model search should receive its poster before the rotating
-    // background enrichment window moves on to unrelated public rooms.
-    candidates = [
-      ...candidates.filter((username) => username.toLowerCase().includes(needle)),
-      ...candidates.filter((username) => !username.toLowerCase().includes(needle)),
-    ];
-  }
-  const take = Math.min(MYFREECAMS_PROFILE_PREVIEWS_PER_REFRESH, Math.max(0, maxVideos), candidates.length);
-  if (take) {
-    const start = myfreecamsPreviewCursor % candidates.length;
-    myfreecamsPreviewCursor += take;
-    const selected = Array.from({ length: take }, (_, index) => candidates[(start + index) % candidates.length]!);
-    for (let index = 0; index < selected.length; index += MYFREECAMS_PROFILE_PREVIEW_CONCURRENCY) {
-      const batch = selected.slice(index, index + MYFREECAMS_PROFILE_PREVIEW_CONCURRENCY);
-      const results = await Promise.all(batch.map(async (username) => [username, await fetchMyFreeCamsPreview(username)] as const));
-      for (const [username, preview] of results) previews.set(username.toLowerCase(), preview);
-    }
-  }
+  // The online roster is the live-source contract. Profile pages are much
+  // slower and occasionally challenged, so never make hundreds of usable live
+  // rooms wait for a handful of optional thumbnails. Cached artwork is applied
+  // immediately; a later refresh can enrich newly cached profile art.
   return rooms.map((room) => withMyFreeCamsPreview(room, previews.get((room.remote?.videoId ?? room.name).toLowerCase())));
 }
 
@@ -1627,7 +1609,7 @@ async function fetchMyFreeCamsRooms(query: string, maxVideos: number): Promise<{
             : `MyFreeCams listed ${listing.rows} online rows but no public broadcasts (states: ${states || "unknown"}).`,
         );
       }
-      const rooms = listing.rooms.length ? await myfreecamsRoomsWithPreviews(listing.rooms, maxVideos, query) : [];
+      const rooms = listing.rooms.length ? await myfreecamsRoomsWithPreviews(listing.rooms) : [];
       myfreecamsCache = { at: Date.now(), rooms: rooms.length ? rooms : priorRooms };
     } catch (error) {
       // Keep a short-lived last known public roster if MFC blocks, rate limits,

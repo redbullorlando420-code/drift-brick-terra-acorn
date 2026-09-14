@@ -186,13 +186,14 @@ export function PreVideo() {
   }, [adultFolderIds, allTags, creatorRevision, previewIsAdult, recommendationSeed, related, shelfReady, tagRevision, tags, unavailable, video, videos]);
   if (!video) return null;
   const adultImage = Boolean(video.remote && isAdultImageKind(video.remote.kind, video.mime, video.extension));
+  const myFreeCamsRoom = video.remote?.kind === "myfreecams";
   const directAdultMedia = Boolean(video.remote && isAdultPullKind(video.remote.kind) && video.src && /\.(?:mp4|webm|gifv)(?:\?|$)/i.test(video.src));
   const imageSrc = adultImage
     ? (video.src || video.remote?.embedUrl || video.remote?.previewUrl || video.poster || null)
     : null;
   const embed = adultImage
     ? null
-    : video.remote?.embedUrl && !directAdultMedia
+    : !myFreeCamsRoom && video.remote?.embedUrl && !directAdultMedia
       ? video.remote.kind === "twitch"
         ? `${video.remote.embedUrl}${video.remote.embedUrl.includes("?") ? "&" : "?"}parent=${encodeURIComponent(window.location.hostname)}`
         : video.remote.kind === "youtube"
@@ -228,6 +229,11 @@ export function PreVideo() {
                   allow="autoplay; encrypted-media; picture-in-picture"
                   allowFullScreen
                 />
+              ) : myFreeCamsRoom ? (
+                <div className="flex aspect-video flex-col items-center justify-center gap-3 bg-bg px-6 text-center">
+                  <p className="text-sm text-muted">This is a confirmed MyFreeCams live room. MyFreeCams does not provide a permitted in-app player.</p>
+                  {video.remote?.watchUrl && <a href={video.remote.watchUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center rounded-sm bg-accent px-4 text-sm font-medium text-accent-fg">Open MyFreeCams live <ExternalLink className="ml-2 size-4" /></a>}
+                </div>
               ) : (video.src || localPreviewSrc) ? (
                 <video
                   src={video.src ?? localPreviewSrc ?? undefined}

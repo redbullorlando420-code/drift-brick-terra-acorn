@@ -25,6 +25,8 @@ export const LIBRARY_LIMITS = {
   twitchArchivePageSize: 160,
   twitchFocusedVodsPerChannel: 8_000,
   twitchRoutineVodsPerChannel: 960,
+  /** Home only calls a Twitch channel live when the provider observation is recent. */
+  twitchLiveStateFreshnessMs: 2 * 60_000,
   // Eporner API allows up to 1000 results per page; batch pages like YT/Twitch archives.
   epornerPageSize: 1000,
   epornerPagesPerPull: 6,

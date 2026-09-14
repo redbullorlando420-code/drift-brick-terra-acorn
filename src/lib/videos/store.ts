@@ -117,6 +117,8 @@ type LibraryState = {
   viewCounts: Record<string, number>;
   cameCounts: Record<string, number>;
   hideDemo: boolean;
+  /** Adult cards carrying the user-managed #hidden tag stay out of every Adult rail. */
+  showHiddenAdult: boolean;
   hardwareAccel: boolean;
   adultPinHash: string | null;
   adultsUnlocked: boolean;
@@ -162,6 +164,7 @@ type LibraryState = {
   removeVideo: (id: string) => void;
   playRelative: (delta: number, playlist: string[]) => void;
   setHideDemo: (hide: boolean) => void;
+  setShowHiddenAdult: (show: boolean) => void;
   setHardwareAccel: (on: boolean) => void;
   setFolderAdult: (folderId: string, adult: boolean) => void;
   searchAdultFeed: (query?: string, order?: string, opts?: { page?: number; maxVideos?: number; append?: boolean; providers?: AdultPullProvider[] | "all"; providerPages?: Partial<Record<AdultPullProvider, number>>; redditSources?: Array<{ subreddit: string; priority: number }>; resumeArchive?: boolean }) => Promise<number>;
@@ -697,6 +700,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   viewCounts: {},
   cameCounts: {},
   hideDemo: true,
+  showHiddenAdult: false,
   hardwareAccel: true,
   adultPinHash: null,
   adultsUnlocked: true,
@@ -784,11 +788,16 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         // disappear whenever the catalog was auto-tagged again.
         const existing = (tags[video.id] ?? []).map((tag) => tag.replace(/^keyword-/i, ""));
         const merged = compactIngestedTags(existing, inferred);
-        if (merged.length !== (tags[video.id] ?? []).length) changed += 1;
+        if (!sameTags(tags[video.id], merged)) changed += 1;
         tags[video.id] = merged;
       }
       return { tags };
     });
+    const state = get();
+    // Autotagging changes many records at once. Rebuild the shared search
+    // index from the committed tag map so clicking or typing a newly inferred
+    // tag finds the same set of titles immediately.
+    librarySearchIndex.sync(state.videos, state.tags, state.categories);
     persistNow(get);
     return changed;
   },
@@ -913,6 +922,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     }));
     persistNow(get);
   },
+  setShowHiddenAdult: (showHiddenAdult) => set({ showHiddenAdult }),
   setHardwareAccel: (hardwareAccel) => {
     set({ hardwareAccel });
     persistNow(get);
@@ -1968,7 +1978,12 @@ function computeAdultList(state: LibraryState): LibraryVideo[] {
   // Older durable catalogs may predate the ingest-time merge. Apply the same
   // identity merge at the boundary used by every Adult shelf, so a Reddit post
   // and its direct Redgifs record can never render (and load posters) twice.
-  memo.adult = dedupeAdultVideoCards(state.videos.filter((v) => !state.unavailable[v.id] && adult.has(v.folderId) && !RETIRED_ADULT_SOURCE_IDS.includes((v.remote?.kind ?? v.folderId.split(":")[0]) as "camsoda")));
+  memo.adult = dedupeAdultVideoCards(state.videos.filter((v) =>
+    !state.unavailable[v.id]
+    && adult.has(v.folderId)
+    && !RETIRED_ADULT_SOURCE_IDS.includes((v.remote?.kind ?? v.folderId.split(":")[0]) as "camsoda")
+    && (state.showHiddenAdult || !(state.tags[v.id] ?? []).includes("hidden")),
+  ));
   return memo.adult;
 }
 
@@ -2193,7 +2208,8 @@ function computeSelectAdultRemote(state: LibraryState): LibraryVideo[] {
         v.remote?.kind === "booru" ||
         v.remote?.kind === "redgifs" ||
         (ADULT_FOLDER_IDS as readonly string[]).includes(v.folderId),
-    );
+    )
+    .filter((video) => state.showHiddenAdult || !(state.tags[video.id] ?? []).includes("hidden"));
   memo.adultRemote = dedupeAdultVideoCards([...new Map(matching.map((video) => [video.id, video])).values()])
     .sort((a, b) => b.addedAt - a.addedAt);
   return memo.adultRemote;
@@ -2241,11 +2257,11 @@ export function userFolderCount(folders: Folder[]) {
 // playback-only fields out of catalog selectors. Store slices are immutable.
 const publicList = memoizeSelector(computePublicList, ["videos", "folders", "unavailable", "hideDemo"]);
 
-const adultList = memoizeSelector(computeAdultList, ["videos", "folders", "unavailable"]);
+const adultList = memoizeSelector(computeAdultList, ["videos", "folders", "unavailable", "tags", "showHiddenAdult"]);
 
 const recoveryList = memoizeSelector(computeRecoveryList, ["videos", "folders", "hideDemo"]);
 
-export const selectAdultRemote = memoizeSelector(computeSelectAdultRemote, ["videos"]);
+export const selectAdultRemote = memoizeSelector(computeSelectAdultRemote, ["videos", "tags", "showHiddenAdult"]);
 
 export const selectFavorites = memoizeSelector(computeSelectFavorites, ["videos", "folders", "hideDemo", "favorites"]);
 

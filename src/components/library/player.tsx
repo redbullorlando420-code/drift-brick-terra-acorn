@@ -422,7 +422,10 @@ export function Player({ playlist }: { playlist: string[] }) {
         : remote.kind === "youtube"
           ? youtubeEmbed(remote.embedUrl ?? video.src ?? "")
           : isAdultPullKind(remote.kind)
-            ? redgifsDirectMedia || directAdultMedia ? null : remote.embedUrl ?? video.src ?? null
+            // MyFreeCams does not offer a permitted iframe player. Its public
+            // roster still supplies live cards, and the player gives each card
+            // an immediate official-room link instead of a dead framed page.
+            ? remote.kind === "myfreecams" || redgifsDirectMedia || directAdultMedia ? null : remote.embedUrl ?? video.src ?? null
             : remote.embedUrl
               ? `${remote.embedUrl}${remote.embedUrl.includes("?") ? "&" : "?"}autoplay=1&rel=0&modestbranding=1`
               : null
@@ -454,12 +457,12 @@ export function Player({ playlist }: { playlist: string[] }) {
           allowFullScreen
           referrerPolicy="strict-origin-when-cross-origin"
         />
-      ) : remote?.kind === "youtube" ? (
+      ) : remote?.kind === "youtube" || remote?.kind === "myfreecams" ? (
         <div className="absolute inset-0 flex items-center justify-center bg-bg px-6 text-center">
           <div>
-            <p className="font-display text-3xl text-fg">This title plays on YouTube</p>
+            <p className="font-display text-3xl text-fg">{remote.kind === "myfreecams" ? "This room plays on MyFreeCams" : "This title plays on YouTube"}</p>
             <p className="mx-auto mt-3 max-w-md text-sm text-muted">
-              The embedded player could not be built for this title. Open it on YouTube instead.
+              {remote.kind === "myfreecams" ? "MyFreeCams does not provide an embeddable public player. Open the confirmed live room directly." : "The embedded player could not be built for this title. Open it on YouTube instead."}
             </p>
             {remote.watchUrl && (
               <a
@@ -468,7 +471,7 @@ export function Player({ playlist }: { playlist: string[] }) {
                 rel="noreferrer"
                 className="mt-5 inline-flex min-h-10 items-center rounded-sm bg-accent px-4 text-sm font-medium text-accent-fg"
               >
-                Open YouTube <ExternalLink className="ml-2 size-4" />
+                Open {remote.kind === "myfreecams" ? "MyFreeCams" : "YouTube"} <ExternalLink className="ml-2 size-4" />
               </a>
             )}
           </div>

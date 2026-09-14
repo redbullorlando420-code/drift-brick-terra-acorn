@@ -97,6 +97,17 @@ test('worker recommendations respond to feedback without changing catalog identi
  assert.equal(new Set(visible).size,visible.length);
 });
 
+test('Adult rails rotate through a broad preview-ready catalog instead of a fixed top slice', () => {
+ const data=fixture();
+ const visible=new Set();
+ for(let seed=1; seed<=24; seed+=1) {
+   const result=buildAdultBrowseModel(data,{...params,seed});
+   for(const id of result.overview.videos) visible.add(id);
+ }
+ // The historical 44-card window could never expose enough of this fixture.
+ assert.ok(visible.size>64, `expected broad rotation, received ${visible.size} distinct cards`);
+});
+
 
 test('navigation persists only display settings and preserves full library metadata', async () => {
  const {saveViewPrefs,loadPrefs}=await import('../src/lib/videos/persist.ts');

@@ -61,6 +61,7 @@ import { DEMO_FOLDER_ID } from "@/lib/videos/samples";
 import type { LibraryVideo, WellKnownStart } from "@/lib/videos/types";
 import { hasFreshViewerCount, isClassicVideo } from "@/lib/videos/types";
 import { useThumbs } from "@/lib/videos/thumbs";
+import { adultThumbCandidatesForVideo } from "@/lib/videos/adult-thumbs";
 import { librarySearchIndex } from "@/lib/videos/search-index";
 import { searchWorkerIndex } from "@/lib/videos/search-worker-index";
 import { creatorIsLiked, getCreatorRating, getHeartedTagHistory, getRating, tagHasHeartHistory, tagIsLiked } from "@/lib/media-feedback";
@@ -136,6 +137,12 @@ function isOfflineChannelCard(video: { id?: string; path?: string; extension?: s
     || /:(?:live|channel)$/i.test(video.id ?? "");
 }
 
+function hasFreshTwitchLiveState(video: LibraryVideo, now: number) {
+  if (video.remote?.kind !== "twitch" || !video.remote.live) return true;
+  const observedAt = video.remote.observedAt ?? 0;
+  return observedAt > 0 && observedAt <= now && now - observedAt <= LIBRARY_LIMITS.twitchLiveStateFreshnessMs;
+}
+
 function isFreshRemoteUpload(video: { addedAt: number }) {
   // A channel can be imported for the first time with years of feed history.
   // Alert only for a genuinely recent provider-published item, not every item
@@ -146,6 +153,11 @@ function isFreshRemoteUpload(video: { addedAt: number }) {
 const isTasteTag = isTopicTag;
 
 export function LibraryApp() {
+  const [liveStateClock, setLiveStateClock] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setLiveStateClock(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
   useEffect(() => {
     const announce = () => { if (document.visibilityState === "visible") void announceNetworkPresence().catch(() => undefined); };
     announce();
@@ -171,6 +183,7 @@ export function LibraryApp() {
   const [adultTag, setAdultTag] = useState("All");
   const [adultSource, setAdultSource] = useState("all");
   const [adultView, setAdultView] = useState<"all" | "videos" | "live" | "photos">("all");
+  const [adultArtworkOnly, setAdultArtworkOnly] = useState(true);
   // Keep the first Adult paint deliberately small; each rail can expand on demand.
   const [adultRailLimit, setAdultRailLimit] = useState(24);
   const [adultTagQuery, setAdultTagQuery] = useState("");
@@ -214,6 +227,8 @@ export function LibraryApp() {
   const query = useLibrary((s) => s.query);
   const searchPending = useLibrary((s) => Boolean(s.query.trim()) && (!s.searchResult || s.searchResult.query !== s.query.trim().toLowerCase() || s.searchResult.videos !== s.videos || s.searchResult.tags !== s.tags || s.searchResult.categories !== s.categories));
   const setQuery = useLibrary((s) => s.setQuery);
+  const showHiddenAdult = useLibrary((s) => s.showHiddenAdult);
+  const setShowHiddenAdult = useLibrary((s) => s.setShowHiddenAdult);
   const scanning = useLibrary((s) => s.scanning);
   const activeId = useLibrary((s) => s.activeId);
   const previewId = useLibrary((s) => s.previewId);
@@ -242,8 +257,16 @@ export function LibraryApp() {
     return [...groups].map(([creator, videos]) => ({ creator, videos }));
   }, [newestYoutube, sourceId, youtubeDeepVisible, youtubeExploreVisible]);
   const twitchVideos = useLibrary(useShallow(selectTwitch));
-  const newThisWeek = useMemo(() => sourceId !== "home" || !homeRecommendationsReady ? [] : [...youtubeVideos, ...twitchVideos].filter((video) => video.remote && Date.now() - video.addedAt >= -5 * 60_000 && Date.now() - video.addedAt < 7 * 24 * 60 * 60_000).sort((a, b) => b.addedAt - a.addedAt), [homeRecommendationsReady, sourceId, twitchVideos, youtubeVideos]);
+  const newThisWeek = useMemo(() => sourceId !== "home" || !homeRecommendationsReady ? [] : [...youtubeVideos, ...twitchVideos]
+    // Keep Twitch VODs and clips, but never let an offline channel placeholder
+    // pose as a newly released title in Home's discovery rail.
+    .filter((video) => video.remote && !isOfflineChannelCard(video) && Date.now() - video.addedAt >= -5 * 60_000 && Date.now() - video.addedAt < 7 * 24 * 60 * 60_000)
+    .sort((a, b) => b.addedAt - a.addedAt), [homeRecommendationsReady, sourceId, twitchVideos, youtubeVideos]);
   const liveVideos = useLibrary(useShallow(selectLive));
+  const currentLiveVideos = useMemo(
+    () => liveVideos.filter((video) => hasFreshTwitchLiveState(video, liveStateClock)),
+    [liveStateClock, liveVideos],
+  );
   const adultContinue = useLibrary(useShallow((s) => selectContinue(s, true)));
   const adultFavorites = useLibrary(useShallow((s) => selectFavorites(s, true)));
   const adultHistory = useLibrary(useShallow((s) => selectHistory(s, true)));
@@ -282,8 +305,14 @@ export function LibraryApp() {
     [adultSource, adultView, sourceMatchedAdult],
   );
   const filteredEporner = useMemo(
-    () => viewMatchedAdult.filter((video) => videoMatchesAdultTag(video, adultTag, tags)),
-    [adultTag, tags, viewMatchedAdult],
+    () => viewMatchedAdult
+      .filter((video) => videoMatchesAdultTag(video, adultTag, tags))
+      .filter((video) => !adultArtworkOnly || adultThumbCandidatesForVideo(video).length > 0),
+    [adultArtworkOnly, adultTag, tags, viewMatchedAdult],
+  );
+  const adultArtworkReadyCount = useMemo(
+    () => viewMatchedAdult.filter((video) => adultThumbCandidatesForVideo(video).length > 0).length,
+    [viewMatchedAdult],
   );
   const adultSourceCounts = useMemo(() => countAdultBySource(adultRemoteVideos), [adultRemoteVideos]);
   const adultKindCounts = useMemo(() => ({
@@ -1122,7 +1151,7 @@ export function LibraryApp() {
                   {homeRecommendationsReady && <><RatingStreakCard /><TitleRail title="Recently added from your folders" reason="Fresh additions from your local folders." videos={homeLocalRecent} variant="rail" />
                   <TitleRail title="Unseen & ready to discover" reason="Less-played titles, rotated so familiar picks do not take over." videos={freshPicks} variant="rail" />
                   <TitleRail title="Top-rated local picks" reason="Built from your ratings, likes, and saved favorites." videos={topRatedLocalPicks} variant="rail" />
-                  <TitleRail title="Live now" reason="Channels confirmed live in the latest check." videos={liveVideos} variant="rail" />
+                  <TitleRail title="Live now" reason="Channels confirmed live in the latest check." videos={currentLiveVideos} variant="rail" />
                   <TitleRail title="New this week" reason="Recently published or added from your saved sources." videos={newThisWeek} variant="rail" />
                   <TitleRail
                     title={follows.length ? "Latest from your channels" : "Fresh from YouTube"}
@@ -1184,7 +1213,7 @@ export function LibraryApp() {
                 </>
               )}
 
-              {sourceId === "live" && browsing && <LiveDesk videos={liveVideos} />}
+              {sourceId === "live" && browsing && <LiveDesk videos={currentLiveVideos} />}
 
               {sourceId === "movies" && browsing && (
                 <>
@@ -1255,10 +1284,17 @@ export function LibraryApp() {
                   />
                   <section className="mb-5 rounded-xl border border-border bg-surface p-4 shadow-border">
                     <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Adult media view</p>
-                    <p className="mt-1 text-sm text-muted">Choose one media type or keep the combined discovery view. Provider and tag filters apply to every rail below.</p>
+                    <p className="mt-1 text-sm text-muted">Choose one media type or keep the combined discovery view. Provider, tag, and artwork filters apply to every Adult rail below.</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {([['all', `Combined · ${adultRemoteVideos.length}`], ['videos', `Videos · ${adultKindCounts.videos}`], ['live', `Live · ${adultKindCounts.live}`], ['photos', `Photos · ${adultKindCounts.photos}`]] as const).map(([view, label]) => <Button key={view} size="sm" variant={adultView === view ? "default" : "secondary"} onClick={() => setAdultView(view)}>{label}</Button>)}
                     </div>
+                    <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+                      <span className="text-xs text-muted">Artwork</span>
+                      <Button size="sm" variant={adultArtworkOnly ? "default" : "secondary"} onClick={() => setAdultArtworkOnly(true)}>Preview-ready · {adultArtworkReadyCount}</Button>
+                      <Button size="sm" variant={!adultArtworkOnly ? "default" : "secondary"} onClick={() => setAdultArtworkOnly(false)}>All cards · {viewMatchedAdult.length}</Button>
+                      <Button size="sm" variant={showHiddenAdult ? "default" : "ghost"} onClick={() => setShowHiddenAdult(!showHiddenAdult)}>{showHiddenAdult ? "Hide #hidden again" : "Show #hidden"}</Button>
+                    </div>
+                    <p className="mt-2 text-xs text-muted">Preview-ready keeps cards without a usable poster out of the opening rails. Use the eye-slash control on a card to add #hidden; hidden cards stay out of all Adult rails until shown here.</p>
                   </section>
                   {adultView === "all" && <section className="mb-5 grid gap-4 xl:grid-cols-3"><TitleRail title={`Adult videos · ${adultKindCounts.videos}`} reason="Two catalog rows in one continuous rail." videos={adultOverviewRails.videos} variant="rail"/><TitleRail title={`Adult photos · ${adultKindCounts.photos}`} reason="Reddit and Booru photos with preview fallbacks, combined into one rail." videos={adultOverviewRails.photos} variant="rail"/><TitleRail title="Adult picks" reason="A distinct mixed row after the video and photo cards above." videos={adultOverviewRails.picks} variant="rail"/></section>}
                   <section className="mb-5 rounded-xl border border-border bg-surface p-4 shadow-border">
@@ -1309,7 +1345,7 @@ export function LibraryApp() {
                     <div className="flex flex-wrap items-end justify-between gap-3">
                       <div>
                         <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Interest tags</p>
-                        <p className="mt-1 text-sm text-muted">Curated interests only. Sources and creators stay in their own filters, then tap an interest to narrow every Adult rail.</p>
+                        <p className="mt-1 text-sm text-muted">Interest tags narrow every Adult rail. Source tags select providers; creator tags identify performers; metadata tags describe format. Tap any card tag to search the library for it.</p>
                       </div>
                       <Input
                         value={adultTagQuery}
@@ -1364,7 +1400,7 @@ export function LibraryApp() {
                     )}
                     {(adultTag !== "All" || adultSource !== "all") && (
                       <p className="mt-2 text-xs text-accent">
-                        Showing {filteredEporner.length.toLocaleString()} titles
+                        Showing {filteredEporner.length.toLocaleString()} {adultArtworkOnly ? "preview-ready " : ""}titles
                         {adultSource !== "all" ? ` · ${adultSource}` : ""}
                         {adultTag !== "All" ? ` · #${adultTag}` : ""}.
                       </p>

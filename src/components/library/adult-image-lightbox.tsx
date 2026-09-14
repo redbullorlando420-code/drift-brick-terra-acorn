@@ -33,6 +33,7 @@ export function AdultImageLightbox({
             alt={video.name}
             className="max-h-full max-w-full object-contain"
             decoding="async"
+            referrerPolicy={remote?.kind === "booru" && remote.channelId === "rule34" ? "strict-origin-when-cross-origin" : "no-referrer"}
           />
         ) : (
           <p className="text-sm text-muted">No image available for this title.</p>

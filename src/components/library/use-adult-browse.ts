@@ -94,14 +94,21 @@ export function useAdultBrowse(enabled: boolean, inputs: AdultBrowseInputs, para
     const id = ++sequence.current;
     if (!enabled) return;
     let cancelled = false;
-    // Let the selected filter paint before packing a newly loaded catalog.
-    const timer = setTimeout(() => {
+    // Packing a large catalog for structured clone is intentionally deferred
+    // until the Adult controls have painted. This keeps filter taps and the
+    // first Adult frame responsive while the worker prepares its next mix.
+    const start = () => {
       void rankingFeedbackSnapshot().then(feedback => {
         if (cancelled) return;
         enqueue.current?.({ id, inputs, params, signals: { ...feedback, favorites: inputs.favorites, likes: inputs.likes, cameCounts: inputs.cameCounts, viewCounts: inputs.viewCounts, continueIds: inputs.continueIds, favoriteIds: inputs.favoriteIds } });
       }).catch(() => { if (!cancelled) setFailed(true); });
-    }, 0);
-    return () => { cancelled = true; clearTimeout(timer); };
+    };
+    if (typeof window.requestIdleCallback === "function") {
+      const idle = window.requestIdleCallback(start, { timeout: 500 });
+      return () => { cancelled = true; window.cancelIdleCallback(idle); };
+    }
+    const timer = window.setTimeout(start, 80);
+    return () => { cancelled = true; window.clearTimeout(timer); };
   }, [enabled, inputs, params, attempt]);
 
   // Never flash results from the previously selected source/type/tag. Ratings

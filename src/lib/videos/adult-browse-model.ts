@@ -22,16 +22,24 @@ function shuffleRank(id: string, seed: number) {
  * inside a bounded rank window. That rotates fresh cards into view without
  * letting low-signal results displace the useful part of the catalog.
  */
-function rotateAdultRail<T extends { id: string }>(items: T[], rail: string, seed: number, limit = items.length): T[] {
-  // A title can move at most 28 positions: later entries cannot reach this prefix.
-  return items.slice(0, limit + 28)
+function rotateAdultRail<T extends { id: string; poster?: string; remote?: { previewUrl?: string; channelName?: string } }>(items: T[], rail: string, seed: number, limit = items.length): T[] {
+  // Keep a deliberately wide, bounded candidate window. The former 28-card
+  // window made every Adult shelf converge on the same highly-ranked titles.
+  // Provider posters and preview URLs are cheap, already-known artwork, so a
+  // modest bonus makes the opening screen useful while the rest of a large
+  // catalog remains lazy.
+  const windowSize = Math.min(items.length, Math.max(192, limit * 16));
+  const rankStride = Math.max(18, limit * 1.5);
+  return diversifyCreators(items.slice(0, windowSize)
     .map((video, index) => ({
       video,
-      rank: index + (shuffleRank(`${rail}:${video.id}`, seed) / 0xffffffff) * 28,
+      rank: index / rankStride
+        + (shuffleRank(`${rail}:${video.id}`, seed) / 0xffffffff) * 8
+        - (video.poster || video.remote?.previewUrl ? 2.25 : 0),
     }))
     .sort((a, b) => a.rank - b.rank)
     .slice(0, limit)
-    .map(({ video }) => video);
+    .map(({ video }) => video), limit);
 }
 function diversifyCreators<T extends { id: string; remote?: { channelName?: string } }>(items: T[], limit = 48): T[] {
   const groups = new Map<string, T[]>();
@@ -94,18 +102,23 @@ export function buildAdultBrowseModel(data: AdultBrowseData, params: AdultBrowse
   })();
   const adultTopTagRails = (() => {
     if (adultTag !== "All") return [] as Array<{ tag: string; score: number; count: number; videos: LibraryVideo[] }>;
+    // Tag shelves should lead a viewer into different parts of the catalog,
+    // rather than restating the cards from the overview and the preceding tag.
+    const claimed = new Set([
+      ...adultOverviewRails.videos,
+      ...adultOverviewRails.photos,
+      ...adultOverviewRails.picks,
+    ].map((video) => video.id));
     return adultTagRank
       .filter((row) => row.count >= ADULT_TOP_TAG_RAIL_MIN_COUNT)
       .slice(0, 5)
-      .map((row) => ({
-        ...row,
-        videos: rotateAdultRail(
-          rankedAdultCatalog.filter((video) => videoMatchesAdultTag(video, row.tag, tags)),
-          `tag:${row.tag}`,
-          adultRailSeed,
-          adultRailLimit,
-        ),
-      }))
+      .map((row) => {
+        const matching = rankedAdultCatalog.filter((video) => videoMatchesAdultTag(video, row.tag, tags));
+        const fresh = matching.filter((video) => !claimed.has(video.id));
+        const videos = rotateAdultRail(fresh.length >= Math.min(8, adultRailLimit) ? fresh : matching, `tag:${row.tag}`, adultRailSeed, adultRailLimit);
+        videos.forEach((video) => claimed.add(video.id));
+        return { ...row, videos };
+      })
       .filter((row) => row.videos.length > 0);
   })();
   const adultMetaTagRank = (() => {
