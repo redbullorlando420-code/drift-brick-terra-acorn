@@ -5,7 +5,7 @@ import { useShallow } from "zustand/react/shallow";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LIBRARY_LIMITS } from "@/lib/library-limits";
-import { searchRedtubeStars } from "@/lib/remote/api";
+import { searchRedtubeStars } from "@/lib/remote/functions";
 import {
   getHeartedTagHistory,
   getRating,

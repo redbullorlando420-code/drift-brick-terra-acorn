@@ -4,7 +4,7 @@ import { adultTextFetishTags } from "@/lib/videos/adult-sites";
 import { mineRedditCommentTags, redditTitleTokens } from "@/lib/videos/adult-reddit-tags";
 import { useLibrary } from "@/lib/videos/store";
 import type { LibraryVideo } from "@/lib/videos/types";
-import { fetchAdultComments, type AdultComment } from "@/lib/remote/api";
+import { fetchAdultComments, type AdultComment } from "@/lib/remote/functions";
 
 export function AdultComments({ video }: { video: LibraryVideo }) {
   const setVideoTags = useLibrary((s) => s.setVideoTags);

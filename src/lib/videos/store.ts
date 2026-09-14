@@ -78,7 +78,7 @@ import {
   importChannels,
   refreshRemotes,
   searchAdultVideos,
-} from "@/lib/remote/api";
+} from "@/lib/remote/functions";
 
 let restoring = false;
 let navigationChanged = false;

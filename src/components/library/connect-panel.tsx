@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { fetchTwitchFollowing } from "@/lib/remote/api";
+import { fetchTwitchFollowing } from "@/lib/remote/functions";
 import { useLibrary } from "@/lib/videos/store";
 import type { FollowKind } from "@/lib/videos/types";
 

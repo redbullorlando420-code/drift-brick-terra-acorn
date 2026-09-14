@@ -1,4 +1,3 @@
-import { createServerFn } from "@tanstack/react-start";
 import type { FollowedChannel, FollowKind, LibraryVideo } from "@/lib/videos/types";
 import { LIBRARY_LIMITS } from "@/lib/library-limits";
 import { cachedAdultFetch } from "@/lib/remote/adult-pull-cache";
@@ -736,19 +735,17 @@ function followTwitch(query: string, compact = false): Promise<FollowResult> {
   return providerRequest("twitch", query, !compact, () => followTwitchUncoalesced(query, compact));
 }
 
-export const followRemote = createServerFn({ method: "POST" })
-  .validator((data: unknown) => parseFollow(data))
-  .handler(async ({ data }): Promise<FollowResult> => {
+export async function runFollowRemote(dataRaw: unknown): Promise<FollowResult> {
+    const data = parseFollow(dataRaw);
     const kind = data.kind === "auto" ? guessKind(data.query) : data.kind;
     if (kind === "twitch") return followTwitch(data.query);
     const videoId = ytVideoId(data.query);
     if (videoId) return youtubeFromVideo(videoId);
     return youtubeFromChannel(data.query);
-  });
+}
 
-export const refreshRemotes = createServerFn({ method: "POST" })
-  .validator((data: unknown) => parseRefresh(data))
-  .handler(async ({ data }): Promise<RefreshResult> => {
+export async function runRefreshRemotes(dataRaw: unknown): Promise<RefreshResult> {
+    const data = parseRefresh(dataRaw);
     const videos: LibraryVideo[] = [];
     const channels: FollowedChannel[] = [];
     const refreshedIds: string[] = [];
@@ -781,7 +778,7 @@ export const refreshRemotes = createServerFn({ method: "POST" })
       return retry ? [[channel.id, retry]] : [];
     }));
     return { videos, channels, refreshedIds, retryAt };
-  });
+}
 
 type ImportItemIn = { query: string; kind: "youtube" | "twitch" };
 
@@ -825,9 +822,8 @@ export type ImportBatchResult = {
   failedQueries: string[];
 };
 
-export const importChannels = createServerFn({ method: "POST" })
-  .validator((data: unknown) => parseImport(data))
-  .handler(async ({ data }): Promise<ImportBatchResult> => {
+export async function runImportChannels(dataRaw: unknown): Promise<ImportBatchResult> {
+    const data = parseImport(dataRaw);
     const compact = data.items.length > 1;
     const rows = await mapPool(data.items, 6, async (item) => {
       for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -851,7 +847,7 @@ export const importChannels = createServerFn({ method: "POST" })
       else failedQueries.push(data.items[i]?.query ?? "");
     }
     return { ok, failed: failedQueries.length, failedQueries: failedQueries.filter(Boolean) };
-  });
+}
 
 type FollowList = {
   login: string;
@@ -881,9 +877,8 @@ async function twitchGql(query: string, variables: Record<string, string>) {
   return (await res.json()) as Record<string, unknown>;
 }
 
-export const fetchTwitchFollowing = createServerFn({ method: "POST" })
-  .validator((data: unknown) => parseTwitchUser(data))
-  .handler(async ({ data }): Promise<{ channels: FollowList[]; privateList: boolean }> => {
+export async function runFetchTwitchFollowing(dataRaw: unknown): Promise<{ channels: FollowList[]; privateList: boolean }> {
+    const data = parseTwitchUser(dataRaw);
     const login = data.login;
     const userCheck = await twitchUser(login);
     if (!userCheck) throw new Error(`No Twitch channel named ${login}`);
@@ -915,7 +910,7 @@ export const fetchTwitchFollowing = createServerFn({ method: "POST" })
       if (channels.length) return { channels, privateList: false };
     }
     return { channels: [], privateList: true };
-  });
+}
 
 /* --- Adult discovery (Eporner + RedTube + live cam official public lists) --- */
 
@@ -2363,9 +2358,7 @@ async function pullProviderPages(
   };
 }
 
-export const searchAdultVideos = createServerFn({ method: "POST" })
-  .validator((data: unknown) => parseAdultSearch(data))
-  .handler(async ({ data }): Promise<{
+export async function runSearchAdultVideos(dataRaw: unknown): Promise<{
     videos: LibraryVideo[];
     source: string;
     note: string;
@@ -2375,7 +2368,8 @@ export const searchAdultVideos = createServerFn({ method: "POST" })
     providers: AdultPullProvider[];
     providerNextPages: Partial<Record<AdultPullProvider, number | null>>;
     providerDiagnostics: AdultPullDiagnostic[];
-  }> => {
+  }> {
+    const data = parseAdultSearch(dataRaw);
     const providers = [...data.providers].sort((a, b) => (a === "reddit" ? -1 : b === "reddit" ? 1 : 0));
     const share = Math.max(1, Math.floor(data.maxVideos / Math.max(1, providers.length)));
     const leftovers = data.maxVideos - share * providers.length;
@@ -2511,7 +2505,7 @@ export const searchAdultVideos = createServerFn({ method: "POST" })
       providerNextPages,
       providerDiagnostics,
     };
-  });
+}
 
 
 /* --- Adult comments (real provider data only; no fake comments) --- */
@@ -2540,16 +2534,16 @@ function parseRedditCommentEntries(xml: string): AdultComment[] {
   return out;
 }
 
-export const fetchAdultComments = createServerFn({ method: "POST" })
-  .validator((data: unknown) => {
+export async function runFetchAdultComments(dataRaw: unknown): Promise<{ comments: AdultComment[]; note: string }> {
+    const data = (() => {
+    const data = dataRaw;
     const rec = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
     return {
       kind: asString(rec.kind).trim(),
       videoId: asString(rec.videoId).trim(),
       watchUrl: asString(rec.watchUrl).trim(),
     };
-  })
-  .handler(async ({ data }): Promise<{ comments: AdultComment[]; note: string }> => {
+  })();
     if (data.kind !== "reddit" || !data.videoId) {
       return { comments: [], note: "This provider does not expose a public comment feed." };
     }
@@ -2573,19 +2567,19 @@ export const fetchAdultComments = createServerFn({ method: "POST" })
     } catch (err) {
       return { comments: [], note: err instanceof Error ? err.message : "Comments unavailable." };
     }
-  });
+}
 
 
-export const searchRedtubeStars = createServerFn({ method: "POST" })
-  .validator((data: unknown) => {
+export async function runSearchRedtubeStars(dataRaw: unknown): Promise<{ stars: { name: string; thumb?: string; url?: string }[]; note: string }> {
+    const data = (() => {
+    const data = dataRaw;
     const rec = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
     const page = Number(rec.page);
     return {
       query: asString(rec.query).trim(),
       page: Number.isFinite(page) && page > 0 ? Math.floor(page) : 1,
     };
-  })
-  .handler(async ({ data }): Promise<{ stars: { name: string; thumb?: string; url?: string }[]; note: string }> => {
+  })();
     const params = new URLSearchParams({
       data: "redtube.Stars.getStarDetailedList",
       output: "json",
@@ -2623,4 +2617,4 @@ export const searchRedtubeStars = createServerFn({ method: "POST" })
       stars: filtered.slice(0, LIBRARY_LIMITS.redtubeStarsPerPage),
       note: filtered.length ? "Official RedTube star list." : "No matching RedTube creators on this page.",
     };
-  });
+}
