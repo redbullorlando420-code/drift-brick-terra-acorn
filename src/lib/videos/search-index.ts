@@ -10,11 +10,20 @@ export function tokenize(text: string): string[] {
     const ch = lower.charCodeAt(i);
     const isWord =
       i < lower.length &&
-      ((ch >= 48 && ch <= 57) || (ch >= 97 && ch <= 122) || ch === 95);
+      ((ch >= 48 && ch <= 57) || (ch >= 97 && ch <= 122) || ch === 95 || ch === 45);
     if (isWord) {
       if (start < 0) start = i;
     } else if (start >= 0) {
-      if (i - start >= 1) out.push(lower.slice(start, i));
+      if (i - start >= 1) {
+        const token = lower.slice(start, i);
+        out.push(token);
+        // Also emit hyphen/underscore segments so "fetish-amateur" matches either form.
+        if (token.includes("-") || token.includes("_")) {
+          for (const part of token.split(/[-_]+/)) {
+            if (part.length >= 1) out.push(part);
+          }
+        }
+      }
       start = -1;
     }
   }
@@ -159,7 +168,25 @@ export class VideoSearchIndex {
 
   /** Matching video ids, or null when query is empty (caller keeps full list). */
   search(query: string): Set<string> | null {
-    const tokens = tokenize(query);
+    const needle = query.trim().toLowerCase().replace(/^#/, "");
+    if (!needle) return null;
+    // Exact tag / compound shortcut: a clicked chip like "fetish-amateur" must
+    // hit even when the catalog only has that one title.
+    if (this.tagsRef && (needle.includes("-") || /^(?:fetish|genre|meta|creator|sub|source)-/.test(needle))) {
+      const exact = new Set<string>();
+      const bare = needle.replace(/^(?:fetish|genre|meta|creator|sub|source)-/, "");
+      for (const [id, list] of Object.entries(this.tagsRef)) {
+        for (const tag of list) {
+          const t = tag.toLowerCase();
+          if (t === needle || t === bare || t === `fetish-${bare}` || t === `genre-${bare}`) {
+            exact.add(id);
+            break;
+          }
+        }
+      }
+      if (exact.size) return exact;
+    }
+    const tokens = tokenize(needle);
     if (!tokens.length) return null;
 
     let acc: Set<string> | null = null;
@@ -181,9 +208,8 @@ export class VideoSearchIndex {
   }
 
   private idsForPrefix(prefix: string): Set<string> {
-    if (prefix.length >= 3 && this.byToken.has(prefix)) {
-      return this.byToken.get(prefix)!;
-    }
+    const exact = this.byToken.get(prefix);
+    if (exact) return exact;
     const out = new Set<string>();
     for (const [token, ids] of this.byToken) {
       if (token.startsWith(prefix) || (prefix.length >= 4 && token.includes(prefix))) {

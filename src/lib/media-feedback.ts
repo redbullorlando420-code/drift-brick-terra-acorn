@@ -1,7 +1,8 @@
 import { recordRatingForStreak } from "./rating-streaks";
+import { restoreDurableFeedback, saveDurableFeedback } from "./videos/persist";
 
 export type RatingLedgerEntry = { rating: number; updatedAt: number };
-type Feedback = { ratings: Record<string, number>; ratingHistory: Record<string, RatingLedgerEntry>; notes: Record<string, string>; creatorRatings: Record<string, number>; creatorLikes: Record<string, true>; tagLikes: Record<string, true>; tagHeartHistory: Record<string, number> };
+export type Feedback = { ratings: Record<string, number>; ratingHistory: Record<string, RatingLedgerEntry>; notes: Record<string, string>; creatorRatings: Record<string, number>; creatorLikes: Record<string, true>; tagLikes: Record<string, true>; tagHeartHistory: Record<string, number> };
 const KEY = "reelcase.media-feedback.v1";
 let cached: Feedback | null = null;
 let changeTimer: number | undefined;
@@ -43,6 +44,7 @@ export async function rankingFeedbackSnapshot() {
   };
 }
 
+let feedbackHydrated = false;
 function read(): Feedback {
   if (cached) return cached;
   try {
@@ -51,14 +53,33 @@ function read(): Feedback {
   } catch { cached = { ratings: {}, ratingHistory: {}, notes: {}, creatorRatings: {}, creatorLikes: {}, tagLikes: {}, tagHeartHistory: {} }; }
   return cached;
 }
+/** Merge IndexedDB feedback backup once so QuotaExceeded on localStorage cannot erase ratings/hearts. */
+export async function hydrateDurableFeedback() {
+  if (typeof window === "undefined" || feedbackHydrated) return;
+  feedbackHydrated = true;
+  const durable = await restoreDurableFeedback().catch(() => null);
+  if (!durable) return;
+  const current = read();
+  cached = {
+    ratings: { ...durable.ratings, ...current.ratings },
+    ratingHistory: { ...durable.ratingHistory, ...current.ratingHistory },
+    notes: { ...durable.notes, ...current.notes },
+    creatorRatings: { ...durable.creatorRatings, ...current.creatorRatings },
+    creatorLikes: { ...durable.creatorLikes, ...current.creatorLikes },
+    tagLikes: { ...durable.tagLikes, ...current.tagLikes },
+    tagHeartHistory: { ...durable.tagHeartHistory, ...current.tagHeartHistory },
+  };
+  notifyChange();
+}
 function persist() {
   persistTimer = undefined;
   const started = typeof performance !== "undefined" ? performance.now() : Date.now();
-  try { if (cached) localStorage.setItem(KEY, JSON.stringify(cached)); } catch { /* legacy per-item values remain available */ }
+  try { if (cached) localStorage.setItem(KEY, JSON.stringify(cached)); } catch { /* IndexedDB backup still writes below. */ }
   finally {
     lastPersistMs = Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - started);
     pendingWrites = 0;
   }
+  if (cached) saveDurableFeedback(cached);
 }
 
 /** Finish a queued rating write before a reload, tab close, or mobile app switch. */
@@ -138,3 +159,18 @@ export function toggleTagLike(tag: string) {
 export function exportFeedback() { return { version: 4, ...read() }; }
 export function getNote(id: string): string { const value = read().notes[id]; if (typeof value === "string") return value; try { return localStorage.getItem(`reelcase.note.${id}`) ?? ""; } catch { return ""; } }
 export function setNote(id: string, note: string) { const next = read(); if (note.trim()) next.notes[id] = note.trim(); else delete next.notes[id]; write(next); }
+
+/** Merge an imported feedback payload without wiping unrelated keys. */
+export function importFeedback(partial: Partial<Feedback> & { version?: number }) {
+  const next = read();
+  if (partial.ratings) Object.assign(next.ratings, partial.ratings);
+  if (partial.ratingHistory) Object.assign(next.ratingHistory, partial.ratingHistory);
+  if (partial.notes) Object.assign(next.notes, partial.notes);
+  if (partial.creatorRatings) Object.assign(next.creatorRatings, partial.creatorRatings);
+  if (partial.creatorLikes) Object.assign(next.creatorLikes, partial.creatorLikes);
+  if (partial.tagLikes) Object.assign(next.tagLikes, partial.tagLikes);
+  if (partial.tagHeartHistory) Object.assign(next.tagHeartHistory, partial.tagHeartHistory);
+  write(next);
+  notifyChange();
+  flush();
+}

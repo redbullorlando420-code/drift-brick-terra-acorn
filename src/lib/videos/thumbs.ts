@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { LIBRARY_LIMITS } from "@/lib/library-limits";
 import type { LibraryVideo } from "./types";
 import { resolvePlayUrl } from "./sources";
 import { bitmapFromVideo } from "./hw";
@@ -17,7 +18,7 @@ type ThumbState = {
 const inflight = new Set<string>();
 let active = 0;
 const waiting: Array<() => void> = [];
-const MAX_MEMORY_THUMBS = 360;
+const MAX_MEMORY_THUMBS = LIBRARY_LIMITS.memoryThumbEntries;
 const MAX_ARTWORK_ATTEMPTS = 3;
 const MAX_THUMB_QUEUE = 96;
 let artworkHits = 0;
@@ -167,7 +168,15 @@ export const useThumbs = create<ThumbState>((set, get) => ({
           set((s) => {
             const nextThumbs = { ...s.byId, [video.id]: thumb };
             const ids = Object.keys(nextThumbs);
-            if (ids.length > MAX_MEMORY_THUMBS) { delete nextThumbs[ids[0]]; artworkEvictions += 1; }
+            if (ids.length > MAX_MEMORY_THUMBS) {
+              const evictedId = ids[0];
+              const evicted = nextThumbs[evictedId];
+              delete nextThumbs[evictedId];
+              artworkEvictions += 1;
+              if (typeof evicted === "string" && evicted.startsWith("blob:")) {
+                try { URL.revokeObjectURL(evicted); } catch { /* ignore */ }
+              }
+            }
             return {
             byId: nextThumbs,
             durations:

@@ -1,7 +1,7 @@
 import { TopicLinks } from './topic-links';
 import { openTopic } from '@/lib/videos/topic-navigation';
 import { isTopicTag, canonicalTopic } from '@/lib/videos/topics';
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bot,
   Box,
@@ -9,6 +9,8 @@ import {
   Clapperboard,
   Copy,
   Download,
+  Upload,
+  Eye,
   ExternalLink,
   Gamepad2,
   Images,
@@ -38,11 +40,20 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { PrintViewerTarget } from "@/lib/prints-blobs";
+const PrintModelViewer = lazy(async () => {
+  const mod = await import("@/components/library/print-model-viewer");
+  return { default: mod.PrintModelViewer };
+});
+import { isViewablePrintName, savePrintBlob } from "@/lib/prints-blobs";
 import { Input } from "@/components/ui/input";
 import { resumeForVideo, useLibrary } from "@/lib/videos/store";
 import { buildAdultStatsSnapshot, exportAdultStats } from "@/lib/videos/adult-stats";
+import { downloadLibraryPackZip, importLibraryPackZip, type LibraryPackMode } from "@/lib/videos/library-pack";
+import { linksFromHistoryAndResume } from "@/lib/videos/persist";
 import { rankAdultTags } from "@/lib/videos/adult-rank";
-import { countAdultBySource } from "@/lib/videos/adult-filter";
+import { countAdultBySource, countAdultBooruHosts } from "@/lib/videos/adult-filter";
+import { isAdultImageKind } from "@/lib/videos/adult-sites";
 import { getThumbDiagnostics, useThumbs } from "@/lib/videos/thumbs";
 import { useSourceAssets } from "@/lib/source-assets";
 import { useP2PRoom } from "@/lib/multiplayer";
@@ -54,7 +65,7 @@ import { benchmarkVisionModelsLocally, classifyImagesLocally, VISION_MODELS, typ
 import { LOCAL_UPSCALER, upscaleImageLocally } from "@/lib/local-upscaler";
 import { getNetworkDeviceId, listNetworkDevices, type NetworkDevice } from "@/lib/network-presence";
 import type { LibraryVideo } from "@/lib/videos/types";
-import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { XTimeline } from "./x-timeline";
 import { X_ADULT_SEED_HANDLES } from "@/lib/videos/x-adult-seed-accounts";
@@ -67,6 +78,10 @@ type LocalItem = {
   addedAt: number;
   launchUrl?: string;
   iconData?: string;
+  /** IndexedDB blob id for interactive 3D preview of user-added prints. */
+  id?: string;
+  /** Bundled public URL for sample print geometry. */
+  sampleSrc?: string;
 };
 type HubStore = { prints: LocalItem[]; games: LocalItem[] };
 const HUB_KEY = "reelcase.hub.v1";
@@ -128,15 +143,17 @@ function readHub(): HubStore {
     {
       name: "Calibration cube.stl",
       path: "Reelcase samples/Calibration cube.stl",
-      size: 182400,
+      size: 2618,
       addedAt: 1,
+      sampleSrc: "/samples/prints/calibration-cube.stl",
     },
     { name: "Cable clip.3mf", path: "Reelcase samples/Cable clip.3mf", size: 94100, addedAt: 2 },
     {
-      name: "OpenSCAD phone stand.stl",
-      path: "Open-source examples/OpenSCAD phone stand.stl",
-      size: 512400,
+      name: "OpenSCAD phone stand.obj",
+      path: "Open-source examples/OpenSCAD phone stand.obj",
+      size: 318,
       addedAt: 4,
+      sampleSrc: "/samples/prints/phone-stand.obj",
     },
     {
       name: "Gridfinity bin.3mf",
@@ -145,10 +162,11 @@ function readHub(): HubStore {
       addedAt: 5,
     },
     {
-      name: "Benchy calibration.stl",
-      path: "Open-source examples/Benchy calibration.stl",
-      size: 643100,
+      name: "Benchy calibration.obj",
+      path: "Open-source examples/Benchy calibration.obj",
+      size: 236,
       addedAt: 6,
+      sampleSrc: "/samples/prints/benchy.obj",
     },
     {
       name: "Parametric drawer label.stl",
@@ -376,6 +394,20 @@ export function StatsSection() {
     const sources = ranked.filter((row) => row.tag.startsWith("source-") || row.tag.startsWith("provider-") || row.tag.startsWith("sub-"));
     const bySource = countAdultBySource(adultVideos);
     const snapshot = buildAdultStatsSnapshot(videos, folders, tags, { favorites, likes, cameCounts, viewCounts, ratingOf: getRating });
+    const kindCounts = { videos: 0, live: 0, photos: 0 };
+    let adultViews = 0;
+    let adultWatchSeconds = 0;
+    let adultRated = 0;
+    for (const video of adultVideos) {
+      if (video.remote?.live || video.remote?.kind === "chaturbate" || video.remote?.kind === "myfreecams") kindCounts.live += 1;
+      else if (isAdultImageKind(video.remote?.kind, video.mime, video.extension)) kindCounts.photos += 1;
+      else kindCounts.videos += 1;
+      adultViews += viewCounts[video.id] ?? 0;
+      adultWatchSeconds += progress[video.id]?.t ?? resumeProgress[video.id]?.t ?? 0;
+      if (getRating(video.id) > 0) adultRated += 1;
+    }
+    const booruHosts = countAdultBooruHosts(adultVideos);
+    const historyAdult = history.filter((entry) => adultVideos.some((video) => video.id === entry.id)).length;
     return {
       adultTitles: adultVideos.length,
       sourceMix: Object.entries(bySource).filter(([, count]) => count > 0).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
@@ -393,8 +425,15 @@ export function StatsSection() {
       redditTags: snapshot.redditTags.slice(0, 12),
       tagConnections: snapshot.tagConnections.slice(0, 12),
       noisyTagAssignments: snapshot.noisyTagAssignments,
+      kindCounts,
+      booruHosts,
+      adultViews,
+      adultWatchHours: adultWatchSeconds / 3600,
+      adultRated,
+      historyAdult,
+      sparseTags: ranked.filter((row) => row.count === 1).length,
     };
-  }, [cameCounts, favorites, folders, likes, tags, videos, viewCounts]);
+  }, [cameCounts, favorites, folders, history, likes, progress, resumeProgress, tags, videos, viewCounts]);
     const favoriteHealth = useMemo(() => {
     const videoIds = new Set(videos.map((video) => video.id));
     const saved = Object.keys(favorites);
@@ -486,6 +525,30 @@ export function StatsSection() {
           <ResponsiveContainer width="100%" height="78%"><BarChart layout="vertical" margin={{ left: 16 }} data={adultTagStats.topFetish.slice(0, 8).map(([tag, count]) => ({ name: tag.replace(/^fetish-/, ""), titles: count }))}><XAxis type="number" stroke="currentColor" fontSize={12}/><YAxis type="category" dataKey="name" width={122} stroke="currentColor" fontSize={10}/><Tooltip/><Bar dataKey="titles" fill="var(--color-accent)" radius={4}/></BarChart></ResponsiveContainer>
         </div>
       </section>
+      <section className="mt-5 grid gap-5 xl:grid-cols-3">
+        <div className="h-72 rounded-lg bg-bg/45 p-4">
+          <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Adult media mix</p>
+          <p className="mt-1 text-xs text-muted">Videos, live rooms, and photos currently in the Adult catalog.</p>
+          <ResponsiveContainer width="100%" height="78%"><PieChart><Pie dataKey="value" nameKey="name" data={[{ name: "Videos", value: adultTagStats.kindCounts.videos }, { name: "Live", value: adultTagStats.kindCounts.live }, { name: "Photos", value: adultTagStats.kindCounts.photos }].filter((row) => row.value > 0)} innerRadius={42} outerRadius={72} paddingAngle={2}>{["var(--color-accent)", "var(--color-muted)", "#7c6cff"].map((color, index) => <Cell key={color} fill={color} />)}</Pie><Tooltip/></PieChart></ResponsiveContainer>
+        </div>
+        <div className="h-72 rounded-lg bg-bg/45 p-4">
+          <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Booru host mix</p>
+          <p className="mt-1 text-xs text-muted">Rule34 is listed first so its filter chip stays accountable.</p>
+          <ResponsiveContainer width="100%" height="78%"><BarChart data={adultTagStats.booruHosts.slice(0, 8).map((row) => ({ name: row.host, titles: row.count }))}><XAxis dataKey="name" stroke="currentColor" fontSize={10} interval={0} angle={-20} textAnchor="end" height={54}/><YAxis stroke="currentColor" fontSize={12}/><Tooltip/><Bar dataKey="titles" fill="var(--color-accent)" radius={4}/></BarChart></ResponsiveContainer>
+        </div>
+        <div className="rounded-lg bg-bg/45 p-4">
+          <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Adult engagement table</p>
+          <div className="mt-3 overflow-x-auto"><table className="w-full text-left text-xs"><thead><tr className="text-muted"><th className="py-1 pr-3 font-medium">Metric</th><th className="py-1 font-medium">Value</th></tr></thead><tbody className="text-fg">
+            <tr className="border-t border-border/60"><td className="py-1.5 pr-3">Local view events</td><td>{adultTagStats.adultViews.toLocaleString()}</td></tr>
+            <tr className="border-t border-border/60"><td className="py-1.5 pr-3">Resume watch time</td><td>{adultTagStats.adultWatchHours.toFixed(1)} h</td></tr>
+            <tr className="border-t border-border/60"><td className="py-1.5 pr-3">Rated titles</td><td>{adultTagStats.adultRated.toLocaleString()}</td></tr>
+            <tr className="border-t border-border/60"><td className="py-1.5 pr-3">History events</td><td>{adultTagStats.historyAdult.toLocaleString()}</td></tr>
+            <tr className="border-t border-border/60"><td className="py-1.5 pr-3">1-video tags ranked</td><td>{adultTagStats.sparseTags.toLocaleString()}</td></tr>
+            <tr className="border-t border-border/60"><td className="py-1.5 pr-3">Rule34 cards</td><td>{(adultTagStats.booruHosts.find((row) => row.host === "rule34")?.count ?? 0).toLocaleString()}</td></tr>
+          </tbody></table></div>
+        </div>
+      </section>
+      {adultTagStats.booruHosts.length > 0 && <div className="mt-4 overflow-x-auto rounded-md bg-bg/45 p-3"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Booru hosts</p><table className="mt-2 w-full min-w-[28rem] text-left text-xs"><thead><tr className="text-muted"><th className="py-1 pr-3">Host</th><th className="py-1 pr-3">Titles</th><th className="py-1">Share</th></tr></thead><tbody>{adultTagStats.booruHosts.map((row) => <tr key={row.host} className="border-t border-border/60 text-fg"><td className="py-1.5 pr-3 font-medium">{row.host}</td><td className="py-1.5 pr-3">{row.count.toLocaleString()}</td><td className="py-1.5">{adultTagStats.adultTitles ? `${Math.round(row.count / adultTagStats.adultTitles * 100)}%` : "—"}</td></tr>)}</tbody></table></div>}
       {(adultTagStats.genres.length > 0 || adultTagStats.metaTags.length > 0) && <div className="mt-4 grid gap-3 lg:grid-cols-2"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Mapped genres</p><div className="mt-2 flex flex-wrap gap-2">{adultTagStats.genres.map((row) => <span key={row.tag} className="rounded-full bg-bg/45 px-3 py-1 text-xs text-fg">{row.label} · {row.count}</span>)}</div></div><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Recommendation metatags</p><div className="mt-2 flex flex-wrap gap-2">{adultTagStats.metaTags.map((row) => <span key={row.tag} className="rounded-full bg-bg/45 px-3 py-1 text-xs text-fg">{row.tag.replace(/^meta-/, "").replace(/-/g, " ")} · {row.count}</span>)}</div></div></div>}
       <div className="mt-4 rounded-md bg-bg/45 p-3"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Tag health & connections</p><p className="mt-1 text-sm text-muted">{adultTagStats.tagQuality.usefulTagged.toLocaleString()} titles have a useful interest, averaging {adultTagStats.tagQuality.averageUsefulTags.toFixed(1)} interests per title. {adultTagStats.noisyTagAssignments ? `${adultTagStats.noisyTagAssignments.toLocaleString()} old parser-style labels are excluded from ranking.` : "No parser-style labels are influencing rankings."}</p></div><Button size="sm" variant="secondary" onClick={() => useLibrary.getState().autoTagLibrary()}>Repair Adult tags</Button></div>{adultTagStats.tagConnections.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{adultTagStats.tagConnections.map((connection) => <span key={`${connection.left}-${connection.right}`} className="rounded-full border border-border px-3 py-1 text-xs text-fg">#{connection.left} + #{connection.right} · {connection.count} · {connection.lift.toFixed(1)}× · {connection.providerCount} sources</span>)}</div>}</div>
       {adultTagStats.redditTags.length > 0 && <div className="mt-4 rounded-md bg-bg/45 p-3"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Reddit source coverage</p><p className="mt-1 text-sm text-muted">Your stored community tags are counted separately from generic Reddit labels, so favorites and source-list changes can guide future pulls.</p><div className="mt-3 flex flex-wrap gap-2">{adultTagStats.redditTags.map((row) => <span key={row.tag} className="rounded-full border border-border px-3 py-1 text-xs text-fg">#{row.tag.replace(/^sub-/, "")} · {row.count}</span>)}</div></div>}
@@ -799,6 +862,75 @@ export function SettingsSection() {
           <Button variant="secondary" onClick={exportChannels}>YouTube + Twitch</Button>
         </div>
       </div>
+      <section className="mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border">
+        <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Library pack · local folder</p>
+        <h2 className="mt-2 font-display text-2xl text-fg">Export / import follows, history, links & marks</h2>
+        <p className="mt-1 max-w-2xl text-sm text-muted">
+          Downloads a zip that matches <code className="text-fg">public/import-templates/</code>: follows, watch history,
+          saved video URLs, continue-watching pointers, favorites/likes, Adult marks, ratings &amp; tag hearts, and stats.
+          Import merges into durable IndexedDB stores and does not wipe unrelated data unless you confirm replace-follows.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button onClick={() => {
+            const state = useLibrary.getState();
+            downloadLibraryPackZip({
+              follows: state.follows,
+              history: state.history,
+              links: linksFromHistoryAndResume(state.history, state.resumeProgress),
+              favorites: Object.keys(state.favorites),
+              likes: Object.keys(state.likes),
+              viewCounts: state.viewCounts,
+              cameCounts: state.cameCounts,
+              progress: state.progress,
+              resumeProgress: state.resumeProgress,
+              adultVideos: state.videos,
+              folders: state.folders,
+              tags: state.tags,
+            });
+            setServiceNote("Library pack zip downloaded. Unzip to edit offline, or keep as backup.");
+          }}><Download className="size-4" /> Export library pack</Button>
+          <Button variant="secondary" onClick={() => {
+            const input = document.createElement("input");
+            input.type = "file";
+            input.accept = ".zip,.json,.csv,application/zip,application/json,text/csv";
+            input.onchange = () => {
+              const file = input.files?.[0];
+              if (!file) return;
+              const proceed = window.confirm("Import this library pack into Reelcase?\n\nData merges into durable local stores. Unrelated data is kept.");
+              if (!proceed) { setServiceNote("Import cancelled."); return; }
+              const wipeFollows = window.confirm("Also REPLACE all YouTube/Twitch follows with the file?\n\nOK = replace follows\nCancel = merge follows (recommended)");
+              const mode: LibraryPackMode = wipeFollows ? "replace-follows" : "merge";
+              void importLibraryPackZip(file, {
+                getFollows: () => useLibrary.getState().follows,
+                setFollows: (follows) => useLibrary.setState({ follows }),
+                getHistory: () => useLibrary.getState().history,
+                setHistory: (history) => useLibrary.setState({ history }),
+                getViewCounts: () => useLibrary.getState().viewCounts,
+                getCameCounts: () => useLibrary.getState().cameCounts,
+                setMarks: (viewCounts, cameCounts) => useLibrary.setState({ viewCounts, cameCounts }),
+                getFavorites: () => Object.keys(useLibrary.getState().favorites),
+                getLikes: () => Object.keys(useLibrary.getState().likes),
+                setShelves: (favorites, likes) => useLibrary.setState({
+                  favorites: Object.fromEntries(favorites.map((id) => [id, true as const])),
+                  likes: Object.fromEntries(likes.map((id) => [id, true as const])),
+                }),
+                getProgress: () => useLibrary.getState().progress,
+                getResumeProgress: () => useLibrary.getState().resumeProgress,
+                setResume: (progress, resumeProgress) => useLibrary.setState({ progress, resumeProgress }),
+                getLinks: () => linksFromHistoryAndResume(useLibrary.getState().history, useLibrary.getState().resumeProgress),
+                setLinks: () => { /* links persist via saveDurableLinks inside apply */ },
+              }, mode).then((result) => {
+                setServiceNote(`Pack import · +${result.followsAdded} follows · +${result.historyMerged} history · +${result.linksMerged} links${result.feedbackMerged ? " · ratings/hearts merged" : ""}${result.warnings.length ? ` · ${result.warnings[0]}` : ""}`);
+              }).catch((error) => {
+                setServiceNote(error instanceof Error ? error.message : "Library pack import failed.");
+              });
+            };
+            input.click();
+          }}><Upload className="size-4" /> Import library pack</Button>
+          <a className="inline-flex h-8 items-center rounded-md bg-bg/45 px-3 text-xs text-muted shadow-border hover:text-fg" href="/import-templates/README.md" target="_blank" rel="noreferrer">Open templates</a>
+        </div>
+        {serviceNote && <p className="mt-3 text-xs text-accent">{serviceNote}</p>}
+      </section>
       <section className="mt-6 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Connected services</p><h2 className="mt-2 font-display text-2xl text-fg">Independent caches, on your schedule.</h2><p className="mt-1 text-sm text-muted">Twitch and YouTube refresh together from your saved follows. Photo imports, Roku discovery, and Spotify remain independently local and refresh only when you ask.</p><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{[{ name: "YouTube", detail: "Saved channels", checked: remoteCheckedAt, action: async () => { const result = await refreshFollows(); setServiceNote(`Refreshed channel cache · ${result.newVideos.length} new items.`); } }, { name: "Twitch", detail: "Live + VOD cache", checked: remoteCheckedAt, action: async () => { const result = await refreshFollows(); setServiceNote(`Refreshed Twitch status · ${result.wentLive.length} channels live.`); } }, { name: "Photos", detail: `${folders.filter((folder) => folder.photoCount).length} source folders`, checked: Math.max(0, ...folders.map((folder) => folder.lastCheckedAt ?? 0)), action: async () => { const sources = folders.filter((folder) => folder.photoCount && (folder.kind === "directory" || folder.kind === "files")); const counts = await Promise.all(sources.map((folder) => refreshSourcePhotos(folder.id))); setServiceNote(`Refreshed local photo sources · ${counts.reduce((sum, count) => sum + count, 0)} photos found.`); } }, { name: "Roku", detail: "Companion-assisted", checked: 0, action: async () => { try { const res = await fetch("http://127.0.0.1:43123/roku/discover"); const data = await res.json() as { devices?: unknown[] }; setServiceNote(`Roku refresh complete · ${(data.devices ?? []).length} device(s) found.`); } catch { setServiceNote("Roku refresh needs the local Reelcase Companion running."); } } }, { name: "Spotify", detail: "Saved music shortcuts", checked: 0, action: async () => { setServiceNote("Spotify shortcuts are local and ready. Open Spotify from its library section to refresh provider content."); } }].map((service) => <div key={service.name} className="rounded-md bg-bg/45 p-3 shadow-border"><p className="text-sm font-medium text-fg">{service.name}</p><p className="mt-1 text-xs text-muted">{service.detail}</p><p className="mt-1 text-[11px] text-subtle">{service.checked ? `Last refreshed ${new Date(service.checked).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Not refreshed this session"}</p><Button size="sm" variant="secondary" className="mt-3" onClick={() => void service.action()}>Refresh</Button></div>)}</div>{serviceNote && <p className="mt-3 text-xs text-accent">{serviceNote}</p>}</section>
       <section className="mt-6"><div className="mb-3"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Device & performance</p><p className="mt-1 text-sm text-muted">The controls that change how Reelcase runs and fits your screen.</p></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-lg bg-elevated p-5 shadow-border">
@@ -985,8 +1117,8 @@ export function PrintsSection() {
       eyebrow="Maker shelf"
       icon={<Box className="size-4" />}
       title="3D prints"
-      copy="Keep a lightweight catalog of print-ready files. Add STL, OBJ, 3MF, or G-code files to track what is ready for the printer."
-      accept=".stl,.obj,.3mf,.gcode"
+      copy="Keep a lightweight catalog of print-ready files. Preview STL, OBJ, GLB/GLTF, and 3MF in an interactive orbit viewer; G-code stays list-only for slicers."
+      accept=".stl,.obj,.3mf,.gcode,.glb,.gltf"
       footer={
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <ServiceLink
@@ -1374,7 +1506,7 @@ export function PhotosSection() {
   const [photoScanFoundPhotos, setPhotoScanFoundPhotos] = useState(0);
   const [photoScanAverageMs, setPhotoScanAverageMs] = useState(0);
   const [photoMetadataProgress, setPhotoMetadataProgress] = useState({ total: 0, done: 0, startedAt: 0, running: false });
-  const [photoLimit, setPhotoLimit] = useState(80);
+  const [photoLimit, setPhotoLimit] = useState(48);
   const [visionBusy, setVisionBusy] = useState(false);
   const [visionProgress, setVisionProgress] = useState("");
   const [visionReport, setVisionReport] = useState<Array<{ id: string; name: string; labels: VisionLabel[] }>>([]);
@@ -1392,6 +1524,7 @@ export function PhotosSection() {
   const [upscalerChecksum, setUpscalerChecksum] = useState<string>(LOCAL_UPSCALER.sha256);
   const [upscalerInstalling, setUpscalerInstalling] = useState(false);
   const [upscalePreview, setUpscalePreview] = useState("");
+  const upscalePreviewRef = useRef("");
   const [upscaleBusy, setUpscaleBusy] = useState(false);
   const [upscaleStatus, setUpscaleStatus] = useState("");
   const [companionCache, setCompanionCache] = useState<{ state: string; photos: number; videos: number; scannedAt: number; truncated: boolean } | null>(null);
@@ -1443,7 +1576,7 @@ export function PhotosSection() {
       if (!blob.size || blob.size > 750 * 1024 * 1024) throw new Error("Model size is outside the safe local cache budget");
       const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", await blob.arrayBuffer()))).map((part) => part.toString(16).padStart(2, "0")).join("");
       if (digest !== expected) throw new Error("Checksum mismatch — the model was not stored");
-      const cacheKey = "/reelcase-local-models/upscaler.onnx";
+      const cacheKey = LOCAL_UPSCALER.cacheKey;
       const cache = await caches.open("reelcase-local-models-v1");
       await cache.put(cacheKey, new Response(blob, { headers: { "content-type": blob.type || "application/octet-stream" } }));
       const name = new URL(url).pathname.split("/").pop() || "local-upscaler.onnx";
@@ -1554,7 +1687,15 @@ export function PhotosSection() {
       setPhotoCacheNotice(`Cached index ready · ${sourcePhotos.length.toLocaleString()} source photos available`);
     }
   }, [sourcePhotos]);
-  useEffect(() => () => { for (const url of photoUrls.current) URL.revokeObjectURL(url); photoUrls.current.clear(); }, []);
+  useEffect(() => { upscalePreviewRef.current = upscalePreview; }, [upscalePreview]);
+  useEffect(() => () => {
+    for (const url of photoUrls.current) URL.revokeObjectURL(url);
+    photoUrls.current.clear();
+    if (upscalePreviewRef.current) {
+      try { URL.revokeObjectURL(upscalePreviewRef.current); } catch { /* ignore */ }
+      upscalePreviewRef.current = "";
+    }
+  }, []);
   useEffect(() => {
     // Metadata writes used to serialize every photo after every streamed batch.
     // Coalescing into one idle-sized save keeps scrolling and image decode work
@@ -2204,10 +2345,10 @@ const DEFAULT_MISSIONS: Mission[] = [
 const ROADMAP_EXPANSION: Mission[] = [
   ...[
     ["adult-thumbnail-coverage", "Adult preview coverage", "Continue scoring usable thumbnails above slow or missing artwork across Reddit, Redgifs, RedTube, and other adult providers."],
-    ["print-file-viewer", "3D print file viewer", "Preview locally added STL, OBJ, and 3MF geometry with file details before opening a slicer."],
+    ["print-file-viewer", "3D print file viewer", "Interactive three.js orbit viewer for STL, OBJ, GLB/GLTF, and 3MF — sample models plus user-added IndexedDB bytes; dispose on close."],
     ["twitch-view-modes", "Twitch viewing modes", "Keep official Twitch playback available in theater or side-details mode, while filtering offline channels and ranking VODs by useful signals."],
     ["games-shortcut-curation", "Games shortcut curation", "Promote verified game launchers and their icons while keeping unrelated web links and desktop helpers out of game recommendations."],
-  ].map(([id, title, detail]) => ({ id, title, detail, done: false })),
+  ].map(([id, title, detail]) => ({ id, title, detail, done: id === "print-file-viewer" })),
   ...[
     ["history-01", "History integrity journal", "Add monotonic event IDs and an append-only local audit record."],
     ["history-02", "History replay recovery", "Reconcile IndexedDB activity events after an interrupted browser session."],
@@ -2624,33 +2765,62 @@ function LocalCatalog({
   footer?: ReactNode;
 }) {
   const [hub, setHub] = useState<HubStore>({ prints: [], games: [] });
+  const [viewer, setViewer] = useState<PrintViewerTarget | null>(null);
+  const [busy, setBusy] = useState(false);
   useEffect(() => setHub(readHub()), []);
   const items = hub[kind];
-  const change = (files: FileList | null) => {
+  const change = async (files: FileList | null) => {
     if (!files?.length) return;
+    if (kind === "prints") {
+      setBusy(true);
+      try {
+        const nextItems: LocalItem[] = [];
+        for (const file of [...files]) {
+          const blobId = await savePrintBlob(file);
+          nextItems.push({
+            name: file.name,
+            path: file.webkitRelativePath || file.name,
+            size: file.size,
+            addedAt: Date.now(),
+            id: blobId ?? undefined,
+          });
+        }
+        const next = { ...hub, prints: [...nextItems, ...hub.prints].slice(0, 120) };
+        setHub(next);
+        writeHub(next);
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     const next = { ...hub, [kind]: filesToItems(files, kind === "games") };
     setHub(next);
     writeHub(next);
   };
+  const canView = (item: LocalItem) => Boolean(item.sampleSrc || (item.id && isViewablePrintName(item.name)));
   return (
     <HubShell eyebrow={eyebrow} icon={icon} title={title} copy={copy}>
       <label className="mt-6 flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-border bg-elevated/40 px-5 text-center transition-[background-color,border-color] duration-150 hover:border-fg/30 hover:bg-elevated">
         <PackageSearch className="size-7 text-accent" />
         <span className="mt-3 text-sm font-medium text-fg">
-          {directory ? "Choose Desktop games folder" : "Add print files"}
+          {directory ? "Choose Desktop games folder" : busy ? "Saving print files…" : "Add print files"}
         </span>
         <span className="mt-1 text-xs text-muted">
           {directory
             ? "Keeps only game launchers and shortcuts; folders and support files stay out."
-            : "STL, OBJ, 3MF, and G-code are supported."}
+            : "STL, OBJ, GLB/GLTF, and 3MF open in the in-app viewer; G-code is catalog-only."}
         </span>
         <input
           type="file"
           multiple
           accept={accept}
           className="sr-only"
+          disabled={busy}
           {...(directory ? ({ webkitdirectory: "", directory: "" } as Record<string, string>) : {})}
-          onChange={(event) => change(event.target.files)}
+          onChange={(event) => {
+            void change(event.target.files);
+            event.target.value = "";
+          }}
         />
       </label>
       {items.length > 0 && (
@@ -2659,7 +2829,9 @@ function LocalCatalog({
             <p className="text-sm font-medium text-fg">
               {items.length} saved {kind === "prints" ? "print files" : "games"}
             </p>
-            <p className="text-xs text-subtle">Stored as names only</p>
+            <p className="text-xs text-subtle">
+              {kind === "prints" ? "Names in localStorage · viewable bytes in IndexedDB" : "Stored as names only"}
+            </p>
           </div>
           {items.slice(0, 80).map((item) => (
             <div
@@ -2670,12 +2842,40 @@ function LocalCatalog({
                 <p className="truncate text-sm text-fg">{item.name}</p>
                 <p className="truncate text-xs text-muted">{item.path}</p>
               </div>
-              <p className="shrink-0 font-mono text-xs text-subtle">{bytes(item.size)}</p>
+              <div className="flex shrink-0 items-center gap-2">
+                {kind === "prints" && (
+                  <Button
+                    size="sm"
+                    variant={canView(item) ? "default" : "secondary"}
+                    type="button"
+                    disabled={!canView(item)}
+                    title={canView(item) ? "Open orbit viewer" : /\.gcode$/i.test(item.name) ? "G-code is not a mesh preview" : "Re-add this file to enable preview"}
+                    onClick={() =>
+                      setViewer({
+                        name: item.name,
+                        path: item.path,
+                        size: item.size,
+                        sampleSrc: item.sampleSrc,
+                        blobId: item.id,
+                      })
+                    }
+                  >
+                    <Eye className="size-3.5" />
+                    View
+                  </Button>
+                )}
+                <p className="font-mono text-xs text-subtle">{bytes(item.size)}</p>
+              </div>
             </div>
           ))}
         </div>
       )}
       {footer}
+      {viewer && (
+        <Suspense fallback={null}>
+          <PrintModelViewer target={viewer} onClose={() => setViewer(null)} />
+        </Suspense>
+      )}
     </HubShell>
   );
 }

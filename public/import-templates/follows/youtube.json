@@ -1,0 +1,10 @@
+{
+  "channels": [
+    {
+      "id": "yt:example",
+      "kind": "youtube",
+      "handle": "example",
+      "title": "Example YouTube channel"
+    }
+  ]
+}

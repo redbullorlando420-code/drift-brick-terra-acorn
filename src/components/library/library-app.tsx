@@ -61,6 +61,7 @@ import { DEMO_FOLDER_ID } from "@/lib/videos/samples";
 import type { LibraryVideo, WellKnownStart } from "@/lib/videos/types";
 import { hasFreshViewerCount, isClassicVideo } from "@/lib/videos/types";
 import { useThumbs } from "@/lib/videos/thumbs";
+import { clearLowPriorityImageQueue, ensureImageBudgetVisibilityHook } from "@/lib/videos/image-load-budget";
 import { adultThumbCandidatesForVideo } from "@/lib/videos/adult-thumbs";
 import { librarySearchIndex } from "@/lib/videos/search-index";
 import { searchWorkerIndex } from "@/lib/videos/search-worker-index";
@@ -221,6 +222,7 @@ export function LibraryApp() {
   const clearHistory = useLibrary((s) => s.clearHistory);
   const pruneHistory = useLibrary((s) => s.pruneHistory);
   const folders = useLibrary((s) => s.folders);
+  const catalogVideos = useLibrary((s) => s.videos);
   const sourceId = useLibrary((s) => s.sourceId);
   const setSource = useLibrary((s) => s.setSource);
   const hydrated = useLibrary((s) => s.hydrated);
@@ -397,7 +399,12 @@ export function LibraryApp() {
     if (!needle) return adultTagRank;
     return adultTagRank.filter((row) => row.tag.includes(needle) || row.tag.replace(/-/g, " ").includes(needle));
   }, [adultTagQuery, adultTagRank]);
-  const heartedAdultTags = useMemo(() => getHeartedTagHistory().filter((tag) => adultTagRank.some((row) => row.tag === tag)), [adultTagRank, tagHeartRevision]);
+  const heartedAdultTags = useMemo(() => {
+    const ranked = new Set(adultTagRank.map((row) => row.tag));
+    // Keep hearted tags visible even when they only exist on one title (or were
+    // temporarily missing from the ranked chip list).
+    return getHeartedTagHistory().filter((tag) => ranked.has(tag) || adultRemoteVideos.some((video) => videoMatchesAdultTag(video, tag, tags)));
+  }, [adultRemoteVideos, adultTagRank, tagHeartRevision, tags]);
   const visibleAdultTags = useMemo(() => {
     // Hard cap even while searching — never mount hundreds of chip buttons.
     const page = Math.min(Math.max(10, adultTagVisibleCount), 36);
@@ -429,6 +436,19 @@ export function LibraryApp() {
   }, [adultTagQuery, adultSource]);
 
   useEffect(() => {
+    const onAdultTag = (event: Event) => {
+      const tag = String((event as CustomEvent<{ tag?: string }>).detail?.tag ?? "").trim();
+      if (!tag) return;
+      setAdultTag(tag);
+      setAdultSource("all");
+      setAdultArtworkOnly(false);
+      setQuery("");
+    };
+    window.addEventListener("reelcase:adult-tag", onAdultTag);
+    return () => window.removeEventListener("reelcase:adult-tag", onAdultTag);
+  }, [setQuery]);
+
+  useEffect(() => {
     const load = () => {
       const saved = Number(localStorage.getItem("reelcase.adult-rail-limit") ?? "48");
       setAdultRailLimit([16, 24, 48, 72].includes(saved) ? saved : 24);
@@ -450,36 +470,49 @@ export function LibraryApp() {
 
   const filteredYoutube = useMemo(() => youtubeTagFilter === "all" ? newestYoutube : newestYoutube.filter((video) => topicsForVideo(video, tags[video.id]).includes(youtubeTagFilter)), [newestYoutube, tags, youtubeTagFilter]);
   const searchInsights = useMemo(() => {
-    const needle = query.trim().toLowerCase();
+    const needle = query.trim().toLowerCase().replace(/^#/, "");
     if (!needle) return { ranked: videos, tags: [] as Array<{ tag: string; count: number; score: number }> };
+    // Never score against selectVisible during an in-flight search — that list
+    // is empty until searchResult lands, which made single-tag clicks look broken.
+    const adultIds = new Set(folders.filter((folder) => folder.adult).map((folder) => folder.id));
+    const inAdults = sourceId === "adults" || sourceId === "adult-fetishes";
+    const pool = catalogVideos.filter((video) => {
+      if (video.isSample) return false;
+      const isAdult = adultIds.has(video.folderId) || Boolean(video.remote && ["eporner", "redtube", "chaturbate", "myfreecams", "reddit", "booru", "redgifs"].includes(video.remote.kind));
+      return inAdults ? isAdult : !isAdult;
+    });
     const terms = needle.split(/[^a-z0-9]+/).filter(Boolean);
-    const score = (video: typeof videos[number]) => {
+    const bare = needle.replace(/^(?:fetish|genre|meta|creator|sub|source)-/, "");
+    const score = (video: (typeof catalogVideos)[number]) => {
       const title = video.name.toLowerCase();
       const creator = (video.remote?.channelName ?? "").toLowerCase();
       const videoTags = [...new Set([...topicsForVideo(video, tags[video.id]), ...(tags[video.id] ?? [])].map((tag) => tag.toLowerCase()))];
+      const exactTag = videoTags.some((tag) => tag === needle || tag === bare || tag === `fetish-${bare}` || tag === `genre-${bare}`) ? 220 : 0;
       const exactTagHits = videoTags.filter((tag) => terms.some((term) => tag === term || tag.includes(term))).length;
       const titleHits = terms.filter((term) => title.includes(term)).length;
       const creatorHits = terms.filter((term) => creator.includes(term)).length;
-      return (title.includes(needle) ? 120 : 0) + (creator.includes(needle) ? 95 : 0) + titleHits * 28 + creatorHits * 22 + exactTagHits * 18 + getRating(video.id) * 7 + (favorites[video.id] ? 12 : 0) + (likes[video.id] ? 6 : 0) + Math.min(8, viewCounts[video.id] ?? 0);
+      return exactTag + (title.includes(needle) ? 120 : 0) + (creator.includes(needle) ? 95 : 0) + titleHits * 28 + creatorHits * 22 + exactTagHits * 18 + getRating(video.id) * 7 + (favorites[video.id] ? 12 : 0) + (likes[video.id] ? 6 : 0) + Math.min(8, viewCounts[video.id] ?? 0);
     };
-    const rankedRows = videos.map((video) => ({ video, score: score(video) })).sort((a, b) => b.score - a.score || b.video.addedAt - a.video.addedAt || a.video.name.localeCompare(b.video.name));
+    const rankedRows = pool
+      .map((video) => ({ video, score: score(video) }))
+      .filter((row) => row.score > 0)
+      .sort((a, b) => b.score - a.score || b.video.addedAt - a.video.addedAt || a.video.name.localeCompare(b.video.name));
     const tagRows = new Map<string, { count: number; score: number }>();
     for (const row of rankedRows.slice(0, 240)) {
-      for (const tag of topicsForVideo(row.video, tags[row.video.id])) {
+      for (const tag of [...topicsForVideo(row.video, tags[row.video.id]), ...(tags[row.video.id] ?? [])]) {
         const clean = tag.toLowerCase();
-        if (clean.length < 3 || /^(?:year|month|day|type|format|source|provider)-/.test(clean)) continue;
+        if (clean.length < 2 || /^(?:year|month|day|type|format|provider)-/.test(clean)) continue;
         const previous = tagRows.get(clean) ?? { count: 0, score: 0 };
         tagRows.set(clean, { count: previous.count + 1, score: previous.score + row.score });
       }
     }
     return { ranked: rankedRows.map((row) => row.video), tags: [...tagRows.entries()].map(([tag, value]) => ({ tag, ...value })).sort((a, b) => b.score - a.score || b.count - a.count || a.tag.localeCompare(b.tag)).slice(0, 12) };
-  }, [favorites, likes, query, ratingRevision, tags, videos, viewCounts]);
+  }, [catalogVideos, favorites, folders, likes, query, ratingRevision, sourceId, tags, videos, viewCounts]);
   const trendingYoutube = useMemo(
     () => sourceId === "youtube" && youtubeExploreVisible ? diversifyCreators([...filteredYoutube].sort((a, b) => (b.remote?.views ?? 0) - (a.remote?.views ?? 0) || b.addedAt - a.addedAt)) : [],
     [filteredYoutube, sourceId, youtubeExploreVisible],
   );
   const categories = useLibrary((s) => s.categories);
-  const catalogVideos = useLibrary((s) => s.videos);
   const progress = useLibrary((s) => s.progress);
   const resumeProgress = useLibrary((s) => s.resumeProgress);
   const unavailable = useLibrary((s) => s.unavailable);
@@ -773,6 +806,23 @@ export function LibraryApp() {
     // A return to Home is a new discovery session. Rotate the local ranking
     // even if the app itself stayed mounted in the background.
     if (sourceId === "home") setHomePickShuffle(Date.now());
+  }, [sourceId]);
+  useEffect(() => {
+    // Leaving a heavy section tears down deferred shelves and speculative
+    // decode waiters so the next route does not keep huge arrays or image work.
+    ensureImageBudgetVisibilityHook();
+    clearLowPriorityImageQueue();
+    if (sourceId !== "youtube") {
+      setYoutubeExploreVisible(false);
+      setYoutubeDeepVisible(false);
+      setYoutubeHealthVisible(false);
+      setYoutubeTagFilter("all");
+    }
+    if (sourceId !== "adults" && sourceId !== "adult-fetishes") {
+      setAdultDeepVisible(false);
+      setAdultTagVisibleCount(10);
+    }
+    if (sourceId !== "home") setHomeExpanded(false);
   }, [sourceId]);
   useEffect(() => {
     if (sourceId !== "home") { setHomeRecommendationsReady(false); return; }
@@ -1213,7 +1263,7 @@ export function LibraryApp() {
                 </>
               )}
 
-              {sourceId === "live" && browsing && <LiveDesk videos={currentLiveVideos} />}
+              {sourceId === "live" && browsing && <LiveDesk videos={currentLiveVideos} adultLiveVideos={adultRemoteVideos.filter((video) => adultKind(video) === "live").slice(0, 64)} />}
 
               {sourceId === "movies" && browsing && (
                 <>
@@ -1324,11 +1374,19 @@ export function LibraryApp() {
                   />
                   <TitleRail title="Continue watching" videos={adultContinueRail} variant="rail" />
                   <TitleRail title="I cummed to it" reason="Private local marks only — counts stay on this device." videos={adultMarkedRail} variant="rail" />
-                  {adultSource === "all" && (
+                  {(adultSource === "all" || adultSource === "reddit") && (
                     <TitleRail
                       title="Reddit photos & videos"
                       reason="Curated 18+ Atom feeds — photos, gifs, and v.redd.it / redgifs posters."
                       videos={adultRedditRail}
+                      variant="rail"
+                    />
+                  )}
+                  {(adultSource === "all" || adultSource === "rule34" || adultSource === "booru") && (
+                    <TitleRail
+                      title={`Rule34 · ${adultSourceCounts.rule34 ?? 0}`}
+                      reason="First-class Rule34 filter — JSON API primary with HTML listing backup, surfaced alongside other booru hosts."
+                      videos={sourceMatchedAdult.filter((video) => videoMatchesAdultSource(video, "rule34")).slice(0, Math.max(24, adultRailLimit))}
                       variant="rail"
                     />
                   )}

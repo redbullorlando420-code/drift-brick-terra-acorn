@@ -16,7 +16,9 @@ export type AdultProviderAdapter = {
 export const ADULT_PROVIDER_ADAPTERS: readonly AdultProviderAdapter[] = [
   { id: "eporner", label: "Eporner", transport: "public-api", status: "active", capabilities: ["catalog", "search", "archive", "poster", "playback"] },
   { id: "redtube", label: "RedTube", transport: "public-api", status: "active", capabilities: ["catalog", "search", "archive", "poster", "playback"] },
+  { id: "chaturbate", label: "Chaturbate", transport: "public-api", status: "active", capabilities: ["catalog", "poster", "playback"] },
+  { id: "myfreecams", label: "MyFreeCams", transport: "public-api", status: "active", capabilities: ["catalog", "poster"] },
   { id: "reddit", label: "Reddit", transport: "atom-rss", status: "active", capabilities: ["catalog", "search", "archive", "poster"] },
-  { id: "redgifs", label: "Redgifs", transport: "public-api", status: "active", capabilities: ["catalog", "poster", "playback"] },
-  { id: "new-provider", label: "New documented provider", transport: "public-api", status: "planned", capabilities: ["catalog", "search", "poster"] },
+  { id: "booru", label: "Booru + Rule34 + Gelbooru + e621", transport: "public-api", status: "active", capabilities: ["catalog", "search", "poster"] },
+  { id: "redgifs", label: "Redgifs", transport: "public-api", status: "active", capabilities: ["catalog", "search", "poster", "playback"] },
 ];

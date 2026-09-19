@@ -5,6 +5,30 @@
  * Rotated in batches — do not fetch all at once.
  */
 
+/** High-signal media-heavy communities sampled first in curated rotation. */
+export const ADULT_REDDIT_PRIORITY_SUBS = [
+  "rule34",
+  "nsfw",
+  "realgirls",
+  "gonewild",
+  "nsfw_gif",
+  "porninfifteenseconds",
+  "asiansgonewild",
+  "amateur",
+  "cumsluts",
+  "collegesluts",
+  "breddit",
+  "anal",
+  "boobs",
+  "ass",
+  "milf",
+  "petitegonewild",
+  "godasshole",
+  "pawg",
+  "latinas",
+  "indiansgonewild",
+] as const;
+
 export const ADULT_REDDIT_SUBS = [
   "18_22",
   "2busty2hide",

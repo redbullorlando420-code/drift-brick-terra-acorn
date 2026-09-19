@@ -470,8 +470,15 @@ export const VideoCard = memo(function VideoCard({
               type="button"
               onClick={(event) => {
                 event.stopPropagation();
-                setQuery(tag);
-                if (adult) setSource("adults");
+                if (adult) {
+                  // Keep Adults browsing mounted: global search blanks selectVisible
+                  // while the index builds and hid the Adult shelves for 1-video tags.
+                  setQuery("");
+                  setSource("adults");
+                  window.dispatchEvent(new CustomEvent("reelcase:adult-tag", { detail: { tag } }));
+                } else {
+                  setQuery(tag);
+                }
               }}
               className="rounded-sm bg-elevated px-1.5 py-0.5 text-[10px] text-subtle transition-colors hover:bg-border hover:text-fg"
               title={`Show titles tagged ${tag}`}

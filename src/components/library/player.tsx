@@ -198,6 +198,19 @@ export function Player({ playlist }: { playlist: string[] }) {
     };
   }, [video]);
 
+  useEffect(() => {
+    // Release decoder buffers and stop network when the overlay closes.
+    return () => {
+      const el = mediaRef.current;
+      if (!el) return;
+      try {
+        el.pause();
+        el.removeAttribute("src");
+        el.load();
+      } catch { /* element already gone */ }
+    };
+  }, []);
+
   const reveal = useCallback(() => {
     setChrome(true);
     window.clearTimeout(hideTimer.current);

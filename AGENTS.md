@@ -1,27 +1,56 @@
 # Reelcase — PR living notes
 
-**PR** `fix/adults-preview-thumbs` → `main` · Adults preview thumbs follow-up after merged PR #4.
+**PR** `perf/speed-memory-adult-apis` → `main` · Speed, memory, Adult API harden/backups, photos/models, Rule34 filters, Live Adult lives, richer Stats, tag-click fix, **3D Prints interactive viewer**, section teardown + grid/storage speedups + durable YT/Twitch follows + broader durable activity stores + library pack export/import.
 
 ## In progress
 
-Defensive Adult preview hardening: fewer blanks, faster recover, stay filled.
+Memory/speed follow-up round on this PR (section teardown, grid windowing, storage guards, durable YT/Twitch follows, broader durable activity blobs, library pack zip). Keep Adult previews / 3D viewer / tags / Live Adult / Stats intact.
 
 ### Shipped this PR
-1. **Prefer API primary thumb** — `default_thumb` / `thumb` before speculative `thumbs[]` / CDN expansion.
-2. **Shorter fallback chains** — fewer host/frame/size retries; cap ~6–8 candidates so onError does not serialize rails.
-3. **Raise image concurrency** — default budget 12 (was 5); keep slot across thumbIndex retries (no blank flash re-queue).
-4. **Broken/placeholder detection** — URL heuristics + post-decode size/aspect reject before counting success.
-5. **Host prefer / demote** — ei-ph and known-good hosts ranked; session fail scores demote flaky CDNs.
-6. **Session URL cache + failed blacklist** — do not re-hit the same dead URL across cards; remember good per video.
-7. **Hold last good paint** — skeleton/previous poster stays under the next candidate (no blank flash between fallbacks).
-8. **Load timeout → advance** — ~4.5s stuck CDN load marks failed and tries the next candidate.
-9. **Viewport priority** — high-priority image slots for visible cards; offscreen releases cancel speculative work; warm first ~N rail thumbs.
-10. **RedTube solid candidates** — API thumbs + at most one video_id reconstruction; no frame-number spam.
+1. **Faster Adult first paint** — lower interactive/fast-start pull sizes and rail seed; tighter TitleRail/PosterGrid viewport margins and earlier offscreen unmount.
+2. **Leaner Adult ranking windows** — smaller rotate/rank candidate windows so shelves compute sooner.
+3. **Catalog + history memory caps** — Adult catalog soft-capped at `adultTargetCatalogVideos`; in-memory history bounded via `historyMemoryEntries` (journal can still retain longer).
+4. **Thumb memory hygiene** — lower in-memory decoded-thumb ceiling; revoke `blob:` object URLs on eviction.
+5. **Tighter Adult thumb session maps** — smaller failed/good/by-video session caps.
+6. **Redgifs official API** — temporary-token search as primary (posters + media); AdultDataLink remains optional fallback when `ADULTDATALINK_API_KEY` / `ADL_API_KEY` is set.
+7. **e621 in Booru pulls** — documented JSON posts API with preview thumbs, shared into the booru shelf rotation.
+8. **Rule34 JSON primary + HTML backup** — `api.rule34.xxx` dapi first; listing HTML remains failover. Double share so Rule34 shelves stay populated.
+9. **More booru hosts** — Gelbooru + Realbooru Gelbooru-style JSON added beside XBooru / TBIB / Hypnohub / e621.
+10. **Eporner backup path** — empty/failed primary order retries alternate sort + smaller page (no HTML scrape).
+11. **Rule34 / e621 / Gelbooru / Realbooru filter chips** — first-class Adults source filters + Rule34 shelf; host counts in Stats.
+12. **Reddit tighten** — priority media-heavy subs (incl. rule34) lead curated rotate; slightly fewer concurrent Atom fetches + longer cache TTL.
+13. **Tag click / sparse tags** — Adult card tag click sets Adults filter (clears search) so 1-video tags show; search exact-tag shortcut; ranking min count 1 with heart/video-score lift for sparse tags.
+14. **Live tab Adult lives** — Chaturbate/MFC block below YT/Twitch in Live desk.
+15. **Richer Stats** — Adult media pie, booru host bars/table, engagement table (views, resume hours, rated, history, sparse tags).
+16. **Photos AI models** — upscaler prefers Cache API / shipped `/models/swin2sr-x2-q4f16.onnx` before HF; SigLIP large+ revision pinned; Photos first paint limit 48.
+17. **3D Prints viewer** — interactive three.js orbit/inspect for STL, OBJ, GLB/GLTF, and 3MF; bundled sample meshes under `public/samples/prints/`; user-added viewable bytes in IndexedDB (`reelcase-prints`) with dispose-on-unmount; G-code stays catalog-only.
+18. **Section teardown** — leaving YouTube/Adults/Home drops deferred explore/deep shelves, clears Adult browse ranking packets, and flushes speculative image decode waiters.
+19. **VideoGrid sliding window** — infinite grids unmount far-scrolled cards (mount cap 108) with lead spacers; Live desk first-paint 48 + Show more.
+20. **Storage growth guards** — IndexedDB thumb-cache pruned to `thumbCacheEntries` (420); print blobs also capped by total bytes (192 MB); Adult thumb host score maps trimmed.
+21. **Player / blob hygiene** — local `<video>` pause+detach on player unmount; upscaler model blob revoked after Cache seed; Photos upscale preview revoked on leave.
+22. **Idle Home discovery** — DiscoveryDesk ranking runs on `requestIdleCallback` with stride-sample on huge catalogs; low-priority image queue pauses while the tab is hidden.
+23. **Durable YouTube/Twitch follows** — follow lists now live in a dedicated IndexedDB key (`activity` → `follows`) plus tiny `reelcase.follows.v1` localStorage mirror, separate from the prefs/tags blob. Hydrate merges dedicated store + legacy `prefs.follows`; import-history seeds stubs before network recovery. Thumb prune, history journal prune, and Adult catalog caps never touch this store.
+24. **Broader durable activity stores** — same pattern as follows for sticky local PC data that used to live only in the giant prefs blob or fragile LS-only feedback:
+    - `activity` → `history` + `reelcase.history.v1` (watch history snapshot; journal remains append-only)
+    - `activity` → `resume` + `reelcase.resume.v1` (progress + continue-watching pointers)
+    - `activity` → `marks` + `reelcase.marks.v1` (viewCounts + Adult cameCounts)
+    - `activity` → `shelves` + `reelcase.shelves.v1` (favorites + likes)
+    - `activity` → `links` + `reelcase.links.v1` (saved video URLs derived from history/resume)
+    - `activity` → `feedback` backing `reelcase.media-feedback.v1` (ratings, notes, creator likes, tag hearts)
+    Hydrate merges dedicated stores over prefs/activity snapshot; persist writes them on every library save. Memory prune never clears these keys.
+25. **Library pack export/import** — Settings downloads a zip mirroring `public/import-templates/` / `data/import-templates/` (`follows/`, `history/`, `links/`, `marks/`, `resume/`, `stats/` + README). Import merges into the durable stores above; optional confirm to replace follows only. Offline fill-in templates shipped in-repo.
+
+### Env / keys (no secrets in repo)
+- `ADULTDATALINK_API_KEY` or `ADL_API_KEY` — optional Redgifs secondary via AdultDataLink.
+- Local vision/upscaler models download to browser cache on user action; bundled Swin2SR artifact under `public/models/`.
 
 ### Still open
-- Soak test RedTube CDN reliability under the new session blacklist + timeouts
+- Soak test Redgifs temporary-token + Rule34 JSON + e621 preview reliability under the session blacklist
+- Optional: additional documented tube APIs only when they expose stable public search + thumbs (no HTML scrape)
+- Optional: measured row heights for VideoGrid lead spacers across breakpoints
+- Optional: File System Access “save folder” for pack export when the browser supports directory writes (zip remains the default)
 
-Official public APIs + Reddit Atom only. 18+ only.
+Official public APIs + Reddit Atom only. 18+ only. No Pornhub scrape; no torrents.
 
 ---
 # App Builder Workspace

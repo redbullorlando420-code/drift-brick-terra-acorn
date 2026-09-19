@@ -1,0 +1,21 @@
+# Abstract benchy-like calibration hull
+o benchy
+v -20 0 -8
+v 20 0 -8
+v 22 0 10
+v -22 0 10
+v -18 12 -6
+v 18 12 -6
+v 20 12 8
+v -20 12 8
+v 0 18 0
+f 1 2 3 4
+f 5 6 7 8
+f 1 2 6 5
+f 4 3 7 8
+f 1 5 8 4
+f 2 3 7 6
+f 5 6 9
+f 6 7 9
+f 7 8 9
+f 8 5 9

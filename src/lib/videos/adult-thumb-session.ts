@@ -3,9 +3,9 @@
  * and host success scores so rails do not re-hit the same dead CDN path.
  */
 
-const MAX_FAILED = 800;
-const MAX_GOOD = 600;
-const MAX_BY_VIDEO = 400;
+const MAX_FAILED = 600;
+const MAX_GOOD = 400;
+const MAX_BY_VIDEO = 280;
 
 const failedUrls = new Set<string>();
 const goodUrls = new Set<string>();
@@ -31,6 +31,16 @@ function trimSet(set: Set<string>, max: number) {
   }
 }
 
+function trimHostMap(map: Map<string, number>, max: number) {
+  if (map.size <= max) return;
+  const drop = map.size - max;
+  let i = 0;
+  for (const key of map.keys()) {
+    map.delete(key);
+    if (++i >= drop) break;
+  }
+}
+
 /** Prefer hosts that historically serve RedTube/Eporner strips; demote flaky ones. */
 const PREFERRED_HOSTS: Record<string, number> = {
   "ei-ph.rdtcdn.com": 8,
@@ -50,7 +60,7 @@ export function markAdultThumbFailed(url: string) {
   goodUrls.delete(url);
   trimSet(failedUrls, MAX_FAILED);
   const host = hostOf(url);
-  if (host) hostFail.set(host, (hostFail.get(host) ?? 0) + 1);
+  if (host) { hostFail.set(host, (hostFail.get(host) ?? 0) + 1); trimHostMap(hostFail, 96); }
 }
 
 export function markAdultThumbGood(url: string, videoId?: string) {
@@ -58,7 +68,7 @@ export function markAdultThumbGood(url: string, videoId?: string) {
   goodUrls.add(url);
   trimSet(goodUrls, MAX_GOOD);
   const host = hostOf(url);
-  if (host) hostOk.set(host, (hostOk.get(host) ?? 0) + 1);
+  if (host) { hostOk.set(host, (hostOk.get(host) ?? 0) + 1); trimHostMap(hostOk, 96); }
   if (videoId) {
     goodByVideo.set(videoId, url);
     if (goodByVideo.size > MAX_BY_VIDEO) {

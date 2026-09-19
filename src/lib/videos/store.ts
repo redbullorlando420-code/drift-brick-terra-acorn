@@ -19,6 +19,7 @@ import {
 } from "@/lib/remote/adult-pull-cache";
 import { mergeRemoteRefresh } from "./remote-merge";
 import { measureInteraction } from "@/lib/interaction-budget";
+import { hydrateDurableFeedback } from "@/lib/media-feedback";
 import {
   appendCatalogVideos,
   appendActivityJournal,
@@ -33,7 +34,21 @@ import {
   loadCatalogVideos,
   loadDirHandles,
   loadPrefs,
+  loadFollows,
   restoreDurablePrefs,
+  restoreDurableFollows,
+  restoreDurableHistory,
+  restoreDurableResume,
+  restoreDurableMarks,
+  restoreDurableShelves,
+  restoreDurableLinks,
+  linksFromHistoryAndResume,
+  saveFollows,
+  saveDurableHistory,
+  saveDurableResume,
+  saveDurableMarks,
+  saveDurableShelves,
+  saveDurableLinks,
   saveTagEdit,
   restoreTagEdits,
   loadSourceHealth,
@@ -44,6 +59,7 @@ import {
   saveViewPrefs,
   saveSourceHealth,
   type Prefs,
+  type SavedVideoLink,
 } from "./persist";
 import {
   ingestDataTransfer,
@@ -224,6 +240,14 @@ function persistNow(get: () => LibraryState) {
     notifyPush: s.notifyPush,
     unavailableVideoIds: Object.keys(s.unavailable),
   };
+  // Follow lists are durable on their own key/store so Adult tag bloat,
+  // history caps, and thumb prune cannot erase YouTube/Twitch subscriptions.
+  saveFollows(s.follows);
+  saveDurableHistory(s.history);
+  saveDurableResume(s.progress, s.resumeProgress);
+  saveDurableMarks(s.viewCounts, s.cameCounts);
+  saveDurableShelves(Object.keys(s.favorites), Object.keys(s.likes));
+  saveDurableLinks(linksFromHistoryAndResume(s.history, s.resumeProgress));
   savePrefs(prefs);
   void saveActivitySnapshot({ history: s.history, progress: s.progress, resumeProgress: s.resumeProgress, viewCounts: s.viewCounts, cameCounts: s.cameCounts, savedAt: Date.now() }).catch(() => queueResumeReplay(s.resumeProgress));
 }
@@ -231,6 +255,10 @@ function persistNow(get: () => LibraryState) {
 function persistActivity(get: () => LibraryState) {
   if (!preferencesRestored) return;
   const s = get();
+  saveDurableHistory(s.history);
+  saveDurableResume(s.progress, s.resumeProgress);
+  saveDurableMarks(s.viewCounts, s.cameCounts);
+  saveDurableLinks(linksFromHistoryAndResume(s.history, s.resumeProgress));
   void saveActivitySnapshot({ history: s.history, progress: s.progress, resumeProgress: s.resumeProgress, viewCounts: s.viewCounts, cameCounts: s.cameCounts, savedAt: Date.now() }).catch(() => queueResumeReplay(s.resumeProgress));
 }
 
@@ -840,7 +868,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     set((s) => {
       const now = Date.now();
       const latest = s.history[0];
-      // Keep history limitless, but a play button, provider event, and player
+      // Bound the in-memory history buffer, but a play button, provider event, and player
       // heartbeat for the same start should remain one activity event.
       if (latest?.id === id && now - latest.at < 20_000) return {};
       const mark = s.progress[id];
@@ -850,7 +878,8 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       const poster = video?.poster ?? video?.remote?.previewUrl;
       const rating = getRating(id);
       const next = [{ eventId: nextHistoryEventId(now), id, at: now, position: mark?.t, duration: mark?.d, source, ...(url ? { url } : {}), ...(title ? { title } : {}), ...(poster ? { poster } : {}), ...(rating ? { rating } : {}) }, ...s.history];
-      return { history: next, viewCounts: { ...s.viewCounts, [id]: (s.viewCounts[id] ?? 0) + 1 } };
+      const bounded = next.slice(0, LIBRARY_LIMITS.historyMemoryEntries);
+      return { history: bounded, viewCounts: { ...s.viewCounts, [id]: (s.viewCounts[id] ?? 0) + 1 } };
     });
     const event = get().history[0];
     if (event?.id === id && event.at !== beforeAt) void appendActivityJournal(event).catch(() => undefined);
@@ -1065,6 +1094,24 @@ export const useLibrary = create<LibraryState>((set, get) => ({
               limit: LIBRARY_LIMITS.adultKeywordTagsPerTitle + 36,
             }),
           ]);
+        }
+
+        // Bound retained Adult cards so long sessions do not keep every
+        // historical pull in memory/IndexedDB forever. Newest titles win.
+        const adultCap = LIBRARY_LIMITS.adultTargetCatalogVideos;
+        const adultRows = nextVideos.filter((v) => (ADULT_FOLDER_IDS as readonly string[]).includes(v.folderId));
+        if (adultRows.length > adultCap) {
+          const keep = new Set(
+            [...adultRows].sort((a, b) => b.addedAt - a.addedAt).slice(0, adultCap).map((v) => v.id),
+          );
+          nextVideos = nextVideos.filter(
+            (v) => !(ADULT_FOLDER_IDS as readonly string[]).includes(v.folderId) || keep.has(v.id),
+          );
+          folders = folders.map((folder) =>
+            (ADULT_FOLDER_IDS as readonly string[]).includes(folder.id)
+              ? { ...folder, videoCount: nextVideos.filter((v) => v.folderId === folder.id).length }
+              : folder,
+          );
         }
 
         return {
@@ -1282,9 +1329,17 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     if (get().hydrated || restoring) return;
     restoring = true;
     await restoreDurablePrefs().catch(() => undefined);
+    void hydrateDurableFeedback().catch(() => undefined);
+    const dedicatedFollows = await restoreDurableFollows().catch(() => loadFollows() ?? []);
     preferencesRestored = true;
     const prefsState = applyPrefs({});
     prefsState.tags = restoreTagEdits(prefsState.tags ?? {});
+    // Dedicated store is source of truth; prefs.follows is a legacy mirror for older builds.
+    const prefsFollows = Array.isArray(prefsState.follows) ? prefsState.follows : [];
+    const migratedFollows = dedupeFollows([...dedicatedFollows, ...prefsFollows]);
+    prefsState.follows = migratedFollows;
+    // Persist migration immediately so a later prefs-only wipe cannot drop the list again.
+    if (migratedFollows.length) saveFollows(migratedFollows);
     const adultIds = new Set(loadPrefs()?.privateFolderIds ?? []);
     let cachedFolderIds = new Set<string>();
     let savedHealth = new Map<string, Awaited<ReturnType<typeof loadSourceHealth>>[number]>();
@@ -1294,17 +1349,62 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     // Keep the durable activity journal separate from broad preferences. It
     // merges after first paint, so a massive tag payload cannot wipe history
     // or block startup recovery.
-    void Promise.all([loadActivitySnapshot(), loadActivityJournal()]).then(([activity, journal]) => {
+    void Promise.all([
+      loadActivitySnapshot(),
+      loadActivityJournal(),
+      restoreDurableHistory(),
+      restoreDurableResume(),
+      restoreDurableMarks(),
+      restoreDurableShelves(),
+      restoreDurableLinks(),
+    ]).then(([activity, journal, durableHistory, durableResume, durableMarks, durableShelves, durableLinks]) => {
       const queuedResume = takeQueuedResumeReplay();
-      if (!activity && !journal.length && !Object.keys(queuedResume).length) return;
+      const hasShelves = durableShelves.favorites.length || durableShelves.likes.length;
+      const hasAnything = activity || journal.length || durableHistory.length
+        || Object.keys(durableResume.resumeProgress).length
+        || Object.keys(durableMarks.viewCounts).length
+        || Object.keys(durableMarks.cameCounts).length
+        || hasShelves || durableLinks.length || Object.keys(queuedResume).length;
+      if (!hasAnything) return;
+      if (durableHistory.length || (activity?.history?.length ?? 0) || journal.length) {
+        const mergedEarly = mergeHistory(mergeHistory(durableHistory, activity?.history ?? []), journal);
+        if (mergedEarly.length) saveDurableHistory(mergedEarly);
+      }
+      if (Object.keys(durableResume.resumeProgress).length || activity?.resumeProgress) {
+        saveDurableResume(
+          { ...(activity?.progress ?? {}), ...durableResume.progress },
+          { ...(activity?.resumeProgress ?? {}), ...durableResume.resumeProgress },
+        );
+      }
+      if (Object.keys(durableMarks.viewCounts).length || Object.keys(durableMarks.cameCounts).length || activity?.viewCounts || activity?.cameCounts) {
+        saveDurableMarks(
+          { ...(activity?.viewCounts ?? {}), ...durableMarks.viewCounts },
+          { ...(activity?.cameCounts ?? {}), ...durableMarks.cameCounts },
+        );
+      }
+      if (hasShelves) saveDurableShelves(durableShelves.favorites, durableShelves.likes);
+      if (durableLinks.length) saveDurableLinks(durableLinks);
       set((s) => {
-        const resumeProgress = { ...(activity?.resumeProgress ?? {}), ...queuedResume, ...s.resumeProgress };
+        const resumeProgress = { ...(activity?.resumeProgress ?? {}), ...durableResume.resumeProgress, ...queuedResume, ...s.resumeProgress };
+        const favorites = { ...s.favorites };
+        const likes = { ...s.likes };
+        for (const id of durableShelves.favorites) favorites[id] = true;
+        for (const id of durableShelves.likes) likes[id] = true;
+        const history = mergeHistory(mergeHistory(mergeHistory(s.history, durableHistory), activity?.history ?? []), journal);
+        const linkById = new Map((durableLinks as SavedVideoLink[]).map((link) => [link.id, link]));
+        const withUrls = history.map((entry) => {
+          if (entry.url) return entry;
+          const link = linkById.get(entry.id);
+          return link ? { ...entry, url: link.url, title: entry.title ?? link.title, poster: entry.poster ?? link.poster } : entry;
+        });
         return {
-          history: mergeHistory(mergeHistory(s.history, activity?.history ?? []), journal),
+          history: withUrls,
           resumeProgress,
-          progress: reconcileResumeForVideos(s.videos, { ...(activity?.progress ?? {}), ...s.progress }, resumeProgress),
-          viewCounts: { ...(activity?.viewCounts ?? {}), ...s.viewCounts },
-          cameCounts: { ...(activity?.cameCounts ?? {}), ...s.cameCounts },
+          progress: reconcileResumeForVideos(s.videos, { ...(activity?.progress ?? {}), ...durableResume.progress, ...s.progress }, resumeProgress),
+          viewCounts: { ...(activity?.viewCounts ?? {}), ...durableMarks.viewCounts, ...s.viewCounts },
+          cameCounts: { ...(activity?.cameCounts ?? {}), ...durableMarks.cameCounts, ...s.cameCounts },
+          favorites,
+          likes,
         };
       });
     }).catch(() => undefined);
@@ -1365,10 +1465,27 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         try {
           const saved = JSON.parse(localStorage.getItem(`reelcase.import-history.${kind}`) ?? "[]") as unknown;
           if (!Array.isArray(saved) || !saved.length) return;
+          const handles = saved.filter((value): value is string => typeof value === "string" && Boolean(value.trim()));
+          // Seed durable follow stubs from the import list before network pulls so a
+          // refresh mid-recovery cannot leave the shelf empty again.
+          const stubs = handles.map((query) => {
+            const handle = canonicalFollowHandle(kind, query);
+            return {
+              id: `${kind === "twitch" ? "tw" : "yt"}:${handle}`,
+              kind,
+              handle,
+              title: handle,
+            } satisfies FollowedChannel;
+          }).filter((row) => row.handle);
+          if (stubs.length) {
+            const merged = dedupeFollows([...get().follows, ...stubs]);
+            set({ follows: merged });
+            saveFollows(merged);
+          }
           // Startup recovery must never monopolize the first screen when a user
           // has hundreds of subscriptions. The complete saved list stays intact;
           // each refresh resumes a bounded, provider-friendly batch.
-          await get().importBatch(saved.filter((value): value is string => typeof value === "string" && Boolean(value.trim())).slice(0, 80).map((query) => ({ query, kind })));
+          await get().importBatch(handles.slice(0, 80).map((query) => ({ query, kind })));
         } catch { /* no saved import list */ }
       };
       void (async () => { await recover("twitch"); await recover("youtube"); })();
