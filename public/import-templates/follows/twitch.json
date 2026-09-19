@@ -1,0 +1,10 @@
+{
+  "channels": [
+    {
+      "id": "tw:example",
+      "kind": "twitch",
+      "handle": "example",
+      "title": "Example Twitch channel"
+    }
+  ]
+}
