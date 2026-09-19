@@ -5,8 +5,8 @@ import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[.
 import { l as TriangleAlert } from "../_libs/lucide-react.mjs";
 import { a as number, c as union, i as literal, l as unknown, n as _enum, o as object, r as discriminatedUnion, s as string, t as number$1 } from "../_libs/zod.mjs";
 import { t as Provider } from "../_libs/radix-ui__react-tooltip.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/router-B-a-giza.js
-var router_B_a_giza_exports = /* @__PURE__ */ __exportAll({ getRouter: () => getRouter });
+//#region node_modules/.nitro/vite/services/ssr/assets/router-BBSxncjH.js
+var router_BBSxncjH_exports = /* @__PURE__ */ __exportAll({ getRouter: () => getRouter });
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function AppErrorComponent({ error }) {
@@ -281,7 +281,7 @@ function TooltipProvider({ delayDuration = 250, ...props }) {
 		...props
 	});
 }
-var styles_default = "/assets/styles-B1wFjPC6.css";
+var styles_default = "/assets/styles-BJUmGWuA.css";
 var APP_NAME = "Reelcase";
 var Route$3 = createRootRoute({
 	head: () => ({
@@ -348,7 +348,7 @@ var Route$3 = createRootRoute({
 		})]
 	})
 });
-var $$splitComponentImporter = () => import("./routes-BuAxEaLn.mjs").then((n) => n.t);
+var $$splitComponentImporter = () => import("./routes-DYJ7hqfm.mjs").then((n) => n.t);
 var Route$2 = createFileRoute("/")({ component: lazyRouteComponent($$splitComponentImporter, "component") });
 var _0002_network_presence_default = "CREATE TABLE IF NOT EXISTS reelcase_network_presence (\n  scope TEXT NOT NULL,\n  device_id TEXT NOT NULL,\n  label TEXT NOT NULL,\n  device_kind TEXT NOT NULL,\n  last_seen TIMESTAMPTZ NOT NULL DEFAULT now(),\n  PRIMARY KEY (scope, device_id)\n);\n\nCREATE INDEX IF NOT EXISTS reelcase_network_presence_active\n  ON reelcase_network_presence (scope, last_seen DESC);\n";
 /**
@@ -706,4 +706,4 @@ function getRouter() {
 	});
 }
 //#endregion
-export { getRouter, router_B_a_giza_exports as t };
+export { getRouter, router_BBSxncjH_exports as t };

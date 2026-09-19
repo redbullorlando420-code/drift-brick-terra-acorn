@@ -1,12 +1,12 @@
 import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
-import { L as isAdultImageKind } from "./adult-pull-cache-DxiS7sN3.mjs";
-import { $ as Gamepad2, A as Music2, C as Rocket, E as Play, G as Laptop, J as ImagePlus, K as Images, L as Maximize2, M as MonitorPlay, O as Pause, P as MessageCircle, St as Bot, T as Radio, U as Lightbulb, _ as Shuffle, _t as ChevronLeft, b as Settings2, bt as ChartColumn, c as Upload, f as Star, ft as Copy, gt as ChevronRight, k as PackageSearch, lt as ExternalLink, m as Smartphone, mt as Clapperboard, n as X, r as Wifi, s as Users, st as Eye, ut as Download, v as ShoppingBag, w as RefreshCw, x as Search, xt as Box, y as ShieldCheck } from "../_libs/lucide-react.mjs";
-import { A as toggleTagLike, B as saveDurableResume, C as topicEvidence, D as getRating, E as getFeedbackDiagnostics, F as restoreDurablePhotos, H as saveFollows, I as saveDurableHistory, L as saveDurableLinks, M as measureInteraction, N as linksFromHistoryAndResume, O as importFeedback, P as loadDurablePhotosSync, R as saveDurableMarks, S as isTopicTag, T as exportFeedback, U as __exportAll, V as saveDurableShelves, _ as Button, a as adultStatsToCsv, b as useSourceAssets, c as rankAdultTags, d as Input, f as openTopic, g as useThumbs, h as getThumbDiagnostics, i as getFirstShelfTrace, j as getInteractionBudgetSnapshot, k as tagIsLiked, l as countAdultBooruHosts, m as getRenderBudgetSnapshot, n as getNetworkDeviceId, o as buildAdultStatsSnapshot, p as VideoCard, r as listNetworkDevices, s as exportAdultStats, u as countAdultBySource, v as resumeForVideo, w as topicsForVideo, x as canonicalTopic, y as useLibrary, z as saveDurablePhotos } from "./routes-BuAxEaLn.mjs";
+import { L as isAdultImageKind } from "./adult-pull-cache-DYRXt4XQ.mjs";
+import { A as PackageSearch, D as Play, E as Radio, Et as Bot, G as Lightbulb, I as MessageCircle, J as Images, N as MonitorPlay, S as Search, T as RefreshCw, Tt as Box, X as ImagePlus, b as ShieldCheck, bt as ChevronRight, c as Upload, ft as ExternalLink, gt as Copy, h as Smartphone, j as Music2, k as Pause, mt as Download, n as X, nt as Gamepad2, p as Star, q as Laptop, r as Wifi, s as Users, ut as Eye, v as Shuffle, vt as Clapperboard, w as Rocket, wt as ChartColumn, x as Settings2, xt as ChevronLeft, y as ShoppingBag, z as Maximize2 } from "../_libs/lucide-react.mjs";
+import { A as toggleTagLike, B as saveDurableResume, C as topicEvidence, D as getRating, E as getFeedbackDiagnostics, F as restoreDurablePhotos, G as companionHealth, H as saveFollows, I as saveDurableHistory, J as companionReadPrint, K as companionImportLibraryPack, L as saveDurableLinks, M as measureInteraction, N as linksFromHistoryAndResume, O as importFeedback, P as loadDurablePhotosSync, Q as __exportAll, R as saveDurableMarks, S as isTopicTag, T as exportFeedback, U as companionAckJobs, V as saveDurableShelves, W as companionExportLibraryPack, X as companionSetAutostart, Y as companionSavePrint, Z as companionSteamEpicGames, _ as Button, a as adultStatsToCsv, b as useSourceAssets, c as rankAdultTags, d as Input, f as openTopic, g as useThumbs, h as getThumbDiagnostics, i as getFirstShelfTrace, j as getInteractionBudgetSnapshot, k as tagIsLiked, l as countAdultBooruHosts, m as getRenderBudgetSnapshot, n as getNetworkDeviceId, o as buildAdultStatsSnapshot, p as VideoCard, q as companionListPrints, r as listNetworkDevices, s as exportAdultStats, u as countAdultBySource, v as resumeForVideo, w as topicsForVideo, x as canonicalTopic, y as useLibrary, z as saveDurablePhotos } from "./routes-DYJ7hqfm.mjs";
 import { i as zipSync, n as strToU8, r as unzipSync, t as strFromU8 } from "../_libs/fflate.mjs";
 import { a as Bar, c as ResponsiveContainer, i as XAxis, l as Tooltip, n as BarChart, o as Pie, r as YAxis, s as Cell, t as PieChart } from "../_libs/recharts+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/hub-sections-FmaDLRuq.js
+//#region node_modules/.nitro/vite/services/ssr/assets/hub-sections-DoDU8n_E.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function TopicLinks({ explorer = false }) {
@@ -440,6 +440,90 @@ async function prunePrintBlobs() {
 			db.close();
 		}
 	} catch {}
+}
+/** Local cache for desktop game icons (data URLs). Kept separate from hub metadata to avoid blowing reelcase.hub.v1. */
+var KEY = "reelcase.game-icons.v1";
+var MAX_ENTRIES = 100;
+var MAX_DATA_URL = 4e5;
+function loadGameIconCache() {
+	try {
+		const raw = JSON.parse(localStorage.getItem(KEY) ?? "{}");
+		return raw && typeof raw === "object" ? raw : {};
+	} catch {
+		return {};
+	}
+}
+function saveGameIcon(path, iconData) {
+	if (!path || !iconData || iconData.length > MAX_DATA_URL) return;
+	try {
+		const all = loadGameIconCache();
+		all[path] = iconData;
+		const keys = Object.keys(all);
+		if (keys.length > MAX_ENTRIES) for (const drop of keys.slice(0, keys.length - MAX_ENTRIES)) delete all[drop];
+		localStorage.setItem(KEY, JSON.stringify(all));
+	} catch {
+		try {
+			const all = loadGameIconCache();
+			const keys = Object.keys(all);
+			for (const drop of keys.slice(0, Math.ceil(keys.length / 2))) delete all[drop];
+			all[path] = iconData;
+			localStorage.setItem(KEY, JSON.stringify(all));
+		} catch {}
+	}
+}
+function readFileAsDataUrl(file) {
+	return new Promise((resolve, reject) => {
+		const reader = new FileReader();
+		reader.onload = () => resolve(String(reader.result ?? ""));
+		reader.onerror = () => reject(reader.error ?? /* @__PURE__ */ new Error("icon read failed"));
+		reader.readAsDataURL(file);
+	});
+}
+/** Match launcher files to sibling .ico/.png/.jpg in a folder FileList. */
+async function iconsFromFolderFiles(files) {
+	const out = /* @__PURE__ */ new Map();
+	const byStem = /* @__PURE__ */ new Map();
+	const byDirStem = /* @__PURE__ */ new Map();
+	for (const file of files) {
+		if (!/\.(png|ico|jpe?g|webp)$/i.test(file.name)) continue;
+		const rel = (file.webkitRelativePath || file.name).replace(/\\/g, "/");
+		const stem = file.name.replace(/\.[^.]+$/, "").toLowerCase();
+		const dir = rel.includes("/") ? rel.slice(0, rel.lastIndexOf("/")) : "";
+		byStem.set(stem, file);
+		byDirStem.set(`${dir}::${stem}`, file);
+		if (/^(icon|game|header|cover|logo)$/i.test(stem)) byDirStem.set(`${dir}::__folder__`, file);
+	}
+	for (const file of files) {
+		if (!/\.(exe|lnk|url|appref-ms)$/i.test(file.name)) continue;
+		const rel = (file.webkitRelativePath || file.name).replace(/\\/g, "/");
+		const stem = file.name.replace(/\.[^.]+$/, "").toLowerCase();
+		const dir = rel.includes("/") ? rel.slice(0, rel.lastIndexOf("/")) : "";
+		const iconFile = byDirStem.get(`${dir}::${stem}`) || byStem.get(stem) || byDirStem.get(`${dir}::__folder__`);
+		if (!iconFile || iconFile.size > 12e5) continue;
+		try {
+			const data = await readFileAsDataUrl(iconFile);
+			if (data.startsWith("data:image")) out.set(rel || file.name, data);
+		} catch {}
+	}
+	return out;
+}
+async function fetchCompanionIcons(paths) {
+	const out = /* @__PURE__ */ new Map();
+	const pending = paths.filter(Boolean).slice(0, 40);
+	if (!pending.length) return out;
+	try {
+		const result = await (await fetch("http://127.0.0.1:43123/shortcut-icons", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ paths: pending })
+		})).json();
+		if (!result.ok || !result.icons) return out;
+		for (const row of result.icons) if (row.iconData?.startsWith("data:image")) {
+			out.set(row.path, row.iconData);
+			saveGameIcon(row.path, row.iconData);
+		}
+	} catch {}
+	return out;
 }
 var LIBRARY_PACK_ROOT = "reelcase-library-pack";
 function stamp() {
@@ -1974,7 +2058,7 @@ var hub_sections_exports = /* @__PURE__ */ __exportAll({
 	WatchRoomSection: () => WatchRoomSection
 });
 var PrintModelViewer = (0, import_react.lazy)(async () => {
-	return { default: (await import("./print-model-viewer-DmHEB8U1.mjs")).PrintModelViewer };
+	return { default: (await import("./print-model-viewer-v9qvXcdT.mjs")).PrintModelViewer };
 });
 var HUB_KEY = "reelcase.hub.v1";
 function gameKind(item) {
@@ -4761,6 +4845,115 @@ function SettingsSection() {
 								},
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Upload, { className: "size-4" }), " Import library pack"]
 							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								variant: "secondary",
+								onClick: () => {
+									const state = useLibrary.getState();
+									const files = buildLibraryPackFiles({
+										follows: state.follows,
+										history: state.history,
+										links: linksFromHistoryAndResume(state.history, state.resumeProgress),
+										favorites: Object.keys(state.favorites),
+										likes: Object.keys(state.likes),
+										viewCounts: state.viewCounts,
+										cameCounts: state.cameCounts,
+										progress: state.progress,
+										resumeProgress: state.resumeProgress,
+										adultVideos: state.videos,
+										folders: state.folders,
+										tags: state.tags,
+										photoSources: state.folders.filter((f) => f.kind === "directory" || f.kind === "files").map((f) => ({
+											id: f.id,
+											name: f.name,
+											kind: f.kind,
+											...f.photoCount != null ? { photoCount: f.photoCount } : {},
+											...f.lastCheckedAt != null ? { lastCheckedAt: f.lastCheckedAt } : {}
+										})),
+										photoMeta: loadDurablePhotosSync()?.meta,
+										photoLikes: loadDurablePhotosSync()?.likes
+									});
+									companionExportLibraryPack(files).then((result) => {
+										setServiceNote(result.ok ? `Wrote library pack to companion folder · ${result.written?.length ?? 0} files${result.root ? ` · ${result.root}` : ""}` : result.error || "Companion pack export failed.");
+									});
+								},
+								children: "Save pack to companion folder"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								variant: "secondary",
+								onClick: () => {
+									companionImportLibraryPack().then((pack) => {
+										if (!pack.ok || !pack.files || !Object.keys(pack.files).length) {
+											setServiceNote(pack.error || "No library pack files in the companion folder.");
+											return;
+										}
+										if (!window.confirm("Import the companion-folder library pack into Reelcase?\n\nData merges into durable local stores.")) {
+											setServiceNote("Companion import cancelled.");
+											return;
+										}
+										const mode = window.confirm("Also REPLACE all YouTube/Twitch follows with the folder pack?\n\nOK = replace follows\nCancel = merge follows (recommended)") ? "replace-follows" : "merge";
+										try {
+											const result = applyLibraryPackFiles(pack.files, {
+												getFollows: () => useLibrary.getState().follows,
+												setFollows: (follows) => useLibrary.setState({ follows }),
+												getHistory: () => useLibrary.getState().history,
+												setHistory: (history) => useLibrary.setState({ history }),
+												getViewCounts: () => useLibrary.getState().viewCounts,
+												getCameCounts: () => useLibrary.getState().cameCounts,
+												setMarks: (viewCounts, cameCounts) => useLibrary.setState({
+													viewCounts,
+													cameCounts
+												}),
+												getFavorites: () => Object.keys(useLibrary.getState().favorites),
+												getLikes: () => Object.keys(useLibrary.getState().likes),
+												setShelves: (favorites, likes) => useLibrary.setState({
+													favorites: Object.fromEntries(favorites.map((id) => [id, true])),
+													likes: Object.fromEntries(likes.map((id) => [id, true]))
+												}),
+												getPhotoSources: () => useLibrary.getState().folders.filter((f) => f.kind === "directory" || f.kind === "files").map((f) => ({
+													id: f.id,
+													name: f.name,
+													kind: f.kind,
+													photoCount: f.photoCount,
+													lastCheckedAt: f.lastCheckedAt
+												})),
+												setPhotoSources: (sources) => useLibrary.setState((s) => {
+													let folders = s.folders;
+													for (const source of sources) if (folders.some((f) => f.id === source.id)) folders = folders.map((f) => f.id === source.id ? {
+														...f,
+														name: source.name,
+														kind: source.kind,
+														photoCount: source.photoCount ?? f.photoCount,
+														lastCheckedAt: source.lastCheckedAt ?? f.lastCheckedAt
+													} : f);
+													else folders = [...folders, {
+														id: source.id,
+														name: source.name,
+														kind: source.kind,
+														videoCount: 0,
+														photoCount: source.photoCount ?? 0,
+														lastCheckedAt: source.lastCheckedAt,
+														needsPermission: true,
+														health: "permission-needed"
+													}];
+													return { folders };
+												}),
+												getProgress: () => useLibrary.getState().progress,
+												getResumeProgress: () => useLibrary.getState().resumeProgress,
+												setResume: (progress, resumeProgress) => useLibrary.setState({
+													progress,
+													resumeProgress
+												}),
+												getLinks: () => linksFromHistoryAndResume(useLibrary.getState().history, useLibrary.getState().resumeProgress),
+												setLinks: () => {}
+											}, mode);
+											setServiceNote(`Companion pack import · +${result.followsAdded} follows · +${result.historyMerged} history · +${result.linksMerged} links${result.photosMerged ? ` · photos ${result.photosMerged}` : ""}`);
+										} catch (error) {
+											setServiceNote(error instanceof Error ? error.message : "Companion pack import failed.");
+										}
+									});
+								},
+								children: "Load pack from companion folder"
+							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", {
 								className: "inline-flex h-8 items-center rounded-md bg-bg/45 px-3 text-xs text-muted shadow-border hover:text-fg",
 								href: "/import-templates/README.md",
@@ -5515,7 +5708,7 @@ function PrintsSection() {
 		eyebrow: "Maker shelf",
 		icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Box, { className: "size-4" }),
 		title: "3D prints",
-		copy: "Keep a lightweight catalog of print-ready files. Preview STL, OBJ, GLB/GLTF, and 3MF in an interactive orbit viewer; G-code stays list-only for slicers.",
+		copy: "Keep a lightweight catalog of print-ready files. Preview STL, OBJ, GLB/GLTF, and 3MF in an interactive orbit viewer with transform editor, lighting presets, wireframe, grid, and fullscreen; G-code stays list-only for slicers.",
 		accept: ".stl,.obj,.3mf,.gcode,.glb,.gltf",
 		footer: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 			className: "mt-5 grid gap-3 sm:grid-cols-2",
@@ -8270,7 +8463,7 @@ var ROADMAP_EXPANSION = [
 		[
 			"print-file-viewer",
 			"3D print file viewer",
-			"Interactive three.js orbit viewer for STL, OBJ, GLB/GLTF, and 3MF — sample models plus user-added IndexedDB bytes; dispose on close."
+			"Interactive three.js orbit viewer + transform editor for STL, OBJ, GLB/GLTF, and 3MF — lighting/camera presets, wireframe, grid, explode, fullscreen; sample models plus user-added IndexedDB bytes; dispose on close."
 		],
 		[
 			"twitch-view-modes",
@@ -8280,7 +8473,7 @@ var ROADMAP_EXPANSION = [
 		[
 			"games-shortcut-curation",
 			"Games shortcut curation",
-			"Promote verified game launchers and their icons while keeping unrelated web links and desktop helpers out of game recommendations."
+			"Promote verified game launchers with companion/folder icon pull + local icon cache while keeping unrelated web links and desktop helpers out of game recommendations."
 		]
 	].map(([id, title, detail]) => ({
 		id,
@@ -8997,7 +9190,7 @@ function MissionPlanSection() {
 										children: "3. Load shortcuts"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
-									"Open Games and choose Load approved desktop shortcuts."
+									"Open Games and choose Load approved desktop shortcuts or Steam/Epic roots."
 								]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
@@ -9013,30 +9206,58 @@ function MissionPlanSection() {
 							})
 						]
 					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-						className: "mt-4",
-						variant: "secondary",
-						onClick: () => void (async () => {
-							try {
-								const data = await (await fetch("http://127.0.0.1:43123/health")).json();
-								setCompanionCheck({
-									ready: true,
-									desktop: Boolean(data.desktopEnabled),
-									detail: `${data.roots ?? 0} approved root(s)`
-								});
-							} catch {
-								setCompanionCheck({
-									ready: false,
-									desktop: false,
-									detail: "Companion not detected. Start it, leave the window open, then retry."
-								});
-							}
-						})(),
-						children: "Check Companion setup"
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 flex flex-wrap gap-2",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								variant: "secondary",
+								onClick: () => void (async () => {
+									try {
+										const data = await companionHealth();
+										if (!data?.ok) throw new Error("offline");
+										setCompanionCheck({
+											ready: true,
+											desktop: Boolean(data.desktopEnabled),
+											detail: `v${data.version ?? "?"} · ${data.roots ?? 0} roots · badge ${data.trayBadge ?? 0}`
+										});
+										if ((data.trayBadge ?? 0) > 0) companionAckJobs();
+									} catch {
+										setCompanionCheck({
+											ready: false,
+											desktop: false,
+											detail: "Companion not detected. Start it, leave the window open, then retry."
+										});
+									}
+								})(),
+								children: "Check Companion setup"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								variant: "secondary",
+								onClick: () => void companionSetAutostart(true).then((r) => setCompanionCheck({
+									ready: Boolean(r.ok),
+									desktop: companionCheck?.desktop ?? false,
+									detail: r.ok ? "Windows auto-start enabled for Companion." : r.error || "Auto-start failed."
+								})),
+								children: "Enable Windows auto-start"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								variant: "ghost",
+								onClick: () => void companionSetAutostart(false).then((r) => setCompanionCheck({
+									ready: companionCheck?.ready ?? false,
+									desktop: companionCheck?.desktop ?? false,
+									detail: r.ok ? "Windows auto-start removed." : r.error || "Could not clear auto-start."
+								})),
+								children: "Disable auto-start"
+							})
+						]
 					}),
 					companionCheck && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: `mt-3 text-sm ${companionCheck.ready && companionCheck.desktop ? "text-accent" : "text-danger"}`,
 						children: companionCheck.ready ? `Ready · Desktop ${companionCheck.desktop ? "approved" : "not approved"} · ${companionCheck.detail}` : companionCheck.detail
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-2 text-xs text-muted",
+						children: "Offline yt-dlp jobs raise a Windows tray balloon when they finish. Loopback + origin check only — Companion never accepts LAN clients."
 					})
 				]
 			}),
@@ -9116,39 +9337,77 @@ function GamesSection() {
 	const [sort, setSort] = (0, import_react.useState)("name");
 	const [companionLoading, setCompanionLoading] = (0, import_react.useState)(false);
 	const sourceShortcuts = useSourceAssets((s) => s.shortcuts);
+	const [iconPulling, setIconPulling] = (0, import_react.useState)(false);
 	(0, import_react.useEffect)(() => {
 		const saved = readHub().games;
-		setGames(saved);
+		const icons = loadGameIconCache();
+		setGames(saved.map((game) => ({
+			...game,
+			iconData: game.iconData || icons[game.path]
+		})));
 	}, []);
 	const saveGames = (next) => {
+		const slim = next.map(({ iconData, ...rest }) => {
+			if (iconData) saveGameIcon(rest.path, iconData);
+			return rest;
+		});
 		setGames(next);
 		writeHub({
 			...readHub(),
-			games: next
+			games: slim
 		});
+	};
+	const mergeIcons = (current, iconMap) => current.map((game) => {
+		const icon = iconMap.get(game.path);
+		return icon ? {
+			...game,
+			iconData: icon
+		} : game;
+	});
+	const pullMissingIcons = async (list) => {
+		const missing = list.filter((game) => !game.iconData).map((game) => game.path);
+		if (!missing.length) return list;
+		setIconPulling(true);
+		try {
+			const iconMap = await fetchCompanionIcons(missing);
+			if (!iconMap.size) return list;
+			const next = mergeIcons(list, iconMap);
+			saveGames(next);
+			return next;
+		} finally {
+			setIconPulling(false);
+		}
 	};
 	const add = async (files, allowWebShortcut = false) => {
 		if (!files) return;
-		const source = Array.from(files).filter((file) => allowWebShortcut ? /\.(exe|lnk|url|appref-ms)$/i.test(file.name) : /\.(exe|lnk|url|appref-ms)$/i.test(file.name));
+		const allFiles = Array.from(files);
+		const source = allFiles.filter((file) => allowWebShortcut ? /\.(exe|lnk|url|appref-ms)$/i.test(file.name) : /\.(exe|lnk|url|appref-ms)$/i.test(file.name));
+		const folderIcons = await iconsFromFolderFiles(allFiles);
 		const next = await Promise.all(source.map(async (file) => {
 			let launchUrl;
 			if (/\.url$/i.test(file.name)) launchUrl = (await file.text()).match(/^URL\s*=\s*((?:https?|steam|epic|com\.epicgames\.launcher|xbox):\S+)/im)?.[1];
+			const path = file.webkitRelativePath || file.name;
+			const iconData = folderIcons.get(path.replace(/\\/g, "/")) || folderIcons.get(path);
+			if (iconData) saveGameIcon(path, iconData);
 			return {
 				name: file.name,
-				path: file.webkitRelativePath || file.name,
+				path,
 				size: file.size,
 				addedAt: Date.now(),
-				launchUrl
+				launchUrl,
+				iconData
 			};
 		}));
+		let merged = [];
 		setGames((current) => {
-			const merged = [...current, ...next.filter((item) => !current.some((game) => game.path === item.path))];
+			merged = [...current, ...next.filter((item) => !current.some((game) => game.path === item.path))];
 			writeHub({
 				...readHub(),
-				games: merged
+				games: merged.map(({ iconData: _icon, ...rest }) => rest)
 			});
 			return merged;
 		});
+		pullMissingIcons(merged.length ? merged : next);
 	};
 	(0, import_react.useEffect)(() => {
 		if (sourceShortcuts.length) add(sourceShortcuts, true);
@@ -9170,28 +9429,32 @@ function GamesSection() {
 		try {
 			const result = await (await fetch("http://127.0.0.1:43123/shortcuts?limit=300")).json();
 			if (!result.ok) throw new Error(result.error ?? "The companion could not read approved shortcuts.");
+			const cachedIcons = loadGameIconCache();
 			const next = (result.shortcuts ?? []).map((item) => ({
 				...item,
 				size: 0,
-				addedAt: Date.now()
+				addedAt: Date.now(),
+				iconData: cachedIcons[item.path]
 			}));
+			let merged = [];
 			setGames((current) => {
 				const incoming = new Map(next.map((item) => [item.path, item]));
-				const merged = [...current.map((game) => {
+				merged = [...current.map((game) => {
 					const refreshed = incoming.get(game.path);
 					return refreshed ? {
 						...game,
 						...refreshed,
-						iconData: game.iconData
+						iconData: game.iconData || refreshed.iconData
 					} : game;
 				}), ...next.filter((item) => !current.some((game) => game.path === item.path))];
 				writeHub({
 					...readHub(),
-					games: merged
+					games: merged.map(({ iconData: _icon, ...rest }) => rest)
 				});
 				return merged;
 			});
-			setLaunchNotice(next.length ? `Added ${next.length} approved desktop shortcuts. They can launch through the companion.` : "No approved desktop shortcuts were found. Add a shortcut to Desktop or another approved companion folder.");
+			const got = (await pullMissingIcons(merged.length ? merged : next)).filter((game) => game.iconData).length;
+			setLaunchNotice(next.length ? `Added ${next.length} approved desktop shortcuts · ${got} icons cached. Desktop launch still needs the companion.` : "No approved desktop shortcuts were found. Add a shortcut to Desktop or another approved companion folder.");
 		} catch {
 			setLaunchNotice("Companion connection unavailable. Start the local Reelcase Companion, then try again.");
 		} finally {
@@ -9204,7 +9467,7 @@ function GamesSection() {
 		eyebrow: "Desktop game shelf",
 		icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Gamepad2, { className: "size-4" }),
 		title: "A clearer game drawer.",
-		copy: "Choose a dedicated games folder, add custom cover icons, and explicitly import web game shortcuts. Every card has a launch control: web shortcuts open directly; desktop launchers are clearly marked because browsers cannot start an .exe by themselves.",
+		copy: "Choose a dedicated games folder (icons from sibling .ico/.png), load approved Desktop shortcuts through the companion (shell icons + folder art), or set a cover manually. Web shortcuts open directly; desktop launchers need the companion.",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "mt-6 flex flex-col gap-3 sm:flex-row",
@@ -9224,6 +9487,48 @@ function GamesSection() {
 						disabled: companionLoading,
 						onClick: () => void loadApprovedShortcuts(),
 						children: companionLoading ? "Reading approved shortcuts…" : "Load approved desktop shortcuts"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						variant: "secondary",
+						disabled: companionLoading,
+						onClick: () => void (async () => {
+							setCompanionLoading(true);
+							try {
+								const listed = await companionSteamEpicGames(250);
+								if (!listed.length) {
+									setLaunchNotice("No Steam/Epic libraries under approved roots. Add the Steam or Epic Games folder to REELCASE_ALLOWED_ROOTS.");
+									return;
+								}
+								const next = listed.map((game) => ({
+									name: game.name,
+									path: game.path,
+									size: 0,
+									addedAt: Date.now()
+								}));
+								setGames((current) => {
+									const merged = [...current, ...next.filter((item) => !current.some((game) => game.path === item.path))];
+									writeHub({
+										...readHub(),
+										games: merged.map(({ iconData: _icon, ...rest }) => rest)
+									});
+									return merged;
+								});
+								setLaunchNotice(`Loaded ${listed.length} Steam/Epic title${listed.length === 1 ? "" : "s"} from known install dirs under approved roots.`);
+								pullMissingIcons(next);
+							} finally {
+								setCompanionLoading(false);
+							}
+						})(),
+						children: "Load Steam / Epic from approved roots"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						variant: "secondary",
+						disabled: iconPulling || companionLoading || !games.some((game) => !game.iconData),
+						onClick: () => void (async () => {
+							const filled = (await pullMissingIcons(games)).filter((game) => game.iconData).length - games.filter((game) => game.iconData).length;
+							setLaunchNotice(filled > 0 ? `Pulled ${filled} desktop icon${filled === 1 ? "" : "s"} via companion / folder art.` : "No new icons found. Start the companion or add .ico/.png next to launchers.");
+						})(),
+						children: iconPulling ? "Pulling icons…" : "Pull missing icons"
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
 						className: "sr-only",
@@ -9378,10 +9683,14 @@ function GamesSection() {
 													const file = event.target.files?.[0];
 													if (!file) return;
 													const reader = new FileReader();
-													reader.onload = () => saveGames(games.map((item) => item.path === game.path ? {
-														...item,
-														iconData: String(reader.result)
-													} : item));
+													reader.onload = () => {
+														const iconData = String(reader.result);
+														saveGameIcon(game.path, iconData);
+														saveGames(games.map((item) => item.path === game.path ? {
+															...item,
+															iconData
+														} : item));
+													};
 													reader.readAsDataURL(file);
 												}
 											})
@@ -9545,6 +9854,7 @@ function LocalCatalog({ kind, eyebrow, icon, title, copy, accept, directory, foo
 	});
 	const [viewer, setViewer] = (0, import_react.useState)(null);
 	const [busy, setBusy] = (0, import_react.useState)(false);
+	const [companionNote, setCompanionNote] = (0, import_react.useState)("");
 	(0, import_react.useEffect)(() => setHub(readHub()), []);
 	const items = hub[kind];
 	const change = async (files) => {
@@ -9617,6 +9927,84 @@ function LocalCatalog({ kind, eyebrow, icon, title, copy, accept, directory, foo
 					})
 				]
 			}),
+			kind === "prints" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "mt-4 flex flex-wrap gap-2",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						size: "sm",
+						variant: "secondary",
+						disabled: busy,
+						onClick: () => void (async () => {
+							setBusy(true);
+							try {
+								const { prints } = await companionListPrints(120);
+								if (!prints.length) {
+									setCompanionNote("No STL/OBJ/GLB/3MF under approved roots (or Reelcase Prints). Add a prints folder to REELCASE_ALLOWED_ROOTS.");
+									return;
+								}
+								const nextItems = [];
+								for (const row of prints.slice(0, 40)) {
+									if (!isViewablePrintName(row.name)) continue;
+									const file = await companionReadPrint(row.path);
+									if (!file.ok || !file.dataBase64) continue;
+									const bytes = Uint8Array.from(atob(file.dataBase64), (c) => c.charCodeAt(0));
+									const blobId = await savePrintBlob(new File([bytes], file.name || row.name, { type: "application/octet-stream" }));
+									nextItems.push({
+										name: row.name,
+										path: row.path,
+										size: row.size,
+										addedAt: Date.now(),
+										id: blobId ?? void 0
+									});
+								}
+								if (!nextItems.length) {
+									setCompanionNote("Companion listed prints, but none could be loaded (size/format).");
+									return;
+								}
+								const next = {
+									...hub,
+									prints: [...nextItems, ...hub.prints].slice(0, 120)
+								};
+								setHub(next);
+								writeHub(next);
+								setCompanionNote(`Opened ${nextItems.length} print file${nextItems.length === 1 ? "" : "s"} from approved companion folders.`);
+							} finally {
+								setBusy(false);
+							}
+						})(),
+						children: "Open prints from companion folder"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						size: "sm",
+						variant: "secondary",
+						disabled: busy || !items.some((item) => item.id),
+						onClick: () => void (async () => {
+							setBusy(true);
+							try {
+								let saved = 0;
+								for (const item of items.slice(0, 20)) {
+									if (!item.id || !isViewablePrintName(item.name)) continue;
+									const { loadPrintBlob } = await import("./prints-blobs-mfpCgaek.mjs");
+									const record = await loadPrintBlob(item.id);
+									if (!record?.blob) continue;
+									const buffer = new Uint8Array(await record.blob.arrayBuffer());
+									let binary = "";
+									for (let i = 0; i < buffer.length; i += 1) binary += String.fromCharCode(buffer[i]);
+									if ((await companionSavePrint(item.name, btoa(binary))).ok) saved += 1;
+								}
+								setCompanionNote(saved ? `Saved ${saved} print file${saved === 1 ? "" : "s"} into the companion Reelcase Prints folder.` : "Nothing saved — start Companion and ensure an approved prints folder exists.");
+							} finally {
+								setBusy(false);
+							}
+						})(),
+						children: "Save open prints to companion"
+					}),
+					companionNote && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "w-full text-xs text-muted",
+						children: companionNote
+					})
+				]
+			}),
 			items.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "mt-6 overflow-hidden rounded-lg shadow-border",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -9650,7 +10038,7 @@ function LocalCatalog({ kind, eyebrow, icon, title, copy, accept, directory, foo
 							variant: canView(item) ? "default" : "secondary",
 							type: "button",
 							disabled: !canView(item),
-							title: canView(item) ? "Open orbit viewer" : /\.gcode$/i.test(item.name) ? "G-code is not a mesh preview" : "Re-add this file to enable preview",
+							title: canView(item) ? "Open viewer + editor" : /\.gcode$/i.test(item.name) ? "G-code is not a mesh preview" : "Re-add this file to enable preview",
 							onClick: () => setViewer({
 								name: item.name,
 								path: item.path,
@@ -9658,7 +10046,7 @@ function LocalCatalog({ kind, eyebrow, icon, title, copy, accept, directory, foo
 								sampleSrc: item.sampleSrc,
 								blobId: item.id
 							}),
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Eye, { className: "size-3.5" }), "View"]
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Eye, { className: "size-3.5" }), "View / Edit"]
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 							className: "font-mono text-xs text-subtle",
 							children: bytes(item.size)

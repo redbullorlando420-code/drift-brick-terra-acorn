@@ -2,17 +2,17 @@ import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { r as Slot, s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
 import { n as TSS_SERVER_FUNCTION, r as getServerFnById, t as createServerFn } from "./ssr.mjs";
-import { B as isAdultThumbBlacklisted, C as adultRemoteLabel, D as adultTaxonomyTags, E as adultTaxonomyLabel, F as findFreshAdultPullFingerprint, G as mineRedditCommentTags, H as isUsableAdultThumb, I as isAdultGenreTag, J as redditTitleTokens, L as isAdultImageKind, M as expandedAdultTags, O as adultTextFetishTags, P as fetishSearchQuery, R as isAdultMetaTaxonomyTag, S as adultIngestTags, T as adultTagRankBoost, U as markAdultThumbFailed, V as isDecodedAdultThumbLikelyReal, W as markAdultThumbGood, X as rememberAdultPullFingerprint, a as ADULT_FOLDER_BY_PROVIDER, b as RETIRED_ADULT_SOURCE_IDS, c as ADULT_PULL_PROVIDERS, d as ADULT_SOURCE_OPTIONS, h as LIBRARY_LIMITS, i as ADULT_FEATURED_FETISH_TAGS, k as adultThumbCandidatesForVideo, n as ADULT_CURATED_FETISH_TAGS, o as ADULT_FOLDER_IDS, q as redditIngestExtras, r as ADULT_EMBED_LINKS, s as ADULT_MILESTONE_LINKS, t as ADULT_CATEGORY_HUB, u as ADULT_REDDIT_SUBS, w as adultSourceTag, z as isAdultPullKind } from "./adult-pull-cache-DxiS7sN3.mjs";
+import { B as isAdultThumbBlacklisted, C as adultRemoteLabel, D as adultTaxonomyTags, E as adultTaxonomyLabel, F as findFreshAdultPullFingerprint, G as mineRedditCommentTags, H as isUsableAdultThumb, I as isAdultGenreTag, J as redditTitleTokens, L as isAdultImageKind, M as expandedAdultTags, O as adultTextFetishTags, P as fetishSearchQuery, R as isAdultMetaTaxonomyTag, S as adultIngestTags, T as adultTagRankBoost, U as markAdultThumbFailed, V as isDecodedAdultThumbLikelyReal, W as markAdultThumbGood, X as rememberAdultPullFingerprint, a as ADULT_FOLDER_BY_PROVIDER, b as RETIRED_ADULT_SOURCE_IDS, c as ADULT_PULL_PROVIDERS, d as ADULT_SOURCE_OPTIONS, h as LIBRARY_LIMITS, i as ADULT_FEATURED_FETISH_TAGS, k as adultThumbCandidatesForVideo, n as ADULT_CURATED_FETISH_TAGS, o as ADULT_FOLDER_IDS, q as redditIngestExtras, r as ADULT_EMBED_LINKS, s as ADULT_MILESTONE_LINKS, t as ADULT_CATEGORY_HUB, u as ADULT_REDDIT_SUBS, w as adultSourceTag, z as isAdultPullKind } from "./adult-pull-cache-DYRXt4XQ.mjs";
 import { n as create, t as useShallow } from "../_libs/zustand.mjs";
 import { n as clsx, t as cva } from "../_libs/class-variance-authority+clsx.mjs";
 import { t as twMerge } from "../_libs/tailwind-merge.mjs";
-import { $ as Gamepad2, A as Music2, B as LoaderCircle, Ct as Bell, D as PictureInPicture2, E as Play, F as Menu, H as ListPlus, I as Maximize, K as Images, M as MonitorPlay, N as Minimize, O as Pause, P as MessageCircle, Q as Glasses, R as Lock, St as Bot, T as Radio, Tt as ArrowLeft, V as List, W as LayoutGrid, X as History, Y as ImageOff, Z as Heart, _ as Shuffle, _t as ChevronLeft, a as Volume2, at as Film, b as Settings2, bt as ChartColumn, c as Upload, ct as EyeOff, d as Tag, dt as Cpu, et as Folder, f as Star, g as SkipBack, gt as ChevronRight, h as SkipForward, ht as CircleAlert, i as VolumeX, it as Flag, j as Monitor, lt as ExternalLink, m as Smartphone, mt as Clapperboard, n as X, nt as FolderPlus, o as Video, ot as FileText, p as Sparkles, pt as Clock3, q as Image, r as Wifi, rt as Flame, s as Users, st as Eye, t as Youtube, tt as FolderSearch, u as ThumbsUp, ut as Download, v as ShoppingBag, vt as ChevronDown, w as RefreshCw, wt as BellOff, x as Search, xt as Box, yt as Check, z as LockOpen } from "../_libs/lucide-react.mjs";
+import { $ as Heart, B as Lock, Ct as Check, D as Play, Dt as Bell, E as Radio, Et as Bot, H as LoaderCircle, I as MessageCircle, J as Images, K as LayoutGrid, L as Menu, M as Monitor, N as MonitorPlay, O as PictureInPicture2, Ot as BellOff, P as Minimize, Q as History, R as Maximize, S as Search, St as ChevronDown, T as RefreshCw, Tt as Box, U as List, V as LockOpen, W as ListPlus, Y as Image, Z as ImageOff, _ as SkipBack, _t as Clock3, a as Volume2, at as FolderPlus, bt as ChevronRight, c as Upload, ct as Film, d as Tag, dt as EyeOff, ft as ExternalLink, g as SkipForward, h as Smartphone, ht as Cpu, i as VolumeX, it as FolderSearch, j as Music2, k as Pause, kt as ArrowLeft, lt as FileText, m as Sparkles, mt as Download, n as X, nt as Gamepad2, o as Video, ot as Flame, p as Star, r as Wifi, rt as Folder, s as Users, st as Flag, t as Youtube, tt as Glasses, u as ThumbsUp, ut as Eye, v as Shuffle, vt as Clapperboard, wt as ChartColumn, x as Settings2, xt as ChevronLeft, y as ShoppingBag, yt as CircleAlert } from "../_libs/lucide-react.mjs";
 import { n as toast, t as Toaster } from "../_libs/sonner.mjs";
 import { a as DialogPortal, i as DialogOverlay, n as DialogClose, o as DialogTitle, r as DialogContent, t as Dialog } from "../_libs/@radix-ui/react-dialog+[...].mjs";
 import { t as Root } from "../_libs/radix-ui__react-separator.mjs";
 import { a as Trigger, i as Root2, n as Item2, r as Portal2, t as Content2 } from "../_libs/@radix-ui/react-dropdown-menu+[...].mjs";
 import { i as SliderTrack, n as SliderRange, r as SliderThumb, t as Slider$1 } from "../_libs/@radix-ui/react-slider+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-BuAxEaLn.js
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-DYJ7hqfm.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var __defProp = Object.defineProperty;
@@ -95,6 +95,154 @@ function adultArchiveDepthLabel(cursors) {
 	const rows = Object.entries(cursors);
 	if (!rows.length) return "No saved archive depth yet — Pull catalog starts at page 1.";
 	return `Resume cursors · ${rows.sort((a, b) => a[0].localeCompare(b[0])).map(([provider, row]) => `${provider}→p${row.page}`).join(" · ")}`;
+}
+/** Thin client for the optional loopback Reelcase Companion (127.0.0.1 only). */
+var COMPANION_ORIGIN = "http://127.0.0.1:43123";
+async function companionFetch(path, init) {
+	return fetch(`${COMPANION_ORIGIN}${path}`, {
+		...init,
+		headers: {
+			...init?.body ? { "content-type": "application/json" } : {},
+			...init?.headers ?? {}
+		}
+	});
+}
+async function companionHealth() {
+	try {
+		const response = await companionFetch("/health");
+		if (!response.ok) return null;
+		return await response.json();
+	} catch {
+		return null;
+	}
+}
+async function companionSteamEpicGames(limit = 250) {
+	try {
+		const data = await (await companionFetch(`/games/steam-epic?limit=${limit}`)).json();
+		return data.ok && Array.isArray(data.games) ? data.games : [];
+	} catch {
+		return [];
+	}
+}
+async function companionExportLibraryPack(files) {
+	try {
+		return await (await companionFetch("/library-pack/export", {
+			method: "POST",
+			body: JSON.stringify({ files })
+		})).json();
+	} catch {
+		return {
+			ok: false,
+			error: "Companion offline."
+		};
+	}
+}
+async function companionImportLibraryPack() {
+	try {
+		return await (await companionFetch("/library-pack/import")).json();
+	} catch {
+		return {
+			ok: false,
+			error: "Companion offline."
+		};
+	}
+}
+async function companionPutThumb(id, dataUrl) {
+	try {
+		const data = await (await companionFetch("/thumbs/put", {
+			method: "POST",
+			body: JSON.stringify({
+				id,
+				dataUrl
+			})
+		})).json();
+		return Boolean(data.ok);
+	} catch {
+		return false;
+	}
+}
+async function companionGetThumb(id) {
+	try {
+		const response = await companionFetch(`/thumbs/get?id=${encodeURIComponent(id)}`);
+		if (!response.ok) return null;
+		const data = await response.json();
+		return data.ok && data.dataUrl?.startsWith("data:image") ? data.dataUrl : null;
+	} catch {
+		return null;
+	}
+}
+async function companionListPrints(limit = 200) {
+	try {
+		const data = await (await companionFetch(`/prints/list?limit=${limit}`)).json();
+		return {
+			prints: data.ok && Array.isArray(data.prints) ? data.prints : [],
+			printsRoot: data.printsRoot
+		};
+	} catch {
+		return { prints: [] };
+	}
+}
+async function companionReadPrint(path) {
+	try {
+		return await (await companionFetch(`/prints/file?path=${encodeURIComponent(path)}`)).json();
+	} catch {
+		return {
+			ok: false,
+			error: "Companion offline."
+		};
+	}
+}
+async function companionSavePrint(name, dataBase64, dir) {
+	try {
+		return await (await companionFetch("/prints/save", {
+			method: "POST",
+			body: JSON.stringify({
+				name,
+				dataBase64,
+				dir
+			})
+		})).json();
+	} catch {
+		return {
+			ok: false,
+			error: "Companion offline."
+		};
+	}
+}
+async function companionSetAutostart(enabled) {
+	try {
+		return await (await companionFetch("/tray/autostart", {
+			method: "POST",
+			body: JSON.stringify({ enabled })
+		})).json();
+	} catch {
+		return {
+			ok: false,
+			error: "Companion offline."
+		};
+	}
+}
+async function companionAckJobs() {
+	try {
+		await companionFetch("/jobs/ack", {
+			method: "POST",
+			body: "{}"
+		});
+	} catch {}
+}
+async function companionCacheThumbUrl(id, url) {
+	try {
+		const data = await (await companionFetch("/thumbs/cache-url", {
+			method: "POST",
+			body: JSON.stringify({
+				id,
+				url
+			})
+		})).json();
+		return Boolean(data.ok);
+	} catch {
+		return false;
+	}
 }
 var DB_NAME = "reelcase";
 var STORE = "dirs";
@@ -888,6 +1036,7 @@ async function saveThumbCache(entry, maxEntries = LIBRARY_LIMITS.thumbCacheEntri
 	} finally {
 		db.close();
 	}
+	if (entry.thumb?.startsWith("data:image")) companionPutThumb(entry.id, entry.thumb);
 }
 /** Drop oldest thumb-cache rows so data-URL artwork cannot grow without bound. */
 async function pruneThumbCache(db, maxEntries) {
@@ -5229,6 +5378,21 @@ var useThumbs = create((set, get) => ({
 				...s.byId
 			} }));
 		} catch {}
+	},
+	/** Recall a companion-disk thumb when browser IndexedDB was pruned. */
+	recallCompanion: async (id) => {
+		if (!id || get().byId[id]) return;
+		const dataUrl = await companionGetThumb(id);
+		if (!dataUrl) return;
+		set((s) => ({ byId: {
+			...s.byId,
+			[id]: dataUrl
+		} }));
+		saveThumbCache({
+			id,
+			thumb: dataUrl,
+			at: Date.now()
+		}).catch(() => void 0);
 	}
 }));
 /** Resolve the best direct image URL for an adult photo-kind card. */
@@ -5470,6 +5634,7 @@ var VideoCard = (0, import_react.memo)(function VideoCard({ video, variant = "gr
 	const capturedDur = useThumbs((s) => s.durations[video.id]);
 	const request = useThumbs((s) => s.request);
 	const retry = useThumbs((s) => s.retry);
+	const recallCompanion = useThumbs((s) => s.recallCompanion);
 	const artworkDiagnostic = useThumbs((s) => s.diagnostics[video.id]);
 	const repairArtworkSource = useLibrary((s) => s.repairArtworkSource);
 	const followRemoteQuery = useLibrary((s) => s.followRemoteQuery);
@@ -5490,6 +5655,7 @@ var VideoCard = (0, import_react.memo)(function VideoCard({ video, variant = "gr
 	const setVideoTags = useLibrary((s) => s.setVideoTags);
 	const setQuery = useLibrary((s) => s.setQuery);
 	const setSource = useLibrary((s) => s.setSource);
+	const sourceId = useLibrary((s) => s.sourceId);
 	const hiddenAdult = adult && tags.includes("hidden");
 	const duration = capturedDur ?? video.duration;
 	const ratio = progress && progress.d > 0 ? Math.min(1, progress.t / progress.d) : 0;
@@ -5586,6 +5752,15 @@ var VideoCard = (0, import_react.memo)(function VideoCard({ video, variant = "gr
 		io.observe(el);
 		return () => io.disconnect();
 	}, [request, video]);
+	(0, import_react.useEffect)(() => {
+		if (!artVisible || !video.remote) return;
+		recallCompanion(video.id);
+	}, [
+		artVisible,
+		recallCompanion,
+		video.id,
+		video.remote
+	]);
 	(0, import_react.useEffect)(() => {
 		if (!artVisible || thumbsExhausted) {
 			setArtAllowed(false);
@@ -5717,6 +5892,7 @@ var VideoCard = (0, import_react.memo)(function VideoCard({ video, variant = "gr
 					setPaintedSrc(url);
 					setCandidateReady(true);
 					releaseImageSlot();
+					if (video.remote && /^https:\/\//i.test(url)) companionCacheThumbUrl(video.id, url);
 				},
 				onError: () => {
 					if (showPreview) return;
@@ -5882,7 +6058,7 @@ var VideoCard = (0, import_react.memo)(function VideoCard({ video, variant = "gr
 					type: "button",
 					onClick: (event) => {
 						event.stopPropagation();
-						if (adult) {
+						if (adult || sourceId === "adults" || sourceId === "adult-fetishes") {
 							setQuery("");
 							setSource("adults");
 							window.dispatchEvent(new CustomEvent("reelcase:adult-tag", { detail: { tag } }));
@@ -6020,9 +6196,19 @@ var VideoCard = (0, import_react.memo)(function VideoCard({ video, variant = "gr
 		]
 	});
 });
+/** Open a topic without yanking the user off Adults into Genres/Search. */
 function openTopic(topic) {
-	useLibrary.getState().setQuery(topic);
-	useLibrary.getState().setSource("genres");
+	const clean = topic.trim().replace(/^#/, "");
+	if (!clean) return;
+	const state = useLibrary.getState();
+	if (state.sourceId === "adults" || state.sourceId === "adult-fetishes") {
+		state.setQuery("");
+		state.setSource("adults");
+		if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("reelcase:adult-tag", { detail: { tag: clean } }));
+		return;
+	}
+	state.setQuery(clean);
+	state.setSource("genres");
 }
 function Input({ className, type, ...props }) {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
@@ -8641,6 +8827,7 @@ var SORTS = [
 function TopBar({ onMenu, onAddFolder }) {
 	const query = useLibrary((s) => s.query);
 	const setQuery = useLibrary((s) => s.setQuery);
+	const sourceId = useLibrary((s) => s.sourceId);
 	const [draft, setDraft] = (0, import_react.useState)(query);
 	const [lookup, setLookup] = (0, import_react.useState)(query);
 	const [now, setNow] = (0, import_react.useState)(null);
@@ -8653,12 +8840,14 @@ function TopBar({ onMenu, onAddFolder }) {
 	}, [draft]);
 	(0, import_react.useEffect)(() => {
 		if (draft === query) return;
+		if (sourceId === "adults" || sourceId === "adult-fetishes") return;
 		const t = window.setTimeout(() => setQuery(draft), 180);
 		return () => window.clearTimeout(t);
 	}, [
 		draft,
 		query,
-		setQuery
+		setQuery,
+		sourceId
 	]);
 	(0, import_react.useEffect)(() => {
 		setNow(/* @__PURE__ */ new Date());
@@ -8670,7 +8859,6 @@ function TopBar({ onMenu, onAddFolder }) {
 	const sort = useLibrary((s) => s.sort);
 	const setSort = useLibrary((s) => s.setSort);
 	const scanning = useLibrary((s) => s.scanning);
-	const sourceId = useLibrary((s) => s.sourceId);
 	const folders = useLibrary((s) => s.folders);
 	const videos = useLibrary((s) => s.videos);
 	const openPreview = useLibrary((s) => s.openPreview);
@@ -8726,8 +8914,26 @@ function TopBar({ onMenu, onAddFolder }) {
 		searchIndexStatus
 	]);
 	const suggestionTags = (0, import_react.useMemo)(() => [...new Set(hits.flatMap((video) => tags[video.id] ?? []))].filter((tag) => tag.length >= 3).slice(0, 5), [hits, tags]);
+	const applyAdultTagStay = (raw) => {
+		const tag = raw.trim().replace(/^#/, "");
+		if (!tag) return;
+		setDraft("");
+		setQuery("");
+		window.dispatchEvent(new CustomEvent("reelcase:adult-tag", { detail: { tag } }));
+		setFocused(false);
+	};
+	const onAdultDesk = sourceId === "adults" || sourceId === "adult-fetishes";
 	const commit = (value = draft) => {
 		const clean = value.trim();
+		if (onAdultDesk && clean) {
+			applyAdultTagStay(clean);
+			if (clean) {
+				const next = [clean.replace(/^#/, ""), ...recent.filter((item) => item !== clean.replace(/^#/, ""))].slice(0, 5);
+				setRecent(next);
+				localStorage.setItem("reelcase.search.recent", JSON.stringify(next));
+			}
+			return;
+		}
 		setQuery(clean);
 		if (clean) {
 			const next = [clean, ...recent.filter((item) => item !== clean)].slice(0, 5);
@@ -8782,6 +8988,7 @@ function TopBar({ onMenu, onAddFolder }) {
 						onClick: () => {
 							setDraft("");
 							setQuery("");
+							if (sourceId === "adults" || sourceId === "adult-fetishes") window.dispatchEvent(new CustomEvent("reelcase:adult-tag", { detail: { tag: "All" } }));
 						},
 						className: "absolute top-1/2 right-3 -translate-y-1/2 text-subtle hover:text-fg",
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, { className: "size-4" })
@@ -11390,6 +11597,27 @@ function AdultComments({ video }) {
 	]);
 	if (!supportsRemoteComments(kind)) return null;
 	const authorPrefix = kind === "reddit" ? "u/" : kind === "youtube" ? "" : "";
+	const chatRows = kind === "youtube" ? comments.filter((row) => row.kind === "chat") : [];
+	const commentRows = kind === "youtube" ? comments.filter((row) => row.kind !== "chat") : comments;
+	const heading = linkedRedgifs ? "Reddit comments for linked Redgifs media" : kind === "twitch" ? "VOD chat" : kind === "youtube" && chatRows.length ? "Chat + comments" : "Comments";
+	const renderList = (rows, emptyLabel) => rows.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
+		className: "mt-2 max-h-48 space-y-2 overflow-y-auto",
+		children: rows.map((comment) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
+			className: "rounded-sm bg-elevated/60 px-2 py-1.5 text-xs text-fg",
+			children: [comment.author && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+				className: "font-medium text-accent",
+				children: [
+					authorPrefix,
+					comment.author,
+					typeof comment.score === "number" ? ` · ${comment.score}` : "",
+					" · "
+				]
+			}), comment.body]
+		}, comment.id))
+	}) : emptyLabel ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+		className: "mt-2 text-xs text-muted",
+		children: emptyLabel
+	}) : null;
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 		className: "mt-3 rounded-lg border border-border bg-bg/40 p-3",
 		children: [
@@ -11398,7 +11626,7 @@ function AdultComments({ video }) {
 				children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(MessageCircle, { className: "size-3.5" }),
 					" ",
-					linkedRedgifs ? "Reddit comments for linked Redgifs media" : kind === "twitch" ? "VOD chat" : "Comments"
+					heading
 				]
 			}),
 			loading && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
@@ -11409,21 +11637,17 @@ function AdultComments({ video }) {
 				className: "mt-2 text-xs text-muted",
 				children: note
 			}),
-			!loading && comments.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
-				className: "mt-2 max-h-48 space-y-2 overflow-y-auto",
-				children: comments.map((comment) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
-					className: "rounded-sm bg-elevated/60 px-2 py-1.5 text-xs text-fg",
-					children: [comment.author && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-						className: "font-medium text-accent",
-						children: [
-							authorPrefix,
-							comment.author,
-							typeof comment.score === "number" ? ` · ${comment.score}` : "",
-							" · "
-						]
-					}), comment.body]
-				}, comment.id))
-			})
+			!loading && kind === "youtube" && (chatRows.length > 0 || commentRows.length > 0) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "mt-2 space-y-3",
+				children: [chatRows.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "text-[11px] font-medium uppercase tracking-wider text-subtle",
+					children: "Live chat / replay"
+				}), renderList(chatRows)] }), commentRows.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "text-[11px] font-medium uppercase tracking-wider text-subtle",
+					children: "Comments"
+				}), renderList(commentRows)] })]
+			}),
+			!loading && kind !== "youtube" && renderList(commentRows)
 		]
 	});
 }
@@ -12977,6 +13201,13 @@ function PreVideo() {
 										type: "button",
 										title: `Show videos tagged ${tag} · score ${Math.round((tagScores.get(tag)?.total ?? 0) / Math.max(1, tagScores.get(tag)?.count ?? 1) * 1e3).toLocaleString()}`,
 										onClick: () => {
+											if (previewIsAdult) {
+												setQuery("");
+												setSource("adults");
+												window.dispatchEvent(new CustomEvent("reelcase:adult-tag", { detail: { tag } }));
+												closePreview();
+												return;
+											}
 											setSource(video.remote?.kind === "twitch" ? "twitch" : video.remote?.kind === "youtube" ? "youtube" : "all");
 											setQuery(tag);
 											closePreview();
@@ -13847,7 +14078,7 @@ ytFilm({
 	tagline: "A Blender Studio open project.",
 	channel: "Blender Studio"
 });
-var loadHub = () => import("./hub-sections-FmaDLRuq.mjs").then((n) => n.t);
+var loadHub = () => import("./hub-sections-DoDU8n_E.mjs").then((n) => n.t);
 var hubSection = (name) => (0, import_react.lazy)(async () => ({ default: (await loadHub())[name] }));
 var GamesSection = hubSection("GamesSection");
 var FindPhoneSection = hubSection("FindPhoneSection");
@@ -14282,14 +14513,15 @@ function LibraryApp() {
 		const onAdultTag = (event) => {
 			const tag = String(event.detail?.tag ?? "").trim();
 			if (!tag) return;
-			setAdultTag(tag);
+			setAdultTag(tag === "All" || tag.toLowerCase() === "all" ? "All" : tag);
 			setAdultSource("all");
 			setAdultArtworkOnly(false);
 			setQuery("");
+			setSource("adults");
 		};
 		window.addEventListener("reelcase:adult-tag", onAdultTag);
 		return () => window.removeEventListener("reelcase:adult-tag", onAdultTag);
-	}, [setQuery]);
+	}, [setQuery, setSource]);
 	(0, import_react.useEffect)(() => {
 		const load = () => {
 			const saved = Number(localStorage.getItem("reelcase.adult-rail-limit") ?? "48");
@@ -16373,7 +16605,7 @@ function LibraryApp() {
 											children: "Interest tags"
 										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 											className: "mt-1 text-sm text-muted",
-											children: "Interest tags narrow every Adult rail. Source tags select providers; creator tags identify performers; metadata tags describe format. Tap any card tag to search the library for it."
+											children: "Interest tags narrow every Adult rail. Source tags select providers; creator tags identify performers; metadata tags describe format. Tap any card tag to filter Adults in place — the desk stays put."
 										})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
 											value: adultTagQuery,
 											onChange: (event) => setAdultTagQuery(event.target.value),
@@ -16939,7 +17171,15 @@ function LibraryApp() {
 										}), searchInsights.tags.map(({ tag, count }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 											size: "sm",
 											variant: "secondary",
-											onClick: () => setQuery(tag),
+											onClick: () => {
+												if (sourceId === "adults" || sourceId === "adult-fetishes") {
+													setQuery("");
+													setSource("adults");
+													window.dispatchEvent(new CustomEvent("reelcase:adult-tag", { detail: { tag } }));
+													return;
+												}
+												setQuery(tag);
+											},
 											children: [
 												"#",
 												tag,
@@ -17394,4 +17634,4 @@ function Home() {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LibraryApp, {});
 }
 //#endregion
-export { toggleTagLike as A, saveDurableResume as B, topicEvidence as C, getRating as D, getFeedbackDiagnostics as E, restoreDurablePhotos as F, saveFollows as H, saveDurableHistory as I, saveDurableLinks as L, measureInteraction as M, linksFromHistoryAndResume as N, importFeedback as O, loadDurablePhotosSync as P, saveDurableMarks as R, isTopicTag as S, exportFeedback as T, __exportAll as U, saveDurableShelves as V, Button as _, adultStatsToCsv as a, useSourceAssets as b, rankAdultTags as c, Input as d, openTopic as f, useThumbs as g, getThumbDiagnostics as h, getFirstShelfTrace as i, getInteractionBudgetSnapshot as j, tagIsLiked as k, countAdultBooruHosts as l, getRenderBudgetSnapshot as m, getNetworkDeviceId as n, buildAdultStatsSnapshot as o, VideoCard as p, listNetworkDevices as r, exportAdultStats as s, routes_exports as t, countAdultBySource as u, resumeForVideo as v, topicsForVideo as w, canonicalTopic as x, useLibrary as y, saveDurablePhotos as z };
+export { toggleTagLike as A, saveDurableResume as B, topicEvidence as C, getRating as D, getFeedbackDiagnostics as E, restoreDurablePhotos as F, companionHealth as G, saveFollows as H, saveDurableHistory as I, companionReadPrint as J, companionImportLibraryPack as K, saveDurableLinks as L, measureInteraction as M, linksFromHistoryAndResume as N, importFeedback as O, loadDurablePhotosSync as P, __exportAll as Q, saveDurableMarks as R, isTopicTag as S, exportFeedback as T, companionAckJobs as U, saveDurableShelves as V, companionExportLibraryPack as W, companionSetAutostart as X, companionSavePrint as Y, companionSteamEpicGames as Z, Button as _, adultStatsToCsv as a, useSourceAssets as b, rankAdultTags as c, Input as d, openTopic as f, useThumbs as g, getThumbDiagnostics as h, getFirstShelfTrace as i, getInteractionBudgetSnapshot as j, tagIsLiked as k, countAdultBooruHosts as l, getRenderBudgetSnapshot as m, getNetworkDeviceId as n, buildAdultStatsSnapshot as o, VideoCard as p, companionListPrints as q, listNetworkDevices as r, exportAdultStats as s, routes_exports as t, countAdultBySource as u, resumeForVideo as v, topicsForVideo as w, canonicalTopic as x, useLibrary as y, saveDurablePhotos as z };

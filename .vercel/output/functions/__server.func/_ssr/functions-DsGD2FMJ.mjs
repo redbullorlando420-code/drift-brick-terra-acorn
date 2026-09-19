@@ -1,6 +1,6 @@
 import { n as TSS_SERVER_FUNCTION, t as createServerFn } from "./ssr.mjs";
-import { A as cachedAdultFetch, H as isUsableAdultThumb, K as pickRedtubeThumb, N as extractRedditFlair, Y as redtubeStarNames, _ as REDDIT_FOLDER_ID, c as ADULT_PULL_PROVIDERS, f as BOORU_FOLDER_ID, g as MYFREECAMS_FOLDER_ID, h as LIBRARY_LIMITS, j as expandAdultThumbFallbacks, l as ADULT_REDDIT_PRIORITY_SUBS, m as EPORNER_FOLDER_ID, p as CHATURBATE_FOLDER_ID, u as ADULT_REDDIT_SUBS, v as REDGIFS_FOLDER_ID, x as adultDeepenQueriesForPage, y as REDTUBE_FOLDER_ID } from "./adult-pull-cache-DxiS7sN3.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/functions-D-rOj23K.js
+import { A as cachedAdultFetch, H as isUsableAdultThumb, K as pickRedtubeThumb, N as extractRedditFlair, Y as redtubeStarNames, _ as REDDIT_FOLDER_ID, c as ADULT_PULL_PROVIDERS, f as BOORU_FOLDER_ID, g as MYFREECAMS_FOLDER_ID, h as LIBRARY_LIMITS, j as expandAdultThumbFallbacks, l as ADULT_REDDIT_PRIORITY_SUBS, m as EPORNER_FOLDER_ID, p as CHATURBATE_FOLDER_ID, u as ADULT_REDDIT_SUBS, v as REDGIFS_FOLDER_ID, x as adultDeepenQueriesForPage, y as REDTUBE_FOLDER_ID } from "./adult-pull-cache-DYRXt4XQ.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/functions-DsGD2FMJ.js
 var createServerRpc = (serverFnMeta, splitImportFn) => {
 	const url = "/_serverFn/" + serverFnMeta.id;
 	return Object.assign(splitImportFn, {
@@ -2627,6 +2627,167 @@ async function fetchYoutubeComments(videoId, limit) {
 		};
 	}
 }
+var YOUTUBE_CHAT_PAGE_GAP_MS = 200;
+function youtubeChatPageGap() {
+	return new Promise((resolve) => setTimeout(resolve, YOUTUBE_CHAT_PAGE_GAP_MS));
+}
+function youtubeRunsText(runs) {
+	if (!Array.isArray(runs)) return "";
+	return runs.map((run) => run && typeof run === "object" && typeof run.text === "string" ? run.text : "").join("").trim();
+}
+function youtubeLiveChatToken(root) {
+	const stack = [root];
+	while (stack.length) {
+		const current = stack.pop();
+		if (!current || typeof current !== "object") continue;
+		if (Array.isArray(current)) {
+			stack.push(...current);
+			continue;
+		}
+		const record = current;
+		const renderer = record.liveChatRenderer;
+		if (renderer?.continuations?.length) for (const cont of renderer.continuations) for (const value of Object.values(cont)) {
+			const token = value?.continuation;
+			if (token) return {
+				token,
+				isReplay: Boolean(renderer.isReplay)
+			};
+		}
+		for (const value of Object.values(record)) if (value && typeof value === "object") stack.push(value);
+	}
+	return null;
+}
+function youtubeChatMessages(root, limit) {
+	const out = [];
+	const seen = /* @__PURE__ */ new Set();
+	const stack = [root];
+	while (stack.length && out.length < limit) {
+		const current = stack.pop();
+		if (!current || typeof current !== "object") continue;
+		if (Array.isArray(current)) {
+			stack.push(...current);
+			continue;
+		}
+		const record = current;
+		const textRenderer = record.liveChatTextMessageRenderer;
+		const paidRenderer = record.liveChatPaidMessageRenderer;
+		const renderer = textRenderer ?? paidRenderer;
+		if (renderer) {
+			const body = youtubeRunsText(renderer.message?.runs).slice(0, 400);
+			if (body) {
+				const id = renderer.id || `ytchat${out.length}`;
+				if (!seen.has(id)) {
+					seen.add(id);
+					out.push({
+						id,
+						author: renderer.authorName?.simpleText?.replace(/^@/, "") || void 0,
+						body: paidRenderer && !textRenderer ? `[Super Chat] ${body}` : body,
+						kind: "chat"
+					});
+				}
+			}
+		}
+		for (const value of Object.values(record)) if (value && typeof value === "object") stack.push(value);
+	}
+	return out;
+}
+function youtubeChatNextToken(root, preferReplay) {
+	const stack = [root];
+	while (stack.length) {
+		const current = stack.pop();
+		if (!current || typeof current !== "object") continue;
+		if (Array.isArray(current)) {
+			stack.push(...current);
+			continue;
+		}
+		const record = current;
+		const replay = record.liveChatReplayContinuationData;
+		const timed = record.timedContinuationData;
+		const invalidation = record.invalidationContinuationData;
+		const reload = record.reloadContinuationData;
+		if (preferReplay && replay?.continuation) return replay.continuation;
+		if (timed?.continuation) return timed.continuation;
+		if (invalidation?.continuation) return invalidation.continuation;
+		if (reload?.continuation) return reload.continuation;
+		if (replay?.continuation) return replay.continuation;
+		for (const value of Object.values(record)) if (value && typeof value === "object") stack.push(value);
+	}
+	return null;
+}
+async function fetchYoutubeChat(videoId, limit) {
+	const id = videoId.replace(/^yt:/, "").slice(0, 11);
+	if (!/^[A-Za-z0-9_-]{11}$/.test(id)) return {
+		comments: [],
+		note: "Not a YouTube video id."
+	};
+	try {
+		const html = await fetchText(`https://www.youtube.com/watch?v=${encodeURIComponent(id)}`);
+		const apiKey = html.match(/"INNERTUBE_API_KEY":"([^"]+)"/)?.[1];
+		const clientVersion = html.match(/"INNERTUBE_CLIENT_VERSION":"([^"]+)"/)?.[1] ?? "2.20250101.00.00";
+		if (!apiKey) return {
+			comments: [],
+			note: "YouTube Innertube key unavailable for chat."
+		};
+		const postJson = async (path, body) => {
+			const response = await fetch(`https://www.youtube.com/youtubei/v1/${path}?key=${encodeURIComponent(apiKey)}`, {
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					"x-youtube-client-name": "1",
+					"x-youtube-client-version": clientVersion
+				},
+				body: JSON.stringify({
+					context: { client: {
+						clientName: "WEB",
+						clientVersion,
+						hl: "en",
+						gl: "US"
+					} },
+					...body
+				}),
+				signal: AbortSignal.timeout(15e3)
+			});
+			if (!response.ok) return null;
+			return await response.json();
+		};
+		let seed = youtubeLiveChatToken(youtubeInitialData(html));
+		if (!seed) {
+			const watch = await postJson("next", { videoId: id });
+			if (watch) seed = youtubeLiveChatToken(watch);
+		}
+		if (!seed) return {
+			comments: [],
+			note: "No public YouTube live chat / chat replay for this video."
+		};
+		const endpoint = seed.isReplay ? "live_chat/get_live_chat_replay" : "live_chat/get_live_chat";
+		const comments = [];
+		const seen = /* @__PURE__ */ new Set();
+		let continuation = seed.token;
+		const maxPages = LIBRARY_LIMITS.youtubeChatMaxPages;
+		for (let page = 0; page < maxPages && comments.length < limit && continuation; page += 1) {
+			if (page > 0) await youtubeChatPageGap();
+			const pageData = await postJson(endpoint, { continuation });
+			if (!pageData) break;
+			for (const row of youtubeChatMessages(pageData, limit - comments.length)) {
+				if (seen.has(row.id)) continue;
+				seen.add(row.id);
+				comments.push(row);
+			}
+			const next = youtubeChatNextToken(pageData, seed.isReplay);
+			continuation = next && next !== continuation ? next : null;
+			if (!seed.isReplay) break;
+		}
+		return {
+			comments: comments.slice(0, limit),
+			note: comments.length ? seed.isReplay ? "YouTube chat replay via public Innertube (on-demand, not routine refresh)." : "YouTube live chat snapshot via public Innertube (on-demand, not live IRC scrape)." : "No public YouTube chat messages returned for this video."
+		};
+	} catch (err) {
+		return {
+			comments: [],
+			note: err instanceof Error ? err.message : "YouTube chat unavailable."
+		};
+	}
+}
 async function fetchTwitchVodComments(videoId, limit) {
 	const id = videoId.replace(/^tw:v:/, "").replace(/^v/, "").trim();
 	if (!/^\d+$/.test(id)) return {
@@ -2754,7 +2915,19 @@ async function runFetchAdultComments(dataRaw) {
 			note: err instanceof Error ? err.message : "Comments unavailable."
 		};
 	}
-	if (data.kind === "youtube") return fetchYoutubeComments(data.videoId, LIBRARY_LIMITS.youtubeCommentsPerPull);
+	if (data.kind === "youtube") {
+		const [threads, chat] = await Promise.all([fetchYoutubeComments(data.videoId, LIBRARY_LIMITS.youtubeCommentsPerPull), fetchYoutubeChat(data.videoId, LIBRARY_LIMITS.youtubeChatPerPull)]);
+		const comments = [...chat.comments, ...threads.comments.map((row) => ({
+			...row,
+			kind: row.kind ?? "comment"
+		}))];
+		const notes = [chat.note, threads.note].filter((note) => note && !note.startsWith("No public"));
+		const fallback = comments.length ? "YouTube chat + comments via public Innertube (on-demand)." : chat.note.includes("No public YouTube live chat") && threads.note.includes("No public YouTube comment") ? "No public YouTube chat or comments for this video." : [chat.note, threads.note].filter(Boolean).join(" · ");
+		return {
+			comments,
+			note: notes.length ? notes.join(" · ") : fallback
+		};
+	}
 	if (data.kind === "twitch") return fetchTwitchVodComments(data.videoId, LIBRARY_LIMITS.twitchCommentsPerPull);
 	return {
 		comments: [],
