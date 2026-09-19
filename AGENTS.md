@@ -1,6 +1,6 @@
 # Reelcase — PR living notes
 
-**PR** `feat/deeper-vods-comments` → `main` · Deeper Twitch/YouTube VOD pulls within API page sizes + on-demand comments.
+**PR** `feat/deeper-vods-comments` → `main` · Deeper Twitch/YouTube VOD pulls + comments; Adults tag stay-on-desk; Prints editor/viewer; Games icon pull.
 
 **Prior** `fix/twitch-vods-clips` (#8, merged) · Twitch VOD depth fix (GQL `first` max 100) + numbered clip pulls; durable Photos sources/likes + library pack `photos/`.
 
@@ -8,7 +8,7 @@
 
 ## In progress
 
-Raise archive depth via **more pages** (never illegal `first` >100). Twitch web Client-ID fails page-2 with integrity; Android/TV Client-ID pages cleanly. YouTube already used Innertube browse continuations — raised page/budget caps. Comments: YouTube Innertube + Twitch VOD chat GQL + existing Reddit RSS — on-demand only (not routine refresh).
+Raise archive depth via **more pages** (never illegal `first` >100). Twitch web Client-ID fails page-2 with integrity; Android/TV Client-ID pages cleanly. YouTube already used Innertube browse continuations — raised page/budget caps. Comments: YouTube Innertube + Twitch VOD chat GQL + existing Reddit RSS — on-demand only (not routine refresh). Adults tag UX, Prints editor, and Games icons continue on this branch.
 
 ### Shipped this PR
 1. **Twitch archive paging** — Android/TV Client-ID `kd1unb4b3q4t58fwlpcbzcbnm76a8fp`; up to `twitchArchiveMaxPages` (25) × `first≤100`; focused target **2000** VODs; routine stays **100**.
@@ -16,6 +16,9 @@ Raise archive depth via **more pages** (never illegal `first` >100). Twitch web 
 3. **YouTube depth** — focused **8000**, routine **2000**, bulk **1200**, archive pages **128**.
 4. **Comments** — YouTube Innertube entities; Twitch `VideoCommentsByOffsetOrCursor` (VODs only, not clips); Reddit RSS unchanged. Stored on `remote.comments` + remote-cache; shown on pre-video + player.
 5. **Rate-limit friendly** — ~180ms gap between Twitch pages; comments on-demand only; routine refresh stays shallow.
+6. **Adults tag search stay-on-desk** — card/preview/top-bar/openTopic tag actions clear global search and apply `reelcase:adult-tag` in place (no jump to Search/Genres/Home).
+7. **Prints viewer + editor** — lighting/camera presets, wireframe, grid, material color, explode, fullscreen, scale/rotate/translate with local persistence.
+8. **Games desktop icons** — companion `/shortcut-icon(s)` (shell ExtractAssociatedIcon + sibling .ico/.png), folder FileList icon match, `reelcase.game-icons.v1` cache, Pull missing icons.
 
 ### Hard API caps (honest)
 - Twitch GQL `videos(first:)` / `clips(first:)` **1..100** only (Helix same).
@@ -30,6 +33,7 @@ Raise archive depth via **more pages** (never illegal `first` >100). Twitch web 
 ### Still open
 - Soak test deep Twitch page walks + numbered clip pulls under rate limits on large follow lists.
 - Optional: File System Access “save folder” for pack export when the browser supports directory writes.
+- Games icons need the Windows companion running for shell extraction; folder sibling art works without it.
 
 Official public APIs / documented public GQL + Reddit Atom + YouTube Innertube. 18+ only. No Pornhub scrape; no torrents.
 
