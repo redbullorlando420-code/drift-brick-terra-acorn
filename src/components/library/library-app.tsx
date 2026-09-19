@@ -439,14 +439,15 @@ export function LibraryApp() {
     const onAdultTag = (event: Event) => {
       const tag = String((event as CustomEvent<{ tag?: string }>).detail?.tag ?? "").trim();
       if (!tag) return;
-      setAdultTag(tag);
+      setAdultTag(tag === "All" || tag.toLowerCase() === "all" ? "All" : tag);
       setAdultSource("all");
       setAdultArtworkOnly(false);
       setQuery("");
+      setSource("adults");
     };
     window.addEventListener("reelcase:adult-tag", onAdultTag);
     return () => window.removeEventListener("reelcase:adult-tag", onAdultTag);
-  }, [setQuery]);
+  }, [setQuery, setSource]);
 
   useEffect(() => {
     const load = () => {
@@ -1459,7 +1460,7 @@ export function LibraryApp() {
                     <div className="flex flex-wrap items-end justify-between gap-3">
                       <div>
                         <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Interest tags</p>
-                        <p className="mt-1 text-sm text-muted">Interest tags narrow every Adult rail. Source tags select providers; creator tags identify performers; metadata tags describe format. Tap any card tag to search the library for it.</p>
+                        <p className="mt-1 text-sm text-muted">Interest tags narrow every Adult rail. Source tags select providers; creator tags identify performers; metadata tags describe format. Tap any card tag to filter Adults in place — the desk stays put.</p>
                       </div>
                       <Input
                         value={adultTagQuery}
@@ -1657,7 +1658,15 @@ export function LibraryApp() {
                       </div>
                     )}
                   </div>
-                  {query && <section className="mb-5 rounded-lg border border-border bg-surface p-4 shadow-border" aria-label="Search ranking and matching tags"><div className="flex flex-wrap items-baseline justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Search ranking</p><p className="mt-1 text-sm text-muted">Exact title and creator matches lead, followed by matching tags and your saved reactions.</p></div><span className="text-xs text-accent">{searchPending ? "Searching…" : `${searchInsights.ranked.length.toLocaleString()} ranked results`}</span></div>{searchInsights.tags.length > 0 && <div className="mt-3 flex flex-wrap gap-2"><span className="self-center text-xs text-muted">Top tags</span>{searchInsights.tags.map(({ tag, count }) => <Button key={tag} size="sm" variant="secondary" onClick={() => setQuery(tag)}>#{tag} · {count}</Button>)}</div>}{searchInsights.ranked.length > 0 && <div className="mt-3 grid gap-2 md:grid-cols-3">{searchInsights.ranked.slice(0, 3).map((video, index) => <button key={video.id} type="button" onClick={() => openVideo(video.id)} className="flex min-w-0 items-center gap-3 rounded-md bg-elevated px-3 py-3 text-left hover:bg-bg"><span className="shrink-0 rounded-full bg-accent/15 px-2 py-1 text-xs font-medium text-accent">#{index + 1}</span><span className="min-w-0"><span className="block truncate text-sm font-medium text-fg">{video.name}</span><span className="block truncate text-xs text-muted">{(video.remote?.channelName ?? topicsForVideo(video, tags[video.id]).slice(0, 2).join(" · ")) || "Library match"}</span></span></button>)}</div>}</section>}
+                  {query && <section className="mb-5 rounded-lg border border-border bg-surface p-4 shadow-border" aria-label="Search ranking and matching tags"><div className="flex flex-wrap items-baseline justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Search ranking</p><p className="mt-1 text-sm text-muted">Exact title and creator matches lead, followed by matching tags and your saved reactions.</p></div><span className="text-xs text-accent">{searchPending ? "Searching…" : `${searchInsights.ranked.length.toLocaleString()} ranked results`}</span></div>{searchInsights.tags.length > 0 && <div className="mt-3 flex flex-wrap gap-2"><span className="self-center text-xs text-muted">Top tags</span>{searchInsights.tags.map(({ tag, count }) => <Button key={tag} size="sm" variant="secondary" onClick={() => {
+                          if (sourceId === "adults" || sourceId === "adult-fetishes") {
+                            setQuery("");
+                            setSource("adults");
+                            window.dispatchEvent(new CustomEvent("reelcase:adult-tag", { detail: { tag } }));
+                            return;
+                          }
+                          setQuery(tag);
+                        }}>#{tag} · {count}</Button>)}</div>}{searchInsights.ranked.length > 0 && <div className="mt-3 grid gap-2 md:grid-cols-3">{searchInsights.ranked.slice(0, 3).map((video, index) => <button key={video.id} type="button" onClick={() => openVideo(video.id)} className="flex min-w-0 items-center gap-3 rounded-md bg-elevated px-3 py-3 text-left hover:bg-bg"><span className="shrink-0 rounded-full bg-accent/15 px-2 py-1 text-xs font-medium text-accent">#{index + 1}</span><span className="min-w-0"><span className="block truncate text-sm font-medium text-fg">{video.name}</span><span className="block truncate text-xs text-muted">{(video.remote?.channelName ?? topicsForVideo(video, tags[video.id]).slice(0, 2).join(" · ")) || "Library match"}</span></span></button>)}</div>}</section>}
                                     {(sourceId === "continue" || sourceId === "history") && !query && (adultContinue.length > 0 || adultHistoryTagged.length > 0) && (
                     <section className="mb-5 rounded-xl border border-border bg-surface p-5 shadow-border">
                       <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Adults activity</p>

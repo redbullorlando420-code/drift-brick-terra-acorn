@@ -320,7 +320,19 @@ export function PreVideo() {
               {visibleTags.length ? (
                 visibleTags.map((tag) => (
                   <span key={tag} className="inline-flex overflow-hidden rounded-xs bg-bg/50 text-xs text-muted">
-                    <button type="button" title={`Show videos tagged ${tag} · score ${Math.round(((tagScores.get(tag)?.total ?? 0) / Math.max(1, tagScores.get(tag)?.count ?? 1)) * 1000).toLocaleString()}`} onClick={() => { setSource(video.remote?.kind === "twitch" ? "twitch" : video.remote?.kind === "youtube" ? "youtube" : "all"); setQuery(tag); closePreview(); }} className="px-2 py-1 transition-colors hover:bg-accent/15 hover:text-accent focus-visible:outline-2 focus-visible:outline-accent">#{tag} <span className="text-accent">· {Math.round(((tagScores.get(tag)?.total ?? 0) / Math.max(1, tagScores.get(tag)?.count ?? 1)) * 1000).toLocaleString()}</span></button>
+                    <button type="button" title={`Show videos tagged ${tag} · score ${Math.round(((tagScores.get(tag)?.total ?? 0) / Math.max(1, tagScores.get(tag)?.count ?? 1)) * 1000).toLocaleString()}`} onClick={() => {
+                      if (previewIsAdult) {
+                        // Stay on Adults and filter in-place — never jump to Search/Home via setQuery.
+                        setQuery("");
+                        setSource("adults");
+                        window.dispatchEvent(new CustomEvent("reelcase:adult-tag", { detail: { tag } }));
+                        closePreview();
+                        return;
+                      }
+                      setSource(video.remote?.kind === "twitch" ? "twitch" : video.remote?.kind === "youtube" ? "youtube" : "all");
+                      setQuery(tag);
+                      closePreview();
+                    }} className="px-2 py-1 transition-colors hover:bg-accent/15 hover:text-accent focus-visible:outline-2 focus-visible:outline-accent">#{tag} <span className="text-accent">· {Math.round(((tagScores.get(tag)?.total ?? 0) / Math.max(1, tagScores.get(tag)?.count ?? 1)) * 1000).toLocaleString()}</span></button>
                     <button type="button" title={tagIsLiked(tag) ? `Unlike tag ${tag}` : `Like tag ${tag}`} aria-label={tagIsLiked(tag) ? `Unlike tag ${tag}` : `Like tag ${tag}`} onClick={() => { toggleTagLike(tag); setTagRevision((value) => value + 1); }} className={`border-l border-border px-1.5 transition-colors hover:bg-accent/15 ${tagIsLiked(tag) ? "text-accent" : "text-subtle"}`}><Heart className={tagIsLiked(tag) ? "size-3 fill-current" : "size-3"}/></button>
                   </span>
                 ))

@@ -69,6 +69,7 @@ export const VideoCard = memo(function VideoCard({
   const setVideoTags = useLibrary((s) => s.setVideoTags);
   const setQuery = useLibrary((s) => s.setQuery);
   const setSource = useLibrary((s) => s.setSource);
+  const sourceId = useLibrary((s) => s.sourceId);
   const hiddenAdult = adult && tags.includes("hidden");
   const duration = capturedDur ?? video.duration;
   const ratio = progress && progress.d > 0 ? Math.min(1, progress.t / progress.d) : 0;
@@ -470,7 +471,8 @@ export const VideoCard = memo(function VideoCard({
               type="button"
               onClick={(event) => {
                 event.stopPropagation();
-                if (adult) {
+                const onAdultDesk = sourceId === "adults" || sourceId === "adult-fetishes";
+                if (adult || onAdultDesk) {
                   // Keep Adults browsing mounted: global search blanks selectVisible
                   // while the index builds and hid the Adult shelves for 1-video tags.
                   setQuery("");
