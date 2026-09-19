@@ -89,7 +89,7 @@ var HEADERS = { TSS_SHELL: "X-TSS_SHELL" };
 * the dev styles URL for route-scoped CSS collection.
 */
 async function getStartManifest(matchedRoutes) {
-	const { tsrStartManifest } = await import("../_tanstack-start-manifest_v-F-yXmBDU.mjs");
+	const { tsrStartManifest } = await import("../_tanstack-start-manifest_v-D9HeO0eT.mjs");
 	const startManifest = tsrStartManifest();
 	let routes = startManifest.routes;
 	routes[rootRouteId];
@@ -109,33 +109,33 @@ async function getStartManifest(matchedRoutes) {
 	};
 }
 var manifest = {
-	"0c214d4b031988870bdc1c9a42a92ccbf9e9579cd8ab478f2d173e66fe73e2f0": {
-		functionName: "followRemote_createServerFn_handler",
-		importer: () => import("./api-DN_-tFll.mjs")
-	},
-	"298e45714281c48abde137e2b56dd5a9336fcd5d739cb85235ad8f876afe9a48": {
-		functionName: "fetchTwitchFollowing_createServerFn_handler",
-		importer: () => import("./api-DN_-tFll.mjs")
-	},
-	"49eff4fc659c625b4ff6b2ae76ba10b0db89905b9626afe89893193d4d2e7884": {
-		functionName: "searchRedtubeStars_createServerFn_handler",
-		importer: () => import("./api-DN_-tFll.mjs")
-	},
-	"ac1a300259a0cb0e7b027567a01868e6019bb4d175aa2aacdf50dd329b558123": {
-		functionName: "refreshRemotes_createServerFn_handler",
-		importer: () => import("./api-DN_-tFll.mjs")
-	},
-	"b67bda5afb0e1fb905845cee088441086d5bba37e933c8edb45ef4d6c5182360": {
+	"0e94cec61957c6cccbe0dc56ae15e7a5544920a3a6da937df6a89d530e96fb39": {
 		functionName: "searchAdultVideos_createServerFn_handler",
-		importer: () => import("./api-DN_-tFll.mjs")
+		importer: () => import("./functions-BXRkJYoE.mjs")
 	},
-	"c94242a255b5578005d0637a8c72789ab5d9dbe21861256590a340456a1ea9f6": {
-		functionName: "fetchAdultComments_createServerFn_handler",
-		importer: () => import("./api-DN_-tFll.mjs")
-	},
-	"d7a9de260cc8839e45abd41f5c96ef881c8fdf9d186bdd087f29f6faeff9bd1d": {
+	"273f1d8273d15edc5567f32d338c62bb6af101aed883079cd44c9002c43fa33c": {
 		functionName: "importChannels_createServerFn_handler",
-		importer: () => import("./api-DN_-tFll.mjs")
+		importer: () => import("./functions-BXRkJYoE.mjs")
+	},
+	"3250c7fe9ae5ccef9fa5787d5e016af43eee3512d762581de88ac40b08152dad": {
+		functionName: "fetchAdultComments_createServerFn_handler",
+		importer: () => import("./functions-BXRkJYoE.mjs")
+	},
+	"6ddf382bfb4b5fe1160413e3ea17d862e2c50c361d612b8f7eb56c34209151ed": {
+		functionName: "followRemote_createServerFn_handler",
+		importer: () => import("./functions-BXRkJYoE.mjs")
+	},
+	"8047757e6e5964253c5dd3b40dd370ef7377adb7405d19aba7212b1f49c66e67": {
+		functionName: "refreshRemotes_createServerFn_handler",
+		importer: () => import("./functions-BXRkJYoE.mjs")
+	},
+	"926b625b25b1f6c5d08281cc86b3196dbb11bcb5b683a95b5ebcf2111dc013b0": {
+		functionName: "fetchTwitchFollowing_createServerFn_handler",
+		importer: () => import("./functions-BXRkJYoE.mjs")
+	},
+	"bcf52ff714b81b8c64a4700ab9a64674ed5afcf8786fb9b74bdc3c4557ca86bf": {
+		functionName: "searchRedtubeStars_createServerFn_handler",
+		importer: () => import("./functions-BXRkJYoE.mjs")
 	}
 };
 async function getServerFnById(id, access) {
@@ -1405,7 +1405,7 @@ var getBaseManifest = getProdBaseManifest;
 var createEarlyHintsForRequest = createEarlyHintsCollector;
 async function loadEntries() {
 	const [routerEntry, startEntry, pluginAdapters] = await Promise.all([
-		import("./router-untreuQ7.mjs").then((n) => n.t),
+		import("./router-BPDH4ljb.mjs").then((n) => n.t),
 		import("./start-5Z2QO8AU.mjs"),
 		import("./empty-plugin-adapters-D9UWiqvJ.mjs")
 	]);

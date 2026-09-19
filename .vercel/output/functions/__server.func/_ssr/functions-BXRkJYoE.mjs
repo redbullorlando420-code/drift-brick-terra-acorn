@@ -1,6 +1,6 @@
 import { n as TSS_SERVER_FUNCTION, t as createServerFn } from "./ssr.mjs";
-import { A as expandAdultThumbFallbacks, B as isUsableAdultThumb, W as pickRedtubeThumb, _ as REDDIT_FOLDER_ID, b as adultDeepenQueriesForPage, c as ADULT_PULL_PROVIDERS, d as BOORU_FOLDER_ID, f as CAMSODA_FOLDER_ID, g as MYFREECAMS_FOLDER_ID, h as LIBRARY_LIMITS, j as extractRedditFlair, k as cachedAdultFetch, l as ADULT_REDDIT_SUBS, m as EPORNER_FOLDER_ID, p as CHATURBATE_FOLDER_ID, q as redtubeStarNames, v as REDGIFS_FOLDER_ID, y as REDTUBE_FOLDER_ID } from "./library-limits-lu5rb8Fj.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/api-DN_-tFll.js
+import { A as expandAdultThumbFallbacks, G as pickRedtubeThumb, J as redtubeStarNames, M as extractRedditFlair, V as isUsableAdultThumb, _ as REDGIFS_FOLDER_ID, b as adultDeepenQueriesForPage, c as ADULT_PULL_PROVIDERS, d as BOORU_FOLDER_ID, f as CHATURBATE_FOLDER_ID, g as REDDIT_FOLDER_ID, h as MYFREECAMS_FOLDER_ID, k as cachedAdultFetch, l as ADULT_REDDIT_SUBS, m as LIBRARY_LIMITS, p as EPORNER_FOLDER_ID, v as REDTUBE_FOLDER_ID } from "./library-limits-L0aREwkM.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/functions-BXRkJYoE.js
 var createServerRpc = (serverFnMeta, splitImportFn) => {
 	const url = "/_serverFn/" + serverFnMeta.id;
 	return Object.assign(splitImportFn, {
@@ -247,7 +247,7 @@ function ytVideo(entry) {
 		duration: entry.duration,
 		addedAt: published,
 		tagline: entry.desc.slice(0, 180),
-		description: entry.desc.slice(0, 4e3),
+		description: entry.desc.slice(0, 800),
 		poster: entry.thumb || `https://i.ytimg.com/vi/${entry.id}/hqdefault.jpg`,
 		src: `https://www.youtube.com/embed/${entry.id}`,
 		remote: {
@@ -264,7 +264,7 @@ function ytVideo(entry) {
 	};
 }
 var YOUTUBE_CHANNEL_CACHE_TTL_MS = 24e4;
-var YOUTUBE_CHANNEL_CACHE_LIMIT = 64;
+var YOUTUBE_CHANNEL_CACHE_LIMIT = 12;
 var youtubeChannelCache = /* @__PURE__ */ new Map();
 function rendererText(value) {
 	return value?.simpleText ?? value?.runs?.map((run) => run.text ?? "").join("") ?? "";
@@ -556,11 +556,13 @@ async function youtubeFromChannelUncoalesced(query, limit = LIBRARY_LIMITS.youtu
 		},
 		videos
 	};
-	youtubeChannelCache.set(channelId, {
-		at: Date.now(),
-		result
-	});
-	while (youtubeChannelCache.size > YOUTUBE_CHANNEL_CACHE_LIMIT) youtubeChannelCache.delete(youtubeChannelCache.keys().next().value);
+	if (boundedLimit <= LIBRARY_LIMITS.youtubeRoutineVideosPerChannel) {
+		youtubeChannelCache.set(channelId, {
+			at: Date.now(),
+			result
+		});
+		while (youtubeChannelCache.size > YOUTUBE_CHANNEL_CACHE_LIMIT) youtubeChannelCache.delete(youtubeChannelCache.keys().next().value);
+	}
 	return boundedFollowResult(result, boundedLimit);
 }
 function twitchLogin(input) {
@@ -676,7 +678,7 @@ function twitchVideos(login, user, vodLimit = TWITCH_ARCHIVE_PAGE_SIZE) {
 			genre: node.game?.name,
 			poster: node.previewThumbnailURL,
 			tagline: node.description?.slice(0, 180),
-			description: node.description?.slice(0, 4e3),
+			description: node.description?.slice(0, 800),
 			remote: {
 				kind: "twitch",
 				videoId: node.id,
@@ -735,23 +737,15 @@ async function followTwitchUncoalesced(query, compact = false) {
 function followTwitch(query, compact = false) {
 	return providerRequest("twitch", query, !compact, () => followTwitchUncoalesced(query, compact));
 }
-var followRemote_createServerFn_handler = createServerRpc({
-	id: "0c214d4b031988870bdc1c9a42a92ccbf9e9579cd8ab478f2d173e66fe73e2f0",
-	name: "followRemote",
-	filename: "src/lib/remote/api.ts"
-}, (opts) => followRemote.__executeServer(opts));
-var followRemote = createServerFn({ method: "POST" }).validator((data) => parseFollow(data)).handler(followRemote_createServerFn_handler, async ({ data }) => {
+async function runFollowRemote(dataRaw) {
+	const data = parseFollow(dataRaw);
 	if ((data.kind === "auto" ? guessKind(data.query) : data.kind) === "twitch") return followTwitch(data.query);
 	const videoId = ytVideoId(data.query);
 	if (videoId) return youtubeFromVideo(videoId);
 	return youtubeFromChannel(data.query);
-});
-var refreshRemotes_createServerFn_handler = createServerRpc({
-	id: "ac1a300259a0cb0e7b027567a01868e6019bb4d175aa2aacdf50dd329b558123",
-	name: "refreshRemotes",
-	filename: "src/lib/remote/api.ts"
-}, (opts) => refreshRemotes.__executeServer(opts));
-var refreshRemotes = createServerFn({ method: "POST" }).validator((data) => parseRefresh(data)).handler(refreshRemotes_createServerFn_handler, async ({ data }) => {
+}
+async function runRefreshRemotes(dataRaw) {
+	const data = parseRefresh(dataRaw);
 	const videos = [];
 	const channels = [];
 	const refreshedIds = [];
@@ -794,7 +788,7 @@ var refreshRemotes = createServerFn({ method: "POST" }).validator((data) => pars
 			return retry ? [[channel.id, retry]] : [];
 		}))
 	};
-});
+}
 function parseImport(data) {
 	if (typeof data !== "object" || data === null) return { items: [] };
 	const rec = data;
@@ -827,12 +821,8 @@ async function mapPool(items, size, fn) {
 	await Promise.all(workers);
 	return out;
 }
-var importChannels_createServerFn_handler = createServerRpc({
-	id: "d7a9de260cc8839e45abd41f5c96ef881c8fdf9d186bdd087f29f6faeff9bd1d",
-	name: "importChannels",
-	filename: "src/lib/remote/api.ts"
-}, (opts) => importChannels.__executeServer(opts));
-var importChannels = createServerFn({ method: "POST" }).validator((data) => parseImport(data)).handler(importChannels_createServerFn_handler, async ({ data }) => {
+async function runImportChannels(dataRaw) {
+	const data = parseImport(dataRaw);
 	const compact = data.items.length > 1;
 	const rows = await mapPool(data.items, 6, async (item) => {
 		for (let attempt = 0; attempt < 2; attempt += 1) try {
@@ -855,7 +845,7 @@ var importChannels = createServerFn({ method: "POST" }).validator((data) => pars
 		failed: failedQueries.length,
 		failedQueries: failedQueries.filter(Boolean)
 	};
-});
+}
 function parseTwitchUser(data) {
 	if (typeof data !== "object" || data === null) throw new Error("Enter your Twitch name");
 	const login = twitchLogin(asString(data.login));
@@ -878,13 +868,8 @@ async function twitchGql(query, variables) {
 	if (!res.ok) return null;
 	return await res.json();
 }
-var fetchTwitchFollowing_createServerFn_handler = createServerRpc({
-	id: "298e45714281c48abde137e2b56dd5a9336fcd5d739cb85235ad8f876afe9a48",
-	name: "fetchTwitchFollowing",
-	filename: "src/lib/remote/api.ts"
-}, (opts) => fetchTwitchFollowing.__executeServer(opts));
-var fetchTwitchFollowing = createServerFn({ method: "POST" }).validator((data) => parseTwitchUser(data)).handler(fetchTwitchFollowing_createServerFn_handler, async ({ data }) => {
-	const login = data.login;
+async function runFetchTwitchFollowing(dataRaw) {
+	const login = parseTwitchUser(dataRaw).login;
 	if (!await twitchUser(login)) throw new Error(`No Twitch channel named ${login}`);
 	for (const q of [`query($login:String!){user(login:$login){follows(first:100){edges{node{login displayName stream{id}}}}}}`, `query($login:String!){user(login:$login){followConnection(first:100){edges{node{login displayName stream{id}}}}}}`]) {
 		const user = ((await twitchGql(q, { login }))?.data)?.user;
@@ -911,7 +896,7 @@ var fetchTwitchFollowing = createServerFn({ method: "POST" }).validator((data) =
 		channels: [],
 		privateList: true
 	};
-});
+}
 var EPORNER_ORDERS = /* @__PURE__ */ new Set([
 	"latest",
 	"longest",
@@ -1245,133 +1230,14 @@ async function fetchChaturbateRooms(query, maxVideos) {
 		totalCount: filtered.length
 	};
 }
-var CAMSODA_TPL = [
-	"user_id",
-	"username",
-	"display_name",
-	"status",
-	"connections",
-	"sort_value",
-	"subject_html",
-	"stream_name",
-	"gender",
-	"edge_servers",
-	"thumb",
-	"pvt_rating",
-	"bitrate",
-	"control_her",
-	"standby",
-	"offline_picture"
-];
-function asTplMap(tpl) {
-	if (Array.isArray(tpl)) return Object.fromEntries(tpl.map((value, index) => [String(index), value]));
-	if (tpl && typeof tpl === "object") return tpl;
-	return {};
-}
-function camsodaValue(tpl, field) {
-	return tpl[field] ?? tpl[String(CAMSODA_TPL.indexOf(field))];
-}
-function stripMarkup(value) {
-	return value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-}
-function camsodaVideo(row) {
-	const tpl = asTplMap(row.tpl);
-	const username = asString(camsodaValue(tpl, "username")).trim().toLowerCase();
-	if (!username || !/^[a-z0-9_-]+$/.test(username)) return null;
-	const status = asString(camsodaValue(tpl, "status")).trim().toLowerCase();
-	if (status && /private|offline|away|hidden/.test(status)) return null;
-	const display = asString(camsodaValue(tpl, "display_name")).trim() || username;
-	const subject = stripMarkup(asString(camsodaValue(tpl, "subject_html")));
-	if (adultBlockedText(username, display, subject)) return null;
-	const thumb = asString(camsodaValue(tpl, "thumb")).trim();
-	const offlinePicture = asString(camsodaValue(tpl, "offline_picture")).trim();
-	const connections = camsodaValue(tpl, "connections");
-	const viewers = typeof connections === "number" && Number.isFinite(connections) ? connections : void 0;
-	const watch = `https://www.camsoda.com/${encodeURIComponent(username)}`;
-	return {
-		id: `camsoda:${username}`,
-		folderId: CAMSODA_FOLDER_ID,
-		name: display,
-		path: `camsoda/${username}`,
-		extension: "camsoda",
-		mime: "video/camsoda",
-		size: 0,
-		addedAt: Date.now(),
-		tagline: subject.slice(0, 160) || "Live on CamSoda",
-		description: [
-			"live",
-			"cam",
-			subject
-		].filter(Boolean).join(", ") || void 0,
-		poster: thumb || void 0,
-		src: watch,
-		remote: {
-			kind: "camsoda",
-			videoId: username,
-			channelName: display,
-			live: true,
-			viewers,
-			observedAt: Date.now(),
-			embedUrl: watch,
-			watchUrl: watch,
-			previewUrl: thumb || void 0,
-			thumbFallbacks: [thumb, offlinePicture].filter(isUsableAdultThumb)
-		}
-	};
-}
-var camsodaCache = null;
-var CAMSODA_CACHE_MS = 18e4;
-async function fetchCamSodaRooms(query, maxVideos) {
-	if (!camsodaCache || Date.now() - camsodaCache.at > CAMSODA_CACHE_MS) {
-		const priorRooms = camsodaCache?.rooms ?? [];
-		const res = await cachedAdultFetch("https://www.camsoda.com/api/v1/browse/online", {
-			cacheTtlMs: 18e4,
-			signal: AbortSignal.timeout(25e3),
-			headers: {
-				accept: "application/json",
-				referer: "https://www.camsoda.com/",
-				"accept-language": "en-US,en;q=0.8",
-				"user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)"
-			}
-		});
-		if (res.status === 403) camsodaCache = {
-			at: Date.now(),
-			rooms: priorRooms
-		};
-		else if (!res.ok) throw new Error(`CamSoda rooms HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
-		else {
-			const json = await res.json();
-			const rooms = (Array.isArray(json) ? json : Array.isArray(json.results) ? json.results : Array.isArray(json.rooms) ? json.rooms : []).map(camsodaVideo).filter((video) => video != null);
-			camsodaCache = {
-				at: Date.now(),
-				rooms: rooms.length ? rooms : priorRooms
-			};
-		}
-	}
-	const needle = query.trim().toLowerCase();
-	const filtered = !needle || needle === "all" ? camsodaCache.rooms : camsodaCache.rooms.filter((video) => {
-		return `${video.name} ${video.description ?? ""} ${video.remote?.videoId ?? ""}`.toLowerCase().includes(needle);
-	});
-	return {
-		videos: filtered.slice(0, maxVideos),
-		totalPages: 1,
-		totalCount: filtered.length
-	};
-}
 var myfreecamsCache = null;
 var MYFREECAMS_CACHE_MS = 18e4;
 var MYFREECAMS_PUBLIC_STATE = 0;
-var MYFREECAMS_PROFILE_PREVIEWS_PER_REFRESH = 12;
-var MYFREECAMS_PROFILE_PREVIEW_CONCURRENCY = 4;
 var MYFREECAMS_PROFILE_SUCCESS_CACHE_MS = 12e5;
 var MYFREECAMS_PROFILE_MISS_CACHE_MS = 24e4;
 var myfreecamsPreviewCache = /* @__PURE__ */ new Map();
-var myfreecamsPreviewCursor = 0;
 function myfreecamsWatchUrl(username) {
 	return `https://www.myfreecams.com/#${encodeURIComponent(username)}`;
-}
-function myfreecamsAppUrl(username) {
-	return `https://app.myfreecams.com/${encodeURIComponent(username.toLowerCase())}`;
 }
 function myfreecamsVideo(username, status) {
 	if (status !== MYFREECAMS_PUBLIC_STATE) return null;
@@ -1455,58 +1321,8 @@ function myfreecamsListing(payload) {
 		states
 	};
 }
-function myfreecamsImageFromAppPage(payload) {
-	const candidates = [];
-	const attr = (tag, name) => {
-		const match = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, "i").exec(tag);
-		return htmlDecode(match?.[1] ?? match?.[2] ?? match?.[3] ?? "").trim();
-	};
-	for (const tag of payload.match(/<meta\b[^>]*>/gi) ?? []) {
-		const key = (attr(tag, "property") || attr(tag, "name")).toLowerCase();
-		if (key === "og:image" || key === "twitter:image") candidates.push(attr(tag, "content"));
-	}
-	for (const match of payload.matchAll(/\b(?:src|data-src)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi)) candidates.push(htmlDecode(match[1] ?? match[2] ?? match[3] ?? "").trim());
-	const usable = [...new Set(candidates)].filter((url) => {
-		try {
-			const parsed = new URL(url);
-			return parsed.protocol === "https:" && /^(?:img|snap)\.mfcimg\.com$/i.test(parsed.hostname);
-		} catch {
-			return false;
-		}
-	});
-	const poster = usable.find((url) => /^https:\/\/snap\.mfcimg\.com\//i.test(url)) ?? usable[0];
-	return {
-		poster,
-		modelId: poster?.match(/\/photos2\/\d+\/(\d+)\/|\/mfc_(\d+)/i)?.[1] ?? poster?.match(/\/mfc_(\d+)/i)?.[1]
-	};
-}
 function myfreecamsPreviewFresh(preview, now) {
 	return now - preview.at <= (preview.poster ? MYFREECAMS_PROFILE_SUCCESS_CACHE_MS : MYFREECAMS_PROFILE_MISS_CACHE_MS);
-}
-async function fetchMyFreeCamsPreview(username) {
-	const key = username.toLowerCase();
-	const now = Date.now();
-	const cached = myfreecamsPreviewCache.get(key);
-	if (cached && myfreecamsPreviewFresh(cached, now)) return cached;
-	let next = { at: now };
-	try {
-		const res = await cachedAdultFetch(myfreecamsAppUrl(username), {
-			cacheTtlMs: MYFREECAMS_PROFILE_SUCCESS_CACHE_MS,
-			cacheKey: `GET:mfc-profile:${key}`,
-			signal: AbortSignal.timeout(3500),
-			headers: {
-				accept: "text/html,application/xhtml+xml;q=0.9",
-				"accept-language": "en-US,en;q=0.8",
-				"user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)"
-			}
-		});
-		if (res.ok) next = {
-			at: now,
-			...myfreecamsImageFromAppPage(await res.text())
-		};
-	} catch {}
-	myfreecamsPreviewCache.set(key, next);
-	return next;
 }
 function withMyFreeCamsPreview(video, preview) {
 	if (!preview?.poster || !video.remote) return video;
@@ -1522,28 +1338,13 @@ function withMyFreeCamsPreview(video, preview) {
 		}
 	};
 }
-async function myfreecamsRoomsWithPreviews(rooms, maxVideos, query) {
+async function myfreecamsRoomsWithPreviews(rooms) {
 	const now = Date.now();
 	const previews = /* @__PURE__ */ new Map();
-	let candidates = [];
 	for (const room of rooms) {
 		const username = room.remote?.videoId ?? room.name;
 		const cached = myfreecamsPreviewCache.get(username.toLowerCase());
 		if (cached && myfreecamsPreviewFresh(cached, now)) previews.set(username.toLowerCase(), cached);
-		else candidates.push(username);
-	}
-	const needle = query.trim().toLowerCase();
-	if (needle && needle !== "all") candidates = [...candidates.filter((username) => username.toLowerCase().includes(needle)), ...candidates.filter((username) => !username.toLowerCase().includes(needle))];
-	const take = Math.min(MYFREECAMS_PROFILE_PREVIEWS_PER_REFRESH, Math.max(0, maxVideos), candidates.length);
-	if (take) {
-		const start = myfreecamsPreviewCursor % candidates.length;
-		myfreecamsPreviewCursor += take;
-		const selected = Array.from({ length: take }, (_, index) => candidates[(start + index) % candidates.length]);
-		for (let index = 0; index < selected.length; index += MYFREECAMS_PROFILE_PREVIEW_CONCURRENCY) {
-			const batch = selected.slice(index, index + MYFREECAMS_PROFILE_PREVIEW_CONCURRENCY);
-			const results = await Promise.all(batch.map(async (username) => [username, await fetchMyFreeCamsPreview(username)]));
-			for (const [username, preview] of results) previews.set(username.toLowerCase(), preview);
-		}
 	}
 	return rooms.map((room) => withMyFreeCamsPreview(room, previews.get((room.remote?.videoId ?? room.name).toLowerCase())));
 }
@@ -1570,7 +1371,7 @@ async function fetchMyFreeCamsRooms(query, maxVideos) {
 				const states = myfreecamsStateSummary(listing.states);
 				throw new Error(listing.publicRows ? `MyFreeCams listed ${listing.publicRows} public broadcast rows, but none had a usable safe room name.` : `MyFreeCams listed ${listing.rows} online rows but no public broadcasts (states: ${states || "unknown"}).`);
 			}
-			const rooms = listing.rooms.length ? await myfreecamsRoomsWithPreviews(listing.rooms, maxVideos, query) : [];
+			const rooms = listing.rooms.length ? await myfreecamsRoomsWithPreviews(listing.rooms) : [];
 			myfreecamsCache = {
 				at: Date.now(),
 				rooms: rooms.length ? rooms : priorRooms
@@ -1760,6 +1561,12 @@ async function fetchRedditFeed(query, maxVideos, page = 1, configuredSources = [
 }
 var BOORU_HOSTS = [
 	{
+		id: "rule34",
+		base: "https://rule34.xxx",
+		apiBase: "https://api.rule34.xxx",
+		postPath: "/index.php?page=post&s=view&id="
+	},
+	{
 		id: "xbooru",
 		base: "https://xbooru.com",
 		postPath: "/index.php?page=post&s=view&id="
@@ -1782,7 +1589,7 @@ function booruVideo(row, host) {
 	const preview = asString(row.preview_url).trim();
 	const sample = asString(row.sample_url).trim();
 	const file = asString(row.file_url).trim();
-	const image = sample || preview || file;
+	const image = file || sample || preview;
 	if (!id || !image) return null;
 	if (adultBlockedText(tags, owner)) return null;
 	const title = (tags.split(/\s+/).filter(Boolean).slice(0, 8).join(" ") || `${host.id} #${id}`).slice(0, 160);
@@ -1817,7 +1624,64 @@ function booruVideo(row, host) {
 		}
 	};
 }
+function decodeBooruHtml(value) {
+	return value.replace(/&amp;/g, "&").replace(/&quot;/g, "\"").replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+}
+async function fetchRule34Listing(host, tags, limit, pid) {
+	const params = new URLSearchParams({
+		page: "post",
+		s: "list",
+		tags,
+		pid: String(Math.max(0, pid))
+	});
+	const res = await cachedAdultFetch(`${host.base}/index.php?${params.toString()}`, {
+		signal: AbortSignal.timeout(15e3),
+		cacheTtlMs: 6e5,
+		headers: {
+			accept: "text/html,application/xhtml+xml",
+			"user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0)"
+		}
+	});
+	if (!res.ok) throw new Error(`${host.id} HTTP ${res.status}`);
+	const html = await res.text();
+	const rows = [];
+	for (const match of html.matchAll(/<span\s+id="s(\d+)"[^>]*>[\s\S]*?<img\s+src="([^"]+)"[\s\S]*?\balt="([^"]*)"/gi)) {
+		rows.push({
+			id: match[1],
+			preview_url: decodeBooruHtml(match[2] ?? ""),
+			tags: decodeBooruHtml(match[3] ?? "")
+		});
+		if (rows.length >= limit) break;
+	}
+	return rows.map((row) => booruVideo(row, host)).filter((video) => video != null);
+}
+function rule34PostIdFromQuery(query) {
+	const direct = query.match(/(?:rule34\.xxx\/index\.php\?[^\s]*\bid=|(?:^|\s)rule34:)(\d+)/i)?.[1];
+	return direct && /^\d+$/.test(direct) ? direct : null;
+}
+async function fetchRule34Post(host, id) {
+	const res = await cachedAdultFetch(`${host.base}${host.postPath}${encodeURIComponent(id)}`, {
+		signal: AbortSignal.timeout(15e3),
+		cacheTtlMs: 18e5,
+		headers: {
+			accept: "text/html,application/xhtml+xml",
+			"user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0)"
+		}
+	});
+	if (!res.ok) throw new Error(`${host.id} post ${id} HTTP ${res.status}`);
+	const html = await res.text();
+	const image = html.match(/<img\b(?=[^>]*\bid="image")[^>]*\bsrc="([^"]+)"[^>]*>/i)?.[1];
+	const tags = html.match(/<img\b(?=[^>]*\bid="image")[^>]*\balt="([^"]*)"[^>]*>/i)?.[1] ?? "";
+	if (!image) throw new Error(`${host.id} post ${id} has no public image`);
+	return booruVideo({
+		id,
+		file_url: decodeBooruHtml(image),
+		preview_url: decodeBooruHtml(image),
+		tags: decodeBooruHtml(tags)
+	}, host);
+}
 async function fetchBooruHost(host, tags, limit, pid) {
+	if (host.id === "rule34") return fetchRule34Listing(host, tags, limit, pid);
 	const params = new URLSearchParams({
 		page: "dapi",
 		s: "post",
@@ -1827,7 +1691,7 @@ async function fetchBooruHost(host, tags, limit, pid) {
 		pid: String(Math.max(0, pid)),
 		tags
 	});
-	const url = `${host.base}/index.php?${params.toString()}`;
+	const url = `${"apiBase" in host ? host.apiBase : host.base}/index.php?${params.toString()}`;
 	const res = await cachedAdultFetch(url, {
 		signal: AbortSignal.timeout(15e3),
 		cacheTtlMs: 6e5,
@@ -1848,27 +1712,125 @@ async function fetchBooruHost(host, tags, limit, pid) {
 	}
 	return out;
 }
+function e621TagString(tags) {
+	if (!tags) return "";
+	if (typeof tags === "string") return tags;
+	return [
+		tags.artist,
+		tags.character,
+		tags.copyright,
+		tags.general,
+		tags.meta
+	].flatMap((part) => Array.isArray(part) ? part : []).filter(Boolean).join(" ");
+}
+function e621Video(row) {
+	const id = asString(row.id).trim();
+	if (!id) return null;
+	const rating = asString(row.rating).trim().toLowerCase();
+	if (rating && rating !== "e" && rating !== "explicit") return null;
+	const tags = e621TagString(row.tags);
+	const preview = asString(row.preview?.url).trim();
+	const sample = asString(row.sample?.url).trim();
+	const file = asString(row.file?.url).trim();
+	const image = file || sample || preview;
+	if (!image) return null;
+	if (adultBlockedText(tags)) return null;
+	const title = (tags.split(/\s+/).filter(Boolean).slice(0, 8).join(" ") || `e621 #${id}`).slice(0, 160);
+	const watch = `https://e621.net/posts/${encodeURIComponent(id)}`;
+	const thumbs = [
+		preview,
+		sample,
+		file
+	].filter(isUsableAdultThumb).slice(0, 4);
+	return {
+		id: `booru:e621:${id}`,
+		folderId: BOORU_FOLDER_ID,
+		name: title,
+		path: `booru/e621/${id}`,
+		extension: "image",
+		mime: "image/jpeg",
+		size: 0,
+		addedAt: Date.now(),
+		tagline: `e621 · photo`,
+		description: tags.slice(0, 400),
+		poster: thumbs[0] || preview || sample || void 0,
+		src: image,
+		remote: {
+			kind: "booru",
+			videoId: id,
+			channelName: "e621",
+			channelId: "e621",
+			observedAt: Date.now(),
+			embedUrl: image,
+			watchUrl: watch,
+			previewUrl: thumbs[0] || preview || sample || void 0,
+			thumbFallbacks: thumbs.length ? thumbs : void 0
+		}
+	};
+}
+async function fetchE621Page(tags, limit, page) {
+	const url = `https://e621.net/posts.json?${new URLSearchParams({
+		limit: String(Math.min(80, Math.max(1, limit))),
+		page: String(Math.max(1, page)),
+		tags
+	}).toString()}`;
+	const res = await cachedAdultFetch(url, {
+		signal: AbortSignal.timeout(15e3),
+		cacheTtlMs: 6e5,
+		cacheKey: `GET:${url}:e621`,
+		headers: {
+			accept: "application/json",
+			"user-agent": "Reelcase/1.0 (adult catalog; local library client)"
+		}
+	});
+	if (!res.ok) throw new Error(`e621 HTTP ${res.status}`);
+	const json = await res.json();
+	const root = asRecord(json);
+	const rows = Array.isArray(root?.posts) ? root.posts : Array.isArray(json) ? json : [];
+	const out = [];
+	for (const row of rows) {
+		if (!row || typeof row !== "object") continue;
+		const video = e621Video(row);
+		if (video) out.push(video);
+	}
+	return out;
+}
 async function fetchBooruFeed(query, maxVideos, page) {
 	const needle = query.trim().toLowerCase();
+	const directRule34Id = rule34PostIdFromQuery(query);
+	if (directRule34Id) {
+		const video = await fetchRule34Post(BOORU_HOSTS.find((host) => host.id === "rule34"), directRule34Id);
+		return {
+			videos: video ? [video] : [],
+			totalPages: page,
+			totalCount: video ? 1 : 0
+		};
+	}
 	const tagQuery = !needle || needle === "all" ? "rating:explicit" : `rating:explicit ${needle}`;
 	const limit = LIBRARY_LIMITS.booruPageSize;
 	const pid = Math.max(0, page - 1);
 	const collected = [];
 	const seen = /* @__PURE__ */ new Set();
 	const errors = [];
-	for (const host of BOORU_HOSTS) {
-		if (collected.length >= maxVideos) break;
-		try {
-			const batch = await fetchBooruHost(host, tagQuery, Math.min(limit, maxVideos - collected.length), pid);
-			for (const video of batch) {
-				if (seen.has(video.id)) continue;
-				seen.add(video.id);
-				collected.push(video);
-				if (collected.length >= maxVideos) break;
-			}
-		} catch (err) {
-			errors.push(`${host.id}: ${err instanceof Error ? err.message : "unavailable"}`);
+	const hosts = [...BOORU_HOSTS];
+	const slotCount = hosts.length + 1;
+	const share = Math.max(1, Math.min(limit, Math.ceil(maxVideos / slotCount)));
+	const ordered = [...hosts.slice(pid % hosts.length), ...hosts.slice(0, pid % hosts.length)];
+	const e621Tags = !needle || needle === "all" ? "rating:e order:rank" : `rating:e ${needle}`;
+	const batches = await Promise.allSettled([...ordered.map((host) => fetchBooruHost(host, tagQuery, share, pid)), fetchE621Page(e621Tags, share, Math.max(1, page))]);
+	for (const [index, result] of batches.entries()) {
+		const label = index < ordered.length ? ordered[index].id : "e621";
+		if (result.status !== "fulfilled") {
+			errors.push(`${label}: ${result.reason instanceof Error ? result.reason.message : "unavailable"}`);
+			continue;
 		}
+		for (const video of result.value) {
+			if (seen.has(video.id)) continue;
+			seen.add(video.id);
+			collected.push(video);
+			if (collected.length >= maxVideos) break;
+		}
+		if (collected.length >= maxVideos) break;
 	}
 	if (!collected.length && errors.length) throw new Error(`Booru unavailable (${errors.join("; ")}).`);
 	return {
@@ -1917,10 +1879,10 @@ function redgifsVideo(row) {
 	const tagsRaw = row.tags ?? row.hashtags ?? row.niches;
 	const tagList = Array.isArray(tagsRaw) ? tagsRaw.map((t) => typeof t === "string" ? t : pickString(asRecord(t)?.name, asRecord(t)?.text)).filter(Boolean) : typeof tagsRaw === "string" ? tagsRaw.split(/[,;\s]+/).filter(Boolean) : [];
 	const title = pickString(row.title, row.description, tagList.slice(0, 6).join(" "), id).slice(0, 160);
-	const author = pickString(user.username, user.name, row.username, row.userName, row.author);
+	const author = pickString(user.username, user.name, row.userName, row.username, row.author);
 	const embed = pickString(urls.html, urls.player, row.embedUrl, row.embed_url, `https://www.redgifs.com/ifr/${encodeURIComponent(id)}`);
 	const watch = pickString(urls.webUrl, urls.web_url, row.url, row.webUrl, `https://www.redgifs.com/watch/${encodeURIComponent(id)}`);
-	const thumb = pickString(urls.thumbnail, urls.thumb, urls.preview, urls.poster, urls.posterUrl, urls.previewUrl, row.thumbnail, row.thumb, row.poster, row.previewUrl);
+	const thumb = pickString(urls.poster, urls.thumbnail, urls.thumb, urls.preview, urls.posterUrl, urls.previewUrl, row.poster, row.thumbnail, row.thumb, row.previewUrl);
 	const thumbFallbacks = [.../* @__PURE__ */ new Set([thumb, ...redgifsPosterFallbacks(id)])].filter(isUsableAdultThumb).slice(0, 6);
 	const file = pickString(urls.hd, urls.sd, urls.silent, urls.mobile, urls.mp4, urls.giftiny, urls.gif, row.mp4, row.file);
 	if (adultBlockedText(title, author, tagList.join(" "))) return null;
@@ -1976,7 +1938,56 @@ function collectRedgifsRows(payload) {
 	}
 	return [];
 }
-async function fetchRedgifsFeed(query, maxVideos, page) {
+var redgifsAuth = null;
+async function getRedgifsAccessToken() {
+	const now = Date.now();
+	if (redgifsAuth && redgifsAuth.expiresAt > now + 6e4) return redgifsAuth.token;
+	const res = await fetch("https://api.redgifs.com/v2/auth/temporary", {
+		headers: {
+			accept: "application/json",
+			"user-agent": "Reelcase/1.0"
+		},
+		signal: AbortSignal.timeout(12e3)
+	});
+	if (!res.ok) throw new Error(`Redgifs auth HTTP ${res.status}`);
+	const json = await res.json();
+	if (!json.token?.trim()) throw new Error("Redgifs auth missing token");
+	redgifsAuth = {
+		token: json.token.trim(),
+		expiresAt: now + 36e5
+	};
+	return redgifsAuth.token;
+}
+async function fetchRedgifsDirect(query, maxVideos, page) {
+	const token = await getRedgifsAccessToken();
+	const count = Math.min(LIBRARY_LIMITS.redgifsPageSize, maxVideos);
+	const needle = query.trim();
+	const params = new URLSearchParams({
+		count: String(count),
+		page: String(Math.max(1, page)),
+		order: "trending"
+	});
+	params.set("search_text", needle && needle.toLowerCase() !== "all" ? needle.slice(0, 64) : "a");
+	const url = `https://api.redgifs.com/v2/gifs/search?${params.toString()}`;
+	const res = await cachedAdultFetch(url, {
+		signal: AbortSignal.timeout(2e4),
+		cacheTtlMs: 36e4,
+		cacheKey: `GET:${url}:rg`,
+		headers: {
+			accept: "application/json",
+			authorization: `Bearer ${token}`,
+			"user-agent": "Reelcase/1.0"
+		}
+	});
+	if (!res.ok) throw new Error(`Redgifs HTTP ${res.status}`);
+	const videos = collectRedgifsRows(await res.json()).map(redgifsVideo).filter((video) => video != null).slice(0, maxVideos);
+	return {
+		videos,
+		totalPages: page + (videos.length >= count ? 1 : 0),
+		totalCount: videos.length
+	};
+}
+async function fetchRedgifsViaAdultDataLink(query, maxVideos, page) {
 	const key = adultDataLinkApiKey();
 	if (!key) return {
 		videos: [],
@@ -2010,9 +2021,23 @@ async function fetchRedgifsFeed(query, maxVideos, page) {
 		totalCount: videos.length
 	};
 }
+async function fetchRedgifsFeed(query, maxVideos, page) {
+	try {
+		const direct = await fetchRedgifsDirect(query, maxVideos, page);
+		if (direct.videos.length) return direct;
+	} catch {}
+	try {
+		const viaAdl = await fetchRedgifsViaAdultDataLink(query, maxVideos, page);
+		if (viaAdl.videos.length) return viaAdl;
+	} catch {}
+	return {
+		videos: [],
+		totalPages: page,
+		totalCount: 0
+	};
+}
 function liveRoomLimit(provider) {
 	if (provider === "chaturbate") return LIBRARY_LIMITS.chaturbateRoomsPerPull;
-	if (provider === "camsoda") return LIBRARY_LIMITS.camsodaRoomsPerPull;
 	if (provider === "myfreecams") return LIBRARY_LIMITS.myfreecamsRoomsPerPull;
 	return 0;
 }
@@ -2095,8 +2120,8 @@ async function pullProviderPages(provider, query, order, startPage, maxVideos, r
 			totalCount
 		};
 	}
-	if (provider === "chaturbate" || provider === "camsoda" || provider === "myfreecams") {
-		const batch = provider === "chaturbate" ? await fetchChaturbateRooms(query, maxVideos) : provider === "camsoda" ? await fetchCamSodaRooms(query, maxVideos) : await fetchMyFreeCamsRooms(query, maxVideos);
+	if (provider === "chaturbate" || provider === "myfreecams") {
+		const batch = provider === "chaturbate" ? await fetchChaturbateRooms(query, maxVideos) : await fetchMyFreeCamsRooms(query, maxVideos);
 		return {
 			videos: batch.videos,
 			page: 1,
@@ -2142,12 +2167,8 @@ async function pullProviderPages(provider, query, order, startPage, maxVideos, r
 		totalCount
 	};
 }
-var searchAdultVideos_createServerFn_handler = createServerRpc({
-	id: "b67bda5afb0e1fb905845cee088441086d5bba37e933c8edb45ef4d6c5182360",
-	name: "searchAdultVideos",
-	filename: "src/lib/remote/api.ts"
-}, (opts) => searchAdultVideos.__executeServer(opts));
-var searchAdultVideos = createServerFn({ method: "POST" }).validator((data) => parseAdultSearch(data)).handler(searchAdultVideos_createServerFn_handler, async ({ data }) => {
+async function runSearchAdultVideos(dataRaw) {
+	const data = parseAdultSearch(dataRaw);
 	const providers = [...data.providers].sort((a, b) => a === "reddit" ? -1 : b === "reddit" ? 1 : 0);
 	const share = Math.max(1, Math.floor(data.maxVideos / Math.max(1, providers.length)));
 	const leftovers = data.maxVideos - share * providers.length;
@@ -2268,7 +2289,7 @@ var searchAdultVideos = createServerFn({ method: "POST" }).validator((data) => p
 		providerNextPages,
 		providerDiagnostics
 	};
-});
+}
 function parseRedditCommentEntries(xml) {
 	const out = [];
 	for (const chunk of xml.split(/<entry>/i).slice(1).slice(0, 40)) {
@@ -2286,19 +2307,16 @@ function parseRedditCommentEntries(xml) {
 	}
 	return out;
 }
-var fetchAdultComments_createServerFn_handler = createServerRpc({
-	id: "c94242a255b5578005d0637a8c72789ab5d9dbe21861256590a340456a1ea9f6",
-	name: "fetchAdultComments",
-	filename: "src/lib/remote/api.ts"
-}, (opts) => fetchAdultComments.__executeServer(opts));
-var fetchAdultComments = createServerFn({ method: "POST" }).validator((data) => {
-	const rec = typeof data === "object" && data !== null ? data : {};
-	return {
-		kind: asString(rec.kind).trim(),
-		videoId: asString(rec.videoId).trim(),
-		watchUrl: asString(rec.watchUrl).trim()
-	};
-}).handler(fetchAdultComments_createServerFn_handler, async ({ data }) => {
+async function runFetchAdultComments(dataRaw) {
+	const data = (() => {
+		const data = dataRaw;
+		const rec = typeof data === "object" && data !== null ? data : {};
+		return {
+			kind: asString(rec.kind).trim(),
+			videoId: asString(rec.videoId).trim(),
+			watchUrl: asString(rec.watchUrl).trim()
+		};
+	})();
 	if (data.kind !== "reddit" || !data.videoId) return {
 		comments: [],
 		note: "This provider does not expose a public comment feed."
@@ -2344,20 +2362,17 @@ var fetchAdultComments = createServerFn({ method: "POST" }).validator((data) => 
 			note: err instanceof Error ? err.message : "Comments unavailable."
 		};
 	}
-});
-var searchRedtubeStars_createServerFn_handler = createServerRpc({
-	id: "49eff4fc659c625b4ff6b2ae76ba10b0db89905b9626afe89893193d4d2e7884",
-	name: "searchRedtubeStars",
-	filename: "src/lib/remote/api.ts"
-}, (opts) => searchRedtubeStars.__executeServer(opts));
-var searchRedtubeStars = createServerFn({ method: "POST" }).validator((data) => {
-	const rec = typeof data === "object" && data !== null ? data : {};
-	const page = Number(rec.page);
-	return {
-		query: asString(rec.query).trim(),
-		page: Number.isFinite(page) && page > 0 ? Math.floor(page) : 1
-	};
-}).handler(searchRedtubeStars_createServerFn_handler, async ({ data }) => {
+}
+async function runSearchRedtubeStars(dataRaw) {
+	const data = (() => {
+		const data = dataRaw;
+		const rec = typeof data === "object" && data !== null ? data : {};
+		const page = Number(rec.page);
+		return {
+			query: asString(rec.query).trim(),
+			page: Number.isFinite(page) && page > 0 ? Math.floor(page) : 1
+		};
+	})();
 	const url = `https://api.redtube.com/?${new URLSearchParams({
 		data: "redtube.Stars.getStarDetailedList",
 		output: "json",
@@ -2393,6 +2408,54 @@ var searchRedtubeStars = createServerFn({ method: "POST" }).validator((data) => 
 		stars: filtered.slice(0, LIBRARY_LIMITS.redtubeStarsPerPage),
 		note: filtered.length ? "Official RedTube star list." : "No matching RedTube creators on this page."
 	};
-});
+}
+/**
+* Client-callable remote actions live apart from the provider implementation.
+* Keeping this module small gives TanStack Start stable server-function IDs
+* across dev-server dependency optimization and HMR updates.
+*/
+var input = (data) => data;
+var followRemote_createServerFn_handler = createServerRpc({
+	id: "6ddf382bfb4b5fe1160413e3ea17d862e2c50c361d612b8f7eb56c34209151ed",
+	name: "followRemote",
+	filename: "src/lib/remote/functions.ts"
+}, (opts) => followRemote.__executeServer(opts));
+var followRemote = createServerFn({ method: "POST" }).validator(input).handler(followRemote_createServerFn_handler, ({ data }) => runFollowRemote(data));
+var refreshRemotes_createServerFn_handler = createServerRpc({
+	id: "8047757e6e5964253c5dd3b40dd370ef7377adb7405d19aba7212b1f49c66e67",
+	name: "refreshRemotes",
+	filename: "src/lib/remote/functions.ts"
+}, (opts) => refreshRemotes.__executeServer(opts));
+var refreshRemotes = createServerFn({ method: "POST" }).validator(input).handler(refreshRemotes_createServerFn_handler, ({ data }) => runRefreshRemotes(data));
+var importChannels_createServerFn_handler = createServerRpc({
+	id: "273f1d8273d15edc5567f32d338c62bb6af101aed883079cd44c9002c43fa33c",
+	name: "importChannels",
+	filename: "src/lib/remote/functions.ts"
+}, (opts) => importChannels.__executeServer(opts));
+var importChannels = createServerFn({ method: "POST" }).validator(input).handler(importChannels_createServerFn_handler, ({ data }) => runImportChannels(data));
+var fetchTwitchFollowing_createServerFn_handler = createServerRpc({
+	id: "926b625b25b1f6c5d08281cc86b3196dbb11bcb5b683a95b5ebcf2111dc013b0",
+	name: "fetchTwitchFollowing",
+	filename: "src/lib/remote/functions.ts"
+}, (opts) => fetchTwitchFollowing.__executeServer(opts));
+var fetchTwitchFollowing = createServerFn({ method: "POST" }).validator(input).handler(fetchTwitchFollowing_createServerFn_handler, ({ data }) => runFetchTwitchFollowing(data));
+var searchAdultVideos_createServerFn_handler = createServerRpc({
+	id: "0e94cec61957c6cccbe0dc56ae15e7a5544920a3a6da937df6a89d530e96fb39",
+	name: "searchAdultVideos",
+	filename: "src/lib/remote/functions.ts"
+}, (opts) => searchAdultVideos.__executeServer(opts));
+var searchAdultVideos = createServerFn({ method: "POST" }).validator(input).handler(searchAdultVideos_createServerFn_handler, ({ data }) => runSearchAdultVideos(data));
+var fetchAdultComments_createServerFn_handler = createServerRpc({
+	id: "3250c7fe9ae5ccef9fa5787d5e016af43eee3512d762581de88ac40b08152dad",
+	name: "fetchAdultComments",
+	filename: "src/lib/remote/functions.ts"
+}, (opts) => fetchAdultComments.__executeServer(opts));
+var fetchAdultComments = createServerFn({ method: "POST" }).validator(input).handler(fetchAdultComments_createServerFn_handler, ({ data }) => runFetchAdultComments(data));
+var searchRedtubeStars_createServerFn_handler = createServerRpc({
+	id: "bcf52ff714b81b8c64a4700ab9a64674ed5afcf8786fb9b74bdc3c4557ca86bf",
+	name: "searchRedtubeStars",
+	filename: "src/lib/remote/functions.ts"
+}, (opts) => searchRedtubeStars.__executeServer(opts));
+var searchRedtubeStars = createServerFn({ method: "POST" }).validator(input).handler(searchRedtubeStars_createServerFn_handler, ({ data }) => runSearchRedtubeStars(data));
 //#endregion
 export { fetchAdultComments_createServerFn_handler, fetchTwitchFollowing_createServerFn_handler, followRemote_createServerFn_handler, importChannels_createServerFn_handler, refreshRemotes_createServerFn_handler, searchAdultVideos_createServerFn_handler, searchRedtubeStars_createServerFn_handler };

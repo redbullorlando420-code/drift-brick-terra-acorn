@@ -1,10 +1,10 @@
 import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
-import { C as RefreshCw, D as Pause, G as Images, H as Lightbulb, I as Maximize2, N as MessageCircle, O as PackageSearch, Q as Gamepad2, S as Rocket, T as Play, W as Laptop, _ as Shuffle, _t as ChartColumn, b as Settings2, dt as Clapperboard, f as Star, j as MonitorPlay, k as Music2, lt as Copy, m as Smartphone, mt as ChevronLeft, n as X, ot as ExternalLink, pt as ChevronRight, q as ImagePlus, r as Wifi, s as Users, st as Download, v as ShoppingBag, vt as Box, w as Radio, x as Search, y as ShieldCheck, yt as Bot } from "../_libs/lucide-react.mjs";
-import { C as exportFeedback, D as toggleTagLike, E as tagIsLiked, O as getInteractionBudgetSnapshot, S as topicsForVideo, T as getRating, _ as useLibrary, a as buildAdultStatsSnapshot, b as isTopicTag, c as countAdultBySource, d as VideoCard, f as getRenderBudgetSnapshot, g as resumeForVideo, h as Button, i as getFirstShelfTrace, k as measureInteraction, l as Input, m as useThumbs, n as getNetworkDeviceId, o as exportAdultStats, p as getThumbDiagnostics, r as listNetworkDevices, s as rankAdultTags, u as openTopic, v as useSourceAssets, w as getFeedbackDiagnostics, x as topicEvidence, y as canonicalTopic } from "./routes-1K3sQEIs.mjs";
+import { C as RefreshCw, D as Pause, G as Images, H as Lightbulb, I as Maximize2, N as MessageCircle, O as PackageSearch, Q as Gamepad2, S as Rocket, T as Play, W as Laptop, _ as Shuffle, b as Settings2, bt as Box, ct as ExternalLink, dt as Copy, f as Star, gt as ChevronLeft, ht as ChevronRight, j as MonitorPlay, k as Music2, lt as Download, m as Smartphone, n as X, pt as Clapperboard, q as ImagePlus, r as Wifi, s as Users, v as ShoppingBag, w as Radio, x as Search, xt as Bot, y as ShieldCheck, yt as ChartColumn } from "../_libs/lucide-react.mjs";
+import { C as exportFeedback, D as toggleTagLike, E as tagIsLiked, O as getInteractionBudgetSnapshot, S as topicsForVideo, T as getRating, _ as useLibrary, a as buildAdultStatsSnapshot, b as isTopicTag, c as countAdultBySource, d as VideoCard, f as getRenderBudgetSnapshot, g as resumeForVideo, h as Button, i as getFirstShelfTrace, k as measureInteraction, l as Input, m as useThumbs, n as getNetworkDeviceId, o as exportAdultStats, p as getThumbDiagnostics, r as listNetworkDevices, s as rankAdultTags, u as openTopic, v as useSourceAssets, w as getFeedbackDiagnostics, x as topicEvidence, y as canonicalTopic } from "./routes-S5_RvTFR.mjs";
 import { a as ResponsiveContainer, i as Bar, n as YAxis, o as Tooltip, r as XAxis, t as BarChart } from "../_libs/recharts+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/hub-sections-MGkYQ5sw.js
+//#region node_modules/.nitro/vite/services/ssr/assets/hub-sections-C4N7m3TM.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function TopicLinks({ explorer = false }) {
@@ -1520,7 +1520,6 @@ function StatsSection() {
 				"eporner",
 				"redtube",
 				"chaturbate",
-				"camsoda",
 				"myfreecams",
 				"reddit",
 				"booru",
@@ -1617,7 +1616,6 @@ function StatsSection() {
 			"eporner",
 			"redtube",
 			"chaturbate",
-			"camsoda",
 			"myfreecams",
 			"reddit",
 			"booru",
@@ -2042,6 +2040,106 @@ function StatsSection() {
 								}, `${source.provider}-quality`))
 							})
 						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+						className: "mt-5 grid gap-5 xl:grid-cols-2",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "h-72 rounded-lg bg-bg/45 p-4",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+									children: "Artwork availability by source"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-1 text-xs text-muted",
+									children: "Declared preview coverage for the current Adult catalog. Use it to favor providers that consistently return viewable cards."
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ResponsiveContainer, {
+									width: "100%",
+									height: "78%",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(BarChart, {
+										data: adultTagStats.providerMix.filter((row) => row.titles > 0).map((row) => ({
+											name: row.label,
+											ready: Math.round(row.previewCoverage.share * 100),
+											backup: Math.round(row.backupPreviewCoverage.share * 100)
+										})),
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(XAxis, {
+												dataKey: "name",
+												stroke: "currentColor",
+												fontSize: 10,
+												interval: 0,
+												angle: -20,
+												textAnchor: "end",
+												height: 54
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(YAxis, {
+												domain: [0, 100],
+												stroke: "currentColor",
+												fontSize: 12
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tooltip, {}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bar, {
+												dataKey: "ready",
+												name: "Preview ready %",
+												fill: "var(--color-accent)",
+												radius: 4
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bar, {
+												dataKey: "backup",
+												name: "Backup paths %",
+												fill: "var(--color-muted)",
+												radius: 4
+											})
+										]
+									})
+								})
+							]
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "h-72 rounded-lg bg-bg/45 p-4",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+									children: "Most applied Adult interests"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-1 text-xs text-muted",
+									children: "Only recurring interest labels are shown; provider, creator, and parser labels are excluded."
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ResponsiveContainer, {
+									width: "100%",
+									height: "78%",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(BarChart, {
+										layout: "vertical",
+										margin: { left: 16 },
+										data: adultTagStats.topFetish.slice(0, 8).map(([tag, count]) => ({
+											name: tag.replace(/^fetish-/, ""),
+											titles: count
+										})),
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(XAxis, {
+												type: "number",
+												stroke: "currentColor",
+												fontSize: 12
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(YAxis, {
+												type: "category",
+												dataKey: "name",
+												width: 122,
+												stroke: "currentColor",
+												fontSize: 10
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tooltip, {}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bar, {
+												dataKey: "titles",
+												fill: "var(--color-accent)",
+												radius: 4
+											})
+										]
+									})
+								})
+							]
+						})]
 					}),
 					(adultTagStats.genres.length > 0 || adultTagStats.metaTags.length > 0) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "mt-4 grid gap-3 lg:grid-cols-2",

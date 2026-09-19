@@ -1,25 +1,24 @@
 # Reelcase — PR living notes
 
-**PR** `fix/adults-preview-thumbs` → `main` · Adults preview thumbs follow-up after merged PR #4.
+**PR** `perf/speed-memory-adult-apis` → `main` · App/section speed, memory bounds, more Adult APIs with solid preview thumbs.
 
 ## In progress
 
-Defensive Adult preview hardening: fewer blanks, faster recover, stay filled.
+Speed + memory + Adult API expansion without regressing prior Adult preview hardening.
 
 ### Shipped this PR
-1. **Prefer API primary thumb** — `default_thumb` / `thumb` before speculative `thumbs[]` / CDN expansion.
-2. **Shorter fallback chains** — fewer host/frame/size retries; cap ~6–8 candidates so onError does not serialize rails.
-3. **Raise image concurrency** — default budget 12 (was 5); keep slot across thumbIndex retries (no blank flash re-queue).
-4. **Broken/placeholder detection** — URL heuristics + post-decode size/aspect reject before counting success.
-5. **Host prefer / demote** — ei-ph and known-good hosts ranked; session fail scores demote flaky CDNs.
-6. **Session URL cache + failed blacklist** — do not re-hit the same dead URL across cards; remember good per video.
-7. **Hold last good paint** — skeleton/previous poster stays under the next candidate (no blank flash between fallbacks).
-8. **Load timeout → advance** — ~4.5s stuck CDN load marks failed and tries the next candidate.
-9. **Viewport priority** — high-priority image slots for visible cards; offscreen releases cancel speculative work; warm first ~N rail thumbs.
-10. **RedTube solid candidates** — API thumbs + at most one video_id reconstruction; no frame-number spam.
+1. **Faster Adult first paint** — lower interactive/fast-start pull sizes and rail seed; tighter TitleRail/PosterGrid viewport margins and earlier offscreen unmount.
+2. **Leaner Adult ranking windows** — smaller rotate/rank candidate windows so shelves compute sooner.
+3. **Catalog + history memory caps** — Adult catalog soft-capped at `adultTargetCatalogVideos`; in-memory history bounded via `historyMemoryEntries` (journal can still retain longer).
+4. **Thumb memory hygiene** — lower in-memory decoded-thumb ceiling; revoke `blob:` object URLs on eviction.
+5. **Tighter Adult thumb session maps** — smaller failed/good/by-video session caps.
+6. **Redgifs official API** — temporary-token search as primary (posters + media); AdultDataLink remains optional fallback when keyed.
+7. **e621 in Booru pulls** — documented JSON posts API with preview thumbs, shared into the booru shelf rotation.
+8. **Provider adapter notes** — Redgifs + Booru/e621 marked active public-api transports.
 
 ### Still open
-- Soak test RedTube CDN reliability under the new session blacklist + timeouts
+- Soak test Redgifs temporary-token + e621 preview reliability under the session blacklist
+- Optional: additional documented tube APIs only when they expose stable public search + thumbs (no HTML scrape)
 
 Official public APIs + Reddit Atom only. 18+ only.
 
