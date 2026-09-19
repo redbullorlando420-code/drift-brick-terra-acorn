@@ -6,7 +6,7 @@
 import { createServer } from "node:http";
 import { existsSync, mkdirSync, realpathSync, readdirSync, readFileSync, watch } from "node:fs";
 import { spawn, execFileSync } from "node:child_process";
-import { resolve, sep } from "node:path";
+import { resolve, sep, dirname, basename, join } from "node:path";
 import { networkInterfaces } from "node:os";
 import dgram from "node:dgram";
 
@@ -212,6 +212,99 @@ function inspectMedia(rawPath) {
     });
   });
 }
+
+const iconCache = new Map();
+const ICON_CACHE_MAX = 120;
+const siblingIconExt = [".png", ".ico", ".jpg", ".jpeg", ".webp"];
+
+function allowedSiblingIcon(rawPath) {
+  if (typeof rawPath !== "string" || !rawPath) return null;
+  const candidate = resolve(rawPath);
+  if (!existsSync(candidate)) return null;
+  try {
+    const entry = realpathSync(candidate);
+    const suffix = entry.slice(entry.lastIndexOf(".")).toLowerCase();
+    if (!siblingIconExt.includes(suffix)) return null;
+    return allowedRoots.some((root) => entry === root || entry.startsWith(`${root}${sep}`)) ? entry : null;
+  } catch { return null; }
+}
+
+function findSiblingIconPath(filePath) {
+  const dir = dirname(filePath);
+  const stem = basename(filePath).replace(/\.[^.]+$/, "");
+  for (const ext of siblingIconExt) {
+    const candidate = join(dir, `${stem}${ext}`);
+    const allowed = allowedSiblingIcon(candidate);
+    if (allowed) return allowed;
+  }
+  // Steam-style / folder art common neighbors
+  for (const name of ["icon.png", "icon.ico", "game.png", "header.jpg", "library_600x900.jpg"]) {
+    const candidate = join(dir, name);
+    const allowed = allowedSiblingIcon(candidate);
+    if (allowed) return allowed;
+  }
+  return null;
+}
+
+function dataUrlFromFile(filePath) {
+  const bytes = readFileSync(filePath);
+  if (bytes.length > 1_500_000) return null;
+  const suffix = filePath.slice(filePath.lastIndexOf(".")).toLowerCase();
+  const mime = suffix === ".png" ? "image/png"
+    : suffix === ".jpg" || suffix === ".jpeg" ? "image/jpeg"
+    : suffix === ".webp" ? "image/webp"
+    : suffix === ".ico" ? "image/x-icon"
+    : "application/octet-stream";
+  return `data:${mime};base64,${bytes.toString("base64")}`;
+}
+
+function extractAssociatedIconDataUrl(filePath) {
+  if (process.platform !== "win32") return null;
+  // PowerShell + System.Drawing extracts the shell-associated icon for .exe/.lnk.
+  const script = [
+    "Add-Type -AssemblyName System.Drawing",
+    "$ErrorActionPreference = 'Stop'",
+    `$p = '${filePath.replace(/'/g, "''")}'`,
+    "$icon = [System.Drawing.Icon]::ExtractAssociatedIcon($p)",
+    "if (-not $icon) { exit 2 }",
+    "$bmp = $icon.ToBitmap()",
+    "$ms = New-Object System.IO.MemoryStream",
+    "$bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)",
+    "[Convert]::ToBase64String($ms.ToArray())",
+  ].join("; ");
+  try {
+    const out = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 8_000,
+      maxBuffer: 2_000_000,
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    const b64 = String(out).trim().replace(/\s+/g, "");
+    if (!b64 || b64.length < 32 || b64.length > 1_800_000) return null;
+    return `data:image/png;base64,${b64}`;
+  } catch {
+    return null;
+  }
+}
+
+function resolveShortcutIcon(rawPath) {
+  const file = allowedFile(rawPath);
+  if (!file) return { ok: false, error: "Path is outside approved roots or not a shortcut/exe." };
+  if (iconCache.has(file)) return { ok: true, path: file, iconData: iconCache.get(file), cached: true };
+  let iconData = null;
+  const sibling = findSiblingIconPath(file);
+  if (sibling) iconData = dataUrlFromFile(sibling);
+  if (!iconData) iconData = extractAssociatedIconDataUrl(file);
+  if (!iconData) return { ok: true, path: file, iconData: null, note: "No sibling image or extractable icon." };
+  iconCache.set(file, iconData);
+  if (iconCache.size > ICON_CACHE_MAX) {
+    const first = iconCache.keys().next().value;
+    iconCache.delete(first);
+  }
+  return { ok: true, path: file, iconData, cached: false };
+}
+
 function listApprovedShortcuts(limit = 250) {
   const found = [];
   const visit = (dir, depth) => {
@@ -260,7 +353,7 @@ const server = createServer(async (req, res) => {
   if (req.method === "OPTIONS") { cors(req, res); res.writeHead(204); res.end(); return; }
   if (!cors(req, res)) { reply(res, 403, { ok: false, error: "Untrusted origin" }); return; }
   if (req.method === "GET" && req.url === "/health") {
-    reply(res, 200, { ok: true, service: "reelcase-companion", version: 8, roots: allowedRoots.length, desktopEnabled: desktopRoots.some((root) => { try { return allowedRoots.includes(realpathSync(root)); } catch { return false; } }), ytDlp: Boolean(ytDlpBinary), downloadRoot: downloadRoot || null, capabilities: ["launch", "shortcut-catalog", "file-health", "batch-verify", "folder-watch", "watch-status", "cache-status", "cache-warmup", "media-inspection", "roku-ssdp-discovery", "offline-save"] });
+    reply(res, 200, { ok: true, service: "reelcase-companion", version: 9, roots: allowedRoots.length, desktopEnabled: desktopRoots.some((root) => { try { return allowedRoots.includes(realpathSync(root)); } catch { return false; } }), ytDlp: Boolean(ytDlpBinary), downloadRoot: downloadRoot || null, capabilities: ["launch", "shortcut-catalog", "shortcut-icons", "file-health", "batch-verify", "folder-watch", "watch-status", "cache-status", "cache-warmup", "media-inspection", "roku-ssdp-discovery", "offline-save"] });
     return;
   }
   if (req.method === "GET" && req.url === "/source-health") {
@@ -282,6 +375,24 @@ const server = createServer(async (req, res) => {
   }
   if (req.method === "GET" && req.url === "/launch-history") {
     reply(res, 200, { ok: true, launches });
+    return;
+  }
+  if (req.method === "GET" && req.url?.startsWith("/shortcut-icon")) {
+    const rawPath = new URL(req.url, "http://127.0.0.1").searchParams.get("path") ?? "";
+    const result = resolveShortcutIcon(rawPath);
+    reply(res, result.ok ? 200 : 400, result);
+    return;
+  }
+  if (req.method === "POST" && req.url === "/shortcut-icons") {
+    let textBody = "";
+    for await (const chunk of req) textBody += chunk;
+    let body; try { body = JSON.parse(textBody); } catch { reply(res, 400, { ok: false, error: "Invalid request" }); return; }
+    const paths = Array.isArray(body.paths) ? body.paths.slice(0, 40) : [];
+    const icons = paths.map((rawPath) => {
+      const result = resolveShortcutIcon(String(rawPath ?? ""));
+      return { path: String(rawPath ?? ""), ok: Boolean(result.ok), iconData: result.iconData ?? null, note: result.note, error: result.error };
+    });
+    reply(res, 200, { ok: true, icons });
     return;
   }
   if (req.method === "GET" && req.url?.startsWith("/shortcuts")) {
