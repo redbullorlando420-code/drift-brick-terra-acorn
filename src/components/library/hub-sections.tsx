@@ -1,7 +1,7 @@
 import { TopicLinks } from './topic-links';
 import { openTopic } from '@/lib/videos/topic-navigation';
 import { isTopicTag, canonicalTopic } from '@/lib/videos/topics';
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bot,
   Box,
@@ -9,6 +9,7 @@ import {
   Clapperboard,
   Copy,
   Download,
+  Eye,
   ExternalLink,
   Gamepad2,
   Images,
@@ -38,6 +39,12 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { PrintViewerTarget } from "@/lib/prints-blobs";
+const PrintModelViewer = lazy(async () => {
+  const mod = await import("@/components/library/print-model-viewer");
+  return { default: mod.PrintModelViewer };
+});
+import { isViewablePrintName, savePrintBlob } from "@/lib/prints-blobs";
 import { Input } from "@/components/ui/input";
 import { resumeForVideo, useLibrary } from "@/lib/videos/store";
 import { buildAdultStatsSnapshot, exportAdultStats } from "@/lib/videos/adult-stats";
@@ -68,6 +75,10 @@ type LocalItem = {
   addedAt: number;
   launchUrl?: string;
   iconData?: string;
+  /** IndexedDB blob id for interactive 3D preview of user-added prints. */
+  id?: string;
+  /** Bundled public URL for sample print geometry. */
+  sampleSrc?: string;
 };
 type HubStore = { prints: LocalItem[]; games: LocalItem[] };
 const HUB_KEY = "reelcase.hub.v1";
@@ -129,15 +140,17 @@ function readHub(): HubStore {
     {
       name: "Calibration cube.stl",
       path: "Reelcase samples/Calibration cube.stl",
-      size: 182400,
+      size: 2618,
       addedAt: 1,
+      sampleSrc: "/samples/prints/calibration-cube.stl",
     },
     { name: "Cable clip.3mf", path: "Reelcase samples/Cable clip.3mf", size: 94100, addedAt: 2 },
     {
-      name: "OpenSCAD phone stand.stl",
-      path: "Open-source examples/OpenSCAD phone stand.stl",
-      size: 512400,
+      name: "OpenSCAD phone stand.obj",
+      path: "Open-source examples/OpenSCAD phone stand.obj",
+      size: 318,
       addedAt: 4,
+      sampleSrc: "/samples/prints/phone-stand.obj",
     },
     {
       name: "Gridfinity bin.3mf",
@@ -146,10 +159,11 @@ function readHub(): HubStore {
       addedAt: 5,
     },
     {
-      name: "Benchy calibration.stl",
-      path: "Open-source examples/Benchy calibration.stl",
-      size: 643100,
+      name: "Benchy calibration.obj",
+      path: "Open-source examples/Benchy calibration.obj",
+      size: 236,
       addedAt: 6,
+      sampleSrc: "/samples/prints/benchy.obj",
     },
     {
       name: "Parametric drawer label.stl",
@@ -1031,8 +1045,8 @@ export function PrintsSection() {
       eyebrow="Maker shelf"
       icon={<Box className="size-4" />}
       title="3D prints"
-      copy="Keep a lightweight catalog of print-ready files. Add STL, OBJ, 3MF, or G-code files to track what is ready for the printer."
-      accept=".stl,.obj,.3mf,.gcode"
+      copy="Keep a lightweight catalog of print-ready files. Preview STL, OBJ, GLB/GLTF, and 3MF in an interactive orbit viewer; G-code stays list-only for slicers."
+      accept=".stl,.obj,.3mf,.gcode,.glb,.gltf"
       footer={
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <ServiceLink
@@ -2250,10 +2264,10 @@ const DEFAULT_MISSIONS: Mission[] = [
 const ROADMAP_EXPANSION: Mission[] = [
   ...[
     ["adult-thumbnail-coverage", "Adult preview coverage", "Continue scoring usable thumbnails above slow or missing artwork across Reddit, Redgifs, RedTube, and other adult providers."],
-    ["print-file-viewer", "3D print file viewer", "Preview locally added STL, OBJ, and 3MF geometry with file details before opening a slicer."],
+    ["print-file-viewer", "3D print file viewer", "Interactive three.js orbit viewer for STL, OBJ, GLB/GLTF, and 3MF — sample models plus user-added IndexedDB bytes; dispose on close."],
     ["twitch-view-modes", "Twitch viewing modes", "Keep official Twitch playback available in theater or side-details mode, while filtering offline channels and ranking VODs by useful signals."],
     ["games-shortcut-curation", "Games shortcut curation", "Promote verified game launchers and their icons while keeping unrelated web links and desktop helpers out of game recommendations."],
-  ].map(([id, title, detail]) => ({ id, title, detail, done: false })),
+  ].map(([id, title, detail]) => ({ id, title, detail, done: id === "print-file-viewer" })),
   ...[
     ["history-01", "History integrity journal", "Add monotonic event IDs and an append-only local audit record."],
     ["history-02", "History replay recovery", "Reconcile IndexedDB activity events after an interrupted browser session."],
@@ -2670,33 +2684,62 @@ function LocalCatalog({
   footer?: ReactNode;
 }) {
   const [hub, setHub] = useState<HubStore>({ prints: [], games: [] });
+  const [viewer, setViewer] = useState<PrintViewerTarget | null>(null);
+  const [busy, setBusy] = useState(false);
   useEffect(() => setHub(readHub()), []);
   const items = hub[kind];
-  const change = (files: FileList | null) => {
+  const change = async (files: FileList | null) => {
     if (!files?.length) return;
+    if (kind === "prints") {
+      setBusy(true);
+      try {
+        const nextItems: LocalItem[] = [];
+        for (const file of [...files]) {
+          const blobId = await savePrintBlob(file);
+          nextItems.push({
+            name: file.name,
+            path: file.webkitRelativePath || file.name,
+            size: file.size,
+            addedAt: Date.now(),
+            id: blobId ?? undefined,
+          });
+        }
+        const next = { ...hub, prints: [...nextItems, ...hub.prints].slice(0, 120) };
+        setHub(next);
+        writeHub(next);
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     const next = { ...hub, [kind]: filesToItems(files, kind === "games") };
     setHub(next);
     writeHub(next);
   };
+  const canView = (item: LocalItem) => Boolean(item.sampleSrc || (item.id && isViewablePrintName(item.name)));
   return (
     <HubShell eyebrow={eyebrow} icon={icon} title={title} copy={copy}>
       <label className="mt-6 flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-border bg-elevated/40 px-5 text-center transition-[background-color,border-color] duration-150 hover:border-fg/30 hover:bg-elevated">
         <PackageSearch className="size-7 text-accent" />
         <span className="mt-3 text-sm font-medium text-fg">
-          {directory ? "Choose Desktop games folder" : "Add print files"}
+          {directory ? "Choose Desktop games folder" : busy ? "Saving print files…" : "Add print files"}
         </span>
         <span className="mt-1 text-xs text-muted">
           {directory
             ? "Keeps only game launchers and shortcuts; folders and support files stay out."
-            : "STL, OBJ, 3MF, and G-code are supported."}
+            : "STL, OBJ, GLB/GLTF, and 3MF open in the in-app viewer; G-code is catalog-only."}
         </span>
         <input
           type="file"
           multiple
           accept={accept}
           className="sr-only"
+          disabled={busy}
           {...(directory ? ({ webkitdirectory: "", directory: "" } as Record<string, string>) : {})}
-          onChange={(event) => change(event.target.files)}
+          onChange={(event) => {
+            void change(event.target.files);
+            event.target.value = "";
+          }}
         />
       </label>
       {items.length > 0 && (
@@ -2705,7 +2748,9 @@ function LocalCatalog({
             <p className="text-sm font-medium text-fg">
               {items.length} saved {kind === "prints" ? "print files" : "games"}
             </p>
-            <p className="text-xs text-subtle">Stored as names only</p>
+            <p className="text-xs text-subtle">
+              {kind === "prints" ? "Names in localStorage · viewable bytes in IndexedDB" : "Stored as names only"}
+            </p>
           </div>
           {items.slice(0, 80).map((item) => (
             <div
@@ -2716,12 +2761,40 @@ function LocalCatalog({
                 <p className="truncate text-sm text-fg">{item.name}</p>
                 <p className="truncate text-xs text-muted">{item.path}</p>
               </div>
-              <p className="shrink-0 font-mono text-xs text-subtle">{bytes(item.size)}</p>
+              <div className="flex shrink-0 items-center gap-2">
+                {kind === "prints" && (
+                  <Button
+                    size="sm"
+                    variant={canView(item) ? "default" : "secondary"}
+                    type="button"
+                    disabled={!canView(item)}
+                    title={canView(item) ? "Open orbit viewer" : /\.gcode$/i.test(item.name) ? "G-code is not a mesh preview" : "Re-add this file to enable preview"}
+                    onClick={() =>
+                      setViewer({
+                        name: item.name,
+                        path: item.path,
+                        size: item.size,
+                        sampleSrc: item.sampleSrc,
+                        blobId: item.id,
+                      })
+                    }
+                  >
+                    <Eye className="size-3.5" />
+                    View
+                  </Button>
+                )}
+                <p className="font-mono text-xs text-subtle">{bytes(item.size)}</p>
+              </div>
             </div>
           ))}
         </div>
       )}
       {footer}
+      {viewer && (
+        <Suspense fallback={null}>
+          <PrintModelViewer target={viewer} onClose={() => setViewer(null)} />
+        </Suspense>
+      )}
     </HubShell>
   );
 }
