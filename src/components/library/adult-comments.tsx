@@ -86,24 +86,53 @@ export function AdultComments({ video }: { video: LibraryVideo }) {
   if (!supportsRemoteComments(kind)) return null;
 
   const authorPrefix = kind === "reddit" ? "u/" : kind === "youtube" ? "" : "";
+  const chatRows = kind === "youtube" ? comments.filter((row) => row.kind === "chat") : [];
+  const commentRows = kind === "youtube" ? comments.filter((row) => row.kind !== "chat") : comments;
+  const heading = linkedRedgifs
+    ? "Reddit comments for linked Redgifs media"
+    : kind === "twitch"
+      ? "VOD chat"
+      : kind === "youtube" && chatRows.length
+        ? "Chat + comments"
+        : "Comments";
+
+  const renderList = (rows: AdultComment[], emptyLabel?: string) => (
+    rows.length > 0 ? (
+      <ul className="mt-2 max-h-48 space-y-2 overflow-y-auto">
+        {rows.map((comment) => (
+          <li key={comment.id} className="rounded-sm bg-elevated/60 px-2 py-1.5 text-xs text-fg">
+            {comment.author && <span className="font-medium text-accent">{authorPrefix}{comment.author}{typeof comment.score === "number" ? ` · ${comment.score}` : ""} · </span>}
+            {comment.body}
+          </li>
+        ))}
+      </ul>
+    ) : (emptyLabel ? <p className="mt-2 text-xs text-muted">{emptyLabel}</p> : null)
+  );
 
   return (
     <section className="mt-3 rounded-lg border border-border bg-bg/40 p-3">
       <p className="flex items-center gap-2 text-xs font-medium tracking-[0.14em] text-accent uppercase">
-        <MessageCircle className="size-3.5" /> {linkedRedgifs ? "Reddit comments for linked Redgifs media" : kind === "twitch" ? "VOD chat" : "Comments"}
+        <MessageCircle className="size-3.5" /> {heading}
       </p>
       {loading && <p className="mt-2 text-xs text-muted">Loading comments…</p>}
       {!loading && note && <p className="mt-2 text-xs text-muted">{note}</p>}
-      {!loading && comments.length > 0 && (
-        <ul className="mt-2 max-h-48 space-y-2 overflow-y-auto">
-          {comments.map((comment) => (
-            <li key={comment.id} className="rounded-sm bg-elevated/60 px-2 py-1.5 text-xs text-fg">
-              {comment.author && <span className="font-medium text-accent">{authorPrefix}{comment.author}{typeof comment.score === "number" ? ` · ${comment.score}` : ""} · </span>}
-              {comment.body}
-            </li>
-          ))}
-        </ul>
+      {!loading && kind === "youtube" && (chatRows.length > 0 || commentRows.length > 0) && (
+        <div className="mt-2 space-y-3">
+          {chatRows.length > 0 && (
+            <div>
+              <p className="text-[11px] font-medium uppercase tracking-wider text-subtle">Live chat / replay</p>
+              {renderList(chatRows)}
+            </div>
+          )}
+          {commentRows.length > 0 && (
+            <div>
+              <p className="text-[11px] font-medium uppercase tracking-wider text-subtle">Comments</p>
+              {renderList(commentRows)}
+            </div>
+          )}
+        </div>
       )}
+      {!loading && kind !== "youtube" && renderList(commentRows)}
     </section>
   );
 }

@@ -24,6 +24,10 @@ export const LIBRARY_LIMITS = {
   youtubeBulkImportVideosPerChannel: 1_200,
   /** Top-level Innertube comment threads per on-demand video detail pull. */
   youtubeCommentsPerPull: 40,
+  /** Live chat / chat-replay messages per on-demand YouTube detail pull. */
+  youtubeChatPerPull: 60,
+  /** Bounded replay pages for YouTube live_chat/get_live_chat_replay. */
+  youtubeChatMaxPages: 3,
   // Helix/GQL `videos(first:)` accepts 1..100 only. Asking for 160 used to
   // return the channel shell with an empty videos connection (GraphQL error on
   // the field), which made follow/import look like it pulled no VODs.
