@@ -1,10 +1,10 @@
 # Reelcase — PR living notes
 
-**PR** `perf/speed-memory-adult-apis` → `main` · Speed, memory, Adult API harden/backups, photos/models, Rule34 filters, Live Adult lives, richer Stats, tag-click fix, **3D Prints interactive viewer**.
+**PR** `perf/speed-memory-adult-apis` → `main` · Speed, memory, Adult API harden/backups, photos/models, Rule34 filters, Live Adult lives, richer Stats, tag-click fix, **3D Prints interactive viewer**, section teardown + grid/storage speedups.
 
 ## In progress
 
-Continue doubling down on Adult/photo APIs without regressing preview/memory wins.
+Memory/speed follow-up round on this PR (section teardown, grid windowing, storage guards). Keep Adult previews / 3D viewer / tags / Live Adult / Stats intact.
 
 ### Shipped this PR
 1. **Faster Adult first paint** — lower interactive/fast-start pull sizes and rail seed; tighter TitleRail/PosterGrid viewport margins and earlier offscreen unmount.
@@ -24,6 +24,11 @@ Continue doubling down on Adult/photo APIs without regressing preview/memory win
 15. **Richer Stats** — Adult media pie, booru host bars/table, engagement table (views, resume hours, rated, history, sparse tags).
 16. **Photos AI models** — upscaler prefers Cache API / shipped `/models/swin2sr-x2-q4f16.onnx` before HF; SigLIP large+ revision pinned; Photos first paint limit 48.
 17. **3D Prints viewer** — interactive three.js orbit/inspect for STL, OBJ, GLB/GLTF, and 3MF; bundled sample meshes under `public/samples/prints/`; user-added viewable bytes in IndexedDB (`reelcase-prints`) with dispose-on-unmount; G-code stays catalog-only.
+18. **Section teardown** — leaving YouTube/Adults/Home drops deferred explore/deep shelves, clears Adult browse ranking packets, and flushes speculative image decode waiters.
+19. **VideoGrid sliding window** — infinite grids unmount far-scrolled cards (mount cap 108) with lead spacers; Live desk first-paint 48 + Show more.
+20. **Storage growth guards** — IndexedDB thumb-cache pruned to `thumbCacheEntries` (420); print blobs also capped by total bytes (192 MB); Adult thumb host score maps trimmed.
+21. **Player / blob hygiene** — local `<video>` pause+detach on player unmount; upscaler model blob revoked after Cache seed; Photos upscale preview revoked on leave.
+22. **Idle Home discovery** — DiscoveryDesk ranking runs on `requestIdleCallback` with stride-sample on huge catalogs; low-priority image queue pauses while the tab is hidden.
 
 ### Env / keys (no secrets in repo)
 - `ADULTDATALINK_API_KEY` or `ADL_API_KEY` — optional Redgifs secondary via AdultDataLink.
@@ -32,6 +37,7 @@ Continue doubling down on Adult/photo APIs without regressing preview/memory win
 ### Still open
 - Soak test Redgifs temporary-token + Rule34 JSON + e621 preview reliability under the session blacklist
 - Optional: additional documented tube APIs only when they expose stable public search + thumbs (no HTML scrape)
+- Optional: measured row heights for VideoGrid lead spacers across breakpoints
 
 Official public APIs + Reddit Atom only. 18+ only. No Pornhub scrape; no torrents.
 
