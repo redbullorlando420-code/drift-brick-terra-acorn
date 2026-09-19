@@ -9,6 +9,7 @@ import {
   Clapperboard,
   Copy,
   Download,
+  Upload,
   Eye,
   ExternalLink,
   Gamepad2,
@@ -48,6 +49,8 @@ import { isViewablePrintName, savePrintBlob } from "@/lib/prints-blobs";
 import { Input } from "@/components/ui/input";
 import { resumeForVideo, useLibrary } from "@/lib/videos/store";
 import { buildAdultStatsSnapshot, exportAdultStats } from "@/lib/videos/adult-stats";
+import { downloadLibraryPackZip, importLibraryPackZip, type LibraryPackMode } from "@/lib/videos/library-pack";
+import { linksFromHistoryAndResume } from "@/lib/videos/persist";
 import { rankAdultTags } from "@/lib/videos/adult-rank";
 import { countAdultBySource, countAdultBooruHosts } from "@/lib/videos/adult-filter";
 import { isAdultImageKind } from "@/lib/videos/adult-sites";
@@ -859,6 +862,75 @@ export function SettingsSection() {
           <Button variant="secondary" onClick={exportChannels}>YouTube + Twitch</Button>
         </div>
       </div>
+      <section className="mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border">
+        <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Library pack · local folder</p>
+        <h2 className="mt-2 font-display text-2xl text-fg">Export / import follows, history, links & marks</h2>
+        <p className="mt-1 max-w-2xl text-sm text-muted">
+          Downloads a zip that matches <code className="text-fg">public/import-templates/</code>: follows, watch history,
+          saved video URLs, continue-watching pointers, favorites/likes, Adult marks, ratings &amp; tag hearts, and stats.
+          Import merges into durable IndexedDB stores and does not wipe unrelated data unless you confirm replace-follows.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button onClick={() => {
+            const state = useLibrary.getState();
+            downloadLibraryPackZip({
+              follows: state.follows,
+              history: state.history,
+              links: linksFromHistoryAndResume(state.history, state.resumeProgress),
+              favorites: Object.keys(state.favorites),
+              likes: Object.keys(state.likes),
+              viewCounts: state.viewCounts,
+              cameCounts: state.cameCounts,
+              progress: state.progress,
+              resumeProgress: state.resumeProgress,
+              adultVideos: state.videos,
+              folders: state.folders,
+              tags: state.tags,
+            });
+            setServiceNote("Library pack zip downloaded. Unzip to edit offline, or keep as backup.");
+          }}><Download className="size-4" /> Export library pack</Button>
+          <Button variant="secondary" onClick={() => {
+            const input = document.createElement("input");
+            input.type = "file";
+            input.accept = ".zip,.json,.csv,application/zip,application/json,text/csv";
+            input.onchange = () => {
+              const file = input.files?.[0];
+              if (!file) return;
+              const proceed = window.confirm("Import this library pack into Reelcase?\n\nData merges into durable local stores. Unrelated data is kept.");
+              if (!proceed) { setServiceNote("Import cancelled."); return; }
+              const wipeFollows = window.confirm("Also REPLACE all YouTube/Twitch follows with the file?\n\nOK = replace follows\nCancel = merge follows (recommended)");
+              const mode: LibraryPackMode = wipeFollows ? "replace-follows" : "merge";
+              void importLibraryPackZip(file, {
+                getFollows: () => useLibrary.getState().follows,
+                setFollows: (follows) => useLibrary.setState({ follows }),
+                getHistory: () => useLibrary.getState().history,
+                setHistory: (history) => useLibrary.setState({ history }),
+                getViewCounts: () => useLibrary.getState().viewCounts,
+                getCameCounts: () => useLibrary.getState().cameCounts,
+                setMarks: (viewCounts, cameCounts) => useLibrary.setState({ viewCounts, cameCounts }),
+                getFavorites: () => Object.keys(useLibrary.getState().favorites),
+                getLikes: () => Object.keys(useLibrary.getState().likes),
+                setShelves: (favorites, likes) => useLibrary.setState({
+                  favorites: Object.fromEntries(favorites.map((id) => [id, true as const])),
+                  likes: Object.fromEntries(likes.map((id) => [id, true as const])),
+                }),
+                getProgress: () => useLibrary.getState().progress,
+                getResumeProgress: () => useLibrary.getState().resumeProgress,
+                setResume: (progress, resumeProgress) => useLibrary.setState({ progress, resumeProgress }),
+                getLinks: () => linksFromHistoryAndResume(useLibrary.getState().history, useLibrary.getState().resumeProgress),
+                setLinks: () => { /* links persist via saveDurableLinks inside apply */ },
+              }, mode).then((result) => {
+                setServiceNote(`Pack import · +${result.followsAdded} follows · +${result.historyMerged} history · +${result.linksMerged} links${result.feedbackMerged ? " · ratings/hearts merged" : ""}${result.warnings.length ? ` · ${result.warnings[0]}` : ""}`);
+              }).catch((error) => {
+                setServiceNote(error instanceof Error ? error.message : "Library pack import failed.");
+              });
+            };
+            input.click();
+          }}><Upload className="size-4" /> Import library pack</Button>
+          <a className="inline-flex h-8 items-center rounded-md bg-bg/45 px-3 text-xs text-muted shadow-border hover:text-fg" href="/import-templates/README.md" target="_blank" rel="noreferrer">Open templates</a>
+        </div>
+        {serviceNote && <p className="mt-3 text-xs text-accent">{serviceNote}</p>}
+      </section>
       <section className="mt-6 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Connected services</p><h2 className="mt-2 font-display text-2xl text-fg">Independent caches, on your schedule.</h2><p className="mt-1 text-sm text-muted">Twitch and YouTube refresh together from your saved follows. Photo imports, Roku discovery, and Spotify remain independently local and refresh only when you ask.</p><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{[{ name: "YouTube", detail: "Saved channels", checked: remoteCheckedAt, action: async () => { const result = await refreshFollows(); setServiceNote(`Refreshed channel cache · ${result.newVideos.length} new items.`); } }, { name: "Twitch", detail: "Live + VOD cache", checked: remoteCheckedAt, action: async () => { const result = await refreshFollows(); setServiceNote(`Refreshed Twitch status · ${result.wentLive.length} channels live.`); } }, { name: "Photos", detail: `${folders.filter((folder) => folder.photoCount).length} source folders`, checked: Math.max(0, ...folders.map((folder) => folder.lastCheckedAt ?? 0)), action: async () => { const sources = folders.filter((folder) => folder.photoCount && (folder.kind === "directory" || folder.kind === "files")); const counts = await Promise.all(sources.map((folder) => refreshSourcePhotos(folder.id))); setServiceNote(`Refreshed local photo sources · ${counts.reduce((sum, count) => sum + count, 0)} photos found.`); } }, { name: "Roku", detail: "Companion-assisted", checked: 0, action: async () => { try { const res = await fetch("http://127.0.0.1:43123/roku/discover"); const data = await res.json() as { devices?: unknown[] }; setServiceNote(`Roku refresh complete · ${(data.devices ?? []).length} device(s) found.`); } catch { setServiceNote("Roku refresh needs the local Reelcase Companion running."); } } }, { name: "Spotify", detail: "Saved music shortcuts", checked: 0, action: async () => { setServiceNote("Spotify shortcuts are local and ready. Open Spotify from its library section to refresh provider content."); } }].map((service) => <div key={service.name} className="rounded-md bg-bg/45 p-3 shadow-border"><p className="text-sm font-medium text-fg">{service.name}</p><p className="mt-1 text-xs text-muted">{service.detail}</p><p className="mt-1 text-[11px] text-subtle">{service.checked ? `Last refreshed ${new Date(service.checked).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Not refreshed this session"}</p><Button size="sm" variant="secondary" className="mt-3" onClick={() => void service.action()}>Refresh</Button></div>)}</div>{serviceNote && <p className="mt-3 text-xs text-accent">{serviceNote}</p>}</section>
       <section className="mt-6"><div className="mb-3"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Device & performance</p><p className="mt-1 text-sm text-muted">The controls that change how Reelcase runs and fits your screen.</p></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-lg bg-elevated p-5 shadow-border">
