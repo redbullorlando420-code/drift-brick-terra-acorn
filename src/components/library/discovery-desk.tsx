@@ -70,7 +70,7 @@ export function RatingStreakCard() {
   </section>;
 }
 
-export function LiveDesk({ videos }: { videos: LibraryVideo[] }) {
+export function LiveDesk({ videos, adultLiveVideos = [] }: { videos: LibraryVideo[]; adultLiveVideos?: LibraryVideo[] }) {
   const favorites = useLibrary((s) => s.favorites);
   const likes = useLibrary((s) => s.likes);
   const refreshing = useLibrary((s) => s.refreshing);
@@ -95,10 +95,27 @@ export function LiveDesk({ videos }: { videos: LibraryVideo[] }) {
     { handle: "twitch", title: "Twitch" }, { handle: "eslcs", title: "ESL Counter-Strike" }, { handle: "gamesdonequick", title: "Games Done Quick" }, { handle: "otknetwork", title: "OTK Network" }, { handle: "criticalrole", title: "Critical Role" },
   ].filter((channel) => !follows.some((follow) => follow.kind === "twitch" && follow.handle.toLowerCase() === channel.handle));
   return <section>
-    <header className="mb-6 rounded-xl border border-border bg-surface p-5 sm:p-7"><p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-accent"><Radio className="size-4"/>On air</p><div className="mt-3 flex flex-wrap items-end justify-between gap-4"><div><h1 className="discovery-heading font-display">Your live control room.</h1><p className="mt-3 text-sm text-muted">{videos.length} confirmed live stream{videos.length === 1 ? "" : "s"} · {youtubeLiveCount} from YouTube · scheduled “waiting to go live” channels stay out · {checkedAt ? `Checked ${new Date(checkedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Waiting for first refresh"}</p></div><Button variant="secondary" disabled={refreshing} onClick={() => void refresh()}><RefreshCw className={refreshing ? "size-4 animate-spin" : "size-4"}/>{refreshing ? "Refreshing…" : "Refresh streams"}</Button></div>
+    <header className="mb-6 rounded-xl border border-border bg-surface p-5 sm:p-7"><p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-accent"><Radio className="size-4"/>On air</p><div className="mt-3 flex flex-wrap items-end justify-between gap-4"><div><h1 className="discovery-heading font-display">Your live control room.</h1><p className="mt-3 text-sm text-muted">{videos.length} confirmed live stream{videos.length === 1 ? "" : "s"} · {youtubeLiveCount} from YouTube · {adultLiveVideos.length} Adult live{adultLiveVideos.length === 1 ? "" : "s"} below · scheduled “waiting to go live” channels stay out · {checkedAt ? `Checked ${new Date(checkedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Waiting for first refresh"}</p></div><Button variant="secondary" disabled={refreshing} onClick={() => void refresh()}><RefreshCw className={refreshing ? "size-4 animate-spin" : "size-4"}/>{refreshing ? "Refreshing…" : "Refresh streams"}</Button></div>
     <div className="mt-6 flex flex-wrap gap-2">{[["all", "All streams"], ["favorites", "Favorites"], ["likes", "Liked"]].map(([value, label]) => <Button key={value} size="sm" variant={filter === value ? "default" : "secondary"} onClick={() => setFilter(value)}>{value === "favorites" ? <Heart className="size-4"/> : value === "likes" ? <ThumbsUp className="size-4"/> : null}{label}</Button>)}</div>
     <div className="mt-4 flex flex-wrap gap-3"><Input className="min-w-0 flex-1" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find a stream or creator" aria-label="Search live streams"/><select aria-label="Sort live streams" className="min-h-11 rounded-sm border border-border bg-elevated px-3 text-sm" value={sort} onChange={(event) => setSort(event.target.value)}><option value="favorites">Favorites first</option><option value="viewers">Most viewers</option><option value="name">Channel A–Z</option></select><select aria-label="Live card size" className="min-h-11 rounded-sm border border-border bg-elevated px-3 text-sm" value={columns} onChange={(event) => setColumns(Number(event.target.value))}><option value={3}>Large cards</option><option value={4}>Comfortable</option><option value={6}>Compact</option></select></div></header>
     {visible.length ? <div className={columns === 3 ? "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" : columns === 6 ? "grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-6" : "grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"}>{visible.slice(0, 120).map((video, index) => <VideoCard key={video.id} video={video} variant="rail" index={index} className="w-full"/>)}</div> : <div className="rounded-xl border border-border p-8 text-center"><h2 className="font-display text-2xl">{videos.length ? "No streams match this view" : "A quiet moment on your channels"}</h2><p className="mt-2 text-sm text-muted">{videos.length ? "Try all streams or a different search." : "Browse saved Twitch videos while you wait for the next stream."}</p><Button className="mt-4" variant="secondary" onClick={() => { if (videos.length) { setFilter("all"); setSearch(""); } else setSource("twitch"); }}>{videos.length ? "Reset filters" : "Browse Twitch"}</Button></div>}
     <section className="mt-8 rounded-xl border border-border bg-surface p-5"><p className="text-xs font-semibold uppercase tracking-widest text-accent">New live discovery</p><h2 className="mt-2 font-display text-2xl text-fg">Outside your followed channels.</h2><p className="mt-1 text-sm text-muted">These are public Twitch channels to explore separately from your saved feed. Following one adds it to Reelcase and immediately checks its current live status.</p><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{recommendedChannels.map((channel) => <div key={channel.handle} className="rounded-lg bg-elevated p-4 shadow-border"><p className="font-medium text-fg">{channel.title}</p><p className="mt-1 text-xs text-muted">twitch.tv/{channel.handle}</p><Button size="sm" className="mt-3" disabled={adding === channel.handle} onClick={() => void (async () => { setAdding(channel.handle); try { await followRemoteQuery(channel.handle, "twitch"); } finally { setAdding(""); } })()}>{adding === channel.handle ? "Checking…" : "Follow & check live"}</Button></div>)}</div></section>
+    <section className="mt-8 rounded-xl border border-accent/30 bg-elevated p-5 shadow-border">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-accent">Adult lives</p>
+          <h2 className="mt-2 font-display text-2xl text-fg">Chaturbate & MyFreeCams below YouTube / Twitch.</h2>
+          <p className="mt-1 text-sm text-muted">Same Live tab — public Adult rooms sit in a lower section so YT/Twitch stay first without hiding Adult lives in a separate hideaway.</p>
+        </div>
+        <Button size="sm" variant="secondary" onClick={() => setSource("adults")}>Open Adults live view</Button>
+      </div>
+      {adultLiveVideos.length ? (
+        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {adultLiveVideos.slice(0, 24).map((video, index) => <VideoCard key={video.id} video={video} variant="rail" index={index} className="w-full" />)}
+        </div>
+      ) : (
+        <p className="mt-4 rounded-md bg-bg/45 px-4 py-5 text-sm text-muted">No Adult live rooms are cached yet. Open Adults and pull Chaturbate or MyFreeCams to fill this section.</p>
+      )}
+    </section>
   </section>;
 }

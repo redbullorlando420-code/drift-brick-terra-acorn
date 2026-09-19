@@ -42,7 +42,8 @@ import { Input } from "@/components/ui/input";
 import { resumeForVideo, useLibrary } from "@/lib/videos/store";
 import { buildAdultStatsSnapshot, exportAdultStats } from "@/lib/videos/adult-stats";
 import { rankAdultTags } from "@/lib/videos/adult-rank";
-import { countAdultBySource } from "@/lib/videos/adult-filter";
+import { countAdultBySource, countAdultBooruHosts } from "@/lib/videos/adult-filter";
+import { isAdultImageKind } from "@/lib/videos/adult-sites";
 import { getThumbDiagnostics, useThumbs } from "@/lib/videos/thumbs";
 import { useSourceAssets } from "@/lib/source-assets";
 import { useP2PRoom } from "@/lib/multiplayer";
@@ -54,7 +55,7 @@ import { benchmarkVisionModelsLocally, classifyImagesLocally, VISION_MODELS, typ
 import { LOCAL_UPSCALER, upscaleImageLocally } from "@/lib/local-upscaler";
 import { getNetworkDeviceId, listNetworkDevices, type NetworkDevice } from "@/lib/network-presence";
 import type { LibraryVideo } from "@/lib/videos/types";
-import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { XTimeline } from "./x-timeline";
 import { X_ADULT_SEED_HANDLES } from "@/lib/videos/x-adult-seed-accounts";
@@ -376,6 +377,20 @@ export function StatsSection() {
     const sources = ranked.filter((row) => row.tag.startsWith("source-") || row.tag.startsWith("provider-") || row.tag.startsWith("sub-"));
     const bySource = countAdultBySource(adultVideos);
     const snapshot = buildAdultStatsSnapshot(videos, folders, tags, { favorites, likes, cameCounts, viewCounts, ratingOf: getRating });
+    const kindCounts = { videos: 0, live: 0, photos: 0 };
+    let adultViews = 0;
+    let adultWatchSeconds = 0;
+    let adultRated = 0;
+    for (const video of adultVideos) {
+      if (video.remote?.live || video.remote?.kind === "chaturbate" || video.remote?.kind === "myfreecams") kindCounts.live += 1;
+      else if (isAdultImageKind(video.remote?.kind, video.mime, video.extension)) kindCounts.photos += 1;
+      else kindCounts.videos += 1;
+      adultViews += viewCounts[video.id] ?? 0;
+      adultWatchSeconds += progress[video.id]?.t ?? resumeProgress[video.id]?.t ?? 0;
+      if (getRating(video.id) > 0) adultRated += 1;
+    }
+    const booruHosts = countAdultBooruHosts(adultVideos);
+    const historyAdult = history.filter((entry) => adultVideos.some((video) => video.id === entry.id)).length;
     return {
       adultTitles: adultVideos.length,
       sourceMix: Object.entries(bySource).filter(([, count]) => count > 0).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
@@ -393,8 +408,15 @@ export function StatsSection() {
       redditTags: snapshot.redditTags.slice(0, 12),
       tagConnections: snapshot.tagConnections.slice(0, 12),
       noisyTagAssignments: snapshot.noisyTagAssignments,
+      kindCounts,
+      booruHosts,
+      adultViews,
+      adultWatchHours: adultWatchSeconds / 3600,
+      adultRated,
+      historyAdult,
+      sparseTags: ranked.filter((row) => row.count === 1).length,
     };
-  }, [cameCounts, favorites, folders, likes, tags, videos, viewCounts]);
+  }, [cameCounts, favorites, folders, history, likes, progress, resumeProgress, tags, videos, viewCounts]);
     const favoriteHealth = useMemo(() => {
     const videoIds = new Set(videos.map((video) => video.id));
     const saved = Object.keys(favorites);
@@ -486,6 +508,30 @@ export function StatsSection() {
           <ResponsiveContainer width="100%" height="78%"><BarChart layout="vertical" margin={{ left: 16 }} data={adultTagStats.topFetish.slice(0, 8).map(([tag, count]) => ({ name: tag.replace(/^fetish-/, ""), titles: count }))}><XAxis type="number" stroke="currentColor" fontSize={12}/><YAxis type="category" dataKey="name" width={122} stroke="currentColor" fontSize={10}/><Tooltip/><Bar dataKey="titles" fill="var(--color-accent)" radius={4}/></BarChart></ResponsiveContainer>
         </div>
       </section>
+      <section className="mt-5 grid gap-5 xl:grid-cols-3">
+        <div className="h-72 rounded-lg bg-bg/45 p-4">
+          <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Adult media mix</p>
+          <p className="mt-1 text-xs text-muted">Videos, live rooms, and photos currently in the Adult catalog.</p>
+          <ResponsiveContainer width="100%" height="78%"><PieChart><Pie dataKey="value" nameKey="name" data={[{ name: "Videos", value: adultTagStats.kindCounts.videos }, { name: "Live", value: adultTagStats.kindCounts.live }, { name: "Photos", value: adultTagStats.kindCounts.photos }].filter((row) => row.value > 0)} innerRadius={42} outerRadius={72} paddingAngle={2}>{["var(--color-accent)", "var(--color-muted)", "#7c6cff"].map((color, index) => <Cell key={color} fill={color} />)}</Pie><Tooltip/></PieChart></ResponsiveContainer>
+        </div>
+        <div className="h-72 rounded-lg bg-bg/45 p-4">
+          <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Booru host mix</p>
+          <p className="mt-1 text-xs text-muted">Rule34 is listed first so its filter chip stays accountable.</p>
+          <ResponsiveContainer width="100%" height="78%"><BarChart data={adultTagStats.booruHosts.slice(0, 8).map((row) => ({ name: row.host, titles: row.count }))}><XAxis dataKey="name" stroke="currentColor" fontSize={10} interval={0} angle={-20} textAnchor="end" height={54}/><YAxis stroke="currentColor" fontSize={12}/><Tooltip/><Bar dataKey="titles" fill="var(--color-accent)" radius={4}/></BarChart></ResponsiveContainer>
+        </div>
+        <div className="rounded-lg bg-bg/45 p-4">
+          <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Adult engagement table</p>
+          <div className="mt-3 overflow-x-auto"><table className="w-full text-left text-xs"><thead><tr className="text-muted"><th className="py-1 pr-3 font-medium">Metric</th><th className="py-1 font-medium">Value</th></tr></thead><tbody className="text-fg">
+            <tr className="border-t border-border/60"><td className="py-1.5 pr-3">Local view events</td><td>{adultTagStats.adultViews.toLocaleString()}</td></tr>
+            <tr className="border-t border-border/60"><td className="py-1.5 pr-3">Resume watch time</td><td>{adultTagStats.adultWatchHours.toFixed(1)} h</td></tr>
+            <tr className="border-t border-border/60"><td className="py-1.5 pr-3">Rated titles</td><td>{adultTagStats.adultRated.toLocaleString()}</td></tr>
+            <tr className="border-t border-border/60"><td className="py-1.5 pr-3">History events</td><td>{adultTagStats.historyAdult.toLocaleString()}</td></tr>
+            <tr className="border-t border-border/60"><td className="py-1.5 pr-3">1-video tags ranked</td><td>{adultTagStats.sparseTags.toLocaleString()}</td></tr>
+            <tr className="border-t border-border/60"><td className="py-1.5 pr-3">Rule34 cards</td><td>{(adultTagStats.booruHosts.find((row) => row.host === "rule34")?.count ?? 0).toLocaleString()}</td></tr>
+          </tbody></table></div>
+        </div>
+      </section>
+      {adultTagStats.booruHosts.length > 0 && <div className="mt-4 overflow-x-auto rounded-md bg-bg/45 p-3"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Booru hosts</p><table className="mt-2 w-full min-w-[28rem] text-left text-xs"><thead><tr className="text-muted"><th className="py-1 pr-3">Host</th><th className="py-1 pr-3">Titles</th><th className="py-1">Share</th></tr></thead><tbody>{adultTagStats.booruHosts.map((row) => <tr key={row.host} className="border-t border-border/60 text-fg"><td className="py-1.5 pr-3 font-medium">{row.host}</td><td className="py-1.5 pr-3">{row.count.toLocaleString()}</td><td className="py-1.5">{adultTagStats.adultTitles ? `${Math.round(row.count / adultTagStats.adultTitles * 100)}%` : "—"}</td></tr>)}</tbody></table></div>}
       {(adultTagStats.genres.length > 0 || adultTagStats.metaTags.length > 0) && <div className="mt-4 grid gap-3 lg:grid-cols-2"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Mapped genres</p><div className="mt-2 flex flex-wrap gap-2">{adultTagStats.genres.map((row) => <span key={row.tag} className="rounded-full bg-bg/45 px-3 py-1 text-xs text-fg">{row.label} · {row.count}</span>)}</div></div><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Recommendation metatags</p><div className="mt-2 flex flex-wrap gap-2">{adultTagStats.metaTags.map((row) => <span key={row.tag} className="rounded-full bg-bg/45 px-3 py-1 text-xs text-fg">{row.tag.replace(/^meta-/, "").replace(/-/g, " ")} · {row.count}</span>)}</div></div></div>}
       <div className="mt-4 rounded-md bg-bg/45 p-3"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Tag health & connections</p><p className="mt-1 text-sm text-muted">{adultTagStats.tagQuality.usefulTagged.toLocaleString()} titles have a useful interest, averaging {adultTagStats.tagQuality.averageUsefulTags.toFixed(1)} interests per title. {adultTagStats.noisyTagAssignments ? `${adultTagStats.noisyTagAssignments.toLocaleString()} old parser-style labels are excluded from ranking.` : "No parser-style labels are influencing rankings."}</p></div><Button size="sm" variant="secondary" onClick={() => useLibrary.getState().autoTagLibrary()}>Repair Adult tags</Button></div>{adultTagStats.tagConnections.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{adultTagStats.tagConnections.map((connection) => <span key={`${connection.left}-${connection.right}`} className="rounded-full border border-border px-3 py-1 text-xs text-fg">#{connection.left} + #{connection.right} · {connection.count} · {connection.lift.toFixed(1)}× · {connection.providerCount} sources</span>)}</div>}</div>
       {adultTagStats.redditTags.length > 0 && <div className="mt-4 rounded-md bg-bg/45 p-3"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Reddit source coverage</p><p className="mt-1 text-sm text-muted">Your stored community tags are counted separately from generic Reddit labels, so favorites and source-list changes can guide future pulls.</p><div className="mt-3 flex flex-wrap gap-2">{adultTagStats.redditTags.map((row) => <span key={row.tag} className="rounded-full border border-border px-3 py-1 text-xs text-fg">#{row.tag.replace(/^sub-/, "")} · {row.count}</span>)}</div></div>}
@@ -1374,7 +1420,7 @@ export function PhotosSection() {
   const [photoScanFoundPhotos, setPhotoScanFoundPhotos] = useState(0);
   const [photoScanAverageMs, setPhotoScanAverageMs] = useState(0);
   const [photoMetadataProgress, setPhotoMetadataProgress] = useState({ total: 0, done: 0, startedAt: 0, running: false });
-  const [photoLimit, setPhotoLimit] = useState(80);
+  const [photoLimit, setPhotoLimit] = useState(48);
   const [visionBusy, setVisionBusy] = useState(false);
   const [visionProgress, setVisionProgress] = useState("");
   const [visionReport, setVisionReport] = useState<Array<{ id: string; name: string; labels: VisionLabel[] }>>([]);
@@ -1443,7 +1489,7 @@ export function PhotosSection() {
       if (!blob.size || blob.size > 750 * 1024 * 1024) throw new Error("Model size is outside the safe local cache budget");
       const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", await blob.arrayBuffer()))).map((part) => part.toString(16).padStart(2, "0")).join("");
       if (digest !== expected) throw new Error("Checksum mismatch — the model was not stored");
-      const cacheKey = "/reelcase-local-models/upscaler.onnx";
+      const cacheKey = LOCAL_UPSCALER.cacheKey;
       const cache = await caches.open("reelcase-local-models-v1");
       await cache.put(cacheKey, new Response(blob, { headers: { "content-type": blob.type || "application/octet-stream" } }));
       const name = new URL(url).pathname.split("/").pop() || "local-upscaler.onnx";

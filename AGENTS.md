@@ -1,10 +1,10 @@
 # Reelcase — PR living notes
 
-**PR** `perf/speed-memory-adult-apis` → `main` · App/section speed, memory bounds, more Adult APIs with solid preview thumbs.
+**PR** `perf/speed-memory-adult-apis` → `main` · Speed, memory, Adult API harden/backups, photos/models, Rule34 filters, Live Adult lives, richer Stats, tag-click fix.
 
 ## In progress
 
-Speed + memory + Adult API expansion without regressing prior Adult preview hardening.
+Continue doubling down on Adult/photo APIs without regressing preview/memory wins.
 
 ### Shipped this PR
 1. **Faster Adult first paint** — lower interactive/fast-start pull sizes and rail seed; tighter TitleRail/PosterGrid viewport margins and earlier offscreen unmount.
@@ -12,15 +12,27 @@ Speed + memory + Adult API expansion without regressing prior Adult preview hard
 3. **Catalog + history memory caps** — Adult catalog soft-capped at `adultTargetCatalogVideos`; in-memory history bounded via `historyMemoryEntries` (journal can still retain longer).
 4. **Thumb memory hygiene** — lower in-memory decoded-thumb ceiling; revoke `blob:` object URLs on eviction.
 5. **Tighter Adult thumb session maps** — smaller failed/good/by-video session caps.
-6. **Redgifs official API** — temporary-token search as primary (posters + media); AdultDataLink remains optional fallback when keyed.
+6. **Redgifs official API** — temporary-token search as primary (posters + media); AdultDataLink remains optional fallback when `ADULTDATALINK_API_KEY` / `ADL_API_KEY` is set.
 7. **e621 in Booru pulls** — documented JSON posts API with preview thumbs, shared into the booru shelf rotation.
-8. **Provider adapter notes** — Redgifs + Booru/e621 marked active public-api transports.
+8. **Rule34 JSON primary + HTML backup** — `api.rule34.xxx` dapi first; listing HTML remains failover. Double share so Rule34 shelves stay populated.
+9. **More booru hosts** — Gelbooru + Realbooru Gelbooru-style JSON added beside XBooru / TBIB / Hypnohub / e621.
+10. **Eporner backup path** — empty/failed primary order retries alternate sort + smaller page (no HTML scrape).
+11. **Rule34 / e621 / Gelbooru / Realbooru filter chips** — first-class Adults source filters + Rule34 shelf; host counts in Stats.
+12. **Reddit tighten** — priority media-heavy subs (incl. rule34) lead curated rotate; slightly fewer concurrent Atom fetches + longer cache TTL.
+13. **Tag click / sparse tags** — Adult card tag click sets Adults filter (clears search) so 1-video tags show; search exact-tag shortcut; ranking min count 1 with heart/video-score lift for sparse tags.
+14. **Live tab Adult lives** — Chaturbate/MFC block below YT/Twitch in Live desk.
+15. **Richer Stats** — Adult media pie, booru host bars/table, engagement table (views, resume hours, rated, history, sparse tags).
+16. **Photos AI models** — upscaler prefers Cache API / shipped `/models/swin2sr-x2-q4f16.onnx` before HF; SigLIP large+ revision pinned; Photos first paint limit 48.
+
+### Env / keys (no secrets in repo)
+- `ADULTDATALINK_API_KEY` or `ADL_API_KEY` — optional Redgifs secondary via AdultDataLink.
+- Local vision/upscaler models download to browser cache on user action; bundled Swin2SR artifact under `public/models/`.
 
 ### Still open
-- Soak test Redgifs temporary-token + e621 preview reliability under the session blacklist
+- Soak test Redgifs temporary-token + Rule34 JSON + e621 preview reliability under the session blacklist
 - Optional: additional documented tube APIs only when they expose stable public search + thumbs (no HTML scrape)
 
-Official public APIs + Reddit Atom only. 18+ only.
+Official public APIs + Reddit Atom only. 18+ only. No Pornhub scrape; no torrents.
 
 ---
 # App Builder Workspace

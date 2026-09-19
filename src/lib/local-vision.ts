@@ -26,6 +26,8 @@ export const VISION_MODELS = {
     name: "SigLIP large+",
     purpose: "Highest-detail browser semantic review",
     model: "Xenova/siglip-large-patch16-256",
+    // Pin the Transformers.js revision so Photos benchmarks stay reproducible.
+    revision: "main",
   },
 } as const;
 // CLIP scores candidates against each other. This is intentionally a concrete,
