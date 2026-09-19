@@ -2,10 +2,11 @@ import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
 import { L as isAdultImageKind } from "./adult-pull-cache-D3-4maho.mjs";
-import { $ as Gamepad2, A as Music2, C as Rocket, E as Play, G as Laptop, J as ImagePlus, K as Images, L as Maximize2, M as MonitorPlay, O as Pause, P as MessageCircle, St as Bot, T as Radio, U as Lightbulb, _ as Shuffle, _t as ChevronLeft, b as Settings2, bt as ChartColumn, f as Star, ft as Copy, gt as ChevronRight, k as PackageSearch, lt as ExternalLink, m as Smartphone, mt as Clapperboard, n as X, r as Wifi, s as Users, st as Eye, ut as Download, v as ShoppingBag, w as RefreshCw, x as Search, xt as Box, y as ShieldCheck } from "../_libs/lucide-react.mjs";
-import { A as measureInteraction, C as topicsForVideo, D as tagIsLiked, E as getRating, O as toggleTagLike, S as topicEvidence, T as getFeedbackDiagnostics, _ as resumeForVideo, a as buildAdultStatsSnapshot, b as canonicalTopic, c as countAdultBooruHosts, d as openTopic, f as VideoCard, g as Button, h as useThumbs, i as getFirstShelfTrace, j as __exportAll, k as getInteractionBudgetSnapshot, l as countAdultBySource, m as getThumbDiagnostics, n as getNetworkDeviceId, o as exportAdultStats, p as getRenderBudgetSnapshot, r as listNetworkDevices, s as rankAdultTags, u as Input, v as useLibrary, w as exportFeedback, x as isTopicTag, y as useSourceAssets } from "./routes-BIy9QlOL.mjs";
+import { $ as Gamepad2, A as Music2, C as Rocket, E as Play, G as Laptop, J as ImagePlus, K as Images, L as Maximize2, M as MonitorPlay, O as Pause, P as MessageCircle, St as Bot, T as Radio, U as Lightbulb, _ as Shuffle, _t as ChevronLeft, b as Settings2, bt as ChartColumn, c as Upload, f as Star, ft as Copy, gt as ChevronRight, k as PackageSearch, lt as ExternalLink, m as Smartphone, mt as Clapperboard, n as X, r as Wifi, s as Users, st as Eye, ut as Download, v as ShoppingBag, w as RefreshCw, x as Search, xt as Box, y as ShieldCheck } from "../_libs/lucide-react.mjs";
+import { A as toggleTagLike, B as __exportAll, C as topicEvidence, D as getRating, E as getFeedbackDiagnostics, F as saveDurableLinks, I as saveDurableMarks, L as saveDurableResume, M as measureInteraction, N as linksFromHistoryAndResume, O as importFeedback, P as saveDurableHistory, R as saveDurableShelves, S as isTopicTag, T as exportFeedback, _ as Button, a as adultStatsToCsv, b as useSourceAssets, c as rankAdultTags, d as Input, f as openTopic, g as useThumbs, h as getThumbDiagnostics, i as getFirstShelfTrace, j as getInteractionBudgetSnapshot, k as tagIsLiked, l as countAdultBooruHosts, m as getRenderBudgetSnapshot, n as getNetworkDeviceId, o as buildAdultStatsSnapshot, p as VideoCard, r as listNetworkDevices, s as exportAdultStats, u as countAdultBySource, v as resumeForVideo, w as topicsForVideo, x as canonicalTopic, y as useLibrary, z as saveFollows } from "./routes-DqMIPFyJ.mjs";
+import { i as zipSync, n as strToU8, r as unzipSync, t as strFromU8 } from "../_libs/fflate.mjs";
 import { a as Bar, c as ResponsiveContainer, i as XAxis, l as Tooltip, n as BarChart, o as Pie, r as YAxis, s as Cell, t as PieChart } from "../_libs/recharts+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/hub-sections-CUcL5tNG.js
+//#region node_modules/.nitro/vite/services/ssr/assets/hub-sections-WkvAufF_.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function TopicLinks({ explorer = false }) {
@@ -439,6 +440,554 @@ async function prunePrintBlobs() {
 			db.close();
 		}
 	} catch {}
+}
+var LIBRARY_PACK_ROOT = "reelcase-library-pack";
+function stamp() {
+	return (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+}
+function quoteCsv(value) {
+	return `"${String(value ?? "").replaceAll("\"", "\"\"")}"`;
+}
+function rowsToCsv(rows) {
+	return rows.map((row) => row.map(quoteCsv).join(",")).join("\n");
+}
+function parseCsv(text) {
+	const rows = [];
+	let row = [];
+	let cell = "";
+	let inQuotes = false;
+	for (let i = 0; i < text.length; i += 1) {
+		const ch = text[i];
+		if (inQuotes) {
+			if (ch === "\"" && text[i + 1] === "\"") {
+				cell += "\"";
+				i += 1;
+			} else if (ch === "\"") inQuotes = false;
+			else cell += ch;
+			continue;
+		}
+		if (ch === "\"") {
+			inQuotes = true;
+			continue;
+		}
+		if (ch === ",") {
+			row.push(cell);
+			cell = "";
+			continue;
+		}
+		if (ch === "\n") {
+			row.push(cell);
+			rows.push(row);
+			row = [];
+			cell = "";
+			continue;
+		}
+		if (ch === "\r") continue;
+		cell += ch;
+	}
+	if (cell.length || row.length) {
+		row.push(cell);
+		rows.push(row);
+	}
+	return rows.filter((r) => r.some((c) => c.trim().length));
+}
+function normalizeFollowRow(row) {
+	const kindRaw = String(row.kind ?? row.service ?? "").toLowerCase();
+	const kind = kindRaw === "twitch" || kindRaw === "youtube" ? kindRaw : null;
+	const handle = String(row.handle ?? row.channel ?? row.title ?? "").trim().replace(/^@/, "");
+	const id = String(row.id ?? "").trim() || (kind && handle ? `${kind === "twitch" ? "tw" : "yt"}:${handle}` : "");
+	const title = String(row.title ?? row.channel ?? handle).trim() || handle;
+	if (!kind || !handle) return null;
+	return {
+		id,
+		kind,
+		handle,
+		title,
+		...typeof row.channelId === "string" && row.channelId ? { channelId: row.channelId } : {},
+		...typeof row.thumb === "string" && row.thumb ? { thumb: row.thumb } : {}
+	};
+}
+function dedupeFollows(rows) {
+	const seen = /* @__PURE__ */ new Set();
+	return rows.filter((row) => {
+		const key = `${row.kind}:${row.handle.toLowerCase()}`;
+		if (seen.has(key)) return false;
+		seen.add(key);
+		return true;
+	});
+}
+function engagementSummary(input) {
+	const feedback = exportFeedback();
+	const rated = Object.keys(feedback.ratings).filter((id) => (feedback.ratings[id] ?? 0) > 0).length;
+	return {
+		at: (/* @__PURE__ */ new Date()).toISOString(),
+		follows: input.follows.length,
+		youtubeFollows: input.follows.filter((f) => f.kind === "youtube").length,
+		twitchFollows: input.follows.filter((f) => f.kind === "twitch").length,
+		historyEvents: input.history.length,
+		savedLinks: input.links.length,
+		favorites: input.favorites.length,
+		likes: input.likes.length,
+		titlesWithViews: Object.keys(input.viewCounts).length,
+		titlesWithCameMarks: Object.keys(input.cameCounts).length,
+		totalCameMarks: Object.values(input.cameCounts).reduce((a, b) => a + b, 0),
+		resumePointers: Object.keys(input.resumeProgress).length,
+		ratedTitles: rated
+	};
+}
+function packReadme() {
+	return `# Reelcase library pack
+
+Local-only backup / fill-in folder for YouTube & Twitch follows, watch history,
+saved video links, continue-watching pointers, favorites/likes, Adult marks,
+ratings & tag hearts, and Adult stats snapshots.
+
+No cloud. Nothing here uploads. Import **merges** by default so unrelated data
+is not wiped.
+
+## Folder layout
+
+\`\`\`
+${LIBRARY_PACK_ROOT}/
+  README.md
+  manifest.json
+  follows/
+    youtube.json
+    twitch.json
+    follows.csv
+  history/
+    history.json
+    history.csv
+  links/
+    links.json
+    links.csv
+  marks/
+    view-counts.json
+    came-counts.json
+    shelves.json
+    ratings.json
+    tag-hearts.json
+  resume/
+    resume.json
+  stats/
+    adult-stats.json
+    adult-stats.csv
+    engagement-summary.json
+\`\`\`
+
+## How to fill offline
+
+1. Copy \`public/import-templates/\` (or an exported zip) to your PC.
+2. Edit the JSON/CSV files in a spreadsheet or text editor.
+3. Zip the folder back to \`${LIBRARY_PACK_ROOT}.zip\` (keep the same paths).
+4. In Reelcase → **Settings** → **Import library pack**, choose the zip (or
+   individual files). Confirm only if you want to replace all follows.
+
+### follows/follows.csv
+Columns: \`kind,handle,title,channelId,id\`
+- \`kind\` must be \`youtube\` or \`twitch\`
+- \`handle\` is the channel handle (no @ required)
+- \`title\` is optional display name
+- \`channelId\` optional provider id
+
+### history/history.csv
+Columns: \`id,at,url,title,position,duration,source,eventId\`
+- \`at\` is epoch milliseconds
+- \`url\` keeps a recoverable link if the catalog card was pruned
+
+### links/links.csv
+Columns: \`id,url,title,kind,savedAt,source\`
+- \`source\` is \`history\`, \`bookmark\`, or \`continue\`
+
+### marks/
+- \`view-counts.json\` / \`came-counts.json\`: \`{ "video-id": 3 }\`
+- \`shelves.json\`: \`{ "favorites": ["id"], "likes": ["id"] }\`
+- \`ratings.json\`: \`{ "ratings": { "id": 5 }, "ratingHistory": { ... } }\`
+- \`tag-hearts.json\`: \`{ "tagLikes": { "fetish-foo": true }, "tagHeartHistory": { ... } }\`
+
+### resume/resume.json
+\`{ "progress": { "id": { "t": 12, "d": 100, "at": 0 } }, "resumeProgress": { "https://...": { "t": 12, "d": 100, "at": 0 } } }\`
+
+### stats/
+Adult stats are snapshots for backup/analysis. Importing stats does not rebuild
+the live Adult catalog; it is informational unless you also merge marks.
+
+## Durable stores (what Import writes)
+
+| Pack file | IndexedDB key (\`activity\`) | localStorage mirror |
+|---|---|---|
+| follows/* | \`follows\` | \`reelcase.follows.v1\` |
+| history/* | \`history\` | \`reelcase.history.v1\` |
+| resume/* | \`resume\` | \`reelcase.resume.v1\` |
+| marks/view+came | \`marks\` | \`reelcase.marks.v1\` |
+| marks/shelves | \`shelves\` | \`reelcase.shelves.v1\` |
+| links/* | \`links\` | \`reelcase.links.v1\` |
+| marks/ratings+hearts | \`feedback\` | \`reelcase.media-feedback.v1\` |
+
+Thumb prune, Adult catalog caps, and prefs QuotaExceeded never clear these keys.
+`;
+}
+function buildLibraryPackFiles(input) {
+	const youtube = input.follows.filter((f) => f.kind === "youtube");
+	const twitch = input.follows.filter((f) => f.kind === "twitch");
+	const feedback = exportFeedback();
+	const adultStats = input.adultStats ?? (input.adultVideos && input.folders && input.tags ? buildAdultStatsSnapshot(input.adultVideos, input.folders, input.tags, {
+		favorites: Object.fromEntries(input.favorites.map((id) => [id, true])),
+		likes: Object.fromEntries(input.likes.map((id) => [id, true])),
+		cameCounts: input.cameCounts,
+		viewCounts: input.viewCounts,
+		ratingOf: (id) => feedback.ratings[id] ?? 0
+	}) : void 0);
+	const files = {
+		[`${LIBRARY_PACK_ROOT}/README.md`]: packReadme(),
+		[`${LIBRARY_PACK_ROOT}/manifest.json`]: JSON.stringify({
+			version: 1,
+			exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
+			note: "Reelcase local library pack. Metadata only — no media files.",
+			counts: engagementSummary(input)
+		}, null, 2),
+		[`${LIBRARY_PACK_ROOT}/follows/youtube.json`]: JSON.stringify({
+			exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
+			channels: youtube
+		}, null, 2),
+		[`${LIBRARY_PACK_ROOT}/follows/twitch.json`]: JSON.stringify({
+			exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
+			channels: twitch
+		}, null, 2),
+		[`${LIBRARY_PACK_ROOT}/follows/follows.csv`]: rowsToCsv([[
+			"kind",
+			"handle",
+			"title",
+			"channelId",
+			"id"
+		], ...input.follows.map((f) => [
+			f.kind,
+			f.handle,
+			f.title,
+			f.channelId ?? "",
+			f.id
+		])]),
+		[`${LIBRARY_PACK_ROOT}/history/history.json`]: JSON.stringify({
+			exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
+			entries: input.history
+		}, null, 2),
+		[`${LIBRARY_PACK_ROOT}/history/history.csv`]: rowsToCsv([[
+			"id",
+			"at",
+			"url",
+			"title",
+			"position",
+			"duration",
+			"source",
+			"eventId"
+		], ...input.history.map((h) => [
+			h.id,
+			h.at,
+			h.url ?? "",
+			h.title ?? "",
+			h.position ?? "",
+			h.duration ?? "",
+			h.source ?? "",
+			h.eventId ?? ""
+		])]),
+		[`${LIBRARY_PACK_ROOT}/links/links.json`]: JSON.stringify({
+			exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
+			links: input.links
+		}, null, 2),
+		[`${LIBRARY_PACK_ROOT}/links/links.csv`]: rowsToCsv([[
+			"id",
+			"url",
+			"title",
+			"kind",
+			"savedAt",
+			"source"
+		], ...input.links.map((l) => [
+			l.id,
+			l.url,
+			l.title ?? "",
+			l.kind ?? "",
+			l.savedAt,
+			l.source
+		])]),
+		[`${LIBRARY_PACK_ROOT}/marks/view-counts.json`]: JSON.stringify(input.viewCounts, null, 2),
+		[`${LIBRARY_PACK_ROOT}/marks/came-counts.json`]: JSON.stringify(input.cameCounts, null, 2),
+		[`${LIBRARY_PACK_ROOT}/marks/shelves.json`]: JSON.stringify({
+			favorites: input.favorites,
+			likes: input.likes
+		}, null, 2),
+		[`${LIBRARY_PACK_ROOT}/marks/ratings.json`]: JSON.stringify({
+			ratings: feedback.ratings,
+			ratingHistory: feedback.ratingHistory,
+			notes: feedback.notes,
+			creatorRatings: feedback.creatorRatings,
+			creatorLikes: feedback.creatorLikes
+		}, null, 2),
+		[`${LIBRARY_PACK_ROOT}/marks/tag-hearts.json`]: JSON.stringify({
+			tagLikes: feedback.tagLikes,
+			tagHeartHistory: feedback.tagHeartHistory
+		}, null, 2),
+		[`${LIBRARY_PACK_ROOT}/resume/resume.json`]: JSON.stringify({
+			progress: input.progress,
+			resumeProgress: input.resumeProgress
+		}, null, 2),
+		[`${LIBRARY_PACK_ROOT}/stats/engagement-summary.json`]: JSON.stringify(engagementSummary(input), null, 2)
+	};
+	if (adultStats) {
+		files[`${LIBRARY_PACK_ROOT}/stats/adult-stats.json`] = JSON.stringify(adultStats, null, 2);
+		files[`${LIBRARY_PACK_ROOT}/stats/adult-stats.csv`] = adultStatsToCsv(adultStats);
+	}
+	return files;
+}
+function downloadLibraryPackZip(input) {
+	const files = buildLibraryPackFiles(input);
+	const zipped = zipSync(Object.fromEntries(Object.entries(files).map(([name, body]) => [name, strToU8(body)])), { level: 6 });
+	const url = URL.createObjectURL(new Blob([zipped.buffer.slice(zipped.byteOffset, zipped.byteOffset + zipped.byteLength)], { type: "application/zip" }));
+	const link = document.createElement("a");
+	link.href = url;
+	link.download = `${LIBRARY_PACK_ROOT}-${stamp()}.zip`;
+	link.click();
+	URL.revokeObjectURL(url);
+}
+function pathKey(name) {
+	return name.replace(/\\/g, "/").replace(/^\/+/, "");
+}
+function fileEndsWith(name, suffix) {
+	return pathKey(name).toLowerCase().endsWith(suffix.toLowerCase());
+}
+function readPackTextFiles(buffer) {
+	const unzipped = unzipSync(new Uint8Array(buffer));
+	const out = {};
+	for (const [name, bytes] of Object.entries(unzipped)) {
+		if (name.endsWith("/")) continue;
+		out[pathKey(name)] = strFromU8(bytes);
+	}
+	return out;
+}
+function collectFollows(files) {
+	const rows = [];
+	for (const [name, body] of Object.entries(files)) {
+		if (fileEndsWith(name, "follows.csv") || /follows\/.*\.csv$/i.test(name)) {
+			const table = parseCsv(body);
+			const header = table[0]?.map((h) => h.trim().toLowerCase()) ?? [];
+			for (const line of table.slice(1)) {
+				const rec = {};
+				header.forEach((key, i) => {
+					rec[key] = line[i];
+				});
+				const normalized = normalizeFollowRow(rec);
+				if (normalized) rows.push(normalized);
+			}
+		}
+		if (/follows\/.*\.json$/i.test(name) || fileEndsWith(name, "youtube.json") || fileEndsWith(name, "twitch.json") || fileEndsWith(name, "channels.json")) try {
+			const parsed = JSON.parse(body);
+			const list = Array.isArray(parsed) ? parsed : Array.isArray(parsed.channels) ? parsed.channels : [];
+			for (const item of list) {
+				if (!item || typeof item !== "object") continue;
+				const normalized = normalizeFollowRow(item);
+				if (normalized) rows.push(normalized);
+			}
+		} catch {}
+	}
+	return dedupeFollows(rows);
+}
+function collectHistory(files) {
+	const rows = [];
+	for (const [name, body] of Object.entries(files)) {
+		if (fileEndsWith(name, "history.json")) try {
+			const parsed = JSON.parse(body);
+			const list = Array.isArray(parsed) ? parsed : parsed.entries ?? [];
+			rows.push(...list);
+		} catch {}
+		if (fileEndsWith(name, "history.csv")) {
+			const table = parseCsv(body);
+			const header = table[0]?.map((h) => h.trim().toLowerCase()) ?? [];
+			for (const line of table.slice(1)) {
+				const rec = {};
+				header.forEach((key, i) => {
+					rec[key] = line[i] ?? "";
+				});
+				const id = rec.id?.trim();
+				const at = Number(rec.at);
+				if (!id || !Number.isFinite(at)) continue;
+				rows.push({
+					id,
+					at,
+					...rec.url ? { url: rec.url } : {},
+					...rec.title ? { title: rec.title } : {},
+					...rec.position ? { position: Number(rec.position) } : {},
+					...rec.duration ? { duration: Number(rec.duration) } : {},
+					...rec.source === "open" || rec.source === "progress" || rec.source === "watch-room" ? { source: rec.source } : {},
+					...rec.eventid ? { eventId: rec.eventid } : {}
+				});
+			}
+		}
+	}
+	return rows;
+}
+function collectLinks(files) {
+	const rows = [];
+	for (const [name, body] of Object.entries(files)) {
+		if (fileEndsWith(name, "links.json")) try {
+			const parsed = JSON.parse(body);
+			const list = Array.isArray(parsed) ? parsed : parsed.links ?? [];
+			rows.push(...list);
+		} catch {}
+		if (fileEndsWith(name, "links.csv")) {
+			const table = parseCsv(body);
+			const header = table[0]?.map((h) => h.trim().toLowerCase()) ?? [];
+			for (const line of table.slice(1)) {
+				const rec = {};
+				header.forEach((key, i) => {
+					rec[key] = line[i] ?? "";
+				});
+				if (!rec.url || !rec.id) continue;
+				const source = rec.source === "bookmark" || rec.source === "continue" ? rec.source : "history";
+				rows.push({
+					id: rec.id,
+					url: rec.url,
+					savedAt: Number(rec.savedat) || Date.now(),
+					source,
+					...rec.title ? { title: rec.title } : {},
+					...rec.kind ? { kind: rec.kind } : {}
+				});
+			}
+		}
+	}
+	return rows;
+}
+function asCountMap(raw) {
+	if (!raw || typeof raw !== "object") return {};
+	const out = {};
+	for (const [id, value] of Object.entries(raw)) if (typeof value === "number" && Number.isFinite(value) && value > 0) out[id] = Math.floor(value);
+	return out;
+}
+function mergeHistory(a, b) {
+	const rows = /* @__PURE__ */ new Map();
+	for (const entry of [...a, ...b]) {
+		if (!entry?.id || !Number.isFinite(entry.at)) continue;
+		const key = entry.eventId ?? `${entry.id}:${entry.at}:${entry.source ?? "open"}`;
+		if (!rows.has(key)) rows.set(key, entry);
+	}
+	return [...rows.values()].sort((left, right) => right.at - left.at);
+}
+function mergeCounts(a, b) {
+	const out = { ...a };
+	for (const [id, value] of Object.entries(b)) out[id] = Math.max(out[id] ?? 0, value);
+	return out;
+}
+/** Apply a zip or loose text map into durable stores via the provided hooks. */
+function applyLibraryPackFiles(files, hooks, mode = "merge") {
+	const warnings = [];
+	const filesRead = Object.keys(files);
+	const incomingFollows = collectFollows(files);
+	const incomingHistory = collectHistory(files);
+	const incomingLinks = collectLinks(files);
+	let followsAdded = 0;
+	if (incomingFollows.length) {
+		const current = hooks.getFollows();
+		const next = mode === "replace-follows" ? dedupeFollows(incomingFollows) : dedupeFollows([...incomingFollows, ...current]);
+		followsAdded = Math.max(0, next.length - current.length);
+		hooks.setFollows(next);
+		saveFollows(next);
+	}
+	let historyMerged = 0;
+	if (incomingHistory.length) {
+		const merged = mergeHistory(hooks.getHistory(), incomingHistory);
+		historyMerged = Math.max(0, merged.length - hooks.getHistory().length);
+		hooks.setHistory(merged);
+		saveDurableHistory(merged);
+	}
+	let linksMerged = 0;
+	if (incomingLinks.length) {
+		const byUrl = /* @__PURE__ */ new Map();
+		for (const link of [...hooks.getLinks(), ...incomingLinks]) byUrl.set(link.url.toLowerCase(), link);
+		const merged = [...byUrl.values()];
+		linksMerged = Math.max(0, merged.length - hooks.getLinks().length);
+		hooks.setLinks(merged);
+		saveDurableLinks(merged);
+	}
+	let marksMerged = 0;
+	let viewCounts = hooks.getViewCounts();
+	let cameCounts = hooks.getCameCounts();
+	for (const [name, body] of Object.entries(files)) {
+		if (fileEndsWith(name, "view-counts.json")) try {
+			viewCounts = mergeCounts(viewCounts, asCountMap(JSON.parse(body)));
+			marksMerged += 1;
+		} catch {
+			warnings.push(`Could not parse ${name}`);
+		}
+		if (fileEndsWith(name, "came-counts.json")) try {
+			cameCounts = mergeCounts(cameCounts, asCountMap(JSON.parse(body)));
+			marksMerged += 1;
+		} catch {
+			warnings.push(`Could not parse ${name}`);
+		}
+	}
+	if (marksMerged) {
+		hooks.setMarks(viewCounts, cameCounts);
+		saveDurableMarks(viewCounts, cameCounts);
+	}
+	let shelvesMerged = 0;
+	for (const [name, body] of Object.entries(files)) {
+		if (!fileEndsWith(name, "shelves.json")) continue;
+		try {
+			const parsed = JSON.parse(body);
+			const favorites = [.../* @__PURE__ */ new Set([...hooks.getFavorites(), ...parsed.favorites ?? []])];
+			const likes = [.../* @__PURE__ */ new Set([...hooks.getLikes(), ...parsed.likes ?? []])];
+			shelvesMerged = favorites.length + likes.length - hooks.getFavorites().length - hooks.getLikes().length;
+			hooks.setShelves(favorites, likes);
+			saveDurableShelves(favorites, likes);
+		} catch {
+			warnings.push(`Could not parse ${name}`);
+		}
+	}
+	let feedbackMerged = false;
+	let feedbackPartial = {};
+	for (const [name, body] of Object.entries(files)) if (fileEndsWith(name, "ratings.json") || fileEndsWith(name, "tag-hearts.json") || fileEndsWith(name, "feedback.json")) try {
+		feedbackPartial = {
+			...feedbackPartial,
+			...JSON.parse(body)
+		};
+		feedbackMerged = true;
+	} catch {
+		warnings.push(`Could not parse ${name}`);
+	}
+	if (feedbackMerged) importFeedback(feedbackPartial);
+	for (const [name, body] of Object.entries(files)) {
+		if (!fileEndsWith(name, "resume.json")) continue;
+		try {
+			const parsed = JSON.parse(body);
+			const progress = {
+				...hooks.getProgress(),
+				...parsed.progress ?? {}
+			};
+			const resumeProgress = {
+				...hooks.getResumeProgress(),
+				...parsed.resumeProgress ?? {}
+			};
+			hooks.setResume(progress, resumeProgress);
+			saveDurableResume(progress, resumeProgress);
+		} catch {
+			warnings.push(`Could not parse ${name}`);
+		}
+	}
+	if (!incomingFollows.length && !incomingHistory.length && !incomingLinks.length && !marksMerged && !shelvesMerged && !feedbackMerged) warnings.push("No recognized pack files were found. Expect follows/, history/, links/, marks/, or resume/ paths.");
+	return {
+		followsAdded,
+		historyMerged,
+		linksMerged,
+		marksMerged,
+		shelvesMerged,
+		feedbackMerged,
+		filesRead,
+		warnings
+	};
+}
+async function importLibraryPackZip(file, hooks, mode = "merge") {
+	const buffer = await file.arrayBuffer();
+	if (file.name.toLowerCase().endsWith(".zip") || file.type.includes("zip")) return applyLibraryPackFiles(readPackTextFiles(buffer), hooks, mode);
+	const text = strFromU8(new Uint8Array(buffer));
+	return applyLibraryPackFiles({ [file.name || "import.json"]: text }, hooks, mode);
 }
 var FAST_POLL_MS = 400;
 var IDLE_POLL_MS = 2e3;
@@ -1367,7 +1916,7 @@ var hub_sections_exports = /* @__PURE__ */ __exportAll({
 	WatchRoomSection: () => WatchRoomSection
 });
 var PrintModelViewer = (0, import_react.lazy)(async () => {
-	return { default: (await import("./print-model-viewer-DhPNrxE1.mjs")).PrintModelViewer };
+	return { default: (await import("./print-model-viewer-lyVdLc5a.mjs")).PrintModelViewer };
 });
 var HUB_KEY = "reelcase.hub.v1";
 function gameKind(item) {
@@ -4013,6 +4562,115 @@ function SettingsSection() {
 						})
 					]
 				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+						children: "Library pack · local folder"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+						className: "mt-2 font-display text-2xl text-fg",
+						children: "Export / import follows, history, links & marks"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						className: "mt-1 max-w-2xl text-sm text-muted",
+						children: [
+							"Downloads a zip that matches ",
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", {
+								className: "text-fg",
+								children: "public/import-templates/"
+							}),
+							": follows, watch history, saved video URLs, continue-watching pointers, favorites/likes, Adult marks, ratings & tag hearts, and stats. Import merges into durable IndexedDB stores and does not wipe unrelated data unless you confirm replace-follows."
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 flex flex-wrap gap-2",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+								onClick: () => {
+									const state = useLibrary.getState();
+									downloadLibraryPackZip({
+										follows: state.follows,
+										history: state.history,
+										links: linksFromHistoryAndResume(state.history, state.resumeProgress),
+										favorites: Object.keys(state.favorites),
+										likes: Object.keys(state.likes),
+										viewCounts: state.viewCounts,
+										cameCounts: state.cameCounts,
+										progress: state.progress,
+										resumeProgress: state.resumeProgress,
+										adultVideos: state.videos,
+										folders: state.folders,
+										tags: state.tags
+									});
+									setServiceNote("Library pack zip downloaded. Unzip to edit offline, or keep as backup.");
+								},
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Download, { className: "size-4" }), " Export library pack"]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+								variant: "secondary",
+								onClick: () => {
+									const input = document.createElement("input");
+									input.type = "file";
+									input.accept = ".zip,.json,.csv,application/zip,application/json,text/csv";
+									input.onchange = () => {
+										const file = input.files?.[0];
+										if (!file) return;
+										if (!window.confirm("Import this library pack into Reelcase?\n\nData merges into durable local stores. Unrelated data is kept.")) {
+											setServiceNote("Import cancelled.");
+											return;
+										}
+										importLibraryPackZip(file, {
+											getFollows: () => useLibrary.getState().follows,
+											setFollows: (follows) => useLibrary.setState({ follows }),
+											getHistory: () => useLibrary.getState().history,
+											setHistory: (history) => useLibrary.setState({ history }),
+											getViewCounts: () => useLibrary.getState().viewCounts,
+											getCameCounts: () => useLibrary.getState().cameCounts,
+											setMarks: (viewCounts, cameCounts) => useLibrary.setState({
+												viewCounts,
+												cameCounts
+											}),
+											getFavorites: () => Object.keys(useLibrary.getState().favorites),
+											getLikes: () => Object.keys(useLibrary.getState().likes),
+											setShelves: (favorites, likes) => useLibrary.setState({
+												favorites: Object.fromEntries(favorites.map((id) => [id, true])),
+												likes: Object.fromEntries(likes.map((id) => [id, true]))
+											}),
+											getProgress: () => useLibrary.getState().progress,
+											getResumeProgress: () => useLibrary.getState().resumeProgress,
+											setResume: (progress, resumeProgress) => useLibrary.setState({
+												progress,
+												resumeProgress
+											}),
+											getLinks: () => linksFromHistoryAndResume(useLibrary.getState().history, useLibrary.getState().resumeProgress),
+											setLinks: () => {}
+										}, window.confirm("Also REPLACE all YouTube/Twitch follows with the file?\n\nOK = replace follows\nCancel = merge follows (recommended)") ? "replace-follows" : "merge").then((result) => {
+											setServiceNote(`Pack import · +${result.followsAdded} follows · +${result.historyMerged} history · +${result.linksMerged} links${result.feedbackMerged ? " · ratings/hearts merged" : ""}${result.warnings.length ? ` · ${result.warnings[0]}` : ""}`);
+										}).catch((error) => {
+											setServiceNote(error instanceof Error ? error.message : "Library pack import failed.");
+										});
+									};
+									input.click();
+								},
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Upload, { className: "size-4" }), " Import library pack"]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", {
+								className: "inline-flex h-8 items-center rounded-md bg-bg/45 px-3 text-xs text-muted shadow-border hover:text-fg",
+								href: "/import-templates/README.md",
+								target: "_blank",
+								rel: "noreferrer",
+								children: "Open templates"
+							})
+						]
+					}),
+					serviceNote && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-3 text-xs text-accent",
+						children: serviceNote
+					})
+				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 				className: "mt-6 rounded-lg bg-elevated p-5 shadow-border",

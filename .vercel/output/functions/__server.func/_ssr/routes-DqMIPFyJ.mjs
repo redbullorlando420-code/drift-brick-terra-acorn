@@ -12,7 +12,7 @@ import { a as DialogPortal, i as DialogOverlay, n as DialogClose, o as DialogTit
 import { t as Root } from "../_libs/radix-ui__react-separator.mjs";
 import { a as Trigger, i as Root2, n as Item2, r as Portal2, t as Content2 } from "../_libs/@radix-ui/react-dropdown-menu+[...].mjs";
 import { i as SliderTrack, n as SliderRange, r as SliderThumb, t as Slider$1 } from "../_libs/@radix-ui/react-slider+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-BIy9QlOL.js
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-DqMIPFyJ.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var __defProp = Object.defineProperty;
@@ -225,6 +225,330 @@ async function restoreDurableFollows() {
 	}
 	durableFollows = merged;
 	return merged;
+}
+/** ----- Broader durable activity blobs (same pattern as follows) -----
+* Thumb prune, Adult catalog caps, and prefs QuotaExceeded must not wipe these.
+* Each key lives under ACTIVITY_STORE with a tiny localStorage mirror when helpful.
+*/
+var DURABLE_HISTORY_IDB_KEY = "history";
+var DURABLE_HISTORY_LS_KEY = "reelcase.history.v1";
+var DURABLE_RESUME_IDB_KEY = "resume";
+var DURABLE_RESUME_LS_KEY = "reelcase.resume.v1";
+var DURABLE_MARKS_IDB_KEY = "marks";
+var DURABLE_MARKS_LS_KEY = "reelcase.marks.v1";
+var DURABLE_SHELVES_IDB_KEY = "shelves";
+var DURABLE_SHELVES_LS_KEY = "reelcase.shelves.v1";
+var DURABLE_LINKS_IDB_KEY = "links";
+var DURABLE_LINKS_LS_KEY = "reelcase.links.v1";
+var DURABLE_FEEDBACK_IDB_KEY = "feedback";
+var DURABLE_FEEDBACK_LS_KEY = "reelcase.media-feedback.v1";
+var durableWriteChain = Promise.resolve();
+function putActivityBlob(key, payload) {
+	durableWriteChain = durableWriteChain.catch(() => void 0).then(async () => {
+		const db = await openDb();
+		try {
+			await new Promise((resolve, reject) => {
+				const tx = db.transaction(ACTIVITY_STORE, "readwrite");
+				tx.objectStore(ACTIVITY_STORE).put(payload, key);
+				tx.oncomplete = () => resolve();
+				tx.onerror = () => reject(tx.error);
+				tx.onabort = () => reject(tx.error);
+			});
+		} finally {
+			db.close();
+		}
+	});
+	return durableWriteChain;
+}
+async function getActivityBlob(key) {
+	const db = await openDb();
+	try {
+		return await new Promise((resolve, reject) => {
+			const req = db.transaction(ACTIVITY_STORE).objectStore(ACTIVITY_STORE).get(key);
+			req.onsuccess = () => resolve(req.result);
+			req.onerror = () => reject(req.error);
+		});
+	} finally {
+		db.close();
+	}
+}
+function readJsonLocal(key) {
+	try {
+		return JSON.parse(localStorage.getItem(key) ?? "null");
+	} catch {
+		return null;
+	}
+}
+function writeJsonLocal(key, value) {
+	try {
+		localStorage.setItem(key, JSON.stringify(value));
+	} catch {}
+}
+function normalizeHistoryEntries(raw) {
+	if (!Array.isArray(raw)) return [];
+	const out = [];
+	for (const row of raw) {
+		if (!row || typeof row !== "object") continue;
+		const rec = row;
+		const id = typeof rec.id === "string" ? rec.id.trim() : "";
+		const at = typeof rec.at === "number" && Number.isFinite(rec.at) ? rec.at : NaN;
+		if (!id || !Number.isFinite(at)) continue;
+		out.push({
+			id,
+			at,
+			...typeof rec.eventId === "string" ? { eventId: rec.eventId } : {},
+			...typeof rec.url === "string" ? { url: rec.url } : {},
+			...typeof rec.position === "number" ? { position: rec.position } : {},
+			...typeof rec.duration === "number" ? { duration: rec.duration } : {},
+			...rec.source === "open" || rec.source === "progress" || rec.source === "watch-room" ? { source: rec.source } : {},
+			...typeof rec.title === "string" ? { title: rec.title } : {},
+			...typeof rec.poster === "string" ? { poster: rec.poster } : {},
+			...typeof rec.rating === "number" ? { rating: rec.rating } : {}
+		});
+	}
+	return out;
+}
+function normalizeProgressMap(raw) {
+	if (!raw || typeof raw !== "object") return {};
+	const out = {};
+	for (const [id, value] of Object.entries(raw)) {
+		if (!value || typeof value !== "object") continue;
+		const rec = value;
+		const t = Number(rec.t);
+		const d = Number(rec.d);
+		const at = Number(rec.at);
+		if (!Number.isFinite(t) || !Number.isFinite(d) || !Number.isFinite(at) || d <= 0) continue;
+		out[id] = {
+			t,
+			d,
+			at
+		};
+	}
+	return out;
+}
+function normalizeStringList(raw) {
+	if (!Array.isArray(raw)) return [];
+	return [...new Set(raw.filter((item) => typeof item === "string" && item.trim().length > 0).map((item) => item.trim()))];
+}
+function normalizeLinks(raw) {
+	if (!Array.isArray(raw)) return [];
+	const out = [];
+	const seen = /* @__PURE__ */ new Set();
+	for (const row of raw) {
+		if (!row || typeof row !== "object") continue;
+		const rec = row;
+		const url = typeof rec.url === "string" ? rec.url.trim() : "";
+		const id = typeof rec.id === "string" ? rec.id.trim() : url;
+		if (!url || !id) continue;
+		const key = url.toLowerCase();
+		if (seen.has(key)) continue;
+		seen.add(key);
+		const source = rec.source === "bookmark" || rec.source === "continue" || rec.source === "history" ? rec.source : "history";
+		out.push({
+			id,
+			url,
+			savedAt: typeof rec.savedAt === "number" && Number.isFinite(rec.savedAt) ? rec.savedAt : Date.now(),
+			source,
+			...typeof rec.title === "string" ? { title: rec.title } : {},
+			...typeof rec.poster === "string" ? { poster: rec.poster } : {},
+			...typeof rec.kind === "string" ? { kind: rec.kind } : {}
+		});
+	}
+	return out;
+}
+/** Derive sticky video links from history + resume so Continue/recovery URLs survive catalog prune. */
+function linksFromHistoryAndResume(history, resumeProgress) {
+	const links = [];
+	for (const entry of history) {
+		if (!entry.url || !/^https?:\/\//i.test(entry.url)) continue;
+		links.push({
+			id: entry.id,
+			url: entry.url,
+			savedAt: entry.at,
+			source: "history",
+			...entry.title ? { title: entry.title } : {},
+			...entry.poster ? { poster: entry.poster } : {}
+		});
+	}
+	for (const [key, mark] of Object.entries(resumeProgress)) {
+		if (!key.startsWith("http")) continue;
+		links.push({
+			id: key,
+			url: key,
+			savedAt: mark.at,
+			source: "continue"
+		});
+	}
+	return normalizeLinks(links);
+}
+function saveDurableHistory(entries) {
+	if (typeof window === "undefined") return;
+	const payload = {
+		entries,
+		savedAt: Date.now()
+	};
+	writeJsonLocal(DURABLE_HISTORY_LS_KEY, {
+		entries: entries.slice(0, 120),
+		savedAt: payload.savedAt
+	});
+	putActivityBlob(DURABLE_HISTORY_IDB_KEY, payload).catch(() => void 0);
+}
+async function restoreDurableHistory() {
+	if (typeof window === "undefined") return [];
+	let fromIdb = [];
+	try {
+		const saved = await getActivityBlob(DURABLE_HISTORY_IDB_KEY);
+		if (Array.isArray(saved)) fromIdb = normalizeHistoryEntries(saved);
+		else if (saved && typeof saved === "object") fromIdb = normalizeHistoryEntries(saved.entries);
+	} catch {}
+	const lsRaw = readJsonLocal(DURABLE_HISTORY_LS_KEY);
+	const fromLs = Array.isArray(lsRaw) ? normalizeHistoryEntries(lsRaw) : normalizeHistoryEntries(lsRaw && typeof lsRaw === "object" ? lsRaw.entries : []);
+	return fromIdb.length >= fromLs.length ? fromIdb : fromLs;
+}
+function saveDurableResume(progress, resumeProgress) {
+	if (typeof window === "undefined") return;
+	const payload = {
+		progress,
+		resumeProgress,
+		savedAt: Date.now()
+	};
+	const resumeKeys = Object.keys(resumeProgress);
+	const slimResume = {};
+	for (const key of resumeKeys.slice(-200)) slimResume[key] = resumeProgress[key];
+	writeJsonLocal(DURABLE_RESUME_LS_KEY, {
+		progress: {},
+		resumeProgress: slimResume,
+		savedAt: payload.savedAt
+	});
+	putActivityBlob(DURABLE_RESUME_IDB_KEY, payload).catch(() => void 0);
+}
+async function restoreDurableResume() {
+	if (typeof window === "undefined") return {
+		progress: {},
+		resumeProgress: {}
+	};
+	let fromIdb;
+	try {
+		fromIdb = await getActivityBlob(DURABLE_RESUME_IDB_KEY);
+	} catch {}
+	const fromLs = readJsonLocal(DURABLE_RESUME_LS_KEY);
+	return {
+		progress: {
+			...normalizeProgressMap(fromLs?.progress),
+			...normalizeProgressMap(fromIdb?.progress)
+		},
+		resumeProgress: {
+			...normalizeProgressMap(fromLs?.resumeProgress),
+			...normalizeProgressMap(fromIdb?.resumeProgress)
+		}
+	};
+}
+function saveDurableMarks(viewCounts, cameCounts) {
+	if (typeof window === "undefined") return;
+	const payload = {
+		viewCounts: asCountMap(viewCounts),
+		cameCounts: asCountMap(cameCounts),
+		savedAt: Date.now()
+	};
+	writeJsonLocal(DURABLE_MARKS_LS_KEY, payload);
+	putActivityBlob(DURABLE_MARKS_IDB_KEY, payload).catch(() => void 0);
+}
+async function restoreDurableMarks() {
+	if (typeof window === "undefined") return {
+		viewCounts: {},
+		cameCounts: {}
+	};
+	let fromIdb;
+	try {
+		fromIdb = await getActivityBlob(DURABLE_MARKS_IDB_KEY);
+	} catch {}
+	const fromLs = readJsonLocal(DURABLE_MARKS_LS_KEY);
+	const mergeCounts = (a = {}, b = {}) => {
+		const out = { ...a };
+		for (const [id, value] of Object.entries(b)) out[id] = Math.max(out[id] ?? 0, value);
+		return out;
+	};
+	return {
+		viewCounts: mergeCounts(asCountMap(fromLs?.viewCounts), asCountMap(fromIdb?.viewCounts)),
+		cameCounts: mergeCounts(asCountMap(fromLs?.cameCounts), asCountMap(fromIdb?.cameCounts))
+	};
+}
+function saveDurableShelves(favorites, likes) {
+	if (typeof window === "undefined") return;
+	const payload = {
+		favorites: normalizeStringList(favorites),
+		likes: normalizeStringList(likes),
+		savedAt: Date.now()
+	};
+	writeJsonLocal(DURABLE_SHELVES_LS_KEY, payload);
+	putActivityBlob(DURABLE_SHELVES_IDB_KEY, payload).catch(() => void 0);
+}
+async function restoreDurableShelves() {
+	if (typeof window === "undefined") return {
+		favorites: [],
+		likes: []
+	};
+	let fromIdb;
+	try {
+		fromIdb = await getActivityBlob(DURABLE_SHELVES_IDB_KEY);
+	} catch {}
+	const fromLs = readJsonLocal(DURABLE_SHELVES_LS_KEY);
+	return {
+		favorites: [.../* @__PURE__ */ new Set([...normalizeStringList(fromIdb?.favorites), ...normalizeStringList(fromLs?.favorites)])],
+		likes: [.../* @__PURE__ */ new Set([...normalizeStringList(fromIdb?.likes), ...normalizeStringList(fromLs?.likes)])]
+	};
+}
+function saveDurableLinks(links) {
+	if (typeof window === "undefined") return;
+	const payload = {
+		links: normalizeLinks(links),
+		savedAt: Date.now()
+	};
+	writeJsonLocal(DURABLE_LINKS_LS_KEY, {
+		links: payload.links.slice(0, 200),
+		savedAt: payload.savedAt
+	});
+	putActivityBlob(DURABLE_LINKS_IDB_KEY, payload).catch(() => void 0);
+}
+async function restoreDurableLinks() {
+	if (typeof window === "undefined") return [];
+	let fromIdb = [];
+	try {
+		fromIdb = normalizeLinks((await getActivityBlob(DURABLE_LINKS_IDB_KEY))?.links);
+	} catch {}
+	const fromLs = normalizeLinks(readJsonLocal(DURABLE_LINKS_LS_KEY)?.links);
+	return normalizeLinks([...fromIdb, ...fromLs]);
+}
+function saveDurableFeedback(feedback) {
+	if (typeof window === "undefined") return;
+	const payload = {
+		...feedback,
+		savedAt: Date.now()
+	};
+	writeJsonLocal(DURABLE_FEEDBACK_LS_KEY, feedback);
+	putActivityBlob(DURABLE_FEEDBACK_IDB_KEY, payload).catch(() => void 0);
+}
+async function restoreDurableFeedback() {
+	if (typeof window === "undefined") return null;
+	let fromIdb;
+	try {
+		fromIdb = await getActivityBlob(DURABLE_FEEDBACK_IDB_KEY);
+	} catch {}
+	const fromLs = readJsonLocal(DURABLE_FEEDBACK_LS_KEY);
+	if (!fromIdb && !fromLs) return null;
+	const pick = (a, b) => ({
+		...b ?? {},
+		...a ?? {}
+	});
+	return {
+		ratings: pick(fromIdb?.ratings, fromLs?.ratings),
+		ratingHistory: pick(fromIdb?.ratingHistory, fromLs?.ratingHistory),
+		notes: pick(fromIdb?.notes, fromLs?.notes),
+		creatorRatings: pick(fromIdb?.creatorRatings, fromLs?.creatorRatings),
+		creatorLikes: pick(fromIdb?.creatorLikes, fromLs?.creatorLikes),
+		tagLikes: pick(fromIdb?.tagLikes, fromLs?.tagLikes),
+		tagHeartHistory: pick(fromIdb?.tagHeartHistory, fromLs?.tagHeartHistory)
+	};
 }
 var TAG_EDITS_KEY = "reelcase.tag-edits.v1";
 var HISTORY_PENDING_KEY = "reelcase.history-pending.v1";
@@ -853,6 +1177,406 @@ function measureInteraction(kind) {
 function getInteractionBudgetSnapshot() {
 	return Object.fromEntries(Object.entries(samples).map(([kind, sample]) => [kind, { ...sample }]));
 }
+var KEY$1 = "reelcase.rating-streaks.v1";
+var GOAL_KEY = "reelcase.rating-weekly-goal.v1";
+var DEFAULT_WEEKLY_GOAL = 5;
+var RATING_GOALS = [
+	3,
+	5,
+	10
+];
+function weeklyGoal() {
+	try {
+		const saved = Number(localStorage.getItem(GOAL_KEY) ?? DEFAULT_WEEKLY_GOAL);
+		return RATING_GOALS.includes(saved) ? saved : DEFAULT_WEEKLY_GOAL;
+	} catch {
+		return DEFAULT_WEEKLY_GOAL;
+	}
+}
+function setRatingWeeklyGoal(goal) {
+	if (!RATING_GOALS.includes(goal) || typeof window === "undefined") return;
+	try {
+		localStorage.setItem(GOAL_KEY, String(goal));
+	} catch {}
+	window.dispatchEvent(new Event("reelcase:rating-streak-change"));
+}
+function dayKey(at = /* @__PURE__ */ new Date()) {
+	return `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, "0")}-${String(at.getDate()).padStart(2, "0")}`;
+}
+function weekKey(at = /* @__PURE__ */ new Date()) {
+	const date = new Date(at);
+	date.setHours(0, 0, 0, 0);
+	date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
+	const firstThursday = new Date(date.getFullYear(), 0, 4);
+	const week = 1 + Math.round(((date.getTime() - firstThursday.getTime()) / 864e5 - 3 + (firstThursday.getDay() + 6) % 7) / 7);
+	return `${date.getFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+function read$1() {
+	try {
+		const saved = JSON.parse(localStorage.getItem(KEY$1) ?? "[]");
+		return Array.isArray(saved) ? saved.filter((row) => typeof row?.day === "string" && Array.isArray(row?.ids)).slice(-400) : [];
+	} catch {
+		return [];
+	}
+}
+function write$1(days) {
+	try {
+		localStorage.setItem(KEY$1, JSON.stringify(days.slice(-400)));
+	} catch {}
+}
+/** Rebuild current-week progress from the durable feedback ledger. Older
+* versions saved the rating but did not always update this lightweight UI
+* counter, especially after a refresh or browser restore. */
+function reconcileRatingLedger(days) {
+	try {
+		const feedback = JSON.parse(localStorage.getItem("reelcase.media-feedback.v1") ?? "{}");
+		for (const [id, row] of Object.entries(feedback.ratingHistory ?? {})) {
+			if (!(Number(row.rating) > 0) || !Number.isFinite(Number(row.updatedAt))) continue;
+			const day = dayKey(new Date(Number(row.updatedAt)));
+			const target = days.find((entry) => entry.day === day);
+			if (target) {
+				if (!target.ids.includes(id)) target.ids.push(id);
+			} else days.push({
+				day,
+				ids: [id]
+			});
+		}
+		const today = dayKey();
+		const target = days.find((entry) => entry.day === today) ?? (() => {
+			const created = {
+				day: today,
+				ids: []
+			};
+			days.push(created);
+			return created;
+		})();
+		for (const [id, rating] of Object.entries(feedback.ratings ?? {})) if (Number(rating) > 0 && !(id in (feedback.ratingHistory ?? {})) && !target.ids.includes(id)) target.ids.push(id);
+	} catch {}
+	return days;
+}
+function recordRatingForStreak(id, rating) {
+	if (!id || typeof window === "undefined") return;
+	const days = read$1();
+	const today = dayKey();
+	const row = days.find((entry) => entry.day === today);
+	if (rating >= 1) {
+		if (row) {
+			if (!row.ids.includes(id)) row.ids.push(id);
+		} else days.push({
+			day: today,
+			ids: [id]
+		});
+	} else if (row) row.ids = row.ids.filter((saved) => saved !== id);
+	write$1(days);
+	window.dispatchEvent(new Event("reelcase:rating-streak-change"));
+}
+function getRatingStreakSnapshot(now = /* @__PURE__ */ new Date()) {
+	const days = reconcileRatingLedger(read$1());
+	write$1(days);
+	const weeklyGoalValue = weeklyGoal();
+	const currentWeek = weekKey(now);
+	const weekTotals = /* @__PURE__ */ new Map();
+	for (const row of days) {
+		const key = weekKey(/* @__PURE__ */ new Date(`${row.day}T12:00:00`));
+		const ids = weekTotals.get(key) ?? /* @__PURE__ */ new Set();
+		for (const id of row.ids) ids.add(id);
+		weekTotals.set(key, ids);
+	}
+	const thisWeek = weekTotals.get(currentWeek)?.size ?? 0;
+	let weeklyStreak = 0;
+	const cursor = new Date(now);
+	while (true) {
+		if ((weekTotals.get(weekKey(cursor))?.size ?? 0) < weeklyGoalValue) break;
+		weeklyStreak += 1;
+		cursor.setDate(cursor.getDate() - 7);
+	}
+	const rewards = [
+		{
+			label: "First impression",
+			earned: thisWeek >= 1,
+			detail: "Rate one title this week."
+		},
+		{
+			label: "Weekly curator",
+			earned: thisWeek >= weeklyGoalValue,
+			detail: `Rate ${weeklyGoalValue} distinct titles this week.`
+		},
+		{
+			label: "Two-week rhythm",
+			earned: weeklyStreak >= 2,
+			detail: "Complete your weekly goal two weeks in a row."
+		}
+	];
+	const next = rewards.find((reward) => !reward.earned);
+	return {
+		weekKey: currentWeek,
+		thisWeek,
+		weeklyGoal: weeklyGoalValue,
+		weeklyStreak,
+		nextReward: next ? next.detail : "All current local rewards earned.",
+		rewards
+	};
+}
+var KEY = "reelcase.media-feedback.v1";
+var cached = null;
+var changeTimer;
+var persistTimer$1;
+var lastRatingQueueMs = 0;
+var lastPersistMs = 0;
+var pendingWrites = 0;
+var legacyRatings = /* @__PURE__ */ new Map();
+var legacyScan;
+/** Read old per-title ratings once, in small batches, rather than doing a
+* synchronous storage lookup for every unscored title during recommendation. */
+async function rankingFeedbackSnapshot() {
+	if (typeof window !== "undefined") {
+		legacyScan ??= (async () => {
+			try {
+				for (let index = 0; index < localStorage.length; index++) {
+					const key = localStorage.key(index);
+					if (key?.startsWith("reelcase.rating.")) {
+						const id = key.slice(16);
+						if (!legacyRatings.has(id)) {
+							const value = Number(localStorage.getItem(key));
+							legacyRatings.set(id, Number.isFinite(value) ? value : 0);
+						}
+					}
+					if (index % 100 === 99) await new Promise((resolve) => window.setTimeout(resolve, 0));
+				}
+			} catch {}
+		})();
+		await legacyScan;
+	}
+	const feedback = read();
+	return {
+		ratings: {
+			...Object.fromEntries(legacyRatings),
+			...feedback.ratings
+		},
+		heartedTags: Object.keys(feedback.tagLikes),
+		historicTags: Object.keys(feedback.tagHeartHistory)
+	};
+}
+var feedbackHydrated = false;
+function read() {
+	if (cached) return cached;
+	try {
+		const saved = JSON.parse(localStorage.getItem(KEY) ?? "{}");
+		cached = {
+			ratings: saved.ratings ?? {},
+			ratingHistory: saved.ratingHistory ?? {},
+			notes: saved.notes ?? {},
+			creatorRatings: saved.creatorRatings ?? {},
+			creatorLikes: saved.creatorLikes ?? {},
+			tagLikes: saved.tagLikes ?? {},
+			tagHeartHistory: saved.tagHeartHistory ?? {}
+		};
+	} catch {
+		cached = {
+			ratings: {},
+			ratingHistory: {},
+			notes: {},
+			creatorRatings: {},
+			creatorLikes: {},
+			tagLikes: {},
+			tagHeartHistory: {}
+		};
+	}
+	return cached;
+}
+/** Merge IndexedDB feedback backup once so QuotaExceeded on localStorage cannot erase ratings/hearts. */
+async function hydrateDurableFeedback() {
+	if (typeof window === "undefined" || feedbackHydrated) return;
+	feedbackHydrated = true;
+	const durable = await restoreDurableFeedback().catch(() => null);
+	if (!durable) return;
+	const current = read();
+	cached = {
+		ratings: {
+			...durable.ratings,
+			...current.ratings
+		},
+		ratingHistory: {
+			...durable.ratingHistory,
+			...current.ratingHistory
+		},
+		notes: {
+			...durable.notes,
+			...current.notes
+		},
+		creatorRatings: {
+			...durable.creatorRatings,
+			...current.creatorRatings
+		},
+		creatorLikes: {
+			...durable.creatorLikes,
+			...current.creatorLikes
+		},
+		tagLikes: {
+			...durable.tagLikes,
+			...current.tagLikes
+		},
+		tagHeartHistory: {
+			...durable.tagHeartHistory,
+			...current.tagHeartHistory
+		}
+	};
+	notifyChange();
+}
+function persist() {
+	persistTimer$1 = void 0;
+	const started = typeof performance !== "undefined" ? performance.now() : Date.now();
+	try {
+		if (cached) localStorage.setItem(KEY, JSON.stringify(cached));
+	} catch {} finally {
+		lastPersistMs = Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - started);
+		pendingWrites = 0;
+	}
+	if (cached) saveDurableFeedback(cached);
+}
+/** Finish a queued rating write before a reload, tab close, or mobile app switch. */
+function flush() {
+	if (persistTimer$1 !== void 0) window.clearTimeout(persistTimer$1);
+	persist();
+}
+if (typeof window !== "undefined") {
+	window.addEventListener("pagehide", flush);
+	document.addEventListener("visibilitychange", () => {
+		if (document.visibilityState === "hidden") flush();
+	});
+}
+function write(next) {
+	cached = next;
+	if (typeof window === "undefined") return;
+	pendingWrites = 1;
+	if (persistTimer$1) window.clearTimeout(persistTimer$1);
+	persistTimer$1 = window.setTimeout(persist, 90);
+}
+function notifyChange() {
+	if (typeof window === "undefined" || changeTimer) return;
+	changeTimer = window.setTimeout(() => {
+		changeTimer = void 0;
+		window.dispatchEvent(new Event("reelcase:rating-change"));
+	}, 48);
+}
+function getRating(id) {
+	const value = read().ratings[id];
+	if (Number.isFinite(value)) return value;
+	if (typeof window === "undefined") return 0;
+	const known = legacyRatings.get(id);
+	if (known !== void 0) return known;
+	let legacy = 0;
+	try {
+		legacy = Number(localStorage.getItem(`reelcase.rating.${id}`) ?? 0);
+	} catch {}
+	const rating = Number.isFinite(legacy) ? legacy : 0;
+	legacyRatings.set(id, rating);
+	return rating;
+}
+function setRating(id, rating) {
+	const started = typeof performance !== "undefined" ? performance.now() : Date.now();
+	const next = read();
+	next.ratings[id] = Math.max(0, Math.min(5, Math.round(rating)));
+	next.ratingHistory[id] = {
+		rating: next.ratings[id],
+		updatedAt: Date.now()
+	};
+	legacyRatings.set(id, next.ratings[id]);
+	recordRatingForStreak(id, next.ratings[id]);
+	write(next);
+	notifyChange();
+	lastRatingQueueMs = Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - started);
+}
+/** Local timing only. This never transmits library feedback or usage data. */
+function getFeedbackDiagnostics() {
+	return {
+		lastRatingQueueMs,
+		lastPersistMs,
+		pendingWrites
+	};
+}
+function creatorKey(name) {
+	return name.trim().toLowerCase();
+}
+function getCreatorRating(name) {
+	return read().creatorRatings[creatorKey(name)] ?? 0;
+}
+function setCreatorRating(name, rating) {
+	const next = read();
+	next.creatorRatings[creatorKey(name)] = Math.max(0, Math.min(5, Math.round(rating)));
+	write(next);
+	notifyChange();
+}
+function creatorIsLiked(name) {
+	return Boolean(read().creatorLikes[creatorKey(name)]);
+}
+function toggleCreatorLike(name) {
+	const next = read();
+	const key = creatorKey(name);
+	if (next.creatorLikes[key]) delete next.creatorLikes[key];
+	else next.creatorLikes[key] = true;
+	write(next);
+	notifyChange();
+}
+function tagKey(tag) {
+	return tag.trim().toLowerCase();
+}
+function tagIsLiked(tag) {
+	return Boolean(read().tagLikes[tagKey(tag)]);
+}
+function tagHasHeartHistory(tag) {
+	return Boolean(read().tagHeartHistory[tagKey(tag)]);
+}
+function getHeartedTagHistory() {
+	return Object.keys(read().tagHeartHistory).sort((a, b) => (read().tagHeartHistory[b] ?? 0) - (read().tagHeartHistory[a] ?? 0));
+}
+function toggleTagLike(tag) {
+	const next = read();
+	const key = tagKey(tag);
+	if (next.tagLikes[key]) delete next.tagLikes[key];
+	else {
+		next.tagLikes[key] = true;
+		next.tagHeartHistory[key] ??= Date.now();
+	}
+	write(next);
+	notifyChange();
+}
+/** Versioned rating/note payload used by the full library backup. */
+function exportFeedback() {
+	return {
+		version: 4,
+		...read()
+	};
+}
+function getNote(id) {
+	const value = read().notes[id];
+	if (typeof value === "string") return value;
+	try {
+		return localStorage.getItem(`reelcase.note.${id}`) ?? "";
+	} catch {
+		return "";
+	}
+}
+function setNote(id, note) {
+	const next = read();
+	if (note.trim()) next.notes[id] = note.trim();
+	else delete next.notes[id];
+	write(next);
+}
+/** Merge an imported feedback payload without wiping unrelated keys. */
+function importFeedback(partial) {
+	const next = read();
+	if (partial.ratings) Object.assign(next.ratings, partial.ratings);
+	if (partial.ratingHistory) Object.assign(next.ratingHistory, partial.ratingHistory);
+	if (partial.notes) Object.assign(next.notes, partial.notes);
+	if (partial.creatorRatings) Object.assign(next.creatorRatings, partial.creatorRatings);
+	if (partial.creatorLikes) Object.assign(next.creatorLikes, partial.creatorLikes);
+	if (partial.tagLikes) Object.assign(next.tagLikes, partial.tagLikes);
+	if (partial.tagHeartHistory) Object.assign(next.tagHeartHistory, partial.tagHeartHistory);
+	write(next);
+	notifyChange();
+	flush();
+}
 function cn(...inputs) {
 	return twMerge(clsx(inputs));
 }
@@ -1412,351 +2136,6 @@ async function requestDirPermission(handle) {
 	if (typeof h.requestPermission !== "function") return false;
 	return await h.requestPermission({ mode: "read" }) === "granted";
 }
-var KEY$1 = "reelcase.rating-streaks.v1";
-var GOAL_KEY = "reelcase.rating-weekly-goal.v1";
-var DEFAULT_WEEKLY_GOAL = 5;
-var RATING_GOALS = [
-	3,
-	5,
-	10
-];
-function weeklyGoal() {
-	try {
-		const saved = Number(localStorage.getItem(GOAL_KEY) ?? DEFAULT_WEEKLY_GOAL);
-		return RATING_GOALS.includes(saved) ? saved : DEFAULT_WEEKLY_GOAL;
-	} catch {
-		return DEFAULT_WEEKLY_GOAL;
-	}
-}
-function setRatingWeeklyGoal(goal) {
-	if (!RATING_GOALS.includes(goal) || typeof window === "undefined") return;
-	try {
-		localStorage.setItem(GOAL_KEY, String(goal));
-	} catch {}
-	window.dispatchEvent(new Event("reelcase:rating-streak-change"));
-}
-function dayKey(at = /* @__PURE__ */ new Date()) {
-	return `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, "0")}-${String(at.getDate()).padStart(2, "0")}`;
-}
-function weekKey(at = /* @__PURE__ */ new Date()) {
-	const date = new Date(at);
-	date.setHours(0, 0, 0, 0);
-	date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
-	const firstThursday = new Date(date.getFullYear(), 0, 4);
-	const week = 1 + Math.round(((date.getTime() - firstThursday.getTime()) / 864e5 - 3 + (firstThursday.getDay() + 6) % 7) / 7);
-	return `${date.getFullYear()}-W${String(week).padStart(2, "0")}`;
-}
-function read$1() {
-	try {
-		const saved = JSON.parse(localStorage.getItem(KEY$1) ?? "[]");
-		return Array.isArray(saved) ? saved.filter((row) => typeof row?.day === "string" && Array.isArray(row?.ids)).slice(-400) : [];
-	} catch {
-		return [];
-	}
-}
-function write$1(days) {
-	try {
-		localStorage.setItem(KEY$1, JSON.stringify(days.slice(-400)));
-	} catch {}
-}
-/** Rebuild current-week progress from the durable feedback ledger. Older
-* versions saved the rating but did not always update this lightweight UI
-* counter, especially after a refresh or browser restore. */
-function reconcileRatingLedger(days) {
-	try {
-		const feedback = JSON.parse(localStorage.getItem("reelcase.media-feedback.v1") ?? "{}");
-		for (const [id, row] of Object.entries(feedback.ratingHistory ?? {})) {
-			if (!(Number(row.rating) > 0) || !Number.isFinite(Number(row.updatedAt))) continue;
-			const day = dayKey(new Date(Number(row.updatedAt)));
-			const target = days.find((entry) => entry.day === day);
-			if (target) {
-				if (!target.ids.includes(id)) target.ids.push(id);
-			} else days.push({
-				day,
-				ids: [id]
-			});
-		}
-		const today = dayKey();
-		const target = days.find((entry) => entry.day === today) ?? (() => {
-			const created = {
-				day: today,
-				ids: []
-			};
-			days.push(created);
-			return created;
-		})();
-		for (const [id, rating] of Object.entries(feedback.ratings ?? {})) if (Number(rating) > 0 && !(id in (feedback.ratingHistory ?? {})) && !target.ids.includes(id)) target.ids.push(id);
-	} catch {}
-	return days;
-}
-function recordRatingForStreak(id, rating) {
-	if (!id || typeof window === "undefined") return;
-	const days = read$1();
-	const today = dayKey();
-	const row = days.find((entry) => entry.day === today);
-	if (rating >= 1) {
-		if (row) {
-			if (!row.ids.includes(id)) row.ids.push(id);
-		} else days.push({
-			day: today,
-			ids: [id]
-		});
-	} else if (row) row.ids = row.ids.filter((saved) => saved !== id);
-	write$1(days);
-	window.dispatchEvent(new Event("reelcase:rating-streak-change"));
-}
-function getRatingStreakSnapshot(now = /* @__PURE__ */ new Date()) {
-	const days = reconcileRatingLedger(read$1());
-	write$1(days);
-	const weeklyGoalValue = weeklyGoal();
-	const currentWeek = weekKey(now);
-	const weekTotals = /* @__PURE__ */ new Map();
-	for (const row of days) {
-		const key = weekKey(/* @__PURE__ */ new Date(`${row.day}T12:00:00`));
-		const ids = weekTotals.get(key) ?? /* @__PURE__ */ new Set();
-		for (const id of row.ids) ids.add(id);
-		weekTotals.set(key, ids);
-	}
-	const thisWeek = weekTotals.get(currentWeek)?.size ?? 0;
-	let weeklyStreak = 0;
-	const cursor = new Date(now);
-	while (true) {
-		if ((weekTotals.get(weekKey(cursor))?.size ?? 0) < weeklyGoalValue) break;
-		weeklyStreak += 1;
-		cursor.setDate(cursor.getDate() - 7);
-	}
-	const rewards = [
-		{
-			label: "First impression",
-			earned: thisWeek >= 1,
-			detail: "Rate one title this week."
-		},
-		{
-			label: "Weekly curator",
-			earned: thisWeek >= weeklyGoalValue,
-			detail: `Rate ${weeklyGoalValue} distinct titles this week.`
-		},
-		{
-			label: "Two-week rhythm",
-			earned: weeklyStreak >= 2,
-			detail: "Complete your weekly goal two weeks in a row."
-		}
-	];
-	const next = rewards.find((reward) => !reward.earned);
-	return {
-		weekKey: currentWeek,
-		thisWeek,
-		weeklyGoal: weeklyGoalValue,
-		weeklyStreak,
-		nextReward: next ? next.detail : "All current local rewards earned.",
-		rewards
-	};
-}
-var KEY = "reelcase.media-feedback.v1";
-var cached = null;
-var changeTimer;
-var persistTimer$1;
-var lastRatingQueueMs = 0;
-var lastPersistMs = 0;
-var pendingWrites = 0;
-var legacyRatings = /* @__PURE__ */ new Map();
-var legacyScan;
-/** Read old per-title ratings once, in small batches, rather than doing a
-* synchronous storage lookup for every unscored title during recommendation. */
-async function rankingFeedbackSnapshot() {
-	if (typeof window !== "undefined") {
-		legacyScan ??= (async () => {
-			try {
-				for (let index = 0; index < localStorage.length; index++) {
-					const key = localStorage.key(index);
-					if (key?.startsWith("reelcase.rating.")) {
-						const id = key.slice(16);
-						if (!legacyRatings.has(id)) {
-							const value = Number(localStorage.getItem(key));
-							legacyRatings.set(id, Number.isFinite(value) ? value : 0);
-						}
-					}
-					if (index % 100 === 99) await new Promise((resolve) => window.setTimeout(resolve, 0));
-				}
-			} catch {}
-		})();
-		await legacyScan;
-	}
-	const feedback = read();
-	return {
-		ratings: {
-			...Object.fromEntries(legacyRatings),
-			...feedback.ratings
-		},
-		heartedTags: Object.keys(feedback.tagLikes),
-		historicTags: Object.keys(feedback.tagHeartHistory)
-	};
-}
-function read() {
-	if (cached) return cached;
-	try {
-		const saved = JSON.parse(localStorage.getItem(KEY) ?? "{}");
-		cached = {
-			ratings: saved.ratings ?? {},
-			ratingHistory: saved.ratingHistory ?? {},
-			notes: saved.notes ?? {},
-			creatorRatings: saved.creatorRatings ?? {},
-			creatorLikes: saved.creatorLikes ?? {},
-			tagLikes: saved.tagLikes ?? {},
-			tagHeartHistory: saved.tagHeartHistory ?? {}
-		};
-	} catch {
-		cached = {
-			ratings: {},
-			ratingHistory: {},
-			notes: {},
-			creatorRatings: {},
-			creatorLikes: {},
-			tagLikes: {},
-			tagHeartHistory: {}
-		};
-	}
-	return cached;
-}
-function persist() {
-	persistTimer$1 = void 0;
-	const started = typeof performance !== "undefined" ? performance.now() : Date.now();
-	try {
-		if (cached) localStorage.setItem(KEY, JSON.stringify(cached));
-	} catch {} finally {
-		lastPersistMs = Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - started);
-		pendingWrites = 0;
-	}
-}
-/** Finish a queued rating write before a reload, tab close, or mobile app switch. */
-function flush() {
-	if (persistTimer$1 !== void 0) window.clearTimeout(persistTimer$1);
-	persist();
-}
-if (typeof window !== "undefined") {
-	window.addEventListener("pagehide", flush);
-	document.addEventListener("visibilitychange", () => {
-		if (document.visibilityState === "hidden") flush();
-	});
-}
-function write(next) {
-	cached = next;
-	if (typeof window === "undefined") return;
-	pendingWrites = 1;
-	if (persistTimer$1) window.clearTimeout(persistTimer$1);
-	persistTimer$1 = window.setTimeout(persist, 90);
-}
-function notifyChange() {
-	if (typeof window === "undefined" || changeTimer) return;
-	changeTimer = window.setTimeout(() => {
-		changeTimer = void 0;
-		window.dispatchEvent(new Event("reelcase:rating-change"));
-	}, 48);
-}
-function getRating(id) {
-	const value = read().ratings[id];
-	if (Number.isFinite(value)) return value;
-	if (typeof window === "undefined") return 0;
-	const known = legacyRatings.get(id);
-	if (known !== void 0) return known;
-	let legacy = 0;
-	try {
-		legacy = Number(localStorage.getItem(`reelcase.rating.${id}`) ?? 0);
-	} catch {}
-	const rating = Number.isFinite(legacy) ? legacy : 0;
-	legacyRatings.set(id, rating);
-	return rating;
-}
-function setRating(id, rating) {
-	const started = typeof performance !== "undefined" ? performance.now() : Date.now();
-	const next = read();
-	next.ratings[id] = Math.max(0, Math.min(5, Math.round(rating)));
-	next.ratingHistory[id] = {
-		rating: next.ratings[id],
-		updatedAt: Date.now()
-	};
-	legacyRatings.set(id, next.ratings[id]);
-	recordRatingForStreak(id, next.ratings[id]);
-	write(next);
-	notifyChange();
-	lastRatingQueueMs = Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - started);
-}
-/** Local timing only. This never transmits library feedback or usage data. */
-function getFeedbackDiagnostics() {
-	return {
-		lastRatingQueueMs,
-		lastPersistMs,
-		pendingWrites
-	};
-}
-function creatorKey(name) {
-	return name.trim().toLowerCase();
-}
-function getCreatorRating(name) {
-	return read().creatorRatings[creatorKey(name)] ?? 0;
-}
-function setCreatorRating(name, rating) {
-	const next = read();
-	next.creatorRatings[creatorKey(name)] = Math.max(0, Math.min(5, Math.round(rating)));
-	write(next);
-	notifyChange();
-}
-function creatorIsLiked(name) {
-	return Boolean(read().creatorLikes[creatorKey(name)]);
-}
-function toggleCreatorLike(name) {
-	const next = read();
-	const key = creatorKey(name);
-	if (next.creatorLikes[key]) delete next.creatorLikes[key];
-	else next.creatorLikes[key] = true;
-	write(next);
-	notifyChange();
-}
-function tagKey(tag) {
-	return tag.trim().toLowerCase();
-}
-function tagIsLiked(tag) {
-	return Boolean(read().tagLikes[tagKey(tag)]);
-}
-function tagHasHeartHistory(tag) {
-	return Boolean(read().tagHeartHistory[tagKey(tag)]);
-}
-function getHeartedTagHistory() {
-	return Object.keys(read().tagHeartHistory).sort((a, b) => (read().tagHeartHistory[b] ?? 0) - (read().tagHeartHistory[a] ?? 0));
-}
-function toggleTagLike(tag) {
-	const next = read();
-	const key = tagKey(tag);
-	if (next.tagLikes[key]) delete next.tagLikes[key];
-	else {
-		next.tagLikes[key] = true;
-		next.tagHeartHistory[key] ??= Date.now();
-	}
-	write(next);
-	notifyChange();
-}
-/** Versioned rating/note payload used by the full library backup. */
-function exportFeedback() {
-	return {
-		version: 4,
-		...read()
-	};
-}
-function getNote(id) {
-	const value = read().notes[id];
-	if (typeof value === "string") return value;
-	try {
-		return localStorage.getItem(`reelcase.note.${id}`) ?? "";
-	} catch {
-		return "";
-	}
-}
-function setNote(id, note) {
-	const next = read();
-	if (note.trim()) next.notes[id] = note.trim();
-	else delete next.notes[id];
-	write(next);
-}
 var TOPICS = /* @__PURE__ */ new Set([
 	"gaming",
 	"technology",
@@ -2198,6 +2577,11 @@ function persistNow(get) {
 		unavailableVideoIds: Object.keys(s.unavailable)
 	};
 	saveFollows(s.follows);
+	saveDurableHistory(s.history);
+	saveDurableResume(s.progress, s.resumeProgress);
+	saveDurableMarks(s.viewCounts, s.cameCounts);
+	saveDurableShelves(Object.keys(s.favorites), Object.keys(s.likes));
+	saveDurableLinks(linksFromHistoryAndResume(s.history, s.resumeProgress));
 	savePrefs(prefs);
 	saveActivitySnapshot({
 		history: s.history,
@@ -2211,6 +2595,10 @@ function persistNow(get) {
 function persistActivity(get) {
 	if (!preferencesRestored) return;
 	const s = get();
+	saveDurableHistory(s.history);
+	saveDurableResume(s.progress, s.resumeProgress);
+	saveDurableMarks(s.viewCounts, s.cameCounts);
+	saveDurableLinks(linksFromHistoryAndResume(s.history, s.resumeProgress));
 	saveActivitySnapshot({
 		history: s.history,
 		progress: s.progress,
@@ -3276,6 +3664,7 @@ var useLibrary = create((set, get) => ({
 		if (get().hydrated || restoring) return;
 		restoring = true;
 		await restoreDurablePrefs().catch(() => void 0);
+		hydrateDurableFeedback().catch(() => void 0);
 		const dedicatedFollows = await restoreDurableFollows().catch(() => loadFollows() ?? []);
 		preferencesRestored = true;
 		const prefsState = applyPrefs({});
@@ -3291,30 +3680,80 @@ var useLibrary = create((set, get) => ({
 			...prefsState,
 			...navigationChanged ? { sourceId: s.sourceId } : {}
 		}));
-		Promise.all([loadActivitySnapshot(), loadActivityJournal()]).then(([activity, journal]) => {
+		Promise.all([
+			loadActivitySnapshot(),
+			loadActivityJournal(),
+			restoreDurableHistory(),
+			restoreDurableResume(),
+			restoreDurableMarks(),
+			restoreDurableShelves(),
+			restoreDurableLinks()
+		]).then(([activity, journal, durableHistory, durableResume, durableMarks, durableShelves, durableLinks]) => {
 			const queuedResume = takeQueuedResumeReplay();
-			if (!activity && !journal.length && !Object.keys(queuedResume).length) return;
+			const hasShelves = durableShelves.favorites.length || durableShelves.likes.length;
+			if (!(activity || journal.length || durableHistory.length || Object.keys(durableResume.resumeProgress).length || Object.keys(durableMarks.viewCounts).length || Object.keys(durableMarks.cameCounts).length || hasShelves || durableLinks.length || Object.keys(queuedResume).length)) return;
+			if (durableHistory.length || (activity?.history?.length ?? 0) || journal.length) {
+				const mergedEarly = mergeHistory(mergeHistory(durableHistory, activity?.history ?? []), journal);
+				if (mergedEarly.length) saveDurableHistory(mergedEarly);
+			}
+			if (Object.keys(durableResume.resumeProgress).length || activity?.resumeProgress) saveDurableResume({
+				...activity?.progress ?? {},
+				...durableResume.progress
+			}, {
+				...activity?.resumeProgress ?? {},
+				...durableResume.resumeProgress
+			});
+			if (Object.keys(durableMarks.viewCounts).length || Object.keys(durableMarks.cameCounts).length || activity?.viewCounts || activity?.cameCounts) saveDurableMarks({
+				...activity?.viewCounts ?? {},
+				...durableMarks.viewCounts
+			}, {
+				...activity?.cameCounts ?? {},
+				...durableMarks.cameCounts
+			});
+			if (hasShelves) saveDurableShelves(durableShelves.favorites, durableShelves.likes);
+			if (durableLinks.length) saveDurableLinks(durableLinks);
 			set((s) => {
 				const resumeProgress = {
 					...activity?.resumeProgress ?? {},
+					...durableResume.resumeProgress,
 					...queuedResume,
 					...s.resumeProgress
 				};
+				const favorites = { ...s.favorites };
+				const likes = { ...s.likes };
+				for (const id of durableShelves.favorites) favorites[id] = true;
+				for (const id of durableShelves.likes) likes[id] = true;
+				const history = mergeHistory(mergeHistory(mergeHistory(s.history, durableHistory), activity?.history ?? []), journal);
+				const linkById = new Map(durableLinks.map((link) => [link.id, link]));
 				return {
-					history: mergeHistory(mergeHistory(s.history, activity?.history ?? []), journal),
+					history: history.map((entry) => {
+						if (entry.url) return entry;
+						const link = linkById.get(entry.id);
+						return link ? {
+							...entry,
+							url: link.url,
+							title: entry.title ?? link.title,
+							poster: entry.poster ?? link.poster
+						} : entry;
+					}),
 					resumeProgress,
 					progress: reconcileResumeForVideos(s.videos, {
 						...activity?.progress ?? {},
+						...durableResume.progress,
 						...s.progress
 					}, resumeProgress),
 					viewCounts: {
 						...activity?.viewCounts ?? {},
+						...durableMarks.viewCounts,
 						...s.viewCounts
 					},
 					cameCounts: {
 						...activity?.cameCounts ?? {},
+						...durableMarks.cameCounts,
 						...s.cameCounts
-					}
+					},
+					favorites,
+					likes
 				};
 			});
 		}).catch(() => void 0);
@@ -13188,7 +13627,7 @@ ytFilm({
 	tagline: "A Blender Studio open project.",
 	channel: "Blender Studio"
 });
-var loadHub = () => import("./hub-sections-CUcL5tNG.mjs").then((n) => n.t);
+var loadHub = () => import("./hub-sections-WkvAufF_.mjs").then((n) => n.t);
 var hubSection = (name) => (0, import_react.lazy)(async () => ({ default: (await loadHub())[name] }));
 var GamesSection = hubSection("GamesSection");
 var FindPhoneSection = hubSection("FindPhoneSection");
@@ -16678,4 +17117,4 @@ function Home() {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LibraryApp, {});
 }
 //#endregion
-export { measureInteraction as A, topicsForVideo as C, tagIsLiked as D, getRating as E, toggleTagLike as O, topicEvidence as S, getFeedbackDiagnostics as T, resumeForVideo as _, buildAdultStatsSnapshot as a, canonicalTopic as b, countAdultBooruHosts as c, openTopic as d, VideoCard as f, Button as g, useThumbs as h, getFirstShelfTrace as i, __exportAll as j, getInteractionBudgetSnapshot as k, countAdultBySource as l, getThumbDiagnostics as m, getNetworkDeviceId as n, exportAdultStats as o, getRenderBudgetSnapshot as p, listNetworkDevices as r, rankAdultTags as s, routes_exports as t, Input as u, useLibrary as v, exportFeedback as w, isTopicTag as x, useSourceAssets as y };
+export { toggleTagLike as A, __exportAll as B, topicEvidence as C, getRating as D, getFeedbackDiagnostics as E, saveDurableLinks as F, saveDurableMarks as I, saveDurableResume as L, measureInteraction as M, linksFromHistoryAndResume as N, importFeedback as O, saveDurableHistory as P, saveDurableShelves as R, isTopicTag as S, exportFeedback as T, Button as _, adultStatsToCsv as a, useSourceAssets as b, rankAdultTags as c, Input as d, openTopic as f, useThumbs as g, getThumbDiagnostics as h, getFirstShelfTrace as i, getInteractionBudgetSnapshot as j, tagIsLiked as k, countAdultBooruHosts as l, getRenderBudgetSnapshot as m, getNetworkDeviceId as n, buildAdultStatsSnapshot as o, VideoCard as p, listNetworkDevices as r, exportAdultStats as s, routes_exports as t, countAdultBySource as u, resumeForVideo as v, topicsForVideo as w, canonicalTopic as x, useLibrary as y, saveFollows as z };
