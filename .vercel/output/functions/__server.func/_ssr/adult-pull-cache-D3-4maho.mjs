@@ -1,4 +1,4 @@
-//#region node_modules/.nitro/vite/services/ssr/assets/library-limits-L0aREwkM.js
+//#region node_modules/.nitro/vite/services/ssr/assets/adult-pull-cache-D3-4maho.js
 var ADULT_EXTRA_MILESTONES = [
 	{
 		name: "CooMeet",
@@ -1973,6 +1973,29 @@ function expandedAdultTags(tags) {
 * ListOfSubreddits ultimate thread unavailable unauthenticated (login/429).
 * Rotated in batches — do not fetch all at once.
 */
+/** High-signal media-heavy communities sampled first in curated rotation. */
+var ADULT_REDDIT_PRIORITY_SUBS = [
+	"rule34",
+	"nsfw",
+	"realgirls",
+	"gonewild",
+	"nsfw_gif",
+	"porninfifteenseconds",
+	"asiansgonewild",
+	"amateur",
+	"cumsluts",
+	"collegesluts",
+	"breddit",
+	"anal",
+	"boobs",
+	"ass",
+	"milf",
+	"petitegonewild",
+	"godasshole",
+	"pawg",
+	"latinas",
+	"indiansgonewild"
+];
 var ADULT_REDDIT_SUBS = [
 	"18_22",
 	"2busty2hide",
@@ -3102,7 +3125,7 @@ var ADULT_EMBED_LINKS = [
 	{
 		name: "Rule34 / Booru image pulls",
 		href: "https://rule34.xxx/index.php?page=post&s=list&tags=all",
-		copy: "Public 18+ image APIs. Rule34, XBooru, TBIB, Hypnohub, and e621 each receive a share of a pull; cards retain sample thumbnails and download the original image on demand.",
+		copy: "Public 18+ image APIs. Rule34 (JSON primary + HTML backup), Gelbooru, Realbooru, XBooru, TBIB, Hypnohub, and e621 each receive a share of a pull; cards retain sample thumbnails and download the original image on demand.",
 		embeds: true,
 		group: "comic",
 		sourceId: "booru"
@@ -3110,7 +3133,7 @@ var ADULT_EMBED_LINKS = [
 	{
 		name: "Redgifs",
 		href: "https://www.redgifs.com/",
-		copy: "Official Redgifs temporary-token search API (posters + HD/SD files). AdultDataLink remains an optional fallback when ADULTDATALINK_API_KEY is set.",
+		copy: "Official Redgifs temporary-token search API (posters + HD/SD files) as primary. AdultDataLink remains an optional secondary when ADULTDATALINK_API_KEY / ADL_API_KEY is set.",
 		embeds: true,
 		group: "short",
 		sourceId: "redgifs"
@@ -3243,6 +3266,10 @@ var ADULT_PROVIDER_BRANDS = /* @__PURE__ */ new Set([
 	"myfreecams",
 	"reddit",
 	"booru",
+	"rule34",
+	"gelbooru",
+	"realbooru",
+	"e621",
 	"xbooru",
 	"tbib",
 	"hypnohub",
@@ -3373,6 +3400,15 @@ function trimSet(set, max) {
 		if (++i >= drop) break;
 	}
 }
+function trimHostMap(map, max) {
+	if (map.size <= max) return;
+	const drop = map.size - max;
+	let i = 0;
+	for (const key of map.keys()) {
+		map.delete(key);
+		if (++i >= drop) break;
+	}
+}
 /** Prefer hosts that historically serve RedTube/Eporner strips; demote flaky ones. */
 var PREFERRED_HOSTS = {
 	"ei-ph.rdtcdn.com": 8,
@@ -3391,14 +3427,20 @@ function markAdultThumbFailed(url) {
 	goodUrls.delete(url);
 	trimSet(failedUrls, MAX_FAILED);
 	const host = hostOf(url);
-	if (host) hostFail.set(host, (hostFail.get(host) ?? 0) + 1);
+	if (host) {
+		hostFail.set(host, (hostFail.get(host) ?? 0) + 1);
+		trimHostMap(hostFail, 96);
+	}
 }
 function markAdultThumbGood(url, videoId) {
 	if (!url || failedUrls.has(url)) return;
 	goodUrls.add(url);
 	trimSet(goodUrls, MAX_GOOD);
 	const host = hostOf(url);
-	if (host) hostOk.set(host, (hostOk.get(host) ?? 0) + 1);
+	if (host) {
+		hostOk.set(host, (hostOk.get(host) ?? 0) + 1);
+		trimHostMap(hostOk, 96);
+	}
 	if (videoId) {
 		goodByVideo.set(videoId, url);
 		if (goodByVideo.size > MAX_BY_VIDEO) {
@@ -3611,6 +3653,69 @@ function redtubeStarNames(stars) {
 	}
 	return out;
 }
+/**
+* One place for the library's deliberately bounded provider and metadata work.
+* Raise these only with an accompanying browser benchmark: larger pulls affect
+* provider load, browser storage, and first-render work.
+*/
+var LIBRARY_LIMITS = {
+	remoteMetadataTagsPerTitle: 32,
+	descriptionKeywordTagsPerTitle: 24,
+	remoteRefreshChannelBatch: 24,
+	twitchChannelsReservedPerRefresh: 8,
+	youtubeFocusedVideosPerChannel: 6e3,
+	youtubeArchivePagesPerPull: 96,
+	youtubeRoutineVideosPerChannel: 1200,
+	youtubeBulkImportVideosPerChannel: 960,
+	twitchArchivePageSize: 160,
+	twitchFocusedVodsPerChannel: 8e3,
+	twitchRoutineVodsPerChannel: 960,
+	/** Home only calls a Twitch channel live when the provider observation is recent. */
+	twitchLiveStateFreshnessMs: 12e4,
+	epornerPageSize: 1e3,
+	epornerPagesPerPull: 6,
+	epornerVideosPerPull: 6e3,
+	epornerKeywordTagsPerTitle: 24,
+	redtubePageSize: 20,
+	redtubePagesPerPull: 300,
+	redtubeVideosPerPull: 6e3,
+	redtubeStarsPerPage: 40,
+	redtubeStarVideosPerPull: 120,
+	adultKeywordTagsPerTitle: 48,
+	adultFastStartVideosPerPull: 720,
+	/** A foreground click must return a usable mixed shelf quickly. Deep archive work belongs to Load more. */
+	adultInteractiveVideosPerPull: 480,
+	adultFastStartRailSize: 32,
+	/** Keep auto-pulling until the Adult catalog reaches this many cached titles. */
+	adultTargetCatalogVideos: 6e3,
+	/** In-memory history buffer (durable journal may retain more until pruned). */
+	historyMemoryEntries: 2e3,
+	/** Soft cap for decoded local frame thumbs retained in the Zustand cache. */
+	memoryThumbEntries: 280,
+	/** Soft cap for IndexedDB thumb-cache rows (data URLs + Adult URL recalls). */
+	thumbCacheEntries: 420,
+	/** Bounded automatic archive pages per visit; users can still continue manually. */
+	adultAutoArchivePagesPerVisit: 2,
+	adultAutoArchiveDelayMs: 3e4,
+	/** Titles added per staggered background refresh tick (one provider at a time). */
+	adultRefreshVideosPerTick: 320,
+	/** Pause between Adult provider refresh ticks. */
+	adultRefreshIntervalMs: 75e3,
+	chaturbateRoomsPerPull: 180,
+	myfreecamsRoomsPerPull: 180,
+	redditVideosPerPull: 2400,
+	redditPostsPerSub: 50,
+	/** How many subs to sample per Reddit window (rotate through the curated catalog). */
+	redditSubsPerPull: 10,
+	/** Extra Reddit windows walked in one pull so discovery is not RedTube-heavy. */
+	redditWindowsPerPull: 2,
+	/** Concurrent RSS fetches per wave (stay under Reddit rate limits). */
+	redditFetchConcurrency: 3,
+	booruVideosPerPull: 400,
+	booruPageSize: 80,
+	redgifsVideosPerPull: 240,
+	redgifsPageSize: 80
+};
 /**
 * Reddit-native signals for Adult tag ingest + ranking.
 * Subreddit, flair, title tokens, and comment fetish hits — not just tube keywords.
@@ -3831,66 +3936,5 @@ function findFreshAdultPullFingerprint(query, order, page, providers, ttlMs = 72
 	const q = query.trim().toLowerCase() || "all";
 	return readAdultPullFingerprints().find((row) => row.query === q && row.order === order && row.page === page && row.providers === providers && now - row.at <= ttlMs) ?? null;
 }
-/**
-* One place for the library's deliberately bounded provider and metadata work.
-* Raise these only with an accompanying browser benchmark: larger pulls affect
-* provider load, browser storage, and first-render work.
-*/
-var LIBRARY_LIMITS = {
-	remoteMetadataTagsPerTitle: 32,
-	descriptionKeywordTagsPerTitle: 24,
-	remoteRefreshChannelBatch: 24,
-	twitchChannelsReservedPerRefresh: 8,
-	youtubeFocusedVideosPerChannel: 6e3,
-	youtubeArchivePagesPerPull: 96,
-	youtubeRoutineVideosPerChannel: 1200,
-	youtubeBulkImportVideosPerChannel: 960,
-	twitchArchivePageSize: 160,
-	twitchFocusedVodsPerChannel: 8e3,
-	twitchRoutineVodsPerChannel: 960,
-	/** Home only calls a Twitch channel live when the provider observation is recent. */
-	twitchLiveStateFreshnessMs: 12e4,
-	epornerPageSize: 1e3,
-	epornerPagesPerPull: 6,
-	epornerVideosPerPull: 6e3,
-	epornerKeywordTagsPerTitle: 24,
-	redtubePageSize: 20,
-	redtubePagesPerPull: 300,
-	redtubeVideosPerPull: 6e3,
-	redtubeStarsPerPage: 40,
-	redtubeStarVideosPerPull: 120,
-	adultKeywordTagsPerTitle: 48,
-	adultFastStartVideosPerPull: 720,
-	/** A foreground click must return a usable mixed shelf quickly. Deep archive work belongs to Load more. */
-	adultInteractiveVideosPerPull: 480,
-	adultFastStartRailSize: 32,
-	/** Keep auto-pulling until the Adult catalog reaches this many cached titles. */
-	adultTargetCatalogVideos: 6e3,
-	/** In-memory history buffer (durable journal may retain more until pruned). */
-	historyMemoryEntries: 2e3,
-	/** Soft cap for decoded local frame thumbs retained in the Zustand cache. */
-	memoryThumbEntries: 280,
-	/** Bounded automatic archive pages per visit; users can still continue manually. */
-	adultAutoArchivePagesPerVisit: 2,
-	adultAutoArchiveDelayMs: 3e4,
-	/** Titles added per staggered background refresh tick (one provider at a time). */
-	adultRefreshVideosPerTick: 320,
-	/** Pause between Adult provider refresh ticks. */
-	adultRefreshIntervalMs: 75e3,
-	chaturbateRoomsPerPull: 180,
-	myfreecamsRoomsPerPull: 180,
-	redditVideosPerPull: 2400,
-	redditPostsPerSub: 50,
-	/** How many subs to sample per Reddit window (rotate through the curated catalog). */
-	redditSubsPerPull: 12,
-	/** Extra Reddit windows walked in one pull so discovery is not RedTube-heavy. */
-	redditWindowsPerPull: 2,
-	/** Concurrent RSS fetches per wave (stay under Reddit rate limits). */
-	redditFetchConcurrency: 4,
-	booruVideosPerPull: 320,
-	booruPageSize: 80,
-	redgifsVideosPerPull: 240,
-	redgifsPageSize: 80
-};
 //#endregion
-export { expandAdultThumbFallbacks as A, isDecodedAdultThumbLikelyReal as B, adultSourceTag as C, adultTextFetishTags as D, adultTaxonomyTags as E, isAdultGenreTag as F, pickRedtubeThumb as G, markAdultThumbFailed as H, isAdultImageKind as I, redtubeStarNames as J, redditIngestExtras as K, isAdultMetaTaxonomyTag as L, extractRedditFlair as M, fetishSearchQuery as N, adultThumbCandidatesForVideo as O, findFreshAdultPullFingerprint as P, isAdultPullKind as R, adultRemoteLabel as S, adultTaxonomyLabel as T, markAdultThumbGood as U, isUsableAdultThumb as V, mineRedditCommentTags as W, rememberAdultPullFingerprint as Y, REDGIFS_FOLDER_ID as _, ADULT_FOLDER_BY_PROVIDER as a, adultDeepenQueriesForPage as b, ADULT_PULL_PROVIDERS as c, BOORU_FOLDER_ID as d, CHATURBATE_FOLDER_ID as f, REDDIT_FOLDER_ID as g, MYFREECAMS_FOLDER_ID as h, ADULT_FEATURED_FETISH_TAGS as i, expandedAdultTags as j, cachedAdultFetch as k, ADULT_REDDIT_SUBS as l, LIBRARY_LIMITS as m, ADULT_CURATED_FETISH_TAGS as n, ADULT_FOLDER_IDS as o, EPORNER_FOLDER_ID as p, redditTitleTokens as q, ADULT_EMBED_LINKS as r, ADULT_MILESTONE_LINKS as s, ADULT_CATEGORY_HUB as t, ADULT_SOURCE_OPTIONS as u, REDTUBE_FOLDER_ID as v, adultTagRankBoost as w, adultIngestTags as x, RETIRED_ADULT_SOURCE_IDS as y, isAdultThumbBlacklisted as z };
+export { cachedAdultFetch as A, isAdultThumbBlacklisted as B, adultRemoteLabel as C, adultTaxonomyTags as D, adultTaxonomyLabel as E, findFreshAdultPullFingerprint as F, mineRedditCommentTags as G, isUsableAdultThumb as H, isAdultGenreTag as I, redditTitleTokens as J, pickRedtubeThumb as K, isAdultImageKind as L, expandedAdultTags as M, extractRedditFlair as N, adultTextFetishTags as O, fetishSearchQuery as P, isAdultMetaTaxonomyTag as R, adultIngestTags as S, adultTagRankBoost as T, markAdultThumbFailed as U, isDecodedAdultThumbLikelyReal as V, markAdultThumbGood as W, rememberAdultPullFingerprint as X, redtubeStarNames as Y, REDDIT_FOLDER_ID as _, ADULT_FOLDER_BY_PROVIDER as a, RETIRED_ADULT_SOURCE_IDS as b, ADULT_PULL_PROVIDERS as c, ADULT_SOURCE_OPTIONS as d, BOORU_FOLDER_ID as f, MYFREECAMS_FOLDER_ID as g, LIBRARY_LIMITS as h, ADULT_FEATURED_FETISH_TAGS as i, expandAdultThumbFallbacks as j, adultThumbCandidatesForVideo as k, ADULT_REDDIT_PRIORITY_SUBS as l, EPORNER_FOLDER_ID as m, ADULT_CURATED_FETISH_TAGS as n, ADULT_FOLDER_IDS as o, CHATURBATE_FOLDER_ID as p, redditIngestExtras as q, ADULT_EMBED_LINKS as r, ADULT_MILESTONE_LINKS as s, ADULT_CATEGORY_HUB as t, ADULT_REDDIT_SUBS as u, REDGIFS_FOLDER_ID as v, adultSourceTag as w, adultDeepenQueriesForPage as x, REDTUBE_FOLDER_ID as y, isAdultPullKind as z };

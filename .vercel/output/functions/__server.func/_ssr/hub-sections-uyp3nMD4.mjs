@@ -1,10 +1,11 @@
 import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
-import { C as RefreshCw, D as Pause, G as Images, H as Lightbulb, I as Maximize2, N as MessageCircle, O as PackageSearch, Q as Gamepad2, S as Rocket, T as Play, W as Laptop, _ as Shuffle, b as Settings2, bt as Box, ct as ExternalLink, dt as Copy, f as Star, gt as ChevronLeft, ht as ChevronRight, j as MonitorPlay, k as Music2, lt as Download, m as Smartphone, n as X, pt as Clapperboard, q as ImagePlus, r as Wifi, s as Users, v as ShoppingBag, w as Radio, x as Search, xt as Bot, y as ShieldCheck, yt as ChartColumn } from "../_libs/lucide-react.mjs";
-import { C as exportFeedback, D as toggleTagLike, E as tagIsLiked, O as getInteractionBudgetSnapshot, S as topicsForVideo, T as getRating, _ as useLibrary, a as buildAdultStatsSnapshot, b as isTopicTag, c as countAdultBySource, d as VideoCard, f as getRenderBudgetSnapshot, g as resumeForVideo, h as Button, i as getFirstShelfTrace, k as measureInteraction, l as Input, m as useThumbs, n as getNetworkDeviceId, o as exportAdultStats, p as getThumbDiagnostics, r as listNetworkDevices, s as rankAdultTags, u as openTopic, v as useSourceAssets, w as getFeedbackDiagnostics, x as topicEvidence, y as canonicalTopic } from "./routes-S5_RvTFR.mjs";
-import { a as ResponsiveContainer, i as Bar, n as YAxis, o as Tooltip, r as XAxis, t as BarChart } from "../_libs/recharts+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/hub-sections-C4N7m3TM.js
+import { L as isAdultImageKind } from "./adult-pull-cache-D3-4maho.mjs";
+import { $ as Gamepad2, A as Music2, C as Rocket, E as Play, G as Laptop, J as ImagePlus, K as Images, L as Maximize2, M as MonitorPlay, O as Pause, P as MessageCircle, St as Bot, T as Radio, U as Lightbulb, _ as Shuffle, _t as ChevronLeft, b as Settings2, bt as ChartColumn, f as Star, ft as Copy, gt as ChevronRight, k as PackageSearch, lt as ExternalLink, m as Smartphone, mt as Clapperboard, n as X, r as Wifi, s as Users, st as Eye, ut as Download, v as ShoppingBag, w as RefreshCw, x as Search, xt as Box, y as ShieldCheck } from "../_libs/lucide-react.mjs";
+import { A as measureInteraction, C as topicsForVideo, D as tagIsLiked, E as getRating, O as toggleTagLike, S as topicEvidence, T as getFeedbackDiagnostics, _ as resumeForVideo, a as buildAdultStatsSnapshot, b as canonicalTopic, c as countAdultBooruHosts, d as openTopic, f as VideoCard, g as Button, h as useThumbs, i as getFirstShelfTrace, j as __exportAll, k as getInteractionBudgetSnapshot, l as countAdultBySource, m as getThumbDiagnostics, n as getNetworkDeviceId, o as exportAdultStats, p as getRenderBudgetSnapshot, r as listNetworkDevices, s as rankAdultTags, u as Input, v as useLibrary, w as exportFeedback, x as isTopicTag, y as useSourceAssets } from "./routes-DYDdvpss.mjs";
+import { a as Bar, c as ResponsiveContainer, i as XAxis, l as Tooltip, n as BarChart, o as Pie, r as YAxis, s as Cell, t as PieChart } from "../_libs/recharts+[...].mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/hub-sections-uyp3nMD4.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function TopicLinks({ explorer = false }) {
@@ -342,6 +343,102 @@ function TopicLinks({ explorer = false }) {
 			})
 		]
 	});
+}
+/** Local IndexedDB store for 3D print file bytes (viewer only). Metadata stays in localStorage. */
+var DB_NAME = "reelcase-prints";
+var DB_VERSION = 1;
+var STORE = "blobs";
+var MAX_BLOBS = 32;
+var MAX_BYTES = 50331648;
+var MAX_TOTAL_BYTES = 201326592;
+function openDb() {
+	return new Promise((resolve, reject) => {
+		const req = indexedDB.open(DB_NAME, DB_VERSION);
+		req.onupgradeneeded = () => {
+			const db = req.result;
+			if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: "id" });
+		};
+		req.onsuccess = () => resolve(req.result);
+		req.onerror = () => reject(req.error ?? /* @__PURE__ */ new Error("prints IndexedDB open failed"));
+	});
+}
+function printFileId(file) {
+	return `print:${file.name.normalize("NFKC").toLowerCase()}:${file.size}:${file.lastModified}`;
+}
+function isViewablePrintName(name) {
+	return /\.(stl|obj|glb|gltf|3mf)$/i.test(name);
+}
+async function savePrintBlob(file, id = printFileId(file)) {
+	if (!isViewablePrintName(file.name)) return null;
+	if (file.size <= 0 || file.size > MAX_BYTES) return null;
+	const record = {
+		id,
+		name: file.name,
+		path: file.webkitRelativePath || file.name,
+		mime: file.type || "application/octet-stream",
+		size: file.size,
+		addedAt: Date.now(),
+		blob: file
+	};
+	const db = await openDb();
+	try {
+		await new Promise((resolve, reject) => {
+			const tx = db.transaction(STORE, "readwrite");
+			tx.objectStore(STORE).put(record);
+			tx.oncomplete = () => resolve();
+			tx.onerror = () => reject(tx.error);
+		});
+	} finally {
+		db.close();
+	}
+	await prunePrintBlobs();
+	return id;
+}
+async function loadPrintBlob(id) {
+	try {
+		const db = await openDb();
+		try {
+			return await new Promise((resolve, reject) => {
+				const req = db.transaction(STORE, "readonly").objectStore(STORE).get(id);
+				req.onsuccess = () => resolve(req.result);
+				req.onerror = () => reject(req.error);
+			});
+		} finally {
+			db.close();
+		}
+	} catch {
+		return;
+	}
+}
+async function prunePrintBlobs() {
+	try {
+		const db = await openDb();
+		try {
+			const ordered = [...await new Promise((resolve, reject) => {
+				const req = db.transaction(STORE, "readonly").objectStore(STORE).getAll();
+				req.onsuccess = () => resolve(req.result ?? []);
+				req.onerror = () => reject(req.error);
+			})].sort((a, b) => a.addedAt - b.addedAt);
+			let total = ordered.reduce((sum, row) => sum + (row.size || 0), 0);
+			const drop = [];
+			while (ordered.length - drop.length > MAX_BLOBS || total > MAX_TOTAL_BYTES) {
+				const oldest = ordered[drop.length];
+				if (!oldest) break;
+				drop.push(oldest);
+				total -= oldest.size || 0;
+			}
+			if (!drop.length) return;
+			await new Promise((resolve, reject) => {
+				const tx = db.transaction(STORE, "readwrite");
+				const store = tx.objectStore(STORE);
+				for (const row of drop) store.delete(row.id);
+				tx.oncomplete = () => resolve();
+				tx.onerror = () => reject(tx.error);
+			});
+		} finally {
+			db.close();
+		}
+	} catch {}
 }
 var FAST_POLL_MS = 400;
 var IDLE_POLL_MS = 2e3;
@@ -840,7 +937,8 @@ var VISION_MODELS = {
 	semanticPro: {
 		name: "SigLIP large+",
 		purpose: "Highest-detail browser semantic review",
-		model: "Xenova/siglip-large-patch16-256"
+		model: "Xenova/siglip-large-patch16-256",
+		revision: "main"
 	}
 };
 var SEMANTIC_TOPICS = [
@@ -1037,7 +1135,8 @@ var LOCAL_UPSCALER = {
 	revision: "93dfc9089abda257351d3a58d5771e2c1ff69442",
 	sha256: "49ffa7b96532edb9553c74be11b623dafa26db1645611096a208449451a960df",
 	artifactUrl: "https://huggingface.co/Xenova/swin2SR-classical-sr-x2-64/resolve/93dfc9089abda257351d3a58d5771e2c1ff69442/onnx/model_q4f16.onnx",
-	shippedArtifactUrl: "/models/swin2sr-x2-q4f16.onnx"
+	shippedArtifactUrl: "/models/swin2sr-x2-q4f16.onnx",
+	cacheKey: "/reelcase-local-models/upscaler.onnx"
 };
 var widgetScript;
 function loadWidgets() {
@@ -1250,6 +1349,26 @@ var X_ADULT_SEED_HANDLES = [
 	"AlinaRoseASMR",
 	"WaifuMia"
 ].map((h) => h.replace(/^@/, "").toLowerCase()).filter((h) => /^[a-z0-9_]{1,15}$/.test(h));
+var hub_sections_exports = /* @__PURE__ */ __exportAll({
+	FindPhoneSection: () => FindPhoneSection,
+	GamesSection: () => GamesSection,
+	GenreSection: () => GenreSection,
+	LanConnectionSection: () => LanConnectionSection,
+	MissionPlanSection: () => MissionPlanSection,
+	PhotosSection: () => PhotosSection,
+	PrintsSection: () => PrintsSection,
+	PrivateWebShortcuts: () => PrivateWebShortcuts,
+	SettingsSection: () => SettingsSection,
+	ShopSection: () => ShopSection,
+	SocialSection: () => SocialSection,
+	SpotifySection: () => SpotifySection,
+	StatsSection: () => StatsSection,
+	StreamingSection: () => StreamingSection,
+	WatchRoomSection: () => WatchRoomSection
+});
+var PrintModelViewer = (0, import_react.lazy)(async () => {
+	return { default: (await import("./print-model-viewer-CjKDokBb.mjs")).PrintModelViewer };
+});
 var HUB_KEY = "reelcase.hub.v1";
 function gameKind(item) {
 	if (item.launchUrl) return "web-ready";
@@ -1317,8 +1436,9 @@ function readHub() {
 		{
 			name: "Calibration cube.stl",
 			path: "Reelcase samples/Calibration cube.stl",
-			size: 182400,
-			addedAt: 1
+			size: 2618,
+			addedAt: 1,
+			sampleSrc: "/samples/prints/calibration-cube.stl"
 		},
 		{
 			name: "Cable clip.3mf",
@@ -1327,10 +1447,11 @@ function readHub() {
 			addedAt: 2
 		},
 		{
-			name: "OpenSCAD phone stand.stl",
-			path: "Open-source examples/OpenSCAD phone stand.stl",
-			size: 512400,
-			addedAt: 4
+			name: "OpenSCAD phone stand.obj",
+			path: "Open-source examples/OpenSCAD phone stand.obj",
+			size: 318,
+			addedAt: 4,
+			sampleSrc: "/samples/prints/phone-stand.obj"
 		},
 		{
 			name: "Gridfinity bin.3mf",
@@ -1339,10 +1460,11 @@ function readHub() {
 			addedAt: 5
 		},
 		{
-			name: "Benchy calibration.stl",
-			path: "Open-source examples/Benchy calibration.stl",
-			size: 643100,
-			addedAt: 6
+			name: "Benchy calibration.obj",
+			path: "Open-source examples/Benchy calibration.obj",
+			size: 236,
+			addedAt: 6,
+			sampleSrc: "/samples/prints/benchy.obj"
 		},
 		{
 			name: "Parametric drawer label.stl",
@@ -1639,6 +1761,24 @@ function StatsSection() {
 			viewCounts,
 			ratingOf: getRating
 		});
+		const kindCounts = {
+			videos: 0,
+			live: 0,
+			photos: 0
+		};
+		let adultViews = 0;
+		let adultWatchSeconds = 0;
+		let adultRated = 0;
+		for (const video of adultVideos) {
+			if (video.remote?.live || video.remote?.kind === "chaturbate" || video.remote?.kind === "myfreecams") kindCounts.live += 1;
+			else if (isAdultImageKind(video.remote?.kind, video.mime, video.extension)) kindCounts.photos += 1;
+			else kindCounts.videos += 1;
+			adultViews += viewCounts[video.id] ?? 0;
+			adultWatchSeconds += progress[video.id]?.t ?? resumeProgress[video.id]?.t ?? 0;
+			if (getRating(video.id) > 0) adultRated += 1;
+		}
+		const booruHosts = countAdultBooruHosts(adultVideos);
+		const historyAdult = history.filter((entry) => adultVideos.some((video) => video.id === entry.id)).length;
 		return {
 			adultTitles: adultVideos.length,
 			sourceMix: Object.entries(bySource).filter(([, count]) => count > 0).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
@@ -1655,13 +1795,23 @@ function StatsSection() {
 			dedupe: snapshot.dedupe,
 			redditTags: snapshot.redditTags.slice(0, 12),
 			tagConnections: snapshot.tagConnections.slice(0, 12),
-			noisyTagAssignments: snapshot.noisyTagAssignments
+			noisyTagAssignments: snapshot.noisyTagAssignments,
+			kindCounts,
+			booruHosts,
+			adultViews,
+			adultWatchHours: adultWatchSeconds / 3600,
+			adultRated,
+			historyAdult,
+			sparseTags: ranked.filter((row) => row.count === 1).length
 		};
 	}, [
 		cameCounts,
 		favorites,
 		folders,
+		history,
 		likes,
+		progress,
+		resumeProgress,
 		tags,
 		videos,
 		viewCounts
@@ -2139,6 +2289,208 @@ function StatsSection() {
 									})
 								})
 							]
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+						className: "mt-5 grid gap-5 xl:grid-cols-3",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "h-72 rounded-lg bg-bg/45 p-4",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+										children: "Adult media mix"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "mt-1 text-xs text-muted",
+										children: "Videos, live rooms, and photos currently in the Adult catalog."
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ResponsiveContainer, {
+										width: "100%",
+										height: "78%",
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(PieChart, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Pie, {
+											dataKey: "value",
+											nameKey: "name",
+											data: [
+												{
+													name: "Videos",
+													value: adultTagStats.kindCounts.videos
+												},
+												{
+													name: "Live",
+													value: adultTagStats.kindCounts.live
+												},
+												{
+													name: "Photos",
+													value: adultTagStats.kindCounts.photos
+												}
+											].filter((row) => row.value > 0),
+											innerRadius: 42,
+											outerRadius: 72,
+											paddingAngle: 2,
+											children: [
+												"var(--color-accent)",
+												"var(--color-muted)",
+												"#7c6cff"
+											].map((color, index) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Cell, { fill: color }, color))
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tooltip, {})] })
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "h-72 rounded-lg bg-bg/45 p-4",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+										children: "Booru host mix"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "mt-1 text-xs text-muted",
+										children: "Rule34 is listed first so its filter chip stays accountable."
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ResponsiveContainer, {
+										width: "100%",
+										height: "78%",
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(BarChart, {
+											data: adultTagStats.booruHosts.slice(0, 8).map((row) => ({
+												name: row.host,
+												titles: row.count
+											})),
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(XAxis, {
+													dataKey: "name",
+													stroke: "currentColor",
+													fontSize: 10,
+													interval: 0,
+													angle: -20,
+													textAnchor: "end",
+													height: 54
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(YAxis, {
+													stroke: "currentColor",
+													fontSize: 12
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tooltip, {}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bar, {
+													dataKey: "titles",
+													fill: "var(--color-accent)",
+													radius: 4
+												})
+											]
+										})
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rounded-lg bg-bg/45 p-4",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+									children: "Adult engagement table"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "mt-3 overflow-x-auto",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("table", {
+										className: "w-full text-left text-xs",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("tr", {
+											className: "text-muted",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("th", {
+												className: "py-1 pr-3 font-medium",
+												children: "Metric"
+											}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("th", {
+												className: "py-1 font-medium",
+												children: "Value"
+											})]
+										}) }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("tbody", {
+											className: "text-fg",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("tr", {
+													className: "border-t border-border/60",
+													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("td", {
+														className: "py-1.5 pr-3",
+														children: "Local view events"
+													}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("td", { children: adultTagStats.adultViews.toLocaleString() })]
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("tr", {
+													className: "border-t border-border/60",
+													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("td", {
+														className: "py-1.5 pr-3",
+														children: "Resume watch time"
+													}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("td", { children: [adultTagStats.adultWatchHours.toFixed(1), " h"] })]
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("tr", {
+													className: "border-t border-border/60",
+													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("td", {
+														className: "py-1.5 pr-3",
+														children: "Rated titles"
+													}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("td", { children: adultTagStats.adultRated.toLocaleString() })]
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("tr", {
+													className: "border-t border-border/60",
+													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("td", {
+														className: "py-1.5 pr-3",
+														children: "History events"
+													}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("td", { children: adultTagStats.historyAdult.toLocaleString() })]
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("tr", {
+													className: "border-t border-border/60",
+													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("td", {
+														className: "py-1.5 pr-3",
+														children: "1-video tags ranked"
+													}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("td", { children: adultTagStats.sparseTags.toLocaleString() })]
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("tr", {
+													className: "border-t border-border/60",
+													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("td", {
+														className: "py-1.5 pr-3",
+														children: "Rule34 cards"
+													}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("td", { children: (adultTagStats.booruHosts.find((row) => row.host === "rule34")?.count ?? 0).toLocaleString() })]
+												})
+											]
+										})]
+									})
+								})]
+							})
+						]
+					}),
+					adultTagStats.booruHosts.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 overflow-x-auto rounded-md bg-bg/45 p-3",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+							children: "Booru hosts"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("table", {
+							className: "mt-2 w-full min-w-[28rem] text-left text-xs",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("tr", {
+								className: "text-muted",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("th", {
+										className: "py-1 pr-3",
+										children: "Host"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("th", {
+										className: "py-1 pr-3",
+										children: "Titles"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("th", {
+										className: "py-1",
+										children: "Share"
+									})
+								]
+							}) }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("tbody", { children: adultTagStats.booruHosts.map((row) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("tr", {
+								className: "border-t border-border/60 text-fg",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("td", {
+										className: "py-1.5 pr-3 font-medium",
+										children: row.host
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("td", {
+										className: "py-1.5 pr-3",
+										children: row.count.toLocaleString()
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("td", {
+										className: "py-1.5",
+										children: adultTagStats.adultTitles ? `${Math.round(row.count / adultTagStats.adultTitles * 100)}%` : "—"
+									})
+								]
+							}, row.host)) })]
 						})]
 					}),
 					(adultTagStats.genres.length > 0 || adultTagStats.metaTags.length > 0) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -4401,8 +4753,8 @@ function PrintsSection() {
 		eyebrow: "Maker shelf",
 		icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Box, { className: "size-4" }),
 		title: "3D prints",
-		copy: "Keep a lightweight catalog of print-ready files. Add STL, OBJ, 3MF, or G-code files to track what is ready for the printer.",
-		accept: ".stl,.obj,.3mf,.gcode",
+		copy: "Keep a lightweight catalog of print-ready files. Preview STL, OBJ, GLB/GLTF, and 3MF in an interactive orbit viewer; G-code stays list-only for slicers.",
+		accept: ".stl,.obj,.3mf,.gcode,.glb,.gltf",
 		footer: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 			className: "mt-5 grid gap-3 sm:grid-cols-2",
 			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ServiceLink, {
@@ -4825,7 +5177,7 @@ function PhotosSection() {
 		startedAt: 0,
 		running: false
 	});
-	const [photoLimit, setPhotoLimit] = (0, import_react.useState)(80);
+	const [photoLimit, setPhotoLimit] = (0, import_react.useState)(48);
 	const [visionBusy, setVisionBusy] = (0, import_react.useState)(false);
 	const [visionProgress, setVisionProgress] = (0, import_react.useState)("");
 	const [visionReport, setVisionReport] = (0, import_react.useState)([]);
@@ -4851,6 +5203,7 @@ function PhotosSection() {
 	const [upscalerChecksum, setUpscalerChecksum] = (0, import_react.useState)(LOCAL_UPSCALER.sha256);
 	const [upscalerInstalling, setUpscalerInstalling] = (0, import_react.useState)(false);
 	const [upscalePreview, setUpscalePreview] = (0, import_react.useState)("");
+	const upscalePreviewRef = (0, import_react.useRef)("");
 	const [upscaleBusy, setUpscaleBusy] = (0, import_react.useState)(false);
 	const [upscaleStatus, setUpscaleStatus] = (0, import_react.useState)("");
 	const [companionCache, setCompanionCache] = (0, import_react.useState)(null);
@@ -4915,7 +5268,7 @@ function PhotosSection() {
 			if (!blob.size || blob.size > 786432e3) throw new Error("Model size is outside the safe local cache budget");
 			const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", await blob.arrayBuffer()))).map((part) => part.toString(16).padStart(2, "0")).join("");
 			if (digest !== expected) throw new Error("Checksum mismatch — the model was not stored");
-			const cacheKey = "/reelcase-local-models/upscaler.onnx";
+			const cacheKey = LOCAL_UPSCALER.cacheKey;
 			const cache = await caches.open("reelcase-local-models-v1");
 			await cache.put(cacheKey, new Response(blob, { headers: { "content-type": blob.type || "application/octet-stream" } }));
 			const model = {
@@ -5035,9 +5388,18 @@ function PhotosSection() {
 			setPhotoCacheNotice(`Cached index ready · ${sourcePhotos.length.toLocaleString()} source photos available`);
 		}
 	}, [sourcePhotos]);
+	(0, import_react.useEffect)(() => {
+		upscalePreviewRef.current = upscalePreview;
+	}, [upscalePreview]);
 	(0, import_react.useEffect)(() => () => {
 		for (const url of photoUrls.current) URL.revokeObjectURL(url);
 		photoUrls.current.clear();
+		if (upscalePreviewRef.current) {
+			try {
+				URL.revokeObjectURL(upscalePreviewRef.current);
+			} catch {}
+			upscalePreviewRef.current = "";
+		}
 	}, []);
 	(0, import_react.useEffect)(() => {
 		if (metadataWriteTimer.current) clearTimeout(metadataWriteTimer.current);
@@ -7115,7 +7477,7 @@ var ROADMAP_EXPANSION = [
 		[
 			"print-file-viewer",
 			"3D print file viewer",
-			"Preview locally added STL, OBJ, and 3MF geometry with file details before opening a slicer."
+			"Interactive three.js orbit viewer for STL, OBJ, GLB/GLTF, and 3MF — sample models plus user-added IndexedDB bytes; dispose on close."
 		],
 		[
 			"twitch-view-modes",
@@ -7131,7 +7493,7 @@ var ROADMAP_EXPANSION = [
 		id,
 		title,
 		detail,
-		done: false
+		done: id === "print-file-viewer"
 	})),
 	...[
 		[
@@ -8388,10 +8750,37 @@ function LocalCatalog({ kind, eyebrow, icon, title, copy, accept, directory, foo
 		prints: [],
 		games: []
 	});
+	const [viewer, setViewer] = (0, import_react.useState)(null);
+	const [busy, setBusy] = (0, import_react.useState)(false);
 	(0, import_react.useEffect)(() => setHub(readHub()), []);
 	const items = hub[kind];
-	const change = (files) => {
+	const change = async (files) => {
 		if (!files?.length) return;
+		if (kind === "prints") {
+			setBusy(true);
+			try {
+				const nextItems = [];
+				for (const file of [...files]) {
+					const blobId = await savePrintBlob(file);
+					nextItems.push({
+						name: file.name,
+						path: file.webkitRelativePath || file.name,
+						size: file.size,
+						addedAt: Date.now(),
+						id: blobId ?? void 0
+					});
+				}
+				const next = {
+					...hub,
+					prints: [...nextItems, ...hub.prints].slice(0, 120)
+				};
+				setHub(next);
+				writeHub(next);
+			} finally {
+				setBusy(false);
+			}
+			return;
+		}
 		const next = {
 			...hub,
 			[kind]: filesToItems(files, kind === "games")
@@ -8399,6 +8788,7 @@ function LocalCatalog({ kind, eyebrow, icon, title, copy, accept, directory, foo
 		setHub(next);
 		writeHub(next);
 	};
+	const canView = (item) => Boolean(item.sampleSrc || item.id && isViewablePrintName(item.name));
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(HubShell, {
 		eyebrow,
 		icon,
@@ -8411,22 +8801,26 @@ function LocalCatalog({ kind, eyebrow, icon, title, copy, accept, directory, foo
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PackageSearch, { className: "size-7 text-accent" }),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 						className: "mt-3 text-sm font-medium text-fg",
-						children: directory ? "Choose Desktop games folder" : "Add print files"
+						children: directory ? "Choose Desktop games folder" : busy ? "Saving print files…" : "Add print files"
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 						className: "mt-1 text-xs text-muted",
-						children: directory ? "Keeps only game launchers and shortcuts; folders and support files stay out." : "STL, OBJ, 3MF, and G-code are supported."
+						children: directory ? "Keeps only game launchers and shortcuts; folders and support files stay out." : "STL, OBJ, GLB/GLTF, and 3MF open in the in-app viewer; G-code is catalog-only."
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
 						type: "file",
 						multiple: true,
 						accept,
 						className: "sr-only",
+						disabled: busy,
 						...directory ? {
 							webkitdirectory: "",
 							directory: ""
 						} : {},
-						onChange: (event) => change(event.target.files)
+						onChange: (event) => {
+							change(event.target.files);
+							event.target.value = "";
+						}
 					})
 				]
 			}),
@@ -8443,7 +8837,7 @@ function LocalCatalog({ kind, eyebrow, icon, title, copy, accept, directory, foo
 						]
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "text-xs text-subtle",
-						children: "Stored as names only"
+						children: kind === "prints" ? "Names in localStorage · viewable bytes in IndexedDB" : "Stored as names only"
 					})]
 				}), items.slice(0, 80).map((item) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "flex items-center justify-between gap-4 border-b border-border/70 px-4 py-3 last:border-0",
@@ -8456,13 +8850,37 @@ function LocalCatalog({ kind, eyebrow, icon, title, copy, accept, directory, foo
 							className: "truncate text-xs text-muted",
 							children: item.path
 						})]
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-						className: "shrink-0 font-mono text-xs text-subtle",
-						children: bytes(item.size)
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "flex shrink-0 items-center gap-2",
+						children: [kind === "prints" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+							size: "sm",
+							variant: canView(item) ? "default" : "secondary",
+							type: "button",
+							disabled: !canView(item),
+							title: canView(item) ? "Open orbit viewer" : /\.gcode$/i.test(item.name) ? "G-code is not a mesh preview" : "Re-add this file to enable preview",
+							onClick: () => setViewer({
+								name: item.name,
+								path: item.path,
+								size: item.size,
+								sampleSrc: item.sampleSrc,
+								blobId: item.id
+							}),
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Eye, { className: "size-3.5" }), "View"]
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "font-mono text-xs text-subtle",
+							children: bytes(item.size)
+						})]
 					})]
 				}, `${item.path}:${item.addedAt}`))]
 			}),
-			footer
+			footer,
+			viewer && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_react.Suspense, {
+				fallback: null,
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PrintModelViewer, {
+					target: viewer,
+					onClose: () => setViewer(null)
+				})
+			})
 		]
 	});
 }
@@ -10705,4 +11123,4 @@ function PhotoStars({ name, rating, onChange }) {
 	});
 }
 //#endregion
-export { FindPhoneSection, GamesSection, GenreSection, LanConnectionSection, MissionPlanSection, PhotosSection, PrintsSection, PrivateWebShortcuts, SettingsSection, ShopSection, SocialSection, SpotifySection, StatsSection, StreamingSection, WatchRoomSection };
+export { isViewablePrintName as n, loadPrintBlob as r, hub_sections_exports as t };

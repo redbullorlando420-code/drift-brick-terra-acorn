@@ -1,6 +1,6 @@
 import { n as TSS_SERVER_FUNCTION, t as createServerFn } from "./ssr.mjs";
-import { A as expandAdultThumbFallbacks, G as pickRedtubeThumb, J as redtubeStarNames, M as extractRedditFlair, V as isUsableAdultThumb, _ as REDGIFS_FOLDER_ID, b as adultDeepenQueriesForPage, c as ADULT_PULL_PROVIDERS, d as BOORU_FOLDER_ID, f as CHATURBATE_FOLDER_ID, g as REDDIT_FOLDER_ID, h as MYFREECAMS_FOLDER_ID, k as cachedAdultFetch, l as ADULT_REDDIT_SUBS, m as LIBRARY_LIMITS, p as EPORNER_FOLDER_ID, v as REDTUBE_FOLDER_ID } from "./library-limits-L0aREwkM.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/functions-BXRkJYoE.js
+import { A as cachedAdultFetch, H as isUsableAdultThumb, K as pickRedtubeThumb, N as extractRedditFlair, Y as redtubeStarNames, _ as REDDIT_FOLDER_ID, c as ADULT_PULL_PROVIDERS, f as BOORU_FOLDER_ID, g as MYFREECAMS_FOLDER_ID, h as LIBRARY_LIMITS, j as expandAdultThumbFallbacks, l as ADULT_REDDIT_PRIORITY_SUBS, m as EPORNER_FOLDER_ID, p as CHATURBATE_FOLDER_ID, u as ADULT_REDDIT_SUBS, v as REDGIFS_FOLDER_ID, x as adultDeepenQueriesForPage, y as REDTUBE_FOLDER_ID } from "./adult-pull-cache-D3-4maho.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/functions-C87fJJ7n.js
 var createServerRpc = (serverFnMeta, splitImportFn) => {
 	const url = "/_serverFn/" + serverFnMeta.id;
 	return Object.assign(splitImportFn, {
@@ -1007,7 +1007,7 @@ function epornerVideo(row) {
 		}
 	};
 }
-async function fetchEpornerPage(query, order, page, perPage) {
+async function fetchEpornerPageOnce(query, order, page, perPage) {
 	const url = `https://www.eporner.com/api/v2/video/search/?${new URLSearchParams({
 		query,
 		per_page: String(perPage),
@@ -1034,6 +1034,13 @@ async function fetchEpornerPage(query, order, page, perPage) {
 		totalPages: typeof json.total_pages === "number" ? json.total_pages : page,
 		totalCount: typeof json.total_count === "number" ? json.total_count : videos.length
 	};
+}
+async function fetchEpornerPage(query, order, page, perPage) {
+	try {
+		const primary = await fetchEpornerPageOnce(query, order, page, perPage);
+		if (primary.videos.length) return primary;
+	} catch {}
+	return fetchEpornerPageOnce(query, order === "latest" ? "top-weekly" : "latest", page, Math.min(perPage, 120));
 }
 function parseClockDuration(raw) {
 	const parts = raw.trim().split(":").map((p) => Number(p));
@@ -1467,8 +1474,12 @@ function redditVideo(entry, subreddit) {
 }
 /** Rotate through the curated catalog so refreshes sample many subs over time. */
 function redditSubWindow(page, configuredSources = []) {
-	const configured = configuredSources.length ? [...configuredSources].sort((a, b) => b.priority - a.priority || a.subreddit.localeCompare(b.subreddit)).map((row) => row.subreddit) : [...ADULT_REDDIT_SUBS];
-	const all = [...new Map((configured.length ? configured : [...ADULT_REDDIT_SUBS]).map((sub) => [sub.toLowerCase(), sub])).values()];
+	const configured = configuredSources.length ? [...configuredSources].sort((a, b) => b.priority - a.priority || a.subreddit.localeCompare(b.subreddit)).map((row) => row.subreddit) : (() => {
+		const priority = ADULT_REDDIT_PRIORITY_SUBS.map((sub) => sub.toLowerCase());
+		const rest = ADULT_REDDIT_SUBS.filter((sub) => !priority.includes(sub.toLowerCase()));
+		return [...ADULT_REDDIT_PRIORITY_SUBS, ...rest];
+	})();
+	const all = [...new Map(configured.map((sub) => [sub.toLowerCase(), sub])).values()];
 	const size = Math.max(1, LIBRARY_LIMITS.redditSubsPerPull);
 	const totalPages = Math.max(1, Math.ceil(all.length / size));
 	const tick = configured.length ? 0 : Math.floor(Date.now() / 12e5);
@@ -1490,7 +1501,7 @@ async function fetchRedditSubRss(sub, sort) {
 		try {
 			const res = await cachedAdultFetch(url, {
 				signal: AbortSignal.timeout(7e3),
-				cacheTtlMs: 36e4,
+				cacheTtlMs: 6e5,
 				headers: {
 					accept: "application/atom+xml, application/rss+xml, application/xml;q=0.9, */*;q=0.8",
 					"user-agent": "linux:reelcase:1.0 (by /u/reelcase)"
@@ -1505,7 +1516,7 @@ async function fetchRedditSubRss(sub, sort) {
 		} catch (err) {
 			failure = err instanceof Error ? err.message : "network unavailable";
 		}
-		if (!xml) await new Promise((resolve) => setTimeout(resolve, 250));
+		if (!xml) await new Promise((resolve) => setTimeout(resolve, 400));
 	}
 	if (!xml) throw new Error(failure || "empty feed");
 	const posts = [];
@@ -1564,6 +1575,17 @@ var BOORU_HOSTS = [
 		id: "rule34",
 		base: "https://rule34.xxx",
 		apiBase: "https://api.rule34.xxx",
+		postPath: "/index.php?page=post&s=view&id="
+	},
+	{
+		id: "gelbooru",
+		base: "https://gelbooru.com",
+		apiBase: "https://gelbooru.com",
+		postPath: "/index.php?page=post&s=view&id="
+	},
+	{
+		id: "realbooru",
+		base: "https://realbooru.com",
 		postPath: "/index.php?page=post&s=view&id="
 	},
 	{
@@ -1680,8 +1702,7 @@ async function fetchRule34Post(host, id) {
 		tags: decodeBooruHtml(tags)
 	}, host);
 }
-async function fetchBooruHost(host, tags, limit, pid) {
-	if (host.id === "rule34") return fetchRule34Listing(host, tags, limit, pid);
+async function fetchBooruJson(host, tags, limit, pid) {
 	const params = new URLSearchParams({
 		page: "dapi",
 		s: "post",
@@ -1711,6 +1732,16 @@ async function fetchBooruHost(host, tags, limit, pid) {
 		if (video) out.push(video);
 	}
 	return out;
+}
+async function fetchBooruHost(host, tags, limit, pid) {
+	if (host.id === "rule34") {
+		try {
+			const jsonRows = await fetchBooruJson(host, tags, limit, pid);
+			if (jsonRows.length) return jsonRows;
+		} catch {}
+		return fetchRule34Listing(host, tags, limit, pid);
+	}
+	return fetchBooruJson(host, tags, limit, pid);
 }
 function e621TagString(tags) {
 	if (!tags) return "";
@@ -1813,11 +1844,13 @@ async function fetchBooruFeed(query, maxVideos, page) {
 	const seen = /* @__PURE__ */ new Set();
 	const errors = [];
 	const hosts = [...BOORU_HOSTS];
-	const slotCount = hosts.length + 1;
+	const slotCount = hosts.length + 2;
 	const share = Math.max(1, Math.min(limit, Math.ceil(maxVideos / slotCount)));
-	const ordered = [...hosts.slice(pid % hosts.length), ...hosts.slice(0, pid % hosts.length)];
+	const rotated = [...hosts.slice(pid % hosts.length), ...hosts.slice(0, pid % hosts.length)];
+	const rule34 = rotated.find((host) => host.id === "rule34");
+	const ordered = rule34 ? [rule34, ...rotated.filter((host) => host.id !== "rule34")] : rotated;
 	const e621Tags = !needle || needle === "all" ? "rating:e order:rank" : `rating:e ${needle}`;
-	const batches = await Promise.allSettled([...ordered.map((host) => fetchBooruHost(host, tagQuery, share, pid)), fetchE621Page(e621Tags, share, Math.max(1, page))]);
+	const batches = await Promise.allSettled([...ordered.map((host) => fetchBooruHost(host, tagQuery, host.id === "rule34" ? share * 2 : share, pid)), fetchE621Page(e621Tags, share, Math.max(1, page))]);
 	for (const [index, result] of batches.entries()) {
 		const label = index < ordered.length ? ordered[index].id : "e621";
 		if (result.status !== "fulfilled") {
