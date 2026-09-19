@@ -145,6 +145,320 @@ export async function restoreDurableFollows(): Promise<FollowedChannel[]> {
 
 export function waitForFollowsWrites() { return followsWrites; }
 
+/** ----- Broader durable activity blobs (same pattern as follows) -----
+ * Thumb prune, Adult catalog caps, and prefs QuotaExceeded must not wipe these.
+ * Each key lives under ACTIVITY_STORE with a tiny localStorage mirror when helpful.
+ */
+const DURABLE_HISTORY_IDB_KEY = "history";
+const DURABLE_HISTORY_LS_KEY = "reelcase.history.v1";
+const DURABLE_RESUME_IDB_KEY = "resume";
+const DURABLE_RESUME_LS_KEY = "reelcase.resume.v1";
+const DURABLE_MARKS_IDB_KEY = "marks";
+const DURABLE_MARKS_LS_KEY = "reelcase.marks.v1";
+const DURABLE_SHELVES_IDB_KEY = "shelves";
+const DURABLE_SHELVES_LS_KEY = "reelcase.shelves.v1";
+const DURABLE_LINKS_IDB_KEY = "links";
+const DURABLE_LINKS_LS_KEY = "reelcase.links.v1";
+const DURABLE_FEEDBACK_IDB_KEY = "feedback";
+const DURABLE_FEEDBACK_LS_KEY = "reelcase.media-feedback.v1";
+
+export type SavedVideoLink = {
+  id: string;
+  url: string;
+  title?: string;
+  poster?: string;
+  kind?: string;
+  savedAt: number;
+  source: "history" | "bookmark" | "continue";
+};
+
+export type DurableHistory = { entries: HistoryEntry[]; savedAt: number };
+export type DurableResume = { progress: Prefs["progress"]; resumeProgress: NonNullable<Prefs["resumeProgress"]>; savedAt: number };
+export type DurableMarks = { viewCounts: Record<string, number>; cameCounts: Record<string, number>; savedAt: number };
+export type DurableShelves = { favorites: string[]; likes: string[]; savedAt: number };
+export type DurableLinks = { links: SavedVideoLink[]; savedAt: number };
+export type DurableFeedback = {
+  ratings: Record<string, number>;
+  ratingHistory: Record<string, { rating: number; updatedAt: number }>;
+  notes: Record<string, string>;
+  creatorRatings: Record<string, number>;
+  creatorLikes: Record<string, true>;
+  tagLikes: Record<string, true>;
+  tagHeartHistory: Record<string, number>;
+  savedAt: number;
+};
+
+let durableWriteChain: Promise<void> = Promise.resolve();
+
+function putActivityBlob(key: string, payload: unknown): Promise<void> {
+  durableWriteChain = durableWriteChain.catch(() => undefined).then(async () => {
+    const db = await openDb();
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(ACTIVITY_STORE, "readwrite");
+        tx.objectStore(ACTIVITY_STORE).put(payload, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error);
+      });
+    } finally { db.close(); }
+  });
+  return durableWriteChain;
+}
+
+async function getActivityBlob<T>(key: string): Promise<T | undefined> {
+  const db = await openDb();
+  try {
+    return await new Promise<T | undefined>((resolve, reject) => {
+      const req = db.transaction(ACTIVITY_STORE).objectStore(ACTIVITY_STORE).get(key);
+      req.onsuccess = () => resolve(req.result as T | undefined);
+      req.onerror = () => reject(req.error);
+    });
+  } finally { db.close(); }
+}
+
+function readJsonLocal<T>(key: string): T | null {
+  try {
+    const raw = JSON.parse(localStorage.getItem(key) ?? "null");
+    return raw as T;
+  } catch { return null; }
+}
+
+function writeJsonLocal(key: string, value: unknown) {
+  try { localStorage.setItem(key, JSON.stringify(value)); }
+  catch { /* IndexedDB remains the durable path. */ }
+}
+
+function normalizeHistoryEntries(raw: unknown): HistoryEntry[] {
+  if (!Array.isArray(raw)) return [];
+  const out: HistoryEntry[] = [];
+  for (const row of raw) {
+    if (!row || typeof row !== "object") continue;
+    const rec = row as Record<string, unknown>;
+    const id = typeof rec.id === "string" ? rec.id.trim() : "";
+    const at = typeof rec.at === "number" && Number.isFinite(rec.at) ? rec.at : NaN;
+    if (!id || !Number.isFinite(at)) continue;
+    out.push({
+      id,
+      at,
+      ...(typeof rec.eventId === "string" ? { eventId: rec.eventId } : {}),
+      ...(typeof rec.url === "string" ? { url: rec.url } : {}),
+      ...(typeof rec.position === "number" ? { position: rec.position } : {}),
+      ...(typeof rec.duration === "number" ? { duration: rec.duration } : {}),
+      ...(rec.source === "open" || rec.source === "progress" || rec.source === "watch-room" ? { source: rec.source } : {}),
+      ...(typeof rec.title === "string" ? { title: rec.title } : {}),
+      ...(typeof rec.poster === "string" ? { poster: rec.poster } : {}),
+      ...(typeof rec.rating === "number" ? { rating: rec.rating } : {}),
+    });
+  }
+  return out;
+}
+
+function normalizeProgressMap(raw: unknown): Record<string, { t: number; d: number; at: number }> {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<string, { t: number; d: number; at: number }> = {};
+  for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!value || typeof value !== "object") continue;
+    const rec = value as Record<string, unknown>;
+    const t = Number(rec.t); const d = Number(rec.d); const at = Number(rec.at);
+    if (!Number.isFinite(t) || !Number.isFinite(d) || !Number.isFinite(at) || d <= 0) continue;
+    out[id] = { t, d, at };
+  }
+  return out;
+}
+
+function normalizeStringList(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return [...new Set(raw.filter((item): item is string => typeof item === "string" && item.trim().length > 0).map((item) => item.trim()))];
+}
+
+function normalizeLinks(raw: unknown): SavedVideoLink[] {
+  if (!Array.isArray(raw)) return [];
+  const out: SavedVideoLink[] = [];
+  const seen = new Set<string>();
+  for (const row of raw) {
+    if (!row || typeof row !== "object") continue;
+    const rec = row as Record<string, unknown>;
+    const url = typeof rec.url === "string" ? rec.url.trim() : "";
+    const id = typeof rec.id === "string" ? rec.id.trim() : url;
+    if (!url || !id) continue;
+    const key = url.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const source = rec.source === "bookmark" || rec.source === "continue" || rec.source === "history" ? rec.source : "history";
+    out.push({
+      id,
+      url,
+      savedAt: typeof rec.savedAt === "number" && Number.isFinite(rec.savedAt) ? rec.savedAt : Date.now(),
+      source,
+      ...(typeof rec.title === "string" ? { title: rec.title } : {}),
+      ...(typeof rec.poster === "string" ? { poster: rec.poster } : {}),
+      ...(typeof rec.kind === "string" ? { kind: rec.kind } : {}),
+    });
+  }
+  return out;
+}
+
+/** Derive sticky video links from history + resume so Continue/recovery URLs survive catalog prune. */
+export function linksFromHistoryAndResume(
+  history: HistoryEntry[],
+  resumeProgress: Record<string, ResumeMark>,
+): SavedVideoLink[] {
+  const links: SavedVideoLink[] = [];
+  for (const entry of history) {
+    if (!entry.url || !/^https?:\/\//i.test(entry.url)) continue;
+    links.push({
+      id: entry.id,
+      url: entry.url,
+      savedAt: entry.at,
+      source: "history",
+      ...(entry.title ? { title: entry.title } : {}),
+      ...(entry.poster ? { poster: entry.poster } : {}),
+    });
+  }
+  for (const [key, mark] of Object.entries(resumeProgress)) {
+    if (!key.startsWith("http")) continue;
+    links.push({
+      id: key,
+      url: key,
+      savedAt: mark.at,
+      source: "continue",
+    });
+  }
+  return normalizeLinks(links);
+}
+
+export function saveDurableHistory(entries: HistoryEntry[]) {
+  if (typeof window === "undefined") return;
+  const payload: DurableHistory = { entries, savedAt: Date.now() };
+  // Mirror only a recent slice so QuotaExceeded on localStorage cannot block IDB.
+  writeJsonLocal(DURABLE_HISTORY_LS_KEY, { entries: entries.slice(0, 120), savedAt: payload.savedAt });
+  void putActivityBlob(DURABLE_HISTORY_IDB_KEY, payload).catch(() => undefined);
+}
+
+export async function restoreDurableHistory(): Promise<HistoryEntry[]> {
+  if (typeof window === "undefined") return [];
+  let fromIdb: HistoryEntry[] = [];
+  try {
+    const saved = await getActivityBlob<DurableHistory | HistoryEntry[]>(DURABLE_HISTORY_IDB_KEY);
+    if (Array.isArray(saved)) fromIdb = normalizeHistoryEntries(saved);
+    else if (saved && typeof saved === "object") fromIdb = normalizeHistoryEntries(saved.entries);
+  } catch { /* fall through */ }
+  const lsRaw = readJsonLocal<DurableHistory | HistoryEntry[]>(DURABLE_HISTORY_LS_KEY);
+  const fromLs = Array.isArray(lsRaw)
+    ? normalizeHistoryEntries(lsRaw)
+    : normalizeHistoryEntries(lsRaw && typeof lsRaw === "object" ? (lsRaw as DurableHistory).entries : []);
+  return fromIdb.length >= fromLs.length ? fromIdb : fromLs;
+}
+
+export function saveDurableResume(progress: Prefs["progress"], resumeProgress: NonNullable<Prefs["resumeProgress"]>) {
+  if (typeof window === "undefined") return;
+  const payload: DurableResume = { progress, resumeProgress, savedAt: Date.now() };
+  const resumeKeys = Object.keys(resumeProgress);
+  const slimResume: Record<string, { t: number; d: number; at: number }> = {};
+  for (const key of resumeKeys.slice(-200)) slimResume[key] = resumeProgress[key]!;
+  writeJsonLocal(DURABLE_RESUME_LS_KEY, { progress: {}, resumeProgress: slimResume, savedAt: payload.savedAt });
+  void putActivityBlob(DURABLE_RESUME_IDB_KEY, payload).catch(() => undefined);
+}
+
+export async function restoreDurableResume(): Promise<{ progress: Prefs["progress"]; resumeProgress: NonNullable<Prefs["resumeProgress"]> }> {
+  if (typeof window === "undefined") return { progress: {}, resumeProgress: {} };
+  let fromIdb: DurableResume | undefined;
+  try { fromIdb = await getActivityBlob<DurableResume>(DURABLE_RESUME_IDB_KEY); } catch { /* ignore */ }
+  const fromLs = readJsonLocal<DurableResume>(DURABLE_RESUME_LS_KEY);
+  const progress = { ...normalizeProgressMap(fromLs?.progress), ...normalizeProgressMap(fromIdb?.progress) };
+  const resumeProgress = { ...normalizeProgressMap(fromLs?.resumeProgress), ...normalizeProgressMap(fromIdb?.resumeProgress) };
+  return { progress, resumeProgress };
+}
+
+export function saveDurableMarks(viewCounts: Record<string, number>, cameCounts: Record<string, number>) {
+  if (typeof window === "undefined") return;
+  const payload: DurableMarks = { viewCounts: asCountMap(viewCounts), cameCounts: asCountMap(cameCounts), savedAt: Date.now() };
+  writeJsonLocal(DURABLE_MARKS_LS_KEY, payload);
+  void putActivityBlob(DURABLE_MARKS_IDB_KEY, payload).catch(() => undefined);
+}
+
+export async function restoreDurableMarks(): Promise<{ viewCounts: Record<string, number>; cameCounts: Record<string, number> }> {
+  if (typeof window === "undefined") return { viewCounts: {}, cameCounts: {} };
+  let fromIdb: DurableMarks | undefined;
+  try { fromIdb = await getActivityBlob<DurableMarks>(DURABLE_MARKS_IDB_KEY); } catch { /* ignore */ }
+  const fromLs = readJsonLocal<DurableMarks>(DURABLE_MARKS_LS_KEY);
+  const mergeCounts = (a: Record<string, number> = {}, b: Record<string, number> = {}) => {
+    const out = { ...a };
+    for (const [id, value] of Object.entries(b)) out[id] = Math.max(out[id] ?? 0, value);
+    return out;
+  };
+  return {
+    viewCounts: mergeCounts(asCountMap(fromLs?.viewCounts), asCountMap(fromIdb?.viewCounts)),
+    cameCounts: mergeCounts(asCountMap(fromLs?.cameCounts), asCountMap(fromIdb?.cameCounts)),
+  };
+}
+
+export function saveDurableShelves(favorites: string[], likes: string[]) {
+  if (typeof window === "undefined") return;
+  const payload: DurableShelves = { favorites: normalizeStringList(favorites), likes: normalizeStringList(likes), savedAt: Date.now() };
+  writeJsonLocal(DURABLE_SHELVES_LS_KEY, payload);
+  void putActivityBlob(DURABLE_SHELVES_IDB_KEY, payload).catch(() => undefined);
+}
+
+export async function restoreDurableShelves(): Promise<{ favorites: string[]; likes: string[] }> {
+  if (typeof window === "undefined") return { favorites: [], likes: [] };
+  let fromIdb: DurableShelves | undefined;
+  try { fromIdb = await getActivityBlob<DurableShelves>(DURABLE_SHELVES_IDB_KEY); } catch { /* ignore */ }
+  const fromLs = readJsonLocal<DurableShelves>(DURABLE_SHELVES_LS_KEY);
+  return {
+    favorites: [...new Set([...normalizeStringList(fromIdb?.favorites), ...normalizeStringList(fromLs?.favorites)])],
+    likes: [...new Set([...normalizeStringList(fromIdb?.likes), ...normalizeStringList(fromLs?.likes)])],
+  };
+}
+
+export function saveDurableLinks(links: SavedVideoLink[]) {
+  if (typeof window === "undefined") return;
+  const payload: DurableLinks = { links: normalizeLinks(links), savedAt: Date.now() };
+  writeJsonLocal(DURABLE_LINKS_LS_KEY, { links: payload.links.slice(0, 200), savedAt: payload.savedAt });
+  void putActivityBlob(DURABLE_LINKS_IDB_KEY, payload).catch(() => undefined);
+}
+
+export async function restoreDurableLinks(): Promise<SavedVideoLink[]> {
+  if (typeof window === "undefined") return [];
+  let fromIdb: SavedVideoLink[] = [];
+  try {
+    const saved = await getActivityBlob<DurableLinks>(DURABLE_LINKS_IDB_KEY);
+    fromIdb = normalizeLinks(saved?.links);
+  } catch { /* ignore */ }
+  const fromLs = normalizeLinks(readJsonLocal<DurableLinks>(DURABLE_LINKS_LS_KEY)?.links);
+  return normalizeLinks([...fromIdb, ...fromLs]);
+}
+
+export function saveDurableFeedback(feedback: Omit<DurableFeedback, "savedAt">) {
+  if (typeof window === "undefined") return;
+  const payload: DurableFeedback = { ...feedback, savedAt: Date.now() };
+  // Keep the existing media-feedback LS key as the sync mirror; IDB is the durable backup.
+  writeJsonLocal(DURABLE_FEEDBACK_LS_KEY, feedback);
+  void putActivityBlob(DURABLE_FEEDBACK_IDB_KEY, payload).catch(() => undefined);
+}
+
+export async function restoreDurableFeedback(): Promise<Omit<DurableFeedback, "savedAt"> | null> {
+  if (typeof window === "undefined") return null;
+  let fromIdb: DurableFeedback | undefined;
+  try { fromIdb = await getActivityBlob<DurableFeedback>(DURABLE_FEEDBACK_IDB_KEY); } catch { /* ignore */ }
+  const fromLs = readJsonLocal<Partial<DurableFeedback>>(DURABLE_FEEDBACK_LS_KEY);
+  if (!fromIdb && !fromLs) return null;
+  const pick = <T extends Record<string, unknown>>(a?: T, b?: T): T => ({ ...(b ?? {}), ...(a ?? {}) }) as T;
+  return {
+    ratings: pick(fromIdb?.ratings as Record<string, number> | undefined, fromLs?.ratings as Record<string, number> | undefined),
+    ratingHistory: pick(fromIdb?.ratingHistory as DurableFeedback["ratingHistory"] | undefined, fromLs?.ratingHistory as DurableFeedback["ratingHistory"] | undefined),
+    notes: pick(fromIdb?.notes as Record<string, string> | undefined, fromLs?.notes as Record<string, string> | undefined),
+    creatorRatings: pick(fromIdb?.creatorRatings as Record<string, number> | undefined, fromLs?.creatorRatings as Record<string, number> | undefined),
+    creatorLikes: pick(fromIdb?.creatorLikes as Record<string, true> | undefined, fromLs?.creatorLikes as Record<string, true> | undefined),
+    tagLikes: pick(fromIdb?.tagLikes as Record<string, true> | undefined, fromLs?.tagLikes as Record<string, true> | undefined),
+    tagHeartHistory: pick(fromIdb?.tagHeartHistory as Record<string, number> | undefined, fromLs?.tagHeartHistory as Record<string, number> | undefined),
+  };
+}
+
+export function waitForDurableWrites() { return durableWriteChain; }
+
+
 const TAG_EDITS_KEY = "reelcase.tag-edits.v1";
 const HISTORY_PENDING_KEY = "reelcase.history-pending.v1";
 function readPending<T>(key: string, fallback: T): T {

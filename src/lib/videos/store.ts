@@ -19,6 +19,7 @@ import {
 } from "@/lib/remote/adult-pull-cache";
 import { mergeRemoteRefresh } from "./remote-merge";
 import { measureInteraction } from "@/lib/interaction-budget";
+import { hydrateDurableFeedback } from "@/lib/media-feedback";
 import {
   appendCatalogVideos,
   appendActivityJournal,
@@ -36,7 +37,18 @@ import {
   loadFollows,
   restoreDurablePrefs,
   restoreDurableFollows,
+  restoreDurableHistory,
+  restoreDurableResume,
+  restoreDurableMarks,
+  restoreDurableShelves,
+  restoreDurableLinks,
+  linksFromHistoryAndResume,
   saveFollows,
+  saveDurableHistory,
+  saveDurableResume,
+  saveDurableMarks,
+  saveDurableShelves,
+  saveDurableLinks,
   saveTagEdit,
   restoreTagEdits,
   loadSourceHealth,
@@ -47,6 +59,7 @@ import {
   saveViewPrefs,
   saveSourceHealth,
   type Prefs,
+  type SavedVideoLink,
 } from "./persist";
 import {
   ingestDataTransfer,
@@ -230,6 +243,11 @@ function persistNow(get: () => LibraryState) {
   // Follow lists are durable on their own key/store so Adult tag bloat,
   // history caps, and thumb prune cannot erase YouTube/Twitch subscriptions.
   saveFollows(s.follows);
+  saveDurableHistory(s.history);
+  saveDurableResume(s.progress, s.resumeProgress);
+  saveDurableMarks(s.viewCounts, s.cameCounts);
+  saveDurableShelves(Object.keys(s.favorites), Object.keys(s.likes));
+  saveDurableLinks(linksFromHistoryAndResume(s.history, s.resumeProgress));
   savePrefs(prefs);
   void saveActivitySnapshot({ history: s.history, progress: s.progress, resumeProgress: s.resumeProgress, viewCounts: s.viewCounts, cameCounts: s.cameCounts, savedAt: Date.now() }).catch(() => queueResumeReplay(s.resumeProgress));
 }
@@ -237,6 +255,10 @@ function persistNow(get: () => LibraryState) {
 function persistActivity(get: () => LibraryState) {
   if (!preferencesRestored) return;
   const s = get();
+  saveDurableHistory(s.history);
+  saveDurableResume(s.progress, s.resumeProgress);
+  saveDurableMarks(s.viewCounts, s.cameCounts);
+  saveDurableLinks(linksFromHistoryAndResume(s.history, s.resumeProgress));
   void saveActivitySnapshot({ history: s.history, progress: s.progress, resumeProgress: s.resumeProgress, viewCounts: s.viewCounts, cameCounts: s.cameCounts, savedAt: Date.now() }).catch(() => queueResumeReplay(s.resumeProgress));
 }
 
@@ -1307,6 +1329,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     if (get().hydrated || restoring) return;
     restoring = true;
     await restoreDurablePrefs().catch(() => undefined);
+    void hydrateDurableFeedback().catch(() => undefined);
     const dedicatedFollows = await restoreDurableFollows().catch(() => loadFollows() ?? []);
     preferencesRestored = true;
     const prefsState = applyPrefs({});
@@ -1326,17 +1349,62 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     // Keep the durable activity journal separate from broad preferences. It
     // merges after first paint, so a massive tag payload cannot wipe history
     // or block startup recovery.
-    void Promise.all([loadActivitySnapshot(), loadActivityJournal()]).then(([activity, journal]) => {
+    void Promise.all([
+      loadActivitySnapshot(),
+      loadActivityJournal(),
+      restoreDurableHistory(),
+      restoreDurableResume(),
+      restoreDurableMarks(),
+      restoreDurableShelves(),
+      restoreDurableLinks(),
+    ]).then(([activity, journal, durableHistory, durableResume, durableMarks, durableShelves, durableLinks]) => {
       const queuedResume = takeQueuedResumeReplay();
-      if (!activity && !journal.length && !Object.keys(queuedResume).length) return;
+      const hasShelves = durableShelves.favorites.length || durableShelves.likes.length;
+      const hasAnything = activity || journal.length || durableHistory.length
+        || Object.keys(durableResume.resumeProgress).length
+        || Object.keys(durableMarks.viewCounts).length
+        || Object.keys(durableMarks.cameCounts).length
+        || hasShelves || durableLinks.length || Object.keys(queuedResume).length;
+      if (!hasAnything) return;
+      if (durableHistory.length || (activity?.history?.length ?? 0) || journal.length) {
+        const mergedEarly = mergeHistory(mergeHistory(durableHistory, activity?.history ?? []), journal);
+        if (mergedEarly.length) saveDurableHistory(mergedEarly);
+      }
+      if (Object.keys(durableResume.resumeProgress).length || activity?.resumeProgress) {
+        saveDurableResume(
+          { ...(activity?.progress ?? {}), ...durableResume.progress },
+          { ...(activity?.resumeProgress ?? {}), ...durableResume.resumeProgress },
+        );
+      }
+      if (Object.keys(durableMarks.viewCounts).length || Object.keys(durableMarks.cameCounts).length || activity?.viewCounts || activity?.cameCounts) {
+        saveDurableMarks(
+          { ...(activity?.viewCounts ?? {}), ...durableMarks.viewCounts },
+          { ...(activity?.cameCounts ?? {}), ...durableMarks.cameCounts },
+        );
+      }
+      if (hasShelves) saveDurableShelves(durableShelves.favorites, durableShelves.likes);
+      if (durableLinks.length) saveDurableLinks(durableLinks);
       set((s) => {
-        const resumeProgress = { ...(activity?.resumeProgress ?? {}), ...queuedResume, ...s.resumeProgress };
+        const resumeProgress = { ...(activity?.resumeProgress ?? {}), ...durableResume.resumeProgress, ...queuedResume, ...s.resumeProgress };
+        const favorites = { ...s.favorites };
+        const likes = { ...s.likes };
+        for (const id of durableShelves.favorites) favorites[id] = true;
+        for (const id of durableShelves.likes) likes[id] = true;
+        const history = mergeHistory(mergeHistory(mergeHistory(s.history, durableHistory), activity?.history ?? []), journal);
+        const linkById = new Map((durableLinks as SavedVideoLink[]).map((link) => [link.id, link]));
+        const withUrls = history.map((entry) => {
+          if (entry.url) return entry;
+          const link = linkById.get(entry.id);
+          return link ? { ...entry, url: link.url, title: entry.title ?? link.title, poster: entry.poster ?? link.poster } : entry;
+        });
         return {
-          history: mergeHistory(mergeHistory(s.history, activity?.history ?? []), journal),
+          history: withUrls,
           resumeProgress,
-          progress: reconcileResumeForVideos(s.videos, { ...(activity?.progress ?? {}), ...s.progress }, resumeProgress),
-          viewCounts: { ...(activity?.viewCounts ?? {}), ...s.viewCounts },
-          cameCounts: { ...(activity?.cameCounts ?? {}), ...s.cameCounts },
+          progress: reconcileResumeForVideos(s.videos, { ...(activity?.progress ?? {}), ...durableResume.progress, ...s.progress }, resumeProgress),
+          viewCounts: { ...(activity?.viewCounts ?? {}), ...durableMarks.viewCounts, ...s.viewCounts },
+          cameCounts: { ...(activity?.cameCounts ?? {}), ...durableMarks.cameCounts, ...s.cameCounts },
+          favorites,
+          likes,
         };
       });
     }).catch(() => undefined);
