@@ -64,12 +64,12 @@ export const LIBRARY_LIMITS = {
   redditVideosPerPull: 2_400,
   redditPostsPerSub: 50,
   /** How many subs to sample per Reddit window (rotate through the curated catalog). */
-  redditSubsPerPull: 12,
+  redditSubsPerPull: 10,
   /** Extra Reddit windows walked in one pull so discovery is not RedTube-heavy. */
   redditWindowsPerPull: 2,
   /** Concurrent RSS fetches per wave (stay under Reddit rate limits). */
-  redditFetchConcurrency: 4,
-  booruVideosPerPull: 320,
+  redditFetchConcurrency: 3,
+  booruVideosPerPull: 400,
   booruPageSize: 80,
   redgifsVideosPerPull: 240,
   redgifsPageSize: 80,

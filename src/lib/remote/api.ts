@@ -12,6 +12,7 @@ import {
   REDGIFS_FOLDER_ID,
   REDTUBE_FOLDER_ID,
   ADULT_REDDIT_SUBS,
+  ADULT_REDDIT_PRIORITY_SUBS,
   type AdultPullProvider,
 } from "@/lib/videos/adult-sites";
 import { extractRedditMedia, shouldKeepRedditEntry } from "@/lib/videos/adult-reddit-media";
@@ -1069,7 +1070,7 @@ function epornerVideo(row: EpornerVideo): LibraryVideo | null {
   };
 }
 
-async function fetchEpornerPage(query: string, order: string, page: number, perPage: number): Promise<{
+async function fetchEpornerPageOnce(query: string, order: string, page: number, perPage: number): Promise<{
   videos: LibraryVideo[];
   totalPages: number;
   totalCount: number;
@@ -1107,6 +1108,24 @@ async function fetchEpornerPage(query: string, order: string, page: number, perP
     totalPages: typeof json.total_pages === "number" ? json.total_pages : page,
     totalCount: typeof json.total_count === "number" ? json.total_count : videos.length,
   };
+}
+
+async function fetchEpornerPage(query: string, order: string, page: number, perPage: number): Promise<{
+  videos: LibraryVideo[];
+  totalPages: number;
+  totalCount: number;
+}> {
+  try {
+    const primary = await fetchEpornerPageOnce(query, order, page, perPage);
+    if (primary.videos.length) return primary;
+  } catch {
+    // Fall through to alternate order / smaller page backup.
+  }
+  // Secondary path: different sort + smaller page keeps shelves filled when the
+  // primary ranking edge is empty or rate-limited, without scraping HTML.
+  const backupOrder = order === "latest" ? "top-weekly" : "latest";
+  const backupPerPage = Math.min(perPage, 120);
+  return fetchEpornerPageOnce(query, backupOrder, page, backupPerPage);
 }
 
 type RedtubeTag = { tag_name?: string } | { tag?: { tag_name?: string } };
@@ -1731,8 +1750,14 @@ function redditSubWindow(page: number, configuredSources: readonly RedditSourceP
     ? [...configuredSources]
         .sort((a, b) => b.priority - a.priority || a.subreddit.localeCompare(b.subreddit))
         .map((row) => row.subreddit)
-    : [...ADULT_REDDIT_SUBS];
-  const all = [...new Map((configured.length ? configured : [...ADULT_REDDIT_SUBS]).map((sub) => [sub.toLowerCase(), sub])).values()];
+    : (() => {
+        // Priority media-heavy subs lead the curated rotate so Rule34 / gif
+        // communities appear early without hammering every Atom feed at once.
+        const priority = ADULT_REDDIT_PRIORITY_SUBS.map((sub) => sub.toLowerCase());
+        const rest = ADULT_REDDIT_SUBS.filter((sub) => !priority.includes(sub.toLowerCase()));
+        return [...ADULT_REDDIT_PRIORITY_SUBS, ...rest];
+      })();
+  const all = [...new Map(configured.map((sub) => [sub.toLowerCase(), sub])).values()];
   const size = Math.max(1, LIBRARY_LIMITS.redditSubsPerPull);
   const totalPages = Math.max(1, Math.ceil(all.length / size));
   // A saved source list is explicit user intent: walk it predictably, with
@@ -1762,7 +1787,7 @@ async function fetchRedditSubRss(sub: string, sort: "hot" | "new"): Promise<Libr
     try {
       const res = await cachedAdultFetch(url, {
         signal: AbortSignal.timeout(7_000),
-        cacheTtlMs: 6 * 60_000,
+        cacheTtlMs: 10 * 60_000,
         headers: {
           accept: "application/atom+xml, application/rss+xml, application/xml;q=0.9, */*;q=0.8",
           "user-agent": "linux:reelcase:1.0 (by /u/reelcase)",
@@ -1777,7 +1802,7 @@ async function fetchRedditSubRss(sub: string, sort: "hot" | "new"): Promise<Libr
     } catch (err) {
       failure = err instanceof Error ? err.message : "network unavailable";
     }
-    if (!xml) await new Promise((resolve) => setTimeout(resolve, 250));
+    if (!xml) await new Promise((resolve) => setTimeout(resolve, 400));
   }
   if (!xml) throw new Error(failure || "empty feed");
   const posts: LibraryVideo[] = [];
@@ -1865,6 +1890,8 @@ type BooruPost = {
 
 const BOORU_HOSTS = [
   { id: "rule34", base: "https://rule34.xxx", apiBase: "https://api.rule34.xxx", postPath: "/index.php?page=post&s=view&id=" },
+  { id: "gelbooru", base: "https://gelbooru.com", apiBase: "https://gelbooru.com", postPath: "/index.php?page=post&s=view&id=" },
+  { id: "realbooru", base: "https://realbooru.com", postPath: "/index.php?page=post&s=view&id=" },
   { id: "xbooru", base: "https://xbooru.com", postPath: "/index.php?page=post&s=view&id=" },
   { id: "tbib", base: "https://tbib.org", postPath: "/index.php?page=post&s=view&id=" },
   { id: "hypnohub", base: "https://hypnohub.net", postPath: "/index.php?page=post&s=view&id=" },
@@ -1957,8 +1984,7 @@ async function fetchRule34Post(host: (typeof BOORU_HOSTS)[number], id: string): 
   return booruVideo({ id, file_url: decodeBooruHtml(image), preview_url: decodeBooruHtml(image), tags: decodeBooruHtml(tags) }, host);
 }
 
-async function fetchBooruHost(host: (typeof BOORU_HOSTS)[number], tags: string, limit: number, pid: number): Promise<LibraryVideo[]> {
-  if (host.id === "rule34") return fetchRule34Listing(host, tags, limit, pid);
+async function fetchBooruJson(host: (typeof BOORU_HOSTS)[number], tags: string, limit: number, pid: number): Promise<LibraryVideo[]> {
   const params = new URLSearchParams({
     page: "dapi",
     s: "post",
@@ -1970,7 +1996,7 @@ async function fetchBooruHost(host: (typeof BOORU_HOSTS)[number], tags: string, 
   });
   const url = `${("apiBase" in host ? host.apiBase : host.base)}/index.php?${params.toString()}`;
   const res = await cachedAdultFetch(url, {
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(15_000),
     cacheTtlMs: 10 * 60_000,
     headers: { accept: "application/json,text/plain,*/*", "user-agent": "Reelcase/1.0" },
   });
@@ -1990,6 +2016,22 @@ async function fetchBooruHost(host: (typeof BOORU_HOSTS)[number], tags: string, 
     if (video) out.push(video);
   }
   return out;
+}
+
+async function fetchBooruHost(host: (typeof BOORU_HOSTS)[number], tags: string, limit: number, pid: number): Promise<LibraryVideo[]> {
+  // Rule34 documents a Gelbooru-compatible JSON dapi. Prefer that for speed and
+  // stable preview URLs; keep the HTML listing as a real backup when JSON is
+  // empty, rate-limited, or briefly unavailable.
+  if (host.id === "rule34") {
+    try {
+      const jsonRows = await fetchBooruJson(host, tags, limit, pid);
+      if (jsonRows.length) return jsonRows;
+    } catch {
+      // Fall through to HTML listing backup.
+    }
+    return fetchRule34Listing(host, tags, limit, pid);
+  }
+  return fetchBooruJson(host, tags, limit, pid);
 }
 
 
@@ -2107,12 +2149,17 @@ async function fetchBooruFeed(query: string, maxVideos: number, page: number): P
   // Rule34 catalog invisible even when it had thousands of usable images.
   const hosts = [...BOORU_HOSTS];
   // Reserve one share for e621's documented JSON API (explicit rating only).
-  const slotCount = hosts.length + 1;
+  // Rule34 gets a double share so its filter chip and shelves stay populated.
+  const slotCount = hosts.length + 2;
   const share = Math.max(1, Math.min(limit, Math.ceil(maxVideos / slotCount)));
-  const ordered = [...hosts.slice(pid % hosts.length), ...hosts.slice(0, pid % hosts.length)];
+  const rotated = [...hosts.slice(pid % hosts.length), ...hosts.slice(0, pid % hosts.length)];
+  const rule34 = rotated.find((host) => host.id === "rule34");
+  const ordered = rule34
+    ? [rule34, ...rotated.filter((host) => host.id !== "rule34")]
+    : rotated;
   const e621Tags = !needle || needle === "all" ? "rating:e order:rank" : `rating:e ${needle}`;
   const batches = await Promise.allSettled([
-    ...ordered.map((host) => fetchBooruHost(host, tagQuery, share, pid)),
+    ...ordered.map((host) => fetchBooruHost(host, tagQuery, host.id === "rule34" ? share * 2 : share, pid)),
     fetchE621Page(e621Tags, share, Math.max(1, page)),
   ]);
   for (const [index, result] of batches.entries()) {

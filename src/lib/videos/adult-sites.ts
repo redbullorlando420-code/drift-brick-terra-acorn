@@ -721,7 +721,7 @@ export const ADULT_EMBED_LINKS: AdultSiteLink[] = [
   {
     name: "Rule34 / Booru image pulls",
     href: "https://rule34.xxx/index.php?page=post&s=list&tags=all",
-    copy: "Public 18+ image APIs. Rule34, XBooru, TBIB, Hypnohub, and e621 each receive a share of a pull; cards retain sample thumbnails and download the original image on demand.",
+    copy: "Public 18+ image APIs. Rule34 (JSON primary + HTML backup), Gelbooru, Realbooru, XBooru, TBIB, Hypnohub, and e621 each receive a share of a pull; cards retain sample thumbnails and download the original image on demand.",
     embeds: true,
     group: "comic",
     sourceId: "booru",
@@ -729,7 +729,7 @@ export const ADULT_EMBED_LINKS: AdultSiteLink[] = [
   {
     name: "Redgifs",
     href: "https://www.redgifs.com/",
-    copy: "Official Redgifs temporary-token search API (posters + HD/SD files). AdultDataLink remains an optional fallback when ADULTDATALINK_API_KEY is set.",
+    copy: "Official Redgifs temporary-token search API (posters + HD/SD files) as primary. AdultDataLink remains an optional secondary when ADULTDATALINK_API_KEY / ADL_API_KEY is set.",
     embeds: true,
     group: "short",
     sourceId: "redgifs",
@@ -773,7 +773,7 @@ export const ADULT_PULL_PROVIDERS: AdultPullProvider[] = ["eporner", "redtube", 
 export const RETIRED_ADULT_SOURCE_IDS = ["camsoda"] as const;
 
 /** Curated 18+ subs — full list in adult-reddit-subs.ts. Public Atom RSS only. */
-export { ADULT_REDDIT_SUBS } from "./adult-reddit-subs";
+export { ADULT_REDDIT_SUBS, ADULT_REDDIT_PRIORITY_SUBS } from "./adult-reddit-subs";
 
 export const EPORNER_FOLDER_ID = "eporner:discover";
 export const REDTUBE_FOLDER_ID = "redtube:discover";
@@ -905,6 +905,10 @@ const ADULT_PROVIDER_BRANDS = new Set([
   "myfreecams",
   "reddit",
   "booru",
+  "rule34",
+  "gelbooru",
+  "realbooru",
+  "e621",
   "xbooru",
   "tbib",
   "hypnohub",
