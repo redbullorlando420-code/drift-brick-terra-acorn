@@ -1,10 +1,10 @@
 # Reelcase — PR living notes
 
-**PR** `perf/speed-memory-adult-apis` → `main` · Speed, memory, Adult API harden/backups, photos/models, Rule34 filters, Live Adult lives, richer Stats, tag-click fix, **3D Prints interactive viewer**, section teardown + grid/storage speedups.
+**PR** `perf/speed-memory-adult-apis` → `main` · Speed, memory, Adult API harden/backups, photos/models, Rule34 filters, Live Adult lives, richer Stats, tag-click fix, **3D Prints interactive viewer**, section teardown + grid/storage speedups + durable YT/Twitch follows.
 
 ## In progress
 
-Memory/speed follow-up round on this PR (section teardown, grid windowing, storage guards). Keep Adult previews / 3D viewer / tags / Live Adult / Stats intact.
+Memory/speed follow-up round on this PR (section teardown, grid windowing, storage guards, durable YT/Twitch follows). Keep Adult previews / 3D viewer / tags / Live Adult / Stats intact.
 
 ### Shipped this PR
 1. **Faster Adult first paint** — lower interactive/fast-start pull sizes and rail seed; tighter TitleRail/PosterGrid viewport margins and earlier offscreen unmount.
@@ -29,6 +29,7 @@ Memory/speed follow-up round on this PR (section teardown, grid windowing, stora
 20. **Storage growth guards** — IndexedDB thumb-cache pruned to `thumbCacheEntries` (420); print blobs also capped by total bytes (192 MB); Adult thumb host score maps trimmed.
 21. **Player / blob hygiene** — local `<video>` pause+detach on player unmount; upscaler model blob revoked after Cache seed; Photos upscale preview revoked on leave.
 22. **Idle Home discovery** — DiscoveryDesk ranking runs on `requestIdleCallback` with stride-sample on huge catalogs; low-priority image queue pauses while the tab is hidden.
+23. **Durable YouTube/Twitch follows** — follow lists now live in a dedicated IndexedDB key (`activity` → `follows`) plus tiny `reelcase.follows.v1` localStorage mirror, separate from the prefs/tags blob. Hydrate merges dedicated store + legacy `prefs.follows`; import-history seeds stubs before network recovery. Thumb prune, history journal prune, and Adult catalog caps never touch this store.
 
 ### Env / keys (no secrets in repo)
 - `ADULTDATALINK_API_KEY` or `ADL_API_KEY` — optional Redgifs secondary via AdultDataLink.
