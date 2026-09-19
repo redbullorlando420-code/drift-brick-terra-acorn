@@ -36,6 +36,11 @@ export function useAdultBrowse(enabled: boolean, inputs: AdultBrowseInputs, para
   const enqueue = useRef<((job: Job) => void) | undefined>(undefined);
 
   useEffect(() => {
+    if (enabled) return;
+    setPacket(undefined);
+  }, [enabled]);
+
+  useEffect(() => {
     if (!enabled) return;
     let worker: Worker;
     let active = true;

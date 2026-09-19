@@ -61,6 +61,7 @@ import { DEMO_FOLDER_ID } from "@/lib/videos/samples";
 import type { LibraryVideo, WellKnownStart } from "@/lib/videos/types";
 import { hasFreshViewerCount, isClassicVideo } from "@/lib/videos/types";
 import { useThumbs } from "@/lib/videos/thumbs";
+import { clearLowPriorityImageQueue, ensureImageBudgetVisibilityHook } from "@/lib/videos/image-load-budget";
 import { adultThumbCandidatesForVideo } from "@/lib/videos/adult-thumbs";
 import { librarySearchIndex } from "@/lib/videos/search-index";
 import { searchWorkerIndex } from "@/lib/videos/search-worker-index";
@@ -805,6 +806,23 @@ export function LibraryApp() {
     // A return to Home is a new discovery session. Rotate the local ranking
     // even if the app itself stayed mounted in the background.
     if (sourceId === "home") setHomePickShuffle(Date.now());
+  }, [sourceId]);
+  useEffect(() => {
+    // Leaving a heavy section tears down deferred shelves and speculative
+    // decode waiters so the next route does not keep huge arrays or image work.
+    ensureImageBudgetVisibilityHook();
+    clearLowPriorityImageQueue();
+    if (sourceId !== "youtube") {
+      setYoutubeExploreVisible(false);
+      setYoutubeDeepVisible(false);
+      setYoutubeHealthVisible(false);
+      setYoutubeTagFilter("all");
+    }
+    if (sourceId !== "adults" && sourceId !== "adult-fetishes") {
+      setAdultDeepVisible(false);
+      setAdultTagVisibleCount(10);
+    }
+    if (sourceId !== "home") setHomeExpanded(false);
   }, [sourceId]);
   useEffect(() => {
     if (sourceId !== "home") { setHomeRecommendationsReady(false); return; }

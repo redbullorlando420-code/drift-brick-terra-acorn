@@ -1452,6 +1452,7 @@ export function PhotosSection() {
   const [upscalerChecksum, setUpscalerChecksum] = useState<string>(LOCAL_UPSCALER.sha256);
   const [upscalerInstalling, setUpscalerInstalling] = useState(false);
   const [upscalePreview, setUpscalePreview] = useState("");
+  const upscalePreviewRef = useRef("");
   const [upscaleBusy, setUpscaleBusy] = useState(false);
   const [upscaleStatus, setUpscaleStatus] = useState("");
   const [companionCache, setCompanionCache] = useState<{ state: string; photos: number; videos: number; scannedAt: number; truncated: boolean } | null>(null);
@@ -1614,7 +1615,15 @@ export function PhotosSection() {
       setPhotoCacheNotice(`Cached index ready · ${sourcePhotos.length.toLocaleString()} source photos available`);
     }
   }, [sourcePhotos]);
-  useEffect(() => () => { for (const url of photoUrls.current) URL.revokeObjectURL(url); photoUrls.current.clear(); }, []);
+  useEffect(() => { upscalePreviewRef.current = upscalePreview; }, [upscalePreview]);
+  useEffect(() => () => {
+    for (const url of photoUrls.current) URL.revokeObjectURL(url);
+    photoUrls.current.clear();
+    if (upscalePreviewRef.current) {
+      try { URL.revokeObjectURL(upscalePreviewRef.current); } catch { /* ignore */ }
+      upscalePreviewRef.current = "";
+    }
+  }, []);
   useEffect(() => {
     // Metadata writes used to serialize every photo after every streamed batch.
     // Coalescing into one idle-sized save keeps scrolling and image decode work

@@ -38,6 +38,7 @@ function canStart(priority: ImageSlotPriority) {
   const max = maxConcurrent();
   if (active >= max) return false;
   if (priority === "high") return true;
+  if (typeof document !== "undefined" && document.visibilityState === "hidden") return false;
   // Leave headroom for visible cards when the high lane has waiters.
   if (waitingHigh.length > 0 && active >= Math.max(1, max - HIGH_RESERVED)) return false;
   return true;
@@ -49,6 +50,16 @@ export async function acquireImageSlot(opts?: { priority?: ImageSlotPriority; si
   const priority: ImageSlotPriority = opts?.priority ?? "low";
   const queue = priority === "high" ? waitingHigh : waitingLow;
   while (!canStart(priority)) {
+    if (priority === "low" && typeof document !== "undefined" && document.visibilityState === "hidden") {
+      await new Promise<void>((resolve) => {
+        const done = () => { signal?.removeEventListener("abort", done); document.removeEventListener("visibilitychange", onVis); resolve(); };
+        const onVis = () => { if (document.visibilityState === "visible") done(); };
+        document.addEventListener("visibilitychange", onVis);
+        signal?.addEventListener("abort", done, { once: true });
+      });
+      if (signal?.aborted) return () => {};
+      continue;
+    }
     await new Promise<void>((resolve) => {
       const wake = () => { signal?.removeEventListener("abort", cancel); resolve(); };
       const cancel = () => { const index = queue.indexOf(wake); if (index >= 0) queue.splice(index, 1); wake(); };
@@ -76,4 +87,20 @@ export function getImageLoadBudgetSnapshot() {
     queuedLow: waitingLow.length,
     max: maxConcurrent(),
   };
+}
+
+/** Drop speculative decode waiters (keeps high-priority visible cards). */
+export function clearLowPriorityImageQueue() {
+  const pending = waitingLow.splice(0, waitingLow.length);
+  for (const wake of pending) wake();
+}
+
+let visibilityHooked = false;
+/** Pause speculative image work while the tab is hidden. */
+export function ensureImageBudgetVisibilityHook() {
+  if (visibilityHooked || typeof document === "undefined") return;
+  visibilityHooked = true;
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") clearLowPriorityImageQueue();
+  });
 }
