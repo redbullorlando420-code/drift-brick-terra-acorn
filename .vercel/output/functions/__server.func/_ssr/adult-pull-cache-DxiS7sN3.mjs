@@ -1,4 +1,4 @@
-//#region node_modules/.nitro/vite/services/ssr/assets/adult-pull-cache-DNAXGlvT.js
+//#region node_modules/.nitro/vite/services/ssr/assets/adult-pull-cache-DxiS7sN3.js
 var ADULT_EXTRA_MILESTONES = [
 	{
 		name: "CooMeet",
@@ -3663,21 +3663,28 @@ var LIBRARY_LIMITS = {
 	descriptionKeywordTagsPerTitle: 24,
 	remoteRefreshChannelBatch: 24,
 	twitchChannelsReservedPerRefresh: 8,
-	youtubeFocusedVideosPerChannel: 6e3,
-	youtubeArchivePagesPerPull: 96,
-	youtubeRoutineVideosPerChannel: 1200,
-	youtubeBulkImportVideosPerChannel: 960,
+	youtubeFocusedVideosPerChannel: 8e3,
+	youtubeArchivePagesPerPull: 128,
+	youtubeRoutineVideosPerChannel: 2e3,
+	youtubeBulkImportVideosPerChannel: 1200,
+	/** Top-level Innertube comment threads per on-demand video detail pull. */
+	youtubeCommentsPerPull: 40,
 	twitchArchivePageSize: 100,
-	twitchFocusedVodsPerChannel: 400,
+	twitchArchiveMaxPages: 25,
+	twitchFocusedVodsPerChannel: 2e3,
 	twitchRoutineVodsPerChannel: 100,
-	/** Numbered clip pulls (public `user.clips`, multi-period, no integrity page-2). */
+	/** Numbered clip pulls (public `user.clips`, multi-period + cursor pages). */
 	twitchRoutineClipsPerChannel: 100,
-	twitchFocusedClipsPerChannel: 300,
+	twitchFocusedClipsPerChannel: 500,
+	twitchClipMaxPages: 8,
 	twitchClipPullChoices: [
 		50,
 		100,
-		250
+		250,
+		500
 	],
+	/** First window of public VOD chat replay (GQL VideoCommentsByOffsetOrCursor). */
+	twitchCommentsPerPull: 80,
 	/** Home only calls a Twitch channel live when the provider observation is recent. */
 	twitchLiveStateFreshnessMs: 12e4,
 	epornerPageSize: 1e3,

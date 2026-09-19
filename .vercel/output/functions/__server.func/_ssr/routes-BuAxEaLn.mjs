@@ -2,7 +2,7 @@ import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { r as Slot, s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
 import { n as TSS_SERVER_FUNCTION, r as getServerFnById, t as createServerFn } from "./ssr.mjs";
-import { B as isAdultThumbBlacklisted, C as adultRemoteLabel, D as adultTaxonomyTags, E as adultTaxonomyLabel, F as findFreshAdultPullFingerprint, G as mineRedditCommentTags, H as isUsableAdultThumb, I as isAdultGenreTag, J as redditTitleTokens, L as isAdultImageKind, M as expandedAdultTags, O as adultTextFetishTags, P as fetishSearchQuery, R as isAdultMetaTaxonomyTag, S as adultIngestTags, T as adultTagRankBoost, U as markAdultThumbFailed, V as isDecodedAdultThumbLikelyReal, W as markAdultThumbGood, X as rememberAdultPullFingerprint, a as ADULT_FOLDER_BY_PROVIDER, b as RETIRED_ADULT_SOURCE_IDS, c as ADULT_PULL_PROVIDERS, d as ADULT_SOURCE_OPTIONS, h as LIBRARY_LIMITS, i as ADULT_FEATURED_FETISH_TAGS, k as adultThumbCandidatesForVideo, n as ADULT_CURATED_FETISH_TAGS, o as ADULT_FOLDER_IDS, q as redditIngestExtras, r as ADULT_EMBED_LINKS, s as ADULT_MILESTONE_LINKS, t as ADULT_CATEGORY_HUB, u as ADULT_REDDIT_SUBS, w as adultSourceTag, z as isAdultPullKind } from "./adult-pull-cache-DNAXGlvT.mjs";
+import { B as isAdultThumbBlacklisted, C as adultRemoteLabel, D as adultTaxonomyTags, E as adultTaxonomyLabel, F as findFreshAdultPullFingerprint, G as mineRedditCommentTags, H as isUsableAdultThumb, I as isAdultGenreTag, J as redditTitleTokens, L as isAdultImageKind, M as expandedAdultTags, O as adultTextFetishTags, P as fetishSearchQuery, R as isAdultMetaTaxonomyTag, S as adultIngestTags, T as adultTagRankBoost, U as markAdultThumbFailed, V as isDecodedAdultThumbLikelyReal, W as markAdultThumbGood, X as rememberAdultPullFingerprint, a as ADULT_FOLDER_BY_PROVIDER, b as RETIRED_ADULT_SOURCE_IDS, c as ADULT_PULL_PROVIDERS, d as ADULT_SOURCE_OPTIONS, h as LIBRARY_LIMITS, i as ADULT_FEATURED_FETISH_TAGS, k as adultThumbCandidatesForVideo, n as ADULT_CURATED_FETISH_TAGS, o as ADULT_FOLDER_IDS, q as redditIngestExtras, r as ADULT_EMBED_LINKS, s as ADULT_MILESTONE_LINKS, t as ADULT_CATEGORY_HUB, u as ADULT_REDDIT_SUBS, w as adultSourceTag, z as isAdultPullKind } from "./adult-pull-cache-DxiS7sN3.mjs";
 import { n as create, t as useShallow } from "../_libs/zustand.mjs";
 import { n as clsx, t as cva } from "../_libs/class-variance-authority+clsx.mjs";
 import { t as twMerge } from "../_libs/tailwind-merge.mjs";
@@ -12,7 +12,7 @@ import { a as DialogPortal, i as DialogOverlay, n as DialogClose, o as DialogTit
 import { t as Root } from "../_libs/radix-ui__react-separator.mjs";
 import { a as Trigger, i as Root2, n as Item2, r as Portal2, t as Content2 } from "../_libs/@radix-ui/react-dropdown-menu+[...].mjs";
 import { i as SliderTrack, n as SliderRange, r as SliderThumb, t as Slider$1 } from "../_libs/@radix-ui/react-slider+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-CCblH_m1.js
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-BuAxEaLn.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var __defProp = Object.defineProperty;
@@ -2844,7 +2844,17 @@ function flushPersist(get) {
 }
 function mergeVideos(existing, incoming) {
 	const map = new Map(existing.map((v) => [v.id, v]));
-	for (const v of incoming) map.set(v.id, v);
+	for (const v of incoming) {
+		const previous = map.get(v.id);
+		if (previous?.remote?.comments?.length && v.remote && !v.remote.comments?.length) map.set(v.id, {
+			...v,
+			remote: {
+				...v.remote,
+				comments: previous.remote.comments
+			}
+		});
+		else map.set(v.id, v);
+	}
 	return Array.from(map.values());
 }
 function cacheRemotes(get) {
@@ -3271,6 +3281,20 @@ var useLibrary = create((set, get) => ({
 			[id]: (s.cameCounts[id] ?? 0) + 1
 		} }));
 		persistNow(get);
+	},
+	setVideoComments: (id, comments) => {
+		set((s) => ({ videos: s.videos.map((video) => {
+			if (video.id !== id || !video.remote) return video;
+			return {
+				...video,
+				remote: {
+					...video.remote,
+					comments
+				}
+			};
+		}) }));
+		persistNow(get);
+		cacheRemotesSoon(get);
 	},
 	setVideoTags: (id, tags) => {
 		set((s) => ({ tags: {
@@ -11284,24 +11308,43 @@ function Slider({ className, ...props }) {
 		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SliderThumb, { className: "block size-3 rounded-full bg-accent shadow-lift outline-none transition-transform duration-150 hover:scale-110 focus-visible:ring-2 focus-visible:ring-ring/70" })]
 	});
 }
+var COMMENT_KINDS = /* @__PURE__ */ new Set([
+	"reddit",
+	"youtube",
+	"twitch"
+]);
+function supportsRemoteComments(kind) {
+	return Boolean(kind && COMMENT_KINDS.has(kind));
+}
 function AdultComments({ video }) {
 	const setVideoTags = useLibrary((s) => s.setVideoTags);
+	const setVideoComments = useLibrary((s) => s.setVideoComments);
 	const [comments, setComments] = (0, import_react.useState)(video.remote?.comments ?? []);
 	const [note, setNote] = (0, import_react.useState)("");
 	const [loading, setLoading] = (0, import_react.useState)(false);
 	const linkedRedgifs = Boolean(video.remote?.sourceKinds?.includes("redgifs"));
+	const kind = video.remote?.kind;
 	(0, import_react.useEffect)(() => {
 		let cancelled = false;
-		if (video.remote?.kind !== "reddit" || !video.remote.videoId) {
+		if (!supportsRemoteComments(kind) || !video.remote?.videoId) {
 			setComments(video.remote?.comments ?? []);
-			setNote(video.remote?.kind === "reddit" ? "" : "No documented public comment feed for this source.");
+			setNote(supportsRemoteComments(kind) ? "" : "No documented public comment feed for this source.");
 			return;
+		}
+		if (kind === "twitch" && (video.extension === "clip" || video.id.startsWith("tw:c:"))) {
+			setComments(video.remote?.comments ?? []);
+			setNote("Twitch clips do not expose VOD chat replay.");
+			return;
+		}
+		if (video.remote?.comments?.length) {
+			setComments(video.remote.comments);
+			setNote("");
 		}
 		setLoading(true);
 		(async () => {
 			try {
 				const result = await fetchAdultComments({ data: {
-					kind: video.remote?.kind ?? "",
+					kind: kind ?? "",
 					videoId: video.remote?.videoId ?? "",
 					watchUrl: video.remote?.watchUrl ?? ""
 				} });
@@ -11309,16 +11352,19 @@ function AdultComments({ video }) {
 				setComments(result.comments);
 				setNote(linkedRedgifs && result.comments.length ? `${result.note} Linked Redgifs media stays attached to this original Reddit thread.` : result.note);
 				if (result.comments.length) {
-					const blob = result.comments.map((c) => c.body).join(" ");
-					const mined = [
-						...mineRedditCommentTags(blob, 24),
-						...adultTextFetishTags(blob, 16),
-						...redditTitleTokens(video.name, 8)
-					];
-					if (mined.length) {
-						const existing = useLibrary.getState().tags[video.id] ?? [];
-						const merged = [.../* @__PURE__ */ new Set([...existing, ...mined])].slice(0, 120);
-						setVideoTags(video.id, merged);
+					setVideoComments(video.id, result.comments);
+					if (kind === "reddit") {
+						const blob = result.comments.map((c) => c.body).join(" ");
+						const mined = [
+							...mineRedditCommentTags(blob, 24),
+							...adultTextFetishTags(blob, 16),
+							...redditTitleTokens(video.name, 8)
+						];
+						if (mined.length) {
+							const existing = useLibrary.getState().tags[video.id] ?? [];
+							const merged = [.../* @__PURE__ */ new Set([...existing, ...mined])].slice(0, 120);
+							setVideoTags(video.id, merged);
+						}
 					}
 				}
 			} catch (err) {
@@ -11332,13 +11378,18 @@ function AdultComments({ video }) {
 		};
 	}, [
 		linkedRedgifs,
+		kind,
 		video.id,
-		video.remote?.kind,
+		video.extension,
+		video.name,
 		video.remote?.videoId,
 		video.remote?.watchUrl,
 		video.remote?.comments,
-		setVideoTags
+		setVideoTags,
+		setVideoComments
 	]);
+	if (!supportsRemoteComments(kind)) return null;
+	const authorPrefix = kind === "reddit" ? "u/" : kind === "youtube" ? "" : "";
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 		className: "mt-3 rounded-lg border border-border bg-bg/40 p-3",
 		children: [
@@ -11347,7 +11398,7 @@ function AdultComments({ video }) {
 				children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(MessageCircle, { className: "size-3.5" }),
 					" ",
-					linkedRedgifs ? "Reddit comments for linked Redgifs media" : "Comments"
+					linkedRedgifs ? "Reddit comments for linked Redgifs media" : kind === "twitch" ? "VOD chat" : "Comments"
 				]
 			}),
 			loading && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
@@ -11365,8 +11416,9 @@ function AdultComments({ video }) {
 					children: [comment.author && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
 						className: "font-medium text-accent",
 						children: [
-							"u/",
+							authorPrefix,
 							comment.author,
+							typeof comment.score === "number" ? ` · ${comment.score}` : "",
 							" · "
 						]
 					}), comment.body]
@@ -12194,7 +12246,7 @@ function Player({ playlist }) {
 				className: "absolute z-20 right-4 bottom-4 max-w-sm rounded-md bg-surface/95 px-3 py-2 text-xs text-fg shadow-border sm:right-6",
 				children: vrStatus
 			}),
-			remote && isAdultPullKind(remote.kind) && chrome && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+			remote && supportsRemoteComments(remote.kind) && chrome && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 				className: "absolute z-20 bottom-24 left-4 right-4 max-w-xl sm:left-6",
 				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AdultComments, { video })
 			}),
@@ -12804,6 +12856,10 @@ function PreVideo() {
 									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ThumbsUp, { className: liked ? "size-4 fill-current" : "size-4" }), liked ? "Liked" : "Like"]
 								})
 							]
+						}),
+						video.remote && supportsRemoteComments(video.remote.kind) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "mt-4",
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AdultComments, { video })
 						}),
 						creator && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "mt-4 rounded-lg border border-border bg-elevated/55 p-4",
@@ -13791,7 +13847,7 @@ ytFilm({
 	tagline: "A Blender Studio open project.",
 	channel: "Blender Studio"
 });
-var loadHub = () => import("./hub-sections-jzLz41bC.mjs").then((n) => n.t);
+var loadHub = () => import("./hub-sections-FmaDLRuq.mjs").then((n) => n.t);
 var hubSection = (name) => (0, import_react.lazy)(async () => ({ default: (await loadHub())[name] }));
 var GamesSection = hubSection("GamesSection");
 var FindPhoneSection = hubSection("FindPhoneSection");

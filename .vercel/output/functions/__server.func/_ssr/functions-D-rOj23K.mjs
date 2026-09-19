@@ -1,6 +1,6 @@
 import { n as TSS_SERVER_FUNCTION, t as createServerFn } from "./ssr.mjs";
-import { A as cachedAdultFetch, H as isUsableAdultThumb, K as pickRedtubeThumb, N as extractRedditFlair, Y as redtubeStarNames, _ as REDDIT_FOLDER_ID, c as ADULT_PULL_PROVIDERS, f as BOORU_FOLDER_ID, g as MYFREECAMS_FOLDER_ID, h as LIBRARY_LIMITS, j as expandAdultThumbFallbacks, l as ADULT_REDDIT_PRIORITY_SUBS, m as EPORNER_FOLDER_ID, p as CHATURBATE_FOLDER_ID, u as ADULT_REDDIT_SUBS, v as REDGIFS_FOLDER_ID, x as adultDeepenQueriesForPage, y as REDTUBE_FOLDER_ID } from "./adult-pull-cache-DNAXGlvT.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/functions-D6m2T13W.js
+import { A as cachedAdultFetch, H as isUsableAdultThumb, K as pickRedtubeThumb, N as extractRedditFlair, Y as redtubeStarNames, _ as REDDIT_FOLDER_ID, c as ADULT_PULL_PROVIDERS, f as BOORU_FOLDER_ID, g as MYFREECAMS_FOLDER_ID, h as LIBRARY_LIMITS, j as expandAdultThumbFallbacks, l as ADULT_REDDIT_PRIORITY_SUBS, m as EPORNER_FOLDER_ID, p as CHATURBATE_FOLDER_ID, u as ADULT_REDDIT_SUBS, v as REDGIFS_FOLDER_ID, x as adultDeepenQueriesForPage, y as REDTUBE_FOLDER_ID } from "./adult-pull-cache-DxiS7sN3.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/functions-D-rOj23K.js
 var createServerRpc = (serverFnMeta, splitImportFn) => {
 	const url = "/_serverFn/" + serverFnMeta.id;
 	return Object.assign(splitImportFn, {
@@ -581,14 +581,21 @@ function youtubeFromChannel(query, limit = LIBRARY_LIMITS.youtubeFocusedVideosPe
 	return providerRequest("youtube", query, focused, () => youtubeFromChannelUncoalesced(query, limit, deepCatalog));
 }
 var TWITCH_ARCHIVE_PAGE_SIZE = Math.min(100, LIBRARY_LIMITS.twitchArchivePageSize);
+var TWITCH_ARCHIVE_MAX_PAGES = LIBRARY_LIMITS.twitchArchiveMaxPages;
 var TWITCH_FOCUSED_VOD_LIMIT = LIBRARY_LIMITS.twitchFocusedVodsPerChannel;
 var TWITCH_REFRESH_VOD_LIMIT = LIBRARY_LIMITS.twitchRoutineVodsPerChannel;
 var TWITCH_FOCUSED_CLIP_LIMIT = LIBRARY_LIMITS.twitchFocusedClipsPerChannel;
 var TWITCH_REFRESH_CLIP_LIMIT = LIBRARY_LIMITS.twitchRoutineClipsPerChannel;
-var TWITCH_CLIENT_ID = "kimne78kx3ncx6brgo4mv6wki5h1ko";
+var TWITCH_CLIP_MAX_PAGES = LIBRARY_LIMITS.twitchClipMaxPages;
+/** Android/TV public Client-ID — multi-page archives/clips without web integrity. */
+var TWITCH_CLIENT_ID = "kd1unb4b3q4t58fwlpcbzcbnm76a8fp";
 var TWITCH_CHANNEL_CACHE_TTL_MS = 18e4;
 var TWITCH_CHANNEL_CACHE_LIMIT = 16;
+var TWITCH_PAGE_GAP_MS = 180;
 var twitchChannelCache = /* @__PURE__ */ new Map();
+function twitchPageGap() {
+	return new Promise((resolve) => setTimeout(resolve, TWITCH_PAGE_GAP_MS));
+}
 function twitchClampFirst(n) {
 	return Math.max(1, Math.min(100, Math.floor(n)));
 }
@@ -630,25 +637,28 @@ async function twitchUser(login, after, archivePageSize = TWITCH_ARCHIVE_PAGE_SI
 	return user;
 }
 /**
-* Twitch exposes archives as a cursor connection. Public clients without the
-* web integrity token typically receive one page (~30–100). Focused pulls also
-* merge HIGHLIGHT + UPLOAD. Continuations are attempted once and abandoned on
-* integrity / empty failures so we do not hammer the endpoint.
+* Twitch exposes archives as a cursor connection (`first` ≤100). With the
+* Android/TV Client-ID we can walk many pages toward the focused budget;
+* empty / integrity failures stop the loop (rate-limit friendly gap between
+* pages). Focused pulls also merge HIGHLIGHT + UPLOAD shelves.
 */
 async function twitchArchive(login, limit) {
 	let after;
 	let first = null;
 	const edges = [];
 	const seen = /* @__PURE__ */ new Set();
+	const maxPages = Math.max(1, Math.min(TWITCH_ARCHIVE_MAX_PAGES, Math.ceil(limit / Math.max(1, TWITCH_ARCHIVE_PAGE_SIZE)) + 1));
 	const takePage = async (pageSize, cursor, type) => {
 		let page = await twitchUser(login, cursor, pageSize, type);
 		if (page?.id && !page.videos?.edges?.length && pageSize > 30 && !cursor && type === "ARCHIVE") page = await twitchUser(login, null, 30, type);
 		return page;
 	};
-	while (edges.length < limit) {
+	for (let pageIndex = 0; pageIndex < maxPages && edges.length < limit; pageIndex += 1) {
+		if (pageIndex > 0) await twitchPageGap();
 		const page = await takePage(Math.min(TWITCH_ARCHIVE_PAGE_SIZE, limit - edges.length), after, "ARCHIVE");
 		if (!page) return first;
 		if (!first) first = page;
+		const before = edges.length;
 		for (const edge of page.videos?.edges ?? []) {
 			const id = edge.node?.id;
 			if (!id || seen.has(id)) continue;
@@ -658,27 +668,26 @@ async function twitchArchive(login, limit) {
 		}
 		const pageInfo = page.videos?.pageInfo;
 		const nextCursor = pageInfo?.endCursor ?? page.videos?.edges?.at(-1)?.cursor ?? null;
-		if (!pageInfo?.hasNextPage || !nextCursor || nextCursor === after || edges.length >= limit) break;
+		if (edges.length === before || !pageInfo?.hasNextPage || !nextCursor || nextCursor === after) break;
 		after = nextCursor;
-		const cont = await takePage(Math.min(TWITCH_ARCHIVE_PAGE_SIZE, limit - edges.length), after, "ARCHIVE");
-		if (!cont?.videos?.edges?.length) break;
-		for (const edge of cont.videos.edges) {
-			const id = edge.node?.id;
-			if (!id || seen.has(id)) continue;
-			seen.add(id);
-			edges.push(edge);
-			if (edges.length >= limit) break;
-		}
-		break;
 	}
 	if (first && edges.length < limit) for (const type of ["HIGHLIGHT", "UPLOAD"]) {
-		const page = await takePage(Math.min(TWITCH_ARCHIVE_PAGE_SIZE, limit - edges.length), null, type);
-		for (const edge of page?.videos?.edges ?? []) {
-			const id = edge.node?.id;
-			if (!id || seen.has(id)) continue;
-			seen.add(id);
-			edges.push(edge);
-			if (edges.length >= limit) break;
+		let typeAfter;
+		for (let pageIndex = 0; pageIndex < 3 && edges.length < limit; pageIndex += 1) {
+			if (pageIndex > 0) await twitchPageGap();
+			const page = await takePage(Math.min(TWITCH_ARCHIVE_PAGE_SIZE, limit - edges.length), typeAfter, type);
+			const before = edges.length;
+			for (const edge of page?.videos?.edges ?? []) {
+				const id = edge.node?.id;
+				if (!id || seen.has(id)) continue;
+				seen.add(id);
+				edges.push(edge);
+				if (edges.length >= limit) break;
+			}
+			const pageInfo = page?.videos?.pageInfo;
+			const nextCursor = pageInfo?.endCursor ?? page?.videos?.edges?.at(-1)?.cursor ?? null;
+			if (edges.length === before || !pageInfo?.hasNextPage || !nextCursor || nextCursor === typeAfter) break;
+			typeAfter = nextCursor;
 		}
 		if (edges.length >= limit) break;
 	}
@@ -698,20 +707,32 @@ async function twitchClips(login, limit) {
 	if (limit <= 0) return [];
 	const out = [];
 	const seen = /* @__PURE__ */ new Set();
-	for (const period of TWITCH_CLIP_PERIODS) {
+	const maxPages = Math.max(1, Math.min(TWITCH_CLIP_MAX_PAGES, Math.ceil(limit / 100) + 1));
+	const periods = limit > 100 ? ["ALL_TIME"] : TWITCH_CLIP_PERIODS;
+	for (const period of periods) {
 		if (out.length >= limit) break;
-		const first = twitchClampFirst(Math.min(100, limit - out.length));
-		const edges = ((await twitchGqlJson(`query($login:String!,$first:Int!){user(login:$login){${period ? `clips(first:$first, criteria:{period:${period}}){edges{node{id slug title viewCount durationSeconds createdAt thumbnailURL}}}` : `clips(first:$first){edges{node{id slug title viewCount durationSeconds createdAt thumbnailURL}}}`}}}`, {
-			login,
-			first
-		}))?.data?.user)?.clips?.edges ?? [];
-		for (const edge of edges) {
-			const node = edge.node;
-			const key = node?.slug || node?.id;
-			if (!key || seen.has(key)) continue;
-			seen.add(key);
-			out.push(node);
-			if (out.length >= limit) break;
+		let after;
+		for (let pageIndex = 0; pageIndex < maxPages && out.length < limit; pageIndex += 1) {
+			if (pageIndex > 0) await twitchPageGap();
+			const first = twitchClampFirst(Math.min(100, limit - out.length));
+			const connection = ((await twitchGqlJson(`query($login:String!,$first:Int!,$after:Cursor){user(login:$login){${period ? `clips(first:$first, after:$after, criteria:{period:${period}}){pageInfo{hasNextPage endCursor} edges{cursor node{id slug title viewCount durationSeconds createdAt thumbnailURL}}}` : `clips(first:$first, after:$after){pageInfo{hasNextPage endCursor} edges{cursor node{id slug title viewCount durationSeconds createdAt thumbnailURL}}}`}}}`, {
+				login,
+				first,
+				after: after ?? null
+			}))?.data?.user)?.clips;
+			const edges = connection?.edges ?? [];
+			const before = out.length;
+			for (const edge of edges) {
+				const node = edge.node;
+				const key = node?.slug || node?.id;
+				if (!key || seen.has(key)) continue;
+				seen.add(key);
+				out.push(node);
+				if (out.length >= limit) break;
+			}
+			const nextCursor = connection?.pageInfo?.endCursor ?? edges.at(-1)?.cursor ?? null;
+			if (out.length === before || !connection?.pageInfo?.hasNextPage || !nextCursor || nextCursor === after) break;
+			after = nextCursor;
 		}
 	}
 	return out;
@@ -2464,6 +2485,253 @@ function parseRedditCommentEntries(xml) {
 	}
 	return out;
 }
+function youtubeCommentEntities(root, limit) {
+	const out = [];
+	const seen = /* @__PURE__ */ new Set();
+	const stack = [root];
+	while (stack.length && out.length < limit) {
+		const current = stack.pop();
+		if (!current || typeof current !== "object") continue;
+		if (Array.isArray(current)) {
+			stack.push(...current);
+			continue;
+		}
+		const record = current;
+		const payload = record.commentEntityPayload;
+		if (payload?.properties?.content?.content) {
+			const id = payload.properties.commentId || `ytc${out.length}`;
+			if (!seen.has(id)) {
+				seen.add(id);
+				const scoreRaw = Number(String(payload.toolbar?.likeCountNotliked ?? "").replace(/,/g, ""));
+				out.push({
+					id,
+					author: payload.author?.displayName?.replace(/^@/, "") || void 0,
+					body: payload.properties.content.content.slice(0, 500),
+					score: Number.isFinite(scoreRaw) ? scoreRaw : void 0
+				});
+			}
+		}
+		for (const value of Object.values(record)) if (value && typeof value === "object") stack.push(value);
+	}
+	return out;
+}
+function youtubeCommentContinuation(root) {
+	const stack = [root];
+	while (stack.length) {
+		const current = stack.pop();
+		if (!current || typeof current !== "object") continue;
+		if (Array.isArray(current)) {
+			stack.push(...current);
+			continue;
+		}
+		const record = current;
+		if (record.engagementPanelSectionListRenderer?.panelIdentifier === "engagement-panel-comments-section") {
+			const inner = [record];
+			while (inner.length) {
+				const node = inner.pop();
+				if (!node || typeof node !== "object") continue;
+				if (Array.isArray(node)) {
+					inner.push(...node);
+					continue;
+				}
+				const row = node;
+				const token = row.continuationEndpoint?.continuationCommand?.token ?? row.continuationCommand?.token;
+				if (token) return token;
+				for (const value of Object.values(row)) if (value && typeof value === "object") inner.push(value);
+			}
+		}
+		for (const value of Object.values(record)) if (value && typeof value === "object") stack.push(value);
+	}
+	return null;
+}
+function youtubeNextCommentToken(root) {
+	const endpoints = root?.onResponseReceivedEndpoints ?? [];
+	for (const endpoint of endpoints) {
+		const reload = endpoint.reloadContinuationItemsCommand;
+		const append = endpoint.appendContinuationItemsAction;
+		const items = reload?.continuationItems ?? append?.continuationItems ?? [];
+		for (const item of items) {
+			if (!item || typeof item !== "object") continue;
+			const token = item.continuationItemRenderer?.continuationEndpoint?.continuationCommand?.token;
+			if (token) return token;
+		}
+	}
+	return null;
+}
+async function fetchYoutubeComments(videoId, limit) {
+	const id = videoId.replace(/^yt:/, "").slice(0, 11);
+	if (!/^[A-Za-z0-9_-]{11}$/.test(id)) return {
+		comments: [],
+		note: "Not a YouTube video id."
+	};
+	try {
+		const html = await fetchText(`https://www.youtube.com/watch?v=${encodeURIComponent(id)}`);
+		const apiKey = html.match(/"INNERTUBE_API_KEY":"([^"]+)"/)?.[1];
+		const clientVersion = html.match(/"INNERTUBE_CLIENT_VERSION":"([^"]+)"/)?.[1] ?? "2.20250101.00.00";
+		if (!apiKey) return {
+			comments: [],
+			note: "YouTube Innertube key unavailable."
+		};
+		const postNext = async (body) => {
+			const response = await fetch(`https://www.youtube.com/youtubei/v1/next?key=${encodeURIComponent(apiKey)}`, {
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					"x-youtube-client-name": "1",
+					"x-youtube-client-version": clientVersion
+				},
+				body: JSON.stringify({
+					context: { client: {
+						clientName: "WEB",
+						clientVersion,
+						hl: "en",
+						gl: "US"
+					} },
+					...body
+				}),
+				signal: AbortSignal.timeout(15e3)
+			});
+			if (!response.ok) return null;
+			return await response.json();
+		};
+		const watch = await postNext({ videoId: id });
+		if (!watch) return {
+			comments: [],
+			note: "YouTube comments endpoint unavailable."
+		};
+		let continuation = youtubeCommentContinuation(watch);
+		if (!continuation) return {
+			comments: [],
+			note: "No public YouTube comment panel for this video."
+		};
+		const comments = [];
+		const seen = /* @__PURE__ */ new Set();
+		for (let page = 0; page < 4 && comments.length < limit && continuation; page += 1) {
+			const pageData = await postNext({ continuation });
+			if (!pageData) break;
+			for (const row of youtubeCommentEntities(pageData, limit - comments.length)) {
+				if (seen.has(row.id)) continue;
+				seen.add(row.id);
+				comments.push(row);
+			}
+			continuation = youtubeNextCommentToken(pageData);
+		}
+		return {
+			comments: comments.slice(0, limit),
+			note: comments.length ? "YouTube comments via public Innertube (on-demand, not routine refresh)." : "No public YouTube comments returned for this video."
+		};
+	} catch (err) {
+		return {
+			comments: [],
+			note: err instanceof Error ? err.message : "YouTube comments unavailable."
+		};
+	}
+}
+async function fetchTwitchVodComments(videoId, limit) {
+	const id = videoId.replace(/^tw:v:/, "").replace(/^v/, "").trim();
+	if (!/^\d+$/.test(id)) return {
+		comments: [],
+		note: "Twitch clips do not expose VOD chat replay; open a VOD."
+	};
+	try {
+		const comments = [];
+		const seen = /* @__PURE__ */ new Set();
+		let cursor = null;
+		let offset = 0;
+		for (let page = 0; page < 6 && comments.length < limit; page += 1) {
+			if (page > 0) await twitchPageGap();
+			const res = await fetch("https://gql.twitch.tv/gql", {
+				method: "POST",
+				headers: {
+					"client-id": TWITCH_CLIENT_ID,
+					"content-type": "application/json"
+				},
+				body: JSON.stringify([{
+					operationName: "VideoCommentsByOffsetOrCursor",
+					variables: cursor ? {
+						videoID: id,
+						cursor
+					} : {
+						videoID: id,
+						contentOffsetSeconds: offset
+					},
+					extensions: { persistedQuery: {
+						version: 1,
+						sha256Hash: "b70a3591ff0f4e0313d126c6a1502d79a1c02baebb288227c582044aa76adf6a"
+					} }
+				}]),
+				signal: AbortSignal.timeout(12e3)
+			});
+			if (!res.ok) return {
+				comments,
+				note: comments.length ? "Partial Twitch VOD chat (rate limited)." : `Twitch VOD chat HTTP ${res.status}.`
+			};
+			const connection = (await res.json())?.[0]?.data?.video?.comments;
+			if (!connection?.edges?.length) break;
+			for (const edge of connection.edges) {
+				const node = edge.node;
+				if (!node?.id || seen.has(node.id)) continue;
+				const body = (node.message?.fragments ?? []).map((fragment) => fragment.text ?? "").join("").trim().slice(0, 400);
+				if (!body) continue;
+				seen.add(node.id);
+				comments.push({
+					id: node.id,
+					author: node.commenter?.displayName || node.commenter?.login || void 0,
+					body
+				});
+				if (comments.length >= limit) break;
+			}
+			if (!connection.pageInfo?.hasNextPage) break;
+			cursor = connection.edges.at(-1)?.cursor ?? null;
+			if (!cursor) break;
+		}
+		return {
+			comments: comments.slice(0, limit),
+			note: comments.length ? "Twitch VOD chat replay via public GQL (on-demand; not live IRC scrape)." : "No public Twitch VOD chat returned for this video."
+		};
+	} catch (err) {
+		return {
+			comments: [],
+			note: err instanceof Error ? err.message : "Twitch comments unavailable."
+		};
+	}
+}
+async function fetchRedditComments(videoId, watchUrl) {
+	const id = videoId.replace(/^t3_/, "");
+	const canonical = `https://www.reddit.com/comments/${encodeURIComponent(id)}.rss?limit=40`;
+	const oldCanonical = `https://old.reddit.com/comments/${encodeURIComponent(id)}.rss?limit=40`;
+	const permalink = watchUrl.match(/^https:\/\/www\.reddit\.com\/r\/[^/]+\/comments\/[a-z0-9]+/i)?.[0];
+	const oldPermalink = permalink?.replace(/^https:\/\/www\.reddit\.com/i, "https://old.reddit.com");
+	const urls = permalink ? [
+		`${permalink}.rss?limit=40`,
+		oldPermalink ? `${oldPermalink}.rss?limit=40` : oldCanonical,
+		canonical,
+		oldCanonical
+	] : [canonical, oldCanonical];
+	let lastStatus = 0;
+	for (const url of urls) {
+		const res = await cachedAdultFetch(url, {
+			signal: AbortSignal.timeout(12e3),
+			cacheTtlMs: 9e5,
+			headers: {
+				accept: "application/atom+xml, application/rss+xml, application/xml;q=0.9, */*;q=0.8",
+				"user-agent": "linux:reelcase:1.0 (by /u/reelcase)"
+			}
+		});
+		lastStatus = res.status;
+		if (res.status === 429) continue;
+		if (!res.ok) continue;
+		const comments = parseRedditCommentEntries(await res.text());
+		return {
+			comments,
+			note: comments.length ? "Live Reddit comments via public Atom RSS." : "No public comments returned for this post."
+		};
+	}
+	return {
+		comments: [],
+		note: lastStatus === 429 ? "Reddit comment RSS rate-limited — try again later." : `Reddit comments unavailable (HTTP ${lastStatus || "network"}).`
+	};
+}
 async function runFetchAdultComments(dataRaw) {
 	const data = (() => {
 		const data = dataRaw;
@@ -2474,51 +2742,24 @@ async function runFetchAdultComments(dataRaw) {
 			watchUrl: asString(rec.watchUrl).trim()
 		};
 	})();
-	if (data.kind !== "reddit" || !data.videoId) return {
+	if (!data.videoId) return {
 		comments: [],
-		note: "This provider does not expose a public comment feed."
+		note: "Missing video id for comments."
 	};
-	const id = data.videoId.replace(/^t3_/, "");
-	const canonical = `https://www.reddit.com/comments/${encodeURIComponent(id)}.rss?limit=40`;
-	const oldCanonical = `https://old.reddit.com/comments/${encodeURIComponent(id)}.rss?limit=40`;
-	const permalink = data.watchUrl.match(/^https:\/\/www\.reddit\.com\/r\/[^/]+\/comments\/[a-z0-9]+/i)?.[0];
-	const oldPermalink = permalink?.replace(/^https:\/\/www\.reddit\.com/i, "https://old.reddit.com");
-	const urls = permalink ? [
-		`${permalink}.rss?limit=40`,
-		oldPermalink ? `${oldPermalink}.rss?limit=40` : oldCanonical,
-		canonical,
-		oldCanonical
-	] : [canonical, oldCanonical];
-	try {
-		let lastStatus = 0;
-		for (const url of urls) {
-			const res = await cachedAdultFetch(url, {
-				signal: AbortSignal.timeout(12e3),
-				cacheTtlMs: 9e5,
-				headers: {
-					accept: "application/atom+xml, application/rss+xml, application/xml;q=0.9, */*;q=0.8",
-					"user-agent": "linux:reelcase:1.0 (by /u/reelcase)"
-				}
-			});
-			lastStatus = res.status;
-			if (res.status === 429) continue;
-			if (!res.ok) continue;
-			const comments = parseRedditCommentEntries(await res.text());
-			return {
-				comments,
-				note: comments.length ? "Live Reddit comments via public Atom RSS." : "No public comments returned for this post."
-			};
-		}
-		return {
-			comments: [],
-			note: lastStatus === 429 ? "Reddit comment RSS rate-limited — try again later." : `Reddit comments unavailable (HTTP ${lastStatus || "network"}).`
-		};
+	if (data.kind === "reddit") try {
+		return await fetchRedditComments(data.videoId, data.watchUrl);
 	} catch (err) {
 		return {
 			comments: [],
 			note: err instanceof Error ? err.message : "Comments unavailable."
 		};
 	}
+	if (data.kind === "youtube") return fetchYoutubeComments(data.videoId, LIBRARY_LIMITS.youtubeCommentsPerPull);
+	if (data.kind === "twitch") return fetchTwitchVodComments(data.videoId, LIBRARY_LIMITS.twitchCommentsPerPull);
+	return {
+		comments: [],
+		note: "This provider does not expose a public comment feed."
+	};
 }
 async function runSearchRedtubeStars(dataRaw) {
 	const data = (() => {
