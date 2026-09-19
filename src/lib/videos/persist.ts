@@ -21,8 +21,13 @@ const ACTIVITY_STORE = "activity";
 const ACTIVITY_JOURNAL_STORE = "activity-journal";
 const PREFS_KEY = "reelcase.prefs.v4";
 const LEGACY_KEYS = ["reelcase.prefs.v3", "reelcase.prefs.v2", "reelcase.prefs.v1"];
+/** Small YouTube/Twitch follow list — never co-pruned with thumbs/history/Adult tags. */
+const FOLLOWS_LS_KEY = "reelcase.follows.v1";
+const FOLLOWS_IDB_KEY = "follows";
 let durablePrefs: Prefs | null = null;
+let durableFollows: FollowedChannel[] | null = null;
 let prefsWrites: Promise<void> = Promise.resolve();
+let followsWrites: Promise<void> = Promise.resolve();
 
 export async function restoreDurablePrefs(): Promise<void> {
   const db = await openDb();
@@ -37,6 +42,109 @@ export async function restoreDurablePrefs(): Promise<void> {
 }
 
 export function waitForPrefsWrites() { return prefsWrites; }
+
+export type DurableFollows = { channels: FollowedChannel[]; savedAt: number };
+
+function normalizeFollowChannels(raw: unknown): FollowedChannel[] {
+  if (!Array.isArray(raw)) return [];
+  const out: FollowedChannel[] = [];
+  for (const row of raw) {
+    if (!row || typeof row !== "object") continue;
+    const rec = row as Record<string, unknown>;
+    const kind = rec.kind === "twitch" || rec.kind === "youtube" ? rec.kind : null;
+    const handle = typeof rec.handle === "string" ? rec.handle.trim() : "";
+    const id = typeof rec.id === "string" ? rec.id.trim() : "";
+    const title = typeof rec.title === "string" ? rec.title.trim() : handle;
+    if (!kind || (!handle && !id)) continue;
+    out.push({
+      id: id || `${kind === "twitch" ? "tw" : "yt"}:${handle}`,
+      kind,
+      handle: handle || id.replace(/^(?:yt|tw):/i, ""),
+      title: title || handle || id,
+      ...(typeof rec.channelId === "string" ? { channelId: rec.channelId } : {}),
+      ...(typeof rec.thumb === "string" ? { thumb: rec.thumb } : {}),
+      ...(typeof rec.live === "boolean" ? { live: rec.live } : {}),
+      ...(typeof rec.lastCheckedAt === "number" ? { lastCheckedAt: rec.lastCheckedAt } : {}),
+      ...(typeof rec.newestPublishedAt === "number" ? { newestPublishedAt: rec.newestPublishedAt } : {}),
+      ...(typeof rec.lastResponseCount === "number" ? { lastResponseCount: rec.lastResponseCount } : {}),
+    });
+  }
+  return out;
+}
+
+function readFollowsLocal(): FollowedChannel[] | null {
+  try {
+    const raw = JSON.parse(localStorage.getItem(FOLLOWS_LS_KEY) ?? "null") as DurableFollows | FollowedChannel[] | null;
+    if (Array.isArray(raw)) return normalizeFollowChannels(raw);
+    if (raw && typeof raw === "object" && Array.isArray((raw as DurableFollows).channels)) {
+      return normalizeFollowChannels((raw as DurableFollows).channels);
+    }
+  } catch { /* ignore malformed mirror */ }
+  return null;
+}
+
+/** Sync mirror + IndexedDB. Intentionally tiny so QuotaExceeded on the prefs blob cannot erase follows. */
+export function saveFollows(channels: FollowedChannel[]) {
+  if (typeof window === "undefined") return;
+  durableFollows = channels;
+  const payload: DurableFollows = { channels, savedAt: Date.now() };
+  try { localStorage.setItem(FOLLOWS_LS_KEY, JSON.stringify(payload)); }
+  catch { /* IndexedDB remains the durable path when localStorage is full. */ }
+  followsWrites = followsWrites.catch(() => undefined).then(async () => {
+    const db = await openDb();
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(ACTIVITY_STORE, "readwrite");
+        // Dedicated key — thumb prune, history journal prune, and Adult catalog caps never touch this.
+        tx.objectStore(ACTIVITY_STORE).put(payload, FOLLOWS_IDB_KEY);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error);
+      });
+    } finally { db.close(); }
+  });
+  void followsWrites.catch(() => undefined);
+}
+
+export function loadFollows(): FollowedChannel[] | null {
+  if (typeof window === "undefined") return null;
+  if (durableFollows) return durableFollows;
+  return readFollowsLocal();
+}
+
+export async function restoreDurableFollows(): Promise<FollowedChannel[]> {
+  if (typeof window === "undefined") return [];
+  let fromIdb: FollowedChannel[] = [];
+  try {
+    const db = await openDb();
+    try {
+      const saved = await new Promise<DurableFollows | FollowedChannel[] | undefined>((resolve, reject) => {
+        const req = db.transaction(ACTIVITY_STORE).objectStore(ACTIVITY_STORE).get(FOLLOWS_IDB_KEY);
+        req.onsuccess = () => resolve(req.result as DurableFollows | FollowedChannel[] | undefined);
+        req.onerror = () => reject(req.error);
+      });
+      if (Array.isArray(saved)) fromIdb = normalizeFollowChannels(saved);
+      else if (saved && typeof saved === "object") fromIdb = normalizeFollowChannels(saved.channels);
+    } finally { db.close(); }
+  } catch { /* fall through to localStorage / prefs migration */ }
+  const fromLs = readFollowsLocal() ?? [];
+  // Prefer the longer non-empty list when both exist (partial write / mid-import).
+  const primary = fromIdb.length >= fromLs.length ? fromIdb : fromLs;
+  const secondary = primary === fromIdb ? fromLs : fromIdb;
+  const seen = new Set(primary.map((row) => `${row.kind}:${row.handle.toLowerCase()}`));
+  const merged = [...primary];
+  for (const row of secondary) {
+    const key = `${row.kind}:${row.handle.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(row);
+  }
+  durableFollows = merged;
+  return merged;
+}
+
+export function waitForFollowsWrites() { return followsWrites; }
+
 const TAG_EDITS_KEY = "reelcase.tag-edits.v1";
 const HISTORY_PENDING_KEY = "reelcase.history-pending.v1";
 function readPending<T>(key: string, fallback: T): T {

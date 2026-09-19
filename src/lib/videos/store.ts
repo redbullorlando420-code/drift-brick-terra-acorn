@@ -33,7 +33,10 @@ import {
   loadCatalogVideos,
   loadDirHandles,
   loadPrefs,
+  loadFollows,
   restoreDurablePrefs,
+  restoreDurableFollows,
+  saveFollows,
   saveTagEdit,
   restoreTagEdits,
   loadSourceHealth,
@@ -224,6 +227,9 @@ function persistNow(get: () => LibraryState) {
     notifyPush: s.notifyPush,
     unavailableVideoIds: Object.keys(s.unavailable),
   };
+  // Follow lists are durable on their own key/store so Adult tag bloat,
+  // history caps, and thumb prune cannot erase YouTube/Twitch subscriptions.
+  saveFollows(s.follows);
   savePrefs(prefs);
   void saveActivitySnapshot({ history: s.history, progress: s.progress, resumeProgress: s.resumeProgress, viewCounts: s.viewCounts, cameCounts: s.cameCounts, savedAt: Date.now() }).catch(() => queueResumeReplay(s.resumeProgress));
 }
@@ -1301,9 +1307,16 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     if (get().hydrated || restoring) return;
     restoring = true;
     await restoreDurablePrefs().catch(() => undefined);
+    const dedicatedFollows = await restoreDurableFollows().catch(() => loadFollows() ?? []);
     preferencesRestored = true;
     const prefsState = applyPrefs({});
     prefsState.tags = restoreTagEdits(prefsState.tags ?? {});
+    // Dedicated store is source of truth; prefs.follows is a legacy mirror for older builds.
+    const prefsFollows = Array.isArray(prefsState.follows) ? prefsState.follows : [];
+    const migratedFollows = dedupeFollows([...dedicatedFollows, ...prefsFollows]);
+    prefsState.follows = migratedFollows;
+    // Persist migration immediately so a later prefs-only wipe cannot drop the list again.
+    if (migratedFollows.length) saveFollows(migratedFollows);
     const adultIds = new Set(loadPrefs()?.privateFolderIds ?? []);
     let cachedFolderIds = new Set<string>();
     let savedHealth = new Map<string, Awaited<ReturnType<typeof loadSourceHealth>>[number]>();
@@ -1384,10 +1397,27 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         try {
           const saved = JSON.parse(localStorage.getItem(`reelcase.import-history.${kind}`) ?? "[]") as unknown;
           if (!Array.isArray(saved) || !saved.length) return;
+          const handles = saved.filter((value): value is string => typeof value === "string" && Boolean(value.trim()));
+          // Seed durable follow stubs from the import list before network pulls so a
+          // refresh mid-recovery cannot leave the shelf empty again.
+          const stubs = handles.map((query) => {
+            const handle = canonicalFollowHandle(kind, query);
+            return {
+              id: `${kind === "twitch" ? "tw" : "yt"}:${handle}`,
+              kind,
+              handle,
+              title: handle,
+            } satisfies FollowedChannel;
+          }).filter((row) => row.handle);
+          if (stubs.length) {
+            const merged = dedupeFollows([...get().follows, ...stubs]);
+            set({ follows: merged });
+            saveFollows(merged);
+          }
           // Startup recovery must never monopolize the first screen when a user
           // has hundreds of subscriptions. The complete saved list stays intact;
           // each refresh resumes a bounded, provider-friendly batch.
-          await get().importBatch(saved.filter((value): value is string => typeof value === "string" && Boolean(value.trim())).slice(0, 80).map((query) => ({ query, kind })));
+          await get().importBatch(handles.slice(0, 80).map((query) => ({ query, kind })));
         } catch { /* no saved import list */ }
       };
       void (async () => { await recover("twitch"); await recover("youtube"); })();
