@@ -1,6 +1,6 @@
 import { n as TSS_SERVER_FUNCTION, t as createServerFn } from "./ssr.mjs";
-import { A as cachedAdultFetch, H as isUsableAdultThumb, K as pickRedtubeThumb, N as extractRedditFlair, Y as redtubeStarNames, _ as REDDIT_FOLDER_ID, c as ADULT_PULL_PROVIDERS, f as BOORU_FOLDER_ID, g as MYFREECAMS_FOLDER_ID, h as LIBRARY_LIMITS, j as expandAdultThumbFallbacks, l as ADULT_REDDIT_PRIORITY_SUBS, m as EPORNER_FOLDER_ID, p as CHATURBATE_FOLDER_ID, u as ADULT_REDDIT_SUBS, v as REDGIFS_FOLDER_ID, x as adultDeepenQueriesForPage, y as REDTUBE_FOLDER_ID } from "./adult-pull-cache-D3-4maho.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/functions-C87fJJ7n.js
+import { A as cachedAdultFetch, H as isUsableAdultThumb, K as pickRedtubeThumb, N as extractRedditFlair, Y as redtubeStarNames, _ as REDDIT_FOLDER_ID, c as ADULT_PULL_PROVIDERS, f as BOORU_FOLDER_ID, g as MYFREECAMS_FOLDER_ID, h as LIBRARY_LIMITS, j as expandAdultThumbFallbacks, l as ADULT_REDDIT_PRIORITY_SUBS, m as EPORNER_FOLDER_ID, p as CHATURBATE_FOLDER_ID, u as ADULT_REDDIT_SUBS, v as REDGIFS_FOLDER_ID, x as adultDeepenQueriesForPage, y as REDTUBE_FOLDER_ID } from "./adult-pull-cache-DNAXGlvT.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/functions-D6m2T13W.js
 var createServerRpc = (serverFnMeta, splitImportFn) => {
 	const url = "/_serverFn/" + serverFnMeta.id;
 	return Object.assign(splitImportFn, {
@@ -162,9 +162,13 @@ function parseFollow(data) {
 	const rec = data;
 	const query = asString(rec.query).trim();
 	if (!query) throw new Error("Enter a channel or URL");
+	const kind = rec.kind === "youtube" || rec.kind === "twitch" ? rec.kind : "auto";
+	const rawClips = typeof rec.clipLimit === "number" ? rec.clipLimit : Number(rec.clipLimit);
+	const clipLimit = Number.isFinite(rawClips) && rawClips > 0 ? Math.min(LIBRARY_LIMITS.twitchFocusedClipsPerChannel, Math.floor(rawClips)) : void 0;
 	return {
 		query,
-		kind: rec.kind === "youtube" || rec.kind === "twitch" ? rec.kind : "auto"
+		kind,
+		...clipLimit ? { clipLimit } : {}
 	};
 }
 function parseRefresh(data) {
@@ -576,43 +580,73 @@ function twitchLogin(input) {
 function youtubeFromChannel(query, limit = LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, focused = true, deepCatalog = focused) {
 	return providerRequest("youtube", query, focused, () => youtubeFromChannelUncoalesced(query, limit, deepCatalog));
 }
-var TWITCH_ARCHIVE_PAGE_SIZE = LIBRARY_LIMITS.twitchArchivePageSize;
+var TWITCH_ARCHIVE_PAGE_SIZE = Math.min(100, LIBRARY_LIMITS.twitchArchivePageSize);
 var TWITCH_FOCUSED_VOD_LIMIT = LIBRARY_LIMITS.twitchFocusedVodsPerChannel;
 var TWITCH_REFRESH_VOD_LIMIT = LIBRARY_LIMITS.twitchRoutineVodsPerChannel;
-async function twitchUser(login, after, archivePageSize = TWITCH_ARCHIVE_PAGE_SIZE) {
+var TWITCH_FOCUSED_CLIP_LIMIT = LIBRARY_LIMITS.twitchFocusedClipsPerChannel;
+var TWITCH_REFRESH_CLIP_LIMIT = LIBRARY_LIMITS.twitchRoutineClipsPerChannel;
+var TWITCH_CLIENT_ID = "kimne78kx3ncx6brgo4mv6wki5h1ko";
+var TWITCH_CHANNEL_CACHE_TTL_MS = 18e4;
+var TWITCH_CHANNEL_CACHE_LIMIT = 16;
+var twitchChannelCache = /* @__PURE__ */ new Map();
+function twitchClampFirst(n) {
+	return Math.max(1, Math.min(100, Math.floor(n)));
+}
+async function twitchGqlJson(query, variables) {
 	const res = await fetch("https://gql.twitch.tv/gql", {
 		signal: AbortSignal.timeout(12e3),
 		method: "POST",
 		headers: {
-			"client-id": "kimne78kx3ncx6brgo4mv6wki5h1ko",
+			"client-id": TWITCH_CLIENT_ID,
 			"content-type": "application/json"
 		},
 		body: JSON.stringify({
-			query: `query($login:String!,$after:Cursor,$first:Int!){user(login:$login){id displayName profileImageURL(width:70) stream{title viewersCount previewImageURL(width:640,height:360) game{name}} videos(first:$first,type:ARCHIVE,after:$after){pageInfo{hasNextPage endCursor} edges{cursor node{id title description lengthSeconds publishedAt previewThumbnailURL(width:640,height:360) game{name}}}}}}`,
-			variables: {
-				login,
-				after: after ?? null,
-				first: archivePageSize
-			}
+			query,
+			variables
 		})
 	});
 	if (!res.ok) return null;
-	return (await res.json()).data?.user ?? null;
+	return await res.json();
+}
+async function twitchUser(login, after, archivePageSize = TWITCH_ARCHIVE_PAGE_SIZE, broadcastType = "ARCHIVE") {
+	const first = twitchClampFirst(archivePageSize);
+	const json = await twitchGqlJson(`query($login:String!,$after:Cursor,$first:Int!){user(login:$login){id displayName profileImageURL(width:70) stream{title viewersCount previewImageURL(width:640,height:360) game{name}} videos(first:$first,type:${broadcastType},after:$after){pageInfo{hasNextPage endCursor} edges{cursor node{id title description lengthSeconds publishedAt previewThumbnailURL(width:640,height:360) game{name}}}}}}`, {
+		login,
+		after: after ?? null,
+		first
+	});
+	if (!json) return null;
+	const user = json.data?.user ?? null;
+	if (user && json.errors?.some((error) => /videos|first/i.test(error.message ?? ""))) return {
+		...user,
+		videos: {
+			pageInfo: {
+				hasNextPage: false,
+				endCursor: null
+			},
+			edges: []
+		}
+	};
+	return user;
 }
 /**
-* Twitch exposes archives as a cursor connection. Reading only its first page
-* made a busy creator look as though they had about 160 VODs, and a later
-* focused refresh then overwrote the locally retained history with that page.
-* Deep reads are reserved for a user-initiated channel pull; rotating live
-* refreshes intentionally keep their small first-page window.
+* Twitch exposes archives as a cursor connection. Public clients without the
+* web integrity token typically receive one page (~30–100). Focused pulls also
+* merge HIGHLIGHT + UPLOAD. Continuations are attempted once and abandoned on
+* integrity / empty failures so we do not hammer the endpoint.
 */
 async function twitchArchive(login, limit) {
 	let after;
 	let first = null;
 	const edges = [];
 	const seen = /* @__PURE__ */ new Set();
+	const takePage = async (pageSize, cursor, type) => {
+		let page = await twitchUser(login, cursor, pageSize, type);
+		if (page?.id && !page.videos?.edges?.length && pageSize > 30 && !cursor && type === "ARCHIVE") page = await twitchUser(login, null, 30, type);
+		return page;
+	};
 	while (edges.length < limit) {
-		const page = await twitchUser(login, after, Math.min(TWITCH_ARCHIVE_PAGE_SIZE, limit - edges.length));
+		const page = await takePage(Math.min(TWITCH_ARCHIVE_PAGE_SIZE, limit - edges.length), after, "ARCHIVE");
 		if (!page) return first;
 		if (!first) first = page;
 		for (const edge of page.videos?.edges ?? []) {
@@ -623,9 +657,30 @@ async function twitchArchive(login, limit) {
 			if (edges.length >= limit) break;
 		}
 		const pageInfo = page.videos?.pageInfo;
-		const nextCursor = pageInfo?.endCursor ?? page.videos?.edges?.at(-1)?.cursor;
-		if (!pageInfo?.hasNextPage || !nextCursor || nextCursor === after) break;
+		const nextCursor = pageInfo?.endCursor ?? page.videos?.edges?.at(-1)?.cursor ?? null;
+		if (!pageInfo?.hasNextPage || !nextCursor || nextCursor === after || edges.length >= limit) break;
 		after = nextCursor;
+		const cont = await takePage(Math.min(TWITCH_ARCHIVE_PAGE_SIZE, limit - edges.length), after, "ARCHIVE");
+		if (!cont?.videos?.edges?.length) break;
+		for (const edge of cont.videos.edges) {
+			const id = edge.node?.id;
+			if (!id || seen.has(id)) continue;
+			seen.add(id);
+			edges.push(edge);
+			if (edges.length >= limit) break;
+		}
+		break;
+	}
+	if (first && edges.length < limit) for (const type of ["HIGHLIGHT", "UPLOAD"]) {
+		const page = await takePage(Math.min(TWITCH_ARCHIVE_PAGE_SIZE, limit - edges.length), null, type);
+		for (const edge of page?.videos?.edges ?? []) {
+			const id = edge.node?.id;
+			if (!id || seen.has(id)) continue;
+			seen.add(id);
+			edges.push(edge);
+			if (edges.length >= limit) break;
+		}
+		if (edges.length >= limit) break;
 	}
 	if (!first) return null;
 	return {
@@ -633,7 +688,35 @@ async function twitchArchive(login, limit) {
 		videos: { edges }
 	};
 }
-function twitchVideos(login, user, vodLimit = TWITCH_ARCHIVE_PAGE_SIZE) {
+var TWITCH_CLIP_PERIODS = [
+	null,
+	"LAST_WEEK",
+	"LAST_MONTH",
+	"ALL_TIME"
+];
+async function twitchClips(login, limit) {
+	if (limit <= 0) return [];
+	const out = [];
+	const seen = /* @__PURE__ */ new Set();
+	for (const period of TWITCH_CLIP_PERIODS) {
+		if (out.length >= limit) break;
+		const first = twitchClampFirst(Math.min(100, limit - out.length));
+		const edges = ((await twitchGqlJson(`query($login:String!,$first:Int!){user(login:$login){${period ? `clips(first:$first, criteria:{period:${period}}){edges{node{id slug title viewCount durationSeconds createdAt thumbnailURL}}}` : `clips(first:$first){edges{node{id slug title viewCount durationSeconds createdAt thumbnailURL}}}`}}}`, {
+			login,
+			first
+		}))?.data?.user)?.clips?.edges ?? [];
+		for (const edge of edges) {
+			const node = edge.node;
+			const key = node?.slug || node?.id;
+			if (!key || seen.has(key)) continue;
+			seen.add(key);
+			out.push(node);
+			if (out.length >= limit) break;
+		}
+	}
+	return out;
+}
+function twitchVideos(login, user, vodLimit = TWITCH_ARCHIVE_PAGE_SIZE, clips = []) {
 	const title = user.displayName ?? login;
 	const folderId = `tw:${login}`;
 	const observedAt = Date.now();
@@ -690,6 +773,35 @@ function twitchVideos(login, user, vodLimit = TWITCH_ARCHIVE_PAGE_SIZE) {
 			}
 		});
 	}
+	for (const clip of clips) {
+		const slug = clip.slug || clip.id;
+		if (!slug) continue;
+		const rawDuration = Number(clip.durationSeconds);
+		const duration = Number.isFinite(rawDuration) && rawDuration > 0 && rawDuration <= 3600 ? rawDuration : void 0;
+		out.push({
+			id: `tw:c:${slug}`,
+			folderId,
+			name: clip.title || "Twitch clip",
+			path: `twitch/${login}/clip/${slug}`,
+			extension: "clip",
+			mime: "video/twitch",
+			size: 0,
+			duration,
+			addedAt: Date.parse(clip.createdAt ?? "") || Date.now(),
+			poster: clip.thumbnailURL,
+			tagline: clip.viewCount ? `${clip.viewCount.toLocaleString()} views · clip` : "Twitch clip",
+			remote: {
+				kind: "twitch",
+				videoId: slug,
+				channelName: title,
+				live: false,
+				views: clip.viewCount,
+				observedAt,
+				embedUrl: `https://clips.twitch.tv/embed?clip=${encodeURIComponent(slug)}&autoplay=true`,
+				watchUrl: `https://www.twitch.tv/${login}/clip/${slug}`
+			}
+		});
+	}
 	if (!out.length) out.push({
 		id: `tw:${login}:channel`,
 		folderId,
@@ -711,14 +823,20 @@ function twitchVideos(login, user, vodLimit = TWITCH_ARCHIVE_PAGE_SIZE) {
 	});
 	return out;
 }
-async function followTwitchUncoalesced(query, compact = false) {
+async function followTwitchUncoalesced(query, compact = false, clipLimit) {
 	const login = twitchLogin(query);
 	if (!login) throw new Error("Enter a Twitch channel.");
-	const user = await twitchArchive(login, compact ? TWITCH_REFRESH_VOD_LIMIT : TWITCH_FOCUSED_VOD_LIMIT);
+	const vodLimit = compact ? TWITCH_REFRESH_VOD_LIMIT : TWITCH_FOCUSED_VOD_LIMIT;
+	const clipsWanted = clipLimit ?? (compact ? TWITCH_REFRESH_CLIP_LIMIT : TWITCH_FOCUSED_CLIP_LIMIT);
+	const cacheKey = `${login}:${compact ? "r" : "f"}:${vodLimit}:${clipsWanted}`;
+	const cached = twitchChannelCache.get(cacheKey);
+	if (cached && Date.now() - cached.at < TWITCH_CHANNEL_CACHE_TTL_MS) return cached.result;
+	const user = await twitchArchive(login, vodLimit);
 	if (!user?.id) throw new Error(`Twitch could not resolve ${login}`);
+	const clips = await twitchClips(login, clipsWanted);
 	const title = user.displayName ?? login;
-	const videos = twitchVideos(login, user, compact ? TWITCH_REFRESH_VOD_LIMIT : TWITCH_FOCUSED_VOD_LIMIT);
-	return {
+	const videos = twitchVideos(login, user, vodLimit, clips);
+	const result = {
 		channel: {
 			id: `tw:${login}`,
 			kind: "twitch",
@@ -733,13 +851,19 @@ async function followTwitchUncoalesced(query, compact = false) {
 		},
 		videos
 	};
+	twitchChannelCache.set(cacheKey, {
+		at: Date.now(),
+		result
+	});
+	while (twitchChannelCache.size > TWITCH_CHANNEL_CACHE_LIMIT) twitchChannelCache.delete(twitchChannelCache.keys().next().value);
+	return result;
 }
-function followTwitch(query, compact = false) {
-	return providerRequest("twitch", query, !compact, () => followTwitchUncoalesced(query, compact));
+function followTwitch(query, compact = false, clipLimit) {
+	return providerRequest("twitch", query, !compact, () => followTwitchUncoalesced(query, compact, clipLimit));
 }
 async function runFollowRemote(dataRaw) {
 	const data = parseFollow(dataRaw);
-	if ((data.kind === "auto" ? guessKind(data.query) : data.kind) === "twitch") return followTwitch(data.query);
+	if ((data.kind === "auto" ? guessKind(data.query) : data.kind) === "twitch") return followTwitch(data.query, false, data.clipLimit);
 	const videoId = ytVideoId(data.query);
 	if (videoId) return youtubeFromVideo(videoId);
 	return youtubeFromChannel(data.query);

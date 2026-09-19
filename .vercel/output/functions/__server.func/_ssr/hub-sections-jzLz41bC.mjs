@@ -1,12 +1,12 @@
 import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
-import { L as isAdultImageKind } from "./adult-pull-cache-D3-4maho.mjs";
+import { L as isAdultImageKind } from "./adult-pull-cache-DNAXGlvT.mjs";
 import { $ as Gamepad2, A as Music2, C as Rocket, E as Play, G as Laptop, J as ImagePlus, K as Images, L as Maximize2, M as MonitorPlay, O as Pause, P as MessageCircle, St as Bot, T as Radio, U as Lightbulb, _ as Shuffle, _t as ChevronLeft, b as Settings2, bt as ChartColumn, c as Upload, f as Star, ft as Copy, gt as ChevronRight, k as PackageSearch, lt as ExternalLink, m as Smartphone, mt as Clapperboard, n as X, r as Wifi, s as Users, st as Eye, ut as Download, v as ShoppingBag, w as RefreshCw, x as Search, xt as Box, y as ShieldCheck } from "../_libs/lucide-react.mjs";
-import { A as toggleTagLike, B as __exportAll, C as topicEvidence, D as getRating, E as getFeedbackDiagnostics, F as saveDurableLinks, I as saveDurableMarks, L as saveDurableResume, M as measureInteraction, N as linksFromHistoryAndResume, O as importFeedback, P as saveDurableHistory, R as saveDurableShelves, S as isTopicTag, T as exportFeedback, _ as Button, a as adultStatsToCsv, b as useSourceAssets, c as rankAdultTags, d as Input, f as openTopic, g as useThumbs, h as getThumbDiagnostics, i as getFirstShelfTrace, j as getInteractionBudgetSnapshot, k as tagIsLiked, l as countAdultBooruHosts, m as getRenderBudgetSnapshot, n as getNetworkDeviceId, o as buildAdultStatsSnapshot, p as VideoCard, r as listNetworkDevices, s as exportAdultStats, u as countAdultBySource, v as resumeForVideo, w as topicsForVideo, x as canonicalTopic, y as useLibrary, z as saveFollows } from "./routes-DqMIPFyJ.mjs";
+import { A as toggleTagLike, B as saveDurableResume, C as topicEvidence, D as getRating, E as getFeedbackDiagnostics, F as restoreDurablePhotos, H as saveFollows, I as saveDurableHistory, L as saveDurableLinks, M as measureInteraction, N as linksFromHistoryAndResume, O as importFeedback, P as loadDurablePhotosSync, R as saveDurableMarks, S as isTopicTag, T as exportFeedback, U as __exportAll, V as saveDurableShelves, _ as Button, a as adultStatsToCsv, b as useSourceAssets, c as rankAdultTags, d as Input, f as openTopic, g as useThumbs, h as getThumbDiagnostics, i as getFirstShelfTrace, j as getInteractionBudgetSnapshot, k as tagIsLiked, l as countAdultBooruHosts, m as getRenderBudgetSnapshot, n as getNetworkDeviceId, o as buildAdultStatsSnapshot, p as VideoCard, r as listNetworkDevices, s as exportAdultStats, u as countAdultBySource, v as resumeForVideo, w as topicsForVideo, x as canonicalTopic, y as useLibrary, z as saveDurablePhotos } from "./routes-CCblH_m1.mjs";
 import { i as zipSync, n as strToU8, r as unzipSync, t as strFromU8 } from "../_libs/fflate.mjs";
 import { a as Bar, c as ResponsiveContainer, i as XAxis, l as Tooltip, n as BarChart, o as Pie, r as YAxis, s as Cell, t as PieChart } from "../_libs/recharts+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/hub-sections-WkvAufF_.js
+//#region node_modules/.nitro/vite/services/ssr/assets/hub-sections-jzLz41bC.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function TopicLinks({ explorer = false }) {
@@ -528,6 +528,8 @@ function engagementSummary(input) {
 		savedLinks: input.links.length,
 		favorites: input.favorites.length,
 		likes: input.likes.length,
+		photoSources: input.photoSources?.length ?? 0,
+		photoLikes: input.photoLikes?.length ?? Object.values(input.photoMeta ?? {}).filter((row) => row.favorite).length,
 		titlesWithViews: Object.keys(input.viewCounts).length,
 		titlesWithCameMarks: Object.keys(input.cameCounts).length,
 		totalCameMarks: Object.values(input.cameCounts).reduce((a, b) => a + b, 0),
@@ -539,7 +541,7 @@ function packReadme() {
 	return `# Reelcase library pack
 
 Local-only backup / fill-in folder for YouTube & Twitch follows, watch history,
-saved video links, continue-watching pointers, favorites/likes, Adult marks,
+saved video links, continue-watching pointers, favorites/likes, Photos sources & likes, Adult marks,
 ratings & tag hearts, and Adult stats snapshots.
 
 No cloud. Nothing here uploads. Import **merges** by default so unrelated data
@@ -612,6 +614,13 @@ Columns: \`id,url,title,kind,savedAt,source\`
 Adult stats are snapshots for backup/analysis. Importing stats does not rebuild
 the live Adult catalog; it is informational unless you also merge marks.
 
+## Photos
+
+- \`photos/sources.json\`: \`{ "sources": [{ "id", "name", "kind": "directory"|"files", "photoCount?", "lastCheckedAt?" }] }\`
+- \`photos/likes.json\`: \`{ "likes": ["photo-id"], "meta": { "photo-id": { "favorite", "rating", "tags", "people", "album", "path" } } }\`
+
+Photo media bytes stay on disk; the pack only stores source stubs and like/rating metadata.
+
 ## Durable stores (what Import writes)
 
 | Pack file | IndexedDB key (\`activity\`) | localStorage mirror |
@@ -623,6 +632,7 @@ the live Adult catalog; it is informational unless you also merge marks.
 | marks/shelves | \`shelves\` | \`reelcase.shelves.v1\` |
 | links/* | \`links\` | \`reelcase.links.v1\` |
 | marks/ratings+hearts | \`feedback\` | \`reelcase.media-feedback.v1\` |
+| photos/* | \`photos\` | \`reelcase.photos.v1\` (+ legacy \`reelcase.photo-meta.v1\`) |
 
 Thumb prune, Adult catalog caps, and prefs QuotaExceeded never clear these keys.
 `;
@@ -971,7 +981,54 @@ function applyLibraryPackFiles(files, hooks, mode = "merge") {
 			warnings.push(`Could not parse ${name}`);
 		}
 	}
-	if (!incomingFollows.length && !incomingHistory.length && !incomingLinks.length && !marksMerged && !shelvesMerged && !feedbackMerged) warnings.push("No recognized pack files were found. Expect follows/, history/, links/, marks/, or resume/ paths.");
+	let photosMerged = 0;
+	let incomingPhotoSources = [];
+	let incomingPhotoMeta = {};
+	let incomingPhotoLikes = [];
+	for (const [name, body] of Object.entries(files)) {
+		if (fileEndsWith(name, "photos/sources.json") || /photos\/sources\.json$/i.test(name)) try {
+			const parsed = JSON.parse(body);
+			incomingPhotoSources = [...incomingPhotoSources, ...parsed.sources ?? []];
+		} catch {
+			warnings.push(`Could not parse ${name}`);
+		}
+		if (fileEndsWith(name, "photos/likes.json") || /photos\/likes\.json$/i.test(name)) try {
+			const parsed = JSON.parse(body);
+			incomingPhotoLikes = [...incomingPhotoLikes, ...parsed.likes ?? []];
+			incomingPhotoMeta = {
+				...incomingPhotoMeta,
+				...parsed.meta ?? {}
+			};
+		} catch {
+			warnings.push(`Could not parse ${name}`);
+		}
+	}
+	if (incomingPhotoSources.length || Object.keys(incomingPhotoMeta).length || incomingPhotoLikes.length) {
+		const current = loadDurablePhotosSync();
+		const byId = new Map([...current?.sources ?? [], ...incomingPhotoSources].map((row) => [row.id, row]));
+		const meta = {
+			...current?.meta ?? {},
+			...incomingPhotoMeta
+		};
+		for (const id of incomingPhotoLikes) meta[id] = {
+			...meta[id] ?? {},
+			favorite: true
+		};
+		const likes = [.../* @__PURE__ */ new Set([
+			...current?.likes ?? [],
+			...incomingPhotoLikes,
+			...Object.entries(meta).filter(([, row]) => row.favorite).map(([id]) => id)
+		])];
+		const sources = [...byId.values()];
+		saveDurablePhotos({
+			sources,
+			meta,
+			likes
+		});
+		hooks.setPhotoSources?.(sources);
+		photosMerged = sources.length + likes.length;
+	}
+	if (!incomingFollows.length && !incomingHistory.length && !incomingLinks.length && !marksMerged && !shelvesMerged && !feedbackMerged && !photosMerged) warnings.push("No recognized pack files were found. Expect follows/, history/, links/, marks/, resume/, or photos/ paths.");
 	return {
 		followsAdded,
 		historyMerged,
@@ -979,6 +1036,7 @@ function applyLibraryPackFiles(files, hooks, mode = "merge") {
 		marksMerged,
 		shelvesMerged,
 		feedbackMerged,
+		photosMerged,
 		filesRead,
 		warnings
 	};
@@ -1916,7 +1974,7 @@ var hub_sections_exports = /* @__PURE__ */ __exportAll({
 	WatchRoomSection: () => WatchRoomSection
 });
 var PrintModelViewer = (0, import_react.lazy)(async () => {
-	return { default: (await import("./print-model-viewer-lyVdLc5a.mjs")).PrintModelViewer };
+	return { default: (await import("./print-model-viewer-CTutebOo.mjs")).PrintModelViewer };
 });
 var HUB_KEY = "reelcase.hub.v1";
 function gameKind(item) {
@@ -4330,6 +4388,15 @@ function SettingsSection() {
 				videos: state.videos,
 				favorites: Object.keys(state.favorites),
 				likes: Object.keys(state.likes),
+				photoSources: state.folders.filter((f) => f.kind === "directory" || f.kind === "files").map((f) => ({
+					id: f.id,
+					name: f.name,
+					kind: f.kind,
+					...f.photoCount != null ? { photoCount: f.photoCount } : {},
+					...f.lastCheckedAt != null ? { lastCheckedAt: f.lastCheckedAt } : {}
+				})),
+				photoMeta: loadDurablePhotosSync()?.meta,
+				photoLikes: loadDurablePhotosSync()?.likes,
 				tags: state.tags,
 				categories: state.categories,
 				progress: state.progress,
@@ -4582,7 +4649,7 @@ function SettingsSection() {
 								className: "text-fg",
 								children: "public/import-templates/"
 							}),
-							": follows, watch history, saved video URLs, continue-watching pointers, favorites/likes, Adult marks, ratings & tag hearts, and stats. Import merges into durable IndexedDB stores and does not wipe unrelated data unless you confirm replace-follows."
+							": follows, watch history, saved video URLs, continue-watching pointers, favorites/likes, Photos sources & likes, Adult marks, ratings & tag hearts, and stats. Import merges into durable IndexedDB stores and does not wipe unrelated data unless you confirm replace-follows."
 						]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -4603,7 +4670,16 @@ function SettingsSection() {
 										resumeProgress: state.resumeProgress,
 										adultVideos: state.videos,
 										folders: state.folders,
-										tags: state.tags
+										tags: state.tags,
+										photoSources: state.folders.filter((f) => f.kind === "directory" || f.kind === "files").map((f) => ({
+											id: f.id,
+											name: f.name,
+											kind: f.kind,
+											...f.photoCount != null ? { photoCount: f.photoCount } : {},
+											...f.lastCheckedAt != null ? { lastCheckedAt: f.lastCheckedAt } : {}
+										})),
+										photoMeta: loadDurablePhotosSync()?.meta,
+										photoLikes: loadDurablePhotosSync()?.likes
 									});
 									setServiceNote("Library pack zip downloaded. Unzip to edit offline, or keep as backup.");
 								},
@@ -4639,6 +4715,34 @@ function SettingsSection() {
 												favorites: Object.fromEntries(favorites.map((id) => [id, true])),
 												likes: Object.fromEntries(likes.map((id) => [id, true]))
 											}),
+											getPhotoSources: () => useLibrary.getState().folders.filter((f) => f.kind === "directory" || f.kind === "files").map((f) => ({
+												id: f.id,
+												name: f.name,
+												kind: f.kind,
+												photoCount: f.photoCount,
+												lastCheckedAt: f.lastCheckedAt
+											})),
+											setPhotoSources: (sources) => useLibrary.setState((s) => {
+												let folders = s.folders;
+												for (const source of sources) if (folders.some((f) => f.id === source.id)) folders = folders.map((f) => f.id === source.id ? {
+													...f,
+													name: source.name,
+													kind: source.kind,
+													photoCount: source.photoCount ?? f.photoCount,
+													lastCheckedAt: source.lastCheckedAt ?? f.lastCheckedAt
+												} : f);
+												else folders = [...folders, {
+													id: source.id,
+													name: source.name,
+													kind: source.kind,
+													videoCount: 0,
+													photoCount: source.photoCount ?? 0,
+													lastCheckedAt: source.lastCheckedAt,
+													needsPermission: true,
+													health: "permission-needed"
+												}];
+												return { folders };
+											}),
 											getProgress: () => useLibrary.getState().progress,
 											getResumeProgress: () => useLibrary.getState().resumeProgress,
 											setResume: (progress, resumeProgress) => useLibrary.setState({
@@ -4648,7 +4752,7 @@ function SettingsSection() {
 											getLinks: () => linksFromHistoryAndResume(useLibrary.getState().history, useLibrary.getState().resumeProgress),
 											setLinks: () => {}
 										}, window.confirm("Also REPLACE all YouTube/Twitch follows with the file?\n\nOK = replace follows\nCancel = merge follows (recommended)") ? "replace-follows" : "merge").then((result) => {
-											setServiceNote(`Pack import · +${result.followsAdded} follows · +${result.historyMerged} history · +${result.linksMerged} links${result.feedbackMerged ? " · ratings/hearts merged" : ""}${result.warnings.length ? ` · ${result.warnings[0]}` : ""}`);
+											setServiceNote(`Pack import · +${result.followsAdded} follows · +${result.historyMerged} history · +${result.linksMerged} links${result.photosMerged ? ` · photos ${result.photosMerged}` : ""}${result.feedbackMerged ? " · ratings/hearts merged" : ""}${result.warnings.length ? ` · ${result.warnings[0]}` : ""}`);
 										}).catch((error) => {
 											setServiceNote(error instanceof Error ? error.message : "Library pack import failed.");
 										});
@@ -5744,8 +5848,14 @@ var PHOTO_FILE_RE = /\.(avif|bmp|gif|heic|heif|jpe?g|png|tiff?|webp)$/i;
 var photoSourceWarmth = /* @__PURE__ */ new Map();
 var PHOTO_BACKGROUND_REFRESH_MS = 18e5;
 var cachedPhotoMetadata = null;
+var photoMetaHydrated = false;
 function photoMetadata() {
 	if (cachedPhotoMetadata) return cachedPhotoMetadata;
+	const durable = loadDurablePhotosSync();
+	if (durable?.meta && Object.keys(durable.meta).length) {
+		cachedPhotoMetadata = durable.meta;
+		return cachedPhotoMetadata;
+	}
 	try {
 		cachedPhotoMetadata = JSON.parse(localStorage.getItem("reelcase.photo-meta.v1") ?? "{}");
 	} catch {
@@ -5753,8 +5863,28 @@ function photoMetadata() {
 	}
 	return cachedPhotoMetadata;
 }
+function persistPhotoMetadata(next, sources) {
+	cachedPhotoMetadata = next;
+	const likes = Object.entries(next).filter(([, row]) => row.favorite).map(([id]) => id);
+	saveDurablePhotos({
+		meta: next,
+		likes,
+		...sources ? { sources } : {}
+	});
+}
 function PhotosSection() {
 	const scannedPhotoSources = (0, import_react.useRef)(/* @__PURE__ */ new Set());
+	(0, import_react.useEffect)(() => {
+		if (photoMetaHydrated) return;
+		photoMetaHydrated = true;
+		restoreDurablePhotos().then((durable) => {
+			cachedPhotoMetadata = {
+				...cachedPhotoMetadata ?? {},
+				...durable.meta
+			};
+			if (durable.sources.length) {}
+		}).catch(() => void 0);
+	}, []);
 	const photoUrls = (0, import_react.useRef)(/* @__PURE__ */ new Set());
 	const knownPhotoIds = (0, import_react.useRef)(/* @__PURE__ */ new Set());
 	const discoverySeen = (0, import_react.useRef)(/* @__PURE__ */ new Set());
@@ -6063,7 +6193,7 @@ function PhotosSection() {
 		if (metadataWriteTimer.current) clearTimeout(metadataWriteTimer.current);
 		metadataWriteTimer.current = setTimeout(() => {
 			try {
-				cachedPhotoMetadata = {
+				persistPhotoMetadata({
 					...photoMetadata(),
 					...Object.fromEntries(photos.map(({ id, path, people, tags, album, favorite, rating, width, height, vision, visionModel }) => [id, {
 						path,
@@ -6077,8 +6207,13 @@ function PhotosSection() {
 						vision,
 						visionModel
 					}]))
-				};
-				localStorage.setItem("reelcase.photo-meta.v1", JSON.stringify(cachedPhotoMetadata));
+				}, useLibrary.getState().folders.filter((folder) => folder.kind === "directory" || folder.kind === "files").map((folder) => ({
+					id: folder.id,
+					name: folder.name,
+					kind: folder.kind,
+					...folder.photoCount != null ? { photoCount: folder.photoCount } : {},
+					...folder.lastCheckedAt != null ? { lastCheckedAt: folder.lastCheckedAt } : {}
+				})));
 			} catch {}
 		}, 650);
 		return () => {

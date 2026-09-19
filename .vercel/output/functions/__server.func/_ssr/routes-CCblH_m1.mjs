@@ -2,7 +2,7 @@ import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { r as Slot, s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
 import { n as TSS_SERVER_FUNCTION, r as getServerFnById, t as createServerFn } from "./ssr.mjs";
-import { B as isAdultThumbBlacklisted, C as adultRemoteLabel, D as adultTaxonomyTags, E as adultTaxonomyLabel, F as findFreshAdultPullFingerprint, G as mineRedditCommentTags, H as isUsableAdultThumb, I as isAdultGenreTag, J as redditTitleTokens, L as isAdultImageKind, M as expandedAdultTags, O as adultTextFetishTags, P as fetishSearchQuery, R as isAdultMetaTaxonomyTag, S as adultIngestTags, T as adultTagRankBoost, U as markAdultThumbFailed, V as isDecodedAdultThumbLikelyReal, W as markAdultThumbGood, X as rememberAdultPullFingerprint, a as ADULT_FOLDER_BY_PROVIDER, b as RETIRED_ADULT_SOURCE_IDS, c as ADULT_PULL_PROVIDERS, d as ADULT_SOURCE_OPTIONS, h as LIBRARY_LIMITS, i as ADULT_FEATURED_FETISH_TAGS, k as adultThumbCandidatesForVideo, n as ADULT_CURATED_FETISH_TAGS, o as ADULT_FOLDER_IDS, q as redditIngestExtras, r as ADULT_EMBED_LINKS, s as ADULT_MILESTONE_LINKS, t as ADULT_CATEGORY_HUB, u as ADULT_REDDIT_SUBS, w as adultSourceTag, z as isAdultPullKind } from "./adult-pull-cache-D3-4maho.mjs";
+import { B as isAdultThumbBlacklisted, C as adultRemoteLabel, D as adultTaxonomyTags, E as adultTaxonomyLabel, F as findFreshAdultPullFingerprint, G as mineRedditCommentTags, H as isUsableAdultThumb, I as isAdultGenreTag, J as redditTitleTokens, L as isAdultImageKind, M as expandedAdultTags, O as adultTextFetishTags, P as fetishSearchQuery, R as isAdultMetaTaxonomyTag, S as adultIngestTags, T as adultTagRankBoost, U as markAdultThumbFailed, V as isDecodedAdultThumbLikelyReal, W as markAdultThumbGood, X as rememberAdultPullFingerprint, a as ADULT_FOLDER_BY_PROVIDER, b as RETIRED_ADULT_SOURCE_IDS, c as ADULT_PULL_PROVIDERS, d as ADULT_SOURCE_OPTIONS, h as LIBRARY_LIMITS, i as ADULT_FEATURED_FETISH_TAGS, k as adultThumbCandidatesForVideo, n as ADULT_CURATED_FETISH_TAGS, o as ADULT_FOLDER_IDS, q as redditIngestExtras, r as ADULT_EMBED_LINKS, s as ADULT_MILESTONE_LINKS, t as ADULT_CATEGORY_HUB, u as ADULT_REDDIT_SUBS, w as adultSourceTag, z as isAdultPullKind } from "./adult-pull-cache-DNAXGlvT.mjs";
 import { n as create, t as useShallow } from "../_libs/zustand.mjs";
 import { n as clsx, t as cva } from "../_libs/class-variance-authority+clsx.mjs";
 import { t as twMerge } from "../_libs/tailwind-merge.mjs";
@@ -12,7 +12,7 @@ import { a as DialogPortal, i as DialogOverlay, n as DialogClose, o as DialogTit
 import { t as Root } from "../_libs/radix-ui__react-separator.mjs";
 import { a as Trigger, i as Root2, n as Item2, r as Portal2, t as Content2 } from "../_libs/@radix-ui/react-dropdown-menu+[...].mjs";
 import { i as SliderTrack, n as SliderRange, r as SliderThumb, t as Slider$1 } from "../_libs/@radix-ui/react-slider+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-DqMIPFyJ.js
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-CCblH_m1.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var __defProp = Object.defineProperty;
@@ -242,6 +242,10 @@ var DURABLE_LINKS_IDB_KEY = "links";
 var DURABLE_LINKS_LS_KEY = "reelcase.links.v1";
 var DURABLE_FEEDBACK_IDB_KEY = "feedback";
 var DURABLE_FEEDBACK_LS_KEY = "reelcase.media-feedback.v1";
+var DURABLE_PHOTOS_IDB_KEY = "photos";
+var DURABLE_PHOTOS_LS_KEY = "reelcase.photos.v1";
+/** Legacy Photos metadata key — migrated into the durable photos blob. */
+var PHOTO_META_LS_KEY = "reelcase.photo-meta.v1";
 var durableWriteChain = Promise.resolve();
 function putActivityBlob(key, payload) {
 	durableWriteChain = durableWriteChain.catch(() => void 0).then(async () => {
@@ -548,6 +552,133 @@ async function restoreDurableFeedback() {
 		creatorLikes: pick(fromIdb?.creatorLikes, fromLs?.creatorLikes),
 		tagLikes: pick(fromIdb?.tagLikes, fromLs?.tagLikes),
 		tagHeartHistory: pick(fromIdb?.tagHeartHistory, fromLs?.tagHeartHistory)
+	};
+}
+function normalizePhotoSources(raw) {
+	if (!Array.isArray(raw)) return [];
+	const out = [];
+	const seen = /* @__PURE__ */ new Set();
+	for (const row of raw) {
+		if (!row || typeof row !== "object") continue;
+		const rec = row;
+		const id = typeof rec.id === "string" ? rec.id.trim() : "";
+		const name = typeof rec.name === "string" ? rec.name.trim() : "";
+		const kind = rec.kind === "files" ? "files" : rec.kind === "directory" ? "directory" : null;
+		if (!id || !name || !kind || seen.has(id)) continue;
+		seen.add(id);
+		const photoCount = typeof rec.photoCount === "number" && Number.isFinite(rec.photoCount) ? Math.max(0, Math.floor(rec.photoCount)) : void 0;
+		const lastCheckedAt = typeof rec.lastCheckedAt === "number" && Number.isFinite(rec.lastCheckedAt) ? rec.lastCheckedAt : void 0;
+		out.push({
+			id,
+			name,
+			kind,
+			...photoCount != null ? { photoCount } : {},
+			...lastCheckedAt != null ? { lastCheckedAt } : {}
+		});
+	}
+	return out;
+}
+function normalizePhotoMeta(raw) {
+	if (!raw || typeof raw !== "object") return {};
+	const out = {};
+	for (const [id, value] of Object.entries(raw)) {
+		if (!id || !value || typeof value !== "object") continue;
+		const rec = value;
+		const meta = {};
+		if (typeof rec.path === "string") meta.path = rec.path;
+		if (Array.isArray(rec.people)) meta.people = rec.people.filter((p) => typeof p === "string");
+		if (Array.isArray(rec.tags)) meta.tags = rec.tags.filter((t) => typeof t === "string");
+		if (typeof rec.album === "string") meta.album = rec.album;
+		if (typeof rec.favorite === "boolean") meta.favorite = rec.favorite;
+		if (typeof rec.rating === "number" && Number.isFinite(rec.rating)) meta.rating = Math.max(0, Math.min(5, Math.floor(rec.rating)));
+		if (typeof rec.width === "number" && Number.isFinite(rec.width)) meta.width = Math.floor(rec.width);
+		if (typeof rec.height === "number" && Number.isFinite(rec.height)) meta.height = Math.floor(rec.height);
+		if (typeof rec.visionModel === "string") meta.visionModel = rec.visionModel;
+		if (Array.isArray(rec.vision)) meta.vision = rec.vision.flatMap((row) => {
+			if (!row || typeof row !== "object") return [];
+			const label = typeof row.label === "string" ? row.label : "";
+			const score = typeof row.score === "number" ? row.score : 0;
+			return label ? [{
+				label,
+				score
+			}] : [];
+		});
+		out[id] = meta;
+	}
+	return out;
+}
+function likesFromPhotoMeta(meta, explicit) {
+	const liked = new Set(normalizeStringList(explicit));
+	for (const [id, row] of Object.entries(meta)) if (row.favorite) liked.add(id);
+	return [...liked];
+}
+/** Persist photo source stubs + likes/meta. Thumb prune and prefs QuotaExceeded never clear this key. */
+function saveDurablePhotos(input) {
+	if (typeof window === "undefined") return;
+	const meta = normalizePhotoMeta(input.meta ?? {});
+	const likes = likesFromPhotoMeta(meta, input.likes);
+	for (const id of likes) meta[id] = {
+		...meta[id] ?? {},
+		favorite: true
+	};
+	const payload = {
+		sources: normalizePhotoSources(input.sources ?? []),
+		meta,
+		likes,
+		savedAt: Date.now()
+	};
+	writeJsonLocal(PHOTO_META_LS_KEY, payload.meta);
+	writeJsonLocal(DURABLE_PHOTOS_LS_KEY, {
+		sources: payload.sources,
+		likes: payload.likes.slice(0, 2e3),
+		meta: Object.fromEntries(Object.entries(payload.meta).slice(0, 2e3)),
+		savedAt: payload.savedAt
+	});
+	putActivityBlob(DURABLE_PHOTOS_IDB_KEY, payload).catch(() => void 0);
+}
+async function restoreDurablePhotos() {
+	if (typeof window === "undefined") return {
+		sources: [],
+		meta: {},
+		likes: [],
+		savedAt: 0
+	};
+	let fromIdb;
+	try {
+		fromIdb = await getActivityBlob(DURABLE_PHOTOS_IDB_KEY);
+	} catch {}
+	const fromLs = readJsonLocal(DURABLE_PHOTOS_LS_KEY);
+	const meta = {
+		...normalizePhotoMeta(readJsonLocal(PHOTO_META_LS_KEY)),
+		...normalizePhotoMeta(fromLs?.meta),
+		...normalizePhotoMeta(fromIdb?.meta)
+	};
+	const sources = normalizePhotoSources([...fromLs?.sources ?? [], ...fromIdb?.sources ?? []]);
+	const byId = new Map(sources.map((row) => [row.id, row]));
+	const likes = likesFromPhotoMeta(meta, [...fromLs?.likes ?? [], ...fromIdb?.likes ?? []]);
+	const merged = {
+		sources: [...byId.values()],
+		meta,
+		likes,
+		savedAt: Math.max(fromIdb?.savedAt ?? 0, fromLs?.savedAt ?? 0, Date.now())
+	};
+	if (merged.sources.length || Object.keys(merged.meta).length || merged.likes.length) saveDurablePhotos(merged);
+	return merged;
+}
+function loadDurablePhotosSync() {
+	if (typeof window === "undefined") return null;
+	const fromLs = readJsonLocal(DURABLE_PHOTOS_LS_KEY);
+	const legacyMeta = normalizePhotoMeta(readJsonLocal(PHOTO_META_LS_KEY));
+	if (!fromLs && !Object.keys(legacyMeta).length) return null;
+	const meta = {
+		...legacyMeta,
+		...normalizePhotoMeta(fromLs?.meta)
+	};
+	return {
+		sources: normalizePhotoSources(fromLs?.sources),
+		meta,
+		likes: likesFromPhotoMeta(meta, fromLs?.likes),
+		savedAt: fromLs?.savedAt ?? Date.now()
 	};
 }
 var TAG_EDITS_KEY = "reelcase.tag-edits.v1";
@@ -2582,6 +2713,14 @@ function persistNow(get) {
 	saveDurableMarks(s.viewCounts, s.cameCounts);
 	saveDurableShelves(Object.keys(s.favorites), Object.keys(s.likes));
 	saveDurableLinks(linksFromHistoryAndResume(s.history, s.resumeProgress));
+	const photoSources = s.folders.filter((folder) => folder.kind === "directory" || folder.kind === "files").map((folder) => ({
+		id: folder.id,
+		name: folder.name,
+		kind: folder.kind,
+		...folder.photoCount != null ? { photoCount: folder.photoCount } : {},
+		...folder.lastCheckedAt != null ? { lastCheckedAt: folder.lastCheckedAt } : {}
+	}));
+	if (photoSources.length) saveDurablePhotos({ sources: photoSources });
 	savePrefs(prefs);
 	saveActivitySnapshot({
 		history: s.history,
@@ -2897,7 +3036,7 @@ function semanticTags(video) {
 		[/\b(home decor|home tour|interior design|organization)\b/, "home"]
 	].filter(([pattern]) => pattern.test(text)).map(([, tag]) => tag);
 	if (video.remote?.kind === "youtube" && ((video.duration ?? 0) > 0 && (video.duration ?? 0) < 90 || /(?:#|\b)shorts?\b/i.test(text))) tags.push("shorts", "short-form");
-	if (video.remote?.kind === "twitch" && !video.remote.live && (video.duration ?? 0) > 0 && (video.duration ?? 0) < 120) tags.push("clip");
+	if (video.remote?.kind === "twitch" && !video.remote.live && (video.extension === "clip" || video.id.startsWith("tw:c:") || (video.duration ?? 0) > 0 && (video.duration ?? 0) < 120)) tags.push("clip");
 	if ((video.duration ?? 0) >= 3600) tags.push("long-form");
 	return tags;
 }
@@ -3773,6 +3912,30 @@ var useLibrary = create((set, get) => ({
 				});
 			}
 		} catch {}
+		restoreDurablePhotos().then((photos) => {
+			if (!photos.sources.length) return;
+			set((s) => {
+				let folders = s.folders;
+				for (const source of photos.sources) if (folders.some((folder) => folder.id === source.id)) folders = folders.map((folder) => folder.id === source.id ? {
+					...folder,
+					name: source.name || folder.name,
+					kind: source.kind,
+					...source.photoCount != null ? { photoCount: source.photoCount } : {},
+					...source.lastCheckedAt != null ? { lastCheckedAt: source.lastCheckedAt } : {}
+				} : folder);
+				else folders = [...folders, {
+					id: source.id,
+					name: source.name,
+					kind: source.kind,
+					videoCount: 0,
+					photoCount: source.photoCount ?? 0,
+					lastCheckedAt: source.lastCheckedAt,
+					needsPermission: true,
+					health: "permission-needed"
+				}];
+				return { folders };
+			});
+		}).catch(() => void 0);
 		set({ hydrated: true });
 		restoring = false;
 		if (typeof window !== "undefined") {
@@ -4113,12 +4276,13 @@ var useLibrary = create((set, get) => ({
 			await deleteDirHandle(folderId);
 		} catch {}
 	},
-	followRemoteQuery: async (query, kind = "auto") => {
+	followRemoteQuery: async (query, kind = "auto", opts) => {
 		set({ remoteBusy: true });
 		try {
 			const result = await followRemote({ data: {
 				query,
-				kind
+				kind,
+				...opts?.clipLimit ? { clipLimit: opts.clipLimit } : {}
 			} });
 			set((s) => {
 				const follows = [result.channel, ...s.follows.filter((f) => f.id !== result.channel.id)];
@@ -4214,7 +4378,7 @@ var useLibrary = create((set, get) => ({
 							videoCount: row.videos.length
 						};
 						folders = [...folders.filter((f) => f.id !== folder.id), folder];
-						videos = mergeVideos(videos.filter((v) => v.folderId !== row.channel.id || s.favorites[v.id] || s.likes[v.id]), row.videos);
+						videos = mergeVideos(videos.filter((v) => v.folderId !== row.channel.id || s.favorites[v.id] || s.likes[v.id] || row.channel.kind === "twitch" && v.remote?.kind === "twitch" && !v.remote.live), row.videos);
 					}
 					return {
 						follows: dedupeFollows(follows),
@@ -13627,7 +13791,7 @@ ytFilm({
 	tagline: "A Blender Studio open project.",
 	channel: "Blender Studio"
 });
-var loadHub = () => import("./hub-sections-WkvAufF_.mjs").then((n) => n.t);
+var loadHub = () => import("./hub-sections-jzLz41bC.mjs").then((n) => n.t);
 var hubSection = (name) => (0, import_react.lazy)(async () => ({ default: (await loadHub())[name] }));
 var GamesSection = hubSection("GamesSection");
 var FindPhoneSection = hubSection("FindPhoneSection");
@@ -14488,11 +14652,12 @@ function LibraryApp() {
 				newest: 0,
 				clips: 0
 			};
+			const isClip = video.extension === "clip" || video.id.startsWith("tw:c:") || (video.duration ?? 0) > 0 && (video.duration ?? 0) <= 120;
 			rows.set(name, {
 				count: previous.count + 1,
 				oldest: Math.min(previous.oldest, video.addedAt),
 				newest: Math.max(previous.newest, video.addedAt),
-				clips: previous.clips + ((video.duration ?? 0) > 0 && (video.duration ?? 0) <= 120 ? 1 : 0)
+				clips: previous.clips + (isClip ? 1 : 0)
 			});
 		}
 		const channels = follows.filter((channel) => channel.kind === "twitch").map((channel) => ({
@@ -14519,7 +14684,8 @@ function LibraryApp() {
 		sourceId,
 		twitchVodPicks
 	]);
-	const twitchClips = (0, import_react.useMemo)(() => twitchVodPicks.filter((video) => (video.duration ?? 0) > 0 && (video.duration ?? 0) <= 120).slice(0, 24), [twitchVodPicks]);
+	const twitchClips = (0, import_react.useMemo)(() => twitchVodPicks.filter((video) => video.extension === "clip" || video.id.startsWith("tw:c:") || (video.duration ?? 0) > 0 && (video.duration ?? 0) <= 120).slice(0, 48), [twitchVodPicks]);
+	const twitchClipTotal = (0, import_react.useMemo)(() => twitchVodPicks.filter((video) => video.extension === "clip" || video.id.startsWith("tw:c:") || (video.duration ?? 0) > 0 && (video.duration ?? 0) <= 120).length, [twitchVodPicks]);
 	const favoriteTwitchPicks = (0, import_react.useMemo)(() => sortedTwitch.filter((video) => favorites[video.id]).sort((a, b) => (viewCounts[b.id] ?? 0) - (viewCounts[a.id] ?? 0) || b.addedAt - a.addedAt), [
 		favorites,
 		sortedTwitch,
@@ -15496,7 +15662,7 @@ function LibraryApp() {
 											" live · ",
 											twitchVodPicks.length,
 											" VODs · ",
-											twitchClips.length,
+											twitchClipTotal.toLocaleString(),
 											" clips",
 											remoteRefreshStatus ? ` · last batch returned ${remoteRefreshStatus.twitch.toLocaleString()} VODs from ${remoteRefreshStatus.refreshed}/${remoteRefreshStatus.checked} checked channels${remoteRefreshStatus.failed ? ` (${remoteRefreshStatus.failed} unavailable)` : ""}` : ""
 										]
@@ -15633,8 +15799,63 @@ function LibraryApp() {
 										})
 									]
 								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+									className: "mb-5 rounded-lg border border-border bg-surface p-4 shadow-border",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "flex flex-wrap items-end justify-between gap-3",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+											children: "Numbered clip pulls"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+											className: "mt-1 text-sm text-muted",
+											children: [twitchClipTotal.toLocaleString(), " clips cached · pull a counted window per channel (public clip shelves, multi-period, rate-limit friendly)."]
+										})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "flex flex-wrap gap-2",
+											children: LIBRARY_LIMITS.twitchClipPullChoices.map((n) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+												size: "sm",
+												variant: "secondary",
+												disabled: Boolean(channelRefreshing) || !follows.some((channel) => channel.kind === "twitch"),
+												onClick: () => void (async () => {
+													const channels = follows.filter((channel) => channel.kind === "twitch");
+													setChannelRefreshing("twitch-clips");
+													try {
+														for (const channel of channels.slice(0, 12)) {
+															setChannelRefreshing(channel.id);
+															await followRemoteQuery(channel.handle, "twitch", { clipLimit: n });
+														}
+													} finally {
+														setChannelRefreshing("");
+													}
+												})(),
+												children: channelRefreshing === "twitch-clips" || channelRefreshing.startsWith("tw:") && channelRefreshing !== "" ? `Pulling ${n}…` : `Pull ${n} clips`
+											}, n))
+										})]
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "mt-3 flex flex-wrap gap-2",
+										children: follows.filter((channel) => channel.kind === "twitch").slice(0, 8).map((channel) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "flex flex-wrap items-center gap-1 rounded-sm bg-bg/45 px-2 py-1",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+												className: "text-xs text-muted",
+												children: channel.title
+											}), LIBRARY_LIMITS.twitchClipPullChoices.map((n) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+												size: "sm",
+												variant: "ghost",
+												disabled: channelRefreshing === channel.id,
+												onClick: () => void (async () => {
+													setChannelRefreshing(channel.id);
+													try {
+														await followRemoteQuery(channel.handle, "twitch", { clipLimit: n });
+													} finally {
+														setChannelRefreshing("");
+													}
+												})(),
+												children: n
+											}, `${channel.id}-${n}`))]
+										}, `clips-${channel.id}`))
+									})]
+								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
-									title: "Clips & quick watches",
+									title: `Clips & quick watches · ${twitchClipTotal.toLocaleString()}`,
 									videos: twitchClips,
 									variant: "rail"
 								}),
@@ -17117,4 +17338,4 @@ function Home() {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LibraryApp, {});
 }
 //#endregion
-export { toggleTagLike as A, __exportAll as B, topicEvidence as C, getRating as D, getFeedbackDiagnostics as E, saveDurableLinks as F, saveDurableMarks as I, saveDurableResume as L, measureInteraction as M, linksFromHistoryAndResume as N, importFeedback as O, saveDurableHistory as P, saveDurableShelves as R, isTopicTag as S, exportFeedback as T, Button as _, adultStatsToCsv as a, useSourceAssets as b, rankAdultTags as c, Input as d, openTopic as f, useThumbs as g, getThumbDiagnostics as h, getFirstShelfTrace as i, getInteractionBudgetSnapshot as j, tagIsLiked as k, countAdultBooruHosts as l, getRenderBudgetSnapshot as m, getNetworkDeviceId as n, buildAdultStatsSnapshot as o, VideoCard as p, listNetworkDevices as r, exportAdultStats as s, routes_exports as t, countAdultBySource as u, resumeForVideo as v, topicsForVideo as w, canonicalTopic as x, useLibrary as y, saveFollows as z };
+export { toggleTagLike as A, saveDurableResume as B, topicEvidence as C, getRating as D, getFeedbackDiagnostics as E, restoreDurablePhotos as F, saveFollows as H, saveDurableHistory as I, saveDurableLinks as L, measureInteraction as M, linksFromHistoryAndResume as N, importFeedback as O, loadDurablePhotosSync as P, saveDurableMarks as R, isTopicTag as S, exportFeedback as T, __exportAll as U, saveDurableShelves as V, Button as _, adultStatsToCsv as a, useSourceAssets as b, rankAdultTags as c, Input as d, openTopic as f, useThumbs as g, getThumbDiagnostics as h, getFirstShelfTrace as i, getInteractionBudgetSnapshot as j, tagIsLiked as k, countAdultBooruHosts as l, getRenderBudgetSnapshot as m, getNetworkDeviceId as n, buildAdultStatsSnapshot as o, VideoCard as p, listNetworkDevices as r, exportAdultStats as s, routes_exports as t, countAdultBySource as u, resumeForVideo as v, topicsForVideo as w, canonicalTopic as x, useLibrary as y, saveDurablePhotos as z };
