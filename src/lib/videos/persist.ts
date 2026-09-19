@@ -10,6 +10,7 @@ import type {
   SortDir,
   SortKey,
 } from "./types";
+import { LIBRARY_LIMITS } from "@/lib/library-limits";
 
 const DB_NAME = "reelcase";
 const STORE = "dirs";
@@ -278,9 +279,36 @@ export async function loadThumbCache(limit = 120): Promise<StoredThumb[]> {
     return rows.sort((a, b) => b.at - a.at).slice(0, limit);
   } finally { db.close(); }
 }
-export async function saveThumbCache(entry: StoredThumb): Promise<void> {
+export async function saveThumbCache(entry: StoredThumb, maxEntries = LIBRARY_LIMITS.thumbCacheEntries): Promise<void> {
   const db = await openDb();
-  try { await new Promise<void>((resolve, reject) => { const tx = db.transaction(THUMB_STORE, "readwrite"); tx.objectStore(THUMB_STORE).put(entry); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); }); } finally { db.close(); }
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(THUMB_STORE, "readwrite");
+      tx.objectStore(THUMB_STORE).put(entry);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    await pruneThumbCache(db, maxEntries);
+  } finally { db.close(); }
+}
+
+/** Drop oldest thumb-cache rows so data-URL artwork cannot grow without bound. */
+async function pruneThumbCache(db: IDBDatabase, maxEntries: number): Promise<void> {
+  if (maxEntries <= 0) return;
+  const rows = await new Promise<StoredThumb[]>((resolve, reject) => {
+    const req = db.transaction(THUMB_STORE, "readonly").objectStore(THUMB_STORE).getAll();
+    req.onsuccess = () => resolve((req.result as StoredThumb[]) ?? []);
+    req.onerror = () => reject(req.error);
+  });
+  if (rows.length <= maxEntries) return;
+  const drop = [...rows].sort((a, b) => (a.at ?? 0) - (b.at ?? 0)).slice(0, rows.length - maxEntries);
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(THUMB_STORE, "readwrite");
+    const store = tx.objectStore(THUMB_STORE);
+    for (const row of drop) store.delete(row.id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
 }
 
 export type RemoteSnapshot = { videos: LibraryVideo[]; folders: Folder[]; checkedAt: number };

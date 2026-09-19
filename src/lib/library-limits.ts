@@ -52,6 +52,8 @@ export const LIBRARY_LIMITS = {
   historyMemoryEntries: 2_000,
   /** Soft cap for decoded local frame thumbs retained in the Zustand cache. */
   memoryThumbEntries: 280,
+  /** Soft cap for IndexedDB thumb-cache rows (data URLs + Adult URL recalls). */
+  thumbCacheEntries: 420,
   /** Bounded automatic archive pages per visit; users can still continue manually. */
   adultAutoArchivePagesPerVisit: 2,
   adultAutoArchiveDelayMs: 30_000,

@@ -5,6 +5,7 @@ const DB_VERSION = 1;
 const STORE = "blobs";
 const MAX_BLOBS = 32;
 const MAX_BYTES = 48 * 1024 * 1024; // 48 MB per file
+const MAX_TOTAL_BYTES = 192 * 1024 * 1024; // 192 MB across all print blobs
 
 export type PrintBlobRecord = {
   id: string;
@@ -111,12 +112,20 @@ async function prunePrintBlobs(): Promise<void> {
         req.onsuccess = () => resolve((req.result as PrintBlobRecord[]) ?? []);
         req.onerror = () => reject(req.error);
       });
-      if (all.length <= MAX_BLOBS) return;
-      const oldest = [...all].sort((a, b) => a.addedAt - b.addedAt).slice(0, all.length - MAX_BLOBS);
+      const ordered = [...all].sort((a, b) => a.addedAt - b.addedAt);
+      let total = ordered.reduce((sum, row) => sum + (row.size || 0), 0);
+      const drop: PrintBlobRecord[] = [];
+      while (ordered.length - drop.length > MAX_BLOBS || total > MAX_TOTAL_BYTES) {
+        const oldest = ordered[drop.length];
+        if (!oldest) break;
+        drop.push(oldest);
+        total -= oldest.size || 0;
+      }
+      if (!drop.length) return;
       await new Promise<void>((resolve, reject) => {
         const tx = db.transaction(STORE, "readwrite");
         const store = tx.objectStore(STORE);
-        for (const row of oldest) store.delete(row.id);
+        for (const row of drop) store.delete(row.id);
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
       });

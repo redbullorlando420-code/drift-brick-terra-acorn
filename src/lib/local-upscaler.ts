@@ -49,7 +49,8 @@ export async function upscaleImageLocally(url: string, onStatus?: (status: strin
       env.useBrowserCache = true;
       const local = await resolveLocalUpscalerUrl(onStatus);
       if (local?.startsWith("blob:")) {
-        // Seed the transformers cache under the HF URL the pipeline will request.
+        // Seed the transformers cache under the HF URL the pipeline will request,
+        // then revoke the temporary blob so the ONNX bytes are not pinned twice.
         try {
           if (typeof caches !== "undefined") {
             const cache = await caches.open("transformers-cache");
@@ -58,6 +59,8 @@ export async function upscaleImageLocally(url: string, onStatus?: (status: strin
           }
         } catch {
           // Pipeline can still download if seeding fails.
+        } finally {
+          try { URL.revokeObjectURL(local); } catch { /* ignore */ }
         }
       }
       onStatus?.(local ? "Loading local x2 model…" : "Downloading the local x2 model…");
