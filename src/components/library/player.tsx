@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn, formatBytes, formatTime } from "@/lib/utils";
 import { getNote, getRating, setNote as saveNote, setRating as saveRating } from "@/lib/media-feedback";
-import { AdultComments } from "@/components/library/adult-comments";
+import { AdultComments, supportsRemoteComments } from "@/components/library/adult-comments";
 import { AdultImageLightbox } from "@/components/library/adult-image-lightbox";
 import { adultRemoteLabel, isAdultImageKind, isAdultPullKind } from "@/lib/videos/adult-sites";
 import { requestAdultOfflineSave } from "@/lib/videos/adult-offline-save";
@@ -645,7 +645,7 @@ export function Player({ playlist }: { playlist: string[] }) {
         </div>
       )}
       {vrStatus && <p className="absolute z-20 right-4 bottom-4 max-w-sm rounded-md bg-surface/95 px-3 py-2 text-xs text-fg shadow-border sm:right-6">{vrStatus}</p>}
-      {remote && isAdultPullKind(remote.kind) && chrome && (
+      {remote && supportsRemoteComments(remote.kind) && chrome && (
         <div className="absolute z-20 bottom-24 left-4 right-4 max-w-xl sm:left-6">
           <AdultComments video={video} />
         </div>

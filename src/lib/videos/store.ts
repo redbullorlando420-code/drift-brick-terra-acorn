@@ -168,6 +168,7 @@ type LibraryState = {
   toggleLike: (id: string) => void;
   markCame: (id: string) => void;
   setVideoTags: (id: string, tags: string[]) => void;
+  setVideoComments: (id: string, comments: NonNullable<LibraryVideo["remote"]>["comments"]) => void;
   autoTagLibrary: () => number;
   setVideoCategory: (id: string, category: string) => void;
   markProgress: (id: string, t: number, d: number) => void;
@@ -369,7 +370,16 @@ function flushPersist(get: () => LibraryState) {
 
 function mergeVideos(existing: LibraryVideo[], incoming: LibraryVideo[]) {
   const map = new Map(existing.map((v) => [v.id, v]));
-  for (const v of incoming) map.set(v.id, v);
+  for (const v of incoming) {
+    const previous = map.get(v.id);
+    // On-demand comments live on the card. A shallow catalog refresh must not
+    // wipe a previously fetched comment window.
+    if (previous?.remote?.comments?.length && v.remote && !v.remote.comments?.length) {
+      map.set(v.id, { ...v, remote: { ...v.remote, comments: previous.remote.comments } });
+    } else {
+      map.set(v.id, v);
+    }
+  }
   return Array.from(map.values());
 }
 
@@ -798,6 +808,16 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   markCame: (id) => {
     set((s) => ({ cameCounts: { ...s.cameCounts, [id]: (s.cameCounts[id] ?? 0) + 1 } }));
     persistNow(get);
+  },
+  setVideoComments: (id, comments) => {
+    set((s) => ({
+      videos: s.videos.map((video) => {
+        if (video.id !== id || !video.remote) return video;
+        return { ...video, remote: { ...video.remote, comments } };
+      }),
+    }));
+    persistNow(get);
+    cacheRemotesSoon(get);
   },
   setVideoTags: (id, tags) => {
     set((s) => ({
