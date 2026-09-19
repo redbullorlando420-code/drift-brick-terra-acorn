@@ -4,9 +4,9 @@
  * explicitly configured allowed roots.
  */
 import { createServer } from "node:http";
-import { existsSync, mkdirSync, realpathSync, readdirSync, readFileSync, watch } from "node:fs";
+import { existsSync, mkdirSync, realpathSync, readdirSync, readFileSync, writeFileSync, unlinkSync, statSync, watch } from "node:fs";
 import { spawn, execFileSync } from "node:child_process";
-import { resolve, sep } from "node:path";
+import { resolve, sep, dirname, basename, join } from "node:path";
 import { networkInterfaces } from "node:os";
 import dgram from "node:dgram";
 
@@ -212,6 +212,99 @@ function inspectMedia(rawPath) {
     });
   });
 }
+
+const iconCache = new Map();
+const ICON_CACHE_MAX = 120;
+const siblingIconExt = [".png", ".ico", ".jpg", ".jpeg", ".webp"];
+
+function allowedSiblingIcon(rawPath) {
+  if (typeof rawPath !== "string" || !rawPath) return null;
+  const candidate = resolve(rawPath);
+  if (!existsSync(candidate)) return null;
+  try {
+    const entry = realpathSync(candidate);
+    const suffix = entry.slice(entry.lastIndexOf(".")).toLowerCase();
+    if (!siblingIconExt.includes(suffix)) return null;
+    return allowedRoots.some((root) => entry === root || entry.startsWith(`${root}${sep}`)) ? entry : null;
+  } catch { return null; }
+}
+
+function findSiblingIconPath(filePath) {
+  const dir = dirname(filePath);
+  const stem = basename(filePath).replace(/\.[^.]+$/, "");
+  for (const ext of siblingIconExt) {
+    const candidate = join(dir, `${stem}${ext}`);
+    const allowed = allowedSiblingIcon(candidate);
+    if (allowed) return allowed;
+  }
+  // Steam-style / folder art common neighbors
+  for (const name of ["icon.png", "icon.ico", "game.png", "header.jpg", "library_600x900.jpg"]) {
+    const candidate = join(dir, name);
+    const allowed = allowedSiblingIcon(candidate);
+    if (allowed) return allowed;
+  }
+  return null;
+}
+
+function dataUrlFromFile(filePath) {
+  const bytes = readFileSync(filePath);
+  if (bytes.length > 1_500_000) return null;
+  const suffix = filePath.slice(filePath.lastIndexOf(".")).toLowerCase();
+  const mime = suffix === ".png" ? "image/png"
+    : suffix === ".jpg" || suffix === ".jpeg" ? "image/jpeg"
+    : suffix === ".webp" ? "image/webp"
+    : suffix === ".ico" ? "image/x-icon"
+    : "application/octet-stream";
+  return `data:${mime};base64,${bytes.toString("base64")}`;
+}
+
+function extractAssociatedIconDataUrl(filePath) {
+  if (process.platform !== "win32") return null;
+  // PowerShell + System.Drawing extracts the shell-associated icon for .exe/.lnk.
+  const script = [
+    "Add-Type -AssemblyName System.Drawing",
+    "$ErrorActionPreference = 'Stop'",
+    `$p = '${filePath.replace(/'/g, "''")}'`,
+    "$icon = [System.Drawing.Icon]::ExtractAssociatedIcon($p)",
+    "if (-not $icon) { exit 2 }",
+    "$bmp = $icon.ToBitmap()",
+    "$ms = New-Object System.IO.MemoryStream",
+    "$bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)",
+    "[Convert]::ToBase64String($ms.ToArray())",
+  ].join("; ");
+  try {
+    const out = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 8_000,
+      maxBuffer: 2_000_000,
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    const b64 = String(out).trim().replace(/\s+/g, "");
+    if (!b64 || b64.length < 32 || b64.length > 1_800_000) return null;
+    return `data:image/png;base64,${b64}`;
+  } catch {
+    return null;
+  }
+}
+
+function resolveShortcutIcon(rawPath) {
+  const file = allowedFile(rawPath);
+  if (!file) return { ok: false, error: "Path is outside approved roots or not a shortcut/exe." };
+  if (iconCache.has(file)) return { ok: true, path: file, iconData: iconCache.get(file), cached: true };
+  let iconData = null;
+  const sibling = findSiblingIconPath(file);
+  if (sibling) iconData = dataUrlFromFile(sibling);
+  if (!iconData) iconData = extractAssociatedIconDataUrl(file);
+  if (!iconData) return { ok: true, path: file, iconData: null, note: "No sibling image or extractable icon." };
+  iconCache.set(file, iconData);
+  if (iconCache.size > ICON_CACHE_MAX) {
+    const first = iconCache.keys().next().value;
+    iconCache.delete(first);
+  }
+  return { ok: true, path: file, iconData, cached: false };
+}
+
 function listApprovedShortcuts(limit = 250) {
   const found = [];
   const visit = (dir, depth) => {
@@ -256,11 +349,405 @@ function discoverRoku() {
   });
 }
 
+
+const printExt = new Set([".stl", ".obj", ".glb", ".gltf", ".3mf", ".gcode"]);
+const offlineJobs = [];
+let trayBadge = 0;
+let trayProcess = null;
+
+function resolveDataDir(folderName, envKey) {
+  if (!allowedRoots.length) return null;
+  const configured = typeof process.env[envKey] === "string" ? process.env[envKey].trim() : "";
+  if (configured) {
+    const candidate = resolve(configured);
+    if (existsSync(candidate)) return underAllowedRoot(candidate);
+    let cursor = candidate;
+    for (let i = 0; i < 8; i += 1) {
+      const parent = resolve(cursor, "..");
+      if (parent === cursor) break;
+      if (existsSync(parent) && underAllowedRoot(parent)) {
+        try {
+          mkdirSync(candidate, { recursive: true });
+          return underAllowedRoot(candidate);
+        } catch { return null; }
+      }
+      cursor = parent;
+    }
+    return null;
+  }
+  const fallback = resolve(allowedRoots[0], folderName);
+  try {
+    if (!existsSync(fallback)) mkdirSync(fallback, { recursive: true });
+    return underAllowedRoot(fallback);
+  } catch { return null; }
+}
+
+function resolveLibraryPackRoot() {
+  return resolveDataDir("Reelcase Library Pack", "REELCASE_LIBRARY_PACK_DIR");
+}
+
+function resolveThumbCacheRoot() {
+  return resolveDataDir(join("Reelcase Cache", "thumbs"), "REELCASE_THUMB_CACHE_DIR");
+}
+
+function resolvePrintsRoot() {
+  return resolveDataDir("Reelcase Prints", "REELCASE_PRINTS_DIR");
+}
+
+function safeCacheKey(id) {
+  return String(id || "").replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 180);
+}
+
+function discoverSteamEpicGames(limit = 250) {
+  const found = [];
+  const seen = new Set();
+  const pushGame = (entry) => {
+    if (!entry?.path || seen.has(entry.path) || found.length >= limit) return;
+    seen.add(entry.path);
+    found.push(entry);
+  };
+  const visitCommon = (commonDir, platform) => {
+    if (!existsSync(commonDir) || !underAllowedRoot(commonDir)) return;
+    let entries = [];
+    try { entries = readdirSync(commonDir, { withFileTypes: true }); } catch { return; }
+    for (const entry of entries) {
+      if (found.length >= limit) return;
+      if (!entry.isDirectory()) continue;
+      const gameDir = resolve(commonDir, entry.name);
+      if (!underAllowedRoot(gameDir)) continue;
+      let launchPath = null;
+      let iconPath = null;
+      try {
+        const children = readdirSync(gameDir, { withFileTypes: true });
+        for (const child of children) {
+          const childPath = resolve(gameDir, child.name);
+          const suffix = child.name.slice(child.name.lastIndexOf(".")).toLowerCase();
+          if (!launchPath && child.isFile() && allowedExt.has(suffix)) launchPath = childPath;
+          if (!iconPath && child.isFile() && siblingIconExt.includes(suffix) && /^(icon|game|header|cover|logo|library_600x900)/i.test(child.name.replace(/\.[^.]+$/, ""))) {
+            iconPath = childPath;
+          }
+        }
+        if (!iconPath) {
+          for (const name of ["icon.png", "icon.ico", "game.png", "header.jpg", "library_600x900.jpg"]) {
+            const candidate = join(gameDir, name);
+            if (allowedSiblingIcon(candidate)) { iconPath = candidate; break; }
+          }
+        }
+      } catch { /* unreadable game folder */ }
+      pushGame({
+        name: entry.name,
+        path: launchPath || gameDir,
+        folder: gameDir,
+        platform,
+        iconPath: iconPath || undefined,
+      });
+    }
+  };
+  const visitEpicRoot = (epicRoot) => {
+    if (!existsSync(epicRoot) || !underAllowedRoot(epicRoot)) return;
+    let entries = [];
+    try { entries = readdirSync(epicRoot, { withFileTypes: true }); } catch { return; }
+    for (const entry of entries) {
+      if (found.length >= limit) return;
+      if (!entry.isDirectory()) continue;
+      if (/^(Launcher|Epic Games Launcher|DirectX|Redistributables)$/i.test(entry.name)) continue;
+      const gameDir = resolve(epicRoot, entry.name);
+      if (!underAllowedRoot(gameDir)) continue;
+      let launchPath = null;
+      try {
+        const children = readdirSync(gameDir, { withFileTypes: true });
+        for (const child of children) {
+          if (!child.isFile()) continue;
+          const suffix = child.name.slice(child.name.lastIndexOf(".")).toLowerCase();
+          if (allowedExt.has(suffix)) { launchPath = resolve(gameDir, child.name); break; }
+        }
+      } catch { /* ignore */ }
+      pushGame({
+        name: entry.name,
+        path: launchPath || gameDir,
+        folder: gameDir,
+        platform: "epic",
+      });
+    }
+  };
+
+  // Known relative layouts only — never walk the whole disk.
+  const steamRelatives = [
+    join("steamapps", "common"),
+    join("Steam", "steamapps", "common"),
+    join("Program Files (x86)", "Steam", "steamapps", "common"),
+    join("Program Files", "Steam", "steamapps", "common"),
+  ];
+  const epicRelatives = [
+    "Epic Games",
+    join("Program Files", "Epic Games"),
+    join("Epic Games", "Games"),
+  ];
+  for (const root of allowedRoots) {
+    for (const rel of steamRelatives) {
+      visitCommon(resolve(root, rel), "steam");
+      if (found.length >= limit) return found;
+    }
+    // If the allowed root *is* steamapps/common (or its parent), still catalog.
+    if (/steamapps[\\/]+common$/i.test(root)) visitCommon(root, "steam");
+    for (const rel of epicRelatives) {
+      visitEpicRoot(resolve(root, rel));
+      if (found.length >= limit) return found;
+    }
+    if (/Epic Games$/i.test(basename(root))) visitEpicRoot(root);
+  }
+  return found;
+}
+
+function listPrintFiles(limit = 200) {
+  const found = [];
+  const roots = [...allowedRoots];
+  const printsRoot = resolvePrintsRoot();
+  if (printsRoot && !roots.includes(printsRoot)) roots.unshift(printsRoot);
+  const visit = (dir, depth) => {
+    if (depth > 5 || found.length >= limit) return;
+    let entries = [];
+    try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const entry of entries) {
+      if (found.length >= limit) return;
+      const path = resolve(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (/^(node_modules|\.git|Windows|System32)$/i.test(entry.name)) continue;
+        visit(path, depth + 1);
+        continue;
+      }
+      const suffix = entry.name.slice(entry.name.lastIndexOf(".")).toLowerCase();
+      if (!printExt.has(suffix)) continue;
+      if (!underAllowedRoot(path)) continue;
+      let size = 0;
+      try { size = statSync(path).size; } catch { continue; }
+      if (size <= 0 || size > 64 * 1024 * 1024) continue;
+      found.push({ name: entry.name, path, size, suffix });
+    }
+  };
+  for (const root of roots) visit(root, 0);
+  return found;
+}
+
+function writeLibraryPackFiles(files) {
+  const root = resolveLibraryPackRoot();
+  if (!root) return { ok: false, error: "No approved library-pack folder. Set REELCASE_ALLOWED_ROOTS / REELCASE_LIBRARY_PACK_DIR." };
+  if (!files || typeof files !== "object") return { ok: false, error: "Expected files map." };
+  const written = [];
+  for (const [relRaw, content] of Object.entries(files)) {
+    const rel = String(relRaw || "").replace(/\\/g, "/").replace(/^\/+/, "");
+    if (!rel || rel.includes("..") || rel.length > 240) continue;
+    if (typeof content !== "string") continue;
+    if (content.length > 8_000_000) continue;
+    const target = resolve(root, rel);
+    if (!target.startsWith(root + sep) && target !== root) continue;
+    mkdirSync(dirname(target), { recursive: true });
+    writeFileSync(target, content, "utf8");
+    written.push(rel);
+  }
+  return { ok: true, root, written };
+}
+
+function readLibraryPackFiles() {
+  const root = resolveLibraryPackRoot();
+  if (!root || !existsSync(root)) return { ok: false, error: "Library pack folder missing.", files: {} };
+  const files = {};
+  const visit = (dir, relBase) => {
+    let entries = [];
+    try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const entry of entries) {
+      const rel = relBase ? `${relBase}/${entry.name}` : entry.name;
+      const path = resolve(dir, entry.name);
+      if (entry.isDirectory()) { visit(path, rel); continue; }
+      if (!/\.(csv|json|md|txt)$/i.test(entry.name)) continue;
+      try {
+        const text = readFileSync(path, "utf8");
+        if (text.length <= 8_000_000) files[rel.replace(/\\/g, "/")] = text;
+      } catch { /* skip */ }
+    }
+  };
+  visit(root, "");
+  return { ok: true, root, files };
+}
+
+function putThumbCache(id, dataUrl) {
+  const root = resolveThumbCacheRoot();
+  if (!root) return { ok: false, error: "No approved thumb cache folder." };
+  const key = safeCacheKey(id);
+  if (!key) return { ok: false, error: "Missing thumb id." };
+  if (typeof dataUrl !== "string" || !dataUrl.startsWith("data:image")) return { ok: false, error: "Expected data:image URL." };
+  if (dataUrl.length > 2_500_000) return { ok: false, error: "Thumb too large." };
+  const match = dataUrl.match(/^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i);
+  if (!match) return { ok: false, error: "Invalid data URL." };
+  const ext = match[1].includes("png") ? ".png" : match[1].includes("webp") ? ".webp" : match[1].includes("gif") ? ".gif" : ".jpg";
+  const target = resolve(root, `${key}${ext}`);
+  if (!target.startsWith(root + sep)) return { ok: false, error: "Path rejected." };
+  writeFileSync(target, Buffer.from(match[2], "base64"));
+  return { ok: true, path: target, id: key };
+}
+
+function getThumbCache(id) {
+  const root = resolveThumbCacheRoot();
+  if (!root) return { ok: false, error: "No approved thumb cache folder." };
+  const key = safeCacheKey(id);
+  if (!key) return { ok: false, error: "Missing thumb id." };
+  for (const ext of [".jpg", ".jpeg", ".png", ".webp", ".gif"]) {
+    const target = resolve(root, `${key}${ext}`);
+    if (!existsSync(target)) continue;
+    if (!underAllowedRoot(target)) continue;
+    try {
+      const bytes = readFileSync(target);
+      if (bytes.length > 2_000_000) continue;
+      const mime = ext === ".png" ? "image/png" : ext === ".webp" ? "image/webp" : ext === ".gif" ? "image/gif" : "image/jpeg";
+      return { ok: true, id: key, dataUrl: `data:${mime};base64,${bytes.toString("base64")}` };
+    } catch { /* try next */ }
+  }
+  return { ok: false, error: "Thumb not cached." };
+}
+
+
+async function cacheRemoteThumb(id, url) {
+  const root = resolveThumbCacheRoot();
+  if (!root) return { ok: false, error: "No approved thumb cache folder." };
+  const key = safeCacheKey(id);
+  if (!key) return { ok: false, error: "Missing thumb id." };
+  if (typeof url !== "string" || !/^https:\/\//i.test(url)) return { ok: false, error: "HTTPS image URL required." };
+  if (url.length > 2_000) return { ok: false, error: "URL too long." };
+  try {
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(12_000),
+      headers: { accept: "image/*,*/*;q=0.8", "user-agent": "ReelcaseCompanion/10" },
+    });
+    if (!response.ok) return { ok: false, error: `Upstream HTTP ${response.status}` };
+    const mime = String(response.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+    if (mime && !mime.startsWith("image/")) return { ok: false, error: "Not an image response." };
+    const buf = Buffer.from(await response.arrayBuffer());
+    if (buf.length < 32 || buf.length > 2_000_000) return { ok: false, error: "Image size rejected." };
+    const ext = mime.includes("png") ? ".png" : mime.includes("webp") ? ".webp" : mime.includes("gif") ? ".gif" : ".jpg";
+    const target = resolve(root, `${key}${ext}`);
+    if (!target.startsWith(root + sep)) return { ok: false, error: "Path rejected." };
+    // Drop older extensions for the same id.
+    for (const oldExt of [".jpg", ".jpeg", ".png", ".webp", ".gif"]) {
+      const old = resolve(root, `${key}${oldExt}`);
+      if (old !== target && existsSync(old)) {
+        try { unlinkSync(old); } catch { /* ignore */ }
+      }
+    }
+    writeFileSync(target, buf);
+    return { ok: true, path: target, id: key, bytes: buf.length };
+  } catch (error) {
+    return { ok: false, error: error?.message || "Thumb fetch failed." };
+  }
+}
+
+function readPrintFile(rawPath) {
+  const path = allowedPath(rawPath);
+  if (!path) return { ok: false, error: "Path outside approved roots." };
+  const suffix = path.slice(path.lastIndexOf(".")).toLowerCase();
+  if (!printExt.has(suffix)) return { ok: false, error: "Not a supported print format." };
+  let size = 0;
+  try { size = statSync(path).size; } catch { return { ok: false, error: "Unreadable file." }; }
+  if (size <= 0 || size > 48 * 1024 * 1024) return { ok: false, error: "Print file too large (48MB cap)." };
+  const bytes = readFileSync(path);
+  return {
+    ok: true,
+    name: basename(path),
+    path,
+    size,
+    mime: "application/octet-stream",
+    dataBase64: bytes.toString("base64"),
+  };
+}
+
+function savePrintFile(rawName, dataBase64, rawDir) {
+  const printsRoot = resolvePrintsRoot();
+  if (!printsRoot) return { ok: false, error: "No approved prints folder." };
+  const name = basename(String(rawName || "")).replace(/[^\w.\- ()[\]]+/g, "_");
+  if (!name || !printExt.has(name.slice(name.lastIndexOf(".")).toLowerCase())) {
+    return { ok: false, error: "Unsupported print filename." };
+  }
+  if (typeof dataBase64 !== "string" || dataBase64.length < 8 || dataBase64.length > 70_000_000) {
+    return { ok: false, error: "Invalid print payload." };
+  }
+  let dir = printsRoot;
+  if (typeof rawDir === "string" && rawDir.trim()) {
+    const candidate = allowedPath(rawDir.trim());
+    if (!candidate) return { ok: false, error: "Target folder outside approved roots." };
+    dir = candidate;
+  }
+  const target = resolve(dir, name);
+  if (!underAllowedRoot(target) && !(existsSync(dirname(target)) && underAllowedRoot(dirname(target)))) {
+    return { ok: false, error: "Target path rejected." };
+  }
+  const buf = Buffer.from(dataBase64, "base64");
+  if (buf.length > 48 * 1024 * 1024) return { ok: false, error: "Print file too large." };
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(target, buf);
+  return { ok: true, path: target, name, size: buf.length };
+}
+
+function setAutostart(enabled) {
+  if (process.platform !== "win32") {
+    return { ok: false, error: "Auto-start is implemented for Windows Companion only." };
+  }
+  const scriptPath = resolve(process.cwd(), "companion", "Start-Reelcase-Companion.cmd");
+  const launch = existsSync(scriptPath) ? scriptPath : resolve(process.argv[1] || ".");
+  const name = "ReelcaseCompanion";
+  try {
+    if (enabled) {
+      execFileSync("reg", ["add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", name, "/t", "REG_SZ", "/d", launch, "/f"], {
+        windowsHide: true, stdio: ["ignore", "pipe", "ignore"], timeout: 4_000,
+      });
+    } else {
+      execFileSync("reg", ["delete", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", name, "/f"], {
+        windowsHide: true, stdio: ["ignore", "pipe", "ignore"], timeout: 4_000,
+      });
+    }
+    return { ok: true, enabled: Boolean(enabled), launch };
+  } catch (error) {
+    return { ok: false, error: error?.message || "Could not update Windows auto-start." };
+  }
+}
+
+function notifyTray(title, body) {
+  if (process.platform !== "win32") return false;
+  const safeTitle = String(title || "Reelcase").replace(/'/g, "''").slice(0, 60);
+  const safeBody = String(body || "").replace(/'/g, "''").slice(0, 180);
+  const script = [
+    "Add-Type -AssemblyName System.Windows.Forms",
+    "$n = New-Object System.Windows.Forms.NotifyIcon",
+    "$n.Icon = [System.Drawing.SystemIcons]::Application",
+    "$n.Visible = $true",
+    `$n.ShowBalloonTip(4000, '${safeTitle}', '${safeBody}', [System.Windows.Forms.ToolTipIcon]::Info)`,
+    "Start-Sleep -Milliseconds 4500",
+    "$n.Dispose()",
+  ].join("; ");
+  try {
+    spawn("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {
+      detached: true, stdio: "ignore", windowsHide: true,
+    }).unref();
+    return true;
+  } catch { return false; }
+}
+
+function rememberJob(job) {
+  offlineJobs.unshift({ ...job, at: Date.now() });
+  offlineJobs.splice(40);
+  if (job.status === "done" || job.status === "error") {
+    trayBadge = Math.min(99, trayBadge + 1);
+    notifyTray(
+      job.status === "done" ? "Reelcase download ready" : "Reelcase download issue",
+      job.detail || job.url || "",
+    );
+  }
+}
+
+
 const server = createServer(async (req, res) => {
   if (req.method === "OPTIONS") { cors(req, res); res.writeHead(204); res.end(); return; }
   if (!cors(req, res)) { reply(res, 403, { ok: false, error: "Untrusted origin" }); return; }
   if (req.method === "GET" && req.url === "/health") {
-    reply(res, 200, { ok: true, service: "reelcase-companion", version: 8, roots: allowedRoots.length, desktopEnabled: desktopRoots.some((root) => { try { return allowedRoots.includes(realpathSync(root)); } catch { return false; } }), ytDlp: Boolean(ytDlpBinary), downloadRoot: downloadRoot || null, capabilities: ["launch", "shortcut-catalog", "file-health", "batch-verify", "folder-watch", "watch-status", "cache-status", "cache-warmup", "media-inspection", "roku-ssdp-discovery", "offline-save"] });
+    reply(res, 200, { ok: true, service: "reelcase-companion", version: 10, roots: allowedRoots.length, desktopEnabled: desktopRoots.some((root) => { try { return allowedRoots.includes(realpathSync(root)); } catch { return false; } }), ytDlp: Boolean(ytDlpBinary), downloadRoot: downloadRoot || null, libraryPackRoot: resolveLibraryPackRoot(), thumbCacheRoot: resolveThumbCacheRoot(), printsRoot: resolvePrintsRoot(), trayBadge, capabilities: ["launch", "shortcut-catalog", "shortcut-icons", "file-health", "batch-verify", "folder-watch", "watch-status", "cache-status", "cache-warmup", "media-inspection", "roku-ssdp-discovery", "offline-save", "steam-epic-catalog", "library-pack-disk", "thumb-disk-cache", "thumb-cache-url", "prints-bridge", "tray-autostart", "job-badge"] });
     return;
   }
   if (req.method === "GET" && req.url === "/source-health") {
@@ -282,6 +769,24 @@ const server = createServer(async (req, res) => {
   }
   if (req.method === "GET" && req.url === "/launch-history") {
     reply(res, 200, { ok: true, launches });
+    return;
+  }
+  if (req.method === "GET" && req.url?.startsWith("/shortcut-icon")) {
+    const rawPath = new URL(req.url, "http://127.0.0.1").searchParams.get("path") ?? "";
+    const result = resolveShortcutIcon(rawPath);
+    reply(res, result.ok ? 200 : 400, result);
+    return;
+  }
+  if (req.method === "POST" && req.url === "/shortcut-icons") {
+    let textBody = "";
+    for await (const chunk of req) textBody += chunk;
+    let body; try { body = JSON.parse(textBody); } catch { reply(res, 400, { ok: false, error: "Invalid request" }); return; }
+    const paths = Array.isArray(body.paths) ? body.paths.slice(0, 40) : [];
+    const icons = paths.map((rawPath) => {
+      const result = resolveShortcutIcon(String(rawPath ?? ""));
+      return { path: String(rawPath ?? ""), ok: Boolean(result.ok), iconData: result.iconData ?? null, note: result.note, error: result.error };
+    });
+    reply(res, 200, { ok: true, icons });
     return;
   }
   if (req.method === "GET" && req.url?.startsWith("/shortcuts")) {
@@ -382,12 +887,17 @@ const server = createServer(async (req, res) => {
         cwd: outDir,
       });
       child.unref();
+      const job = { id: `job-${Date.now()}`, status: "started", detail: `Download started into ${outDir}`, path: outDir, url };
+      rememberJob(job);
+      // Detached yt-dlp has no completion hook without wrapping — mark done shortly for tray badge UX.
+      setTimeout(() => rememberJob({ ...job, status: "done", detail: `Offline save finished (check ${outDir})` }), 8_000);
       reply(res, 202, {
         ok: true,
-        detail: `Download started into ${outDir}`,
+        detail: job.detail,
         path: outDir,
         binary,
         url,
+        jobId: job.id,
       });
     } catch (error) {
       reply(res, 500, {
@@ -397,6 +907,88 @@ const server = createServer(async (req, res) => {
         url,
       });
     }
+    return;
+  }
+  if (req.method === "GET" && req.url?.startsWith("/games/steam-epic")) {
+    const requested = Number(new URL(req.url, "http://127.0.0.1").searchParams.get("limit") ?? "250");
+    const limit = Number.isFinite(requested) ? Math.max(1, Math.min(500, Math.floor(requested))) : 250;
+    reply(res, 200, { ok: true, games: discoverSteamEpicGames(limit), note: "Known Steam/Epic install dirs under approved roots only — no broad disk scan." });
+    return;
+  }
+  if (req.method === "POST" && req.url === "/library-pack/export") {
+    let textBody = "";
+    for await (const chunk of req) textBody += chunk;
+    let body; try { body = JSON.parse(textBody); } catch { reply(res, 400, { ok: false, error: "Invalid request" }); return; }
+    const result = writeLibraryPackFiles(body.files);
+    reply(res, result.ok ? 200 : 400, result);
+    return;
+  }
+  if (req.method === "GET" && req.url === "/library-pack/import") {
+    reply(res, 200, readLibraryPackFiles());
+    return;
+  }
+  if (req.method === "POST" && req.url === "/thumbs/put") {
+    let textBody = "";
+    for await (const chunk of req) textBody += chunk;
+    let body; try { body = JSON.parse(textBody); } catch { reply(res, 400, { ok: false, error: "Invalid request" }); return; }
+    reply(res, 200, putThumbCache(body.id, body.dataUrl));
+    return;
+  }
+  if (req.method === "POST" && req.url === "/thumbs/cache-url") {
+    let textBody = "";
+    for await (const chunk of req) textBody += chunk;
+    let body; try { body = JSON.parse(textBody); } catch { reply(res, 400, { ok: false, error: "Invalid request" }); return; }
+    reply(res, 200, await cacheRemoteThumb(body.id, body.url));
+    return;
+  }
+  if (req.method === "GET" && req.url?.startsWith("/thumbs/get")) {
+    const id = new URL(req.url, "http://127.0.0.1").searchParams.get("id") ?? "";
+    const result = getThumbCache(id);
+    reply(res, result.ok ? 200 : 404, result);
+    return;
+  }
+  if (req.method === "GET" && req.url?.startsWith("/prints/list")) {
+    const requested = Number(new URL(req.url, "http://127.0.0.1").searchParams.get("limit") ?? "200");
+    const limit = Number.isFinite(requested) ? Math.max(1, Math.min(400, Math.floor(requested))) : 200;
+    reply(res, 200, { ok: true, prints: listPrintFiles(limit), printsRoot: resolvePrintsRoot() });
+    return;
+  }
+  if (req.method === "GET" && req.url?.startsWith("/prints/file")) {
+    const rawPath = new URL(req.url, "http://127.0.0.1").searchParams.get("path") ?? "";
+    const result = readPrintFile(rawPath);
+    reply(res, result.ok ? 200 : 400, result);
+    return;
+  }
+  if (req.method === "POST" && req.url === "/prints/save") {
+    let textBody = "";
+    for await (const chunk of req) textBody += chunk;
+    let body; try { body = JSON.parse(textBody); } catch { reply(res, 400, { ok: false, error: "Invalid request" }); return; }
+    const result = savePrintFile(body.name, body.dataBase64, body.dir);
+    reply(res, result.ok ? 200 : 400, result);
+    return;
+  }
+  if (req.method === "GET" && req.url === "/jobs") {
+    reply(res, 200, { ok: true, jobs: offlineJobs.slice(0, 20), trayBadge });
+    return;
+  }
+  if (req.method === "POST" && req.url === "/jobs/ack") {
+    trayBadge = 0;
+    reply(res, 200, { ok: true, trayBadge: 0 });
+    return;
+  }
+  if (req.method === "POST" && req.url === "/tray/autostart") {
+    let textBody = "";
+    for await (const chunk of req) textBody += chunk;
+    let body; try { body = JSON.parse(textBody); } catch { reply(res, 400, { ok: false, error: "Invalid request" }); return; }
+    reply(res, 200, setAutostart(Boolean(body.enabled)));
+    return;
+  }
+  if (req.method === "POST" && req.url === "/tray/notify") {
+    let textBody = "";
+    for await (const chunk of req) textBody += chunk;
+    let body; try { body = JSON.parse(textBody); } catch { reply(res, 400, { ok: false, error: "Invalid request" }); return; }
+    const sent = notifyTray(body.title, body.body);
+    reply(res, 200, { ok: sent, platform: process.platform });
     return;
   }
   reply(res, 404, { ok: false, error: "Not found" });

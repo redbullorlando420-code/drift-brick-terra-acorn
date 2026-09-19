@@ -1,4 +1,4 @@
-# Reelcase Companion (early foundation)
+# Reelcase Companion (v10)
 
 ## Start it on Windows
 
@@ -12,12 +12,27 @@
    **Check companion**. A ready response reports the version and approved roots.
 
 The companion is optional; it is only needed for approved desktop shortcut
-launching, source health checks, Explorer changes, Roku discovery, and optional
-offline saves.
+launching, Steam/Epic cataloging under allowed roots, library-pack disk
+export/import, print file bridge, thumb/poster disk cache, source health
+checks, Explorer changes, Roku discovery, optional offline saves, and
+Windows auto-start / job balloons.
 
-This optional loopback service is the native boundary for desktop launching and local source verification. It binds only to `127.0.0.1`, checks the browser origin, and permits launches only from explicitly configured game roots. It does not scan disks, accept LAN requests, or transmit media.
+This optional loopback service is the native boundary for desktop launching and local source verification. It binds only to `127.0.0.1`, checks the browser origin, and permits launches only from explicitly configured game roots. It does not scan disks broadly, accept LAN requests, or transmit media off-machine.
 
-The Windows Desktop is included as a guarded default launch location. Add other game roots with `REELCASE_ALLOWED_ROOTS`, separated by semicolons. Current endpoints include health, guarded desktop launch, source health/watch events, Roku SSDP discovery, and offline save.
+The Windows Desktop is included as a guarded default launch location. Add other game roots with `REELCASE_ALLOWED_ROOTS`, separated by semicolons.
+
+## Capabilities (v10)
+
+| Area | Endpoints | Notes |
+|---|---|---|
+| Health | `GET /health` | version, roots, capability list, tray badge |
+| Shortcuts | `/shortcuts`, `/shortcut-icon(s)`, `/launch` | Desktop launchers under approved roots |
+| Steam / Epic | `GET /games/steam-epic` | Known `steamapps/common` + `Epic Games` dirs **under allowed roots only** |
+| Library pack | `POST /library-pack/export`, `GET /library-pack/import` | Writes/reads `<root>/Reelcase Library Pack` (or `REELCASE_LIBRARY_PACK_DIR`) |
+| Thumb cache | `POST /thumbs/put`, `POST /thumbs/cache-url`, `GET /thumbs/get` | `<root>/Reelcase Cache/thumbs` (or `REELCASE_THUMB_CACHE_DIR`) |
+| Prints bridge | `GET /prints/list`, `GET /prints/file`, `POST /prints/save` | STL/OBJ/GLB/GLTF/3MF/G-code under allowed roots / `Reelcase Prints` |
+| Offline save | `POST /offline/save` | yt-dlp into allowed download folder |
+| Tray / jobs | `POST /tray/autostart`, `POST /tray/notify`, `GET /jobs`, `POST /jobs/ack` | Windows Run-key auto-start + balloon when offline jobs finish |
 
 ## Offline save (adult embeds)
 
@@ -39,5 +54,6 @@ yt-dlp is **not** bundled — install it yourself. No torrent / *arr stack.
 - Returns **501** with a clear `needs` + `hint` list when yt-dlp or a download
   folder is missing.
 - Writes files with `yt-dlp --no-playlist --restrict-filenames -o <dir>/…`.
+- Raises a Windows tray balloon shortly after start so finished offline jobs are noticeable.
 
-`GET /health` reports `ytDlp`, `downloadRoot`, and the `offline-save` capability.
+`GET /health` reports `ytDlp`, `downloadRoot`, pack/thumb/prints roots, `trayBadge`, and capabilities.

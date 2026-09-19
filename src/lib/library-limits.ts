@@ -15,25 +15,36 @@ export const LIBRARY_LIMITS = {
   // Keep pace with the Adult catalog without making the first channel paint
   // wait on every archive continuation. Focused pulls retain a deep history;
   // routine and bulk refreshes fill it in wider batches below.
-  youtubeFocusedVideosPerChannel: 6_000,
+  youtubeFocusedVideosPerChannel: 8_000,
   // Public browse continuations are the route beyond the first channel shelf.
-  // A page is usually 30–100 items, so 96 pages has room to reach a creator's
-  // older public catalog without leaving an unbounded request running.
-  youtubeArchivePagesPerPull: 96,
-  youtubeRoutineVideosPerChannel: 1_200,
-  youtubeBulkImportVideosPerChannel: 960,
+  // A page is usually 30–100 items; 128 pages covers large creator catalogs
+  // without unbounded work. Focused/import go deep; routine stays smaller.
+  youtubeArchivePagesPerPull: 128,
+  youtubeRoutineVideosPerChannel: 2_000,
+  youtubeBulkImportVideosPerChannel: 1_200,
+  /** Top-level Innertube comment threads per on-demand video detail pull. */
+  youtubeCommentsPerPull: 40,
+  /** Live chat / chat-replay messages per on-demand YouTube detail pull. */
+  youtubeChatPerPull: 60,
+  /** Bounded replay pages for YouTube live_chat/get_live_chat_replay. */
+  youtubeChatMaxPages: 3,
   // Helix/GQL `videos(first:)` accepts 1..100 only. Asking for 160 used to
   // return the channel shell with an empty videos connection (GraphQL error on
   // the field), which made follow/import look like it pulled no VODs.
   twitchArchivePageSize: 100,
-  // Public archive depth without the web integrity token tops out around one
-  // page (~30–100). Focused pulls also merge HIGHLIGHT + UPLOAD and real clips.
-  twitchFocusedVodsPerChannel: 400,
+  // Focused archive depth via cursor pages (Android/TV Client-ID bypasses the
+  // web integrity gate that blocks page-2 on the web Client-ID). Routine stays
+  // shallow. Also merge HIGHLIGHT + UPLOAD shelves.
+  twitchArchiveMaxPages: 25,
+  twitchFocusedVodsPerChannel: 2_000,
   twitchRoutineVodsPerChannel: 100,
-  /** Numbered clip pulls (public `user.clips`, multi-period, no integrity page-2). */
+  /** Numbered clip pulls (public `user.clips`, multi-period + cursor pages). */
   twitchRoutineClipsPerChannel: 100,
-  twitchFocusedClipsPerChannel: 300,
-  twitchClipPullChoices: [50, 100, 250],
+  twitchFocusedClipsPerChannel: 500,
+  twitchClipMaxPages: 8,
+  twitchClipPullChoices: [50, 100, 250, 500],
+  /** First window of public VOD chat replay (GQL VideoCommentsByOffsetOrCursor). */
+  twitchCommentsPerPull: 80,
   /** Home only calls a Twitch channel live when the provider observation is recent. */
   twitchLiveStateFreshnessMs: 2 * 60_000,
   // Eporner API allows up to 1000 results per page; batch pages like YT/Twitch archives.

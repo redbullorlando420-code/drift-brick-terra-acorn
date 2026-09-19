@@ -1,32 +1,44 @@
 # Reelcase — PR living notes
 
-**PR** `fix/twitch-vods-clips` → `main` · Twitch VOD depth fix (GQL `first` max 100) + numbered clip pulls; durable Photos sources/likes + library pack `photos/`.
+**PR** `feat/deeper-vods-comments` → `main` · Deeper Twitch/YouTube VOD pulls + comments/chat; Adults tag stay-on-desk; Prints editor; Games icons; Companion v10 bridges.
 
-**Prior** `fix/three-dep` (#7, merged) · Ensure production dep `three@^0.186` stays installed for the Prints viewer (Rolldown resolve failure after #6).
+**Prior** `fix/twitch-vods-clips` (#8, merged) · Twitch VOD depth fix (GQL `first` max 100) + numbered clip pulls; durable Photos sources/likes + library pack `photos/`.
 
-**Prior** `perf/speed-memory-adult-apis` (#6, merged) · Speed, memory, Adult API harden/backups, photos/models, Rule34 filters, Live Adult lives, richer Stats, tag-click fix, **3D Prints interactive viewer**, section teardown + grid/storage speedups + durable YT/Twitch follows + broader durable activity stores + library pack export/import.
+**Prior** `fix/three-dep` (#7, merged) · Ensure production dep `three@^0.186` stays installed for the Prints viewer.
 
 ## In progress
 
-Twitch follow/import was requesting `videos(first: 160)`. Helix/GQL only allows 1..100, so the `videos` field errored while the channel shell still resolved — imports looked successful with almost no VODs. Clip shelves used only short-VOD heuristics; real `user.clips` pulls (numbered 50/100/250) are restored. Photos likes/sources now use a dedicated durable store + pack export.
+Raise archive depth via **more pages** (never illegal `first` >100). Twitch web Client-ID fails page-2 with integrity; Android/TV Client-ID pages cleanly. YouTube already used Innertube browse continuations — raised page/budget caps. Comments + **YouTube live chat / chat replay** via Innertube; Twitch VOD chat GQL + Reddit RSS — on-demand only. Companion v10 adds Steam/Epic roots, pack disk I/O, thumb disk cache, prints bridge, tray auto-start.
 
 ### Shipped this PR
-1. **Twitch VOD page size** — clamp `first` to ≤100; empty-page retry at 30; one best-effort cursor continuation; merge ARCHIVE + HIGHLIGHT + UPLOAD on focused pulls.
-2. **Import preserves archives** — bulk Twitch import no longer drops previously cached VOD/clip cards when a shallow page returns.
-3. **Numbered clip pulls** — public `user.clips` across periods (default / week / month / all-time) with UI counts and Pull 50 / 100 / 250 controls; routine/focused clip budgets in `LIBRARY_LIMITS`.
-4. **Short channel cache** — Twitch follow results cached ~3 minutes to avoid hammering GQL on repeat refreshes.
-5. **Durable Photos sources/likes** — `activity` → `photos` + `reelcase.photos.v1` (+ legacy `reelcase.photo-meta.v1` mirror); hydrate on startup; memory prune never clears.
-6. **Library pack `photos/`** — sources + likes/meta JSON/CSV in export/import and offline templates.
+1. **Twitch archive paging** — Android/TV Client-ID `kd1unb4b3q4t58fwlpcbzcbnm76a8fp`; up to `twitchArchiveMaxPages` (25) × `first≤100`; focused target **2000** VODs; routine stays **100**.
+2. **Twitch clips** — cursor pages up to `twitchClipMaxPages` (8); Pull **50/100/250/500**; focused clips **500**.
+3. **YouTube depth** — focused **8000**, routine **2000**, bulk **1200**, archive pages **128**.
+4. **Comments + YouTube chat** — YouTube Innertube comment entities **and** live chat / chat replay (`live_chat/get_live_chat` + `get_live_chat_replay`); Twitch `VideoCommentsByOffsetOrCursor` (VODs only); Reddit RSS unchanged. Stored on `remote.comments` (+ `kind: "chat"|"comment"`) + remote-cache; shown on pre-video + player.
+5. **Rate-limit friendly** — ~180ms Twitch page gap; ~200ms YouTube chat replay pages; comments/chat on-demand only; routine refresh stays shallow.
+6. **Adults tag search stay-on-desk** — card/preview/top-bar/openTopic tag actions clear global search and apply `reelcase:adult-tag` in place (no jump to Search/Genres/Home).
+7. **Prints viewer + editor** — lighting/camera presets, wireframe, grid, material color, explode, fullscreen, scale/rotate/translate with local persistence.
+8. **Games desktop icons** — companion `/shortcut-icon(s)` (shell ExtractAssociatedIcon + sibling .ico/.png), folder FileList icon match, `reelcase.game-icons.v1` cache, Pull missing icons.
+9. **Companion v10** — Steam/Epic known install dirs under allowed roots; library-pack write/read to approved folder; thumb/poster disk cache (`/thumbs/*`); prints open/save bridge; Windows auto-start + offline-job tray balloons. Still loopback + origin check only.
+
+### Hard API caps (honest)
+- Twitch GQL `videos(first:)` / `clips(first:)` **1..100** only (Helix same).
+- Twitch **web** Client-ID: page-2+ → `failed integrity check`. Deeper pages require Android/TV Client-ID (or a real integrity token we do not mint).
+- Twitch Helix chat/VOD APIs need OAuth — not used. Clip cards have no chat replay.
+- YouTube Data API `commentThreads` / Live Streaming API not used (no API key); public Innertube WEB client for comments + chat replay. No quota meter; still on-demand.
+- YouTube RSS remains ~15 recent items; deep catalog is Innertube browse only.
+- Companion never broad-scans the disk: Steam/Epic/prints walks are root-gated known layouts only.
 
 ### Env / keys (no secrets in repo)
-- Unchanged from #6 / #7. Twitch uses the public web Client-ID for GQL only (no Helix OAuth).
+- Twitch GQL uses the public Android/TV Client-ID for multi-page archives/clips/comments (no Helix OAuth).
+- Companion: `REELCASE_ALLOWED_ROOTS`, optional `REELCASE_LIBRARY_PACK_DIR`, `REELCASE_THUMB_CACHE_DIR`, `REELCASE_PRINTS_DIR`, `REELCASE_DOWNLOAD_DIR`, `YT_DLP_PATH`.
 
 ### Still open
-- Twitch archive pages beyond the first public window still need the web integrity token; we stop after one failed continuation rather than hammering.
-- Soak test numbered clip pulls under rate limits on large follow lists.
-- Optional: File System Access “save folder” for pack export when the browser supports directory writes.
+- Soak test deep Twitch page walks + numbered clip pulls under rate limits on large follow lists.
+- Live YouTube chat is a one-shot Innertube snapshot (not a continuous poller).
+- Games icons / Steam-Epic / prints bridge need the Windows companion + approved roots.
 
-Official public APIs + Reddit Atom only. 18+ only. No Pornhub scrape; no torrents.
+Official public APIs / documented public GQL + Reddit Atom + YouTube Innertube. 18+ only. No Pornhub scrape; no torrents.
 
 ---
 # App Builder Workspace

@@ -35,6 +35,7 @@ export function TopBar({
 }) {
   const query = useLibrary((s) => s.query);
   const setQuery = useLibrary((s) => s.setQuery);
+  const sourceId = useLibrary((s) => s.sourceId);
   const [draft, setDraft] = useState(query);
   const [lookup, setLookup] = useState(query);
   const [now, setNow] = useState<Date | null>(null);
@@ -44,16 +45,18 @@ export function TopBar({
   useEffect(() => { const id = window.setTimeout(() => setLookup(draft), 140); return () => window.clearTimeout(id); }, [draft]);
   useEffect(() => {
     if (draft === query) return;
+    // On Adults, live typing must not flip browsing=false (Search desk).
+    // Enter / Related tags commit through applyAdultTagStay instead.
+    if (sourceId === "adults" || sourceId === "adult-fetishes") return;
     const t = window.setTimeout(() => setQuery(draft), 180);
     return () => window.clearTimeout(t);
-  }, [draft, query, setQuery]);
+  }, [draft, query, setQuery, sourceId]);
   useEffect(() => { setNow(new Date()); const id = window.setInterval(() => setNow(new Date()), 15_000); return () => window.clearInterval(id); }, []);
   const view = useLibrary((s) => s.view);
   const setView = useLibrary((s) => s.setView);
   const sort = useLibrary((s) => s.sort);
   const setSort = useLibrary((s) => s.setSort);
   const scanning = useLibrary((s) => s.scanning);
-  const sourceId = useLibrary((s) => s.sourceId);
   const folders = useLibrary((s) => s.folders);
   const videos = useLibrary((s) => s.videos);
   const openPreview = useLibrary((s) => s.openPreview);
@@ -87,8 +90,27 @@ export function TopBar({
       }).sort((a, b) => b.addedAt - a.addedAt).slice(0, 6);
   }, [adultsUnlocked, folders, needle, sourceId, tags, videoById, videos, workerIds, searchIndexStatus]);
   const suggestionTags = useMemo(() => [...new Set(hits.flatMap((video) => tags[video.id] ?? []))].filter((tag) => tag.length >= 3).slice(0, 5), [hits, tags]);
+  const applyAdultTagStay = (raw: string) => {
+    const tag = raw.trim().replace(/^#/, "");
+    if (!tag) return;
+    setDraft("");
+    setQuery("");
+    window.dispatchEvent(new CustomEvent("reelcase:adult-tag", { detail: { tag } }));
+    setFocused(false);
+  };
+  const onAdultDesk = sourceId === "adults" || sourceId === "adult-fetishes";
   const commit = (value = draft) => {
     const clean = value.trim();
+    // Tag chips / #tags on Adults must filter in-place — never open Search desk.
+    if (onAdultDesk && clean) {
+      applyAdultTagStay(clean);
+      if (clean) {
+        const next = [clean.replace(/^#/, ""), ...recent.filter((item) => item !== clean.replace(/^#/, ""))].slice(0, 5);
+        setRecent(next);
+        localStorage.setItem("reelcase.search.recent", JSON.stringify(next));
+      }
+      return;
+    }
     setQuery(clean);
     if (clean) {
       const next = [clean, ...recent.filter((item) => item !== clean)].slice(0, 5);
@@ -127,7 +149,7 @@ export function TopBar({
           className="h-12 border-border bg-elevated pl-11 pr-10 text-base shadow-border"
           aria-label="Global media search"
         />
-        {draft && <button type="button" aria-label="Clear search" onClick={() => { setDraft(""); setQuery(""); }} className="absolute top-1/2 right-3 -translate-y-1/2 text-subtle hover:text-fg"><X className="size-4" /></button>}
+        {draft && <button type="button" aria-label="Clear search" onClick={() => { setDraft(""); setQuery(""); if (sourceId === "adults" || sourceId === "adult-fetishes") window.dispatchEvent(new CustomEvent("reelcase:adult-tag", { detail: { tag: "All" } })); }} className="absolute top-1/2 right-3 -translate-y-1/2 text-subtle hover:text-fg"><X className="size-4" /></button>}
         {focused && (
           <div className="absolute top-[calc(100%+0.5rem)] z-40 w-full overflow-hidden rounded-lg bg-surface p-2 shadow-lift shadow-border">
             {searchIndexStatus === "building" && <p className="px-3 py-2 text-xs text-muted">Preparing search… you can keep browsing.</p>}
