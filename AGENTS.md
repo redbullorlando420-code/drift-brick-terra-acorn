@@ -1,10 +1,12 @@
 # Reelcase — PR living notes
 
-**PR** `perf/speed-memory-adult-apis` → `main` · Speed, memory, Adult API harden/backups, photos/models, Rule34 filters, Live Adult lives, richer Stats, tag-click fix, **3D Prints interactive viewer**, section teardown + grid/storage speedups + durable YT/Twitch follows + broader durable activity stores + library pack export/import.
+**PR** `fix/three-dep` → `main` · Ensure production dep `three@^0.186` stays installed for the Prints viewer (Rolldown resolve failure after #6).
+
+**Prior** `perf/speed-memory-adult-apis` (#6, merged) · Speed, memory, Adult API harden/backups, photos/models, Rule34 filters, Live Adult lives, richer Stats, tag-click fix, **3D Prints interactive viewer**, section teardown + grid/storage speedups + durable YT/Twitch follows + broader durable activity stores + library pack export/import.
 
 ## In progress
 
-Memory/speed follow-up round on this PR (section teardown, grid windowing, storage guards, durable YT/Twitch follows, broader durable activity blobs, library pack zip). Keep Adult previews / 3D viewer / tags / Live Adult / Stats intact.
+Fix post-#6 build: platform does **not** preinstall game engines — `three` must remain in `package.json` / lockfile and `node_modules`. `npm run build` now runs `scripts/check-three-dep.mjs` first.
 
 ### Shipped this PR
 1. **Faster Adult first paint** — lower interactive/fast-start pull sizes and rail seed; tighter TitleRail/PosterGrid viewport margins and earlier offscreen unmount.
@@ -23,7 +25,7 @@ Memory/speed follow-up round on this PR (section teardown, grid windowing, stora
 14. **Live tab Adult lives** — Chaturbate/MFC block below YT/Twitch in Live desk.
 15. **Richer Stats** — Adult media pie, booru host bars/table, engagement table (views, resume hours, rated, history, sparse tags).
 16. **Photos AI models** — upscaler prefers Cache API / shipped `/models/swin2sr-x2-q4f16.onnx` before HF; SigLIP large+ revision pinned; Photos first paint limit 48.
-17. **3D Prints viewer** — interactive three.js orbit/inspect for STL, OBJ, GLB/GLTF, and 3MF; bundled sample meshes under `public/samples/prints/`; user-added viewable bytes in IndexedDB (`reelcase-prints`) with dispose-on-unmount; G-code stays catalog-only.
+17. **3D Prints viewer** — interactive three.js orbit/inspect for STL, OBJ, GLB/GLTF, and 3MF; bundled sample meshes under `public/samples/prints/`; user-added viewable bytes in IndexedDB (`reelcase-prints`) with dispose-on-unmount; G-code stays catalog-only. **Requires production dependency `three@^0.186` (+ `@types/three` in devDependencies)** — not preinstalled in the sandbox; if Vite/Rolldown cannot resolve `"three"`, run `npm install three@^0.186.0` and keep it in `package.json`/lockfile for deploy.
 18. **Section teardown** — leaving YouTube/Adults/Home drops deferred explore/deep shelves, clears Adult browse ranking packets, and flushes speculative image decode waiters.
 19. **VideoGrid sliding window** — infinite grids unmount far-scrolled cards (mount cap 108) with lead spacers; Live desk first-paint 48 + Show more.
 20. **Storage growth guards** — IndexedDB thumb-cache pruned to `thumbCacheEntries` (420); print blobs also capped by total bytes (192 MB); Adult thumb host score maps trimmed.

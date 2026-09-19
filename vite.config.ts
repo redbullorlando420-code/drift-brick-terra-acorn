@@ -159,7 +159,7 @@ export default defineConfig(({ command, isPreview }) => ({
   // The local vision desk is lazy-loaded. Pre-bundle Transformers during Vite
   // startup so an HMR dependency re-optimization cannot invalidate the module
   // URL while a benchmark or a one-photo tag run is preparing its model.
-  optimizeDeps: { include: ["@huggingface/transformers"] },
+  optimizeDeps: { include: ["@huggingface/transformers", "three"] },
   resolve: { tsconfigPaths: true },
   plugins: [
     pgliteBootstrapPlugin(),
