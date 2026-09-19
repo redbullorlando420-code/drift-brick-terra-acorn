@@ -138,7 +138,7 @@ export function AdultFetishExplorer({
   useEffect(() => {
     try {
       const saved = Number(localStorage.getItem("reelcase.adult-pull-limit") ?? LIBRARY_LIMITS.adultInteractiveVideosPerPull);
-      setPullLimit([240, 480, 800, 1200].includes(saved) ? saved : LIBRARY_LIMITS.adultInteractiveVideosPerPull);
+      setPullLimit([240, 480, 800].includes(saved) ? saved : LIBRARY_LIMITS.adultInteractiveVideosPerPull);
     } catch {
       // The default remains suitable for this visit when preferences are unavailable.
     }
@@ -451,7 +451,7 @@ export function AdultPanel({
   useEffect(() => {
     const load = () => {
       const saved = Number(localStorage.getItem("reelcase.adult-pull-limit") ?? LIBRARY_LIMITS.adultInteractiveVideosPerPull);
-      setAdultMaxVideos([240, 480, 800, 1200].includes(saved) ? saved : LIBRARY_LIMITS.adultInteractiveVideosPerPull);
+      setAdultMaxVideos([240, 480, 800].includes(saved) ? saved : LIBRARY_LIMITS.adultInteractiveVideosPerPull);
     };
     load();
     window.addEventListener("reelcase:adult-render-settings", load);

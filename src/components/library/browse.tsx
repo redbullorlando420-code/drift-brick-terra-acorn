@@ -117,8 +117,8 @@ export function TitleRail({
       }
       // Debounce unmount so bounce-scroll does not thrash card remounts / image decode.
       if (leaveTimer.current) window.clearTimeout(leaveTimer.current);
-      leaveTimer.current = window.setTimeout(() => setNearViewport(false), 1_200);
-    }, { rootMargin: "480px 0px" });
+      leaveTimer.current = window.setTimeout(() => setNearViewport(false), 900);
+    }, { rootMargin: "240px 0px" });
     observer.observe(shelf);
     return () => {
       observer.disconnect();
@@ -213,7 +213,7 @@ function PosterRow({ videos, start, estimate }: { videos: LibraryVideo[]; start:
     const observer = new IntersectionObserver(([entry]) => {
       intersecting.current = entry.isIntersecting;
       setVisible(entry.isIntersecting || row.contains(document.activeElement));
-    }, { rootMargin: "300px 0px" });
+    }, { rootMargin: "180px 0px" });
     observer.observe(row);
     return () => observer.disconnect();
   }, []);
@@ -239,9 +239,9 @@ export function PosterGrid({ videos }: { videos: LibraryVideo[] }) {
   const leaveTimer = useRef<number | undefined>(undefined);
   const [nearViewport, setNearViewport] = useState(false);
   const [gridHeight, setGridHeight] = useState<number>();
-  const [pageSize, setPageSize] = useState(() => savedRenderBudget("reelcase.grid-page-size", GRID_SIZES, 48));
+  const [pageSize, setPageSize] = useState(() => savedRenderBudget("reelcase.grid-page-size", GRID_SIZES, 24));
   useEffect(() => {
-    const sync = () => setPageSize(savedRenderBudget("reelcase.grid-page-size", GRID_SIZES, 48));
+    const sync = () => setPageSize(savedRenderBudget("reelcase.grid-page-size", GRID_SIZES, 24));
     window.addEventListener("reelcase:render-settings", sync);
     return () => window.removeEventListener("reelcase:render-settings", sync);
   }, []);
@@ -266,8 +266,8 @@ export function PosterGrid({ videos }: { videos: LibraryVideo[] }) {
         return;
       }
       if (leaveTimer.current) window.clearTimeout(leaveTimer.current);
-      leaveTimer.current = window.setTimeout(() => setNearViewport(false), 1_400);
-    }, { rootMargin: "560px 0px" });
+      leaveTimer.current = window.setTimeout(() => setNearViewport(false), 900);
+    }, { rootMargin: "320px 0px" });
     observer.observe(grid);
     return () => {
       observer.disconnect();

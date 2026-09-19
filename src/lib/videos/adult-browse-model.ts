@@ -28,7 +28,7 @@ function rotateAdultRail<T extends { id: string; poster?: string; remote?: { pre
   // Provider posters and preview URLs are cheap, already-known artwork, so a
   // modest bonus makes the opening screen useful while the rest of a large
   // catalog remains lazy.
-  const windowSize = Math.min(items.length, Math.max(192, limit * 16));
+  const windowSize = Math.min(items.length, Math.max(96, limit * 8));
   const rankStride = Math.max(18, limit * 1.5);
   return diversifyCreators(items.slice(0, windowSize)
     .map((video, index) => ({
@@ -91,7 +91,7 @@ export function buildAdultBrowseModel(data: AdultBrowseData, params: AdultBrowse
     return sortAdultVideos(filteredEporner, adultRankCtx);
   })();
   const adultTagRank = (() => {
-    return rankAdultTags(sourceMatchedAdult, adultRankCtx, 80);
+    return rankAdultTags(sourceMatchedAdult, adultRankCtx, 48);
   })();
   const adultOverviewRails = (() => {
     const videos = rotateAdultRail(rankedAdultCatalog.filter((video) => adultKind(video) === "videos"), "overview-videos", adultRailSeed, adultRailLimit);
@@ -122,7 +122,7 @@ export function buildAdultBrowseModel(data: AdultBrowseData, params: AdultBrowse
       .filter((row) => row.videos.length > 0);
   })();
   const adultMetaTagRank = (() => {
-    return rankAdultMetaTags(sourceMatchedAdult, adultRankCtx, 48);
+    return rankAdultMetaTags(sourceMatchedAdult, adultRankCtx, 24);
   })();
   const adultRecommended = (() => {
     const preferred = new Set([...adultTagRank.slice(0, 16), ...adultMetaTagRank.slice(0, 12)].map((row) => row.tag));
@@ -204,13 +204,13 @@ export function buildAdultBrowseModel(data: AdultBrowseData, params: AdultBrowse
     );
     const rotatedCatalog = scoped(rotateAdultRail(rankedAdultCatalog, "latest", adultRailSeed));
     const latest = take(rotatedCatalog, adultRailLimit);
-    const catalog = take(rotateAdultRail(rotatedCatalog, "catalog", adultRailSeed), Math.max(48, adultRailLimit * 3));
+    const catalog = take(rotateAdultRail(rotatedCatalog, "catalog", adultRailSeed), Math.max(32, adultRailLimit * 2));
     // Poster grid prefers titles not already on a rail, then fills from ranked catalog.
-    const posterFresh = take(rotateAdultRail(rotatedCatalog, "poster", adultRailSeed), Math.max(96, adultRailLimit * 6), true);
+    const posterFresh = take(rotateAdultRail(rotatedCatalog, "poster", adultRailSeed), Math.max(64, adultRailLimit * 4), true);
     const seenPoster = new Set(posterFresh.map((video) => video.id));
     const poster = posterFresh.length >= 48
       ? posterFresh
-      : [...posterFresh, ...scoped(rankedAdultCatalog).filter((video) => !seenPoster.has(video.id))].slice(0, Math.max(96, adultRailLimit * 6));
+      : [...posterFresh, ...scoped(rankedAdultCatalog).filter((video) => !seenPoster.has(video.id))].slice(0, Math.max(64, adultRailLimit * 4));
     return { recommended, related, continueRail, marked, reddit, latest, catalog, poster };
   })();
   const ids = (videos: LibraryVideo[]) => videos.map(video => video.id);
