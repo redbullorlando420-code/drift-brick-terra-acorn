@@ -1992,6 +1992,98 @@ async function fetchBooruHost(host: (typeof BOORU_HOSTS)[number], tags: string, 
   return out;
 }
 
+
+type E621Post = {
+  id?: number | string;
+  tags?: { general?: string[]; artist?: string[]; character?: string[]; copyright?: string[]; meta?: string[] } | string;
+  file?: { url?: string; ext?: string; width?: number; height?: number };
+  preview?: { url?: string; width?: number; height?: number };
+  sample?: { url?: string; width?: number; height?: number };
+  score?: { total?: number } | number;
+  rating?: string;
+};
+
+function e621TagString(tags: E621Post["tags"]): string {
+  if (!tags) return "";
+  if (typeof tags === "string") return tags;
+  return [tags.artist, tags.character, tags.copyright, tags.general, tags.meta]
+    .flatMap((part) => (Array.isArray(part) ? part : []))
+    .filter(Boolean)
+    .join(" ");
+}
+
+function e621Video(row: E621Post): LibraryVideo | null {
+  const id = asString(row.id).trim();
+  if (!id) return null;
+  const rating = asString(row.rating).trim().toLowerCase();
+  if (rating && rating !== "e" && rating !== "explicit") return null;
+  const tags = e621TagString(row.tags);
+  const preview = asString(row.preview?.url).trim();
+  const sample = asString(row.sample?.url).trim();
+  const file = asString(row.file?.url).trim();
+  const image = file || sample || preview;
+  if (!image) return null;
+  if (adultBlockedText(tags)) return null;
+  const title = (tags.split(/\s+/).filter(Boolean).slice(0, 8).join(" ") || `e621 #${id}`).slice(0, 160);
+  const watch = `https://e621.net/posts/${encodeURIComponent(id)}`;
+  const thumbs = [preview, sample, file].filter(isUsableAdultThumb).slice(0, 4);
+  return {
+    id: `booru:e621:${id}`,
+    folderId: BOORU_FOLDER_ID,
+    name: title,
+    path: `booru/e621/${id}`,
+    extension: "image",
+    mime: "image/jpeg",
+    size: 0,
+    addedAt: Date.now(),
+    tagline: `e621 · photo`,
+    description: tags.slice(0, 400),
+    poster: thumbs[0] || preview || sample || undefined,
+    src: image,
+    remote: {
+      kind: "booru",
+      videoId: id,
+      channelName: "e621",
+      channelId: "e621",
+      observedAt: Date.now(),
+      embedUrl: image,
+      watchUrl: watch,
+      previewUrl: thumbs[0] || preview || sample || undefined,
+      thumbFallbacks: thumbs.length ? thumbs : undefined,
+    },
+  };
+}
+
+async function fetchE621Page(tags: string, limit: number, page: number): Promise<LibraryVideo[]> {
+  const params = new URLSearchParams({
+    limit: String(Math.min(80, Math.max(1, limit))),
+    page: String(Math.max(1, page)),
+    tags,
+  });
+  const url = `https://e621.net/posts.json?${params.toString()}`;
+  const res = await cachedAdultFetch(url, {
+    signal: AbortSignal.timeout(15_000),
+    cacheTtlMs: 10 * 60_000,
+    cacheKey: `GET:${url}:e621`,
+    headers: {
+      accept: "application/json",
+      // e621 requires a descriptive UA; keep contact-style identity for their policy.
+      "user-agent": "Reelcase/1.0 (adult catalog; local library client)",
+    },
+  });
+  if (!res.ok) throw new Error(`e621 HTTP ${res.status}`);
+  const json: unknown = await res.json();
+  const root = asRecord(json);
+  const rows = Array.isArray(root?.posts) ? root.posts : Array.isArray(json) ? json : [];
+  const out: LibraryVideo[] = [];
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+    const video = e621Video(row as E621Post);
+    if (video) out.push(video);
+  }
+  return out;
+}
+
 async function fetchBooruFeed(query: string, maxVideos: number, page: number): Promise<{
   videos: LibraryVideo[];
   totalPages: number;
@@ -2014,13 +2106,19 @@ async function fetchBooruFeed(query: string, maxVideos: number, page: number): P
   // fill could let the first host consume the entire window, leaving a healthy
   // Rule34 catalog invisible even when it had thousands of usable images.
   const hosts = [...BOORU_HOSTS];
-  const share = Math.max(1, Math.min(limit, Math.ceil(maxVideos / hosts.length)));
+  // Reserve one share for e621's documented JSON API (explicit rating only).
+  const slotCount = hosts.length + 1;
+  const share = Math.max(1, Math.min(limit, Math.ceil(maxVideos / slotCount)));
   const ordered = [...hosts.slice(pid % hosts.length), ...hosts.slice(0, pid % hosts.length)];
-  const batches = await Promise.allSettled(ordered.map((host) => fetchBooruHost(host, tagQuery, share, pid)));
+  const e621Tags = !needle || needle === "all" ? "rating:e order:rank" : `rating:e ${needle}`;
+  const batches = await Promise.allSettled([
+    ...ordered.map((host) => fetchBooruHost(host, tagQuery, share, pid)),
+    fetchE621Page(e621Tags, share, Math.max(1, page)),
+  ]);
   for (const [index, result] of batches.entries()) {
-    const host = ordered[index]!;
+    const label = index < ordered.length ? ordered[index]!.id : "e621";
     if (result.status !== "fulfilled") {
-      errors.push(`${host.id}: ${result.reason instanceof Error ? result.reason.message : "unavailable"}`);
+      errors.push(`${label}: ${result.reason instanceof Error ? result.reason.message : "unavailable"}`);
       continue;
     }
     for (const video of result.value) {
@@ -2090,10 +2188,10 @@ function redgifsVideo(row: RedgifsRow): LibraryVideo | null {
       ? tagsRaw.split(/[,;\s]+/).filter(Boolean)
       : [];
   const title = pickString(row.title, row.description, tagList.slice(0, 6).join(" "), id).slice(0, 160);
-  const author = pickString(user.username, user.name, row.username, row.userName, row.author);
+  const author = pickString(user.username, user.name, row.userName, row.username, row.author);
   const embed = pickString(urls.html, urls.player, row.embedUrl, row.embed_url, `https://www.redgifs.com/ifr/${encodeURIComponent(id)}`);
   const watch = pickString(urls.webUrl, urls.web_url, row.url, row.webUrl, `https://www.redgifs.com/watch/${encodeURIComponent(id)}`);
-  const thumb = pickString(urls.thumbnail, urls.thumb, urls.preview, urls.poster, urls.posterUrl, urls.previewUrl, row.thumbnail, row.thumb, row.poster, row.previewUrl);
+  const thumb = pickString(urls.poster, urls.thumbnail, urls.thumb, urls.preview, urls.posterUrl, urls.previewUrl, row.poster, row.thumbnail, row.thumb, row.previewUrl);
   // Keep every distinct CDN variant. Direct catalog rows and Reddit-linked
   // rows should get the same full poster recovery chain when a Redgifs edge
   // is slow, stale, or returns a placeholder.
@@ -2146,17 +2244,69 @@ function collectRedgifsRows(payload: unknown): RedgifsRow[] {
   return [];
 }
 
-async function fetchRedgifsFeed(query: string, maxVideos: number, page: number): Promise<{
+let redgifsAuth: { token: string; expiresAt: number } | null = null;
+
+async function getRedgifsAccessToken(): Promise<string> {
+  const now = Date.now();
+  if (redgifsAuth && redgifsAuth.expiresAt > now + 60_000) return redgifsAuth.token;
+  const res = await fetch("https://api.redgifs.com/v2/auth/temporary", {
+    headers: { accept: "application/json", "user-agent": "Reelcase/1.0" },
+    signal: AbortSignal.timeout(12_000),
+  });
+  if (!res.ok) throw new Error(`Redgifs auth HTTP ${res.status}`);
+  const json = (await res.json()) as { token?: string };
+  if (!json.token?.trim()) throw new Error("Redgifs auth missing token");
+  // Temporary tokens last many hours; refresh hourly at most.
+  redgifsAuth = { token: json.token.trim(), expiresAt: now + 60 * 60_000 };
+  return redgifsAuth.token;
+}
+
+async function fetchRedgifsDirect(query: string, maxVideos: number, page: number): Promise<{
+  videos: LibraryVideo[];
+  totalPages: number;
+  totalCount: number;
+}> {
+  const token = await getRedgifsAccessToken();
+  const count = Math.min(LIBRARY_LIMITS.redgifsPageSize, maxVideos);
+  const needle = query.trim();
+  const params = new URLSearchParams({
+    count: String(count),
+    page: String(Math.max(1, page)),
+    order: "trending",
+  });
+  // Official search requires search_text; use a short discovery token for "all".
+  params.set("search_text", needle && needle.toLowerCase() !== "all" ? needle.slice(0, 64) : "a");
+  const url = `https://api.redgifs.com/v2/gifs/search?${params.toString()}`;
+  const res = await cachedAdultFetch(url, {
+    signal: AbortSignal.timeout(20_000),
+    cacheTtlMs: 6 * 60_000,
+    cacheKey: `GET:${url}:rg`,
+    headers: {
+      accept: "application/json",
+      authorization: `Bearer ${token}`,
+      "user-agent": "Reelcase/1.0",
+    },
+  });
+  if (!res.ok) throw new Error(`Redgifs HTTP ${res.status}`);
+  const json: unknown = await res.json();
+  const videos = collectRedgifsRows(json)
+    .map(redgifsVideo)
+    .filter((video): video is LibraryVideo => video != null)
+    .slice(0, maxVideos);
+  return {
+    videos,
+    totalPages: page + (videos.length >= count ? 1 : 0),
+    totalCount: videos.length,
+  };
+}
+
+async function fetchRedgifsViaAdultDataLink(query: string, maxVideos: number, page: number): Promise<{
   videos: LibraryVideo[];
   totalPages: number;
   totalCount: number;
 }> {
   const key = adultDataLinkApiKey();
-  if (!key) {
-    // Reddit still carries Redgifs links and posters without this optional API.
-    // Do not turn a missing optional credential into an all-source failure.
-    return { videos: [], totalPages: page, totalCount: 0 };
-  }
+  if (!key) return { videos: [], totalPages: page, totalCount: 0 };
   const params = new URLSearchParams({
     parameter: "gif",
     page: String(Math.max(1, page)),
@@ -2187,6 +2337,29 @@ async function fetchRedgifsFeed(query: string, maxVideos: number, page: number):
     totalPages: page + (videos.length >= Math.min(LIBRARY_LIMITS.redgifsPageSize, maxVideos) ? 1 : 0),
     totalCount: videos.length,
   };
+}
+
+async function fetchRedgifsFeed(query: string, maxVideos: number, page: number): Promise<{
+  videos: LibraryVideo[];
+  totalPages: number;
+  totalCount: number;
+}> {
+  // Prefer the official public temporary-token API so Redgifs shelves fill
+  // without AdultDataLink. Keep AdultDataLink as a secondary path when a key
+  // is configured and the direct feed is empty or unavailable.
+  try {
+    const direct = await fetchRedgifsDirect(query, maxVideos, page);
+    if (direct.videos.length) return direct;
+  } catch {
+    // Fall through to AdultDataLink / empty.
+  }
+  try {
+    const viaAdl = await fetchRedgifsViaAdultDataLink(query, maxVideos, page);
+    if (viaAdl.videos.length) return viaAdl;
+  } catch {
+    // Optional secondary path.
+  }
+  return { videos: [], totalPages: page, totalCount: 0 };
 }
 
 function liveRoomLimit(provider: AdultPullProvider) {
