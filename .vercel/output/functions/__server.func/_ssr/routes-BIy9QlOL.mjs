@@ -12,7 +12,7 @@ import { a as DialogPortal, i as DialogOverlay, n as DialogClose, o as DialogTit
 import { t as Root } from "../_libs/radix-ui__react-separator.mjs";
 import { a as Trigger, i as Root2, n as Item2, r as Portal2, t as Content2 } from "../_libs/@radix-ui/react-dropdown-menu+[...].mjs";
 import { i as SliderTrack, n as SliderRange, r as SliderThumb, t as Slider$1 } from "../_libs/@radix-ui/react-slider+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-DYDdvpss.js
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-BIy9QlOL.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var __defProp = Object.defineProperty;
@@ -109,8 +109,13 @@ var LEGACY_KEYS = [
 	"reelcase.prefs.v2",
 	"reelcase.prefs.v1"
 ];
+/** Small YouTube/Twitch follow list — never co-pruned with thumbs/history/Adult tags. */
+var FOLLOWS_LS_KEY = "reelcase.follows.v1";
+var FOLLOWS_IDB_KEY = "follows";
 var durablePrefs = null;
+var durableFollows = null;
 var prefsWrites = Promise.resolve();
+var followsWrites = Promise.resolve();
 async function restoreDurablePrefs() {
 	const db = await openDb();
 	try {
@@ -123,6 +128,103 @@ async function restoreDurablePrefs() {
 	} finally {
 		db.close();
 	}
+}
+function normalizeFollowChannels(raw) {
+	if (!Array.isArray(raw)) return [];
+	const out = [];
+	for (const row of raw) {
+		if (!row || typeof row !== "object") continue;
+		const rec = row;
+		const kind = rec.kind === "twitch" || rec.kind === "youtube" ? rec.kind : null;
+		const handle = typeof rec.handle === "string" ? rec.handle.trim() : "";
+		const id = typeof rec.id === "string" ? rec.id.trim() : "";
+		const title = typeof rec.title === "string" ? rec.title.trim() : handle;
+		if (!kind || !handle && !id) continue;
+		out.push({
+			id: id || `${kind === "twitch" ? "tw" : "yt"}:${handle}`,
+			kind,
+			handle: handle || id.replace(/^(?:yt|tw):/i, ""),
+			title: title || handle || id,
+			...typeof rec.channelId === "string" ? { channelId: rec.channelId } : {},
+			...typeof rec.thumb === "string" ? { thumb: rec.thumb } : {},
+			...typeof rec.live === "boolean" ? { live: rec.live } : {},
+			...typeof rec.lastCheckedAt === "number" ? { lastCheckedAt: rec.lastCheckedAt } : {},
+			...typeof rec.newestPublishedAt === "number" ? { newestPublishedAt: rec.newestPublishedAt } : {},
+			...typeof rec.lastResponseCount === "number" ? { lastResponseCount: rec.lastResponseCount } : {}
+		});
+	}
+	return out;
+}
+function readFollowsLocal() {
+	try {
+		const raw = JSON.parse(localStorage.getItem(FOLLOWS_LS_KEY) ?? "null");
+		if (Array.isArray(raw)) return normalizeFollowChannels(raw);
+		if (raw && typeof raw === "object" && Array.isArray(raw.channels)) return normalizeFollowChannels(raw.channels);
+	} catch {}
+	return null;
+}
+/** Sync mirror + IndexedDB. Intentionally tiny so QuotaExceeded on the prefs blob cannot erase follows. */
+function saveFollows(channels) {
+	if (typeof window === "undefined") return;
+	durableFollows = channels;
+	const payload = {
+		channels,
+		savedAt: Date.now()
+	};
+	try {
+		localStorage.setItem(FOLLOWS_LS_KEY, JSON.stringify(payload));
+	} catch {}
+	followsWrites = followsWrites.catch(() => void 0).then(async () => {
+		const db = await openDb();
+		try {
+			await new Promise((resolve, reject) => {
+				const tx = db.transaction(ACTIVITY_STORE, "readwrite");
+				tx.objectStore(ACTIVITY_STORE).put(payload, FOLLOWS_IDB_KEY);
+				tx.oncomplete = () => resolve();
+				tx.onerror = () => reject(tx.error);
+				tx.onabort = () => reject(tx.error);
+			});
+		} finally {
+			db.close();
+		}
+	});
+	followsWrites.catch(() => void 0);
+}
+function loadFollows() {
+	if (typeof window === "undefined") return null;
+	if (durableFollows) return durableFollows;
+	return readFollowsLocal();
+}
+async function restoreDurableFollows() {
+	if (typeof window === "undefined") return [];
+	let fromIdb = [];
+	try {
+		const db = await openDb();
+		try {
+			const saved = await new Promise((resolve, reject) => {
+				const req = db.transaction(ACTIVITY_STORE).objectStore(ACTIVITY_STORE).get(FOLLOWS_IDB_KEY);
+				req.onsuccess = () => resolve(req.result);
+				req.onerror = () => reject(req.error);
+			});
+			if (Array.isArray(saved)) fromIdb = normalizeFollowChannels(saved);
+			else if (saved && typeof saved === "object") fromIdb = normalizeFollowChannels(saved.channels);
+		} finally {
+			db.close();
+		}
+	} catch {}
+	const fromLs = readFollowsLocal() ?? [];
+	const primary = fromIdb.length >= fromLs.length ? fromIdb : fromLs;
+	const secondary = primary === fromIdb ? fromLs : fromIdb;
+	const seen = new Set(primary.map((row) => `${row.kind}:${row.handle.toLowerCase()}`));
+	const merged = [...primary];
+	for (const row of secondary) {
+		const key = `${row.kind}:${row.handle.toLowerCase()}`;
+		if (seen.has(key)) continue;
+		seen.add(key);
+		merged.push(row);
+	}
+	durableFollows = merged;
+	return merged;
 }
 var TAG_EDITS_KEY = "reelcase.tag-edits.v1";
 var HISTORY_PENDING_KEY = "reelcase.history-pending.v1";
@@ -2068,7 +2170,7 @@ var preferencesRestored = false;
 function persistNow(get) {
 	if (!preferencesRestored) return;
 	const s = get();
-	savePrefs({
+	const prefs = {
 		favorites: Object.keys(s.favorites),
 		likes: Object.keys(s.likes),
 		tags: s.tags,
@@ -2094,7 +2196,9 @@ function persistNow(get) {
 		notices: s.notices.slice(0, 40),
 		notifyPush: s.notifyPush,
 		unavailableVideoIds: Object.keys(s.unavailable)
-	});
+	};
+	saveFollows(s.follows);
+	savePrefs(prefs);
 	saveActivitySnapshot({
 		history: s.history,
 		progress: s.progress,
@@ -3172,9 +3276,14 @@ var useLibrary = create((set, get) => ({
 		if (get().hydrated || restoring) return;
 		restoring = true;
 		await restoreDurablePrefs().catch(() => void 0);
+		const dedicatedFollows = await restoreDurableFollows().catch(() => loadFollows() ?? []);
 		preferencesRestored = true;
 		const prefsState = applyPrefs({});
 		prefsState.tags = restoreTagEdits(prefsState.tags ?? {});
+		const prefsFollows = Array.isArray(prefsState.follows) ? prefsState.follows : [];
+		const migratedFollows = dedupeFollows([...dedicatedFollows, ...prefsFollows]);
+		prefsState.follows = migratedFollows;
+		if (migratedFollows.length) saveFollows(migratedFollows);
 		const adultIds = new Set(loadPrefs()?.privateFolderIds ?? []);
 		let cachedFolderIds = /* @__PURE__ */ new Set();
 		let savedHealth = /* @__PURE__ */ new Map();
@@ -3260,7 +3369,22 @@ var useLibrary = create((set, get) => ({
 				try {
 					const saved = JSON.parse(localStorage.getItem(`reelcase.import-history.${kind}`) ?? "[]");
 					if (!Array.isArray(saved) || !saved.length) return;
-					await get().importBatch(saved.filter((value) => typeof value === "string" && Boolean(value.trim())).slice(0, 80).map((query) => ({
+					const handles = saved.filter((value) => typeof value === "string" && Boolean(value.trim()));
+					const stubs = handles.map((query) => {
+						const handle = canonicalFollowHandle(kind, query);
+						return {
+							id: `${kind === "twitch" ? "tw" : "yt"}:${handle}`,
+							kind,
+							handle,
+							title: handle
+						};
+					}).filter((row) => row.handle);
+					if (stubs.length) {
+						const merged = dedupeFollows([...get().follows, ...stubs]);
+						set({ follows: merged });
+						saveFollows(merged);
+					}
+					await get().importBatch(handles.slice(0, 80).map((query) => ({
 						query,
 						kind
 					})));
@@ -13064,7 +13188,7 @@ ytFilm({
 	tagline: "A Blender Studio open project.",
 	channel: "Blender Studio"
 });
-var loadHub = () => import("./hub-sections-uyp3nMD4.mjs").then((n) => n.t);
+var loadHub = () => import("./hub-sections-CUcL5tNG.mjs").then((n) => n.t);
 var hubSection = (name) => (0, import_react.lazy)(async () => ({ default: (await loadHub())[name] }));
 var GamesSection = hubSection("GamesSection");
 var FindPhoneSection = hubSection("FindPhoneSection");
