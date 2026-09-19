@@ -10,6 +10,7 @@ import { getRatingStreakSnapshot, RATING_GOALS, setRatingWeeklyGoal, type Rating
 
 export function DiscoveryDesk({ videos }: { videos: LibraryVideo[] }) {
   const [seed, setSeed] = useState(1);
+  const [picks, setPicks] = useState<LibraryVideo[]>([]);
   const open = useLibrary((s) => s.openVideo);
   useEffect(() => {
     const rotate = () => setSeed((Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0);
@@ -17,27 +18,37 @@ export function DiscoveryDesk({ videos }: { videos: LibraryVideo[] }) {
     const timer = window.setInterval(rotate, 60_000);
     return () => window.clearInterval(timer);
   }, []);
-  const picks = useMemo(() => {
-    // Time-based rotation ensures a fresh mix even when the catalog itself is
-    // unchanged. Demonstration media is excluded before scoring.
-    let state = seed >>> 0;
-    const random = () => { state ^= state << 13; state ^= state >>> 17; state ^= state << 5; return (state >>> 0) / 4294967296; };
-    const currentChoices = videos.filter((video) => !video.remote?.live && !video.isSample);
-    const candidatePool = currentChoices;
-    // Keep only the best small candidate set while walking the catalog. The
-    // old map + full-array sort made the Home welcome card do O(n log n) work.
-    const chosen: Array<{ video: LibraryVideo; score: number }> = [];
-    for (const video of candidatePool) {
-      const classicFallback = video.collection === "classics" || /classic|noir/i.test(`${video.name} ${video.remote?.channelName ?? ""}`);
-      const freshness = Math.max(1, Math.min(8, (video.addedAt - Date.now() + 31_536_000_000) / 3_942_000_000));
-      const weight = (video.remote ? 7 : 2) + freshness + (classicFallback ? -6 : 0);
-      const entry = { video, score: random() * Math.max(0.25, weight) };
-      if (chosen.length < 12) { chosen.push(entry); continue; }
-      let weakest = 0;
-      for (let index = 1; index < chosen.length; index += 1) if (chosen[index].score < chosen[weakest].score) weakest = index;
-      if (entry.score > chosen[weakest].score) chosen[weakest] = entry;
+  useEffect(() => {
+    let cancelled = false;
+    const compute = () => {
+      if (cancelled) return;
+      // Time-based rotation ensures a fresh mix even when the catalog itself is
+      // unchanged. Demonstration media is excluded before scoring.
+      let state = seed >>> 0;
+      const random = () => { state ^= state << 13; state ^= state >>> 17; state ^= state << 5; return (state >>> 0) / 4294967296; };
+      // Cap the walk on huge catalogs: stride-sample so Home stays snappy.
+      const pool = videos.filter((video) => !video.remote?.live && !video.isSample);
+      const stride = pool.length > 2_400 ? Math.ceil(pool.length / 2_400) : 1;
+      const chosen: Array<{ video: LibraryVideo; score: number }> = [];
+      for (let i = 0; i < pool.length; i += stride) {
+        const video = pool[i]!;
+        const classicFallback = video.collection === "classics" || /classic|noir/i.test(`${video.name} ${video.remote?.channelName ?? ""}`);
+        const freshness = Math.max(1, Math.min(8, (video.addedAt - Date.now() + 31_536_000_000) / 3_942_000_000));
+        const weight = (video.remote ? 7 : 2) + freshness + (classicFallback ? -6 : 0);
+        const entry = { video, score: random() * Math.max(0.25, weight) };
+        if (chosen.length < 12) { chosen.push(entry); continue; }
+        let weakest = 0;
+        for (let index = 1; index < chosen.length; index += 1) if (chosen[index]!.score < chosen[weakest]!.score) weakest = index;
+        if (entry.score > chosen[weakest]!.score) chosen[weakest] = entry;
+      }
+      setPicks(chosen.map((entry) => entry.video));
+    };
+    if (typeof window.requestIdleCallback === "function") {
+      const idle = window.requestIdleCallback(compute, { timeout: 400 });
+      return () => { cancelled = true; window.cancelIdleCallback(idle); };
     }
-    return chosen.map((entry) => entry.video);
+    const timer = window.setTimeout(compute, 0);
+    return () => { cancelled = true; window.clearTimeout(timer); };
   }, [videos, seed]);
   return <section className="mb-8 rounded-xl border border-border bg-surface p-5 sm:p-7">
     <div className="mb-6 flex flex-wrap items-end justify-between gap-5"><div><p className="mb-3 text-xs font-semibold uppercase tracking-widest text-accent">Your daily detour</p><h1 className="discovery-heading font-display">Something worth finding.</h1><p className="mt-3 text-sm text-muted">A fresh mix from your library. Follow your curiosity.</p></div><div className="flex flex-wrap gap-2"><Button disabled={!picks.length} onClick={() => open(picks[0].id)}><Play className="size-4"/>Surprise me</Button><Button variant="secondary" onClick={() => setSeed(Math.floor(Math.random() * 0xffffffff) || 1)}><Shuffle className="size-4"/>Shuffle picks</Button></div></div>
@@ -83,13 +94,13 @@ export function LiveDesk({ videos, adultLiveVideos = [] }: { videos: LibraryVide
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("favorites");
   const [columns, setColumns] = useState(4);
-  const [visibleLimit, setVisibleLimit] = useState(120);
+  const [visibleLimit, setVisibleLimit] = useState(48);
   const [ready, setReady] = useState(false);
   const [adding, setAdding] = useState("");
   useEffect(() => { try { const saved = JSON.parse(localStorage.getItem("reelcase.live-desk") ?? "{}"); if (["all", "favorites", "likes"].includes(saved.filter)) setFilter(saved.filter); if (["favorites", "viewers", "name"].includes(saved.sort)) setSort(saved.sort); const count = Number(localStorage.getItem("reelcase.live-columns") ?? 4); if ([3, 4, 6].includes(count)) setColumns(count); } catch { /* defaults */ } setReady(true); }, []);
   useEffect(() => { if (!ready) return; try { localStorage.setItem("reelcase.live-desk", JSON.stringify({ filter, sort })); localStorage.setItem("reelcase.live-columns", String(columns)); } catch { /* session only */ } }, [filter, sort, columns, ready]);
   const visible = useMemo(() => videos.filter((v) => (filter === "all" || (filter === "favorites" ? favorites[v.id] : likes[v.id])) && `${v.name} ${v.remote?.channelName ?? ""}`.toLowerCase().includes(search.toLowerCase())).sort((a, b) => sort === "name" ? a.name.localeCompare(b.name) : (sort === "favorites" ? Number(Boolean(favorites[b.id])) - Number(Boolean(favorites[a.id])) : 0) || (b.remote?.viewers ?? 0) - (a.remote?.viewers ?? 0)), [videos, filter, favorites, likes, sort, search]);
-  useEffect(() => setVisibleLimit(120), [filter, search, sort]);
+  useEffect(() => setVisibleLimit(48), [filter, search, sort]);
   const youtubeLiveCount = videos.filter((video) => video.remote?.kind === "youtube").length;
   const recommendedChannels = [
     { handle: "twitch", title: "Twitch" }, { handle: "eslcs", title: "ESL Counter-Strike" }, { handle: "gamesdonequick", title: "Games Done Quick" }, { handle: "otknetwork", title: "OTK Network" }, { handle: "criticalrole", title: "Critical Role" },
@@ -98,7 +109,7 @@ export function LiveDesk({ videos, adultLiveVideos = [] }: { videos: LibraryVide
     <header className="mb-6 rounded-xl border border-border bg-surface p-5 sm:p-7"><p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-accent"><Radio className="size-4"/>On air</p><div className="mt-3 flex flex-wrap items-end justify-between gap-4"><div><h1 className="discovery-heading font-display">Your live control room.</h1><p className="mt-3 text-sm text-muted">{videos.length} confirmed live stream{videos.length === 1 ? "" : "s"} · {youtubeLiveCount} from YouTube · {adultLiveVideos.length} Adult live{adultLiveVideos.length === 1 ? "" : "s"} below · scheduled “waiting to go live” channels stay out · {checkedAt ? `Checked ${new Date(checkedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Waiting for first refresh"}</p></div><Button variant="secondary" disabled={refreshing} onClick={() => void refresh()}><RefreshCw className={refreshing ? "size-4 animate-spin" : "size-4"}/>{refreshing ? "Refreshing…" : "Refresh streams"}</Button></div>
     <div className="mt-6 flex flex-wrap gap-2">{[["all", "All streams"], ["favorites", "Favorites"], ["likes", "Liked"]].map(([value, label]) => <Button key={value} size="sm" variant={filter === value ? "default" : "secondary"} onClick={() => setFilter(value)}>{value === "favorites" ? <Heart className="size-4"/> : value === "likes" ? <ThumbsUp className="size-4"/> : null}{label}</Button>)}</div>
     <div className="mt-4 flex flex-wrap gap-3"><Input className="min-w-0 flex-1" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find a stream or creator" aria-label="Search live streams"/><select aria-label="Sort live streams" className="min-h-11 rounded-sm border border-border bg-elevated px-3 text-sm" value={sort} onChange={(event) => setSort(event.target.value)}><option value="favorites">Favorites first</option><option value="viewers">Most viewers</option><option value="name">Channel A–Z</option></select><select aria-label="Live card size" className="min-h-11 rounded-sm border border-border bg-elevated px-3 text-sm" value={columns} onChange={(event) => setColumns(Number(event.target.value))}><option value={3}>Large cards</option><option value={4}>Comfortable</option><option value={6}>Compact</option></select></div></header>
-    {visible.length ? <div className={columns === 3 ? "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" : columns === 6 ? "grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-6" : "grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"}>{visible.slice(0, 120).map((video, index) => <VideoCard key={video.id} video={video} variant="rail" index={index} className="w-full"/>)}</div> : <div className="rounded-xl border border-border p-8 text-center"><h2 className="font-display text-2xl">{videos.length ? "No streams match this view" : "A quiet moment on your channels"}</h2><p className="mt-2 text-sm text-muted">{videos.length ? "Try all streams or a different search." : "Browse saved Twitch videos while you wait for the next stream."}</p><Button className="mt-4" variant="secondary" onClick={() => { if (videos.length) { setFilter("all"); setSearch(""); } else setSource("twitch"); }}>{videos.length ? "Reset filters" : "Browse Twitch"}</Button></div>}
+    {visible.length ? <><div className={columns === 3 ? "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" : columns === 6 ? "grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-6" : "grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"}>{visible.slice(0, visibleLimit).map((video, index) => <VideoCard key={video.id} video={video} variant="rail" index={index} className="w-full"/>)}</div>{visible.length > visibleLimit && <div className="mt-4"><Button variant="secondary" onClick={() => setVisibleLimit((n) => Math.min(visible.length, n + 48))}>Show more live · {visible.length - visibleLimit} remaining</Button></div>}</> : <div className="rounded-xl border border-border p-8 text-center"><h2 className="font-display text-2xl">{videos.length ? "No streams match this view" : "A quiet moment on your channels"}</h2><p className="mt-2 text-sm text-muted">{videos.length ? "Try all streams or a different search." : "Browse saved Twitch videos while you wait for the next stream."}</p><Button className="mt-4" variant="secondary" onClick={() => { if (videos.length) { setFilter("all"); setSearch(""); } else setSource("twitch"); }}>{videos.length ? "Reset filters" : "Browse Twitch"}</Button></div>}
     <section className="mt-8 rounded-xl border border-border bg-surface p-5"><p className="text-xs font-semibold uppercase tracking-widest text-accent">New live discovery</p><h2 className="mt-2 font-display text-2xl text-fg">Outside your followed channels.</h2><p className="mt-1 text-sm text-muted">These are public Twitch channels to explore separately from your saved feed. Following one adds it to Reelcase and immediately checks its current live status.</p><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{recommendedChannels.map((channel) => <div key={channel.handle} className="rounded-lg bg-elevated p-4 shadow-border"><p className="font-medium text-fg">{channel.title}</p><p className="mt-1 text-xs text-muted">twitch.tv/{channel.handle}</p><Button size="sm" className="mt-3" disabled={adding === channel.handle} onClick={() => void (async () => { setAdding(channel.handle); try { await followRemoteQuery(channel.handle, "twitch"); } finally { setAdding(""); } })()}>{adding === channel.handle ? "Checking…" : "Follow & check live"}</Button></div>)}</div></section>
     <section className="mt-8 rounded-xl border border-accent/30 bg-elevated p-5 shadow-border">
       <div className="flex flex-wrap items-end justify-between gap-3">
