@@ -49,7 +49,8 @@ const PROVIDER_CHOICES: { id: AdultPullProvider[] | "all"; label: string }[] = [
   { id: ["myfreecams"], label: "MyFreeCams only" },
   { id: ["reddit"], label: "Reddit (18+)" },
   { id: ["booru"], label: "Booru photos (18+)" },
-  { id: ["redgifs"], label: "Redgifs (needs API key)" },
+  { id: ["booru"], label: "Rule34 / Gelbooru pull (via Booru)" },
+  { id: ["redgifs"], label: "Redgifs (official API)" },
   { id: ["eporner"], label: "Eporner only" },
   { id: ["redtube"], label: "RedTube only" },
 ];
@@ -549,9 +550,9 @@ export function AdultPanel({
     // One-off usernames are metadata, not useful organization. Keep only
     // recurring creators and a compact control strip.
     return [...counts.entries()]
-      .filter(([, count]) => count >= 2)
+      .filter(([, count]) => count >= 1)
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-      .slice(0, 12);
+      .slice(0, 16);
   }, [adultVideos, discoveryCollapsed, facetsReady, tags]);
 
   const fetishFacets = useMemo(() => {
@@ -722,7 +723,7 @@ export function AdultPanel({
         <div className="px-5 pb-5">
         <p className="mt-2 max-w-2xl text-sm text-muted">
           Official public APIs: Eporner, RedTube, Chaturbate embeds, the MyFreeCams online list,
-          Reddit public Atom RSS for curated 18+ subs, and Gelbooru-style booru JSON (XBooru / TBIB / Hypnohub). If one source errors, the others still fill the shelf.
+          Reddit public Atom RSS for curated 18+ subs, and Gelbooru-style booru JSON (Rule34 / Gelbooru / Realbooru / XBooru / TBIB / Hypnohub / e621). If one host errors, the others still fill the shelf.
         </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {ADULT_EMBED_LINKS.map((site) => (

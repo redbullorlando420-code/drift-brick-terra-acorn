@@ -68,8 +68,9 @@ export type AdultTagRankRow = { tag: string; score: number; count: number };
  * leading discovery rail. Tags remain searchable on the title, but the ranked
  * browser waits for independent support before promoting a tag.
  */
-export const ADULT_RANKED_TAG_MIN_COUNT = 2;
-export const ADULT_TOP_TAG_RAIL_MIN_COUNT = 4;
+/** Chips and search must include single-title tags; rails stay pickier. */
+export const ADULT_RANKED_TAG_MIN_COUNT = 1;
+export const ADULT_TOP_TAG_RAIL_MIN_COUNT = 3;
 
 function stabilizedTagScore(
   engagement: number,
@@ -77,18 +78,22 @@ function stabilizedTagScore(
   recency: number,
   boost: number,
   providerCoverage = 1,
+  videoScoreSum = 0,
 ): number {
-  // Shrink sparse-tag engagement toward the neutral pull signal. The support
-  // curve reaches half strength at four titles and keeps count meaningful even
-  // when a one-off has a strong personal rating.
-  const support = count / (count + 4);
+  // Sparse tags (count 1–2) keep a usable floor so a hearted or highly rated
+  // single title still surfaces. Support reaches half strength near three titles.
+  const support = Math.max(count === 1 ? 0.42 : 0.28, count / (count + 3));
   const stableEngagement = 1 + (engagement - 1) * support;
+  const videoScoreLift = Math.min(18, videoScoreSum / Math.max(1, count) / 8) * support;
   return (
     stableEngagement * 12
-    + Math.log2(count + 1) * 2.4
+    + Math.log2(count + 1) * 2.8
     + recency * 4 * support
     + boost * support
     + Math.min(4, providerCoverage) * 1.25 * support
+    + videoScoreLift
+    // Never zero-out a real tag: every observed title contributes a floor.
+    + Math.min(6, count) * 0.85
   );
 }
 
@@ -117,7 +122,7 @@ export function rankAdultTags(
   ctx: AdultRankContext,
   limit = 64,
 ): AdultTagRankRow[] {
-  const rows = new Map<string, { total: number; count: number; recent: number }>();
+  const rows = new Map<string, { total: number; count: number; recent: number; videoScoreSum: number }>();
   for (const video of videos) {
     const rating = ctx.ratingOf(video.id);
     const signal = Math.max(
@@ -125,17 +130,20 @@ export function rankAdultTags(
       ctx.favorites[video.id] ? 4 : 0,
       ctx.likes[video.id] ? 3 : 0,
       Math.min(5, ctx.cameCounts[video.id] ?? 0),
-      1,
+      // Zero-score videos still count as support so rare tags stay findable.
+      0.35,
     );
     const kind = adultProviderKind(video);
     const itemTags = ctx.tags[video.id] ?? [];
+    const videoScore = scoreAdultVideo(video, ctx);
     for (const tag of expandedAdultTags(itemTags)) {
       if (!isAdultInterestTag(tag)) continue;
-      const row = rows.get(tag) ?? { total: 0, count: 0, recent: 0 };
+      const row = rows.get(tag) ?? { total: 0, count: 0, recent: 0, videoScoreSum: 0 };
       const redditBoost = kind === "reddit" && (tag.startsWith("source-reddit") || tag.startsWith("sub-") || tag.startsWith("fetish-")) ? 2 : 0;
       row.total += signal + adultTagRankBoost(tag) + redditBoost;
       row.count += 1;
       row.recent = Math.max(row.recent, video.addedAt);
+      row.videoScoreSum += videoScore;
       rows.set(tag, row);
     }
   }
@@ -144,10 +152,15 @@ export function rankAdultTags(
     .map(([tag, row]) => {
       const engagement = (row.total + 9) / (row.count + 3);
       const recency = Math.max(0, 1 - (now - row.recent) / (30 * 86_400_000));
+      const hearted = Boolean(ctx.tagIsHearted?.(tag));
+      const historic = Boolean(ctx.tagHasHeartHistory?.(tag));
+      // Hearts dominate sparse discovery: a hearted 1-video tag outranks cold volume.
+      const heartBoost = hearted ? 56 : historic ? 10 : 0;
+      const sparseBoost = row.count === 1 && (hearted || historic || engagement > 1.4) ? 8 : 0;
       return {
         tag,
         count: row.count,
-        score: stabilizedTagScore(engagement, row.count, recency, adultTagRankBoost(tag)) + (ctx.tagIsHearted?.(tag) ? 48 : 0) + (ctx.tagHasHeartHistory?.(tag) ? 6 : 0),
+        score: stabilizedTagScore(engagement, row.count, recency, adultTagRankBoost(tag), 1, row.videoScoreSum) + heartBoost + sparseBoost,
       };
     })
     .filter((row) => row.count >= ADULT_RANKED_TAG_MIN_COUNT)
@@ -226,7 +239,7 @@ export function rankAdultMetaTags(
       return {
         tag,
         count: row.count,
-        score: stabilizedTagScore(engagement, row.count, recency, 0, row.providers.size) + (ctx.tagIsHearted?.(tag) ? 48 : 0) + (ctx.tagHasHeartHistory?.(tag) ? 6 : 0),
+        score: stabilizedTagScore(engagement, row.count, recency, 0, row.providers.size) + (ctx.tagIsHearted?.(tag) ? 56 : 0) + (ctx.tagHasHeartHistory?.(tag) ? 10 : 0) + (row.count === 1 && ctx.tagIsHearted?.(tag) ? 8 : 0),
       };
     })
     .filter((row) => row.count >= ADULT_RANKED_TAG_MIN_COUNT)
