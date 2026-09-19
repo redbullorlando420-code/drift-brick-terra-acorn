@@ -1,0 +1,14 @@
+{
+  "exportedAt": "",
+  "likes": [],
+  "meta": {
+    "example-photo-id": {
+      "path": "Example Photos/sample.jpg",
+      "favorite": true,
+      "rating": 5,
+      "album": "Example Photos",
+      "tags": ["favorite-set"],
+      "people": []
+    }
+  }
+}

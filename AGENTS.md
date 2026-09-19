@@ -1,56 +1,30 @@
 # Reelcase — PR living notes
 
-**PR** `fix/three-dep` → `main` · Ensure production dep `three@^0.186` stays installed for the Prints viewer (Rolldown resolve failure after #6).
+**PR** `fix/twitch-vods-clips` → `main` · Twitch VOD depth fix (GQL `first` max 100) + numbered clip pulls; durable Photos sources/likes + library pack `photos/`.
+
+**Prior** `fix/three-dep` (#7, merged) · Ensure production dep `three@^0.186` stays installed for the Prints viewer (Rolldown resolve failure after #6).
 
 **Prior** `perf/speed-memory-adult-apis` (#6, merged) · Speed, memory, Adult API harden/backups, photos/models, Rule34 filters, Live Adult lives, richer Stats, tag-click fix, **3D Prints interactive viewer**, section teardown + grid/storage speedups + durable YT/Twitch follows + broader durable activity stores + library pack export/import.
 
 ## In progress
 
-Fix post-#6 build: platform does **not** preinstall game engines — `three` must remain in `package.json` / lockfile and `node_modules`. `npm run build` now runs `scripts/check-three-dep.mjs` first.
+Twitch follow/import was requesting `videos(first: 160)`. Helix/GQL only allows 1..100, so the `videos` field errored while the channel shell still resolved — imports looked successful with almost no VODs. Clip shelves used only short-VOD heuristics; real `user.clips` pulls (numbered 50/100/250) are restored. Photos likes/sources now use a dedicated durable store + pack export.
 
 ### Shipped this PR
-1. **Faster Adult first paint** — lower interactive/fast-start pull sizes and rail seed; tighter TitleRail/PosterGrid viewport margins and earlier offscreen unmount.
-2. **Leaner Adult ranking windows** — smaller rotate/rank candidate windows so shelves compute sooner.
-3. **Catalog + history memory caps** — Adult catalog soft-capped at `adultTargetCatalogVideos`; in-memory history bounded via `historyMemoryEntries` (journal can still retain longer).
-4. **Thumb memory hygiene** — lower in-memory decoded-thumb ceiling; revoke `blob:` object URLs on eviction.
-5. **Tighter Adult thumb session maps** — smaller failed/good/by-video session caps.
-6. **Redgifs official API** — temporary-token search as primary (posters + media); AdultDataLink remains optional fallback when `ADULTDATALINK_API_KEY` / `ADL_API_KEY` is set.
-7. **e621 in Booru pulls** — documented JSON posts API with preview thumbs, shared into the booru shelf rotation.
-8. **Rule34 JSON primary + HTML backup** — `api.rule34.xxx` dapi first; listing HTML remains failover. Double share so Rule34 shelves stay populated.
-9. **More booru hosts** — Gelbooru + Realbooru Gelbooru-style JSON added beside XBooru / TBIB / Hypnohub / e621.
-10. **Eporner backup path** — empty/failed primary order retries alternate sort + smaller page (no HTML scrape).
-11. **Rule34 / e621 / Gelbooru / Realbooru filter chips** — first-class Adults source filters + Rule34 shelf; host counts in Stats.
-12. **Reddit tighten** — priority media-heavy subs (incl. rule34) lead curated rotate; slightly fewer concurrent Atom fetches + longer cache TTL.
-13. **Tag click / sparse tags** — Adult card tag click sets Adults filter (clears search) so 1-video tags show; search exact-tag shortcut; ranking min count 1 with heart/video-score lift for sparse tags.
-14. **Live tab Adult lives** — Chaturbate/MFC block below YT/Twitch in Live desk.
-15. **Richer Stats** — Adult media pie, booru host bars/table, engagement table (views, resume hours, rated, history, sparse tags).
-16. **Photos AI models** — upscaler prefers Cache API / shipped `/models/swin2sr-x2-q4f16.onnx` before HF; SigLIP large+ revision pinned; Photos first paint limit 48.
-17. **3D Prints viewer** — interactive three.js orbit/inspect for STL, OBJ, GLB/GLTF, and 3MF; bundled sample meshes under `public/samples/prints/`; user-added viewable bytes in IndexedDB (`reelcase-prints`) with dispose-on-unmount; G-code stays catalog-only. **Requires production dependency `three@^0.186` (+ `@types/three` in devDependencies)** — not preinstalled in the sandbox; if Vite/Rolldown cannot resolve `"three"`, run `npm install three@^0.186.0` and keep it in `package.json`/lockfile for deploy.
-18. **Section teardown** — leaving YouTube/Adults/Home drops deferred explore/deep shelves, clears Adult browse ranking packets, and flushes speculative image decode waiters.
-19. **VideoGrid sliding window** — infinite grids unmount far-scrolled cards (mount cap 108) with lead spacers; Live desk first-paint 48 + Show more.
-20. **Storage growth guards** — IndexedDB thumb-cache pruned to `thumbCacheEntries` (420); print blobs also capped by total bytes (192 MB); Adult thumb host score maps trimmed.
-21. **Player / blob hygiene** — local `<video>` pause+detach on player unmount; upscaler model blob revoked after Cache seed; Photos upscale preview revoked on leave.
-22. **Idle Home discovery** — DiscoveryDesk ranking runs on `requestIdleCallback` with stride-sample on huge catalogs; low-priority image queue pauses while the tab is hidden.
-23. **Durable YouTube/Twitch follows** — follow lists now live in a dedicated IndexedDB key (`activity` → `follows`) plus tiny `reelcase.follows.v1` localStorage mirror, separate from the prefs/tags blob. Hydrate merges dedicated store + legacy `prefs.follows`; import-history seeds stubs before network recovery. Thumb prune, history journal prune, and Adult catalog caps never touch this store.
-24. **Broader durable activity stores** — same pattern as follows for sticky local PC data that used to live only in the giant prefs blob or fragile LS-only feedback:
-    - `activity` → `history` + `reelcase.history.v1` (watch history snapshot; journal remains append-only)
-    - `activity` → `resume` + `reelcase.resume.v1` (progress + continue-watching pointers)
-    - `activity` → `marks` + `reelcase.marks.v1` (viewCounts + Adult cameCounts)
-    - `activity` → `shelves` + `reelcase.shelves.v1` (favorites + likes)
-    - `activity` → `links` + `reelcase.links.v1` (saved video URLs derived from history/resume)
-    - `activity` → `feedback` backing `reelcase.media-feedback.v1` (ratings, notes, creator likes, tag hearts)
-    Hydrate merges dedicated stores over prefs/activity snapshot; persist writes them on every library save. Memory prune never clears these keys.
-25. **Library pack export/import** — Settings downloads a zip mirroring `public/import-templates/` / `data/import-templates/` (`follows/`, `history/`, `links/`, `marks/`, `resume/`, `stats/` + README). Import merges into the durable stores above; optional confirm to replace follows only. Offline fill-in templates shipped in-repo.
+1. **Twitch VOD page size** — clamp `first` to ≤100; empty-page retry at 30; one best-effort cursor continuation; merge ARCHIVE + HIGHLIGHT + UPLOAD on focused pulls.
+2. **Import preserves archives** — bulk Twitch import no longer drops previously cached VOD/clip cards when a shallow page returns.
+3. **Numbered clip pulls** — public `user.clips` across periods (default / week / month / all-time) with UI counts and Pull 50 / 100 / 250 controls; routine/focused clip budgets in `LIBRARY_LIMITS`.
+4. **Short channel cache** — Twitch follow results cached ~3 minutes to avoid hammering GQL on repeat refreshes.
+5. **Durable Photos sources/likes** — `activity` → `photos` + `reelcase.photos.v1` (+ legacy `reelcase.photo-meta.v1` mirror); hydrate on startup; memory prune never clears.
+6. **Library pack `photos/`** — sources + likes/meta JSON/CSV in export/import and offline templates.
 
 ### Env / keys (no secrets in repo)
-- `ADULTDATALINK_API_KEY` or `ADL_API_KEY` — optional Redgifs secondary via AdultDataLink.
-- Local vision/upscaler models download to browser cache on user action; bundled Swin2SR artifact under `public/models/`.
+- Unchanged from #6 / #7. Twitch uses the public web Client-ID for GQL only (no Helix OAuth).
 
 ### Still open
-- Soak test Redgifs temporary-token + Rule34 JSON + e621 preview reliability under the session blacklist
-- Optional: additional documented tube APIs only when they expose stable public search + thumbs (no HTML scrape)
-- Optional: measured row heights for VideoGrid lead spacers across breakpoints
-- Optional: File System Access “save folder” for pack export when the browser supports directory writes (zip remains the default)
+- Twitch archive pages beyond the first public window still need the web integrity token; we stop after one failed continuation rather than hammering.
+- Soak test numbered clip pulls under rate limits on large follow lists.
+- Optional: File System Access “save folder” for pack export when the browser supports directory writes.
 
 Official public APIs + Reddit Atom only. 18+ only. No Pornhub scrape; no torrents.
 

@@ -50,7 +50,7 @@ import { Input } from "@/components/ui/input";
 import { resumeForVideo, useLibrary } from "@/lib/videos/store";
 import { buildAdultStatsSnapshot, exportAdultStats } from "@/lib/videos/adult-stats";
 import { downloadLibraryPackZip, importLibraryPackZip, type LibraryPackMode } from "@/lib/videos/library-pack";
-import { linksFromHistoryAndResume } from "@/lib/videos/persist";
+import { linksFromHistoryAndResume, saveDurablePhotos, restoreDurablePhotos, loadDurablePhotosSync, type DurablePhotoMeta } from "@/lib/videos/persist";
 import { rankAdultTags } from "@/lib/videos/adult-rank";
 import { countAdultBySource, countAdultBooruHosts } from "@/lib/videos/adult-filter";
 import { isAdultImageKind } from "@/lib/videos/adult-sites";
@@ -767,6 +767,13 @@ export function SettingsSection() {
         videos: state.videos,
         favorites: Object.keys(state.favorites),
         likes: Object.keys(state.likes),
+              photoSources: state.folders.filter((f) => f.kind === "directory" || f.kind === "files").map((f) => ({
+                id: f.id, name: f.name, kind: f.kind as "directory" | "files",
+                ...(f.photoCount != null ? { photoCount: f.photoCount } : {}),
+                ...(f.lastCheckedAt != null ? { lastCheckedAt: f.lastCheckedAt } : {}),
+              })),
+              photoMeta: loadDurablePhotosSync()?.meta,
+              photoLikes: loadDurablePhotosSync()?.likes,
         tags: state.tags,
         categories: state.categories,
         progress: state.progress,
@@ -867,7 +874,7 @@ export function SettingsSection() {
         <h2 className="mt-2 font-display text-2xl text-fg">Export / import follows, history, links & marks</h2>
         <p className="mt-1 max-w-2xl text-sm text-muted">
           Downloads a zip that matches <code className="text-fg">public/import-templates/</code>: follows, watch history,
-          saved video URLs, continue-watching pointers, favorites/likes, Adult marks, ratings &amp; tag hearts, and stats.
+          saved video URLs, continue-watching pointers, favorites/likes, Photos sources &amp; likes, Adult marks, ratings &amp; tag hearts, and stats.
           Import merges into durable IndexedDB stores and does not wipe unrelated data unless you confirm replace-follows.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
@@ -886,6 +893,13 @@ export function SettingsSection() {
               adultVideos: state.videos,
               folders: state.folders,
               tags: state.tags,
+              photoSources: state.folders.filter((f) => f.kind === "directory" || f.kind === "files").map((f) => ({
+                id: f.id, name: f.name, kind: f.kind as "directory" | "files",
+                ...(f.photoCount != null ? { photoCount: f.photoCount } : {}),
+                ...(f.lastCheckedAt != null ? { lastCheckedAt: f.lastCheckedAt } : {}),
+              })),
+              photoMeta: loadDurablePhotosSync()?.meta,
+              photoLikes: loadDurablePhotosSync()?.likes,
             });
             setServiceNote("Library pack zip downloaded. Unzip to edit offline, or keep as backup.");
           }}><Download className="size-4" /> Export library pack</Button>
@@ -914,13 +928,27 @@ export function SettingsSection() {
                   favorites: Object.fromEntries(favorites.map((id) => [id, true as const])),
                   likes: Object.fromEntries(likes.map((id) => [id, true as const])),
                 }),
+                getPhotoSources: () => useLibrary.getState().folders
+                  .filter((f) => f.kind === "directory" || f.kind === "files")
+                  .map((f) => ({ id: f.id, name: f.name, kind: f.kind as "directory" | "files", photoCount: f.photoCount, lastCheckedAt: f.lastCheckedAt })),
+                setPhotoSources: (sources) => useLibrary.setState((s) => {
+                  let folders = s.folders;
+                  for (const source of sources) {
+                    if (folders.some((f) => f.id === source.id)) {
+                      folders = folders.map((f) => f.id === source.id ? { ...f, name: source.name, kind: source.kind, photoCount: source.photoCount ?? f.photoCount, lastCheckedAt: source.lastCheckedAt ?? f.lastCheckedAt } : f);
+                    } else {
+                      folders = [...folders, { id: source.id, name: source.name, kind: source.kind, videoCount: 0, photoCount: source.photoCount ?? 0, lastCheckedAt: source.lastCheckedAt, needsPermission: true, health: "permission-needed" as const }];
+                    }
+                  }
+                  return { folders };
+                }),
                 getProgress: () => useLibrary.getState().progress,
                 getResumeProgress: () => useLibrary.getState().resumeProgress,
                 setResume: (progress, resumeProgress) => useLibrary.setState({ progress, resumeProgress }),
                 getLinks: () => linksFromHistoryAndResume(useLibrary.getState().history, useLibrary.getState().resumeProgress),
                 setLinks: () => { /* links persist via saveDurableLinks inside apply */ },
               }, mode).then((result) => {
-                setServiceNote(`Pack import · +${result.followsAdded} follows · +${result.historyMerged} history · +${result.linksMerged} links${result.feedbackMerged ? " · ratings/hearts merged" : ""}${result.warnings.length ? ` · ${result.warnings[0]}` : ""}`);
+                setServiceNote(`Pack import · +${result.followsAdded} follows · +${result.historyMerged} history · +${result.linksMerged} links${result.photosMerged ? ` · photos ${result.photosMerged}` : ""}${result.feedbackMerged ? " · ratings/hearts merged" : ""}${result.warnings.length ? ` · ${result.warnings[0]}` : ""}`);
               }).catch((error) => {
                 setServiceNote(error instanceof Error ? error.message : "Library pack import failed.");
               });
@@ -1452,16 +1480,42 @@ const PHOTO_FILE_RE = /\.(avif|bmp|gif|heic|heif|jpe?g|png|tiff?|webp)$/i;
 const photoSourceWarmth = new Map<string, number>();
 const PHOTO_BACKGROUND_REFRESH_MS = 30 * 60_000;
 let cachedPhotoMetadata: Record<string, Partial<LocalPhoto>> | null = null;
+let photoMetaHydrated = false;
 
 function photoMetadata() {
   if (cachedPhotoMetadata) return cachedPhotoMetadata;
+  const durable = loadDurablePhotosSync();
+  if (durable?.meta && Object.keys(durable.meta).length) {
+    cachedPhotoMetadata = durable.meta as Record<string, Partial<LocalPhoto>>;
+    return cachedPhotoMetadata;
+  }
   try { cachedPhotoMetadata = JSON.parse(localStorage.getItem("reelcase.photo-meta.v1") ?? "{}"); }
   catch { cachedPhotoMetadata = {}; }
   return cachedPhotoMetadata as Record<string, Partial<LocalPhoto>>;
 }
 
+function persistPhotoMetadata(next: Record<string, Partial<LocalPhoto>>, sources?: Array<{ id: string; name: string; kind: "directory" | "files"; photoCount?: number; lastCheckedAt?: number }>) {
+  cachedPhotoMetadata = next;
+  const likes = Object.entries(next).filter(([, row]) => row.favorite).map(([id]) => id);
+  saveDurablePhotos({
+    meta: next as Record<string, DurablePhotoMeta>,
+    likes,
+    ...(sources ? { sources } : {}),
+  });
+}
+
 export function PhotosSection() {
   const scannedPhotoSources = useRef(new Set<string>());
+  useEffect(() => {
+    if (photoMetaHydrated) return;
+    photoMetaHydrated = true;
+    void restoreDurablePhotos().then((durable) => {
+      cachedPhotoMetadata = { ...(cachedPhotoMetadata ?? {}), ...durable.meta } as Record<string, Partial<LocalPhoto>>;
+      if (durable.sources.length) {
+        // Source stubs hydrate through the library folders list below.
+      }
+    }).catch(() => undefined);
+  }, []);
   const photoUrls = useRef(new Set<string>());
   const knownPhotoIds = useRef(new Set<string>());
   const discoverySeen = useRef(new Set<string>());
@@ -1703,8 +1757,17 @@ export function PhotosSection() {
     if (metadataWriteTimer.current) clearTimeout(metadataWriteTimer.current);
     metadataWriteTimer.current = setTimeout(() => {
       try {
-        cachedPhotoMetadata = { ...photoMetadata(), ...Object.fromEntries(photos.map(({ id, path, people, tags, album, favorite, rating, width, height, vision, visionModel }) => [id, { path, people, tags, album, favorite, rating, width, height, vision, visionModel }])) };
-        localStorage.setItem("reelcase.photo-meta.v1", JSON.stringify(cachedPhotoMetadata));
+        const nextMeta = { ...photoMetadata(), ...Object.fromEntries(photos.map(({ id, path, people, tags, album, favorite, rating, width, height, vision, visionModel }) => [id, { path, people, tags, album, favorite, rating, width, height, vision, visionModel }])) };
+        const photoSources = useLibrary.getState().folders
+          .filter((folder) => folder.kind === "directory" || folder.kind === "files")
+          .map((folder) => ({
+            id: folder.id,
+            name: folder.name,
+            kind: folder.kind as "directory" | "files",
+            ...(folder.photoCount != null ? { photoCount: folder.photoCount } : {}),
+            ...(folder.lastCheckedAt != null ? { lastCheckedAt: folder.lastCheckedAt } : {}),
+          }));
+        persistPhotoMetadata(nextMeta, photoSources);
       } catch { /* quota */ }
     }, 650);
     return () => { if (metadataWriteTimer.current) clearTimeout(metadataWriteTimer.current); };
