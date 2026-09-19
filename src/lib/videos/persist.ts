@@ -11,6 +11,7 @@ import type {
   SortKey,
 } from "./types";
 import { LIBRARY_LIMITS } from "@/lib/library-limits";
+import { companionGetThumb, companionPutThumb } from "@/lib/companion";
 
 const DB_NAME = "reelcase";
 const STORE = "dirs";
@@ -874,6 +875,10 @@ export async function saveThumbCache(entry: StoredThumb, maxEntries = LIBRARY_LI
     });
     await pruneThumbCache(db, maxEntries);
   } finally { db.close(); }
+  // Mirror durable data-URL artwork to the companion disk cache when available.
+  if (entry.thumb?.startsWith("data:image")) {
+    void companionPutThumb(entry.id, entry.thumb);
+  }
 }
 
 /** Drop oldest thumb-cache rows so data-URL artwork cannot grow without bound. */

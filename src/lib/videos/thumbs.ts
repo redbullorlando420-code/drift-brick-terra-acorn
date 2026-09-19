@@ -4,6 +4,8 @@ import type { LibraryVideo } from "./types";
 import { resolvePlayUrl } from "./sources";
 import { bitmapFromVideo } from "./hw";
 import { loadThumbCache, saveThumbCache } from "./persist";
+import { companionGetThumb } from "@/lib/companion";
+export { companionCacheThumbUrl as mirrorRemotePosterToCompanion } from "@/lib/companion";
 
 type ThumbState = {
   byId: Record<string, string>;
@@ -13,6 +15,7 @@ type ThumbState = {
   request: (video: LibraryVideo) => void;
   retry: (video: LibraryVideo) => void;
   hydrate: () => Promise<void>;
+  recallCompanion: (id: string) => Promise<void>;
 };
 
 const inflight = new Set<string>();
@@ -217,5 +220,13 @@ export const useThumbs = create<ThumbState>((set, get) => ({
       const rows = await loadThumbCache(MAX_MEMORY_THUMBS);
       set((s) => ({ byId: { ...Object.fromEntries(rows.map((row) => [row.id, row.thumb])), ...s.byId } }));
     } catch { /* Thumbnail cache is an optional speed-up. */ }
+  },
+  /** Recall a companion-disk thumb when browser IndexedDB was pruned. */
+  recallCompanion: async (id: string) => {
+    if (!id || get().byId[id]) return;
+    const dataUrl = await companionGetThumb(id);
+    if (!dataUrl) return;
+    set((s) => ({ byId: { ...s.byId, [id]: dataUrl } }));
+    void saveThumbCache({ id, thumb: dataUrl, at: Date.now() }).catch(() => undefined);
   },
 }));

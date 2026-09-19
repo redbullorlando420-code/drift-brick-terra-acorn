@@ -3,7 +3,7 @@ import { Download, Eye, EyeOff, Flame, Heart, ImageOff, LoaderCircle, Play, Tag,
 import { cn, formatAgo, formatBytes, formatTime } from "@/lib/utils";
 import type { LibraryVideo } from "@/lib/videos/types";
 import { hasFreshViewerCount, isLikelyPlayable, titleOf } from "@/lib/videos/types";
-import { useThumbs } from "@/lib/videos/thumbs";
+import { useThumbs, mirrorRemotePosterToCompanion } from "@/lib/videos/thumbs";
 import { adultThumbCandidatesForVideo, isDecodedAdultThumbLikelyReal } from "@/lib/videos/adult-thumbs";
 import {
   isAdultThumbBlacklisted,
@@ -48,6 +48,7 @@ export const VideoCard = memo(function VideoCard({
   const capturedDur = useThumbs((s) => s.durations[video.id]);
   const request = useThumbs((s) => s.request);
   const retry = useThumbs((s) => s.retry);
+  const recallCompanion = useThumbs((s) => s.recallCompanion);
   const artworkDiagnostic = useThumbs((s) => s.diagnostics[video.id]);
   const repairArtworkSource = useLibrary((s) => s.repairArtworkSource);
   const followRemoteQuery = useLibrary((s) => s.followRemoteQuery);
@@ -185,6 +186,11 @@ export const VideoCard = memo(function VideoCard({
     return () => io.disconnect();
   }, [request, video]);
 
+  useEffect(() => {
+    if (!artVisible || !video.remote) return;
+    void recallCompanion(video.id);
+  }, [artVisible, recallCompanion, video.id, video.remote]);
+
   // A visible card owns a high-priority slot only while its current candidate
   // is loading. Releasing it after load/error lets the next card paint; the
   // last successful image stays mounted underneath every fallback.
@@ -313,6 +319,9 @@ export const VideoCard = memo(function VideoCard({
             setPaintedSrc(url);
             setCandidateReady(true);
             releaseImageSlot();
+            if (video.remote && /^https:\/\//i.test(url)) {
+              void mirrorRemotePosterToCompanion(video.id, url);
+            }
           }}
           onError={() => {
             if (showPreview) return;
