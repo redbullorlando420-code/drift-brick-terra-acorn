@@ -46,6 +46,7 @@ const PrintModelViewer = lazy(async () => {
   return { default: mod.PrintModelViewer };
 });
 import { isViewablePrintName, savePrintBlob } from "@/lib/prints-blobs";
+import { fetchCompanionIcons, iconsFromFolderFiles, loadGameIconCache, saveGameIcon } from "@/lib/game-icons";
 import { Input } from "@/components/ui/input";
 import { resumeForVideo, useLibrary } from "@/lib/videos/store";
 import { buildAdultStatsSnapshot, exportAdultStats } from "@/lib/videos/adult-stats";
@@ -1145,7 +1146,7 @@ export function PrintsSection() {
       eyebrow="Maker shelf"
       icon={<Box className="size-4" />}
       title="3D prints"
-      copy="Keep a lightweight catalog of print-ready files. Preview STL, OBJ, GLB/GLTF, and 3MF in an interactive orbit viewer; G-code stays list-only for slicers."
+      copy="Keep a lightweight catalog of print-ready files. Preview STL, OBJ, GLB/GLTF, and 3MF in an interactive orbit viewer with transform editor, lighting presets, wireframe, grid, and fullscreen; G-code stays list-only for slicers."
       accept=".stl,.obj,.3mf,.gcode,.glb,.gltf"
       footer={
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -2408,9 +2409,9 @@ const DEFAULT_MISSIONS: Mission[] = [
 const ROADMAP_EXPANSION: Mission[] = [
   ...[
     ["adult-thumbnail-coverage", "Adult preview coverage", "Continue scoring usable thumbnails above slow or missing artwork across Reddit, Redgifs, RedTube, and other adult providers."],
-    ["print-file-viewer", "3D print file viewer", "Interactive three.js orbit viewer for STL, OBJ, GLB/GLTF, and 3MF — sample models plus user-added IndexedDB bytes; dispose on close."],
+    ["print-file-viewer", "3D print file viewer", "Interactive three.js orbit viewer + transform editor for STL, OBJ, GLB/GLTF, and 3MF — lighting/camera presets, wireframe, grid, explode, fullscreen; sample models plus user-added IndexedDB bytes; dispose on close."],
     ["twitch-view-modes", "Twitch viewing modes", "Keep official Twitch playback available in theater or side-details mode, while filtering offline channels and ranking VODs by useful signals."],
-    ["games-shortcut-curation", "Games shortcut curation", "Promote verified game launchers and their icons while keeping unrelated web links and desktop helpers out of game recommendations."],
+    ["games-shortcut-curation", "Games shortcut curation", "Promote verified game launchers with companion/folder icon pull + local icon cache while keeping unrelated web links and desktop helpers out of game recommendations."],
   ].map(([id, title, detail]) => ({ id, title, detail, done: id === "print-file-viewer" })),
   ...[
     ["history-01", "History integrity journal", "Add monotonic event IDs and an append-only local audit record."],
@@ -2541,22 +2542,50 @@ export function GamesSection() {
   const [sort, setSort] = useState<"name" | "newest" | "type">("name");
   const [companionLoading, setCompanionLoading] = useState(false);
   const sourceShortcuts = useSourceAssets((s) => s.shortcuts);
+  const [iconPulling, setIconPulling] = useState(false);
   useEffect(() => {
     const saved = readHub().games;
-    setGames(saved);
+    const icons = loadGameIconCache();
+    setGames(saved.map((game) => ({ ...game, iconData: game.iconData || icons[game.path] })));
   }, []);
   const saveGames = (next: LocalItem[]) => {
+    // Keep hub metadata lean — icon data URLs live in reelcase.game-icons.v1.
+    const slim = next.map(({ iconData, ...rest }) => {
+      if (iconData) saveGameIcon(rest.path, iconData);
+      return rest;
+    });
     setGames(next);
     const hub = readHub();
-    writeHub({ ...hub, games: next });
+    writeHub({ ...hub, games: slim });
+  };
+  const mergeIcons = (current: LocalItem[], iconMap: Map<string, string>) =>
+    current.map((game) => {
+      const icon = iconMap.get(game.path);
+      return icon ? { ...game, iconData: icon } : game;
+    });
+  const pullMissingIcons = async (list: LocalItem[]) => {
+    const missing = list.filter((game) => !game.iconData).map((game) => game.path);
+    if (!missing.length) return list;
+    setIconPulling(true);
+    try {
+      const iconMap = await fetchCompanionIcons(missing);
+      if (!iconMap.size) return list;
+      const next = mergeIcons(list, iconMap);
+      saveGames(next);
+      return next;
+    } finally {
+      setIconPulling(false);
+    }
   };
   const add = async (files: FileList | File[] | null, allowWebShortcut = false) => {
     if (!files) return;
-    const source = Array.from(files).filter((file) =>
+    const allFiles = Array.from(files);
+    const source = allFiles.filter((file) =>
       allowWebShortcut
         ? /\.(exe|lnk|url|appref-ms)$/i.test(file.name)
         : /\.(exe|lnk|url|appref-ms)$/i.test(file.name),
     );
+    const folderIcons = await iconsFromFolderFiles(allFiles);
     const next = await Promise.all(
       source.map(async (file) => {
         let launchUrl: string | undefined;
@@ -2564,24 +2593,31 @@ export function GamesSection() {
           const match = (await file.text()).match(/^URL\s*=\s*((?:https?|steam|epic|com\.epicgames\.launcher|xbox):\S+)/im);
           launchUrl = match?.[1];
         }
+        const path = file.webkitRelativePath || file.name;
+        const iconData = folderIcons.get(path.replace(/\\/g, "/")) || folderIcons.get(path);
+        if (iconData) saveGameIcon(path, iconData);
         return {
           name: file.name,
-          path: file.webkitRelativePath || file.name,
+          path,
           size: file.size,
           addedAt: Date.now(),
           launchUrl,
+          iconData,
         };
       }),
     );
+    let merged: LocalItem[] = [];
     setGames((current) => {
-      const merged = [
+      merged = [
         ...current,
         ...next.filter((item) => !current.some((game) => game.path === item.path)),
       ];
       const hub = readHub();
-      writeHub({ ...hub, games: merged });
+      writeHub({ ...hub, games: merged.map(({ iconData: _icon, ...rest }) => rest) });
       return merged;
     });
+    // Companion can still fill Windows shell icons for paths under approved roots.
+    void pullMissingIcons(merged.length ? merged : next);
   };
   useEffect(() => { if (sourceShortcuts.length) void add(sourceShortcuts, true); }, [sourceShortcuts]);
   const launchDesktop = async (game: LocalItem) => {
@@ -2599,22 +2635,35 @@ export function GamesSection() {
       const response = await fetch("http://127.0.0.1:43123/shortcuts?limit=300");
       const result = await response.json() as { ok?: boolean; shortcuts?: Array<{ name: string; path: string; launchUrl?: string }>; error?: string };
       if (!result.ok) throw new Error(result.error ?? "The companion could not read approved shortcuts.");
-      const next = (result.shortcuts ?? []).map((item) => ({ ...item, size: 0, addedAt: Date.now() }));
+      const cachedIcons = loadGameIconCache();
+      const next = (result.shortcuts ?? []).map((item) => ({
+        ...item,
+        size: 0,
+        addedAt: Date.now(),
+        iconData: cachedIcons[item.path],
+      }));
+      let merged: LocalItem[] = [];
       setGames((current) => {
         // Refresh existing rows too: legacy .url entries may have been saved
         // before the companion could safely surface their readable target.
         const incoming = new Map(next.map((item) => [item.path, item]));
-        const merged = [
+        merged = [
           ...current.map((game) => {
             const refreshed = incoming.get(game.path);
-            return refreshed ? { ...game, ...refreshed, iconData: game.iconData } : game;
+            return refreshed ? { ...game, ...refreshed, iconData: game.iconData || refreshed.iconData } : game;
           }),
           ...next.filter((item) => !current.some((game) => game.path === item.path)),
         ];
-        writeHub({ ...readHub(), games: merged });
+        writeHub({ ...readHub(), games: merged.map(({ iconData: _icon, ...rest }) => rest) });
         return merged;
       });
-      setLaunchNotice(next.length ? `Added ${next.length} approved desktop shortcuts. They can launch through the companion.` : "No approved desktop shortcuts were found. Add a shortcut to Desktop or another approved companion folder.");
+      const withIcons = await pullMissingIcons(merged.length ? merged : next);
+      const got = withIcons.filter((game) => game.iconData).length;
+      setLaunchNotice(
+        next.length
+          ? `Added ${next.length} approved desktop shortcuts · ${got} icons cached. Desktop launch still needs the companion.`
+          : "No approved desktop shortcuts were found. Add a shortcut to Desktop or another approved companion folder.",
+      );
     } catch {
       setLaunchNotice("Companion connection unavailable. Start the local Reelcase Companion, then try again.");
     } finally { setCompanionLoading(false); }
@@ -2629,7 +2678,7 @@ export function GamesSection() {
       eyebrow="Desktop game shelf"
       icon={<Gamepad2 className="size-4" />}
       title="A clearer game drawer."
-      copy="Choose a dedicated games folder, add custom cover icons, and explicitly import web game shortcuts. Every card has a launch control: web shortcuts open directly; desktop launchers are clearly marked because browsers cannot start an .exe by themselves."
+      copy="Choose a dedicated games folder (icons from sibling .ico/.png), load approved Desktop shortcuts through the companion (shell icons + folder art), or set a cover manually. Web shortcuts open directly; desktop launchers need the companion."
     >
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <label>
@@ -2646,6 +2695,17 @@ export function GamesSection() {
         </label>
         <Button variant="secondary" disabled={companionLoading} onClick={() => void loadApprovedShortcuts()}>
           {companionLoading ? "Reading approved shortcuts…" : "Load approved desktop shortcuts"}
+        </Button>
+        <Button
+          variant="secondary"
+          disabled={iconPulling || companionLoading || !games.some((game) => !game.iconData)}
+          onClick={() => void (async () => {
+            const next = await pullMissingIcons(games);
+            const filled = next.filter((game) => game.iconData).length - games.filter((game) => game.iconData).length;
+            setLaunchNotice(filled > 0 ? `Pulled ${filled} desktop icon${filled === 1 ? "" : "s"} via companion / folder art.` : "No new icons found. Start the companion or add .ico/.png next to launchers.");
+          })()}
+        >
+          {iconPulling ? "Pulling icons…" : "Pull missing icons"}
         </Button>
         <label>
           <input
@@ -2720,14 +2780,17 @@ export function GamesSection() {
                         const file = event.target.files?.[0];
                         if (!file) return;
                         const reader = new FileReader();
-                        reader.onload = () =>
+                        reader.onload = () => {
+                          const iconData = String(reader.result);
+                          saveGameIcon(game.path, iconData);
                           saveGames(
                             games.map((item) =>
                               item.path === game.path
-                                ? { ...item, iconData: String(reader.result) }
+                                ? { ...item, iconData }
                                 : item,
                             ),
                           );
+                        };
                         reader.readAsDataURL(file);
                       }}
                     />
@@ -2912,7 +2975,7 @@ function LocalCatalog({
                     variant={canView(item) ? "default" : "secondary"}
                     type="button"
                     disabled={!canView(item)}
-                    title={canView(item) ? "Open orbit viewer" : /\.gcode$/i.test(item.name) ? "G-code is not a mesh preview" : "Re-add this file to enable preview"}
+                    title={canView(item) ? "Open viewer + editor" : /\.gcode$/i.test(item.name) ? "G-code is not a mesh preview" : "Re-add this file to enable preview"}
                     onClick={() =>
                       setViewer({
                         name: item.name,
@@ -2924,7 +2987,7 @@ function LocalCatalog({
                     }
                   >
                     <Eye className="size-3.5" />
-                    View
+                    View / Edit
                   </Button>
                 )}
                 <p className="font-mono text-xs text-subtle">{bytes(item.size)}</p>
