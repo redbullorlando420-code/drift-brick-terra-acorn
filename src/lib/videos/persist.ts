@@ -161,6 +161,10 @@ const DURABLE_LINKS_IDB_KEY = "links";
 const DURABLE_LINKS_LS_KEY = "reelcase.links.v1";
 const DURABLE_FEEDBACK_IDB_KEY = "feedback";
 const DURABLE_FEEDBACK_LS_KEY = "reelcase.media-feedback.v1";
+const DURABLE_PHOTOS_IDB_KEY = "photos";
+const DURABLE_PHOTOS_LS_KEY = "reelcase.photos.v1";
+/** Legacy Photos metadata key — migrated into the durable photos blob. */
+export const PHOTO_META_LS_KEY = "reelcase.photo-meta.v1";
 
 export type SavedVideoLink = {
   id: string;
@@ -185,6 +189,37 @@ export type DurableFeedback = {
   creatorLikes: Record<string, true>;
   tagLikes: Record<string, true>;
   tagHeartHistory: Record<string, number>;
+  savedAt: number;
+};
+
+/** Local photo source stubs + likes/favorites metadata. Never co-pruned with thumbs/Adult. */
+export type DurablePhotoSource = {
+  id: string;
+  name: string;
+  kind: "directory" | "files";
+  photoCount?: number;
+  lastCheckedAt?: number;
+};
+
+export type DurablePhotoMeta = {
+  path?: string;
+  people?: string[];
+  tags?: string[];
+  album?: string;
+  favorite?: boolean;
+  rating?: number;
+  width?: number;
+  height?: number;
+  vision?: Array<{ label: string; score: number }>;
+  visionModel?: string;
+};
+
+export type DurablePhotos = {
+  sources: DurablePhotoSource[];
+  /** Per-photo ratings, favorites, tags, people — keyed by photo id. */
+  meta: Record<string, DurablePhotoMeta>;
+  /** Explicit favorite/like ids (derived from meta.favorite === true). */
+  likes: string[];
   savedAt: number;
 };
 
@@ -453,6 +488,133 @@ export async function restoreDurableFeedback(): Promise<Omit<DurableFeedback, "s
     creatorLikes: pick(fromIdb?.creatorLikes as Record<string, true> | undefined, fromLs?.creatorLikes as Record<string, true> | undefined),
     tagLikes: pick(fromIdb?.tagLikes as Record<string, true> | undefined, fromLs?.tagLikes as Record<string, true> | undefined),
     tagHeartHistory: pick(fromIdb?.tagHeartHistory as Record<string, number> | undefined, fromLs?.tagHeartHistory as Record<string, number> | undefined),
+  };
+}
+
+
+function normalizePhotoSources(raw: unknown): DurablePhotoSource[] {
+  if (!Array.isArray(raw)) return [];
+  const out: DurablePhotoSource[] = [];
+  const seen = new Set<string>();
+  for (const row of raw) {
+    if (!row || typeof row !== "object") continue;
+    const rec = row as Record<string, unknown>;
+    const id = typeof rec.id === "string" ? rec.id.trim() : "";
+    const name = typeof rec.name === "string" ? rec.name.trim() : "";
+    const kind = rec.kind === "files" ? "files" : rec.kind === "directory" ? "directory" : null;
+    if (!id || !name || !kind || seen.has(id)) continue;
+    seen.add(id);
+    const photoCount = typeof rec.photoCount === "number" && Number.isFinite(rec.photoCount) ? Math.max(0, Math.floor(rec.photoCount)) : undefined;
+    const lastCheckedAt = typeof rec.lastCheckedAt === "number" && Number.isFinite(rec.lastCheckedAt) ? rec.lastCheckedAt : undefined;
+    out.push({ id, name, kind, ...(photoCount != null ? { photoCount } : {}), ...(lastCheckedAt != null ? { lastCheckedAt } : {}) });
+  }
+  return out;
+}
+
+function normalizePhotoMeta(raw: unknown): Record<string, DurablePhotoMeta> {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<string, DurablePhotoMeta> = {};
+  for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!id || !value || typeof value !== "object") continue;
+    const rec = value as Record<string, unknown>;
+    const meta: DurablePhotoMeta = {};
+    if (typeof rec.path === "string") meta.path = rec.path;
+    if (Array.isArray(rec.people)) meta.people = rec.people.filter((p): p is string => typeof p === "string");
+    if (Array.isArray(rec.tags)) meta.tags = rec.tags.filter((t): t is string => typeof t === "string");
+    if (typeof rec.album === "string") meta.album = rec.album;
+    if (typeof rec.favorite === "boolean") meta.favorite = rec.favorite;
+    if (typeof rec.rating === "number" && Number.isFinite(rec.rating)) meta.rating = Math.max(0, Math.min(5, Math.floor(rec.rating)));
+    if (typeof rec.width === "number" && Number.isFinite(rec.width)) meta.width = Math.floor(rec.width);
+    if (typeof rec.height === "number" && Number.isFinite(rec.height)) meta.height = Math.floor(rec.height);
+    if (typeof rec.visionModel === "string") meta.visionModel = rec.visionModel;
+    if (Array.isArray(rec.vision)) {
+      meta.vision = rec.vision.flatMap((row) => {
+        if (!row || typeof row !== "object") return [];
+        const label = typeof (row as { label?: unknown }).label === "string" ? (row as { label: string }).label : "";
+        const score = typeof (row as { score?: unknown }).score === "number" ? (row as { score: number }).score : 0;
+        return label ? [{ label, score }] : [];
+      });
+    }
+    out[id] = meta;
+  }
+  return out;
+}
+
+function likesFromPhotoMeta(meta: Record<string, DurablePhotoMeta>, explicit?: string[]) {
+  const liked = new Set(normalizeStringList(explicit));
+  for (const [id, row] of Object.entries(meta)) {
+    if (row.favorite) liked.add(id);
+  }
+  return [...liked];
+}
+
+/** Persist photo source stubs + likes/meta. Thumb prune and prefs QuotaExceeded never clear this key. */
+export function saveDurablePhotos(input: { sources?: DurablePhotoSource[]; meta?: Record<string, DurablePhotoMeta>; likes?: string[] }) {
+  if (typeof window === "undefined") return;
+  const meta = normalizePhotoMeta(input.meta ?? {});
+  const likes = likesFromPhotoMeta(meta, input.likes);
+  for (const id of likes) {
+    meta[id] = { ...(meta[id] ?? {}), favorite: true };
+  }
+  const payload: DurablePhotos = {
+    sources: normalizePhotoSources(input.sources ?? []),
+    meta,
+    likes,
+    savedAt: Date.now(),
+  };
+  // Keep the legacy meta key as a sync mirror for older Photos code paths.
+  writeJsonLocal(PHOTO_META_LS_KEY, payload.meta);
+  writeJsonLocal(DURABLE_PHOTOS_LS_KEY, {
+    sources: payload.sources,
+    likes: payload.likes.slice(0, 2_000),
+    meta: Object.fromEntries(Object.entries(payload.meta).slice(0, 2_000)),
+    savedAt: payload.savedAt,
+  });
+  void putActivityBlob(DURABLE_PHOTOS_IDB_KEY, payload).catch(() => undefined);
+}
+
+export async function restoreDurablePhotos(): Promise<DurablePhotos> {
+  if (typeof window === "undefined") return { sources: [], meta: {}, likes: [], savedAt: 0 };
+  let fromIdb: DurablePhotos | undefined;
+  try { fromIdb = await getActivityBlob<DurablePhotos>(DURABLE_PHOTOS_IDB_KEY); } catch { /* ignore */ }
+  const fromLs = readJsonLocal<DurablePhotos>(DURABLE_PHOTOS_LS_KEY);
+  const legacyMeta = normalizePhotoMeta(readJsonLocal<Record<string, DurablePhotoMeta>>(PHOTO_META_LS_KEY));
+  const meta = {
+    ...legacyMeta,
+    ...normalizePhotoMeta(fromLs?.meta),
+    ...normalizePhotoMeta(fromIdb?.meta),
+  };
+  const sources = normalizePhotoSources([
+    ...(fromLs?.sources ?? []),
+    ...(fromIdb?.sources ?? []),
+  ]);
+  // Later sources win on id.
+  const byId = new Map(sources.map((row) => [row.id, row]));
+  const likes = likesFromPhotoMeta(meta, [...(fromLs?.likes ?? []), ...(fromIdb?.likes ?? [])]);
+  const merged: DurablePhotos = {
+    sources: [...byId.values()],
+    meta,
+    likes,
+    savedAt: Math.max(fromIdb?.savedAt ?? 0, fromLs?.savedAt ?? 0, Date.now()),
+  };
+  // Re-seat into dedicated store so a later prefs/LS wipe cannot drop likes again.
+  if (merged.sources.length || Object.keys(merged.meta).length || merged.likes.length) {
+    saveDurablePhotos(merged);
+  }
+  return merged;
+}
+
+export function loadDurablePhotosSync(): DurablePhotos | null {
+  if (typeof window === "undefined") return null;
+  const fromLs = readJsonLocal<DurablePhotos>(DURABLE_PHOTOS_LS_KEY);
+  const legacyMeta = normalizePhotoMeta(readJsonLocal<Record<string, DurablePhotoMeta>>(PHOTO_META_LS_KEY));
+  if (!fromLs && !Object.keys(legacyMeta).length) return null;
+  const meta = { ...legacyMeta, ...normalizePhotoMeta(fromLs?.meta) };
+  return {
+    sources: normalizePhotoSources(fromLs?.sources),
+    meta,
+    likes: likesFromPhotoMeta(meta, fromLs?.likes),
+    savedAt: fromLs?.savedAt ?? Date.now(),
   };
 }
 

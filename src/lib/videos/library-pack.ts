@@ -14,6 +14,10 @@ import {
   saveDurableLinks,
   type SavedVideoLink,
   type DurableFeedback,
+  saveDurablePhotos,
+  loadDurablePhotosSync,
+  type DurablePhotoSource,
+  type DurablePhotoMeta,
 } from "./persist";
 import type { FollowedChannel, HistoryEntry, LibraryVideo, Folder } from "./types";
 import { exportFeedback, importFeedback } from "@/lib/media-feedback";
@@ -37,6 +41,9 @@ export type LibraryPackBuildInput = {
   folders?: Folder[];
   tags?: Record<string, string[]>;
   adultStats?: AdultStatsSnapshot;
+  photoSources?: DurablePhotoSource[];
+  photoMeta?: Record<string, DurablePhotoMeta>;
+  photoLikes?: string[];
 };
 
 export type LibraryPackImportResult = {
@@ -48,6 +55,7 @@ export type LibraryPackImportResult = {
   feedbackMerged: boolean;
   filesRead: string[];
   warnings: string[];
+  photosMerged: number;
 };
 
 function stamp() {
@@ -124,6 +132,8 @@ function engagementSummary(input: LibraryPackBuildInput) {
     savedLinks: input.links.length,
     favorites: input.favorites.length,
     likes: input.likes.length,
+    photoSources: input.photoSources?.length ?? 0,
+    photoLikes: input.photoLikes?.length ?? Object.values(input.photoMeta ?? {}).filter((row) => row.favorite).length,
     titlesWithViews: Object.keys(input.viewCounts).length,
     titlesWithCameMarks: Object.keys(input.cameCounts).length,
     totalCameMarks: Object.values(input.cameCounts).reduce((a, b) => a + b, 0),
@@ -136,7 +146,7 @@ export function packReadme(): string {
   return `# Reelcase library pack
 
 Local-only backup / fill-in folder for YouTube & Twitch follows, watch history,
-saved video links, continue-watching pointers, favorites/likes, Adult marks,
+saved video links, continue-watching pointers, favorites/likes, Photos sources & likes, Adult marks,
 ratings & tag hearts, and Adult stats snapshots.
 
 No cloud. Nothing here uploads. Import **merges** by default so unrelated data
@@ -209,6 +219,13 @@ Columns: \`id,url,title,kind,savedAt,source\`
 Adult stats are snapshots for backup/analysis. Importing stats does not rebuild
 the live Adult catalog; it is informational unless you also merge marks.
 
+## Photos
+
+- \`photos/sources.json\`: \`{ "sources": [{ "id", "name", "kind": "directory"|"files", "photoCount?", "lastCheckedAt?" }] }\`
+- \`photos/likes.json\`: \`{ "likes": ["photo-id"], "meta": { "photo-id": { "favorite", "rating", "tags", "people", "album", "path" } } }\`
+
+Photo media bytes stay on disk; the pack only stores source stubs and like/rating metadata.
+
 ## Durable stores (what Import writes)
 
 | Pack file | IndexedDB key (\`activity\`) | localStorage mirror |
@@ -220,6 +237,7 @@ the live Adult catalog; it is informational unless you also merge marks.
 | marks/shelves | \`shelves\` | \`reelcase.shelves.v1\` |
 | links/* | \`links\` | \`reelcase.links.v1\` |
 | marks/ratings+hearts | \`feedback\` | \`reelcase.media-feedback.v1\` |
+| photos/* | \`photos\` | \`reelcase.photos.v1\` (+ legacy \`reelcase.photo-meta.v1\`) |
 
 Thumb prune, Adult catalog caps, and prefs QuotaExceeded never clear these keys.
 `;
@@ -433,6 +451,8 @@ export type LibraryPackApplyHooks = {
   setResume: (progress: Record<string, { t: number; d: number; at: number }>, resumeProgress: Record<string, { t: number; d: number; at: number }>) => void;
   getLinks: () => SavedVideoLink[];
   setLinks: (links: SavedVideoLink[]) => void;
+  getPhotoSources?: () => DurablePhotoSource[];
+  setPhotoSources?: (sources: DurablePhotoSource[]) => void;
 };
 
 function mergeHistory(a: HistoryEntry[], b: HistoryEntry[]): HistoryEntry[] {
@@ -551,11 +571,42 @@ export function applyLibraryPackFiles(
     } catch { warnings.push(`Could not parse ${name}`); }
   }
 
-  if (!incomingFollows.length && !incomingHistory.length && !incomingLinks.length && !marksMerged && !shelvesMerged && !feedbackMerged) {
-    warnings.push("No recognized pack files were found. Expect follows/, history/, links/, marks/, or resume/ paths.");
+  let photosMerged = 0;
+  let incomingPhotoSources: DurablePhotoSource[] = [];
+  let incomingPhotoMeta: Record<string, DurablePhotoMeta> = {};
+  let incomingPhotoLikes: string[] = [];
+  for (const [name, body] of Object.entries(files)) {
+    if (fileEndsWith(name, "photos/sources.json") || /photos\/sources\.json$/i.test(name)) {
+      try {
+        const parsed = JSON.parse(body) as { sources?: DurablePhotoSource[] };
+        incomingPhotoSources = [...incomingPhotoSources, ...(parsed.sources ?? [])];
+      } catch { warnings.push(`Could not parse ${name}`); }
+    }
+    if (fileEndsWith(name, "photos/likes.json") || /photos\/likes\.json$/i.test(name)) {
+      try {
+        const parsed = JSON.parse(body) as { likes?: string[]; meta?: Record<string, DurablePhotoMeta> };
+        incomingPhotoLikes = [...incomingPhotoLikes, ...(parsed.likes ?? [])];
+        incomingPhotoMeta = { ...incomingPhotoMeta, ...(parsed.meta ?? {}) };
+      } catch { warnings.push(`Could not parse ${name}`); }
+    }
+  }
+  if (incomingPhotoSources.length || Object.keys(incomingPhotoMeta).length || incomingPhotoLikes.length) {
+    const current = loadDurablePhotosSync();
+    const byId = new Map([...(current?.sources ?? []), ...incomingPhotoSources].map((row) => [row.id, row]));
+    const meta = { ...(current?.meta ?? {}), ...incomingPhotoMeta };
+    for (const id of incomingPhotoLikes) meta[id] = { ...(meta[id] ?? {}), favorite: true };
+    const likes = [...new Set([...(current?.likes ?? []), ...incomingPhotoLikes, ...Object.entries(meta).filter(([, row]) => row.favorite).map(([id]) => id)])];
+    const sources = [...byId.values()];
+    saveDurablePhotos({ sources, meta, likes });
+    hooks.setPhotoSources?.(sources);
+    photosMerged = sources.length + likes.length;
   }
 
-  return { followsAdded, historyMerged, linksMerged, marksMerged, shelvesMerged, feedbackMerged, filesRead, warnings };
+  if (!incomingFollows.length && !incomingHistory.length && !incomingLinks.length && !marksMerged && !shelvesMerged && !feedbackMerged && !photosMerged) {
+    warnings.push("No recognized pack files were found. Expect follows/, history/, links/, marks/, resume/, or photos/ paths.");
+  }
+
+  return { followsAdded, historyMerged, linksMerged, marksMerged, shelvesMerged, feedbackMerged, photosMerged, filesRead, warnings };
 }
 
 export async function importLibraryPackZip(

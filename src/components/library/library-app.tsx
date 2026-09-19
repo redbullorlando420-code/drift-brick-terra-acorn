@@ -702,7 +702,8 @@ export function LibraryApp() {
     for (const video of twitchVodPicks) {
       const name = video.remote?.channelName?.trim() || "Unknown creator";
       const previous = rows.get(name) ?? { count: 0, oldest: Number.MAX_SAFE_INTEGER, newest: 0, clips: 0 };
-      rows.set(name, { count: previous.count + 1, oldest: Math.min(previous.oldest, video.addedAt), newest: Math.max(previous.newest, video.addedAt), clips: previous.clips + ((video.duration ?? 0) > 0 && (video.duration ?? 0) <= 120 ? 1 : 0) });
+      const isClip = video.extension === "clip" || video.id.startsWith("tw:c:") || ((video.duration ?? 0) > 0 && (video.duration ?? 0) <= 120);
+      rows.set(name, { count: previous.count + 1, oldest: Math.min(previous.oldest, video.addedAt), newest: Math.max(previous.newest, video.addedAt), clips: previous.clips + (isClip ? 1 : 0) });
     }
     const channels = follows.filter((channel) => channel.kind === "twitch").map((channel) => ({
       id: channel.id,
@@ -714,7 +715,8 @@ export function LibraryApp() {
     })).sort((a, b) => a.count - b.count || a.name.localeCompare(b.name));
     return { total: twitchVodPicks.length, sparse: channels.filter((channel) => channel.count < 24).length, channels };
   }, [follows, remoteRetryAt, sourceId, twitchVodPicks]);
-  const twitchClips = useMemo(() => twitchVodPicks.filter((video) => (video.duration ?? 0) > 0 && (video.duration ?? 0) <= 120).slice(0, 24), [twitchVodPicks]);
+  const twitchClips = useMemo(() => twitchVodPicks.filter((video) => video.extension === "clip" || video.id.startsWith("tw:c:") || ((video.duration ?? 0) > 0 && (video.duration ?? 0) <= 120)).slice(0, 48), [twitchVodPicks]);
+  const twitchClipTotal = useMemo(() => twitchVodPicks.filter((video) => video.extension === "clip" || video.id.startsWith("tw:c:") || ((video.duration ?? 0) > 0 && (video.duration ?? 0) <= 120)).length, [twitchVodPicks]);
   const favoriteTwitchPicks = useMemo(() => sortedTwitch.filter((video) => favorites[video.id]).sort((a, b) => (viewCounts[b.id] ?? 0) - (viewCounts[a.id] ?? 0) || b.addedAt - a.addedAt), [favorites, sortedTwitch, viewCounts]);
   const likedTwitchPicks = useMemo(() => sortedTwitch.filter((video) => likes[video.id] && !favorites[video.id]).sort((a, b) => getRating(b.id) - getRating(a.id) || (viewCounts[a.id] ?? 0) - (viewCounts[b.id] ?? 0) || b.addedAt - a.addedAt), [favorites, likes, ratingRevision, sortedTwitch, viewCounts]);
   const twitchVodChannels = useMemo(() => {
@@ -1236,7 +1238,7 @@ export function LibraryApp() {
 
               {sourceId === "twitch" && browsing && (
                 <>
-                  <section className="mb-7 rounded-xl bg-elevated p-5 shadow-border sm:p-6"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Live desk</p><h1 className="mt-2 font-display text-4xl text-fg">Twitch, live first.</h1><p className="mt-2 max-w-2xl text-sm text-muted">Sort live streams and VODs by what matters right now. {follows.filter((channel) => channel.kind === "twitch").length} channel{follows.filter((channel) => channel.kind === "twitch").length === 1 ? "" : "s"} tracked locally. A different rotating batch checks every minute; a successful check removes stale live cards.</p><p className="mt-2 text-xs text-accent">{remoteCheckedAt ? `Live state checked ${new Date(remoteCheckedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Live state has not been checked yet."} · {sortedTwitch.filter((video) => video.remote?.live).length} live · {twitchVodPicks.length} VODs · {twitchClips.length} clips{remoteRefreshStatus ? ` · last batch returned ${remoteRefreshStatus.twitch.toLocaleString()} VODs from ${remoteRefreshStatus.refreshed}/${remoteRefreshStatus.checked} checked channels${remoteRefreshStatus.failed ? ` (${remoteRefreshStatus.failed} unavailable)` : ""}` : ""}</p><div className="mt-4 flex flex-wrap gap-2">{(["live", "viewers", "name"] as const).map((sort) => <Button key={sort} size="sm" variant={twitchSort === sort ? "default" : "secondary"} onClick={() => setTwitchSort(sort)}>{sort === "live" ? "Live first" : sort === "viewers" ? "Most viewers" : "A–Z"}</Button>)}<Button size="sm" variant="secondary" onClick={() => void refreshFollows()}>Refresh next live batch</Button>{follows.filter((channel) => channel.kind === "twitch").slice(0, 12).map((channel) => <Button key={channel.id} size="sm" variant="ghost" disabled={channelRefreshing === channel.id} onClick={() => void (async () => { setChannelRefreshing(channel.id); try { await followRemoteQuery(channel.handle, "twitch"); } finally { setChannelRefreshing(""); } })()}>{channelRefreshing === channel.id ? "Checking…" : `Refresh ${channel.title}`}</Button>)}</div></section>
+                  <section className="mb-7 rounded-xl bg-elevated p-5 shadow-border sm:p-6"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Live desk</p><h1 className="mt-2 font-display text-4xl text-fg">Twitch, live first.</h1><p className="mt-2 max-w-2xl text-sm text-muted">Sort live streams and VODs by what matters right now. {follows.filter((channel) => channel.kind === "twitch").length} channel{follows.filter((channel) => channel.kind === "twitch").length === 1 ? "" : "s"} tracked locally. A different rotating batch checks every minute; a successful check removes stale live cards.</p><p className="mt-2 text-xs text-accent">{remoteCheckedAt ? `Live state checked ${new Date(remoteCheckedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Live state has not been checked yet."} · {sortedTwitch.filter((video) => video.remote?.live).length} live · {twitchVodPicks.length} VODs · {twitchClipTotal.toLocaleString()} clips{remoteRefreshStatus ? ` · last batch returned ${remoteRefreshStatus.twitch.toLocaleString()} VODs from ${remoteRefreshStatus.refreshed}/${remoteRefreshStatus.checked} checked channels${remoteRefreshStatus.failed ? ` (${remoteRefreshStatus.failed} unavailable)` : ""}` : ""}</p><div className="mt-4 flex flex-wrap gap-2">{(["live", "viewers", "name"] as const).map((sort) => <Button key={sort} size="sm" variant={twitchSort === sort ? "default" : "secondary"} onClick={() => setTwitchSort(sort)}>{sort === "live" ? "Live first" : sort === "viewers" ? "Most viewers" : "A–Z"}</Button>)}<Button size="sm" variant="secondary" onClick={() => void refreshFollows()}>Refresh next live batch</Button>{follows.filter((channel) => channel.kind === "twitch").slice(0, 12).map((channel) => <Button key={channel.id} size="sm" variant="ghost" disabled={channelRefreshing === channel.id} onClick={() => void (async () => { setChannelRefreshing(channel.id); try { await followRemoteQuery(channel.handle, "twitch"); } finally { setChannelRefreshing(""); } })()}>{channelRefreshing === channel.id ? "Checking…" : `Refresh ${channel.title}`}</Button>)}</div></section>
 
                   <div className="mb-5 flex flex-wrap gap-2">{[["all", "All Twitch"], ["favorites", "Favorites"], ["likes", "Liked"]].map(([value, label]) => <Button key={value} variant={twitchFilter === value ? "default" : "secondary"} onClick={() => setTwitchFilter(value)}>{label}{value === "all" ? "" : " · " + twitchVideos.filter((video) => value === "favorites" ? favorites[video.id] : likes[video.id]).length}</Button>)}</div>
                   <div className="mb-5 flex flex-wrap gap-2"><Button size="sm" variant={twitchTagFilter === "all" ? "default" : "secondary"} onClick={() => setTwitchTagFilter("all")}>All tags</Button>{channelTagShelves.twitch.map((shelf) => <Button key={shelf.tag} size="sm" variant={twitchTagFilter === shelf.tag ? "default" : "secondary"} onClick={() => setTwitchTagFilter(shelf.tag)}>#{shelf.tag} · {shelf.videos.length}</Button>)}</div>
@@ -1251,7 +1253,61 @@ export function LibraryApp() {
                   ))}
                   <TitleRail title="Popular VODs" videos={twitchVodPicks} variant="rail" />
                   {twitchVodChannels.length > 0 && <section className="mb-8 rounded-xl border border-border bg-surface p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">VOD explorer</p><h2 className="mt-2 font-display text-2xl text-fg">Browse VODs by creator.</h2><p className="mt-1 text-sm text-muted">Channels rise through your plays, saves, likes, high ratings, and the tags those highly rated videos share.</p><div className="mt-5 space-y-6">{twitchVodChannels.map(({ creator, vods }) => <TitleRail key={`vod-explorer-${creator}`} title={`${creator} · ${vods.length} VOD${vods.length === 1 ? "" : "s"}`} videos={vods} variant="rail" />)}</div></section>}
-                  <TitleRail title="Clips & quick watches" videos={twitchClips} variant="rail" />
+                  <section className="mb-5 rounded-lg border border-border bg-surface p-4 shadow-border">
+                    <div className="flex flex-wrap items-end justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Numbered clip pulls</p>
+                        <p className="mt-1 text-sm text-muted">{twitchClipTotal.toLocaleString()} clips cached · pull a counted window per channel (public clip shelves, multi-period, rate-limit friendly).</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {LIBRARY_LIMITS.twitchClipPullChoices.map((n) => (
+                          <Button
+                            key={n}
+                            size="sm"
+                            variant="secondary"
+                            disabled={Boolean(channelRefreshing) || !follows.some((channel) => channel.kind === "twitch")}
+                            onClick={() => void (async () => {
+                              const channels = follows.filter((channel) => channel.kind === "twitch");
+                              setChannelRefreshing("twitch-clips");
+                              try {
+                                for (const channel of channels.slice(0, 12)) {
+                                  setChannelRefreshing(channel.id);
+                                  await followRemoteQuery(channel.handle, "twitch", { clipLimit: n });
+                                }
+                              } finally {
+                                setChannelRefreshing("");
+                              }
+                            })()}
+                          >
+                            {channelRefreshing === "twitch-clips" || (channelRefreshing.startsWith("tw:") && channelRefreshing !== "") ? `Pulling ${n}…` : `Pull ${n} clips`}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {follows.filter((channel) => channel.kind === "twitch").slice(0, 8).map((channel) => (
+                        <div key={`clips-${channel.id}`} className="flex flex-wrap items-center gap-1 rounded-sm bg-bg/45 px-2 py-1">
+                          <span className="text-xs text-muted">{channel.title}</span>
+                          {LIBRARY_LIMITS.twitchClipPullChoices.map((n) => (
+                            <Button
+                              key={`${channel.id}-${n}`}
+                              size="sm"
+                              variant="ghost"
+                              disabled={channelRefreshing === channel.id}
+                              onClick={() => void (async () => {
+                                setChannelRefreshing(channel.id);
+                                try { await followRemoteQuery(channel.handle, "twitch", { clipLimit: n }); }
+                                finally { setChannelRefreshing(""); }
+                              })()}
+                            >
+                              {n}
+                            </Button>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                  <TitleRail title={`Clips & quick watches · ${twitchClipTotal.toLocaleString()}`} videos={twitchClips} variant="rail" />
                   {channelTagShelves.twitch.map((shelf) => <TitleRail key={`twitch-tag-${shelf.tag}`} title={`Twitch · ${shelf.tag}`} videos={shelf.videos} variant="rail" />)}
                   </>}
                   <details className="mb-5 rounded-lg border border-border bg-surface p-4 shadow-border"><summary className="cursor-pointer list-none"><div className="flex items-center justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Archive coverage</p><p className="mt-1 text-sm text-muted">{twitchArchiveDepth.total.toLocaleString()} cached VODs across {twitchArchiveDepth.channels.length} channels · expand to review and queue deep pulls.</p></div><span className="text-xs text-accent">Expand</span></div></summary><div className="mt-4 flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Archive coverage</p><p className="mt-1 text-sm text-fg">{twitchArchiveDepth.total.toLocaleString()} cached VODs across {twitchArchiveDepth.channels.length} channels · {twitchArchiveDepth.sparse} sparse channel{twitchArchiveDepth.sparse === 1 ? "" : "s"} under 24 VODs.</p><p className="mt-1 text-xs text-muted">Background checks use a fast recent-VOD window. Focused pulls run serially through the queued creators, so live-state checks retain their budget. Partial responses preserve the existing archive.</p></div><div className="flex flex-wrap gap-2"><Button size="sm" variant="secondary" disabled={channelRefreshing === "twitch-archives"} onClick={() => void (async () => { setChannelRefreshing("twitch-archives"); try { await refreshFollows(); } finally { setChannelRefreshing(""); } })()}>{channelRefreshing === "twitch-archives" ? "Refreshing archives…" : "Refresh Twitch archives"}</Button><Button size="sm" variant="secondary" disabled={Boolean(channelRefreshing) || archiveQueued.length > 0} onClick={queueAllArchivePulls}>Queue all deep pulls</Button></div></div>{archiveQueued.length > 0 && <p className="mt-3 rounded-sm bg-bg/45 px-3 py-2 text-xs text-accent">Focused archive queue · {archiveQueued.length} waiting. Reelcase continues creator-by-creator toward the oldest public VOD available; it retains every accepted page.</p>}<div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{twitchArchiveDepth.channels.map((channel) => <div key={channel.id} className="rounded-sm bg-bg/45 p-3"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-sm font-medium text-fg">{channel.name}</p><p className="mt-1 text-xs text-muted">{channel.count.toLocaleString()} cached VODs · {channel.clips} confirmed clip{channel.clips === 1 ? "" : "s"} · last result {channel.lastResponseCount ?? 0} rows</p><p className="mt-1 text-xs text-muted">{channel.oldest ? `${new Date(channel.oldest).toLocaleDateString()} – ${new Date(channel.newest).toLocaleDateString()}` : "No archive dates yet"} · public depth may be limited</p><p className="mt-1 text-xs text-muted">{channel.lastCheckedAt ? `Checked ${new Date(channel.lastCheckedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "Not checked yet"}{channel.retryAt && channel.retryAt > Date.now() ? ` · cooldown until ${new Date(channel.retryAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}` : " · ready"}</p></div><Button size="sm" variant="secondary" disabled={channelRefreshing === channel.id || archiveQueued.includes(channel.id)} onClick={() => queueArchivePull(channel.id, channel.id.replace(/^tw:/, ""))}>{channelRefreshing === channel.id ? "Pulling…" : archiveQueued.includes(channel.id) ? "Queued" : "Queue deep pull"}</Button></div></div>)}</div></details>

@@ -1,4 +1,4 @@
-//#region node_modules/.nitro/vite/services/ssr/assets/_tanstack-start-manifest_v-CfEMfZs6.js
+//#region node_modules/.nitro/vite/services/ssr/assets/_tanstack-start-manifest_v-DlqoNMtK.js
 var tsrStartManifest = () => ({ routes: {
 	__root__: {
 		filePath: "/workspace/drift-brick-terra-acorn/src/routes/__root.tsx",
@@ -8,7 +8,7 @@ var tsrStartManifest = () => ({ routes: {
 			"/api/rtc"
 		],
 		preloads: [
-			"/assets/index-C2dFOXna.js",
+			"/assets/index-DsOE6x9P.js",
 			"/assets/preload-helper-BOnxzdlU.js",
 			"/assets/dist-DmhcqLH2.js",
 			"/assets/createClientRpc-Dc5f-taM.js"
@@ -16,13 +16,13 @@ var tsrStartManifest = () => ({ routes: {
 		scripts: [{ attrs: {
 			type: "module",
 			async: !0,
-			src: "/assets/index-C2dFOXna.js"
+			src: "/assets/index-DsOE6x9P.js"
 		} }]
 	},
 	"/": {
 		filePath: "/workspace/drift-brick-terra-acorn/src/routes/index.tsx",
 		children: void 0,
-		preloads: ["/assets/routes-DYBelQyD.js"]
+		preloads: ["/assets/routes-CdHGR42-.js"]
 	}
 } });
 //#endregion

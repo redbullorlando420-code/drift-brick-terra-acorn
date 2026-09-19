@@ -1,4 +1,4 @@
-//#region node_modules/.nitro/vite/services/ssr/assets/adult-pull-cache-D3-4maho.js
+//#region node_modules/.nitro/vite/services/ssr/assets/adult-pull-cache-DNAXGlvT.js
 var ADULT_EXTRA_MILESTONES = [
 	{
 		name: "CooMeet",
@@ -3667,9 +3667,17 @@ var LIBRARY_LIMITS = {
 	youtubeArchivePagesPerPull: 96,
 	youtubeRoutineVideosPerChannel: 1200,
 	youtubeBulkImportVideosPerChannel: 960,
-	twitchArchivePageSize: 160,
-	twitchFocusedVodsPerChannel: 8e3,
-	twitchRoutineVodsPerChannel: 960,
+	twitchArchivePageSize: 100,
+	twitchFocusedVodsPerChannel: 400,
+	twitchRoutineVodsPerChannel: 100,
+	/** Numbered clip pulls (public `user.clips`, multi-period, no integrity page-2). */
+	twitchRoutineClipsPerChannel: 100,
+	twitchFocusedClipsPerChannel: 300,
+	twitchClipPullChoices: [
+		50,
+		100,
+		250
+	],
 	/** Home only calls a Twitch channel live when the provider observation is recent. */
 	twitchLiveStateFreshnessMs: 12e4,
 	epornerPageSize: 1e3,

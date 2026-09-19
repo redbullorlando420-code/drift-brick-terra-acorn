@@ -22,9 +22,18 @@ export const LIBRARY_LIMITS = {
   youtubeArchivePagesPerPull: 96,
   youtubeRoutineVideosPerChannel: 1_200,
   youtubeBulkImportVideosPerChannel: 960,
-  twitchArchivePageSize: 160,
-  twitchFocusedVodsPerChannel: 8_000,
-  twitchRoutineVodsPerChannel: 960,
+  // Helix/GQL `videos(first:)` accepts 1..100 only. Asking for 160 used to
+  // return the channel shell with an empty videos connection (GraphQL error on
+  // the field), which made follow/import look like it pulled no VODs.
+  twitchArchivePageSize: 100,
+  // Public archive depth without the web integrity token tops out around one
+  // page (~30–100). Focused pulls also merge HIGHLIGHT + UPLOAD and real clips.
+  twitchFocusedVodsPerChannel: 400,
+  twitchRoutineVodsPerChannel: 100,
+  /** Numbered clip pulls (public `user.clips`, multi-period, no integrity page-2). */
+  twitchRoutineClipsPerChannel: 100,
+  twitchFocusedClipsPerChannel: 300,
+  twitchClipPullChoices: [50, 100, 250],
   /** Home only calls a Twitch channel live when the provider observation is recent. */
   twitchLiveStateFreshnessMs: 2 * 60_000,
   // Eporner API allows up to 1000 results per page; batch pages like YT/Twitch archives.

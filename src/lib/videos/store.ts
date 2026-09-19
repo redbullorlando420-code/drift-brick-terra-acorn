@@ -60,6 +60,8 @@ import {
   saveSourceHealth,
   type Prefs,
   type SavedVideoLink,
+  restoreDurablePhotos,
+  saveDurablePhotos,
 } from "./persist";
 import {
   ingestDataTransfer,
@@ -197,7 +199,7 @@ type LibraryState = {
   repairArtworkSource: (folderId: string) => Promise<boolean>;
   refreshSourcePhotos: (folderId: string) => Promise<number>;
   removeFolder: (folderId: string) => Promise<void>;
-  followRemoteQuery: (query: string, kind?: "auto" | "youtube" | "twitch") => Promise<void>;
+  followRemoteQuery: (query: string, kind?: "auto" | "youtube" | "twitch", opts?: { clipLimit?: number }) => Promise<void>;
   importBatch: (
     items: { query: string; kind: "youtube" | "twitch" }[],
   ) => Promise<{ ok: number; failed: number; failedQueries: string[]; failedReasons: Record<string, string> }>;
@@ -248,6 +250,16 @@ function persistNow(get: () => LibraryState) {
   saveDurableMarks(s.viewCounts, s.cameCounts);
   saveDurableShelves(Object.keys(s.favorites), Object.keys(s.likes));
   saveDurableLinks(linksFromHistoryAndResume(s.history, s.resumeProgress));
+  const photoSources = s.folders
+    .filter((folder) => folder.kind === "directory" || folder.kind === "files")
+    .map((folder) => ({
+      id: folder.id,
+      name: folder.name,
+      kind: folder.kind as "directory" | "files",
+      ...(folder.photoCount != null ? { photoCount: folder.photoCount } : {}),
+      ...(folder.lastCheckedAt != null ? { lastCheckedAt: folder.lastCheckedAt } : {}),
+    }));
+  if (photoSources.length) saveDurablePhotos({ sources: photoSources });
   savePrefs(prefs);
   void saveActivitySnapshot({ history: s.history, progress: s.progress, resumeProgress: s.resumeProgress, viewCounts: s.viewCounts, cameCounts: s.cameCounts, savedAt: Date.now() }).catch(() => queueResumeReplay(s.resumeProgress));
 }
@@ -547,7 +559,7 @@ function semanticTags(video: LibraryVideo) {
   ];
   const tags = rules.filter(([pattern]) => pattern.test(text)).map(([, tag]) => tag);
   if (video.remote?.kind === "youtube" && ((video.duration ?? 0) > 0 && (video.duration ?? 0) < 90 || /(?:#|\b)shorts?\b/i.test(text))) tags.push("shorts", "short-form");
-  if (video.remote?.kind === "twitch" && !video.remote.live && (video.duration ?? 0) > 0 && (video.duration ?? 0) < 120) tags.push("clip");
+  if (video.remote?.kind === "twitch" && !video.remote.live && (video.extension === "clip" || video.id.startsWith("tw:c:") || ((video.duration ?? 0) > 0 && (video.duration ?? 0) < 120))) tags.push("clip");
   if ((video.duration ?? 0) >= 3600) tags.push("long-form");
   return tags;
 }
@@ -1424,6 +1436,37 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         });
       }
     } catch { /* The catalog remains usable when storage is unavailable. */ }
+    void restoreDurablePhotos().then((photos) => {
+      if (!photos.sources.length) return;
+      set((s) => {
+        let folders = s.folders;
+        for (const source of photos.sources) {
+          if (folders.some((folder) => folder.id === source.id)) {
+            folders = folders.map((folder) => folder.id === source.id
+              ? {
+                  ...folder,
+                  name: source.name || folder.name,
+                  kind: source.kind,
+                  ...(source.photoCount != null ? { photoCount: source.photoCount } : {}),
+                  ...(source.lastCheckedAt != null ? { lastCheckedAt: source.lastCheckedAt } : {}),
+                }
+              : folder);
+          } else {
+            folders = [...folders, {
+              id: source.id,
+              name: source.name,
+              kind: source.kind,
+              videoCount: 0,
+              photoCount: source.photoCount ?? 0,
+              lastCheckedAt: source.lastCheckedAt,
+              needsPermission: true,
+              health: "permission-needed" as const,
+            }];
+          }
+        }
+        return { folders };
+      });
+    }).catch(() => undefined);
     set({ hydrated: true });
     restoring = false;
     // Older catalogs may still carry hundreds of keyword tags per remote card.
@@ -1764,10 +1807,10 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       // ignore
     }
   },
-  followRemoteQuery: async (query, kind = "auto") => {
+  followRemoteQuery: async (query, kind = "auto", opts) => {
     set({ remoteBusy: true });
     try {
-      const result = await followRemote({ data: { query, kind } });
+      const result = await followRemote({ data: { query, kind, ...(opts?.clipLimit ? { clipLimit: opts.clipLimit } : {}) } });
       set((s) => {
         const follows = [result.channel, ...s.follows.filter((f) => f.id !== result.channel.id)];
         const folder: Folder = {
@@ -1869,7 +1912,13 @@ export const useLibrary = create<LibraryState>((set, get) => ({
             };
             folders = [...folders.filter((f) => f.id !== folder.id), folder];
             videos = mergeVideos(
-              videos.filter((v) => v.folderId !== row.channel.id || s.favorites[v.id] || s.likes[v.id]),
+              videos.filter((v) =>
+                v.folderId !== row.channel.id
+                || s.favorites[v.id]
+                || s.likes[v.id]
+                // Partial/shallow import must not erase a deeper archive already cached.
+                || (row.channel.kind === "twitch" && v.remote?.kind === "twitch" && !v.remote.live),
+              ),
               row.videos,
             );
           }
