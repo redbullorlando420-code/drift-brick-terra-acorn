@@ -1,6 +1,6 @@
 # Reelcase — PR living notes
 
-**PR** `perf/speed-memory-adult-apis` → `main` · Speed, memory, Adult API harden/backups, photos/models, Rule34 filters, Live Adult lives, richer Stats, tag-click fix.
+**PR** `perf/speed-memory-adult-apis` → `main` · Speed, memory, Adult API harden/backups, photos/models, Rule34 filters, Live Adult lives, richer Stats, tag-click fix, **3D Prints interactive viewer**.
 
 ## In progress
 
@@ -23,6 +23,7 @@ Continue doubling down on Adult/photo APIs without regressing preview/memory win
 14. **Live tab Adult lives** — Chaturbate/MFC block below YT/Twitch in Live desk.
 15. **Richer Stats** — Adult media pie, booru host bars/table, engagement table (views, resume hours, rated, history, sparse tags).
 16. **Photos AI models** — upscaler prefers Cache API / shipped `/models/swin2sr-x2-q4f16.onnx` before HF; SigLIP large+ revision pinned; Photos first paint limit 48.
+17. **3D Prints viewer** — interactive three.js orbit/inspect for STL, OBJ, GLB/GLTF, and 3MF; bundled sample meshes under `public/samples/prints/`; user-added viewable bytes in IndexedDB (`reelcase-prints`) with dispose-on-unmount; G-code stays catalog-only.
 
 ### Env / keys (no secrets in repo)
 - `ADULTDATALINK_API_KEY` or `ADL_API_KEY` — optional Redgifs secondary via AdultDataLink.
