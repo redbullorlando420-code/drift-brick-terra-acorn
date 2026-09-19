@@ -840,7 +840,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     set((s) => {
       const now = Date.now();
       const latest = s.history[0];
-      // Keep history limitless, but a play button, provider event, and player
+      // Bound the in-memory history buffer, but a play button, provider event, and player
       // heartbeat for the same start should remain one activity event.
       if (latest?.id === id && now - latest.at < 20_000) return {};
       const mark = s.progress[id];
@@ -850,7 +850,8 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       const poster = video?.poster ?? video?.remote?.previewUrl;
       const rating = getRating(id);
       const next = [{ eventId: nextHistoryEventId(now), id, at: now, position: mark?.t, duration: mark?.d, source, ...(url ? { url } : {}), ...(title ? { title } : {}), ...(poster ? { poster } : {}), ...(rating ? { rating } : {}) }, ...s.history];
-      return { history: next, viewCounts: { ...s.viewCounts, [id]: (s.viewCounts[id] ?? 0) + 1 } };
+      const bounded = next.slice(0, LIBRARY_LIMITS.historyMemoryEntries);
+      return { history: bounded, viewCounts: { ...s.viewCounts, [id]: (s.viewCounts[id] ?? 0) + 1 } };
     });
     const event = get().history[0];
     if (event?.id === id && event.at !== beforeAt) void appendActivityJournal(event).catch(() => undefined);
@@ -1065,6 +1066,24 @@ export const useLibrary = create<LibraryState>((set, get) => ({
               limit: LIBRARY_LIMITS.adultKeywordTagsPerTitle + 36,
             }),
           ]);
+        }
+
+        // Bound retained Adult cards so long sessions do not keep every
+        // historical pull in memory/IndexedDB forever. Newest titles win.
+        const adultCap = LIBRARY_LIMITS.adultTargetCatalogVideos;
+        const adultRows = nextVideos.filter((v) => (ADULT_FOLDER_IDS as readonly string[]).includes(v.folderId));
+        if (adultRows.length > adultCap) {
+          const keep = new Set(
+            [...adultRows].sort((a, b) => b.addedAt - a.addedAt).slice(0, adultCap).map((v) => v.id),
+          );
+          nextVideos = nextVideos.filter(
+            (v) => !(ADULT_FOLDER_IDS as readonly string[]).includes(v.folderId) || keep.has(v.id),
+          );
+          folders = folders.map((folder) =>
+            (ADULT_FOLDER_IDS as readonly string[]).includes(folder.id)
+              ? { ...folder, videoCount: nextVideos.filter((v) => v.folderId === folder.id).length }
+              : folder,
+          );
         }
 
         return {

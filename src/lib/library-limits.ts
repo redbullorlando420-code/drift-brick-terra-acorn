@@ -39,13 +39,19 @@ export const LIBRARY_LIMITS = {
   redtubeStarsPerPage: 40,
   redtubeStarVideosPerPull: 120,
   adultKeywordTagsPerTitle: 48,
-  // Fast-start Adult pull is larger than the old 240 cap; background ticks keep topping up.
-  adultFastStartVideosPerPull: 1_600,
+  // Fast-start Adult pull stays below the old 1.6k wall so the first Adults
+  // paint is not blocked on a full multi-provider archive. Background ticks
+  // and Load more still top the catalog up to adultTargetCatalogVideos.
+  adultFastStartVideosPerPull: 720,
   /** A foreground click must return a usable mixed shelf quickly. Deep archive work belongs to Load more. */
-  adultInteractiveVideosPerPull: 1_200,
-  adultFastStartRailSize: 48,
+  adultInteractiveVideosPerPull: 480,
+  adultFastStartRailSize: 32,
   /** Keep auto-pulling until the Adult catalog reaches this many cached titles. */
-  adultTargetCatalogVideos: 8_000,
+  adultTargetCatalogVideos: 6_000,
+  /** In-memory history buffer (durable journal may retain more until pruned). */
+  historyMemoryEntries: 2_000,
+  /** Soft cap for decoded local frame thumbs retained in the Zustand cache. */
+  memoryThumbEntries: 280,
   /** Bounded automatic archive pages per visit; users can still continue manually. */
   adultAutoArchivePagesPerVisit: 2,
   adultAutoArchiveDelayMs: 30_000,
@@ -63,7 +69,7 @@ export const LIBRARY_LIMITS = {
   redditWindowsPerPull: 2,
   /** Concurrent RSS fetches per wave (stay under Reddit rate limits). */
   redditFetchConcurrency: 4,
-  booruVideosPerPull: 240,
+  booruVideosPerPull: 320,
   booruPageSize: 80,
   redgifsVideosPerPull: 240,
   redgifsPageSize: 80,

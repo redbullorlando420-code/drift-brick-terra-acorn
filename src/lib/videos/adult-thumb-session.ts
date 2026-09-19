@@ -3,9 +3,9 @@
  * and host success scores so rails do not re-hit the same dead CDN path.
  */
 
-const MAX_FAILED = 800;
-const MAX_GOOD = 600;
-const MAX_BY_VIDEO = 400;
+const MAX_FAILED = 600;
+const MAX_GOOD = 400;
+const MAX_BY_VIDEO = 280;
 
 const failedUrls = new Set<string>();
 const goodUrls = new Set<string>();
