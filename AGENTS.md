@@ -1,10 +1,10 @@
 # Reelcase — PR living notes
 
-**PR** `perf/speed-memory-adult-apis` → `main` · Speed, memory, Adult API harden/backups, photos/models, Rule34 filters, Live Adult lives, richer Stats, tag-click fix, **3D Prints interactive viewer**, section teardown + grid/storage speedups + durable YT/Twitch follows.
+**PR** `perf/speed-memory-adult-apis` → `main` · Speed, memory, Adult API harden/backups, photos/models, Rule34 filters, Live Adult lives, richer Stats, tag-click fix, **3D Prints interactive viewer**, section teardown + grid/storage speedups + durable YT/Twitch follows + broader durable activity stores + library pack export/import.
 
 ## In progress
 
-Memory/speed follow-up round on this PR (section teardown, grid windowing, storage guards, durable YT/Twitch follows). Keep Adult previews / 3D viewer / tags / Live Adult / Stats intact.
+Memory/speed follow-up round on this PR (section teardown, grid windowing, storage guards, durable YT/Twitch follows, broader durable activity blobs, library pack zip). Keep Adult previews / 3D viewer / tags / Live Adult / Stats intact.
 
 ### Shipped this PR
 1. **Faster Adult first paint** — lower interactive/fast-start pull sizes and rail seed; tighter TitleRail/PosterGrid viewport margins and earlier offscreen unmount.
@@ -30,6 +30,15 @@ Memory/speed follow-up round on this PR (section teardown, grid windowing, stora
 21. **Player / blob hygiene** — local `<video>` pause+detach on player unmount; upscaler model blob revoked after Cache seed; Photos upscale preview revoked on leave.
 22. **Idle Home discovery** — DiscoveryDesk ranking runs on `requestIdleCallback` with stride-sample on huge catalogs; low-priority image queue pauses while the tab is hidden.
 23. **Durable YouTube/Twitch follows** — follow lists now live in a dedicated IndexedDB key (`activity` → `follows`) plus tiny `reelcase.follows.v1` localStorage mirror, separate from the prefs/tags blob. Hydrate merges dedicated store + legacy `prefs.follows`; import-history seeds stubs before network recovery. Thumb prune, history journal prune, and Adult catalog caps never touch this store.
+24. **Broader durable activity stores** — same pattern as follows for sticky local PC data that used to live only in the giant prefs blob or fragile LS-only feedback:
+    - `activity` → `history` + `reelcase.history.v1` (watch history snapshot; journal remains append-only)
+    - `activity` → `resume` + `reelcase.resume.v1` (progress + continue-watching pointers)
+    - `activity` → `marks` + `reelcase.marks.v1` (viewCounts + Adult cameCounts)
+    - `activity` → `shelves` + `reelcase.shelves.v1` (favorites + likes)
+    - `activity` → `links` + `reelcase.links.v1` (saved video URLs derived from history/resume)
+    - `activity` → `feedback` backing `reelcase.media-feedback.v1` (ratings, notes, creator likes, tag hearts)
+    Hydrate merges dedicated stores over prefs/activity snapshot; persist writes them on every library save. Memory prune never clears these keys.
+25. **Library pack export/import** — Settings downloads a zip mirroring `public/import-templates/` / `data/import-templates/` (`follows/`, `history/`, `links/`, `marks/`, `resume/`, `stats/` + README). Import merges into the durable stores above; optional confirm to replace follows only. Offline fill-in templates shipped in-repo.
 
 ### Env / keys (no secrets in repo)
 - `ADULTDATALINK_API_KEY` or `ADL_API_KEY` — optional Redgifs secondary via AdultDataLink.
@@ -39,6 +48,7 @@ Memory/speed follow-up round on this PR (section teardown, grid windowing, stora
 - Soak test Redgifs temporary-token + Rule34 JSON + e621 preview reliability under the session blacklist
 - Optional: additional documented tube APIs only when they expose stable public search + thumbs (no HTML scrape)
 - Optional: measured row heights for VideoGrid lead spacers across breakpoints
+- Optional: File System Access “save folder” for pack export when the browser supports directory writes (zip remains the default)
 
 Official public APIs + Reddit Atom only. 18+ only. No Pornhub scrape; no torrents.
 
