@@ -425,8 +425,18 @@ export function Player({ playlist }: { playlist: string[] }) {
   const adultImage = Boolean(
     remote && isAdultImageKind(remote.kind, video.mime, video.extension),
   );
-  const redgifsDirectMedia = remote?.kind === "redgifs" && Boolean(video.src && video.src !== remote.embedUrl);
-  const directAdultMedia = Boolean(remote && isAdultPullKind(remote.kind) && video.src && /\.(?:mp4|webm|gifv)(?:\?|$)/i.test(video.src));
+  // Prefer Redgifs' official iframe. CDN URLs returned by discovery can be
+  // session-bound, while the iframe is also the proven playback path for a
+  // Redgifs clip discovered through Reddit. Other providers retain their
+  // direct media route when that is all they offer.
+  const redgifsEmbed = remote?.kind === "redgifs" && Boolean(remote.embedUrl);
+  const directAdultMedia = Boolean(
+    remote
+      && isAdultPullKind(remote.kind)
+      && video.src
+      && /\.(?:mp4|webm|gifv)(?:\?|$)/i.test(video.src)
+      && !redgifsEmbed,
+  );
   const embedSrc = adultImage
     ? null
     : remote
@@ -438,7 +448,7 @@ export function Player({ playlist }: { playlist: string[] }) {
             // MyFreeCams does not offer a permitted iframe player. Its public
             // roster still supplies live cards, and the player gives each card
             // an immediate official-room link instead of a dead framed page.
-            ? remote.kind === "myfreecams" || redgifsDirectMedia || directAdultMedia ? null : remote.embedUrl ?? video.src ?? null
+            ? remote.kind === "myfreecams" || directAdultMedia ? null : remote.embedUrl ?? video.src ?? null
             : remote.embedUrl
               ? `${remote.embedUrl}${remote.embedUrl.includes("?") ? "&" : "?"}autoplay=1&rel=0&modestbranding=1`
               : null
@@ -492,7 +502,10 @@ export function Player({ playlist }: { playlist: string[] }) {
       ) : (
         <video
           ref={mediaRef}
-          src={src ?? undefined}
+          // Remote direct-media items do not go through resolvePlayUrl, so
+          // bind their already-known URL here. Without this, a valid adult
+          // provider card reached an empty video element after "Watch now".
+          src={(directAdultMedia ? video.src : src) ?? undefined}
           className={cn(
             "absolute inset-0 size-full object-contain bg-bg",
             hardwareAccel && "hw-video",

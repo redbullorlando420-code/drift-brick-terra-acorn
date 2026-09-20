@@ -86,6 +86,11 @@ export function TopBar({
     return candidates.filter((video) => {
         const folder = folders.find((item) => item.id === video.folderId);
         if (folder?.adult && !((sourceId === "adults" || sourceId === "adult-fetishes") && adultsUnlocked)) return false;
+        // Source desks intentionally scope their suggestion cards. The same
+        // worker index still powers the lookup, including creator and provider
+        // URL tokens, without walking the full catalog on each keystroke.
+        if (sourceId === "youtube" && video.remote?.kind !== "youtube") return false;
+        if (sourceId === "twitch" && video.remote?.kind !== "twitch") return false;
         return indexedIds ? true : `${video.name} ${video.path} ${video.description ?? ""} ${video.remote?.channelName ?? ""} ${(tags[video.id] ?? []).join(" ")}`.toLowerCase().includes(needle);
       }).sort((a, b) => b.addedAt - a.addedAt).slice(0, 6);
   }, [adultsUnlocked, folders, needle, sourceId, tags, videoById, videos, workerIds, searchIndexStatus]);
@@ -145,7 +150,7 @@ export function TopBar({
             if (e.key === "Escape") setFocused(false);
           }}
           onFocus={() => setFocused(true)}
-          placeholder="Search your entire media desk…"
+          placeholder={onAdultDesk ? "Find Adult tags — e.g. role play or creator…" : "Search your entire media desk…"}
           className="h-12 border-border bg-elevated pl-11 pr-10 text-base shadow-border"
           aria-label="Global media search"
         />
@@ -153,8 +158,9 @@ export function TopBar({
         {focused && (
           <div className="absolute top-[calc(100%+0.5rem)] z-40 w-full overflow-hidden rounded-lg bg-surface p-2 shadow-lift shadow-border">
             {searchIndexStatus === "building" && <p className="px-3 py-2 text-xs text-muted">Preparing search… you can keep browsing.</p>}
+            {onAdultDesk && <p className="px-3 py-2 text-xs text-muted">Use plain words or #tags. Adult tag searches stay on this desk and match saved creator, source, and interest labels.</p>}
             {hits.length ? <>
-              <p className="px-3 py-2 text-xs font-medium tracking-[0.14em] text-accent uppercase">Best matches</p>
+              <p className="px-3 py-2 text-xs font-medium tracking-[0.14em] text-accent uppercase">{sourceId === "youtube" ? "YouTube matches" : sourceId === "twitch" ? "Twitch matches" : "Best matches"}</p>
               {hits.map((video) => <button key={video.id} type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => { openPreview(video.id); setFocused(false); }} className="flex w-full items-center gap-3 rounded-sm px-3 py-2 text-left hover:bg-elevated"><span className="flex size-8 shrink-0 items-center justify-center rounded-sm bg-bg/60 text-accent"><FolderSearch className="size-4" /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium text-fg">{video.name}</span><span className="block truncate text-xs text-muted">{video.remote?.channelName ?? video.path}</span></span></button>)}
               {suggestionTags.length > 0 && <div className="flex flex-wrap gap-2 border-t border-border px-3 py-2"><span className="self-center text-xs text-muted">Related tags</span>{suggestionTags.map((tag) => <Button key={tag} size="sm" variant="secondary" onMouseDown={(event) => event.preventDefault()} onClick={() => { setDraft(tag); commit(tag); }}>#{tag}</Button>)}</div>}
               <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => commit()} className="mt-1 flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm text-accent hover:bg-elevated"><Search className="size-4" /> See all results for “{draft}”</button>

@@ -86,7 +86,13 @@ export function PreVideo() {
     }
     return scores;
   }, [allTags, ratingRevision, videos]);
-  const allVisibleTags = (creatorKeyword && !tags.includes(creatorKeyword) ? [creatorKeyword, ...tags] : tags).map((tag) => tag.replace(/^(?:keyword-|creator-)/i, ""));
+  // Provider and derived creator tags can normalize to the same display
+  // label. De-duplicate after normalization so React keys stay stable and a
+  // tag is never rendered twice in the preview.
+  const allVisibleTags = [...new Set(
+    (creatorKeyword && !tags.includes(creatorKeyword) ? [creatorKeyword, ...tags] : tags)
+      .map((tag) => tag.replace(/^(?:keyword-|creator-)/i, "")),
+  )];
   // Provider pulls can retain hundreds of useful description words. Render a
   // generous first window so an expanded archive never makes the preview slow.
   const visibleTags = allVisibleTags.slice(0, 80);
@@ -188,7 +194,19 @@ export function PreVideo() {
   if (!video) return null;
   const adultImage = Boolean(video.remote && isAdultImageKind(video.remote.kind, video.mime, video.extension));
   const myFreeCamsRoom = video.remote?.kind === "myfreecams";
-  const directAdultMedia = Boolean(video.remote && isAdultPullKind(video.remote.kind) && video.src && /\.(?:mp4|webm|gifv)(?:\?|$)/i.test(video.src));
+  // Redgifs CDN file links can be short-lived or reject a browser request
+  // without the session context. The official iframe is the durable player
+  // path (and is the same path used for Redgifs attached to Reddit posts).
+  // Keep direct media for the other adult providers, where it is the best
+  // available playback route.
+  const redgifsEmbed = video.remote?.kind === "redgifs" && Boolean(video.remote.embedUrl);
+  const directAdultMedia = Boolean(
+    video.remote
+      && isAdultPullKind(video.remote.kind)
+      && video.src
+      && /\.(?:mp4|webm|gifv)(?:\?|$)/i.test(video.src)
+      && !redgifsEmbed,
+  );
   const imageSrc = adultImage
     ? (video.src || video.remote?.embedUrl || video.remote?.previewUrl || video.poster || null)
     : null;

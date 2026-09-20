@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, ExternalLink, Flag, LoaderCircle, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
@@ -80,6 +80,27 @@ function fetishTopicKey(tag: string): string {
 
 function fetishTagLabel(tag: string): string {
   return fetishTopicKey(tag).replace(/\s+/g, " ");
+}
+
+function tagSearchTerms(value: string): string[] {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/^#/, "")
+    .replace(/^(?:fetish|genre|meta|creator|source|provider|sub)-/, "")
+    .replace(/[-_]+/g, " ")
+    .split(/\s+/)
+    .filter((term) => term.length > 0);
+}
+
+function tagMatchesSearch(tag: string, query: string): boolean {
+  const terms = tagSearchTerms(query);
+  if (!terms.length) return true;
+  const searchable = tag
+    .toLowerCase()
+    .replace(/^(?:fetish|genre|meta|creator|source|provider|sub)-/, "")
+    .replace(/[-_]+/g, " ");
+  return terms.every((term) => searchable.includes(term));
 }
 
 function pullSourceSelectionLabel(providers: AdultPullProvider[] | "all"): string {
@@ -426,6 +447,8 @@ export function AdultPanel({
   const [providers, setProviders] = useState<AdultPullProvider[] | "all">("all");
   const [booted, setBooted] = useState(false);
   const [localTag, setLocalTag] = useState("all");
+  const [facetQuery, setFacetQuery] = useState("");
+  const deferredFacetQuery = useDeferredValue(facetQuery);
   const tagFilter = tagFilterProp ?? localTag;
   const setTagFilter = (tag: string) => {
     setLocalTag(tag);
@@ -572,6 +595,22 @@ export function AdultPanel({
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .slice(0, 24);
   }, [adultVideos, discoveryCollapsed, facetsReady, tags]);
+
+  // This only walks tags after the first paint and while a person is actively
+  // searching. It makes long-tail provider, creator, and interest tags
+  // discoverable without inflating the default Adults shelf.
+  const searchedTagFacets = useMemo(() => {
+    if (!deferredFacetQuery.trim() || !facetsReady) return [] as Array<readonly [string, number]>;
+    const counts = new Map<string, number>();
+    for (const video of adultVideos) {
+      for (const tag of tags[video.id] ?? []) {
+        if (tagMatchesSearch(tag, deferredFacetQuery)) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+      }
+    }
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 30);
+  }, [adultVideos, deferredFacetQuery, facetsReady, tags]);
 
   useEffect(() => {
     if (!autoPull || booted || !redditSourcesReady) return;
@@ -1082,6 +1121,12 @@ export function AdultPanel({
           </p>
         )}
         <p className="mt-1 text-xs text-accent">{archiveLabel}</p>
+        <div className="mt-4 rounded-md border border-border bg-bg/35 p-3">
+          <label className="text-xs font-medium tracking-[0.14em] text-accent uppercase" htmlFor="adult-tag-search">Find any saved Adult tag</label>
+          <div className="relative mt-2"><Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle"/><Input id="adult-tag-search" value={facetQuery} onChange={(event) => setFacetQuery(event.target.value)} placeholder="Try a creator, source, or interest — e.g. role play" className="pl-9 pr-16" aria-describedby="adult-tag-search-help"/>{facetQuery && <Button size="sm" variant="ghost" className="absolute top-1/2 right-1 -translate-y-1/2" onClick={() => setFacetQuery("")}>Clear</Button>}</div>
+          <p id="adult-tag-search-help" className="mt-2 text-xs text-muted">Searches every saved provider, creator, subreddit, and interest tag. Pick a match to filter this desk in place.</p>
+          {facetQuery.trim() && <div className="mt-3"><p className="text-xs text-muted">{searchedTagFacets.length ? `${searchedTagFacets.length} matching tag${searchedTagFacets.length === 1 ? "" : "s"}` : facetsReady ? "No saved tags match yet." : "Preparing saved tags…"}</p>{searchedTagFacets.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{searchedTagFacets.map(([tag, count]) => <Button key={tag} size="sm" variant={tagFilter === tag ? "default" : "secondary"} onClick={() => setTagFilter(tag)}>#{tag} · {count}</Button>)}</div>}</div>}
+        </div>
         {sourceFacets.length > 0 && (
           <div className="mt-4">
             <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Source tags</p>

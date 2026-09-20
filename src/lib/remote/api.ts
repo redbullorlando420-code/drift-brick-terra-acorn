@@ -1,4 +1,4 @@
-import type { FollowedChannel, FollowKind, LibraryVideo } from "@/lib/videos/types";
+import type { FollowedChannel, FollowKind, LibraryVideo, ProviderFailure } from "@/lib/videos/types";
 import { LIBRARY_LIMITS } from "@/lib/library-limits";
 import { cachedAdultFetch } from "@/lib/remote/adult-pull-cache";
 import {
@@ -45,6 +45,32 @@ function providerKey(provider: ProviderName, handle: string) {
 
 function retryAtFor(provider: ProviderName, handle: string) {
   return providerFailures.get(providerKey(provider, handle))?.retryAt;
+}
+
+/** Turn public-provider failures into a small, actionable local diagnosis.
+ * This never changes cached cards: the refresh merge is intentionally additive
+ * when a channel does not reach a healthy response. */
+export function classifyProviderFailure(provider: ProviderName, error: unknown): ProviderFailure {
+  const raw = error instanceof Error ? error.message : String(error || "Unknown provider failure");
+  const message = raw.replace(/\s+/g, " ").trim().slice(0, 240) || "Unknown provider failure";
+  const lower = message.toLowerCase();
+  const common = { message, at: Date.now() };
+  if (/\b429\b|rate.?limit|too many requests|retrying after/.test(lower)) {
+    return { ...common, kind: "rate-limited", recovery: "Keep the cached channel cards. Reelcase will retry after the shown cooldown; use a focused retry only when you need it now." };
+  }
+  if (/integrity|challenge/.test(lower)) {
+    return { ...common, kind: "integrity-challenge", recovery: "Twitch accepted the cached archive but requires its public integrity check for deeper pages. Try a focused pull later; no cached VODs were removed." };
+  }
+  if (/page.?limit|first.*100|public.*page/.test(lower)) {
+    return { ...common, kind: "public-page-limit", recovery: "The public archive stopped advancing. Keep the accepted pages and try a later focused pull rather than increasing the routine budget." };
+  }
+  if (/json|parse|malformed|invalid response|unexpected token/.test(lower)) {
+    return { ...common, kind: "malformed", recovery: "The provider returned an unreadable response. Cached cards remain available; retry this channel after the provider recovers." };
+  }
+  if (/\b404\b|\b410\b|could not (find|resolve)|not found|unavailable|does not exist/.test(lower)) {
+    return { ...common, kind: "unavailable", recovery: "The public channel or item is unavailable right now. Keep its cached cards and confirm the creator link before removing anything." };
+  }
+  return { ...common, kind: "network-offline", recovery: "The provider could not be reached. Cached cards remain available and Reelcase will retry after the shown cooldown." };
 }
 
 /** Share identical work across browser tabs and suppress only background retries. */
@@ -932,7 +958,7 @@ export async function runRefreshRemotes(dataRaw: unknown): Promise<RefreshResult
           // shallow so it cannot turn one scheduled refresh into thousands of
           // provider requests; the merge path preserves older archive cards.
           const next = await followTwitch(ch.handle, true);
-          channels.push({ ...ch, ...next.channel, id: ch.id });
+          channels.push({ ...ch, ...next.channel, id: ch.id, lastProviderFailure: undefined });
           videos.push(...next.videos.map((video) => ({ ...video, folderId: ch.id })));
         } else {
           const q = ch.channelId ? `https://www.youtube.com/channel/${ch.channelId}` : ch.handle;
@@ -941,12 +967,12 @@ export async function runRefreshRemotes(dataRaw: unknown): Promise<RefreshResult
           // configured per-channel budget; server coalescing/cache protects
           // repeated refreshes from duplicating this work.
           const next = await youtubeFromChannel(q, LIBRARY_LIMITS.youtubeRoutineVideosPerChannel, false, true);
-          channels.push({ ...ch, ...next.channel, id: ch.id });
+          channels.push({ ...ch, ...next.channel, id: ch.id, lastProviderFailure: undefined });
           videos.push(...next.videos.map((video) => ({ ...video, folderId: ch.id })));
         }
         refreshedIds.push(ch.id);
-      } catch {
-        channels.push(ch);
+      } catch (error) {
+        channels.push({ ...ch, lastProviderFailure: classifyProviderFailure(ch.kind, error) });
       }
     });
     const retryAt = Object.fromEntries(data.channels.flatMap((channel) => {

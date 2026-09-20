@@ -359,14 +359,43 @@ function collectFollows(files: Record<string, string>): FollowedChannel[] {
   return dedupeFollows(rows);
 }
 
+function normalizeHistoryEntry(raw: unknown): HistoryEntry | null {
+  if (!raw || typeof raw !== "object") return null;
+  const row = raw as Record<string, unknown>;
+  const eventId = typeof row.eventId === "string" ? row.eventId.trim() : "";
+  // Older History-page exports did not include the video id separately. Its
+  // durable event id is still enough to recover it: `video-id:timestamp:source`.
+  const eventMatch = eventId.match(/^(.*):(\d{10,}):(open|progress|watch-room)$/);
+  const id = String(row.id ?? eventMatch?.[1] ?? "").trim();
+  const atValue = row.at ?? (typeof row.occurredAt === "string" ? Date.parse(row.occurredAt) : NaN);
+  const at = Number(atValue);
+  if (!id || !Number.isFinite(at)) return null;
+  const source = row.source === "open" || row.source === "progress" || row.source === "watch-room" ? row.source : undefined;
+  const position = Number(row.position ?? row.positionSeconds);
+  const duration = Number(row.duration ?? row.durationSeconds);
+  return {
+    id,
+    at,
+    ...(typeof row.url === "string" && row.url ? { url: row.url } : {}),
+    ...(typeof row.title === "string" && row.title ? { title: row.title } : {}),
+    ...(Number.isFinite(position) ? { position } : {}),
+    ...(Number.isFinite(duration) ? { duration } : {}),
+    ...(source ? { source } : {}),
+    ...(eventId ? { eventId } : {}),
+  };
+}
+
 function collectHistory(files: Record<string, string>): HistoryEntry[] {
   const rows: HistoryEntry[] = [];
   for (const [name, body] of Object.entries(files)) {
-    if (fileEndsWith(name, "history.json")) {
+    if (fileEndsWith(name, "history.json") || /(?:^|\/)reelcase-history-[^/]+\.json$/i.test(pathKey(name))) {
       try {
         const parsed = JSON.parse(body) as { entries?: HistoryEntry[] } | HistoryEntry[];
         const list = Array.isArray(parsed) ? parsed : parsed.entries ?? [];
-        rows.push(...list);
+        for (const entry of list) {
+          const normalized = normalizeHistoryEntry(entry);
+          if (normalized) rows.push(normalized);
+        }
       } catch { /* skip */ }
     }
     if (fileEndsWith(name, "history.csv")) {
@@ -378,16 +407,17 @@ function collectHistory(files: Record<string, string>): HistoryEntry[] {
         const id = rec.id?.trim();
         const at = Number(rec.at);
         if (!id || !Number.isFinite(at)) continue;
-        rows.push({
+        const normalized = normalizeHistoryEntry({
           id,
           at,
-          ...(rec.url ? { url: rec.url } : {}),
-          ...(rec.title ? { title: rec.title } : {}),
-          ...(rec.position ? { position: Number(rec.position) } : {}),
-          ...(rec.duration ? { duration: Number(rec.duration) } : {}),
-          ...(rec.source === "open" || rec.source === "progress" || rec.source === "watch-room" ? { source: rec.source } : {}),
-          ...(rec.eventid ? { eventId: rec.eventid } : {}),
+          url: rec.url,
+          title: rec.title,
+          position: rec.position,
+          duration: rec.duration,
+          source: rec.source,
+          eventId: rec.eventid,
         });
+        if (normalized) rows.push(normalized);
       }
     }
   }

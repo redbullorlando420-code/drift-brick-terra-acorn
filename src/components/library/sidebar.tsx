@@ -161,6 +161,12 @@ export function SidebarNav({
           label="Movies"
         />
         <NavItem
+          active={sourceId === "anime"}
+          onClick={() => go("anime")}
+          icon={Clapperboard}
+          label="Anime"
+        />
+        <NavItem
           active={sourceId === "genres"}
           onClick={() => go("genres")}
           icon={Film}

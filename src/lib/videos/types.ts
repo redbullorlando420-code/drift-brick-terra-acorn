@@ -115,6 +115,14 @@ export type LibraryVideo = {
 export type FollowKind = "youtube" | "twitch";
 export type RemoteKind = FollowKind | "eporner" | "redtube" | "chaturbate" | "myfreecams" | "reddit" | "booru" | "redgifs";
 
+/** A local, user-facing explanation of a failed public provider refresh. */
+export type ProviderFailure = {
+  kind: "unavailable" | "rate-limited" | "malformed" | "network-offline" | "integrity-challenge" | "public-page-limit";
+  message: string;
+  recovery: string;
+  at: number;
+};
+
 export type RemoteRef = {
   kind: RemoteKind;
   /** A post can be discovered on one provider while its media is hosted by another. */
@@ -164,6 +172,8 @@ export type FollowedChannel = {
   lastCheckedAt?: number;
   newestPublishedAt?: number;
   lastResponseCount?: number;
+  /** Last failed public refresh. Successful checks explicitly clear this. */
+  lastProviderFailure?: ProviderFailure;
 };
 
 export type AppNotice = {
@@ -188,6 +198,7 @@ export type GroupBy = "none" | "folder" | "letter" | "type";
 export type SourceId =
   | "home"
   | "movies"
+  | "anime"
   | "favorites"
   | "history"
   | "adults"

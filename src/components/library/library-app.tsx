@@ -3,7 +3,7 @@ import { lazy, startTransition, Suspense, useEffect, useMemo, useRef, useState }
 import type { ComponentType } from "react";
 import { toast, Toaster } from "sonner";
 import { useShallow } from "zustand/react/shallow";
-import { LoaderCircle, Lock, Shuffle } from "lucide-react";
+import { LoaderCircle, Lock, Shuffle, Upload } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { DiscoveryDesk, LiveDesk, RatingStreakCard } from "./discovery-desk";
@@ -27,6 +27,7 @@ import { AiGuide } from "./ai-guide";
 import { ConnectPanel } from "./connect-panel";
 const loadHub = () => import("./hub-sections");
 const hubSection = <T extends keyof Awaited<ReturnType<typeof loadHub>>>(name: T) => lazy(async () => ({ default: (await loadHub())[name] as ComponentType }));
+const AnimeSection = hubSection("AnimeSection");
 const GamesSection = hubSection("GamesSection");
 const FindPhoneSection = hubSection("FindPhoneSection");
 const GenreSection = hubSection("GenreSection");
@@ -58,13 +59,15 @@ import {
   userFolderCount,
 } from "@/lib/videos/store";
 import { DEMO_FOLDER_ID } from "@/lib/videos/samples";
-import type { LibraryVideo, WellKnownStart } from "@/lib/videos/types";
+import type { LibraryVideo, ProviderFailure, WellKnownStart } from "@/lib/videos/types";
 import { hasFreshViewerCount, isClassicVideo } from "@/lib/videos/types";
 import { useThumbs } from "@/lib/videos/thumbs";
 import { clearLowPriorityImageQueue, ensureImageBudgetVisibilityHook } from "@/lib/videos/image-load-budget";
 import { adultThumbCandidatesForVideo } from "@/lib/videos/adult-thumbs";
 import { librarySearchIndex } from "@/lib/videos/search-index";
 import { searchWorkerIndex } from "@/lib/videos/search-worker-index";
+import { importLibraryPackZip } from "@/lib/videos/library-pack";
+import { linksFromHistoryAndResume } from "@/lib/videos/persist";
 import { creatorIsLiked, getCreatorRating, getHeartedTagHistory, getRating, tagHasHeartHistory, tagIsLiked } from "@/lib/media-feedback";
 import { announceNetworkPresence } from "@/lib/network-presence";
 
@@ -207,8 +210,13 @@ export function LibraryApp() {
   const [historyWindow, setHistoryWindow] = useState<"all" | "day" | "week">("all");
   const [historySource, setHistorySource] = useState<"all" | "open" | "progress" | "watch-room">("all");
   const [historyRetention, setHistoryRetention] = useState<"forever" | "week" | "month" | "year">("forever");
+  const [historyImportNote, setHistoryImportNote] = useState("");
   const [homeExpanded, setHomeExpanded] = useState(false);
   const [homeRecommendationsReady, setHomeRecommendationsReady] = useState(false);
+  // Invitation URLs are intentionally promoted after hydration. Reading the
+  // browser URL during the initial render made an SSR Home shell disagree
+  // with the client-side Watch Room tree on every shared theater link.
+  const [invitedToTheater, setInvitedToTheater] = useState(false);
   const [remoteRefreshMs, setRemoteRefreshMs] = useState(() => {
     try { const seconds = Number(localStorage.getItem("reelcase.twitch-refresh-seconds") ?? "30"); return [15, 30, 60, 120, 300].includes(seconds) ? seconds * 1_000 : 30_000; }
     catch { return 30_000; }
@@ -347,6 +355,34 @@ export function LibraryApp() {
     }
     return { sources, resumable };
   }, [history]);
+  const importHistoryRecovery = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".zip,.json,.csv,application/zip,application/json,text/csv";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      if (!window.confirm("Merge this Reelcase recovery pack? Existing activity is kept and duplicate entries are ignored.")) return;
+      void importLibraryPackZip(file, {
+        getFollows: () => useLibrary.getState().follows,
+        setFollows: (follows) => useLibrary.setState({ follows }),
+        getHistory: () => useLibrary.getState().history,
+        setHistory: (history) => useLibrary.setState({ history }),
+        getViewCounts: () => useLibrary.getState().viewCounts,
+        getCameCounts: () => useLibrary.getState().cameCounts,
+        setMarks: (viewCounts, cameCounts) => useLibrary.setState({ viewCounts, cameCounts }),
+        getFavorites: () => Object.keys(useLibrary.getState().favorites),
+        getLikes: () => Object.keys(useLibrary.getState().likes),
+        setShelves: (favorites, likes) => useLibrary.setState({ favorites: Object.fromEntries(favorites.map((id) => [id, true as const])), likes: Object.fromEntries(likes.map((id) => [id, true as const])) }),
+        getProgress: () => useLibrary.getState().progress,
+        getResumeProgress: () => useLibrary.getState().resumeProgress,
+        setResume: (progress, resumeProgress) => useLibrary.setState({ progress, resumeProgress }),
+        getLinks: () => linksFromHistoryAndResume(useLibrary.getState().history, useLibrary.getState().resumeProgress),
+        setLinks: () => { /* Persisted by the pack importer. */ },
+      }).then((result) => setHistoryImportNote(`Recovered +${result.historyMerged} activity entries · +${result.followsAdded} follows · +${result.linksMerged} saved links${result.feedbackMerged ? " · ratings and hearts merged" : ""}${result.warnings.length ? ` · ${result.warnings[0]}` : ""}.`)).catch((error) => setHistoryImportNote(error instanceof Error ? error.message : "Recovery import failed."));
+    };
+    input.click();
+  };
   const favorites = useLibrary((s) => s.favorites);
   const likes = useLibrary((s) => s.likes);
   const viewCounts = useLibrary((s) => s.viewCounts);
@@ -698,7 +734,7 @@ export function LibraryApp() {
     return sortedTwitch.filter((video) => !video.remote?.live).map((video) => ({ video, score: popularity(video) })).sort((a, b) => b.score - a.score || b.video.addedAt - a.video.addedAt).map(({ video }) => video);
   }, [favorites, highlyRatedTags, likes, ratingRevision, sortedTwitch, sourceId, tags, viewCounts]);
   const twitchArchiveDepth = useMemo(() => {
-    if (sourceId !== "twitch") return { total: 0, sparse: 0, channels: [] as Array<{ id: string; name: string; count: number; oldest: number; newest: number; clips: number; lastCheckedAt?: number; lastResponseCount?: number; retryAt?: number }> };
+    if (sourceId !== "twitch") return { total: 0, sparse: 0, channels: [] as Array<{ id: string; name: string; count: number; oldest: number; newest: number; clips: number; lastCheckedAt?: number; lastResponseCount?: number; retryAt?: number; lastProviderFailure?: ProviderFailure }> };
     const rows = new Map<string, { count: number; oldest: number; newest: number; clips: number }>();
     for (const video of twitchVodPicks) {
       const name = video.remote?.channelName?.trim() || "Unknown creator";
@@ -713,6 +749,7 @@ export function LibraryApp() {
       lastCheckedAt: channel.lastCheckedAt,
       lastResponseCount: channel.lastResponseCount,
       retryAt: remoteRetryAt[channel.id],
+      lastProviderFailure: channel.lastProviderFailure,
     })).sort((a, b) => a.count - b.count || a.name.localeCompare(b.name));
     return { total: twitchVodPicks.length, sparse: channels.filter((channel) => channel.count < 24).length, channels };
   }, [follows, remoteRetryAt, sourceId, twitchVodPicks]);
@@ -884,7 +921,9 @@ export function LibraryApp() {
     // after saved preferences hydrate so a remembered last page cannot win.
     if (!hydrated) return;
     const room = new URLSearchParams(window.location.search).get("room")?.trim().toUpperCase() ?? "";
-    if (/^RC[A-Z0-9]{4,12}$/.test(room)) setSource("watch-room");
+    const invited = /^RC[A-Z0-9]{4,12}$/.test(room);
+    setInvitedToTheater(invited);
+    if (invited) setSource("watch-room");
   }, [hydrated, setSource]);
 
   const refreshFollows = useLibrary((s) => s.refreshFollows);
@@ -1086,6 +1125,7 @@ export function LibraryApp() {
   const historyRetentionCutoff = historyRetention === "week" ? Date.now() - 7 * 86_400_000 : historyRetention === "month" ? Date.now() - 30 * 86_400_000 : historyRetention === "year" ? Date.now() - 365 * 86_400_000 : 0;
   const exportHistory = () => {
     const rows = historyVisibleEntries.map((entry) => ({
+      id: entry.id,
       eventId: entry.eventId ?? `${entry.id}:${entry.at}:${entry.source ?? "open"}`,
       occurredAt: new Date(entry.at).toISOString(),
       localTime: new Date(entry.at).toLocaleString(),
@@ -1112,11 +1152,9 @@ export function LibraryApp() {
       sourceId === "youtube" ||
       sourceId === "twitch" ||
       sourceId === "live");
-  const invitedToTheater = typeof window !== "undefined" && /^RC[A-Z0-9]{4,12}$/.test(
-    (new URLSearchParams(window.location.search).get("room") ?? "").trim().toUpperCase(),
-  );
   const isHubSection = [
     "photos",
+    "anime",
     "spotify",
     "prints",
     "games",
@@ -1159,6 +1197,7 @@ export function LibraryApp() {
             <Suspense fallback={<section className="rounded-xl bg-elevated p-8 text-sm text-muted shadow-border">Loading this library workspace…</section>}>
             <>
               {sourceId === "prints" && <PrintsSection />}
+              {sourceId === "anime" && <AnimeSection />}
               {sourceId === "photos" && <PhotosSection />}
               {sourceId === "spotify" && <SpotifySection />}
               {sourceId === "games" && <GamesSection />}
@@ -1229,7 +1268,7 @@ export function LibraryApp() {
 
               {sourceId === "youtube" && browsing && (
                 <>
-                  <section className="mb-7 rounded-xl bg-elevated p-5 shadow-border sm:p-6"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Discovery desk</p><h1 className="mt-2 font-display text-4xl text-fg">YouTube, tuned to you.</h1><p className="mt-2 max-w-2xl text-sm text-muted">Fresh uploads are ordered by YouTube’s published date, not title. Background cache pulls are quiet; only an explicit refresh reports its result. {follows.filter((channel) => channel.kind === "youtube").length} channel{follows.filter((channel) => channel.kind === "youtube").length === 1 ? "" : "s"} tracked locally · {youtubeVideos.length.toLocaleString()} cached videos.</p><p className="mt-2 text-xs text-accent">{remoteCheckedAt ? `Automatic refresh last checked ${new Date(remoteCheckedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Automatic refresh will begin after the first channel check."}{remoteRefreshStatus ? ` · last batch: ${remoteRefreshStatus.refreshed}/${remoteRefreshStatus.checked} channels refreshed, ${remoteRefreshStatus.youtube.toLocaleString()} YouTube entries returned${remoteRefreshStatus.failed ? `, ${remoteRefreshStatus.failed} unavailable` : ""}` : ""}</p><div className="mt-4 flex flex-wrap gap-2"><Button size="sm" variant="secondary" disabled={channelRefreshing === "youtube-refresh"} onClick={() => void (async () => { setChannelRefreshing("youtube-refresh"); try { const result = await refreshFollows(); pushNotice({ title: "YouTube refresh complete", body: `${result.newVideos.filter((video) => video.remote?.kind === "youtube").length} new YouTube video${result.newVideos.filter((video) => video.remote?.kind === "youtube").length === 1 ? "" : "s"} found.`, kind: "youtube" }); } finally { setChannelRefreshing(""); } })()}>{channelRefreshing === "youtube-refresh" ? "Refreshing YouTube…" : "Refresh now"}</Button><Button size="sm" variant="ghost" onClick={() => setYoutubeHealthVisible((value) => !value)}>{youtubeHealthVisible ? "Hide channel health" : "Channel health"}</Button><span className="self-center text-xs text-muted">Saved channels retry in rotating background batches; each result adds to this cached count.</span></div>{youtubeHealthVisible && <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{youtubeHealth.map((channel) => <article key={channel.id} className="rounded-sm bg-bg/45 p-3"><p className="truncate text-sm font-medium text-fg">{channel.title}</p><p className="mt-1 text-xs text-muted">{channel.cached.toLocaleString()} cached · last result {channel.lastResponseCount ?? 0} rows</p><p className="mt-1 text-xs text-muted">{channel.newest ? `Newest ${new Date(channel.newest).toLocaleDateString()}` : "No published item cached"} · {channel.lastCheckedAt ? `checked ${new Date(channel.lastCheckedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "not checked yet"}</p><p className="mt-1 text-xs text-muted">{channel.retryAt && channel.retryAt > Date.now() ? `Retry ${new Date(channel.retryAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Provider ready"}</p></article>)}</div>}</section>
+                  <section className="mb-7 rounded-xl bg-elevated p-5 shadow-border sm:p-6"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Discovery desk</p><h1 className="mt-2 font-display text-4xl text-fg">YouTube, tuned to you.</h1><p className="mt-2 max-w-2xl text-sm text-muted">Fresh uploads are ordered by YouTube’s published date, not title. Background cache pulls are quiet; only an explicit refresh reports its result. {follows.filter((channel) => channel.kind === "youtube").length} channel{follows.filter((channel) => channel.kind === "youtube").length === 1 ? "" : "s"} tracked locally · {youtubeVideos.length.toLocaleString()} cached videos.</p><p className="mt-2 text-xs text-accent">{remoteCheckedAt ? `Automatic refresh last checked ${new Date(remoteCheckedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Automatic refresh will begin after the first channel check."}{remoteRefreshStatus ? ` · last batch: ${remoteRefreshStatus.refreshed}/${remoteRefreshStatus.checked} channels refreshed, ${remoteRefreshStatus.youtube.toLocaleString()} YouTube entries returned${remoteRefreshStatus.failed ? `, ${remoteRefreshStatus.failed} unavailable` : ""}` : ""}</p><div className="mt-4 flex flex-wrap gap-2"><Button size="sm" variant="secondary" disabled={channelRefreshing === "youtube-refresh"} onClick={() => void (async () => { setChannelRefreshing("youtube-refresh"); try { const result = await refreshFollows(); pushNotice({ title: "YouTube refresh complete", body: `${result.newVideos.filter((video) => video.remote?.kind === "youtube").length} new YouTube video${result.newVideos.filter((video) => video.remote?.kind === "youtube").length === 1 ? "" : "s"} found.`, kind: "youtube" }); } finally { setChannelRefreshing(""); } })()}>{channelRefreshing === "youtube-refresh" ? "Refreshing YouTube…" : "Refresh now"}</Button><Button size="sm" variant="ghost" onClick={() => setYoutubeHealthVisible((value) => !value)}>{youtubeHealthVisible ? "Hide channel health" : "Channel health"}</Button><span className="self-center text-xs text-muted">Saved channels retry in rotating background batches; each result adds to this cached count.</span></div>{youtubeHealthVisible && <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{youtubeHealth.map((channel) => <article key={channel.id} className="rounded-sm bg-bg/45 p-3"><p className="truncate text-sm font-medium text-fg">{channel.title}</p><p className="mt-1 text-xs text-muted">{channel.cached.toLocaleString()} cached · last result {channel.lastResponseCount ?? 0} rows</p><p className="mt-1 text-xs text-muted">{channel.newest ? `Newest ${new Date(channel.newest).toLocaleDateString()}` : "No published item cached"} · {channel.lastCheckedAt ? `checked ${new Date(channel.lastCheckedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "not checked yet"}</p><p className="mt-1 text-xs text-muted">{channel.lastProviderFailure ? `${channel.lastProviderFailure.kind.replaceAll("-", " ")} · ${channel.lastProviderFailure.recovery}` : channel.retryAt && channel.retryAt > Date.now() ? `Retry ${new Date(channel.retryAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Provider ready"}</p>{channel.lastProviderFailure && channel.retryAt && channel.retryAt > Date.now() && <p className="mt-1 text-xs text-accent">Retry {new Date(channel.retryAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</p>}</article>)}</div>}</section>
                   <TitleRail title="Latest uploads" videos={filteredYoutube} variant="rail" />
                   {!youtubeExploreVisible && <section className="mb-6 rounded-xl border border-border bg-surface p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Fast start</p><h2 className="mt-2 font-display text-2xl text-fg">Open YouTube fast, then deepen the catalog when you want it.</h2><p className="mt-1 text-sm text-muted">Recommendations, artwork-heavy discovery shelves, tag filters, and the full grid wait until requested. Your newest uploads are ready immediately.</p><Button className="mt-4" variant="secondary" onClick={() => setYoutubeExploreVisible(true)}>Explore recommendations and full catalog</Button></section>}
                   {youtubeExploreVisible && <><TitleRail title="Trending in your tracked channels" videos={trendingYoutube} variant="rail" /><TitleRail title="New to you on YouTube" videos={freshPicks.filter((video) => video.remote?.kind === "youtube" && (youtubeTagFilter === "all" || topicsForVideo(video, tags[video.id]).includes(youtubeTagFilter)))} variant="rail" /><TitleRail title="More from your rated YouTube" videos={relatedYoutube.filter((video) => youtubeTagFilter === "all" || topicsForVideo(video, tags[video.id]).includes(youtubeTagFilter))} variant="rail" /><TitleRail title="Quick picks" videos={filteredYoutube.filter((video) => (video.duration ?? 0) > 0 && (video.duration ?? 0) < 1200)} variant="rail" /><div className="mb-5 flex flex-wrap gap-2"><Button size="sm" variant={youtubeTagFilter === "all" ? "default" : "secondary"} onClick={() => setYoutubeTagFilter("all")}>All tags</Button>{channelTagShelves.youtube.map((shelf) => <Button key={shelf.tag} size="sm" variant={youtubeTagFilter === shelf.tag ? "default" : "secondary"} onClick={() => setYoutubeTagFilter(shelf.tag)}>#{shelf.tag} · {shelf.videos.length}</Button>)}</div>{youtubeTagFilter !== "all" && <p className="-mt-2 mb-5 text-xs text-accent">Filtering every YouTube shelf and the full catalog by #{youtubeTagFilter} · {filteredYoutube.length.toLocaleString()} matching videos.</p>}<section className="mb-6 rounded-xl border border-border bg-surface p-5"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Creator discovery</p><h2 className="mt-2 font-display text-2xl text-fg">Outside your known follows.</h2><p className="mt-1 text-sm text-muted">Discovery stays in its own shelf so saved channels never get mixed with suggestions. Follow adds a channel to your saved refresh list.</p><div className="mt-4"><TitleRail title="Explore new YouTube" videos={youtubeDiscovery} variant="rail" /></div><div className="mt-4 flex flex-wrap gap-2">{[["Kurzgesagt", "kurzgesagt"], ["Veritasium", "veritasium"], ["PBS Space Time", "pbsspacetime"]].filter(([, handle]) => !follows.some((channel) => channel.kind === "youtube" && channel.handle.toLowerCase() === handle)).map(([label, handle]) => <Button key={handle} size="sm" variant="secondary" disabled={channelRefreshing === handle} onClick={() => void (async () => { setChannelRefreshing(handle); try { await followRemoteQuery(handle, "youtube"); } finally { setChannelRefreshing(""); } })()}>{channelRefreshing === handle ? "Checking…" : `Follow ${label}`}</Button>)}</div></section>{!youtubeDeepVisible && <section className="mb-6 rounded-xl border border-border bg-surface p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Deep discovery</p><h2 className="mt-2 font-display text-2xl text-fg">Browse creator and topic shelves.</h2><p className="mt-1 text-sm text-muted">These shelves remain optional so opening YouTube stays responsive even with a very large archive.</p><Button className="mt-4" variant="secondary" onClick={() => setYoutubeDeepVisible(true)}>Load creator and topic shelves</Button></section>}{youtubeDeepVisible && <>{youtubeCreatorShelves.map(({ creator, videos }) => <TitleRail key={creator} title={`From ${creator}`} videos={videos} variant="rail" />)}{channelTagShelves.youtube.map((shelf) => <TitleRail key={`youtube-tag-${shelf.tag}`} title={`YouTube · ${shelf.tag}`} videos={shelf.videos} variant="rail" />)}</>}<PosterGrid videos={filteredYoutube} /></>}
@@ -1311,7 +1350,7 @@ export function LibraryApp() {
                   <TitleRail title={`Clips & quick watches · ${twitchClipTotal.toLocaleString()}`} videos={twitchClips} variant="rail" />
                   {channelTagShelves.twitch.map((shelf) => <TitleRail key={`twitch-tag-${shelf.tag}`} title={`Twitch · ${shelf.tag}`} videos={shelf.videos} variant="rail" />)}
                   </>}
-                  <details className="mb-5 rounded-lg border border-border bg-surface p-4 shadow-border"><summary className="cursor-pointer list-none"><div className="flex items-center justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Archive coverage</p><p className="mt-1 text-sm text-muted">{twitchArchiveDepth.total.toLocaleString()} cached VODs across {twitchArchiveDepth.channels.length} channels · expand to review and queue deep pulls.</p></div><span className="text-xs text-accent">Expand</span></div></summary><div className="mt-4 flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Archive coverage</p><p className="mt-1 text-sm text-fg">{twitchArchiveDepth.total.toLocaleString()} cached VODs across {twitchArchiveDepth.channels.length} channels · {twitchArchiveDepth.sparse} sparse channel{twitchArchiveDepth.sparse === 1 ? "" : "s"} under 24 VODs.</p><p className="mt-1 text-xs text-muted">Background checks use a fast recent-VOD window. Focused pulls run serially through the queued creators, so live-state checks retain their budget. Partial responses preserve the existing archive.</p></div><div className="flex flex-wrap gap-2"><Button size="sm" variant="secondary" disabled={channelRefreshing === "twitch-archives"} onClick={() => void (async () => { setChannelRefreshing("twitch-archives"); try { await refreshFollows(); } finally { setChannelRefreshing(""); } })()}>{channelRefreshing === "twitch-archives" ? "Refreshing archives…" : "Refresh Twitch archives"}</Button><Button size="sm" variant="secondary" disabled={Boolean(channelRefreshing) || archiveQueued.length > 0} onClick={queueAllArchivePulls}>Queue all deep pulls</Button></div></div>{archiveQueued.length > 0 && <p className="mt-3 rounded-sm bg-bg/45 px-3 py-2 text-xs text-accent">Focused archive queue · {archiveQueued.length} waiting. Reelcase continues creator-by-creator toward the oldest public VOD available; it retains every accepted page.</p>}<div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{twitchArchiveDepth.channels.map((channel) => <div key={channel.id} className="rounded-sm bg-bg/45 p-3"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-sm font-medium text-fg">{channel.name}</p><p className="mt-1 text-xs text-muted">{channel.count.toLocaleString()} cached VODs · {channel.clips} confirmed clip{channel.clips === 1 ? "" : "s"} · last result {channel.lastResponseCount ?? 0} rows</p><p className="mt-1 text-xs text-muted">{channel.oldest ? `${new Date(channel.oldest).toLocaleDateString()} – ${new Date(channel.newest).toLocaleDateString()}` : "No archive dates yet"} · public depth may be limited</p><p className="mt-1 text-xs text-muted">{channel.lastCheckedAt ? `Checked ${new Date(channel.lastCheckedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "Not checked yet"}{channel.retryAt && channel.retryAt > Date.now() ? ` · cooldown until ${new Date(channel.retryAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}` : " · ready"}</p></div><Button size="sm" variant="secondary" disabled={channelRefreshing === channel.id || archiveQueued.includes(channel.id)} onClick={() => queueArchivePull(channel.id, channel.id.replace(/^tw:/, ""))}>{channelRefreshing === channel.id ? "Pulling…" : archiveQueued.includes(channel.id) ? "Queued" : "Queue deep pull"}</Button></div></div>)}</div></details>
+                  <details className="mb-5 rounded-lg border border-border bg-surface p-4 shadow-border"><summary className="cursor-pointer list-none"><div className="flex items-center justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Archive coverage</p><p className="mt-1 text-sm text-muted">{twitchArchiveDepth.total.toLocaleString()} cached VODs across {twitchArchiveDepth.channels.length} channels · expand to review and queue deep pulls.</p></div><span className="text-xs text-accent">Expand</span></div></summary><div className="mt-4 flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Archive coverage</p><p className="mt-1 text-sm text-fg">{twitchArchiveDepth.total.toLocaleString()} cached VODs across {twitchArchiveDepth.channels.length} channels · {twitchArchiveDepth.sparse} sparse channel{twitchArchiveDepth.sparse === 1 ? "" : "s"} under 24 VODs.</p><p className="mt-1 text-xs text-muted">Background checks use a fast recent-VOD window. Focused pulls run serially through the queued creators, so live-state checks retain their budget. Partial responses preserve the existing archive.</p></div><div className="flex flex-wrap gap-2"><Button size="sm" variant="secondary" disabled={channelRefreshing === "twitch-archives"} onClick={() => void (async () => { setChannelRefreshing("twitch-archives"); try { await refreshFollows(); } finally { setChannelRefreshing(""); } })()}>{channelRefreshing === "twitch-archives" ? "Refreshing archives…" : "Refresh Twitch archives"}</Button><Button size="sm" variant="secondary" disabled={Boolean(channelRefreshing) || archiveQueued.length > 0} onClick={queueAllArchivePulls}>Queue all deep pulls</Button></div></div>{archiveQueued.length > 0 && <p className="mt-3 rounded-sm bg-bg/45 px-3 py-2 text-xs text-accent">Focused archive queue · {archiveQueued.length} waiting. Reelcase continues creator-by-creator toward the oldest public VOD available; it retains every accepted page.</p>}<div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{twitchArchiveDepth.channels.map((channel) => <div key={channel.id} className="rounded-sm bg-bg/45 p-3"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-sm font-medium text-fg">{channel.name}</p><p className="mt-1 text-xs text-muted">{channel.count.toLocaleString()} cached VODs · {channel.clips} confirmed clip{channel.clips === 1 ? "" : "s"} · last result {channel.lastResponseCount ?? 0} rows</p><p className="mt-1 text-xs text-muted">{channel.oldest ? `${new Date(channel.oldest).toLocaleDateString()} – ${new Date(channel.newest).toLocaleDateString()}` : "No archive dates yet"} · public depth may be limited</p><p className="mt-1 text-xs text-muted">{channel.lastProviderFailure ? `${channel.lastProviderFailure.kind.replaceAll("-", " ")} · ${channel.lastProviderFailure.recovery}` : channel.lastCheckedAt ? `Checked ${new Date(channel.lastCheckedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "Not checked yet"}</p>{channel.retryAt && channel.retryAt > Date.now() && <p className="mt-1 text-xs text-accent">Cooldown until {new Date(channel.retryAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}</p>}</div><Button size="sm" variant="secondary" disabled={channelRefreshing === channel.id || archiveQueued.includes(channel.id)} onClick={() => queueArchivePull(channel.id, channel.id.replace(/^tw:/, ""))}>{channelRefreshing === channel.id ? "Pulling…" : archiveQueued.includes(channel.id) ? "Queued" : "Queue deep pull"}</Button></div></div>)}</div></details>
                   <PosterGrid videos={sortedTwitch.filter((video) => (twitchFilter === "all" || (twitchFilter === "favorites" ? favorites[video.id] : likes[video.id])) && (twitchTagFilter === "all" || topicsForVideo(video, tags[video.id]).includes(twitchTagFilter)))} />
                   {!twitchVideos.length && (
                     <p className="text-sm text-muted">Add a channel from the follow manager below to fill this shelf.</p>
@@ -1722,6 +1761,10 @@ export function LibraryApp() {
                         <span className="text-xs text-subtle">Export first if you want a copy.</span>
                       </div>
                     </section>
+                  )}
+                  {sourceId === "history" && (
+                    <section className="mb-5 rounded-lg border border-border bg-surface p-4 shadow-border" aria-label="History recovery import">
+                      <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Recovery import</p><h2 className="mt-1 text-lg font-medium text-fg">Restore a saved activity pack.</h2><p className="mt-1 max-w-2xl text-xs leading-5 text-muted">Merge a Reelcase library pack to recover History, Continue marks, follows, favorites, ratings, Adult marks, and saved provider links. Duplicate activity is ignored; it never clears data already here.</p></div><Button size="sm" variant="secondary" onClick={importHistoryRecovery}><Upload className="size-4"/>Import recovery pack</Button></div>{historyImportNote && <p className="mt-3 text-xs text-accent" role="status">{historyImportNote}</p>}</section>
                   )}
                   {sourceId === "history" && historyTopTags.length > 0 && (
                     <div className="mb-5 rounded-lg bg-elevated px-4 py-3 shadow-border">

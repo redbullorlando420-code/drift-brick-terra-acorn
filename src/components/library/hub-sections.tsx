@@ -1,7 +1,7 @@
 import { TopicLinks } from './topic-links';
 import { openTopic } from '@/lib/videos/topic-navigation';
-import { isTopicTag, canonicalTopic } from '@/lib/videos/topics';
-import { type ReactNode, lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { isTopicTag, canonicalTopic, topicsForVideo } from '@/lib/videos/topics';
+import { type ReactNode, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bot,
   Box,
@@ -48,7 +48,7 @@ const PrintModelViewer = lazy(async () => {
 import { isViewablePrintName, savePrintBlob } from "@/lib/prints-blobs";
 import { fetchCompanionIcons, iconsFromFolderFiles, loadGameIconCache, saveGameIcon } from "@/lib/game-icons";
 import { Input } from "@/components/ui/input";
-import { resumeForVideo, useLibrary } from "@/lib/videos/store";
+import { isAdultVideo, resumeForVideo, useLibrary } from "@/lib/videos/store";
 import { buildAdultStatsSnapshot, exportAdultStats } from "@/lib/videos/adult-stats";
 import { buildLibraryPackFiles, downloadLibraryPackZip, importLibraryPackZip, applyLibraryPackFiles, type LibraryPackMode } from "@/lib/videos/library-pack";
 import {
@@ -65,7 +65,7 @@ import {
 import { linksFromHistoryAndResume, saveDurablePhotos, restoreDurablePhotos, loadDurablePhotosSync, type DurablePhotoMeta } from "@/lib/videos/persist";
 import { rankAdultTags } from "@/lib/videos/adult-rank";
 import { countAdultBySource, countAdultBooruHosts } from "@/lib/videos/adult-filter";
-import { isAdultImageKind } from "@/lib/videos/adult-sites";
+import { isAdultImageKind, isAdultPullKind } from "@/lib/videos/adult-sites";
 import { getThumbDiagnostics, useThumbs } from "@/lib/videos/thumbs";
 import { useSourceAssets } from "@/lib/source-assets";
 import { useP2PRoom } from "@/lib/multiplayer";
@@ -253,6 +253,53 @@ function roomShuffleRank(id: string, seed: number) {
 }
 
 type LocalRoomShare = { name: string; fingerprint: string; size: number; modified: number };
+type RoomLedgerEvent = {
+  at: number;
+  kind: "session" | "state" | "timeline" | "queue" | "request" | "dropped";
+  detail: string;
+};
+type RoomHealth = {
+  lastPublishedAt: number;
+  lastHostStateAt: number;
+  lastQueueAt: number;
+  lastDriftSeconds: number;
+  queueRevision: number;
+  queueRequests: number;
+  queueAccepted: number;
+  staleDropped: number;
+  resyncRequests: number;
+};
+const ROOM_QUEUE_LIMIT = 48;
+function normalizeRoomQueue(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  return value.flatMap((item) => {
+    const id = typeof item === "string" ? item.trim() : "";
+    if (!id || seen.has(id)) return [];
+    seen.add(id);
+    return [id];
+  }).slice(0, ROOM_QUEUE_LIMIT);
+}
+function normalizeLocalRoomQueue(value: unknown) {
+  if (!Array.isArray(value)) return [] as LocalRoomShare[];
+  const seen = new Set<string>();
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const share = item as Partial<LocalRoomShare>;
+    if (typeof share.name !== "string" || typeof share.fingerprint !== "string" || !share.name.trim() || !share.fingerprint.trim() || seen.has(share.fingerprint)) return [];
+    seen.add(share.fingerprint);
+    return [{ name: share.name, fingerprint: share.fingerprint, size: Math.max(0, Number(share.size) || 0), modified: Math.max(0, Number(share.modified) || 0) }];
+  }).slice(0, 24);
+}
+function trustedRoomSentAt(value: unknown) {
+  const sentAt = typeof value === "number" && Number.isFinite(value) ? value : 0;
+  // A room packet should be fresh. A wildly future clock would otherwise make
+  // every honest state look stale until the tab is refreshed.
+  return sentAt > 0 && sentAt <= Date.now() + 60_000 ? sentAt : 0;
+}
+function roomTimeLabel(at: number) {
+  return at ? new Date(at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" }) : "waiting";
+}
 function localRoomFingerprint(file: File) {
   // A privacy-preserving match key, not a content hash. It is enough to stop
   // an accidental same-name handoff while never reading or transmitting bytes.
@@ -300,6 +347,157 @@ export function GenreSection() {
   return <HubShell eyebrow="Topic explorer" icon={<Clapperboard className="size-4"/>} title="Explore ideas across sources." copy="Follow useful topics across local media, YouTube and Twitch. Each connection shows its saved tag or title evidence."><TopicLinks explorer /></HubShell>;
 }
 
+type AnimeDeskFilter = "all" | "continue" | "series" | "films";
+
+function animeTitleFormat(video: LibraryVideo, tags: readonly string[]) {
+  const text = `${video.name} ${video.genre ?? ""} ${tags.join(" ")}`.toLowerCase();
+  if (/\b(anime[- ]?(?:movie|film|special)|movie|film|theatrical|ova|ona|special)\b/.test(text)) return "films" as const;
+  return "series" as const;
+}
+
+function animeSearchMatch(video: LibraryVideo, tags: readonly string[], value: string) {
+  const needle = value.trim().toLowerCase();
+  if (!needle) return true;
+  return `${video.name} ${video.genre ?? ""} ${video.description ?? ""} ${tags.join(" ")}`.toLowerCase().includes(needle);
+}
+
+export function AnimeSection() {
+  const videos = useLibrary((s) => s.videos);
+  const folders = useLibrary((s) => s.folders);
+  const tags = useLibrary((s) => s.tags);
+  const progress = useLibrary((s) => s.progress);
+  const resumeProgress = useLibrary((s) => s.resumeProgress);
+  const unavailable = useLibrary((s) => s.unavailable);
+  const setVideoTags = useLibrary((s) => s.setVideoTags);
+  const setSource = useLibrary((s) => s.setSource);
+  const [filter, setFilter] = useState<AnimeDeskFilter>("all");
+  const [query, setQuery] = useState("");
+  const [tagQuery, setTagQuery] = useState("");
+  const [limit, setLimit] = useState(36);
+
+  const catalog = useMemo(
+    () => videos.filter((video) => !isAdultVideo(video, folders) && !isAdultPullKind(video.remote?.kind) && !unavailable[video.id]),
+    [folders, unavailable, videos],
+  );
+  const anime = useMemo(
+    () => catalog
+      .filter((video) => topicsForVideo(video, tags[video.id] ?? []).includes("anime"))
+      .sort((a, b) => b.addedAt - a.addedAt),
+    [catalog, tags],
+  );
+  const continuing = useMemo(
+    () => anime
+      .filter((video) => {
+        const mark = resumeForVideo({ progress, resumeProgress }, video);
+        return Boolean(mark && mark.d > 0 && mark.t >= 2 && mark.t / mark.d < 0.992);
+      })
+      .sort((a, b) => {
+        const aMark = resumeForVideo({ progress, resumeProgress }, a)?.at ?? 0;
+        const bMark = resumeForVideo({ progress, resumeProgress }, b)?.at ?? 0;
+        return bMark - aMark;
+      }),
+    [anime, progress, resumeProgress],
+  );
+  const filtered = useMemo(() => {
+    const base = filter === "continue"
+      ? continuing
+      : filter === "all"
+        ? anime
+        : anime.filter((video) => animeTitleFormat(video, tags[video.id] ?? []) === filter);
+    return base.filter((video) => animeSearchMatch(video, tags[video.id] ?? [], query));
+  }, [anime, continuing, filter, query, tags]);
+  const tagMatches = useMemo(() => {
+    if (!tagQuery.trim()) return [];
+    return catalog
+      .filter((video) => animeSearchMatch(video, tags[video.id] ?? [], tagQuery))
+      .slice(0, 8);
+  }, [catalog, tagQuery, tags]);
+  const localCount = anime.filter((video) => !video.remote).length;
+  const seriesCount = anime.filter((video) => animeTitleFormat(video, tags[video.id] ?? []) === "series").length;
+  const filmCount = anime.length - seriesCount;
+  const markAnime = (video: LibraryVideo) => {
+    const current = tags[video.id] ?? [];
+    if (!current.includes("anime")) setVideoTags(video.id, [...current, "anime"]);
+  };
+
+  const filters: Array<{ id: AnimeDeskFilter; label: string; count: number }> = [
+    { id: "all", label: "All titles", count: anime.length },
+    { id: "continue", label: "Continue", count: continuing.length },
+    { id: "series", label: "Series", count: seriesCount },
+    { id: "films", label: "Films & specials", count: filmCount },
+  ];
+
+  return (
+    <HubShell
+      eyebrow="Anime library"
+      icon={<Clapperboard className="size-4" />}
+      title="Keep anime on its own shelf."
+      copy="A fast, local-first view for anime already in your Reelcase catalog. Saved #anime tags and clear title/category evidence keep it separate without copying or proxying third-party playback."
+    >
+      <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Anime library summary">
+        <Stat label="Anime titles" value={anime.length} />
+        <Stat label="Continue watching" value={continuing.length} />
+        <Stat label="Local titles" value={localCount} />
+        <Stat label="Films & specials" value={filmCount} />
+      </section>
+
+      <section className="mt-6 rounded-lg bg-elevated p-4 shadow-border sm:p-5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Browse your shelf</p>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">Search stays inside Anime. Series and film groupings use your saved tags and straightforward title cues, so nothing is guessed from a streaming site.</p>
+          </div>
+          <Button size="sm" variant="secondary" onClick={() => setSource("home")}>Add library media</Button>
+        </div>
+        <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center">
+          <Input value={query} onChange={(event) => { setQuery(event.target.value); setLimit(36); }} placeholder="Search your anime titles and tags" aria-label="Search anime library" className="lg:max-w-md" />
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Anime shelf filters">
+            {filters.map((item) => <Button key={item.id} size="sm" variant={filter === item.id ? "default" : "secondary"} onClick={() => { setFilter(item.id); setLimit(36); }}>{item.label} <span className="ml-1 font-mono tabular-nums opacity-70">{item.count}</span></Button>)}
+          </div>
+        </div>
+      </section>
+
+      {filtered.length ? (
+        <section className="mt-6">
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+            <div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">{filters.find((item) => item.id === filter)?.label}</p><p className="mt-1 text-sm text-muted">{filtered.length.toLocaleString()} matching title{filtered.length === 1 ? "" : "s"}</p></div>
+            {query && <Button size="sm" variant="ghost" onClick={() => setQuery("")}>Clear search</Button>}
+          </div>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
+            {filtered.slice(0, limit).map((video, index) => <VideoCard key={video.id} video={video} variant="grid" index={index} />)}
+          </div>
+          {limit < filtered.length && <div className="mt-5 flex justify-center"><Button variant="secondary" onClick={() => setLimit((value) => value + 36)}>Show 36 more</Button></div>}
+        </section>
+      ) : (
+        <section className="mt-6 rounded-lg bg-elevated p-5 shadow-border">
+          <p className="font-medium text-fg">No matching anime titles yet.</p>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">Add a local or authorized library source, then use the title finder below to give the right cards a saved #anime tag. Existing media, ratings, history, and resume points remain untouched.</p>
+        </section>
+      )}
+
+      <section className="mt-6 rounded-lg bg-elevated p-4 shadow-border sm:p-5">
+        <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Tag a title into Anime</p>
+        <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">Use this for filenames that do not say “anime” or “manga.” The tag is saved locally, searchable across the app, and included in your existing recovery export.</p>
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+          <Input value={tagQuery} onChange={(event) => setTagQuery(event.target.value)} placeholder="Find a title already in your library" aria-label="Find a library title to tag as anime" className="sm:max-w-xl" />
+          {tagQuery && <Button size="sm" variant="ghost" onClick={() => setTagQuery("")}>Clear</Button>}
+        </div>
+        {tagQuery && !tagMatches.length && <p className="mt-3 text-sm text-muted">No catalog titles match that search.</p>}
+        {tagMatches.length > 0 && <div className="mt-4 space-y-2">{tagMatches.map((video) => {
+          const alreadyAnime = topicsForVideo(video, tags[video.id] ?? []).includes("anime");
+          return <div key={video.id} className="flex flex-wrap items-center gap-3 rounded-md bg-bg/45 p-3"><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-fg">{video.name}</p><p className="mt-0.5 truncate text-xs text-muted">{video.genre || video.extension.toUpperCase()} · {video.remote?.channelName ?? (video.remote ? video.remote.kind : "Local library")}</p></div><Button size="sm" variant={alreadyAnime ? "secondary" : "default"} disabled={alreadyAnime} onClick={() => markAnime(video)}>{alreadyAnime ? "In Anime" : "Add #anime"}</Button></div>;
+        })}</div>}
+      </section>
+
+      <section className="mt-6 rounded-lg border border-border bg-elevated/70 p-4 shadow-border">
+        <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Source boundary</p>
+        <p className="mt-1 max-w-3xl text-sm leading-6 text-muted">Reelcase does not fetch, download, proxy, or embed video from unverified third-party streaming sites. The Anime desk only organizes media already added to your catalog, and sends external viewing choices through the separate Streaming desk.</p>
+        <Button size="sm" variant="secondary" className="mt-3" onClick={() => setSource("streaming")}>Open streaming destinations</Button>
+      </section>
+    </HubShell>
+  );
+}
+
 export function StatsSection() {
   const videos = useLibrary((s) => s.videos);
   const folders = useLibrary((s) => s.folders);
@@ -315,6 +513,7 @@ export function StatsSection() {
   const [showAllSources, setShowAllSources] = useState(false);
   const [remediationView, setRemediationView] = useState<"" | "topics" | "sources">("");
   const [favoriteRevision, setFavoriteRevision] = useState(0);
+  const [recoveryNote, setRecoveryNote] = useState("");
   useEffect(() => {
     const refresh = () => setFavoriteRevision((value) => value + 1);
     window.addEventListener("reelcase:rating-change", refresh);
@@ -491,6 +690,34 @@ export function StatsSection() {
     ...sourceHealth.duplicateNames.flatMap(({ name, count }) => [["source-hygiene", 1, name, `${count} identical source labels`, "Open source map and rename only after review"]]),
     ...(sourceHealth.largest ? [["storage-concentration", 1, sourceHealth.largest.folder.name, `${sourceHealth.concentration}% of mapped local bytes`, "Review source contents; no files are changed automatically"]] : []),
   ], `reelcase-remediation-plan-${new Date().toISOString().slice(0, 10)}.csv`);
+  const importRecoveryPack = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".zip,.json,.csv,application/zip,application/json,text/csv";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      if (!window.confirm("Merge this Reelcase recovery pack? Current catalog and activity stay intact.")) return;
+      void importLibraryPackZip(file, {
+        getFollows: () => useLibrary.getState().follows,
+        setFollows: (follows) => useLibrary.setState({ follows }),
+        getHistory: () => useLibrary.getState().history,
+        setHistory: (history) => useLibrary.setState({ history }),
+        getViewCounts: () => useLibrary.getState().viewCounts,
+        getCameCounts: () => useLibrary.getState().cameCounts,
+        setMarks: (viewCounts, cameCounts) => useLibrary.setState({ viewCounts, cameCounts }),
+        getFavorites: () => Object.keys(useLibrary.getState().favorites),
+        getLikes: () => Object.keys(useLibrary.getState().likes),
+        setShelves: (favorites, likes) => useLibrary.setState({ favorites: Object.fromEntries(favorites.map((id) => [id, true as const])), likes: Object.fromEntries(likes.map((id) => [id, true as const])) }),
+        getProgress: () => useLibrary.getState().progress,
+        getResumeProgress: () => useLibrary.getState().resumeProgress,
+        setResume: (progress, resumeProgress) => useLibrary.setState({ progress, resumeProgress }),
+        getLinks: () => linksFromHistoryAndResume(useLibrary.getState().history, useLibrary.getState().resumeProgress),
+        setLinks: () => { /* Persisted by the pack importer. */ },
+      }).then((result) => setRecoveryNote(`Recovered +${result.historyMerged} activity entries · +${result.followsAdded} follows · +${result.linksMerged} saved links${result.feedbackMerged ? " · ratings and hearts merged" : ""}${result.warnings.length ? ` · ${result.warnings[0]}` : ""}.`)).catch((error) => setRecoveryNote(error instanceof Error ? error.message : "Recovery import failed."));
+    };
+    input.click();
+  };
   return <HubShell eyebrow="Library intelligence" icon={<BarChart3 className="size-4"/>} title="Know what your library needs next." copy="These local-only counts help identify coverage gaps, oversized source folders, and the tags that are driving discovery.">
     <section id="adult-stats" className="mt-2 scroll-mt-24 rounded-xl border border-accent/35 bg-elevated p-5 shadow-border">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -587,6 +814,7 @@ export function StatsSection() {
     </section>
     <TopicLinks />
     <div className="mt-5 flex flex-wrap gap-2"><Button size="sm" variant="secondary" onClick={exportStats}><Download className="size-4"/>Download insight CSV</Button><Button size="sm" variant="secondary" onClick={exportSources}><Download className="size-4"/>Download source-map CSV</Button><Button size="sm" variant="secondary" onClick={exportRemediation}><Download className="size-4"/>Download remediation CSV</Button><span className="self-center text-xs text-muted">Exports only local catalog metadata, useful for improving sorting and discovery rules.</span></div>
+    <section className="mt-5 rounded-lg border border-border bg-elevated p-4 shadow-border" aria-label="Stats recovery import"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Recovery import</p><h2 className="mt-1 text-lg font-medium text-fg">Bring back your exported signals.</h2><p className="mt-1 max-w-2xl text-xs leading-5 text-muted">Import a Reelcase library pack to merge exported history, resume marks, favorites, follows, ratings, Adult marks, and saved links. Insight CSV files stay read-only reports; use the pack for recovery.</p></div><Button size="sm" variant="secondary" onClick={importRecoveryPack}><Upload className="size-4"/>Import recovery pack</Button></div>{recoveryNote && <p className="mt-3 text-xs text-accent" role="status">{recoveryNote}</p>}</section>
     <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Stat label="Catalog titles" value={videos.length.toLocaleString()}/><Stat label="Local storage mapped" value={bytes(summary.totalBytes)}/><Stat label="Saved topic assignments" value={summary.tagAssignments.toLocaleString()}/><Stat label="Favorites" value={Object.keys(favorites).length.toLocaleString()}/></div>
     <section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Stat label="Local / remote" value={`${summary.localTitles.toLocaleString()} / ${summary.remoteTitles.toLocaleString()}`}/><Stat label="Remote catalog share" value={`${Math.round(summary.remoteShare * 100)}%`}/><Stat label="New provider items · 7d" value={summary.freshRemoteTitles.toLocaleString()}/><Stat label="Needs useful topic" value={`${summary.untaggedTitles.toLocaleString()} titles`}/><Stat label="Saved topic coverage" value={`${Math.round(((videos.length - summary.untaggedTitles) / Math.max(videos.length, 1)) * 100)}%`}/><Stat label="Topic tags per title" value={summary.tagDensity.toFixed(2)}/><Stat label="Cross-source topic bridges" value={summary.bridgeTopics.toLocaleString()}/><Stat label="Multi-topic titles" value={summary.multiTopicTitles.toLocaleString()}/><Stat label="Operational labels" value={summary.operationalTagAssignments.toLocaleString()}/><Stat label="Any metadata coverage" value={`${Math.round(summary.metadataTaggedTitles / Math.max(videos.length, 1) * 100)}%`}/><Stat label="Creator / description coverage" value={`${summary.creatorTaggedTitles.toLocaleString()} / ${summary.descriptionTaggedTitles.toLocaleString()}`}/><Stat label="YouTube / Twitch" value={`${summary.youtubeTitles.toLocaleString()} / ${summary.twitchTitles.toLocaleString()}`}/><Stat label="Known runtime" value={`${Math.round(summary.knownDuration / 3600).toLocaleString()} hours`}/><Stat label="Resume marks" value={summary.resumedTitles.toLocaleString()}/><Stat label="Local view events" value={summary.totalViews.toLocaleString()}/><Stat label="Live right now" value={summary.liveTitles.toLocaleString()}/><Stat label="Artwork coverage" value={`${Math.round(summary.thumbReady / Math.max(videos.length, 1) * 100)}%`}/><Stat label="History events" value={history.length.toLocaleString()}/><Stat label="Unavailable cards" value={Object.keys(unavailable).length.toLocaleString()}/></section>
     <section className="mt-5 rounded-lg border border-border bg-surface p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Fast paths from your library</p><h2 className="mt-2 font-display text-2xl text-fg">Use the small, useful slice first.</h2><p className="mt-1 max-w-3xl text-sm leading-6 text-muted">Topic, Continue, and source views now reuse saved metadata and mount cards progressively. Favorite topics lead every topic list so the first results match what you actually want to browse.</p><div className="mt-4 grid gap-3 md:grid-cols-3"><div className="rounded-md bg-elevated p-3"><p className="text-xs text-muted">Favorite topics</p><p className="mt-1 text-lg font-medium text-fg">{summary.topicRows.filter(([topic]) => tagIsLiked(topic)).length}</p><p className="mt-1 text-xs text-muted">Pinned ahead of large catalog scans.</p></div><div className="rounded-md bg-elevated p-3"><p className="text-xs text-muted">Ready to resume</p><p className="mt-1 text-lg font-medium text-fg">{summary.resumedTitles.toLocaleString()}</p><p className="mt-1 text-xs text-muted">Stable resume records survive catalog refreshes.</p><Button className="mt-3" size="sm" variant="secondary" onClick={() => useLibrary.getState().setSource("continue")}>Open Continue</Button></div><div className="rounded-md bg-elevated p-3"><p className="text-xs text-muted">Metadata-first catalog</p><p className="mt-1 text-lg font-medium text-fg">{Math.round(summary.metadataTaggedTitles / Math.max(videos.length, 1) * 100)}%</p><p className="mt-1 text-xs text-muted">Existing metadata is used before slower title-only inference.</p><Button className="mt-3" size="sm" variant="secondary" onClick={() => useLibrary.getState().setSource("genres")}>Open Topics</Button></div></div>{summary.topicRows.filter(([topic]) => tagIsLiked(topic)).length > 0 && <div className="mt-4 flex flex-wrap gap-2">{summary.topicRows.filter(([topic]) => tagIsLiked(topic)).slice(0, 12).map(([topic, count]) => <Button key={topic} size="sm" variant="secondary" onClick={() => openTopic(topic)}>★ #{topic} · {count.toLocaleString()}</Button>)}</div>}</section>
@@ -2406,7 +2634,8 @@ function missionSteps(mission: Mission): [string, string, string] {
 const DEFAULT_MISSIONS: Mission[] = [
   { id: "index", title: "Durable media index", detail: "Catalog source health, cached metadata, persistent thumbnails, and fast search without blocking the first screen.", done: true },
   { id: "companion", title: "Desktop companion", detail: "Verify local files, watch selected folders, and launch approved desktop shortcuts through a local companion.", done: true },
-  { id: "watch", title: "Watch room reliability", detail: "LAN diagnostics, timeline reconciliation, queue controls, and guest-access messaging are implemented; real cross-device matrix validation remains in progress.", done: false },
+  { id: "watch", title: "Watch room reliability", detail: "Host-authoritative state, stale-command rejection, revisioned queue reconciliation, LAN diagnostics, and guest-access messaging are implemented; real cross-device matrix validation remains in progress.", done: false },
+  { id: "watch-room-state-integrity", title: "Watch Room state integrity", detail: "Done · Watch Room now keeps a compact local session ledger, rejects stale or out-of-order host state, gives queue changes monotonic revisions, and routes guest playback or queue changes through host confirmation.", done: true },
   { id: "services", title: "Connected services", detail: "Keep Twitch, YouTube, Roku, Spotify, and photo imports independently cached and refreshable.", done: true },
   { id: "thumb-health", title: "Thumbnail health queue", detail: "Retry failed artwork, hide unavailable remote cards, and expose a small source diagnostic instead of blank previews.", done: true },
   { id: "windows-explorer", title: "Windows explorer bridge", detail: "Companion-backed folder health, change events, shortcut validation, and safe launch history for local libraries.", done: true },
@@ -2415,6 +2644,9 @@ const DEFAULT_MISSIONS: Mission[] = [
   { id: "companion-onboarding", title: "Companion onboarding", detail: "One-screen startup checklist: run the companion, confirm Desktop approval, load shortcuts, verify a file, then launch one game safely.", done: true },
   { id: "large-library-views", title: "Large-library views", detail: "Progressively render grids and keep recommendations responsive with very large catalog views.", done: true },
   { id: "favorites-memory", title: "Favorites memory", detail: "Preserve favorites, shelves, and resume markers in the local catalog with export and recovery checks across sessions.", done: true },
+  { id: "recovery-import", title: "History & stats recovery imports", detail: "History and Stats now expose a merge-safe Reelcase library-pack import for exported activity, resume marks, follows, shelves, ratings, Adult marks, and saved links.", done: true },
+  { id: "anime-library-desk", title: "Anime library desk", detail: "Done · a separate Anime desk groups saved #anime media into all, continue, series, and films/specials shelves. It can tag existing catalog cards without importing, proxying, or embedding third-party streams.", done: true },
+  { id: "tag-search-upgrade", title: "Tag search everywhere", detail: "Done · the top bar and Adults controls accept human-readable partial tags, match saved creator/source/interest labels, and keep Adult results on the current desk.", done: true },
   { id: "theme-accessibility", title: "Theme & accessibility", detail: "Day/night palettes, focus styling, reduced-motion support, and per-section density preferences.", done: true },
   { id: "preview-recovery", title: "Local preview recovery", detail: "Resolve restored file handles in previews, hide failures, and log playback health without blocking the library.", done: true },
   { id: "youtube-quality", title: "YouTube channel quality", detail: "Per-channel retry controls, published-date ordering, duplicate suppression, and unavailable-card recovery are available in the YouTube desk.", done: true },
@@ -2426,7 +2658,7 @@ const DEFAULT_MISSIONS: Mission[] = [
   { id: "movie-private-tag-shelves", title: "Movie and private tag shelves", detail: "Movies have source, genre, and file-type rails; private shelves retain favorites, tags, history, and rating-aware sorting locally.", done: true },
   { id: "sprint-01", title: "Alert rules", detail: "Per-service alert switches and the notification activity center are active locally.", done: true },
   { id: "sprint-02", title: "Preference coverage", detail: "Shipped preferences have concrete local controls, with status copy explaining their effects.", done: true },
-  { id: "sprint-03", title: "Ratings streaks", detail: "In progress · choose a local 3, 5, or 10-title weekly goal on Home; distinct ratings drive a streak counter and transparent rewards. Creator and longer-term reward paths remain next.", done: false },
+  { id: "sprint-03", title: "Ratings streaks", detail: "Done · choose a local 3, 5, or 10-title weekly goal on Home; distinct ratings drive a local streak counter and transparent rewards.", done: true },
   { id: "sprint-04", title: "Video rating import/export", detail: "Include local video ratings in backup and catalog export recovery.", done: true },
   { id: "sprint-05", title: "Photo rating queue", detail: "Make unrated-photo review resumable across sessions.", done: true },
   { id: "sprint-06", title: "Continue recovery", detail: "Resume marks are durable, throttled away from the video frame loop, and recovered by path when a permitted source reconnects.", done: true },
@@ -2465,7 +2697,7 @@ const DEFAULT_MISSIONS: Mission[] = [
   { id: "activity-journal", title: "Independent activity journal", detail: "Keep History, Continue marks, and local viewing counts in an IndexedDB activity record separate from broad preference storage.", done: true },
   { id: "shelf-explanations", title: "Explainable recommendation shelves", detail: "Done · recommendation rails now state their plain-language reason—ratings, saved creators, freshness, progress, or follow state—without exposing transport tags.", done: true },
   { id: "memory-pressure-observer", title: "Memory-pressure observer", detail: "Done · local Diagnostics reports mounted-card count, decoded artwork cache entries, active/queued decode work, hit/miss/eviction counts, and frame pressure so large shelves have an observable cause.", done: true },
-  { id: "warp-01", title: "First-shelf trace", detail: "In progress · local Diagnostics now records launch-to-first-mounted-shelf time, title, and visible-card count. Cache/index and thumbnail-work splits remain next.", done: false },
+  { id: "warp-01", title: "First-shelf trace", detail: "Done · local Diagnostics records launch-to-first-mounted-shelf time, title, and visible-card count. Deeper cache/index and thumbnail splits remain separate work.", done: true },
   { id: "warp-02", title: "Route-level code splitting", detail: "Photo, Stats, Watch Room, Settings, and other hub workspaces now load only when opened, keeping media browsing out of their first-load cost.", done: true },
   { id: "warp-03", title: "Provider delta rendering", detail: "Apply only changed provider rows after a refresh instead of rebuilding every shelf.", done: false },
   { id: "warp-04", title: "Thumbnail decode governor", detail: "Done · visible and near-view artwork uses bounded workers, pauses during input or hidden-tab time, and retains a small queue for responsive recovery.", done: true },
@@ -2499,11 +2731,11 @@ const DEFAULT_MISSIONS: Mission[] = [
 
 const ROADMAP_EXPANSION: Mission[] = [
   ...[
-    ["adult-thumbnail-coverage", "Adult preview coverage", "Continue scoring usable thumbnails above slow or missing artwork across Reddit, Redgifs, RedTube, and other adult providers."],
+    ["adult-thumbnail-coverage", "Adult preview & playback coverage", "Done · Redgifs now uses its durable official iframe in both preview and full player, while direct-media providers bind their known media URL instead of opening an empty player. Existing poster fallback scoring remains in place across Reddit, Redgifs, RedTube, and other adult providers."],
     ["print-file-viewer", "3D print file viewer", "Interactive three.js orbit viewer + transform editor for STL, OBJ, GLB/GLTF, and 3MF — lighting/camera presets, wireframe, grid, explode, fullscreen; sample models plus user-added IndexedDB bytes; dispose on close."],
     ["twitch-view-modes", "Twitch viewing modes", "Keep official Twitch playback available in theater or side-details mode, while filtering offline channels and ranking VODs by useful signals."],
     ["games-shortcut-curation", "Games shortcut curation", "Promote verified game launchers with companion/folder icon pull + local icon cache while keeping unrelated web links and desktop helpers out of game recommendations."],
-  ].map(([id, title, detail]) => ({ id, title, detail, done: id === "print-file-viewer" })),
+  ].map(([id, title, detail]) => ({ id, title, detail, done: id === "print-file-viewer" || id === "adult-thumbnail-coverage" })),
   ...[
     ["history-01", "History integrity journal", "Add monotonic event IDs and an append-only local audit record."],
     ["history-02", "History replay recovery", "Reconcile IndexedDB activity events after an interrupted browser session."],
@@ -2549,7 +2781,7 @@ const ROADMAP_EXPANSION: Mission[] = [
     ["youtube-upgrade-18", "Mobile rail gesture", "Validate horizontal rail scrolling, focus visibility, and card action targets on a phone viewport without accidental page scroll or gesture conflicts."],
     ["youtube-upgrade-19", "Refresh result diff", "Apply and display only changed channel/video rows after a refresh, preserving card identity, scroll position, ratings, and healthy artwork."],
     ["youtube-upgrade-20", "YouTube regression suite", "Add repeatable checks for first-click load, shallow refresh, deep pull, duplicate handling, cached recovery, and mobile rail rendering."],
-  ].map(([id, title, detail]) => ({ id, title, detail, done: ["youtube-upgrade-11", "youtube-upgrade-12", "youtube-upgrade-13", "youtube-upgrade-14", "youtube-upgrade-15", "youtube-upgrade-19"].includes(id) })),
+  ].map(([id, title, detail]) => ({ id, title, detail, done: ["youtube-upgrade-10", "youtube-upgrade-11", "youtube-upgrade-12", "youtube-upgrade-13", "youtube-upgrade-14", "youtube-upgrade-15", "youtube-upgrade-16", "youtube-upgrade-19"].includes(id) })),
   ...[
     ["twitch-upgrade-01", "Archive page checkpoint", "Persist the last accepted archive cursor and VOD ID for each creator; resume a focused historical pull only when Twitch returns a forward-moving public page."],
     ["twitch-upgrade-02", "Focused pull queue", "Let users queue a small number of explicit archive pulls, run them serially within a visible budget, and never let them starve live-state refreshes."],
@@ -2571,7 +2803,7 @@ const ROADMAP_EXPANSION: Mission[] = [
     ["twitch-upgrade-18", "Provider error taxonomy", "Classify Twitch failures—including public-page limit, integrity challenge, unavailable creator, and network delay—and show the safest recovery action."],
     ["twitch-upgrade-19", "Twitch device regression", "Exercise live, VOD, clip, blocked-embed, and Watch Room handoff behavior across supported browser/device paths before release."],
     ["twitch-upgrade-20", "Twitch archive benchmark", "Measure a large archive’s cursor work, merge time, storage growth, first paint, and scrolling before increasing any default depth budget."],
-  ].map(([id, title, detail]) => ({ id, title, detail, done: ["twitch-upgrade-02", "twitch-upgrade-04", "twitch-upgrade-05", "twitch-upgrade-06", "twitch-upgrade-07", "twitch-upgrade-08", "twitch-upgrade-10", "twitch-upgrade-11", "twitch-upgrade-12", "twitch-upgrade-13", "twitch-upgrade-14", "twitch-upgrade-15"].includes(id) })),
+  ].map(([id, title, detail]) => ({ id, title, detail, done: ["twitch-upgrade-02", "twitch-upgrade-04", "twitch-upgrade-05", "twitch-upgrade-06", "twitch-upgrade-07", "twitch-upgrade-08", "twitch-upgrade-10", "twitch-upgrade-11", "twitch-upgrade-12", "twitch-upgrade-13", "twitch-upgrade-14", "twitch-upgrade-15", "twitch-upgrade-18"].includes(id) })),
   ...[
     ["speed-01", "First interaction budget", "Measure cached and cold launch-to-first-interactive-shelf time, separately reporting catalog hydration, selector work, thumbnail work, and any provider request."],
     ["speed-02", "Provider payload budget", "Set explicit row, byte, concurrency, and retry budgets for routine provider work; reserve historical pulls for visible user actions."],
@@ -3384,6 +3616,9 @@ export function WatchRoomSection() {
   const [rokuDevices, setRokuDevices] = useState<{ address: string; location: string }[]>([]);
   const [rokuNotice, setRokuNotice] = useState("");
   const [queue, setQueue] = useState<string[]>([]);
+  const [roomHealth, setRoomHealth] = useState<RoomHealth>({ lastPublishedAt: 0, lastHostStateAt: 0, lastQueueAt: 0, lastDriftSeconds: 0, queueRevision: 0, queueRequests: 0, queueAccepted: 0, staleDropped: 0, resyncRequests: 0 });
+  const [roomLedger, setRoomLedger] = useState<RoomLedgerEvent[]>([]);
+  const [ledgerRoom, setLedgerRoom] = useState("");
   const [stageSize, setStageSize] = useState<"compact" | "theater" | "cinema">("compact");
   const [playback, setPlayback] = useState({ playing: false, position: 0 });
   const [timelineEvidence, setTimelineEvidence] = useState<{ source: "local" | "remote" | "estimated"; at: number }>({ source: "local", at: Date.now() });
@@ -3435,8 +3670,37 @@ export function WatchRoomSection() {
   const lastRoomHistoryId = useRef("");
   const lastRoomPosition = useRef(0);
   const applyingRemotePlaybackUntil = useRef(0);
+  const queueRevisionRef = useRef(0);
+  const lastAcceptedQueueRevision = useRef(0);
+  const lastAcceptedTimelineAt = useRef(0);
+  const lastAcceptedRoomStateAt = useRef(0);
   const room = activeRoom ?? "";
   const p2p = useP2PRoom(room, name.trim() || "Guest");
+  useEffect(() => {
+    queueRevisionRef.current = 0;
+    lastAcceptedQueueRevision.current = 0;
+    lastAcceptedTimelineAt.current = 0;
+    lastAcceptedRoomStateAt.current = 0;
+    setRoomHealth({ lastPublishedAt: 0, lastHostStateAt: 0, lastQueueAt: 0, lastDriftSeconds: 0, queueRevision: 0, queueRequests: 0, queueAccepted: 0, staleDropped: 0, resyncRequests: 0 });
+    if (!room) { setRoomLedger([]); setLedgerRoom(""); return; }
+    try {
+      const stored = JSON.parse(localStorage.getItem(`reelcase.watch-room.ledger.v1:${room}`) ?? "[]");
+      setRoomLedger(Array.isArray(stored) ? stored.filter((item): item is RoomLedgerEvent => Boolean(item && typeof item.at === "number" && typeof item.kind === "string" && typeof item.detail === "string")).slice(-32) : []);
+    } catch { setRoomLedger([]); }
+    setLedgerRoom(room);
+  }, [room]);
+  useEffect(() => {
+    if (!room || ledgerRoom !== room) return;
+    try { localStorage.setItem(`reelcase.watch-room.ledger.v1:${room}`, JSON.stringify(roomLedger.slice(-32))); } catch { /* diagnostics are best-effort */ }
+  }, [ledgerRoom, room, roomLedger]);
+  const noteRoom = useCallback((kind: RoomLedgerEvent["kind"], detail: string) => {
+    if (!room) return;
+    setRoomLedger((events) => [...events, { at: Date.now(), kind, detail }].slice(-32));
+  }, [room]);
+  useEffect(() => {
+    if (!room || ledgerRoom !== room) return;
+    noteRoom("session", `Opened as ${joinedAsGuest ? "guest" : "host"}; room commands require a fresh host state.`);
+  }, [joinedAsGuest, ledgerRoom, noteRoom, room]);
   useEffect(() => {
     if (!localVideo) { setLocalVideoUrl(""); return; }
     const url = URL.createObjectURL(localVideo);
@@ -3495,7 +3759,11 @@ export function WatchRoomSection() {
     }
   }, []);
   useEffect(() => {
-    if (!p2p.peers.length) return;
+    // Host is the authoritative publisher. Previously guests echoed the
+    // room-state they had just received, which could race a newer host state.
+    if (joinedAsGuest || !p2p.peers.length) return;
+    const sentAt = Date.now();
+    queueRevisionRef.current = Math.max(queueRevisionRef.current, lastAcceptedQueueRevision.current);
     p2p.send({
       type: "room-state",
       playing: playback.playing,
@@ -3503,16 +3771,22 @@ export function WatchRoomSection() {
       videoId: sharedVideoId,
       queue,
       localQueue,
+      queueRevision: queueRevisionRef.current,
+      sentAt,
     });
-  }, [localQueue, p2p.peers.length, playback.playing, playback.position, queue, sharedVideoId]);
+    setRoomHealth((health) => ({ ...health, lastPublishedAt: sentAt, queueRevision: queueRevisionRef.current }));
+  }, [joinedAsGuest, localQueue, p2p.peers.length, playback.playing, playback.position, queue, sharedVideoId]);
   useEffect(() => {
     // A theater invite should request state immediately. This also wakes the
     // same-machine BroadcastChannel fallback before WebRTC has a peer row.
-    if (joinedAsGuest && p2p.joined) p2p.send({ type: "resync-request" });
-  }, [joinedAsGuest, p2p.joined, p2p.send]);
+    if (!joinedAsGuest || !p2p.joined) return;
+    p2p.send({ type: "resync-request", sentAt: Date.now() });
+    setRoomHealth((health) => ({ ...health, resyncRequests: health.resyncRequests + 1 }));
+    noteRoom("request", "Requested the host’s initial state.");
+  }, [joinedAsGuest, noteRoom, p2p.joined, p2p.send]);
   useEffect(
     () =>
-      p2p.onMessage((from, raw) => {
+      p2p.onMessage((from, raw, channel) => {
         const data = raw as {
           type?: string;
           text?: string;
@@ -3523,10 +3797,12 @@ export function WatchRoomSection() {
           seek?: boolean;
           videoId?: string;
           queue?: string[];
+          queueRevision?: number;
           localQueue?: LocalRoomShare[];
           fingerprint?: string;
           size?: number;
           modified?: number;
+          action?: "play" | "stage";
         };
         if (data.type === "chat" && data.text)
           setChat((rows) => [...rows, `${data.name ?? from}: ${data.text}`].slice(-50));
@@ -3541,13 +3817,32 @@ export function WatchRoomSection() {
           setLocalShareMatches((matches) => ({ ...matches, [from]: { name: data.name!, fingerprint: data.fingerprint!, at: Date.now() } }));
           setInviteNotice(`${data.name} was matched by a guest. The approved local copy can now follow the room timeline.`);
         }
+        if (data.type === "sync-request" && !joinedAsGuest) {
+          const sentAt = trustedRoomSentAt(data.sentAt);
+          if (!sentAt) {
+            setRoomHealth((health) => ({ ...health, staleDropped: health.staleDropped + 1 }));
+            noteRoom("dropped", "Ignored a guest playback request with an invalid clock.");
+          } else {
+            noteRoom("request", data.seek ? "Accepted a guest timeline seek request." : "Accepted a guest playback request.");
+            sync({ playing: Boolean(data.playing), position: clampRoomClock(Number(data.position) || playback.position) }, Boolean(data.seek));
+          }
+        }
         if (data.type === "sync") {
+          // Only guests consume canonical playback packets. The host remains
+          // the clock leader even when guests make a control request.
+          if (!joinedAsGuest) return;
+          const sentAt = trustedRoomSentAt(data.sentAt);
+          if (!sentAt || sentAt + 500 < lastAcceptedTimelineAt.current) {
+            setRoomHealth((health) => ({ ...health, staleDropped: health.staleDropped + 1 }));
+            noteRoom("dropped", "Ignored an expired or out-of-order playback command.");
+            return;
+          }
           // A late provider event from the title that was just replaced must
           // never rewind the current room. Sync packets now carry their title
           // identity, while legacy packets retain the conservative clock guard.
           if (data.videoId && sharedVideoId && data.videoId !== sharedVideoId) return;
           const position = Number(data.position) || 0;
-          const elapsed = data.playing && data.sentAt ? Math.max(0, (Date.now() - data.sentAt) / 1000) : 0;
+          const elapsed = data.playing ? Math.max(0, (Date.now() - sentAt) / 1000) : 0;
           const nextPosition = position + elapsed;
           // Old iframe events can occasionally report 0 after a pause. Unless
           // this is an explicit seek/new-video command, never let that stale
@@ -3555,39 +3850,112 @@ export function WatchRoomSection() {
           const safePosition = clampRoomClock(!data.seek && nextPosition < lastRoomPosition.current
             ? lastRoomPosition.current
             : nextPosition);
+          const drift = Math.abs(safePosition - playback.position);
+          lastAcceptedTimelineAt.current = sentAt;
           lastRoomPosition.current = safePosition;
           applyingRemotePlaybackUntil.current = Date.now() + 900;
           setTimelineEvidence({ source: "remote", at: Date.now() });
           if (data.seek) setRemoteSeekNonce((value) => value + 1);
           setPlayback({ playing: Boolean(data.playing), position: safePosition });
+          setRoomHealth((health) => ({ ...health, lastDriftSeconds: drift, lastHostStateAt: Date.now() }));
+          if (drift >= 1) noteRoom("timeline", `Reconciled ${drift.toFixed(1)}s of playback drift over ${channel}.`);
         }
-        if (data.type === "video" && data.videoId) setSharedVideoId(data.videoId);
-        if (data.type === "queue" && Array.isArray(data.queue)) setQueue(data.queue);
-        if (data.type === "local-queue" && Array.isArray(data.localQueue)) setLocalQueue(data.localQueue.slice(0, 24));
+        if (data.type === "video" && data.videoId && joinedAsGuest) setSharedVideoId(data.videoId);
+        if (data.type === "video-request" && data.videoId && !joinedAsGuest) {
+          const requested = videos.find((video) => video.id === data.videoId && Boolean(video.src || video.remote?.embedUrl));
+          if (requested) { noteRoom("request", "Accepted a guest video request."); chooseVideo(requested); }
+        }
+        if (data.type === "queue-request" && Array.isArray(data.queue) && !joinedAsGuest) {
+          // A guest can only propose titles the host can actually stage. This
+          // prevents an out-of-date catalog or arbitrary packet from adding a
+          // permanent “Unavailable title” entry to the canonical queue.
+          const requested = normalizeRoomQueue(data.queue).filter((id) => id !== sharedVideoId && videos.some((video) => video.id === id && Boolean(video.src || video.remote?.embedUrl)));
+          const revision = Math.max(queueRevisionRef.current, lastAcceptedQueueRevision.current) + 1;
+          queueRevisionRef.current = revision;
+          lastAcceptedQueueRevision.current = revision;
+          setQueue(requested);
+          p2p.send({ type: "queue", queue: requested, queueRevision: revision, sentAt: Date.now() });
+          setRoomHealth((health) => ({ ...health, queueAccepted: health.queueAccepted + 1, queueRevision: revision, lastQueueAt: Date.now() }));
+          noteRoom("queue", `Accepted a guest queue proposal as revision ${revision}.`);
+        }
+        if (data.type === "queue" && Array.isArray(data.queue) && joinedAsGuest) {
+          const revision = Number.isInteger(data.queueRevision) && Number(data.queueRevision) >= 0 ? Number(data.queueRevision) : 0;
+          if (revision && revision < lastAcceptedQueueRevision.current) {
+            setRoomHealth((health) => ({ ...health, staleDropped: health.staleDropped + 1 }));
+            noteRoom("dropped", `Ignored stale queue revision ${revision}.`);
+          } else {
+            const accepted = normalizeRoomQueue(data.queue);
+            if (revision) lastAcceptedQueueRevision.current = revision;
+            setQueue(accepted);
+            setRoomHealth((health) => ({ ...health, queueRevision: revision || health.queueRevision, lastQueueAt: Date.now() }));
+          }
+        }
+        if (data.type === "local-queue-request" && Array.isArray(data.localQueue) && !joinedAsGuest) {
+          const requested = normalizeLocalRoomQueue(data.localQueue);
+          setLocalQueue(requested);
+          p2p.send({ type: "local-queue", localQueue: requested, sentAt: Date.now() });
+          noteRoom("queue", "Accepted a guest local-handoff queue proposal.");
+        }
+        if (data.type === "local-queue" && Array.isArray(data.localQueue) && joinedAsGuest) setLocalQueue(normalizeLocalRoomQueue(data.localQueue));
+        if (data.type === "local-stage-request" && data.fingerprint && !joinedAsGuest) {
+          const requested = localQueue.find((share) => share.fingerprint === data.fingerprint);
+          if (requested) { noteRoom("request", "Accepted a guest request to stage a local handoff."); stageLocalShare(requested); }
+        }
         if (data.type === "party-vote" && data.name) setPartyVotes((votes) => ({ ...votes, [data.name!]: Number(data.position) || 0 }));
         if (data.type === "room-state") {
+          if (!joinedAsGuest) return;
+          const sentAt = trustedRoomSentAt(data.sentAt);
+          if (!sentAt || sentAt + 500 < lastAcceptedRoomStateAt.current) {
+            setRoomHealth((health) => ({ ...health, staleDropped: health.staleDropped + 1 }));
+            noteRoom("dropped", "Ignored an expired or out-of-order host state.");
+            return;
+          }
           const videoChanged = Boolean(data.videoId && data.videoId !== sharedVideoId);
           if (data.videoId) setSharedVideoId(data.videoId);
-          if (Array.isArray(data.queue)) setQueue(data.queue);
-          if (Array.isArray(data.localQueue)) setLocalQueue(data.localQueue.slice(0, 24));
+          if (Array.isArray(data.queue)) {
+            const revision = Number.isInteger(data.queueRevision) && Number(data.queueRevision) >= 0 ? Number(data.queueRevision) : 0;
+            if (!revision || revision >= lastAcceptedQueueRevision.current) {
+              if (revision) lastAcceptedQueueRevision.current = revision;
+              setQueue(normalizeRoomQueue(data.queue));
+              setRoomHealth((health) => ({ ...health, queueRevision: revision || health.queueRevision, lastQueueAt: Date.now() }));
+            } else {
+              setRoomHealth((health) => ({ ...health, staleDropped: health.staleDropped + 1 }));
+              noteRoom("dropped", `Ignored stale queue revision ${revision} in a room state.`);
+            }
+          }
+          if (Array.isArray(data.localQueue)) setLocalQueue(normalizeLocalRoomQueue(data.localQueue));
           const position = Number(data.position) || 0;
-          const elapsed = data.playing && data.sentAt ? Math.max(0, (Date.now() - data.sentAt) / 1000) : 0;
+          const elapsed = data.playing ? Math.max(0, (Date.now() - sentAt) / 1000) : 0;
           const nextPosition = position + elapsed;
           const safePosition = clampRoomClock(!videoChanged && nextPosition + 0.75 < lastRoomPosition.current ? lastRoomPosition.current : nextPosition);
+          const drift = Math.abs(safePosition - playback.position);
+          lastAcceptedRoomStateAt.current = sentAt;
+          lastAcceptedTimelineAt.current = Math.max(lastAcceptedTimelineAt.current, sentAt);
           lastRoomPosition.current = safePosition;
           applyingRemotePlaybackUntil.current = Date.now() + 900;
           setTimelineEvidence({ source: "remote", at: Date.now() });
           setPlayback({ playing: Boolean(data.playing), position: safePosition });
+          setRoomHealth((health) => ({ ...health, lastHostStateAt: Date.now(), lastDriftSeconds: drift }));
+          if (drift >= 1) noteRoom("timeline", `Reconciled ${drift.toFixed(1)}s from the authoritative room state.`);
         }
         if (data.type === "resync-request" && !joinedAsGuest) {
           const position = roomVideoRef.current?.currentTime ?? playback.position;
-          p2p.send({ type: "room-state", playing: !roomVideoRef.current?.paused && playback.playing, position, videoId: sharedVideoId, queue, localQueue, sentAt: Date.now() }, from);
+          const sentAt = Date.now();
+          p2p.send({ type: "room-state", playing: !roomVideoRef.current?.paused && playback.playing, position, videoId: sharedVideoId, queue, localQueue, queueRevision: queueRevisionRef.current, sentAt }, from);
+          setRoomHealth((health) => ({ ...health, lastPublishedAt: sentAt }));
+          noteRoom("state", "Sent a targeted state reconciliation to a guest.");
         }
       }),
-    [joinedAsGuest, localQueue, p2p.onMessage, p2p.send, playback.playing, playback.position, queue, roomClockCeiling, sharedVideoId],
+    [joinedAsGuest, localQueue, noteRoom, p2p.onMessage, p2p.send, playback.playing, playback.position, queue, roomClockCeiling, sharedVideoId, videos],
   );
   const sync = (next: { playing: boolean; position: number }, seek = false) => {
     if (!seek && Date.now() < applyingRemotePlaybackUntil.current) return;
+    if (joinedAsGuest) {
+      p2p.send({ type: "sync-request", ...next, videoId: sharedVideoId, seek, sentAt: Date.now() });
+      setInviteNotice("Playback change sent to the host. Your theater will reconcile when it is confirmed.");
+      noteRoom("request", seek ? "Requested a host timeline seek." : "Requested a host playback update.");
+      return;
+    }
     // The YouTube iframe cannot expose its live time without a separate API
     // event bridge. Keep an accurate-enough local clock between room commands
     // so Pause does not broadcast the original zero timestamp back to guests.
@@ -3622,7 +3990,9 @@ export function WatchRoomSection() {
       recordPlay(sharedVideoId, "watch-room");
     }
     if (seek) setRemoteSeekNonce((value) => value + 1);
-    p2p.send({ type: "sync", ...resolved, videoId: sharedVideoId, seek, sentAt: Date.now() });
+    const sentAt = Date.now();
+    p2p.send({ type: "sync", ...resolved, videoId: sharedVideoId, seek, sentAt });
+    setRoomHealth((health) => ({ ...health, lastPublishedAt: sentAt }));
   };
   useEffect(() => {
     // Iframe providers do not continuously expose a readable clock. Maintain
@@ -3644,7 +4014,9 @@ export function WatchRoomSection() {
   }, [joinedAsGuest, p2p.send, playback.playing, sharedVideo?.id, sharedVideo?.remote?.kind]);
   const resync = () => {
     if (joinedAsGuest) {
-      p2p.send({ type: "resync-request" });
+      p2p.send({ type: "resync-request", sentAt: Date.now() });
+      setRoomHealth((health) => ({ ...health, resyncRequests: health.resyncRequests + 1 }));
+      noteRoom("request", "Requested an explicit host state reconciliation.");
       setInviteNotice("Requested the host’s current room state.");
       return;
     }
@@ -3653,7 +4025,10 @@ export function WatchRoomSection() {
     const position = typeof localPosition === "number" && localPosition > 0.25 ? localPosition : typeof twitchPosition === "number" && twitchPosition > 0.25 ? twitchPosition : playback.position;
     const playing = roomVideoRef.current ? !roomVideoRef.current.paused : playback.playing;
     sync({ playing, position });
-    p2p.send({ type: "room-state", playing, position, videoId: sharedVideoId, queue, localQueue, sentAt: Date.now() });
+    const sentAt = Date.now();
+    p2p.send({ type: "room-state", playing, position, videoId: sharedVideoId, queue, localQueue, queueRevision: queueRevisionRef.current, sentAt });
+    setRoomHealth((health) => ({ ...health, lastPublishedAt: sentAt }));
+    noteRoom("state", "Published an explicit room reconciliation.");
     setInviteNotice("Sent the current video and timeline to every guest.");
   };
   const copyInvite = async () => {
@@ -3752,6 +4127,12 @@ export function WatchRoomSection() {
     sync({ ...playback, playing });
   };
   const chooseVideo = (video: LibraryVideo) => {
+    if (joinedAsGuest) {
+      p2p.send({ type: "video-request", videoId: video.id, sentAt: Date.now() });
+      setInviteNotice(`Requested ${video.name} from the host. The room changes only after host confirmation.`);
+      noteRoom("request", "Requested a host video change.");
+      return;
+    }
     setLocalVideo(null);
     setLocalShare(null);
     setLocalShareMatches({});
@@ -3760,20 +4141,47 @@ export function WatchRoomSection() {
     lastRoomPosition.current = 0;
     lastRoomHistoryId.current = "";
     recordPlay(video.id, "watch-room");
-    p2p.send({ type: "video", videoId: video.id });
-    p2p.send({ type: "sync", playing: false, position: 0, seek: true });
+    p2p.send({ type: "video", videoId: video.id, sentAt: Date.now() });
+    p2p.send({ type: "sync", playing: false, position: 0, videoId: video.id, seek: true, sentAt: Date.now() });
+    noteRoom("state", "Host selected a new room video.");
   };
   const updateQueue = (next: string[]) => {
     measureInteraction("queue");
-    setQueue(next);
-    p2p.send({ type: "queue", queue: next });
+    const bounded = normalizeRoomQueue(next).filter((id) => id !== sharedVideoId && videos.some((video) => video.id === id && Boolean(video.src || video.remote?.embedUrl)));
+    if (joinedAsGuest) {
+      p2p.send({ type: "queue-request", queue: bounded, sentAt: Date.now() });
+      setRoomHealth((health) => ({ ...health, queueRequests: health.queueRequests + 1 }));
+      noteRoom("request", "Sent a queue proposal to the host.");
+      setInviteNotice("Queue proposal sent to the host. It appears here once the host confirms it.");
+      return;
+    }
+    const revision = Math.max(queueRevisionRef.current, lastAcceptedQueueRevision.current) + 1;
+    queueRevisionRef.current = revision;
+    lastAcceptedQueueRevision.current = revision;
+    setQueue(bounded);
+    p2p.send({ type: "queue", queue: bounded, queueRevision: revision, sentAt: Date.now() });
+    setRoomHealth((health) => ({ ...health, queueAccepted: health.queueAccepted + 1, queueRevision: revision, lastQueueAt: Date.now() }));
+    noteRoom("queue", `Published queue revision ${revision} with ${bounded.length} title${bounded.length === 1 ? "" : "s"}.`);
   };
   const updateLocalQueue = (next: LocalRoomShare[]) => {
-    const bounded = next.slice(0, 24);
+    const bounded = normalizeLocalRoomQueue(next);
+    if (joinedAsGuest) {
+      p2p.send({ type: "local-queue-request", localQueue: bounded, sentAt: Date.now() });
+      noteRoom("request", "Sent a local-handoff queue proposal to the host.");
+      setInviteNotice("Local handoff proposal sent to the host. It appears once confirmed.");
+      return;
+    }
     setLocalQueue(bounded);
-    p2p.send({ type: "local-queue", localQueue: bounded });
+    p2p.send({ type: "local-queue", localQueue: bounded, sentAt: Date.now() });
+    noteRoom("queue", "Published the approved local-handoff queue.");
   };
   const stageLocalShare = (share: LocalRoomShare) => {
+    if (joinedAsGuest) {
+      p2p.send({ type: "local-stage-request", fingerprint: share.fingerprint, sentAt: Date.now() });
+      noteRoom("request", "Requested that the host stage a local handoff.");
+      setInviteNotice("Requested that the host stage this local handoff.");
+      return;
+    }
     if (!localShare || localShare.fingerprint !== share.fingerprint || !localVideo) {
       setPendingLocalShare(share);
       setInviteNotice(`Choose ${share.name} on this device before staging it. File contents are never transferred.`);
@@ -3789,6 +4197,10 @@ export function WatchRoomSection() {
   const selectLocalVideo = (file: File | null) => {
     if (!file) return;
     const share: LocalRoomShare = { name: file.name, fingerprint: localRoomFingerprint(file), size: file.size, modified: file.lastModified };
+    if (joinedAsGuest && !pendingLocalShare) {
+      setInviteNotice("Wait for the host’s local-share request before matching a permitted file on this device.");
+      return;
+    }
     if (joinedAsGuest && pendingLocalShare && pendingLocalShare.fingerprint !== share.fingerprint) {
       setInviteNotice(`That file does not match ${pendingLocalShare.name}. Select the same permitted copy (name, size, and modified time must agree).`);
       return;
@@ -3816,9 +4228,10 @@ export function WatchRoomSection() {
   const queueImmediately = (video: LibraryVideo) => {
     if (video.id === sharedVideoId) return;
     updateQueue([video.id, ...queue.filter((id) => id !== video.id)]);
-    setInviteNotice(`${video.name} will play next for everyone in the room.`);
+    if (!joinedAsGuest) setInviteNotice(`${video.name} will play next for everyone in the room.`);
   };
   const playNext = () => {
+    if (joinedAsGuest) { setInviteNotice("Only the host advances the shared player. You can still propose a different queue order."); return; }
     const nextId = queue[0];
     if (!nextId) return;
     const next = videos.find((video) => video.id === nextId);
@@ -3826,6 +4239,7 @@ export function WatchRoomSection() {
     if (next) chooseVideo(next);
   };
   const playQueuedNow = (id: string) => {
+    if (joinedAsGuest) { setInviteNotice("Only the host can start a queued title. Propose a new order instead."); return; }
     const video = videos.find((item) => item.id === id);
     if (!video) return;
     updateQueue(queue.filter((item) => item !== id));
@@ -3946,7 +4360,7 @@ export function WatchRoomSection() {
               const opened = window.open(invite, "reelcase-local-guest", "noopener,width=1200,height=820");
               setInviteNotice(opened ? "Opened a separate local guest window. Give it a moment to appear in Guests." : "Your browser blocked the guest window. Allow pop-ups, then try again.");
             }}>Open local guest window</Button>
-            <Button size="sm" variant="ghost" onClick={() => void navigator.clipboard?.writeText(JSON.stringify({ room: activeRoom, invitation: `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(activeRoom)}&theater=1`, self: p2p.selfId, signaling: p2p.joined, peers: p2p.peers, transportTest: pulseStatus, events: p2p.events, capturedAt: new Date().toISOString() }, null, 2)).then(() => setInviteNotice("Connection diagnostic copied."), () => setInviteNotice("Could not copy the diagnostic."))}>Copy connection diagnostic</Button>
+            <Button size="sm" variant="ghost" onClick={() => void navigator.clipboard?.writeText(JSON.stringify({ room: activeRoom, invitation: `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(activeRoom)}&theater=1`, role: joinedAsGuest ? "guest" : "host", self: p2p.selfId, signaling: p2p.joined, peers: p2p.peers, transportTest: pulseStatus, reliability: roomHealth, ledger: roomLedger, events: p2p.events, capturedAt: new Date().toISOString() }, null, 2)).then(() => setInviteNotice("Connection and reconciliation diagnostic copied."), () => setInviteNotice("Could not copy the diagnostic."))}>Copy room diagnostic</Button>
           </div>
           <div className="mt-3 rounded-sm bg-bg/45 p-3">
             <div className="flex items-center justify-between gap-3"><p className="text-xs font-medium text-fg">Connection signals</p><span className="text-xs text-muted">{p2p.peers.filter((peer) => peer.connectionState === "connected").length}/{p2p.peers.length} direct</span></div>
@@ -3962,6 +4376,11 @@ export function WatchRoomSection() {
             Timeline {Math.floor(playback.position / 60)}:
             {String(Math.floor(playback.position % 60)).padStart(2, "0")} · {timelineEvidence.source === "remote" ? "host-confirmed" : timelineEvidence.source === "local" ? "local player" : "provider estimate"} · checked {new Date(timelineEvidence.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}.
           </p>
+          <section className="mt-4 rounded-md border border-border bg-bg/45 p-3" aria-label="Room reliability">
+            <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Room reliability</p><p className="mt-1 text-xs text-muted">{joinedAsGuest ? "Guest commands are requests; the host publishes the canonical state." : "This device is the host and publishes the canonical state."}</p></div><span className="rounded-full bg-accent/15 px-2 py-1 text-xs text-accent">{p2p.peers.filter((peer) => peer.connectionState === "connected").length ? "direct path available" : "relay/signaling only"}</span></div>
+            <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2 xl:grid-cols-4"><div className="rounded-sm bg-elevated p-2"><span className="block text-muted">{joinedAsGuest ? "Last host state" : "Last publish"}</span><strong className="mt-1 block text-fg">{roomTimeLabel(joinedAsGuest ? roomHealth.lastHostStateAt : roomHealth.lastPublishedAt)}</strong></div><div className="rounded-sm bg-elevated p-2"><span className="block text-muted">Queue revision</span><strong className="mt-1 block text-fg">r{roomHealth.queueRevision} · {queue.length} title{queue.length === 1 ? "" : "s"}</strong></div><div className="rounded-sm bg-elevated p-2"><span className="block text-muted">Last correction</span><strong className="mt-1 block text-fg">{roomHealth.lastDriftSeconds ? `${roomHealth.lastDriftSeconds.toFixed(1)}s` : "none needed"}</strong></div><div className="rounded-sm bg-elevated p-2"><span className="block text-muted">Safety checks</span><strong className="mt-1 block text-fg">{roomHealth.staleDropped} stale dropped · {roomHealth.resyncRequests} resync</strong></div></div>
+            <details className="mt-3 rounded-sm bg-elevated p-2 text-xs text-muted"><summary className="cursor-pointer font-medium text-fg">Session ledger · {roomLedger.length} local event{roomLedger.length === 1 ? "" : "s"}</summary><div className="mt-2 max-h-32 space-y-1 overflow-y-auto">{roomLedger.length ? roomLedger.slice().reverse().map((event, index) => <p key={`${event.at}-${index}`}><span className="font-mono text-subtle">{roomTimeLabel(event.at)}</span> · {event.detail}</p>) : <p>No room decisions recorded yet.</p>}</div></details>
+          </section>
           <div className="mt-5 flex flex-wrap gap-2">
             <Button onClick={toggleRoomPlayback}>
               {playback.playing ? <Pause className="size-4" /> : <Play className="size-4" />}
@@ -3982,7 +4401,7 @@ export function WatchRoomSection() {
             <Button variant="secondary" onClick={resync}>
               <Wifi className="size-4" /> {joinedAsGuest ? "Request resync" : "Resync guests"}
             </Button>
-            <Button variant="ghost" size="sm" disabled={!queue.length} onClick={playNext}>
+            <Button variant="ghost" size="sm" disabled={!queue.length || joinedAsGuest} onClick={playNext}>
               Play next {queue.length ? `(${queue.length})` : ""}
             </Button>
           </div>
@@ -4090,7 +4509,7 @@ export function WatchRoomSection() {
           <div className="mt-3 rounded-md bg-bg/45 p-3 shadow-border">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-medium text-fg">Up next queue</p>
-              <span className="text-xs text-muted">Hosts can order the room playlist</span>
+              <span className="text-xs text-muted">{joinedAsGuest ? "Propose changes; host confirms the shared order" : "Host-controlled shared order"}</span>
             </div>
             {queue.length ? (
               <div className="mt-2 space-y-2">
@@ -4103,6 +4522,7 @@ export function WatchRoomSection() {
                         <Button
                           size="sm"
                           variant="secondary"
+                          disabled={joinedAsGuest}
                           onClick={() => playQueuedNow(id)}
                         >
                           Play now
@@ -4110,7 +4530,7 @@ export function WatchRoomSection() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          disabled={index === 0}
+                          disabled={joinedAsGuest || index === 0}
                           onClick={() => {
                             const next = [...queue];
                             [next[index - 1], next[index]] = [next[index], next[index - 1]];
@@ -4122,6 +4542,7 @@ export function WatchRoomSection() {
                         <Button
                           size="sm"
                           variant="ghost"
+                          disabled={joinedAsGuest}
                           onClick={() => updateQueue(queue.filter((item) => item !== id))}
                         >
                           Remove

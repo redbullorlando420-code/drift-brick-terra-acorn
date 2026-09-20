@@ -7,7 +7,7 @@ export function useP2PRoom(room: string, name: string) {
   const [joined, setJoined] = useState(false);
   const [events, setEvents] = useState<string[]>([]);
   const ref = useRef<P2PRoom | null>(null);
-  const listeners = useRef(new Set<(from: string, data: unknown) => void>());
+  const listeners = useRef(new Set<(from: string, data: unknown, channel: "state" | "reliable") => void>());
   useEffect(() => {
     if (!room.trim()) {
       setJoined(false);
@@ -17,11 +17,11 @@ export function useP2PRoom(room: string, name: string) {
       return;
     }
     setEvents(["Preparing room connection…"]);
-    const p2p = new P2PRoom({ room, selfId, name, onPeersChanged: setPeers, onConnected: () => setJoined(true), onDebug: (event) => setEvents((items) => [event, ...items].slice(0, 16)), onMessage: (from, data) => listeners.current.forEach((fn) => fn(from, data)) });
+    const p2p = new P2PRoom({ room, selfId, name, onPeersChanged: setPeers, onConnected: () => setJoined(true), onDebug: (event) => setEvents((items) => [event, ...items].slice(0, 16)), onMessage: (from, data, channel) => listeners.current.forEach((fn) => fn(from, data, channel)) });
     ref.current = p2p; void p2p.join();
     return () => { ref.current = null; p2p.close(); };
   }, [room, selfId, name]);
   const send = useCallback((data: unknown, peer?: string) => ref.current?.send(data, peer), []);
-  const onMessage = useCallback((fn: (from: string, data: unknown) => void) => { listeners.current.add(fn); return () => { listeners.current.delete(fn); }; }, []);
+  const onMessage = useCallback((fn: (from: string, data: unknown, channel: "state" | "reliable") => void) => { listeners.current.add(fn); return () => { listeners.current.delete(fn); }; }, []);
   return { selfId, peers, joined, events, send, onMessage };
 }

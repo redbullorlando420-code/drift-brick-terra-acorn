@@ -95,7 +95,18 @@ export function videoMatchesAdultTag(
   }
   // Card chips sometimes show the bare keyword while storage keeps fetish-*.
   if (!needle.includes("-") && lowered.some((entry) => entry === `fetish-${needle}` || entry.endsWith(`-${needle}`))) return true;
-  return false;
+  // The Adult top bar and tag finder accept human-readable partial phrases
+  // ("role play", "creator jane", "rule 34") as well as exact stored slugs.
+  // Keep the match token-based so one broad substring cannot accidentally
+  // turn an Adult desk query into a near-full catalog result.
+  const terms = needle
+    .replace(/^(?:fetish|genre|meta|creator|source|provider|sub)-/, "")
+    .replace(/[-_]+/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!terms.length) return true;
+  const searchable = [...lowered, ...expanded].map((entry) => entry.toLowerCase().replace(/^(?:fetish|genre|meta|creator|source|provider|sub)-/, "").replace(/[-_]+/g, " "));
+  return searchable.some((entry) => terms.every((term) => entry.includes(term)));
 }
 
 export function countAdultBySource(videos: LibraryVideo[]): Record<string, number> {

@@ -68,6 +68,7 @@ function normalizeFollowChannels(raw: unknown): FollowedChannel[] {
       ...(typeof rec.lastCheckedAt === "number" ? { lastCheckedAt: rec.lastCheckedAt } : {}),
       ...(typeof rec.newestPublishedAt === "number" ? { newestPublishedAt: rec.newestPublishedAt } : {}),
       ...(typeof rec.lastResponseCount === "number" ? { lastResponseCount: rec.lastResponseCount } : {}),
+      ...(rec.lastProviderFailure && typeof rec.lastProviderFailure === "object" ? { lastProviderFailure: rec.lastProviderFailure as FollowedChannel["lastProviderFailure"] } : {}),
     });
   }
   return out;
