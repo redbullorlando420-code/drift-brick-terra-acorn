@@ -1,0 +1,23 @@
+{
+	admin off
+	auto_https disable_redirects
+	skip_install_trust
+	storage file_system {
+		root {$REELCASE_TLS_STORAGE}
+	}
+}
+
+https://reelcase.home.arpa:8443 {
+	# Only the chosen LAN interface, never the VPN/public/all-interface address.
+	bind {$REELCASE_LAN_IP}
+	tls internal
+	@outside not remote_ip private_ranges
+	respond @outside "Home-network access only" 403
+	reverse_proxy 127.0.0.1:8080 {
+		# Vite accepts loopback upstreams; the browser still uses the real HTTPS
+		# hostname for Twitch's parent check. No wildcard allowedHosts required.
+		header_up Host localhost:8080
+		header_up X-Forwarded-Host reelcase.home.arpa:8443
+		header_up X-Forwarded-Proto https
+	}
+}

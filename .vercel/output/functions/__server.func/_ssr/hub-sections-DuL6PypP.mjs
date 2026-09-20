@@ -1,11 +1,11 @@
 import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
-import { L as isAdultImageKind, z as isAdultPullKind } from "./adult-pull-cache-DYRXt4XQ.mjs";
+import { L as isAdultImageKind, z as isAdultPullKind } from "./adult-pull-cache-CzRQcKeX.mjs";
 import { A as PackageSearch, D as Play, E as Radio, Et as Bot, G as Lightbulb, I as MessageCircle, J as Images, N as MonitorPlay, S as Search, T as RefreshCw, Tt as Box, X as ImagePlus, b as ShieldCheck, bt as ChevronRight, c as Upload, ft as ExternalLink, gt as Copy, h as Smartphone, j as Music2, k as Pause, mt as Download, n as X, nt as Gamepad2, p as Star, q as Laptop, r as Wifi, s as Users, ut as Eye, v as Shuffle, vt as Clapperboard, w as Rocket, wt as ChartColumn, x as Settings2, xt as ChevronLeft, y as ShoppingBag, z as Maximize2 } from "../_libs/lucide-react.mjs";
-import { A as getFeedbackDiagnostics, B as companionAckJobs, C as useLibrary, D as topicEvidence, E as isTopicTag, F as measureInteraction, G as companionReadPrint, H as companionHealth, I as linksFromHistoryAndResume, J as companionSteamEpicGames, K as companionSavePrint, L as loadDurablePhotosSync, M as tagIsLiked, N as toggleTagLike, O as topicsForVideo, P as getInteractionBudgetSnapshot, R as restoreDurablePhotos, S as resumeForVideo, T as canonicalTopic, U as companionImportLibraryPack, V as companionExportLibraryPack, W as companionListPrints, Y as __exportAll, _ as getRenderBudgetSnapshot, a as applyLibraryPackFiles, b as Button, c as importLibraryPackZip, d as rankAdultTags, f as countAdultBooruHosts, g as VideoCard, h as openTopic, i as getFirstShelfTrace, j as getRating, k as exportFeedback, l as buildAdultStatsSnapshot, m as Input, n as getNetworkDeviceId, o as buildLibraryPackFiles, p as countAdultBySource, q as companionSetAutostart, r as listNetworkDevices, s as downloadLibraryPackZip, u as exportAdultStats, v as getThumbDiagnostics, w as useSourceAssets, x as isAdultVideo, y as useThumbs, z as saveDurablePhotos } from "./routes-DKwhR_mS.mjs";
+import { A as exportFeedback, B as saveDurablePhotos, C as resumeForVideo, D as isTopicTag, E as canonicalTopic, F as getInteractionBudgetSnapshot, G as companionListPrints, H as companionExportLibraryPack, I as measureInteraction, J as companionSetAutostart, K as companionReadPrint, L as linksFromHistoryAndResume, M as getRating, N as tagIsLiked, O as topicEvidence, P as toggleTagLike, Q as __exportAll, R as loadDurablePhotosSync, S as isAdultVideo, T as useSourceAssets, U as companionHealth, V as companionAckJobs, W as companionImportLibraryPack, X as createLocalId, Y as companionSteamEpicGames, Z as createShortLocalId, _ as VideoCard, a as twitchEmbedUrl, b as useThumbs, c as downloadLibraryPackZip, d as exportAdultStats, f as rankAdultTags, g as openTopic, h as Input, i as getFirstShelfTrace, j as getFeedbackDiagnostics, k as topicsForVideo, l as importLibraryPackZip, m as countAdultBySource, n as getNetworkDeviceId, o as applyLibraryPackFiles, p as countAdultBooruHosts, q as companionSavePrint, r as listNetworkDevices, s as buildLibraryPackFiles, u as buildAdultStatsSnapshot, v as getRenderBudgetSnapshot, w as useLibrary, x as Button, y as getThumbDiagnostics, z as restoreDurablePhotos } from "./routes-NqJQcerD.mjs";
 import { a as Bar, c as ResponsiveContainer, i as XAxis, l as Tooltip, n as BarChart, o as Pie, r as YAxis, s as Cell, t as PieChart } from "../_libs/recharts+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/hub-sections-CaJBgi1S.js
+//#region node_modules/.nitro/vite/services/ssr/assets/hub-sections-DuL6PypP.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function TopicLinks({ explorer = false }) {
@@ -956,7 +956,7 @@ var P2PRoom = class {
 	}
 };
 function useP2PRoom(room, name) {
-	const [selfId] = (0, import_react.useState)(() => `p-${crypto.randomUUID().replaceAll("-", "").slice(0, 12)}`);
+	const [selfId] = (0, import_react.useState)(() => createShortLocalId("p-"));
 	const [peers, setPeers] = (0, import_react.useState)([]);
 	const [joined, setJoined] = (0, import_react.useState)(false);
 	const [events, setEvents] = (0, import_react.useState)([]);
@@ -1452,7 +1452,7 @@ var hub_sections_exports = /* @__PURE__ */ __exportAll({
 	WatchRoomSection: () => WatchRoomSection
 });
 var PrintModelViewer = (0, import_react.lazy)(async () => {
-	return { default: (await import("./print-model-viewer-sFxb8Z_J.mjs")).PrintModelViewer };
+	return { default: (await import("./print-model-viewer-BBXhQTgw.mjs")).PrintModelViewer };
 });
 var HUB_KEY = "reelcase.hub.v1";
 function gameKind(item) {
@@ -1596,18 +1596,14 @@ function bytes(value) {
 function watchRoomEmbed(video) {
 	const base = video.remote?.embedUrl;
 	if (!base) return "";
+	if (video.remote?.kind === "twitch") return twitchEmbedUrl(video.remote, window.location.hostname) ?? "";
 	const url = new URL(base);
-	if (video.remote?.kind === "twitch") {
-		url.searchParams.set("parent", window.location.hostname);
-		url.searchParams.set("autoplay", "false");
-	} else {
-		url.searchParams.set("autoplay", "0");
-		url.searchParams.set("rel", "0");
-		url.searchParams.set("playsinline", "1");
-		url.searchParams.set("controls", "1");
-		url.searchParams.set("origin", window.location.origin);
-		if (video.remote?.kind === "youtube") url.searchParams.set("enablejsapi", "1");
-	}
+	url.searchParams.set("autoplay", "0");
+	url.searchParams.set("rel", "0");
+	url.searchParams.set("playsinline", "1");
+	url.searchParams.set("controls", "1");
+	url.searchParams.set("origin", window.location.origin);
+	if (video.remote?.kind === "youtube") url.searchParams.set("enablejsapi", "1");
 	return url.toString();
 }
 function watchRoomPoster(video) {
@@ -7738,6 +7734,12 @@ var DEFAULT_MISSIONS = [
 		done: true
 	},
 	{
+		id: "watch-room-browser-compatibility",
+		title: "Watch Room browser compatibility",
+		detail: "Done · local room and session identifiers now fall back safely when a browser exposes Web Crypto without crypto.randomUUID, preventing the room from failing before it can join.",
+		done: true
+	},
+	{
 		id: "services",
 		title: "Connected services",
 		detail: "Keep Twitch, YouTube, Roku, Spotify, and photo imports independently cached and refreshable.",
@@ -7822,6 +7824,18 @@ var DEFAULT_MISSIONS = [
 		done: true
 	},
 	{
+		id: "youtube-focused-archive-capacity",
+		title: "YouTube focused archive capacity",
+		detail: "Done · a focused creator pull has a 100,000-item metadata ceiling and enough bounded continuation budget to stop at that ceiling or at the public archive end. Routine and bulk pulls stay smaller.",
+		done: true
+	},
+	{
+		id: "youtube-comment-response-recovery",
+		title: "YouTube comment response recovery",
+		detail: "Done · on-demand comment pulls accept both current entity payloads and the durable commentRenderer response shape, with initial-page continuation fallback.",
+		done: true
+	},
+	{
 		id: "twitch-quality",
 		title: "Twitch live quality",
 		detail: "Live-first ordering, per-channel timestamps, VOD/clip shelves, focused refresh, retry deadlines, and an additive archive cache are active.",
@@ -7843,6 +7857,18 @@ var DEFAULT_MISSIONS = [
 		id: "provider-import-recovery",
 		title: "Provider import recovery",
 		detail: "Provider refreshes retain successful channel rows, preserve prior cache on partial failures, and use RSS/channel-page plus public Twitch GraphQL recovery paths.",
+		done: true
+	},
+	{
+		id: "adult-source-recovery",
+		title: "Adult source recovery",
+		detail: "Done · Booru pulls use source-aware queries plus JSON, XML, and public-listing recovery so Rule34-style, Gelbooru, and Realbooru responses no longer collapse into empty source chips.",
+		done: true
+	},
+	{
+		id: "adult-provider-diverse-recommendations",
+		title: "Adult provider-diverse recommendations",
+		detail: "Done · personal Adult shelves rank by private signals, then apply creator and provider round-robin guards; videos, photos, and picks each have a full-width discovery rail.",
 		done: true
 	},
 	{
@@ -8052,7 +8078,7 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "youtube-deep-pagination",
 		title: "YouTube deep pagination",
-		detail: "Creator pulls now use a bounded 2,880-item deep public catalog window, duplicate suppression, and a short server cache to avoid repeated provider work.",
+		detail: "Done · focused creator pulls use a bounded 100,000-item public catalog ceiling, duplicate suppression, and a short server cache to avoid repeated provider work; routine and bulk windows remain smaller.",
 		done: true
 	},
 	{
@@ -8082,7 +8108,7 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "recommendation-diversity",
 		title: "Recommendation diversity guardrails",
-		detail: "Done · Home and provider discovery use deduplicated creator round-robin selection, preserving highly rated favorites while preventing one creator from occupying a rail.",
+		detail: "Done · Home and provider discovery use deduplicated creator and provider round-robin selection, preserving highly rated favorites while preventing one creator or source from occupying a rail.",
 		done: true
 	},
 	{
@@ -9141,7 +9167,7 @@ function MissionPlanSection() {
 					const title = idea.trim();
 					if (!title) return;
 					setMissions((items) => [...items, {
-						id: crypto.randomUUID(),
+						id: createLocalId("mission-"),
 						title,
 						detail: "New idea — break this into implementation and verification steps.",
 						done: false
@@ -9602,7 +9628,7 @@ function PrivateWebShortcuts() {
 			const parsed = new URL(url);
 			if (!/^https?:$/.test(parsed.protocol)) throw new Error("unsupported");
 			save([...links, {
-				id: crypto.randomUUID(),
+				id: createLocalId("link-"),
 				name: name.trim() || parsed.hostname,
 				url: parsed.toString()
 			}]);
@@ -9818,7 +9844,7 @@ function LocalCatalog({ kind, eyebrow, icon, title, copy, accept, directory, foo
 								let saved = 0;
 								for (const item of items.slice(0, 20)) {
 									if (!item.id || !isViewablePrintName(item.name)) continue;
-									const { loadPrintBlob } = await import("./prints-blobs-CAbtHUWT.mjs");
+									const { loadPrintBlob } = await import("./prints-blobs-BmCLEpIp.mjs");
 									const record = await loadPrintBlob(item.id);
 									if (!record?.blob) continue;
 									const buffer = new Uint8Array(await record.blob.arrayBuffer());
@@ -10021,7 +10047,7 @@ function ShopSection() {
 								onClick: () => {
 									if (!packageTitle.trim()) return;
 									setPackages((items) => [{
-										id: crypto.randomUUID(),
+										id: createLocalId("package-"),
 										title: packageTitle.trim(),
 										carrier: carrier.trim() || "Carrier",
 										tracking: tracking.trim(),

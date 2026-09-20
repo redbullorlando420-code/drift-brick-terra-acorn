@@ -1,5 +1,6 @@
 import { TopicLinks } from './topic-links';
 import { openTopic } from '@/lib/videos/topic-navigation';
+import { createLocalId } from "@/lib/local-id";
 import { isTopicTag, canonicalTopic, topicsForVideo } from '@/lib/videos/topics';
 import { type ReactNode, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -64,6 +65,7 @@ import {
 } from "@/lib/companion";
 import { linksFromHistoryAndResume, saveDurablePhotos, restoreDurablePhotos, loadDurablePhotosSync, type DurablePhotoMeta } from "@/lib/videos/persist";
 import { rankAdultTags } from "@/lib/videos/adult-rank";
+import { twitchEmbedUrl } from "@/lib/videos/twitch-embed";
 import { countAdultBySource, countAdultBooruHosts } from "@/lib/videos/adult-filter";
 import { isAdultImageKind, isAdultPullKind } from "@/lib/videos/adult-sites";
 import { getThumbDiagnostics, useThumbs } from "@/lib/videos/thumbs";
@@ -225,19 +227,18 @@ function bytes(value: number) {
 function watchRoomEmbed(video: LibraryVideo) {
   const base = video.remote?.embedUrl;
   if (!base) return "";
-  const url = new URL(base);
   if (video.remote?.kind === "twitch") {
-    // Twitch rejects every embed without a parent matching the page host.
-    url.searchParams.set("parent", window.location.hostname);
-    url.searchParams.set("autoplay", "false");
-  } else {
-    url.searchParams.set("autoplay", "0");
-    url.searchParams.set("rel", "0");
-    url.searchParams.set("playsinline", "1");
-    url.searchParams.set("controls", "1");
-    url.searchParams.set("origin", window.location.origin);
-    if (video.remote?.kind === "youtube") url.searchParams.set("enablejsapi", "1");
+    // Use the same canonical route as the full player: Twitch VOD embeds need
+    // a v-prefixed ID plus the exact parent host, not the raw catalog URL.
+    return twitchEmbedUrl(video.remote, window.location.hostname) ?? "";
   }
+  const url = new URL(base);
+  url.searchParams.set("autoplay", "0");
+  url.searchParams.set("rel", "0");
+  url.searchParams.set("playsinline", "1");
+  url.searchParams.set("controls", "1");
+  url.searchParams.set("origin", window.location.origin);
+  if (video.remote?.kind === "youtube") url.searchParams.set("enablejsapi", "1");
   return url.toString();
 }
 
@@ -2636,6 +2637,7 @@ const DEFAULT_MISSIONS: Mission[] = [
   { id: "companion", title: "Desktop companion", detail: "Verify local files, watch selected folders, and launch approved desktop shortcuts through a local companion.", done: true },
   { id: "watch", title: "Watch room reliability", detail: "Host-authoritative state, stale-command rejection, revisioned queue reconciliation, LAN diagnostics, and guest-access messaging are implemented; real cross-device matrix validation remains in progress.", done: false },
   { id: "watch-room-state-integrity", title: "Watch Room state integrity", detail: "Done · Watch Room now keeps a compact local session ledger, rejects stale or out-of-order host state, gives queue changes monotonic revisions, and routes guest playback or queue changes through host confirmation.", done: true },
+  { id: "watch-room-browser-compatibility", title: "Watch Room browser compatibility", detail: "Done · local room and session identifiers now fall back safely when a browser exposes Web Crypto without crypto.randomUUID, preventing the room from failing before it can join.", done: true },
   { id: "services", title: "Connected services", detail: "Keep Twitch, YouTube, Roku, Spotify, and photo imports independently cached and refreshable.", done: true },
   { id: "thumb-health", title: "Thumbnail health queue", detail: "Retry failed artwork, hide unavailable remote cards, and expose a small source diagnostic instead of blank previews.", done: true },
   { id: "windows-explorer", title: "Windows explorer bridge", detail: "Companion-backed folder health, change events, shortcut validation, and safe launch history for local libraries.", done: true },
@@ -2650,10 +2652,14 @@ const DEFAULT_MISSIONS: Mission[] = [
   { id: "theme-accessibility", title: "Theme & accessibility", detail: "Day/night palettes, focus styling, reduced-motion support, and per-section density preferences.", done: true },
   { id: "preview-recovery", title: "Local preview recovery", detail: "Resolve restored file handles in previews, hide failures, and log playback health without blocking the library.", done: true },
   { id: "youtube-quality", title: "YouTube channel quality", detail: "Per-channel retry controls, published-date ordering, duplicate suppression, and unavailable-card recovery are available in the YouTube desk.", done: true },
+  { id: "youtube-focused-archive-capacity", title: "YouTube focused archive capacity", detail: "Done · a focused creator pull has a 100,000-item metadata ceiling and enough bounded continuation budget to stop at that ceiling or at the public archive end. Routine and bulk pulls stay smaller.", done: true },
+  { id: "youtube-comment-response-recovery", title: "YouTube comment response recovery", detail: "Done · on-demand comment pulls accept both current entity payloads and the durable commentRenderer response shape, with initial-page continuation fallback.", done: true },
   { id: "twitch-quality", title: "Twitch live quality", detail: "Live-first ordering, per-channel timestamps, VOD/clip shelves, focused refresh, retry deadlines, and an additive archive cache are active.", done: true },
   { id: "x-quality", title: "X reading desk quality", detail: "Public profile/topic navigation, per-view load state, retry handling, and local reading-position timestamps are available without credentials.", done: true },
   { id: "startup-budget", title: "Startup performance budget", detail: "Catalog hydration, deferred search-index construction, lazy thumbnails, and bounded photo rendering protect the first usable shelf.", done: true },
   { id: "provider-import-recovery", title: "Provider import recovery", detail: "Provider refreshes retain successful channel rows, preserve prior cache on partial failures, and use RSS/channel-page plus public Twitch GraphQL recovery paths.", done: true },
+  { id: "adult-source-recovery", title: "Adult source recovery", detail: "Done · Booru pulls use source-aware queries plus JSON, XML, and public-listing recovery so Rule34-style, Gelbooru, and Realbooru responses no longer collapse into empty source chips.", done: true },
+  { id: "adult-provider-diverse-recommendations", title: "Adult provider-diverse recommendations", detail: "Done · personal Adult shelves rank by private signals, then apply creator and provider round-robin guards; videos, photos, and picks each have a full-width discovery rail.", done: true },
   { id: "watch-room-cross-device", title: "Watch Room cross-device relay", detail: "Verify the signaling relay across separate devices and add a TURN-backed recovery route for networks that block direct peer negotiation.", done: false },
   { id: "movie-private-tag-shelves", title: "Movie and private tag shelves", detail: "Movies have source, genre, and file-type rails; private shelves retain favorites, tags, history, and rating-aware sorting locally.", done: true },
   { id: "sprint-01", title: "Alert rules", detail: "Per-service alert switches and the notification activity center are active locally.", done: true },
@@ -2688,12 +2694,12 @@ const DEFAULT_MISSIONS: Mission[] = [
   { id: "local-share-compatibility", title: "Local share compatibility matrix", detail: "The local-share panel now reports exactly how many connected guests matched the staged fingerprint before the host plays it.", done: true },
   { id: "upscaler-model-install", title: "Verified upscaler model install", detail: "A user-initiated HTTPS download requires a publisher SHA-256, stores only a verified browser-cache artifact with a version record, and offers one-click removal. Runtime/export remain disabled until compatible execution is proven.", done: true },
   { id: "stats-source-remediation", title: "Stats-driven source remediation", detail: "Stats now offers safe tag and source review queues plus an exportable remediation plan. It never renames, reconnects, or removes files automatically.", done: true },
-  { id: "youtube-deep-pagination", title: "YouTube deep pagination", detail: "Creator pulls now use a bounded 2,880-item deep public catalog window, duplicate suppression, and a short server cache to avoid repeated provider work.", done: true },
+  { id: "youtube-deep-pagination", title: "YouTube deep pagination", detail: "Done · focused creator pulls use a bounded 100,000-item public catalog ceiling, duplicate suppression, and a short server cache to avoid repeated provider work; routine and bulk windows remain smaller.", done: true },
   { id: "taste-signal-audit", title: "Taste-signal audit", detail: "Stats now separates topic coverage, multi-topic depth, cross-source bridges, and operational-label volume so ranking inputs can be inspected before their weight changes.", done: true },
   { id: "tag-noise-budget", title: "Tag noise budget", detail: "Date, provider, format, source, creator, and keyword labels remain searchable/exportable but are excluded from taste scoring.", done: true },
   { id: "creator-coverage-repair", title: "Creator coverage repair", detail: "Backfill missing creator identity from public provider metadata and flag ambiguous matches for review.", done: false },
   { id: "metadata-tail-coverage", title: "Metadata tail coverage", detail: "Run bounded enrichment batches over the remaining untagged catalog and report coverage by source before applying recommendations.", done: false },
-  { id: "recommendation-diversity", title: "Recommendation diversity guardrails", detail: "Done · Home and provider discovery use deduplicated creator round-robin selection, preserving highly rated favorites while preventing one creator from occupying a rail.", done: true },
+  { id: "recommendation-diversity", title: "Recommendation diversity guardrails", detail: "Done · Home and provider discovery use deduplicated creator and provider round-robin selection, preserving highly rated favorites while preventing one creator or source from occupying a rail.", done: true },
   { id: "activity-journal", title: "Independent activity journal", detail: "Keep History, Continue marks, and local viewing counts in an IndexedDB activity record separate from broad preference storage.", done: true },
   { id: "shelf-explanations", title: "Explainable recommendation shelves", detail: "Done · recommendation rails now state their plain-language reason—ratings, saved creators, freshness, progress, or follow state—without exposing transport tags.", done: true },
   { id: "memory-pressure-observer", title: "Memory-pressure observer", detail: "Done · local Diagnostics reports mounted-card count, decoded artwork cache entries, active/queued decode work, hit/miss/eviction counts, and frame pressure so large shelves have an observable cause.", done: true },
@@ -2852,7 +2858,7 @@ export function MissionPlanSection() {
     <section className="mt-5 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Companion onboarding</p><h2 className="mt-2 font-display text-2xl text-fg">A safe five-minute desktop setup.</h2><ol className="mt-4 grid gap-3 text-sm text-muted sm:grid-cols-2"><li className="rounded-sm bg-bg/45 p-3"><span className="font-medium text-fg">1. Start Companion</span><br/>Double-click Start-Reelcase-Companion.cmd in the main Reelcase folder.</li><li className="rounded-sm bg-bg/45 p-3"><span className="font-medium text-fg">2. Confirm Desktop</span><br/>Keep its window open, then run the check below.</li><li className="rounded-sm bg-bg/45 p-3"><span className="font-medium text-fg">3. Load shortcuts</span><br/>Open Games and choose Load approved desktop shortcuts or Steam/Epic roots.</li><li className="rounded-sm bg-bg/45 p-3"><span className="font-medium text-fg">4. Verify first</span><br/>Use a listed shortcut inside an approved root before launching it.</li></ol><div className="mt-4 flex flex-wrap gap-2"><Button variant="secondary" onClick={() => void (async () => { try { const data = await companionHealth(); if (!data?.ok) throw new Error("offline"); setCompanionCheck({ ready: true, desktop: Boolean(data.desktopEnabled), detail: `v${data.version ?? "?"} · ${data.roots ?? 0} roots · badge ${data.trayBadge ?? 0}` }); if ((data.trayBadge ?? 0) > 0) void companionAckJobs(); } catch { setCompanionCheck({ ready: false, desktop: false, detail: "Companion not detected. Start it, leave the window open, then retry." }); } })()}>Check Companion setup</Button><Button variant="secondary" onClick={() => void companionSetAutostart(true).then((r) => setCompanionCheck({ ready: Boolean(r.ok), desktop: companionCheck?.desktop ?? false, detail: r.ok ? "Windows auto-start enabled for Companion." : (r.error || "Auto-start failed.") }))}>Enable Windows auto-start</Button><Button variant="ghost" onClick={() => void companionSetAutostart(false).then((r) => setCompanionCheck({ ready: companionCheck?.ready ?? false, desktop: companionCheck?.desktop ?? false, detail: r.ok ? "Windows auto-start removed." : (r.error || "Could not clear auto-start.") }))}>Disable auto-start</Button></div>{companionCheck && <p className={`mt-3 text-sm ${companionCheck.ready && companionCheck.desktop ? "text-accent" : "text-danger"}`}>{companionCheck.ready ? `Ready · Desktop ${companionCheck.desktop ? "approved" : "not approved"} · ${companionCheck.detail}` : companionCheck.detail}</p>}<p className="mt-2 text-xs text-muted">Offline yt-dlp jobs raise a Windows tray balloon when they finish. Loopback + origin check only — Companion never accepts LAN clients.</p></section>
     <section className="mt-5 grid gap-3 sm:grid-cols-3"><InfoCard icon={<Wifi className="size-5"/>} title="Next: home network" copy="Folder watch events, Roku discovery, stable room invitations, and stronger timeline recovery."/><InfoCard icon={<Images className="size-5"/>} title="Then: media intelligence" copy="Background metadata, thumbnail health, faster source search, and reviewable local tags."/><InfoCard icon={<Bot className="size-5"/>} title="Later: optional assistants" copy="Private recommendation controls, explainable picks, and only opt-in service connections."/></section>
     <div className="mt-5 flex flex-wrap gap-2"><Button variant="secondary" onClick={exportMissions}><Download className="size-4"/>Export mission plan</Button><Button variant="secondary" onClick={() => setMissions(DEFAULT_MISSIONS)}>Reset to the current delivery queue</Button><span className="self-center text-xs text-muted">Exports the current status, or restores the complete delivery baseline.</span></div>
-    <form className="mt-5 flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); const title = idea.trim(); if (!title) return; setMissions((items) => [...items, { id: crypto.randomUUID(), title, detail: "New idea — break this into implementation and verification steps.", done: false }]); setIdea(""); }}><Input value={idea} onChange={(event) => setIdea(event.target.value)} placeholder="Add a larger change idea" aria-label="New mission idea"/><Button type="submit">Add to plan</Button></form>
+    <form className="mt-5 flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); const title = idea.trim(); if (!title) return; setMissions((items) => [...items, { id: createLocalId("mission-"), title, detail: "New idea — break this into implementation and verification steps.", done: false }]); setIdea(""); }}><Input value={idea} onChange={(event) => setIdea(event.target.value)} placeholder="Add a larger change idea" aria-label="New mission idea"/><Button type="submit">Add to plan</Button></form>
   </HubShell>;
 }
 export function GamesSection() {
@@ -3218,7 +3224,7 @@ export function PrivateWebShortcuts() {
     try {
       const parsed = new URL(url);
       if (!/^https?:$/.test(parsed.protocol)) throw new Error("unsupported");
-      save([...links, { id: crypto.randomUUID(), name: name.trim() || parsed.hostname, url: parsed.toString() }]);
+      save([...links, { id: createLocalId("link-"), name: name.trim() || parsed.hostname, url: parsed.toString() }]);
       setName(""); setUrl("");
     } catch { setUrl(""); }
   };
@@ -3489,7 +3495,7 @@ export function ShopSection() {
       </div>
       <section className="mt-7 rounded-lg bg-elevated p-5 shadow-border">
         <div><p className="flex items-center gap-2 font-display text-2xl text-fg"><PackageSearch className="size-5 text-accent" />Package tracking</p><p className="mt-1 text-sm text-muted">A private local list for orders you are expecting. Tracking opens the carrier lookup in a new page; no retailer account is connected.</p></div>
-        <div className="mt-4 grid gap-2 sm:grid-cols-[1.2fr_.8fr_1fr_auto]"><Input value={packageTitle} onChange={(event) => setPackageTitle(event.target.value)} placeholder="Package or order name" aria-label="Package name" /><Input value={carrier} onChange={(event) => setCarrier(event.target.value)} placeholder="Carrier" aria-label="Carrier" /><Input value={tracking} onChange={(event) => setTracking(event.target.value)} placeholder="Tracking number (optional)" aria-label="Tracking number" /><Button onClick={() => { if (!packageTitle.trim()) return; setPackages((items) => [{ id: crypto.randomUUID(), title: packageTitle.trim(), carrier: carrier.trim() || "Carrier", tracking: tracking.trim(), status: "Ordered" }, ...items]); setPackageTitle(""); setTracking(""); }}>Add package</Button></div>
+        <div className="mt-4 grid gap-2 sm:grid-cols-[1.2fr_.8fr_1fr_auto]"><Input value={packageTitle} onChange={(event) => setPackageTitle(event.target.value)} placeholder="Package or order name" aria-label="Package name" /><Input value={carrier} onChange={(event) => setCarrier(event.target.value)} placeholder="Carrier" aria-label="Carrier" /><Input value={tracking} onChange={(event) => setTracking(event.target.value)} placeholder="Tracking number (optional)" aria-label="Tracking number" /><Button onClick={() => { if (!packageTitle.trim()) return; setPackages((items) => [{ id: createLocalId("package-"), title: packageTitle.trim(), carrier: carrier.trim() || "Carrier", tracking: tracking.trim(), status: "Ordered" }, ...items]); setPackageTitle(""); setTracking(""); }}>Add package</Button></div>
         {packages.length ? <div className="mt-4 space-y-2">{packages.map((item) => <div key={item.id} className="flex flex-wrap items-center gap-2 rounded-md bg-bg/45 px-3 py-3"><div className="min-w-36 flex-1"><p className="text-sm font-medium text-fg">{item.title}</p><p className="text-xs text-muted">{item.carrier}{item.tracking ? ` · ${item.tracking}` : ""}</p></div><select value={item.status} onChange={(event) => setPackages((items) => items.map((entry) => entry.id === item.id ? { ...entry, status: event.target.value as Package["status"] } : entry))} className="h-9 rounded-sm bg-elevated px-2 text-xs text-fg shadow-border"><option>Ordered</option><option>Shipped</option><option>Out for delivery</option><option>Delivered</option></select>{item.tracking && <a href={`https://www.17track.net/en/track?nums=${encodeURIComponent(item.tracking)}`} target="_blank" rel="noreferrer" className="rounded-sm bg-accent px-3 py-2 text-xs font-medium text-accent-fg">Track</a>}<Button size="sm" variant="secondary" onClick={() => setPackages((items) => items.filter((entry) => entry.id !== item.id))}>Remove</Button></div>)}</div> : <p className="mt-4 text-sm text-muted">No packages yet. Add an order to keep its delivery status beside your shopping shortcuts.</p>}
       </section>
     </HubShell>

@@ -1,5 +1,5 @@
 import { topicsForVideo, isTopicTag } from '@/lib/videos/topics';
-import { lazy, startTransition, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, startTransition, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentType } from "react";
 import { toast, Toaster } from "sonner";
 import { useShallow } from "zustand/react/shallow";
@@ -72,6 +72,17 @@ import { creatorIsLiked, getCreatorRating, getHeartedTagHistory, getRating, tagH
 import { announceNetworkPresence } from "@/lib/network-presence";
 
 const EMPTY_ADULT_VIDEOS: LibraryVideo[] = [];
+
+function canonicalAdultTag(raw: string): string {
+  const normalized = raw
+    .trim()
+    .replace(/^#+/, "")
+    .toLowerCase()
+    .replace(/[\s_]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return !normalized || normalized === "all" ? "All" : normalized;
+}
 
 function shuffleRank(id: string, seed: number) {
   let value = seed >>> 0;
@@ -239,6 +250,18 @@ export function LibraryApp() {
   const setQuery = useLibrary((s) => s.setQuery);
   const showHiddenAdult = useLibrary((s) => s.showHiddenAdult);
   const setShowHiddenAdult = useLibrary((s) => s.setShowHiddenAdult);
+  const applyAdultTag = useCallback((raw: string) => {
+    const tag = canonicalAdultTag(raw);
+    // A tag is a complete browsing intent. Reset narrowing controls that can
+    // hide every valid match, so a tap always produces an immediate result.
+    setAdultTag(tag);
+    setAdultSource(tag.startsWith("source-") ? tag.slice("source-".length) || "all" : "all");
+    setAdultView("all");
+    setAdultArtworkOnly(false);
+    setAdultTagVisibleCount(10);
+    setQuery("");
+    setSource("adults");
+  }, [setQuery, setSource]);
   const scanning = useLibrary((s) => s.scanning);
   const activeId = useLibrary((s) => s.activeId);
   const previewId = useLibrary((s) => s.previewId);
@@ -473,17 +496,11 @@ export function LibraryApp() {
 
   useEffect(() => {
     const onAdultTag = (event: Event) => {
-      const tag = String((event as CustomEvent<{ tag?: string }>).detail?.tag ?? "").trim();
-      if (!tag) return;
-      setAdultTag(tag === "All" || tag.toLowerCase() === "all" ? "All" : tag);
-      setAdultSource("all");
-      setAdultArtworkOnly(false);
-      setQuery("");
-      setSource("adults");
+      applyAdultTag(String((event as CustomEvent<{ tag?: string }>).detail?.tag ?? ""));
     };
     window.addEventListener("reelcase:adult-tag", onAdultTag);
     return () => window.removeEventListener("reelcase:adult-tag", onAdultTag);
-  }, [setQuery, setSource]);
+  }, [applyAdultTag]);
 
   useEffect(() => {
     const load = () => {
@@ -1426,7 +1443,7 @@ export function LibraryApp() {
                     sourceFilter={adultSource}
                     tagFilter={adultTag}
                     onSourceFilter={setAdultSource}
-                    onTagFilter={setAdultTag}
+                    onTagFilter={applyAdultTag}
                   />
                   <section className="mb-5 rounded-xl border border-border bg-surface p-4 shadow-border">
                     <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Adult media view</p>
@@ -1442,7 +1459,7 @@ export function LibraryApp() {
                     </div>
                     <p className="mt-2 text-xs text-muted">Preview-ready keeps cards without a usable poster out of the opening rails. Use the eye-slash control on a card to add #hidden; hidden cards stay out of all Adult rails until shown here.</p>
                   </section>
-                  {adultView === "all" && <section className="mb-5 grid gap-4 xl:grid-cols-3"><TitleRail title={`Adult videos · ${adultKindCounts.videos}`} reason="Two catalog rows in one continuous rail." videos={adultOverviewRails.videos} variant="rail"/><TitleRail title={`Adult photos · ${adultKindCounts.photos}`} reason="Reddit and Booru photos with preview fallbacks, combined into one rail." videos={adultOverviewRails.photos} variant="rail"/><TitleRail title="Adult picks" reason="A distinct mixed row after the video and photo cards above." videos={adultOverviewRails.picks} variant="rail"/></section>}
+                  {adultView === "all" && <section className="mb-6 space-y-5"><div className="border-b border-border pb-3"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Browse the full mix</p><p className="mt-1 text-sm text-muted">Videos, photos, and rotating picks each have their own full-width rail, so the opening catalog never compresses three different discovery paths into narrow columns.</p></div><TitleRail title={`Adult videos · ${adultKindCounts.videos}`} reason="Full-width video rail, ranked independently from photos and rotating picks." videos={adultOverviewRails.videos} variant="rail"/><TitleRail title={`Adult photos · ${adultKindCounts.photos}`} reason="Reddit and Booru photos with preview fallbacks, presented in a dedicated full-width rail." videos={adultOverviewRails.photos} variant="rail"/><TitleRail title="Adult picks" reason="A distinct mixed full-width rail after the video and photo cards above." videos={adultOverviewRails.picks} variant="rail"/></section>}
                   <section className="mb-5 rounded-xl border border-border bg-surface p-4 shadow-border">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
@@ -1450,15 +1467,15 @@ export function LibraryApp() {
                         <h2 className="mt-1 font-display text-2xl text-fg">Better Adult recommendations</h2>
                         <p role="status" className="mt-1 text-xs text-muted">{adultBrowse.failed ? "Recommendations are unavailable. You can still browse your catalog." : adultBrowse.pending ? "Updating your mix… Keep browsing while it finishes." : "Your mix is ready."}</p>
                         {adultBrowse.failed && <Button size="sm" variant="secondary" onClick={adultBrowse.retry}>Retry recommendations</Button>}
-                        <p className="mt-1 max-w-3xl text-sm text-muted">Taste signals from ratings, saves, likes, hearted tags, watch history, and private marks lead the mix. Preview-ready cards get a small lift, while a timestamped rotation keeps the opening rails from becoming fixed.</p>
+                        <p className="mt-1 max-w-3xl text-sm text-muted">Taste signals from ratings, saves, likes, hearted tags, watch history, and private marks lead the mix. Preview-ready cards get a small lift; creator and provider round-robin guards keep a fresh batch from taking over the shelf.</p>
                       </div>
                       <Button size="sm" variant="secondary" onClick={() => setAdultRailSeed(Date.now() >>> 0)}><Shuffle className="size-4" /> Refresh mix</Button>
                     </div>
-                    <div className="mt-3 grid gap-2 sm:grid-cols-3"><div className="rounded-md bg-elevated px-3 py-2 text-xs text-muted">{adultRecommendedRail.length} fresh recommendation{adultRecommendedRail.length === 1 ? "" : "s"}</div><div className="rounded-md bg-elevated px-3 py-2 text-xs text-muted">{adultRelatedRail.length} related by current interests</div><div className="rounded-md bg-elevated px-3 py-2 text-xs text-muted">Overview cards are held out of these first shelves</div></div>
+                    <div className="mt-3 flex flex-wrap gap-2"><div className="rounded-md bg-elevated px-3 py-2 text-xs text-muted">{adultRecommendedRail.length} fresh recommendation{adultRecommendedRail.length === 1 ? "" : "s"}</div><div className="rounded-md bg-elevated px-3 py-2 text-xs text-muted">{adultRelatedRail.length} related by current interests</div><div className="rounded-md bg-elevated px-3 py-2 text-xs text-muted">Overview cards are held out of these first shelves</div></div>
                   </section>
                   <TitleRail
                     title="Recommended for you"
-                    reason="Tag overlap, hearted interests, ratings, private marks, source variety, thumbnail readiness, and a fresh timestamped mix."
+                    reason="Tag overlap, hearted interests, ratings, private marks, creator and provider variety, thumbnail readiness, and a fresh timestamped mix."
                     videos={adultRecommendedRail}
                     variant="rail"
                   />
@@ -1516,10 +1533,10 @@ export function LibraryApp() {
                       ))}
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <Button size="sm" variant={adultTag === "All" ? "default" : "secondary"} onClick={() => setAdultTag("All")}>All adult tags</Button>
-                      {heartedAdultTags.map((tag) => <Button key={`adult-hearted-${tag}`} size="sm" variant={adultTag === tag ? "default" : "secondary"} onClick={() => setAdultTag(tag)}>♥ #{tag}</Button>)}
+                      <Button size="sm" variant={adultTag === "All" ? "default" : "secondary"} onClick={() => applyAdultTag("All")}>All adult tags</Button>
+                      {heartedAdultTags.map((tag) => <Button key={`adult-hearted-${tag}`} size="sm" variant={adultTag === tag ? "default" : "secondary"} onClick={() => applyAdultTag(tag)}>♥ #{tag}</Button>)}
                       {visibleAdultTags.map((row) => (
-                        <Button key={`adult-tag-${row.tag}`} size="sm" variant={adultTag === row.tag ? "default" : "secondary"} onClick={() => setAdultTag(row.tag)}>
+                        <Button key={`adult-tag-${row.tag}`} size="sm" variant={adultTag === row.tag ? "default" : "secondary"} onClick={() => applyAdultTag(row.tag)}>
                           #{row.tag} · {row.count} · {Math.round(row.score)}
                         </Button>
                       ))}
@@ -1545,7 +1562,7 @@ export function LibraryApp() {
                         <p className="mt-1 text-xs text-muted">Verified provider descriptors scored by ratings, saves, marks, recency, and cross-provider coverage. Use one to focus every Adult rail.</p>
                         <div className="mt-2 flex flex-wrap gap-2">
                           {adultMetaTagRank.slice(0, 18).map((row) => (
-                            <Button key={`adult-meta-${row.tag}`} size="sm" variant={adultTag === row.tag ? "default" : "secondary"} onClick={() => setAdultTag(row.tag)}>
+                            <Button key={`adult-meta-${row.tag}`} size="sm" variant={adultTag === row.tag ? "default" : "secondary"} onClick={() => applyAdultTag(row.tag)}>
                               #{row.tag} · {row.count} · {Math.round(row.score)}
                             </Button>
                           ))}

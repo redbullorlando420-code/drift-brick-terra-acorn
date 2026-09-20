@@ -15,11 +15,15 @@ export const LIBRARY_LIMITS = {
   // Keep pace with the Adult catalog without making the first channel paint
   // wait on every archive continuation. Focused pulls retain a deep history;
   // routine and bulk refreshes fill it in wider batches below.
-  youtubeFocusedVideosPerChannel: 8_000,
+  // A focused creator pull intentionally targets the full long-tail archive.
+  // This is catalog metadata only, never media-byte downloading; routine and
+  // bulk imports remain bounded below so the normal desk stays responsive.
+  youtubeFocusedVideosPerChannel: 100_000,
   // Public browse continuations are the route beyond the first channel shelf.
-  // A page is usually 30–100 items; 128 pages covers large creator catalogs
-  // without unbounded work. Focused/import go deep; routine stays smaller.
-  youtubeArchivePagesPerPull: 128,
+  // A page is usually 30–100 items. 3,500 pages gives a focused pull enough
+  // continuation budget to reach the 100k item ceiling while still stopping
+  // as soon as the requested item count or provider continuation ends.
+  youtubeArchivePagesPerPull: 3_500,
   youtubeRoutineVideosPerChannel: 2_000,
   youtubeBulkImportVideosPerChannel: 1_200,
   /** Top-level Innertube comment threads per on-demand video detail pull. */

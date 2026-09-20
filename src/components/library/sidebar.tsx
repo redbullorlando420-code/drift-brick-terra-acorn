@@ -30,7 +30,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { isAdultVideo, resumeForVideo, useLibrary } from "@/lib/videos/store";
+import { isAdultVideo, resumeForVideo, selectAdultRemote, useLibrary } from "@/lib/videos/store";
 import type { Folder, SourceId } from "@/lib/videos/types";
 
 function NavItem({
@@ -87,6 +87,10 @@ export function SidebarNav({
   const progress = useLibrary((s) => s.progress);
   const resumeProgress = useLibrary((s) => s.resumeProgress);
   const history = useLibrary((s) => s.history);
+  // The Adults desk uses the provider-aware, duplicate-collapsed catalog.
+  // Reuse it here so the sidebar badge is never inflated by hidden or merged
+  // rows that do not appear in the desk itself.
+  const adultCatalog = useLibrary(selectAdultRemote);
   const [followingOpen, setFollowingOpen] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [followingLimit, setFollowingLimit] = useState(48);
@@ -109,7 +113,7 @@ export function SidebarNav({
     const networkFolders: Folder[] = [];
     const adultFolders: Folder[] = [];
     const folderById = new Map(folders.map((folder) => [folder.id, folder]));
-    let publicCount = 0, adultCount = 0, ytCount = 0, twitchCount = 0, liveCount = 0, continueCount = 0;
+    let publicCount = 0, ytCount = 0, twitchCount = 0, liveCount = 0, continueCount = 0;
     const videosById = new Map(videos.map((video) => [video.id, video]));
     for (const folder of folders) {
       if (folder.adult) adultFolders.push(folder);
@@ -118,7 +122,7 @@ export function SidebarNav({
     }
     for (const video of videos) {
       const adult = Boolean(folderById.get(video.folderId)?.adult);
-      if (adult) { adultCount += 1; continue; }
+      if (adult) continue;
       if (!(hideDemo && video.isSample)) {
         publicCount += 1;
         const mark = resumeForVideo({ progress, resumeProgress }, video);
@@ -131,7 +135,7 @@ export function SidebarNav({
     let favCount = 0, historyCount = 0;
     for (const id of Object.keys(favorites)) if (videosById.get(id) && !folderById.get(videosById.get(id)!.folderId)?.adult) favCount += 1;
     for (const entry of history) { const video = videosById.get(entry.id); if (video && !folderById.get(video.folderId)?.adult && !(hideDemo && video.isSample)) historyCount += 1; }
-    return { publicFolders, networkFolders, adultFolders, counts: { publicCount, adultCount, ytCount, twitchCount, liveCount, continueCount, favCount, historyCount } };
+    return { publicFolders, networkFolders, adultFolders, counts: { publicCount, ytCount, twitchCount, liveCount, continueCount, favCount, historyCount } };
   }, [favorites, folders, hideDemo, history, progress, resumeProgress, videos]);
   const demo = folders.find((f) => f.kind === "demo" && !hideDemo);
   const youtubeFollowing = networkFolders.filter((folder) => folder.kind === "youtube");
@@ -219,7 +223,7 @@ export function SidebarNav({
           onClick={() => go("adults")}
           icon={Flame}
           label="Adults"
-          count={counts.adultCount}
+          count={adultCatalog.length}
         />
         <NavItem
           active={sourceId === "adult-fetishes"}

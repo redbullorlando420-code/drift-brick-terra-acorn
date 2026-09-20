@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { MessageCircle } from "lucide-react";
+import { ExternalLink, MessageCircle } from "lucide-react";
 import { adultTextFetishTags } from "@/lib/videos/adult-sites";
 import { mineRedditCommentTags, redditTitleTokens } from "@/lib/videos/adult-reddit-tags";
 import { useLibrary } from "@/lib/videos/store";
@@ -37,7 +37,13 @@ export function AdultComments({ video }: { video: LibraryVideo }) {
     if (video.remote?.comments?.length) {
       setComments(video.remote.comments);
       setNote("");
-      // Still refresh in background if cache is empty of note — keep cached first paint.
+      setLoading(false);
+      // setVideoComments replaces the remote card with a fresh comments array.
+      // Refreshing again here re-ran this effect forever, leaving YouTube on
+      // “Loading comments…” even after a healthy Innertube response arrived.
+      // Cached public comments are already on-demand data, so retain them
+      // until the viewer opens the title again instead of immediately polling.
+      return;
     }
     setLoading(true);
     void (async () => {
@@ -133,6 +139,16 @@ export function AdultComments({ video }: { video: LibraryVideo }) {
         </div>
       )}
       {!loading && kind !== "youtube" && renderList(commentRows)}
+      {!loading && kind === "reddit" && !commentRows.length && video.remote?.watchUrl && (
+        <a
+          href={video.remote.watchUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-3 inline-flex min-h-8 items-center gap-1 text-xs font-medium text-accent hover:underline"
+        >
+          Open discussion on Reddit <ExternalLink className="size-3.5" />
+        </a>
+      )}
     </section>
   );
 }

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { useLibrary } from "@/lib/videos/store";
 import { creatorIsLiked, getCreatorRating, getRating, setCreatorRating, setRating as saveRating, tagIsLiked, toggleCreatorLike, toggleTagLike } from "@/lib/media-feedback";
 import { resolvePlayUrl } from "@/lib/videos/sources";
+import { twitchEmbedUrl } from "@/lib/videos/twitch-embed";
 import { isAdultImageKind, isAdultPullKind } from "@/lib/videos/adult-sites";
 import { AdultComments, supportsRemoteComments } from "@/components/library/adult-comments";
 
@@ -214,7 +215,7 @@ export function PreVideo() {
     ? null
     : !myFreeCamsRoom && video.remote?.embedUrl && !directAdultMedia
       ? video.remote.kind === "twitch"
-        ? `${video.remote.embedUrl}${video.remote.embedUrl.includes("?") ? "&" : "?"}parent=${encodeURIComponent(window.location.hostname)}`
+        ? twitchEmbedUrl(video.remote, window.location.hostname)
         : video.remote.kind === "youtube"
           ? (() => { const url = new URL(video.remote.embedUrl, "https://www.youtube.com"); url.protocol = "https:"; url.hostname = "www.youtube.com"; url.searchParams.set("autoplay", "1"); url.searchParams.set("rel", "0"); url.searchParams.set("modestbranding", "1"); url.searchParams.set("playsinline", "1"); url.searchParams.set("origin", window.location.origin); return url.toString(); })()
           : video.remote.embedUrl

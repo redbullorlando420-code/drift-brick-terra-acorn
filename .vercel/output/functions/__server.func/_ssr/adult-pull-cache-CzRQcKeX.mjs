@@ -1,4 +1,4 @@
-//#region node_modules/.nitro/vite/services/ssr/assets/adult-pull-cache-DYRXt4XQ.js
+//#region node_modules/.nitro/vite/services/ssr/assets/adult-pull-cache-CzRQcKeX.js
 var ADULT_EXTRA_MILESTONES = [
 	{
 		name: "CooMeet",
@@ -3663,8 +3663,8 @@ var LIBRARY_LIMITS = {
 	descriptionKeywordTagsPerTitle: 24,
 	remoteRefreshChannelBatch: 24,
 	twitchChannelsReservedPerRefresh: 8,
-	youtubeFocusedVideosPerChannel: 8e3,
-	youtubeArchivePagesPerPull: 128,
+	youtubeFocusedVideosPerChannel: 1e5,
+	youtubeArchivePagesPerPull: 3500,
 	youtubeRoutineVideosPerChannel: 2e3,
 	youtubeBulkImportVideosPerChannel: 1200,
 	/** Top-level Innertube comment threads per on-demand video detail pull. */

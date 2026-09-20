@@ -332,7 +332,7 @@ async function youtubeContinuationBackfill(html: string, knownIds: Set<string>, 
         method: "POST",
         headers: { "content-type": "application/json", "x-youtube-client-name": "1", "x-youtube-client-version": config.clientVersion },
         body: JSON.stringify({ context: { client: { clientName: "WEB", clientVersion: config.clientVersion } }, continuation }),
-        signal: AbortSignal.timeout(15_000),
+        signal: AbortSignal.timeout(10_000),
       });
       if (!response.ok) break;
       const pageData = await response.json() as unknown;
@@ -2098,13 +2098,21 @@ const BOORU_HOSTS = [
   { id: "hypnohub", base: "https://hypnohub.net", postPath: "/index.php?page=post&s=view&id=" },
 ] as const;
 
+function normalizedBooruUrl(value: string, host: (typeof BOORU_HOSTS)[number]): string {
+  const decoded = decodeBooruHtml(value).trim();
+  if (!decoded) return "";
+  if (decoded.startsWith("//")) return `https:${decoded}`;
+  if (decoded.startsWith("/")) return `${host.base}${decoded}`;
+  return decoded;
+}
+
 function booruVideo(row: BooruPost, host: (typeof BOORU_HOSTS)[number]): LibraryVideo | null {
   const id = asString(row.id).trim();
   const tags = asString(row.tags).trim();
   const owner = pickString(row.owner, row.creator, row.uploader).trim();
-  const preview = asString(row.preview_url).trim();
-  const sample = asString(row.sample_url).trim();
-  const file = asString(row.file_url).trim();
+  const preview = normalizedBooruUrl(asString(row.preview_url), host);
+  const sample = normalizedBooruUrl(asString(row.sample_url), host);
+  const file = normalizedBooruUrl(asString(row.file_url), host);
   // Keep the original file for the explicit Download action while cards paint
   // the smaller preview first. This matters for high-resolution Rule34 posts.
   const image = file || sample || preview;
@@ -2148,7 +2156,31 @@ function decodeBooruHtml(value: string) {
     .replace(/&gt;/g, ">");
 }
 
-async function fetchRule34Listing(host: (typeof BOORU_HOSTS)[number], tags: string, limit: number, pid: number): Promise<LibraryVideo[]> {
+function booruMarkupAttribute(markup: string, name: string): string {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = markup.match(new RegExp(`\\b${escaped}\\s*=\\s*(["'])([\\s\\S]*?)\\1`, "i"));
+  return match ? decodeBooruHtml(match[2] ?? "") : "";
+}
+
+function booruPostsFromXml(xml: string): BooruPost[] {
+  const rows: BooruPost[] = [];
+  for (const match of xml.matchAll(/<post\b([\s\S]*?)(?:\/>|>)/gi)) {
+    const attrs = match[1] ?? "";
+    const id = booruMarkupAttribute(attrs, "id");
+    if (!id) continue;
+    rows.push({
+      id,
+      preview_url: booruMarkupAttribute(attrs, "preview_url"),
+      sample_url: booruMarkupAttribute(attrs, "sample_url"),
+      file_url: booruMarkupAttribute(attrs, "file_url"),
+      tags: booruMarkupAttribute(attrs, "tags"),
+      owner: booruMarkupAttribute(attrs, "owner") || booruMarkupAttribute(attrs, "creator") || booruMarkupAttribute(attrs, "uploader"),
+    });
+  }
+  return rows;
+}
+
+async function fetchBooruListing(host: (typeof BOORU_HOSTS)[number], tags: string, limit: number, pid: number): Promise<LibraryVideo[]> {
   const params = new URLSearchParams({ page: "post", s: "list", tags, pid: String(Math.max(0, pid)) });
   const res = await cachedAdultFetch(`${host.base}/index.php?${params.toString()}`, {
     signal: AbortSignal.timeout(15_000),
@@ -2158,10 +2190,30 @@ async function fetchRule34Listing(host: (typeof BOORU_HOSTS)[number], tags: stri
   if (!res.ok) throw new Error(`${host.id} HTTP ${res.status}`);
   const html = await res.text();
   const rows: BooruPost[] = [];
-  const thumbPattern = /<span\s+id="s(\d+)"[^>]*>[\s\S]*?<img\s+src="([^"]+)"[\s\S]*?\balt="([^"]*)"/gi;
-  for (const match of html.matchAll(thumbPattern)) {
-    rows.push({ id: match[1], preview_url: decodeBooruHtml(match[2] ?? ""), tags: decodeBooruHtml(match[3] ?? "") });
+  // Gelbooru-style listings have changed attribute order a few times. Read
+  // each card's image tag rather than requiring `src` and `alt` in one fixed
+  // sequence, which also makes this a useful fallback for Rule34-like hosts.
+  const cardPattern = /<(?:span|article|li)\b([^>]*\bid=["']s?(\d+)["'][^>]*)>([\s\S]*?)<\/(?:span|article|li)>/gi;
+  for (const match of html.matchAll(cardPattern)) {
+    const image = match[3]?.match(/<img\b([\s\S]*?)>/i)?.[1] ?? "";
+    const preview = booruMarkupAttribute(image, "data-src") || booruMarkupAttribute(image, "src");
+    const postId = match[2] ?? "";
+    if (!postId || !preview) continue;
+    rows.push({
+      id: postId,
+      preview_url: preview,
+      tags: booruMarkupAttribute(image, "title") || booruMarkupAttribute(image, "alt"),
+    });
     if (rows.length >= limit) break;
+  }
+  if (!rows.length) {
+    const thumbPattern = /<span\s+id=["']s(\d+)["'][^>]*>[\s\S]*?<img\b([^>]*)>/gi;
+    for (const match of html.matchAll(thumbPattern)) {
+      const preview = booruMarkupAttribute(match[2] ?? "", "data-src") || booruMarkupAttribute(match[2] ?? "", "src");
+      if (!preview) continue;
+      rows.push({ id: match[1], preview_url: preview, tags: booruMarkupAttribute(match[2] ?? "", "title") || booruMarkupAttribute(match[2] ?? "", "alt") });
+      if (rows.length >= limit) break;
+    }
   }
   return rows.map((row) => booruVideo(row, host)).filter((video): video is LibraryVideo => video != null);
 }
@@ -2202,7 +2254,15 @@ async function fetchBooruJson(host: (typeof BOORU_HOSTS)[number], tags: string, 
     headers: { accept: "application/json,text/plain,*/*", "user-agent": "Reelcase/1.0" },
   });
   if (!res.ok) throw new Error(`${host.id} HTTP ${res.status}`);
-  const raw: unknown = await res.json();
+  const body = await res.text();
+  let raw: unknown;
+  try {
+    raw = JSON.parse(body) as unknown;
+  } catch {
+    const rows = booruPostsFromXml(body);
+    if (rows.length) return rows.map((row) => booruVideo(row, host)).filter((video): video is LibraryVideo => video != null);
+    throw new Error(`${host.id} returned an unsupported public feed`);
+  }
   const record = asRecord(raw);
   // Gelbooru-compatible servers use both a bare JSON array and wrappers such
   // as { post: [...] } / { posts: [...] }. Wrapped results are still valid.
@@ -2220,19 +2280,26 @@ async function fetchBooruJson(host: (typeof BOORU_HOSTS)[number], tags: string, 
 }
 
 async function fetchBooruHost(host: (typeof BOORU_HOSTS)[number], tags: string, limit: number, pid: number): Promise<LibraryVideo[]> {
-  // Rule34 documents a Gelbooru-compatible JSON dapi. Prefer that for speed and
-  // stable preview URLs; keep the HTML listing as a real backup when JSON is
-  // empty, rate-limited, or briefly unavailable.
-  if (host.id === "rule34") {
-    try {
-      const jsonRows = await fetchBooruJson(host, tags, limit, pid);
-      if (jsonRows.length) return jsonRows;
-    } catch {
-      // Fall through to HTML listing backup.
-    }
-    return fetchRule34Listing(host, tags, limit, pid);
+  // Some booru hosts now reject anonymous JSON (Gelbooru) or return XML even
+  // with json=1 (Realbooru). Prefer the structured endpoint, then recover from
+  // a valid public HTML listing rather than reporting a misleading empty pull.
+  try {
+    const rows = await fetchBooruJson(host, tags, limit, pid);
+    if (rows.length) return rows;
+  } catch {
+    // Public listing fallback below preserves a scoped provider diagnostic.
   }
-  return fetchBooruJson(host, tags, limit, pid);
+  return fetchBooruListing(host, tags, limit, pid);
+}
+
+function booruTagsForHost(host: (typeof BOORU_HOSTS)[number], needle: string): string {
+  const query = needle.trim();
+  // Rule34-style catalogs are adult-only and commonly do not have an
+  // `rating:explicit` tag. Sending that shared tag was the reason their
+  // otherwise successful requests returned zero cards. Gelbooru supports the
+  // rating syntax, so retain it there to keep mixed listings adult-scoped.
+  if (host.id === "gelbooru") return ["rating:explicit", query].filter(Boolean).join(" ");
+  return query;
 }
 
 
@@ -2339,7 +2406,7 @@ async function fetchBooruFeed(query: string, maxVideos: number, page: number): P
     const video = await fetchRule34Post(rule34, directRule34Id);
     return { videos: video ? [video] : [], totalPages: page, totalCount: video ? 1 : 0 };
   }
-  const tagQuery = !needle || needle === "all" ? "rating:explicit" : `rating:explicit ${needle}`;
+  const booruQuery = !needle || needle === "all" ? "" : needle;
   const limit = LIBRARY_LIMITS.booruPageSize;
   const pid = Math.max(0, page - 1);
   const collected: LibraryVideo[] = [];
@@ -2360,7 +2427,7 @@ async function fetchBooruFeed(query: string, maxVideos: number, page: number): P
     : rotated;
   const e621Tags = !needle || needle === "all" ? "rating:e order:rank" : `rating:e ${needle}`;
   const batches = await Promise.allSettled([
-    ...ordered.map((host) => fetchBooruHost(host, tagQuery, host.id === "rule34" ? share * 2 : share, pid)),
+    ...ordered.map((host) => fetchBooruHost(host, booruTagsForHost(host, booruQuery), host.id === "rule34" ? share * 2 : share, pid)),
     fetchE621Page(e621Tags, share, Math.max(1, page)),
   ]);
   for (const [index, result] of batches.entries()) {
@@ -2937,6 +3004,23 @@ function parseRedditCommentEntries(xml: string): AdultComment[] {
   return out;
 }
 
+function youtubeText(value: unknown): string {
+  if (typeof value === "string") return value.trim();
+  if (!value || typeof value !== "object") return "";
+  const record = value as Record<string, unknown>;
+  if (typeof record.simpleText === "string") return record.simpleText.trim();
+  if (!Array.isArray(record.runs)) return "";
+  return record.runs
+    .map((run) => (run && typeof run === "object" && typeof (run as Record<string, unknown>).text === "string" ? (run as Record<string, unknown>).text as string : ""))
+    .join("")
+    .trim();
+}
+
+function youtubeCommentScore(value: unknown): number | undefined {
+  const parsed = Number(youtubeText(value).replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 function youtubeCommentEntities(root: unknown, limit: number): AdultComment[] {
   const out: AdultComment[] = [];
   const seen = new Set<string>();
@@ -2964,8 +3048,64 @@ function youtubeCommentEntities(root: unknown, limit: number): AdultComment[] {
         });
       }
     }
+    // Innertube serves the entity payload above on newer WEB responses, but
+    // still uses the long-lived commentRenderer shape for some videos and
+    // continuations. Accept both so an otherwise healthy public thread does
+    // not look empty merely because YouTube switched response envelopes.
+    const renderer = record.commentRenderer as Record<string, unknown> | undefined;
+    if (renderer) {
+      const id = asString(renderer.commentId).trim() || `ytc-legacy-${out.length}`;
+      const body = youtubeText(renderer.contentText).slice(0, 500);
+      if (body && !seen.has(id)) {
+        seen.add(id);
+        out.push({
+          id,
+          author: youtubeText(renderer.authorText).replace(/^@/, "") || undefined,
+          body,
+          score: youtubeCommentScore(renderer.voteCount ?? renderer.likeCount),
+        });
+      }
+    }
     for (const value of Object.values(record)) if (value && typeof value === "object") stack.push(value);
   }
+  return out;
+}
+
+/** Public Reddit comment listings use the same t1 tree on the JSON endpoint. */
+function parseRedditCommentJson(payload: unknown): AdultComment[] {
+  const out: AdultComment[] = [];
+  const seen = new Set<string>();
+  const visit = (value: unknown) => {
+    if (!value || out.length >= 40) return;
+    if (Array.isArray(value)) {
+      for (const item of value) visit(item);
+      return;
+    }
+    if (typeof value !== "object") return;
+    const record = value as Record<string, unknown>;
+    const data = record.data && typeof record.data === "object" ? record.data as Record<string, unknown> : undefined;
+    if (record.kind === "t1" && data) {
+      const id = String(data.name ?? data.id ?? "").trim();
+      const author = String(data.author ?? "").trim();
+      const body = String(data.body ?? "")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 400);
+      if (id && body.length >= 2 && !seen.has(id) && !adultBlockedText(body, author)) {
+        seen.add(id);
+        const score = Number(data.score ?? data.ups);
+        out.push({ id, author: author || undefined, body, score: Number.isFinite(score) ? score : undefined });
+      }
+    }
+    if (data?.replies) visit(data.replies);
+    if (data?.children) visit(data.children);
+    if (record.children) visit(record.children);
+  };
+  visit(payload);
   return out;
 }
 
@@ -3008,6 +3148,19 @@ function youtubeNextCommentToken(root: unknown): string | null {
       if (token) return token;
     }
   }
+  // Some current `next` payloads put their continuation item directly in the
+  // response tree instead of beneath onResponseReceivedEndpoints.
+  const stack: unknown[] = [root];
+  while (stack.length) {
+    const current = stack.pop();
+    if (!current || typeof current !== "object") continue;
+    if (Array.isArray(current)) { stack.push(...current); continue; }
+    const record = current as Record<string, unknown>;
+    const cont = record.continuationItemRenderer as { continuationEndpoint?: { continuationCommand?: { token?: string } } } | undefined;
+    const token = cont?.continuationEndpoint?.continuationCommand?.token;
+    if (token) return token;
+    for (const value of Object.values(record)) if (value && typeof value === "object") stack.push(value);
+  }
   return null;
 }
 
@@ -3040,14 +3193,18 @@ async function fetchYoutubeComments(videoId: string, limit: number): Promise<{ c
       return await response.json() as unknown;
     };
 
+    const initialData = youtubeInitialData(html);
     const watch = await postNext({ videoId: id });
     if (!watch) return { comments: [], note: "YouTube comments endpoint unavailable." };
-    let continuation = youtubeCommentContinuation(watch);
+    let continuation = youtubeCommentContinuation(watch) ?? (initialData ? youtubeCommentContinuation(initialData) : null);
     if (!continuation) return { comments: [], note: "No public YouTube comment panel for this video." };
 
     const comments: AdultComment[] = [];
     const seen = new Set<string>();
-    for (let page = 0; page < 4 && comments.length < limit && continuation; page += 1) {
+    // Two public pages normally satisfy the 40-thread on-demand limit. Keeping
+    // this short prevents a temporary YouTube slowdown from holding the whole
+    // player side panel open behind several serial continuation requests.
+    for (let page = 0; page < 2 && comments.length < limit && continuation; page += 1) {
       const pageData = await postNext({ continuation });
       if (!pageData) break;
       for (const row of youtubeCommentEntities(pageData, limit - comments.length)) {
@@ -3329,17 +3486,44 @@ async function fetchRedditComments(videoId: string, watchUrl: string): Promise<{
   const oldCanonical = `https://old.reddit.com/comments/${encodeURIComponent(id)}.rss?limit=40`;
   const permalink = watchUrl.match(/^https:\/\/www\.reddit\.com\/r\/[^/]+\/comments\/[a-z0-9]+/i)?.[0];
   const oldPermalink = permalink?.replace(/^https:\/\/www\.reddit\.com/i, "https://old.reddit.com");
-  const urls = permalink ? [`${permalink}.rss?limit=40`, oldPermalink ? `${oldPermalink}.rss?limit=40` : oldCanonical, canonical, oldCanonical] : [canonical, oldCanonical];
+  const publicPost = permalink ?? `https://www.reddit.com/comments/${encodeURIComponent(id)}`;
+  const oldPost = oldPermalink ?? `https://old.reddit.com/comments/${encodeURIComponent(id)}`;
+  // A bounded route ladder keeps an unavailable discussion from holding the
+  // player open for a minute: Atom primary, then two public JSON variants,
+  // then old-Reddit Atom as a final independent cache path.
+  const urls: Array<{ url: string; format: "rss" | "json" }> = [
+    { url: permalink ? `${publicPost}.rss?limit=40` : canonical, format: "rss" },
+    { url: `${publicPost}.json?limit=40&raw_json=1`, format: "json" },
+    { url: `${oldPost}.json?limit=40&raw_json=1`, format: "json" },
+    { url: oldCanonical, format: "rss" },
+  ];
   let lastStatus = 0;
-  for (const url of urls) {
-    const res = await cachedAdultFetch(url, { signal: AbortSignal.timeout(12_000), cacheTtlMs: 15 * 60_000, headers: { accept: "application/atom+xml, application/rss+xml, application/xml;q=0.9, */*;q=0.8", "user-agent": "linux:reelcase:1.0 (by /u/reelcase)" } });
+  let sawPublicResponse = false;
+  for (const endpoint of urls) {
+    const res = await cachedAdultFetch(endpoint.url, {
+      signal: AbortSignal.timeout(8_000),
+      cacheTtlMs: 15 * 60_000,
+      cacheKey: `GET:reddit-comments:${endpoint.url}`,
+      headers: {
+        accept: endpoint.format === "json" ? "application/json, text/javascript;q=0.9, */*;q=0.8" : "application/atom+xml, application/rss+xml, application/xml;q=0.9, */*;q=0.8",
+        "user-agent": "web:reelcase:1.0 (public comment viewer)",
+      },
+    });
     lastStatus = res.status;
     if (res.status === 429) continue;
     if (!res.ok) continue;
-    const comments = parseRedditCommentEntries(await res.text());
-    return { comments, note: comments.length ? "Live Reddit comments via public Atom RSS." : "No public comments returned for this post." };
+    sawPublicResponse = true;
+    const body = await res.text();
+    let comments: AdultComment[] = [];
+    if (endpoint.format === "rss") comments = parseRedditCommentEntries(body);
+    else {
+      try { comments = parseRedditCommentJson(JSON.parse(body)); }
+      catch { continue; }
+    }
+    if (comments.length) return { comments, note: endpoint.format === "rss" ? "Live Reddit comments via public Atom RSS." : "Live Reddit comments via the public post listing." };
   }
-  return { comments: [], note: lastStatus === 429 ? "Reddit comment RSS rate-limited — try again later." : `Reddit comments unavailable (HTTP ${lastStatus || "network"}).` };
+  if (sawPublicResponse) return { comments: [], note: "No public comments returned for this post." };
+  return { comments: [], note: lastStatus === 429 ? "Reddit comment requests are rate-limited — try again later." : `Reddit comments unavailable (HTTP ${lastStatus || "network"}).` };
 }
 
 export async function runFetchAdultComments(dataRaw: unknown): Promise<{ comments: AdultComment[]; note: string }> {

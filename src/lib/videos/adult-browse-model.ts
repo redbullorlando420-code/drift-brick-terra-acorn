@@ -72,6 +72,36 @@ function diversifyCreators<T extends { id: string; remote?: { channelName?: stri
   return result;
 }
 
+/**
+ * A personal rail should not become a single-provider rail just because that
+ * provider had the freshest batch. Keep the ranking within every provider,
+ * then take one candidate per provider on each pass. Creator diversity runs
+ * first, so this is a second guardrail rather than a blunt shuffle.
+ */
+function diversifyAdultSources<T extends { remote?: { kind?: string } }>(items: T[], limit = 48): T[] {
+  const groups = new Map<string, T[]>();
+  for (const item of items) {
+    const source = item.remote?.kind?.trim().toLowerCase() || "local";
+    const group = groups.get(source) ?? [];
+    group.push(item);
+    groups.set(source, group);
+  }
+  const rows = [...groups.values()];
+  const result: T[] = [];
+  for (let index = 0; result.length < limit; index += 1) {
+    let added = false;
+    for (const row of rows) {
+      const item = row[index];
+      if (!item) continue;
+      result.push(item);
+      added = true;
+      if (result.length >= limit) break;
+    }
+    if (!added) break;
+  }
+  return result;
+}
+
 
 export function buildAdultBrowseModel(data: AdultBrowseData, params: AdultBrowseParams) {
   const { videos: adultRemoteVideos, tags, signals } = data;
@@ -134,7 +164,7 @@ export function buildAdultBrowseModel(data: AdultBrowseData, params: AdultBrowse
     const overviewIds = new Set([...adultOverviewRails.videos, ...adultOverviewRails.photos, ...adultOverviewRails.picks].map((video) => video.id));
     const freshBase = rankedBase.filter((video) => !overviewIds.has(video.id));
     const recommendationBase = freshBase.length >= Math.min(16, adultRailLimit) ? freshBase : rankedBase;
-    return diversifyCreators(recommendationBase
+    const ranked = recommendationBase
       .map((video) => {
         const itemTags = tags[video.id] ?? [];
         const overlap = itemTags.filter((tag) => preferred.has(tag)).length;
@@ -146,7 +176,8 @@ export function buildAdultBrowseModel(data: AdultBrowseData, params: AdultBrowse
       })
       .sort((a, b) => b.score - a.score)
       .map(({ video }) => video)
-      .slice(0, 96), 48);
+      .slice(0, 96);
+    return diversifyAdultSources(diversifyCreators(ranked, 96), 48);
   })();
   const adultRelatedRecommended = (() => {
     const seedTags = new Set(
@@ -157,7 +188,7 @@ export function buildAdultBrowseModel(data: AdultBrowseData, params: AdultBrowse
         ),
     );
     const recommendedIds = new Set(adultRecommended.map((video) => video.id));
-    return adultRemoteVideos
+    const ranked = adultRemoteVideos
       .filter((video) => !recommendedIds.has(video.id))
       .map((video) => {
         const itemTags = tags[video.id] ?? [];
@@ -169,7 +200,8 @@ export function buildAdultBrowseModel(data: AdultBrowseData, params: AdultBrowse
       .filter((row) => row.score > 0)
       .sort((a, b) => b.score - a.score || a.shuffle - b.shuffle)
       .map(({ video }) => video)
-      .slice(0, 48);
+      .slice(0, 96);
+    return diversifyAdultSources(diversifyCreators(ranked, 96), 48);
   })();
   const adultShelfRails = (() => {
     // Claim ids top-down so the Adult landing rails begin as distinct shelves.

@@ -2,7 +2,7 @@ import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { r as Slot, s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
 import { n as TSS_SERVER_FUNCTION, r as getServerFnById, t as createServerFn } from "./ssr.mjs";
-import { B as isAdultThumbBlacklisted, C as adultRemoteLabel, D as adultTaxonomyTags, E as adultTaxonomyLabel, F as findFreshAdultPullFingerprint, G as mineRedditCommentTags, H as isUsableAdultThumb, I as isAdultGenreTag, J as redditTitleTokens, L as isAdultImageKind, M as expandedAdultTags, O as adultTextFetishTags, P as fetishSearchQuery, R as isAdultMetaTaxonomyTag, S as adultIngestTags, T as adultTagRankBoost, U as markAdultThumbFailed, V as isDecodedAdultThumbLikelyReal, W as markAdultThumbGood, X as rememberAdultPullFingerprint, a as ADULT_FOLDER_BY_PROVIDER, b as RETIRED_ADULT_SOURCE_IDS, c as ADULT_PULL_PROVIDERS, d as ADULT_SOURCE_OPTIONS, h as LIBRARY_LIMITS, i as ADULT_FEATURED_FETISH_TAGS, k as adultThumbCandidatesForVideo, n as ADULT_CURATED_FETISH_TAGS, o as ADULT_FOLDER_IDS, q as redditIngestExtras, r as ADULT_EMBED_LINKS, s as ADULT_MILESTONE_LINKS, t as ADULT_CATEGORY_HUB, u as ADULT_REDDIT_SUBS, w as adultSourceTag, z as isAdultPullKind } from "./adult-pull-cache-DYRXt4XQ.mjs";
+import { B as isAdultThumbBlacklisted, C as adultRemoteLabel, D as adultTaxonomyTags, E as adultTaxonomyLabel, F as findFreshAdultPullFingerprint, G as mineRedditCommentTags, H as isUsableAdultThumb, I as isAdultGenreTag, J as redditTitleTokens, L as isAdultImageKind, M as expandedAdultTags, O as adultTextFetishTags, P as fetishSearchQuery, R as isAdultMetaTaxonomyTag, S as adultIngestTags, T as adultTagRankBoost, U as markAdultThumbFailed, V as isDecodedAdultThumbLikelyReal, W as markAdultThumbGood, X as rememberAdultPullFingerprint, a as ADULT_FOLDER_BY_PROVIDER, b as RETIRED_ADULT_SOURCE_IDS, c as ADULT_PULL_PROVIDERS, d as ADULT_SOURCE_OPTIONS, h as LIBRARY_LIMITS, i as ADULT_FEATURED_FETISH_TAGS, k as adultThumbCandidatesForVideo, n as ADULT_CURATED_FETISH_TAGS, o as ADULT_FOLDER_IDS, q as redditIngestExtras, r as ADULT_EMBED_LINKS, s as ADULT_MILESTONE_LINKS, t as ADULT_CATEGORY_HUB, u as ADULT_REDDIT_SUBS, w as adultSourceTag, z as isAdultPullKind } from "./adult-pull-cache-CzRQcKeX.mjs";
 import { n as create, t as useShallow } from "../_libs/zustand.mjs";
 import { n as clsx, t as cva } from "../_libs/class-variance-authority+clsx.mjs";
 import { t as twMerge } from "../_libs/tailwind-merge.mjs";
@@ -13,7 +13,7 @@ import { a as DialogPortal, i as DialogOverlay, n as DialogClose, o as DialogTit
 import { t as Root } from "../_libs/radix-ui__react-separator.mjs";
 import { a as Trigger, i as Root2, n as Item2, r as Portal2, t as Content2 } from "../_libs/@radix-ui/react-dropdown-menu+[...].mjs";
 import { i as SliderTrack, n as SliderRange, r as SliderThumb, t as Slider$1 } from "../_libs/@radix-ui/react-slider+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-DKwhR_mS.js
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-NqJQcerD.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var __defProp = Object.defineProperty;
@@ -41,6 +41,24 @@ function memoizeSelector(compute, keys) {
 		});
 		return result;
 	};
+}
+/**
+* Local UI identifiers must work on HTTP/LAN pages and older embedded
+* browsers, where Web Crypto can exist without randomUUID(). They identify
+* ephemeral browser state only; they are never credentials or security keys.
+*/
+function createLocalId(prefix = "") {
+	const webCrypto = typeof globalThis !== "undefined" ? globalThis.crypto : void 0;
+	if (typeof webCrypto?.randomUUID === "function") return `${prefix}${webCrypto.randomUUID()}`;
+	const bytes = /* @__PURE__ */ new Uint8Array(12);
+	if (typeof webCrypto?.getRandomValues === "function") {
+		webCrypto.getRandomValues(bytes);
+		return `${prefix}${[...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+	}
+	return `${prefix}${`${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`.replace(/[^a-z0-9]/gi, "").slice(0, 24)}`;
+}
+function createShortLocalId(prefix = "", length = 12) {
+	return `${prefix}${createLocalId().replaceAll("-", "").slice(0, length)}`;
 }
 var KEY$2 = "reelcase.adult-archive-cursors.v1";
 function readRaw() {
@@ -3812,7 +3830,7 @@ var useLibrary = create((set, get) => ({
 		}
 		const handle = result;
 		if (!await requestDirPermission(handle)) return;
-		const folderId = `folder:${handle.name}:${crypto.randomUUID().slice(0, 8)}`;
+		const folderId = `folder:${handle.name}:${createShortLocalId("", 8)}`;
 		rememberDirHandle(folderId, handle);
 		const adult = Boolean(opts?.adult);
 		const folder = {
@@ -3882,7 +3900,7 @@ var useLibrary = create((set, get) => ({
 		useSourceAssets.getState().capture(files);
 		const rel = files[0].webkitRelativePath || "";
 		const folderName = asDirectory ? rel.split("/")[0] || "Folder" : "Added files";
-		const folderId = asDirectory ? `folder:${folderName}:${crypto.randomUUID().slice(0, 8)}` : `files:${crypto.randomUUID().slice(0, 8)}`;
+		const folderId = asDirectory ? `folder:${folderName}:${createShortLocalId("", 8)}` : `files:${createShortLocalId("", 8)}`;
 		const adult = Boolean(opts?.adult) || get().sourceId === "adults" || get().sourceId === "adult-fetishes";
 		const folder = {
 			id: folderId,
@@ -3928,7 +3946,7 @@ var useLibrary = create((set, get) => ({
 	},
 	ingestDrop: async (dt) => {
 		const nameGuess = dt.files?.[0]?.webkitRelativePath?.split("/")[0] || dt.files?.[0]?.name || "Dropped files";
-		const folderId = `drop:${crypto.randomUUID().slice(0, 8)}`;
+		const folderId = `drop:${createShortLocalId("", 8)}`;
 		const adult = get().sourceId === "adults" || get().sourceId === "adult-fetishes";
 		set((s) => ({
 			folders: [...s.folders, {
@@ -7705,6 +7723,49 @@ async function importLibraryPackZip(file, hooks, mode = "merge") {
 	const text = strFromU8(new Uint8Array(buffer));
 	return applyLibraryPackFiles({ [file.name || "import.json"]: text }, hooks, mode);
 }
+function twitchVodEmbedId(value) {
+	const clean = value.trim();
+	if (!clean) return "";
+	return /^\d+$/.test(clean) ? `v${clean}` : clean;
+}
+/**
+* Build Twitch's documented embed route from current catalog metadata. Older
+* history cards can retain a normal twitch.tv watch URL, which Twitch refuses
+* to frame. This converts those records to player/clips endpoints and sends
+* precisely the page host required by Twitch's parent check.
+*/
+function twitchEmbedUrl(remote, parentHost) {
+	const parent = parentHost.trim().toLowerCase();
+	if (!parent) return null;
+	const candidates = [remote.embedUrl, remote.watchUrl].filter((value) => Boolean(value?.trim()));
+	let url;
+	for (const candidate of candidates) try {
+		const parsed = new URL(candidate);
+		const host = parsed.hostname.replace(/^www\./, "").toLowerCase();
+		if (host === "player.twitch.tv" || host === "clips.twitch.tv") {
+			url = parsed;
+			if (host === "player.twitch.tv") {
+				const video = url.searchParams.get("video");
+				if (video) url.searchParams.set("video", twitchVodEmbedId(video));
+			}
+			break;
+		}
+		if (!host.endsWith("twitch.tv")) continue;
+		const videoId = parsed.pathname.match(/\/videos\/([0-9]+)/i)?.[1];
+		const clip = parsed.pathname.match(/\/clip\/([^/?#]+)/i)?.[1];
+		const channel = parsed.pathname.split("/").filter(Boolean)[0];
+		if (videoId) url = new URL(`https://player.twitch.tv/?video=${encodeURIComponent(twitchVodEmbedId(videoId))}`);
+		else if (clip) url = new URL(`https://clips.twitch.tv/embed?clip=${encodeURIComponent(clip)}`);
+		else if (channel) url = new URL(`https://player.twitch.tv/?channel=${encodeURIComponent(channel)}`);
+		if (url) break;
+	} catch {}
+	if (!url && remote.videoId) url = /^\d+$/.test(remote.videoId) ? new URL(`https://player.twitch.tv/?video=${encodeURIComponent(twitchVodEmbedId(remote.videoId))}`) : new URL(`https://clips.twitch.tv/embed?clip=${encodeURIComponent(remote.videoId)}`);
+	if (!url) return null;
+	url.searchParams.delete("parent");
+	url.searchParams.set("parent", parent);
+	url.searchParams.set("autoplay", "true");
+	return url.toString();
+}
 var startedAt = typeof performance === "undefined" ? Date.now() : performance.now();
 var trace = { startedAt };
 /** Records the first mounted shelf only. It is local diagnostics, not analytics. */
@@ -8750,6 +8811,7 @@ function SidebarNav({ onAddFolder, onNavigate }) {
 	const progress = useLibrary((s) => s.progress);
 	const resumeProgress = useLibrary((s) => s.resumeProgress);
 	const history = useLibrary((s) => s.history);
+	const adultCatalog = useLibrary(selectAdultRemote);
 	const [followingOpen, setFollowingOpen] = (0, import_react.useState)(false);
 	const [sourcesOpen, setSourcesOpen] = (0, import_react.useState)(false);
 	const [followingLimit, setFollowingLimit] = (0, import_react.useState)(48);
@@ -8787,16 +8849,13 @@ function SidebarNav({ onAddFolder, onNavigate }) {
 		const networkFolders = [];
 		const adultFolders = [];
 		const folderById = new Map(folders.map((folder) => [folder.id, folder]));
-		let publicCount = 0, adultCount = 0, ytCount = 0, twitchCount = 0, liveCount = 0, continueCount = 0;
+		let publicCount = 0, ytCount = 0, twitchCount = 0, liveCount = 0, continueCount = 0;
 		const videosById = new Map(videos.map((video) => [video.id, video]));
 		for (const folder of folders) if (folder.adult) adultFolders.push(folder);
 		else if ((folder.kind === "youtube" || folder.kind === "twitch") && folder.id !== "youtube:featured") networkFolders.push(folder);
 		else if (folder.kind !== "demo" && folder.kind !== "youtube" && folder.kind !== "twitch") publicFolders.push(folder);
 		for (const video of videos) {
-			if (Boolean(folderById.get(video.folderId)?.adult)) {
-				adultCount += 1;
-				continue;
-			}
+			if (Boolean(folderById.get(video.folderId)?.adult)) continue;
 			if (!(hideDemo && video.isSample)) {
 				publicCount += 1;
 				const mark = resumeForVideo({
@@ -8821,7 +8880,6 @@ function SidebarNav({ onAddFolder, onNavigate }) {
 			adultFolders,
 			counts: {
 				publicCount,
-				adultCount,
 				ytCount,
 				twitchCount,
 				liveCount,
@@ -8936,7 +8994,7 @@ function SidebarNav({ onAddFolder, onNavigate }) {
 						onClick: () => go("adults"),
 						icon: Flame,
 						label: "Adults",
-						count: counts.adultCount
+						count: adultCatalog.length
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(NavItem, {
 						active: sourceId === "adult-fetishes",
@@ -12273,6 +12331,8 @@ function AdultComments({ video }) {
 		if (video.remote?.comments?.length) {
 			setComments(video.remote.comments);
 			setNote("");
+			setLoading(false);
+			return;
 		}
 		setLoading(true);
 		(async () => {
@@ -12374,7 +12434,14 @@ function AdultComments({ video }) {
 					children: "Comments"
 				}), renderList(commentRows)] })]
 			}),
-			!loading && kind !== "youtube" && renderList(commentRows)
+			!loading && kind !== "youtube" && renderList(commentRows),
+			!loading && kind === "reddit" && !commentRows.length && video.remote?.watchUrl && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
+				href: video.remote.watchUrl,
+				target: "_blank",
+				rel: "noreferrer",
+				className: "mt-3 inline-flex min-h-8 items-center gap-1 text-xs font-medium text-accent hover:underline",
+				children: ["Open discussion on Reddit ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExternalLink, { className: "size-3.5" })]
+			})
 		]
 	});
 }
@@ -12504,16 +12571,6 @@ var TAG_PRESETS = [
 	"how-to",
 	"comfort"
 ];
-function twitchEmbed(base) {
-	if (typeof window === "undefined") return base;
-	const qs = [.../* @__PURE__ */ new Set([
-		window.location.hostname,
-		window.location.hostname.replace(/^www\./, ""),
-		"localhost",
-		"127.0.0.1"
-	])].map((h) => `parent=${encodeURIComponent(h)}`).join("&");
-	return `${base}${base.includes("?") ? "&" : "?"}${qs}`;
-}
 function youtubeEmbed(base) {
 	if (!base) return null;
 	const url = new URL(base, "https://www.youtube.com");
@@ -12944,7 +13001,7 @@ function Player({ playlist }) {
 	const adultImage = Boolean(remote && isAdultImageKind(remote.kind, video.mime, video.extension));
 	const redgifsEmbed = remote?.kind === "redgifs" && Boolean(remote.embedUrl);
 	const directAdultMedia = Boolean(remote && isAdultPullKind(remote.kind) && video.src && /\.(?:mp4|webm|gifv)(?:\?|$)/i.test(video.src) && !redgifsEmbed);
-	const embedSrc = adultImage ? null : remote ? remote.kind === "twitch" ? twitchEmbed(remote.embedUrl ?? "") : remote.kind === "youtube" ? youtubeEmbed(remote.embedUrl ?? video.src ?? "") : isAdultPullKind(remote.kind) ? remote.kind === "myfreecams" || directAdultMedia ? null : remote.embedUrl ?? video.src ?? null : remote.embedUrl ? `${remote.embedUrl}${remote.embedUrl.includes("?") ? "&" : "?"}autoplay=1&rel=0&modestbranding=1` : null : null;
+	const embedSrc = adultImage ? null : remote ? remote.kind === "twitch" ? twitchEmbedUrl(remote, typeof window === "undefined" ? "" : window.location.hostname) : remote.kind === "youtube" ? youtubeEmbed(remote.embedUrl ?? video.src ?? "") : isAdultPullKind(remote.kind) ? remote.kind === "myfreecams" || directAdultMedia ? null : remote.embedUrl ?? video.src ?? null : remote.embedUrl ? `${remote.embedUrl}${remote.embedUrl.includes("?") ? "&" : "?"}autoplay=1&rel=0&modestbranding=1` : null : null;
 	const shown = scrub ?? current;
 	const dur = duration || capturedDur || video.duration || 0;
 	const i = playlist.indexOf(video.id);
@@ -13677,7 +13734,7 @@ function PreVideo() {
 	const redgifsEmbed = video.remote?.kind === "redgifs" && Boolean(video.remote.embedUrl);
 	const directAdultMedia = Boolean(video.remote && isAdultPullKind(video.remote.kind) && video.src && /\.(?:mp4|webm|gifv)(?:\?|$)/i.test(video.src) && !redgifsEmbed);
 	const imageSrc = adultImage ? video.src || video.remote?.embedUrl || video.remote?.previewUrl || video.poster || null : null;
-	const embed = adultImage ? null : !myFreeCamsRoom && video.remote?.embedUrl && !directAdultMedia ? video.remote.kind === "twitch" ? `${video.remote.embedUrl}${video.remote.embedUrl.includes("?") ? "&" : "?"}parent=${encodeURIComponent(window.location.hostname)}` : video.remote.kind === "youtube" ? (() => {
+	const embed = adultImage ? null : !myFreeCamsRoom && video.remote?.embedUrl && !directAdultMedia ? video.remote.kind === "twitch" ? twitchEmbedUrl(video.remote, window.location.hostname) : video.remote.kind === "youtube" ? (() => {
 		const url = new URL(video.remote.embedUrl, "https://www.youtube.com");
 		url.protocol = "https:";
 		url.hostname = "www.youtube.com";
@@ -14806,7 +14863,7 @@ ytFilm({
 	tagline: "A Blender Studio open project.",
 	channel: "Blender Studio"
 });
-var loadHub = () => import("./hub-sections-CaJBgi1S.mjs").then((n) => n.t);
+var loadHub = () => import("./hub-sections-DuL6PypP.mjs").then((n) => n.t);
 var hubSection = (name) => (0, import_react.lazy)(async () => ({ default: (await loadHub())[name] }));
 var AnimeSection = hubSection("AnimeSection");
 var GamesSection = hubSection("GamesSection");
@@ -14825,6 +14882,10 @@ var SpotifySection = hubSection("SpotifySection");
 var StreamingSection = hubSection("StreamingSection");
 var WatchRoomSection = hubSection("WatchRoomSection");
 var EMPTY_ADULT_VIDEOS = [];
+function canonicalAdultTag(raw) {
+	const normalized = raw.trim().replace(/^#+/, "").toLowerCase().replace(/[\s_]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+	return !normalized || normalized === "all" ? "All" : normalized;
+}
 function shuffleRank(id, seed) {
 	let value = seed >>> 0;
 	for (let index = 0; index < id.length; index += 1) value = Math.imul(value ^ id.charCodeAt(index), 73244475);
@@ -14972,6 +15033,16 @@ function LibraryApp() {
 	const setQuery = useLibrary((s) => s.setQuery);
 	const showHiddenAdult = useLibrary((s) => s.showHiddenAdult);
 	const setShowHiddenAdult = useLibrary((s) => s.setShowHiddenAdult);
+	const applyAdultTag = (0, import_react.useCallback)((raw) => {
+		const tag = canonicalAdultTag(raw);
+		setAdultTag(tag);
+		setAdultSource(tag.startsWith("source-") ? tag.slice(7) || "all" : "all");
+		setAdultView("all");
+		setAdultArtworkOnly(false);
+		setAdultTagVisibleCount(10);
+		setQuery("");
+		setSource("adults");
+	}, [setQuery, setSource]);
 	const scanning = useLibrary((s) => s.scanning);
 	const activeId = useLibrary((s) => s.activeId);
 	const previewId = useLibrary((s) => s.previewId);
@@ -15279,17 +15350,11 @@ function LibraryApp() {
 	}, [adultTagQuery, adultSource]);
 	(0, import_react.useEffect)(() => {
 		const onAdultTag = (event) => {
-			const tag = String(event.detail?.tag ?? "").trim();
-			if (!tag) return;
-			setAdultTag(tag === "All" || tag.toLowerCase() === "all" ? "All" : tag);
-			setAdultSource("all");
-			setAdultArtworkOnly(false);
-			setQuery("");
-			setSource("adults");
+			applyAdultTag(String(event.detail?.tag ?? ""));
 		};
 		window.addEventListener("reelcase:adult-tag", onAdultTag);
 		return () => window.removeEventListener("reelcase:adult-tag", onAdultTag);
-	}, [setQuery, setSource]);
+	}, [applyAdultTag]);
 	(0, import_react.useEffect)(() => {
 		const load = () => {
 			const saved = Number(localStorage.getItem("reelcase.adult-rail-limit") ?? "48");
@@ -17199,7 +17264,7 @@ function LibraryApp() {
 								sourceFilter: adultSource,
 								tagFilter: adultTag,
 								onSourceFilter: setAdultSource,
-								onTagFilter: setAdultTag
+								onTagFilter: applyAdultTag
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 								className: "mb-5 rounded-xl border border-border bg-surface p-4 shadow-border",
@@ -17260,23 +17325,33 @@ function LibraryApp() {
 								]
 							}),
 							adultView === "all" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
-								className: "mb-5 grid gap-4 xl:grid-cols-3",
+								className: "mb-6 space-y-5",
 								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "border-b border-border pb-3",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+											children: "Browse the full mix"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "mt-1 text-sm text-muted",
+											children: "Videos, photos, and rotating picks each have their own full-width rail, so the opening catalog never compresses three different discovery paths into narrow columns."
+										})]
+									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
 										title: `Adult videos · ${adultKindCounts.videos}`,
-										reason: "Two catalog rows in one continuous rail.",
+										reason: "Full-width video rail, ranked independently from photos and rotating picks.",
 										videos: adultOverviewRails.videos,
 										variant: "rail"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
 										title: `Adult photos · ${adultKindCounts.photos}`,
-										reason: "Reddit and Booru photos with preview fallbacks, combined into one rail.",
+										reason: "Reddit and Booru photos with preview fallbacks, presented in a dedicated full-width rail.",
 										videos: adultOverviewRails.photos,
 										variant: "rail"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
 										title: "Adult picks",
-										reason: "A distinct mixed row after the video and photo cards above.",
+										reason: "A distinct mixed full-width rail after the video and photo cards above.",
 										videos: adultOverviewRails.picks,
 										variant: "rail"
 									})
@@ -17308,7 +17383,7 @@ function LibraryApp() {
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 											className: "mt-1 max-w-3xl text-sm text-muted",
-											children: "Taste signals from ratings, saves, likes, hearted tags, watch history, and private marks lead the mix. Preview-ready cards get a small lift, while a timestamped rotation keeps the opening rails from becoming fixed."
+											children: "Taste signals from ratings, saves, likes, hearted tags, watch history, and private marks lead the mix. Preview-ready cards get a small lift; creator and provider round-robin guards keep a fresh batch from taking over the shelf."
 										})
 									] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 										size: "sm",
@@ -17317,7 +17392,7 @@ function LibraryApp() {
 										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Shuffle, { className: "size-4" }), " Refresh mix"]
 									})]
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "mt-3 grid gap-2 sm:grid-cols-3",
+									className: "mt-3 flex flex-wrap gap-2",
 									children: [
 										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 											className: "rounded-md bg-elevated px-3 py-2 text-xs text-muted",
@@ -17340,7 +17415,7 @@ function LibraryApp() {
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
 								title: "Recommended for you",
-								reason: "Tag overlap, hearted interests, ratings, private marks, source variety, thumbnail readiness, and a fresh timestamped mix.",
+								reason: "Tag overlap, hearted interests, ratings, private marks, creator and provider variety, thumbnail readiness, and a fresh timestamped mix.",
 								videos: adultRecommendedRail,
 								variant: "rail"
 							}),
@@ -17416,19 +17491,19 @@ function LibraryApp() {
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 												size: "sm",
 												variant: adultTag === "All" ? "default" : "secondary",
-												onClick: () => setAdultTag("All"),
+												onClick: () => applyAdultTag("All"),
 												children: "All adult tags"
 											}),
 											heartedAdultTags.map((tag) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 												size: "sm",
 												variant: adultTag === tag ? "default" : "secondary",
-												onClick: () => setAdultTag(tag),
+												onClick: () => applyAdultTag(tag),
 												children: ["♥ #", tag]
 											}, `adult-hearted-${tag}`)),
 											visibleAdultTags.map((row) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 												size: "sm",
 												variant: adultTag === row.tag ? "default" : "secondary",
-												onClick: () => setAdultTag(row.tag),
+												onClick: () => applyAdultTag(row.tag),
 												children: [
 													"#",
 													row.tag,
@@ -17486,7 +17561,7 @@ function LibraryApp() {
 												children: adultMetaTagRank.slice(0, 18).map((row) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 													size: "sm",
 													variant: adultTag === row.tag ? "default" : "secondary",
-													onClick: () => setAdultTag(row.tag),
+													onClick: () => applyAdultTag(row.tag),
 													children: [
 														"#",
 														row.tag,
@@ -18448,4 +18523,4 @@ function Home() {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LibraryApp, {});
 }
 //#endregion
-export { getFeedbackDiagnostics as A, companionAckJobs as B, useLibrary as C, topicEvidence as D, isTopicTag as E, measureInteraction as F, companionReadPrint as G, companionHealth as H, linksFromHistoryAndResume as I, companionSteamEpicGames as J, companionSavePrint as K, loadDurablePhotosSync as L, tagIsLiked as M, toggleTagLike as N, topicsForVideo as O, getInteractionBudgetSnapshot as P, restoreDurablePhotos as R, resumeForVideo as S, canonicalTopic as T, companionImportLibraryPack as U, companionExportLibraryPack as V, companionListPrints as W, __exportAll as Y, getRenderBudgetSnapshot as _, applyLibraryPackFiles as a, Button as b, importLibraryPackZip as c, rankAdultTags as d, countAdultBooruHosts as f, VideoCard as g, openTopic as h, getFirstShelfTrace as i, getRating as j, exportFeedback as k, buildAdultStatsSnapshot as l, Input as m, getNetworkDeviceId as n, buildLibraryPackFiles as o, countAdultBySource as p, companionSetAutostart as q, listNetworkDevices as r, downloadLibraryPackZip as s, routes_exports as t, exportAdultStats as u, getThumbDiagnostics as v, useSourceAssets as w, isAdultVideo as x, useThumbs as y, saveDurablePhotos as z };
+export { exportFeedback as A, saveDurablePhotos as B, resumeForVideo as C, isTopicTag as D, canonicalTopic as E, getInteractionBudgetSnapshot as F, companionListPrints as G, companionExportLibraryPack as H, measureInteraction as I, companionSetAutostart as J, companionReadPrint as K, linksFromHistoryAndResume as L, getRating as M, tagIsLiked as N, topicEvidence as O, toggleTagLike as P, __exportAll as Q, loadDurablePhotosSync as R, isAdultVideo as S, useSourceAssets as T, companionHealth as U, companionAckJobs as V, companionImportLibraryPack as W, createLocalId as X, companionSteamEpicGames as Y, createShortLocalId as Z, VideoCard as _, twitchEmbedUrl as a, useThumbs as b, downloadLibraryPackZip as c, exportAdultStats as d, rankAdultTags as f, openTopic as g, Input as h, getFirstShelfTrace as i, getFeedbackDiagnostics as j, topicsForVideo as k, importLibraryPackZip as l, countAdultBySource as m, getNetworkDeviceId as n, applyLibraryPackFiles as o, countAdultBooruHosts as p, companionSavePrint as q, listNetworkDevices as r, buildLibraryPackFiles as s, routes_exports as t, buildAdultStatsSnapshot as u, getRenderBudgetSnapshot as v, useLibrary as w, Button as x, getThumbDiagnostics as y, restoreDurablePhotos as z };

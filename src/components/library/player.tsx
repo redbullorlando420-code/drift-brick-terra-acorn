@@ -39,6 +39,7 @@ import { toast } from "sonner";
 import { isAdultVideo, useLibrary } from "@/lib/videos/store";
 import { useThumbs } from "@/lib/videos/thumbs";
 import { resolvePlayUrl } from "@/lib/videos/sources";
+import { twitchEmbedUrl } from "@/lib/videos/twitch-embed";
 import { hasFreshViewerCount, isLikelyPlayable } from "@/lib/videos/types";
 import { attachFrameCallback, probeHardwareDecode, type HwInfo } from "@/lib/videos/hw";
 import { measureInteraction } from "@/lib/interaction-budget";
@@ -46,18 +47,6 @@ import { measureInteraction } from "@/lib/interaction-budget";
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 const EMPTY_TAGS: string[] = [];
 const TAG_PRESETS = ["watch-later", "favorite", "family", "4k", "short", "documentary", "how-to", "comfort"];
-
-function twitchEmbed(base: string) {
-  if (typeof window === "undefined") return base;
-  const hosts = new Set([
-    window.location.hostname,
-    window.location.hostname.replace(/^www\./, ""),
-    "localhost",
-    "127.0.0.1",
-  ]);
-  const qs = [...hosts].map((h) => `parent=${encodeURIComponent(h)}`).join("&");
-  return `${base}${base.includes("?") ? "&" : "?"}${qs}`;
-}
 
 function youtubeEmbed(base: string) {
   if (!base) return null;
@@ -441,7 +430,7 @@ export function Player({ playlist }: { playlist: string[] }) {
     ? null
     : remote
       ? remote.kind === "twitch"
-        ? twitchEmbed(remote.embedUrl ?? "")
+        ? twitchEmbedUrl(remote, typeof window === "undefined" ? "" : window.location.hostname)
         : remote.kind === "youtube"
           ? youtubeEmbed(remote.embedUrl ?? video.src ?? "")
           : isAdultPullKind(remote.kind)

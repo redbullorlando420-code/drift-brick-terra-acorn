@@ -1,5 +1,6 @@
 import { memoizeSelector } from "./selector-cache";
 import { create } from "zustand";
+import { createShortLocalId } from "@/lib/local-id";
 import {
   ADULT_FOLDER_BY_PROVIDER,
   ADULT_FOLDER_IDS,
@@ -1197,7 +1198,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     const handle = result;
     const granted = await requestDirPermission(handle);
     if (!granted) return;
-    const folderId = `folder:${handle.name}:${crypto.randomUUID().slice(0, 8)}`;
+    const folderId = `folder:${handle.name}:${createShortLocalId("", 8)}`;
     rememberDirHandle(folderId, handle);
     const adult = Boolean(opts?.adult);
     const folder: Folder = {
@@ -1261,8 +1262,8 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     const rel = first.webkitRelativePath || "";
     const folderName = asDirectory ? rel.split("/")[0] || "Folder" : "Added files";
     const folderId = asDirectory
-      ? `folder:${folderName}:${crypto.randomUUID().slice(0, 8)}`
-      : `files:${crypto.randomUUID().slice(0, 8)}`;
+      ? `folder:${folderName}:${createShortLocalId("", 8)}`
+      : `files:${createShortLocalId("", 8)}`;
     const adult = Boolean(opts?.adult) || get().sourceId === "adults" || get().sourceId === "adult-fetishes";
     const folder: Folder = {
       id: folderId,
@@ -1305,7 +1306,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   ingestDrop: async (dt) => {
     const nameGuess =
       dt.files?.[0]?.webkitRelativePath?.split("/")[0] || dt.files?.[0]?.name || "Dropped files";
-    const folderId = `drop:${crypto.randomUUID().slice(0, 8)}`;
+    const folderId = `drop:${createShortLocalId("", 8)}`;
     const adult = get().sourceId === "adults" || get().sourceId === "adult-fetishes";
     set((s) => ({
       folders: [

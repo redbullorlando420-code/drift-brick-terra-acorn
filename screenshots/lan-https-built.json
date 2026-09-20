@@ -1,0 +1,38 @@
+{
+  "url": "http://127.0.0.1:8081/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Reelcase",
+      "hasCanvas": false,
+      "bodyTextLen": 2443,
+      "bodyTextHash": "a62361792ee169c5e0f05751fc519fc8564f4ef194192753eacfc48e0cb33a5f",
+      "bodyTextPrefix": "Reelcase Vault · networks · live Home 0 Movies Anime Topics YouT",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\lan-https-built.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Reelcase",
+      "hasCanvas": false,
+      "bodyTextLen": 2120,
+      "bodyTextHash": "5fba6bb6861b0072d8fa0d328aa5fc72816fe4219ce0300aa7bc9c3ac592cdfd",
+      "bodyTextPrefix": "Home 0 indexed Date added YOUR DAILY DETOUR Something worth find",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\lan-https-built-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\lan-https-built.json",
+  "divergesFromBaseline": false,
+  "baselineReasons": []
+}

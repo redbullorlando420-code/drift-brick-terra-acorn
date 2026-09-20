@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createShortLocalId } from "@/lib/local-id";
 import { P2PRoom, type PeerInfo } from "./p2p";
 
 export function useP2PRoom(room: string, name: string) {
-  const [selfId] = useState(() => `p-${crypto.randomUUID().replaceAll("-", "").slice(0, 12)}`);
+  const [selfId] = useState(() => createShortLocalId("p-"));
   const [peers, setPeers] = useState<PeerInfo[]>([]);
   const [joined, setJoined] = useState(false);
   const [events, setEvents] = useState<string[]>([]);
