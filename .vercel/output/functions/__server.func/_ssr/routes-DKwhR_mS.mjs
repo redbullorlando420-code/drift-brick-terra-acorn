@@ -8,11 +8,12 @@ import { n as clsx, t as cva } from "../_libs/class-variance-authority+clsx.mjs"
 import { t as twMerge } from "../_libs/tailwind-merge.mjs";
 import { $ as Heart, B as Lock, Ct as Check, D as Play, Dt as Bell, E as Radio, Et as Bot, H as LoaderCircle, I as MessageCircle, J as Images, K as LayoutGrid, L as Menu, M as Monitor, N as MonitorPlay, O as PictureInPicture2, Ot as BellOff, P as Minimize, Q as History, R as Maximize, S as Search, St as ChevronDown, T as RefreshCw, Tt as Box, U as List, V as LockOpen, W as ListPlus, Y as Image, Z as ImageOff, _ as SkipBack, _t as Clock3, a as Volume2, at as FolderPlus, bt as ChevronRight, c as Upload, ct as Film, d as Tag, dt as EyeOff, ft as ExternalLink, g as SkipForward, h as Smartphone, ht as Cpu, i as VolumeX, it as FolderSearch, j as Music2, k as Pause, kt as ArrowLeft, lt as FileText, m as Sparkles, mt as Download, n as X, nt as Gamepad2, o as Video, ot as Flame, p as Star, r as Wifi, rt as Folder, s as Users, st as Flag, t as Youtube, tt as Glasses, u as ThumbsUp, ut as Eye, v as Shuffle, vt as Clapperboard, wt as ChartColumn, x as Settings2, xt as ChevronLeft, y as ShoppingBag, yt as CircleAlert } from "../_libs/lucide-react.mjs";
 import { n as toast, t as Toaster } from "../_libs/sonner.mjs";
+import { i as zipSync, n as strToU8, r as unzipSync, t as strFromU8 } from "../_libs/fflate.mjs";
 import { a as DialogPortal, i as DialogOverlay, n as DialogClose, o as DialogTitle, r as DialogContent, t as Dialog } from "../_libs/@radix-ui/react-dialog+[...].mjs";
 import { t as Root } from "../_libs/radix-ui__react-separator.mjs";
 import { a as Trigger, i as Root2, n as Item2, r as Portal2, t as Content2 } from "../_libs/@radix-ui/react-dropdown-menu+[...].mjs";
 import { i as SliderTrack, n as SliderRange, r as SliderThumb, t as Slider$1 } from "../_libs/@radix-ui/react-slider+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-DYJ7hqfm.js
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-DKwhR_mS.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var __defProp = Object.defineProperty;
@@ -298,7 +299,8 @@ function normalizeFollowChannels(raw) {
 			...typeof rec.live === "boolean" ? { live: rec.live } : {},
 			...typeof rec.lastCheckedAt === "number" ? { lastCheckedAt: rec.lastCheckedAt } : {},
 			...typeof rec.newestPublishedAt === "number" ? { newestPublishedAt: rec.newestPublishedAt } : {},
-			...typeof rec.lastResponseCount === "number" ? { lastResponseCount: rec.lastResponseCount } : {}
+			...typeof rec.lastResponseCount === "number" ? { lastResponseCount: rec.lastResponseCount } : {},
+			...rec.lastProviderFailure && typeof rec.lastProviderFailure === "object" ? { lastProviderFailure: rec.lastProviderFailure } : {}
 		});
 	}
 	return out;
@@ -598,8 +600,8 @@ async function restoreDurableResume() {
 function saveDurableMarks(viewCounts, cameCounts) {
 	if (typeof window === "undefined") return;
 	const payload = {
-		viewCounts: asCountMap(viewCounts),
-		cameCounts: asCountMap(cameCounts),
+		viewCounts: asCountMap$1(viewCounts),
+		cameCounts: asCountMap$1(cameCounts),
 		savedAt: Date.now()
 	};
 	writeJsonLocal(DURABLE_MARKS_LS_KEY, payload);
@@ -621,8 +623,8 @@ async function restoreDurableMarks() {
 		return out;
 	};
 	return {
-		viewCounts: mergeCounts(asCountMap(fromLs?.viewCounts), asCountMap(fromIdb?.viewCounts)),
-		cameCounts: mergeCounts(asCountMap(fromLs?.cameCounts), asCountMap(fromIdb?.cameCounts))
+		viewCounts: mergeCounts(asCountMap$1(fromLs?.viewCounts), asCountMap$1(fromIdb?.viewCounts)),
+		cameCounts: mergeCounts(asCountMap$1(fromLs?.cameCounts), asCountMap$1(fromIdb?.cameCounts))
 	};
 }
 function saveDurableShelves(favorites, likes) {
@@ -1198,7 +1200,7 @@ async function loadSourceHealth() {
 	db.close();
 	return rows;
 }
-function asCountMap(raw) {
+function asCountMap$1(raw) {
 	if (!raw || typeof raw !== "object") return {};
 	const out = {};
 	for (const [id, value] of Object.entries(raw)) if (typeof value === "number" && Number.isFinite(value) && value > 0) out[id] = Math.floor(value);
@@ -1216,8 +1218,8 @@ function normalize(raw) {
 		progress: raw.progress ?? {},
 		resumeProgress: raw.resumeProgress ?? {},
 		history: raw.history ?? [],
-		viewCounts: asCountMap(raw.viewCounts),
-		cameCounts: asCountMap(raw.cameCounts),
+		viewCounts: asCountMap$1(raw.viewCounts),
+		cameCounts: asCountMap$1(raw.cameCounts),
 		view: raw.view ?? "grid",
 		sort,
 		sortDir: raw.sortDir ?? (sort === "name" ? "asc" : "desc"),
@@ -2896,7 +2898,7 @@ function persistActivity(get) {
 		savedAt: Date.now()
 	}).catch(() => queueResumeReplay(s.resumeProgress));
 }
-function mergeHistory(a, b) {
+function mergeHistory$1(a, b) {
 	const rows = /* @__PURE__ */ new Map();
 	for (const entry of [...a, ...b]) {
 		if (!entry?.id || !Number.isFinite(entry.at)) continue;
@@ -3031,7 +3033,7 @@ function canonicalFollowHandle(kind, raw) {
 	if (kind === "twitch") return (value.match(/(?:https?:\/\/)?(?:www\.)?twitch\.tv\/([^/?#]+)/i)?.[1] ?? value.replace(/^tw:/, "")).replace(/^@/, "").replace(/[^a-z0-9_]/g, "");
 	return (value.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:@|channel\/)?([^/?#]+)/i)?.[1] ?? value).replace(/^@/, "").replace(/[^a-z0-9_-]/g, "");
 }
-function dedupeFollows(rows) {
+function dedupeFollows$1(rows) {
 	const seen = /* @__PURE__ */ new Set();
 	return rows.filter((row) => {
 		const key = `${row.kind}:${canonicalFollowHandle(row.kind, row.handle || row.id)}`;
@@ -3257,7 +3259,7 @@ function applyPrefs(partial) {
 		sourceId: prefs.sourceId ?? "home",
 		hardwareAccel: prefs.hardwareAccel ?? true,
 		adultPinHash: null,
-		follows: dedupeFollows(prefs.follows ?? []),
+		follows: dedupeFollows$1(prefs.follows ?? []),
 		notices: prefs.notices ?? [],
 		notifyPush: prefs.notifyPush ?? false,
 		unavailable: Object.fromEntries((prefs.unavailableVideoIds ?? []).map((id) => [id, true]))
@@ -3982,7 +3984,7 @@ var useLibrary = create((set, get) => ({
 		const prefsState = applyPrefs({});
 		prefsState.tags = restoreTagEdits(prefsState.tags ?? {});
 		const prefsFollows = Array.isArray(prefsState.follows) ? prefsState.follows : [];
-		const migratedFollows = dedupeFollows([...dedicatedFollows, ...prefsFollows]);
+		const migratedFollows = dedupeFollows$1([...dedicatedFollows, ...prefsFollows]);
 		prefsState.follows = migratedFollows;
 		if (migratedFollows.length) saveFollows(migratedFollows);
 		const adultIds = new Set(loadPrefs()?.privateFolderIds ?? []);
@@ -4005,7 +4007,7 @@ var useLibrary = create((set, get) => ({
 			const hasShelves = durableShelves.favorites.length || durableShelves.likes.length;
 			if (!(activity || journal.length || durableHistory.length || Object.keys(durableResume.resumeProgress).length || Object.keys(durableMarks.viewCounts).length || Object.keys(durableMarks.cameCounts).length || hasShelves || durableLinks.length || Object.keys(queuedResume).length)) return;
 			if (durableHistory.length || (activity?.history?.length ?? 0) || journal.length) {
-				const mergedEarly = mergeHistory(mergeHistory(durableHistory, activity?.history ?? []), journal);
+				const mergedEarly = mergeHistory$1(mergeHistory$1(durableHistory, activity?.history ?? []), journal);
 				if (mergedEarly.length) saveDurableHistory(mergedEarly);
 			}
 			if (Object.keys(durableResume.resumeProgress).length || activity?.resumeProgress) saveDurableResume({
@@ -4035,7 +4037,7 @@ var useLibrary = create((set, get) => ({
 				const likes = { ...s.likes };
 				for (const id of durableShelves.favorites) favorites[id] = true;
 				for (const id of durableShelves.likes) likes[id] = true;
-				const history = mergeHistory(mergeHistory(mergeHistory(s.history, durableHistory), activity?.history ?? []), journal);
+				const history = mergeHistory$1(mergeHistory$1(mergeHistory$1(s.history, durableHistory), activity?.history ?? []), journal);
 				const linkById = new Map(durableLinks.map((link) => [link.id, link]));
 				return {
 					history: history.map((entry) => {
@@ -4155,7 +4157,7 @@ var useLibrary = create((set, get) => ({
 						};
 					}).filter((row) => row.handle);
 					if (stubs.length) {
-						const merged = dedupeFollows([...get().follows, ...stubs]);
+						const merged = dedupeFollows$1([...get().follows, ...stubs]);
 						set({ follows: merged });
 						saveFollows(merged);
 					}
@@ -4554,7 +4556,7 @@ var useLibrary = create((set, get) => ({
 						videos = mergeVideos(videos.filter((v) => v.folderId !== row.channel.id || s.favorites[v.id] || s.likes[v.id] || row.channel.kind === "twitch" && v.remote?.kind === "twitch" && !v.remote.live), row.videos);
 					}
 					return {
-						follows: dedupeFollows(follows),
+						follows: dedupeFollows$1(follows),
 						folders,
 						videos,
 						tags: enrichRemoteTags(s.tags, result.ok.flatMap((row) => row.videos)),
@@ -4609,7 +4611,7 @@ var useLibrary = create((set, get) => ({
 			wentLive: [],
 			newVideos: []
 		};
-		const allFollows = dedupeFollows(get().follows);
+		const allFollows = dedupeFollows$1(get().follows);
 		if (!allFollows.length) return {
 			wentLive: [],
 			newVideos: []
@@ -4644,7 +4646,7 @@ var useLibrary = create((set, get) => ({
 				const folderCounts = /* @__PURE__ */ new Map();
 				for (const video of mergedVideos) folderCounts.set(video.folderId, (folderCounts.get(video.folderId) ?? 0) + 1);
 				return {
-					follows: dedupeFollows([...result.channels, ...s.follows]),
+					follows: dedupeFollows$1([...result.channels, ...s.follows]),
 					remoteCheckedAt: Date.now(),
 					folders: [...s.folders.filter((f) => !result.channels.some((channel) => channel.id === f.id)), ...result.channels.map((c) => ({
 						id: c.id,
@@ -6323,7 +6325,9 @@ function videoMatchesAdultTag(video, tag, tags) {
 		if (expanded.has(bare) || expanded.has(`fetish-${bare}`) || expanded.has(`genre-${bare}`) || expanded.has(`meta-${bare}`)) return true;
 	}
 	if (!needle.includes("-") && lowered.some((entry) => entry === `fetish-${needle}` || entry.endsWith(`-${needle}`))) return true;
-	return false;
+	const terms = needle.replace(/^(?:fetish|genre|meta|creator|source|provider|sub)-/, "").replace(/[-_]+/g, " ").split(/\s+/).filter(Boolean);
+	if (!terms.length) return true;
+	return [...lowered, ...expanded].map((entry) => entry.toLowerCase().replace(/^(?:fetish|genre|meta|creator|source|provider|sub)-/, "").replace(/[-_]+/g, " ")).some((entry) => terms.every((term) => entry.includes(term)));
 }
 function countAdultBySource(videos) {
 	const counts = { all: videos.length };
@@ -7067,6 +7071,639 @@ function exportAdultStats(snapshot, format) {
 		return;
 	}
 	downloadTextFile(adultStatsToCsv(snapshot), `reelcase-adult-stats-${stamp}.csv`, "text/csv;charset=utf-8");
+}
+var LIBRARY_PACK_ROOT = "reelcase-library-pack";
+function stamp() {
+	return (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+}
+function quoteCsv(value) {
+	return `"${String(value ?? "").replaceAll("\"", "\"\"")}"`;
+}
+function rowsToCsv(rows) {
+	return rows.map((row) => row.map(quoteCsv).join(",")).join("\n");
+}
+function parseCsv(text) {
+	const rows = [];
+	let row = [];
+	let cell = "";
+	let inQuotes = false;
+	for (let i = 0; i < text.length; i += 1) {
+		const ch = text[i];
+		if (inQuotes) {
+			if (ch === "\"" && text[i + 1] === "\"") {
+				cell += "\"";
+				i += 1;
+			} else if (ch === "\"") inQuotes = false;
+			else cell += ch;
+			continue;
+		}
+		if (ch === "\"") {
+			inQuotes = true;
+			continue;
+		}
+		if (ch === ",") {
+			row.push(cell);
+			cell = "";
+			continue;
+		}
+		if (ch === "\n") {
+			row.push(cell);
+			rows.push(row);
+			row = [];
+			cell = "";
+			continue;
+		}
+		if (ch === "\r") continue;
+		cell += ch;
+	}
+	if (cell.length || row.length) {
+		row.push(cell);
+		rows.push(row);
+	}
+	return rows.filter((r) => r.some((c) => c.trim().length));
+}
+function normalizeFollowRow(row) {
+	const kindRaw = String(row.kind ?? row.service ?? "").toLowerCase();
+	const kind = kindRaw === "twitch" || kindRaw === "youtube" ? kindRaw : null;
+	const handle = String(row.handle ?? row.channel ?? row.title ?? "").trim().replace(/^@/, "");
+	const id = String(row.id ?? "").trim() || (kind && handle ? `${kind === "twitch" ? "tw" : "yt"}:${handle}` : "");
+	const title = String(row.title ?? row.channel ?? handle).trim() || handle;
+	if (!kind || !handle) return null;
+	return {
+		id,
+		kind,
+		handle,
+		title,
+		...typeof row.channelId === "string" && row.channelId ? { channelId: row.channelId } : {},
+		...typeof row.thumb === "string" && row.thumb ? { thumb: row.thumb } : {}
+	};
+}
+function dedupeFollows(rows) {
+	const seen = /* @__PURE__ */ new Set();
+	return rows.filter((row) => {
+		const key = `${row.kind}:${row.handle.toLowerCase()}`;
+		if (seen.has(key)) return false;
+		seen.add(key);
+		return true;
+	});
+}
+function engagementSummary(input) {
+	const feedback = exportFeedback();
+	const rated = Object.keys(feedback.ratings).filter((id) => (feedback.ratings[id] ?? 0) > 0).length;
+	return {
+		at: (/* @__PURE__ */ new Date()).toISOString(),
+		follows: input.follows.length,
+		youtubeFollows: input.follows.filter((f) => f.kind === "youtube").length,
+		twitchFollows: input.follows.filter((f) => f.kind === "twitch").length,
+		historyEvents: input.history.length,
+		savedLinks: input.links.length,
+		favorites: input.favorites.length,
+		likes: input.likes.length,
+		photoSources: input.photoSources?.length ?? 0,
+		photoLikes: input.photoLikes?.length ?? Object.values(input.photoMeta ?? {}).filter((row) => row.favorite).length,
+		titlesWithViews: Object.keys(input.viewCounts).length,
+		titlesWithCameMarks: Object.keys(input.cameCounts).length,
+		totalCameMarks: Object.values(input.cameCounts).reduce((a, b) => a + b, 0),
+		resumePointers: Object.keys(input.resumeProgress).length,
+		ratedTitles: rated
+	};
+}
+function packReadme() {
+	return `# Reelcase library pack
+
+Local-only backup / fill-in folder for YouTube & Twitch follows, watch history,
+saved video links, continue-watching pointers, favorites/likes, Photos sources & likes, Adult marks,
+ratings & tag hearts, and Adult stats snapshots.
+
+No cloud. Nothing here uploads. Import **merges** by default so unrelated data
+is not wiped.
+
+## Folder layout
+
+\`\`\`
+${LIBRARY_PACK_ROOT}/
+  README.md
+  manifest.json
+  follows/
+    youtube.json
+    twitch.json
+    follows.csv
+  history/
+    history.json
+    history.csv
+  links/
+    links.json
+    links.csv
+  marks/
+    view-counts.json
+    came-counts.json
+    shelves.json
+    ratings.json
+    tag-hearts.json
+  resume/
+    resume.json
+  stats/
+    adult-stats.json
+    adult-stats.csv
+    engagement-summary.json
+\`\`\`
+
+## How to fill offline
+
+1. Copy \`public/import-templates/\` (or an exported zip) to your PC.
+2. Edit the JSON/CSV files in a spreadsheet or text editor.
+3. Zip the folder back to \`${LIBRARY_PACK_ROOT}.zip\` (keep the same paths).
+4. In Reelcase → **Settings** → **Import library pack**, choose the zip (or
+   individual files). Confirm only if you want to replace all follows.
+
+### follows/follows.csv
+Columns: \`kind,handle,title,channelId,id\`
+- \`kind\` must be \`youtube\` or \`twitch\`
+- \`handle\` is the channel handle (no @ required)
+- \`title\` is optional display name
+- \`channelId\` optional provider id
+
+### history/history.csv
+Columns: \`id,at,url,title,position,duration,source,eventId\`
+- \`at\` is epoch milliseconds
+- \`url\` keeps a recoverable link if the catalog card was pruned
+
+### links/links.csv
+Columns: \`id,url,title,kind,savedAt,source\`
+- \`source\` is \`history\`, \`bookmark\`, or \`continue\`
+
+### marks/
+- \`view-counts.json\` / \`came-counts.json\`: \`{ "video-id": 3 }\`
+- \`shelves.json\`: \`{ "favorites": ["id"], "likes": ["id"] }\`
+- \`ratings.json\`: \`{ "ratings": { "id": 5 }, "ratingHistory": { ... } }\`
+- \`tag-hearts.json\`: \`{ "tagLikes": { "fetish-foo": true }, "tagHeartHistory": { ... } }\`
+
+### resume/resume.json
+\`{ "progress": { "id": { "t": 12, "d": 100, "at": 0 } }, "resumeProgress": { "https://...": { "t": 12, "d": 100, "at": 0 } } }\`
+
+### stats/
+Adult stats are snapshots for backup/analysis. Importing stats does not rebuild
+the live Adult catalog; it is informational unless you also merge marks.
+
+## Photos
+
+- \`photos/sources.json\`: \`{ "sources": [{ "id", "name", "kind": "directory"|"files", "photoCount?", "lastCheckedAt?" }] }\`
+- \`photos/likes.json\`: \`{ "likes": ["photo-id"], "meta": { "photo-id": { "favorite", "rating", "tags", "people", "album", "path" } } }\`
+
+Photo media bytes stay on disk; the pack only stores source stubs and like/rating metadata.
+
+## Durable stores (what Import writes)
+
+| Pack file | IndexedDB key (\`activity\`) | localStorage mirror |
+|---|---|---|
+| follows/* | \`follows\` | \`reelcase.follows.v1\` |
+| history/* | \`history\` | \`reelcase.history.v1\` |
+| resume/* | \`resume\` | \`reelcase.resume.v1\` |
+| marks/view+came | \`marks\` | \`reelcase.marks.v1\` |
+| marks/shelves | \`shelves\` | \`reelcase.shelves.v1\` |
+| links/* | \`links\` | \`reelcase.links.v1\` |
+| marks/ratings+hearts | \`feedback\` | \`reelcase.media-feedback.v1\` |
+| photos/* | \`photos\` | \`reelcase.photos.v1\` (+ legacy \`reelcase.photo-meta.v1\`) |
+
+Thumb prune, Adult catalog caps, and prefs QuotaExceeded never clear these keys.
+`;
+}
+function buildLibraryPackFiles(input) {
+	const youtube = input.follows.filter((f) => f.kind === "youtube");
+	const twitch = input.follows.filter((f) => f.kind === "twitch");
+	const feedback = exportFeedback();
+	const adultStats = input.adultStats ?? (input.adultVideos && input.folders && input.tags ? buildAdultStatsSnapshot(input.adultVideos, input.folders, input.tags, {
+		favorites: Object.fromEntries(input.favorites.map((id) => [id, true])),
+		likes: Object.fromEntries(input.likes.map((id) => [id, true])),
+		cameCounts: input.cameCounts,
+		viewCounts: input.viewCounts,
+		ratingOf: (id) => feedback.ratings[id] ?? 0
+	}) : void 0);
+	const files = {
+		[`${LIBRARY_PACK_ROOT}/README.md`]: packReadme(),
+		[`${LIBRARY_PACK_ROOT}/manifest.json`]: JSON.stringify({
+			version: 1,
+			exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
+			note: "Reelcase local library pack. Metadata only — no media files.",
+			counts: engagementSummary(input)
+		}, null, 2),
+		[`${LIBRARY_PACK_ROOT}/follows/youtube.json`]: JSON.stringify({
+			exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
+			channels: youtube
+		}, null, 2),
+		[`${LIBRARY_PACK_ROOT}/follows/twitch.json`]: JSON.stringify({
+			exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
+			channels: twitch
+		}, null, 2),
+		[`${LIBRARY_PACK_ROOT}/follows/follows.csv`]: rowsToCsv([[
+			"kind",
+			"handle",
+			"title",
+			"channelId",
+			"id"
+		], ...input.follows.map((f) => [
+			f.kind,
+			f.handle,
+			f.title,
+			f.channelId ?? "",
+			f.id
+		])]),
+		[`${LIBRARY_PACK_ROOT}/history/history.json`]: JSON.stringify({
+			exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
+			entries: input.history
+		}, null, 2),
+		[`${LIBRARY_PACK_ROOT}/history/history.csv`]: rowsToCsv([[
+			"id",
+			"at",
+			"url",
+			"title",
+			"position",
+			"duration",
+			"source",
+			"eventId"
+		], ...input.history.map((h) => [
+			h.id,
+			h.at,
+			h.url ?? "",
+			h.title ?? "",
+			h.position ?? "",
+			h.duration ?? "",
+			h.source ?? "",
+			h.eventId ?? ""
+		])]),
+		[`${LIBRARY_PACK_ROOT}/links/links.json`]: JSON.stringify({
+			exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
+			links: input.links
+		}, null, 2),
+		[`${LIBRARY_PACK_ROOT}/links/links.csv`]: rowsToCsv([[
+			"id",
+			"url",
+			"title",
+			"kind",
+			"savedAt",
+			"source"
+		], ...input.links.map((l) => [
+			l.id,
+			l.url,
+			l.title ?? "",
+			l.kind ?? "",
+			l.savedAt,
+			l.source
+		])]),
+		[`${LIBRARY_PACK_ROOT}/marks/view-counts.json`]: JSON.stringify(input.viewCounts, null, 2),
+		[`${LIBRARY_PACK_ROOT}/marks/came-counts.json`]: JSON.stringify(input.cameCounts, null, 2),
+		[`${LIBRARY_PACK_ROOT}/marks/shelves.json`]: JSON.stringify({
+			favorites: input.favorites,
+			likes: input.likes
+		}, null, 2),
+		[`${LIBRARY_PACK_ROOT}/marks/ratings.json`]: JSON.stringify({
+			ratings: feedback.ratings,
+			ratingHistory: feedback.ratingHistory,
+			notes: feedback.notes,
+			creatorRatings: feedback.creatorRatings,
+			creatorLikes: feedback.creatorLikes
+		}, null, 2),
+		[`${LIBRARY_PACK_ROOT}/marks/tag-hearts.json`]: JSON.stringify({
+			tagLikes: feedback.tagLikes,
+			tagHeartHistory: feedback.tagHeartHistory
+		}, null, 2),
+		[`${LIBRARY_PACK_ROOT}/resume/resume.json`]: JSON.stringify({
+			progress: input.progress,
+			resumeProgress: input.resumeProgress
+		}, null, 2),
+		[`${LIBRARY_PACK_ROOT}/stats/engagement-summary.json`]: JSON.stringify(engagementSummary(input), null, 2)
+	};
+	if (adultStats) {
+		files[`${LIBRARY_PACK_ROOT}/stats/adult-stats.json`] = JSON.stringify(adultStats, null, 2);
+		files[`${LIBRARY_PACK_ROOT}/stats/adult-stats.csv`] = adultStatsToCsv(adultStats);
+	}
+	return files;
+}
+function downloadLibraryPackZip(input) {
+	const files = buildLibraryPackFiles(input);
+	const zipped = zipSync(Object.fromEntries(Object.entries(files).map(([name, body]) => [name, strToU8(body)])), { level: 6 });
+	const url = URL.createObjectURL(new Blob([zipped.buffer.slice(zipped.byteOffset, zipped.byteOffset + zipped.byteLength)], { type: "application/zip" }));
+	const link = document.createElement("a");
+	link.href = url;
+	link.download = `${LIBRARY_PACK_ROOT}-${stamp()}.zip`;
+	link.click();
+	URL.revokeObjectURL(url);
+}
+function pathKey(name) {
+	return name.replace(/\\/g, "/").replace(/^\/+/, "");
+}
+function fileEndsWith(name, suffix) {
+	return pathKey(name).toLowerCase().endsWith(suffix.toLowerCase());
+}
+function readPackTextFiles(buffer) {
+	const unzipped = unzipSync(new Uint8Array(buffer));
+	const out = {};
+	for (const [name, bytes] of Object.entries(unzipped)) {
+		if (name.endsWith("/")) continue;
+		out[pathKey(name)] = strFromU8(bytes);
+	}
+	return out;
+}
+function collectFollows(files) {
+	const rows = [];
+	for (const [name, body] of Object.entries(files)) {
+		if (fileEndsWith(name, "follows.csv") || /follows\/.*\.csv$/i.test(name)) {
+			const table = parseCsv(body);
+			const header = table[0]?.map((h) => h.trim().toLowerCase()) ?? [];
+			for (const line of table.slice(1)) {
+				const rec = {};
+				header.forEach((key, i) => {
+					rec[key] = line[i];
+				});
+				const normalized = normalizeFollowRow(rec);
+				if (normalized) rows.push(normalized);
+			}
+		}
+		if (/follows\/.*\.json$/i.test(name) || fileEndsWith(name, "youtube.json") || fileEndsWith(name, "twitch.json") || fileEndsWith(name, "channels.json")) try {
+			const parsed = JSON.parse(body);
+			const list = Array.isArray(parsed) ? parsed : Array.isArray(parsed.channels) ? parsed.channels : [];
+			for (const item of list) {
+				if (!item || typeof item !== "object") continue;
+				const normalized = normalizeFollowRow(item);
+				if (normalized) rows.push(normalized);
+			}
+		} catch {}
+	}
+	return dedupeFollows(rows);
+}
+function normalizeHistoryEntry(raw) {
+	if (!raw || typeof raw !== "object") return null;
+	const row = raw;
+	const eventId = typeof row.eventId === "string" ? row.eventId.trim() : "";
+	const eventMatch = eventId.match(/^(.*):(\d{10,}):(open|progress|watch-room)$/);
+	const id = String(row.id ?? eventMatch?.[1] ?? "").trim();
+	const atValue = row.at ?? (typeof row.occurredAt === "string" ? Date.parse(row.occurredAt) : NaN);
+	const at = Number(atValue);
+	if (!id || !Number.isFinite(at)) return null;
+	const source = row.source === "open" || row.source === "progress" || row.source === "watch-room" ? row.source : void 0;
+	const position = Number(row.position ?? row.positionSeconds);
+	const duration = Number(row.duration ?? row.durationSeconds);
+	return {
+		id,
+		at,
+		...typeof row.url === "string" && row.url ? { url: row.url } : {},
+		...typeof row.title === "string" && row.title ? { title: row.title } : {},
+		...Number.isFinite(position) ? { position } : {},
+		...Number.isFinite(duration) ? { duration } : {},
+		...source ? { source } : {},
+		...eventId ? { eventId } : {}
+	};
+}
+function collectHistory(files) {
+	const rows = [];
+	for (const [name, body] of Object.entries(files)) {
+		if (fileEndsWith(name, "history.json") || /(?:^|\/)reelcase-history-[^/]+\.json$/i.test(pathKey(name))) try {
+			const parsed = JSON.parse(body);
+			const list = Array.isArray(parsed) ? parsed : parsed.entries ?? [];
+			for (const entry of list) {
+				const normalized = normalizeHistoryEntry(entry);
+				if (normalized) rows.push(normalized);
+			}
+		} catch {}
+		if (fileEndsWith(name, "history.csv")) {
+			const table = parseCsv(body);
+			const header = table[0]?.map((h) => h.trim().toLowerCase()) ?? [];
+			for (const line of table.slice(1)) {
+				const rec = {};
+				header.forEach((key, i) => {
+					rec[key] = line[i] ?? "";
+				});
+				const id = rec.id?.trim();
+				const at = Number(rec.at);
+				if (!id || !Number.isFinite(at)) continue;
+				const normalized = normalizeHistoryEntry({
+					id,
+					at,
+					url: rec.url,
+					title: rec.title,
+					position: rec.position,
+					duration: rec.duration,
+					source: rec.source,
+					eventId: rec.eventid
+				});
+				if (normalized) rows.push(normalized);
+			}
+		}
+	}
+	return rows;
+}
+function collectLinks(files) {
+	const rows = [];
+	for (const [name, body] of Object.entries(files)) {
+		if (fileEndsWith(name, "links.json")) try {
+			const parsed = JSON.parse(body);
+			const list = Array.isArray(parsed) ? parsed : parsed.links ?? [];
+			rows.push(...list);
+		} catch {}
+		if (fileEndsWith(name, "links.csv")) {
+			const table = parseCsv(body);
+			const header = table[0]?.map((h) => h.trim().toLowerCase()) ?? [];
+			for (const line of table.slice(1)) {
+				const rec = {};
+				header.forEach((key, i) => {
+					rec[key] = line[i] ?? "";
+				});
+				if (!rec.url || !rec.id) continue;
+				const source = rec.source === "bookmark" || rec.source === "continue" ? rec.source : "history";
+				rows.push({
+					id: rec.id,
+					url: rec.url,
+					savedAt: Number(rec.savedat) || Date.now(),
+					source,
+					...rec.title ? { title: rec.title } : {},
+					...rec.kind ? { kind: rec.kind } : {}
+				});
+			}
+		}
+	}
+	return rows;
+}
+function asCountMap(raw) {
+	if (!raw || typeof raw !== "object") return {};
+	const out = {};
+	for (const [id, value] of Object.entries(raw)) if (typeof value === "number" && Number.isFinite(value) && value > 0) out[id] = Math.floor(value);
+	return out;
+}
+function mergeHistory(a, b) {
+	const rows = /* @__PURE__ */ new Map();
+	for (const entry of [...a, ...b]) {
+		if (!entry?.id || !Number.isFinite(entry.at)) continue;
+		const key = entry.eventId ?? `${entry.id}:${entry.at}:${entry.source ?? "open"}`;
+		if (!rows.has(key)) rows.set(key, entry);
+	}
+	return [...rows.values()].sort((left, right) => right.at - left.at);
+}
+function mergeCounts(a, b) {
+	const out = { ...a };
+	for (const [id, value] of Object.entries(b)) out[id] = Math.max(out[id] ?? 0, value);
+	return out;
+}
+/** Apply a zip or loose text map into durable stores via the provided hooks. */
+function applyLibraryPackFiles(files, hooks, mode = "merge") {
+	const warnings = [];
+	const filesRead = Object.keys(files);
+	const incomingFollows = collectFollows(files);
+	const incomingHistory = collectHistory(files);
+	const incomingLinks = collectLinks(files);
+	let followsAdded = 0;
+	if (incomingFollows.length) {
+		const current = hooks.getFollows();
+		const next = mode === "replace-follows" ? dedupeFollows(incomingFollows) : dedupeFollows([...incomingFollows, ...current]);
+		followsAdded = Math.max(0, next.length - current.length);
+		hooks.setFollows(next);
+		saveFollows(next);
+	}
+	let historyMerged = 0;
+	if (incomingHistory.length) {
+		const merged = mergeHistory(hooks.getHistory(), incomingHistory);
+		historyMerged = Math.max(0, merged.length - hooks.getHistory().length);
+		hooks.setHistory(merged);
+		saveDurableHistory(merged);
+	}
+	let linksMerged = 0;
+	if (incomingLinks.length) {
+		const byUrl = /* @__PURE__ */ new Map();
+		for (const link of [...hooks.getLinks(), ...incomingLinks]) byUrl.set(link.url.toLowerCase(), link);
+		const merged = [...byUrl.values()];
+		linksMerged = Math.max(0, merged.length - hooks.getLinks().length);
+		hooks.setLinks(merged);
+		saveDurableLinks(merged);
+	}
+	let marksMerged = 0;
+	let viewCounts = hooks.getViewCounts();
+	let cameCounts = hooks.getCameCounts();
+	for (const [name, body] of Object.entries(files)) {
+		if (fileEndsWith(name, "view-counts.json")) try {
+			viewCounts = mergeCounts(viewCounts, asCountMap(JSON.parse(body)));
+			marksMerged += 1;
+		} catch {
+			warnings.push(`Could not parse ${name}`);
+		}
+		if (fileEndsWith(name, "came-counts.json")) try {
+			cameCounts = mergeCounts(cameCounts, asCountMap(JSON.parse(body)));
+			marksMerged += 1;
+		} catch {
+			warnings.push(`Could not parse ${name}`);
+		}
+	}
+	if (marksMerged) {
+		hooks.setMarks(viewCounts, cameCounts);
+		saveDurableMarks(viewCounts, cameCounts);
+	}
+	let shelvesMerged = 0;
+	for (const [name, body] of Object.entries(files)) {
+		if (!fileEndsWith(name, "shelves.json")) continue;
+		try {
+			const parsed = JSON.parse(body);
+			const favorites = [.../* @__PURE__ */ new Set([...hooks.getFavorites(), ...parsed.favorites ?? []])];
+			const likes = [.../* @__PURE__ */ new Set([...hooks.getLikes(), ...parsed.likes ?? []])];
+			shelvesMerged = favorites.length + likes.length - hooks.getFavorites().length - hooks.getLikes().length;
+			hooks.setShelves(favorites, likes);
+			saveDurableShelves(favorites, likes);
+		} catch {
+			warnings.push(`Could not parse ${name}`);
+		}
+	}
+	let feedbackMerged = false;
+	let feedbackPartial = {};
+	for (const [name, body] of Object.entries(files)) if (fileEndsWith(name, "ratings.json") || fileEndsWith(name, "tag-hearts.json") || fileEndsWith(name, "feedback.json")) try {
+		feedbackPartial = {
+			...feedbackPartial,
+			...JSON.parse(body)
+		};
+		feedbackMerged = true;
+	} catch {
+		warnings.push(`Could not parse ${name}`);
+	}
+	if (feedbackMerged) importFeedback(feedbackPartial);
+	for (const [name, body] of Object.entries(files)) {
+		if (!fileEndsWith(name, "resume.json")) continue;
+		try {
+			const parsed = JSON.parse(body);
+			const progress = {
+				...hooks.getProgress(),
+				...parsed.progress ?? {}
+			};
+			const resumeProgress = {
+				...hooks.getResumeProgress(),
+				...parsed.resumeProgress ?? {}
+			};
+			hooks.setResume(progress, resumeProgress);
+			saveDurableResume(progress, resumeProgress);
+		} catch {
+			warnings.push(`Could not parse ${name}`);
+		}
+	}
+	let photosMerged = 0;
+	let incomingPhotoSources = [];
+	let incomingPhotoMeta = {};
+	let incomingPhotoLikes = [];
+	for (const [name, body] of Object.entries(files)) {
+		if (fileEndsWith(name, "photos/sources.json") || /photos\/sources\.json$/i.test(name)) try {
+			const parsed = JSON.parse(body);
+			incomingPhotoSources = [...incomingPhotoSources, ...parsed.sources ?? []];
+		} catch {
+			warnings.push(`Could not parse ${name}`);
+		}
+		if (fileEndsWith(name, "photos/likes.json") || /photos\/likes\.json$/i.test(name)) try {
+			const parsed = JSON.parse(body);
+			incomingPhotoLikes = [...incomingPhotoLikes, ...parsed.likes ?? []];
+			incomingPhotoMeta = {
+				...incomingPhotoMeta,
+				...parsed.meta ?? {}
+			};
+		} catch {
+			warnings.push(`Could not parse ${name}`);
+		}
+	}
+	if (incomingPhotoSources.length || Object.keys(incomingPhotoMeta).length || incomingPhotoLikes.length) {
+		const current = loadDurablePhotosSync();
+		const byId = new Map([...current?.sources ?? [], ...incomingPhotoSources].map((row) => [row.id, row]));
+		const meta = {
+			...current?.meta ?? {},
+			...incomingPhotoMeta
+		};
+		for (const id of incomingPhotoLikes) meta[id] = {
+			...meta[id] ?? {},
+			favorite: true
+		};
+		const likes = [.../* @__PURE__ */ new Set([
+			...current?.likes ?? [],
+			...incomingPhotoLikes,
+			...Object.entries(meta).filter(([, row]) => row.favorite).map(([id]) => id)
+		])];
+		const sources = [...byId.values()];
+		saveDurablePhotos({
+			sources,
+			meta,
+			likes
+		});
+		hooks.setPhotoSources?.(sources);
+		photosMerged = sources.length + likes.length;
+	}
+	if (!incomingFollows.length && !incomingHistory.length && !incomingLinks.length && !marksMerged && !shelvesMerged && !feedbackMerged && !photosMerged) warnings.push("No recognized pack files were found. Expect follows/, history/, links/, marks/, resume/, or photos/ paths.");
+	return {
+		followsAdded,
+		historyMerged,
+		linksMerged,
+		marksMerged,
+		shelvesMerged,
+		feedbackMerged,
+		photosMerged,
+		filesRead,
+		warnings
+	};
+}
+async function importLibraryPackZip(file, hooks, mode = "merge") {
+	const buffer = await file.arrayBuffer();
+	if (file.name.toLowerCase().endsWith(".zip") || file.type.includes("zip")) return applyLibraryPackFiles(readPackTextFiles(buffer), hooks, mode);
+	const text = strFromU8(new Uint8Array(buffer));
+	return applyLibraryPackFiles({ [file.name || "import.json"]: text }, hooks, mode);
 }
 var startedAt = typeof performance === "undefined" ? Date.now() : performance.now();
 var trace = { startedAt };
@@ -8241,6 +8878,12 @@ function SidebarNav({ onAddFolder, onNavigate }) {
 						label: "Movies"
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(NavItem, {
+						active: sourceId === "anime",
+						onClick: () => go("anime"),
+						icon: Clapperboard,
+						label: "Anime"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(NavItem, {
 						active: sourceId === "genres",
 						onClick: () => go("genres"),
 						icon: Film,
@@ -8900,6 +9543,8 @@ function TopBar({ onMenu, onAddFolder }) {
 		const indexedIds = workerIds ? new Set(workerIds) : librarySearchIndex.search(needle);
 		return (indexedIds ? Array.from(indexedIds, (id) => videoById.get(id)).filter((video) => Boolean(video)) : videos).filter((video) => {
 			if (folders.find((item) => item.id === video.folderId)?.adult && !((sourceId === "adults" || sourceId === "adult-fetishes") && adultsUnlocked)) return false;
+			if (sourceId === "youtube" && video.remote?.kind !== "youtube") return false;
+			if (sourceId === "twitch" && video.remote?.kind !== "twitch") return false;
 			return indexedIds ? true : `${video.name} ${video.path} ${video.description ?? ""} ${video.remote?.channelName ?? ""} ${(tags[video.id] ?? []).join(" ")}`.toLowerCase().includes(needle);
 		}).sort((a, b) => b.addedAt - a.addedAt).slice(0, 6);
 	}, [
@@ -8978,7 +9623,7 @@ function TopBar({ onMenu, onAddFolder }) {
 							if (e.key === "Escape") setFocused(false);
 						},
 						onFocus: () => setFocused(true),
-						placeholder: "Search your entire media desk…",
+						placeholder: onAdultDesk ? "Find Adult tags — e.g. role play or creator…" : "Search your entire media desk…",
 						className: "h-12 border-border bg-elevated pl-11 pr-10 text-base shadow-border",
 						"aria-label": "Global media search"
 					}),
@@ -9000,10 +9645,14 @@ function TopBar({ onMenu, onAddFolder }) {
 								className: "px-3 py-2 text-xs text-muted",
 								children: "Preparing search… you can keep browsing."
 							}),
+							onAdultDesk && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "px-3 py-2 text-xs text-muted",
+								children: "Use plain words or #tags. Adult tag searches stay on this desk and match saved creator, source, and interest labels."
+							}),
 							hits.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 									className: "px-3 py-2 text-xs font-medium tracking-[0.14em] text-accent uppercase",
-									children: "Best matches"
+									children: sourceId === "youtube" ? "YouTube matches" : sourceId === "twitch" ? "Twitch matches" : "Best matches"
 								}),
 								hits.map((video) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 									type: "button",
@@ -9608,6 +10257,15 @@ function fetishTopicKey(tag) {
 }
 function fetishTagLabel(tag) {
 	return fetishTopicKey(tag).replace(/\s+/g, " ");
+}
+function tagSearchTerms(value) {
+	return value.trim().toLowerCase().replace(/^#/, "").replace(/^(?:fetish|genre|meta|creator|source|provider|sub)-/, "").replace(/[-_]+/g, " ").split(/\s+/).filter((term) => term.length > 0);
+}
+function tagMatchesSearch(tag, query) {
+	const terms = tagSearchTerms(query);
+	if (!terms.length) return true;
+	const searchable = tag.toLowerCase().replace(/^(?:fetish|genre|meta|creator|source|provider|sub)-/, "").replace(/[-_]+/g, " ");
+	return terms.every((term) => searchable.includes(term));
 }
 function pullSourceSelectionLabel(providers) {
 	if (providers === "all") return "All available sources";
@@ -10319,6 +10977,8 @@ function AdultPanel({ showMilestones = false, autoPull = true, sourceFilter = "a
 	const [providers, setProviders] = (0, import_react.useState)("all");
 	const [booted, setBooted] = (0, import_react.useState)(false);
 	const [localTag, setLocalTag] = (0, import_react.useState)("all");
+	const [facetQuery, setFacetQuery] = (0, import_react.useState)("");
+	const deferredFacetQuery = (0, import_react.useDeferredValue)(facetQuery);
 	const tagFilter = tagFilterProp ?? localTag;
 	const setTagFilter = (tag) => {
 		setLocalTag(tag);
@@ -10447,6 +11107,17 @@ function AdultPanel({ showMilestones = false, autoPull = true, sourceFilter = "a
 	}, [
 		adultVideos,
 		discoveryCollapsed,
+		facetsReady,
+		tags
+	]);
+	const searchedTagFacets = (0, import_react.useMemo)(() => {
+		if (!deferredFacetQuery.trim() || !facetsReady) return [];
+		const counts = /* @__PURE__ */ new Map();
+		for (const video of adultVideos) for (const tag of tags[video.id] ?? []) if (tagMatchesSearch(tag, deferredFacetQuery)) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+		return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 30);
+	}, [
+		adultVideos,
+		deferredFacetQuery,
 		facetsReady,
 		tags
 	]);
@@ -11224,6 +11895,62 @@ function AdultPanel({ showMilestones = false, autoPull = true, sourceFilter = "a
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "mt-1 text-xs text-accent",
 						children: archiveLabel
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 rounded-md border border-border bg-bg/35 p-3",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", {
+								className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+								htmlFor: "adult-tag-search",
+								children: "Find any saved Adult tag"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "relative mt-2",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Search, { className: "pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+										id: "adult-tag-search",
+										value: facetQuery,
+										onChange: (event) => setFacetQuery(event.target.value),
+										placeholder: "Try a creator, source, or interest — e.g. role play",
+										className: "pl-9 pr-16",
+										"aria-describedby": "adult-tag-search-help"
+									}),
+									facetQuery && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										size: "sm",
+										variant: "ghost",
+										className: "absolute top-1/2 right-1 -translate-y-1/2",
+										onClick: () => setFacetQuery(""),
+										children: "Clear"
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								id: "adult-tag-search-help",
+								className: "mt-2 text-xs text-muted",
+								children: "Searches every saved provider, creator, subreddit, and interest tag. Pick a match to filter this desk in place."
+							}),
+							facetQuery.trim() && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "mt-3",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-xs text-muted",
+									children: searchedTagFacets.length ? `${searchedTagFacets.length} matching tag${searchedTagFacets.length === 1 ? "" : "s"}` : facetsReady ? "No saved tags match yet." : "Preparing saved tags…"
+								}), searchedTagFacets.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "mt-2 flex flex-wrap gap-2",
+									children: searchedTagFacets.map(([tag, count]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+										size: "sm",
+										variant: tagFilter === tag ? "default" : "secondary",
+										onClick: () => setTagFilter(tag),
+										children: [
+											"#",
+											tag,
+											" · ",
+											count
+										]
+									}, tag))
+								})]
+							})
+						]
 					}),
 					sourceFacets.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "mt-4",
@@ -12215,9 +12942,9 @@ function Player({ playlist }) {
 	if (!video) return null;
 	const remote = video.remote;
 	const adultImage = Boolean(remote && isAdultImageKind(remote.kind, video.mime, video.extension));
-	const redgifsDirectMedia = remote?.kind === "redgifs" && Boolean(video.src && video.src !== remote.embedUrl);
-	const directAdultMedia = Boolean(remote && isAdultPullKind(remote.kind) && video.src && /\.(?:mp4|webm|gifv)(?:\?|$)/i.test(video.src));
-	const embedSrc = adultImage ? null : remote ? remote.kind === "twitch" ? twitchEmbed(remote.embedUrl ?? "") : remote.kind === "youtube" ? youtubeEmbed(remote.embedUrl ?? video.src ?? "") : isAdultPullKind(remote.kind) ? remote.kind === "myfreecams" || redgifsDirectMedia || directAdultMedia ? null : remote.embedUrl ?? video.src ?? null : remote.embedUrl ? `${remote.embedUrl}${remote.embedUrl.includes("?") ? "&" : "?"}autoplay=1&rel=0&modestbranding=1` : null : null;
+	const redgifsEmbed = remote?.kind === "redgifs" && Boolean(remote.embedUrl);
+	const directAdultMedia = Boolean(remote && isAdultPullKind(remote.kind) && video.src && /\.(?:mp4|webm|gifv)(?:\?|$)/i.test(video.src) && !redgifsEmbed);
+	const embedSrc = adultImage ? null : remote ? remote.kind === "twitch" ? twitchEmbed(remote.embedUrl ?? "") : remote.kind === "youtube" ? youtubeEmbed(remote.embedUrl ?? video.src ?? "") : isAdultPullKind(remote.kind) ? remote.kind === "myfreecams" || directAdultMedia ? null : remote.embedUrl ?? video.src ?? null : remote.embedUrl ? `${remote.embedUrl}${remote.embedUrl.includes("?") ? "&" : "?"}autoplay=1&rel=0&modestbranding=1` : null : null;
 	const shown = scrub ?? current;
 	const dur = duration || capturedDur || video.duration || 0;
 	const i = playlist.indexOf(video.id);
@@ -12265,7 +12992,7 @@ function Player({ playlist }) {
 				] })
 			}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("video", {
 				ref: mediaRef,
-				src: src ?? void 0,
+				src: (directAdultMedia ? video.src : src) ?? void 0,
 				className: cn("absolute inset-0 size-full object-contain bg-bg", hardwareAccel && "hw-video"),
 				playsInline: true,
 				autoPlay: true,
@@ -12829,7 +13556,7 @@ function PreVideo() {
 		ratingRevision,
 		videos
 	]);
-	const allVisibleTags = (creatorKeyword && !tags.includes(creatorKeyword) ? [creatorKeyword, ...tags] : tags).map((tag) => tag.replace(/^(?:keyword-|creator-)/i, ""));
+	const allVisibleTags = [...new Set((creatorKeyword && !tags.includes(creatorKeyword) ? [creatorKeyword, ...tags] : tags).map((tag) => tag.replace(/^(?:keyword-|creator-)/i, "")))];
 	const visibleTags = allVisibleTags.slice(0, 80);
 	const creatorRating = creator ? getCreatorRating(creator) : 0;
 	const creatorLiked = creator ? creatorIsLiked(creator) : false;
@@ -12947,7 +13674,8 @@ function PreVideo() {
 	if (!video) return null;
 	const adultImage = Boolean(video.remote && isAdultImageKind(video.remote.kind, video.mime, video.extension));
 	const myFreeCamsRoom = video.remote?.kind === "myfreecams";
-	const directAdultMedia = Boolean(video.remote && isAdultPullKind(video.remote.kind) && video.src && /\.(?:mp4|webm|gifv)(?:\?|$)/i.test(video.src));
+	const redgifsEmbed = video.remote?.kind === "redgifs" && Boolean(video.remote.embedUrl);
+	const directAdultMedia = Boolean(video.remote && isAdultPullKind(video.remote.kind) && video.src && /\.(?:mp4|webm|gifv)(?:\?|$)/i.test(video.src) && !redgifsEmbed);
 	const imageSrc = adultImage ? video.src || video.remote?.embedUrl || video.remote?.previewUrl || video.poster || null : null;
 	const embed = adultImage ? null : !myFreeCamsRoom && video.remote?.embedUrl && !directAdultMedia ? video.remote.kind === "twitch" ? `${video.remote.embedUrl}${video.remote.embedUrl.includes("?") ? "&" : "?"}parent=${encodeURIComponent(window.location.hostname)}` : video.remote.kind === "youtube" ? (() => {
 		const url = new URL(video.remote.embedUrl, "https://www.youtube.com");
@@ -14078,8 +14806,9 @@ ytFilm({
 	tagline: "A Blender Studio open project.",
 	channel: "Blender Studio"
 });
-var loadHub = () => import("./hub-sections-DoDU8n_E.mjs").then((n) => n.t);
+var loadHub = () => import("./hub-sections-CaJBgi1S.mjs").then((n) => n.t);
 var hubSection = (name) => (0, import_react.lazy)(async () => ({ default: (await loadHub())[name] }));
+var AnimeSection = hubSection("AnimeSection");
 var GamesSection = hubSection("GamesSection");
 var FindPhoneSection = hubSection("FindPhoneSection");
 var GenreSection = hubSection("GenreSection");
@@ -14208,8 +14937,10 @@ function LibraryApp() {
 	const [historyWindow, setHistoryWindow] = (0, import_react.useState)("all");
 	const [historySource, setHistorySource] = (0, import_react.useState)("all");
 	const [historyRetention, setHistoryRetention] = (0, import_react.useState)("forever");
+	const [historyImportNote, setHistoryImportNote] = (0, import_react.useState)("");
 	const [homeExpanded, setHomeExpanded] = (0, import_react.useState)(false);
 	const [homeRecommendationsReady, setHomeRecommendationsReady] = (0, import_react.useState)(false);
+	const [invitedToTheater, setInvitedToTheater] = (0, import_react.useState)(false);
 	const [remoteRefreshMs, setRemoteRefreshMs] = (0, import_react.useState)(() => {
 		try {
 			const seconds = Number(localStorage.getItem("reelcase.twitch-refresh-seconds") ?? "30");
@@ -14339,6 +15070,43 @@ function LibraryApp() {
 			resumable
 		};
 	}, [history]);
+	const importHistoryRecovery = () => {
+		const input = document.createElement("input");
+		input.type = "file";
+		input.accept = ".zip,.json,.csv,application/zip,application/json,text/csv";
+		input.onchange = () => {
+			const file = input.files?.[0];
+			if (!file) return;
+			if (!window.confirm("Merge this Reelcase recovery pack? Existing activity is kept and duplicate entries are ignored.")) return;
+			importLibraryPackZip(file, {
+				getFollows: () => useLibrary.getState().follows,
+				setFollows: (follows) => useLibrary.setState({ follows }),
+				getHistory: () => useLibrary.getState().history,
+				setHistory: (history) => useLibrary.setState({ history }),
+				getViewCounts: () => useLibrary.getState().viewCounts,
+				getCameCounts: () => useLibrary.getState().cameCounts,
+				setMarks: (viewCounts, cameCounts) => useLibrary.setState({
+					viewCounts,
+					cameCounts
+				}),
+				getFavorites: () => Object.keys(useLibrary.getState().favorites),
+				getLikes: () => Object.keys(useLibrary.getState().likes),
+				setShelves: (favorites, likes) => useLibrary.setState({
+					favorites: Object.fromEntries(favorites.map((id) => [id, true])),
+					likes: Object.fromEntries(likes.map((id) => [id, true]))
+				}),
+				getProgress: () => useLibrary.getState().progress,
+				getResumeProgress: () => useLibrary.getState().resumeProgress,
+				setResume: (progress, resumeProgress) => useLibrary.setState({
+					progress,
+					resumeProgress
+				}),
+				getLinks: () => linksFromHistoryAndResume(useLibrary.getState().history, useLibrary.getState().resumeProgress),
+				setLinks: () => {}
+			}).then((result) => setHistoryImportNote(`Recovered +${result.historyMerged} activity entries · +${result.followsAdded} follows · +${result.linksMerged} saved links${result.feedbackMerged ? " · ratings and hearts merged" : ""}${result.warnings.length ? ` · ${result.warnings[0]}` : ""}.`)).catch((error) => setHistoryImportNote(error instanceof Error ? error.message : "Recovery import failed."));
+		};
+		input.click();
+	};
 	const favorites = useLibrary((s) => s.favorites);
 	const likes = useLibrary((s) => s.likes);
 	const viewCounts = useLibrary((s) => s.viewCounts);
@@ -14959,7 +15727,8 @@ function LibraryApp() {
 			},
 			lastCheckedAt: channel.lastCheckedAt,
 			lastResponseCount: channel.lastResponseCount,
-			retryAt: remoteRetryAt[channel.id]
+			retryAt: remoteRetryAt[channel.id],
+			lastProviderFailure: channel.lastProviderFailure
 		})).sort((a, b) => a.count - b.count || a.name.localeCompare(b.name));
 		return {
 			total: twitchVodPicks.length,
@@ -15228,7 +15997,9 @@ function LibraryApp() {
 	(0, import_react.useEffect)(() => {
 		if (!hydrated) return;
 		const room = new URLSearchParams(window.location.search).get("room")?.trim().toUpperCase() ?? "";
-		if (/^RC[A-Z0-9]{4,12}$/.test(room)) setSource("watch-room");
+		const invited = /^RC[A-Z0-9]{4,12}$/.test(room);
+		setInvitedToTheater(invited);
+		if (invited) setSource("watch-room");
 	}, [hydrated, setSource]);
 	const refreshFollows = useLibrary((s) => s.refreshFollows);
 	const remoteRefreshStatus = useLibrary((s) => s.remoteRefreshStatus);
@@ -15428,6 +16199,7 @@ function LibraryApp() {
 	const historyRetentionCutoff = historyRetention === "week" ? Date.now() - 6048e5 : historyRetention === "month" ? Date.now() - 2592e6 : historyRetention === "year" ? Date.now() - 31536e6 : 0;
 	const exportHistory = () => {
 		const rows = historyVisibleEntries.map((entry) => ({
+			id: entry.id,
 			eventId: entry.eventId ?? `${entry.id}:${entry.at}:${entry.source ?? "open"}`,
 			occurredAt: new Date(entry.at).toISOString(),
 			localTime: new Date(entry.at).toLocaleString(),
@@ -15445,9 +16217,9 @@ function LibraryApp() {
 		URL.revokeObjectURL(link.href);
 	};
 	const browsing = !query && (sourceId === "home" || sourceId === "movies" || sourceId === "adults" || sourceId === "adult-fetishes" || sourceId === "youtube" || sourceId === "twitch" || sourceId === "live");
-	const invitedToTheater = typeof window !== "undefined" && /^RC[A-Z0-9]{4,12}$/.test((new URLSearchParams(window.location.search).get("room") ?? "").trim().toUpperCase());
 	const isHubSection = [
 		"photos",
+		"anime",
 		"spotify",
 		"prints",
 		"games",
@@ -15502,6 +16274,7 @@ function LibraryApp() {
 						}),
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
 							sourceId === "prints" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PrintsSection, {}),
+							sourceId === "anime" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AnimeSection, {}),
 							sourceId === "photos" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PhotosSection, {}),
 							sourceId === "spotify" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SpotifySection, {}),
 							sourceId === "games" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(GamesSection, {}),
@@ -15743,10 +16516,17 @@ function LibraryApp() {
 												}),
 												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 													className: "mt-1 text-xs text-muted",
-													children: channel.retryAt && channel.retryAt > Date.now() ? `Retry ${new Date(channel.retryAt).toLocaleTimeString([], {
+													children: channel.lastProviderFailure ? `${channel.lastProviderFailure.kind.replaceAll("-", " ")} · ${channel.lastProviderFailure.recovery}` : channel.retryAt && channel.retryAt > Date.now() ? `Retry ${new Date(channel.retryAt).toLocaleTimeString([], {
 														hour: "numeric",
 														minute: "2-digit"
 													})}` : "Provider ready"
+												}),
+												channel.lastProviderFailure && channel.retryAt && channel.retryAt > Date.now() && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+													className: "mt-1 text-xs text-accent",
+													children: ["Retry ", new Date(channel.retryAt).toLocaleTimeString([], {
+														hour: "numeric",
+														minute: "2-digit"
+													})]
 												})
 											]
 										}, channel.id))
@@ -16263,18 +17043,22 @@ function LibraryApp() {
 															className: "mt-1 text-xs text-muted",
 															children: [channel.oldest ? `${new Date(channel.oldest).toLocaleDateString()} – ${new Date(channel.newest).toLocaleDateString()}` : "No archive dates yet", " · public depth may be limited"]
 														}),
-														/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 															className: "mt-1 text-xs text-muted",
-															children: [channel.lastCheckedAt ? `Checked ${new Date(channel.lastCheckedAt).toLocaleString([], {
+															children: channel.lastProviderFailure ? `${channel.lastProviderFailure.kind.replaceAll("-", " ")} · ${channel.lastProviderFailure.recovery}` : channel.lastCheckedAt ? `Checked ${new Date(channel.lastCheckedAt).toLocaleString([], {
 																month: "short",
 																day: "numeric",
 																hour: "numeric",
 																minute: "2-digit"
-															})}` : "Not checked yet", channel.retryAt && channel.retryAt > Date.now() ? ` · cooldown until ${new Date(channel.retryAt).toLocaleTimeString([], {
+															})}` : "Not checked yet"
+														}),
+														channel.retryAt && channel.retryAt > Date.now() && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+															className: "mt-1 text-xs text-accent",
+															children: ["Cooldown until ", new Date(channel.retryAt).toLocaleTimeString([], {
 																hour: "numeric",
 																minute: "2-digit",
 																second: "2-digit"
-															})}` : " · ready"]
+															})]
 														})
 													]
 												}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
@@ -17421,6 +18205,36 @@ function LibraryApp() {
 									]
 								})]
 							}),
+							sourceId === "history" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+								className: "mb-5 rounded-lg border border-border bg-surface p-4 shadow-border",
+								"aria-label": "History recovery import",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "flex flex-wrap items-end justify-between gap-3",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+											children: "Recovery import"
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+											className: "mt-1 text-lg font-medium text-fg",
+											children: "Restore a saved activity pack."
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "mt-1 max-w-2xl text-xs leading-5 text-muted",
+											children: "Merge a Reelcase library pack to recover History, Continue marks, follows, favorites, ratings, Adult marks, and saved provider links. Duplicate activity is ignored; it never clears data already here."
+										})
+									] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+										size: "sm",
+										variant: "secondary",
+										onClick: importHistoryRecovery,
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Upload, { className: "size-4" }), "Import recovery pack"]
+									})]
+								}), historyImportNote && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-3 text-xs text-accent",
+									role: "status",
+									children: historyImportNote
+								})]
+							}),
 							sourceId === "history" && historyTopTags.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "mb-5 rounded-lg bg-elevated px-4 py-3 shadow-border",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
@@ -17634,4 +18448,4 @@ function Home() {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LibraryApp, {});
 }
 //#endregion
-export { toggleTagLike as A, saveDurableResume as B, topicEvidence as C, getRating as D, getFeedbackDiagnostics as E, restoreDurablePhotos as F, companionHealth as G, saveFollows as H, saveDurableHistory as I, companionReadPrint as J, companionImportLibraryPack as K, saveDurableLinks as L, measureInteraction as M, linksFromHistoryAndResume as N, importFeedback as O, loadDurablePhotosSync as P, __exportAll as Q, saveDurableMarks as R, isTopicTag as S, exportFeedback as T, companionAckJobs as U, saveDurableShelves as V, companionExportLibraryPack as W, companionSetAutostart as X, companionSavePrint as Y, companionSteamEpicGames as Z, Button as _, adultStatsToCsv as a, useSourceAssets as b, rankAdultTags as c, Input as d, openTopic as f, useThumbs as g, getThumbDiagnostics as h, getFirstShelfTrace as i, getInteractionBudgetSnapshot as j, tagIsLiked as k, countAdultBooruHosts as l, getRenderBudgetSnapshot as m, getNetworkDeviceId as n, buildAdultStatsSnapshot as o, VideoCard as p, companionListPrints as q, listNetworkDevices as r, exportAdultStats as s, routes_exports as t, countAdultBySource as u, resumeForVideo as v, topicsForVideo as w, canonicalTopic as x, useLibrary as y, saveDurablePhotos as z };
+export { getFeedbackDiagnostics as A, companionAckJobs as B, useLibrary as C, topicEvidence as D, isTopicTag as E, measureInteraction as F, companionReadPrint as G, companionHealth as H, linksFromHistoryAndResume as I, companionSteamEpicGames as J, companionSavePrint as K, loadDurablePhotosSync as L, tagIsLiked as M, toggleTagLike as N, topicsForVideo as O, getInteractionBudgetSnapshot as P, restoreDurablePhotos as R, resumeForVideo as S, canonicalTopic as T, companionImportLibraryPack as U, companionExportLibraryPack as V, companionListPrints as W, __exportAll as Y, getRenderBudgetSnapshot as _, applyLibraryPackFiles as a, Button as b, importLibraryPackZip as c, rankAdultTags as d, countAdultBooruHosts as f, VideoCard as g, openTopic as h, getFirstShelfTrace as i, getRating as j, exportFeedback as k, buildAdultStatsSnapshot as l, Input as m, getNetworkDeviceId as n, buildLibraryPackFiles as o, countAdultBySource as p, companionSetAutostart as q, listNetworkDevices as r, downloadLibraryPackZip as s, routes_exports as t, exportAdultStats as u, getThumbDiagnostics as v, useSourceAssets as w, isAdultVideo as x, useThumbs as y, saveDurablePhotos as z };

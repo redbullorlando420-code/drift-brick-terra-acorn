@@ -1,6 +1,6 @@
 import { n as TSS_SERVER_FUNCTION, t as createServerFn } from "./ssr.mjs";
 import { A as cachedAdultFetch, H as isUsableAdultThumb, K as pickRedtubeThumb, N as extractRedditFlair, Y as redtubeStarNames, _ as REDDIT_FOLDER_ID, c as ADULT_PULL_PROVIDERS, f as BOORU_FOLDER_ID, g as MYFREECAMS_FOLDER_ID, h as LIBRARY_LIMITS, j as expandAdultThumbFallbacks, l as ADULT_REDDIT_PRIORITY_SUBS, m as EPORNER_FOLDER_ID, p as CHATURBATE_FOLDER_ID, u as ADULT_REDDIT_SUBS, v as REDGIFS_FOLDER_ID, x as adultDeepenQueriesForPage, y as REDTUBE_FOLDER_ID } from "./adult-pull-cache-DYRXt4XQ.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/functions-DsGD2FMJ.js
+//#region node_modules/.nitro/vite/services/ssr/assets/functions-BPrb8wlA.js
 var createServerRpc = (serverFnMeta, splitImportFn) => {
 	const url = "/_serverFn/" + serverFnMeta.id;
 	return Object.assign(splitImportFn, {
@@ -131,6 +131,47 @@ function providerKey(provider, handle) {
 }
 function retryAtFor(provider, handle) {
 	return providerFailures.get(providerKey(provider, handle))?.retryAt;
+}
+/** Turn public-provider failures into a small, actionable local diagnosis.
+* This never changes cached cards: the refresh merge is intentionally additive
+* when a channel does not reach a healthy response. */
+function classifyProviderFailure(provider, error) {
+	const message = (error instanceof Error ? error.message : String(error || "Unknown provider failure")).replace(/\s+/g, " ").trim().slice(0, 240) || "Unknown provider failure";
+	const lower = message.toLowerCase();
+	const common = {
+		message,
+		at: Date.now()
+	};
+	if (/\b429\b|rate.?limit|too many requests|retrying after/.test(lower)) return {
+		...common,
+		kind: "rate-limited",
+		recovery: "Keep the cached channel cards. Reelcase will retry after the shown cooldown; use a focused retry only when you need it now."
+	};
+	if (/integrity|challenge/.test(lower)) return {
+		...common,
+		kind: "integrity-challenge",
+		recovery: "Twitch accepted the cached archive but requires its public integrity check for deeper pages. Try a focused pull later; no cached VODs were removed."
+	};
+	if (/page.?limit|first.*100|public.*page/.test(lower)) return {
+		...common,
+		kind: "public-page-limit",
+		recovery: "The public archive stopped advancing. Keep the accepted pages and try a later focused pull rather than increasing the routine budget."
+	};
+	if (/json|parse|malformed|invalid response|unexpected token/.test(lower)) return {
+		...common,
+		kind: "malformed",
+		recovery: "The provider returned an unreadable response. Cached cards remain available; retry this channel after the provider recovers."
+	};
+	if (/\b404\b|\b410\b|could not (find|resolve)|not found|unavailable|does not exist/.test(lower)) return {
+		...common,
+		kind: "unavailable",
+		recovery: "The public channel or item is unavailable right now. Keep its cached cards and confirm the creator link before removing anything."
+	};
+	return {
+		...common,
+		kind: "network-offline",
+		recovery: "The provider could not be reached. Cached cards remain available and Reelcase will retry after the shown cooldown."
+	};
 }
 /** Share identical work across browser tabs and suppress only background retries. */
 async function providerRequest(provider, handle, focused, work) {
@@ -901,7 +942,8 @@ async function runRefreshRemotes(dataRaw) {
 				channels.push({
 					...ch,
 					...next.channel,
-					id: ch.id
+					id: ch.id,
+					lastProviderFailure: void 0
 				});
 				videos.push(...next.videos.map((video) => ({
 					...video,
@@ -912,7 +954,8 @@ async function runRefreshRemotes(dataRaw) {
 				channels.push({
 					...ch,
 					...next.channel,
-					id: ch.id
+					id: ch.id,
+					lastProviderFailure: void 0
 				});
 				videos.push(...next.videos.map((video) => ({
 					...video,
@@ -920,8 +963,11 @@ async function runRefreshRemotes(dataRaw) {
 				})));
 			}
 			refreshedIds.push(ch.id);
-		} catch {
-			channels.push(ch);
+		} catch (error) {
+			channels.push({
+				...ch,
+				lastProviderFailure: classifyProviderFailure(ch.kind, error)
+			});
 		}
 	});
 	return {

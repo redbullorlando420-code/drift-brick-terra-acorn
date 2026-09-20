@@ -1,12 +1,11 @@
 import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
-import { L as isAdultImageKind } from "./adult-pull-cache-DYRXt4XQ.mjs";
+import { L as isAdultImageKind, z as isAdultPullKind } from "./adult-pull-cache-DYRXt4XQ.mjs";
 import { A as PackageSearch, D as Play, E as Radio, Et as Bot, G as Lightbulb, I as MessageCircle, J as Images, N as MonitorPlay, S as Search, T as RefreshCw, Tt as Box, X as ImagePlus, b as ShieldCheck, bt as ChevronRight, c as Upload, ft as ExternalLink, gt as Copy, h as Smartphone, j as Music2, k as Pause, mt as Download, n as X, nt as Gamepad2, p as Star, q as Laptop, r as Wifi, s as Users, ut as Eye, v as Shuffle, vt as Clapperboard, w as Rocket, wt as ChartColumn, x as Settings2, xt as ChevronLeft, y as ShoppingBag, z as Maximize2 } from "../_libs/lucide-react.mjs";
-import { A as toggleTagLike, B as saveDurableResume, C as topicEvidence, D as getRating, E as getFeedbackDiagnostics, F as restoreDurablePhotos, G as companionHealth, H as saveFollows, I as saveDurableHistory, J as companionReadPrint, K as companionImportLibraryPack, L as saveDurableLinks, M as measureInteraction, N as linksFromHistoryAndResume, O as importFeedback, P as loadDurablePhotosSync, Q as __exportAll, R as saveDurableMarks, S as isTopicTag, T as exportFeedback, U as companionAckJobs, V as saveDurableShelves, W as companionExportLibraryPack, X as companionSetAutostart, Y as companionSavePrint, Z as companionSteamEpicGames, _ as Button, a as adultStatsToCsv, b as useSourceAssets, c as rankAdultTags, d as Input, f as openTopic, g as useThumbs, h as getThumbDiagnostics, i as getFirstShelfTrace, j as getInteractionBudgetSnapshot, k as tagIsLiked, l as countAdultBooruHosts, m as getRenderBudgetSnapshot, n as getNetworkDeviceId, o as buildAdultStatsSnapshot, p as VideoCard, q as companionListPrints, r as listNetworkDevices, s as exportAdultStats, u as countAdultBySource, v as resumeForVideo, w as topicsForVideo, x as canonicalTopic, y as useLibrary, z as saveDurablePhotos } from "./routes-DYJ7hqfm.mjs";
-import { i as zipSync, n as strToU8, r as unzipSync, t as strFromU8 } from "../_libs/fflate.mjs";
+import { A as getFeedbackDiagnostics, B as companionAckJobs, C as useLibrary, D as topicEvidence, E as isTopicTag, F as measureInteraction, G as companionReadPrint, H as companionHealth, I as linksFromHistoryAndResume, J as companionSteamEpicGames, K as companionSavePrint, L as loadDurablePhotosSync, M as tagIsLiked, N as toggleTagLike, O as topicsForVideo, P as getInteractionBudgetSnapshot, R as restoreDurablePhotos, S as resumeForVideo, T as canonicalTopic, U as companionImportLibraryPack, V as companionExportLibraryPack, W as companionListPrints, Y as __exportAll, _ as getRenderBudgetSnapshot, a as applyLibraryPackFiles, b as Button, c as importLibraryPackZip, d as rankAdultTags, f as countAdultBooruHosts, g as VideoCard, h as openTopic, i as getFirstShelfTrace, j as getRating, k as exportFeedback, l as buildAdultStatsSnapshot, m as Input, n as getNetworkDeviceId, o as buildLibraryPackFiles, p as countAdultBySource, q as companionSetAutostart, r as listNetworkDevices, s as downloadLibraryPackZip, u as exportAdultStats, v as getThumbDiagnostics, w as useSourceAssets, x as isAdultVideo, y as useThumbs, z as saveDurablePhotos } from "./routes-DKwhR_mS.mjs";
 import { a as Bar, c as ResponsiveContainer, i as XAxis, l as Tooltip, n as BarChart, o as Pie, r as YAxis, s as Cell, t as PieChart } from "../_libs/recharts+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/hub-sections-DoDU8n_E.js
+//#region node_modules/.nitro/vite/services/ssr/assets/hub-sections-CaJBgi1S.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function TopicLinks({ explorer = false }) {
@@ -525,612 +524,6 @@ async function fetchCompanionIcons(paths) {
 	} catch {}
 	return out;
 }
-var LIBRARY_PACK_ROOT = "reelcase-library-pack";
-function stamp() {
-	return (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
-}
-function quoteCsv(value) {
-	return `"${String(value ?? "").replaceAll("\"", "\"\"")}"`;
-}
-function rowsToCsv(rows) {
-	return rows.map((row) => row.map(quoteCsv).join(",")).join("\n");
-}
-function parseCsv(text) {
-	const rows = [];
-	let row = [];
-	let cell = "";
-	let inQuotes = false;
-	for (let i = 0; i < text.length; i += 1) {
-		const ch = text[i];
-		if (inQuotes) {
-			if (ch === "\"" && text[i + 1] === "\"") {
-				cell += "\"";
-				i += 1;
-			} else if (ch === "\"") inQuotes = false;
-			else cell += ch;
-			continue;
-		}
-		if (ch === "\"") {
-			inQuotes = true;
-			continue;
-		}
-		if (ch === ",") {
-			row.push(cell);
-			cell = "";
-			continue;
-		}
-		if (ch === "\n") {
-			row.push(cell);
-			rows.push(row);
-			row = [];
-			cell = "";
-			continue;
-		}
-		if (ch === "\r") continue;
-		cell += ch;
-	}
-	if (cell.length || row.length) {
-		row.push(cell);
-		rows.push(row);
-	}
-	return rows.filter((r) => r.some((c) => c.trim().length));
-}
-function normalizeFollowRow(row) {
-	const kindRaw = String(row.kind ?? row.service ?? "").toLowerCase();
-	const kind = kindRaw === "twitch" || kindRaw === "youtube" ? kindRaw : null;
-	const handle = String(row.handle ?? row.channel ?? row.title ?? "").trim().replace(/^@/, "");
-	const id = String(row.id ?? "").trim() || (kind && handle ? `${kind === "twitch" ? "tw" : "yt"}:${handle}` : "");
-	const title = String(row.title ?? row.channel ?? handle).trim() || handle;
-	if (!kind || !handle) return null;
-	return {
-		id,
-		kind,
-		handle,
-		title,
-		...typeof row.channelId === "string" && row.channelId ? { channelId: row.channelId } : {},
-		...typeof row.thumb === "string" && row.thumb ? { thumb: row.thumb } : {}
-	};
-}
-function dedupeFollows(rows) {
-	const seen = /* @__PURE__ */ new Set();
-	return rows.filter((row) => {
-		const key = `${row.kind}:${row.handle.toLowerCase()}`;
-		if (seen.has(key)) return false;
-		seen.add(key);
-		return true;
-	});
-}
-function engagementSummary(input) {
-	const feedback = exportFeedback();
-	const rated = Object.keys(feedback.ratings).filter((id) => (feedback.ratings[id] ?? 0) > 0).length;
-	return {
-		at: (/* @__PURE__ */ new Date()).toISOString(),
-		follows: input.follows.length,
-		youtubeFollows: input.follows.filter((f) => f.kind === "youtube").length,
-		twitchFollows: input.follows.filter((f) => f.kind === "twitch").length,
-		historyEvents: input.history.length,
-		savedLinks: input.links.length,
-		favorites: input.favorites.length,
-		likes: input.likes.length,
-		photoSources: input.photoSources?.length ?? 0,
-		photoLikes: input.photoLikes?.length ?? Object.values(input.photoMeta ?? {}).filter((row) => row.favorite).length,
-		titlesWithViews: Object.keys(input.viewCounts).length,
-		titlesWithCameMarks: Object.keys(input.cameCounts).length,
-		totalCameMarks: Object.values(input.cameCounts).reduce((a, b) => a + b, 0),
-		resumePointers: Object.keys(input.resumeProgress).length,
-		ratedTitles: rated
-	};
-}
-function packReadme() {
-	return `# Reelcase library pack
-
-Local-only backup / fill-in folder for YouTube & Twitch follows, watch history,
-saved video links, continue-watching pointers, favorites/likes, Photos sources & likes, Adult marks,
-ratings & tag hearts, and Adult stats snapshots.
-
-No cloud. Nothing here uploads. Import **merges** by default so unrelated data
-is not wiped.
-
-## Folder layout
-
-\`\`\`
-${LIBRARY_PACK_ROOT}/
-  README.md
-  manifest.json
-  follows/
-    youtube.json
-    twitch.json
-    follows.csv
-  history/
-    history.json
-    history.csv
-  links/
-    links.json
-    links.csv
-  marks/
-    view-counts.json
-    came-counts.json
-    shelves.json
-    ratings.json
-    tag-hearts.json
-  resume/
-    resume.json
-  stats/
-    adult-stats.json
-    adult-stats.csv
-    engagement-summary.json
-\`\`\`
-
-## How to fill offline
-
-1. Copy \`public/import-templates/\` (or an exported zip) to your PC.
-2. Edit the JSON/CSV files in a spreadsheet or text editor.
-3. Zip the folder back to \`${LIBRARY_PACK_ROOT}.zip\` (keep the same paths).
-4. In Reelcase → **Settings** → **Import library pack**, choose the zip (or
-   individual files). Confirm only if you want to replace all follows.
-
-### follows/follows.csv
-Columns: \`kind,handle,title,channelId,id\`
-- \`kind\` must be \`youtube\` or \`twitch\`
-- \`handle\` is the channel handle (no @ required)
-- \`title\` is optional display name
-- \`channelId\` optional provider id
-
-### history/history.csv
-Columns: \`id,at,url,title,position,duration,source,eventId\`
-- \`at\` is epoch milliseconds
-- \`url\` keeps a recoverable link if the catalog card was pruned
-
-### links/links.csv
-Columns: \`id,url,title,kind,savedAt,source\`
-- \`source\` is \`history\`, \`bookmark\`, or \`continue\`
-
-### marks/
-- \`view-counts.json\` / \`came-counts.json\`: \`{ "video-id": 3 }\`
-- \`shelves.json\`: \`{ "favorites": ["id"], "likes": ["id"] }\`
-- \`ratings.json\`: \`{ "ratings": { "id": 5 }, "ratingHistory": { ... } }\`
-- \`tag-hearts.json\`: \`{ "tagLikes": { "fetish-foo": true }, "tagHeartHistory": { ... } }\`
-
-### resume/resume.json
-\`{ "progress": { "id": { "t": 12, "d": 100, "at": 0 } }, "resumeProgress": { "https://...": { "t": 12, "d": 100, "at": 0 } } }\`
-
-### stats/
-Adult stats are snapshots for backup/analysis. Importing stats does not rebuild
-the live Adult catalog; it is informational unless you also merge marks.
-
-## Photos
-
-- \`photos/sources.json\`: \`{ "sources": [{ "id", "name", "kind": "directory"|"files", "photoCount?", "lastCheckedAt?" }] }\`
-- \`photos/likes.json\`: \`{ "likes": ["photo-id"], "meta": { "photo-id": { "favorite", "rating", "tags", "people", "album", "path" } } }\`
-
-Photo media bytes stay on disk; the pack only stores source stubs and like/rating metadata.
-
-## Durable stores (what Import writes)
-
-| Pack file | IndexedDB key (\`activity\`) | localStorage mirror |
-|---|---|---|
-| follows/* | \`follows\` | \`reelcase.follows.v1\` |
-| history/* | \`history\` | \`reelcase.history.v1\` |
-| resume/* | \`resume\` | \`reelcase.resume.v1\` |
-| marks/view+came | \`marks\` | \`reelcase.marks.v1\` |
-| marks/shelves | \`shelves\` | \`reelcase.shelves.v1\` |
-| links/* | \`links\` | \`reelcase.links.v1\` |
-| marks/ratings+hearts | \`feedback\` | \`reelcase.media-feedback.v1\` |
-| photos/* | \`photos\` | \`reelcase.photos.v1\` (+ legacy \`reelcase.photo-meta.v1\`) |
-
-Thumb prune, Adult catalog caps, and prefs QuotaExceeded never clear these keys.
-`;
-}
-function buildLibraryPackFiles(input) {
-	const youtube = input.follows.filter((f) => f.kind === "youtube");
-	const twitch = input.follows.filter((f) => f.kind === "twitch");
-	const feedback = exportFeedback();
-	const adultStats = input.adultStats ?? (input.adultVideos && input.folders && input.tags ? buildAdultStatsSnapshot(input.adultVideos, input.folders, input.tags, {
-		favorites: Object.fromEntries(input.favorites.map((id) => [id, true])),
-		likes: Object.fromEntries(input.likes.map((id) => [id, true])),
-		cameCounts: input.cameCounts,
-		viewCounts: input.viewCounts,
-		ratingOf: (id) => feedback.ratings[id] ?? 0
-	}) : void 0);
-	const files = {
-		[`${LIBRARY_PACK_ROOT}/README.md`]: packReadme(),
-		[`${LIBRARY_PACK_ROOT}/manifest.json`]: JSON.stringify({
-			version: 1,
-			exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
-			note: "Reelcase local library pack. Metadata only — no media files.",
-			counts: engagementSummary(input)
-		}, null, 2),
-		[`${LIBRARY_PACK_ROOT}/follows/youtube.json`]: JSON.stringify({
-			exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
-			channels: youtube
-		}, null, 2),
-		[`${LIBRARY_PACK_ROOT}/follows/twitch.json`]: JSON.stringify({
-			exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
-			channels: twitch
-		}, null, 2),
-		[`${LIBRARY_PACK_ROOT}/follows/follows.csv`]: rowsToCsv([[
-			"kind",
-			"handle",
-			"title",
-			"channelId",
-			"id"
-		], ...input.follows.map((f) => [
-			f.kind,
-			f.handle,
-			f.title,
-			f.channelId ?? "",
-			f.id
-		])]),
-		[`${LIBRARY_PACK_ROOT}/history/history.json`]: JSON.stringify({
-			exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
-			entries: input.history
-		}, null, 2),
-		[`${LIBRARY_PACK_ROOT}/history/history.csv`]: rowsToCsv([[
-			"id",
-			"at",
-			"url",
-			"title",
-			"position",
-			"duration",
-			"source",
-			"eventId"
-		], ...input.history.map((h) => [
-			h.id,
-			h.at,
-			h.url ?? "",
-			h.title ?? "",
-			h.position ?? "",
-			h.duration ?? "",
-			h.source ?? "",
-			h.eventId ?? ""
-		])]),
-		[`${LIBRARY_PACK_ROOT}/links/links.json`]: JSON.stringify({
-			exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
-			links: input.links
-		}, null, 2),
-		[`${LIBRARY_PACK_ROOT}/links/links.csv`]: rowsToCsv([[
-			"id",
-			"url",
-			"title",
-			"kind",
-			"savedAt",
-			"source"
-		], ...input.links.map((l) => [
-			l.id,
-			l.url,
-			l.title ?? "",
-			l.kind ?? "",
-			l.savedAt,
-			l.source
-		])]),
-		[`${LIBRARY_PACK_ROOT}/marks/view-counts.json`]: JSON.stringify(input.viewCounts, null, 2),
-		[`${LIBRARY_PACK_ROOT}/marks/came-counts.json`]: JSON.stringify(input.cameCounts, null, 2),
-		[`${LIBRARY_PACK_ROOT}/marks/shelves.json`]: JSON.stringify({
-			favorites: input.favorites,
-			likes: input.likes
-		}, null, 2),
-		[`${LIBRARY_PACK_ROOT}/marks/ratings.json`]: JSON.stringify({
-			ratings: feedback.ratings,
-			ratingHistory: feedback.ratingHistory,
-			notes: feedback.notes,
-			creatorRatings: feedback.creatorRatings,
-			creatorLikes: feedback.creatorLikes
-		}, null, 2),
-		[`${LIBRARY_PACK_ROOT}/marks/tag-hearts.json`]: JSON.stringify({
-			tagLikes: feedback.tagLikes,
-			tagHeartHistory: feedback.tagHeartHistory
-		}, null, 2),
-		[`${LIBRARY_PACK_ROOT}/resume/resume.json`]: JSON.stringify({
-			progress: input.progress,
-			resumeProgress: input.resumeProgress
-		}, null, 2),
-		[`${LIBRARY_PACK_ROOT}/stats/engagement-summary.json`]: JSON.stringify(engagementSummary(input), null, 2)
-	};
-	if (adultStats) {
-		files[`${LIBRARY_PACK_ROOT}/stats/adult-stats.json`] = JSON.stringify(adultStats, null, 2);
-		files[`${LIBRARY_PACK_ROOT}/stats/adult-stats.csv`] = adultStatsToCsv(adultStats);
-	}
-	return files;
-}
-function downloadLibraryPackZip(input) {
-	const files = buildLibraryPackFiles(input);
-	const zipped = zipSync(Object.fromEntries(Object.entries(files).map(([name, body]) => [name, strToU8(body)])), { level: 6 });
-	const url = URL.createObjectURL(new Blob([zipped.buffer.slice(zipped.byteOffset, zipped.byteOffset + zipped.byteLength)], { type: "application/zip" }));
-	const link = document.createElement("a");
-	link.href = url;
-	link.download = `${LIBRARY_PACK_ROOT}-${stamp()}.zip`;
-	link.click();
-	URL.revokeObjectURL(url);
-}
-function pathKey(name) {
-	return name.replace(/\\/g, "/").replace(/^\/+/, "");
-}
-function fileEndsWith(name, suffix) {
-	return pathKey(name).toLowerCase().endsWith(suffix.toLowerCase());
-}
-function readPackTextFiles(buffer) {
-	const unzipped = unzipSync(new Uint8Array(buffer));
-	const out = {};
-	for (const [name, bytes] of Object.entries(unzipped)) {
-		if (name.endsWith("/")) continue;
-		out[pathKey(name)] = strFromU8(bytes);
-	}
-	return out;
-}
-function collectFollows(files) {
-	const rows = [];
-	for (const [name, body] of Object.entries(files)) {
-		if (fileEndsWith(name, "follows.csv") || /follows\/.*\.csv$/i.test(name)) {
-			const table = parseCsv(body);
-			const header = table[0]?.map((h) => h.trim().toLowerCase()) ?? [];
-			for (const line of table.slice(1)) {
-				const rec = {};
-				header.forEach((key, i) => {
-					rec[key] = line[i];
-				});
-				const normalized = normalizeFollowRow(rec);
-				if (normalized) rows.push(normalized);
-			}
-		}
-		if (/follows\/.*\.json$/i.test(name) || fileEndsWith(name, "youtube.json") || fileEndsWith(name, "twitch.json") || fileEndsWith(name, "channels.json")) try {
-			const parsed = JSON.parse(body);
-			const list = Array.isArray(parsed) ? parsed : Array.isArray(parsed.channels) ? parsed.channels : [];
-			for (const item of list) {
-				if (!item || typeof item !== "object") continue;
-				const normalized = normalizeFollowRow(item);
-				if (normalized) rows.push(normalized);
-			}
-		} catch {}
-	}
-	return dedupeFollows(rows);
-}
-function collectHistory(files) {
-	const rows = [];
-	for (const [name, body] of Object.entries(files)) {
-		if (fileEndsWith(name, "history.json")) try {
-			const parsed = JSON.parse(body);
-			const list = Array.isArray(parsed) ? parsed : parsed.entries ?? [];
-			rows.push(...list);
-		} catch {}
-		if (fileEndsWith(name, "history.csv")) {
-			const table = parseCsv(body);
-			const header = table[0]?.map((h) => h.trim().toLowerCase()) ?? [];
-			for (const line of table.slice(1)) {
-				const rec = {};
-				header.forEach((key, i) => {
-					rec[key] = line[i] ?? "";
-				});
-				const id = rec.id?.trim();
-				const at = Number(rec.at);
-				if (!id || !Number.isFinite(at)) continue;
-				rows.push({
-					id,
-					at,
-					...rec.url ? { url: rec.url } : {},
-					...rec.title ? { title: rec.title } : {},
-					...rec.position ? { position: Number(rec.position) } : {},
-					...rec.duration ? { duration: Number(rec.duration) } : {},
-					...rec.source === "open" || rec.source === "progress" || rec.source === "watch-room" ? { source: rec.source } : {},
-					...rec.eventid ? { eventId: rec.eventid } : {}
-				});
-			}
-		}
-	}
-	return rows;
-}
-function collectLinks(files) {
-	const rows = [];
-	for (const [name, body] of Object.entries(files)) {
-		if (fileEndsWith(name, "links.json")) try {
-			const parsed = JSON.parse(body);
-			const list = Array.isArray(parsed) ? parsed : parsed.links ?? [];
-			rows.push(...list);
-		} catch {}
-		if (fileEndsWith(name, "links.csv")) {
-			const table = parseCsv(body);
-			const header = table[0]?.map((h) => h.trim().toLowerCase()) ?? [];
-			for (const line of table.slice(1)) {
-				const rec = {};
-				header.forEach((key, i) => {
-					rec[key] = line[i] ?? "";
-				});
-				if (!rec.url || !rec.id) continue;
-				const source = rec.source === "bookmark" || rec.source === "continue" ? rec.source : "history";
-				rows.push({
-					id: rec.id,
-					url: rec.url,
-					savedAt: Number(rec.savedat) || Date.now(),
-					source,
-					...rec.title ? { title: rec.title } : {},
-					...rec.kind ? { kind: rec.kind } : {}
-				});
-			}
-		}
-	}
-	return rows;
-}
-function asCountMap(raw) {
-	if (!raw || typeof raw !== "object") return {};
-	const out = {};
-	for (const [id, value] of Object.entries(raw)) if (typeof value === "number" && Number.isFinite(value) && value > 0) out[id] = Math.floor(value);
-	return out;
-}
-function mergeHistory(a, b) {
-	const rows = /* @__PURE__ */ new Map();
-	for (const entry of [...a, ...b]) {
-		if (!entry?.id || !Number.isFinite(entry.at)) continue;
-		const key = entry.eventId ?? `${entry.id}:${entry.at}:${entry.source ?? "open"}`;
-		if (!rows.has(key)) rows.set(key, entry);
-	}
-	return [...rows.values()].sort((left, right) => right.at - left.at);
-}
-function mergeCounts(a, b) {
-	const out = { ...a };
-	for (const [id, value] of Object.entries(b)) out[id] = Math.max(out[id] ?? 0, value);
-	return out;
-}
-/** Apply a zip or loose text map into durable stores via the provided hooks. */
-function applyLibraryPackFiles(files, hooks, mode = "merge") {
-	const warnings = [];
-	const filesRead = Object.keys(files);
-	const incomingFollows = collectFollows(files);
-	const incomingHistory = collectHistory(files);
-	const incomingLinks = collectLinks(files);
-	let followsAdded = 0;
-	if (incomingFollows.length) {
-		const current = hooks.getFollows();
-		const next = mode === "replace-follows" ? dedupeFollows(incomingFollows) : dedupeFollows([...incomingFollows, ...current]);
-		followsAdded = Math.max(0, next.length - current.length);
-		hooks.setFollows(next);
-		saveFollows(next);
-	}
-	let historyMerged = 0;
-	if (incomingHistory.length) {
-		const merged = mergeHistory(hooks.getHistory(), incomingHistory);
-		historyMerged = Math.max(0, merged.length - hooks.getHistory().length);
-		hooks.setHistory(merged);
-		saveDurableHistory(merged);
-	}
-	let linksMerged = 0;
-	if (incomingLinks.length) {
-		const byUrl = /* @__PURE__ */ new Map();
-		for (const link of [...hooks.getLinks(), ...incomingLinks]) byUrl.set(link.url.toLowerCase(), link);
-		const merged = [...byUrl.values()];
-		linksMerged = Math.max(0, merged.length - hooks.getLinks().length);
-		hooks.setLinks(merged);
-		saveDurableLinks(merged);
-	}
-	let marksMerged = 0;
-	let viewCounts = hooks.getViewCounts();
-	let cameCounts = hooks.getCameCounts();
-	for (const [name, body] of Object.entries(files)) {
-		if (fileEndsWith(name, "view-counts.json")) try {
-			viewCounts = mergeCounts(viewCounts, asCountMap(JSON.parse(body)));
-			marksMerged += 1;
-		} catch {
-			warnings.push(`Could not parse ${name}`);
-		}
-		if (fileEndsWith(name, "came-counts.json")) try {
-			cameCounts = mergeCounts(cameCounts, asCountMap(JSON.parse(body)));
-			marksMerged += 1;
-		} catch {
-			warnings.push(`Could not parse ${name}`);
-		}
-	}
-	if (marksMerged) {
-		hooks.setMarks(viewCounts, cameCounts);
-		saveDurableMarks(viewCounts, cameCounts);
-	}
-	let shelvesMerged = 0;
-	for (const [name, body] of Object.entries(files)) {
-		if (!fileEndsWith(name, "shelves.json")) continue;
-		try {
-			const parsed = JSON.parse(body);
-			const favorites = [.../* @__PURE__ */ new Set([...hooks.getFavorites(), ...parsed.favorites ?? []])];
-			const likes = [.../* @__PURE__ */ new Set([...hooks.getLikes(), ...parsed.likes ?? []])];
-			shelvesMerged = favorites.length + likes.length - hooks.getFavorites().length - hooks.getLikes().length;
-			hooks.setShelves(favorites, likes);
-			saveDurableShelves(favorites, likes);
-		} catch {
-			warnings.push(`Could not parse ${name}`);
-		}
-	}
-	let feedbackMerged = false;
-	let feedbackPartial = {};
-	for (const [name, body] of Object.entries(files)) if (fileEndsWith(name, "ratings.json") || fileEndsWith(name, "tag-hearts.json") || fileEndsWith(name, "feedback.json")) try {
-		feedbackPartial = {
-			...feedbackPartial,
-			...JSON.parse(body)
-		};
-		feedbackMerged = true;
-	} catch {
-		warnings.push(`Could not parse ${name}`);
-	}
-	if (feedbackMerged) importFeedback(feedbackPartial);
-	for (const [name, body] of Object.entries(files)) {
-		if (!fileEndsWith(name, "resume.json")) continue;
-		try {
-			const parsed = JSON.parse(body);
-			const progress = {
-				...hooks.getProgress(),
-				...parsed.progress ?? {}
-			};
-			const resumeProgress = {
-				...hooks.getResumeProgress(),
-				...parsed.resumeProgress ?? {}
-			};
-			hooks.setResume(progress, resumeProgress);
-			saveDurableResume(progress, resumeProgress);
-		} catch {
-			warnings.push(`Could not parse ${name}`);
-		}
-	}
-	let photosMerged = 0;
-	let incomingPhotoSources = [];
-	let incomingPhotoMeta = {};
-	let incomingPhotoLikes = [];
-	for (const [name, body] of Object.entries(files)) {
-		if (fileEndsWith(name, "photos/sources.json") || /photos\/sources\.json$/i.test(name)) try {
-			const parsed = JSON.parse(body);
-			incomingPhotoSources = [...incomingPhotoSources, ...parsed.sources ?? []];
-		} catch {
-			warnings.push(`Could not parse ${name}`);
-		}
-		if (fileEndsWith(name, "photos/likes.json") || /photos\/likes\.json$/i.test(name)) try {
-			const parsed = JSON.parse(body);
-			incomingPhotoLikes = [...incomingPhotoLikes, ...parsed.likes ?? []];
-			incomingPhotoMeta = {
-				...incomingPhotoMeta,
-				...parsed.meta ?? {}
-			};
-		} catch {
-			warnings.push(`Could not parse ${name}`);
-		}
-	}
-	if (incomingPhotoSources.length || Object.keys(incomingPhotoMeta).length || incomingPhotoLikes.length) {
-		const current = loadDurablePhotosSync();
-		const byId = new Map([...current?.sources ?? [], ...incomingPhotoSources].map((row) => [row.id, row]));
-		const meta = {
-			...current?.meta ?? {},
-			...incomingPhotoMeta
-		};
-		for (const id of incomingPhotoLikes) meta[id] = {
-			...meta[id] ?? {},
-			favorite: true
-		};
-		const likes = [.../* @__PURE__ */ new Set([
-			...current?.likes ?? [],
-			...incomingPhotoLikes,
-			...Object.entries(meta).filter(([, row]) => row.favorite).map(([id]) => id)
-		])];
-		const sources = [...byId.values()];
-		saveDurablePhotos({
-			sources,
-			meta,
-			likes
-		});
-		hooks.setPhotoSources?.(sources);
-		photosMerged = sources.length + likes.length;
-	}
-	if (!incomingFollows.length && !incomingHistory.length && !incomingLinks.length && !marksMerged && !shelvesMerged && !feedbackMerged && !photosMerged) warnings.push("No recognized pack files were found. Expect follows/, history/, links/, marks/, resume/, or photos/ paths.");
-	return {
-		followsAdded,
-		historyMerged,
-		linksMerged,
-		marksMerged,
-		shelvesMerged,
-		feedbackMerged,
-		photosMerged,
-		filesRead,
-		warnings
-	};
-}
-async function importLibraryPackZip(file, hooks, mode = "merge") {
-	const buffer = await file.arrayBuffer();
-	if (file.name.toLowerCase().endsWith(".zip") || file.type.includes("zip")) return applyLibraryPackFiles(readPackTextFiles(buffer), hooks, mode);
-	const text = strFromU8(new Uint8Array(buffer));
-	return applyLibraryPackFiles({ [file.name || "import.json"]: text }, hooks, mode);
-}
 var FAST_POLL_MS = 400;
 var IDLE_POLL_MS = 2e3;
 var PING_INTERVAL_MS = 2e3;
@@ -1585,7 +978,7 @@ function useP2PRoom(room, name) {
 			onPeersChanged: setPeers,
 			onConnected: () => setJoined(true),
 			onDebug: (event) => setEvents((items) => [event, ...items].slice(0, 16)),
-			onMessage: (from, data) => listeners.current.forEach((fn) => fn(from, data))
+			onMessage: (from, data, channel) => listeners.current.forEach((fn) => fn(from, data, channel))
 		});
 		ref.current = p2p;
 		p2p.join();
@@ -2041,6 +1434,7 @@ var X_ADULT_SEED_HANDLES = [
 	"WaifuMia"
 ].map((h) => h.replace(/^@/, "").toLowerCase()).filter((h) => /^[a-z0-9_]{1,15}$/.test(h));
 var hub_sections_exports = /* @__PURE__ */ __exportAll({
+	AnimeSection: () => AnimeSection,
 	FindPhoneSection: () => FindPhoneSection,
 	GamesSection: () => GamesSection,
 	GenreSection: () => GenreSection,
@@ -2058,7 +1452,7 @@ var hub_sections_exports = /* @__PURE__ */ __exportAll({
 	WatchRoomSection: () => WatchRoomSection
 });
 var PrintModelViewer = (0, import_react.lazy)(async () => {
-	return { default: (await import("./print-model-viewer-v9qvXcdT.mjs")).PrintModelViewer };
+	return { default: (await import("./print-model-viewer-sFxb8Z_J.mjs")).PrintModelViewer };
 });
 var HUB_KEY = "reelcase.hub.v1";
 function gameKind(item) {
@@ -2225,6 +1619,44 @@ function roomShuffleRank(id, seed) {
 	for (let index = 0; index < id.length; index += 1) value = Math.imul(value ^ id.charCodeAt(index), 73244475);
 	return value >>> 0;
 }
+var ROOM_QUEUE_LIMIT = 48;
+function normalizeRoomQueue(value) {
+	if (!Array.isArray(value)) return [];
+	const seen = /* @__PURE__ */ new Set();
+	return value.flatMap((item) => {
+		const id = typeof item === "string" ? item.trim() : "";
+		if (!id || seen.has(id)) return [];
+		seen.add(id);
+		return [id];
+	}).slice(0, ROOM_QUEUE_LIMIT);
+}
+function normalizeLocalRoomQueue(value) {
+	if (!Array.isArray(value)) return [];
+	const seen = /* @__PURE__ */ new Set();
+	return value.flatMap((item) => {
+		if (!item || typeof item !== "object") return [];
+		const share = item;
+		if (typeof share.name !== "string" || typeof share.fingerprint !== "string" || !share.name.trim() || !share.fingerprint.trim() || seen.has(share.fingerprint)) return [];
+		seen.add(share.fingerprint);
+		return [{
+			name: share.name,
+			fingerprint: share.fingerprint,
+			size: Math.max(0, Number(share.size) || 0),
+			modified: Math.max(0, Number(share.modified) || 0)
+		}];
+	}).slice(0, 24);
+}
+function trustedRoomSentAt(value) {
+	const sentAt = typeof value === "number" && Number.isFinite(value) ? value : 0;
+	return sentAt > 0 && sentAt <= Date.now() + 6e4 ? sentAt : 0;
+}
+function roomTimeLabel(at) {
+	return at ? new Date(at).toLocaleTimeString([], {
+		hour: "numeric",
+		minute: "2-digit",
+		second: "2-digit"
+	}) : "waiting";
+}
 function localRoomFingerprint(file) {
 	return `${file.name.normalize("NFKC").toLowerCase()}::${file.size}::${file.lastModified}`;
 }
@@ -2267,6 +1699,312 @@ function GenreSection() {
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TopicLinks, { explorer: true })
 	});
 }
+function animeTitleFormat(video, tags) {
+	const text = `${video.name} ${video.genre ?? ""} ${tags.join(" ")}`.toLowerCase();
+	if (/\b(anime[- ]?(?:movie|film|special)|movie|film|theatrical|ova|ona|special)\b/.test(text)) return "films";
+	return "series";
+}
+function animeSearchMatch(video, tags, value) {
+	const needle = value.trim().toLowerCase();
+	if (!needle) return true;
+	return `${video.name} ${video.genre ?? ""} ${video.description ?? ""} ${tags.join(" ")}`.toLowerCase().includes(needle);
+}
+function AnimeSection() {
+	const videos = useLibrary((s) => s.videos);
+	const folders = useLibrary((s) => s.folders);
+	const tags = useLibrary((s) => s.tags);
+	const progress = useLibrary((s) => s.progress);
+	const resumeProgress = useLibrary((s) => s.resumeProgress);
+	const unavailable = useLibrary((s) => s.unavailable);
+	const setVideoTags = useLibrary((s) => s.setVideoTags);
+	const setSource = useLibrary((s) => s.setSource);
+	const [filter, setFilter] = (0, import_react.useState)("all");
+	const [query, setQuery] = (0, import_react.useState)("");
+	const [tagQuery, setTagQuery] = (0, import_react.useState)("");
+	const [limit, setLimit] = (0, import_react.useState)(36);
+	const catalog = (0, import_react.useMemo)(() => videos.filter((video) => !isAdultVideo(video, folders) && !isAdultPullKind(video.remote?.kind) && !unavailable[video.id]), [
+		folders,
+		unavailable,
+		videos
+	]);
+	const anime = (0, import_react.useMemo)(() => catalog.filter((video) => topicsForVideo(video, tags[video.id] ?? []).includes("anime")).sort((a, b) => b.addedAt - a.addedAt), [catalog, tags]);
+	const continuing = (0, import_react.useMemo)(() => anime.filter((video) => {
+		const mark = resumeForVideo({
+			progress,
+			resumeProgress
+		}, video);
+		return Boolean(mark && mark.d > 0 && mark.t >= 2 && mark.t / mark.d < .992);
+	}).sort((a, b) => {
+		const aMark = resumeForVideo({
+			progress,
+			resumeProgress
+		}, a)?.at ?? 0;
+		return (resumeForVideo({
+			progress,
+			resumeProgress
+		}, b)?.at ?? 0) - aMark;
+	}), [
+		anime,
+		progress,
+		resumeProgress
+	]);
+	const filtered = (0, import_react.useMemo)(() => {
+		return (filter === "continue" ? continuing : filter === "all" ? anime : anime.filter((video) => animeTitleFormat(video, tags[video.id] ?? []) === filter)).filter((video) => animeSearchMatch(video, tags[video.id] ?? [], query));
+	}, [
+		anime,
+		continuing,
+		filter,
+		query,
+		tags
+	]);
+	const tagMatches = (0, import_react.useMemo)(() => {
+		if (!tagQuery.trim()) return [];
+		return catalog.filter((video) => animeSearchMatch(video, tags[video.id] ?? [], tagQuery)).slice(0, 8);
+	}, [
+		catalog,
+		tagQuery,
+		tags
+	]);
+	const localCount = anime.filter((video) => !video.remote).length;
+	const seriesCount = anime.filter((video) => animeTitleFormat(video, tags[video.id] ?? []) === "series").length;
+	const filmCount = anime.length - seriesCount;
+	const markAnime = (video) => {
+		const current = tags[video.id] ?? [];
+		if (!current.includes("anime")) setVideoTags(video.id, [...current, "anime"]);
+	};
+	const filters = [
+		{
+			id: "all",
+			label: "All titles",
+			count: anime.length
+		},
+		{
+			id: "continue",
+			label: "Continue",
+			count: continuing.length
+		},
+		{
+			id: "series",
+			label: "Series",
+			count: seriesCount
+		},
+		{
+			id: "films",
+			label: "Films & specials",
+			count: filmCount
+		}
+	];
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(HubShell, {
+		eyebrow: "Anime library",
+		icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Clapperboard, { className: "size-4" }),
+		title: "Keep anime on its own shelf.",
+		copy: "A fast, local-first view for anime already in your Reelcase catalog. Saved #anime tags and clear title/category evidence keep it separate without copying or proxying third-party playback.",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4",
+				"aria-label": "Anime library summary",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Stat, {
+						label: "Anime titles",
+						value: anime.length
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Stat, {
+						label: "Continue watching",
+						value: continuing.length
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Stat, {
+						label: "Local titles",
+						value: localCount
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Stat, {
+						label: "Films & specials",
+						value: filmCount
+					})
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "mt-6 rounded-lg bg-elevated p-4 shadow-border sm:p-5",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+						children: "Browse your shelf"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-1 max-w-2xl text-sm leading-6 text-muted",
+						children: "Search stays inside Anime. Series and film groupings use your saved tags and straightforward title cues, so nothing is guessed from a streaming site."
+					})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						size: "sm",
+						variant: "secondary",
+						onClick: () => setSource("home"),
+						children: "Add library media"
+					})]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "mt-4 flex flex-col gap-3 lg:flex-row lg:items-center",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+						value: query,
+						onChange: (event) => {
+							setQuery(event.target.value);
+							setLimit(36);
+						},
+						placeholder: "Search your anime titles and tags",
+						"aria-label": "Search anime library",
+						className: "lg:max-w-md"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "flex flex-wrap gap-2",
+						role: "group",
+						"aria-label": "Anime shelf filters",
+						children: filters.map((item) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+							size: "sm",
+							variant: filter === item.id ? "default" : "secondary",
+							onClick: () => {
+								setFilter(item.id);
+								setLimit(36);
+							},
+							children: [
+								item.label,
+								" ",
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									className: "ml-1 font-mono tabular-nums opacity-70",
+									children: item.count
+								})
+							]
+						}, item.id))
+					})]
+				})]
+			}),
+			filtered.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "mt-6",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mb-3 flex flex-wrap items-baseline justify-between gap-2",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+							children: filters.find((item) => item.id === filter)?.label
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+							className: "mt-1 text-sm text-muted",
+							children: [
+								filtered.length.toLocaleString(),
+								" matching title",
+								filtered.length === 1 ? "" : "s"
+							]
+						})] }), query && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							size: "sm",
+							variant: "ghost",
+							onClick: () => setQuery(""),
+							children: "Clear search"
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6",
+						children: filtered.slice(0, limit).map((video, index) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(VideoCard, {
+							video,
+							variant: "grid",
+							index
+						}, video.id))
+					}),
+					limit < filtered.length && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "mt-5 flex justify-center",
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							variant: "secondary",
+							onClick: () => setLimit((value) => value + 36),
+							children: "Show 36 more"
+						})
+					})
+				]
+			}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "mt-6 rounded-lg bg-elevated p-5 shadow-border",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "font-medium text-fg",
+					children: "No matching anime titles yet."
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "mt-1 max-w-2xl text-sm leading-6 text-muted",
+					children: "Add a local or authorized library source, then use the title finder below to give the right cards a saved #anime tag. Existing media, ratings, history, and resume points remain untouched."
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "mt-6 rounded-lg bg-elevated p-4 shadow-border sm:p-5",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+						children: "Tag a title into Anime"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-1 max-w-2xl text-sm leading-6 text-muted",
+						children: "Use this for filenames that do not say “anime” or “manga.” The tag is saved locally, searchable across the app, and included in your existing recovery export."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 flex flex-col gap-3 sm:flex-row",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+							value: tagQuery,
+							onChange: (event) => setTagQuery(event.target.value),
+							placeholder: "Find a title already in your library",
+							"aria-label": "Find a library title to tag as anime",
+							className: "sm:max-w-xl"
+						}), tagQuery && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							size: "sm",
+							variant: "ghost",
+							onClick: () => setTagQuery(""),
+							children: "Clear"
+						})]
+					}),
+					tagQuery && !tagMatches.length && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-3 text-sm text-muted",
+						children: "No catalog titles match that search."
+					}),
+					tagMatches.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "mt-4 space-y-2",
+						children: tagMatches.map((video) => {
+							const alreadyAnime = topicsForVideo(video, tags[video.id] ?? []).includes("anime");
+							return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "flex flex-wrap items-center gap-3 rounded-md bg-bg/45 p-3",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "min-w-0 flex-1",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "truncate text-sm font-medium text-fg",
+										children: video.name
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "mt-0.5 truncate text-xs text-muted",
+										children: [
+											video.genre || video.extension.toUpperCase(),
+											" · ",
+											video.remote?.channelName ?? (video.remote ? video.remote.kind : "Local library")
+										]
+									})]
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+									size: "sm",
+									variant: alreadyAnime ? "secondary" : "default",
+									disabled: alreadyAnime,
+									onClick: () => markAnime(video),
+									children: alreadyAnime ? "In Anime" : "Add #anime"
+								})]
+							}, video.id);
+						})
+					})
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "mt-6 rounded-lg border border-border bg-elevated/70 p-4 shadow-border",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+						children: "Source boundary"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-1 max-w-3xl text-sm leading-6 text-muted",
+						children: "Reelcase does not fetch, download, proxy, or embed video from unverified third-party streaming sites. The Anime desk only organizes media already added to your catalog, and sends external viewing choices through the separate Streaming desk."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						size: "sm",
+						variant: "secondary",
+						className: "mt-3",
+						onClick: () => setSource("streaming"),
+						children: "Open streaming destinations"
+					})
+				]
+			})
+		]
+	});
+}
 function StatsSection() {
 	const videos = useLibrary((s) => s.videos);
 	const folders = useLibrary((s) => s.folders);
@@ -2282,6 +2020,7 @@ function StatsSection() {
 	const [showAllSources, setShowAllSources] = (0, import_react.useState)(false);
 	const [remediationView, setRemediationView] = (0, import_react.useState)("");
 	const [favoriteRevision, setFavoriteRevision] = (0, import_react.useState)(0);
+	const [recoveryNote, setRecoveryNote] = (0, import_react.useState)("");
 	(0, import_react.useEffect)(() => {
 		const refresh = () => setFavoriteRevision((value) => value + 1);
 		window.addEventListener("reelcase:rating-change", refresh);
@@ -2623,6 +2362,43 @@ function StatsSection() {
 			"Review source contents; no files are changed automatically"
 		]] : []
 	], `reelcase-remediation-plan-${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.csv`);
+	const importRecoveryPack = () => {
+		const input = document.createElement("input");
+		input.type = "file";
+		input.accept = ".zip,.json,.csv,application/zip,application/json,text/csv";
+		input.onchange = () => {
+			const file = input.files?.[0];
+			if (!file) return;
+			if (!window.confirm("Merge this Reelcase recovery pack? Current catalog and activity stay intact.")) return;
+			importLibraryPackZip(file, {
+				getFollows: () => useLibrary.getState().follows,
+				setFollows: (follows) => useLibrary.setState({ follows }),
+				getHistory: () => useLibrary.getState().history,
+				setHistory: (history) => useLibrary.setState({ history }),
+				getViewCounts: () => useLibrary.getState().viewCounts,
+				getCameCounts: () => useLibrary.getState().cameCounts,
+				setMarks: (viewCounts, cameCounts) => useLibrary.setState({
+					viewCounts,
+					cameCounts
+				}),
+				getFavorites: () => Object.keys(useLibrary.getState().favorites),
+				getLikes: () => Object.keys(useLibrary.getState().likes),
+				setShelves: (favorites, likes) => useLibrary.setState({
+					favorites: Object.fromEntries(favorites.map((id) => [id, true])),
+					likes: Object.fromEntries(likes.map((id) => [id, true]))
+				}),
+				getProgress: () => useLibrary.getState().progress,
+				getResumeProgress: () => useLibrary.getState().resumeProgress,
+				setResume: (progress, resumeProgress) => useLibrary.setState({
+					progress,
+					resumeProgress
+				}),
+				getLinks: () => linksFromHistoryAndResume(useLibrary.getState().history, useLibrary.getState().resumeProgress),
+				setLinks: () => {}
+			}).then((result) => setRecoveryNote(`Recovered +${result.historyMerged} activity entries · +${result.followsAdded} follows · +${result.linksMerged} saved links${result.feedbackMerged ? " · ratings and hearts merged" : ""}${result.warnings.length ? ` · ${result.warnings[0]}` : ""}.`)).catch((error) => setRecoveryNote(error instanceof Error ? error.message : "Recovery import failed."));
+		};
+		input.click();
+	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(HubShell, {
 		eyebrow: "Library intelligence",
 		icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartColumn, { className: "size-4" }),
@@ -3364,6 +3140,36 @@ function StatsSection() {
 						children: "Exports only local catalog metadata, useful for improving sorting and discovery rules."
 					})
 				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "mt-5 rounded-lg border border-border bg-elevated p-4 shadow-border",
+				"aria-label": "Stats recovery import",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "flex flex-wrap items-end justify-between gap-3",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+							children: "Recovery import"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+							className: "mt-1 text-lg font-medium text-fg",
+							children: "Bring back your exported signals."
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "mt-1 max-w-2xl text-xs leading-5 text-muted",
+							children: "Import a Reelcase library pack to merge exported history, resume marks, favorites, follows, ratings, Adult marks, and saved links. Insight CSV files stay read-only reports; use the pack for recovery."
+						})
+					] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+						size: "sm",
+						variant: "secondary",
+						onClick: importRecoveryPack,
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Upload, { className: "size-4" }), "Import recovery pack"]
+					})]
+				}), recoveryNote && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "mt-3 text-xs text-accent",
+					role: "status",
+					children: recoveryNote
+				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4",
@@ -4782,6 +4588,7 @@ function SettingsSection() {
 											setServiceNote("Import cancelled.");
 											return;
 										}
+										const mode = window.confirm("Also REPLACE all YouTube/Twitch follows with the file?\n\nOK = replace follows\nCancel = merge follows (recommended)") ? "replace-follows" : "merge";
 										importLibraryPackZip(file, {
 											getFollows: () => useLibrary.getState().follows,
 											setFollows: (follows) => useLibrary.setState({ follows }),
@@ -4835,7 +4642,7 @@ function SettingsSection() {
 											}),
 											getLinks: () => linksFromHistoryAndResume(useLibrary.getState().history, useLibrary.getState().resumeProgress),
 											setLinks: () => {}
-										}, window.confirm("Also REPLACE all YouTube/Twitch follows with the file?\n\nOK = replace follows\nCancel = merge follows (recommended)") ? "replace-follows" : "merge").then((result) => {
+										}, mode).then((result) => {
 											setServiceNote(`Pack import · +${result.followsAdded} follows · +${result.historyMerged} history · +${result.linksMerged} links${result.photosMerged ? ` · photos ${result.photosMerged}` : ""}${result.feedbackMerged ? " · ratings/hearts merged" : ""}${result.warnings.length ? ` · ${result.warnings[0]}` : ""}`);
 										}).catch((error) => {
 											setServiceNote(error instanceof Error ? error.message : "Library pack import failed.");
@@ -7921,8 +7728,14 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "watch",
 		title: "Watch room reliability",
-		detail: "LAN diagnostics, timeline reconciliation, queue controls, and guest-access messaging are implemented; real cross-device matrix validation remains in progress.",
+		detail: "Host-authoritative state, stale-command rejection, revisioned queue reconciliation, LAN diagnostics, and guest-access messaging are implemented; real cross-device matrix validation remains in progress.",
 		done: false
+	},
+	{
+		id: "watch-room-state-integrity",
+		title: "Watch Room state integrity",
+		detail: "Done · Watch Room now keeps a compact local session ledger, rejects stale or out-of-order host state, gives queue changes monotonic revisions, and routes guest playback or queue changes through host confirmation.",
+		done: true
 	},
 	{
 		id: "services",
@@ -7970,6 +7783,24 @@ var DEFAULT_MISSIONS = [
 		id: "favorites-memory",
 		title: "Favorites memory",
 		detail: "Preserve favorites, shelves, and resume markers in the local catalog with export and recovery checks across sessions.",
+		done: true
+	},
+	{
+		id: "recovery-import",
+		title: "History & stats recovery imports",
+		detail: "History and Stats now expose a merge-safe Reelcase library-pack import for exported activity, resume marks, follows, shelves, ratings, Adult marks, and saved links.",
+		done: true
+	},
+	{
+		id: "anime-library-desk",
+		title: "Anime library desk",
+		detail: "Done · a separate Anime desk groups saved #anime media into all, continue, series, and films/specials shelves. It can tag existing catalog cards without importing, proxying, or embedding third-party streams.",
+		done: true
+	},
+	{
+		id: "tag-search-upgrade",
+		title: "Tag search everywhere",
+		detail: "Done · the top bar and Adults controls accept human-readable partial tags, match saved creator/source/interest labels, and keep Adult results on the current desk.",
 		done: true
 	},
 	{
@@ -8041,8 +7872,8 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "sprint-03",
 		title: "Ratings streaks",
-		detail: "In progress · choose a local 3, 5, or 10-title weekly goal on Home; distinct ratings drive a streak counter and transparent rewards. Creator and longer-term reward paths remain next.",
-		done: false
+		detail: "Done · choose a local 3, 5, or 10-title weekly goal on Home; distinct ratings drive a local streak counter and transparent rewards.",
+		done: true
 	},
 	{
 		id: "sprint-04",
@@ -8275,8 +8106,8 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "warp-01",
 		title: "First-shelf trace",
-		detail: "In progress · local Diagnostics now records launch-to-first-mounted-shelf time, title, and visible-card count. Cache/index and thumbnail-work splits remain next.",
-		done: false
+		detail: "Done · local Diagnostics records launch-to-first-mounted-shelf time, title, and visible-card count. Deeper cache/index and thumbnail splits remain separate work.",
+		done: true
 	},
 	{
 		id: "warp-02",
@@ -8457,8 +8288,8 @@ var ROADMAP_EXPANSION = [
 	...[
 		[
 			"adult-thumbnail-coverage",
-			"Adult preview coverage",
-			"Continue scoring usable thumbnails above slow or missing artwork across Reddit, Redgifs, RedTube, and other adult providers."
+			"Adult preview & playback coverage",
+			"Done · Redgifs now uses its durable official iframe in both preview and full player, while direct-media providers bind their known media URL instead of opening an empty player. Existing poster fallback scoring remains in place across Reddit, Redgifs, RedTube, and other adult providers."
 		],
 		[
 			"print-file-viewer",
@@ -8479,7 +8310,7 @@ var ROADMAP_EXPANSION = [
 		id,
 		title,
 		detail,
-		done: id === "print-file-viewer"
+		done: id === "print-file-viewer" || id === "adult-thumbnail-coverage"
 	})),
 	...[
 		[
@@ -8701,11 +8532,13 @@ var ROADMAP_EXPANSION = [
 		title,
 		detail,
 		done: [
+			"youtube-upgrade-10",
 			"youtube-upgrade-11",
 			"youtube-upgrade-12",
 			"youtube-upgrade-13",
 			"youtube-upgrade-14",
 			"youtube-upgrade-15",
+			"youtube-upgrade-16",
 			"youtube-upgrade-19"
 		].includes(id)
 	})),
@@ -8826,7 +8659,8 @@ var ROADMAP_EXPANSION = [
 			"twitch-upgrade-12",
 			"twitch-upgrade-13",
 			"twitch-upgrade-14",
-			"twitch-upgrade-15"
+			"twitch-upgrade-15",
+			"twitch-upgrade-18"
 		].includes(id)
 	})),
 	...[
@@ -9984,7 +9818,7 @@ function LocalCatalog({ kind, eyebrow, icon, title, copy, accept, directory, foo
 								let saved = 0;
 								for (const item of items.slice(0, 20)) {
 									if (!item.id || !isViewablePrintName(item.name)) continue;
-									const { loadPrintBlob } = await import("./prints-blobs-mfpCgaek.mjs");
+									const { loadPrintBlob } = await import("./prints-blobs-CAbtHUWT.mjs");
 									const record = await loadPrintBlob(item.id);
 									if (!record?.blob) continue;
 									const buffer = new Uint8Array(await record.blob.arrayBuffer());
@@ -10583,6 +10417,19 @@ function WatchRoomSection() {
 	const [rokuDevices, setRokuDevices] = (0, import_react.useState)([]);
 	const [rokuNotice, setRokuNotice] = (0, import_react.useState)("");
 	const [queue, setQueue] = (0, import_react.useState)([]);
+	const [roomHealth, setRoomHealth] = (0, import_react.useState)({
+		lastPublishedAt: 0,
+		lastHostStateAt: 0,
+		lastQueueAt: 0,
+		lastDriftSeconds: 0,
+		queueRevision: 0,
+		queueRequests: 0,
+		queueAccepted: 0,
+		staleDropped: 0,
+		resyncRequests: 0
+	});
+	const [roomLedger, setRoomLedger] = (0, import_react.useState)([]);
+	const [ledgerRoom, setLedgerRoom] = (0, import_react.useState)("");
 	const [stageSize, setStageSize] = (0, import_react.useState)("compact");
 	const [playback, setPlayback] = (0, import_react.useState)({
 		playing: false,
@@ -10646,7 +10493,68 @@ function WatchRoomSection() {
 	const lastRoomHistoryId = (0, import_react.useRef)("");
 	const lastRoomPosition = (0, import_react.useRef)(0);
 	const applyingRemotePlaybackUntil = (0, import_react.useRef)(0);
-	const p2p = useP2PRoom(activeRoom ?? "", name.trim() || "Guest");
+	const queueRevisionRef = (0, import_react.useRef)(0);
+	const lastAcceptedQueueRevision = (0, import_react.useRef)(0);
+	const lastAcceptedTimelineAt = (0, import_react.useRef)(0);
+	const lastAcceptedRoomStateAt = (0, import_react.useRef)(0);
+	const room = activeRoom ?? "";
+	const p2p = useP2PRoom(room, name.trim() || "Guest");
+	(0, import_react.useEffect)(() => {
+		queueRevisionRef.current = 0;
+		lastAcceptedQueueRevision.current = 0;
+		lastAcceptedTimelineAt.current = 0;
+		lastAcceptedRoomStateAt.current = 0;
+		setRoomHealth({
+			lastPublishedAt: 0,
+			lastHostStateAt: 0,
+			lastQueueAt: 0,
+			lastDriftSeconds: 0,
+			queueRevision: 0,
+			queueRequests: 0,
+			queueAccepted: 0,
+			staleDropped: 0,
+			resyncRequests: 0
+		});
+		if (!room) {
+			setRoomLedger([]);
+			setLedgerRoom("");
+			return;
+		}
+		try {
+			const stored = JSON.parse(localStorage.getItem(`reelcase.watch-room.ledger.v1:${room}`) ?? "[]");
+			setRoomLedger(Array.isArray(stored) ? stored.filter((item) => Boolean(item && typeof item.at === "number" && typeof item.kind === "string" && typeof item.detail === "string")).slice(-32) : []);
+		} catch {
+			setRoomLedger([]);
+		}
+		setLedgerRoom(room);
+	}, [room]);
+	(0, import_react.useEffect)(() => {
+		if (!room || ledgerRoom !== room) return;
+		try {
+			localStorage.setItem(`reelcase.watch-room.ledger.v1:${room}`, JSON.stringify(roomLedger.slice(-32)));
+		} catch {}
+	}, [
+		ledgerRoom,
+		room,
+		roomLedger
+	]);
+	const noteRoom = (0, import_react.useCallback)((kind, detail) => {
+		if (!room) return;
+		setRoomLedger((events) => [...events, {
+			at: Date.now(),
+			kind,
+			detail
+		}].slice(-32));
+	}, [room]);
+	(0, import_react.useEffect)(() => {
+		if (!room || ledgerRoom !== room) return;
+		noteRoom("session", `Opened as ${joinedAsGuest ? "guest" : "host"}; room commands require a fresh host state.`);
+	}, [
+		joinedAsGuest,
+		ledgerRoom,
+		noteRoom,
+		room
+	]);
 	(0, import_react.useEffect)(() => {
 		if (!localVideo) {
 			setLocalVideoUrl("");
@@ -10707,16 +10615,26 @@ function WatchRoomSection() {
 		}
 	}, []);
 	(0, import_react.useEffect)(() => {
-		if (!p2p.peers.length) return;
+		if (joinedAsGuest || !p2p.peers.length) return;
+		const sentAt = Date.now();
+		queueRevisionRef.current = Math.max(queueRevisionRef.current, lastAcceptedQueueRevision.current);
 		p2p.send({
 			type: "room-state",
 			playing: playback.playing,
 			position: playback.position,
 			videoId: sharedVideoId,
 			queue,
-			localQueue
+			localQueue,
+			queueRevision: queueRevisionRef.current,
+			sentAt
 		});
+		setRoomHealth((health) => ({
+			...health,
+			lastPublishedAt: sentAt,
+			queueRevision: queueRevisionRef.current
+		}));
 	}, [
+		joinedAsGuest,
 		localQueue,
 		p2p.peers.length,
 		playback.playing,
@@ -10725,13 +10643,23 @@ function WatchRoomSection() {
 		sharedVideoId
 	]);
 	(0, import_react.useEffect)(() => {
-		if (joinedAsGuest && p2p.joined) p2p.send({ type: "resync-request" });
+		if (!joinedAsGuest || !p2p.joined) return;
+		p2p.send({
+			type: "resync-request",
+			sentAt: Date.now()
+		});
+		setRoomHealth((health) => ({
+			...health,
+			resyncRequests: health.resyncRequests + 1
+		}));
+		noteRoom("request", "Requested the host’s initial state.");
 	}, [
 		joinedAsGuest,
+		noteRoom,
 		p2p.joined,
 		p2p.send
 	]);
-	(0, import_react.useEffect)(() => p2p.onMessage((from, raw) => {
+	(0, import_react.useEffect)(() => p2p.onMessage((from, raw, channel) => {
 		const data = raw;
 		if (data.type === "chat" && data.text) setChat((rows) => [...rows, `${data.name ?? from}: ${data.text}`].slice(-50));
 		if (data.type === "room-pulse") p2p.send({
@@ -10760,10 +10688,37 @@ function WatchRoomSection() {
 			}));
 			setInviteNotice(`${data.name} was matched by a guest. The approved local copy can now follow the room timeline.`);
 		}
+		if (data.type === "sync-request" && !joinedAsGuest) {
+			if (!trustedRoomSentAt(data.sentAt)) {
+				setRoomHealth((health) => ({
+					...health,
+					staleDropped: health.staleDropped + 1
+				}));
+				noteRoom("dropped", "Ignored a guest playback request with an invalid clock.");
+			} else {
+				noteRoom("request", data.seek ? "Accepted a guest timeline seek request." : "Accepted a guest playback request.");
+				sync({
+					playing: Boolean(data.playing),
+					position: clampRoomClock(Number(data.position) || playback.position)
+				}, Boolean(data.seek));
+			}
+		}
 		if (data.type === "sync") {
+			if (!joinedAsGuest) return;
+			const sentAt = trustedRoomSentAt(data.sentAt);
+			if (!sentAt || sentAt + 500 < lastAcceptedTimelineAt.current) {
+				setRoomHealth((health) => ({
+					...health,
+					staleDropped: health.staleDropped + 1
+				}));
+				noteRoom("dropped", "Ignored an expired or out-of-order playback command.");
+				return;
+			}
 			if (data.videoId && sharedVideoId && data.videoId !== sharedVideoId) return;
-			const nextPosition = (Number(data.position) || 0) + (data.playing && data.sentAt ? Math.max(0, (Date.now() - data.sentAt) / 1e3) : 0);
+			const nextPosition = (Number(data.position) || 0) + (data.playing ? Math.max(0, (Date.now() - sentAt) / 1e3) : 0);
 			const safePosition = clampRoomClock(!data.seek && nextPosition < lastRoomPosition.current ? lastRoomPosition.current : nextPosition);
+			const drift = Math.abs(safePosition - playback.position);
+			lastAcceptedTimelineAt.current = sentAt;
 			lastRoomPosition.current = safePosition;
 			applyingRemotePlaybackUntil.current = Date.now() + 900;
 			setTimelineEvidence({
@@ -10775,21 +10730,119 @@ function WatchRoomSection() {
 				playing: Boolean(data.playing),
 				position: safePosition
 			});
+			setRoomHealth((health) => ({
+				...health,
+				lastDriftSeconds: drift,
+				lastHostStateAt: Date.now()
+			}));
+			if (drift >= 1) noteRoom("timeline", `Reconciled ${drift.toFixed(1)}s of playback drift over ${channel}.`);
 		}
-		if (data.type === "video" && data.videoId) setSharedVideoId(data.videoId);
-		if (data.type === "queue" && Array.isArray(data.queue)) setQueue(data.queue);
-		if (data.type === "local-queue" && Array.isArray(data.localQueue)) setLocalQueue(data.localQueue.slice(0, 24));
+		if (data.type === "video" && data.videoId && joinedAsGuest) setSharedVideoId(data.videoId);
+		if (data.type === "video-request" && data.videoId && !joinedAsGuest) {
+			const requested = videos.find((video) => video.id === data.videoId && Boolean(video.src || video.remote?.embedUrl));
+			if (requested) {
+				noteRoom("request", "Accepted a guest video request.");
+				chooseVideo(requested);
+			}
+		}
+		if (data.type === "queue-request" && Array.isArray(data.queue) && !joinedAsGuest) {
+			const requested = normalizeRoomQueue(data.queue).filter((id) => id !== sharedVideoId && videos.some((video) => video.id === id && Boolean(video.src || video.remote?.embedUrl)));
+			const revision = Math.max(queueRevisionRef.current, lastAcceptedQueueRevision.current) + 1;
+			queueRevisionRef.current = revision;
+			lastAcceptedQueueRevision.current = revision;
+			setQueue(requested);
+			p2p.send({
+				type: "queue",
+				queue: requested,
+				queueRevision: revision,
+				sentAt: Date.now()
+			});
+			setRoomHealth((health) => ({
+				...health,
+				queueAccepted: health.queueAccepted + 1,
+				queueRevision: revision,
+				lastQueueAt: Date.now()
+			}));
+			noteRoom("queue", `Accepted a guest queue proposal as revision ${revision}.`);
+		}
+		if (data.type === "queue" && Array.isArray(data.queue) && joinedAsGuest) {
+			const revision = Number.isInteger(data.queueRevision) && Number(data.queueRevision) >= 0 ? Number(data.queueRevision) : 0;
+			if (revision && revision < lastAcceptedQueueRevision.current) {
+				setRoomHealth((health) => ({
+					...health,
+					staleDropped: health.staleDropped + 1
+				}));
+				noteRoom("dropped", `Ignored stale queue revision ${revision}.`);
+			} else {
+				const accepted = normalizeRoomQueue(data.queue);
+				if (revision) lastAcceptedQueueRevision.current = revision;
+				setQueue(accepted);
+				setRoomHealth((health) => ({
+					...health,
+					queueRevision: revision || health.queueRevision,
+					lastQueueAt: Date.now()
+				}));
+			}
+		}
+		if (data.type === "local-queue-request" && Array.isArray(data.localQueue) && !joinedAsGuest) {
+			const requested = normalizeLocalRoomQueue(data.localQueue);
+			setLocalQueue(requested);
+			p2p.send({
+				type: "local-queue",
+				localQueue: requested,
+				sentAt: Date.now()
+			});
+			noteRoom("queue", "Accepted a guest local-handoff queue proposal.");
+		}
+		if (data.type === "local-queue" && Array.isArray(data.localQueue) && joinedAsGuest) setLocalQueue(normalizeLocalRoomQueue(data.localQueue));
+		if (data.type === "local-stage-request" && data.fingerprint && !joinedAsGuest) {
+			const requested = localQueue.find((share) => share.fingerprint === data.fingerprint);
+			if (requested) {
+				noteRoom("request", "Accepted a guest request to stage a local handoff.");
+				stageLocalShare(requested);
+			}
+		}
 		if (data.type === "party-vote" && data.name) setPartyVotes((votes) => ({
 			...votes,
 			[data.name]: Number(data.position) || 0
 		}));
 		if (data.type === "room-state") {
+			if (!joinedAsGuest) return;
+			const sentAt = trustedRoomSentAt(data.sentAt);
+			if (!sentAt || sentAt + 500 < lastAcceptedRoomStateAt.current) {
+				setRoomHealth((health) => ({
+					...health,
+					staleDropped: health.staleDropped + 1
+				}));
+				noteRoom("dropped", "Ignored an expired or out-of-order host state.");
+				return;
+			}
 			const videoChanged = Boolean(data.videoId && data.videoId !== sharedVideoId);
 			if (data.videoId) setSharedVideoId(data.videoId);
-			if (Array.isArray(data.queue)) setQueue(data.queue);
-			if (Array.isArray(data.localQueue)) setLocalQueue(data.localQueue.slice(0, 24));
-			const nextPosition = (Number(data.position) || 0) + (data.playing && data.sentAt ? Math.max(0, (Date.now() - data.sentAt) / 1e3) : 0);
+			if (Array.isArray(data.queue)) {
+				const revision = Number.isInteger(data.queueRevision) && Number(data.queueRevision) >= 0 ? Number(data.queueRevision) : 0;
+				if (!revision || revision >= lastAcceptedQueueRevision.current) {
+					if (revision) lastAcceptedQueueRevision.current = revision;
+					setQueue(normalizeRoomQueue(data.queue));
+					setRoomHealth((health) => ({
+						...health,
+						queueRevision: revision || health.queueRevision,
+						lastQueueAt: Date.now()
+					}));
+				} else {
+					setRoomHealth((health) => ({
+						...health,
+						staleDropped: health.staleDropped + 1
+					}));
+					noteRoom("dropped", `Ignored stale queue revision ${revision} in a room state.`);
+				}
+			}
+			if (Array.isArray(data.localQueue)) setLocalQueue(normalizeLocalRoomQueue(data.localQueue));
+			const nextPosition = (Number(data.position) || 0) + (data.playing ? Math.max(0, (Date.now() - sentAt) / 1e3) : 0);
 			const safePosition = clampRoomClock(!videoChanged && nextPosition + .75 < lastRoomPosition.current ? lastRoomPosition.current : nextPosition);
+			const drift = Math.abs(safePosition - playback.position);
+			lastAcceptedRoomStateAt.current = sentAt;
+			lastAcceptedTimelineAt.current = Math.max(lastAcceptedTimelineAt.current, sentAt);
 			lastRoomPosition.current = safePosition;
 			applyingRemotePlaybackUntil.current = Date.now() + 900;
 			setTimelineEvidence({
@@ -10800,9 +10853,16 @@ function WatchRoomSection() {
 				playing: Boolean(data.playing),
 				position: safePosition
 			});
+			setRoomHealth((health) => ({
+				...health,
+				lastHostStateAt: Date.now(),
+				lastDriftSeconds: drift
+			}));
+			if (drift >= 1) noteRoom("timeline", `Reconciled ${drift.toFixed(1)}s from the authoritative room state.`);
 		}
 		if (data.type === "resync-request" && !joinedAsGuest) {
 			const position = roomVideoRef.current?.currentTime ?? playback.position;
+			const sentAt = Date.now();
 			p2p.send({
 				type: "room-state",
 				playing: !roomVideoRef.current?.paused && playback.playing,
@@ -10810,22 +10870,42 @@ function WatchRoomSection() {
 				videoId: sharedVideoId,
 				queue,
 				localQueue,
-				sentAt: Date.now()
+				queueRevision: queueRevisionRef.current,
+				sentAt
 			}, from);
+			setRoomHealth((health) => ({
+				...health,
+				lastPublishedAt: sentAt
+			}));
+			noteRoom("state", "Sent a targeted state reconciliation to a guest.");
 		}
 	}), [
 		joinedAsGuest,
 		localQueue,
+		noteRoom,
 		p2p.onMessage,
 		p2p.send,
 		playback.playing,
 		playback.position,
 		queue,
 		roomClockCeiling,
-		sharedVideoId
+		sharedVideoId,
+		videos
 	]);
 	const sync = (next, seek = false) => {
 		if (!seek && Date.now() < applyingRemotePlaybackUntil.current) return;
+		if (joinedAsGuest) {
+			p2p.send({
+				type: "sync-request",
+				...next,
+				videoId: sharedVideoId,
+				seek,
+				sentAt: Date.now()
+			});
+			setInviteNotice("Playback change sent to the host. Your theater will reconcile when it is confirmed.");
+			noteRoom("request", seek ? "Requested a host timeline seek." : "Requested a host playback update.");
+			return;
+		}
 		const isYoutube = sharedVideo?.remote?.kind === "youtube";
 		const isTwitch = sharedVideo?.remote?.kind === "twitch";
 		const elapsed = (isYoutube || isTwitch) && playback.playing && youtubePlaybackStartedAt.current ? Math.max(0, (Date.now() - youtubePlaybackStartedAt.current) / 1e3) : 0;
@@ -10850,13 +10930,18 @@ function WatchRoomSection() {
 			recordPlay(sharedVideoId, "watch-room");
 		}
 		if (seek) setRemoteSeekNonce((value) => value + 1);
+		const sentAt = Date.now();
 		p2p.send({
 			type: "sync",
 			...resolved,
 			videoId: sharedVideoId,
 			seek,
-			sentAt: Date.now()
+			sentAt
 		});
+		setRoomHealth((health) => ({
+			...health,
+			lastPublishedAt: sentAt
+		}));
 	};
 	(0, import_react.useEffect)(() => {
 		const provider = sharedVideo?.remote?.kind;
@@ -10894,7 +10979,15 @@ function WatchRoomSection() {
 	]);
 	const resync = () => {
 		if (joinedAsGuest) {
-			p2p.send({ type: "resync-request" });
+			p2p.send({
+				type: "resync-request",
+				sentAt: Date.now()
+			});
+			setRoomHealth((health) => ({
+				...health,
+				resyncRequests: health.resyncRequests + 1
+			}));
+			noteRoom("request", "Requested an explicit host state reconciliation.");
 			setInviteNotice("Requested the host’s current room state.");
 			return;
 		}
@@ -10906,6 +10999,7 @@ function WatchRoomSection() {
 			playing,
 			position
 		});
+		const sentAt = Date.now();
 		p2p.send({
 			type: "room-state",
 			playing,
@@ -10913,8 +11007,14 @@ function WatchRoomSection() {
 			videoId: sharedVideoId,
 			queue,
 			localQueue,
-			sentAt: Date.now()
+			queueRevision: queueRevisionRef.current,
+			sentAt
 		});
+		setRoomHealth((health) => ({
+			...health,
+			lastPublishedAt: sentAt
+		}));
+		noteRoom("state", "Published an explicit room reconciliation.");
 		setInviteNotice("Sent the current video and timeline to every guest.");
 	};
 	const copyInvite = async () => {
@@ -11057,6 +11157,16 @@ function WatchRoomSection() {
 		});
 	};
 	const chooseVideo = (video) => {
+		if (joinedAsGuest) {
+			p2p.send({
+				type: "video-request",
+				videoId: video.id,
+				sentAt: Date.now()
+			});
+			setInviteNotice(`Requested ${video.name} from the host. The room changes only after host confirmation.`);
+			noteRoom("request", "Requested a host video change.");
+			return;
+		}
 		setLocalVideo(null);
 		setLocalShare(null);
 		setLocalShareMatches({});
@@ -11070,32 +11180,85 @@ function WatchRoomSection() {
 		recordPlay(video.id, "watch-room");
 		p2p.send({
 			type: "video",
-			videoId: video.id
+			videoId: video.id,
+			sentAt: Date.now()
 		});
 		p2p.send({
 			type: "sync",
 			playing: false,
 			position: 0,
-			seek: true
+			videoId: video.id,
+			seek: true,
+			sentAt: Date.now()
 		});
+		noteRoom("state", "Host selected a new room video.");
 	};
 	const updateQueue = (next) => {
 		measureInteraction("queue");
-		setQueue(next);
+		const bounded = normalizeRoomQueue(next).filter((id) => id !== sharedVideoId && videos.some((video) => video.id === id && Boolean(video.src || video.remote?.embedUrl)));
+		if (joinedAsGuest) {
+			p2p.send({
+				type: "queue-request",
+				queue: bounded,
+				sentAt: Date.now()
+			});
+			setRoomHealth((health) => ({
+				...health,
+				queueRequests: health.queueRequests + 1
+			}));
+			noteRoom("request", "Sent a queue proposal to the host.");
+			setInviteNotice("Queue proposal sent to the host. It appears here once the host confirms it.");
+			return;
+		}
+		const revision = Math.max(queueRevisionRef.current, lastAcceptedQueueRevision.current) + 1;
+		queueRevisionRef.current = revision;
+		lastAcceptedQueueRevision.current = revision;
+		setQueue(bounded);
 		p2p.send({
 			type: "queue",
-			queue: next
+			queue: bounded,
+			queueRevision: revision,
+			sentAt: Date.now()
 		});
+		setRoomHealth((health) => ({
+			...health,
+			queueAccepted: health.queueAccepted + 1,
+			queueRevision: revision,
+			lastQueueAt: Date.now()
+		}));
+		noteRoom("queue", `Published queue revision ${revision} with ${bounded.length} title${bounded.length === 1 ? "" : "s"}.`);
 	};
 	const updateLocalQueue = (next) => {
-		const bounded = next.slice(0, 24);
+		const bounded = normalizeLocalRoomQueue(next);
+		if (joinedAsGuest) {
+			p2p.send({
+				type: "local-queue-request",
+				localQueue: bounded,
+				sentAt: Date.now()
+			});
+			noteRoom("request", "Sent a local-handoff queue proposal to the host.");
+			setInviteNotice("Local handoff proposal sent to the host. It appears once confirmed.");
+			return;
+		}
 		setLocalQueue(bounded);
 		p2p.send({
 			type: "local-queue",
-			localQueue: bounded
+			localQueue: bounded,
+			sentAt: Date.now()
 		});
+		noteRoom("queue", "Published the approved local-handoff queue.");
 	};
 	const stageLocalShare = (share) => {
+		if (joinedAsGuest) {
+			p2p.send({
+				type: "local-stage-request",
+				fingerprint: share.fingerprint,
+				sentAt: Date.now()
+			});
+			noteRoom("request", "Requested that the host stage a local handoff.");
+			setInviteNotice("Requested that the host stage this local handoff.");
+			return;
+		}
 		if (!localShare || localShare.fingerprint !== share.fingerprint || !localVideo) {
 			setPendingLocalShare(share);
 			setInviteNotice(`Choose ${share.name} on this device before staging it. File contents are never transferred.`);
@@ -11129,6 +11292,10 @@ function WatchRoomSection() {
 			size: file.size,
 			modified: file.lastModified
 		};
+		if (joinedAsGuest && !pendingLocalShare) {
+			setInviteNotice("Wait for the host’s local-share request before matching a permitted file on this device.");
+			return;
+		}
 		if (joinedAsGuest && pendingLocalShare && pendingLocalShare.fingerprint !== share.fingerprint) {
 			setInviteNotice(`That file does not match ${pendingLocalShare.name}. Select the same permitted copy (name, size, and modified time must agree).`);
 			return;
@@ -11169,9 +11336,13 @@ function WatchRoomSection() {
 	const queueImmediately = (video) => {
 		if (video.id === sharedVideoId) return;
 		updateQueue([video.id, ...queue.filter((id) => id !== video.id)]);
-		setInviteNotice(`${video.name} will play next for everyone in the room.`);
+		if (!joinedAsGuest) setInviteNotice(`${video.name} will play next for everyone in the room.`);
 	};
 	const playNext = () => {
+		if (joinedAsGuest) {
+			setInviteNotice("Only the host advances the shared player. You can still propose a different queue order.");
+			return;
+		}
 		const nextId = queue[0];
 		if (!nextId) return;
 		const next = videos.find((video) => video.id === nextId);
@@ -11179,6 +11350,10 @@ function WatchRoomSection() {
 		if (next) chooseVideo(next);
 	};
 	const playQueuedNow = (id) => {
+		if (joinedAsGuest) {
+			setInviteNotice("Only the host can start a queued title. Propose a new order instead.");
+			return;
+		}
 		const video = videos.find((item) => item.id === id);
 		if (!video) return;
 		updateQueue(queue.filter((item) => item !== id));
@@ -11396,14 +11571,17 @@ function WatchRoomSection() {
 							onClick: () => void navigator.clipboard?.writeText(JSON.stringify({
 								room: activeRoom,
 								invitation: `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(activeRoom)}&theater=1`,
+								role: joinedAsGuest ? "guest" : "host",
 								self: p2p.selfId,
 								signaling: p2p.joined,
 								peers: p2p.peers,
 								transportTest: pulseStatus,
+								reliability: roomHealth,
+								ledger: roomLedger,
 								events: p2p.events,
 								capturedAt: (/* @__PURE__ */ new Date()).toISOString()
-							}, null, 2)).then(() => setInviteNotice("Connection diagnostic copied."), () => setInviteNotice("Could not copy the diagnostic.")),
-							children: "Copy connection diagnostic"
+							}, null, 2)).then(() => setInviteNotice("Connection and reconciliation diagnostic copied."), () => setInviteNotice("Could not copy the diagnostic.")),
+							children: "Copy room diagnostic"
 						})]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -11496,6 +11674,104 @@ function WatchRoomSection() {
 							"."
 						]
 					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+						className: "mt-4 rounded-md border border-border bg-bg/45 p-3",
+						"aria-label": "Room reliability",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "flex flex-wrap items-center justify-between gap-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+									children: "Room reliability"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-1 text-xs text-muted",
+									children: joinedAsGuest ? "Guest commands are requests; the host publishes the canonical state." : "This device is the host and publishes the canonical state."
+								})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									className: "rounded-full bg-accent/15 px-2 py-1 text-xs text-accent",
+									children: p2p.peers.filter((peer) => peer.connectionState === "connected").length ? "direct path available" : "relay/signaling only"
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "mt-3 grid gap-2 text-xs sm:grid-cols-2 xl:grid-cols-4",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "rounded-sm bg-elevated p-2",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "block text-muted",
+											children: joinedAsGuest ? "Last host state" : "Last publish"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", {
+											className: "mt-1 block text-fg",
+											children: roomTimeLabel(joinedAsGuest ? roomHealth.lastHostStateAt : roomHealth.lastPublishedAt)
+										})]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "rounded-sm bg-elevated p-2",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "block text-muted",
+											children: "Queue revision"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("strong", {
+											className: "mt-1 block text-fg",
+											children: [
+												"r",
+												roomHealth.queueRevision,
+												" · ",
+												queue.length,
+												" title",
+												queue.length === 1 ? "" : "s"
+											]
+										})]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "rounded-sm bg-elevated p-2",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "block text-muted",
+											children: "Last correction"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", {
+											className: "mt-1 block text-fg",
+											children: roomHealth.lastDriftSeconds ? `${roomHealth.lastDriftSeconds.toFixed(1)}s` : "none needed"
+										})]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "rounded-sm bg-elevated p-2",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "block text-muted",
+											children: "Safety checks"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("strong", {
+											className: "mt-1 block text-fg",
+											children: [
+												roomHealth.staleDropped,
+												" stale dropped · ",
+												roomHealth.resyncRequests,
+												" resync"
+											]
+										})]
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
+								className: "mt-3 rounded-sm bg-elevated p-2 text-xs text-muted",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("summary", {
+									className: "cursor-pointer font-medium text-fg",
+									children: [
+										"Session ledger · ",
+										roomLedger.length,
+										" local event",
+										roomLedger.length === 1 ? "" : "s"
+									]
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "mt-2 max-h-32 space-y-1 overflow-y-auto",
+									children: roomLedger.length ? roomLedger.slice().reverse().map((event, index) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", { children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "font-mono text-subtle",
+											children: roomTimeLabel(event.at)
+										}),
+										" · ",
+										event.detail
+									] }, `${event.at}-${index}`)) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: "No room decisions recorded yet." })
+								})]
+							})
+						]
+					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "mt-5 flex flex-wrap gap-2",
 						children: [
@@ -11531,7 +11807,7 @@ function WatchRoomSection() {
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 								variant: "ghost",
 								size: "sm",
-								disabled: !queue.length,
+								disabled: !queue.length || joinedAsGuest,
 								onClick: playNext,
 								children: ["Play next ", queue.length ? `(${queue.length})` : ""]
 							})
@@ -11691,7 +11967,7 @@ function WatchRoomSection() {
 									children: "Up next queue"
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 									className: "text-xs text-muted",
-									children: "Hosts can order the room playlist"
+									children: joinedAsGuest ? "Propose changes; host confirms the shared order" : "Host-controlled shared order"
 								})]
 							}),
 							queue.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
@@ -11732,13 +12008,14 @@ function WatchRoomSection() {
 												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 													size: "sm",
 													variant: "secondary",
+													disabled: joinedAsGuest,
 													onClick: () => playQueuedNow(id),
 													children: "Play now"
 												}),
 												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 													size: "sm",
 													variant: "ghost",
-													disabled: index === 0,
+													disabled: joinedAsGuest || index === 0,
 													onClick: () => {
 														const next = [...queue];
 														[next[index - 1], next[index]] = [next[index], next[index - 1]];
@@ -11749,6 +12026,7 @@ function WatchRoomSection() {
 												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 													size: "sm",
 													variant: "ghost",
+													disabled: joinedAsGuest,
 													onClick: () => updateQueue(queue.filter((item) => item !== id)),
 													children: "Remove"
 												})
