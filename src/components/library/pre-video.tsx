@@ -41,6 +41,7 @@ export function PreVideo() {
   const favorite = useLibrary((s) => (previewId ? Boolean(s.favorites[previewId]) : false));
   const liked = useLibrary((s) => (previewId ? Boolean(s.likes[previewId]) : false));
   const tags = useLibrary((s) => (previewId ? (s.tags[previewId] ?? EMPTY_TAGS) : EMPTY_TAGS));
+  const metadataProvenance = useLibrary((s) => (previewId ? s.metadataProvenance[previewId] : undefined));
   const category = useLibrary((s) => (previewId ? (s.categories[previewId] ?? "") : ""));
   const [editing, setEditing] = useState(false);
   const [tagText, setTagText] = useState("");
@@ -97,6 +98,10 @@ export function PreVideo() {
   // Provider pulls can retain hundreds of useful description words. Render a
   // generous first window so an expanded archive never makes the preview slow.
   const visibleTags = allVisibleTags.slice(0, 80);
+  const tagsLocked = Boolean(metadataProvenance?.lockedFields?.includes("tags"));
+  const tagSourceSummary = [...new Set(Object.values(metadataProvenance?.tags ?? {}))]
+    .map((source) => source === "manual" ? "your edit" : source === "local-name" ? "local filename" : source === "companion-inspection" ? "Companion inspection" : source === "local-vision" ? "local vision" : source === "legacy" ? "saved library" : source.replace(/^provider:/, "provider · "))
+    .join(", ");
   const creatorRating = creator ? getCreatorRating(creator) : 0;
   const creatorLiked = creator ? creatorIsLiked(creator) : false;
   useEffect(() => { if (!previewId) return; setRating(getRating(previewId)); }, [previewId]);
@@ -359,6 +364,7 @@ export function PreVideo() {
                 <span className="text-xs text-subtle">No keywords yet</span>
               )}
             </div>{allVisibleTags.length > visibleTags.length && <p className="mt-2 text-xs text-muted">Showing {visibleTags.length} of {allVisibleTags.length} saved provider tags. Search the source to use the rest.</p>}
+            <p className="mt-2 text-xs text-muted">{tagsLocked ? "Manual tags are locked; provider refreshes cannot replace them." : tagSourceSummary ? `Tag sources: ${tagSourceSummary}.` : "Tags are waiting for a local or provider metadata source."}</p>
             {editing && (
               <div className="mt-5 space-y-3 border-t border-border pt-4">
                 <label className="block text-xs text-muted">
@@ -390,6 +396,7 @@ export function PreVideo() {
                 >
                   Save metadata
                 </Button>
+                <p className="text-xs leading-5 text-muted">Saving tags locks this field to your choices. Provider refreshes can still update the card itself, but they cannot replace these tags or your category.</p>
               </div>
             )}
             <div className="mt-5 border-t border-border pt-4">

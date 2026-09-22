@@ -7,7 +7,8 @@ import { useLibrary } from "@/lib/videos/store";
 import { useThumbs } from "@/lib/videos/thumbs";
 import { adultThumbCandidatesForVideo } from "@/lib/videos/adult-thumbs";
 import { markFirstShelf } from "@/lib/first-shelf-trace";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { railKeyboardTarget, railLimitForTarget, railWindow, railWindowStartForTarget } from "@/lib/virtual-rail";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
 const RAIL_SIZES = [8, 16, 32, 48];
 const GRID_SIZES = [24, 48, 96, 144];
@@ -94,6 +95,7 @@ export function TitleRail({
   const shelfRef = useRef<HTMLElement>(null);
   const railRef = useRef<HTMLDivElement | null>(null);
   const scrollLeft = useRef(0);
+  const pendingFocus = useRef<number | undefined>(undefined);
   const attachRail = useCallback((rail: HTMLDivElement | null) => { railRef.current = rail; if (rail) rail.scrollLeft = scrollLeft.current; }, []);
   const leaveTimer = useRef<number | undefined>(undefined);
   const [nearViewport, setNearViewport] = useState(false);
@@ -101,8 +103,10 @@ export function TitleRail({
   const [shelfHeight, setShelfHeight] = useState<number>();
   const [railWidth, setRailWidth] = useState(0);
   const [windowStart, setWindowStart] = useState(0);
+  const [focusRequest, setFocusRequest] = useState(0);
   // Approximate card stride (width + gap). Used only for horizontal windowing.
   const cardStride = variant === "poster" ? 148 : 236;
+  const overscan = 1;
   useEffect(() => {
     const shelf = shelfRef.current;
     if (!shelf || !videos.length) return;
@@ -147,14 +151,22 @@ export function TitleRail({
     window.addEventListener("reelcase:render-settings", sync);
     return () => window.removeEventListener("reelcase:render-settings", sync);
   }, []);
+  useEffect(() => {
+    const target = pendingFocus.current;
+    const rail = railRef.current;
+    if (target === undefined || !rail || !nearViewport) return;
+    const trigger = rail.querySelector<HTMLButtonElement>(`[data-rail-index="${target}"] [data-video-card-open]`);
+    if (!trigger) return;
+    pendingFocus.current = undefined;
+    const centeredLeft = Math.max(0, target * cardStride - Math.max(0, (rail.clientWidth - cardStride) / 2));
+    scrollLeft.current = centeredLeft;
+    rail.scrollLeft = centeredLeft;
+    trigger.focus({ preventScroll: true });
+  }, [cardStride, focusRequest, limit, nearViewport, railWidth, windowStart]);
   useEffect(() => { if (nearViewport && videos.length) markFirstShelf(title, Math.min(videos.length, limit)); }, [nearViewport, limit, title, videos.length]);
   if (!videos.length) return null;
   const shown = videos.slice(0, limit);
-  const overscan = 1;
-  const visibleSlots = Math.max(3, Math.ceil((railWidth || 320) / cardStride) + overscan * 2);
-  const maxStart = Math.max(0, shown.length - visibleSlots);
-  const start = Math.max(0, Math.min(windowStart, maxStart));
-  const end = Math.min(shown.length, start + visibleSlots);
+  const { start, end, visibleSlots } = railWindow(shown.length, railWidth || 320, cardStride, windowStart, overscan);
   const windowed = shown.slice(start, end);
   const leadPx = start * cardStride;
   const trailCount = Math.max(0, shown.length - end);
@@ -168,17 +180,37 @@ export function TitleRail({
       setLimit((value) => Math.min(videos.length, value + 16));
     }
   };
+  const focusRailIndex = (target: number) => {
+    if (target < 0 || target >= videos.length) return;
+    pendingFocus.current = target;
+    setFocusRequest((value) => value + 1);
+    setLimit((value) => railLimitForTarget(value, target, videos.length));
+    setWindowStart(railWindowStartForTarget(target, Math.max(shown.length, target + 1), visibleSlots, overscan));
+  };
+  const onRailKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    const trigger = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("[data-video-card-open]") : null;
+    const card = trigger?.closest<HTMLElement>("[data-rail-index]");
+    const index = Number(card?.dataset.railIndex);
+    if (!Number.isInteger(index)) return;
+    event.preventDefault();
+    const target = railKeyboardTarget(event.key, index, videos.length);
+    if (target !== null) focusRailIndex(target);
+  };
   return (
     <section ref={shelfRef} className="media-shelf mb-8 min-w-0" style={!nearViewport ? { minHeight: shelfHeight ?? (variant === "poster" ? 320 : 250) } : undefined}>
       <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0 flex-1 basis-48">{onTitleClick ? <button type="button" onClick={onTitleClick} className="block min-w-0 truncate font-display text-xl text-fg hover:text-accent sm:text-2xl">{title} <span className="text-sm text-muted">Open source →</span></button> : <h2 className="min-w-0 truncate font-display text-xl text-fg sm:text-2xl">{title}</h2>}{reason && <p className="mt-1 truncate text-xs text-muted">{reason}</p>}</div>
         <div className="flex shrink-0 items-center gap-1">{videos.length > limit && !collapsed && <Button size="sm" variant="ghost" className="text-xs" onClick={() => setLimit((value) => Math.min(videos.length, value + 16))}>Show 16 more · {videos.length - limit}</Button>}<Button size="sm" variant="ghost" aria-expanded={!collapsed} aria-label={`${collapsed ? "Expand" : "Minimize"} ${title}`} onClick={() => setCollapsed((value) => !value)}>{collapsed ? <ChevronRight className="size-4"/> : <ChevronDown className="size-4"/>}{collapsed ? "Expand" : "Minimize"}</Button></div>
       </div>
-      {nearViewport && !collapsed && <div ref={attachRail} onScroll={(event) => onRailScroll(event.currentTarget)} className="rail-scroll flex gap-3 overflow-x-auto pb-3 sm:gap-4">
+      {nearViewport && !collapsed && <div ref={attachRail} onScroll={(event) => onRailScroll(event.currentTarget)} onKeyDown={onRailKeyDown} className="rail-scroll flex gap-3 overflow-x-auto pb-3 sm:gap-4">
         {leadPx > 0 && <div aria-hidden="true" className="shrink-0" style={{ width: leadPx, height: 1 }} />}
+        {start > 0 && <button type="button" className="sr-only focus:not-sr-only focus:rounded-sm focus:bg-elevated focus:px-3 focus:py-2 focus:text-sm focus:text-fg" onFocus={() => focusRailIndex(start - 1)}>Previous {title} title</button>}
         {windowed.map((video, i) => (
           <div
             key={video.id}
+            data-rail-index={start + i}
             className={cn(variant === "poster" && "w-32 shrink-0 sm:w-36 md:w-40", variant === "rail" && "shrink-0")}
           >
             <VideoCard
@@ -189,6 +221,7 @@ export function TitleRail({
             />
           </div>
         ))}
+        {end < videos.length && <button type="button" className="sr-only focus:not-sr-only focus:rounded-sm focus:bg-elevated focus:px-3 focus:py-2 focus:text-sm focus:text-fg" onFocus={() => focusRailIndex(end)}>Next {title} title</button>}
         {trailPx > 0 && <div aria-hidden="true" className="shrink-0" style={{ width: trailPx, height: 1 }} />}
         {Array.from({ length: endCaps }, (_, index) => (
           <div key={`end-cap-${index}`} aria-hidden="true" className={cn("shrink-0 rounded-md border border-border/50 bg-elevated/35", variant === "poster" ? "aspect-poster w-32 sm:w-36 md:w-40" : "h-36 w-56")} />

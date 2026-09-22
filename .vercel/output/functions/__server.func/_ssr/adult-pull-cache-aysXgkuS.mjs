@@ -1,4 +1,4 @@
-//#region node_modules/.nitro/vite/services/ssr/assets/adult-pull-cache-CzRQcKeX.js
+//#region node_modules/.nitro/vite/services/ssr/assets/adult-pull-cache-aysXgkuS.js
 var ADULT_EXTRA_MILESTONES = [
 	{
 		name: "CooMeet",
@@ -3661,6 +3661,10 @@ function redtubeStarNames(stars) {
 var LIBRARY_LIMITS = {
 	remoteMetadataTagsPerTitle: 32,
 	descriptionKeywordTagsPerTitle: 24,
+	/** One explicit metadata-tail pass; it must stay below a first-screen render window. */
+	metadataTailBatchSize: 48,
+	/** Exact-ID creator repair uses the same small explicit work window. */
+	creatorCoverageRepairBatchSize: 48,
 	remoteRefreshChannelBatch: 24,
 	twitchChannelsReservedPerRefresh: 8,
 	youtubeFocusedVideosPerChannel: 1e5,

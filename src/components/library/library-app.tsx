@@ -25,8 +25,21 @@ import { Player } from "./player";
 import { PreVideo } from "./pre-video";
 import { AiGuide } from "./ai-guide";
 import { ConnectPanel } from "./connect-panel";
-const loadHub = () => import("./hub-sections");
-const hubSection = <T extends keyof Awaited<ReturnType<typeof loadHub>>>(name: T) => lazy(async () => ({ default: (await loadHub())[name] as ComponentType }));
+type HubModule = typeof import("./hub-sections");
+
+// `lazy()` and idle warmup share this promise. A successful prefetch therefore
+// becomes the exact module transition used when the next Hub desk is opened.
+let hubModulePromise: Promise<HubModule> | undefined;
+const loadHub = (): Promise<HubModule> => {
+  if (!hubModulePromise) {
+    hubModulePromise = import("./hub-sections").catch((error) => {
+      hubModulePromise = undefined;
+      throw error;
+    });
+  }
+  return hubModulePromise;
+};
+const hubSection = <T extends keyof HubModule>(name: T) => lazy(async () => ({ default: (await loadHub())[name] as ComponentType }));
 const AnimeSection = hubSection("AnimeSection");
 const GamesSection = hubSection("GamesSection");
 const FindPhoneSection = hubSection("FindPhoneSection");
@@ -70,6 +83,9 @@ import { importLibraryPackZip } from "@/lib/videos/library-pack";
 import { linksFromHistoryAndResume } from "@/lib/videos/persist";
 import { creatorIsLiked, getCreatorRating, getHeartedTagHistory, getRating, tagHasHeartHistory, tagIsLiked } from "@/lib/media-feedback";
 import { announceNetworkPresence } from "@/lib/network-presence";
+import { nextLikelyHub, shouldWarmHubRoute } from "@/lib/warm-route-cache";
+import { scheduleBackgroundWork } from "@/lib/interaction-budget";
+import { hasFreshTwitchLiveState } from "@/lib/videos/live-desk";
 
 const EMPTY_ADULT_VIDEOS: LibraryVideo[] = [];
 
@@ -150,12 +166,6 @@ function isOfflineChannelCard(video: { id?: string; path?: string; extension?: s
     || video.extension === "live"
     || /\/(?:live|channel)$/i.test(video.path ?? "")
     || /:(?:live|channel)$/i.test(video.id ?? "");
-}
-
-function hasFreshTwitchLiveState(video: LibraryVideo, now: number) {
-  if (video.remote?.kind !== "twitch" || !video.remote.live) return true;
-  const observedAt = video.remote.observedAt ?? 0;
-  return observedAt > 0 && observedAt <= now && now - observedAt <= LIBRARY_LIMITS.twitchLiveStateFreshnessMs;
 }
 
 function isFreshRemoteUpload(video: { addedAt: number }) {
@@ -297,7 +307,7 @@ export function LibraryApp() {
     .sort((a, b) => b.addedAt - a.addedAt), [homeRecommendationsReady, sourceId, twitchVideos, youtubeVideos]);
   const liveVideos = useLibrary(useShallow(selectLive));
   const currentLiveVideos = useMemo(
-    () => liveVideos.filter((video) => hasFreshTwitchLiveState(video, liveStateClock)),
+    () => liveVideos.filter((video) => hasFreshTwitchLiveState(video, Math.max(Date.now(), liveStateClock), LIBRARY_LIMITS.twitchLiveStateFreshnessMs)),
     [liveStateClock, liveVideos],
   );
   const adultContinue = useLibrary(useShallow((s) => selectContinue(s, true)));
@@ -892,6 +902,74 @@ export function LibraryApp() {
     return () => { cancelled = true; window.cancelAnimationFrame(frame); };
   }, [sourceId, videos.length]);
   useEffect(() => {
+    const target = nextLikelyHub(sourceId);
+    if (!hydrated || !target) return;
+
+    let cancelled = false;
+    let frame: number | undefined;
+    let idle: number | undefined;
+    let idleCallback = false;
+    type RouteNavigator = Navigator & {
+      connection?: { saveData?: boolean; effectiveType?: string };
+      deviceMemory?: number;
+      scheduling?: { isInputPending?: () => boolean };
+    };
+
+    const clearScheduled = () => {
+      if (typeof frame === "number") window.cancelAnimationFrame(frame);
+      if (typeof idle === "number") {
+        if (idleCallback) window.cancelIdleCallback(idle);
+        else window.clearTimeout(idle);
+      }
+      frame = undefined;
+      idle = undefined;
+    };
+    const warm = () => {
+      idle = undefined;
+      if (cancelled) return;
+      const nav = navigator as RouteNavigator;
+      if (!shouldWarmHubRoute({
+        visible: document.visibilityState === "visible",
+        saveData: nav.connection?.saveData,
+        effectiveType: nav.connection?.effectiveType,
+        deviceMemory: nav.deviceMemory,
+        inputPending: nav.scheduling?.isInputPending?.(),
+      })) return;
+      // Hub desks share one module today, and this request remains
+      // deduplicated if they split into per-desk boundaries later.
+      void loadHub().catch(() => { /* A later navigation retries a failed import. */ });
+    };
+    const schedule = () => {
+      clearScheduled();
+      if (cancelled || document.visibilityState !== "visible") return;
+      // Yield a paint frame before asking for idle time. The current desk gets
+      // first paint and input handling before this low-priority code request.
+      frame = window.requestAnimationFrame(() => {
+        frame = undefined;
+        if (cancelled || document.visibilityState !== "visible") return;
+        if (typeof window.requestIdleCallback === "function") {
+          idleCallback = true;
+          idle = window.requestIdleCallback(warm, { timeout: 4_000 });
+        } else {
+          idleCallback = false;
+          idle = window.setTimeout(warm, 450);
+        }
+      });
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") schedule();
+      else clearScheduled();
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    schedule();
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      clearScheduled();
+    };
+  }, [hydrated, sourceId]);
+  useEffect(() => {
     // Keep the star/like response immediate.  Ranking every large shelf is
     // useful work, but it belongs in a transition rather than on the button's
     // input frame.
@@ -911,13 +989,7 @@ export function LibraryApp() {
     // path built it on the first typed character, which was especially visible
     // with several thousand remote cards.
     const build = () => { searchWorkerIndex.sync(catalogVideos, tags, categories); };
-    const scheduleIdle = window.requestIdleCallback;
-    if (typeof scheduleIdle === "function") {
-      const id = scheduleIdle(build, { timeout: 2_000 });
-      return () => window.cancelIdleCallback(id);
-    }
-    const id = window.setTimeout(build, 350);
-    return () => window.clearTimeout(id);
+    return scheduleBackgroundWork(build, { timeoutMs: 2_000, fallbackDelayMs: 350 });
   }, [catalogVideos, categories, hydrated, tags]);
   useEffect(() => {
     const needle = query.trim().toLowerCase();
@@ -1376,7 +1448,7 @@ export function LibraryApp() {
                 </>
               )}
 
-              {sourceId === "live" && browsing && <LiveDesk videos={currentLiveVideos} adultLiveVideos={adultRemoteVideos.filter((video) => adultKind(video) === "live").slice(0, 64)} />}
+              {sourceId === "live" && browsing && <LiveDesk videos={currentLiveVideos} staleTwitchCount={liveVideos.filter(video => video.remote?.kind === "twitch").length - currentLiveVideos.filter(video => video.remote?.kind === "twitch").length} adultLiveVideos={adultRemoteVideos.filter((video) => adultKind(video) === "live")} />}
 
               {sourceId === "movies" && browsing && (
                 <>
@@ -1862,6 +1934,7 @@ export function LibraryApp() {
         className="sr-only"
         tabIndex={-1}
         aria-hidden="true"
+        suppressHydrationWarning
         {...({ webkitdirectory: "", directory: "" } as Record<string, string>)}
         onChange={(e) => {
           const files = e.target.files;
@@ -1883,6 +1956,7 @@ export function LibraryApp() {
         className="sr-only"
         tabIndex={-1}
         aria-hidden="true"
+        suppressHydrationWarning
         onChange={(e) => {
           const files = e.target.files;
           if (files?.length) {

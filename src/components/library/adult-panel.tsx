@@ -33,6 +33,7 @@ import { ADULT_SOURCE_FILTERS, countAdultBySource } from "@/lib/videos/adult-fil
 import { ADULT_PROVIDER_ADAPTERS } from "@/lib/videos/adult-provider-adapters";
 import { rankAdultTags } from "@/lib/videos/adult-rank";
 import { selectAdultRemote, useLibrary } from "@/lib/videos/store";
+import { scheduleBackgroundWork } from "@/lib/interaction-budget";
 
 const ORDERS: { id: string; label: string }[] = [
   { id: "top-weekly", label: "Top this week" },
@@ -552,13 +553,8 @@ export function AdultPanel({
     setFacetsReady(false);
     let cancelled = false;
     const ready = () => { if (!cancelled) setFacetsReady(true); };
-    const ric = window.requestIdleCallback;
-    if (typeof ric === "function") {
-      const id = ric(ready, { timeout: 1_200 });
-      return () => { cancelled = true; window.cancelIdleCallback(id); };
-    }
-    const id = window.setTimeout(ready, 200);
-    return () => { cancelled = true; window.clearTimeout(id); };
+    const cancelSchedule = scheduleBackgroundWork(ready, { timeoutMs: 1_200, fallbackDelayMs: 200 });
+    return () => { cancelled = true; cancelSchedule(); };
   }, [adultVideos.length]);
 
   // Creator / interest chip walks over the full archive — idle until first paint settles.

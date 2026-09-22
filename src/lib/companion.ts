@@ -37,6 +37,41 @@ export async function companionHealth(): Promise<CompanionHealth | null> {
   }
 }
 
+export type CompanionMediaInspection = {
+  requested: string;
+  available: boolean;
+  inspected?: boolean;
+  reason?: string;
+  duration?: number;
+  bytes?: number;
+  streams?: Array<{ type?: string; codec?: string; width?: number; height?: number }>;
+  tags?: Partial<Record<"title" | "artist" | "album" | "genre" | "date" | "comment", string>>;
+};
+
+/**
+ * Optional, local-only metadata inspection. The Companion independently
+ * verifies every path is inside its approved roots and accepts at most 12.
+ */
+export async function companionInspectMedia(paths: string[]): Promise<{ ok: boolean; entries: CompanionMediaInspection[]; note?: string; error?: string }> {
+  const boundedPaths = paths.filter((path): path is string => typeof path === "string" && Boolean(path.trim())).slice(0, 12);
+  if (!boundedPaths.length) return { ok: false, entries: [], error: "No approved local files were selected." };
+  try {
+    const response = await companionFetch("/inspect-media", {
+      method: "POST",
+      body: JSON.stringify({ paths: boundedPaths }),
+    });
+    const data = await response.json() as { ok?: boolean; entries?: CompanionMediaInspection[]; note?: string; error?: string };
+    return {
+      ok: Boolean(response.ok && data.ok),
+      entries: Array.isArray(data.entries) ? data.entries : [],
+      ...(data.note ? { note: data.note } : {}),
+      ...(data.error ? { error: data.error } : {}),
+    };
+  } catch {
+    return { ok: false, entries: [], error: "Companion offline. Start it on this computer, then try again." };
+  }
+}
+
 export type SteamEpicGame = {
   name: string;
   path: string;
@@ -98,6 +133,16 @@ export async function companionGetThumb(id: string): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+export type ArtworkAudit = { ok: boolean; error?: string; at?: number; startedAt?: number; truncated?: boolean; skipped?: number;
+  sources?: Array<{ source: string; files: number; bytes: number; hits: number; misses: number; oldestAt: number | null }> };
+export async function companionArtworkAudit(): Promise<ArtworkAudit> {
+  try {
+    const response = await companionFetch("/thumbs/audit", { signal: AbortSignal.timeout(5_000) });
+    if (!response.ok) return { ok: false, error: "Restart the updated Companion to enable the artwork audit." };
+    return await response.json() as ArtworkAudit;
+  } catch { return { ok: false, error: "Companion is unavailable. Start it with an approved thumbnail cache folder to inspect disk artwork." }; }
 }
 
 export type CompanionPrintFile = { name: string; path: string; size: number; suffix?: string };

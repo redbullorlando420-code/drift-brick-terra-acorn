@@ -8,6 +8,10 @@ export const LIBRARY_LIMITS = {
   // discovery without retaining a second text index in the app state.
   remoteMetadataTagsPerTitle: 32,
   descriptionKeywordTagsPerTitle: 24,
+  /** One explicit metadata-tail pass; it must stay below a first-screen render window. */
+  metadataTailBatchSize: 48,
+  /** Exact-ID creator repair uses the same small explicit work window. */
+  creatorCoverageRepairBatchSize: 48,
   // A smaller rotating group prevents one background tick from allocating a
   // whole library's worth of cards. Each selected creator gets a deeper window.
   remoteRefreshChannelBatch: 24,

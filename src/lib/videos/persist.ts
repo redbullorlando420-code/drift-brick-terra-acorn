@@ -5,6 +5,7 @@ import type {
   GroupBy,
   HistoryEntry,
   LibraryVideo,
+  VideoMetadataProvenance,
   ResumeMark,
   SizeFilter,
   SortDir,
@@ -21,6 +22,7 @@ const THUMB_STORE = "thumb-cache";
 const ACTIVITY_STORE = "activity";
 const ACTIVITY_JOURNAL_STORE = "activity-journal";
 const PREFS_KEY = "reelcase.prefs.v4";
+const TAG_PROVENANCE_EDITS_KEY = "reelcase.tag-provenance-edits.v1";
 const LEGACY_KEYS = ["reelcase.prefs.v3", "reelcase.prefs.v2", "reelcase.prefs.v1"];
 /** Small YouTube/Twitch follow list — never co-pruned with thumbs/history/Adult tags. */
 const FOLLOWS_LS_KEY = "reelcase.follows.v1";
@@ -638,6 +640,17 @@ export function restoreTagEdits(tags: Record<string, string[]>) {
   return { ...tags, ...readPending<Record<string, string[]>>(TAG_EDITS_KEY, {}) };
 }
 
+/** Small synchronous mirror so a just-saved manual lock survives a tab close. */
+export function saveMetadataEdit(id: string, metadata: VideoMetadataProvenance) {
+  const edits = readPending<Record<string, VideoMetadataProvenance>>(TAG_PROVENANCE_EDITS_KEY, {});
+  edits[id] = metadata;
+  try { localStorage.setItem(TAG_PROVENANCE_EDITS_KEY, JSON.stringify(edits)); } catch { /* IndexedDB retains the full preference record. */ }
+}
+
+export function restoreMetadataEdits(metadata: Record<string, VideoMetadataProvenance>) {
+  return { ...metadata, ...readPending<Record<string, VideoMetadataProvenance>>(TAG_PROVENANCE_EDITS_KEY, {}) };
+}
+
 export type StoredDir = {
   id: string;
   name: string;
@@ -651,6 +664,8 @@ export type Prefs = {
   favorites: string[];
   likes: string[];
   tags: Record<string, string[]>;
+  /** Optional v5 sidecar; old preference snapshots are treated as legacy metadata. */
+  metadataProvenance?: Record<string, VideoMetadataProvenance>;
   categories: Record<string, string>;
   progress: Record<string, { t: number; d: number; at: number }>;
   resumeProgress?: Record<string, ResumeMark>;
@@ -1039,6 +1054,9 @@ function normalize(raw: Record<string, unknown>): Prefs {
     favorites,
     likes: (raw.likes as string[] | undefined) ?? [],
     tags: (raw.tags as Record<string, string[]> | undefined) ?? {},
+    metadataProvenance: raw.metadataProvenance && typeof raw.metadataProvenance === "object"
+      ? raw.metadataProvenance as Record<string, VideoMetadataProvenance>
+      : {},
     categories: (raw.categories as Record<string, string> | undefined) ?? {},
     progress: (raw.progress as Prefs["progress"]) ?? {},
     resumeProgress: (raw.resumeProgress as Prefs["resumeProgress"]) ?? {},

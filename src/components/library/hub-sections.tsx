@@ -1,4 +1,5 @@
 import { TopicLinks } from './topic-links';
+import { ArtworkAuditPanel } from './artwork-audit';
 import { openTopic } from '@/lib/videos/topic-navigation';
 import { createLocalId } from "@/lib/local-id";
 import { isTopicTag, canonicalTopic, topicsForVideo } from '@/lib/videos/topics';
@@ -50,6 +51,7 @@ import { isViewablePrintName, savePrintBlob } from "@/lib/prints-blobs";
 import { fetchCompanionIcons, iconsFromFolderFiles, loadGameIconCache, saveGameIcon } from "@/lib/game-icons";
 import { Input } from "@/components/ui/input";
 import { isAdultVideo, resumeForVideo, useLibrary } from "@/lib/videos/store";
+import { resolveCreatorCoverage } from "@/lib/videos/creator-coverage";
 import { buildAdultStatsSnapshot, exportAdultStats } from "@/lib/videos/adult-stats";
 import { buildLibraryPackFiles, downloadLibraryPackZip, importLibraryPackZip, applyLibraryPackFiles, type LibraryPackMode } from "@/lib/videos/library-pack";
 import {
@@ -62,6 +64,8 @@ import {
   companionSetAutostart,
   companionHealth,
   companionAckJobs,
+  companionInspectMedia,
+  type CompanionMediaInspection,
 } from "@/lib/companion";
 import { linksFromHistoryAndResume, saveDurablePhotos, restoreDurablePhotos, loadDurablePhotosSync, type DurablePhotoMeta } from "@/lib/videos/persist";
 import { rankAdultTags } from "@/lib/videos/adult-rank";
@@ -885,6 +889,55 @@ function DistributionRow({ label, value, total }: { label: string; value: number
   return <div><div className="flex justify-between gap-3 text-sm"><span className="truncate text-fg">{label}</span><span className="text-muted">{value}</span></div><div className="mt-1 h-2 overflow-hidden rounded-full bg-bg/70"><div className="h-full bg-accent" style={{ width: `${Math.max(3, Math.round(value / Math.max(total, 1) * 100))}%` }}/></div></div>;
 }
 
+type CompanionInspectionPreview = {
+  videoId: string;
+  name: string;
+  inspection: CompanionMediaInspection;
+  suggestions: string[];
+};
+
+type VideoVisionPreview = {
+  videoId: string;
+  name: string;
+  labels: VisionLabel[];
+  suggestions: string[];
+};
+
+function companionFilePath(path: string) {
+  // Browser-picked files intentionally use opaque handles. Only a real local
+  // filesystem path can be verified by the loopback Companion's root gate.
+  return /^(?:[a-z]:[\\/]|\\\\[^\\]+\\[^\\]+[\\/]|\/)/i.test(path);
+}
+
+function companionTagPart(value: string | undefined) {
+  return (value ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48);
+}
+
+function companionSuggestions(inspection: CompanionMediaInspection) {
+  const tags = inspection.tags;
+  const videoStream = inspection.streams?.find((stream) => stream.type === "video");
+  const year = tags?.date?.match(/(?:19|20)\d{2}/)?.[0];
+  return [...new Set([
+    tags?.genre ? `genre-${companionTagPart(tags.genre)}` : "",
+    tags?.artist ? `artist-${companionTagPart(tags.artist)}` : "",
+    tags?.album ? `album-${companionTagPart(tags.album)}` : "",
+    year ? `year-${year}` : "",
+    videoStream?.codec ? `codec-${companionTagPart(videoStream.codec)}` : "",
+    videoStream?.width && videoStream.height ? `resolution-${videoStream.width}x${videoStream.height}` : "",
+  ].filter(Boolean))].slice(0, 6);
+}
+
+function companionTechnicalSummary(inspection: CompanionMediaInspection) {
+  const streams = inspection.streams?.map((stream) => [stream.codec, stream.width && stream.height ? `${stream.width}×${stream.height}` : ""].filter(Boolean).join(" · ")).filter(Boolean) ?? [];
+  const duration = Number.isFinite(inspection.duration) && inspection.duration && inspection.duration > 0 ? `${Math.round(inspection.duration)} sec` : "duration unavailable";
+  return [duration, ...streams].join(" · ");
+}
+
+function metadataSourceLabel(source: string) {
+  if (source === "local") return "Local files";
+  return source.split("-").map((part) => part ? `${part[0].toUpperCase()}${part.slice(1)}` : part).join(" ");
+}
+
 export function SettingsSection() {
   const [hub, setHub] = useState<HubStore>({ prints: [], games: [] });
   const [preferences, setPreferences] = useState<Record<string, boolean>>({});
@@ -902,6 +955,14 @@ export function SettingsSection() {
   const [startMuted, setStartMuted] = useState(false);
   const [videoVisionBusy, setVideoVisionBusy] = useState(false);
   const [videoVisionNote, setVideoVisionNote] = useState("");
+  const [videoVisionRows, setVideoVisionRows] = useState<VideoVisionPreview[]>([]);
+  const [selectedVideoVision, setSelectedVideoVision] = useState<Record<string, boolean>>({});
+  const [companionInspectionBusy, setCompanionInspectionBusy] = useState(false);
+  const [companionInspectionNote, setCompanionInspectionNote] = useState("");
+  const [companionInspectionRows, setCompanionInspectionRows] = useState<CompanionInspectionPreview[]>([]);
+  const [selectedCompanionInspections, setSelectedCompanionInspections] = useState<Record<string, boolean>>({});
+  const [metadataTailNote, setMetadataTailNote] = useState("");
+  const [creatorCoverageNote, setCreatorCoverageNote] = useState("");
   const [twitchRefreshSeconds, setTwitchRefreshSeconds] = useState(30);
   const [liveDensity, setLiveDensity] = useState(4);
   const [sourceCacheFirst, setSourceCacheFirst] = useState(true);
@@ -913,7 +974,13 @@ export function SettingsSection() {
   const folders = useLibrary((s) => s.folders);
   const videos = useLibrary((s) => s.videos);
   const tags = useLibrary((s) => s.tags);
-  const setVideoTags = useLibrary((s) => s.setVideoTags);
+  const metadataProvenance = useLibrary((s) => s.metadataProvenance);
+  const applyReviewedTags = useLibrary((s) => s.applyReviewedTags);
+  const applyCompanionTags = useLibrary((s) => s.applyCompanionTags);
+  const enrichMetadataTail = useLibrary((s) => s.enrichMetadataTail);
+  const repairCreatorCoverage = useLibrary((s) => s.repairCreatorCoverage);
+  const openPreview = useLibrary((s) => s.openPreview);
+  const follows = useLibrary((s) => s.follows);
   const refreshSourcePhotos = useLibrary((s) => s.refreshSourcePhotos);
   const unavailableVideoCount = useLibrary((s) => Object.keys(s.unavailable).length);
   const remoteCheckedAt = useLibrary((s) => s.remoteCheckedAt);
@@ -922,6 +989,49 @@ export function SettingsSection() {
     const tagged = local.filter((video) => (tags[video.id] ?? []).some((tag) => /^(?:year-|month-|type-|source-)/.test(tag))).length;
     return { local: local.length, tagged, waiting: Math.max(0, local.length - tagged) };
   }, [tags, videos]);
+  const metadataTailCoverage = useMemo(() => {
+    const rows = new Map<string, { total: number; tagged: number; waiting: number; locked: number }>();
+    for (const video of videos) {
+      const source = video.remote?.kind ?? "local";
+      const row = rows.get(source) ?? { total: 0, tagged: 0, waiting: 0, locked: 0 };
+      row.total += 1;
+      if ((tags[video.id] ?? []).length) row.tagged += 1;
+      else if (metadataProvenance[video.id]?.lockedFields?.includes("tags")) row.locked += 1;
+      else row.waiting += 1;
+      rows.set(source, row);
+    }
+    return [...rows.entries()].map(([source, row]) => ({ source, ...row })).sort((left, right) => right.waiting - left.waiting || right.total - left.total || left.source.localeCompare(right.source));
+  }, [metadataProvenance, tags, videos]);
+  const metadataTailWaiting = metadataTailCoverage.reduce((total, row) => total + row.waiting, 0);
+  const runMetadataTail = () => {
+    const result = enrichMetadataTail();
+    if (!result.processed) { setMetadataTailNote("Metadata coverage is current for every unlocked catalog title. Locked tags were left untouched."); return; }
+    const sourceSummary = result.sources.filter((row) => row.processed).map((row) => `${metadataSourceLabel(row.source)} ${row.changed}/${row.processed}`).join(" · ");
+    setMetadataTailNote(`Processed ${result.processed} cached title${result.processed === 1 ? "" : "s"}; ${result.changed} gained safe metadata tags${result.remaining ? ` · ${result.remaining} remain in the queue` : " · queue complete"}${sourceSummary ? ` · ${sourceSummary}` : ""}.`);
+  };
+  const creatorCoverage = useMemo(() => {
+    const rows = videos.filter((video) => video.remote?.kind === "youtube" || video.remote?.kind === "twitch").map((video) => ({ video, resolution: resolveCreatorCoverage(video, follows) }));
+    const ambiguous = rows.flatMap(({ video, resolution }) => resolution.status === "ambiguous" ? [{ id: video.id, name: video.name, candidates: resolution.candidates }] : []);
+    return {
+      total: rows.length,
+      present: rows.filter(({ resolution }) => resolution.status === "present").length,
+      repairable: rows.filter(({ resolution }) => resolution.status === "resolved").length,
+      unresolved: rows.filter(({ resolution }) => resolution.status === "unresolved").length,
+      ambiguous,
+    };
+  }, [follows, videos]);
+  const runCreatorCoverageRepair = () => {
+    const result = repairCreatorCoverage();
+    if (!result.processed) {
+      setCreatorCoverageNote(creatorCoverage.ambiguous.length ? "No uniquely matched cards remain. Ambiguous exact-ID matches stay below for review and were not changed." : "Creator coverage is current for every card with one exact saved provider match.");
+      return;
+    }
+    setCreatorCoverageNote(`Repaired ${result.repaired} creator ${result.repaired === 1 ? "identity" : "identities"} from exact saved provider IDs${result.tagged ? ` · ${result.tagged} unlocked card${result.tagged === 1 ? "" : "s"} also gained its creator tag` : " · locked tag choices were left unchanged"}${result.remaining ? ` · ${result.remaining} remain in the queue` : " · queue complete"}.`);
+  };
+  const companionInspectionCandidates = useMemo(
+    () => videos.filter((video) => !video.remote && companionFilePath(video.path)).slice(0, 12),
+    [videos],
+  );
   const [serviceNote, setServiceNote] = useState("");
   useEffect(() => setHub(readHub()), []);
   useEffect(() => {
@@ -1039,7 +1149,7 @@ export function SettingsSection() {
     URL.revokeObjectURL(url);
   };
   const tagLocalVideoFrames = async () => {
-    const candidates = videos.filter((video) => !video.remote && !(tags[video.id] ?? []).some((tag) => tag.startsWith("vision-"))).slice(0, 12);
+    const candidates = videos.filter((video) => !video.remote && !metadataProvenance[video.id]?.lockedFields?.includes("tags") && !(tags[video.id] ?? []).some((tag) => tag.startsWith("vision-"))).slice(0, 12);
     if (!candidates.length) { setVideoVisionNote("No eligible local video frames are ready. Open a few local cards first so their cached frame artwork can warm."); return; }
     setVideoVisionBusy(true);
     setVideoVisionNote(`Warming local video frames · 0/${candidates.length}`);
@@ -1050,11 +1160,67 @@ export function SettingsSection() {
     if (!ready.length) { setVideoVisionBusy(false); setVideoVisionNote("Frames are still warming. Try again in a moment; this beta never uploads local video."); return; }
     try {
       const labels = await classifyImagesLocally(ready.map((video) => thumbs[video.id]), (done, total) => setVideoVisionNote(`Classifying local video frames · ${done}/${total}`));
-      ready.forEach((video, index) => setVideoTags(video.id, [...(useLibrary.getState().tags[video.id] ?? []), ...labels[index].map((item) => `vision-${item.label}`)]));
-      const report = ready.slice(0, 3).map((video, index) => `${video.name}: ${labels[index].map((item) => `${item.label} ${Math.round(item.score * 100)}%`).join(", ") || "no confident label"}`).join(" · ");
-      setVideoVisionNote(`Tagged ${ready.length} local video frame${ready.length === 1 ? "" : "s"} · ${report}`);
+      const rows = ready.map((video, index) => ({
+        videoId: video.id,
+        name: video.name,
+        labels: labels[index] ?? [],
+        suggestions: (labels[index] ?? []).map((item) => `vision-${item.label}`),
+      }));
+      setVideoVisionRows(rows);
+      setSelectedVideoVision(Object.fromEntries(rows.flatMap((row) => row.suggestions.map((tag) => [`${row.videoId}:${tag}`, true]))));
+      const suggested = rows.filter((row) => row.suggestions.length > 0).length;
+      setVideoVisionNote(`${suggested} local frame result${suggested === 1 ? "" : "s"} ready for review. Nothing is saved until you apply the selected labels.`);
     } catch { setVideoVisionNote("The local vision model could not start. File data stayed on this device; filename tags are still available."); }
     finally { setVideoVisionBusy(false); }
+  };
+  const applyVideoVision = () => {
+    let changedFiles = 0;
+    let addedTags = 0;
+    for (const row of videoVisionRows) {
+      const selectedTags = row.suggestions.filter((tag) => selectedVideoVision[`${row.videoId}:${tag}`]);
+      if (!selectedTags.length) continue;
+      const added = applyReviewedTags(row.videoId, selectedTags, "local-vision");
+      if (added) { changedFiles += 1; addedTags += added; }
+    }
+    setSelectedVideoVision({});
+    setVideoVisionNote(changedFiles
+      ? `Saved ${addedTags} reviewed vision tag${addedTags === 1 ? "" : "s"} on ${changedFiles} video${changedFiles === 1 ? "" : "s"}. Manual tag locks and existing tags were preserved.`
+      : "No new labels were saved. They may already exist, or the selected videos now have manual tag locks.");
+  };
+  const inspectWithCompanion = async () => {
+    if (!companionInspectionCandidates.length) {
+      setCompanionInspectionNote("No catalog entries have an approved full filesystem path yet. Browser-picked files keep opaque handles by design.");
+      return;
+    }
+    setCompanionInspectionBusy(true);
+    setCompanionInspectionNote(`Inspecting ${companionInspectionCandidates.length} local file${companionInspectionCandidates.length === 1 ? "" : "s"}…`);
+    const result = await companionInspectMedia(companionInspectionCandidates.map((video) => video.path));
+    const byPath = new Map(companionInspectionCandidates.map((video) => [video.path, video]));
+    const rows = result.entries.flatMap((inspection) => {
+      const video = byPath.get(inspection.requested);
+      return video ? [{ videoId: video.id, name: video.name, inspection, suggestions: companionSuggestions(inspection) }] : [];
+    });
+    setCompanionInspectionRows(rows);
+    setSelectedCompanionInspections(Object.fromEntries(rows.filter((row) => row.inspection.inspected && row.suggestions.length > 0).map((row) => [row.videoId, true])));
+    const inspected = rows.filter((row) => row.inspection.inspected).length;
+    const unavailable = rows.length - inspected;
+    setCompanionInspectionNote(result.ok
+      ? `${inspected} metadata result${inspected === 1 ? "" : "s"} ready for review${unavailable ? ` · ${unavailable} could not be inspected` : ""}. Nothing is saved until you apply selected suggestions.`
+      : result.error ?? "Companion inspection could not start.");
+    setCompanionInspectionBusy(false);
+  };
+  const applyCompanionInspection = () => {
+    const selected = companionInspectionRows.filter((row) => selectedCompanionInspections[row.videoId]);
+    let changedFiles = 0;
+    let addedTags = 0;
+    for (const row of selected) {
+      const added = applyCompanionTags(row.videoId, row.suggestions);
+      if (added) { changedFiles += 1; addedTags += added; }
+    }
+    setSelectedCompanionInspections({});
+    setCompanionInspectionNote(changedFiles
+      ? `Saved ${addedTags} reviewed Companion tag${addedTags === 1 ? "" : "s"} on ${changedFiles} file${changedFiles === 1 ? "" : "s"}. Manual tag locks and existing tags were preserved.`
+      : "No new suggestions were saved. They may already exist, or the selected files have manual tag locks.");
   };
   const downloadExport = (body: string, filename: string, type: string) => {
     const url = URL.createObjectURL(new Blob([body], { type }));
@@ -1094,7 +1260,10 @@ export function SettingsSection() {
       </div>
       {unavailableVideoCount > 0 && <div className="mt-4 rounded-lg border border-danger/40 bg-elevated p-4"><p className="text-sm font-medium text-fg">Playback health queue · {unavailableVideoCount} hidden</p><p className="mt-1 text-xs leading-5 text-muted">These catalog entries were hidden after a browser file-permission or decode failure. Reconnect the source folder from the playback message to rebuild its live file handles.</p></div>}
       <section className="mt-4 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Smart local tags</p><h2 className="mt-2 font-display text-2xl text-fg">Tag by name, date, and file type.</h2><p className="mt-1 max-w-2xl text-sm text-muted">Adds private, explainable tags such as year-2026, month-september, type-mp4, and meaningful words from the filename. Existing manual tags are preserved; nothing is uploaded.</p><p className="mt-3 text-xs text-accent">{smartTagStatus.tagged.toLocaleString()} of {smartTagStatus.local.toLocaleString()} local files ready · {smartTagStatus.waiting ? `${smartTagStatus.waiting.toLocaleString()} can still be enriched` : "coverage is current"}</p><Button className="mt-4" size="sm" variant="secondary" disabled={!smartTagStatus.local} onClick={() => { const changed = useLibrary.getState().autoTagLibrary(); setServiceNote(changed ? `Smart-tag run finished · ${changed} catalog item${changed === 1 ? "" : "s"} updated.` : "Smart tags are already current for every loaded catalog item."); }}> {smartTagStatus.waiting ? "Apply smart tags to remaining files" : "Recheck smart-tag coverage"}</Button></section>
-      <section className="mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Beta · local video vision</p><h2 className="mt-2 font-display text-2xl text-fg">Tag local videos from a cached frame.</h2><p className="mt-1 max-w-2xl text-sm text-muted">Uses the same on-device image model as Photos on one cached local thumbnail per video. It runs only when you start it, uses a bounded 12-video batch, and keeps frames and labels on this device.</p><p className="mt-3 text-xs text-accent">{videos.filter((video) => !video.remote && (tags[video.id] ?? []).some((tag) => tag.startsWith("vision-"))).length.toLocaleString()} processed · {videos.filter((video) => !video.remote && !(tags[video.id] ?? []).some((tag) => tag.startsWith("vision-"))).length.toLocaleString()} waiting · ready when local frame artwork is cached</p><Button className="mt-4" size="sm" variant="secondary" disabled={videoVisionBusy || !videos.some((video) => !video.remote)} onClick={() => void tagLocalVideoFrames()}>{videoVisionBusy ? videoVisionNote || "Preparing local frames…" : "Prepare and tag next 12 local videos"}</Button>{videoVisionNote && <p className="mt-3 text-xs text-accent">Latest output · {videoVisionNote}</p>}</section>
+      <section className="mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Metadata tail coverage</p><h2 className="mt-2 font-display text-2xl text-fg">Finish cached catalog metadata in small batches.</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-muted">Uses already-cached provider titles, descriptions, channels, and local filenames. One pass handles at most 48 unlocked, untagged titles; it does not make a network request, inspect a media file, or replace a manual tag choice.</p><div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{metadataTailCoverage.length ? metadataTailCoverage.map((row) => <div key={row.source} className="rounded-sm bg-bg/45 p-3 text-xs"><p className="font-medium text-fg">{metadataSourceLabel(row.source)}</p><p className="mt-1 text-muted">{row.tagged.toLocaleString()} tagged · {row.waiting.toLocaleString()} waiting · {row.locked ? `${row.locked.toLocaleString()} locked` : "no locked gaps"}</p></div>) : <p className="text-xs text-muted">Add a local folder or provider channel to measure coverage.</p>}</div><div className="mt-4 flex flex-wrap items-center gap-3"><Button size="sm" variant="secondary" disabled={!metadataTailWaiting} onClick={runMetadataTail}>{metadataTailWaiting ? `Enrich next ${Math.min(48, metadataTailWaiting)}` : "Coverage current"}</Button><span className="text-xs text-accent">{metadataTailWaiting.toLocaleString()} unlocked title{metadataTailWaiting === 1 ? "" : "s"} waiting</span></div>{metadataTailNote && <p className="mt-3 text-xs leading-5 text-accent" role="status">Latest batch · {metadataTailNote}</p>}</section>
+      <section className="mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Creator coverage repair</p><h2 className="mt-2 font-display text-2xl text-fg">Recover only exact creator identities.</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-muted">Matches a missing YouTube or Twitch display name only when the cached card and one of your saved follows share the exact public channel ID or saved source ID. It never guesses from titles, filenames, or loose handles; no provider request is made.</p><div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4"><div className="rounded-sm bg-bg/45 p-3 text-xs"><p className="font-medium text-fg">Tracked cards</p><p className="mt-1 text-muted">{creatorCoverage.total.toLocaleString()} YouTube/Twitch</p></div><div className="rounded-sm bg-bg/45 p-3 text-xs"><p className="font-medium text-fg">Already named</p><p className="mt-1 text-muted">{creatorCoverage.present.toLocaleString()} verified names</p></div><div className="rounded-sm bg-bg/45 p-3 text-xs"><p className="font-medium text-fg">Exact repairs</p><p className="mt-1 text-muted">{creatorCoverage.repairable.toLocaleString()} safe matches</p></div><div className="rounded-sm bg-bg/45 p-3 text-xs"><p className="font-medium text-fg">Needs evidence</p><p className="mt-1 text-muted">{creatorCoverage.unresolved.toLocaleString()} unmatched · {creatorCoverage.ambiguous.length.toLocaleString()} ambiguous</p></div></div><div className="mt-4 flex flex-wrap items-center gap-3"><Button size="sm" variant="secondary" disabled={!creatorCoverage.repairable} onClick={runCreatorCoverageRepair}>{creatorCoverage.repairable ? `Repair next ${Math.min(48, creatorCoverage.repairable)}` : "Coverage current"}</Button><span className="text-xs text-accent">{creatorCoverage.repairable.toLocaleString()} exact match{creatorCoverage.repairable === 1 ? "" : "es"} waiting</span></div>{creatorCoverageNote && <p className="mt-3 text-xs leading-5 text-accent" role="status">Latest repair · {creatorCoverageNote}</p>}{creatorCoverage.ambiguous.length > 0 && <div className="mt-4 rounded-md border border-warning/35 bg-bg/45 p-3"><p className="text-sm font-medium text-fg">Ambiguous exact-ID matches need review</p><p className="mt-1 text-xs leading-5 text-muted">These cards match more than one saved display name. Nothing was written; open a card to inspect its provider details before changing follow data.</p><div className="mt-3 grid gap-2">{creatorCoverage.ambiguous.slice(0, 12).map((row) => <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 rounded-sm bg-elevated p-3"><p className="min-w-0 flex-1 truncate text-xs text-fg">{row.name}<span className="text-muted"> · {row.candidates.join(" / ")}</span></p><Button size="sm" variant="ghost" onClick={() => openPreview(row.id)}>Review card</Button></div>)}</div>{creatorCoverage.ambiguous.length > 12 && <p className="mt-3 text-xs text-muted">Showing 12 of {creatorCoverage.ambiguous.length.toLocaleString()} ambiguous cards.</p>}</div>}</section>
+      <section className="mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Optional Companion inspection</p><h2 className="mt-2 font-display text-2xl text-fg">Review embedded local media tags.</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-muted">The local Companion reads technical details and a small embedded-tag set with ffprobe. It accepts only files inside its approved roots, processes at most 12 files, and never uploads media bytes or saves a suggestion automatically.</p><p className="mt-3 text-xs text-accent">{companionInspectionCandidates.length} eligible full-path file{companionInspectionCandidates.length === 1 ? "" : "s"} in the next bounded batch · browser-picked opaque file handles stay private and are skipped</p><Button className="mt-4" size="sm" variant="secondary" disabled={companionInspectionBusy || !companionInspectionCandidates.length} onClick={() => void inspectWithCompanion()}>{companionInspectionBusy ? "Inspecting local metadata…" : "Inspect up to 12 local files"}</Button>{companionInspectionNote && <p className="mt-3 text-xs leading-5 text-accent">Latest inspection · {companionInspectionNote}</p>}{companionInspectionRows.length > 0 && <div className="mt-4 rounded-md border border-border bg-bg/45 p-3"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm font-medium text-fg">Review suggestions before saving</p><p className="mt-1 text-xs text-muted">Embedded titles and comments stay preview-only; only the checked, compact search tags below can be saved.</p></div><Button size="sm" disabled={!companionInspectionRows.some((row) => selectedCompanionInspections[row.videoId])} onClick={applyCompanionInspection}>Apply selected suggestions</Button></div><div className="mt-3 grid gap-2">{companionInspectionRows.map((row) => <label key={row.videoId} className="flex gap-3 rounded-md border border-border bg-elevated p-3"><input className="mt-1 size-4 accent-accent" type="checkbox" checked={Boolean(selectedCompanionInspections[row.videoId])} disabled={!row.inspection.inspected || !row.suggestions.length} onChange={(event) => setSelectedCompanionInspections((current) => ({ ...current, [row.videoId]: event.target.checked }))}/><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium text-fg">{row.name}</span>{row.inspection.inspected ? <><span className="mt-1 block text-xs text-muted">{row.inspection.tags?.title ? `Embedded title · ${row.inspection.tags.title}` : "No embedded title"} · {companionTechnicalSummary(row.inspection)}{row.inspection.tags?.comment ? " · embedded comment present" : ""}</span><span className="mt-2 block text-xs text-accent">{row.suggestions.length ? row.suggestions.map((tag) => `#${tag}`).join(" · ") : "No safe search-tag suggestion"}</span></> : <span className="mt-1 block text-xs text-danger">Not inspected · {row.inspection.reason ?? "No readable metadata"}</span>}</span></label>)}</div></div>}</section>
+      <section className="mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Beta · local video vision</p><h2 className="mt-2 font-display text-2xl text-fg">Review local video labels from a cached frame.</h2><p className="mt-1 max-w-2xl text-sm text-muted">Uses the same on-device image model as Photos on one cached local thumbnail per video. It runs only when you start it, uses a bounded 12-video batch, and keeps frames and labels on this device until you explicitly apply the labels you want.</p><p className="mt-3 text-xs text-accent">{videos.filter((video) => !video.remote && (tags[video.id] ?? []).some((tag) => tag.startsWith("vision-"))).length.toLocaleString()} processed · {videos.filter((video) => !video.remote && !(tags[video.id] ?? []).some((tag) => tag.startsWith("vision-"))).length.toLocaleString()} waiting · ready when local frame artwork is cached</p><Button className="mt-4" size="sm" variant="secondary" disabled={videoVisionBusy || !videos.some((video) => !video.remote && !metadataProvenance[video.id]?.lockedFields?.includes("tags"))} onClick={() => void tagLocalVideoFrames()}>{videoVisionBusy ? videoVisionNote || "Preparing local frames…" : "Prepare next 12 local video frames"}</Button>{videoVisionNote && <p className="mt-3 text-xs leading-5 text-accent">Latest output · {videoVisionNote}</p>}{videoVisionRows.length > 0 && <div className="mt-4 rounded-md border border-border bg-bg/45 p-3"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm font-medium text-fg">Review vision labels before saving</p><p className="mt-1 text-xs text-muted">Each result is local-only. Check only the labels you want to add; unselected labels are discarded when this review changes.</p></div><Button size="sm" disabled={!videoVisionRows.some((row) => row.suggestions.some((tag) => selectedVideoVision[`${row.videoId}:${tag}`]))} onClick={applyVideoVision}>Apply selected labels</Button></div><div className="mt-3 grid gap-2">{videoVisionRows.map((row) => <div key={row.videoId} className="rounded-md border border-border bg-elevated p-3"><p className="truncate text-sm font-medium text-fg">{row.name}</p>{row.labels.length ? <div className="mt-2 flex flex-wrap gap-2">{row.labels.map((item) => <label key={`${row.videoId}:${item.label}`} className="flex items-center gap-2 rounded-sm bg-bg/55 px-2 py-1 text-xs text-fg"><input className="size-3.5 accent-accent" type="checkbox" checked={Boolean(selectedVideoVision[`${row.videoId}:vision-${item.label}`])} onChange={(event) => setSelectedVideoVision((current) => ({ ...current, [`${row.videoId}:vision-${item.label}`]: event.target.checked }))}/><span>#{`vision-${item.label}`} · {Math.round(item.score * 100)}%</span></label>)}</div> : <p className="mt-2 text-xs text-muted">No confident local label suggested.</p>}</div>)}</div></div>}</section>
       <div className="mt-6 flex flex-col gap-4 rounded-lg bg-elevated p-5 shadow-border sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="font-display text-2xl text-fg">Export local metadata</h2>
@@ -1376,6 +1545,7 @@ export function SettingsSection() {
         <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><Settings2 className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Player sound</h2><p className="mt-2 text-sm leading-6 text-muted">Sets the starting volume for local video and whether a newly opened player starts muted. Provider embeds keep their own service-level audio controls.</p><div className="mt-4 flex flex-wrap gap-2">{[25, 50, 70, 85, 100].map((value) => <Button key={value} size="sm" variant={defaultVolume === value ? "default" : "secondary"} onClick={() => { setDefaultVolume(value); localStorage.setItem("reelcase.player-volume", String(value)); }}>{value}%</Button>)}</div><Button className="mt-3" size="sm" variant={startMuted ? "default" : "secondary"} onClick={() => { const next = !startMuted; setStartMuted(next); localStorage.setItem("reelcase.player-start-muted", String(next)); }}>{startMuted ? "Start muted" : "Start with sound"}</Button></div>
         <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><Radio className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Twitch live & archive refresh</h2><p className="mt-2 text-sm leading-6 text-muted">Checks a rotating batch while this tab is visible. Every mixed pass reserves Twitch archive channels, keeps earlier VODs when a provider response is partial, and updates live state separately. Thirty seconds is the default.</p><div className="mt-4 flex flex-wrap gap-2">{[[15, "15 sec"], [30, "30 sec"], [60, "1 min"], [120, "2 min"], [300, "5 min"]].map(([value, label]) => <Button key={value} size="sm" variant={twitchRefreshSeconds === value ? "default" : "secondary"} onClick={() => { setTwitchRefreshSeconds(value as number); localStorage.setItem("reelcase.twitch-refresh-seconds", String(value)); window.dispatchEvent(new Event("reelcase:refresh-settings")); }}>{label}</Button>)}</div></div>
       </div></section>
+      <div className="mt-6"><ArtworkAuditPanel /></div>
       <section className="mt-6"><div className="mb-3"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Connections, privacy & guides</p><p className="mt-1 text-sm text-muted">Optional services and explanations stay separate from everyday library preferences.</p></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <InfoCard
           icon={<Clapperboard className="size-5" />}
@@ -1796,6 +1966,12 @@ type LocalPhoto = {
   vision?: VisionLabel[];
   visionModel?: VisionModelId;
 };
+type PhotoVisionPreview = {
+  photoId: string;
+  name: string;
+  labels: VisionLabel[];
+  model: VisionModelId;
+};
 type PhotoSort = "newest" | "name" | "rating" | "favorite" | "auto-tags";
 const PHOTO_FILE_RE = /\.(avif|bmp|gif|heic|heif|jpe?g|png|tiff?|webp)$/i;
 const photoSourceWarmth = new Map<string, number>();
@@ -1884,7 +2060,8 @@ export function PhotosSection() {
   const [photoLimit, setPhotoLimit] = useState(48);
   const [visionBusy, setVisionBusy] = useState(false);
   const [visionProgress, setVisionProgress] = useState("");
-  const [visionReport, setVisionReport] = useState<Array<{ id: string; name: string; labels: VisionLabel[] }>>([]);
+  const [photoVisionRows, setPhotoVisionRows] = useState<PhotoVisionPreview[]>([]);
+  const [selectedPhotoVision, setSelectedPhotoVision] = useState<Record<string, boolean>>({});
   const [visionModel, setVisionModel] = useState<VisionModelId>("semanticPlus");
   const [visionReviewOpen, setVisionReviewOpen] = useState(true);
   const [visionBenchmark, setVisionBenchmark] = useState<VisionBenchmark | null>(() => {
@@ -2198,9 +2375,9 @@ export function PhotosSection() {
   const people = useMemo(() => [...new Set(photos.flatMap((photo) => photo.people))], [photos]);
   const albums = useMemo(() => [...new Set(photos.map((photo) => photo.album))], [photos]);
   const photoTags = useMemo(() => [...new Set(photos.flatMap((photo) => photo.tags))].sort(), [photos]);
-  const visionProcessed = useMemo(() => photos.filter((photo) => photo.tags.includes("auto-tagged")).length, [photos]);
+  const visionProcessed = useMemo(() => photos.filter((photo) => photo.vision?.length || photo.tags.some((tag) => tag.startsWith("vision-"))).length, [photos]);
   const visionPending = Math.max(0, photos.length - visionProcessed);
-  const visionReviewedPhotos = useMemo(() => photos.filter((photo) => photo.tags.includes("auto-tagged")).sort((a, b) => b.addedAt - a.addedAt), [photos]);
+  const visionReviewedPhotos = useMemo(() => photos.filter((photo) => photo.vision?.length || photo.tags.some((tag) => tag.startsWith("vision-"))).sort((a, b) => b.addedAt - a.addedAt), [photos]);
   const visible = useMemo(() => photos
     .filter(
       (photo) =>
@@ -2287,55 +2464,68 @@ export function PhotosSection() {
     }));
     setHelperNote(changed ? `Added local filename-based auto tags to ${changed} photo${changed === 1 ? "" : "s"}. You can edit any tag on its card.` : "Everything already has the available local auto tags.");
   };
-  const applyVisionTags = (batch: LocalPhoto[], labels: VisionLabel[][], model: VisionModelId) => {
-    const byId = new Map(batch.map((photo, index) => [photo.id, labels[index] ?? []]));
-    setPhotos((items) => items.map((photo) => {
-      const report = byId.get(photo.id);
-      if (!report) return photo;
-      const additions = ["auto-tagged", `auto-tag-${model}-v2`, ...report.map((item) => `vision-${item.label}`)];
-      return { ...photo, tags: [...new Set([...photo.tags, ...additions])], vision: report, visionModel: model };
-    }));
-    setVisionReport((current) => [...batch.map((photo, index) => ({ id: photo.id, name: photo.name, labels: labels[index] ?? [] })), ...current.filter((row) => !byId.has(row.id))].slice(0, 48));
-  };
-  const runVisionQueue = async (candidates: LocalPhoto[], allPhotos: boolean) => {
-    if (!candidates.length) { setHelperNote("Every loaded photo already has a local vision pass. Add more photos or edit tags to review them."); return; }
+  const preparePhotoVision = async (candidates: LocalPhoto[]) => {
+    const batchCandidates = candidates.slice(0, 48);
+    if (!batchCandidates.length) { setHelperNote("Every loaded photo already has accepted local vision labels. Add more photos or edit tags to review them again."); return; }
     setVisionBusy(true);
     setVisionReviewOpen(true);
-    setVisionReport([]);
-    setVisionProgress(`Preparing ${VISION_MODELS[visionModel].name} for ${candidates.length.toLocaleString()} photos…`);
+    setPhotoVisionRows([]);
+    setSelectedPhotoVision({});
+    setVisionProgress(`Preparing ${VISION_MODELS[visionModel].name} for ${batchCandidates.length.toLocaleString()} photos…`);
+    const rows: PhotoVisionPreview[] = [];
     try {
-      for (let start = 0; start < candidates.length; start += 12) {
-        const batch = candidates.slice(start, start + 12);
-        const labels = await classifyImagesLocally(batch.map((photo) => photo.url), (done, total) => setVisionProgress(`${VISION_MODELS[visionModel].name} · ${start + done}/${candidates.length} photos`), visionModel, (status) => {
+      for (let start = 0; start < batchCandidates.length; start += 12) {
+        const batch = batchCandidates.slice(start, start + 12);
+        const labels = await classifyImagesLocally(batch.map((photo) => photo.url), (done, total) => setVisionProgress(`${VISION_MODELS[visionModel].name} · ${start + done}/${batchCandidates.length} photos`), visionModel, (status) => {
           const transfer = status.total ? ` · ${Math.round((status.loaded ?? 0) / status.total * 100)}%` : "";
-          setVisionProgress(`${VISION_MODELS[visionModel].name} · ${status.status ?? status.file ?? "loading"}${transfer} · ${start}/${candidates.length} complete`);
+          setVisionProgress(`${VISION_MODELS[visionModel].name} · ${status.status ?? status.file ?? "loading"}${transfer} · ${start}/${batchCandidates.length} complete`);
         });
-        // Commit each checkpoint immediately. An overnight run can be safely
-        // restarted because completed photos no longer enter the pending queue.
-        applyVisionTags(batch, labels, visionModel);
+        rows.push(...batch.map((photo, index) => ({ photoId: photo.id, name: photo.name, labels: labels[index] ?? [], model: visionModel })));
         await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
       }
-      setHelperNote(`${VISION_MODELS[visionModel].name} reviewed ${candidates.length.toLocaleString()} photo${candidates.length === 1 ? "" : "s"}${allPhotos ? " in the full queued library" : ""}. Labels and confidence scores are ready for review.`);
+      setPhotoVisionRows(rows);
+      setSelectedPhotoVision(Object.fromEntries(rows.flatMap((row) => row.labels.map((label) => [`${row.photoId}:vision-${label.label}`, true]))));
+      const suggested = rows.filter((row) => row.labels.length > 0).length;
+      setHelperNote(`${VISION_MODELS[visionModel].name} prepared ${suggested} local photo result${suggested === 1 ? "" : "s"} for review. Nothing is saved until you apply selected labels.`);
     } catch (error) {
-      setHelperNote(`${VISION_MODELS[visionModel].name} stopped after saving every completed checkpoint: ${error instanceof Error ? error.message : "unknown error"}. Retry continues with the remaining photos.`);
+      if (rows.length) {
+        setPhotoVisionRows(rows);
+        setSelectedPhotoVision(Object.fromEntries(rows.flatMap((row) => row.labels.map((label) => [`${row.photoId}:vision-${label.label}`, true]))));
+        setHelperNote(`${VISION_MODELS[visionModel].name} stopped after preparing ${rows.length} photo${rows.length === 1 ? "" : "s"}: ${error instanceof Error ? error.message : "unknown error"}. Review the completed labels; the remaining photos were not changed.`);
+      } else {
+        setHelperNote(`${VISION_MODELS[visionModel].name} could not prepare local labels: ${error instanceof Error ? error.message : "unknown error"}. No photo tags changed.`);
+      }
     } finally { setVisionBusy(false); setVisionProgress(""); }
   };
-  const autoTagPhotosWithVision = async () => runVisionQueue(photos.filter((photo) => !photo.tags.includes("auto-tagged")).slice(0, 48), false);
-  const autoTagAllPhotosWithVision = async () => runVisionQueue(photos.filter((photo) => !photo.tags.includes("auto-tagged")), true);
-  const autoTagOnePhoto = async (photo: LocalPhoto) => {
-    setVisionBusy(true);
-    setVisionProgress(`Preparing ${VISION_MODELS[visionModel].name} for ${photo.name}…`);
-    try {
-      const [labels] = await classifyImagesLocally([photo.url], (done, total) => setVisionProgress(`${VISION_MODELS[visionModel].name} · ${done}/${total}`), visionModel, (status) => {
-        const transfer = status.total ? ` · ${Math.round((status.loaded ?? 0) / status.total * 100)}%` : "";
-        setVisionProgress(`${VISION_MODELS[visionModel].name} · ${status.status ?? status.file ?? "loading"}${transfer}`);
-      });
-      applyVisionTags([photo], [labels ?? []], visionModel);
-      setVisionReviewOpen(true);
-      setHelperNote(`${VISION_MODELS[visionModel].name} reviewed ${photo.name}. Its tags updated in place and are immediately searchable.`);
-    } catch (error) {
-      setHelperNote(`${VISION_MODELS[visionModel].name} could not tag ${photo.name}: ${error instanceof Error ? error.message : "unknown error"}.`);
-    } finally { setVisionBusy(false); setVisionProgress(""); }
+  const prepareNextPhotoVision = () => void preparePhotoVision(photos.filter((photo) => !photo.vision?.length && !photo.tags.some((tag) => tag.startsWith("vision-"))).slice(0, 48));
+  const applyPhotoVision = () => {
+    const selectedByPhoto = new Map(photoVisionRows.map((row) => [
+      row.photoId,
+      { labels: row.labels.filter((label) => selectedPhotoVision[`${row.photoId}:vision-${label.label}`]), model: row.model },
+    ]));
+    let changedPhotos = 0;
+    let addedTags = 0;
+    const nextPhotos = photos.map((photo) => {
+      const selected = selectedByPhoto.get(photo.id);
+      if (!selected?.labels.length) return photo;
+      const additions = ["auto-tagged", `auto-tag-${selected.model}-v2`, ...selected.labels.map((label) => `vision-${label.label}`)];
+      const newTags = additions.filter((tag) => !photo.tags.includes(tag));
+      if (!newTags.length) return photo;
+      changedPhotos += 1;
+      addedTags += newTags.length;
+      return { ...photo, tags: [...photo.tags, ...newTags], vision: selected.labels, visionModel: selected.model };
+    });
+    setPhotos(nextPhotos);
+    setPhotoVisionRows([]);
+    setSelectedPhotoVision({});
+    setHelperNote(changedPhotos
+      ? `Saved ${addedTags} reviewed vision tag${addedTags === 1 ? "" : "s"} on ${changedPhotos} photo${changedPhotos === 1 ? "" : "s"}. Unselected labels were discarded.`
+      : "No new labels were saved. They may already exist, or every suggested label was unchecked.");
+  };
+  const discardPhotoVision = () => {
+    setPhotoVisionRows([]);
+    setSelectedPhotoVision({});
+    setHelperNote("Prepared vision labels were discarded. No photo tags changed.");
   };
   const runVisionBenchmark = async () => {
     const sample = photos.filter((photo) => Boolean(photo.url)).slice(0, 24);
@@ -2509,15 +2699,15 @@ export function PhotosSection() {
           <Button size="sm" variant="secondary" disabled={!visible.length} onClick={pickFreshDiscovery}>Fresh discovery</Button>
           <Button size="sm" variant="secondary" disabled={!photos.length} onClick={suggestPeopleFromNames}>Suggest people labels</Button>
           <Button size="sm" variant="secondary" disabled={!photos.length} onClick={autoTagPhotos}>Auto tag photos</Button>
-          <Button size="sm" variant="secondary" disabled={!photos.length || visionBusy} onClick={() => void autoTagPhotosWithVision()}>{visionBusy ? visionProgress || "Starting local vision…" : "Local vision tags · 48"}</Button>
+          <Button size="sm" variant="secondary" disabled={!photos.length || visionBusy} onClick={prepareNextPhotoVision}>{visionBusy ? visionProgress || "Starting local vision…" : "Prepare local vision labels · 48"}</Button>
         </div>
         <div className="flex flex-wrap gap-2"><span className="self-center text-xs text-muted">Local discovery</span>{(["all", "screenshots", "camera", "downloads"] as const).map((filter) => <Button key={filter} size="sm" variant={discoveryFilter === filter ? "default" : "secondary"} onClick={() => setDiscoveryFilter(filter)}>{filter === "all" ? "All" : filter === "camera" ? "Camera names" : filter[0].toUpperCase() + filter.slice(1)}</Button>)}</div>
           <section className="rounded-md border border-border bg-bg/45 p-3">
-            <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Local vision</p><p className="mt-1 text-sm text-fg">{visionProcessed.toLocaleString()} processed · {visionPending.toLocaleString()} waiting · SigLIP semantic+ is the balanced fast default</p></div><div className="flex flex-wrap gap-2"><Button size="sm" variant="secondary" disabled={visionBusy || !visionPending} onClick={() => void autoTagPhotosWithVision()}>{visionBusy ? visionProgress || "Starting model…" : `Process next ${Math.min(48, visionPending)}`}</Button><Button size="sm" disabled={visionBusy || !visionPending} onClick={() => void autoTagAllPhotosWithVision()}>{visionBusy ? "Queue running…" : `Process all ${visionPending.toLocaleString()}`}</Button></div></div>
+            <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Local vision</p><p className="mt-1 text-sm text-fg">{visionProcessed.toLocaleString()} accepted · {visionPending.toLocaleString()} waiting · SigLIP semantic+ is the balanced fast default</p></div><Button size="sm" variant="secondary" disabled={visionBusy || !visionPending} onClick={prepareNextPhotoVision}>{visionBusy ? visionProgress || "Starting model…" : `Prepare next ${Math.min(48, visionPending)}`}</Button></div>
             <div className="mt-3 flex flex-wrap items-center gap-2"><span className="text-xs text-muted">Tagging model</span>{(["semanticPro", "semanticPlus", "semantic"] as VisionModelId[]).map((model) => <Button key={model} size="sm" variant={visionModel === model ? "default" : "ghost"} disabled={visionBusy} onClick={() => setVisionModel(model)}>{VISION_MODELS[model].name}</Button>)}</div>
-            <p className="mt-2 text-xs leading-5 text-muted">{VISION_MODELS[visionModel].purpose}. Labels stay on this device and are review-only. Semantic+ balances throughput and detail for batch jobs; CLIP and SigLIP large+ remain available for benchmarked comparison.</p>
-            {visionReport.length > 0 && <div className="mt-3 divide-y divide-border rounded-sm border border-border bg-elevated"><p className="px-3 py-2 text-xs font-medium text-fg">Latest local results</p>{visionReport.slice(0, 8).map((row) => <div key={row.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"><span className="min-w-0 truncate text-xs text-fg">{row.name}</span><span className="flex flex-wrap gap-1">{row.labels.length ? row.labels.slice(0, 3).map((item) => <span key={item.label} className="rounded-xs bg-bg/60 px-2 py-1 text-xs text-accent">{item.label} · {Math.round(item.score * 100)}%</span>) : <span className="text-xs text-muted">No confident label</span>}</span></div>)}</div>}
-            {visionReviewedPhotos.length > 0 && <section className="mt-3 rounded-sm border border-border bg-elevated p-3"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-medium text-fg">Tagged photo review · {visionReviewedPhotos.length}</p><p className="mt-1 text-xs text-muted">Every completed photo is here, including low-confidence results. Filter the gallery with #auto-tagged or its model-version tag.</p></div><Button size="sm" variant="ghost" onClick={() => setVisionReviewOpen((open) => !open)}>{visionReviewOpen ? "Hide review" : `Review ${visionReviewedPhotos.length}`}</Button></div>{visionReviewOpen && <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">{visionReviewedPhotos.slice(0, 24).map((photo) => { const labels = photo.vision?.length ? photo.vision : photo.tags.filter((tag) => tag.startsWith("vision-")).map((tag) => ({ label: tag.slice(7), score: 0 })); return <button key={photo.id} type="button" className="overflow-hidden rounded-xs bg-bg/55 text-left" onClick={() => { setPhotoViewerLoading(true); setFocusedPhotoId(photo.id); }} aria-label={`Review tags for ${photo.name}`}><img src={photo.url} alt="" loading="lazy" decoding="async" className="aspect-square w-full object-cover"/><span className="block p-2"><span className="block truncate text-xs font-medium text-fg">{photo.name}</span><span className="mt-1 flex flex-wrap gap-1">{labels.length ? labels.slice(0, 3).map((label) => <span key={label.label} className="rounded-xs bg-elevated px-1.5 py-0.5 text-[11px] text-accent">{label.label}{label.score ? ` · ${Math.round(label.score * 100)}%` : ""}</span>) : <span className="text-[11px] text-muted">No confident label — review image</span>}</span></span></button>; })}</div>}{visionReviewOpen && visionReviewedPhotos.length > 24 && <p className="mt-3 text-xs text-muted">Showing 24 of {visionReviewedPhotos.length.toLocaleString()} tagged photos. Use photo tags or search to narrow the gallery.</p>}</section>}
+            <p className="mt-2 text-xs leading-5 text-muted">{VISION_MODELS[visionModel].purpose}. Labels stay on this device until you explicitly apply checked suggestions. Each review is bounded to 48 photos so you can inspect it without a bulk automatic save; CLIP and SigLIP large+ remain available for benchmarked comparison.</p>
+            {photoVisionRows.length > 0 && <section className="mt-3 rounded-sm border border-border bg-elevated p-3"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-medium text-fg">Review vision labels before saving · {photoVisionRows.length}</p><p className="mt-1 text-xs text-muted">Only checked labels are added. Unchecked labels are discarded when you apply or replace this review.</p></div><div className="flex flex-wrap gap-2"><Button size="sm" variant="ghost" onClick={discardPhotoVision}>Discard review</Button><Button size="sm" disabled={!photoVisionRows.some((row) => row.labels.some((label) => selectedPhotoVision[`${row.photoId}:vision-${label.label}`]))} onClick={applyPhotoVision}>Apply selected labels</Button></div></div><div className="mt-3 grid gap-2">{photoVisionRows.map((row) => <div key={row.photoId} className="rounded-sm border border-border bg-bg/55 p-3"><p className="truncate text-xs font-medium text-fg">{row.name}</p>{row.labels.length ? <div className="mt-2 flex flex-wrap gap-2">{row.labels.map((label) => <label key={`${row.photoId}:${label.label}`} className="flex items-center gap-2 rounded-xs bg-elevated px-2 py-1 text-xs text-fg"><input className="size-3.5 accent-accent" type="checkbox" checked={Boolean(selectedPhotoVision[`${row.photoId}:vision-${label.label}`])} onChange={(event) => setSelectedPhotoVision((current) => ({ ...current, [`${row.photoId}:vision-${label.label}`]: event.target.checked }))}/><span>#{`vision-${label.label}`} · {Math.round(label.score * 100)}%</span></label>)}</div> : <p className="mt-2 text-xs text-muted">No confident local label suggested. Nothing will be saved for this photo.</p>}</div>)}</div></section>}
+            {visionReviewedPhotos.length > 0 && <section className="mt-3 rounded-sm border border-border bg-elevated p-3"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-medium text-fg">Accepted photo vision results · {visionReviewedPhotos.length}</p><p className="mt-1 text-xs text-muted">These are labels you explicitly saved. Filter the gallery with #auto-tagged or its model-version tag.</p></div><Button size="sm" variant="ghost" onClick={() => setVisionReviewOpen((open) => !open)}>{visionReviewOpen ? "Hide accepted results" : `Review ${visionReviewedPhotos.length}`}</Button></div>{visionReviewOpen && <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">{visionReviewedPhotos.slice(0, 24).map((photo) => { const labels = photo.vision?.length ? photo.vision : photo.tags.filter((tag) => tag.startsWith("vision-")).map((tag) => ({ label: tag.slice(7), score: 0 })); return <button key={photo.id} type="button" className="overflow-hidden rounded-xs bg-bg/55 text-left" onClick={() => { setPhotoViewerLoading(true); setFocusedPhotoId(photo.id); }} aria-label={`Review tags for ${photo.name}`}><img src={photo.url} alt="" loading="lazy" decoding="async" className="aspect-square w-full object-cover"/><span className="block p-2"><span className="block truncate text-xs font-medium text-fg">{photo.name}</span><span className="mt-1 flex flex-wrap gap-1">{labels.length ? labels.slice(0, 3).map((label) => <span key={label.label} className="rounded-xs bg-elevated px-1.5 py-0.5 text-[11px] text-accent">{label.label}{label.score ? ` · ${Math.round(label.score * 100)}%` : ""}</span>) : <span className="text-[11px] text-muted">No confident label — review image</span>}</span></span></button>; })}</div>}{visionReviewOpen && visionReviewedPhotos.length > 24 && <p className="mt-3 text-xs text-muted">Showing 24 of {visionReviewedPhotos.length.toLocaleString()} accepted photos. Use photo tags or search to narrow the gallery.</p>}</section>}
             <div className="mt-3 rounded-sm border border-border bg-elevated p-3"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-medium text-fg">Vision model benchmark</p><p className="mt-1 max-w-2xl text-xs leading-5 text-muted">Compare CLIP, SigLIP semantic+, and SigLIP large+ on the same 24 local photos. The first run downloads optional local models; later runs reuse the browser cache.</p></div><Button size="sm" disabled={visionBenchmarkBusy || !photos.length} onClick={() => void runVisionBenchmark()}>{visionBenchmarkBusy ? "Comparing…" : "Run 3-model comparison"}</Button></div>{visionBenchmarkBusy && <p className="mt-3 flex items-center gap-2 text-xs text-accent"><RefreshCw className="size-3 animate-spin"/>{visionBenchmarkProgress || "Preparing local models…"}</p>}{visionBenchmarkError && <p className="mt-3 rounded-xs bg-bg/50 px-3 py-2 text-xs text-muted">Benchmark stopped · {visionBenchmarkError}</p>}{visionBenchmark && <div className="mt-3 grid gap-2 sm:grid-cols-3"><div className="rounded-xs bg-bg/50 p-3 text-xs"><p className="font-medium text-fg">{VISION_MODELS.semantic.name}</p><p className="mt-1 text-muted">{visionBenchmark.semantic.elapsedMs.toFixed(0)} ms · {visionBenchmark.semantic.labels.flat().length} labels · {visionBenchmark.sampleSize} photos</p></div><div className="rounded-xs bg-bg/50 p-3 text-xs"><p className="font-medium text-fg">{VISION_MODELS.semanticPlus.name}</p><p className="mt-1 text-muted">{visionBenchmark.semanticPlus.elapsedMs.toFixed(0)} ms · {visionBenchmark.semanticPlus.labels.flat().length} labels · {visionBenchmark.sampleSize} photos</p></div><div className="rounded-xs bg-bg/50 p-3 text-xs"><p className="font-medium text-fg">{VISION_MODELS.semanticPro.name}</p><p className="mt-1 text-muted">{visionBenchmark.semanticPro.elapsedMs.toFixed(0)} ms · {visionBenchmark.semanticPro.labels.flat().length} labels · {visionBenchmark.sampleSize} photos</p></div></div>}{visionBenchmarkPhotos.length > 0 && <section className="mt-3"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-medium text-fg">Photo-by-photo tag review</p><p className="text-[11px] text-muted">CLIP, SigLIP semantic+, and SigLIP large+ results on the same image</p></div><div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{visionBenchmarkPhotos.map((photo) => <article key={photo.id} className="overflow-hidden rounded-xs border border-border bg-bg/50"><img src={photo.url} alt={photo.name} loading="lazy" decoding="async" className="aspect-video w-full object-cover"/><div className="p-3"><p className="truncate text-xs font-medium text-fg">{photo.name}</p><div className="mt-2 grid gap-2"><div><p className="text-[11px] font-medium text-muted">CLIP</p><p className="mt-1 flex flex-wrap gap-1">{photo.clip.length ? photo.clip.slice(0, 4).map((label) => <span key={label.label} className="rounded-xs bg-elevated px-1.5 py-0.5 text-[11px] text-accent">{label.label} · {Math.round(label.score * 100)}%</span>) : <span className="text-[11px] text-subtle">No confident label</span>}</p></div><div><p className="text-[11px] font-medium text-muted">SigLIP semantic+</p><p className="mt-1 flex flex-wrap gap-1">{photo.siglipBase.length ? photo.siglipBase.slice(0, 4).map((label) => <span key={label.label} className="rounded-xs bg-elevated px-1.5 py-0.5 text-[11px] text-accent">{label.label} · {Math.round(label.score * 100)}%</span>) : <span className="text-[11px] text-subtle">No confident label</span>}</p></div><div><p className="text-[11px] font-medium text-muted">SigLIP large+</p><p className="mt-1 flex flex-wrap gap-1">{photo.siglipLarge.length ? photo.siglipLarge.slice(0, 4).map((label) => <span key={label.label} className="rounded-xs bg-elevated px-1.5 py-0.5 text-[11px] text-accent">{label.label} · {Math.round(label.score * 100)}%</span>) : <span className="text-[11px] text-subtle">No confident label</span>}</p></div></div></div></article>)}</div></section>}<p className="mt-2 text-[11px] leading-4 text-subtle">The CLIP baseline is pinned to a verified revision. Results include model preparation and inference so the comparison reflects the actual browser experience.</p></div>
             <details className="mt-3 rounded-sm border border-border bg-elevated p-3"><summary className="cursor-pointer text-xs font-medium text-fg">Upscaler beta · {upscalerHealth.state === "ready" ? "verified artifact" : "not installed"}</summary><div className="mt-3"><p className={`text-xs leading-5 ${upscalerHealth.state === "ready" ? "text-accent" : "text-muted"}`}>{upscalerHealth.detail}</p><div className="mt-3 flex gap-2"><Button size="sm" variant="ghost" onClick={() => void checkUpscalerHealth()}>Check</Button>{upscalerHealth.state === "ready" && <Button size="sm" variant="ghost" onClick={() => void removeUpscalerModel()}>Remove</Button>}</div>{upscalerHealth.state !== "ready" && <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(14rem,0.7fr)_auto]"><Input value={upscalerUrl} onChange={(event) => setUpscalerUrl(event.target.value)} placeholder="HTTPS model URL" aria-label="Upscaler model URL"/><Input value={upscalerChecksum} onChange={(event) => setUpscalerChecksum(event.target.value)} placeholder="Publisher SHA-256" aria-label="Upscaler model SHA-256 checksum"/><Button size="sm" disabled={upscalerInstalling} onClick={() => void installUpscalerModel()}>{upscalerInstalling ? "Verifying…" : "Download + verify"}</Button></div>}<p className="mt-2 text-[11px] leading-4 text-subtle">The verified beta artifact is bundled for local preview. Originals and exports remain untouched until you explicitly save a reviewed result.</p></div></details>
           </section>
@@ -2604,7 +2794,7 @@ export function PhotosSection() {
               </div>
             </div>
           ))}
-        </div><div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted"><span>Showing {Math.min(renderedPhotos.length, visible.length)} of {visible.length} matching photos</span>{renderedPhotos.length < visible.length && <Button size="sm" variant="secondary" onClick={() => setPhotoLimit((limit) => limit + 80)}>Show 80 more</Button>}</div></div>{focusedPhoto && <div role="dialog" aria-modal="true" aria-label={`Viewing ${focusedPhoto.name}`} className="fixed inset-0 z-[80] flex items-center justify-center bg-bg/95 p-4" onClick={() => setFocusedPhotoId(null)}><div className="relative flex h-full w-full max-w-7xl flex-col gap-3" onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between gap-3 text-fg"><div className="min-w-0"><p className="truncate font-medium">{focusedPhoto.name}</p><p className="text-xs text-muted">{Math.max(1, focusedIndex + 1)} of {visible.length || photos.length} · {focusedPhoto.album}</p>{showLocations && <p title={focusedPhoto.path} className="truncate text-xs text-muted">{focusedPhoto.path}</p>}</div><Button size="sm" variant="secondary" onClick={() => setFocusedPhotoId(null)}>Close</Button></div><div className="flex flex-wrap items-center gap-2"><Button size="sm" variant={focusedPhoto.favorite ? "default" : "secondary"} onClick={() => setPhotos((items) => items.map((item) => item.id === focusedPhoto.id ? { ...item, favorite: !item.favorite } : item))}>{focusedPhoto.favorite ? "♥ Favorite" : "♡ Favorite"}</Button><Button size="sm" variant="secondary" aria-label={`Download ${focusedPhoto.name}`} onClick={() => downloadPhoto(focusedPhoto)}><Download className="size-4"/> Download</Button><Button size="sm" variant="secondary" disabled={visionBusy} onClick={() => void autoTagOnePhoto(focusedPhoto)}>{visionBusy ? visionProgress || "Tagging…" : "Run auto tags"}</Button><Input className="h-8 min-w-56 flex-1" aria-label="Edit photo tags" value={focusedPhoto.tags.join(", ")} placeholder="Add tags, separated by commas" onChange={(event) => { const nextTags = [...new Set(event.target.value.split(",").map((tag) => tag.trim().toLowerCase()).filter(Boolean))]; setPhotos((items) => items.map((item) => item.id === focusedPhoto.id ? { ...item, tags: nextTags } : item)); }} />{focusedPhoto.tags.length ? focusedPhoto.tags.map((tag) => <button key={tag} type="button" className="rounded-xs bg-elevated px-2 py-1 text-xs text-muted" onClick={() => setSelectedTag(tag)}>#{tag}</button>) : <span className="text-xs text-muted">No tags yet</span>}</div><PhotoStars name={focusedPhoto.name} rating={focusedPhoto.rating} onChange={(rating) => setPhotos((items) => items.map((item) => item.id === focusedPhoto.id ? { ...item, rating } : item))} /><div className="relative min-h-0 flex-1">{photoViewerLoading && <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-bg/70 text-sm text-fg"><RefreshCw className="size-7 animate-spin text-accent" />Loading full-resolution photo…</div>}<img src={focusedPhoto.url} alt={focusedPhoto.name} className="max-h-full w-full object-contain" decoding="async" onLoad={() => setPhotoViewerLoading(false)} onError={() => setPhotoViewerLoading(false)}/><Button size="sm" variant="secondary" className="absolute top-1/2 left-2 -translate-y-1/2" onClick={() => { setPhotoViewerLoading(true); moveFocus(-1); }} aria-label="Previous photo"><ChevronLeft className="size-5"/></Button><Button size="sm" variant="secondary" className="absolute top-1/2 right-2 -translate-y-1/2" onClick={() => { setPhotoViewerLoading(true); moveFocus(1); }} aria-label="Next photo"><ChevronRight className="size-5"/></Button></div></div></div>}</>
+        </div><div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted"><span>Showing {Math.min(renderedPhotos.length, visible.length)} of {visible.length} matching photos</span>{renderedPhotos.length < visible.length && <Button size="sm" variant="secondary" onClick={() => setPhotoLimit((limit) => limit + 80)}>Show 80 more</Button>}</div></div>{focusedPhoto && <div role="dialog" aria-modal="true" aria-label={`Viewing ${focusedPhoto.name}`} className="fixed inset-0 z-[80] flex items-center justify-center bg-bg/95 p-4" onClick={() => setFocusedPhotoId(null)}><div className="relative flex h-full w-full max-w-7xl flex-col gap-3" onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between gap-3 text-fg"><div className="min-w-0"><p className="truncate font-medium">{focusedPhoto.name}</p><p className="text-xs text-muted">{Math.max(1, focusedIndex + 1)} of {visible.length || photos.length} · {focusedPhoto.album}</p>{showLocations && <p title={focusedPhoto.path} className="truncate text-xs text-muted">{focusedPhoto.path}</p>}</div><Button size="sm" variant="secondary" onClick={() => setFocusedPhotoId(null)}>Close</Button></div><div className="flex flex-wrap items-center gap-2"><Button size="sm" variant={focusedPhoto.favorite ? "default" : "secondary"} onClick={() => setPhotos((items) => items.map((item) => item.id === focusedPhoto.id ? { ...item, favorite: !item.favorite } : item))}>{focusedPhoto.favorite ? "♥ Favorite" : "♡ Favorite"}</Button><Button size="sm" variant="secondary" aria-label={`Download ${focusedPhoto.name}`} onClick={() => downloadPhoto(focusedPhoto)}><Download className="size-4"/> Download</Button><Button size="sm" variant="secondary" disabled={visionBusy} onClick={() => { setFocusedPhotoId(null); void preparePhotoVision([focusedPhoto]); }}>{visionBusy ? visionProgress || "Preparing labels…" : "Prepare vision labels"}</Button><Input className="h-8 min-w-56 flex-1" aria-label="Edit photo tags" value={focusedPhoto.tags.join(", ")} placeholder="Add tags, separated by commas" onChange={(event) => { const nextTags = [...new Set(event.target.value.split(",").map((tag) => tag.trim().toLowerCase()).filter(Boolean))]; setPhotos((items) => items.map((item) => item.id === focusedPhoto.id ? { ...item, tags: nextTags } : item)); }} />{focusedPhoto.tags.length ? focusedPhoto.tags.map((tag) => <button key={tag} type="button" className="rounded-xs bg-elevated px-2 py-1 text-xs text-muted" onClick={() => setSelectedTag(tag)}>#{tag}</button>) : <span className="text-xs text-muted">No tags yet</span>}</div><PhotoStars name={focusedPhoto.name} rating={focusedPhoto.rating} onChange={(rating) => setPhotos((items) => items.map((item) => item.id === focusedPhoto.id ? { ...item, rating } : item))} /><div className="relative min-h-0 flex-1">{photoViewerLoading && <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-bg/70 text-sm text-fg"><RefreshCw className="size-7 animate-spin text-accent" />Loading full-resolution photo…</div>}<img src={focusedPhoto.url} alt={focusedPhoto.name} className="max-h-full w-full object-contain" decoding="async" onLoad={() => setPhotoViewerLoading(false)} onError={() => setPhotoViewerLoading(false)}/><Button size="sm" variant="secondary" className="absolute top-1/2 left-2 -translate-y-1/2" onClick={() => { setPhotoViewerLoading(true); moveFocus(-1); }} aria-label="Previous photo"><ChevronLeft className="size-5"/></Button><Button size="sm" variant="secondary" className="absolute top-1/2 right-2 -translate-y-1/2" onClick={() => { setPhotoViewerLoading(true); moveFocus(1); }} aria-label="Next photo"><ChevronRight className="size-5"/></Button></div></div></div>}</>
       )}
     </HubShell>
   );
@@ -2682,8 +2872,8 @@ const DEFAULT_MISSIONS: Mission[] = [
   { id: "sprint-18", title: "Offline resilience", detail: "Cached source health, unavailable-card hiding, recovery views, and source diagnostics distinguish a stale cache from an unavailable file.", done: true },
   { id: "sprint-19", title: "Watch room device matrix", detail: "Validate host and guest paths across browsers and home-network devices.", done: false },
   { id: "sprint-20", title: "Accessibility audit", detail: "Shared controls use visible focus states, accessible labels, responsive targets, contrast tokens, and the persisted reduced-motion preference.", done: true },
-  { id: "metadata-provenance", title: "Metadata provenance and locks", detail: "Adopt the open-library pattern: preserve manual tags, record the source of enrichment, and never let a provider overwrite a locked user choice.", done: false },
-  { id: "media-inspection", title: "Companion media inspection", detail: "Use the local companion for optional ffprobe/embedded-tag extraction in bounded batches, with a preview before tags are saved.", done: false },
+  { id: "metadata-provenance", title: "Metadata provenance and locks", detail: "Adopt the open-library pattern: preserve manual tags, record the source of enrichment, and never let a provider overwrite a locked user choice.", done: true },
+  { id: "media-inspection", title: "Companion media inspection", detail: "Use the local companion for optional ffprobe/embedded-tag extraction in bounded batches, with a preview before tags are saved.", done: true },
   { id: "vision-tagging", title: "Optional local vision tagging", detail: "Evaluate an on-device open model for photo/video scene suggestions, keeping media bytes local and requiring review before labels are applied.", done: true },
   { id: "photo-model-quality", title: "Open-source photo tagging quality", detail: "On-device vision suggestions are cached by stable file fingerprint and remain review-only as vision-* tags before joining shared taxonomy.", done: true },
   { id: "companion-cache-workers", title: "Companion cache workers", detail: "Bounded Companion folder-delta, metadata, and thumbnail-hint workers expose their file/time budget and leave the first screen responsive.", done: true },
@@ -2697,23 +2887,23 @@ const DEFAULT_MISSIONS: Mission[] = [
   { id: "youtube-deep-pagination", title: "YouTube deep pagination", detail: "Done · focused creator pulls use a bounded 100,000-item public catalog ceiling, duplicate suppression, and a short server cache to avoid repeated provider work; routine and bulk windows remain smaller.", done: true },
   { id: "taste-signal-audit", title: "Taste-signal audit", detail: "Stats now separates topic coverage, multi-topic depth, cross-source bridges, and operational-label volume so ranking inputs can be inspected before their weight changes.", done: true },
   { id: "tag-noise-budget", title: "Tag noise budget", detail: "Date, provider, format, source, creator, and keyword labels remain searchable/exportable but are excluded from taste scoring.", done: true },
-  { id: "creator-coverage-repair", title: "Creator coverage repair", detail: "Backfill missing creator identity from public provider metadata and flag ambiguous matches for review.", done: false },
-  { id: "metadata-tail-coverage", title: "Metadata tail coverage", detail: "Run bounded enrichment batches over the remaining untagged catalog and report coverage by source before applying recommendations.", done: false },
+  { id: "creator-coverage-repair", title: "Creator coverage repair", detail: "Done · Settings repairs missing YouTube/Twitch creator names in bounded 48-card batches only from exact cached channel/source IDs, retains them across shallow refreshes, preserves locked tags, and visibly leaves conflicting matches for review.", done: true },
+  { id: "metadata-tail-coverage", title: "Metadata tail coverage", detail: "Done · cached metadata enrichment now runs in bounded 48-title batches, reports tagged/waiting/locked coverage by source, preserves manual locks, and makes no provider request.", done: true },
   { id: "recommendation-diversity", title: "Recommendation diversity guardrails", detail: "Done · Home and provider discovery use deduplicated creator and provider round-robin selection, preserving highly rated favorites while preventing one creator or source from occupying a rail.", done: true },
   { id: "activity-journal", title: "Independent activity journal", detail: "Keep History, Continue marks, and local viewing counts in an IndexedDB activity record separate from broad preference storage.", done: true },
   { id: "shelf-explanations", title: "Explainable recommendation shelves", detail: "Done · recommendation rails now state their plain-language reason—ratings, saved creators, freshness, progress, or follow state—without exposing transport tags.", done: true },
   { id: "memory-pressure-observer", title: "Memory-pressure observer", detail: "Done · local Diagnostics reports mounted-card count, decoded artwork cache entries, active/queued decode work, hit/miss/eviction counts, and frame pressure so large shelves have an observable cause.", done: true },
   { id: "warp-01", title: "First-shelf trace", detail: "Done · local Diagnostics records launch-to-first-mounted-shelf time, title, and visible-card count. Deeper cache/index and thumbnail splits remain separate work.", done: true },
   { id: "warp-02", title: "Route-level code splitting", detail: "Photo, Stats, Watch Room, Settings, and other hub workspaces now load only when opened, keeping media browsing out of their first-load cost.", done: true },
-  { id: "warp-03", title: "Provider delta rendering", detail: "Apply only changed provider rows after a refresh instead of rebuilding every shelf.", done: false },
+  { id: "warp-03", title: "Provider delta rendering", detail: "Done · routine provider refreshes keep unchanged cards at their original indexes and preserve their object identity; changed/new rows alone reach shelves, while shallow responses retain on-demand comments and verified creator names.", done: true },
   { id: "warp-04", title: "Thumbnail decode governor", detail: "Done · visible and near-view artwork uses bounded workers, pauses during input or hidden-tab time, and retains a small queue for responsive recovery.", done: true },
   { id: "warp-05", title: "Search worker index", detail: "Done · full-text tokenization runs in a dedicated worker, while the search box shows an honest warming state until its local index is ready.", done: true },
   { id: "warp-06", title: "Photo metadata stream", detail: "Done · local photo dimensions and saved dates stream in eight-item browser chunks, yield between batches, persist each result, and show completed/remaining work with a rolling estimate.", done: true },
-  { id: "warp-07", title: "Warm route cache", detail: "Prefetch the next likely hub only after the current view becomes idle.", done: false },
-  { id: "warp-08", title: "Virtual rail windows", detail: "Render only card windows in long horizontal shelves while preserving keyboard navigation.", done: false },
-  { id: "warp-09", title: "Visible-card priorities", detail: "Give ratings, playback, and visible-card actions a higher scheduling priority than background enrichment.", done: false },
+  { id: "warp-07", title: "Warm route cache", detail: "Done · one adjacent Hub desk is warmed only after a paint frame and browser idle time; it yields to active input, hidden tabs, Save-Data, slow networks, and low-memory devices.", done: true },
+  { id: "warp-08", title: "Virtual rail windows", detail: "Done · long horizontal shelves mount only a measured card window with spacers, while arrows, Home/End, and focus bridges keep keyboard travel continuous across unmounted cards.", done: true },
+  { id: "warp-09", title: "Visible-card priorities", detail: "Done · a short foreground lease now protects ratings, playback, card opens, and visible artwork; deferred indexing, discovery, Adult ranking, facets, and speculative images resume only after the interaction window clears.", done: true },
   { id: "warp-10", title: "Idle tag batching", detail: "Done · each tag edit first writes a recoverable per-title journal, then coalesces the broad preference snapshot outside the input frame.", done: true },
-  { id: "warp-11", title: "Artwork disk cache audit", detail: "Measure cache hit rate and size by source before expanding thumbnail retention.", done: false },
+  { id: "warp-11", title: "Artwork disk cache audit", detail: "Done · Settings audits Companion disk artwork by source with file sizes, oldest update, session hit/miss counts, and explicit partial-inventory or unavailable states.", done: true },
   { id: "warp-12", title: "Provider request coalescing", detail: "Done · matching in-flight YouTube and Twitch pulls share one provider request across tabs and focused controls.", done: true },
   { id: "warp-13", title: "Backoff-aware provider scheduler", detail: "Done · provider failures use bounded exponential backoff, show the exact retry time, and retain focused refresh as an override.", done: true },
   { id: "warp-14", title: "Twitch archive depth", detail: "Twitch now reserves archive checks in every mixed refresh, retains up to 640 recent VOD rows on routine checks and up to 8,000 on focused pulls, and reports sparse channels directly in the Live desk.", done: true },

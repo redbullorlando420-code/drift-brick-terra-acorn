@@ -115,6 +115,22 @@ export type LibraryVideo = {
 export type FollowKind = "youtube" | "twitch";
 export type RemoteKind = FollowKind | "eporner" | "redtube" | "chaturbate" | "myfreecams" | "reddit" | "booru" | "redgifs";
 
+/**
+ * Local-only attribution for editable catalog metadata. Tags remain a compact
+ * search index, while this sidecar explains where each value originated and
+ * prevents a later provider refresh from replacing a deliberate user edit.
+ */
+export type MetadataTagSource = "manual" | "local-name" | "companion-inspection" | "local-vision" | `provider:${RemoteKind}` | "legacy";
+export type VideoMetadataProvenance = {
+  /** The latest known source for each normalized tag on the title. */
+  tags: Record<string, MetadataTagSource>;
+  /** A lock is set by the metadata editor and applies to the whole field. */
+  lockedFields?: Array<"tags" | "category">;
+  /** Categories are only user-authored today, but keep their source explicit. */
+  category?: "manual" | "legacy";
+  updatedAt?: number;
+};
+
 /** A local, user-facing explanation of a failed public provider refresh. */
 export type ProviderFailure = {
   kind: "unavailable" | "rate-limited" | "malformed" | "network-offline" | "integrity-challenge" | "public-page-limit";

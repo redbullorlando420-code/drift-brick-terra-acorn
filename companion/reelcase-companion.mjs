@@ -9,6 +9,8 @@ import { spawn, execFileSync } from "node:child_process";
 import { resolve, sep, dirname, basename, join } from "node:path";
 import { networkInterfaces } from "node:os";
 import dgram from "node:dgram";
+import { createArtworkAudit } from "./artwork-audit.mjs";
+const artworkAudit = createArtworkAudit();
 
 const port = Number(process.env.REELCASE_COMPANION_PORT || 43123);
 // The companion remains loopback-only. These extra origins only let the same
@@ -192,12 +194,19 @@ function resolveDownloadRoot() {
 const ytDlpBinary = resolveYtDlpBinary();
 const downloadRoot = resolveDownloadRoot();
 
+function embeddedMediaText(value) {
+  if (typeof value !== "string") return "";
+  // Embedded tags are untrusted file metadata. Keep the reply compact and
+  // display-safe; the browser gets values only for an explicit local preview.
+  return value.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 160);
+}
+
 function inspectMedia(rawPath) {
   const path = allowedPath(rawPath);
   const ext = path?.slice(path.lastIndexOf(".")).toLowerCase();
   if (!path || !ext || (!photoExt.has(ext) && !videoExt.has(ext))) return Promise.resolve({ requested: typeof rawPath === "string" ? rawPath : "", available: false, reason: "Not an approved local media file" });
   return new Promise((resolve) => {
-    const child = spawn("ffprobe", ["-v", "error", "-show_entries", "format=duration,size:stream=codec_type,codec_name,width,height", "-of", "json", path], { windowsHide: true, stdio: ["ignore", "pipe", "ignore"] });
+    const child = spawn("ffprobe", ["-v", "error", "-show_entries", "format=duration,size:format_tags=title,artist,album,genre,date,comment:stream=codec_type,codec_name,width,height", "-of", "json", path], { windowsHide: true, stdio: ["ignore", "pipe", "ignore"] });
     let output = "";
     const timer = setTimeout(() => { try { child.kill(); } catch { /* already closed */ } }, 5_000);
     child.stdout.on("data", (chunk) => { output += String(chunk); if (output.length > 32_000) child.kill(); });
@@ -207,7 +216,17 @@ function inspectMedia(rawPath) {
       try {
         const data = JSON.parse(output);
         const streams = Array.isArray(data.streams) ? data.streams.slice(0, 4).map((stream) => ({ type: stream.codec_type, codec: stream.codec_name, width: stream.width, height: stream.height })) : [];
-        resolve({ requested: rawPath, available: true, inspected: true, duration: Number(data.format?.duration) || 0, bytes: Number(data.format?.size) || 0, streams });
+        const formatTags = Object.fromEntries(
+          Object.entries(data.format?.tags && typeof data.format.tags === "object" ? data.format.tags : {})
+            .map(([key, value]) => [key.toLowerCase(), value]),
+        );
+        const tags = Object.fromEntries(
+          ["title", "artist", "album", "genre", "date", "comment"].flatMap((key) => {
+            const value = embeddedMediaText(formatTags[key]);
+            return value ? [[key, value]] : [];
+          }),
+        );
+        resolve({ requested: rawPath, available: true, inspected: true, duration: Number(data.format?.duration) || 0, bytes: Number(data.format?.size) || 0, streams, ...(Object.keys(tags).length ? { tags } : {}) });
       } catch { resolve({ requested: rawPath, available: true, inspected: false, reason: "No readable media metadata returned" }); }
     });
   });
@@ -941,9 +960,18 @@ const server = createServer(async (req, res) => {
     reply(res, 200, await cacheRemoteThumb(body.id, body.url));
     return;
   }
+  if (req.method === "GET" && req.url === "/thumbs/audit") {
+    const root = resolveThumbCacheRoot();
+    if (!root) { reply(res, 200, { ok: false, error: "No approved thumb cache folder." }); return; }
+    try { reply(res, 200, await artworkAudit.scan(root)); }
+    catch { reply(res, 200, { ok: false, error: "Artwork cache could not be inspected." }); }
+    return;
+  }
   if (req.method === "GET" && req.url?.startsWith("/thumbs/get")) {
     const id = new URL(req.url, "http://127.0.0.1").searchParams.get("id") ?? "";
     const result = getThumbCache(id);
+    // Count real disk lookups only; an unconfigured cache is unavailable, not a miss.
+    if (result.ok || result.error === "Thumb not cached.") artworkAudit.record(id, result.ok);
     reply(res, result.ok ? 200 : 404, result);
     return;
   }

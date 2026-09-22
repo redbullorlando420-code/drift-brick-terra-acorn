@@ -1,5 +1,6 @@
 import { startTransition, useEffect, useRef, useState } from "react";
 import { rankingFeedbackSnapshot } from "@/lib/media-feedback";
+import { scheduleBackgroundWork } from "@/lib/interaction-budget";
 import type { LibraryVideo } from "@/lib/videos/types";
 import type { AdultBrowseParams, AdultBrowseResult, AdultBrowseSignals } from "@/lib/videos/adult-browse-model";
 
@@ -108,12 +109,8 @@ export function useAdultBrowse(enabled: boolean, inputs: AdultBrowseInputs, para
         enqueue.current?.({ id, inputs, params, signals: { ...feedback, favorites: inputs.favorites, likes: inputs.likes, cameCounts: inputs.cameCounts, viewCounts: inputs.viewCounts, continueIds: inputs.continueIds, favoriteIds: inputs.favoriteIds } });
       }).catch(() => { if (!cancelled) setFailed(true); });
     };
-    if (typeof window.requestIdleCallback === "function") {
-      const idle = window.requestIdleCallback(start, { timeout: 500 });
-      return () => { cancelled = true; window.cancelIdleCallback(idle); };
-    }
-    const timer = window.setTimeout(start, 80);
-    return () => { cancelled = true; window.clearTimeout(timer); };
+    const cancelSchedule = scheduleBackgroundWork(start, { timeoutMs: 500, fallbackDelayMs: 80 });
+    return () => { cancelled = true; cancelSchedule(); };
   }, [enabled, inputs, params, attempt]);
 
   // Never flash results from the previously selected source/type/tag. Ratings

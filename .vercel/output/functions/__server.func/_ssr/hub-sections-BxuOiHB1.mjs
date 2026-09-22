@@ -1,11 +1,11 @@
 import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
-import { L as isAdultImageKind, z as isAdultPullKind } from "./adult-pull-cache-CzRQcKeX.mjs";
+import { L as isAdultImageKind, z as isAdultPullKind } from "./adult-pull-cache-aysXgkuS.mjs";
 import { A as PackageSearch, D as Play, E as Radio, Et as Bot, G as Lightbulb, I as MessageCircle, J as Images, N as MonitorPlay, S as Search, T as RefreshCw, Tt as Box, X as ImagePlus, b as ShieldCheck, bt as ChevronRight, c as Upload, ft as ExternalLink, gt as Copy, h as Smartphone, j as Music2, k as Pause, mt as Download, n as X, nt as Gamepad2, p as Star, q as Laptop, r as Wifi, s as Users, ut as Eye, v as Shuffle, vt as Clapperboard, w as Rocket, wt as ChartColumn, x as Settings2, xt as ChevronLeft, y as ShoppingBag, z as Maximize2 } from "../_libs/lucide-react.mjs";
-import { A as exportFeedback, B as saveDurablePhotos, C as resumeForVideo, D as isTopicTag, E as canonicalTopic, F as getInteractionBudgetSnapshot, G as companionListPrints, H as companionExportLibraryPack, I as measureInteraction, J as companionSetAutostart, K as companionReadPrint, L as linksFromHistoryAndResume, M as getRating, N as tagIsLiked, O as topicEvidence, P as toggleTagLike, Q as __exportAll, R as loadDurablePhotosSync, S as isAdultVideo, T as useSourceAssets, U as companionHealth, V as companionAckJobs, W as companionImportLibraryPack, X as createLocalId, Y as companionSteamEpicGames, Z as createShortLocalId, _ as VideoCard, a as twitchEmbedUrl, b as useThumbs, c as downloadLibraryPackZip, d as exportAdultStats, f as rankAdultTags, g as openTopic, h as Input, i as getFirstShelfTrace, j as getFeedbackDiagnostics, k as topicsForVideo, l as importLibraryPackZip, m as countAdultBySource, n as getNetworkDeviceId, o as applyLibraryPackFiles, p as countAdultBooruHosts, q as companionSavePrint, r as listNetworkDevices, s as buildLibraryPackFiles, u as buildAdultStatsSnapshot, v as getRenderBudgetSnapshot, w as useLibrary, x as Button, y as getThumbDiagnostics, z as restoreDurablePhotos } from "./routes-NqJQcerD.mjs";
+import { $ as createLocalId, A as topicsForVideo, B as restoreDurablePhotos, C as resumeForVideo, D as canonicalTopic, E as useSourceAssets, F as toggleTagLike, G as companionHealth, H as companionAckJobs, I as getInteractionBudgetSnapshot, J as companionListPrints, K as companionImportLibraryPack, L as measureInteraction, M as getFeedbackDiagnostics, N as getRating, O as isTopicTag, P as tagIsLiked, Q as companionSteamEpicGames, R as linksFromHistoryAndResume, S as isAdultVideo, T as resolveCreatorCoverage, U as companionArtworkAudit, V as saveDurablePhotos, W as companionExportLibraryPack, X as companionSavePrint, Y as companionReadPrint, Z as companionSetAutostart, _ as VideoCard, a as twitchEmbedUrl, b as useThumbs, c as downloadLibraryPackZip, d as exportAdultStats, et as createShortLocalId, f as rankAdultTags, g as openTopic, h as Input, i as getFirstShelfTrace, j as exportFeedback, k as topicEvidence, l as importLibraryPackZip, m as countAdultBySource, n as getNetworkDeviceId, o as applyLibraryPackFiles, p as countAdultBooruHosts, q as companionInspectMedia, r as listNetworkDevices, s as buildLibraryPackFiles, tt as __exportAll, u as buildAdultStatsSnapshot, v as getRenderBudgetSnapshot, w as useLibrary, x as Button, y as getThumbDiagnostics, z as loadDurablePhotosSync } from "./routes-Clv43gEn.mjs";
 import { a as Bar, c as ResponsiveContainer, i as XAxis, l as Tooltip, n as BarChart, o as Pie, r as YAxis, s as Cell, t as PieChart } from "../_libs/recharts+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/hub-sections-DuL6PypP.js
+//#region node_modules/.nitro/vite/services/ssr/assets/hub-sections-BxuOiHB1.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function TopicLinks({ explorer = false }) {
@@ -340,6 +340,91 @@ function TopicLinks({ explorer = false }) {
 						}, s.id))
 					})
 				]
+			})
+		]
+	});
+}
+function ArtworkAuditPanel() {
+	const [report, setReport] = (0, import_react.useState)();
+	const [busy, setBusy] = (0, import_react.useState)(false);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+		className: "rounded-lg bg-elevated p-5 shadow-border",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+				className: "font-display text-2xl text-fg",
+				children: "Artwork disk cache"
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				className: "mt-2 text-sm leading-6 text-muted",
+				children: "Inspect disk usage by source before changing retention. This reads cache file sizes without loading the images."
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+				className: "mt-4",
+				variant: "secondary",
+				disabled: busy,
+				onClick: () => void (async () => {
+					setBusy(true);
+					try {
+						setReport(await companionArtworkAudit());
+					} finally {
+						setBusy(false);
+					}
+				})(),
+				children: busy ? "Inspecting cache…" : "Audit artwork cache"
+			}),
+			report && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "mt-4 text-sm",
+				role: "status",
+				children: !report.ok ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "text-muted",
+					children: report.error
+				}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						className: "text-muted",
+						children: [
+							"Disk reads measured since ",
+							new Date(report.startedAt).toLocaleString(),
+							". “No reads” means no hit-rate sample yet. Source groups use cache ID prefixes; unrecognized entries remain local or unknown."
+						]
+					}),
+					report.truncated && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-2 text-accent",
+						children: "Partial inventory: the scan reached its time or entry budget. Sizes below are lower bounds."
+					}),
+					Boolean(report.skipped) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						className: "mt-2 text-muted",
+						children: [report.skipped, " entries could not be inspected."]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "mt-3 space-y-3",
+						children: report.sources?.length ? report.sources.map((row) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "rounded-md bg-bg/50 p-3",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "font-medium text-fg",
+									children: row.source
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+									className: "mt-1 tabular-nums text-muted",
+									children: [
+										row.files.toLocaleString(),
+										" files · ",
+										(row.bytes / 1048576).toFixed(2),
+										" MiB · ",
+										row.hits + row.misses ? `${Math.round(100 * row.hits / (row.hits + row.misses))}% hits (${row.hits} hit / ${row.misses} miss)` : "No reads"
+									]
+								}),
+								row.oldestAt !== null && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+									className: "mt-1 text-xs text-muted",
+									children: ["Oldest file updated ", new Date(row.oldestAt).toLocaleDateString()]
+								})
+							]
+						}, row.source)) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-muted",
+							children: "The cache is empty and has no recorded reads."
+						})
+					})
+				] })
 			})
 		]
 	});
@@ -1452,7 +1537,7 @@ var hub_sections_exports = /* @__PURE__ */ __exportAll({
 	WatchRoomSection: () => WatchRoomSection
 });
 var PrintModelViewer = (0, import_react.lazy)(async () => {
-	return { default: (await import("./print-model-viewer-BBXhQTgw.mjs")).PrintModelViewer };
+	return { default: (await import("./print-model-viewer-CRS5U-tr.mjs")).PrintModelViewer };
 });
 var HUB_KEY = "reelcase.hub.v1";
 function gameKind(item) {
@@ -4035,6 +4120,33 @@ function DistributionRow({ label, value, total }) {
 		})
 	})] });
 }
+function companionFilePath(path) {
+	return /^(?:[a-z]:[\\/]|\\\\[^\\]+\\[^\\]+[\\/]|\/)/i.test(path);
+}
+function companionTagPart(value) {
+	return (value ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48);
+}
+function companionSuggestions(inspection) {
+	const tags = inspection.tags;
+	const videoStream = inspection.streams?.find((stream) => stream.type === "video");
+	const year = tags?.date?.match(/(?:19|20)\d{2}/)?.[0];
+	return [...new Set([
+		tags?.genre ? `genre-${companionTagPart(tags.genre)}` : "",
+		tags?.artist ? `artist-${companionTagPart(tags.artist)}` : "",
+		tags?.album ? `album-${companionTagPart(tags.album)}` : "",
+		year ? `year-${year}` : "",
+		videoStream?.codec ? `codec-${companionTagPart(videoStream.codec)}` : "",
+		videoStream?.width && videoStream.height ? `resolution-${videoStream.width}x${videoStream.height}` : ""
+	].filter(Boolean))].slice(0, 6);
+}
+function companionTechnicalSummary(inspection) {
+	const streams = inspection.streams?.map((stream) => [stream.codec, stream.width && stream.height ? `${stream.width}×${stream.height}` : ""].filter(Boolean).join(" · ")).filter(Boolean) ?? [];
+	return [Number.isFinite(inspection.duration) && inspection.duration && inspection.duration > 0 ? `${Math.round(inspection.duration)} sec` : "duration unavailable", ...streams].join(" · ");
+}
+function metadataSourceLabel(source) {
+	if (source === "local") return "Local files";
+	return source.split("-").map((part) => part ? `${part[0].toUpperCase()}${part.slice(1)}` : part).join(" ");
+}
 function SettingsSection() {
 	const [hub, setHub] = (0, import_react.useState)({
 		prints: [],
@@ -4054,6 +4166,14 @@ function SettingsSection() {
 	const [startMuted, setStartMuted] = (0, import_react.useState)(false);
 	const [videoVisionBusy, setVideoVisionBusy] = (0, import_react.useState)(false);
 	const [videoVisionNote, setVideoVisionNote] = (0, import_react.useState)("");
+	const [videoVisionRows, setVideoVisionRows] = (0, import_react.useState)([]);
+	const [selectedVideoVision, setSelectedVideoVision] = (0, import_react.useState)({});
+	const [companionInspectionBusy, setCompanionInspectionBusy] = (0, import_react.useState)(false);
+	const [companionInspectionNote, setCompanionInspectionNote] = (0, import_react.useState)("");
+	const [companionInspectionRows, setCompanionInspectionRows] = (0, import_react.useState)([]);
+	const [selectedCompanionInspections, setSelectedCompanionInspections] = (0, import_react.useState)({});
+	const [metadataTailNote, setMetadataTailNote] = (0, import_react.useState)("");
+	const [creatorCoverageNote, setCreatorCoverageNote] = (0, import_react.useState)("");
 	const [twitchRefreshSeconds, setTwitchRefreshSeconds] = (0, import_react.useState)(30);
 	const [liveDensity, setLiveDensity] = (0, import_react.useState)(4);
 	const [sourceCacheFirst, setSourceCacheFirst] = (0, import_react.useState)(true);
@@ -4065,7 +4185,13 @@ function SettingsSection() {
 	const folders = useLibrary((s) => s.folders);
 	const videos = useLibrary((s) => s.videos);
 	const tags = useLibrary((s) => s.tags);
-	const setVideoTags = useLibrary((s) => s.setVideoTags);
+	const metadataProvenance = useLibrary((s) => s.metadataProvenance);
+	const applyReviewedTags = useLibrary((s) => s.applyReviewedTags);
+	const applyCompanionTags = useLibrary((s) => s.applyCompanionTags);
+	const enrichMetadataTail = useLibrary((s) => s.enrichMetadataTail);
+	const repairCreatorCoverage = useLibrary((s) => s.repairCreatorCoverage);
+	const openPreview = useLibrary((s) => s.openPreview);
+	const follows = useLibrary((s) => s.follows);
 	const refreshSourcePhotos = useLibrary((s) => s.refreshSourcePhotos);
 	const unavailableVideoCount = useLibrary((s) => Object.keys(s.unavailable).length);
 	const remoteCheckedAt = useLibrary((s) => s.remoteCheckedAt);
@@ -4078,6 +4204,68 @@ function SettingsSection() {
 			waiting: Math.max(0, local.length - tagged)
 		};
 	}, [tags, videos]);
+	const metadataTailCoverage = (0, import_react.useMemo)(() => {
+		const rows = /* @__PURE__ */ new Map();
+		for (const video of videos) {
+			const source = video.remote?.kind ?? "local";
+			const row = rows.get(source) ?? {
+				total: 0,
+				tagged: 0,
+				waiting: 0,
+				locked: 0
+			};
+			row.total += 1;
+			if ((tags[video.id] ?? []).length) row.tagged += 1;
+			else if (metadataProvenance[video.id]?.lockedFields?.includes("tags")) row.locked += 1;
+			else row.waiting += 1;
+			rows.set(source, row);
+		}
+		return [...rows.entries()].map(([source, row]) => ({
+			source,
+			...row
+		})).sort((left, right) => right.waiting - left.waiting || right.total - left.total || left.source.localeCompare(right.source));
+	}, [
+		metadataProvenance,
+		tags,
+		videos
+	]);
+	const metadataTailWaiting = metadataTailCoverage.reduce((total, row) => total + row.waiting, 0);
+	const runMetadataTail = () => {
+		const result = enrichMetadataTail();
+		if (!result.processed) {
+			setMetadataTailNote("Metadata coverage is current for every unlocked catalog title. Locked tags were left untouched.");
+			return;
+		}
+		const sourceSummary = result.sources.filter((row) => row.processed).map((row) => `${metadataSourceLabel(row.source)} ${row.changed}/${row.processed}`).join(" · ");
+		setMetadataTailNote(`Processed ${result.processed} cached title${result.processed === 1 ? "" : "s"}; ${result.changed} gained safe metadata tags${result.remaining ? ` · ${result.remaining} remain in the queue` : " · queue complete"}${sourceSummary ? ` · ${sourceSummary}` : ""}.`);
+	};
+	const creatorCoverage = (0, import_react.useMemo)(() => {
+		const rows = videos.filter((video) => video.remote?.kind === "youtube" || video.remote?.kind === "twitch").map((video) => ({
+			video,
+			resolution: resolveCreatorCoverage(video, follows)
+		}));
+		const ambiguous = rows.flatMap(({ video, resolution }) => resolution.status === "ambiguous" ? [{
+			id: video.id,
+			name: video.name,
+			candidates: resolution.candidates
+		}] : []);
+		return {
+			total: rows.length,
+			present: rows.filter(({ resolution }) => resolution.status === "present").length,
+			repairable: rows.filter(({ resolution }) => resolution.status === "resolved").length,
+			unresolved: rows.filter(({ resolution }) => resolution.status === "unresolved").length,
+			ambiguous
+		};
+	}, [follows, videos]);
+	const runCreatorCoverageRepair = () => {
+		const result = repairCreatorCoverage();
+		if (!result.processed) {
+			setCreatorCoverageNote(creatorCoverage.ambiguous.length ? "No uniquely matched cards remain. Ambiguous exact-ID matches stay below for review and were not changed." : "Creator coverage is current for every card with one exact saved provider match.");
+			return;
+		}
+		setCreatorCoverageNote(`Repaired ${result.repaired} creator ${result.repaired === 1 ? "identity" : "identities"} from exact saved provider IDs${result.tagged ? ` · ${result.tagged} unlocked card${result.tagged === 1 ? "" : "s"} also gained its creator tag` : " · locked tag choices were left unchanged"}${result.remaining ? ` · ${result.remaining} remain in the queue` : " · queue complete"}.`);
+	};
+	const companionInspectionCandidates = (0, import_react.useMemo)(() => videos.filter((video) => !video.remote && companionFilePath(video.path)).slice(0, 12), [videos]);
 	const [serviceNote, setServiceNote] = (0, import_react.useState)("");
 	(0, import_react.useEffect)(() => setHub(readHub()), []);
 	(0, import_react.useEffect)(() => {
@@ -4305,7 +4493,7 @@ function SettingsSection() {
 		URL.revokeObjectURL(url);
 	};
 	const tagLocalVideoFrames = async () => {
-		const candidates = videos.filter((video) => !video.remote && !(tags[video.id] ?? []).some((tag) => tag.startsWith("vision-"))).slice(0, 12);
+		const candidates = videos.filter((video) => !video.remote && !metadataProvenance[video.id]?.lockedFields?.includes("tags") && !(tags[video.id] ?? []).some((tag) => tag.startsWith("vision-"))).slice(0, 12);
 		if (!candidates.length) {
 			setVideoVisionNote("No eligible local video frames are ready. Open a few local cards first so their cached frame artwork can warm.");
 			return;
@@ -4323,14 +4511,75 @@ function SettingsSection() {
 		}
 		try {
 			const labels = await classifyImagesLocally(ready.map((video) => thumbs[video.id]), (done, total) => setVideoVisionNote(`Classifying local video frames · ${done}/${total}`));
-			ready.forEach((video, index) => setVideoTags(video.id, [...useLibrary.getState().tags[video.id] ?? [], ...labels[index].map((item) => `vision-${item.label}`)]));
-			const report = ready.slice(0, 3).map((video, index) => `${video.name}: ${labels[index].map((item) => `${item.label} ${Math.round(item.score * 100)}%`).join(", ") || "no confident label"}`).join(" · ");
-			setVideoVisionNote(`Tagged ${ready.length} local video frame${ready.length === 1 ? "" : "s"} · ${report}`);
+			const rows = ready.map((video, index) => ({
+				videoId: video.id,
+				name: video.name,
+				labels: labels[index] ?? [],
+				suggestions: (labels[index] ?? []).map((item) => `vision-${item.label}`)
+			}));
+			setVideoVisionRows(rows);
+			setSelectedVideoVision(Object.fromEntries(rows.flatMap((row) => row.suggestions.map((tag) => [`${row.videoId}:${tag}`, true]))));
+			const suggested = rows.filter((row) => row.suggestions.length > 0).length;
+			setVideoVisionNote(`${suggested} local frame result${suggested === 1 ? "" : "s"} ready for review. Nothing is saved until you apply the selected labels.`);
 		} catch {
 			setVideoVisionNote("The local vision model could not start. File data stayed on this device; filename tags are still available.");
 		} finally {
 			setVideoVisionBusy(false);
 		}
+	};
+	const applyVideoVision = () => {
+		let changedFiles = 0;
+		let addedTags = 0;
+		for (const row of videoVisionRows) {
+			const selectedTags = row.suggestions.filter((tag) => selectedVideoVision[`${row.videoId}:${tag}`]);
+			if (!selectedTags.length) continue;
+			const added = applyReviewedTags(row.videoId, selectedTags, "local-vision");
+			if (added) {
+				changedFiles += 1;
+				addedTags += added;
+			}
+		}
+		setSelectedVideoVision({});
+		setVideoVisionNote(changedFiles ? `Saved ${addedTags} reviewed vision tag${addedTags === 1 ? "" : "s"} on ${changedFiles} video${changedFiles === 1 ? "" : "s"}. Manual tag locks and existing tags were preserved.` : "No new labels were saved. They may already exist, or the selected videos now have manual tag locks.");
+	};
+	const inspectWithCompanion = async () => {
+		if (!companionInspectionCandidates.length) {
+			setCompanionInspectionNote("No catalog entries have an approved full filesystem path yet. Browser-picked files keep opaque handles by design.");
+			return;
+		}
+		setCompanionInspectionBusy(true);
+		setCompanionInspectionNote(`Inspecting ${companionInspectionCandidates.length} local file${companionInspectionCandidates.length === 1 ? "" : "s"}…`);
+		const result = await companionInspectMedia(companionInspectionCandidates.map((video) => video.path));
+		const byPath = new Map(companionInspectionCandidates.map((video) => [video.path, video]));
+		const rows = result.entries.flatMap((inspection) => {
+			const video = byPath.get(inspection.requested);
+			return video ? [{
+				videoId: video.id,
+				name: video.name,
+				inspection,
+				suggestions: companionSuggestions(inspection)
+			}] : [];
+		});
+		setCompanionInspectionRows(rows);
+		setSelectedCompanionInspections(Object.fromEntries(rows.filter((row) => row.inspection.inspected && row.suggestions.length > 0).map((row) => [row.videoId, true])));
+		const inspected = rows.filter((row) => row.inspection.inspected).length;
+		const unavailable = rows.length - inspected;
+		setCompanionInspectionNote(result.ok ? `${inspected} metadata result${inspected === 1 ? "" : "s"} ready for review${unavailable ? ` · ${unavailable} could not be inspected` : ""}. Nothing is saved until you apply selected suggestions.` : result.error ?? "Companion inspection could not start.");
+		setCompanionInspectionBusy(false);
+	};
+	const applyCompanionInspection = () => {
+		const selected = companionInspectionRows.filter((row) => selectedCompanionInspections[row.videoId]);
+		let changedFiles = 0;
+		let addedTags = 0;
+		for (const row of selected) {
+			const added = applyCompanionTags(row.videoId, row.suggestions);
+			if (added) {
+				changedFiles += 1;
+				addedTags += added;
+			}
+		}
+		setSelectedCompanionInspections({});
+		setCompanionInspectionNote(changedFiles ? `Saved ${addedTags} reviewed Companion tag${addedTags === 1 ? "" : "s"} on ${changedFiles} file${changedFiles === 1 ? "" : "s"}. Manual tag locks and existing tags were preserved.` : "No new suggestions were saved. They may already exist, or the selected files have manual tag locks.");
 	};
 	const downloadExport = (body, filename, type) => {
 		const url = URL.createObjectURL(new Blob([body], { type }));
@@ -4455,15 +4704,297 @@ function SettingsSection() {
 				children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+						children: "Metadata tail coverage"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+						className: "mt-2 font-display text-2xl text-fg",
+						children: "Finish cached catalog metadata in small batches."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-1 max-w-2xl text-sm leading-6 text-muted",
+						children: "Uses already-cached provider titles, descriptions, channels, and local filenames. One pass handles at most 48 unlocked, untagged titles; it does not make a network request, inspect a media file, or replace a manual tag choice."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3",
+						children: metadataTailCoverage.length ? metadataTailCoverage.map((row) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "rounded-sm bg-bg/45 p-3 text-xs",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "font-medium text-fg",
+								children: metadataSourceLabel(row.source)
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+								className: "mt-1 text-muted",
+								children: [
+									row.tagged.toLocaleString(),
+									" tagged · ",
+									row.waiting.toLocaleString(),
+									" waiting · ",
+									row.locked ? `${row.locked.toLocaleString()} locked` : "no locked gaps"
+								]
+							})]
+						}, row.source)) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-xs text-muted",
+							children: "Add a local folder or provider channel to measure coverage."
+						})
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 flex flex-wrap items-center gap-3",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							size: "sm",
+							variant: "secondary",
+							disabled: !metadataTailWaiting,
+							onClick: runMetadataTail,
+							children: metadataTailWaiting ? `Enrich next ${Math.min(48, metadataTailWaiting)}` : "Coverage current"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+							className: "text-xs text-accent",
+							children: [
+								metadataTailWaiting.toLocaleString(),
+								" unlocked title",
+								metadataTailWaiting === 1 ? "" : "s",
+								" waiting"
+							]
+						})]
+					}),
+					metadataTailNote && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						className: "mt-3 text-xs leading-5 text-accent",
+						role: "status",
+						children: ["Latest batch · ", metadataTailNote]
+					})
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+						children: "Creator coverage repair"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+						className: "mt-2 font-display text-2xl text-fg",
+						children: "Recover only exact creator identities."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-1 max-w-2xl text-sm leading-6 text-muted",
+						children: "Matches a missing YouTube or Twitch display name only when the cached card and one of your saved follows share the exact public channel ID or saved source ID. It never guesses from titles, filenames, or loose handles; no provider request is made."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rounded-sm bg-bg/45 p-3 text-xs",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "font-medium text-fg",
+									children: "Tracked cards"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+									className: "mt-1 text-muted",
+									children: [creatorCoverage.total.toLocaleString(), " YouTube/Twitch"]
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rounded-sm bg-bg/45 p-3 text-xs",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "font-medium text-fg",
+									children: "Already named"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+									className: "mt-1 text-muted",
+									children: [creatorCoverage.present.toLocaleString(), " verified names"]
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rounded-sm bg-bg/45 p-3 text-xs",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "font-medium text-fg",
+									children: "Exact repairs"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+									className: "mt-1 text-muted",
+									children: [creatorCoverage.repairable.toLocaleString(), " safe matches"]
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rounded-sm bg-bg/45 p-3 text-xs",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "font-medium text-fg",
+									children: "Needs evidence"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+									className: "mt-1 text-muted",
+									children: [
+										creatorCoverage.unresolved.toLocaleString(),
+										" unmatched · ",
+										creatorCoverage.ambiguous.length.toLocaleString(),
+										" ambiguous"
+									]
+								})]
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 flex flex-wrap items-center gap-3",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							size: "sm",
+							variant: "secondary",
+							disabled: !creatorCoverage.repairable,
+							onClick: runCreatorCoverageRepair,
+							children: creatorCoverage.repairable ? `Repair next ${Math.min(48, creatorCoverage.repairable)}` : "Coverage current"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+							className: "text-xs text-accent",
+							children: [
+								creatorCoverage.repairable.toLocaleString(),
+								" exact match",
+								creatorCoverage.repairable === 1 ? "" : "es",
+								" waiting"
+							]
+						})]
+					}),
+					creatorCoverageNote && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						className: "mt-3 text-xs leading-5 text-accent",
+						role: "status",
+						children: ["Latest repair · ", creatorCoverageNote]
+					}),
+					creatorCoverage.ambiguous.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 rounded-md border border-warning/35 bg-bg/45 p-3",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-sm font-medium text-fg",
+								children: "Ambiguous exact-ID matches need review"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-1 text-xs leading-5 text-muted",
+								children: "These cards match more than one saved display name. Nothing was written; open a card to inspect its provider details before changing follow data."
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "mt-3 grid gap-2",
+								children: creatorCoverage.ambiguous.slice(0, 12).map((row) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "flex flex-wrap items-center justify-between gap-3 rounded-sm bg-elevated p-3",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "min-w-0 flex-1 truncate text-xs text-fg",
+										children: [row.name, /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+											className: "text-muted",
+											children: [" · ", row.candidates.join(" / ")]
+										})]
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										size: "sm",
+										variant: "ghost",
+										onClick: () => openPreview(row.id),
+										children: "Review card"
+									})]
+								}, row.id))
+							}),
+							creatorCoverage.ambiguous.length > 12 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+								className: "mt-3 text-xs text-muted",
+								children: [
+									"Showing 12 of ",
+									creatorCoverage.ambiguous.length.toLocaleString(),
+									" ambiguous cards."
+								]
+							})
+						]
+					})
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+						children: "Optional Companion inspection"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+						className: "mt-2 font-display text-2xl text-fg",
+						children: "Review embedded local media tags."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-1 max-w-2xl text-sm leading-6 text-muted",
+						children: "The local Companion reads technical details and a small embedded-tag set with ffprobe. It accepts only files inside its approved roots, processes at most 12 files, and never uploads media bytes or saves a suggestion automatically."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						className: "mt-3 text-xs text-accent",
+						children: [
+							companionInspectionCandidates.length,
+							" eligible full-path file",
+							companionInspectionCandidates.length === 1 ? "" : "s",
+							" in the next bounded batch · browser-picked opaque file handles stay private and are skipped"
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						className: "mt-4",
+						size: "sm",
+						variant: "secondary",
+						disabled: companionInspectionBusy || !companionInspectionCandidates.length,
+						onClick: () => void inspectWithCompanion(),
+						children: companionInspectionBusy ? "Inspecting local metadata…" : "Inspect up to 12 local files"
+					}),
+					companionInspectionNote && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						className: "mt-3 text-xs leading-5 text-accent",
+						children: ["Latest inspection · ", companionInspectionNote]
+					}),
+					companionInspectionRows.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 rounded-md border border-border bg-bg/45 p-3",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "flex flex-wrap items-center justify-between gap-3",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-sm font-medium text-fg",
+								children: "Review suggestions before saving"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-1 text-xs text-muted",
+								children: "Embedded titles and comments stay preview-only; only the checked, compact search tags below can be saved."
+							})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								size: "sm",
+								disabled: !companionInspectionRows.some((row) => selectedCompanionInspections[row.videoId]),
+								onClick: applyCompanionInspection,
+								children: "Apply selected suggestions"
+							})]
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "mt-3 grid gap-2",
+							children: companionInspectionRows.map((row) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+								className: "flex gap-3 rounded-md border border-border bg-elevated p-3",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+									className: "mt-1 size-4 accent-accent",
+									type: "checkbox",
+									checked: Boolean(selectedCompanionInspections[row.videoId]),
+									disabled: !row.inspection.inspected || !row.suggestions.length,
+									onChange: (event) => setSelectedCompanionInspections((current) => ({
+										...current,
+										[row.videoId]: event.target.checked
+									}))
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+									className: "min-w-0 flex-1",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "block truncate text-sm font-medium text-fg",
+										children: row.name
+									}), row.inspection.inspected ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+										className: "mt-1 block text-xs text-muted",
+										children: [
+											row.inspection.tags?.title ? `Embedded title · ${row.inspection.tags.title}` : "No embedded title",
+											" · ",
+											companionTechnicalSummary(row.inspection),
+											row.inspection.tags?.comment ? " · embedded comment present" : ""
+										]
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "mt-2 block text-xs text-accent",
+										children: row.suggestions.length ? row.suggestions.map((tag) => `#${tag}`).join(" · ") : "No safe search-tag suggestion"
+									})] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+										className: "mt-1 block text-xs text-danger",
+										children: ["Not inspected · ", row.inspection.reason ?? "No readable metadata"]
+									})]
+								})]
+							}, row.videoId))
+						})]
+					})
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
 						children: "Beta · local video vision"
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
 						className: "mt-2 font-display text-2xl text-fg",
-						children: "Tag local videos from a cached frame."
+						children: "Review local video labels from a cached frame."
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "mt-1 max-w-2xl text-sm text-muted",
-						children: "Uses the same on-device image model as Photos on one cached local thumbnail per video. It runs only when you start it, uses a bounded 12-video batch, and keeps frames and labels on this device."
+						children: "Uses the same on-device image model as Photos on one cached local thumbnail per video. It runs only when you start it, uses a bounded 12-video batch, and keeps frames and labels on this device until you explicitly apply the labels you want."
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 						className: "mt-3 text-xs text-accent",
@@ -4478,13 +5009,63 @@ function SettingsSection() {
 						className: "mt-4",
 						size: "sm",
 						variant: "secondary",
-						disabled: videoVisionBusy || !videos.some((video) => !video.remote),
+						disabled: videoVisionBusy || !videos.some((video) => !video.remote && !metadataProvenance[video.id]?.lockedFields?.includes("tags")),
 						onClick: () => void tagLocalVideoFrames(),
-						children: videoVisionBusy ? videoVisionNote || "Preparing local frames…" : "Prepare and tag next 12 local videos"
+						children: videoVisionBusy ? videoVisionNote || "Preparing local frames…" : "Prepare next 12 local video frames"
 					}),
 					videoVisionNote && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-						className: "mt-3 text-xs text-accent",
+						className: "mt-3 text-xs leading-5 text-accent",
 						children: ["Latest output · ", videoVisionNote]
+					}),
+					videoVisionRows.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 rounded-md border border-border bg-bg/45 p-3",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "flex flex-wrap items-center justify-between gap-3",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-sm font-medium text-fg",
+								children: "Review vision labels before saving"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-1 text-xs text-muted",
+								children: "Each result is local-only. Check only the labels you want to add; unselected labels are discarded when this review changes."
+							})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								size: "sm",
+								disabled: !videoVisionRows.some((row) => row.suggestions.some((tag) => selectedVideoVision[`${row.videoId}:${tag}`])),
+								onClick: applyVideoVision,
+								children: "Apply selected labels"
+							})]
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "mt-3 grid gap-2",
+							children: videoVisionRows.map((row) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rounded-md border border-border bg-elevated p-3",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "truncate text-sm font-medium text-fg",
+									children: row.name
+								}), row.labels.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "mt-2 flex flex-wrap gap-2",
+									children: row.labels.map((item) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+										className: "flex items-center gap-2 rounded-sm bg-bg/55 px-2 py-1 text-xs text-fg",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+											className: "size-3.5 accent-accent",
+											type: "checkbox",
+											checked: Boolean(selectedVideoVision[`${row.videoId}:vision-${item.label}`]),
+											onChange: (event) => setSelectedVideoVision((current) => ({
+												...current,
+												[`${row.videoId}:vision-${item.label}`]: event.target.checked
+											}))
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
+											"#",
+											`vision-${item.label}`,
+											" · ",
+											Math.round(item.score * 100),
+											"%"
+										] })]
+									}, `${row.videoId}:${item.label}`))
+								}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-2 text-xs text-muted",
+									children: "No confident local label suggested."
+								})]
+							}, row.videoId))
+						})]
 					})
 				]
 			}),
@@ -5408,6 +5989,10 @@ function SettingsSection() {
 					]
 				})]
 			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "mt-6",
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ArtworkAuditPanel, {})
+			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 				className: "mt-6",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -5964,7 +6549,8 @@ function PhotosSection() {
 	const [photoLimit, setPhotoLimit] = (0, import_react.useState)(48);
 	const [visionBusy, setVisionBusy] = (0, import_react.useState)(false);
 	const [visionProgress, setVisionProgress] = (0, import_react.useState)("");
-	const [visionReport, setVisionReport] = (0, import_react.useState)([]);
+	const [photoVisionRows, setPhotoVisionRows] = (0, import_react.useState)([]);
+	const [selectedPhotoVision, setSelectedPhotoVision] = (0, import_react.useState)({});
 	const [visionModel, setVisionModel] = (0, import_react.useState)("semanticPlus");
 	const [visionReviewOpen, setVisionReviewOpen] = (0, import_react.useState)(true);
 	const [visionBenchmark, setVisionBenchmark] = (0, import_react.useState)(() => {
@@ -6365,9 +6951,9 @@ function PhotosSection() {
 	const people = (0, import_react.useMemo)(() => [...new Set(photos.flatMap((photo) => photo.people))], [photos]);
 	const albums = (0, import_react.useMemo)(() => [...new Set(photos.map((photo) => photo.album))], [photos]);
 	const photoTags = (0, import_react.useMemo)(() => [...new Set(photos.flatMap((photo) => photo.tags))].sort(), [photos]);
-	const visionProcessed = (0, import_react.useMemo)(() => photos.filter((photo) => photo.tags.includes("auto-tagged")).length, [photos]);
+	const visionProcessed = (0, import_react.useMemo)(() => photos.filter((photo) => photo.vision?.length || photo.tags.some((tag) => tag.startsWith("vision-"))).length, [photos]);
 	const visionPending = Math.max(0, photos.length - visionProcessed);
-	const visionReviewedPhotos = (0, import_react.useMemo)(() => photos.filter((photo) => photo.tags.includes("auto-tagged")).sort((a, b) => b.addedAt - a.addedAt), [photos]);
+	const visionReviewedPhotos = (0, import_react.useMemo)(() => photos.filter((photo) => photo.vision?.length || photo.tags.some((tag) => tag.startsWith("vision-"))).sort((a, b) => b.addedAt - a.addedAt), [photos]);
 	const visible = (0, import_react.useMemo)(() => photos.filter((photo) => (selectedPerson === "All photos" || photo.people.includes(selectedPerson)) && (selectedAlbum === "All albums" || photo.album === selectedAlbum) && (selectedTag === "All tags" || photo.tags.includes(selectedTag)) && (!favoritesOnly || photo.favorite) && (ratingFilter === "all" || (ratingFilter === "unrated" ? !photo.rating : photo.rating >= Number(ratingFilter))) && (discoveryFilter === "all" || (discoveryFilter === "screenshots" ? /screenshot|screen[_ -]?shot/i.test(photo.name) : discoveryFilter === "camera" ? /^(img|dsc|pxl|photo)[_ -]?\d/i.test(photo.name) : /download|image|copy|edited/i.test(photo.name))) && `${photo.name} ${photo.path} ${photo.people.join(" ")} ${photo.tags.join(" ")} ${photo.album}`.toLowerCase().includes(photoSearch.toLowerCase())).sort((a, b) => {
 		if (photoSort === "name") return a.name.localeCompare(b.name);
 		if (photoSort === "rating") return b.rating - a.rating || b.addedAt - a.addedAt;
@@ -6471,75 +7057,83 @@ function PhotosSection() {
 		}));
 		setHelperNote(changed ? `Added local filename-based auto tags to ${changed} photo${changed === 1 ? "" : "s"}. You can edit any tag on its card.` : "Everything already has the available local auto tags.");
 	};
-	const applyVisionTags = (batch, labels, model) => {
-		const byId = new Map(batch.map((photo, index) => [photo.id, labels[index] ?? []]));
-		setPhotos((items) => items.map((photo) => {
-			const report = byId.get(photo.id);
-			if (!report) return photo;
-			const additions = [
-				"auto-tagged",
-				`auto-tag-${model}-v2`,
-				...report.map((item) => `vision-${item.label}`)
-			];
-			return {
-				...photo,
-				tags: [.../* @__PURE__ */ new Set([...photo.tags, ...additions])],
-				vision: report,
-				visionModel: model
-			};
-		}));
-		setVisionReport((current) => [...batch.map((photo, index) => ({
-			id: photo.id,
-			name: photo.name,
-			labels: labels[index] ?? []
-		})), ...current.filter((row) => !byId.has(row.id))].slice(0, 48));
-	};
-	const runVisionQueue = async (candidates, allPhotos) => {
-		if (!candidates.length) {
-			setHelperNote("Every loaded photo already has a local vision pass. Add more photos or edit tags to review them.");
+	const preparePhotoVision = async (candidates) => {
+		const batchCandidates = candidates.slice(0, 48);
+		if (!batchCandidates.length) {
+			setHelperNote("Every loaded photo already has accepted local vision labels. Add more photos or edit tags to review them again.");
 			return;
 		}
 		setVisionBusy(true);
 		setVisionReviewOpen(true);
-		setVisionReport([]);
-		setVisionProgress(`Preparing ${VISION_MODELS[visionModel].name} for ${candidates.length.toLocaleString()} photos…`);
+		setPhotoVisionRows([]);
+		setSelectedPhotoVision({});
+		setVisionProgress(`Preparing ${VISION_MODELS[visionModel].name} for ${batchCandidates.length.toLocaleString()} photos…`);
+		const rows = [];
 		try {
-			for (let start = 0; start < candidates.length; start += 12) {
-				const batch = candidates.slice(start, start + 12);
-				const labels = await classifyImagesLocally(batch.map((photo) => photo.url), (done, total) => setVisionProgress(`${VISION_MODELS[visionModel].name} · ${start + done}/${candidates.length} photos`), visionModel, (status) => {
+			for (let start = 0; start < batchCandidates.length; start += 12) {
+				const batch = batchCandidates.slice(start, start + 12);
+				const labels = await classifyImagesLocally(batch.map((photo) => photo.url), (done, total) => setVisionProgress(`${VISION_MODELS[visionModel].name} · ${start + done}/${batchCandidates.length} photos`), visionModel, (status) => {
 					const transfer = status.total ? ` · ${Math.round((status.loaded ?? 0) / status.total * 100)}%` : "";
-					setVisionProgress(`${VISION_MODELS[visionModel].name} · ${status.status ?? status.file ?? "loading"}${transfer} · ${start}/${candidates.length} complete`);
+					setVisionProgress(`${VISION_MODELS[visionModel].name} · ${status.status ?? status.file ?? "loading"}${transfer} · ${start}/${batchCandidates.length} complete`);
 				});
-				applyVisionTags(batch, labels, visionModel);
+				rows.push(...batch.map((photo, index) => ({
+					photoId: photo.id,
+					name: photo.name,
+					labels: labels[index] ?? [],
+					model: visionModel
+				})));
 				await new Promise((resolve) => window.setTimeout(resolve, 0));
 			}
-			setHelperNote(`${VISION_MODELS[visionModel].name} reviewed ${candidates.length.toLocaleString()} photo${candidates.length === 1 ? "" : "s"}${allPhotos ? " in the full queued library" : ""}. Labels and confidence scores are ready for review.`);
+			setPhotoVisionRows(rows);
+			setSelectedPhotoVision(Object.fromEntries(rows.flatMap((row) => row.labels.map((label) => [`${row.photoId}:vision-${label.label}`, true]))));
+			const suggested = rows.filter((row) => row.labels.length > 0).length;
+			setHelperNote(`${VISION_MODELS[visionModel].name} prepared ${suggested} local photo result${suggested === 1 ? "" : "s"} for review. Nothing is saved until you apply selected labels.`);
 		} catch (error) {
-			setHelperNote(`${VISION_MODELS[visionModel].name} stopped after saving every completed checkpoint: ${error instanceof Error ? error.message : "unknown error"}. Retry continues with the remaining photos.`);
+			if (rows.length) {
+				setPhotoVisionRows(rows);
+				setSelectedPhotoVision(Object.fromEntries(rows.flatMap((row) => row.labels.map((label) => [`${row.photoId}:vision-${label.label}`, true]))));
+				setHelperNote(`${VISION_MODELS[visionModel].name} stopped after preparing ${rows.length} photo${rows.length === 1 ? "" : "s"}: ${error instanceof Error ? error.message : "unknown error"}. Review the completed labels; the remaining photos were not changed.`);
+			} else setHelperNote(`${VISION_MODELS[visionModel].name} could not prepare local labels: ${error instanceof Error ? error.message : "unknown error"}. No photo tags changed.`);
 		} finally {
 			setVisionBusy(false);
 			setVisionProgress("");
 		}
 	};
-	const autoTagPhotosWithVision = async () => runVisionQueue(photos.filter((photo) => !photo.tags.includes("auto-tagged")).slice(0, 48), false);
-	const autoTagAllPhotosWithVision = async () => runVisionQueue(photos.filter((photo) => !photo.tags.includes("auto-tagged")), true);
-	const autoTagOnePhoto = async (photo) => {
-		setVisionBusy(true);
-		setVisionProgress(`Preparing ${VISION_MODELS[visionModel].name} for ${photo.name}…`);
-		try {
-			const [labels] = await classifyImagesLocally([photo.url], (done, total) => setVisionProgress(`${VISION_MODELS[visionModel].name} · ${done}/${total}`), visionModel, (status) => {
-				const transfer = status.total ? ` · ${Math.round((status.loaded ?? 0) / status.total * 100)}%` : "";
-				setVisionProgress(`${VISION_MODELS[visionModel].name} · ${status.status ?? status.file ?? "loading"}${transfer}`);
-			});
-			applyVisionTags([photo], [labels ?? []], visionModel);
-			setVisionReviewOpen(true);
-			setHelperNote(`${VISION_MODELS[visionModel].name} reviewed ${photo.name}. Its tags updated in place and are immediately searchable.`);
-		} catch (error) {
-			setHelperNote(`${VISION_MODELS[visionModel].name} could not tag ${photo.name}: ${error instanceof Error ? error.message : "unknown error"}.`);
-		} finally {
-			setVisionBusy(false);
-			setVisionProgress("");
-		}
+	const prepareNextPhotoVision = () => void preparePhotoVision(photos.filter((photo) => !photo.vision?.length && !photo.tags.some((tag) => tag.startsWith("vision-"))).slice(0, 48));
+	const applyPhotoVision = () => {
+		const selectedByPhoto = new Map(photoVisionRows.map((row) => [row.photoId, {
+			labels: row.labels.filter((label) => selectedPhotoVision[`${row.photoId}:vision-${label.label}`]),
+			model: row.model
+		}]));
+		let changedPhotos = 0;
+		let addedTags = 0;
+		const nextPhotos = photos.map((photo) => {
+			const selected = selectedByPhoto.get(photo.id);
+			if (!selected?.labels.length) return photo;
+			const newTags = [
+				"auto-tagged",
+				`auto-tag-${selected.model}-v2`,
+				...selected.labels.map((label) => `vision-${label.label}`)
+			].filter((tag) => !photo.tags.includes(tag));
+			if (!newTags.length) return photo;
+			changedPhotos += 1;
+			addedTags += newTags.length;
+			return {
+				...photo,
+				tags: [...photo.tags, ...newTags],
+				vision: selected.labels,
+				visionModel: selected.model
+			};
+		});
+		setPhotos(nextPhotos);
+		setPhotoVisionRows([]);
+		setSelectedPhotoVision({});
+		setHelperNote(changedPhotos ? `Saved ${addedTags} reviewed vision tag${addedTags === 1 ? "" : "s"} on ${changedPhotos} photo${changedPhotos === 1 ? "" : "s"}. Unselected labels were discarded.` : "No new labels were saved. They may already exist, or every suggested label was unchecked.");
+	};
+	const discardPhotoVision = () => {
+		setPhotoVisionRows([]);
+		setSelectedPhotoVision({});
+		setHelperNote("Prepared vision labels were discarded. No photo tags changed.");
 	};
 	const runVisionBenchmark = async () => {
 		const sample = photos.filter((photo) => Boolean(photo.url)).slice(0, 24);
@@ -6917,8 +7511,8 @@ function PhotosSection() {
 								size: "sm",
 								variant: "secondary",
 								disabled: !photos.length || visionBusy,
-								onClick: () => void autoTagPhotosWithVision(),
-								children: visionBusy ? visionProgress || "Starting local vision…" : "Local vision tags · 48"
+								onClick: prepareNextPhotoVision,
+								children: visionBusy ? visionProgress || "Starting local vision…" : "Prepare local vision labels · 48"
 							})
 						]
 					}),
@@ -6951,24 +7545,16 @@ function PhotosSection() {
 									className: "mt-1 text-sm text-fg",
 									children: [
 										visionProcessed.toLocaleString(),
-										" processed · ",
+										" accepted · ",
 										visionPending.toLocaleString(),
 										" waiting · SigLIP semantic+ is the balanced fast default"
 									]
-								})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "flex flex-wrap gap-2",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-										size: "sm",
-										variant: "secondary",
-										disabled: visionBusy || !visionPending,
-										onClick: () => void autoTagPhotosWithVision(),
-										children: visionBusy ? visionProgress || "Starting model…" : `Process next ${Math.min(48, visionPending)}`
-									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-										size: "sm",
-										disabled: visionBusy || !visionPending,
-										onClick: () => void autoTagAllPhotosWithVision(),
-										children: visionBusy ? "Queue running…" : `Process all ${visionPending.toLocaleString()}`
-									})]
+								})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+									size: "sm",
+									variant: "secondary",
+									disabled: visionBusy || !visionPending,
+									onClick: prepareNextPhotoVision,
+									children: visionBusy ? visionProgress || "Starting model…" : `Prepare next ${Math.min(48, visionPending)}`
 								})]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -6990,34 +7576,65 @@ function PhotosSection() {
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 								className: "mt-2 text-xs leading-5 text-muted",
-								children: [VISION_MODELS[visionModel].purpose, ". Labels stay on this device and are review-only. Semantic+ balances throughput and detail for batch jobs; CLIP and SigLIP large+ remain available for benchmarked comparison."]
+								children: [VISION_MODELS[visionModel].purpose, ". Labels stay on this device until you explicitly apply checked suggestions. Each review is bounded to 48 photos so you can inspect it without a bulk automatic save; CLIP and SigLIP large+ remain available for benchmarked comparison."]
 							}),
-							visionReport.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "mt-3 divide-y divide-border rounded-sm border border-border bg-elevated",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "px-3 py-2 text-xs font-medium text-fg",
-									children: "Latest local results"
-								}), visionReport.slice(0, 8).map((row) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "flex flex-wrap items-center justify-between gap-2 px-3 py-2",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-										className: "min-w-0 truncate text-xs text-fg",
-										children: row.name
-									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-										className: "flex flex-wrap gap-1",
-										children: row.labels.length ? row.labels.slice(0, 3).map((item) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-											className: "rounded-xs bg-bg/60 px-2 py-1 text-xs text-accent",
-											children: [
-												item.label,
-												" · ",
-												Math.round(item.score * 100),
-												"%"
-											]
-										}, item.label)) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-											className: "text-xs text-muted",
-											children: "No confident label"
-										})
+							photoVisionRows.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+								className: "mt-3 rounded-sm border border-border bg-elevated p-3",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "flex flex-wrap items-center justify-between gap-3",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "text-xs font-medium text-fg",
+										children: ["Review vision labels before saving · ", photoVisionRows.length]
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "mt-1 text-xs text-muted",
+										children: "Only checked labels are added. Unchecked labels are discarded when you apply or replace this review."
+									})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "flex flex-wrap gap-2",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+											size: "sm",
+											variant: "ghost",
+											onClick: discardPhotoVision,
+											children: "Discard review"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+											size: "sm",
+											disabled: !photoVisionRows.some((row) => row.labels.some((label) => selectedPhotoVision[`${row.photoId}:vision-${label.label}`])),
+											onClick: applyPhotoVision,
+											children: "Apply selected labels"
+										})]
 									})]
-								}, row.id))]
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "mt-3 grid gap-2",
+									children: photoVisionRows.map((row) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "rounded-sm border border-border bg-bg/55 p-3",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "truncate text-xs font-medium text-fg",
+											children: row.name
+										}), row.labels.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "mt-2 flex flex-wrap gap-2",
+											children: row.labels.map((label) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+												className: "flex items-center gap-2 rounded-xs bg-elevated px-2 py-1 text-xs text-fg",
+												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+													className: "size-3.5 accent-accent",
+													type: "checkbox",
+													checked: Boolean(selectedPhotoVision[`${row.photoId}:vision-${label.label}`]),
+													onChange: (event) => setSelectedPhotoVision((current) => ({
+														...current,
+														[`${row.photoId}:vision-${label.label}`]: event.target.checked
+													}))
+												}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
+													"#",
+													`vision-${label.label}`,
+													" · ",
+													Math.round(label.score * 100),
+													"%"
+												] })]
+											}, `${row.photoId}:${label.label}`))
+										}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "mt-2 text-xs text-muted",
+											children: "No confident local label suggested. Nothing will be saved for this photo."
+										})]
+									}, row.photoId))
+								})]
 							}),
 							visionReviewedPhotos.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 								className: "mt-3 rounded-sm border border-border bg-elevated p-3",
@@ -7026,15 +7643,15 @@ function PhotosSection() {
 										className: "flex flex-wrap items-center justify-between gap-3",
 										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 											className: "text-xs font-medium text-fg",
-											children: ["Tagged photo review · ", visionReviewedPhotos.length]
+											children: ["Accepted photo vision results · ", visionReviewedPhotos.length]
 										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 											className: "mt-1 text-xs text-muted",
-											children: "Every completed photo is here, including low-confidence results. Filter the gallery with #auto-tagged or its model-version tag."
+											children: "These are labels you explicitly saved. Filter the gallery with #auto-tagged or its model-version tag."
 										})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 											size: "sm",
 											variant: "ghost",
 											onClick: () => setVisionReviewOpen((open) => !open),
-											children: visionReviewOpen ? "Hide review" : `Review ${visionReviewedPhotos.length}`
+											children: visionReviewOpen ? "Hide accepted results" : `Review ${visionReviewedPhotos.length}`
 										})]
 									}),
 									visionReviewOpen && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
@@ -7082,7 +7699,7 @@ function PhotosSection() {
 										children: [
 											"Showing 24 of ",
 											visionReviewedPhotos.length.toLocaleString(),
-											" tagged photos. Use photo tags or search to narrow the gallery."
+											" accepted photos. Use photo tags or search to narrow the gallery."
 										]
 									})
 								]
@@ -7605,8 +8222,11 @@ function PhotosSection() {
 										size: "sm",
 										variant: "secondary",
 										disabled: visionBusy,
-										onClick: () => void autoTagOnePhoto(focusedPhoto),
-										children: visionBusy ? visionProgress || "Tagging…" : "Run auto tags"
+										onClick: () => {
+											setFocusedPhotoId(null);
+											preparePhotoVision([focusedPhoto]);
+										},
+										children: visionBusy ? visionProgress || "Preparing labels…" : "Prepare vision labels"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
 										className: "h-8 min-w-56 flex-1",
@@ -8007,13 +8627,13 @@ var DEFAULT_MISSIONS = [
 		id: "metadata-provenance",
 		title: "Metadata provenance and locks",
 		detail: "Adopt the open-library pattern: preserve manual tags, record the source of enrichment, and never let a provider overwrite a locked user choice.",
-		done: false
+		done: true
 	},
 	{
 		id: "media-inspection",
 		title: "Companion media inspection",
 		detail: "Use the local companion for optional ffprobe/embedded-tag extraction in bounded batches, with a preview before tags are saved.",
-		done: false
+		done: true
 	},
 	{
 		id: "vision-tagging",
@@ -8096,14 +8716,14 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "creator-coverage-repair",
 		title: "Creator coverage repair",
-		detail: "Backfill missing creator identity from public provider metadata and flag ambiguous matches for review.",
-		done: false
+		detail: "Done · Settings repairs missing YouTube/Twitch creator names in bounded 48-card batches only from exact cached channel/source IDs, retains them across shallow refreshes, preserves locked tags, and visibly leaves conflicting matches for review.",
+		done: true
 	},
 	{
 		id: "metadata-tail-coverage",
 		title: "Metadata tail coverage",
-		detail: "Run bounded enrichment batches over the remaining untagged catalog and report coverage by source before applying recommendations.",
-		done: false
+		detail: "Done · cached metadata enrichment now runs in bounded 48-title batches, reports tagged/waiting/locked coverage by source, preserves manual locks, and makes no provider request.",
+		done: true
 	},
 	{
 		id: "recommendation-diversity",
@@ -8144,8 +8764,8 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "warp-03",
 		title: "Provider delta rendering",
-		detail: "Apply only changed provider rows after a refresh instead of rebuilding every shelf.",
-		done: false
+		detail: "Done · routine provider refreshes keep unchanged cards at their original indexes and preserve their object identity; changed/new rows alone reach shelves, while shallow responses retain on-demand comments and verified creator names.",
+		done: true
 	},
 	{
 		id: "warp-04",
@@ -8168,20 +8788,20 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "warp-07",
 		title: "Warm route cache",
-		detail: "Prefetch the next likely hub only after the current view becomes idle.",
-		done: false
+		detail: "Done · one adjacent Hub desk is warmed only after a paint frame and browser idle time; it yields to active input, hidden tabs, Save-Data, slow networks, and low-memory devices.",
+		done: true
 	},
 	{
 		id: "warp-08",
 		title: "Virtual rail windows",
-		detail: "Render only card windows in long horizontal shelves while preserving keyboard navigation.",
-		done: false
+		detail: "Done · long horizontal shelves mount only a measured card window with spacers, while arrows, Home/End, and focus bridges keep keyboard travel continuous across unmounted cards.",
+		done: true
 	},
 	{
 		id: "warp-09",
 		title: "Visible-card priorities",
-		detail: "Give ratings, playback, and visible-card actions a higher scheduling priority than background enrichment.",
-		done: false
+		detail: "Done · a short foreground lease now protects ratings, playback, card opens, and visible artwork; deferred indexing, discovery, Adult ranking, facets, and speculative images resume only after the interaction window clears.",
+		done: true
 	},
 	{
 		id: "warp-10",
@@ -8192,8 +8812,8 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "warp-11",
 		title: "Artwork disk cache audit",
-		detail: "Measure cache hit rate and size by source before expanding thumbnail retention.",
-		done: false
+		detail: "Done · Settings audits Companion disk artwork by source with file sizes, oldest update, session hit/miss counts, and explicit partial-inventory or unavailable states.",
+		done: true
 	},
 	{
 		id: "warp-12",
@@ -9844,7 +10464,7 @@ function LocalCatalog({ kind, eyebrow, icon, title, copy, accept, directory, foo
 								let saved = 0;
 								for (const item of items.slice(0, 20)) {
 									if (!item.id || !isViewablePrintName(item.name)) continue;
-									const { loadPrintBlob } = await import("./prints-blobs-BmCLEpIp.mjs");
+									const { loadPrintBlob } = await import("./prints-blobs-DkDPebaY.mjs");
 									const record = await loadPrintBlob(item.id);
 									if (!record?.blob) continue;
 									const buffer = new Uint8Array(await record.blob.arrayBuffer());

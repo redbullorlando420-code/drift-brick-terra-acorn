@@ -395,6 +395,7 @@ export const VideoCard = memo(function VideoCard({
     >
       <button
         ref={ref}
+        data-video-card-open
         type="button"
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}

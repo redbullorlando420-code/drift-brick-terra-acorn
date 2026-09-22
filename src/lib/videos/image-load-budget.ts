@@ -4,6 +4,8 @@
  * Visible cards use a high-priority lane; speculative/offscreen work waits.
  */
 
+import { getInteractionPriorityDelay } from "@/lib/interaction-budget";
+
 export type ImageSlotPriority = "high" | "low";
 
 let active = 0;
@@ -49,24 +51,42 @@ export async function acquireImageSlot(opts?: { priority?: ImageSlotPriority; si
   if (signal?.aborted) return () => {};
   const priority: ImageSlotPriority = opts?.priority ?? "low";
   const queue = priority === "high" ? waitingHigh : waitingLow;
-  while (!canStart(priority)) {
-    if (priority === "low" && typeof document !== "undefined" && document.visibilityState === "hidden") {
+  for (;;) {
+    while (!canStart(priority)) {
+      if (priority === "low" && typeof document !== "undefined" && document.visibilityState === "hidden") {
+        await new Promise<void>((resolve) => {
+          const done = () => { signal?.removeEventListener("abort", done); document.removeEventListener("visibilitychange", onVis); resolve(); };
+          const onVis = () => { if (document.visibilityState === "visible") done(); };
+          document.addEventListener("visibilitychange", onVis);
+          signal?.addEventListener("abort", done, { once: true });
+        });
+        if (signal?.aborted) return () => {};
+        continue;
+      }
       await new Promise<void>((resolve) => {
-        const done = () => { signal?.removeEventListener("abort", done); document.removeEventListener("visibilitychange", onVis); resolve(); };
-        const onVis = () => { if (document.visibilityState === "visible") done(); };
-        document.addEventListener("visibilitychange", onVis);
-        signal?.addEventListener("abort", done, { once: true });
+        const wake = () => { signal?.removeEventListener("abort", cancel); resolve(); };
+        const cancel = () => { const index = queue.indexOf(wake); if (index >= 0) queue.splice(index, 1); wake(); };
+        queue.push(wake);
+        signal?.addEventListener("abort", cancel, { once: true });
       });
-      if (signal?.aborted) return () => {};
-      continue;
+      if (signal?.aborted) { wakeNext(); return () => {}; }
     }
+    // Low-priority decode/fetch work is opportunistic: a visible card action
+    // gets the next paint window even when an image slot happens to be free.
+    const delay = priority === "low" ? getInteractionPriorityDelay() : 0;
+    if (delay === 0) break;
     await new Promise<void>((resolve) => {
-      const wake = () => { signal?.removeEventListener("abort", cancel); resolve(); };
-      const cancel = () => { const index = queue.indexOf(wake); if (index >= 0) queue.splice(index, 1); wake(); };
-      queue.push(wake);
-      signal?.addEventListener("abort", cancel, { once: true });
+      const done = () => {
+        window.clearTimeout(timer);
+        signal?.removeEventListener("abort", done);
+        resolve();
+      };
+      const timer = window.setTimeout(done, delay);
+      signal?.addEventListener("abort", done, { once: true });
     });
-    if (signal?.aborted) { wakeNext(); return () => {}; }
+    if (signal?.aborted) return () => {};
+    // A hidden tab or newly queued visible card may have changed the budget
+    // during the foreground lease, so loop back through canStart().
   }
   active += 1;
   let released = false;

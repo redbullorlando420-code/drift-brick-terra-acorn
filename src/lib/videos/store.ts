@@ -52,6 +52,8 @@ import {
   saveDurableLinks,
   saveTagEdit,
   restoreTagEdits,
+  saveMetadataEdit,
+  restoreMetadataEdits,
   loadSourceHealth,
   saveDirHandle,
   saveActivitySnapshot,
@@ -80,11 +82,13 @@ import type {
   FollowedChannel,
   HistoryEntry,
   LibraryVideo,
+  MetadataTagSource,
   ProgressMark,
   ResumeMark,
   SortKey,
   SourceId,
   ViewMode,
+  VideoMetadataProvenance,
   WellKnownStart,
 } from "./types";
 import { getRating } from "../media-feedback";
@@ -92,6 +96,7 @@ import { librarySearchIndex } from "./search-index";
 import { useSourceAssets } from "@/lib/source-assets";
 import { isClassicVideo, SYSTEM_SOURCES } from "./types";
 import { LIBRARY_LIMITS } from "@/lib/library-limits";
+import { resolveCreatorCoverage } from "./creator-coverage";
 import {
   followRemote,
   importChannels,
@@ -118,7 +123,21 @@ const STARTER_FOLLOWS: FollowedChannel[] = [
 
 export type AddOpts = { adult?: boolean };
 
-type LibraryState = {
+export type MetadataTailResult = {
+  processed: number;
+  changed: number;
+  remaining: number;
+  sources: Array<{ source: string; processed: number; changed: number; remaining: number }>;
+};
+
+export type CreatorCoverageRepairResult = {
+  processed: number;
+  repaired: number;
+  tagged: number;
+  remaining: number;
+};
+
+export type LibraryState = {
   folders: Folder[];
   videos: LibraryVideo[];
   query: string;
@@ -129,6 +148,7 @@ type LibraryState = {
   favorites: Record<string, true>;
   likes: Record<string, true>;
   tags: Record<string, string[]>;
+  metadataProvenance: Record<string, VideoMetadataProvenance>;
   categories: Record<string, string>;
   progress: Record<string, ProgressMark>;
   resumeProgress: Record<string, ResumeMark>;
@@ -169,8 +189,16 @@ type LibraryState = {
   toggleLike: (id: string) => void;
   markCame: (id: string) => void;
   setVideoTags: (id: string, tags: string[]) => void;
+  /** Apply explicitly reviewed local enrichment without creating a manual-field lock. */
+  applyReviewedTags: (id: string, tags: string[], source: "companion-inspection" | "local-vision") => number;
+  /** Backward-compatible Companion-specific entry point for reviewed metadata. */
+  applyCompanionTags: (id: string, tags: string[]) => number;
   setVideoComments: (id: string, comments: NonNullable<LibraryVideo["remote"]>["comments"]) => void;
   autoTagLibrary: () => number;
+  /** Apply the next small cache-only metadata batch, retaining all manual locks. */
+  enrichMetadataTail: () => MetadataTailResult;
+  /** Backfill a missing creator name only from an exact saved provider identifier. */
+  repairCreatorCoverage: () => CreatorCoverageRepairResult;
   setVideoCategory: (id: string, category: string) => void;
   markProgress: (id: string, t: number, d: number) => void;
   recordPlay: (id: string, source?: HistoryEntry["source"]) => void;
@@ -206,7 +234,7 @@ type LibraryState = {
     items: { query: string; kind: "youtube" | "twitch" }[],
   ) => Promise<{ ok: number; failed: number; failedQueries: string[]; failedReasons: Record<string, string> }>;
   unfollow: (id: string) => void;
-  refreshFollows: () => Promise<{ wentLive: FollowedChannel[]; newVideos: LibraryVideo[] }>;
+  refreshFollows: (kind?: "twitch" | "youtube") => Promise<{ wentLive: FollowedChannel[]; newVideos: LibraryVideo[] }>;
   pushNotice: (n: Omit<AppNotice, "id" | "at" | "read">) => void;
   markNoticesRead: () => void;
   setNotifyPush: (on: boolean) => void;
@@ -221,6 +249,7 @@ function persistNow(get: () => LibraryState) {
     favorites: Object.keys(s.favorites),
     likes: Object.keys(s.likes),
     tags: s.tags,
+    metadataProvenance: s.metadataProvenance,
     categories: s.categories,
     progress: s.progress,
     resumeProgress: s.resumeProgress,
@@ -375,8 +404,20 @@ function mergeVideos(existing: LibraryVideo[], incoming: LibraryVideo[]) {
     const previous = map.get(v.id);
     // On-demand comments live on the card. A shallow catalog refresh must not
     // wipe a previously fetched comment window.
-    if (previous?.remote?.comments?.length && v.remote && !v.remote.comments?.length) {
-      map.set(v.id, { ...v, remote: { ...v.remote, comments: previous.remote.comments } });
+    if (previous?.remote && v.remote) {
+      // A partial provider response can omit the creator display name. Keep a
+      // previously verified name until a newer non-empty provider name arrives;
+      // otherwise a routine shallow refresh reopens the repair queue forever.
+      const channelName = v.remote.channelName?.trim() || previous.remote.channelName?.trim();
+      const comments = v.remote.comments?.length ? v.remote.comments : previous.remote.comments;
+      map.set(v.id, {
+        ...v,
+        remote: {
+          ...v.remote,
+          ...(channelName ? { channelName } : {}),
+          ...(comments?.length ? { comments } : {}),
+        },
+      });
     } else {
       map.set(v.id, v);
     }
@@ -454,19 +495,68 @@ function sameTags(left: string[] | undefined, right: string[]) {
 /** Upgrade cached provider cards with the same safe tags created for new pulls.
  * Already compact cards are deliberately skipped: a recurring refresh should
  * not rescan their title and description just to reproduce the same tags. */
-function enrichRemoteTags(existing: Record<string, string[]>, videos: LibraryVideo[]) {
+function normalizeTagValue(raw: string) {
+  let tag = raw.trim().toLowerCase().replace(/^keyword-/, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+  if (tag === "role-play") tag = "roleplay";
+  if (tag === "fetish-role-play") tag = "fetish-roleplay";
+  if (tag === "verified-amateur") tag = "verified-amateurs";
+  if (tag === "fetish-verified-amateur") tag = "fetish-verified-amateurs";
+  return tag;
+}
+
+function tagsLocked(provenance: VideoMetadataProvenance | undefined) {
+  return provenance?.lockedFields?.includes("tags") ?? false;
+}
+
+function mergeInferredTagProvenance(
+  previousTags: string[],
+  nextTags: string[],
+  existing: VideoMetadataProvenance | undefined,
+  inferred: string[],
+  source: MetadataTagSource,
+): VideoMetadataProvenance {
+  const inferredSet = new Set(inferred.map(normalizeTagValue).filter(Boolean));
+  const previousSources = existing?.tags ?? {};
+  const tags = Object.fromEntries(nextTags.map((tag) => [tag, previousSources[tag] ?? (inferredSet.has(tag) ? source : "legacy")] as const));
+  return {
+    ...existing,
+    tags,
+    updatedAt: sameTags(previousTags, nextTags) && existing?.updatedAt ? existing.updatedAt : Date.now(),
+  };
+}
+
+/** Apply provider tags only to titles whose user-managed tag field is unlocked. */
+function enrichRemoteTags(existing: Record<string, string[]>, existingProvenance: Record<string, VideoMetadataProvenance>, videos: LibraryVideo[]) {
   let tags = existing;
+  let metadataProvenance = existingProvenance;
   for (const video of videos) {
     if (!video.remote) continue;
     const current = existing[video.id] ?? [];
-    const providerTag = `provider-${video.remote.kind}`;
-    if (current.length <= LIBRARY_LIMITS.remoteMetadataTagsPerTitle && current.includes(providerTag)) continue;
+    const provenance = existingProvenance[video.id];
+    if (tagsLocked(provenance)) continue;
     const compact = compactIngestedTags(current, remoteMetadataTags(video));
-    if (sameTags(current, compact)) continue;
-    if (tags === existing) tags = { ...existing };
-    tags[video.id] = compact;
+    const nextProvenance = mergeInferredTagProvenance(current, compact, provenance, remoteMetadataTags(video), `provider:${video.remote.kind}`);
+    const provenanceChanged = JSON.stringify(provenance) !== JSON.stringify(nextProvenance);
+    if (!sameTags(current, compact)) {
+      if (tags === existing) tags = { ...existing };
+      tags[video.id] = compact;
+    }
+    if (provenanceChanged) {
+      if (metadataProvenance === existingProvenance) metadataProvenance = { ...existingProvenance };
+      metadataProvenance[video.id] = nextProvenance;
+    }
   }
-  return tags;
+  return { tags, metadataProvenance };
+}
+
+function metadataTagsForVideo(video: LibraryVideo, folders: Folder[]) {
+  return video.remote
+    ? remoteMetadataTags(video)
+    : [...(isAdultVideo(video, folders) ? ["adult"] : []), ...localNameTags(video)];
+}
+
+function metadataTailSource(video: LibraryVideo) {
+  return video.remote?.kind ?? "local";
 }
 
 /** Normalize provider enrichment once when it enters the catalog. Manual tags
@@ -486,13 +576,7 @@ function compactIngestedTags(existing: string[], inferred: string[]) {
   for (const raw of ordered) {
     // Preserve source- / creator- / fetish- / provider- families for Adult filters.
     // Only strip the legacy keyword- wrapper so cards stay readable.
-    let tag = raw.trim().toLowerCase().replace(/^keyword-/, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
-    // Same concept can arrive as API spelling, a title phrase, or a taxonomy
-    // label. Keep one stable filter instead of splitting counts and rails.
-    if (tag === "role-play") tag = "roleplay";
-    if (tag === "fetish-role-play") tag = "fetish-roleplay";
-    if (tag === "verified-amateur") tag = "verified-amateurs";
-    if (tag === "fetish-verified-amateur") tag = "fetish-verified-amateurs";
+    const tag = normalizeTagValue(raw);
     if (!tag || tag === "http" || tag === "https" || seen.has(tag)) continue;
     seen.add(tag);
     compact.push(tag);
@@ -595,14 +679,19 @@ function localNameTags(video: LibraryVideo) {
   return tags.filter((tag): tag is string => Boolean(tag));
 }
 
-function addLocalNameTags(existing: Record<string, string[]>, videos: LibraryVideo[]) {
+function addLocalNameTags(existing: Record<string, string[]>, existingProvenance: Record<string, VideoMetadataProvenance>, videos: LibraryVideo[]) {
   const next = { ...existing };
+  const metadataProvenance = { ...existingProvenance };
   for (const video of videos) {
+    if (tagsLocked(existingProvenance[video.id])) continue;
     const inferred = localNameTags(video);
     if (!inferred.length) continue;
-    next[video.id] = [...new Set([...(next[video.id] ?? []), ...inferred])].slice(0, 18);
+    const current = next[video.id] ?? [];
+    const compact = [...new Set([...current, ...inferred.map(normalizeTagValue).filter(Boolean)])].slice(0, 18);
+    next[video.id] = compact;
+    metadataProvenance[video.id] = mergeInferredTagProvenance(current, compact, existingProvenance[video.id], inferred, "local-name");
   }
-  return next;
+  return { tags: next, metadataProvenance };
 }
 
 function applyPrefs(partial: Partial<LibraryState>): Partial<LibraryState> {
@@ -617,6 +706,7 @@ function applyPrefs(partial: Partial<LibraryState>): Partial<LibraryState> {
     favorites,
     likes,
     tags: prefs.tags ?? {},
+    metadataProvenance: prefs.metadataProvenance ?? {},
     categories: prefs.categories ?? {},
     progress: Object.fromEntries(Object.entries(prefs.progress ?? {}).flatMap(([id, mark]) => {
       const normalized = normalizeResumeMark(mark);
@@ -744,6 +834,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   favorites: {},
   likes: {},
   tags: {},
+  metadataProvenance: {},
   categories: {},
   progress: {},
   resumeProgress: {},
@@ -821,29 +912,61 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     cacheRemotesSoon(get);
   },
   setVideoTags: (id, tags) => {
+    const manualTags = [...new Set(tags.map(normalizeTagValue).filter(Boolean))].slice(0, 18);
     set((s) => ({
       tags: {
         ...s.tags,
-        [id]: [...new Set(tags.map((tag) => tag.trim().toLowerCase().replace(/^keyword-/, "")).filter(Boolean))].slice(
-          0,
-          18,
-        ),
+        [id]: manualTags,
+      },
+      metadataProvenance: {
+        ...s.metadataProvenance,
+        [id]: { ...s.metadataProvenance[id], tags: Object.fromEntries(manualTags.map((tag) => [tag, "manual"] as const)), lockedFields: [...new Set([...(s.metadataProvenance[id]?.lockedFields ?? []), "tags"])] as Array<"tags" | "category">, updatedAt: Date.now() },
       },
     }));
     const state = get();
     const video = state.videos.find((item) => item.id === id);
     if (video) librarySearchIndex.updateMetadata(video, state.videos, state.tags, state.categories);
     saveTagEdit(id, state.tags[id] ?? []);
+    saveMetadataEdit(id, state.metadataProvenance[id] ?? { tags: {}, lockedFields: ["tags"] });
     // Keep the small per-title journal synchronous for recovery, then defer
     // the broad preference snapshot so rapid tag edits never block input.
     persistSoon(get);
   },
+  applyReviewedTags: (id, tags, source) => {
+    const stateBefore = get();
+    const video = stateBefore.videos.find((item) => item.id === id);
+    const existing = stateBefore.tags[id] ?? [];
+    const provenance = stateBefore.metadataProvenance[id];
+    const inspected = tags.map(normalizeTagValue).filter(Boolean);
+    if (!video || video.remote || tagsLocked(provenance) || !inspected.length) return 0;
+    const merged = compactIngestedTags(existing, inspected);
+    if (sameTags(existing, merged)) return 0;
+    const added = Math.max(0, merged.filter((tag) => !existing.includes(tag)).length);
+    set((s) => ({
+      tags: { ...s.tags, [id]: merged },
+      metadataProvenance: {
+        ...s.metadataProvenance,
+        [id]: mergeInferredTagProvenance(existing, merged, s.metadataProvenance[id], inspected, source),
+      },
+    }));
+    const state = get();
+    librarySearchIndex.updateMetadata(video, state.videos, state.tags, state.categories);
+    // The person explicitly confirmed this preview, so journal the accepted
+    // result alongside the source attribution for crash-safe recovery.
+    saveTagEdit(id, state.tags[id] ?? []);
+    saveMetadataEdit(id, state.metadataProvenance[id] ?? { tags: {} });
+    persistNow(get);
+    return added;
+  },
+  applyCompanionTags: (id, tags) => get().applyReviewedTags(id, tags, "companion-inspection"),
   autoTagLibrary: () => {
     let changed = 0;
     set((s) => {
       const tags = { ...s.tags };
+      const metadataProvenance = { ...s.metadataProvenance };
       for (const video of s.videos) {
-        const inferred = video.remote ? remoteMetadataTags(video) : [...(isAdultVideo(video, s.folders) ? ["adult"] : []), ...localNameTags(video)];
+        if (tagsLocked(s.metadataProvenance[video.id])) continue;
+        const inferred = metadataTagsForVideo(video, s.folders);
         // Creator tags are structural filter data. Only legacy keyword wrappers
         // are presentation noise; stripping creator- here made attribution
         // disappear whenever the catalog was auto-tagged again.
@@ -851,8 +974,9 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         const merged = compactIngestedTags(existing, inferred);
         if (!sameTags(tags[video.id], merged)) changed += 1;
         tags[video.id] = merged;
+        metadataProvenance[video.id] = mergeInferredTagProvenance(existing, merged, s.metadataProvenance[video.id], inferred, video.remote ? `provider:${video.remote.kind}` : "local-name");
       }
-      return { tags };
+      return { tags, metadataProvenance };
     });
     const state = get();
     // Autotagging changes many records at once. Rebuild the shared search
@@ -862,12 +986,110 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     persistNow(get);
     return changed;
   },
+  enrichMetadataTail: () => {
+    const state = get();
+    const candidates = state.videos.flatMap((video) => {
+      if (tagsLocked(state.metadataProvenance[video.id]) || (state.tags[video.id] ?? []).length) return [];
+      const inferred = metadataTagsForVideo(video, state.folders);
+      return inferred.length ? [{ video, inferred, source: metadataTailSource(video) }] : [];
+    });
+    const batch = candidates.slice(0, LIBRARY_LIMITS.metadataTailBatchSize);
+    const bySource = new Map<string, { processed: number; changed: number; remaining: number }>();
+    for (const candidate of candidates) {
+      const row = bySource.get(candidate.source) ?? { processed: 0, changed: 0, remaining: 0 };
+      row.remaining += 1;
+      bySource.set(candidate.source, row);
+    }
+    if (!batch.length) return { processed: 0, changed: 0, remaining: 0, sources: [] };
+
+    const tags = { ...state.tags };
+    const metadataProvenance = { ...state.metadataProvenance };
+    let changed = 0;
+    for (const { video, inferred, source } of batch) {
+      const existing = tags[video.id] ?? [];
+      const compact = compactIngestedTags(existing, inferred);
+      const nextProvenance = mergeInferredTagProvenance(existing, compact, metadataProvenance[video.id], inferred, video.remote ? `provider:${video.remote.kind}` : "local-name");
+      if (!sameTags(existing, compact)) {
+        tags[video.id] = compact;
+        changed += 1;
+      }
+      metadataProvenance[video.id] = nextProvenance;
+      const row = bySource.get(source)!;
+      row.processed += 1;
+      row.remaining -= 1;
+      if (!sameTags(existing, compact)) row.changed += 1;
+    }
+    set({ tags, metadataProvenance });
+    const next = get();
+    librarySearchIndex.sync(next.videos, next.tags, next.categories);
+    persistNow(get);
+    return {
+      processed: batch.length,
+      changed,
+      remaining: Math.max(0, candidates.length - batch.length),
+      sources: [...bySource.entries()].map(([source, row]) => ({ source, ...row })).filter((row) => row.processed || row.remaining),
+    };
+  },
+  repairCreatorCoverage: () => {
+    const state = get();
+    const candidates = state.videos.flatMap((video) => {
+      const resolution = resolveCreatorCoverage(video, state.follows);
+      return resolution.status === "resolved" ? [{ video, channelName: resolution.channelName }] : [];
+    });
+    const batch = candidates.slice(0, LIBRARY_LIMITS.creatorCoverageRepairBatchSize);
+    if (!batch.length) return { processed: 0, repaired: 0, tagged: 0, remaining: 0 };
+
+    const repairs = new Map(batch.map((candidate) => [candidate.video.id, candidate.channelName]));
+    const videos = state.videos.map((video) => {
+      const channelName = repairs.get(video.id);
+      return channelName && video.remote ? { ...video, remote: { ...video.remote, channelName } } : video;
+    });
+    const tags = { ...state.tags };
+    const metadataProvenance = { ...state.metadataProvenance };
+    let tagged = 0;
+    for (const { video } of batch) {
+      const repaired = videos.find((item) => item.id === video.id)!;
+      if (tagsLocked(metadataProvenance[video.id])) continue;
+      // This focused repair deliberately contributes only creator attribution.
+      // Metadata-tail coverage handles descriptions and other provider tags in
+      // its own separately visible batch.
+      const inferred = remoteMetadataTags(repaired).filter((tag) => tag.startsWith("creator-"));
+      if (!inferred.length) continue;
+      const existing = tags[video.id] ?? [];
+      const compact = compactIngestedTags(existing, inferred);
+      const nextProvenance = mergeInferredTagProvenance(existing, compact, metadataProvenance[video.id], inferred, `provider:${repaired.remote!.kind}`);
+      if (!sameTags(existing, compact)) {
+        tags[video.id] = compact;
+        tagged += 1;
+      }
+      if (JSON.stringify(nextProvenance) !== JSON.stringify(metadataProvenance[video.id])) {
+        metadataProvenance[video.id] = nextProvenance;
+      }
+    }
+    set({ videos, tags, metadataProvenance });
+    const next = get();
+    librarySearchIndex.sync(next.videos, next.tags, next.categories);
+    // This is an explicit user action that changes remote card metadata. Save
+    // it immediately so a reload cannot discard an exact-ID repair.
+    cacheRemotes(get);
+    persistNow(get);
+    return {
+      processed: batch.length,
+      repaired: batch.length,
+      tagged,
+      remaining: Math.max(0, candidates.length - batch.length),
+    };
+  },
   setVideoCategory: (id, category) => {
-    set((s) => ({ categories: { ...s.categories, [id]: category.trim().slice(0, 40) } }));
+    set((s) => ({
+      categories: { ...s.categories, [id]: category.trim().slice(0, 40) },
+      metadataProvenance: { ...s.metadataProvenance, [id]: { ...s.metadataProvenance[id], tags: s.metadataProvenance[id]?.tags ?? {}, category: "manual", lockedFields: [...new Set([...(s.metadataProvenance[id]?.lockedFields ?? []), "category"])] as Array<"tags" | "category">, updatedAt: Date.now() } },
+    }));
     const state = get();
     const video = state.videos.find((item) => item.id === id);
     if (video) librarySearchIndex.updateMetadata(video, state.videos, state.tags, state.categories);
     saveTagEdit(id, state.tags[id] ?? []);
+    saveMetadataEdit(id, state.metadataProvenance[id] ?? { tags: {}, lockedFields: ["category"] });
     persistNow(get);
   },
   markProgress: (id, t, d) => {
@@ -925,6 +1147,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     persistNow(get);
   },
   openVideo: (activeId) => {
+    measureInteraction("playback");
     const s = get();
     const video = s.videos.find((v) => v.id === activeId);
     if (video && isAdultVideo(video, s.folders) && !s.adultsUnlocked) {
@@ -937,7 +1160,10 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     set({ activeId, previewId: null });
     queueMicrotask(() => get().recordPlay(activeId));
   },
-  openPreview: (previewId) => set({ previewId }),
+  openPreview: (previewId) => {
+    measureInteraction("navigation");
+    set({ previewId });
+  },
   closePreview: () => set({ previewId: null }),
   closePlayer: () => set({ activeId: null }),
   removeVideo: (id) => {
@@ -945,12 +1171,14 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       const favorites = { ...s.favorites };
       const likes = { ...s.likes };
       const tags = { ...s.tags };
+      const metadataProvenance = { ...s.metadataProvenance };
       const categories = { ...s.categories };
       const progress = { ...s.progress };
       const viewCounts = { ...s.viewCounts };
       delete favorites[id];
       delete likes[id];
       delete tags[id];
+      delete metadataProvenance[id];
       delete categories[id];
       delete progress[id];
       delete viewCounts[id];
@@ -961,6 +1189,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         favorites,
         likes,
         tags,
+        metadataProvenance,
         categories,
         progress,
         viewCounts,
@@ -1062,6 +1291,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         let nextVideos = s.videos;
         let folders = s.folders;
         const tagPatch: Record<string, string[]> = {};
+        const metadataPatch: Record<string, VideoMetadataProvenance> = {};
 
         for (const folderId of ADULT_FOLDER_IDS) {
           if (!touched.has(folderId) && append) continue;
@@ -1114,7 +1344,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
                 mediaKind: video.extension === "image" ? "image" : /video/i.test(video.mime) ? "video" : undefined,
               })
             : [];
-          tagPatch[video.id] = compactIngestedTags(s.tags[video.id] ?? [], [
+          const inferred = [
             ...adultIngestTags({
               source,
               extraSources: hostExtra,
@@ -1126,7 +1356,15 @@ export const useLibrary = create<LibraryState>((set, get) => ({
               extraText: source === "reddit" ? `${video.name} ${video.tagline ?? ""}` : undefined,
               limit: LIBRARY_LIMITS.adultKeywordTagsPerTitle + 36,
             }),
-          ]);
+          ];
+          const current = s.tags[video.id] ?? [];
+          if (tagsLocked(s.metadataProvenance[video.id])) {
+            tagPatch[video.id] = current;
+            continue;
+          }
+          const compact = compactIngestedTags(current, inferred);
+          tagPatch[video.id] = compact;
+          metadataPatch[video.id] = mergeInferredTagProvenance(current, compact, s.metadataProvenance[video.id], inferred, `provider:${video.remote?.kind ?? "eporner"}`);
         }
 
         // Bound retained Adult cards so long sessions do not keep every
@@ -1151,6 +1389,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           folders,
           videos: nextVideos,
           tags: { ...s.tags, ...tagPatch },
+          metadataProvenance: { ...s.metadataProvenance, ...metadataPatch },
           adultsUnlocked: true,
           remoteBusy: false,
           importProgress: null,
@@ -1242,7 +1481,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           ),
           scanning: null,
       }));
-      if (videos.length) set((s) => ({ tags: addLocalNameTags(s.tags, videos) }));
+      if (videos.length) set((s) => addLocalNameTags(s.tags, s.metadataProvenance, videos));
       flushPersist(get);
       await saveDirHandle({ id: folderId, name: handle.name, handle });
       // Final authoritative write in case batches were empty / partial.
@@ -1299,7 +1538,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       ),
       scanning: null,
     }));
-    if (videos.length) set((s) => ({ tags: addLocalNameTags(s.tags, videos) }));
+    if (videos.length) set((s) => addLocalNameTags(s.tags, s.metadataProvenance, videos));
     flushPersist(get);
     if (videos.length) await saveFolderVideos(folderId, videos).catch(() => undefined);
   },
@@ -1354,7 +1593,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       ),
       scanning: null,
     }));
-    if (videos.length) set((s) => ({ tags: addLocalNameTags(s.tags, videos) }));
+    if (videos.length) set((s) => addLocalNameTags(s.tags, s.metadataProvenance, videos));
     flushPersist(get);
     if (videos.length) await saveFolderVideos(folderId, videos).catch(() => undefined);
   },
@@ -1367,6 +1606,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     preferencesRestored = true;
     const prefsState = applyPrefs({});
     prefsState.tags = restoreTagEdits(prefsState.tags ?? {});
+    prefsState.metadataProvenance = restoreMetadataEdits(prefsState.metadataProvenance ?? {});
     // Dedicated store is source of truth; prefs.follows is a legacy mirror for older builds.
     const prefsFollows = Array.isArray(prefsState.follows) ? prefsState.follows : [];
     const migratedFollows = dedupeFollows([...dedicatedFollows, ...prefsFollows]);
@@ -1447,9 +1687,11 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         const ids = new Set(get().follows.map((channel) => channel.id));
         set((s) => {
           const videos = mergeVideos(s.videos, snapshot.videos.filter((v) => ids.has(v.folderId) || s.favorites[v.id] || s.likes[v.id]));
+          const enriched = enrichRemoteTags(s.tags, s.metadataProvenance, snapshot.videos);
           return {
             videos,
-            tags: enrichRemoteTags(s.tags, snapshot.videos),
+            tags: enriched.tags,
+            metadataProvenance: enriched.metadataProvenance,
             progress: reconcileResumeForVideos(videos, s.progress, s.resumeProgress),
             folders: [...s.folders.filter((f) => !snapshot.folders.some((saved) => saved.id === f.id)), ...snapshot.folders.filter((f) => ids.has(f.id))],
             remoteCheckedAt: snapshot.checkedAt,
@@ -1502,21 +1744,24 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       const compactCachedRemoteTags = () => {
         const snapshot = get();
         let tags = snapshot.tags;
+        let metadataProvenance = snapshot.metadataProvenance;
         let changed = false;
         const end = Math.min(snapshot.videos.length, index + 96);
         for (; index < end; index += 1) {
           const video = snapshot.videos[index];
           if (!video?.remote) continue;
+          if (tagsLocked(snapshot.metadataProvenance[video.id])) continue;
           const current = tags[video.id] ?? [];
-          const providerTag = `provider-${video.remote.kind}`;
-          if (current.length <= LIBRARY_LIMITS.remoteMetadataTagsPerTitle && current.includes(providerTag)) continue;
           const compact = compactIngestedTags(current, remoteMetadataTags(video));
-          if (sameTags(current, compact)) continue;
+          const provenance = mergeInferredTagProvenance(current, compact, snapshot.metadataProvenance[video.id], remoteMetadataTags(video), `provider:${video.remote.kind}`);
+          if (sameTags(current, compact) && JSON.stringify(provenance) === JSON.stringify(snapshot.metadataProvenance[video.id])) continue;
           if (!changed) tags = { ...tags };
           tags[video.id] = compact;
+          if (metadataProvenance === snapshot.metadataProvenance) metadataProvenance = { ...metadataProvenance };
+          metadataProvenance[video.id] = provenance;
           changed = true;
         }
-        if (changed) set({ tags });
+        if (changed) set({ tags, metadataProvenance });
         if (index < get().videos.length) schedule(compactCachedRemoteTags);
       };
       window.setTimeout(() => schedule(compactCachedRemoteTags), 600);
@@ -1565,9 +1810,11 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         for (const v of catalog) counts.set(v.folderId, (counts.get(v.folderId) ?? 0) + 1);
         set((s) => {
           const videos = mergeVideos(s.videos, catalog);
+          const enriched = enrichRemoteTags(s.tags, s.metadataProvenance, catalog);
           return {
           videos,
-          tags: enrichRemoteTags(s.tags, catalog),
+          tags: enriched.tags,
+          metadataProvenance: enriched.metadataProvenance,
           progress: reconcileResumeForVideos(videos, s.progress, s.resumeProgress),
           folders: [
             ...s.folders,
@@ -1798,12 +2045,14 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       const favorites = { ...s.favorites };
       const likes = { ...s.likes };
       const tags = { ...s.tags };
+      const metadataProvenance = { ...s.metadataProvenance };
       const categories = { ...s.categories };
       const progress = { ...s.progress };
       for (const id of ids) {
         delete favorites[id];
         delete likes[id];
         delete tags[id];
+        delete metadataProvenance[id];
         delete categories[id];
         delete progress[id];
       }
@@ -1813,6 +2062,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         favorites,
         likes,
         tags,
+        metadataProvenance,
         categories,
         progress,
         history: s.history.filter((h) => !ids.includes(h.id)),
@@ -1840,6 +2090,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           kind: result.channel.kind,
           videoCount: result.videos.length,
         };
+        const enriched = enrichRemoteTags(s.tags, s.metadataProvenance, result.videos);
         return {
           follows,
           folders: [...s.folders.filter((f) => f.id !== folder.id), folder],
@@ -1855,7 +2106,8 @@ export const useLibrary = create<LibraryState>((set, get) => ({
             ),
             result.videos,
           ),
-          tags: enrichRemoteTags(s.tags, result.videos),
+          tags: enriched.tags,
+          metadataProvenance: enriched.metadataProvenance,
           remoteBusy: false,
         };
       });
@@ -1943,11 +2195,13 @@ export const useLibrary = create<LibraryState>((set, get) => ({
               row.videos,
             );
           }
+          const enriched = enrichRemoteTags(s.tags, s.metadataProvenance, result.ok.flatMap((row) => row.videos));
           return {
             follows: dedupeFollows(follows),
             folders,
             videos,
-            tags: enrichRemoteTags(s.tags, result.ok.flatMap((row) => row.videos)),
+            tags: enriched.tags,
+            metadataProvenance: enriched.metadataProvenance,
             importProgress: {
               done: Math.min(i + slice.length, unique.length),
               total: unique.length,
@@ -1988,9 +2242,9 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     persistNow(get);
     cacheRemotes(get);
   },
-  refreshFollows: async () => {
+  refreshFollows: async (kind) => {
     if (get().refreshing || get().remoteBusy) return { wentLive: [], newVideos: [] };
-    const allFollows = dedupeFollows(get().follows);
+    const allFollows = dedupeFollows(get().follows).filter(follow => !kind || follow.kind === kind);
     if (!allFollows.length) return { wentLive: [], newVideos: [] };
     const rotate = (items: FollowedChannel[], limit: number, cursor: "twitch" | "youtube" | "all") => {
       if (!items.length) return [];
@@ -2025,6 +2279,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
 
       set((s) => {
         const mergedVideos = mergeRemoteRefresh(s.videos, result.videos, result.refreshedIds, new Set([...Object.keys(s.favorites), ...Object.keys(s.likes), ...s.history.map((entry) => entry.id)]));
+        const enriched = enrichRemoteTags(s.tags, s.metadataProvenance, result.videos);
         const folderCounts = new Map<string, number>();
         for (const video of mergedVideos) folderCounts.set(video.folderId, (folderCounts.get(video.folderId) ?? 0) + 1);
         return {
@@ -2043,7 +2298,8 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         ],
         videos: mergedVideos,
         progress: reconcileResumeForVideos(mergedVideos, s.progress, s.resumeProgress),
-        tags: enrichRemoteTags(s.tags, result.videos),
+        tags: enriched.tags,
+        metadataProvenance: enriched.metadataProvenance,
         remoteRefreshStatus: {
           at: Date.now(),
           checked: current.length,

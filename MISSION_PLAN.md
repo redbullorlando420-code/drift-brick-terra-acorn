@@ -26,7 +26,29 @@ Recent completed work: Adult discovery now presents the video, photo, and rotati
 
 Recent completed work: Watch Room and other local-only identifiers no longer assume `crypto.randomUUID` exists. Browser profiles with partial Web Crypto can create and join a room instead of failing immediately.
 
+Recent completed work: Companion media inspection now reads a bounded, root-gated ffprobe metadata batch, previews sanitized embedded fields and compact tag suggestions, and persists only the suggestions a person explicitly selects. Saved inspection tags retain their own provenance and never override a manual tag lock.
+
+Recent completed work: Local video vision now holds every inferred frame label in a per-label review panel before it touches the catalog. Accepted labels record local-vision provenance; skipped labels are discarded, and manual tag locks are excluded from the work queue.
+
+Recent completed work: Local photo vision now follows the same explicit-review contract. The classifier prepares at most 48 transient photo-label results at a time; every label starts checked but remains local until applied, while skipped or discarded labels never modify durable photo metadata.
+
+Recent completed work: Metadata-tail coverage now shows tagged, waiting, and manually locked titles by source. Its explicit 48-title batch reuses cached provider fields and local names only—no network request or media inspection—while preserving provenance and manual locks.
+
+Recent completed work: Creator coverage repair now fills missing YouTube/Twitch display names only from exact cached channel or source IDs shared with a saved follow. It runs in bounded 48-card batches, preserves manual tag locks, retains a verified name through a shallow provider response, and surfaces conflicting matches for review instead of guessing.
+
+Recent completed work: Provider refreshes now retain unchanged cards at their original catalog indexes, so shallow selectors can skip re-rendering unaffected shelves. New or changed rows alone propagate; ordinary refreshes also retain on-demand comments and verified creator names that the shallow provider response does not carry.
+
+Recent completed work: Hub route warmup now shares the normal lazy-load promise and prefetches one adjacent desk only after the current desk has painted and the browser is idle. It gives way to typing, hidden tabs, Save-Data, 2G/3G, and low-memory devices.
+
+Recent completed work: Long horizontal rails now retain only a measured card window and spacer geometry. Arrow keys, Home/End, and focus bridges keep keyboard travel continuous across cards that are not currently mounted.
+
+Recent completed work: Visible-card actions now receive a short foreground scheduling lease. Ratings, playback, and card opens paint ahead of deferred search indexing, discovery selection, Adult ranking/facets, and speculative artwork work; each background pass resumes promptly once interaction settles.
+
 Each milestone is broken into an implementation change, a browser verification, and a production build check. The interactive checklist is saved in the browser under `reelcase.mission-plan.v1`.
+
+Recent completed work: Live is grouped by Twitch, YouTube, Chaturbate, and MyFreeCams with source counts and shared search, favorite/like filters, sorting, and per-source pagination. Fresh Twitch responses use the current clock instead of an older timer tick; stale observations and missing follows have explicit diagnostics and a Twitch-only refresh action.
+
+Recent completed work: Settings provides an on-demand Companion artwork disk audit with per-source sizes, file counts, oldest updates, and hit/miss samples since Companion startup. Scans are bounded, report partial inventories, and leave retention unchanged. Cross-device Watch Room validation remains open.
 
 ## Next quality and performance stream
 

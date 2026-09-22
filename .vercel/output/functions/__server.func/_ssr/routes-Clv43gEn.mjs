@@ -2,7 +2,7 @@ import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { r as Slot, s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
 import { n as TSS_SERVER_FUNCTION, r as getServerFnById, t as createServerFn } from "./ssr.mjs";
-import { B as isAdultThumbBlacklisted, C as adultRemoteLabel, D as adultTaxonomyTags, E as adultTaxonomyLabel, F as findFreshAdultPullFingerprint, G as mineRedditCommentTags, H as isUsableAdultThumb, I as isAdultGenreTag, J as redditTitleTokens, L as isAdultImageKind, M as expandedAdultTags, O as adultTextFetishTags, P as fetishSearchQuery, R as isAdultMetaTaxonomyTag, S as adultIngestTags, T as adultTagRankBoost, U as markAdultThumbFailed, V as isDecodedAdultThumbLikelyReal, W as markAdultThumbGood, X as rememberAdultPullFingerprint, a as ADULT_FOLDER_BY_PROVIDER, b as RETIRED_ADULT_SOURCE_IDS, c as ADULT_PULL_PROVIDERS, d as ADULT_SOURCE_OPTIONS, h as LIBRARY_LIMITS, i as ADULT_FEATURED_FETISH_TAGS, k as adultThumbCandidatesForVideo, n as ADULT_CURATED_FETISH_TAGS, o as ADULT_FOLDER_IDS, q as redditIngestExtras, r as ADULT_EMBED_LINKS, s as ADULT_MILESTONE_LINKS, t as ADULT_CATEGORY_HUB, u as ADULT_REDDIT_SUBS, w as adultSourceTag, z as isAdultPullKind } from "./adult-pull-cache-CzRQcKeX.mjs";
+import { B as isAdultThumbBlacklisted, C as adultRemoteLabel, D as adultTaxonomyTags, E as adultTaxonomyLabel, F as findFreshAdultPullFingerprint, G as mineRedditCommentTags, H as isUsableAdultThumb, I as isAdultGenreTag, J as redditTitleTokens, L as isAdultImageKind, M as expandedAdultTags, O as adultTextFetishTags, P as fetishSearchQuery, R as isAdultMetaTaxonomyTag, S as adultIngestTags, T as adultTagRankBoost, U as markAdultThumbFailed, V as isDecodedAdultThumbLikelyReal, W as markAdultThumbGood, X as rememberAdultPullFingerprint, a as ADULT_FOLDER_BY_PROVIDER, b as RETIRED_ADULT_SOURCE_IDS, c as ADULT_PULL_PROVIDERS, d as ADULT_SOURCE_OPTIONS, h as LIBRARY_LIMITS, i as ADULT_FEATURED_FETISH_TAGS, k as adultThumbCandidatesForVideo, n as ADULT_CURATED_FETISH_TAGS, o as ADULT_FOLDER_IDS, q as redditIngestExtras, r as ADULT_EMBED_LINKS, s as ADULT_MILESTONE_LINKS, t as ADULT_CATEGORY_HUB, u as ADULT_REDDIT_SUBS, w as adultSourceTag, z as isAdultPullKind } from "./adult-pull-cache-aysXgkuS.mjs";
 import { n as create, t as useShallow } from "../_libs/zustand.mjs";
 import { n as clsx, t as cva } from "../_libs/class-variance-authority+clsx.mjs";
 import { t as twMerge } from "../_libs/tailwind-merge.mjs";
@@ -13,7 +13,7 @@ import { a as DialogPortal, i as DialogOverlay, n as DialogClose, o as DialogTit
 import { t as Root } from "../_libs/radix-ui__react-separator.mjs";
 import { a as Trigger, i as Root2, n as Item2, r as Portal2, t as Content2 } from "../_libs/@radix-ui/react-dropdown-menu+[...].mjs";
 import { i as SliderTrack, n as SliderRange, r as SliderThumb, t as Slider$1 } from "../_libs/@radix-ui/react-slider+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-NqJQcerD.js
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-Clv43gEn.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var __defProp = Object.defineProperty;
@@ -135,6 +135,37 @@ async function companionHealth() {
 		return null;
 	}
 }
+/**
+* Optional, local-only metadata inspection. The Companion independently
+* verifies every path is inside its approved roots and accepts at most 12.
+*/
+async function companionInspectMedia(paths) {
+	const boundedPaths = paths.filter((path) => typeof path === "string" && Boolean(path.trim())).slice(0, 12);
+	if (!boundedPaths.length) return {
+		ok: false,
+		entries: [],
+		error: "No approved local files were selected."
+	};
+	try {
+		const response = await companionFetch("/inspect-media", {
+			method: "POST",
+			body: JSON.stringify({ paths: boundedPaths })
+		});
+		const data = await response.json();
+		return {
+			ok: Boolean(response.ok && data.ok),
+			entries: Array.isArray(data.entries) ? data.entries : [],
+			...data.note ? { note: data.note } : {},
+			...data.error ? { error: data.error } : {}
+		};
+	} catch {
+		return {
+			ok: false,
+			entries: [],
+			error: "Companion offline. Start it on this computer, then try again."
+		};
+	}
+}
 async function companionSteamEpicGames(limit = 250) {
 	try {
 		const data = await (await companionFetch(`/games/steam-epic?limit=${limit}`)).json();
@@ -188,6 +219,21 @@ async function companionGetThumb(id) {
 		return data.ok && data.dataUrl?.startsWith("data:image") ? data.dataUrl : null;
 	} catch {
 		return null;
+	}
+}
+async function companionArtworkAudit() {
+	try {
+		const response = await companionFetch("/thumbs/audit", { signal: AbortSignal.timeout(5e3) });
+		if (!response.ok) return {
+			ok: false,
+			error: "Restart the updated Companion to enable the artwork audit."
+		};
+		return await response.json();
+	} catch {
+		return {
+			ok: false,
+			error: "Companion is unavailable. Start it with an approved thumbnail cache folder to inspect disk artwork."
+		};
 	}
 }
 async function companionListPrints(limit = 200) {
@@ -271,6 +317,7 @@ var THUMB_STORE = "thumb-cache";
 var ACTIVITY_STORE = "activity";
 var ACTIVITY_JOURNAL_STORE = "activity-journal";
 var PREFS_KEY = "reelcase.prefs.v4";
+var TAG_PROVENANCE_EDITS_KEY = "reelcase.tag-provenance-edits.v1";
 var LEGACY_KEYS = [
 	"reelcase.prefs.v3",
 	"reelcase.prefs.v2",
@@ -871,6 +918,20 @@ function restoreTagEdits(tags) {
 		...readPending(TAG_EDITS_KEY, {})
 	};
 }
+/** Small synchronous mirror so a just-saved manual lock survives a tab close. */
+function saveMetadataEdit(id, metadata) {
+	const edits = readPending(TAG_PROVENANCE_EDITS_KEY, {});
+	edits[id] = metadata;
+	try {
+		localStorage.setItem(TAG_PROVENANCE_EDITS_KEY, JSON.stringify(edits));
+	} catch {}
+}
+function restoreMetadataEdits(metadata) {
+	return {
+		...metadata,
+		...readPending(TAG_PROVENANCE_EDITS_KEY, {})
+	};
+}
 function migrateSource(id) {
 	if (!id || id === "all" || id === "starred") {
 		if (id === "starred") return "favorites";
@@ -1232,6 +1293,7 @@ function normalize(raw) {
 		favorites,
 		likes: raw.likes ?? [],
 		tags: raw.tags ?? {},
+		metadataProvenance: raw.metadataProvenance && typeof raw.metadataProvenance === "object" ? raw.metadataProvenance : {},
 		categories: raw.categories ?? {},
 		progress: raw.progress ?? {},
 		resumeProgress: raw.resumeProgress ?? {},
@@ -1395,36 +1457,94 @@ function sameRemote(left, right) {
 	if (!left || !right) return left === right;
 	return left.kind === right.kind && left.videoId === right.videoId && left.channelId === right.channelId && left.channelName === right.channelName && left.live === right.live && left.viewers === right.viewers && left.observedAt === right.observedAt && left.views === right.views && left.embedUrl === right.embedUrl && left.watchUrl === right.watchUrl && left.previewUrl === right.previewUrl && sameList(left.sourceKinds, right.sourceKinds) && sameList(left.thumbFallbacks, right.thumbFallbacks) && left.comments === right.comments;
 }
+function sameVideo(left, right) {
+	return left === right || left.id === right.id && left.folderId === right.folderId && left.name === right.name && left.path === right.path && left.extension === right.extension && left.mime === right.mime && left.size === right.size && left.duration === right.duration && left.addedAt === right.addedAt && left.isSample === right.isSample && left.src === right.src && left.year === right.year && left.genre === right.genre && left.tagline === right.tagline && left.description === right.description && left.collection === right.collection && left.poster === right.poster && sameRemote(left.remote, right.remote);
+}
+/**
+* Routine catalog responses are intentionally shallow and omit on-demand
+* details. Carry forward only durable card fields that they cannot author so
+* a metadata repair or fetched comments do not disappear on the next live
+* check. A newer non-empty provider name still wins (channel renames remain
+* possible), and no object is allocated when there is nothing to preserve.
+*/
+function retainDurableRemoteFields(previous, incoming) {
+	if (!previous?.remote || !incoming.remote) return incoming;
+	const channelName = incoming.remote.channelName?.trim() || previous.remote.channelName?.trim();
+	const comments = incoming.remote.comments?.length ? incoming.remote.comments : previous.remote.comments;
+	const keepsName = Boolean(channelName && channelName !== incoming.remote.channelName);
+	const keepsComments = Boolean(comments?.length && comments !== incoming.remote.comments);
+	if (!keepsName && !keepsComments) return incoming;
+	return {
+		...incoming,
+		remote: {
+			...incoming.remote,
+			...keepsName ? { channelName } : {},
+			...keepsComments ? { comments } : {}
+		}
+	};
+}
+function sameOrder(left, right) {
+	return left.length === right.length && left.every((video, index) => video === right[index]);
+}
 /**
 * Merge a provider refresh without letting a shallow public response erase a
 * known Twitch archive. Twitch's public archive endpoint can legitimately
 * return a partial window (or no rows while it is rate-limited), so archive
 * rows are additive per channel. Fresh rows still win by id, and stale live
 * cards are turned offline when their channel has checked successfully.
+*
+* The original catalog order is retained for every existing card. This is
+* more than cosmetic: Zustand shallow selectors can now skip a shelf render
+* when a response repeats its prior rows, while a single changed card keeps
+* its neighbours' artwork and focus identity intact.
 */
 function mergeRemoteRefresh(existing, incoming, refreshedIds, savedIds) {
 	const refreshed = new Set(refreshedIds);
 	const existingById = new Map(existing.map((video) => [video.id, video]));
-	const fresh = new Map(incoming.map((video) => {
-		const previous = existingById.get(video.id);
-		const incomingObservation = video.remote?.observedAt ?? 0;
+	const fresh = /* @__PURE__ */ new Map();
+	for (const incomingVideo of incoming) {
+		const previous = existingById.get(incomingVideo.id);
+		let next = retainDurableRemoteFields(previous, incomingVideo);
+		const incomingObservation = next.remote?.observedAt ?? 0;
 		const previousObservation = previous?.remote?.observedAt ?? 0;
-		if (previous?.remote?.live && video.remote?.live && incomingObservation < previousObservation) return [video.id, previous];
-		if (previous && previous.name === video.name && previous.path === video.path && previous.poster === video.poster && previous.genre === video.genre && previous.tagline === video.tagline && previous.description === video.description && previous.addedAt === video.addedAt && previous.duration === video.duration && sameRemote(previous.remote, video.remote)) return [video.id, previous];
-		return [video.id, video];
-	}));
-	return [...existing.filter((video) => {
-		if (fresh.has(video.id) || !video.remote || !refreshed.has(video.folderId)) return !fresh.has(video.id);
-		if (savedIds.has(video.id)) return true;
-		return video.remote.kind === "twitch" && !video.remote.live;
-	}).map((video) => video.remote?.live && refreshed.has(video.folderId) ? {
-		...video,
-		tagline: "Offline · saved channel",
-		remote: {
-			...video.remote,
-			live: false
+		if (previous?.remote?.live && next.remote?.live && incomingObservation < previousObservation) next = previous;
+		else if (previous && sameVideo(previous, next)) next = previous;
+		fresh.set(next.id, next);
+	}
+	const merged = [];
+	for (const video of existing) {
+		const next = fresh.get(video.id);
+		if (next) {
+			merged.push(next);
+			fresh.delete(video.id);
+			continue;
 		}
-	} : video), ...fresh.values()];
+		if (!video.remote || !refreshed.has(video.folderId)) {
+			merged.push(video);
+			continue;
+		}
+		if (video.remote.live) {
+			merged.push({
+				...video,
+				tagline: "Offline · saved channel",
+				remote: {
+					...video.remote,
+					live: false
+				}
+			});
+			continue;
+		}
+		if (savedIds.has(video.id)) {
+			merged.push(video);
+			continue;
+		}
+		if (video.remote.kind === "twitch" && !video.remote.live) {
+			merged.push(video);
+			continue;
+		}
+	}
+	merged.push(...fresh.values());
+	return sameOrder(existing, merged) ? existing : merged;
 }
 var samples = {
 	navigation: {
@@ -1459,10 +1579,80 @@ var samples = {
 	}
 };
 var lastStarted = {};
+var interactionPriorityUntil = 0;
+/** Pure helper so the foreground lease can be verified without browser time. */
+function interactionPriorityDelay(now, priorityUntil) {
+	return Math.max(0, Math.ceil(priorityUntil - now));
+}
+/** Remaining time before background work may resume. */
+function getInteractionPriorityDelay() {
+	if (typeof performance === "undefined") return 0;
+	return interactionPriorityDelay(performance.now(), interactionPriorityUntil);
+}
+/**
+* Schedule discardable local work behind current interaction, first paint, and
+* hidden-tab time. Callers retain cancellation on dependency changes, so an
+* obsolete index/ranking pass never gets a chance to contend with the latest
+* visible shelf.
+*/
+function scheduleBackgroundWork(work, options = {}) {
+	if (typeof window === "undefined") return () => {};
+	let cancelled = false;
+	let idle;
+	let timer;
+	let waitingForVisibility = false;
+	const timeoutMs = options.timeoutMs ?? 1e3;
+	const fallbackDelayMs = options.fallbackDelayMs ?? 0;
+	const clearPending = () => {
+		if (typeof idle === "number") window.cancelIdleCallback?.(idle);
+		if (typeof timer !== "undefined") window.clearTimeout(timer);
+		idle = void 0;
+		timer = void 0;
+		if (waitingForVisibility) {
+			document.removeEventListener("visibilitychange", onVisibilityChange);
+			waitingForVisibility = false;
+		}
+	};
+	const schedule = () => {
+		clearPending();
+		if (cancelled) return;
+		const delay = getInteractionPriorityDelay();
+		if (delay > 0) {
+			timer = window.setTimeout(schedule, delay);
+			return;
+		}
+		if (document.visibilityState === "hidden") {
+			waitingForVisibility = true;
+			document.addEventListener("visibilitychange", onVisibilityChange);
+			return;
+		}
+		const run = () => {
+			idle = void 0;
+			timer = void 0;
+			if (cancelled) return;
+			if (getInteractionPriorityDelay() > 0 || document.visibilityState === "hidden") {
+				schedule();
+				return;
+			}
+			work();
+		};
+		if (typeof window.requestIdleCallback === "function") idle = window.requestIdleCallback(run, { timeout: timeoutMs });
+		else timer = window.setTimeout(run, fallbackDelayMs);
+	};
+	const onVisibilityChange = () => {
+		if (document.visibilityState === "visible") schedule();
+	};
+	schedule();
+	return () => {
+		cancelled = true;
+		clearPending();
+	};
+}
 /** Records a local input-to-next-paint approximation without collecting media data. */
 function measureInteraction(kind) {
 	if (typeof window === "undefined" || typeof performance === "undefined") return;
 	const now = performance.now();
+	interactionPriorityUntil = Math.max(interactionPriorityUntil, now + 240);
 	if (now - (lastStarted[kind] ?? -Infinity) < 120) return;
 	lastStarted[kind] = now;
 	window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
@@ -2787,6 +2977,60 @@ var useSourceAssets = create((set) => ({
 		return { photos: next };
 	})
 }));
+function normalizedLabel(value) {
+	return value.trim().replace(/\s+/g, " ").toLocaleLowerCase();
+}
+function stableId(value) {
+	return value?.trim() ?? "";
+}
+/**
+* Resolve a missing display name only when the card and a saved follow share
+* an exact provider-issued identifier. Titles, filenames, and loose handles
+* are intentionally excluded: a plausible creator guess is worse than a
+* visible coverage gap in a media library.
+*/
+function resolveCreatorCoverage(video, follows) {
+	const remote = video.remote;
+	const existingName = remote?.channelName?.trim();
+	if (existingName) return {
+		status: "present",
+		channelName: existingName
+	};
+	if (!remote || remote.kind !== "youtube" && remote.kind !== "twitch") return { status: "unsupported" };
+	const matchingFollows = follows.filter((follow) => follow.kind === remote.kind && follow.title.trim());
+	const evidence = [];
+	const channelId = stableId(remote.channelId);
+	const sourceId = stableId(video.folderId);
+	for (const follow of matchingFollows) {
+		if (channelId && stableId(follow.channelId) === channelId) evidence.push({
+			title: follow.title.trim(),
+			kind: "channel-id"
+		});
+		if (sourceId && stableId(follow.id) === sourceId) evidence.push({
+			title: follow.title.trim(),
+			kind: "source-id"
+		});
+	}
+	const names = /* @__PURE__ */ new Map();
+	for (const candidate of evidence) {
+		const key = normalizedLabel(candidate.title);
+		if (key && !names.has(key)) names.set(key, {
+			title: candidate.title,
+			evidence: candidate.kind
+		});
+	}
+	const candidates = [...names.values()].sort((left, right) => left.title.localeCompare(right.title));
+	if (!candidates.length) return { status: "unresolved" };
+	if (candidates.length > 1) return {
+		status: "ambiguous",
+		candidates: candidates.map((candidate) => candidate.title)
+	};
+	return {
+		status: "resolved",
+		channelName: candidates[0].title,
+		evidence: candidates[0].evidence
+	};
+}
 var createSsrRpc = (functionId) => {
 	const url = "/_serverFn/" + functionId;
 	const serverFnMeta = { id: functionId };
@@ -2853,6 +3097,7 @@ function persistNow(get) {
 		favorites: Object.keys(s.favorites),
 		likes: Object.keys(s.likes),
 		tags: s.tags,
+		metadataProvenance: s.metadataProvenance,
 		categories: s.categories,
 		progress: s.progress,
 		resumeProgress: s.resumeProgress,
@@ -3015,14 +3260,18 @@ function mergeVideos(existing, incoming) {
 	const map = new Map(existing.map((v) => [v.id, v]));
 	for (const v of incoming) {
 		const previous = map.get(v.id);
-		if (previous?.remote?.comments?.length && v.remote && !v.remote.comments?.length) map.set(v.id, {
-			...v,
-			remote: {
-				...v.remote,
-				comments: previous.remote.comments
-			}
-		});
-		else map.set(v.id, v);
+		if (previous?.remote && v.remote) {
+			const channelName = v.remote.channelName?.trim() || previous.remote.channelName?.trim();
+			const comments = v.remote.comments?.length ? v.remote.comments : previous.remote.comments;
+			map.set(v.id, {
+				...v,
+				remote: {
+					...v.remote,
+					...channelName ? { channelName } : {},
+					...comments?.length ? { comments } : {}
+				}
+			});
+		} else map.set(v.id, v);
 	}
 	return Array.from(map.values());
 }
@@ -3086,19 +3335,58 @@ function sameTags(left, right) {
 /** Upgrade cached provider cards with the same safe tags created for new pulls.
 * Already compact cards are deliberately skipped: a recurring refresh should
 * not rescan their title and description just to reproduce the same tags. */
-function enrichRemoteTags(existing, videos) {
+function normalizeTagValue(raw) {
+	let tag = raw.trim().toLowerCase().replace(/^keyword-/, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+	if (tag === "role-play") tag = "roleplay";
+	if (tag === "fetish-role-play") tag = "fetish-roleplay";
+	if (tag === "verified-amateur") tag = "verified-amateurs";
+	if (tag === "fetish-verified-amateur") tag = "fetish-verified-amateurs";
+	return tag;
+}
+function tagsLocked(provenance) {
+	return provenance?.lockedFields?.includes("tags") ?? false;
+}
+function mergeInferredTagProvenance(previousTags, nextTags, existing, inferred, source) {
+	const inferredSet = new Set(inferred.map(normalizeTagValue).filter(Boolean));
+	const previousSources = existing?.tags ?? {};
+	const tags = Object.fromEntries(nextTags.map((tag) => [tag, previousSources[tag] ?? (inferredSet.has(tag) ? source : "legacy")]));
+	return {
+		...existing,
+		tags,
+		updatedAt: sameTags(previousTags, nextTags) && existing?.updatedAt ? existing.updatedAt : Date.now()
+	};
+}
+/** Apply provider tags only to titles whose user-managed tag field is unlocked. */
+function enrichRemoteTags(existing, existingProvenance, videos) {
 	let tags = existing;
+	let metadataProvenance = existingProvenance;
 	for (const video of videos) {
 		if (!video.remote) continue;
 		const current = existing[video.id] ?? [];
-		const providerTag = `provider-${video.remote.kind}`;
-		if (current.length <= LIBRARY_LIMITS.remoteMetadataTagsPerTitle && current.includes(providerTag)) continue;
+		const provenance = existingProvenance[video.id];
+		if (tagsLocked(provenance)) continue;
 		const compact = compactIngestedTags(current, remoteMetadataTags(video));
-		if (sameTags(current, compact)) continue;
-		if (tags === existing) tags = { ...existing };
-		tags[video.id] = compact;
+		const nextProvenance = mergeInferredTagProvenance(current, compact, provenance, remoteMetadataTags(video), `provider:${video.remote.kind}`);
+		const provenanceChanged = JSON.stringify(provenance) !== JSON.stringify(nextProvenance);
+		if (!sameTags(current, compact)) {
+			if (tags === existing) tags = { ...existing };
+			tags[video.id] = compact;
+		}
+		if (provenanceChanged) {
+			if (metadataProvenance === existingProvenance) metadataProvenance = { ...existingProvenance };
+			metadataProvenance[video.id] = nextProvenance;
+		}
 	}
-	return tags;
+	return {
+		tags,
+		metadataProvenance
+	};
+}
+function metadataTagsForVideo(video, folders) {
+	return video.remote ? remoteMetadataTags(video) : [...isAdultVideo(video, folders) ? ["adult"] : [], ...localNameTags(video)];
+}
+function metadataTailSource(video) {
+	return video.remote?.kind ?? "local";
 }
 /** Normalize provider enrichment once when it enters the catalog. Manual tags
 * are retained, while old keyword-/creator- wrappers and duplicate labels do
@@ -3113,11 +3401,7 @@ function compactIngestedTags(existing, inferred) {
 		...inferred.filter((tag) => !structural(tag))
 	];
 	for (const raw of ordered) {
-		let tag = raw.trim().toLowerCase().replace(/^keyword-/, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
-		if (tag === "role-play") tag = "roleplay";
-		if (tag === "fetish-role-play") tag = "fetish-roleplay";
-		if (tag === "verified-amateur") tag = "verified-amateurs";
-		if (tag === "fetish-verified-amateur") tag = "fetish-verified-amateurs";
+		const tag = normalizeTagValue(raw);
 		if (!tag || tag === "http" || tag === "https" || seen.has(tag)) continue;
 		seen.add(tag);
 		compact.push(tag);
@@ -3238,14 +3522,22 @@ function localNameTags(video) {
 	if (/\b(1080p|2160p|4k|720p)\b/.test(text)) tags.push(text.match(/\b(2160p|4k|1080p|720p)\b/)?.[1] ?? "hd");
 	return tags.filter((tag) => Boolean(tag));
 }
-function addLocalNameTags(existing, videos) {
+function addLocalNameTags(existing, existingProvenance, videos) {
 	const next = { ...existing };
+	const metadataProvenance = { ...existingProvenance };
 	for (const video of videos) {
+		if (tagsLocked(existingProvenance[video.id])) continue;
 		const inferred = localNameTags(video);
 		if (!inferred.length) continue;
-		next[video.id] = [.../* @__PURE__ */ new Set([...next[video.id] ?? [], ...inferred])].slice(0, 18);
+		const current = next[video.id] ?? [];
+		const compact = [.../* @__PURE__ */ new Set([...current, ...inferred.map(normalizeTagValue).filter(Boolean)])].slice(0, 18);
+		next[video.id] = compact;
+		metadataProvenance[video.id] = mergeInferredTagProvenance(current, compact, existingProvenance[video.id], inferred, "local-name");
 	}
-	return next;
+	return {
+		tags: next,
+		metadataProvenance
+	};
 }
 function applyPrefs(partial) {
 	const prefs = loadPrefs();
@@ -3259,6 +3551,7 @@ function applyPrefs(partial) {
 		favorites,
 		likes,
 		tags: prefs.tags ?? {},
+		metadataProvenance: prefs.metadataProvenance ?? {},
 		categories: prefs.categories ?? {},
 		progress: Object.fromEntries(Object.entries(prefs.progress ?? {}).flatMap(([id, mark]) => {
 			const normalized = normalizeResumeMark(mark);
@@ -3375,6 +3668,7 @@ var useLibrary = create((set, get) => ({
 	favorites: {},
 	likes: {},
 	tags: {},
+	metadataProvenance: {},
 	categories: {},
 	progress: {},
 	resumeProgress: {},
@@ -3466,42 +3760,231 @@ var useLibrary = create((set, get) => ({
 		cacheRemotesSoon(get);
 	},
 	setVideoTags: (id, tags) => {
-		set((s) => ({ tags: {
-			...s.tags,
-			[id]: [...new Set(tags.map((tag) => tag.trim().toLowerCase().replace(/^keyword-/, "")).filter(Boolean))].slice(0, 18)
-		} }));
+		const manualTags = [...new Set(tags.map(normalizeTagValue).filter(Boolean))].slice(0, 18);
+		set((s) => ({
+			tags: {
+				...s.tags,
+				[id]: manualTags
+			},
+			metadataProvenance: {
+				...s.metadataProvenance,
+				[id]: {
+					...s.metadataProvenance[id],
+					tags: Object.fromEntries(manualTags.map((tag) => [tag, "manual"])),
+					lockedFields: [.../* @__PURE__ */ new Set([...s.metadataProvenance[id]?.lockedFields ?? [], "tags"])],
+					updatedAt: Date.now()
+				}
+			}
+		}));
 		const state = get();
 		const video = state.videos.find((item) => item.id === id);
 		if (video) librarySearchIndex.updateMetadata(video, state.videos, state.tags, state.categories);
 		saveTagEdit(id, state.tags[id] ?? []);
+		saveMetadataEdit(id, state.metadataProvenance[id] ?? {
+			tags: {},
+			lockedFields: ["tags"]
+		});
 		persistSoon(get);
 	},
+	applyReviewedTags: (id, tags, source) => {
+		const stateBefore = get();
+		const video = stateBefore.videos.find((item) => item.id === id);
+		const existing = stateBefore.tags[id] ?? [];
+		const provenance = stateBefore.metadataProvenance[id];
+		const inspected = tags.map(normalizeTagValue).filter(Boolean);
+		if (!video || video.remote || tagsLocked(provenance) || !inspected.length) return 0;
+		const merged = compactIngestedTags(existing, inspected);
+		if (sameTags(existing, merged)) return 0;
+		const added = Math.max(0, merged.filter((tag) => !existing.includes(tag)).length);
+		set((s) => ({
+			tags: {
+				...s.tags,
+				[id]: merged
+			},
+			metadataProvenance: {
+				...s.metadataProvenance,
+				[id]: mergeInferredTagProvenance(existing, merged, s.metadataProvenance[id], inspected, source)
+			}
+		}));
+		const state = get();
+		librarySearchIndex.updateMetadata(video, state.videos, state.tags, state.categories);
+		saveTagEdit(id, state.tags[id] ?? []);
+		saveMetadataEdit(id, state.metadataProvenance[id] ?? { tags: {} });
+		persistNow(get);
+		return added;
+	},
+	applyCompanionTags: (id, tags) => get().applyReviewedTags(id, tags, "companion-inspection"),
 	autoTagLibrary: () => {
 		let changed = 0;
 		set((s) => {
 			const tags = { ...s.tags };
+			const metadataProvenance = { ...s.metadataProvenance };
 			for (const video of s.videos) {
-				const inferred = video.remote ? remoteMetadataTags(video) : [...isAdultVideo(video, s.folders) ? ["adult"] : [], ...localNameTags(video)];
-				const merged = compactIngestedTags((tags[video.id] ?? []).map((tag) => tag.replace(/^keyword-/i, "")), inferred);
+				if (tagsLocked(s.metadataProvenance[video.id])) continue;
+				const inferred = metadataTagsForVideo(video, s.folders);
+				const existing = (tags[video.id] ?? []).map((tag) => tag.replace(/^keyword-/i, ""));
+				const merged = compactIngestedTags(existing, inferred);
 				if (!sameTags(tags[video.id], merged)) changed += 1;
 				tags[video.id] = merged;
+				metadataProvenance[video.id] = mergeInferredTagProvenance(existing, merged, s.metadataProvenance[video.id], inferred, video.remote ? `provider:${video.remote.kind}` : "local-name");
 			}
-			return { tags };
+			return {
+				tags,
+				metadataProvenance
+			};
 		});
 		const state = get();
 		librarySearchIndex.sync(state.videos, state.tags, state.categories);
 		persistNow(get);
 		return changed;
 	},
+	enrichMetadataTail: () => {
+		const state = get();
+		const candidates = state.videos.flatMap((video) => {
+			if (tagsLocked(state.metadataProvenance[video.id]) || (state.tags[video.id] ?? []).length) return [];
+			const inferred = metadataTagsForVideo(video, state.folders);
+			return inferred.length ? [{
+				video,
+				inferred,
+				source: metadataTailSource(video)
+			}] : [];
+		});
+		const batch = candidates.slice(0, LIBRARY_LIMITS.metadataTailBatchSize);
+		const bySource = /* @__PURE__ */ new Map();
+		for (const candidate of candidates) {
+			const row = bySource.get(candidate.source) ?? {
+				processed: 0,
+				changed: 0,
+				remaining: 0
+			};
+			row.remaining += 1;
+			bySource.set(candidate.source, row);
+		}
+		if (!batch.length) return {
+			processed: 0,
+			changed: 0,
+			remaining: 0,
+			sources: []
+		};
+		const tags = { ...state.tags };
+		const metadataProvenance = { ...state.metadataProvenance };
+		let changed = 0;
+		for (const { video, inferred, source } of batch) {
+			const existing = tags[video.id] ?? [];
+			const compact = compactIngestedTags(existing, inferred);
+			const nextProvenance = mergeInferredTagProvenance(existing, compact, metadataProvenance[video.id], inferred, video.remote ? `provider:${video.remote.kind}` : "local-name");
+			if (!sameTags(existing, compact)) {
+				tags[video.id] = compact;
+				changed += 1;
+			}
+			metadataProvenance[video.id] = nextProvenance;
+			const row = bySource.get(source);
+			row.processed += 1;
+			row.remaining -= 1;
+			if (!sameTags(existing, compact)) row.changed += 1;
+		}
+		set({
+			tags,
+			metadataProvenance
+		});
+		const next = get();
+		librarySearchIndex.sync(next.videos, next.tags, next.categories);
+		persistNow(get);
+		return {
+			processed: batch.length,
+			changed,
+			remaining: Math.max(0, candidates.length - batch.length),
+			sources: [...bySource.entries()].map(([source, row]) => ({
+				source,
+				...row
+			})).filter((row) => row.processed || row.remaining)
+		};
+	},
+	repairCreatorCoverage: () => {
+		const state = get();
+		const candidates = state.videos.flatMap((video) => {
+			const resolution = resolveCreatorCoverage(video, state.follows);
+			return resolution.status === "resolved" ? [{
+				video,
+				channelName: resolution.channelName
+			}] : [];
+		});
+		const batch = candidates.slice(0, LIBRARY_LIMITS.creatorCoverageRepairBatchSize);
+		if (!batch.length) return {
+			processed: 0,
+			repaired: 0,
+			tagged: 0,
+			remaining: 0
+		};
+		const repairs = new Map(batch.map((candidate) => [candidate.video.id, candidate.channelName]));
+		const videos = state.videos.map((video) => {
+			const channelName = repairs.get(video.id);
+			return channelName && video.remote ? {
+				...video,
+				remote: {
+					...video.remote,
+					channelName
+				}
+			} : video;
+		});
+		const tags = { ...state.tags };
+		const metadataProvenance = { ...state.metadataProvenance };
+		let tagged = 0;
+		for (const { video } of batch) {
+			const repaired = videos.find((item) => item.id === video.id);
+			if (tagsLocked(metadataProvenance[video.id])) continue;
+			const inferred = remoteMetadataTags(repaired).filter((tag) => tag.startsWith("creator-"));
+			if (!inferred.length) continue;
+			const existing = tags[video.id] ?? [];
+			const compact = compactIngestedTags(existing, inferred);
+			const nextProvenance = mergeInferredTagProvenance(existing, compact, metadataProvenance[video.id], inferred, `provider:${repaired.remote.kind}`);
+			if (!sameTags(existing, compact)) {
+				tags[video.id] = compact;
+				tagged += 1;
+			}
+			if (JSON.stringify(nextProvenance) !== JSON.stringify(metadataProvenance[video.id])) metadataProvenance[video.id] = nextProvenance;
+		}
+		set({
+			videos,
+			tags,
+			metadataProvenance
+		});
+		const next = get();
+		librarySearchIndex.sync(next.videos, next.tags, next.categories);
+		cacheRemotes(get);
+		persistNow(get);
+		return {
+			processed: batch.length,
+			repaired: batch.length,
+			tagged,
+			remaining: Math.max(0, candidates.length - batch.length)
+		};
+	},
 	setVideoCategory: (id, category) => {
-		set((s) => ({ categories: {
-			...s.categories,
-			[id]: category.trim().slice(0, 40)
-		} }));
+		set((s) => ({
+			categories: {
+				...s.categories,
+				[id]: category.trim().slice(0, 40)
+			},
+			metadataProvenance: {
+				...s.metadataProvenance,
+				[id]: {
+					...s.metadataProvenance[id],
+					tags: s.metadataProvenance[id]?.tags ?? {},
+					category: "manual",
+					lockedFields: [.../* @__PURE__ */ new Set([...s.metadataProvenance[id]?.lockedFields ?? [], "category"])],
+					updatedAt: Date.now()
+				}
+			}
+		}));
 		const state = get();
 		const video = state.videos.find((item) => item.id === id);
 		if (video) librarySearchIndex.updateMetadata(video, state.videos, state.tags, state.categories);
 		saveTagEdit(id, state.tags[id] ?? []);
+		saveMetadataEdit(id, state.metadataProvenance[id] ?? {
+			tags: {},
+			lockedFields: ["category"]
+		});
 		persistNow(get);
 	},
 	markProgress: (id, t, d) => {
@@ -3584,6 +4067,7 @@ var useLibrary = create((set, get) => ({
 		persistNow(get);
 	},
 	openVideo: (activeId) => {
+		measureInteraction("playback");
 		const s = get();
 		const video = s.videos.find((v) => v.id === activeId);
 		if (video && isAdultVideo(video, s.folders) && !s.adultsUnlocked) {
@@ -3597,7 +4081,10 @@ var useLibrary = create((set, get) => ({
 		});
 		queueMicrotask(() => get().recordPlay(activeId));
 	},
-	openPreview: (previewId) => set({ previewId }),
+	openPreview: (previewId) => {
+		measureInteraction("navigation");
+		set({ previewId });
+	},
 	closePreview: () => set({ previewId: null }),
 	closePlayer: () => set({ activeId: null }),
 	removeVideo: (id) => {
@@ -3605,12 +4092,14 @@ var useLibrary = create((set, get) => ({
 			const favorites = { ...s.favorites };
 			const likes = { ...s.likes };
 			const tags = { ...s.tags };
+			const metadataProvenance = { ...s.metadataProvenance };
 			const categories = { ...s.categories };
 			const progress = { ...s.progress };
 			const viewCounts = { ...s.viewCounts };
 			delete favorites[id];
 			delete likes[id];
 			delete tags[id];
+			delete metadataProvenance[id];
 			delete categories[id];
 			delete progress[id];
 			delete viewCounts[id];
@@ -3621,6 +4110,7 @@ var useLibrary = create((set, get) => ({
 				favorites,
 				likes,
 				tags,
+				metadataProvenance,
 				categories,
 				progress,
 				viewCounts,
@@ -3725,6 +4215,7 @@ var useLibrary = create((set, get) => ({
 				let nextVideos = s.videos;
 				let folders = s.folders;
 				const tagPatch = {};
+				const metadataPatch = {};
 				for (const folderId of ADULT_FOLDER_IDS) {
 					if (!touched.has(folderId) && append) continue;
 					if (!touched.has(folderId) && !append) continue;
@@ -3757,7 +4248,7 @@ var useLibrary = create((set, get) => ({
 						extraText: `${video.description ?? ""} ${video.tagline ?? ""}`,
 						mediaKind: video.extension === "image" ? "image" : /video/i.test(video.mime) ? "video" : void 0
 					}) : [];
-					tagPatch[video.id] = compactIngestedTags(s.tags[video.id] ?? [], [...adultIngestTags({
+					const inferred = [...adultIngestTags({
 						source,
 						extraSources: hostExtra,
 						creatorNames,
@@ -3767,7 +4258,15 @@ var useLibrary = create((set, get) => ({
 						extraTags: redditExtra,
 						extraText: source === "reddit" ? `${video.name} ${video.tagline ?? ""}` : void 0,
 						limit: LIBRARY_LIMITS.adultKeywordTagsPerTitle + 36
-					})]);
+					})];
+					const current = s.tags[video.id] ?? [];
+					if (tagsLocked(s.metadataProvenance[video.id])) {
+						tagPatch[video.id] = current;
+						continue;
+					}
+					const compact = compactIngestedTags(current, inferred);
+					tagPatch[video.id] = compact;
+					metadataPatch[video.id] = mergeInferredTagProvenance(current, compact, s.metadataProvenance[video.id], inferred, `provider:${video.remote?.kind ?? "eporner"}`);
 				}
 				const adultCap = LIBRARY_LIMITS.adultTargetCatalogVideos;
 				const adultRows = nextVideos.filter((v) => ADULT_FOLDER_IDS.includes(v.folderId));
@@ -3785,6 +4284,10 @@ var useLibrary = create((set, get) => ({
 					tags: {
 						...s.tags,
 						...tagPatch
+					},
+					metadataProvenance: {
+						...s.metadataProvenance,
+						...metadataPatch
 					},
 					adultsUnlocked: true,
 					remoteBusy: false,
@@ -3879,7 +4382,7 @@ var useLibrary = create((set, get) => ({
 				} : f),
 				scanning: null
 			}));
-			if (videos.length) set((s) => ({ tags: addLocalNameTags(s.tags, videos) }));
+			if (videos.length) set((s) => addLocalNameTags(s.tags, s.metadataProvenance, videos));
 			flushPersist(get);
 			await saveDirHandle({
 				id: folderId,
@@ -3940,7 +4443,7 @@ var useLibrary = create((set, get) => ({
 			} : f),
 			scanning: null
 		}));
-		if (videos.length) set((s) => ({ tags: addLocalNameTags(s.tags, videos) }));
+		if (videos.length) set((s) => addLocalNameTags(s.tags, s.metadataProvenance, videos));
 		flushPersist(get);
 		if (videos.length) await saveFolderVideos(folderId, videos).catch(() => void 0);
 	},
@@ -3988,7 +4491,7 @@ var useLibrary = create((set, get) => ({
 			} : f),
 			scanning: null
 		}));
-		if (videos.length) set((s) => ({ tags: addLocalNameTags(s.tags, videos) }));
+		if (videos.length) set((s) => addLocalNameTags(s.tags, s.metadataProvenance, videos));
 		flushPersist(get);
 		if (videos.length) await saveFolderVideos(folderId, videos).catch(() => void 0);
 	},
@@ -4001,6 +4504,7 @@ var useLibrary = create((set, get) => ({
 		preferencesRestored = true;
 		const prefsState = applyPrefs({});
 		prefsState.tags = restoreTagEdits(prefsState.tags ?? {});
+		prefsState.metadataProvenance = restoreMetadataEdits(prefsState.metadataProvenance ?? {});
 		const prefsFollows = Array.isArray(prefsState.follows) ? prefsState.follows : [];
 		const migratedFollows = dedupeFollows$1([...dedicatedFollows, ...prefsFollows]);
 		prefsState.follows = migratedFollows;
@@ -4095,9 +4599,11 @@ var useLibrary = create((set, get) => ({
 				const ids = new Set(get().follows.map((channel) => channel.id));
 				set((s) => {
 					const videos = mergeVideos(s.videos, snapshot.videos.filter((v) => ids.has(v.folderId) || s.favorites[v.id] || s.likes[v.id]));
+					const enriched = enrichRemoteTags(s.tags, s.metadataProvenance, snapshot.videos);
 					return {
 						videos,
-						tags: enrichRemoteTags(s.tags, snapshot.videos),
+						tags: enriched.tags,
+						metadataProvenance: enriched.metadataProvenance,
 						progress: reconcileResumeForVideos(videos, s.progress, s.resumeProgress),
 						folders: [...s.folders.filter((f) => !snapshot.folders.some((saved) => saved.id === f.id)), ...snapshot.folders.filter((f) => ids.has(f.id))],
 						remoteCheckedAt: snapshot.checkedAt
@@ -4140,21 +4646,27 @@ var useLibrary = create((set, get) => ({
 			const compactCachedRemoteTags = () => {
 				const snapshot = get();
 				let tags = snapshot.tags;
+				let metadataProvenance = snapshot.metadataProvenance;
 				let changed = false;
 				const end = Math.min(snapshot.videos.length, index + 96);
 				for (; index < end; index += 1) {
 					const video = snapshot.videos[index];
 					if (!video?.remote) continue;
+					if (tagsLocked(snapshot.metadataProvenance[video.id])) continue;
 					const current = tags[video.id] ?? [];
-					const providerTag = `provider-${video.remote.kind}`;
-					if (current.length <= LIBRARY_LIMITS.remoteMetadataTagsPerTitle && current.includes(providerTag)) continue;
 					const compact = compactIngestedTags(current, remoteMetadataTags(video));
-					if (sameTags(current, compact)) continue;
+					const provenance = mergeInferredTagProvenance(current, compact, snapshot.metadataProvenance[video.id], remoteMetadataTags(video), `provider:${video.remote.kind}`);
+					if (sameTags(current, compact) && JSON.stringify(provenance) === JSON.stringify(snapshot.metadataProvenance[video.id])) continue;
 					if (!changed) tags = { ...tags };
 					tags[video.id] = compact;
+					if (metadataProvenance === snapshot.metadataProvenance) metadataProvenance = { ...metadataProvenance };
+					metadataProvenance[video.id] = provenance;
 					changed = true;
 				}
-				if (changed) set({ tags });
+				if (changed) set({
+					tags,
+					metadataProvenance
+				});
 				if (index < get().videos.length) schedule(compactCachedRemoteTags);
 			};
 			window.setTimeout(() => schedule(compactCachedRemoteTags), 600);
@@ -4199,9 +4711,11 @@ var useLibrary = create((set, get) => ({
 				for (const v of catalog) counts.set(v.folderId, (counts.get(v.folderId) ?? 0) + 1);
 				set((s) => {
 					const videos = mergeVideos(s.videos, catalog);
+					const enriched = enrichRemoteTags(s.tags, s.metadataProvenance, catalog);
 					return {
 						videos,
-						tags: enrichRemoteTags(s.tags, catalog),
+						tags: enriched.tags,
+						metadataProvenance: enriched.metadataProvenance,
 						progress: reconcileResumeForVideos(videos, s.progress, s.resumeProgress),
 						folders: [...s.folders, ...[...counts.entries()].filter(([id]) => !s.folders.some((f) => f.id === id)).map(([id, videoCount]) => ({
 							id,
@@ -4441,12 +4955,14 @@ var useLibrary = create((set, get) => ({
 			const favorites = { ...s.favorites };
 			const likes = { ...s.likes };
 			const tags = { ...s.tags };
+			const metadataProvenance = { ...s.metadataProvenance };
 			const categories = { ...s.categories };
 			const progress = { ...s.progress };
 			for (const id of ids) {
 				delete favorites[id];
 				delete likes[id];
 				delete tags[id];
+				delete metadataProvenance[id];
 				delete categories[id];
 				delete progress[id];
 			}
@@ -4456,6 +4972,7 @@ var useLibrary = create((set, get) => ({
 				favorites,
 				likes,
 				tags,
+				metadataProvenance,
 				categories,
 				progress,
 				history: s.history.filter((h) => !ids.includes(h.id)),
@@ -4485,11 +5002,13 @@ var useLibrary = create((set, get) => ({
 					kind: result.channel.kind,
 					videoCount: result.videos.length
 				};
+				const enriched = enrichRemoteTags(s.tags, s.metadataProvenance, result.videos);
 				return {
 					follows,
 					folders: [...s.folders.filter((f) => f.id !== folder.id), folder],
 					videos: mergeVideos(s.videos.filter((v) => v.folderId !== result.channel.id || s.favorites[v.id] || s.likes[v.id] || result.channel.kind === "twitch" && v.remote?.kind === "twitch" && !v.remote.live), result.videos),
-					tags: enrichRemoteTags(s.tags, result.videos),
+					tags: enriched.tags,
+					metadataProvenance: enriched.metadataProvenance,
 					remoteBusy: false
 				};
 			});
@@ -4573,11 +5092,13 @@ var useLibrary = create((set, get) => ({
 						folders = [...folders.filter((f) => f.id !== folder.id), folder];
 						videos = mergeVideos(videos.filter((v) => v.folderId !== row.channel.id || s.favorites[v.id] || s.likes[v.id] || row.channel.kind === "twitch" && v.remote?.kind === "twitch" && !v.remote.live), row.videos);
 					}
+					const enriched = enrichRemoteTags(s.tags, s.metadataProvenance, result.ok.flatMap((row) => row.videos));
 					return {
 						follows: dedupeFollows$1(follows),
 						folders,
 						videos,
-						tags: enrichRemoteTags(s.tags, result.ok.flatMap((row) => row.videos)),
+						tags: enriched.tags,
+						metadataProvenance: enriched.metadataProvenance,
 						importProgress: {
 							done: Math.min(i + slice.length, unique.length),
 							total: unique.length,
@@ -4624,12 +5145,12 @@ var useLibrary = create((set, get) => ({
 		persistNow(get);
 		cacheRemotes(get);
 	},
-	refreshFollows: async () => {
+	refreshFollows: async (kind) => {
 		if (get().refreshing || get().remoteBusy) return {
 			wentLive: [],
 			newVideos: []
 		};
-		const allFollows = dedupeFollows$1(get().follows);
+		const allFollows = dedupeFollows$1(get().follows).filter((follow) => !kind || follow.kind === kind);
 		if (!allFollows.length) return {
 			wentLive: [],
 			newVideos: []
@@ -4661,6 +5182,7 @@ var useLibrary = create((set, get) => ({
 					...Object.keys(s.likes),
 					...s.history.map((entry) => entry.id)
 				]));
+				const enriched = enrichRemoteTags(s.tags, s.metadataProvenance, result.videos);
 				const folderCounts = /* @__PURE__ */ new Map();
 				for (const video of mergedVideos) folderCounts.set(video.folderId, (folderCounts.get(video.folderId) ?? 0) + 1);
 				return {
@@ -4676,7 +5198,8 @@ var useLibrary = create((set, get) => ({
 					}))],
 					videos: mergedVideos,
 					progress: reconcileResumeForVideos(mergedVideos, s.progress, s.resumeProgress),
-					tags: enrichRemoteTags(s.tags, result.videos),
+					tags: enriched.tags,
+					metadataProvenance: enriched.metadataProvenance,
 					remoteRefreshStatus: {
 						at: Date.now(),
 						checked: current.length,
@@ -5543,6 +6066,11 @@ function getRenderBudgetSnapshot() {
 		startedAt: startedAt$1
 	};
 }
+/**
+* Bound concurrent remote thumbnail fetches so Adults shelves do not stall
+* scroll with hundreds of parallel CDN requests / retries.
+* Visible cards use a high-priority lane; speculative/offscreen work waits.
+*/
 var active = 0;
 var waitingHigh = [];
 var waitingLow = [];
@@ -5579,40 +6107,54 @@ async function acquireImageSlot(opts) {
 	if (signal?.aborted) return () => {};
 	const priority = opts?.priority ?? "low";
 	const queue = priority === "high" ? waitingHigh : waitingLow;
-	while (!canStart(priority)) {
-		if (priority === "low" && typeof document !== "undefined" && document.visibilityState === "hidden") {
+	for (;;) {
+		while (!canStart(priority)) {
+			if (priority === "low" && typeof document !== "undefined" && document.visibilityState === "hidden") {
+				await new Promise((resolve) => {
+					const done = () => {
+						signal?.removeEventListener("abort", done);
+						document.removeEventListener("visibilitychange", onVis);
+						resolve();
+					};
+					const onVis = () => {
+						if (document.visibilityState === "visible") done();
+					};
+					document.addEventListener("visibilitychange", onVis);
+					signal?.addEventListener("abort", done, { once: true });
+				});
+				if (signal?.aborted) return () => {};
+				continue;
+			}
 			await new Promise((resolve) => {
-				const done = () => {
-					signal?.removeEventListener("abort", done);
-					document.removeEventListener("visibilitychange", onVis);
+				const wake = () => {
+					signal?.removeEventListener("abort", cancel);
 					resolve();
 				};
-				const onVis = () => {
-					if (document.visibilityState === "visible") done();
+				const cancel = () => {
+					const index = queue.indexOf(wake);
+					if (index >= 0) queue.splice(index, 1);
+					wake();
 				};
-				document.addEventListener("visibilitychange", onVis);
-				signal?.addEventListener("abort", done, { once: true });
+				queue.push(wake);
+				signal?.addEventListener("abort", cancel, { once: true });
 			});
-			if (signal?.aborted) return () => {};
-			continue;
+			if (signal?.aborted) {
+				wakeNext();
+				return () => {};
+			}
 		}
+		const delay = priority === "low" ? getInteractionPriorityDelay() : 0;
+		if (delay === 0) break;
 		await new Promise((resolve) => {
-			const wake = () => {
-				signal?.removeEventListener("abort", cancel);
+			const done = () => {
+				window.clearTimeout(timer);
+				signal?.removeEventListener("abort", done);
 				resolve();
 			};
-			const cancel = () => {
-				const index = queue.indexOf(wake);
-				if (index >= 0) queue.splice(index, 1);
-				wake();
-			};
-			queue.push(wake);
-			signal?.addEventListener("abort", cancel, { once: true });
+			const timer = window.setTimeout(done, delay);
+			signal?.addEventListener("abort", done, { once: true });
 		});
-		if (signal?.aborted) {
-			wakeNext();
-			return () => {};
-		}
+		if (signal?.aborted) return () => {};
 	}
 	active += 1;
 	let released = false;
@@ -5977,6 +6519,7 @@ var VideoCard = (0, import_react.memo)(function VideoCard({ video, variant = "gr
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 				ref,
+				"data-video-card-open": true,
 				type: "button",
 				onMouseEnter: () => setHovered(true),
 				onMouseLeave: () => setHovered(false),
@@ -7854,6 +8397,38 @@ function SheetTitle({ className, ...props }) {
 		...props
 	});
 }
+function clamp(value, min, max) {
+	return Math.max(min, Math.min(value, max));
+}
+/** Calculate the only contiguous card window that needs to be mounted. */
+function railWindow(length, width, stride, requestedStart, overscan = 1) {
+	const visibleSlots = Math.max(3, Math.ceil(Math.max(320, width) / stride) + overscan * 2);
+	const start = clamp(requestedStart, 0, Math.max(0, length - visibleSlots));
+	return {
+		start,
+		end: Math.min(length, start + visibleSlots),
+		visibleSlots
+	};
+}
+/** Pick a valid card target for the rail's explicit keyboard controls. */
+function railKeyboardTarget(key, current, length) {
+	if (!length || current < 0 || current >= length) return null;
+	if (key === "ArrowLeft") return current > 0 ? current - 1 : null;
+	if (key === "ArrowRight") return current < length - 1 ? current + 1 : null;
+	if (key === "Home") return current === 0 ? null : 0;
+	if (key === "End") return current === length - 1 ? null : length - 1;
+	return null;
+}
+/** Center a requested card where possible, retaining a small overscan buffer. */
+function railWindowStartForTarget(target, length, visibleSlots, overscan = 1) {
+	const maxStart = Math.max(0, length - visibleSlots);
+	return clamp(target - Math.max(overscan, Math.floor(visibleSlots / 2)), 0, maxStart);
+}
+/** Expand the logical rail only as far as a requested keyboard target needs. */
+function railLimitForTarget(limit, target, length, pageSize = 16) {
+	if (target < limit) return limit;
+	return Math.min(length, Math.max(limit + pageSize, target + 1));
+}
 var RAIL_SIZES = [
 	8,
 	16,
@@ -7943,6 +8518,7 @@ function TitleRail({ title, videos, variant = "poster", playedAt, onTitleClick, 
 	const shelfRef = (0, import_react.useRef)(null);
 	const railRef = (0, import_react.useRef)(null);
 	const scrollLeft = (0, import_react.useRef)(0);
+	const pendingFocus = (0, import_react.useRef)(void 0);
 	const attachRail = (0, import_react.useCallback)((rail) => {
 		railRef.current = rail;
 		if (rail) rail.scrollLeft = scrollLeft.current;
@@ -7953,7 +8529,9 @@ function TitleRail({ title, videos, variant = "poster", playedAt, onTitleClick, 
 	const [shelfHeight, setShelfHeight] = (0, import_react.useState)();
 	const [railWidth, setRailWidth] = (0, import_react.useState)(0);
 	const [windowStart, setWindowStart] = (0, import_react.useState)(0);
+	const [focusRequest, setFocusRequest] = (0, import_react.useState)(0);
 	const cardStride = variant === "poster" ? 148 : 236;
+	const overscan = 1;
 	(0, import_react.useEffect)(() => {
 		const shelf = shelfRef.current;
 		if (!shelf || !videos.length) return;
@@ -8000,6 +8578,25 @@ function TitleRail({ title, videos, variant = "poster", playedAt, onTitleClick, 
 		return () => window.removeEventListener("reelcase:render-settings", sync);
 	}, []);
 	(0, import_react.useEffect)(() => {
+		const target = pendingFocus.current;
+		const rail = railRef.current;
+		if (target === void 0 || !rail || !nearViewport) return;
+		const trigger = rail.querySelector(`[data-rail-index="${target}"] [data-video-card-open]`);
+		if (!trigger) return;
+		pendingFocus.current = void 0;
+		const centeredLeft = Math.max(0, target * cardStride - Math.max(0, (rail.clientWidth - cardStride) / 2));
+		scrollLeft.current = centeredLeft;
+		rail.scrollLeft = centeredLeft;
+		trigger.focus({ preventScroll: true });
+	}, [
+		cardStride,
+		focusRequest,
+		limit,
+		nearViewport,
+		railWidth,
+		windowStart
+	]);
+	(0, import_react.useEffect)(() => {
 		if (nearViewport && videos.length) markFirstShelf(title, Math.min(videos.length, limit));
 	}, [
 		nearViewport,
@@ -8009,11 +8606,7 @@ function TitleRail({ title, videos, variant = "poster", playedAt, onTitleClick, 
 	]);
 	if (!videos.length) return null;
 	const shown = videos.slice(0, limit);
-	const overscan = 1;
-	const visibleSlots = Math.max(3, Math.ceil((railWidth || 320) / cardStride) + 2);
-	const maxStart = Math.max(0, shown.length - visibleSlots);
-	const start = Math.max(0, Math.min(windowStart, maxStart));
-	const end = Math.min(shown.length, start + visibleSlots);
+	const { start, end, visibleSlots } = railWindow(shown.length, railWidth || 320, cardStride, windowStart, overscan);
 	const windowed = shown.slice(start, end);
 	const leadPx = start * cardStride;
 	const trailPx = Math.max(0, shown.length - end) * cardStride;
@@ -8023,6 +8616,28 @@ function TitleRail({ title, videos, variant = "poster", playedAt, onTitleClick, 
 		const nextStart = Math.max(0, Math.floor(rail.scrollLeft / cardStride) - overscan);
 		setWindowStart((current) => current === nextStart ? current : nextStart);
 		if (rail.scrollLeft + rail.clientWidth >= rail.scrollWidth - 160) setLimit((value) => Math.min(videos.length, value + 16));
+	};
+	const focusRailIndex = (target) => {
+		if (target < 0 || target >= videos.length) return;
+		pendingFocus.current = target;
+		setFocusRequest((value) => value + 1);
+		setLimit((value) => railLimitForTarget(value, target, videos.length));
+		setWindowStart(railWindowStartForTarget(target, Math.max(shown.length, target + 1), visibleSlots, overscan));
+	};
+	const onRailKeyDown = (event) => {
+		if (event.altKey || event.ctrlKey || event.metaKey) return;
+		if (![
+			"ArrowLeft",
+			"ArrowRight",
+			"Home",
+			"End"
+		].includes(event.key)) return;
+		const card = (event.target instanceof Element ? event.target.closest("[data-video-card-open]") : null)?.closest("[data-rail-index]");
+		const index = Number(card?.dataset.railIndex);
+		if (!Number.isInteger(index)) return;
+		event.preventDefault();
+		const target = railKeyboardTarget(event.key, index, videos.length);
+		if (target !== null) focusRailIndex(target);
 	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 		ref: shelfRef,
@@ -8071,6 +8686,7 @@ function TitleRail({ title, videos, variant = "poster", playedAt, onTitleClick, 
 		}), nearViewport && !collapsed && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 			ref: attachRail,
 			onScroll: (event) => onRailScroll(event.currentTarget),
+			onKeyDown: onRailKeyDown,
 			className: "rail-scroll flex gap-3 overflow-x-auto pb-3 sm:gap-4",
 			children: [
 				leadPx > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
@@ -8081,7 +8697,18 @@ function TitleRail({ title, videos, variant = "poster", playedAt, onTitleClick, 
 						height: 1
 					}
 				}),
+				start > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+					type: "button",
+					className: "sr-only focus:not-sr-only focus:rounded-sm focus:bg-elevated focus:px-3 focus:py-2 focus:text-sm focus:text-fg",
+					onFocus: () => focusRailIndex(start - 1),
+					children: [
+						"Previous ",
+						title,
+						" title"
+					]
+				}),
 				windowed.map((video, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					"data-rail-index": start + i,
 					className: cn(variant === "poster" && "w-32 shrink-0 sm:w-36 md:w-40", variant === "rail" && "shrink-0"),
 					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(VideoCard, {
 						video,
@@ -8090,6 +8717,16 @@ function TitleRail({ title, videos, variant = "poster", playedAt, onTitleClick, 
 						playedAt: playedAt?.[video.id]
 					})
 				}, video.id)),
+				end < videos.length && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+					type: "button",
+					className: "sr-only focus:not-sr-only focus:rounded-sm focus:bg-elevated focus:px-3 focus:py-2 focus:text-sm focus:text-fg",
+					onFocus: () => focusRailIndex(end),
+					children: [
+						"Next ",
+						title,
+						" title"
+					]
+				}),
 				trailPx > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 					"aria-hidden": "true",
 					className: "shrink-0",
@@ -8259,6 +8896,414 @@ function PosterGrid({ videos }) {
 		})] })
 	});
 }
+var LIVE_SOURCES = [
+	{
+		id: "twitch",
+		label: "Twitch"
+	},
+	{
+		id: "youtube",
+		label: "YouTube"
+	},
+	{
+		id: "chaturbate",
+		label: "Chaturbate"
+	},
+	{
+		id: "myfreecams",
+		label: "MyFreeCams"
+	}
+];
+/** Compare against the current clock at ingestion/render, not the last timer tick. */
+function hasFreshTwitchLiveState(video, now, maxAge) {
+	if (video.remote?.kind !== "twitch" || !video.remote.live) return true;
+	const observedAt = video.remote.observedAt ?? 0;
+	return observedAt > 0 && observedAt <= now + 5e3 && now - observedAt <= maxAge;
+}
+function liveDeskRows(videos, adultVideos) {
+	const unique = /* @__PURE__ */ new Map();
+	for (const video of [...videos, ...adultVideos]) if (video.remote?.live && LIVE_SOURCES.some((source) => source.id === video.remote?.kind)) unique.set(video.id, video);
+	return [...unique.values()];
+}
+function filterLiveRows(videos, options) {
+	const needle = options.search.trim().toLowerCase();
+	return videos.filter((video) => (options.source === "all" || video.remote?.kind === options.source) && (options.filter === "all" || Boolean((options.filter === "favorites" ? options.favorites : options.likes)[video.id])) && `${video.name} ${video.remote?.channelName ?? ""}`.toLowerCase().includes(needle)).sort((a, b) => {
+		const name = (a.remote?.channelName || a.name).localeCompare(b.remote?.channelName || b.name);
+		if (options.sort === "name") return name;
+		return (options.sort === "favorites" ? Number(Boolean(options.favorites[b.id])) - Number(Boolean(options.favorites[a.id])) : 0) || (b.remote?.viewers ?? 0) - (a.remote?.viewers ?? 0) || name;
+	});
+}
+function LiveDesk({ videos, adultLiveVideos = [], staleTwitchCount = 0 }) {
+	const favorites = useLibrary((s) => s.favorites);
+	const likes = useLibrary((s) => s.likes);
+	const follows = useLibrary((s) => s.follows);
+	const refreshing = useLibrary((s) => s.refreshing || s.remoteBusy);
+	const refresh = useLibrary((s) => s.refreshFollows);
+	const follow = useLibrary((s) => s.followRemoteQuery);
+	const [adding, setAdding] = (0, import_react.useState)("");
+	const setSource = useLibrary((s) => s.setSource);
+	const status = useLibrary((s) => s.remoteRefreshStatus);
+	const [source, setSourceFilter] = (0, import_react.useState)("all");
+	const [filter, setFilter] = (0, import_react.useState)("all");
+	const [sort, setSort] = (0, import_react.useState)("favorites");
+	const [search, setSearch] = (0, import_react.useState)("");
+	const [columns, setColumns] = (0, import_react.useState)(4);
+	const [limits, setLimits] = (0, import_react.useState)({});
+	const [ready, setReady] = (0, import_react.useState)(false);
+	(0, import_react.useEffect)(() => {
+		try {
+			const saved = JSON.parse(localStorage.getItem("reelcase.live-desk") ?? "{}");
+			if (["all", ...LIVE_SOURCES.map((s) => s.id)].includes(saved.source)) setSourceFilter(saved.source);
+			if ([
+				"all",
+				"favorites",
+				"likes"
+			].includes(saved.filter)) setFilter(saved.filter);
+			if ([
+				"favorites",
+				"viewers",
+				"name"
+			].includes(saved.sort)) setSort(saved.sort);
+			const count = Number(localStorage.getItem("reelcase.live-columns"));
+			if ([
+				3,
+				4,
+				6
+			].includes(count)) setColumns(count);
+		} catch {}
+		setReady(true);
+	}, []);
+	(0, import_react.useEffect)(() => {
+		if (!ready) return;
+		try {
+			localStorage.setItem("reelcase.live-desk", JSON.stringify({
+				source,
+				filter,
+				sort
+			}));
+			localStorage.setItem("reelcase.live-columns", String(columns));
+		} catch {}
+	}, [
+		ready,
+		source,
+		filter,
+		sort,
+		columns
+	]);
+	(0, import_react.useEffect)(() => setLimits({}), [
+		source,
+		filter,
+		search,
+		sort
+	]);
+	const rows = (0, import_react.useMemo)(() => liveDeskRows(videos, adultLiveVideos), [videos, adultLiveVideos]);
+	const counts = (0, import_react.useMemo)(() => Object.fromEntries(LIVE_SOURCES.map((s) => [s.id, rows.filter((v) => v.remote?.kind === s.id).length])), [rows]);
+	const visible = (0, import_react.useMemo)(() => filterLiveRows(rows, {
+		source,
+		filter,
+		sort,
+		search,
+		favorites,
+		likes
+	}), [
+		rows,
+		source,
+		filter,
+		sort,
+		search,
+		favorites,
+		likes
+	]);
+	const twitchFollows = follows.filter((f) => f.kind === "twitch");
+	const twitchFailures = twitchFollows.filter((f) => f.lastProviderFailure);
+	const sources = LIVE_SOURCES.filter((s) => source === "all" || source === s.id);
+	const grid = columns === 3 ? "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" : columns === 6 ? "grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-6" : "grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4";
+	const reset = () => {
+		setSourceFilter("all");
+		setFilter("all");
+		setSearch("");
+	};
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+		"aria-label": "Live streams",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("header", {
+				className: "mb-6 rounded-xl border border-border bg-surface p-5 sm:p-7",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						className: "flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-accent",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Radio, { className: "size-4" }), "On air"]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-3 flex flex-wrap items-end justify-between gap-4",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
+							className: "font-display text-3xl text-fg sm:text-4xl",
+							children: "Live, by source."
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+							className: "mt-2 text-sm text-muted",
+							children: [rows.length.toLocaleString(), " live streams in your library. Twitch and YouTube come first; Adult rooms have their own sections."]
+						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+							variant: "secondary",
+							disabled: refreshing,
+							onClick: () => void refresh(source === "twitch" || source === "youtube" ? source : void 0),
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(RefreshCw, { className: refreshing ? "size-4 animate-spin" : "size-4" }), refreshing ? "Checking channels…" : source === "twitch" ? "Refresh Twitch" : source === "youtube" ? "Refresh YouTube" : "Refresh Twitch & YouTube"]
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "mt-6 flex flex-wrap gap-2",
+						role: "group",
+						"aria-label": "Filter live by source",
+						children: [{
+							id: "all",
+							label: "All sources"
+						}, ...LIVE_SOURCES].map((s) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+							className: "min-h-11",
+							variant: source === s.id ? "default" : "secondary",
+							"aria-pressed": source === s.id,
+							onClick: () => setSourceFilter(s.id),
+							children: [
+								s.label,
+								" · ",
+								s.id === "all" ? rows.length : counts[s.id]
+							]
+						}, s.id))
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "mt-4 flex flex-wrap gap-2",
+						role: "group",
+						"aria-label": "Filter live by saved status",
+						children: [
+							["all", "All streams"],
+							["favorites", "Favorites"],
+							["likes", "Liked"]
+						].map(([id, label]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							className: "min-h-11",
+							variant: filter === id ? "default" : "ghost",
+							"aria-pressed": filter === id,
+							onClick: () => setFilter(id),
+							children: label
+						}, id))
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 flex flex-wrap gap-3",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+								className: "min-w-0 basis-full sm:flex-1 sm:basis-auto",
+								value: search,
+								onChange: (e) => setSearch(e.target.value),
+								placeholder: "Find a stream or creator",
+								"aria-label": "Search live streams"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("select", {
+								"aria-label": "Sort live streams",
+								className: "min-h-11 max-w-full rounded-md border border-border bg-elevated px-3 text-sm text-fg",
+								value: sort,
+								onChange: (e) => setSort(e.target.value),
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+										value: "favorites",
+										children: "Favorites first"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+										value: "viewers",
+										children: "Most viewers"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+										value: "name",
+										children: "Channel A–Z"
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("select", {
+								"aria-label": "Live card size",
+								className: "min-h-11 max-w-full rounded-md border border-border bg-elevated px-3 text-sm text-fg",
+								value: columns,
+								onChange: (e) => setColumns(Number(e.target.value)),
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+										value: 3,
+										children: "Large cards"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+										value: 4,
+										children: "Comfortable"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+										value: 6,
+										children: "Compact"
+									})
+								]
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						role: "status",
+						className: "mt-4 text-sm text-muted",
+						children: [
+							visible.length.toLocaleString(),
+							" matching streams",
+							status ? ` · Last channel batch: ${status.refreshed}/${status.checked} checked successfully${status.failed ? `, ${status.failed} unavailable` : ""}` : ""
+						]
+					})
+				]
+			}),
+			(source === "all" || source === "twitch") && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("aside", {
+				className: "mb-6 rounded-lg border border-border bg-elevated p-4",
+				"aria-label": "Twitch live status",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						className: "text-sm font-medium text-fg",
+						children: [
+							"Twitch · ",
+							counts.twitch,
+							" live · ",
+							twitchFollows.length,
+							" followed"
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-1 text-sm text-muted",
+						children: !twitchFollows.length ? "No Twitch channels are saved in this library. Add channels from the Twitch desk to see them here." : staleTwitchCount ? `${staleTwitchCount} cached stream${staleTwitchCount === 1 ? " needs" : "s need"} a fresh check. Older observations are held out of the live grid.` : counts.twitch ? "Showing recently confirmed streams from your followed channels." : "No followed Twitch channel is currently confirmed live. Refresh to check the next batch."
+					}),
+					twitchFailures.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						className: "mt-2 text-sm text-muted",
+						children: [
+							twitchFailures.length,
+							" channel check",
+							twitchFailures.length === 1 ? "" : "s",
+							" failed. ",
+							twitchFailures[0].lastProviderFailure?.recovery
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-3 flex flex-wrap gap-2",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							variant: "secondary",
+							disabled: refreshing || !twitchFollows.length,
+							onClick: () => void refresh("twitch"),
+							children: "Check Twitch channels"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							variant: "ghost",
+							onClick: () => setSource("twitch"),
+							children: "Manage Twitch channels"
+						})]
+					})
+				]
+			}),
+			!visible.length && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "mb-6 rounded-lg border border-border p-6",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+						className: "font-display text-2xl text-fg",
+						children: "No streams match this view"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-2 text-sm text-muted",
+						children: "Try a different source, clear your search, or check your saved channels."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						className: "mt-4",
+						variant: "secondary",
+						onClick: reset,
+						children: "Reset live filters"
+					})
+				]
+			}),
+			sources.map((s) => {
+				const items = visible.filter((v) => v.remote?.kind === s.id);
+				if (!items.length) return null;
+				const limit = limits[s.id] ?? 24;
+				const adult = s.id === "chaturbate" || s.id === "myfreecams";
+				return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+					className: "mb-8",
+					"aria-label": `${s.label} live streams`,
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "mb-4 flex flex-wrap items-center justify-between gap-3",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h2", {
+								className: "font-display text-2xl text-fg",
+								children: [
+									s.label,
+									" ",
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+										className: "text-base text-muted",
+										children: [
+											items.length.toLocaleString(),
+											" live",
+											adult ? " · 18+" : ""
+										]
+									})
+								]
+							}), adult && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								variant: "ghost",
+								onClick: () => setSource("adults"),
+								children: "Manage Adult sources"
+							})]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: grid,
+							children: items.slice(0, limit).map((video, index) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(VideoCard, {
+								video,
+								variant: "rail",
+								index,
+								className: "w-full"
+							}, video.id))
+						}),
+						items.length > limit && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+							className: "mt-4",
+							variant: "secondary",
+							onClick: () => setLimits((previous) => ({
+								...previous,
+								[s.id]: limit + 24
+							})),
+							children: [
+								"Show more ",
+								s.label,
+								" · ",
+								items.length - limit,
+								" remaining"
+							]
+						})
+					]
+				}, s.id);
+			}),
+			(source === "all" || source === "twitch") && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
+				className: "mt-6 rounded-lg border border-border bg-surface p-5",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("summary", {
+						className: "cursor-pointer font-medium text-fg",
+						children: "Discover more Twitch channels"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-2 text-sm text-muted",
+						children: "Following a channel adds it to your saved feed and checks its current status."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "mt-4 flex flex-wrap gap-2",
+						children: [
+							"twitch",
+							"eslcs",
+							"gamesdonequick",
+							"otknetwork",
+							"criticalrole"
+						].filter((handle) => !twitchFollows.some((f) => f.handle.toLowerCase() === handle)).map((handle) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							variant: "secondary",
+							disabled: Boolean(adding),
+							onClick: () => void (async () => {
+								setAdding(handle);
+								try {
+									await follow(handle, "twitch");
+								} finally {
+									setAdding("");
+								}
+							})(),
+							children: adding === handle ? "Checking…" : `Follow ${handle}`
+						}, handle))
+					})
+				]
+			})
+		]
+	});
+}
 function DiscoveryDesk({ videos }) {
 	const [seed, setSeed] = (0, import_react.useState)(1);
 	const [picks, setPicks] = (0, import_react.useState)([]);
@@ -8302,17 +9347,10 @@ function DiscoveryDesk({ videos }) {
 			}
 			setPicks(chosen.map((entry) => entry.video));
 		};
-		if (typeof window.requestIdleCallback === "function") {
-			const idle = window.requestIdleCallback(compute, { timeout: 400 });
-			return () => {
-				cancelled = true;
-				window.cancelIdleCallback(idle);
-			};
-		}
-		const timer = window.setTimeout(compute, 0);
+		const cancelSchedule = scheduleBackgroundWork(compute, { timeoutMs: 400 });
 		return () => {
 			cancelled = true;
-			window.clearTimeout(timer);
+			cancelSchedule();
 		};
 	}, [videos, seed]);
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
@@ -8447,328 +9485,6 @@ function RatingStreakCard() {
 			})
 		]
 	});
-}
-function LiveDesk({ videos, adultLiveVideos = [] }) {
-	const favorites = useLibrary((s) => s.favorites);
-	const likes = useLibrary((s) => s.likes);
-	const refreshing = useLibrary((s) => s.refreshing);
-	const checkedAt = useLibrary((s) => s.remoteCheckedAt);
-	const refresh = useLibrary((s) => s.refreshFollows);
-	const setSource = useLibrary((s) => s.setSource);
-	const follows = useLibrary((s) => s.follows);
-	const followRemoteQuery = useLibrary((s) => s.followRemoteQuery);
-	const [filter, setFilter] = (0, import_react.useState)("all");
-	const [search, setSearch] = (0, import_react.useState)("");
-	const [sort, setSort] = (0, import_react.useState)("favorites");
-	const [columns, setColumns] = (0, import_react.useState)(4);
-	const [visibleLimit, setVisibleLimit] = (0, import_react.useState)(48);
-	const [ready, setReady] = (0, import_react.useState)(false);
-	const [adding, setAdding] = (0, import_react.useState)("");
-	(0, import_react.useEffect)(() => {
-		try {
-			const saved = JSON.parse(localStorage.getItem("reelcase.live-desk") ?? "{}");
-			if ([
-				"all",
-				"favorites",
-				"likes"
-			].includes(saved.filter)) setFilter(saved.filter);
-			if ([
-				"favorites",
-				"viewers",
-				"name"
-			].includes(saved.sort)) setSort(saved.sort);
-			const count = Number(localStorage.getItem("reelcase.live-columns") ?? 4);
-			if ([
-				3,
-				4,
-				6
-			].includes(count)) setColumns(count);
-		} catch {}
-		setReady(true);
-	}, []);
-	(0, import_react.useEffect)(() => {
-		if (!ready) return;
-		try {
-			localStorage.setItem("reelcase.live-desk", JSON.stringify({
-				filter,
-				sort
-			}));
-			localStorage.setItem("reelcase.live-columns", String(columns));
-		} catch {}
-	}, [
-		filter,
-		sort,
-		columns,
-		ready
-	]);
-	const visible = (0, import_react.useMemo)(() => videos.filter((v) => (filter === "all" || (filter === "favorites" ? favorites[v.id] : likes[v.id])) && `${v.name} ${v.remote?.channelName ?? ""}`.toLowerCase().includes(search.toLowerCase())).sort((a, b) => sort === "name" ? a.name.localeCompare(b.name) : (sort === "favorites" ? Number(Boolean(favorites[b.id])) - Number(Boolean(favorites[a.id])) : 0) || (b.remote?.viewers ?? 0) - (a.remote?.viewers ?? 0)), [
-		videos,
-		filter,
-		favorites,
-		likes,
-		sort,
-		search
-	]);
-	(0, import_react.useEffect)(() => setVisibleLimit(48), [
-		filter,
-		search,
-		sort
-	]);
-	const youtubeLiveCount = videos.filter((video) => video.remote?.kind === "youtube").length;
-	const recommendedChannels = [
-		{
-			handle: "twitch",
-			title: "Twitch"
-		},
-		{
-			handle: "eslcs",
-			title: "ESL Counter-Strike"
-		},
-		{
-			handle: "gamesdonequick",
-			title: "Games Done Quick"
-		},
-		{
-			handle: "otknetwork",
-			title: "OTK Network"
-		},
-		{
-			handle: "criticalrole",
-			title: "Critical Role"
-		}
-	].filter((channel) => !follows.some((follow) => follow.kind === "twitch" && follow.handle.toLowerCase() === channel.handle));
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { children: [
-		/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("header", {
-			className: "mb-6 rounded-xl border border-border bg-surface p-5 sm:p-7",
-			children: [
-				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-					className: "flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-accent",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Radio, { className: "size-4" }), "On air"]
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					className: "mt-3 flex flex-wrap items-end justify-between gap-4",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
-						className: "discovery-heading font-display",
-						children: "Your live control room."
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-						className: "mt-3 text-sm text-muted",
-						children: [
-							videos.length,
-							" confirmed live stream",
-							videos.length === 1 ? "" : "s",
-							" · ",
-							youtubeLiveCount,
-							" from YouTube · ",
-							adultLiveVideos.length,
-							" Adult live",
-							adultLiveVideos.length === 1 ? "" : "s",
-							" below · scheduled “waiting to go live” channels stay out · ",
-							checkedAt ? `Checked ${new Date(checkedAt).toLocaleTimeString([], {
-								hour: "2-digit",
-								minute: "2-digit"
-							})}` : "Waiting for first refresh"
-						]
-					})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-						variant: "secondary",
-						disabled: refreshing,
-						onClick: () => void refresh(),
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(RefreshCw, { className: refreshing ? "size-4 animate-spin" : "size-4" }), refreshing ? "Refreshing…" : "Refresh streams"]
-					})]
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-					className: "mt-6 flex flex-wrap gap-2",
-					children: [
-						["all", "All streams"],
-						["favorites", "Favorites"],
-						["likes", "Liked"]
-					].map(([value, label]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-						size: "sm",
-						variant: filter === value ? "default" : "secondary",
-						onClick: () => setFilter(value),
-						children: [value === "favorites" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Heart, { className: "size-4" }) : value === "likes" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ThumbsUp, { className: "size-4" }) : null, label]
-					}, value))
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					className: "mt-4 flex flex-wrap gap-3",
-					children: [
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-							className: "min-w-0 flex-1",
-							value: search,
-							onChange: (event) => setSearch(event.target.value),
-							placeholder: "Find a stream or creator",
-							"aria-label": "Search live streams"
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("select", {
-							"aria-label": "Sort live streams",
-							className: "min-h-11 rounded-sm border border-border bg-elevated px-3 text-sm",
-							value: sort,
-							onChange: (event) => setSort(event.target.value),
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-									value: "favorites",
-									children: "Favorites first"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-									value: "viewers",
-									children: "Most viewers"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-									value: "name",
-									children: "Channel A–Z"
-								})
-							]
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("select", {
-							"aria-label": "Live card size",
-							className: "min-h-11 rounded-sm border border-border bg-elevated px-3 text-sm",
-							value: columns,
-							onChange: (event) => setColumns(Number(event.target.value)),
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-									value: 3,
-									children: "Large cards"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-									value: 4,
-									children: "Comfortable"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-									value: 6,
-									children: "Compact"
-								})
-							]
-						})
-					]
-				})
-			]
-		}),
-		visible.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-			className: columns === 3 ? "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" : columns === 6 ? "grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-6" : "grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4",
-			children: visible.slice(0, visibleLimit).map((video, index) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(VideoCard, {
-				video,
-				variant: "rail",
-				index,
-				className: "w-full"
-			}, video.id))
-		}), visible.length > visibleLimit && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-			className: "mt-4",
-			children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-				variant: "secondary",
-				onClick: () => setVisibleLimit((n) => Math.min(visible.length, n + 48)),
-				children: [
-					"Show more live · ",
-					visible.length - visibleLimit,
-					" remaining"
-				]
-			})
-		})] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-			className: "rounded-xl border border-border p-8 text-center",
-			children: [
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
-					className: "font-display text-2xl",
-					children: videos.length ? "No streams match this view" : "A quiet moment on your channels"
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-					className: "mt-2 text-sm text-muted",
-					children: videos.length ? "Try all streams or a different search." : "Browse saved Twitch videos while you wait for the next stream."
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-					className: "mt-4",
-					variant: "secondary",
-					onClick: () => {
-						if (videos.length) {
-							setFilter("all");
-							setSearch("");
-						} else setSource("twitch");
-					},
-					children: videos.length ? "Reset filters" : "Browse Twitch"
-				})
-			]
-		}),
-		/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
-			className: "mt-8 rounded-xl border border-border bg-surface p-5",
-			children: [
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-					className: "text-xs font-semibold uppercase tracking-widest text-accent",
-					children: "New live discovery"
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
-					className: "mt-2 font-display text-2xl text-fg",
-					children: "Outside your followed channels."
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-					className: "mt-1 text-sm text-muted",
-					children: "These are public Twitch channels to explore separately from your saved feed. Following one adds it to Reelcase and immediately checks its current live status."
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-					className: "mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3",
-					children: recommendedChannels.map((channel) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "rounded-lg bg-elevated p-4 shadow-border",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "font-medium text-fg",
-								children: channel.title
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-								className: "mt-1 text-xs text-muted",
-								children: ["twitch.tv/", channel.handle]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-								size: "sm",
-								className: "mt-3",
-								disabled: adding === channel.handle,
-								onClick: () => void (async () => {
-									setAdding(channel.handle);
-									try {
-										await followRemoteQuery(channel.handle, "twitch");
-									} finally {
-										setAdding("");
-									}
-								})(),
-								children: adding === channel.handle ? "Checking…" : "Follow & check live"
-							})
-						]
-					}, channel.handle))
-				})
-			]
-		}),
-		/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
-			className: "mt-8 rounded-xl border border-accent/30 bg-elevated p-5 shadow-border",
-			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "flex flex-wrap items-end justify-between gap-3",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-						className: "text-xs font-semibold uppercase tracking-widest text-accent",
-						children: "Adult lives"
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
-						className: "mt-2 font-display text-2xl text-fg",
-						children: "Chaturbate & MyFreeCams below YouTube / Twitch."
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-						className: "mt-1 text-sm text-muted",
-						children: "Same Live tab — public Adult rooms sit in a lower section so YT/Twitch stay first without hiding Adult lives in a separate hideaway."
-					})
-				] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-					size: "sm",
-					variant: "secondary",
-					onClick: () => setSource("adults"),
-					children: "Open Adults live view"
-				})]
-			}), adultLiveVideos.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-				className: "mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4",
-				children: adultLiveVideos.slice(0, 24).map((video, index) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(VideoCard, {
-					video,
-					variant: "rail",
-					index,
-					className: "w-full"
-				}, video.id))
-			}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-				className: "mt-4 rounded-md bg-bg/45 px-4 py-5 text-sm text-muted",
-				children: "No Adult live rooms are cached yet. Open Adults and pull Chaturbate or MyFreeCams to fill this section."
-			})]
-		})
-	] });
 }
 function Separator({ className, orientation = "horizontal", decorative = true, ...props }) {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Root, {
@@ -11132,18 +11848,13 @@ function AdultPanel({ showMilestones = false, autoPull = true, sourceFilter = "a
 		const ready = () => {
 			if (!cancelled) setFacetsReady(true);
 		};
-		const ric = window.requestIdleCallback;
-		if (typeof ric === "function") {
-			const id = ric(ready, { timeout: 1200 });
-			return () => {
-				cancelled = true;
-				window.cancelIdleCallback(id);
-			};
-		}
-		const id = window.setTimeout(ready, 200);
+		const cancelSchedule = scheduleBackgroundWork(ready, {
+			timeoutMs: 1200,
+			fallbackDelayMs: 200
+		});
 		return () => {
 			cancelled = true;
-			window.clearTimeout(id);
+			cancelSchedule();
 		};
 	}, [adultVideos.length]);
 	const creatorFacets = (0, import_react.useMemo)(() => {
@@ -12263,17 +12974,13 @@ function useAdultBrowse(enabled, inputs, params) {
 				if (!cancelled) setFailed(true);
 			});
 		};
-		if (typeof window.requestIdleCallback === "function") {
-			const idle = window.requestIdleCallback(start, { timeout: 500 });
-			return () => {
-				cancelled = true;
-				window.cancelIdleCallback(idle);
-			};
-		}
-		const timer = window.setTimeout(start, 80);
+		const cancelSchedule = scheduleBackgroundWork(start, {
+			timeoutMs: 500,
+			fallbackDelayMs: 80
+		});
 		return () => {
 			cancelled = true;
-			window.clearTimeout(timer);
+			cancelSchedule();
 		};
 	}, [
 		enabled,
@@ -13554,6 +14261,7 @@ function PreVideo() {
 	const favorite = useLibrary((s) => previewId ? Boolean(s.favorites[previewId]) : false);
 	const liked = useLibrary((s) => previewId ? Boolean(s.likes[previewId]) : false);
 	const tags = useLibrary((s) => previewId ? s.tags[previewId] ?? EMPTY_TAGS : EMPTY_TAGS);
+	const metadataProvenance = useLibrary((s) => previewId ? s.metadataProvenance[previewId] : void 0);
 	const category = useLibrary((s) => previewId ? s.categories[previewId] ?? "" : "");
 	const [editing, setEditing] = (0, import_react.useState)(false);
 	const [tagText, setTagText] = (0, import_react.useState)("");
@@ -13615,6 +14323,8 @@ function PreVideo() {
 	]);
 	const allVisibleTags = [...new Set((creatorKeyword && !tags.includes(creatorKeyword) ? [creatorKeyword, ...tags] : tags).map((tag) => tag.replace(/^(?:keyword-|creator-)/i, "")))];
 	const visibleTags = allVisibleTags.slice(0, 80);
+	const tagsLocked = Boolean(metadataProvenance?.lockedFields?.includes("tags"));
+	const tagSourceSummary = [...new Set(Object.values(metadataProvenance?.tags ?? {}))].map((source) => source === "manual" ? "your edit" : source === "local-name" ? "local filename" : source === "companion-inspection" ? "Companion inspection" : source === "local-vision" ? "local vision" : source === "legacy" ? "saved library" : source.replace(/^provider:/, "provider · ")).join(", ");
 	const creatorRating = creator ? getCreatorRating(creator) : 0;
 	const creatorLiked = creator ? creatorIsLiked(creator) : false;
 	(0, import_react.useEffect)(() => {
@@ -14033,6 +14743,10 @@ function PreVideo() {
 									" saved provider tags. Search the source to use the rest."
 								]
 							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-2 text-xs text-muted",
+								children: tagsLocked ? "Manual tags are locked; provider refreshes cannot replace them." : tagSourceSummary ? `Tag sources: ${tagSourceSummary}.` : "Tags are waiting for a local or provider metadata source."
+							}),
 							editing && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "mt-5 space-y-3 border-t border-border pt-4",
 								children: [
@@ -14063,6 +14777,10 @@ function PreVideo() {
 											setEditing(false);
 										},
 										children: "Save metadata"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "text-xs leading-5 text-muted",
+										children: "Saving tags locks this field to your choices. Provider refreshes can still update the card itself, but they cannot replace these tags or your category."
 									})
 								]
 							}),
@@ -14863,7 +15581,62 @@ ytFilm({
 	tagline: "A Blender Studio open project.",
 	channel: "Blender Studio"
 });
-var loadHub = () => import("./hub-sections-DuL6PypP.mjs").then((n) => n.t);
+/**
+* A small, deterministic look-ahead for the shared Hub code boundary.
+*
+* Hub desks currently ship in one lazy module. Keeping the destination name
+* here makes the scheduling decision explainable and leaves room for later
+* per-desk splitting without changing the caller's interaction contract.
+*/
+var NEXT_LIKELY_HUB = {
+	home: "anime",
+	movies: "anime",
+	anime: "genres",
+	genres: "photos",
+	youtube: "photos",
+	twitch: "photos",
+	live: "photos",
+	favorites: "photos",
+	continue: "photos",
+	history: "photos",
+	adults: "photos",
+	"adult-fetishes": "photos",
+	photos: "spotify",
+	spotify: "prints",
+	prints: "games",
+	games: "shop",
+	shop: "streaming",
+	streaming: "watch-room",
+	"watch-room": "connection",
+	connection: "find-phone",
+	"find-phone": "social",
+	social: "assistant",
+	assistant: "mission-plan",
+	"mission-plan": "settings",
+	settings: "stats"
+};
+/** Return one adjacent Hub destination, never a speculative set of routes. */
+function nextLikelyHub(sourceId) {
+	return NEXT_LIKELY_HUB[sourceId] ?? null;
+}
+/**
+* Warm code only when it is polite to do so. Unlike visible-image loading,
+* this background fetch has no user-visible priority and should not contend
+* with a weak connection, a low-memory device, or the current input frame.
+*/
+function shouldWarmHubRoute(hints) {
+	if (!hints.visible || hints.saveData || hints.inputPending) return false;
+	if (typeof hints.deviceMemory === "number" && hints.deviceMemory <= 2) return false;
+	return !/^(?:slow-2g|2g|3g)$/i.test(hints.effectiveType?.trim() ?? "");
+}
+var hubModulePromise;
+var loadHub = () => {
+	if (!hubModulePromise) hubModulePromise = import("./hub-sections-BxuOiHB1.mjs").then((n) => n.t).catch((error) => {
+		hubModulePromise = void 0;
+		throw error;
+	});
+	return hubModulePromise;
+};
 var hubSection = (name) => (0, import_react.lazy)(async () => ({ default: (await loadHub())[name] }));
 var AnimeSection = hubSection("AnimeSection");
 var GamesSection = hubSection("GamesSection");
@@ -14934,11 +15707,6 @@ function isExcludedDemoVideo(video) {
 function isOfflineChannelCard(video) {
 	if (video.remote?.kind !== "twitch" || video.remote.live) return false;
 	return /^offline\b/i.test(video.tagline ?? "") || video.extension === "live" || /\/(?:live|channel)$/i.test(video.path ?? "") || /:(?:live|channel)$/i.test(video.id ?? "");
-}
-function hasFreshTwitchLiveState(video, now) {
-	if (video.remote?.kind !== "twitch" || !video.remote.live) return true;
-	const observedAt = video.remote.observedAt ?? 0;
-	return observedAt > 0 && observedAt <= now && now - observedAt <= LIBRARY_LIMITS.twitchLiveStateFreshnessMs;
 }
 var isTasteTag = isTopicTag;
 function LibraryApp() {
@@ -15085,7 +15853,7 @@ function LibraryApp() {
 		youtubeVideos
 	]);
 	const liveVideos = useLibrary(useShallow(selectLive));
-	const currentLiveVideos = (0, import_react.useMemo)(() => liveVideos.filter((video) => hasFreshTwitchLiveState(video, liveStateClock)), [liveStateClock, liveVideos]);
+	const currentLiveVideos = (0, import_react.useMemo)(() => liveVideos.filter((video) => hasFreshTwitchLiveState(video, Math.max(Date.now(), liveStateClock), LIBRARY_LIMITS.twitchLiveStateFreshnessMs)), [liveStateClock, liveVideos]);
 	const adultContinue = useLibrary(useShallow((s) => selectContinue(s, true)));
 	const adultFavorites = useLibrary(useShallow((s) => selectFavorites(s, true)));
 	const adultHistory = useLibrary(useShallow((s) => selectHistory(s, true)));
@@ -15986,6 +16754,62 @@ function LibraryApp() {
 		};
 	}, [sourceId, videos.length]);
 	(0, import_react.useEffect)(() => {
+		const target = nextLikelyHub(sourceId);
+		if (!hydrated || !target) return;
+		let cancelled = false;
+		let frame;
+		let idle;
+		let idleCallback = false;
+		const clearScheduled = () => {
+			if (typeof frame === "number") window.cancelAnimationFrame(frame);
+			if (typeof idle === "number") {
+				if (idleCallback) window.cancelIdleCallback(idle);
+				else window.clearTimeout(idle);
+			}
+			frame = void 0;
+			idle = void 0;
+		};
+		const warm = () => {
+			idle = void 0;
+			if (cancelled) return;
+			const nav = navigator;
+			if (!shouldWarmHubRoute({
+				visible: document.visibilityState === "visible",
+				saveData: nav.connection?.saveData,
+				effectiveType: nav.connection?.effectiveType,
+				deviceMemory: nav.deviceMemory,
+				inputPending: nav.scheduling?.isInputPending?.()
+			})) return;
+			loadHub().catch(() => {});
+		};
+		const schedule = () => {
+			clearScheduled();
+			if (cancelled || document.visibilityState !== "visible") return;
+			frame = window.requestAnimationFrame(() => {
+				frame = void 0;
+				if (cancelled || document.visibilityState !== "visible") return;
+				if (typeof window.requestIdleCallback === "function") {
+					idleCallback = true;
+					idle = window.requestIdleCallback(warm, { timeout: 4e3 });
+				} else {
+					idleCallback = false;
+					idle = window.setTimeout(warm, 450);
+				}
+			});
+		};
+		const onVisibilityChange = () => {
+			if (document.visibilityState === "visible") schedule();
+			else clearScheduled();
+		};
+		document.addEventListener("visibilitychange", onVisibilityChange);
+		schedule();
+		return () => {
+			cancelled = true;
+			document.removeEventListener("visibilitychange", onVisibilityChange);
+			clearScheduled();
+		};
+	}, [hydrated, sourceId]);
+	(0, import_react.useEffect)(() => {
 		const refreshRatedShelves = () => (0, import_react.startTransition)(() => {
 			setRatingRevision((value) => value + 1);
 			setTagHeartRevision((value) => value + 1);
@@ -16019,13 +16843,10 @@ function LibraryApp() {
 		const build = () => {
 			searchWorkerIndex.sync(catalogVideos, tags, categories);
 		};
-		const scheduleIdle = window.requestIdleCallback;
-		if (typeof scheduleIdle === "function") {
-			const id = scheduleIdle(build, { timeout: 2e3 });
-			return () => window.cancelIdleCallback(id);
-		}
-		const id = window.setTimeout(build, 350);
-		return () => window.clearTimeout(id);
+		return scheduleBackgroundWork(build, {
+			timeoutMs: 2e3,
+			fallbackDelayMs: 350
+		});
 	}, [
 		catalogVideos,
 		categories,
@@ -17150,7 +17971,8 @@ function LibraryApp() {
 						] }),
 						sourceId === "live" && browsing && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LiveDesk, {
 							videos: currentLiveVideos,
-							adultLiveVideos: adultRemoteVideos.filter((video) => adultKind(video) === "live").slice(0, 64)
+							staleTwitchCount: liveVideos.filter((video) => video.remote?.kind === "twitch").length - currentLiveVideos.filter((video) => video.remote?.kind === "twitch").length,
+							adultLiveVideos: adultRemoteVideos.filter((video) => adultKind(video) === "live")
 						}),
 						sourceId === "movies" && browsing && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -18478,6 +19300,7 @@ function LibraryApp() {
 				className: "sr-only",
 				tabIndex: -1,
 				"aria-hidden": "true",
+				suppressHydrationWarning: true,
 				webkitdirectory: "",
 				directory: "",
 				onChange: (e) => {
@@ -18498,6 +19321,7 @@ function LibraryApp() {
 				className: "sr-only",
 				tabIndex: -1,
 				"aria-hidden": "true",
+				suppressHydrationWarning: true,
 				onChange: (e) => {
 					const files = e.target.files;
 					if (files?.length) ingestFromInput(files, false).catch((err) => {
@@ -18523,4 +19347,4 @@ function Home() {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LibraryApp, {});
 }
 //#endregion
-export { exportFeedback as A, saveDurablePhotos as B, resumeForVideo as C, isTopicTag as D, canonicalTopic as E, getInteractionBudgetSnapshot as F, companionListPrints as G, companionExportLibraryPack as H, measureInteraction as I, companionSetAutostart as J, companionReadPrint as K, linksFromHistoryAndResume as L, getRating as M, tagIsLiked as N, topicEvidence as O, toggleTagLike as P, __exportAll as Q, loadDurablePhotosSync as R, isAdultVideo as S, useSourceAssets as T, companionHealth as U, companionAckJobs as V, companionImportLibraryPack as W, createLocalId as X, companionSteamEpicGames as Y, createShortLocalId as Z, VideoCard as _, twitchEmbedUrl as a, useThumbs as b, downloadLibraryPackZip as c, exportAdultStats as d, rankAdultTags as f, openTopic as g, Input as h, getFirstShelfTrace as i, getFeedbackDiagnostics as j, topicsForVideo as k, importLibraryPackZip as l, countAdultBySource as m, getNetworkDeviceId as n, applyLibraryPackFiles as o, countAdultBooruHosts as p, companionSavePrint as q, listNetworkDevices as r, buildLibraryPackFiles as s, routes_exports as t, buildAdultStatsSnapshot as u, getRenderBudgetSnapshot as v, useLibrary as w, Button as x, getThumbDiagnostics as y, restoreDurablePhotos as z };
+export { createLocalId as $, topicsForVideo as A, restoreDurablePhotos as B, resumeForVideo as C, canonicalTopic as D, useSourceAssets as E, toggleTagLike as F, companionHealth as G, companionAckJobs as H, getInteractionBudgetSnapshot as I, companionListPrints as J, companionImportLibraryPack as K, measureInteraction as L, getFeedbackDiagnostics as M, getRating as N, isTopicTag as O, tagIsLiked as P, companionSteamEpicGames as Q, linksFromHistoryAndResume as R, isAdultVideo as S, resolveCreatorCoverage as T, companionArtworkAudit as U, saveDurablePhotos as V, companionExportLibraryPack as W, companionSavePrint as X, companionReadPrint as Y, companionSetAutostart as Z, VideoCard as _, twitchEmbedUrl as a, useThumbs as b, downloadLibraryPackZip as c, exportAdultStats as d, createShortLocalId as et, rankAdultTags as f, openTopic as g, Input as h, getFirstShelfTrace as i, exportFeedback as j, topicEvidence as k, importLibraryPackZip as l, countAdultBySource as m, getNetworkDeviceId as n, applyLibraryPackFiles as o, countAdultBooruHosts as p, companionInspectMedia as q, listNetworkDevices as r, buildLibraryPackFiles as s, routes_exports as t, __exportAll as tt, buildAdultStatsSnapshot as u, getRenderBudgetSnapshot as v, useLibrary as w, Button as x, getThumbDiagnostics as y, loadDurablePhotosSync as z };
