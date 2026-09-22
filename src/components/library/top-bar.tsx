@@ -68,7 +68,7 @@ export function TopBar({
     try { return JSON.parse(localStorage.getItem("reelcase.search.recent") ?? "[]") as string[]; } catch { return []; }
   });
   const sortLabel = SORTS.find((s) => s.key === sort)?.label ?? "Name";
-  const sourceLabel = sourceId === "home" ? "Home" : sourceId === "movies" ? "Movies" : sourceId === "photos" ? "Photos" : sourceId === "twitch" ? "Twitch" : sourceId === "youtube" ? "YouTube" : folders.find((folder) => folder.id === sourceId)?.name ?? "Library";
+  const sourceLabel = sourceId === "live" ? "Live" : sourceId === "home" ? "Home" : sourceId === "movies" ? "Movies" : sourceId === "photos" ? "Photos" : sourceId === "twitch" ? "Twitch" : sourceId === "youtube" ? "YouTube" : folders.find((folder) => folder.id === sourceId)?.name ?? "Library";
   const sourceCount = sourceId === "home" ? videos.length : folders.find((folder) => folder.id === sourceId)?.videoCount;
   const needle = lookup.trim().toLowerCase();
   const [workerIds, setWorkerIds] = useState<string[] | null>(null);

@@ -4,7 +4,7 @@ The in-app **Mission plan** tracks these larger, local-first improvements:
 
 1. Durable media index — **complete**: cached catalog metadata, source health, persisted thumbnail cache, and fast search.
 2. Desktop companion — **complete**: explicit local-file verification, folder watching, and approved shortcut launching.
-3. Watch room reliability — in progress: host-authoritative state publishing, stale-command rejection, revisioned queue reconciliation, a compact local session ledger, LAN diagnostics, guest checks, and compatibility-safe local room identifiers. Real cross-device matrix validation and a TURN-backed recovery route remain.
+3. Watch room reliability — in progress: host-authoritative state publishing, stale-command rejection, revisioned queue reconciliation, a compact local session ledger, LAN diagnostics, guest checks, and compatibility-safe local room identifiers. Optional visit-only TURN credentials and relay-only testing now support blocked direct paths; real TURN and cross-device matrix validation remain. Same-browser fallback no longer reports signaling as healthy before registration succeeds.
 4. Connected services — **complete**: independently cached Twitch, YouTube, Roku, Spotify, and photo refreshes with focused retries.
 5. VR theater reliability — **complete**: local playable videos open in a real WebXR cinema surface with controller play/pause and seek controls, plus clear Meta Quest recovery guidance. Remote sources remain intentionally excluded until they are safe for the headset surface.
 6. Companion onboarding — **complete**: a one-screen checklist, exact Windows launcher, companion health check, Desktop approval, shortcut validation, and safe first-launch path.

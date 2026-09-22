@@ -75,6 +75,8 @@ import { isAdultImageKind, isAdultPullKind } from "@/lib/videos/adult-sites";
 import { getThumbDiagnostics, useThumbs } from "@/lib/videos/thumbs";
 import { useSourceAssets } from "@/lib/source-assets";
 import { useP2PRoom } from "@/lib/multiplayer";
+import { RoomRelaySettings } from "./room-relay-settings";
+import type { RoomRelayConfig } from "@/lib/multiplayer/relay-config";
 import { exportFeedback, getFeedbackDiagnostics, getRating, tagIsLiked } from "@/lib/media-feedback";
 import { getRenderBudgetSnapshot } from "@/lib/render-budget";
 import { getInteractionBudgetSnapshot, measureInteraction } from "@/lib/interaction-budget";
@@ -2850,7 +2852,7 @@ const DEFAULT_MISSIONS: Mission[] = [
   { id: "provider-import-recovery", title: "Provider import recovery", detail: "Provider refreshes retain successful channel rows, preserve prior cache on partial failures, and use RSS/channel-page plus public Twitch GraphQL recovery paths.", done: true },
   { id: "adult-source-recovery", title: "Adult source recovery", detail: "Done · Booru pulls use source-aware queries plus JSON, XML, and public-listing recovery so Rule34-style, Gelbooru, and Realbooru responses no longer collapse into empty source chips.", done: true },
   { id: "adult-provider-diverse-recommendations", title: "Adult provider-diverse recommendations", detail: "Done · personal Adult shelves rank by private signals, then apply creator and provider round-robin guards; videos, photos, and picks each have a full-width discovery rail.", done: true },
-  { id: "watch-room-cross-device", title: "Watch Room cross-device relay", detail: "Verify the signaling relay across separate devices and add a TURN-backed recovery route for networks that block direct peer negotiation.", done: false },
+  { id: "watch-room-cross-device", title: "Watch Room cross-device relay", detail: "Temporary TURN credentials and relay-only testing are implemented. Verification with a working TURN service and separate devices remains open.", done: false },
   { id: "movie-private-tag-shelves", title: "Movie and private tag shelves", detail: "Movies have source, genre, and file-type rails; private shelves retain favorites, tags, history, and rating-aware sorting locally.", done: true },
   { id: "sprint-01", title: "Alert rules", detail: "Per-service alert switches and the notification activity center are active locally.", done: true },
   { id: "sprint-02", title: "Preference coverage", detail: "Shipped preferences have concrete local controls, with status copy explaining their effects.", done: true },
@@ -3871,7 +3873,8 @@ export function WatchRoomSection() {
   const lastAcceptedTimelineAt = useRef(0);
   const lastAcceptedRoomStateAt = useRef(0);
   const room = activeRoom ?? "";
-  const p2p = useP2PRoom(room, name.trim() || "Guest");
+  const [relayConfig, setRelayConfig] = useState<RoomRelayConfig>();
+  const p2p = useP2PRoom(room, name.trim() || "Guest", relayConfig);
   useEffect(() => {
     queueRevisionRef.current = 0;
     lastAcceptedQueueRevision.current = 0;
@@ -4559,7 +4562,8 @@ export function WatchRoomSection() {
             <Button size="sm" variant="ghost" onClick={() => void navigator.clipboard?.writeText(JSON.stringify({ room: activeRoom, invitation: `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(activeRoom)}&theater=1`, role: joinedAsGuest ? "guest" : "host", self: p2p.selfId, signaling: p2p.joined, peers: p2p.peers, transportTest: pulseStatus, reliability: roomHealth, ledger: roomLedger, events: p2p.events, capturedAt: new Date().toISOString() }, null, 2)).then(() => setInviteNotice("Connection and reconciliation diagnostic copied."), () => setInviteNotice("Could not copy the diagnostic."))}>Copy room diagnostic</Button>
           </div>
           <div className="mt-3 rounded-sm bg-bg/45 p-3">
-            <div className="flex items-center justify-between gap-3"><p className="text-xs font-medium text-fg">Connection signals</p><span className="text-xs text-muted">{p2p.peers.filter((peer) => peer.connectionState === "connected").length}/{p2p.peers.length} direct</span></div>
+            <div className="flex items-center justify-between gap-3"><p className="text-xs font-medium text-fg">Connection signals</p><span className="text-xs text-muted">{p2p.peers.filter((peer) => peer.connectionState === "connected").length}/{p2p.peers.length} connected · {p2p.peers.filter((peer) => peer.connectionState === "connected" && peer.candidateType === "relay").length} relayed</span></div>
+            <RoomRelaySettings config={relayConfig} onChange={setRelayConfig} />
             <div className="mt-2 max-h-28 space-y-1 overflow-y-auto font-mono text-[11px] leading-4 text-muted">{p2p.events.map((event, index) => <p key={`${event}-${index}`}>{event}</p>)}</div>
             {!p2p.peers.length && p2p.joined && <p className="mt-2 text-xs text-accent">Signaling is healthy, but no peer is in <strong>{activeRoom}</strong>. The other window must join this exact code—not create its own. Use Open local guest window or copy this room link.</p>}
             {p2p.peers.length > 0 && <div className="mt-2 space-y-1 text-xs text-muted">{p2p.peers.map((peer) => <p key={peer.id}><strong className="text-fg">{peer.name || "Guest"}</strong> · {peer.connectionState} · {peer.candidateType ?? "path pending"} · {peer.rttMs == null ? "RTT pending" : `${peer.rttMs}ms`} · {peer.id.slice(-6)}</p>)}</div>}

@@ -13,7 +13,7 @@ import { a as DialogPortal, i as DialogOverlay, n as DialogClose, o as DialogTit
 import { t as Root } from "../_libs/radix-ui__react-separator.mjs";
 import { a as Trigger, i as Root2, n as Item2, r as Portal2, t as Content2 } from "../_libs/@radix-ui/react-dropdown-menu+[...].mjs";
 import { i as SliderTrack, n as SliderRange, r as SliderThumb, t as Slider$1 } from "../_libs/@radix-ui/react-slider+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-Clv43gEn.js
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-DowxOMzf.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var __defProp = Object.defineProperty;
@@ -10291,7 +10291,7 @@ function TopBar({ onMenu, onAddFolder }) {
 		}
 	});
 	const sortLabel = SORTS.find((s) => s.key === sort)?.label ?? "Name";
-	const sourceLabel = sourceId === "home" ? "Home" : sourceId === "movies" ? "Movies" : sourceId === "photos" ? "Photos" : sourceId === "twitch" ? "Twitch" : sourceId === "youtube" ? "YouTube" : folders.find((folder) => folder.id === sourceId)?.name ?? "Library";
+	const sourceLabel = sourceId === "live" ? "Live" : sourceId === "home" ? "Home" : sourceId === "movies" ? "Movies" : sourceId === "photos" ? "Photos" : sourceId === "twitch" ? "Twitch" : sourceId === "youtube" ? "YouTube" : folders.find((folder) => folder.id === sourceId)?.name ?? "Library";
 	const sourceCount = sourceId === "home" ? videos.length : folders.find((folder) => folder.id === sourceId)?.videoCount;
 	const needle = lookup.trim().toLowerCase();
 	const [workerIds, setWorkerIds] = (0, import_react.useState)(null);
@@ -15631,7 +15631,7 @@ function shouldWarmHubRoute(hints) {
 }
 var hubModulePromise;
 var loadHub = () => {
-	if (!hubModulePromise) hubModulePromise = import("./hub-sections-BxuOiHB1.mjs").then((n) => n.t).catch((error) => {
+	if (!hubModulePromise) hubModulePromise = import("./hub-sections-BopJbiQt.mjs").then((n) => n.t).catch((error) => {
 		hubModulePromise = void 0;
 		throw error;
 	});

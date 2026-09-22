@@ -3,9 +3,9 @@ import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
 import { L as isAdultImageKind, z as isAdultPullKind } from "./adult-pull-cache-aysXgkuS.mjs";
 import { A as PackageSearch, D as Play, E as Radio, Et as Bot, G as Lightbulb, I as MessageCircle, J as Images, N as MonitorPlay, S as Search, T as RefreshCw, Tt as Box, X as ImagePlus, b as ShieldCheck, bt as ChevronRight, c as Upload, ft as ExternalLink, gt as Copy, h as Smartphone, j as Music2, k as Pause, mt as Download, n as X, nt as Gamepad2, p as Star, q as Laptop, r as Wifi, s as Users, ut as Eye, v as Shuffle, vt as Clapperboard, w as Rocket, wt as ChartColumn, x as Settings2, xt as ChevronLeft, y as ShoppingBag, z as Maximize2 } from "../_libs/lucide-react.mjs";
-import { $ as createLocalId, A as topicsForVideo, B as restoreDurablePhotos, C as resumeForVideo, D as canonicalTopic, E as useSourceAssets, F as toggleTagLike, G as companionHealth, H as companionAckJobs, I as getInteractionBudgetSnapshot, J as companionListPrints, K as companionImportLibraryPack, L as measureInteraction, M as getFeedbackDiagnostics, N as getRating, O as isTopicTag, P as tagIsLiked, Q as companionSteamEpicGames, R as linksFromHistoryAndResume, S as isAdultVideo, T as resolveCreatorCoverage, U as companionArtworkAudit, V as saveDurablePhotos, W as companionExportLibraryPack, X as companionSavePrint, Y as companionReadPrint, Z as companionSetAutostart, _ as VideoCard, a as twitchEmbedUrl, b as useThumbs, c as downloadLibraryPackZip, d as exportAdultStats, et as createShortLocalId, f as rankAdultTags, g as openTopic, h as Input, i as getFirstShelfTrace, j as exportFeedback, k as topicEvidence, l as importLibraryPackZip, m as countAdultBySource, n as getNetworkDeviceId, o as applyLibraryPackFiles, p as countAdultBooruHosts, q as companionInspectMedia, r as listNetworkDevices, s as buildLibraryPackFiles, tt as __exportAll, u as buildAdultStatsSnapshot, v as getRenderBudgetSnapshot, w as useLibrary, x as Button, y as getThumbDiagnostics, z as loadDurablePhotosSync } from "./routes-Clv43gEn.mjs";
+import { $ as createLocalId, A as topicsForVideo, B as restoreDurablePhotos, C as resumeForVideo, D as canonicalTopic, E as useSourceAssets, F as toggleTagLike, G as companionHealth, H as companionAckJobs, I as getInteractionBudgetSnapshot, J as companionListPrints, K as companionImportLibraryPack, L as measureInteraction, M as getFeedbackDiagnostics, N as getRating, O as isTopicTag, P as tagIsLiked, Q as companionSteamEpicGames, R as linksFromHistoryAndResume, S as isAdultVideo, T as resolveCreatorCoverage, U as companionArtworkAudit, V as saveDurablePhotos, W as companionExportLibraryPack, X as companionSavePrint, Y as companionReadPrint, Z as companionSetAutostart, _ as VideoCard, a as twitchEmbedUrl, b as useThumbs, c as downloadLibraryPackZip, d as exportAdultStats, et as createShortLocalId, f as rankAdultTags, g as openTopic, h as Input, i as getFirstShelfTrace, j as exportFeedback, k as topicEvidence, l as importLibraryPackZip, m as countAdultBySource, n as getNetworkDeviceId, o as applyLibraryPackFiles, p as countAdultBooruHosts, q as companionInspectMedia, r as listNetworkDevices, s as buildLibraryPackFiles, tt as __exportAll, u as buildAdultStatsSnapshot, v as getRenderBudgetSnapshot, w as useLibrary, x as Button, y as getThumbDiagnostics, z as loadDurablePhotosSync } from "./routes-DowxOMzf.mjs";
 import { a as Bar, c as ResponsiveContainer, i as XAxis, l as Tooltip, n as BarChart, o as Pie, r as YAxis, s as Cell, t as PieChart } from "../_libs/recharts+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/hub-sections-BxuOiHB1.js
+//#region node_modules/.nitro/vite/services/ssr/assets/hub-sections-BopJbiQt.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function TopicLinks({ explorer = false }) {
@@ -648,7 +648,7 @@ var P2PRoom = class {
 	* room: the loop and timers start regardless and the next poll retries.
 	*/
 	async join() {
-		if (typeof BroadcastChannel !== "undefined") {
+		if (typeof BroadcastChannel !== "undefined" && this.opts.iceTransportPolicy !== "relay") {
 			this.localRelay = new BroadcastChannel(`reelcase-watch:${this.opts.room}`);
 			this.localRelay.onmessage = (event) => {
 				const message = event.data;
@@ -657,7 +657,6 @@ var P2PRoom = class {
 				this.opts.onMessage?.(message.from ?? "local-guest", message.data, "reliable");
 			};
 			this.debug("Local tab relay ready");
-			this.opts.onConnected?.();
 		}
 		try {
 			await this.pollOnce();
@@ -784,7 +783,10 @@ var P2PRoom = class {
 	}
 	connectTo(peerId, name, initiator) {
 		if (this.closed) return null;
-		const pc = new RTCPeerConnection({ iceServers: this.opts.iceServers ?? defaultIceServers() });
+		const pc = new RTCPeerConnection({
+			iceTransportPolicy: this.opts.iceTransportPolicy ?? "all",
+			iceServers: this.opts.iceServers ?? defaultIceServers()
+		});
 		const slot = {
 			pc,
 			makingOffer: false,
@@ -1040,7 +1042,7 @@ var P2PRoom = class {
 		this.opts.onPeersChanged?.(list);
 	}
 };
-function useP2PRoom(room, name) {
+function useP2PRoom(room, name, relay) {
 	const [selfId] = (0, import_react.useState)(() => createShortLocalId("p-"));
 	const [peers, setPeers] = (0, import_react.useState)([]);
 	const [joined, setJoined] = (0, import_react.useState)(false);
@@ -1056,10 +1058,14 @@ function useP2PRoom(room, name) {
 			return;
 		}
 		setEvents(["Preparing room connection…"]);
+		setJoined(false);
+		setPeers([]);
 		const p2p = new P2PRoom({
 			room,
 			selfId,
 			name,
+			iceServers: relay ? [...defaultIceServers(), ...relay.iceServers] : void 0,
+			iceTransportPolicy: relay?.iceTransportPolicy,
 			onPeersChanged: setPeers,
 			onConnected: () => setJoined(true),
 			onDebug: (event) => setEvents((items) => [event, ...items].slice(0, 16)),
@@ -1074,7 +1080,8 @@ function useP2PRoom(room, name) {
 	}, [
 		room,
 		selfId,
-		name
+		name,
+		relay
 	]);
 	return {
 		selfId,
@@ -1089,6 +1096,111 @@ function useP2PRoom(room, name) {
 			};
 		}, [])
 	};
+}
+/** Visit-only credentials: never persist this object or include it in diagnostics. */
+function roomRelayConfig(urls, username, credential, relayOnly) {
+	const entries = [...new Set(urls.split(/[\s,]+/).filter(Boolean))];
+	if (!entries.length || entries.length > 4) throw new Error("Enter one to four TURN server URLs.");
+	for (const entry of entries) {
+		const match = /^(turns?):(?:[a-z0-9.-]+|\[[a-f0-9:]+\])(?::(\d{1,5}))?(?:\?transport=(udp|tcp))?$/i.exec(entry);
+		if (!match || entry.length > 512 || match[2] && (+match[2] < 1 || +match[2] > 65535)) throw new Error("Use a valid turn: or turns: URL, with an optional port and transport=udp or tcp.");
+	}
+	if (!username.trim() || !credential.trim() || username.length > 1024 || credential.length > 4096) throw new Error("Enter the temporary relay username and credential.");
+	return {
+		iceServers: [{
+			urls: entries,
+			username: username.trim(),
+			credential
+		}],
+		iceTransportPolicy: relayOnly ? "relay" : "all"
+	};
+}
+function RoomRelaySettings({ config, onChange }) {
+	const [urls, setUrls] = (0, import_react.useState)("");
+	const [username, setUsername] = (0, import_react.useState)("");
+	const [credential, setCredential] = (0, import_react.useState)("");
+	const [relayOnly, setRelayOnly] = (0, import_react.useState)(false);
+	const [notice, setNotice] = (0, import_react.useState)("");
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
+		className: "mt-3 rounded-sm border border-border p-3 text-sm",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("summary", {
+				className: "cursor-pointer text-fg",
+				children: ["Connection recovery · ", config ? config.iceTransportPolicy === "relay" ? "relay test mode" : "relay available" : "direct connections"]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				className: "my-3 text-xs text-muted",
+				children: "For networks that block direct connections, enter temporary credentials from your TURN service on each device. They stay in memory for this visit and are excluded from diagnostics. Applying reconnects the room."
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", {
+				className: "space-y-2",
+				onSubmit: (event) => {
+					event.preventDefault();
+					try {
+						onChange(roomRelayConfig(urls, username, credential, relayOnly));
+						setCredential("");
+						setNotice("Configuration applied. A connected peer showing a relay path confirms the service works.");
+					} catch (error) {
+						setNotice(error instanceof Error ? error.message : "Invalid relay settings.");
+					}
+				},
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+						"aria-label": "TURN server URLs",
+						placeholder: "turns:relay.example.com:5349?transport=tcp",
+						value: urls,
+						onChange: (event) => setUrls(event.target.value)
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+						"aria-label": "TURN username",
+						placeholder: "Temporary username",
+						autoComplete: "off",
+						value: username,
+						onChange: (event) => setUsername(event.target.value)
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+						"aria-label": "TURN credential",
+						placeholder: "Temporary credential",
+						type: "password",
+						autoComplete: "off",
+						value: credential,
+						onChange: (event) => setCredential(event.target.value)
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+						className: "flex items-center gap-2 text-xs text-muted",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+							type: "checkbox",
+							checked: relayOnly,
+							onChange: (event) => setRelayOnly(event.target.checked)
+						}), "Test relay only (disables same-browser fallback)"]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "flex flex-wrap gap-2",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							size: "sm",
+							type: "submit",
+							children: "Apply relay"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							size: "sm",
+							variant: "ghost",
+							type: "button",
+							onClick: () => {
+								onChange(void 0);
+								setCredential("");
+								setNotice("Relay credentials removed. Direct connections restored.");
+							},
+							children: "Clear relay"
+						})]
+					}),
+					notice && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						role: "status",
+						className: "text-xs text-muted",
+						children: notice
+					})
+				]
+			})
+		]
+	});
 }
 var VISION_MODELS = {
 	semantic: {
@@ -1537,7 +1649,7 @@ var hub_sections_exports = /* @__PURE__ */ __exportAll({
 	WatchRoomSection: () => WatchRoomSection
 });
 var PrintModelViewer = (0, import_react.lazy)(async () => {
-	return { default: (await import("./print-model-viewer-CRS5U-tr.mjs")).PrintModelViewer };
+	return { default: (await import("./print-model-viewer-BLhIAaxO.mjs")).PrintModelViewer };
 });
 var HUB_KEY = "reelcase.hub.v1";
 function gameKind(item) {
@@ -8494,7 +8606,7 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "watch-room-cross-device",
 		title: "Watch Room cross-device relay",
-		detail: "Verify the signaling relay across separate devices and add a TURN-backed recovery route for networks that block direct peer negotiation.",
+		detail: "Temporary TURN credentials and relay-only testing are implemented. Verification with a working TURN service and separate devices remains open.",
 		done: false
 	},
 	{
@@ -10464,7 +10576,7 @@ function LocalCatalog({ kind, eyebrow, icon, title, copy, accept, directory, foo
 								let saved = 0;
 								for (const item of items.slice(0, 20)) {
 									if (!item.id || !isViewablePrintName(item.name)) continue;
-									const { loadPrintBlob } = await import("./prints-blobs-DkDPebaY.mjs");
+									const { loadPrintBlob } = await import("./prints-blobs-QNyJmYf_.mjs");
 									const record = await loadPrintBlob(item.id);
 									if (!record?.blob) continue;
 									const buffer = new Uint8Array(await record.blob.arrayBuffer());
@@ -11144,7 +11256,8 @@ function WatchRoomSection() {
 	const lastAcceptedTimelineAt = (0, import_react.useRef)(0);
 	const lastAcceptedRoomStateAt = (0, import_react.useRef)(0);
 	const room = activeRoom ?? "";
-	const p2p = useP2PRoom(room, name.trim() || "Guest");
+	const [relayConfig, setRelayConfig] = (0, import_react.useState)();
+	const p2p = useP2PRoom(room, name.trim() || "Guest", relayConfig);
 	(0, import_react.useEffect)(() => {
 		queueRevisionRef.current = 0;
 		lastAcceptedQueueRevision.current = 0;
@@ -12244,9 +12357,15 @@ function WatchRoomSection() {
 										p2p.peers.filter((peer) => peer.connectionState === "connected").length,
 										"/",
 										p2p.peers.length,
-										" direct"
+										" connected · ",
+										p2p.peers.filter((peer) => peer.connectionState === "connected" && peer.candidateType === "relay").length,
+										" relayed"
 									]
 								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(RoomRelaySettings, {
+								config: relayConfig,
+								onChange: setRelayConfig
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 								className: "mt-2 max-h-28 space-y-1 overflow-y-auto font-mono text-[11px] leading-4 text-muted",

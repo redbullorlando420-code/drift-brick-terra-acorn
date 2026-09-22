@@ -47,6 +47,7 @@ export interface P2PRoomOptions {
   name?: string;
   /** Defaults to VITE_STUN_URLS (comma-separated) or Google public STUN. */
   iceServers?: RTCIceServer[];
+  iceTransportPolicy?: RTCIceTransportPolicy;
   onPeersChanged?: (peers: PeerInfo[]) => void;
   /** Fires for both the unreliable "state" and reliable "reliable" channels. */
   onMessage?: (from: string, data: unknown, channel: "state" | "reliable") => void;
@@ -125,7 +126,7 @@ export class P2PRoom {
     // WebRTC is still the cross-device transport. BroadcastChannel fills the
     // gap for the very common "test the guest window on this computer" flow:
     // it does not need a database, ICE candidate, or a successful WebRTC offer.
-    if (typeof BroadcastChannel !== "undefined") {
+    if (typeof BroadcastChannel !== "undefined" && this.opts.iceTransportPolicy !== "relay") {
       this.localRelay = new BroadcastChannel(`reelcase-watch:${this.opts.room}`);
       this.localRelay.onmessage = (event) => {
         const message = event.data as { from?: string; to?: string; data?: unknown } | null;
@@ -134,7 +135,6 @@ export class P2PRoom {
         this.opts.onMessage?.(message.from ?? "local-guest", message.data, "reliable");
       };
       this.debug("Local tab relay ready");
-      this.opts.onConnected?.();
     }
     try {
       await this.pollOnce();
@@ -279,6 +279,7 @@ export class P2PRoom {
   private connectTo(peerId: string, name: string, initiator: boolean): PeerSlot | null {
     if (this.closed) return null;
     const pc = new RTCPeerConnection({
+      iceTransportPolicy: this.opts.iceTransportPolicy ?? "all",
       iceServers: this.opts.iceServers ?? defaultIceServers(),
     });
     const slot: PeerSlot = {

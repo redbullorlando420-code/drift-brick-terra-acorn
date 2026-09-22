@@ -22,7 +22,9 @@
 ## Stage 2 — peer connectivity
 
 - Use the existing `src/lib/multiplayer/P2PRoom` WebRTC client.
-- Add an opt-in signaling relay at `/api/rtc` before enabling cross-device rooms.
+- The signaling relay at `/api/rtc` registers peers; a same-browser fallback alone does not count as successful registration.
+- In an active room, expand **Connection recovery** to supply temporary TURN URLs, username, and credential from your relay provider on each device. Credentials stay in memory, are excluded from diagnostics, and are removed on reload or Clear relay. Applying settings reconnects the room.
+- **Test relay only** disables direct ICE paths and same-browser fallback. Configuration acceptance is not proof of connectivity: verify a connected peer with candidate type `relay`, chat delivery, and playback before counting TURN as validated.
 - Show peer status, connection failures, and a strict 8-person room cap.
 - Never expose a peer's address, local files, or media without confirmation.
 
@@ -39,3 +41,4 @@
 3. Add, reorder, and play an item from the shared queue.
 4. Confirm leaving a room stops messages and that the guest-consent requirement remains in place.
 5. Treat embedded YouTube/Twitch playback as selection sharing unless the provider's official player API confirms timestamp control.
+6. Repeat with relay-only enabled using a real TURN service on separate networks. This external-service/device check remains open.
