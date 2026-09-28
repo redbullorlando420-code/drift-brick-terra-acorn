@@ -30,7 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn, formatBytes, formatTime } from "@/lib/utils";
-import { getNote, getRating, setNote as saveNote, setRating as saveRating } from "@/lib/media-feedback";
+import { getNote, getRating, recordWatchTime, setNote as saveNote, setRating as saveRating } from "@/lib/media-feedback";
 import { AdultComments, supportsRemoteComments } from "@/components/library/adult-comments";
 import { AdultImageLightbox } from "@/components/library/adult-image-lightbox";
 import { adultRemoteLabel, isAdultImageKind, isAdultPullKind } from "@/lib/videos/adult-sites";
@@ -121,11 +121,13 @@ export function Player({ playlist }: { playlist: string[] }) {
   const scrubbing = useRef(false);
   const remoteStartedAt = useRef(0);
   const lastProgressWrite = useRef(0);
+  const lastWatchTick = useRef(0);
+  const pendingWatchSeconds = useRef(0);
 
   const enterVrTheater = useCallback(async () => {
     const xr = (navigator as Navigator & { xr?: { requestSession: (mode: string, init?: unknown) => Promise<any> } }).xr;
     const media = mediaRef.current;
-    if (!xr) { setVrStatus("VR needs Meta Quest Browser on a secure site. Open Reelcase there, allow immersive VR, then try again."); return; }
+    if (!xr) { setVrStatus("VR needs Meta Quest Browser on a secure site. Open Realhub there, allow immersive VR, then try again."); return; }
     if (!media) { setVrStatus("VR cinema is available for local video playback. Open a local file first; embedded provider video stays in its official player."); return; }
     try {
       const session = await xr.requestSession("immersive-vr", { optionalFeatures: ["local-floor", "bounded-floor"] });
@@ -219,8 +221,9 @@ export function Player({ playlist }: { playlist: string[] }) {
   useEffect(() => {
     const el = mediaRef.current;
     if (!el || !src) return;
-    const onPlay = () => setPlaying(true);
-    const onPause = () => setPlaying(false);
+    const flushWatchTime = () => { if (video && pendingWatchSeconds.current > 0) recordWatchTime(video.id, "fullscreen", pendingWatchSeconds.current); pendingWatchSeconds.current = 0; lastWatchTick.current = 0; };
+    const onPlay = () => { setPlaying(true); lastWatchTick.current = performance.now(); };
+    const onPause = () => { setPlaying(false); flushWatchTime(); };
     const onMeta = () => {
       setDuration(el.duration || 0);
       const resume = saved;
@@ -248,6 +251,12 @@ export function Player({ playlist }: { playlist: string[] }) {
     };
     const stopFrames = attachFrameCallback(el, (t) => {
       if (scrubbing.current) return;
+      if (!el.paused && !el.seeking && document.visibilityState === "visible") {
+        const now = performance.now();
+        if (lastWatchTick.current) pendingWatchSeconds.current += Math.min(0.5, Math.max(0, (now - lastWatchTick.current) / 1000));
+        lastWatchTick.current = now;
+        if (pendingWatchSeconds.current >= 4) flushWatchTime();
+      } else lastWatchTick.current = 0;
       setCurrent(t);
       // Frame callbacks are ~60Hz; only persist resume marks every few seconds
       // so selecting/playing titles never floods IndexedDB writes.
@@ -266,6 +275,7 @@ export function Player({ playlist }: { playlist: string[] }) {
     el.addEventListener("error", onErr);
     void el.play().catch(() => {});
     return () => {
+      flushWatchTime();
       stopFrames();
       el.removeEventListener("play", onPlay);
       el.removeEventListener("pause", onPause);
@@ -279,7 +289,7 @@ export function Player({ playlist }: { playlist: string[] }) {
   useEffect(() => {
     if (!video?.remote) return;
     // Provider iframes do not expose a reliable playback clock to the parent.
-    // Record a conservative local heartbeat while the Reelcase player remains
+    // Record a conservative local heartbeat while the Realhub player remains
     // open so Continue works for YouTube/Twitch without pretending we can read
     // private provider state.
     remoteStartedAt.current = Date.now();
@@ -289,6 +299,7 @@ export function Player({ playlist }: { playlist: string[] }) {
       if (document.visibilityState === "hidden") return;
       const elapsed = Math.max(2, (Date.now() - remoteStartedAt.current) / 1000);
       markProgress(video.id, Math.min(elapsed, durationHint * 0.94), durationHint);
+      if (elapsed >= 8 && document.hasFocus()) recordWatchTime(video.id, "fullscreenEstimated", 5);
     };
     const timer = window.setInterval(heartbeat, 10_000);
     return () => {
@@ -638,7 +649,7 @@ export function Player({ playlist }: { playlist: string[] }) {
           <p className="mt-2 text-sm text-muted">{srcError || loadError}</p>
           {!remote && folder?.kind === "directory" && (
             <div className="mt-5 border-t border-border pt-4">
-              <p className="text-xs leading-5 text-subtle">Reelcase still has this title in your catalog, but the browser no longer has permission to read its folder.</p>
+              <p className="text-xs leading-5 text-subtle">Realhub still has this title in your catalog, but the browser no longer has permission to read its folder.</p>
               <Button className="mt-3" onClick={() => void restoreOne(folder.id)}>
                 Reconnect {folder.name}
               </Button>

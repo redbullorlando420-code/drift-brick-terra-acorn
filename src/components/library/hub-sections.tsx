@@ -3,7 +3,7 @@ import { ArtworkAuditPanel } from './artwork-audit';
 import { openTopic } from '@/lib/videos/topic-navigation';
 import { createLocalId } from "@/lib/local-id";
 import { isTopicTag, canonicalTopic, topicsForVideo } from '@/lib/videos/topics';
-import { type ReactNode, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bot,
   Box,
@@ -13,9 +13,11 @@ import {
   Download,
   Upload,
   Eye,
+  EyeOff,
   ExternalLink,
   Gamepad2,
   Images,
+  Heart,
   ImagePlus,
   MessageCircle,
   Music2,
@@ -75,9 +77,12 @@ import { isAdultImageKind, isAdultPullKind } from "@/lib/videos/adult-sites";
 import { getThumbDiagnostics, useThumbs } from "@/lib/videos/thumbs";
 import { useSourceAssets } from "@/lib/source-assets";
 import { useP2PRoom } from "@/lib/multiplayer";
+import { clampRoomPosition, estimatedProviderPosition } from "@/lib/multiplayer/room-clock";
+import { shareableRoomInvite } from "@/lib/multiplayer/room-invite";
 import { RoomRelaySettings } from "./room-relay-settings";
 import type { RoomRelayConfig } from "@/lib/multiplayer/relay-config";
-import { exportFeedback, getFeedbackDiagnostics, getRating, tagIsLiked } from "@/lib/media-feedback";
+import { exportFeedback, getFeedbackDiagnostics, getRating, getWatchTimeLedger, ratingPreference, tagIsLiked, watchTimeScore, setRating as saveRating } from "@/lib/media-feedback";
+import { getAdultPreviewHealth } from "@/lib/videos/adult-thumb-session";
 import { getRenderBudgetSnapshot } from "@/lib/render-budget";
 import { getInteractionBudgetSnapshot, measureInteraction } from "@/lib/interaction-budget";
 import { getFirstShelfTrace } from "@/lib/first-shelf-trace";
@@ -90,6 +95,7 @@ import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis
 import { XTimeline } from "./x-timeline";
 import { X_ADULT_SEED_HANDLES } from "@/lib/videos/x-adult-seed-accounts";
 import { VideoCard } from "./video-card";
+import { AdultComments } from "./adult-comments";
 
 type LocalItem = {
   name: string;
@@ -137,7 +143,7 @@ const ACTIVE_PREFERENCE_DETAILS: Record<string, string> = {
   "alerts-go-live-alerts": "Active: adds an in-app notice when a tracked Twitch channel goes live after a refresh.",
   "alerts-new-twitch-vod-alerts": "Active: adds an in-app notice when a tracked Twitch channel has a newly discovered VOD or clip.",
   "alerts-new-youtube-upload-alerts": "Active: adds an in-app notice when a tracked YouTube channel has a newly discovered upload.",
-  "alerts-desktop-notifications": "Active: asks the browser for permission, then mirrors enabled Reelcase alerts as desktop notifications.",
+  "alerts-desktop-notifications": "Active: asks the browser for permission, then mirrors enabled Realhub alerts as desktop notifications.",
   "playback-autoplay-next-video": "Active: starts the next library title when a local video ends.",
   "playback-start-muted": "Active: local video playback starts muted until you raise the player volume.",
   "display-day-mode": "Active: uses the light palette throughout this browser.",
@@ -145,7 +151,7 @@ const ACTIVE_PREFERENCE_DETAILS: Record<string, string> = {
   "performance-use-cached-sources-first": "Active: opens the saved catalog before asking folders or the Companion for fresh file details.",
   "performance-low-memory-grids": "Active: keeps only a smaller card batch mounted in large grids, reducing image decode pressure.",
   "performance-small-home-shelves": "Active: draws shorter Home rails first; use Show more inside a rail when you want depth.",
-  "privacy-reduce-motion": "Active: reduces animation and scrolling motion across Reelcase.",
+  "privacy-reduce-motion": "Active: reduces animation and scrolling motion across Realhub.",
   "privacy-hide-demo-media": "Active: hides bundled demonstration titles from your library shelves.",
 };
 const PREFERENCES = Object.entries(PREFERENCE_GROUPS).flatMap(([group, labels]) =>
@@ -162,12 +168,12 @@ function readHub(): HubStore {
   const samples: LocalItem[] = [
     {
       name: "Calibration cube.stl",
-      path: "Reelcase samples/Calibration cube.stl",
+      path: "Realhub samples/Calibration cube.stl",
       size: 2618,
       addedAt: 1,
       sampleSrc: "/samples/prints/calibration-cube.stl",
     },
-    { name: "Cable clip.3mf", path: "Reelcase samples/Cable clip.3mf", size: 94100, addedAt: 2 },
+    { name: "Cable clip.3mf", path: "Realhub samples/Cable clip.3mf", size: 94100, addedAt: 2 },
     {
       name: "OpenSCAD phone stand.obj",
       path: "Open-source examples/OpenSCAD phone stand.obj",
@@ -196,7 +202,7 @@ function readHub(): HubStore {
     },
     {
       name: "Tool tray.gcode",
-      path: "Reelcase samples/Tool tray.gcode",
+      path: "Realhub samples/Tool tray.gcode",
       size: 1248000,
       addedAt: 3,
     },
@@ -319,6 +325,7 @@ type TwitchRoomPlayer = {
   setMuted?: (muted: boolean) => void;
   seek: (seconds: number) => void;
   getCurrentTime: () => number;
+  getDuration?: () => number;
   addEventListener: (event: string, handler: () => void) => void;
 };
 type TwitchEmbedApi = { Player: new (target: string, options: Record<string, unknown>) => TwitchRoomPlayer & { constructor: { READY?: string; PLAY?: string; PAUSE?: string; SEEK?: string } } };
@@ -439,7 +446,7 @@ export function AnimeSection() {
       eyebrow="Anime library"
       icon={<Clapperboard className="size-4" />}
       title="Keep anime on its own shelf."
-      copy="A fast, local-first view for anime already in your Reelcase catalog. Saved #anime tags and clear title/category evidence keep it separate without copying or proxying third-party playback."
+      copy="A fast, local-first view for anime already in your Realhub catalog. Saved #anime tags and clear title/category evidence keep it separate without copying or proxying third-party playback."
     >
       <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Anime library summary">
         <Stat label="Anime titles" value={anime.length} />
@@ -498,7 +505,7 @@ export function AnimeSection() {
 
       <section className="mt-6 rounded-lg border border-border bg-elevated/70 p-4 shadow-border">
         <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Source boundary</p>
-        <p className="mt-1 max-w-3xl text-sm leading-6 text-muted">Reelcase does not fetch, download, proxy, or embed video from unverified third-party streaming sites. The Anime desk only organizes media already added to your catalog, and sends external viewing choices through the separate Streaming desk.</p>
+        <p className="mt-1 max-w-3xl text-sm leading-6 text-muted">Realhub does not fetch, download, proxy, or embed video from unverified third-party streaming sites. The Anime desk only organizes media already added to your catalog, and sends external viewing choices through the separate Streaming desk.</p>
         <Button size="sm" variant="secondary" className="mt-3" onClick={() => setSource("streaming")}>Open streaming destinations</Button>
       </section>
     </HubShell>
@@ -520,12 +527,29 @@ export function StatsSection() {
   const [showAllSources, setShowAllSources] = useState(false);
   const [remediationView, setRemediationView] = useState<"" | "topics" | "sources">("");
   const [favoriteRevision, setFavoriteRevision] = useState(0);
+  const [previewHealthRevision, setPreviewHealthRevision] = useState(0);
   const [recoveryNote, setRecoveryNote] = useState("");
   useEffect(() => {
     const refresh = () => setFavoriteRevision((value) => value + 1);
     window.addEventListener("reelcase:rating-change", refresh);
     return () => window.removeEventListener("reelcase:rating-change", refresh);
   }, []);
+  useEffect(() => { const refresh = () => setPreviewHealthRevision((value) => value + 1); window.addEventListener("reelcase:preview-health", refresh); return () => window.removeEventListener("reelcase:preview-health", refresh); }, []);
+  const observedPreviewHealth = useMemo(() => getAdultPreviewHealth(), [previewHealthRevision]);
+  const watchScores = useMemo(() => {
+    const ledger = getWatchTimeLedger();
+    const byId = new Map(videos.map((video) => [video.id, video]));
+    const rows = Object.entries(ledger).flatMap(([id, time]) => {
+      const video = byId.get(id);
+      return video && (time.preview || time.fullscreen || time.previewEstimated || time.fullscreenEstimated) ? [{ video, ...time, score: watchTimeScore(time) }] : [];
+    }).sort((a, b) => b.score - a.score || b.fullscreen - a.fullscreen);
+    const tagTotals = new Map<string, { preview: number; fullscreen: number; previewEstimated: number; fullscreenEstimated: number }>();
+    for (const row of rows) for (const tag of (tags[row.video.id] ?? []).slice(0, 20)) {
+      const current = tagTotals.get(tag) ?? { preview: 0, fullscreen: 0, previewEstimated: 0, fullscreenEstimated: 0 };
+      current.preview += row.preview; current.fullscreen += row.fullscreen; current.previewEstimated += row.previewEstimated ?? 0; current.fullscreenEstimated += row.fullscreenEstimated ?? 0; tagTotals.set(tag, current);
+    }
+    return { videos: rows.slice(0, 8), tags: [...tagTotals].map(([tag, time]) => ({ tag, ...time, score: watchTimeScore(time) })).sort((a, b) => b.score - a.score).slice(0, 8) };
+  }, [favoriteRevision, tags, videos]);
   const summary = useMemo(() => {
     const byFolder = new Map<string, { videos: number; bytes: number }>();
     const byGenre = new Map<string, number>();
@@ -704,7 +728,7 @@ export function StatsSection() {
     input.onchange = () => {
       const file = input.files?.[0];
       if (!file) return;
-      if (!window.confirm("Merge this Reelcase recovery pack? Current catalog and activity stay intact.")) return;
+      if (!window.confirm("Merge this Realhub recovery pack? Current catalog and activity stay intact.")) return;
       void importLibraryPackZip(file, {
         getFollows: () => useLibrary.getState().follows,
         setFollows: (follows) => useLibrary.setState({ follows }),
@@ -726,6 +750,7 @@ export function StatsSection() {
     input.click();
   };
   return <HubShell eyebrow="Library intelligence" icon={<BarChart3 className="size-4"/>} title="Know what your library needs next." copy="These local-only counts help identify coverage gaps, oversized source folders, and the tags that are driving discovery.">
+    <section className="mt-2 rounded-xl border border-border bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">How your ratings work</p><h2 className="mt-2 font-display text-2xl text-fg">Your choices steer discovery</h2><p className="mt-2 text-sm leading-6 text-muted">1 star lowers a video and its related topics. 2 stars is neutral. 3 to 5 stars raise recommendations progressively. Favorites and likes add separate positive signals. Watch time is a smaller secondary score: preview and full player time count separately, while seeking adds nothing. Local playback is measured directly; visible YouTube and Twitch embeds contribute a lower-weight estimate.</p><div className="mt-4 grid gap-3 lg:grid-cols-2"><div className="rounded-lg bg-bg/50 p-3"><p className="text-sm font-medium text-fg">Most watched videos</p>{watchScores.videos.length ? watchScores.videos.map((row) => <p key={row.video.id} className="mt-2 truncate text-xs text-muted" title={row.video.name}>{row.video.name} · preview {Math.floor(row.preview / 60)}m · player {Math.floor(row.fullscreen / 60)}m{row.previewEstimated || row.fullscreenEstimated ? ` · embed estimate ${Math.floor(((row.previewEstimated ?? 0) + (row.fullscreenEstimated ?? 0)) / 60)}m` : ""} · +{row.score}</p>) : <p className="mt-2 text-xs text-muted">Watch time will appear after playback.</p>}</div><div className="rounded-lg bg-bg/50 p-3"><p className="text-sm font-medium text-fg">Most watched tags</p>{watchScores.tags.length ? watchScores.tags.map((row) => <p key={row.tag} className="mt-2 truncate text-xs text-muted">#{row.tag} · preview {Math.floor(row.preview / 60)}m · player {Math.floor(row.fullscreen / 60)}m{row.previewEstimated || row.fullscreenEstimated ? ` · embed estimate ${Math.floor((row.previewEstimated + row.fullscreenEstimated) / 60)}m` : ""} · +{row.score}</p>) : <p className="mt-2 text-xs text-muted">Tags inherit watch time from videos you play.</p>}</div></div></section>
     <section id="adult-stats" className="mt-2 scroll-mt-24 rounded-xl border border-accent/35 bg-elevated p-5 shadow-border">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -746,8 +771,8 @@ export function StatsSection() {
         <div className="rounded-md bg-bg/45 p-3"><p className="text-xs text-muted">Total marks</p><p className="mt-1 text-lg font-medium text-fg">{Object.values(cameCounts).reduce((sum, n) => sum + n, 0).toLocaleString()}</p></div>
       </div>
       <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-md bg-bg/45 p-3"><p className="text-xs text-muted">Preview-ready</p><p className="mt-1 text-lg font-medium text-fg">{Math.round(adultTagStats.previewCoverage.share * 100)}%</p><p className="text-xs text-muted">{adultTagStats.previewCoverage.ready.toLocaleString()} cards declare artwork</p></div>
-        <div className="rounded-md bg-bg/45 p-3"><p className="text-xs text-muted">Backup preview paths</p><p className="mt-1 text-lg font-medium text-fg">{Math.round(adultTagStats.previewCoverage.backedShare * 100)}%</p><p className="text-xs text-muted">Redgifs {Math.round(adultTagStats.previewCoverage.redgifs.share * 100)}% ready</p></div>
+        <div className="rounded-md bg-bg/45 p-3"><p className="text-xs text-muted">Preview URLs supplied</p><p className="mt-1 text-lg font-medium text-fg">{Math.round(adultTagStats.previewCoverage.share * 100)}%</p><p className="text-xs text-muted">{adultTagStats.previewCoverage.ready.toLocaleString()} cards declare artwork; loading is measured separately</p></div>
+        <div className="rounded-md bg-bg/45 p-3"><p className="text-xs text-muted">Observed preview loads</p><p className="mt-1 text-lg font-medium text-fg">{observedPreviewHealth.tested ? `${Math.round(observedPreviewHealth.share * 100)}%` : "—"}</p><p className="text-xs text-muted">{observedPreviewHealth.loaded} loaded · {observedPreviewHealth.failed} failed · {observedPreviewHealth.tested} tested this session</p></div>
         <div className="rounded-md bg-bg/45 p-3"><p className="text-xs text-muted">Creator credit</p><p className="mt-1 text-lg font-medium text-fg">{Math.round(adultTagStats.creatorCoverage.share * 100)}%</p><p className="text-xs text-muted">{adultTagStats.creatorCoverage.uniqueCreators.toLocaleString()} normalized creators</p></div>
         <div className="rounded-md bg-bg/45 p-3"><p className="text-xs text-muted">Duplicate candidates</p><p className="mt-1 text-lg font-medium text-fg">{adultTagStats.dedupe.extraTitles.toLocaleString()}</p><p className="text-xs text-muted">across {adultTagStats.dedupe.candidateGroups.toLocaleString()} media groups</p></div>
       </div>
@@ -756,14 +781,14 @@ export function StatsSection() {
           <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Adult provider mix</p>
           <p className="mt-1 text-xs text-muted">Every configured Adult source is shown. Empty means the current catalog has no returned titles yet.</p>
           <div className="mt-2 flex flex-wrap gap-2">{adultTagStats.providerMix.map((source) => <span key={source.provider} className={`rounded-full px-3 py-1 text-xs font-medium ${source.status === "active" ? "bg-accent/15 text-accent" : "bg-bg/45 text-muted"}`}>{source.label} · {source.titles.toLocaleString()} · {Math.round(source.share * 100)}%</span>)}</div>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">{adultTagStats.providerMix.filter((source) => source.titles || source.linkedTitles).map((source) => <div key={`${source.provider}-quality`} className="rounded-md bg-bg/45 p-3 text-xs text-muted"><p className="font-medium text-fg">{source.label} · {source.titles.toLocaleString()} primary{source.linkedTitles ? ` · ${source.linkedTitles.toLocaleString()} linked` : ""}</p><p className="mt-1">Preview {Math.round(source.previewCoverage.share * 100)}% · backup {Math.round(source.backupPreviewCoverage.share * 100)}%</p><p>Creator {Math.round(source.creatorCoverage.share * 100)}% · interests {Math.round(source.usefulTagCoverage.share * 100)}%</p>{source.duplicateCandidates > 0 && <p className="mt-1 text-accent">{source.duplicateCandidates.toLocaleString()} duplicate candidates</p>}</div>)}</div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">{adultTagStats.providerMix.filter((source) => source.titles || source.linkedTitles).map((source) => <div key={`${source.provider}-quality`} className="rounded-md bg-bg/45 p-3 text-xs text-muted"><p className="font-medium text-fg">{source.label} · {source.titles.toLocaleString()} primary{source.linkedTitles ? ` · ${source.linkedTitles.toLocaleString()} linked` : ""}</p><p className="mt-1">Artwork URLs {Math.round(source.previewCoverage.share * 100)}% · backup URLs {Math.round(source.backupPreviewCoverage.share * 100)}%</p><p>Creator {Math.round(source.creatorCoverage.share * 100)}% · interests {Math.round(source.usefulTagCoverage.share * 100)}%</p>{source.duplicateCandidates > 0 && <p className="mt-1 text-accent">{source.duplicateCandidates.toLocaleString()} duplicate candidates</p>}</div>)}</div>
         </div>
       )}
       <section className="mt-5 grid gap-5 xl:grid-cols-2">
         <div className="h-72 rounded-lg bg-bg/45 p-4">
           <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Artwork availability by source</p>
-          <p className="mt-1 text-xs text-muted">Declared preview coverage for the current Adult catalog. Use it to favor providers that consistently return viewable cards.</p>
-          <ResponsiveContainer width="100%" height="78%"><BarChart data={adultTagStats.providerMix.filter((row) => row.titles > 0).map((row) => ({ name: row.label, ready: Math.round(row.previewCoverage.share * 100), backup: Math.round(row.backupPreviewCoverage.share * 100) }))}><XAxis dataKey="name" stroke="currentColor" fontSize={10} interval={0} angle={-20} textAnchor="end" height={54}/><YAxis domain={[0, 100]} stroke="currentColor" fontSize={12}/><Tooltip/><Bar dataKey="ready" name="Preview ready %" fill="var(--color-accent)" radius={4}/><Bar dataKey="backup" name="Backup paths %" fill="var(--color-muted)" radius={4}/></BarChart></ResponsiveContainer>
+          <p className="mt-1 text-xs text-muted">Declared artwork URLs by provider. Actual image loading is measured above from cards opened this session.</p>
+          <ResponsiveContainer width="100%" height="78%"><BarChart data={adultTagStats.providerMix.filter((row) => row.titles > 0).map((row) => ({ name: row.label, ready: Math.round(row.previewCoverage.share * 100), backup: Math.round(row.backupPreviewCoverage.share * 100) }))}><XAxis dataKey="name" stroke="currentColor" fontSize={10} interval={0} angle={-20} textAnchor="end" height={54}/><YAxis domain={[0, 100]} stroke="currentColor" fontSize={12}/><Tooltip/><Bar dataKey="ready" name="Artwork URLs supplied %" fill="var(--color-accent)" radius={4}/><Bar dataKey="backup" name="Backup paths %" fill="var(--color-muted)" radius={4}/></BarChart></ResponsiveContainer>
         </div>
         <div className="h-72 rounded-lg bg-bg/45 p-4">
           <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Most applied Adult interests</p>
@@ -821,14 +846,14 @@ export function StatsSection() {
     </section>
     <TopicLinks />
     <div className="mt-5 flex flex-wrap gap-2"><Button size="sm" variant="secondary" onClick={exportStats}><Download className="size-4"/>Download insight CSV</Button><Button size="sm" variant="secondary" onClick={exportSources}><Download className="size-4"/>Download source-map CSV</Button><Button size="sm" variant="secondary" onClick={exportRemediation}><Download className="size-4"/>Download remediation CSV</Button><span className="self-center text-xs text-muted">Exports only local catalog metadata, useful for improving sorting and discovery rules.</span></div>
-    <section className="mt-5 rounded-lg border border-border bg-elevated p-4 shadow-border" aria-label="Stats recovery import"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Recovery import</p><h2 className="mt-1 text-lg font-medium text-fg">Bring back your exported signals.</h2><p className="mt-1 max-w-2xl text-xs leading-5 text-muted">Import a Reelcase library pack to merge exported history, resume marks, favorites, follows, ratings, Adult marks, and saved links. Insight CSV files stay read-only reports; use the pack for recovery.</p></div><Button size="sm" variant="secondary" onClick={importRecoveryPack}><Upload className="size-4"/>Import recovery pack</Button></div>{recoveryNote && <p className="mt-3 text-xs text-accent" role="status">{recoveryNote}</p>}</section>
+    <section className="mt-5 rounded-lg border border-border bg-elevated p-4 shadow-border" aria-label="Stats recovery import"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Recovery import</p><h2 className="mt-1 text-lg font-medium text-fg">Bring back your exported signals.</h2><p className="mt-1 max-w-2xl text-xs leading-5 text-muted">Import a Realhub library pack to merge exported history, resume marks, favorites, follows, ratings, Adult marks, and saved links. Insight CSV files stay read-only reports; use the pack for recovery.</p></div><Button size="sm" variant="secondary" onClick={importRecoveryPack}><Upload className="size-4"/>Import recovery pack</Button></div>{recoveryNote && <p className="mt-3 text-xs text-accent" role="status">{recoveryNote}</p>}</section>
     <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Stat label="Catalog titles" value={videos.length.toLocaleString()}/><Stat label="Local storage mapped" value={bytes(summary.totalBytes)}/><Stat label="Saved topic assignments" value={summary.tagAssignments.toLocaleString()}/><Stat label="Favorites" value={Object.keys(favorites).length.toLocaleString()}/></div>
     <section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Stat label="Local / remote" value={`${summary.localTitles.toLocaleString()} / ${summary.remoteTitles.toLocaleString()}`}/><Stat label="Remote catalog share" value={`${Math.round(summary.remoteShare * 100)}%`}/><Stat label="New provider items · 7d" value={summary.freshRemoteTitles.toLocaleString()}/><Stat label="Needs useful topic" value={`${summary.untaggedTitles.toLocaleString()} titles`}/><Stat label="Saved topic coverage" value={`${Math.round(((videos.length - summary.untaggedTitles) / Math.max(videos.length, 1)) * 100)}%`}/><Stat label="Topic tags per title" value={summary.tagDensity.toFixed(2)}/><Stat label="Cross-source topic bridges" value={summary.bridgeTopics.toLocaleString()}/><Stat label="Multi-topic titles" value={summary.multiTopicTitles.toLocaleString()}/><Stat label="Operational labels" value={summary.operationalTagAssignments.toLocaleString()}/><Stat label="Any metadata coverage" value={`${Math.round(summary.metadataTaggedTitles / Math.max(videos.length, 1) * 100)}%`}/><Stat label="Creator / description coverage" value={`${summary.creatorTaggedTitles.toLocaleString()} / ${summary.descriptionTaggedTitles.toLocaleString()}`}/><Stat label="YouTube / Twitch" value={`${summary.youtubeTitles.toLocaleString()} / ${summary.twitchTitles.toLocaleString()}`}/><Stat label="Known runtime" value={`${Math.round(summary.knownDuration / 3600).toLocaleString()} hours`}/><Stat label="Resume marks" value={summary.resumedTitles.toLocaleString()}/><Stat label="Local view events" value={summary.totalViews.toLocaleString()}/><Stat label="Live right now" value={summary.liveTitles.toLocaleString()}/><Stat label="Artwork coverage" value={`${Math.round(summary.thumbReady / Math.max(videos.length, 1) * 100)}%`}/><Stat label="History events" value={history.length.toLocaleString()}/><Stat label="Unavailable cards" value={Object.keys(unavailable).length.toLocaleString()}/></section>
     <section className="mt-5 rounded-lg border border-border bg-surface p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Fast paths from your library</p><h2 className="mt-2 font-display text-2xl text-fg">Use the small, useful slice first.</h2><p className="mt-1 max-w-3xl text-sm leading-6 text-muted">Topic, Continue, and source views now reuse saved metadata and mount cards progressively. Favorite topics lead every topic list so the first results match what you actually want to browse.</p><div className="mt-4 grid gap-3 md:grid-cols-3"><div className="rounded-md bg-elevated p-3"><p className="text-xs text-muted">Favorite topics</p><p className="mt-1 text-lg font-medium text-fg">{summary.topicRows.filter(([topic]) => tagIsLiked(topic)).length}</p><p className="mt-1 text-xs text-muted">Pinned ahead of large catalog scans.</p></div><div className="rounded-md bg-elevated p-3"><p className="text-xs text-muted">Ready to resume</p><p className="mt-1 text-lg font-medium text-fg">{summary.resumedTitles.toLocaleString()}</p><p className="mt-1 text-xs text-muted">Stable resume records survive catalog refreshes.</p><Button className="mt-3" size="sm" variant="secondary" onClick={() => useLibrary.getState().setSource("continue")}>Open Continue</Button></div><div className="rounded-md bg-elevated p-3"><p className="text-xs text-muted">Metadata-first catalog</p><p className="mt-1 text-lg font-medium text-fg">{Math.round(summary.metadataTaggedTitles / Math.max(videos.length, 1) * 100)}%</p><p className="mt-1 text-xs text-muted">Existing metadata is used before slower title-only inference.</p><Button className="mt-3" size="sm" variant="secondary" onClick={() => useLibrary.getState().setSource("genres")}>Open Topics</Button></div></div>{summary.topicRows.filter(([topic]) => tagIsLiked(topic)).length > 0 && <div className="mt-4 flex flex-wrap gap-2">{summary.topicRows.filter(([topic]) => tagIsLiked(topic)).slice(0, 12).map(([topic, count]) => <Button key={topic} size="sm" variant="secondary" onClick={() => openTopic(topic)}>★ #{topic} · {count.toLocaleString()}</Button>)}</div>}</section>
     <section className="mt-5 grid gap-5 xl:grid-cols-2"><div className="h-72 rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Provider mix</h2><p className="mt-1 text-xs text-muted">Includes local, public video providers, and the active Adult catalog sources.</p><ResponsiveContainer width="100%" height="80%"><BarChart data={[{ name: "Local", titles: summary.localTitles }, { name: "YouTube", titles: summary.youtubeTitles }, { name: "Twitch", titles: summary.twitchTitles }, ...adultTagStats.providerMix.filter((row) => row.titles > 0).map((row) => ({ name: row.label, titles: row.titles }))]}><XAxis dataKey="name" stroke="currentColor" fontSize={10} interval={0} angle={-24} textAnchor="end" height={50}/><YAxis stroke="currentColor" fontSize={12}/><Tooltip/><Bar dataKey="titles" fill="var(--color-accent)" radius={4}/></BarChart></ResponsiveContainer></div><div className="h-72 rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Most useful topics</h2><p className="mt-1 text-xs text-muted">Only topics with a saved rating appear here. Score is scaled to 5,000.</p><ResponsiveContainer width="100%" height="80%"><BarChart layout="vertical" margin={{ left: 16 }} data={summary.topTags.map(([name, titles]) => ({ name, titles, score: Math.round(((summary.topicRatings.get(name)?.total ?? 0) / titles) * 1000) })).filter((topic) => topic.score > 0).slice(0, 8)}><XAxis type="number" stroke="currentColor" fontSize={12}/><YAxis type="category" dataKey="name" width={150} stroke="currentColor" fontSize={10}/><Tooltip/><Bar dataKey="score" fill="var(--color-accent)" radius={4}/></BarChart></ResponsiveContainer></div></section>
     <section className="mt-5 grid gap-3 lg:grid-cols-4"><div className="rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Tagging backlog</p><p className="mt-2 font-display text-3xl text-fg">{summary.untaggedTitles.toLocaleString()}</p><p className="mt-1 text-sm text-muted">titles still need a useful topic tag. Prioritize these before adding more discovery rules.</p><Button className="mt-3" size="sm" variant="secondary" onClick={() => setRemediationView(remediationView === "topics" ? "" : "topics")}>Review safe queue</Button></div><div className="rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Storage concentration</p><p className="mt-2 font-display text-3xl text-fg">{sourceHealth.concentration}%</p><p className="mt-1 text-sm text-muted">of mapped local bytes sit in {sourceHealth.largest?.folder.name ?? "the largest source"}.</p><Button className="mt-3" size="sm" variant="secondary" onClick={() => setRemediationView(remediationView === "sources" ? "" : "sources")}>Review source queue</Button></div><div className="rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Source hygiene</p><p className="mt-2 font-display text-3xl text-fg">{sourceHealth.duplicateNames.length}</p><p className="mt-1 text-sm text-muted">duplicate source labels can make refresh results harder to interpret.</p><Button className="mt-3" size="sm" variant="secondary" onClick={() => setRemediationView(remediationView === "sources" ? "" : "sources")}>Review duplicates</Button></div><div className="rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Favorite recovery</p><p className="mt-2 font-display text-3xl text-fg">{favoriteHealth.resolved} / {favoriteHealth.saved}</p><p className="mt-1 text-sm text-muted">{favoriteHealth.missing ? `${favoriteHealth.missing} saved favorites are waiting for their source to return.` : "Every saved favorite resolves in the current catalog."}</p></div></section>
     {remediationView === "topics" && <section className="mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Safe tag review queue</p><p className="mt-1 text-sm text-muted">These are review candidates only—nothing is tagged or deleted by opening this queue.</p></div><Button size="sm" variant="secondary" onClick={() => useLibrary.getState().setSource("settings")}>Open smart-tag tools</Button></div><div className="mt-3 space-y-2">{videos.filter((video) => !(tags[video.id] ?? []).some(isTopicTag)).slice(0, 12).map((video) => <button key={video.id} type="button" className="block w-full rounded-sm bg-bg/45 px-3 py-2 text-left text-sm text-fg" onClick={() => useLibrary.getState().openPreview(video.id)}>{video.name}<span className="ml-2 text-xs text-muted">· no useful topic yet</span></button>)}</div></section>}
-    {remediationView === "sources" && <section className="mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Safe source review queue</p><p className="mt-1 text-sm text-muted">Review signals only. Reelcase will not rename, reconnect, or remove a folder from this page.</p><div className="mt-3 space-y-2">{sourceHealth.largest && <button type="button" className="block w-full rounded-sm bg-bg/45 px-3 py-2 text-left text-sm text-fg" onClick={() => useLibrary.getState().setSource(sourceHealth.largest!.folder.id)}>Largest source · {sourceHealth.largest.folder.name} · {bytes(sourceHealth.largest.bytes)}</button>}{sourceHealth.duplicateNames.map(({ name, count }) => <p key={name} className="rounded-sm bg-bg/45 px-3 py-2 text-sm text-fg">Duplicate label · {name} · {count} sources</p>)}</div></section>}
+    {remediationView === "sources" && <section className="mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Safe source review queue</p><p className="mt-1 text-sm text-muted">Review signals only. Realhub will not rename, reconnect, or remove a folder from this page.</p><div className="mt-3 space-y-2">{sourceHealth.largest && <button type="button" className="block w-full rounded-sm bg-bg/45 px-3 py-2 text-left text-sm text-fg" onClick={() => useLibrary.getState().setSource(sourceHealth.largest!.folder.id)}>Largest source · {sourceHealth.largest.folder.name} · {bytes(sourceHealth.largest.bytes)}</button>}{sourceHealth.duplicateNames.map(({ name, count }) => <p key={name} className="rounded-sm bg-bg/45 px-3 py-2 text-sm text-fg">Duplicate label · {name} · {count} sources</p>)}</div></section>}
     <div className="mt-6 grid gap-5 xl:grid-cols-2"><section className="rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Genre distribution</h2><p className="mt-1 text-xs text-muted">Bars compare genres with the most common genre in this list.</p><div className="mt-4 space-y-3">{summary.genreRows.slice(0, 18).map(([genre, count]) => <DistributionRow key={genre} label={genre} value={count} total={summary.genreRows[0]?.[1] ?? 1}/>) || <p className="text-sm text-muted">Genres will appear as media is tagged.</p>}</div></section><section className="rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Most useful tags</h2><p className="mt-1 text-xs text-muted">Bars compare useful topics with the leading topic, not the full catalog.</p><div className="mt-4 space-y-3">{summary.topTags.map(([tag, count]) => <button key={tag} className="block w-full text-left" onClick={() => openTopic(tag)}><DistributionRow label={`#${tag}`} value={count} total={summary.topTags[0]?.[1] ?? 1}/></button>) || <p className="text-sm text-muted">Tags will appear as media is indexed.</p>}</div></section></div>
     <section className="mt-5 rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Source mapping & storage</h2><p className="mt-1 text-sm text-muted">Only local files contribute bytes; remote providers report catalog counts but not source storage.</p><div className="mt-4 space-y-2">{visibleFolderRows.map(({ folder, videos: mapped, bytes: folderBytes }) => <div key={folder.id} className="flex flex-wrap items-center justify-between gap-3 rounded-sm bg-bg/45 px-3 py-3"><span className="min-w-0 truncate text-sm text-fg">{folder.name}</span><span className="text-xs text-muted">{mapped.toLocaleString()} mapped · {folderBytes ? bytes(folderBytes) : folder.kind === "youtube" || folder.kind === "twitch" ? "remote catalog" : "no local media yet"}</span></div>)}</div>{folderRows.length > visibleFolderRows.length && <Button variant="secondary" size="sm" className="mt-4" onClick={() => setShowAllSources(true)}>Show all {folderRows.length.toLocaleString()} sources</Button>}</section>
   </HubShell>;
@@ -836,6 +861,10 @@ export function StatsSection() {
 
 export function LanConnectionSection() {
   const [origin, setOrigin] = useState("");
+  const [localHost, setLocalHost] = useState(false);
+  const [quickTunnel, setQuickTunnel] = useState<{ running?: boolean; starting?: boolean; url?: string | null; error?: string | null }>({});
+  const [tunnelBusy, setTunnelBusy] = useState(false);
+  const [lanOrigins, setLanOrigins] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
   const [companion, setCompanion] = useState<"checking" | "ready" | "offline">("checking");
   const [devices, setDevices] = useState<NetworkDevice[]>([]);
@@ -845,41 +874,70 @@ export function LanConnectionSection() {
     try {
       const result = await listNetworkDevices();
       setDevices(result.devices);
-      setMapStatus(result.devices.length ? `${result.devices.length} active device${result.devices.length === 1 ? "" : "s"}` : "Waiting for another device to open Reelcase");
+      setMapStatus(result.devices.length ? `${result.devices.length} active device${result.devices.length === 1 ? "" : "s"}` : "Waiting for another device to open Realhub");
     } catch { setMapStatus("Device map is temporarily unavailable"); }
   };
   useEffect(() => {
     const current = window.location;
     const loopback = current.hostname === "localhost" || current.hostname === "127.0.0.1" || current.hostname === "::1";
+    setLocalHost(loopback && current.port === "8080");
+    let tunnelTimer: number | undefined;
+    if (loopback && current.port === "8080") {
+      const checkTunnel = () => void fetch("/api/quick-tunnel").then((response) => response.json()).then(setQuickTunnel).catch(() => setQuickTunnel({ error: "Tunnel status unavailable." }));
+      checkTunnel();
+      tunnelTimer = window.setInterval(checkTunnel, 2500);
+    }
     setOrigin(loopback ? "" : current.origin);
-    void fetch("http://127.0.0.1:43123/health").then((response) => setCompanion(response.ok ? "ready" : "offline")).catch(() => setCompanion("offline"));
+    if (loopback) void fetch("/api/lan-origin").then((response) => response.ok ? response.json() : { origins: [] }).then((data: { origins?: string[] }) => setLanOrigins(Array.isArray(data.origins) ? data.origins : [])).catch(() => setLanOrigins([]));
+    if (current.port === "8080" && loopback)
+      void fetch("http://127.0.0.1:43123/health").then((response) => setCompanion(response.ok ? "ready" : "offline")).catch(() => setCompanion("offline"));
+    else setCompanion("offline");
     void refreshDeviceMap();
     const timer = window.setInterval(() => void refreshDeviceMap(), 10_000);
-    return () => window.clearInterval(timer);
+    return () => { window.clearInterval(timer); if (tunnelTimer) window.clearInterval(tunnelTimer); };
   }, []);
+  const changeTunnel = async (action: "start" | "stop") => {
+    setTunnelBusy(true);
+    try {
+      const response = await fetch("/api/quick-tunnel", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action }) });
+      setQuickTunnel(await response.json());
+    } catch { setQuickTunnel({ error: "Could not reach the local tunnel controller." }); }
+    finally { setTunnelBusy(false); }
+  };
   const copyAddress = async () => {
     if (!origin) return;
     try { await navigator.clipboard.writeText(origin); setCopied(true); } catch { setCopied(false); }
   };
   const visibleDevices = devices.slice(0, 12);
-  return <HubShell eyebrow="Home network" icon={<Wifi className="size-4"/>} title="Bring another screen into Reelcase." copy="Share one address, watch the device map appear, then start a room when everyone is connected.">
+  return <HubShell eyebrow="Home network" icon={<Wifi className="size-4"/>} title="Bring another screen into Realhub." copy="Share one address, watch the device map appear, then start a room when everyone is connected.">
     <section className="mt-6 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
       <div className="rounded-lg bg-elevated p-5 shadow-border">
         <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Share this address</p>
-        {origin ? <><p className="mt-2 break-all font-mono text-sm text-fg">{origin}</p><div className="mt-4 flex flex-wrap gap-2"><Button onClick={() => void copyAddress()}><Copy className="size-4"/>{copied ? "Address copied" : "Copy address"}</Button><Button variant="secondary" onClick={() => useLibrary.getState().setSource("watch-room")}>Open Watch Room</Button></div><p className="mt-4 text-xs leading-5 text-muted">On another computer, phone, or TV browser: join the same normal home Wi‑Fi, open this exact address, and leave Reelcase open. It will appear in the map below within about 25 seconds.</p></> : <><p className="mt-2 text-sm text-fg">Open Reelcase through the Ethernet address before sharing.</p><p className="mt-2 text-sm leading-6 text-muted">This local-only address cannot be reached by another device. Use the Connection guide from the shared Ethernet address, then copy the address it shows.</p></>}
+        {origin ? <><p className="mt-2 break-all font-mono text-sm text-fg">{origin}</p><div className="mt-4 flex flex-wrap gap-2"><Button onClick={() => void copyAddress()}><Copy className="size-4"/>{copied ? "Address copied" : "Copy address"}</Button><Button variant="secondary" onClick={() => useLibrary.getState().setSource("watch-room")}>Open Watch Room</Button></div><p className="mt-4 text-xs leading-5 text-muted">On another computer, phone, or TV browser: join the same normal home Wi‑Fi, open this exact address, and leave Realhub open. It will appear in the map below within about 25 seconds.</p></> : <><p className="mt-2 text-sm text-fg">This localhost address works only on this computer.</p>{lanOrigins.length > 0 ? <><p className="mt-2 text-sm leading-6 text-muted">Open Realhub through your home-network address, start a room there, then copy its invitation:</p><div className="mt-3 flex flex-wrap gap-2">{lanOrigins.map((candidate) => <a key={candidate} className="rounded-sm bg-elevated px-3 py-2 font-mono text-xs text-accent shadow-border" href={candidate}>{candidate}</a>)}</div></> : <p className="mt-2 text-sm leading-6 text-muted">No home-network address was found. Connect this computer to your normal home network, then reopen this guide.</p>}</>}
       </div>
-      <div className="rounded-lg border border-border bg-surface p-5"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Local companion</p><p className="mt-2 font-display text-2xl text-fg">{companion === "ready" ? "Ready on this computer" : companion === "checking" ? "Checking…" : "Not detected"}</p><p className="mt-2 text-sm text-muted">The companion speeds up local folders on this computer. Other devices can join the Reelcase page and Watch Rooms, but do not receive its local files.</p></div>
+      <div className="rounded-lg border border-border bg-surface p-5"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Local companion</p><p className="mt-2 font-display text-2xl text-fg">{companion === "ready" ? "Ready on this computer" : companion === "checking" ? "Checking…" : "Not detected"}</p><p className="mt-2 text-sm text-muted">The companion speeds up local folders on this computer. Other devices can join the Realhub page and Watch Rooms, but do not receive its local files.</p></div>
     </section>
     <section className="mt-5 rounded-lg bg-elevated p-5 shadow-border">
-      <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Available device map</p><h2 className="mt-2 font-display text-2xl text-fg">{mapStatus}</h2><p className="mt-1 text-sm text-muted">Devices appear only after they open Reelcase. The map stores a short-lived browser label, never network addresses or files.</p></div><Button size="sm" variant="secondary" onClick={() => void refreshDeviceMap()}><RefreshCw className="size-4"/>Refresh map</Button></div>
-      <div className="mt-5 grid gap-3 md:grid-cols-[minmax(12rem,0.75fr)_minmax(0,1.25fr)]"><div className="rounded-md border border-border bg-bg/45 p-4"><div className="flex items-center gap-3"><Wifi className="size-5 text-accent"/><div><p className="text-sm font-medium text-fg">Reelcase host</p><p className="text-xs text-muted">{origin || "Local preview"}</p></div></div><p className="mt-4 text-xs leading-5 text-muted">This computer shares the app address and coordinates the active-device map.</p></div><div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{visibleDevices.map((device) => <div key={device.id} className="rounded-md bg-bg/45 p-3"><div className="flex items-center gap-2">{device.kind === "mobile" ? <Smartphone className="size-4 text-accent"/> : <Laptop className="size-4 text-accent"/>}<p className="min-w-0 truncate text-sm font-medium text-fg">{device.id === ownDeviceId ? "This device" : device.label}</p></div><p className="mt-2 text-xs text-muted">{device.id === ownDeviceId ? device.label : "Connected to Reelcase"}</p><p className="mt-1 text-[11px] text-accent">Active now</p></div>)}{!visibleDevices.length && <div className="rounded-md border border-dashed border-border p-3 text-sm text-muted sm:col-span-2 xl:col-span-3">Waiting for a device to open the shared address.</div>}</div></div>
+      <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Across networks · Cloudflare trial</p>
+      <h2 className="mt-2 font-display text-2xl text-fg">Temporary public address</h2>
+      <p className="mt-2 max-w-3xl text-sm leading-6 text-muted">Start a Quick Tunnel on the host computer to give guests a temporary address for Realhub and Watch Room signaling. Share it only with people you invite. The address disappears when you stop the tunnel or close the host server.</p>
+      {localHost ? <>
+        <div className="mt-4 flex flex-wrap items-center gap-2"><Button disabled={tunnelBusy || Boolean(quickTunnel.starting)} onClick={() => void changeTunnel(quickTunnel.running ? "stop" : "start")}>{quickTunnel.running ? "Stop trial tunnel" : quickTunnel.starting ? "Starting…" : "Start trial tunnel"}</Button>{quickTunnel.url && <Button variant="secondary" onClick={() => void navigator.clipboard.writeText(quickTunnel.url!)}><Copy className="size-4"/>Copy public address</Button>}</div>
+        {quickTunnel.url && <p className="mt-3 break-all font-mono text-sm text-accent">{quickTunnel.url}</p>}
+        {quickTunnel.error && <p className="mt-3 text-sm text-muted">{quickTunnel.error} <a className="text-accent underline" href="https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/" target="_blank" rel="noopener noreferrer">Cloudflare install instructions</a></p>}
+      </> : <p className="mt-3 text-sm text-muted">Open this tab on the host computer to control its trial tunnel.</p>}
+      <p className="mt-3 text-xs leading-5 text-subtle">Quick Tunnels are for testing. A tunnel carries the page and room signaling; peer media may still require a TURN relay when direct connectivity fails.</p>
     </section>
-    <section className="mt-5 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Four steps to connect</p><ol className="mt-4 grid gap-4 md:grid-cols-2"><li className="rounded-md bg-bg/45 p-4 text-sm text-muted"><span className="font-medium text-fg">1. Use the Ethernet address.</span><br/>Use the address shown above for normal home Wi‑Fi and Ethernet. The NordLynx address is for VPN peers.</li><li className="rounded-md bg-bg/45 p-4 text-sm text-muted"><span className="font-medium text-fg">2. Keep guests off isolated Wi‑Fi.</span><br/>Guest Wi‑Fi often blocks device-to-device traffic. Join the normal household network instead.</li><li className="rounded-md bg-bg/45 p-4 text-sm text-muted"><span className="font-medium text-fg">3. Look for the device map.</span><br/>A guest that opens Reelcase shows up here automatically. Refresh the map if it has just joined.</li><li className="rounded-md bg-bg/45 p-4 text-sm text-muted"><span className="font-medium text-fg">4. Start or join a Watch Room.</span><br/>After the guest is visible, open Watch Room and use the same invitation or room code.</li></ol><p className="mt-4 text-xs leading-5 text-subtle">If the shared page does not open, allow Reelcase through the host computer’s private-network firewall and confirm the guest is on the same normal home network.</p></section>
+    <section className="mt-5 rounded-lg bg-elevated p-5 shadow-border">
+      <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Available device map</p><h2 className="mt-2 font-display text-2xl text-fg">{mapStatus}</h2><p className="mt-1 text-sm text-muted">Devices appear only after they open Realhub. The map stores a short-lived browser label, never network addresses or files.</p></div><Button size="sm" variant="secondary" onClick={() => void refreshDeviceMap()}><RefreshCw className="size-4"/>Refresh map</Button></div>
+      <div className="mt-5 grid gap-3 md:grid-cols-[minmax(12rem,0.75fr)_minmax(0,1.25fr)]"><div className="rounded-md border border-border bg-bg/45 p-4"><div className="flex items-center gap-3"><Wifi className="size-5 text-accent"/><div><p className="text-sm font-medium text-fg">Realhub host</p><p className="text-xs text-muted">{origin || "Local preview"}</p></div></div><p className="mt-4 text-xs leading-5 text-muted">This computer shares the app address and coordinates the active-device map.</p></div><div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{visibleDevices.map((device) => <div key={device.id} className="rounded-md bg-bg/45 p-3"><div className="flex items-center gap-2">{device.kind === "mobile" ? <Smartphone className="size-4 text-accent"/> : <Laptop className="size-4 text-accent"/>}<p className="min-w-0 truncate text-sm font-medium text-fg">{device.id === ownDeviceId ? "This device" : device.label}</p></div><p className="mt-2 text-xs text-muted">{device.id === ownDeviceId ? device.label : "Connected to Realhub"}</p><p className="mt-1 text-[11px] text-accent">Active now</p></div>)}{!visibleDevices.length && <div className="rounded-md border border-dashed border-border p-3 text-sm text-muted sm:col-span-2 xl:col-span-3">Waiting for a device to open the shared address.</div>}</div></div>
+    </section>
+    <section className="mt-5 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Four steps to connect</p><ol className="mt-4 grid gap-4 md:grid-cols-2"><li className="rounded-md bg-bg/45 p-4 text-sm text-muted"><span className="font-medium text-fg">1. Use the Ethernet address.</span><br/>Use the address shown above for normal home Wi‑Fi and Ethernet. The NordLynx address is for VPN peers.</li><li className="rounded-md bg-bg/45 p-4 text-sm text-muted"><span className="font-medium text-fg">2. Keep guests off isolated Wi‑Fi.</span><br/>Guest Wi‑Fi often blocks device-to-device traffic. Join the normal household network instead.</li><li className="rounded-md bg-bg/45 p-4 text-sm text-muted"><span className="font-medium text-fg">3. Look for the device map.</span><br/>A guest that opens Realhub shows up here automatically. Refresh the map if it has just joined.</li><li className="rounded-md bg-bg/45 p-4 text-sm text-muted"><span className="font-medium text-fg">4. Start or join a Watch Room.</span><br/>After the guest is visible, open Watch Room and use the same invitation or room code.</li></ol><p className="mt-4 text-xs leading-5 text-subtle">If the shared page does not open, allow Realhub through the host computer’s private-network firewall and confirm the guest is on the same normal home network.</p></section>
   </HubShell>;
 }
 
 export function FindPhoneSection() {
-  return <HubShell eyebrow="Device recovery" icon={<Search className="size-4"/>} title="Find your phone." copy="Open your device maker’s official locator. Reelcase does not collect location data or keep a copy of your account credentials.">
+  return <HubShell eyebrow="Device recovery" icon={<Search className="size-4"/>} title="Find your phone." copy="Open your device maker’s official locator. Realhub does not collect location data or keep a copy of your account credentials.">
     <section className="mt-6 grid gap-4 md:grid-cols-2"><a href="https://www.google.com/android/find/" target="_blank" rel="noopener noreferrer" className="rounded-lg bg-elevated p-5 shadow-border transition-colors hover:bg-surface"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Android</p><h2 className="mt-2 font-display text-2xl text-fg">Find My Device</h2><p className="mt-2 text-sm text-muted">Open Google’s official Android device locator in a secure new tab.</p></a><a href="https://www.icloud.com/find/" target="_blank" rel="noopener noreferrer" className="rounded-lg bg-elevated p-5 shadow-border transition-colors hover:bg-surface"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">iPhone</p><h2 className="mt-2 font-display text-2xl text-fg">Find My</h2><p className="mt-2 text-sm text-muted">Open Apple’s official device locator in a secure new tab.</p></a></section>
   </HubShell>;
 }
@@ -985,6 +1043,12 @@ export function SettingsSection() {
   const follows = useLibrary((s) => s.follows);
   const refreshSourcePhotos = useLibrary((s) => s.refreshSourcePhotos);
   const unavailableVideoCount = useLibrary((s) => Object.keys(s.unavailable).length);
+  const hiddenVideos = useLibrary((s) => s.hiddenVideos);
+  const unhideVideo = useLibrary((s) => s.unhideVideo);
+  const hiddenTitles = useMemo(() => {
+    const byId = new Map(videos.map((video) => [video.id, video.name]));
+    return Object.keys(hiddenVideos).map((id) => ({ id, name: byId.get(id) ?? id }));
+  }, [hiddenVideos, videos]);
   const remoteCheckedAt = useLibrary((s) => s.remoteCheckedAt);
   const smartTagStatus = useMemo(() => {
     const local = videos.filter((video) => !video.remote);
@@ -1114,7 +1178,7 @@ export function SettingsSection() {
     const state = useLibrary.getState();
     const payload = {
       exportedAt: new Date().toISOString(),
-      note: "Reelcase library metadata only. Original local files and browser permission handles are never exported.",
+      note: "Realhub library metadata only. Original local files and browser permission handles are never exported.",
       library: {
         folders: state.folders,
         videos: state.videos,
@@ -1253,7 +1317,7 @@ export function SettingsSection() {
       eyebrow="Library control"
       icon={<Settings2 className="size-4" />}
       title="Settings & local export"
-      copy="Your Reelcase library stays in this browser. Export a portable metadata backup whenever you need it."
+      copy="Your Realhub library stays in this browser. Export a portable metadata backup whenever you need it."
     >
       <div className="grid gap-4 sm:grid-cols-3">
         <Stat label="Video entries" value={useLibrary((s) => s.videos.length)} />
@@ -1261,6 +1325,7 @@ export function SettingsSection() {
         <Stat label="Saved hub items" value={hub.prints.length + hub.games.length} />
       </div>
       {unavailableVideoCount > 0 && <div className="mt-4 rounded-lg border border-danger/40 bg-elevated p-4"><p className="text-sm font-medium text-fg">Playback health queue · {unavailableVideoCount} hidden</p><p className="mt-1 text-xs leading-5 text-muted">These catalog entries were hidden after a browser file-permission or decode failure. Reconnect the source folder from the playback message to rebuild its live file handles.</p></div>}
+      <details className="mt-4 rounded-lg border border-border bg-elevated p-4"><summary className="cursor-pointer text-sm font-medium text-fg">Hidden titles · {hiddenTitles.length}</summary><p className="mt-2 text-xs text-muted">Hidden videos and image cards stay out of recommendations, search, and Watch Room. Your ratings and history remain saved.</p><div className="mt-3 max-h-64 space-y-2 overflow-y-auto">{hiddenTitles.length ? hiddenTitles.map((item) => <div key={item.id} className="flex items-center justify-between gap-3 rounded-md bg-bg/50 px-3 py-2"><span className="min-w-0 truncate text-sm text-fg">{item.name}</span><Button size="sm" variant="secondary" onClick={() => unhideVideo(item.id)}>Restore</Button></div>) : <p className="text-xs text-muted">Nothing hidden yet.</p>}</div></details>
       <section className="mt-4 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Smart local tags</p><h2 className="mt-2 font-display text-2xl text-fg">Tag by name, date, and file type.</h2><p className="mt-1 max-w-2xl text-sm text-muted">Adds private, explainable tags such as year-2026, month-september, type-mp4, and meaningful words from the filename. Existing manual tags are preserved; nothing is uploaded.</p><p className="mt-3 text-xs text-accent">{smartTagStatus.tagged.toLocaleString()} of {smartTagStatus.local.toLocaleString()} local files ready · {smartTagStatus.waiting ? `${smartTagStatus.waiting.toLocaleString()} can still be enriched` : "coverage is current"}</p><Button className="mt-4" size="sm" variant="secondary" disabled={!smartTagStatus.local} onClick={() => { const changed = useLibrary.getState().autoTagLibrary(); setServiceNote(changed ? `Smart-tag run finished · ${changed} catalog item${changed === 1 ? "" : "s"} updated.` : "Smart tags are already current for every loaded catalog item."); }}> {smartTagStatus.waiting ? "Apply smart tags to remaining files" : "Recheck smart-tag coverage"}</Button></section>
       <section className="mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Metadata tail coverage</p><h2 className="mt-2 font-display text-2xl text-fg">Finish cached catalog metadata in small batches.</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-muted">Uses already-cached provider titles, descriptions, channels, and local filenames. One pass handles at most 48 unlocked, untagged titles; it does not make a network request, inspect a media file, or replace a manual tag choice.</p><div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{metadataTailCoverage.length ? metadataTailCoverage.map((row) => <div key={row.source} className="rounded-sm bg-bg/45 p-3 text-xs"><p className="font-medium text-fg">{metadataSourceLabel(row.source)}</p><p className="mt-1 text-muted">{row.tagged.toLocaleString()} tagged · {row.waiting.toLocaleString()} waiting · {row.locked ? `${row.locked.toLocaleString()} locked` : "no locked gaps"}</p></div>) : <p className="text-xs text-muted">Add a local folder or provider channel to measure coverage.</p>}</div><div className="mt-4 flex flex-wrap items-center gap-3"><Button size="sm" variant="secondary" disabled={!metadataTailWaiting} onClick={runMetadataTail}>{metadataTailWaiting ? `Enrich next ${Math.min(48, metadataTailWaiting)}` : "Coverage current"}</Button><span className="text-xs text-accent">{metadataTailWaiting.toLocaleString()} unlocked title{metadataTailWaiting === 1 ? "" : "s"} waiting</span></div>{metadataTailNote && <p className="mt-3 text-xs leading-5 text-accent" role="status">Latest batch · {metadataTailNote}</p>}</section>
       <section className="mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Creator coverage repair</p><h2 className="mt-2 font-display text-2xl text-fg">Recover only exact creator identities.</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-muted">Matches a missing YouTube or Twitch display name only when the cached card and one of your saved follows share the exact public channel ID or saved source ID. It never guesses from titles, filenames, or loose handles; no provider request is made.</p><div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4"><div className="rounded-sm bg-bg/45 p-3 text-xs"><p className="font-medium text-fg">Tracked cards</p><p className="mt-1 text-muted">{creatorCoverage.total.toLocaleString()} YouTube/Twitch</p></div><div className="rounded-sm bg-bg/45 p-3 text-xs"><p className="font-medium text-fg">Already named</p><p className="mt-1 text-muted">{creatorCoverage.present.toLocaleString()} verified names</p></div><div className="rounded-sm bg-bg/45 p-3 text-xs"><p className="font-medium text-fg">Exact repairs</p><p className="mt-1 text-muted">{creatorCoverage.repairable.toLocaleString()} safe matches</p></div><div className="rounded-sm bg-bg/45 p-3 text-xs"><p className="font-medium text-fg">Needs evidence</p><p className="mt-1 text-muted">{creatorCoverage.unresolved.toLocaleString()} unmatched · {creatorCoverage.ambiguous.length.toLocaleString()} ambiguous</p></div></div><div className="mt-4 flex flex-wrap items-center gap-3"><Button size="sm" variant="secondary" disabled={!creatorCoverage.repairable} onClick={runCreatorCoverageRepair}>{creatorCoverage.repairable ? `Repair next ${Math.min(48, creatorCoverage.repairable)}` : "Coverage current"}</Button><span className="text-xs text-accent">{creatorCoverage.repairable.toLocaleString()} exact match{creatorCoverage.repairable === 1 ? "" : "es"} waiting</span></div>{creatorCoverageNote && <p className="mt-3 text-xs leading-5 text-accent" role="status">Latest repair · {creatorCoverageNote}</p>}{creatorCoverage.ambiguous.length > 0 && <div className="mt-4 rounded-md border border-warning/35 bg-bg/45 p-3"><p className="text-sm font-medium text-fg">Ambiguous exact-ID matches need review</p><p className="mt-1 text-xs leading-5 text-muted">These cards match more than one saved display name. Nothing was written; open a card to inspect its provider details before changing follow data.</p><div className="mt-3 grid gap-2">{creatorCoverage.ambiguous.slice(0, 12).map((row) => <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 rounded-sm bg-elevated p-3"><p className="min-w-0 flex-1 truncate text-xs text-fg">{row.name}<span className="text-muted"> · {row.candidates.join(" / ")}</span></p><Button size="sm" variant="ghost" onClick={() => openPreview(row.id)}>Review card</Button></div>)}</div>{creatorCoverage.ambiguous.length > 12 && <p className="mt-3 text-xs text-muted">Showing 12 of {creatorCoverage.ambiguous.length.toLocaleString()} ambiguous cards.</p>}</div>}</section>
@@ -1322,7 +1387,7 @@ export function SettingsSection() {
             input.onchange = () => {
               const file = input.files?.[0];
               if (!file) return;
-              const proceed = window.confirm("Import this library pack into Reelcase?\n\nData merges into durable local stores. Unrelated data is kept.");
+              const proceed = window.confirm("Import this library pack into Realhub?\n\nData merges into durable local stores. Unrelated data is kept.");
               if (!proceed) { setServiceNote("Import cancelled."); return; }
               const wipeFollows = window.confirm("Also REPLACE all YouTube/Twitch follows with the file?\n\nOK = replace follows\nCancel = merge follows (recommended)");
               const mode: LibraryPackMode = wipeFollows ? "replace-follows" : "merge";
@@ -1402,7 +1467,7 @@ export function SettingsSection() {
                 setServiceNote(pack.error || "No library pack files in the companion folder.");
                 return;
               }
-              const proceed = window.confirm("Import the companion-folder library pack into Reelcase?\n\nData merges into durable local stores.");
+              const proceed = window.confirm("Import the companion-folder library pack into Realhub?\n\nData merges into durable local stores.");
               if (!proceed) { setServiceNote("Companion import cancelled."); return; }
               const wipeFollows = window.confirm("Also REPLACE all YouTube/Twitch follows with the folder pack?\n\nOK = replace follows\nCancel = merge follows (recommended)");
               const mode: LibraryPackMode = wipeFollows ? "replace-follows" : "merge";
@@ -1451,13 +1516,13 @@ export function SettingsSection() {
         </div>
         {serviceNote && <p className="mt-3 text-xs text-accent">{serviceNote}</p>}
       </section>
-      <section className="mt-6 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Connected services</p><h2 className="mt-2 font-display text-2xl text-fg">Independent caches, on your schedule.</h2><p className="mt-1 text-sm text-muted">Twitch and YouTube refresh together from your saved follows. Photo imports, Roku discovery, and Spotify remain independently local and refresh only when you ask.</p><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{[{ name: "YouTube", detail: "Saved channels", checked: remoteCheckedAt, action: async () => { const result = await refreshFollows(); setServiceNote(`Refreshed channel cache · ${result.newVideos.length} new items.`); } }, { name: "Twitch", detail: "Live + VOD cache", checked: remoteCheckedAt, action: async () => { const result = await refreshFollows(); setServiceNote(`Refreshed Twitch status · ${result.wentLive.length} channels live.`); } }, { name: "Photos", detail: `${folders.filter((folder) => folder.photoCount).length} source folders`, checked: Math.max(0, ...folders.map((folder) => folder.lastCheckedAt ?? 0)), action: async () => { const sources = folders.filter((folder) => folder.photoCount && (folder.kind === "directory" || folder.kind === "files")); const counts = await Promise.all(sources.map((folder) => refreshSourcePhotos(folder.id))); setServiceNote(`Refreshed local photo sources · ${counts.reduce((sum, count) => sum + count, 0)} photos found.`); } }, { name: "Roku", detail: "Companion-assisted", checked: 0, action: async () => { try { const res = await fetch("http://127.0.0.1:43123/roku/discover"); const data = await res.json() as { devices?: unknown[] }; setServiceNote(`Roku refresh complete · ${(data.devices ?? []).length} device(s) found.`); } catch { setServiceNote("Roku refresh needs the local Reelcase Companion running."); } } }, { name: "Spotify", detail: "Saved music shortcuts", checked: 0, action: async () => { setServiceNote("Spotify shortcuts are local and ready. Open Spotify from its library section to refresh provider content."); } }].map((service) => <div key={service.name} className="rounded-md bg-bg/45 p-3 shadow-border"><p className="text-sm font-medium text-fg">{service.name}</p><p className="mt-1 text-xs text-muted">{service.detail}</p><p className="mt-1 text-[11px] text-subtle">{service.checked ? `Last refreshed ${new Date(service.checked).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Not refreshed this session"}</p><Button size="sm" variant="secondary" className="mt-3" onClick={() => void service.action()}>Refresh</Button></div>)}</div>{serviceNote && <p className="mt-3 text-xs text-accent">{serviceNote}</p>}</section>
-      <section className="mt-6"><div className="mb-3"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Device & performance</p><p className="mt-1 text-sm text-muted">The controls that change how Reelcase runs and fits your screen.</p></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="mt-6 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Connected services</p><h2 className="mt-2 font-display text-2xl text-fg">Independent caches, on your schedule.</h2><p className="mt-1 text-sm text-muted">Twitch and YouTube refresh together from your saved follows. Photo imports, Roku discovery, and Spotify remain independently local and refresh only when you ask.</p><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{[{ name: "YouTube", detail: "Saved channels", checked: remoteCheckedAt, action: async () => { const result = await refreshFollows(); setServiceNote(`Refreshed channel cache · ${result.newVideos.length} new items.`); } }, { name: "Twitch", detail: "Live + VOD cache", checked: remoteCheckedAt, action: async () => { const result = await refreshFollows(); setServiceNote(`Refreshed Twitch status · ${result.wentLive.length} channels live.`); } }, { name: "Photos", detail: `${folders.filter((folder) => folder.photoCount).length} source folders`, checked: Math.max(0, ...folders.map((folder) => folder.lastCheckedAt ?? 0)), action: async () => { const sources = folders.filter((folder) => folder.photoCount && (folder.kind === "directory" || folder.kind === "files")); const counts = await Promise.all(sources.map((folder) => refreshSourcePhotos(folder.id))); setServiceNote(`Refreshed local photo sources · ${counts.reduce((sum, count) => sum + count, 0)} photos found.`); } }, { name: "Roku", detail: "Companion-assisted", checked: 0, action: async () => { try { const res = await fetch("http://127.0.0.1:43123/roku/discover"); const data = await res.json() as { devices?: unknown[] }; setServiceNote(`Roku refresh complete · ${(data.devices ?? []).length} device(s) found.`); } catch { setServiceNote("Roku refresh needs the local Realhub Companion running."); } } }, { name: "Spotify", detail: "Saved music shortcuts", checked: 0, action: async () => { setServiceNote("Spotify shortcuts are local and ready. Open Spotify from its library section to refresh provider content."); } }].map((service) => <div key={service.name} className="rounded-md bg-bg/45 p-3 shadow-border"><p className="text-sm font-medium text-fg">{service.name}</p><p className="mt-1 text-xs text-muted">{service.detail}</p><p className="mt-1 text-[11px] text-subtle">{service.checked ? `Last refreshed ${new Date(service.checked).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Not refreshed this session"}</p><Button size="sm" variant="secondary" className="mt-3" onClick={() => void service.action()}>Refresh</Button></div>)}</div>{serviceNote && <p className="mt-3 text-xs text-accent">{serviceNote}</p>}</section>
+      <section className="mt-6"><div className="mb-3"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Device & performance</p><p className="mt-1 text-sm text-muted">The controls that change how Realhub runs and fits your screen.</p></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-lg bg-elevated p-5 shadow-border">
           <span className="text-accent"><Settings2 className="size-5" /></span>
           <h2 className="mt-3 font-display text-2xl text-fg">Diagnostics</h2>
           <p className="mt-2 text-sm leading-6 text-muted">Keep a local, opt-in status panel for source, cache, and companion troubleshooting. It is off by default and sends nothing away.</p>
-          <ol className="mt-3 space-y-1 text-xs leading-5 text-muted"><li><span className="text-accent">1.</span> In the main Reelcase folder, double-click <strong className="text-fg">Start-Reelcase-Companion.cmd</strong>.</li><li><span className="text-accent">2.</span> Leave the small Companion window open until it says it is listening.</li><li><span className="text-accent">3.</span> Enable diagnostics, select Check companion, then open Games to load approved shortcuts.</li></ol>
+          <ol className="mt-3 space-y-1 text-xs leading-5 text-muted"><li><span className="text-accent">1.</span> In the main Realhub folder, double-click <strong className="text-fg">Start-Realhub-Companion.cmd</strong>.</li><li><span className="text-accent">2.</span> Leave the small Companion window open until it says it is listening.</li><li><span className="text-accent">3.</span> Enable diagnostics, select Check companion, then open Games to load approved shortcuts.</li></ol>
           <p className="mt-2 text-xs leading-5 text-subtle">The companion is optional. It only runs on this computer and is needed for desktop shortcut launching, source checks, and TV discovery—not for browsing your media library.</p>
           <Button size="sm" variant={debugEnabled ? "default" : "secondary"} className="mt-4" onClick={() => { const next = !debugEnabled; setDebugEnabled(next); localStorage.setItem("reelcase.debug-panel", String(next)); if (!next) setDebugReport(""); }}>
             {debugEnabled ? "Disable diagnostics" : "Enable diagnostics"}
@@ -1471,7 +1536,7 @@ export function SettingsSection() {
           <h2 className="mt-3 font-display text-2xl text-fg">App zoom</h2>
           <p className="mt-2 text-sm leading-6 text-muted">
             Scale the entire library interface for this browser. Your choice is remembered
-            everywhere in Reelcase.
+            everywhere in Realhub.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             {[80, 90, 100, 110, 125].map((value) => (
@@ -1489,7 +1554,7 @@ export function SettingsSection() {
         <div className="rounded-lg bg-elevated p-5 shadow-border">
           <span className="text-accent"><Settings2 className="size-5" /></span>
           <h2 className="mt-3 font-display text-2xl text-fg">Day & night</h2>
-          <p className="mt-2 text-sm leading-6 text-muted">Choose the palette that is easiest on your eyes. It applies to every Reelcase page and stays on this device.</p>
+          <p className="mt-2 text-sm leading-6 text-muted">Choose the palette that is easiest on your eyes. It applies to every Realhub page and stays on this device.</p>
           <div className="mt-4 flex flex-wrap gap-2"><Button size="sm" variant={theme === "night" ? "default" : "secondary"} onClick={() => setColorTheme("night")}>Night mode</Button><Button size="sm" variant={theme === "day" ? "default" : "secondary"} onClick={() => setColorTheme("day")}>Day mode</Button></div>
         </div>
         <div className="rounded-lg bg-elevated p-5 shadow-border">
@@ -1571,7 +1636,7 @@ export function SettingsSection() {
         />
         <InfoCard
           icon={<PackageSearch className="size-5" />}
-          title="How Reelcase works"
+          title="How Realhub works"
           copy="Folders and files are cataloged locally; channel follows use their public pages; Watch Room sends direct peer events; and external services open only when you choose them. See PROJECT_GUIDE.md and LAN_WATCH_ROOM.md in the repository for the complete maintainer guide."
         />
         <AlexaLightControl />
@@ -1582,7 +1647,7 @@ export function SettingsSection() {
           <div>
             <h2 className="font-display text-2xl text-fg">Working preferences</h2>
             <p className="mt-1 text-sm text-muted">
-              Every switch below works now, changes Reelcase immediately, and is saved in this browser. Future ideas belong in the Mission plan—not in this control panel.
+              Every switch below works now, changes Realhub immediately, and is saved in this browser. Future ideas belong in the Mission plan—not in this control panel.
             </p>
           </div>
           <p className="text-xs text-muted">
@@ -1688,7 +1753,7 @@ export function SpotifySection() {
       <div className="mt-6 rounded-lg bg-elevated p-5 shadow-border">
         <p className="text-sm font-medium text-fg">Open Spotify</p>
         <p className="mt-1 text-sm text-muted">
-          Account sign-in and playback remain on Spotify’s official site or app. Reelcase does not
+          Account sign-in and playback remain on Spotify’s official site or app. Realhub does not
           collect your Spotify password or tokens.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
@@ -1902,7 +1967,7 @@ function GoogleYouTubeConnection() {
       <h2 className="mt-3 font-display text-2xl text-fg">Google & YouTube access</h2>
       <p className="mt-2 text-sm leading-6 text-muted">
         Paste only the OAuth Client ID—never a secret. Google’s popup authorizes this browser
-        session, then Reelcase can read permitted YouTube metadata and available creator tags.
+        session, then Realhub can read permitted YouTube metadata and available creator tags.
       </p>
       <ol className="mt-3 list-decimal space-y-1 pl-5 text-xs leading-5 text-muted">
         <li>In Google Cloud, create a project and enable YouTube Data API v3.</li>
@@ -1959,6 +2024,7 @@ type LocalPhoto = {
   tags: string[];
   album: string;
   favorite: boolean;
+  hidden: boolean;
   rating: number;
   addedAt: number;
   width?: number;
@@ -2024,6 +2090,7 @@ export function PhotosSection() {
     try { return localStorage.getItem("reelcase.photos.rating-queue") ?? ""; } catch { return ""; }
   });
   const [photos, setPhotos] = useState<LocalPhoto[]>([]);
+  const [showHiddenPhotos, setShowHiddenPhotos] = useState(false);
   const [selectedPerson, setSelectedPerson] = useState("All photos");
   const [selectedAlbum, setSelectedAlbum] = useState(() => {
     try { return localStorage.getItem("reelcase.photos.source-filter") || "All albums"; } catch { return "All albums"; }
@@ -2120,7 +2187,7 @@ export function PhotosSection() {
   const installUpscalerModel = async () => {
     const url = upscalerUrl.trim();
     const expected = upscalerChecksum.trim().toLowerCase().replace(/^sha256:/, "");
-    if (!/^https:\/\//i.test(url) || !/^[a-f0-9]{64}$/.test(expected)) { setUpscalerHealth({ state: "missing", detail: "Enter an HTTPS model URL and the publisher’s exact 64-character SHA-256 checksum. Reelcase will not install an unverifiable model." }); return; }
+    if (!/^https:\/\//i.test(url) || !/^[a-f0-9]{64}$/.test(expected)) { setUpscalerHealth({ state: "missing", detail: "Enter an HTTPS model URL and the publisher’s exact 64-character SHA-256 checksum. Realhub will not install an unverifiable model." }); return; }
     setUpscalerInstalling(true);
     setUpscalerHealth({ state: "checking", detail: "Downloading the model after your explicit request and verifying its SHA-256…" });
     try {
@@ -2214,6 +2281,7 @@ export function PhotosSection() {
         tags: remembered[id]?.tags ?? [],
         album: remembered[id]?.album ?? paths?.[index]?.split("/")[0] ?? folderName,
         favorite: remembered[id]?.favorite ?? false,
+        hidden: remembered[id]?.hidden ?? false,
         rating: remembered[id]?.rating ?? 0,
         addedAt: file.lastModified,
         width: remembered[id]?.width,
@@ -2257,7 +2325,7 @@ export function PhotosSection() {
     if (metadataWriteTimer.current) clearTimeout(metadataWriteTimer.current);
     metadataWriteTimer.current = setTimeout(() => {
       try {
-        const nextMeta = { ...photoMetadata(), ...Object.fromEntries(photos.map(({ id, path, people, tags, album, favorite, rating, width, height, vision, visionModel }) => [id, { path, people, tags, album, favorite, rating, width, height, vision, visionModel }])) };
+        const nextMeta = { ...photoMetadata(), ...Object.fromEntries(photos.map(({ id, path, people, tags, album, favorite, hidden, rating, width, height, vision, visionModel }) => [id, { path, people, tags, album, favorite, hidden, rating, width, height, vision, visionModel }])) };
         const photoSources = useLibrary.getState().folders
           .filter((folder) => folder.kind === "directory" || folder.kind === "files")
           .map((folder) => ({
@@ -2383,6 +2451,7 @@ export function PhotosSection() {
   const visible = useMemo(() => photos
     .filter(
       (photo) =>
+        (showHiddenPhotos || !photo.hidden) &&
         (selectedPerson === "All photos" || photo.people.includes(selectedPerson)) &&
         (selectedAlbum === "All albums" || photo.album === selectedAlbum) &&
         (selectedTag === "All tags" || photo.tags.includes(selectedTag)) &&
@@ -2395,11 +2464,11 @@ export function PhotosSection() {
     )
     .sort((a, b) => {
       if (photoSort === "name") return a.name.localeCompare(b.name);
-      if (photoSort === "rating") return b.rating - a.rating || b.addedAt - a.addedAt;
+      if (photoSort === "rating") return ratingPreference(b.rating) - ratingPreference(a.rating) || b.addedAt - a.addedAt;
       if (photoSort === "favorite") return Number(b.favorite) - Number(a.favorite) || b.addedAt - a.addedAt;
       if (photoSort === "auto-tags") return b.tags.length - a.tags.length || b.addedAt - a.addedAt;
       return b.addedAt - a.addedAt;
-    }), [discoveryFilter, favoritesOnly, photoSearch, photoSort, photos, ratingFilter, selectedAlbum, selectedPerson, selectedTag]);
+    }), [discoveryFilter, favoritesOnly, photoSearch, photoSort, photos, ratingFilter, selectedAlbum, selectedPerson, selectedTag, showHiddenPhotos]);
   const renderedPhotos = visible.slice(0, photoLimit);
   useEffect(() => setPhotoLimit(80), [photoSearch, selectedPerson, selectedAlbum, selectedTag, favoritesOnly, photoSort, discoveryFilter, ratingFilter]);
   useEffect(() => { if (!slideshow || !visible.length) return; const timer = window.setInterval(() => setSlideIndex((index) => (index + 1) % visible.length), slideSeconds * 1000); return () => window.clearInterval(timer); }, [slideshow, slideSeconds, visible.length]);
@@ -2589,6 +2658,7 @@ export function PhotosSection() {
       copy="Add photos from this device, then group them by people yourself. Nothing uploads from this browser. Google Photos remains a separate, opt-in destination."
     >
       <div className="mt-6 flex flex-wrap items-center gap-2 rounded-lg border border-border p-4"><Star className="size-4 text-accent"/><span className="mr-2 text-sm font-medium">Rating quest</span>{[["all", "All ratings"], ["unrated", "Needs a rating"], ["3", "3+ stars"], ["4", "4+ stars"], ["5", "5 stars"]].map(([value, label]) => <Button key={value} size="sm" variant={ratingFilter === value ? "default" : "secondary"} onClick={() => setRatingFilter(value)}>{label}</Button>)}<Button size="sm" variant="secondary" disabled={!photos.some((photo) => !photo.rating)} onClick={() => { const choices = photos.filter((photo) => !photo.rating); const savedIndex = choices.findIndex((photo) => photo.id === ratingQueuePhotoId); const pick = choices[(savedIndex + 1 + choices.length) % choices.length]; if (pick) { setRatingQueuePhotoId(pick.id); setFocusedPhotoId(pick.id); } }}>{ratingQueuePhotoId ? "Continue rating queue" : "Rate a surprise photo"}</Button><span className="text-xs text-muted">{photos.filter((photo) => photo.rating > 0).length} of {photos.length} rated</span></div>
+      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted"><span>{photos.filter((photo) => photo.hidden).length} hidden photos</span><Button size="sm" variant="secondary" onClick={() => setShowHiddenPhotos((value) => !value)}>{showHiddenPhotos ? "Hide hidden photos" : "Manage hidden photos"}</Button><span>Hidden photos stay saved in their albums and can be restored here.</span></div>
       <div className="mt-6 flex flex-col gap-3 rounded-lg bg-elevated p-5 shadow-border sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-medium text-fg">Your local photo selection</p>
@@ -2720,7 +2790,7 @@ export function PhotosSection() {
       </div>
       {!photos.length ? (
         <div className="mt-5 rounded-lg bg-elevated px-5 py-14 text-center shadow-border">
-          <Images className="mx-auto size-7 text-accent" />
+          <img src="/art/realhub-media-cards.webp" alt="" loading="lazy" className="mx-auto h-28 w-36 object-contain" />
           <p className="mt-3 font-display text-2xl text-fg">Start with a few favorites</p>
           <p className="mt-2 text-sm text-muted">
             Add photos here to make private people sections without connecting an account.
@@ -2751,6 +2821,7 @@ export function PhotosSection() {
                   <Button size="sm" variant="secondary" aria-label={`Download ${photo.name}`} onClick={() => downloadPhoto(photo)}>
                     <Download className="size-4" />
                   </Button>
+                  <Button size="sm" variant="secondary" aria-label={`${photo.hidden ? "Restore" : "Hide"} ${photo.name}`} onClick={() => setPhotos((items) => items.map((item) => item.id === photo.id ? { ...item, hidden: !item.hidden } : item))}><EyeOff className="size-4" /></Button>
                 </div>
                 {showLocations && <p title={photo.path} className="mt-1 truncate text-xs text-muted">{photo.path}</p>}
                 <PhotoStars name={photo.name} rating={photo.rating} onChange={(rating) => setPhotos((items) => items.map((item) => item.id === photo.id ? { ...item, rating } : item))} />
@@ -2856,7 +2927,7 @@ function missionSteps(mission: Mission): [string, string, string] {
 const DEFAULT_MISSIONS: Mission[] = [
   { id: "index", title: "Durable media index", detail: "Catalog source health, cached metadata, persistent thumbnails, and fast search without blocking the first screen.", done: true },
   { id: "companion", title: "Desktop companion", detail: "Verify local files, watch selected folders, and launch approved desktop shortcuts through a local companion.", done: true },
-  { id: "watch", title: "Watch room reliability", detail: "Host-authoritative state, stale-command rejection, revisioned queue reconciliation, LAN diagnostics, and guest-access messaging are implemented. Isolated desktop-host/mobile-guest WebRTC, chat, play/pause/seek, local-file consent and matching, local queue add/remove, and leave checks pass; physical-device drift and catalog queue play remain.", done: false, status: "in-progress" },
+  { id: "watch", title: "Watch room reliability", detail: "Host-authoritative state, stale-command rejection, revisioned queue reconciliation, LAN diagnostics, and guest-access messaging are implemented. Isolated desktop-host/mobile-guest WebRTC, chat, play/pause/seek, reload reconciliation, resync, local-file matching, queue edits, and leave checks pass. Twitch status now waits for playback. Physical-device drift and catalog queue play remain.", done: false, status: "in-progress" },
   { id: "watch-room-state-integrity", title: "Watch Room state integrity", detail: "Done · Watch Room now keeps a compact local session ledger, rejects stale or out-of-order host state, gives queue changes monotonic revisions, and routes guest playback or queue changes through host confirmation.", done: true },
   { id: "watch-room-browser-compatibility", title: "Watch Room browser compatibility", detail: "Done · local room and session identifiers now fall back safely when a browser exposes Web Crypto without crypto.randomUUID, preventing the room from failing before it can join.", done: true },
   { id: "services", title: "Connected services", detail: "Keep Twitch, YouTube, Roku, Spotify, and photo imports independently cached and refreshable.", done: true },
@@ -2867,7 +2938,7 @@ const DEFAULT_MISSIONS: Mission[] = [
   { id: "companion-onboarding", title: "Companion onboarding", detail: "One-screen startup checklist: run the companion, confirm Desktop approval, load shortcuts, verify a file, then launch one game safely.", done: true },
   { id: "large-library-views", title: "Large-library views", detail: "Progressively render grids and keep recommendations responsive with very large catalog views.", done: true },
   { id: "favorites-memory", title: "Favorites memory", detail: "Preserve favorites, shelves, and resume markers in the local catalog with export and recovery checks across sessions.", done: true },
-  { id: "recovery-import", title: "History & stats recovery imports", detail: "History and Stats now expose a merge-safe Reelcase library-pack import for exported activity, resume marks, follows, shelves, ratings, Adult marks, and saved links.", done: true },
+  { id: "recovery-import", title: "History & stats recovery imports", detail: "History and Stats now expose a merge-safe Realhub library-pack import for exported activity, resume marks, follows, shelves, ratings, Adult marks, and saved links.", done: true },
   { id: "anime-library-desk", title: "Anime library desk", detail: "Done · a separate Anime desk groups saved #anime media into all, continue, series, and films/specials shelves. It can tag existing catalog cards without importing, proxying, or embedding third-party streams.", done: true },
   { id: "tag-search-upgrade", title: "Tag search everywhere", detail: "Done · the top bar and Adults controls accept human-readable partial tags, match saved creator/source/interest labels, and keep Adult results on the current desk.", done: true },
   { id: "theme-accessibility", title: "Theme & accessibility", detail: "Day/night palettes, focus styling, reduced-motion support, and per-section density preferences.", done: true },
@@ -2901,7 +2972,7 @@ const DEFAULT_MISSIONS: Mission[] = [
   { id: "sprint-16", title: "Tag review queue", detail: "Smart name/date/type and vision tags remain explicit, reviewable local labels before you rely on them for browsing.", done: true },
   { id: "sprint-17", title: "Fast filters", detail: "Deferred search indexing, progressive grids, source-scoped selectors, and cached metadata keep large catalog filters off the first paint.", done: true },
   { id: "sprint-18", title: "Offline resilience", detail: "Cached source health, unavailable-card hiding, recovery views, and source diagnostics distinguish a stale cache from an unavailable file.", done: true },
-  { id: "sprint-19", title: "Watch room device matrix", detail: "The local guest-window fallback and isolated desktop/mobile browser sessions are covered; direct WebRTC, chat, playback requests, seek, local-file consent/match, local queue add/remove, leave, and mobile layout pass. Physical home-network devices and additional browser engines remain unverified.", done: false, status: "in-progress" },
+  { id: "sprint-19", title: "Watch room device matrix", detail: "The local guest-window fallback and isolated desktop/mobile browser sessions are covered; direct WebRTC, chat, playback requests, seek, resync after reload, local-file consent/match, queue add/remove, leave, and mobile layout pass. In the isolated check, host-to-guest play and pause arrived in roughly 70 ms. Physical home-network devices and additional browser engines remain unverified.", done: false, status: "in-progress" },
   { id: "sprint-20", title: "Accessibility audit", detail: "Shared controls use visible focus states, accessible labels, responsive targets, contrast tokens, and the persisted reduced-motion preference.", done: true },
   { id: "metadata-provenance", title: "Metadata provenance and locks", detail: "Adopt the open-library pattern: preserve manual tags, record the source of enrichment, and never let a provider overwrite a locked user choice.", done: true },
   { id: "media-inspection", title: "Companion media inspection", detail: "Use the local companion for optional ffprobe/embedded-tag extraction in bounded batches, with a preview before tags are saved.", done: true },
@@ -3078,11 +3149,11 @@ export function MissionPlanSection() {
   const archivedMissions = missions.filter((mission) => missionStatus(mission) === "complete");
   const setMissionStatus = (id: string, status: MissionStatus) => setMissions((items) => items.map((item) => item.id === id ? { ...item, status, done: status === "complete" } : item));
   const exportMissions = () => downloadCsv([["step", "title", "status", "detail"], ...missions.map((mission, index) => [index + 1, mission.title, missionStatus(mission), mission.detail])], `reelcase-mission-plan-${new Date().toISOString().slice(0, 10)}.csv`);
-  return <HubShell eyebrow="Mission plan" icon={<Rocket className="size-4"/>} title="Build a private media home that scales." copy="Reelcase is moving toward a fast, local-first media hub: your files load from a durable catalog, your watch room works across your home network, and connected services remain optional and easy to control.">
+  return <HubShell eyebrow="Mission plan" icon={<Rocket className="size-4"/>} title="Build a private media home that scales." copy="Realhub is moving toward a fast, local-first media hub: your files load from a durable catalog, your watch room works across your home network, and connected services remain optional and easy to control.">
     <section className="mt-6 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Product mission</p><h2 className="mt-2 font-display text-3xl text-fg">One calm control room for a very large library.</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-muted">Make a million-file media collection feel immediate: cache its catalog locally, keep original files private, surface useful recommendations, and let trusted people watch together without turning the app into a cloud upload service.</p><div className="mt-5 flex items-end justify-between gap-4"><div><p className="font-display text-2xl text-fg">{completed} of {missions.length} milestones complete</p><p className="mt-1 text-sm text-muted">Every milestone includes implementation, browser verification, and a production build check.</p></div><div className="rounded-full bg-accent/15 px-3 py-1 text-sm text-accent">{missions.length ? Math.round(completed / missions.length * 100) : 0}%</div></div><div className="mt-5 h-2 overflow-hidden rounded-full bg-bg/70"><div className="h-full bg-accent transition-all" style={{ width: `${missions.length ? completed / missions.length * 100 : 0}%` }}/></div></section>
     <section className="mt-5"><div className="mb-3 flex items-center justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Active delivery queue</p><p className="mt-1 text-sm text-muted">{activeMissions.length} milestone{activeMissions.length === 1 ? "" : "s"} still need implementation or verification. Each status is saved locally with the plan.</p></div></div><div className="space-y-3">{activeMissions.map((mission, index) => { const status = missionStatus(mission); return <article key={mission.id} className="flex gap-4 rounded-lg bg-elevated p-4 shadow-border"><div className="flex shrink-0 flex-col gap-2"><span className="inline-flex min-h-8 items-center justify-center rounded-sm bg-bg/65 px-2 text-xs font-medium text-muted">{`Step ${index + 1}`}</span>{status === "planned" && <Button size="sm" variant="secondary" aria-label={`Start ${mission.title}`} onClick={() => setMissionStatus(mission.id, "in-progress")}>Start</Button>}{status === "in-progress" && <><Button size="sm" variant="secondary" aria-label={`Mark ${mission.title} complete`} onClick={() => setMissionStatus(mission.id, "complete")}>Done</Button><Button size="sm" variant="ghost" aria-label={`Mark ${mission.title} blocked`} onClick={() => setMissionStatus(mission.id, "blocked")}>Block</Button></>}{status === "blocked" && <Button size="sm" variant="secondary" aria-label={`Resume ${mission.title}`} onClick={() => setMissionStatus(mission.id, "in-progress")}>Resume</Button>}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h2 className="text-sm font-medium text-fg">{mission.title}</h2><span className={`rounded-full px-2 py-1 text-xs font-medium ${missionStatusTone[status]}`}>{missionStatusLabel[status]}</span></div><p className="mt-1 text-sm text-muted">{mission.detail}</p><details className="mt-3 rounded-sm bg-bg/45 px-3 py-2 text-xs text-muted"><summary className="cursor-pointer font-medium text-fg">Break this down</summary><ol className="mt-2 list-decimal space-y-1 pl-4">{missionSteps(mission).map((step) => <li key={step}>{step}</li>)}</ol></details></div></article>; })}</div></section>
     <section className="mt-5 rounded-lg border border-border bg-elevated/70 p-4 shadow-border"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Delivery archive</p><p className="mt-1 text-sm text-muted">{archivedMissions.length} completed milestones are retained for reference and export.</p></div><Button size="sm" variant="secondary" onClick={() => setShowArchive((value) => !value)}>{showArchive ? "Hide completed work" : "Show completed work"}</Button></div>{showArchive && <div className="mt-4 space-y-2">{archivedMissions.map((mission) => <article key={mission.id} className="flex gap-3 rounded-sm bg-bg/45 p-3"><Button size="sm" variant="ghost" aria-label={`Restore ${mission.title} to planned work`} onClick={() => setMissionStatus(mission.id, "planned")}>Done</Button><div className="min-w-0"><h2 className="text-sm font-medium text-muted line-through">{mission.title}</h2><p className="mt-1 text-xs text-muted">{mission.detail}</p></div></article>)}</div>}</section>
-    <section className="mt-5 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Companion onboarding</p><h2 className="mt-2 font-display text-2xl text-fg">A safe five-minute desktop setup.</h2><ol className="mt-4 grid gap-3 text-sm text-muted sm:grid-cols-2"><li className="rounded-sm bg-bg/45 p-3"><span className="font-medium text-fg">1. Start Companion</span><br/>Double-click Start-Reelcase-Companion.cmd in the main Reelcase folder.</li><li className="rounded-sm bg-bg/45 p-3"><span className="font-medium text-fg">2. Confirm Desktop</span><br/>Keep its window open, then run the check below.</li><li className="rounded-sm bg-bg/45 p-3"><span className="font-medium text-fg">3. Load shortcuts</span><br/>Open Games and choose Load approved desktop shortcuts or Steam/Epic roots.</li><li className="rounded-sm bg-bg/45 p-3"><span className="font-medium text-fg">4. Verify first</span><br/>Use a listed shortcut inside an approved root before launching it.</li></ol><div className="mt-4 flex flex-wrap gap-2"><Button variant="secondary" onClick={() => void (async () => { try { const data = await companionHealth(); if (!data?.ok) throw new Error("offline"); setCompanionCheck({ ready: true, desktop: Boolean(data.desktopEnabled), detail: `v${data.version ?? "?"} · ${data.roots ?? 0} roots · badge ${data.trayBadge ?? 0}` }); if ((data.trayBadge ?? 0) > 0) void companionAckJobs(); } catch { setCompanionCheck({ ready: false, desktop: false, detail: "Companion not detected. Start it, leave the window open, then retry." }); } })()}>Check Companion setup</Button><Button variant="secondary" onClick={() => void companionSetAutostart(true).then((r) => setCompanionCheck({ ready: Boolean(r.ok), desktop: companionCheck?.desktop ?? false, detail: r.ok ? "Windows auto-start enabled for Companion." : (r.error || "Auto-start failed.") }))}>Enable Windows auto-start</Button><Button variant="ghost" onClick={() => void companionSetAutostart(false).then((r) => setCompanionCheck({ ready: companionCheck?.ready ?? false, desktop: companionCheck?.desktop ?? false, detail: r.ok ? "Windows auto-start removed." : (r.error || "Could not clear auto-start.") }))}>Disable auto-start</Button></div>{companionCheck && <p className={`mt-3 text-sm ${companionCheck.ready && companionCheck.desktop ? "text-accent" : "text-danger"}`}>{companionCheck.ready ? `Ready · Desktop ${companionCheck.desktop ? "approved" : "not approved"} · ${companionCheck.detail}` : companionCheck.detail}</p>}<p className="mt-2 text-xs text-muted">Offline yt-dlp jobs raise a Windows tray balloon when they finish. Loopback + origin check only — Companion never accepts LAN clients.</p></section>
+    <section className="mt-5 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Companion onboarding</p><h2 className="mt-2 font-display text-2xl text-fg">A safe five-minute desktop setup.</h2><ol className="mt-4 grid gap-3 text-sm text-muted sm:grid-cols-2"><li className="rounded-sm bg-bg/45 p-3"><span className="font-medium text-fg">1. Start Companion</span><br/>Double-click Start-Realhub-Companion.cmd in the main Realhub folder.</li><li className="rounded-sm bg-bg/45 p-3"><span className="font-medium text-fg">2. Confirm Desktop</span><br/>Keep its window open, then run the check below.</li><li className="rounded-sm bg-bg/45 p-3"><span className="font-medium text-fg">3. Load shortcuts</span><br/>Open Games and choose Load approved desktop shortcuts or Steam/Epic roots.</li><li className="rounded-sm bg-bg/45 p-3"><span className="font-medium text-fg">4. Verify first</span><br/>Use a listed shortcut inside an approved root before launching it.</li></ol><div className="mt-4 flex flex-wrap gap-2"><Button variant="secondary" onClick={() => void (async () => { try { const data = await companionHealth(); if (!data?.ok) throw new Error("offline"); setCompanionCheck({ ready: true, desktop: Boolean(data.desktopEnabled), detail: `v${data.version ?? "?"} · ${data.roots ?? 0} roots · badge ${data.trayBadge ?? 0}` }); if ((data.trayBadge ?? 0) > 0) void companionAckJobs(); } catch { setCompanionCheck({ ready: false, desktop: false, detail: "Companion not detected. Start it, leave the window open, then retry." }); } })()}>Check Companion setup</Button><Button variant="secondary" onClick={() => void companionSetAutostart(true).then((r) => setCompanionCheck({ ready: Boolean(r.ok), desktop: companionCheck?.desktop ?? false, detail: r.ok ? "Windows auto-start enabled for Companion." : (r.error || "Auto-start failed.") }))}>Enable Windows auto-start</Button><Button variant="ghost" onClick={() => void companionSetAutostart(false).then((r) => setCompanionCheck({ ready: companionCheck?.ready ?? false, desktop: companionCheck?.desktop ?? false, detail: r.ok ? "Windows auto-start removed." : (r.error || "Could not clear auto-start.") }))}>Disable auto-start</Button></div>{companionCheck && <p className={`mt-3 text-sm ${companionCheck.ready && companionCheck.desktop ? "text-accent" : "text-danger"}`}>{companionCheck.ready ? `Ready · Desktop ${companionCheck.desktop ? "approved" : "not approved"} · ${companionCheck.detail}` : companionCheck.detail}</p>}<p className="mt-2 text-xs text-muted">Offline yt-dlp jobs raise a Windows tray balloon when they finish. Loopback + origin check only — Companion never accepts LAN clients.</p></section>
     <section className="mt-5 grid gap-3 sm:grid-cols-3"><InfoCard icon={<Wifi className="size-5"/>} title="Next: home network" copy="Folder watch events, Roku discovery, stable room invitations, and stronger timeline recovery."/><InfoCard icon={<Images className="size-5"/>} title="Then: media intelligence" copy="Background metadata, thumbnail health, faster source search, and reviewable local tags."/><InfoCard icon={<Bot className="size-5"/>} title="Later: optional assistants" copy="Private recommendation controls, explainable picks, and only opt-in service connections."/></section>
     <div className="mt-5 flex flex-wrap gap-2"><Button variant="secondary" onClick={exportMissions}><Download className="size-4"/>Export mission plan</Button><Button variant="secondary" onClick={() => setMissions(ALL_DEFAULT_MISSIONS)}>Reset to the current delivery queue</Button><span className="self-center text-xs text-muted">Exports the current status, or restores the complete delivery baseline.</span></div>
     <form className="mt-5 flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); const title = idea.trim(); if (!title) return; setMissions((items) => [...items, { id: createLocalId("mission-"), title, detail: "New idea — break this into implementation and verification steps.", done: false }]); setIdea(""); }}><Input value={idea} onChange={(event) => setIdea(event.target.value)} placeholder="Add a larger change idea" aria-label="New mission idea"/><Button type="submit">Add to plan</Button></form>
@@ -3182,7 +3253,7 @@ export function GamesSection() {
       const result = await response.json() as { ok?: boolean; error?: string };
       setLaunchNotice(result.ok ? `Launching ${game.name} through the local companion.` : result.error ?? "The companion could not launch this item.");
     } catch {
-      setLaunchNotice("Desktop launch needs the Reelcase Companion running and this shortcut inside one of its approved Windows folders.");
+      setLaunchNotice("Desktop launch needs the Realhub Companion running and this shortcut inside one of its approved Windows folders.");
     }
   };
   const loadApprovedShortcuts = async () => {
@@ -3221,7 +3292,7 @@ export function GamesSection() {
           : "No approved desktop shortcuts were found. Add a shortcut to Desktop or another approved companion folder.",
       );
     } catch {
-      setLaunchNotice("Companion connection unavailable. Start the local Reelcase Companion, then try again.");
+      setLaunchNotice("Companion connection unavailable. Start the local Realhub Companion, then try again.");
     } finally { setCompanionLoading(false); }
   };
   const gameTypes = [...new Set(games.map((game) => (game.name.match(/\.([^.]+)$/)?.[1] ?? "other").toLowerCase()))].sort();
@@ -3544,7 +3615,7 @@ function LocalCatalog({
             try {
               const { prints } = await companionListPrints(120);
               if (!prints.length) {
-                setCompanionNote("No STL/OBJ/GLB/3MF under approved roots (or Reelcase Prints). Add a prints folder to REELCASE_ALLOWED_ROOTS.");
+                setCompanionNote("No STL/OBJ/GLB/3MF under approved roots (or Realhub Prints). Add a prints folder to REELCASE_ALLOWED_ROOTS.");
                 return;
               }
               const nextItems: LocalItem[] = [];
@@ -3590,7 +3661,7 @@ function LocalCatalog({
                 const result = await companionSavePrint(item.name, btoa(binary));
                 if (result.ok) saved += 1;
               }
-              setCompanionNote(saved ? `Saved ${saved} print file${saved === 1 ? "" : "s"} into the companion Reelcase Prints folder.` : "Nothing saved — start Companion and ensure an approved prints folder exists.");
+              setCompanionNote(saved ? `Saved ${saved} print file${saved === 1 ? "" : "s"} into the companion Realhub Prints folder.` : "Nothing saved — start Companion and ensure an approved prints folder exists.");
             } finally {
               setBusy(false);
             }
@@ -3770,7 +3841,7 @@ export function StreamingSection() {
       title="Streaming destinations"
       copy="Keep watch sources separate from shopping. These official services and public collections open in their own sites."
     >
-      <section className="mt-6 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">External rating search</p><p className="mt-1 text-sm text-muted">Look up a title on the source you trust. Searches open on the official site; Reelcase does not copy ratings into your local catalog.</p><div className="mt-3 flex flex-col gap-2 sm:flex-row"><Input value={ratingQuery} onChange={(event) => setRatingQuery(event.target.value)} placeholder="Search an anime, movie, or series" aria-label="External rating search"/><div className="flex flex-wrap gap-2">{[{ label: "AniList", url: "https://anilist.co/search/anime?search=" }, { label: "AniDB", url: "https://anidb.net/anime/?adb.search=" }, { label: "Rotten Tomatoes", url: "https://www.rottentomatoes.com/search?search=" }].map((source) => <a key={source.label} href={`${source.url}${encodeURIComponent(ratingQuery.trim())}`} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center rounded-sm bg-bg/50 px-3 text-sm text-fg shadow-border">{source.label}<ExternalLink className="ml-2 size-3.5"/></a>)}</div></div></section>
+      <section className="mt-6 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">External rating search</p><p className="mt-1 text-sm text-muted">Look up a title on the source you trust. Searches open on the official site; Realhub does not copy ratings into your local catalog.</p><div className="mt-3 flex flex-col gap-2 sm:flex-row"><Input value={ratingQuery} onChange={(event) => setRatingQuery(event.target.value)} placeholder="Search an anime, movie, or series" aria-label="External rating search"/><div className="flex flex-wrap gap-2">{[{ label: "AniList", url: "https://anilist.co/search/anime?search=" }, { label: "AniDB", url: "https://anidb.net/anime/?adb.search=" }, { label: "Rotten Tomatoes", url: "https://www.rottentomatoes.com/search?search=" }].map((source) => <a key={source.label} href={`${source.url}${encodeURIComponent(ratingQuery.trim())}`} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center rounded-sm bg-bg/50 px-3 text-sm text-fg shadow-border">{source.label}<ExternalLink className="ml-2 size-3.5"/></a>)}</div></div></section>
       <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {services.map((service) => (
           <ServiceLink key={service.name} {...service} />
@@ -3818,7 +3889,7 @@ export function SocialSection() {
     if (accounts.length >= 50 && !accounts.includes(value)) { setError("Your shelf holds 50 accounts. Remove one before adding another."); return; }
     setError(""); save([...new Set([...accounts, value])]); choose(value); setHandle("");
   };
-  return <HubShell eyebrow="Social desk" icon={<X className="size-4" />} title="Keep your people close." copy="Save X profiles, switch between public timelines, and pick up where you left off. Public timelines render inside Reelcase through X’s official widget; private posts and account likes stay on X.">
+  return <HubShell eyebrow="Social desk" icon={<X className="size-4" />} title="Keep your people close." copy="Save X profiles, switch between public timelines, and pick up where you left off. Public timelines render inside Realhub through X’s official widget; private posts and account likes stay on X.">
     <form className="mt-6 flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); add(); }}><Input value={handle} onChange={(event) => setHandle(event.target.value)} placeholder="@handle or X profile URL" aria-label="X account handle"/><Button type="submit" disabled={!handle.trim()}>Add account</Button></form>
     {error && <p role="alert" className="mt-2 text-sm text-danger">{error}</p>}
     <Input className="mt-4" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find a saved account" aria-label="Search saved X accounts"/>
@@ -3852,11 +3923,14 @@ export function WatchRoomSection() {
   const [roomHealth, setRoomHealth] = useState<RoomHealth>({ lastPublishedAt: 0, lastHostStateAt: 0, lastQueueAt: 0, lastDriftSeconds: 0, queueRevision: 0, queueRequests: 0, queueAccepted: 0, staleDropped: 0, resyncRequests: 0 });
   const [roomLedger, setRoomLedger] = useState<RoomLedgerEvent[]>([]);
   const [ledgerRoom, setLedgerRoom] = useState("");
-  const [stageSize, setStageSize] = useState<"compact" | "theater" | "cinema">("compact");
+  const [stageSize, setStageSize] = useState<"compact" | "theater" | "cinema">("theater");
   const [playback, setPlayback] = useState({ playing: false, position: 0 });
   const [timelineEvidence, setTimelineEvidence] = useState<{ source: "local" | "remote" | "estimated"; at: number }>({ source: "local", at: Date.now() });
   const [chat, setChat] = useState<string[]>([]);
   const [message, setMessage] = useState("");
+  const [roomSearch, setRoomSearch] = useState("");
+  const deferredRoomSearch = useDeferredValue(roomSearch);
+  const [roomRatingRevision, setRoomRatingRevision] = useState(0);
   const [partyPrompt, setPartyPrompt] = useState("Pick the next vibe");
   const [partyVotes, setPartyVotes] = useState<Record<string, number>>({ Comedy: 0, Action: 0, Surprise: 0 });
   const [friendName, setFriendName] = useState("");
@@ -3868,6 +3942,8 @@ export function WatchRoomSection() {
   });
   const videos = useLibrary((s) => s.videos);
   const favorites = useLibrary((s) => s.favorites);
+  const hiddenVideos = useLibrary((s) => s.hiddenVideos);
+  const toggleFavorite = useLibrary((s) => s.toggleFavorite);
   const history = useLibrary((s) => s.history);
   const recordPlay = useLibrary((s) => s.recordPlay);
   useEffect(() => { localStorage.setItem("reelcase.profile-name", name.trim() || "Host"); }, [name]);
@@ -3879,24 +3955,50 @@ export function WatchRoomSection() {
     },
   );
   const sharedVideo = videos.find((video) => video.id === sharedVideoId);
+  const roomRating = useMemo(() => sharedVideoId ? getRating(sharedVideoId) : 0, [roomRatingRevision, sharedVideoId]);
+  const twitchClip = sharedVideo?.remote?.kind === "twitch" && (sharedVideo.extension === "clip" || sharedVideo.remote.embedUrl?.includes("clips.twitch.tv"));
   // Providers occasionally surface corrupt/millisecond clocks. Never let an
   // untrusted embed turn the room state into days of phantom playback.
-  const roomClockCeiling = Math.max(60, Math.min(sharedVideo?.duration && sharedVideo.duration > 0 ? sharedVideo.duration + 30 : 12 * 60 * 60, 12 * 60 * 60));
-  const clampRoomClock = (seconds: number) => Math.max(0, Math.min(roomClockCeiling, Number.isFinite(seconds) ? seconds : 0));
+  const [measuredDuration, setMeasuredDuration] = useState<{ videoId: string; seconds: number } | null>(null);
+  const roomDuration = (videoId = sharedVideoId) => {
+    if (videoId === sharedVideoId) {
+      const mediaDuration = roomVideoRef.current?.duration;
+      const twitchDuration = sharedVideo?.remote?.kind === "twitch" && !sharedVideo.remote.live ? twitchPlayerRef.current?.getDuration?.() : undefined;
+      for (const duration of [mediaDuration, twitchDuration, measuredDuration?.videoId === videoId ? measuredDuration.seconds : undefined])
+        if (typeof duration === "number" && Number.isFinite(duration) && duration > 0) return duration;
+    }
+    const video = videoId === sharedVideoId ? sharedVideo : videos.find((item) => item.id === videoId);
+    return video?.remote?.live ? undefined : video?.duration;
+  };
+  const clampRoomClock = (seconds: number, videoId = sharedVideoId) => clampRoomPosition(seconds, roomDuration(videoId));
+  const currentHostClock = () => {
+    const media = roomVideoRef.current;
+    if (media && !sharedVideo?.remote) {
+      const actual = media.currentTime;
+      return clampRoomClock(actual > 0.25 || playback.position <= 0.25 ? actual : playback.position);
+    }
+    const estimated = estimatedProviderPosition(lastRoomPosition.current, playback.position, playback.playing && (sharedVideo?.remote?.kind !== "twitch" || twitchPlayingRef.current) ? youtubePlaybackStartedAt.current : null, Date.now());
+    const twitch = sharedVideo?.remote?.kind === "twitch" ? twitchPlayerRef.current?.getCurrentTime() : undefined;
+    return clampRoomClock(typeof twitch === "number" && Number.isFinite(twitch) && twitch > 0.25 ? Math.max(twitch, estimated) : estimated);
+  };
   const localShareIsMatched = !sharedVideoId.startsWith("local:") || localShare?.fingerprint === sharedVideoId.slice("local:".length);
   const roomVideoRef = useRef<HTMLVideoElement>(null);
   const remoteFrameRef = useRef<HTMLIFrameElement>(null);
   const twitchPlayerHostRef = useRef<HTMLDivElement>(null);
   const twitchPlayerRef = useRef<TwitchRoomPlayer | null>(null);
+  const twitchPlayingRef = useRef(false);
+  const [twitchActuallyPlaying, setTwitchActuallyPlaying] = useState(false);
   const [remoteFrameReady, setRemoteFrameReady] = useState(0);
   const [remoteSeekNonce, setRemoteSeekNonce] = useState(0);
   const lastYoutubeSeekNonce = useRef(0);
   const lastTwitchSeekNonce = useRef(0);
+  const lastTwitchPlaybackCommand = useRef<boolean | null>(null);
   const suppressRemotePlayerEchoUntil = useRef(0);
   const [twitchPlayerStatus, setTwitchPlayerStatus] = useState("Waiting for Twitch player…");
   const [twitchPlayerReady, setTwitchPlayerReady] = useState(0);
   const [candidateSeed, setCandidateSeed] = useState(() => Date.now());
   const [roomPickLimit, setRoomPickLimit] = useState(18);
+  const [youtubePickLimit, setYoutubePickLimit] = useState(24);
   const youtubePlaybackStartedAt = useRef<number | null>(null);
   const [localVideoUrl, setLocalVideoUrl] = useState("");
   const lastRoomTick = useRef(0);
@@ -3910,6 +4012,7 @@ export function WatchRoomSection() {
   const room = activeRoom ?? "";
   const [relayConfig, setRelayConfig] = useState<RoomRelayConfig>();
   const p2p = useP2PRoom(room, name.trim() || "Guest", relayConfig);
+  const roomInvite = shareableRoomInvite(window.location.origin, window.location.pathname, activeRoom ?? roomCode);
   useEffect(() => {
     queueRevisionRef.current = 0;
     lastAcceptedQueueRevision.current = 0;
@@ -3950,7 +4053,7 @@ export function WatchRoomSection() {
   const roomCandidates = useMemo(() => {
     const played = new Set(history.map((entry) => entry.id));
     return videos
-      .filter((video) => !video.isSample && !/\b(blender|big buck bunny|cosmos laundromat|tears of steel|elephants dream|sintel|night rain|empty house|golden coast|tungsten reel)\b/i.test(`${video.name} ${video.remote?.channelName ?? ""} ${video.tagline ?? ""}`) && !useLibrary.getState().unavailable[video.id] && Boolean(video.remote?.embedUrl || video.src))
+      .filter((video) => !video.isSample && !/\b(blender|big buck bunny|cosmos laundromat|tears of steel|elephants dream|sintel|night rain|empty house|golden coast|tungsten reel)\b/i.test(`${video.name} ${video.remote?.channelName ?? ""} ${video.tagline ?? ""}`) && !useLibrary.getState().unavailable[video.id] && !hiddenVideos[video.id] && Boolean(video.remote?.embedUrl || video.src))
       // Room starters intentionally favor exposure over a fixed "top picks"
       // list: a saved title gets a light lift, while something already played
       // yields space to an unplayed playable title.
@@ -3962,11 +4065,17 @@ export function WatchRoomSection() {
       })
       .sort((a, b) => b.rank - a.rank)
       .map(({ video }) => video);
-  }, [candidateSeed, favorites, history, videos]);
+  }, [candidateSeed, favorites, hiddenVideos, history, videos]);
+  const roomSearchResults = useMemo(() => {
+    const needle = deferredRoomSearch.trim().toLowerCase();
+    return (needle ? roomCandidates.filter((video) => `${video.name} ${video.remote?.channelName ?? ""}`.toLowerCase().includes(needle)) : roomCandidates).slice(0, needle ? 20 : 12);
+  }, [deferredRoomSearch, roomCandidates]);
+  useEffect(() => { const refresh = () => setRoomRatingRevision((value) => value + 1); window.addEventListener("reelcase:rating-change", refresh); return () => window.removeEventListener("reelcase:rating-change", refresh); }, []);
   const localQueueCandidates = useMemo(
     () => roomCandidates.filter((video) => !video.remote && video.id !== sharedVideoId && !queue.includes(video.id)).slice(0, 18),
     [queue, roomCandidates, sharedVideoId],
   );
+  const youtubeRoomCandidates = useMemo(() => roomCandidates.filter((video) => video.remote?.kind === "youtube"), [roomCandidates]);
   const queueRecommendations = useMemo(() => {
     const alreadyShown = new Set(roomCandidates.slice(0, roomPickLimit).map((video) => video.id));
     const queued = new Set(queue);
@@ -4011,13 +4120,20 @@ export function WatchRoomSection() {
     setRoomHealth((health) => ({ ...health, lastPublishedAt: sentAt, queueRevision: queueRevisionRef.current }));
   }, [joinedAsGuest, localQueue, p2p.peers.length, playback.playing, playback.position, queue, sharedVideoId]);
   useEffect(() => {
-    // A theater invite should request state immediately. This also wakes the
-    // same-machine BroadcastChannel fallback before WebRTC has a peer row.
-    if (!joinedAsGuest || !p2p.joined) return;
-    p2p.send({ type: "resync-request", sentAt: Date.now() });
-    setRoomHealth((health) => ({ ...health, resyncRequests: health.resyncRequests + 1 }));
-    noteRoom("request", "Requested the host’s initial state.");
-  }, [joinedAsGuest, noteRoom, p2p.joined, p2p.send]);
+    // Registration can finish before the host has installed its listener or a
+    // peer channel has opened. Retry until a fresh state actually arrives.
+    if (!joinedAsGuest || !p2p.joined || lastAcceptedRoomStateAt.current) return;
+    let attempts = 0;
+    const request = () => {
+      if (lastAcceptedRoomStateAt.current || ++attempts > 8) { window.clearInterval(retry); return; }
+      p2p.send({ type: "resync-request", sentAt: Date.now() });
+      setRoomHealth((health) => ({ ...health, resyncRequests: health.resyncRequests + 1 }));
+      if (attempts === 1) noteRoom("request", "Requested the host’s initial state.");
+    };
+    const initial = window.setTimeout(request, 0);
+    const retry = window.setInterval(request, 1_500);
+    return () => { window.clearTimeout(initial); window.clearInterval(retry); };
+  }, [joinedAsGuest, noteRoom, p2p.joined, p2p.send, room]);
   useEffect(
     () =>
       p2p.onMessage((from, raw, channel) => {
@@ -4045,7 +4161,7 @@ export function WatchRoomSection() {
         if (data.type === "share-ready" && data.name && data.fingerprint) {
           const share = { name: data.name, fingerprint: data.fingerprint, size: Number(data.size) || 0, modified: Number(data.modified) || 0 };
           setPendingLocalShare(share);
-          setInviteNotice(`${data.name} is waiting for a permitted local match. Select the same file on this device; Reelcase compares name, size, and modified time without sending file contents.`);
+          setInviteNotice(`${data.name} is waiting for a permitted local match. Select the same file on this device; Realhub compares name, size, and modified time without sending file contents.`);
         }
         if (data.type === "share-matched" && data.name && data.fingerprint) {
           setLocalShareMatches((matches) => ({ ...matches, [from]: { name: data.name!, fingerprint: data.fingerprint!, at: Date.now() } }));
@@ -4058,7 +4174,12 @@ export function WatchRoomSection() {
             noteRoom("dropped", "Ignored a guest playback request with an invalid clock.");
           } else {
             noteRoom("request", data.seek ? "Accepted a guest timeline seek request." : "Accepted a guest playback request.");
-            sync({ playing: Boolean(data.playing), position: clampRoomClock(Number(data.position) || playback.position) }, Boolean(data.seek));
+            if (data.videoId && data.videoId !== sharedVideoId) {
+              noteRoom("dropped", "Ignored a playback request for a different video.");
+            } else {
+              const requested = typeof data.position === "number" && Number.isFinite(data.position) ? data.position : playback.position;
+              sync({ playing: Boolean(data.playing), position: clampRoomClock(requested) }, Boolean(data.seek));
+            }
           }
         }
         if (data.type === "sync") {
@@ -4083,13 +4204,13 @@ export function WatchRoomSection() {
           // value rewind an established room timeline.
           const safePosition = clampRoomClock(!data.seek && nextPosition < lastRoomPosition.current
             ? lastRoomPosition.current
-            : nextPosition);
+            : nextPosition, data.videoId);
           const drift = Math.abs(safePosition - playback.position);
           lastAcceptedTimelineAt.current = sentAt;
           lastRoomPosition.current = safePosition;
           applyingRemotePlaybackUntil.current = Date.now() + 900;
           setTimelineEvidence({ source: "remote", at: Date.now() });
-          if (data.seek) setRemoteSeekNonce((value) => value + 1);
+          if (data.seek || drift > 0.75) setRemoteSeekNonce((value) => value + 1);
           setPlayback({ playing: Boolean(data.playing), position: safePosition });
           setRoomHealth((health) => ({ ...health, lastDriftSeconds: drift, lastHostStateAt: Date.now() }));
           if (drift >= 1) noteRoom("timeline", `Reconciled ${drift.toFixed(1)}s of playback drift over ${channel}.`);
@@ -4161,26 +4282,27 @@ export function WatchRoomSection() {
           const position = Number(data.position) || 0;
           const elapsed = data.playing ? Math.max(0, (Date.now() - sentAt) / 1000) : 0;
           const nextPosition = position + elapsed;
-          const safePosition = clampRoomClock(!videoChanged && nextPosition + 0.75 < lastRoomPosition.current ? lastRoomPosition.current : nextPosition);
+          const safePosition = clampRoomClock(!videoChanged && nextPosition + 0.75 < lastRoomPosition.current ? lastRoomPosition.current : nextPosition, data.videoId);
           const drift = Math.abs(safePosition - playback.position);
           lastAcceptedRoomStateAt.current = sentAt;
           lastAcceptedTimelineAt.current = Math.max(lastAcceptedTimelineAt.current, sentAt);
           lastRoomPosition.current = safePosition;
           applyingRemotePlaybackUntil.current = Date.now() + 900;
           setTimelineEvidence({ source: "remote", at: Date.now() });
+          if (videoChanged || drift > 0.75) setRemoteSeekNonce((value) => value + 1);
           setPlayback({ playing: Boolean(data.playing), position: safePosition });
           setRoomHealth((health) => ({ ...health, lastHostStateAt: Date.now(), lastDriftSeconds: drift }));
           if (drift >= 1) noteRoom("timeline", `Reconciled ${drift.toFixed(1)}s from the authoritative room state.`);
         }
         if (data.type === "resync-request" && !joinedAsGuest) {
-          const position = roomVideoRef.current?.currentTime ?? playback.position;
+          const position = currentHostClock();
           const sentAt = Date.now();
-          p2p.send({ type: "room-state", playing: !roomVideoRef.current?.paused && playback.playing, position, videoId: sharedVideoId, queue, localQueue, queueRevision: queueRevisionRef.current, sentAt }, from);
+          p2p.send({ type: "room-state", playing: playback.playing, position, videoId: sharedVideoId, queue, localQueue, queueRevision: queueRevisionRef.current, sentAt }, from);
           setRoomHealth((health) => ({ ...health, lastPublishedAt: sentAt }));
           noteRoom("state", "Sent a targeted state reconciliation to a guest.");
         }
       }),
-    [joinedAsGuest, localQueue, noteRoom, p2p.onMessage, p2p.send, playback.playing, playback.position, queue, roomClockCeiling, sharedVideoId, videos],
+    [joinedAsGuest, localQueue, noteRoom, p2p.onMessage, p2p.send, playback.playing, playback.position, queue, sharedVideoId, videos, measuredDuration],
   );
   const sync = (next: { playing: boolean; position: number }, seek = false) => {
     if (!seek && Date.now() < applyingRemotePlaybackUntil.current) return;
@@ -4195,7 +4317,6 @@ export function WatchRoomSection() {
     // so Pause does not broadcast the original zero timestamp back to guests.
     const isYoutube = sharedVideo?.remote?.kind === "youtube";
     const isTwitch = sharedVideo?.remote?.kind === "twitch";
-    const elapsed = (isYoutube || isTwitch) && playback.playing && youtubePlaybackStartedAt.current ? Math.max(0, (Date.now() - youtubePlaybackStartedAt.current) / 1000) : 0;
     const playerPosition = isTwitch ? twitchPlayerRef.current?.getCurrentTime() : undefined;
     const hasTwitchPosition = typeof playerPosition === "number" && Number.isFinite(playerPosition) && playerPosition > 0.25;
     // Provider event handlers occasionally emit a transient zero immediately
@@ -4204,12 +4325,12 @@ export function WatchRoomSection() {
     const providerFallback = lastRoomPosition.current > 0.25 && next.position <= 0.25 && !seek;
     // A provider pause is a time capture, not a seek. Its callback can be
     // late (or transiently zero), so freeze the furthest trusted local clock.
-    const providerClock = Math.max(lastRoomPosition.current, playback.position + elapsed);
-    const position = !seek && (isYoutube || isTwitch) && !next.playing
+    const providerClock = estimatedProviderPosition(lastRoomPosition.current, playback.position, playback.playing ? youtubePlaybackStartedAt.current : null, Date.now());
+    const position = seek ? next.position : (isYoutube || isTwitch) && !next.playing
       ? Math.max(providerClock, next.position)
       : isTwitch
         ? hasTwitchPosition
-          ? playerPosition
+          ? Math.max(playerPosition, providerClock, next.position)
           : providerFallback ? providerClock : Math.max(providerClock, next.position)
         : providerFallback
           ? providerClock
@@ -4237,7 +4358,8 @@ export function WatchRoomSection() {
     const timer = window.setInterval(() => {
       const twitchTime = provider === "twitch" ? twitchPlayerRef.current?.getCurrentTime() : undefined;
       const actual = typeof twitchTime === "number" && twitchTime > 0.25 ? twitchTime : undefined;
-      const estimated = clampRoomClock(actual ?? Math.max(lastRoomPosition.current, (Date.now() - youtubePlaybackStartedAt.current!) / 1000));
+      const estimated = clampRoomClock(actual ?? estimatedProviderPosition(lastRoomPosition.current, playback.position, youtubePlaybackStartedAt.current, Date.now()));
+      if (provider === "twitch" && !twitchPlayingRef.current) return;
       if (estimated <= lastRoomPosition.current + 0.2) return;
       lastRoomPosition.current = estimated;
       setPlayback((current) => current.playing ? { ...current, position: estimated } : current);
@@ -4254,11 +4376,11 @@ export function WatchRoomSection() {
       setInviteNotice("Requested the host’s current room state.");
       return;
     }
-    const localPosition = roomVideoRef.current?.currentTime;
-    const twitchPosition = sharedVideo?.remote?.kind === "twitch" ? twitchPlayerRef.current?.getCurrentTime() : undefined;
-    const position = typeof localPosition === "number" && localPosition > 0.25 ? localPosition : typeof twitchPosition === "number" && twitchPosition > 0.25 ? twitchPosition : playback.position;
+    const position = currentHostClock();
     const playing = roomVideoRef.current ? !roomVideoRef.current.paused : playback.playing;
-    sync({ playing, position });
+    lastRoomPosition.current = position;
+    youtubePlaybackStartedAt.current = playing ? Date.now() - position * 1000 : null;
+    setPlayback({ playing, position });
     const sentAt = Date.now();
     p2p.send({ type: "room-state", playing, position, videoId: sharedVideoId, queue, localQueue, queueRevision: queueRevisionRef.current, sentAt });
     setRoomHealth((health) => ({ ...health, lastPublishedAt: sentAt }));
@@ -4266,12 +4388,18 @@ export function WatchRoomSection() {
     setInviteNotice("Sent the current video and timeline to every guest.");
   };
   const copyInvite = async () => {
-    const link = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(roomCode)}&theater=1`;
+    const link = shareableRoomInvite(window.location.origin, window.location.pathname, roomCode);
+    if (!link) {
+      setInviteNotice("localhost works only on this computer. Open Realhub from its home-network address, then copy the room invitation.");
+      return;
+    }
     try {
+      const response = await fetch(window.location.pathname, { method: "HEAD", cache: "no-store", signal: AbortSignal.timeout(5000) });
+      if (!response.ok) throw new Error("app unavailable");
       await navigator.clipboard.writeText(link);
       setInviteNotice("Theater invitation link copied.");
     } catch {
-      setInviteNotice(`Share this theater link: ${link}`);
+      setInviteNotice("Realhub is not responding at this address. Reopen the app from its home-network address before copying the invitation.");
     }
   };
   useEffect(() => {
@@ -4298,15 +4426,17 @@ export function WatchRoomSection() {
       if (remoteSeekNonce) frame.postMessage(JSON.stringify({ event: "command", func: "seekTo", args: [playback.position, true] }), target);
     }
     frame.postMessage(JSON.stringify({ event: "command", func: playback.playing ? "playVideo" : "pauseVideo", args: [] }), target);
-  }, [playback, remoteFrameReady, remoteSeekNonce, sharedVideo]);
+  }, [playback.playing, remoteFrameReady, remoteSeekNonce, sharedVideo?.id]);
   useEffect(() => {
-    if (sharedVideo?.remote?.kind !== "twitch") { twitchPlayerRef.current = null; return; }
+    if (sharedVideo?.remote?.kind !== "twitch" || twitchClip) { twitchPlayerRef.current = null; return; }
     const host = twitchPlayerHostRef.current;
     if (!host) return;
     let cancelled = false;
     const hostId = `reelcase-twitch-${p2p.selfId}`;
     host.id = hostId;
     host.replaceChildren();
+    twitchPlayingRef.current = false;
+    setTwitchActuallyPlaying(false);
     setTwitchPlayerStatus("Loading Twitch interactive player…");
     void loadTwitchEmbed().then((api) => {
       if (cancelled) return;
@@ -4318,37 +4448,54 @@ export function WatchRoomSection() {
         ...(live ? { channel: sharedVideo.remote?.watchUrl?.split("/").pop() } : { video }),
       });
       twitchPlayerRef.current = player;
-      const events = player.constructor as { READY?: string; PLAY?: string; PAUSE?: string; SEEK?: string };
-      player.addEventListener(events.READY ?? "ready", () => { if (!cancelled) { setTwitchPlayerStatus("Twitch player ready. Use room controls to start."); setTwitchPlayerReady(Date.now()); } });
+      lastTwitchPlaybackCommand.current = null;
+      const events = player.constructor as { READY?: string; PLAY?: string; PAUSE?: string; SEEK?: string; PLAYING?: string; PLAYBACK_BLOCKED?: string };
+      player.addEventListener(events.READY ?? "ready", () => { if (!cancelled) {
+        const duration = player.getDuration?.();
+        if (!live && typeof duration === "number" && Number.isFinite(duration) && duration > 0) setMeasuredDuration({ videoId: sharedVideo.id, seconds: duration });
+        setTwitchPlayerStatus("Twitch player ready. Use room controls to start."); setTwitchPlayerReady(Date.now());
+      } });
       player.addEventListener(events.PLAY ?? "play", () => { const position = player.getCurrentTime(); if (!cancelled && Date.now() > suppressRemotePlayerEchoUntil.current) sync({ playing: true, position: position > 0.25 ? position : playback.position }); });
-      player.addEventListener(events.PAUSE ?? "pause", () => { const position = player.getCurrentTime(); if (!cancelled && Date.now() > suppressRemotePlayerEchoUntil.current) sync({ playing: false, position: position > 0.25 ? position : playback.position }); });
-      player.addEventListener(events.SEEK ?? "seek", () => { if (!cancelled && !live) sync({ playing: true, position: player.getCurrentTime() || playback.position }, true); });
+      player.addEventListener(events.PAUSE ?? "pause", () => { twitchPlayingRef.current = false; setTwitchActuallyPlaying(false); const position = player.getCurrentTime(); if (!cancelled && Date.now() > suppressRemotePlayerEchoUntil.current) sync({ playing: false, position: position > 0.25 ? position : playback.position }); });
+      player.addEventListener(events.SEEK ?? "seek", () => { if (!cancelled && !live && Date.now() > suppressRemotePlayerEchoUntil.current) sync({ playing: true, position: player.getCurrentTime() }, true); });
+      player.addEventListener(events.PLAYING ?? "playing", () => { if (!cancelled) { twitchPlayingRef.current = true; setTwitchActuallyPlaying(true); setTwitchPlayerStatus("Twitch playback started."); } });
+      player.addEventListener(events.PLAYBACK_BLOCKED ?? "playback-blocked", () => { if (!cancelled) { twitchPlayingRef.current = false; setTwitchActuallyPlaying(false); setTwitchPlayerStatus("Twitch blocked playback. Press Play in its player."); } });
     }).catch(() => { if (!cancelled) setTwitchPlayerStatus("Twitch interactive player could not load. Open Twitch directly below."); });
-    return () => { cancelled = true; twitchPlayerRef.current = null; host.replaceChildren(); };
+    return () => { cancelled = true; twitchPlayerRef.current = null; lastTwitchPlaybackCommand.current = null; host.replaceChildren(); };
   // The player belongs to the selected card, not to every timeline tick.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [p2p.selfId, sharedVideo?.id]);
+  }, [p2p.selfId, room, sharedVideo?.id]);
   useEffect(() => {
-    if (sharedVideo?.remote?.kind !== "twitch") return;
+    if (sharedVideo?.remote?.kind !== "twitch" || twitchClip) return;
     const player = twitchPlayerRef.current;
     if (!player) return;
     if (remoteSeekNonce !== lastTwitchSeekNonce.current) {
       lastTwitchSeekNonce.current = remoteSeekNonce;
-      if (remoteSeekNonce && !sharedVideo.remote.live) player.seek(playback.position);
+      if (remoteSeekNonce && !sharedVideo.remote.live) {
+        suppressRemotePlayerEchoUntil.current = Date.now() + 1_000;
+        player.seek(clampRoomClock(playback.position));
+      }
     }
-    suppressRemotePlayerEchoUntil.current = Date.now() + 750;
-    if (playback.playing) player.play(); else player.pause();
-  }, [playback, remoteSeekNonce, sharedVideo, twitchPlayerReady]);
+    // A clock heartbeat is not a playback command. Calling play each second
+    // can restart a buffering Twitch VOD near its first second.
+    if (lastTwitchPlaybackCommand.current !== playback.playing) {
+      lastTwitchPlaybackCommand.current = playback.playing;
+      suppressRemotePlayerEchoUntil.current = Date.now() + 750;
+      if (playback.playing) player.play(); else player.pause();
+    }
+  }, [playback.playing, playback.position, remoteSeekNonce, sharedVideo?.id, twitchPlayerReady]);
   const toggleRoomPlayback = () => {
     const playing = !playback.playing;
     const player = twitchPlayerRef.current;
     // Call Twitch inside the click gesture to satisfy browser media policy;
     // the shared state still travels to every connected guest afterwards.
-    if (sharedVideo?.remote?.kind === "twitch" && (!player || !twitchPlayerReady)) {
+    if (sharedVideo?.remote?.kind === "twitch" && !twitchClip && (!player || !twitchPlayerReady)) {
       setInviteNotice("Twitch is still preparing its player. Wait for “Twitch player ready,” then press Play.");
       return;
     }
-    if (sharedVideo?.remote?.kind === "twitch" && player) {
+    if (sharedVideo?.remote?.kind === "twitch" && !twitchClip && player) {
+      lastTwitchPlaybackCommand.current = playing;
+      suppressRemotePlayerEchoUntil.current = Date.now() + 750;
       if (playing) {
         // This call is deliberately inside the click gesture. Do not mute a
         // VOD before trying to start it: Twitch permits a direct user-start
@@ -4356,6 +4503,7 @@ export function WatchRoomSection() {
         player.setMuted?.(false);
         player.play();
         setTwitchPlayerStatus("Starting Twitch from the room control…");
+        window.setTimeout(() => { if (!twitchPlayingRef.current) setTwitchPlayerStatus("Twitch is waiting for a Play press inside its player."); }, 1800);
       } else player.pause();
     }
     sync({ ...playback, playing });
@@ -4503,6 +4651,7 @@ export function WatchRoomSection() {
             <Button variant="secondary" className="mt-3 w-full" onClick={() => void copyInvite()}>
               <Copy className="size-4" /> Copy theater invitation link
             </Button>
+            {!roomInvite && <p className="mt-2 text-xs leading-5 text-muted">This localhost address opens only on this computer. Use the home-network address in the Connection guide before sharing with another device. <button type="button" className="text-accent underline" onClick={() => useLibrary.getState().setSource("connection")}>Open Connection guide</button></p>}
             {inviteNotice && <p className="mt-2 break-all text-xs text-accent">{inviteNotice}</p>}
             <Button
               className="mt-5 w-full"
@@ -4574,7 +4723,7 @@ export function WatchRoomSection() {
           : "Peer connection for your selected guests. Playback events are synchronized across connected devices."
       }
     >
-      <div className="mt-6 grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(18rem,0.7fr)]">
+      <div className="mt-6 grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(20rem,0.6fr)]">
         <div className="min-w-0 rounded-lg bg-elevated p-5 shadow-border">
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">
@@ -4586,33 +4735,34 @@ export function WatchRoomSection() {
             </span>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Button size="sm" variant="secondary" onClick={() => {
+            <Button size="sm" variant="secondary" disabled={!p2p.joined} onClick={() => {
               const invite = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(activeRoom)}&theater=1`;
               const opened = window.open(invite, "reelcase-local-guest", "noopener,width=1200,height=820");
               setInviteNotice(opened ? "Opened a separate local guest window. Give it a moment to appear in Guests." : "Your browser blocked the guest window. Allow pop-ups, then try again.");
             }}>Open local guest window</Button>
-            <Button size="sm" variant="ghost" onClick={() => void navigator.clipboard?.writeText(JSON.stringify({ room: activeRoom, invitation: `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(activeRoom)}&theater=1`, role: joinedAsGuest ? "guest" : "host", self: p2p.selfId, signaling: p2p.joined, peers: p2p.peers, transportTest: pulseStatus, reliability: roomHealth, ledger: roomLedger, events: p2p.events, capturedAt: new Date().toISOString() }, null, 2)).then(() => setInviteNotice("Connection and reconciliation diagnostic copied."), () => setInviteNotice("Could not copy the diagnostic."))}>Copy room diagnostic</Button>
+            <Button size="sm" variant="ghost" onClick={() => void navigator.clipboard?.writeText(JSON.stringify({ room: activeRoom, invitation: roomInvite, invitationNote: roomInvite ? undefined : "Open Realhub from a home-network address before sharing this room with another device.", role: joinedAsGuest ? "guest" : "host", self: p2p.selfId, signaling: p2p.joined, peers: p2p.peers, transportTest: pulseStatus, reliability: roomHealth, ledger: roomLedger, events: p2p.events, capturedAt: new Date().toISOString() }, null, 2)).then(() => setInviteNotice("Connection and reconciliation diagnostic copied."), () => setInviteNotice("Could not copy the diagnostic."))}>Copy room diagnostic</Button>
           </div>
-          <div className="mt-3 rounded-sm bg-bg/45 p-3">
+          {!roomInvite && <p className="mt-2 text-xs leading-5 text-muted">A localhost invitation cannot open on another device. Open this room through the home-network address before sharing. <button type="button" className="text-accent underline" onClick={() => useLibrary.getState().setSource("connection")}>Open Connection guide</button></p>}
+          <details className="mt-3 rounded-sm bg-bg/45 p-3"><summary className="cursor-pointer text-xs font-medium text-fg">Connection details · {p2p.peers.filter((peer) => peer.connectionState === "connected").length}/{p2p.peers.length} connected</summary>
             <div className="flex items-center justify-between gap-3"><p className="text-xs font-medium text-fg">Connection signals</p><span className="text-xs text-muted">{p2p.peers.filter((peer) => peer.connectionState === "connected").length}/{p2p.peers.length} connected · {p2p.peers.filter((peer) => peer.connectionState === "connected" && peer.candidateType === "relay").length} relayed</span></div>
             <RoomRelaySettings config={relayConfig} onChange={setRelayConfig} />
             <div className="mt-2 max-h-28 space-y-1 overflow-y-auto font-mono text-[11px] leading-4 text-muted">{p2p.events.map((event, index) => <p key={`${event}-${index}`}>{event}</p>)}</div>
             {!p2p.peers.length && p2p.joined && <p className="mt-2 text-xs text-accent">Signaling is healthy, but no peer is in <strong>{activeRoom}</strong>. The other window must join this exact code—not create its own. Use Open local guest window or copy this room link.</p>}
             {p2p.peers.length > 0 && <div className="mt-2 space-y-1 text-xs text-muted">{p2p.peers.map((peer) => <p key={peer.id}><strong className="text-fg">{peer.name || "Guest"}</strong> · {peer.connectionState} · {peer.candidateType ?? "path pending"} · {peer.rttMs == null ? "RTT pending" : `${peer.rttMs}ms`} · {peer.id.slice(-6)}</p>)}</div>}
             <div className="mt-3 flex flex-wrap items-center gap-2"><Button size="sm" variant="secondary" disabled={!p2p.peers.some((peer) => peer.connectionState === "connected")} onClick={() => { setPulseStatus("Sending chat transport test…"); p2p.send({ type: "room-pulse", sentAt: Date.now() }); }}>Test chat transport</Button><span className="text-xs text-muted">{pulseStatus}</span></div>
-          </div>
+          </details>
           <h2 className="mt-2 font-display text-3xl text-fg">
-            {playback.playing ? "Playing together" : "Paused together"}
+            {playback.playing && sharedVideo?.remote?.kind === "twitch" && !twitchClip && !twitchActuallyPlaying ? "Twitch waiting for playback" : playback.playing ? "Playing together" : "Paused together"}
           </h2>
           <p className="mt-2 text-sm text-muted">
             Timeline {Math.floor(playback.position / 60)}:
             {String(Math.floor(playback.position % 60)).padStart(2, "0")} · {timelineEvidence.source === "remote" ? "host-confirmed" : timelineEvidence.source === "local" ? "local player" : "provider estimate"} · checked {new Date(timelineEvidence.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}.
           </p>
-          <section className="mt-4 rounded-md border border-border bg-bg/45 p-3" aria-label="Room reliability">
+          <details className="mt-4 rounded-md border border-border bg-bg/45 p-3" aria-label="Room reliability"><summary className="cursor-pointer text-xs font-medium text-fg">Room reliability · r{roomHealth.queueRevision} · {roomHealth.staleDropped} stale commands dropped</summary>
             <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Room reliability</p><p className="mt-1 text-xs text-muted">{joinedAsGuest ? "Guest commands are requests; the host publishes the canonical state." : "This device is the host and publishes the canonical state."}</p></div><span className="rounded-full bg-accent/15 px-2 py-1 text-xs text-accent">{p2p.peers.some((peer) => peer.connectionState === "connected" && peer.candidateType === "relay") ? "TURN relay connected" : p2p.peers.some((peer) => peer.connectionState === "connected" && ["host", "srflx", "prflx"].includes(peer.candidateType ?? "")) ? "direct path connected" : p2p.peers.some((peer) => peer.connectionState === "connected") ? "connected · path pending" : p2p.joined ? "signaling online · peer pending" : "connecting"}</span></div>
             <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2 xl:grid-cols-4"><div className="rounded-sm bg-elevated p-2"><span className="block text-muted">{joinedAsGuest ? "Last host state" : "Last publish"}</span><strong className="mt-1 block text-fg">{roomTimeLabel(joinedAsGuest ? roomHealth.lastHostStateAt : roomHealth.lastPublishedAt)}</strong></div><div className="rounded-sm bg-elevated p-2"><span className="block text-muted">Queue revision</span><strong className="mt-1 block text-fg">r{roomHealth.queueRevision} · {queue.length} title{queue.length === 1 ? "" : "s"}</strong></div><div className="rounded-sm bg-elevated p-2"><span className="block text-muted">Last correction</span><strong className="mt-1 block text-fg">{roomHealth.lastDriftSeconds ? `${roomHealth.lastDriftSeconds.toFixed(1)}s` : "none needed"}</strong></div><div className="rounded-sm bg-elevated p-2"><span className="block text-muted">Safety checks</span><strong className="mt-1 block text-fg">{roomHealth.staleDropped} stale dropped · {roomHealth.resyncRequests} resync</strong></div></div>
             <details className="mt-3 rounded-sm bg-elevated p-2 text-xs text-muted"><summary className="cursor-pointer font-medium text-fg">Session ledger · {roomLedger.length} local event{roomLedger.length === 1 ? "" : "s"}</summary><div className="mt-2 max-h-32 space-y-1 overflow-y-auto">{roomLedger.length ? roomLedger.slice().reverse().map((event, index) => <p key={`${event.at}-${index}`}><span className="font-mono text-subtle">{roomTimeLabel(event.at)}</span> · {event.detail}</p>) : <p>No room decisions recorded yet.</p>}</div></details>
-          </section>
+          </details>
           <div className="mt-5 flex flex-wrap gap-2">
             <Button onClick={toggleRoomPlayback}>
               {playback.playing ? <Pause className="size-4" /> : <Play className="size-4" />}
@@ -4620,13 +4770,13 @@ export function WatchRoomSection() {
             </Button>
             <Button
               variant="secondary"
-              onClick={() => sync({ ...playback, position: Math.max(0, playback.position - 15) }, true)}
+              onClick={() => sync({ ...playback, position: clampRoomClock(playback.position - 15) }, true)}
             >
               −15 sec
             </Button>
             <Button
               variant="secondary"
-              onClick={() => sync({ ...playback, position: playback.position + 15 }, true)}
+              onClick={() => sync({ ...playback, position: clampRoomClock(playback.position + 15) }, true)}
             >
               +15 sec
             </Button>
@@ -4652,7 +4802,7 @@ export function WatchRoomSection() {
             ))}
           </div>
           <div
-            className={`mt-3 mx-auto w-full max-w-full overflow-hidden rounded-md bg-bg shadow-border ${stageSize === "compact" ? "lg:max-w-2xl" : stageSize === "theater" ? "lg:max-w-6xl" : ""}`}
+            className={`mt-3 mx-auto w-full max-w-full overflow-hidden rounded-md bg-bg shadow-border ${stageSize === "compact" ? "lg:max-w-3xl" : ""}`}
           >
             {localVideoUrl && localShareIsMatched ? (
               <video
@@ -4660,12 +4810,13 @@ export function WatchRoomSection() {
                 className="aspect-video w-full bg-bg"
                 src={localVideoUrl}
                 controls
+                onLoadedMetadata={() => { const seconds = roomVideoRef.current?.duration; if (typeof seconds === "number" && Number.isFinite(seconds)) setMeasuredDuration({ videoId: sharedVideoId, seconds }); }}
                 onEnded={playNext}
                 onPlay={() => sync({ playing: true, position: roomVideoRef.current?.currentTime ?? 0 })}
                 onPause={() => sync({ playing: false, position: roomVideoRef.current?.currentTime ?? 0 })}
                 onSeeked={() => sync({ playing: roomVideoRef.current ? !roomVideoRef.current.paused : false, position: roomVideoRef.current?.currentTime ?? 0 })}
               />
-            ) : sharedVideo?.remote?.kind === "twitch" ? (
+            ) : sharedVideo?.remote?.kind === "twitch" && !twitchClip ? (
               <div className="relative aspect-video w-full bg-bg">
                 <div ref={twitchPlayerHostRef} className="absolute inset-0" />
                 <p className="absolute bottom-2 left-2 rounded-sm bg-bg/80 px-2 py-1 text-xs text-muted">{twitchPlayerStatus}</p>
@@ -4686,6 +4837,7 @@ export function WatchRoomSection() {
                 className="aspect-video w-full bg-bg"
                 src={sharedVideo.src}
                 controls
+                onLoadedMetadata={() => { const seconds = roomVideoRef.current?.duration; if (typeof seconds === "number" && Number.isFinite(seconds)) setMeasuredDuration({ videoId: sharedVideoId, seconds }); }}
                 onEnded={playNext}
                 onPlay={() =>
                   sync({ playing: true, position: roomVideoRef.current?.currentTime ?? 0 })
@@ -4707,7 +4859,8 @@ export function WatchRoomSection() {
                 }}
               />
             ) : (
-              <div className="flex aspect-video items-center justify-center px-6 text-center text-sm text-muted">
+              <div className="flex aspect-video flex-col items-center justify-center px-6 text-center text-sm text-muted">
+                <img src="/art/realhub-projector.webp" alt="" loading="lazy" className="mb-2 h-28 w-36 object-contain" />
                 {sharedVideoId.startsWith("local:") ? "This local handoff is waiting for a matching permitted file on this device." : "Choose a starter movie or an online video to show it to the room."}
               </div>
             )}
@@ -4716,11 +4869,14 @@ export function WatchRoomSection() {
             <p className="mt-2 text-xs text-subtle">
               YouTube room controls retain the last trusted clock on pause, then resume from that same point. Use the room controls so every guest receives the same command.
             </p>
+          ) : sharedVideo?.remote?.kind === "twitch" && twitchClip ? (
+            <p className="mt-2 text-xs text-subtle">Twitch clips use Twitch’s separate clip player. Use its own controls to watch; room selection and chat remain shared. If Twitch shows a content classification error, <a href={sharedVideo.remote.watchUrl} target="_blank" rel="noreferrer" className="text-accent underline">open the clip directly</a>.</p>
           ) : sharedVideo?.remote?.kind === "twitch" ? (
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-subtle"><p><strong className="text-fg">Twitch currently needs one manual Play press in each viewer’s embed.</strong> Browser media rules prevent Reelcase from forcing a guest stream to start. Selection, queue, chat, and the preserved pause clock still sync through the room controls.</p>{sharedVideo.remote.watchUrl && <a href={sharedVideo.remote.watchUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-8 items-center rounded-sm bg-elevated px-2 text-xs text-fg shadow-border"><ExternalLink className="mr-1 size-3"/>Open Twitch directly</a>}</div>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-subtle"><p><strong className="text-fg">Twitch currently needs one manual Play press in each viewer’s embed.</strong> Browser media rules prevent Realhub from forcing a guest stream to start. Selection, queue, chat, and the preserved pause clock still sync through the room controls.</p>{sharedVideo.remote.watchUrl && <a href={sharedVideo.remote.watchUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-8 items-center rounded-sm bg-elevated px-2 text-xs text-fg shadow-border"><ExternalLink className="mr-1 size-3"/>Open Twitch directly</a>}</div>
           ) : null}
-          <p className="mt-3 text-xs text-muted">Recommended from your playable library — saved titles get a small lift while unplayed playable videos rotate to the front. Ready local files can be added to the queue below without taking over the stage.</p>
-          <div className="mt-2 flex flex-wrap gap-2"><Button size="sm" variant="ghost" onClick={() => { setCandidateSeed(Date.now()); setRoomPickLimit(18); }}><Shuffle className="size-3.5" /> Mix playable picks</Button>{roomCandidates.length > roomPickLimit && <Button size="sm" variant="ghost" onClick={() => setRoomPickLimit((limit) => Math.min(roomCandidates.length, limit + 18))}>Load 18 more playable videos</Button>}</div>
+          {sharedVideo && <div className="mt-4 flex flex-wrap items-center gap-2 rounded-md border border-border bg-bg/45 p-3"><span className="mr-auto min-w-0 truncate text-sm font-medium text-fg">{sharedVideo.name}</span><Button size="sm" variant={favorites[sharedVideo.id] ? "default" : "secondary"} onClick={() => toggleFavorite(sharedVideo.id)}><Heart className={`size-4 ${favorites[sharedVideo.id] ? "fill-current" : ""}`} />{favorites[sharedVideo.id] ? "Favorited" : "Favorite"}</Button><div className="flex items-center gap-1" aria-label="Rate current room video">{[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" className="flex size-9 items-center justify-center rounded-md text-accent hover:bg-elevated" aria-label={`Rate ${sharedVideo.name} ${value} stars`} aria-pressed={roomRating === value} onClick={() => { saveRating(sharedVideo.id, roomRating === value ? 0 : value); setRoomRatingRevision((revision) => revision + 1); }}><Star className={`size-4 ${value <= roomRating ? "fill-current" : ""}`} /></button>)}</div></div>}
+          <details className="mt-5 rounded-md border border-border bg-bg/35 p-3"><summary className="cursor-pointer text-sm font-medium text-fg">Explore more videos and advanced queue controls</summary><p className="mt-3 text-xs text-muted">Recommended from your playable library — saved titles get a small lift while unplayed playable videos rotate to the front. Ready local files can be added to the queue below without taking over the stage.</p>
+          <div className="mt-2 flex flex-wrap gap-2"><Button size="sm" variant="ghost" onClick={() => { setCandidateSeed(Date.now()); setRoomPickLimit(18); setYoutubePickLimit(24); }}><Shuffle className="size-3.5" /> Mix playable picks</Button>{roomCandidates.length > roomPickLimit && <Button size="sm" variant="ghost" onClick={() => setRoomPickLimit((limit) => Math.min(roomCandidates.length, limit + 18))}>Load 18 more playable videos</Button>}</div>
           <div className="mt-3 flex gap-2 overflow-x-auto pb-2">
             {roomCandidates
               .slice(0, roomPickLimit)
@@ -4738,6 +4894,10 @@ export function WatchRoomSection() {
                 </button>
               ))}
           </div>
+          {youtubeRoomCandidates.length > 0 && <section className="mt-4" aria-label="YouTube recommendations">
+            <div className="flex flex-wrap items-center justify-between gap-2"><div><h3 className="text-sm font-semibold text-fg">More from YouTube</h3><p className="text-xs text-muted">{youtubeRoomCandidates.length} playable titles in your library</p></div>{youtubeRoomCandidates.length > youtubePickLimit && <Button size="sm" variant="secondary" onClick={() => setYoutubePickLimit((limit) => Math.min(youtubeRoomCandidates.length, limit + 24))}>Show 24 more YouTube videos</Button>}</div>
+            <div className="mt-2 flex gap-2 overflow-x-auto pb-2">{youtubeRoomCandidates.slice(0, youtubePickLimit).map((video) => <button key={video.id} type="button" onClick={() => chooseVideo(video)} className={`w-36 shrink-0 overflow-hidden rounded-sm text-left shadow-border ${video.id === sharedVideoId ? "bg-accent text-accent-fg" : "bg-bg/45 text-fg"}`}><img src={watchRoomPoster(video) || `https://i.ytimg.com/vi/${video.remote?.videoId}/mqdefault.jpg`} alt="" loading="lazy" className="aspect-video w-full object-cover" onError={(event) => { const fallback = `https://i.ytimg.com/vi/${video.remote?.videoId}/mqdefault.jpg`; if (event.currentTarget.src !== fallback) event.currentTarget.src = fallback; else event.currentTarget.style.display = "none"; }}/><span className="block truncate px-2 py-2 text-xs">{video.name}</span></button>)}</div>
+          </section>}
           <div className="mt-3 rounded-md bg-bg/45 p-3 shadow-border">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-medium text-fg">Up next queue</p>
@@ -4821,7 +4981,8 @@ export function WatchRoomSection() {
               <div className="flex items-center justify-between gap-3"><p className="text-xs font-medium text-fg">Approved local handoffs</p><span className="text-xs text-muted">Shared manifest · files stay on each device</span></div>
               <div className="mt-2 space-y-2">{localQueue.map((share) => <div key={share.fingerprint} className="flex flex-wrap items-center justify-between gap-2 rounded-sm bg-elevated px-3 py-2"><span className="min-w-0 truncate text-xs text-fg">{share.name} · {bytes(share.size)}</span><div className="flex gap-1"><Button size="sm" variant="secondary" onClick={() => stageLocalShare(share)}>Stage</Button><Button size="sm" variant="ghost" onClick={() => updateLocalQueue(localQueue.filter((item) => item.fingerprint !== share.fingerprint))}>Remove</Button></div></div>)}</div>
             </div>}
-          </div>
+          </div></details>
+          <details className="mt-4 rounded-md border border-border bg-bg/35 p-3"><summary className="cursor-pointer text-sm font-medium text-fg">Local sharing, games & TV</summary>
           <div className="mt-5 rounded-md bg-bg/45 p-4 shadow-border">
             <div className="flex items-center gap-2">
               <MonitorPlay className="size-4 text-accent" />
@@ -4921,7 +5082,7 @@ export function WatchRoomSection() {
                   const devices = data.devices ?? [];
                   setRokuDevices(devices);
                   setRokuNotice(devices.length ? `${devices.length} Roku device${devices.length === 1 ? "" : "s"} found on this network.` : "No Roku devices responded. You can still pair one by its IP address.");
-                } catch { setRokuNotice("Roku discovery needs the local Reelcase Companion running on this Windows computer."); }
+                } catch { setRokuNotice("Roku discovery needs the local Realhub Companion running on this Windows computer."); }
               })()}>
                 Discover TVs
               </Button>
@@ -4956,12 +5117,14 @@ export function WatchRoomSection() {
               </div>
             )}
           </div>
+          </details>
         </div>
-        <div className="rounded-lg bg-elevated p-4 shadow-border">
+        <div className="min-w-0 space-y-4 self-start">
+        <section className="rounded-lg bg-elevated p-4 shadow-border">
           <p className="flex items-center gap-2 text-sm font-medium text-fg">
             <MessageCircle className="size-4 text-accent" /> Room chat
           </p>
-          <div className="mt-3 max-h-48 space-y-2 overflow-y-auto text-sm text-muted">
+          <div className="mt-3 min-h-24 max-h-48 space-y-2 overflow-y-auto text-sm text-muted">
             {chat.map((row, index) => (
               <p key={`${row}-${index}`} className="rounded-sm bg-bg/45 px-3 py-2">
                 {row}
@@ -4982,6 +5145,9 @@ export function WatchRoomSection() {
               Send
             </Button>
           </div>
+        </section>
+        <section className="rounded-lg border border-border bg-elevated p-4 shadow-border" aria-label="Room query and queue"><div className="flex items-center justify-between gap-2"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Find & queue</p><h3 className="mt-1 font-display text-xl text-fg">Choose what plays next</h3></div><span className="rounded-full bg-accent/15 px-2 py-1 text-xs text-accent">{queue.length} queued</span></div><Input className="mt-3" value={roomSearch} onChange={(event) => setRoomSearch(event.target.value)} placeholder="Search playable titles or creators" aria-label="Search room videos"/><div className="mt-3 max-h-72 space-y-2 overflow-y-auto">{roomSearchResults.map((video) => <div key={video.id} className="flex min-w-0 items-center gap-2 rounded-md bg-bg/50 p-2">{watchRoomPoster(video) && <img src={watchRoomPoster(video)} alt="" loading="lazy" className="aspect-video w-14 shrink-0 rounded-sm object-cover"/>}<button type="button" className="min-w-0 flex-1 truncate text-left text-xs text-fg hover:text-accent" title={video.name} onClick={() => chooseVideo(video)}>{video.name}</button><Button size="sm" variant="secondary" disabled={queue.includes(video.id) || video.id === sharedVideoId} onClick={() => queueVideo(video)}>Queue</Button></div>)}{!roomSearchResults.length && <p className="text-xs text-muted">No playable videos match this search.</p>}</div><div className="mt-4 border-t border-border pt-3"><p className="text-xs font-medium text-fg">Up next · {joinedAsGuest ? "host confirms changes" : "shared order"}</p><div className="mt-2 max-h-52 space-y-1 overflow-y-auto">{queue.length ? queue.map((id, index) => { const video = videos.find((item) => item.id === id); return <div key={id} className="flex items-center gap-2 rounded-md bg-bg/45 px-2 py-1.5 text-xs"><span className="text-accent">{index + 1}</span><span className="min-w-0 flex-1 truncate text-fg">{video?.name ?? "Unavailable title"}</span><button type="button" className="text-accent" onClick={() => playQueuedNow(id)} disabled={joinedAsGuest}>Play</button><button type="button" className="text-muted hover:text-fg" onClick={() => updateQueue(queue.filter((item) => item !== id))}>×</button></div>; }) : <p className="text-xs text-muted">Search above and add a title to the queue.</p>}</div></div></section>
+        {sharedVideo?.remote?.kind === "youtube" && <section className="rounded-lg bg-elevated p-2 shadow-border"><AdultComments video={sharedVideo}/></section>}
         </div>
       </div>
       <div className="mt-4 rounded-lg bg-elevated p-4 shadow-border">

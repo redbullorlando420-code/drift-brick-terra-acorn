@@ -19,6 +19,8 @@ import { extractRedditMedia, shouldKeepRedditEntry } from "@/lib/videos/adult-re
 import { extractRedditFlair } from "@/lib/videos/adult-reddit-tags";
 import { expandAdultThumbFallbacks, isUsableAdultThumb, pickRedtubeThumb, redtubeStarNames } from "@/lib/videos/adult-thumbs";
 import { newestYoutubeFeedVideoId, selectYoutubeFeedDelta } from "./youtube-feed-cursor";
+import { booruPostImageUrls } from "./booru-image";
+import { publicPlaylistEntries, publicPlaylistTitle, youtubePlaylistId } from "./youtube-playlist";
 
 type FollowInput = { query: string; kind: "auto" | FollowKind; clipLimit?: number };
 type RefreshInput = { channels: FollowedChannel[] };
@@ -57,7 +59,7 @@ export function classifyProviderFailure(provider: ProviderName, error: unknown):
   const lower = message.toLowerCase();
   const common = { message, at: Date.now() };
   if (/\b429\b|rate.?limit|too many requests|retrying after/.test(lower)) {
-    return { ...common, kind: "rate-limited", recovery: "Keep the cached channel cards. Reelcase will retry after the shown cooldown; use a focused retry only when you need it now." };
+    return { ...common, kind: "rate-limited", recovery: "Keep the cached channel cards. Realhub will retry after the shown cooldown; use a focused retry only when you need it now." };
   }
   if (/integrity|challenge/.test(lower)) {
     return { ...common, kind: "integrity-challenge", recovery: "Twitch accepted the cached archive but requires its public integrity check for deeper pages. Try a focused pull later; no cached VODs were removed." };
@@ -71,7 +73,7 @@ export function classifyProviderFailure(provider: ProviderName, error: unknown):
   if (/\b404\b|\b410\b|could not (find|resolve)|not found|unavailable|does not exist/.test(lower)) {
     return { ...common, kind: "unavailable", recovery: "The public channel or item is unavailable right now. Keep its cached cards and confirm the creator link before removing anything." };
   }
-  return { ...common, kind: "network-offline", recovery: "The provider could not be reached. Cached cards remain available and Reelcase will retry after the shown cooldown." };
+  return { ...common, kind: "network-offline", recovery: "The provider could not be reached. Cached cards remain available and Realhub will retry after the shown cooldown." };
 }
 
 /** Share identical work across browser tabs and suppress only background retries. */
@@ -174,6 +176,31 @@ function ytChannelIdFromText(text: string): string | null {
   return canon ? canon[1] : null;
 }
 
+function youtubeChannelAvatar(html: string): string | undefined {
+  const meta = html.match(/<meta\s+(?:property|name)=["']og:image["']\s+content=["']([^"']+)["']/i)
+    ?? html.match(/<meta\s+content=["']([^"']+)["']\s+(?:property|name)=["']og:image["']/i);
+  const avatar = meta?.[1] ?? html.match(/"avatar"\s*:\s*\{[^}]*"url"\s*:\s*"([^"]+)"/i)?.[1];
+  return avatar && /^https:\/\/[^\s]+$/i.test(avatar) ? decodeXml(avatar) : undefined;
+}
+
+/** Fill artwork for older saved follows without pulling every channel archive. */
+export async function runYoutubeCreatorProfiles(dataRaw: unknown): Promise<Array<{ id: string; thumb?: string; description?: string }>> {
+  const ids = Array.isArray(dataRaw) ? dataRaw.filter((id): id is string => typeof id === "string" && /^yt:UC[A-Za-z0-9_-]{20,}$/.test(id)).slice(0, 16) : [];
+  const results: Array<{ id: string; thumb?: string; description?: string }> = [];
+  for (let start = 0; start < ids.length; start += 4) {
+    const batch = await Promise.all(ids.slice(start, start + 4).map(async (id) => {
+      try {
+        const html = await fetchText(`https://www.youtube.com/channel/${encodeURIComponent(id.slice(3))}`);
+        const thumb = youtubeChannelAvatar(html);
+        const description = decodeXml(html.match(/<meta\s+(?:name|property)=["']description["']\s+content=["']([^"']+)["']/i)?.[1] ?? "").slice(0, 400);
+        return { id, ...(thumb ? { thumb } : {}), ...(description ? { description } : {}) };
+      } catch { return { id }; }
+    }));
+    results.push(...batch);
+  }
+  return results;
+}
+
 function decodeXml(s: string) {
   return s
     .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
@@ -193,7 +220,7 @@ async function fetchText(url: string): Promise<string> {
   const res = await fetch(url, {
     signal: AbortSignal.timeout(12000),
     headers: {
-      "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai) AppleWebKit/537.36",
+      "user-agent": "Mozilla/5.0 (compatible; Realhub/1.0; +https://grok.x.ai) AppleWebKit/537.36",
       accept: "text/html,application/xhtml+xml,application/xml,application/json",
     },
   });
@@ -522,7 +549,7 @@ async function youtubeFromChannelUncoalesced(query: string, limit: number = LIBR
   }
   const [xml, channelPage] = await Promise.all([
     fetchText(`https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`),
-    deepCatalog ? fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}/videos`).catch(() => "") : Promise.resolve(""),
+    fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}${deepCatalog ? "/videos" : ""}`).catch(() => ""),
   ]);
   const title = tag(xml, "title") || "YouTube";
   const author = tag(xml, "name") || title;
@@ -570,6 +597,7 @@ async function youtubeFromChannelUncoalesced(query: string, limit: number = LIBR
     handle: author,
     title: author,
     channelId,
+    thumb: youtubeChannelAvatar(channelPage),
     lastCheckedAt: Date.now(),
     newestPublishedAt: Math.max(0, ...videos.filter((video) => !video.remote?.live).map((video) => video.addedAt)),
     newestVideoId: newestYoutubeFeedVideoId(feedVideos.map((video) => ({ videoId: video.remote?.videoId }))),
@@ -604,6 +632,58 @@ function twitchLogin(input: string): string {
 
 function youtubeFromChannel(query: string, limit: number = LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, focused = true, deepCatalog = focused, newestKnownVideoId?: string): Promise<FollowResult> {
   return providerRequest("youtube", query, focused, () => youtubeFromChannelUncoalesced(query, limit, deepCatalog, newestKnownVideoId));
+}
+
+async function youtubeFromPlaylist(input: string, focused = true): Promise<FollowResult> {
+  const playlistId = youtubePlaylistId(input);
+  if (!playlistId) throw new Error("Enter a public YouTube playlist URL.");
+  return providerRequest("youtube", `playlist:${playlistId}`, focused, async () => {
+    const html = await fetchText(`https://www.youtube.com/playlist?list=${encodeURIComponent(playlistId)}`);
+    const root = youtubeInitialData(html);
+    if (!root) throw new Error("This playlist did not return public metadata.");
+    const limit = focused ? 300 : 80;
+    const found = publicPlaylistEntries(root, limit);
+    const seen = new Set(found.map((entry) => entry.id));
+    const apiKey = html.match(/"INNERTUBE_API_KEY":"([^"]+)"/)?.[1];
+    const clientVersion = html.match(/"INNERTUBE_CLIENT_VERSION":"([^"]+)"/)?.[1] ?? "2.20250101.00.00";
+    let browseRoot: unknown = root;
+    if (!found.length && apiKey) {
+      try {
+        const response = await fetch(`https://www.youtube.com/youtubei/v1/browse?key=${encodeURIComponent(apiKey)}`, {
+          method: "POST", headers: { "content-type": "application/json", "x-youtube-client-name": "1", "x-youtube-client-version": clientVersion },
+          body: JSON.stringify({ context: { client: { clientName: "WEB", clientVersion } }, browseId: `VL${playlistId}` }), signal: AbortSignal.timeout(10_000),
+        });
+        if (response.ok) {
+          browseRoot = await response.json() as unknown;
+          for (const entry of publicPlaylistEntries(browseRoot, limit)) if (!seen.has(entry.id)) { seen.add(entry.id); found.push(entry); }
+        }
+      } catch { /* A public playlist can still be unavailable to this server. */ }
+    }
+    let continuation = youtubeContinuation(browseRoot);
+    for (let page = 0; continuation && apiKey && page < (focused ? 4 : 1) && found.length < limit; page++) {
+      try {
+        const response = await fetch(`https://www.youtube.com/youtubei/v1/browse?key=${encodeURIComponent(apiKey)}`, {
+          method: "POST", headers: { "content-type": "application/json", "x-youtube-client-name": "1", "x-youtube-client-version": clientVersion },
+          body: JSON.stringify({ context: { client: { clientName: "WEB", clientVersion } }, continuation }), signal: AbortSignal.timeout(10_000),
+        });
+        if (!response.ok) break;
+        const pageData = await response.json() as unknown;
+        for (const entry of publicPlaylistEntries(pageData, limit - found.length)) if (!seen.has(entry.id)) { seen.add(entry.id); found.push(entry); }
+        const next = youtubeContinuation(pageData);
+        continuation = next && next !== continuation ? next : null;
+      } catch { break; }
+    }
+    if (!found.length) throw new Error("No public videos were found in that playlist.");
+    const title = publicPlaylistTitle(browseRoot) || publicPlaylistTitle(root) || html.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']+)/i)?.[1] || `YouTube playlist ${playlistId.slice(0, 8)}`;
+    const folderId = `ytpl:${playlistId}`;
+    const videos = found.map((entry) => {
+      const video = ytVideo({ id: entry.id, title: entry.title, published: "1970-01-02T00:00:00.000Z", thumb: entry.thumb?.startsWith("//") ? `https:${entry.thumb}` : entry.thumb || `https://i.ytimg.com/vi/${entry.id}/hqdefault.jpg`, desc: `${title} · public playlist`, channelId: "playlist", channelName: entry.channelName });
+      video.id = `${folderId}:${entry.id}`;
+      video.folderId = folderId;
+      return video;
+    });
+    return { channel: { id: folderId, kind: "youtube", handle: `https://www.youtube.com/playlist?list=${playlistId}`, title, thumb: videos[0]?.poster, lastCheckedAt: Date.now(), newestVideoId: found[0]?.id, lastResponseCount: videos.length }, videos };
+  });
 }
 
 // Twitch GQL `videos(first:)` / `clips(first:)` accept 1..100 only. Values
@@ -992,6 +1072,7 @@ export async function runFollowRemote(dataRaw: unknown): Promise<FollowResult> {
     const data = parseFollow(dataRaw);
     const kind = data.kind === "auto" ? guessKind(data.query) : data.kind;
     if (kind === "twitch") return followTwitch(data.query, false, data.clipLimit);
+    if (youtubePlaylistId(data.query)) return youtubeFromPlaylist(data.query);
     const videoId = ytVideoId(data.query);
     if (videoId) return youtubeFromVideo(videoId);
     return youtubeFromChannel(data.query);
@@ -1017,8 +1098,8 @@ export async function runRefreshRemotes(dataRaw: unknown): Promise<RefreshResult
           // query parameter, so routine work reads that capped window and cuts
           // it at the last durable upload identity. Deep catalog paging stays
           // on the explicit creator pull instead of repeating in the scheduler.
-          const next = await youtubeFromChannel(q, LIBRARY_LIMITS.youtubeRoutineVideosPerChannel, false, false, ch.newestVideoId);
-          channels.push({ ...ch, ...next.channel, id: ch.id, newestVideoId: next.channel.newestVideoId ?? ch.newestVideoId, lastProviderFailure: undefined });
+          const next = ch.id.startsWith("ytpl:") ? await youtubeFromPlaylist(ch.handle, false) : await youtubeFromChannel(q, LIBRARY_LIMITS.youtubeRoutineVideosPerChannel, false, false, ch.newestVideoId);
+          channels.push({ ...ch, ...next.channel, id: ch.id, thumb: next.channel.thumb || ch.thumb, newestVideoId: next.channel.newestVideoId ?? ch.newestVideoId, lastProviderFailure: undefined });
           videos.push(...next.videos.map((video) => ({ ...video, folderId: ch.id })));
         }
         refreshedIds.push(ch.id);
@@ -1085,7 +1166,7 @@ export async function runImportChannels(dataRaw: unknown): Promise<ImportBatchRe
           // Bulk imports used to request only eight entries per creator, which
           // made a healthy library look arbitrarily capped. RSS availability
           // ultimately controls the ceiling, but ask for a practical window.
-          return await youtubeFromChannel(item.query, compact ? LIBRARY_LIMITS.youtubeBulkImportVideosPerChannel : LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, true, !compact);
+          return youtubePlaylistId(item.query) ? await youtubeFromPlaylist(item.query, !compact) : await youtubeFromChannel(item.query, compact ? LIBRARY_LIMITS.youtubeBulkImportVideosPerChannel : LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, true, !compact);
         } catch {
           if (!attempt) await new Promise((resolve) => setTimeout(resolve, 350));
         }
@@ -1343,7 +1424,7 @@ async function fetchEpornerPageOnce(query: string, order: string, page: number, 
     cacheTtlMs: 12 * 60_000,
     headers: {
       accept: "application/json",
-      "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
+      "user-agent": "Mozilla/5.0 (compatible; Realhub/1.0; +https://grok.x.ai)",
     },
   });
   if (!res.ok) throw new Error(`Eporner API HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
@@ -1507,7 +1588,7 @@ async function fetchRedtubePage(query: string, order: string, page: number): Pro
     cacheTtlMs: 12 * 60_000,
     headers: {
       accept: "application/json",
-      "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
+      "user-agent": "Mozilla/5.0 (compatible; Realhub/1.0; +https://grok.x.ai)",
     },
   });
   if (!res.ok) throw new Error(`RedTube API HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
@@ -1609,7 +1690,7 @@ async function fetchChaturbateRooms(query: string, maxVideos: number): Promise<{
       cacheTtlMs: 3 * 60_000,
       headers: {
         accept: "application/json",
-        "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
+        "user-agent": "Mozilla/5.0 (compatible; Realhub/1.0; +https://grok.x.ai)",
       },
     });
     if (!res.ok) throw new Error(`Chaturbate rooms HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
@@ -1804,7 +1885,7 @@ async function fetchMyFreeCamsPreview(username: string): Promise<MyFreeCamsPrevi
       headers: {
         accept: "text/html,application/xhtml+xml;q=0.9",
         "accept-language": "en-US,en;q=0.8",
-        "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
+        "user-agent": "Mozilla/5.0 (compatible; Realhub/1.0; +https://grok.x.ai)",
       },
     });
     if (res.ok) next = { at: now, ...myfreecamsImageFromAppPage(await res.text()) };
@@ -1867,7 +1948,7 @@ async function fetchMyFreeCamsRooms(query: string, maxVideos: number): Promise<{
           accept: "text/plain, text/html;q=0.8",
           referer: "https://www.myfreecams.com/#Homepage",
           "accept-language": "en-US,en;q=0.8",
-          "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
+          "user-agent": "Mozilla/5.0 (compatible; Realhub/1.0; +https://grok.x.ai)",
         },
       });
       if (!res.ok) throw new Error(`MyFreeCams public list HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
@@ -2236,7 +2317,7 @@ async function fetchBooruListing(host: (typeof BOORU_HOSTS)[number], tags: strin
   const res = await cachedAdultFetch(`${host.base}/index.php?${params.toString()}`, {
     signal: AbortSignal.timeout(15_000),
     cacheTtlMs: 10 * 60_000,
-    headers: { accept: "text/html,application/xhtml+xml", "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0)" },
+    headers: { accept: "text/html,application/xhtml+xml", "user-agent": "Mozilla/5.0 (compatible; Realhub/1.0)" },
   });
   if (!res.ok) throw new Error(`${host.id} HTTP ${res.status}`);
   const html = await res.text();
@@ -2266,7 +2347,26 @@ async function fetchBooruListing(host: (typeof BOORU_HOSTS)[number], tags: strin
       if (rows.length >= limit) break;
     }
   }
-  return rows.map((row) => booruVideo(row, host)).filter((video): video is LibraryVideo => video != null);
+  const videos = rows.map((row) => booruVideo(row, host)).filter((video): video is LibraryVideo => video != null);
+  if (host.id !== "tbib") return videos;
+  // TBIB's HTML listing exposes tiny thumbnails but no file URL. Resolve a
+  // bounded visible batch to its post page so the lightbox opens the original.
+  let cursor = 0;
+  await Promise.all(Array.from({ length: Math.min(3, videos.length) }, async () => {
+    while (cursor < Math.min(9, videos.length)) {
+      const video = videos[cursor++];
+      try {
+        const response = await cachedAdultFetch(video.remote!.watchUrl!, { signal: AbortSignal.timeout(5_000), cacheTtlMs: 30 * 60_000, headers: { accept: "text/html", "user-agent": "Mozilla/5.0 (compatible; Realhub/1.0)" } });
+        if (!response.ok) continue;
+        const found = booruPostImageUrls(await response.text());
+        const original = normalizedBooruUrl(found.original ?? "", host);
+        const sample = normalizedBooruUrl(found.sample ?? "", host);
+        if (original && original.startsWith("https://")) { video.src = original; video.remote!.embedUrl = original; }
+        if (sample && sample.startsWith("https://")) video.remote!.thumbFallbacks = [video.poster, sample, original].filter((value): value is string => Boolean(value));
+      } catch { /* Keep the listing thumbnail if a detail page is unavailable. */ }
+    }
+  }));
+  return videos;
 }
 
 function rule34PostIdFromQuery(query: string) {
@@ -2278,7 +2378,7 @@ async function fetchRule34Post(host: (typeof BOORU_HOSTS)[number], id: string): 
   const res = await cachedAdultFetch(`${host.base}${host.postPath}${encodeURIComponent(id)}`, {
     signal: AbortSignal.timeout(15_000),
     cacheTtlMs: 30 * 60_000,
-    headers: { accept: "text/html,application/xhtml+xml", "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0)" },
+    headers: { accept: "text/html,application/xhtml+xml", "user-agent": "Mozilla/5.0 (compatible; Realhub/1.0)" },
   });
   if (!res.ok) throw new Error(`${host.id} post ${id} HTTP ${res.status}`);
   const html = await res.text();
@@ -2302,7 +2402,7 @@ async function fetchBooruJson(host: (typeof BOORU_HOSTS)[number], tags: string, 
   const res = await cachedAdultFetch(url, {
     signal: AbortSignal.timeout(15_000),
     cacheTtlMs: 10 * 60_000,
-    headers: { accept: "application/json,text/plain,*/*", "user-agent": "Reelcase/1.0" },
+    headers: { accept: "application/json,text/plain,*/*", "user-agent": "Realhub/1.0" },
   });
   if (!res.ok) throw new Error(`${host.id} HTTP ${res.status}`);
   const body = await res.text();
@@ -2351,6 +2451,19 @@ function booruTagsForHost(host: (typeof BOORU_HOSTS)[number], needle: string): s
   // rating syntax, so retain it there to keep mixed listings adult-scoped.
   if (host.id === "gelbooru") return ["rating:explicit", query].filter(Boolean).join(" ");
   return query;
+}
+
+export async function runBooruOriginal(data: unknown): Promise<string | null> {
+  const id = typeof data === "object" && data !== null ? String((data as { id?: unknown }).id ?? "") : "";
+  if (!/^\d{1,12}$/.test(id)) return null;
+  const host = BOORU_HOSTS.find((item) => item.id === "tbib")!;
+  try {
+    const response = await cachedAdultFetch(`${host.base}${host.postPath}${id}`, { signal: AbortSignal.timeout(10_000), cacheTtlMs: 30 * 60_000, headers: { accept: "text/html", "user-agent": "Mozilla/5.0 (compatible; Realhub/1.0)" } });
+    if (!response.ok) return null;
+    const { original } = booruPostImageUrls(await response.text());
+    const url = normalizedBooruUrl(original ?? "", host);
+    return /^https:\/\//.test(url) ? url : null;
+  } catch { return null; }
 }
 
 
@@ -2429,7 +2542,7 @@ async function fetchE621Page(tags: string, limit: number, page: number): Promise
     headers: {
       accept: "application/json",
       // e621 requires a descriptive UA; keep contact-style identity for their policy.
-      "user-agent": "Reelcase/1.0 (adult catalog; local library client)",
+      "user-agent": "Realhub/1.0 (adult catalog; local library client)",
     },
   });
   if (!res.ok) throw new Error(`e621 HTTP ${res.status}`);
@@ -2616,7 +2729,7 @@ async function getRedgifsAccessToken(): Promise<string> {
   const now = Date.now();
   if (redgifsAuth && redgifsAuth.expiresAt > now + 60_000) return redgifsAuth.token;
   const res = await fetch("https://api.redgifs.com/v2/auth/temporary", {
-    headers: { accept: "application/json", "user-agent": "Reelcase/1.0" },
+    headers: { accept: "application/json", "user-agent": "Realhub/1.0" },
     signal: AbortSignal.timeout(12_000),
   });
   if (!res.ok) throw new Error(`Redgifs auth HTTP ${res.status}`);
@@ -2650,7 +2763,7 @@ async function fetchRedgifsDirect(query: string, maxVideos: number, page: number
     headers: {
       accept: "application/json",
       authorization: `Bearer ${token}`,
-      "user-agent": "Reelcase/1.0",
+      "user-agent": "Realhub/1.0",
     },
   });
   if (!res.ok) throw new Error(`Redgifs HTTP ${res.status}`);
@@ -2689,7 +2802,7 @@ async function fetchRedgifsViaAdultDataLink(query: string, maxVideos: number, pa
       accept: "application/json",
       authorization: `Bearer ${key}`,
       "x-api-key": key,
-      "user-agent": "Reelcase/1.0",
+      "user-agent": "Realhub/1.0",
     },
   });
   if (!res.ok) throw new Error(`AdultDataLink Redgifs HTTP ${res.status}`);
@@ -3645,7 +3758,7 @@ export async function runSearchRedtubeStars(dataRaw: unknown): Promise<{ stars: 
       cacheTtlMs: 30 * 60_000,
       headers: {
         accept: "application/json",
-        "user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)",
+        "user-agent": "Mozilla/5.0 (compatible; Realhub/1.0; +https://grok.x.ai)",
       },
     });
     if (!res.ok) throw new Error(`RedTube star API HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);

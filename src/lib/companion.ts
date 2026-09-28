@@ -1,4 +1,4 @@
-/** Thin client for the optional loopback Reelcase Companion (127.0.0.1 only). */
+/** Thin client for the optional loopback Realhub Companion (127.0.0.1 only). */
 
 export const COMPANION_ORIGIN = "http://127.0.0.1:43123";
 

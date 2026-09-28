@@ -67,6 +67,7 @@ export const VideoCard = memo(function VideoCard({
   const toggleLike = useLibrary((s) => s.toggleLike);
   const openPreview = useLibrary((s) => s.openPreview);
   const toggleFavorite = useLibrary((s) => s.toggleFavorite);
+  const hideVideo = useLibrary((s) => s.hideVideo);
   const setVideoTags = useLibrary((s) => s.setVideoTags);
   const setQuery = useLibrary((s) => s.setQuery);
   const setSource = useLibrary((s) => s.setSource);
@@ -229,7 +230,7 @@ export const VideoCard = memo(function VideoCard({
     if (!artVisible || !artAllowed || !activeThumb || showPreview || candidateReady) return;
     if (paintedSrc === activeThumb) return;
     const timer = window.setTimeout(() => {
-      markAdultThumbFailed(activeThumb);
+      markAdultThumbFailed(activeThumb, adult ? video.id : undefined);
       releaseImageSlot();
       advanceThumb();
     }, THUMB_LOAD_TIMEOUT_MS);
@@ -310,12 +311,12 @@ export const VideoCard = memo(function VideoCard({
             const url = activeThumb;
             if (!url) return;
             if (!isDecodedAdultThumbLikelyReal(img)) {
-              markAdultThumbFailed(url);
+              markAdultThumbFailed(url, adult ? video.id : undefined);
               releaseImageSlot();
               advanceThumb();
               return;
             }
-            markAdultThumbGood(url, video.id);
+            markAdultThumbGood(url, adult ? video.id : undefined);
             setPaintedSrc(url);
             setCandidateReady(true);
             releaseImageSlot();
@@ -325,7 +326,7 @@ export const VideoCard = memo(function VideoCard({
           }}
           onError={() => {
             if (showPreview) return;
-            if (activeThumb) markAdultThumbFailed(activeThumb);
+            if (activeThumb) markAdultThumbFailed(activeThumb, adult ? video.id : undefined);
             releaseImageSlot();
             advanceThumb();
           }}
@@ -516,6 +517,7 @@ export const VideoCard = memo(function VideoCard({
       >
         <Heart className={cn("size-3.5", fav && "fill-accent text-accent")} />
       </button>}
+      <button type="button" aria-label={`Hide ${video.name} from your library`} title="Hide this title everywhere until restored in Settings" onClick={(event) => { event.stopPropagation(); hideVideo(video.id); toast.message("Title hidden. Restore it from Settings → Hidden titles."); }} className="absolute top-2 left-2 flex size-9 items-center justify-center rounded-sm bg-bg/75 text-fg opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 focus-visible:opacity-100"><EyeOff className="size-3.5" /></button>
       <button
         type="button"
         aria-label={`Watch ${video.name} together`}

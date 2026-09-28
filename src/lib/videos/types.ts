@@ -185,6 +185,7 @@ export type FollowedChannel = {
   title: string;
   channelId?: string;
   thumb?: string;
+  description?: string;
   live?: boolean;
   /** Freshness ledger for provider scheduling and a truthful last-check UI. */
   lastCheckedAt?: number;

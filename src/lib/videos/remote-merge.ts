@@ -141,6 +141,12 @@ export function mergeRemoteRefresh(
       merged.push(video);
       continue;
     }
+    // Routine playlist checks read a shallow public page. Keep older items
+    // that a short provider response did not repeat.
+    if (video.folderId.startsWith("ytpl:")) {
+      merged.push(video);
+      continue;
+    }
     // A missing non-live YouTube entry is intentionally removed: a successful
     // provider page is the source of truth for that shallow current window.
   }

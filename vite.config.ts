@@ -150,6 +150,10 @@ export default defineConfig(({ command, isPreview }) => ({
     host: "0.0.0.0",
     port: 8080,
     strictPort: true,
+    allowedHosts: [".trycloudflare.com"],
+    // A concurrent production build replaces .vercel/output. Watching its
+    // generated media on Windows can throw EBUSY and kill the live dev server.
+    watch: { ignored: ["**/.vercel/**", "**/screenshots/**"] },
   },
   preview: {
     host: "127.0.0.1",

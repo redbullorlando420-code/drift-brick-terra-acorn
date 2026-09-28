@@ -146,7 +146,7 @@ export function SidebarNav({
       <div className="px-2 pt-1 pb-4">
         <div className="flex items-center gap-2.5">
           <span className="flex size-9 items-center justify-center rounded-lg bg-accent text-accent-fg shadow-border"><Clapperboard className="size-5" /></span>
-          <p className="font-display text-2xl leading-none tracking-tight text-fg">Reelcase</p>
+          <p className="font-display text-2xl leading-none tracking-tight text-fg">Realhub</p>
         </div>
         <p className="mt-1 text-xs text-muted">Vault · networks · live</p>
       </div>

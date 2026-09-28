@@ -12,7 +12,7 @@ var install_page_default = "<!DOCTYPE html>\r\n<html lang=\"en\" class=\"device-
 //#endregion
 //#region \0virtual:grok-og-identity
 var grokOgIdentity = { "site": {
-	"title": "Reelcase",
+	"title": "Realhub",
 	"card": "custom",
 	"image": "/og.jpg"
 } };

@@ -79,7 +79,7 @@ export function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultK
     try {
       await followRemoteQuery(items[0].query, kind);
       setQuery("");
-      toast.success(kind === "twitch" ? "Twitch channel added" : "YouTube channel added");
+      toast.success(kind === "twitch" ? "Twitch channel added" : items[0].query.includes("list=") ? "YouTube playlist added" : "YouTube channel added");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not add that source");
     }
@@ -187,7 +187,7 @@ export function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultK
           <StepBadge number="01" label={kind === "twitch" ? "Follow live channels" : "Add subscriptions"} />
           <p className="mt-2 text-sm text-muted">
             {kind === "youtube"
-              ? "Paste a channel URL, @handle, channel ID, or a video link. Several at once is fine."
+              ? "Paste a channel URL, @handle, channel ID, video link, or public playlist link. Several at once is fine."
               : "Paste one or more Twitch usernames or channel URLs (comma, space, or newline separated)."}
           </p>
           <form
@@ -202,10 +202,10 @@ export function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultK
               onChange={(event) => setQuery(event.target.value)}
               placeholder={
                 kind === "youtube"
-                  ? "youtube.com/@creator or @creator"
+                  ? "youtube.com/@creator or youtube.com/playlist?list=…"
                   : "ironmouse, zackrawrr  or  twitch.tv/creator"
               }
-              aria-label={kind === "youtube" ? "YouTube channel or video" : "Twitch channels"}
+              aria-label={kind === "youtube" ? "YouTube channel, playlist, or video" : "Twitch channels"}
             />
             <Button type="submit" disabled={remoteBusy || !query.trim()} className="sm:w-32">
               {remoteBusy ? (
@@ -223,11 +223,11 @@ export function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultK
             <p className="mt-2 text-sm text-muted">
               {kind === "twitch"
                 ? "Paste a list of Twitch logins or channel URLs. You can also look up someone else's public follows below."
-                : "Paste one channel URL or @handle per line. This is the fastest way to move a saved subscription list into Reelcase."}
+                : "Paste one channel URL or @handle per line. This is the fastest way to move a saved subscription list into Realhub."}
             </p>
             <p className="mt-2 rounded-md bg-bg/45 px-3 py-2 text-xs leading-5 text-muted">
               {kind === "twitch"
-                ? "How to import: copy public channel links or logins from Twitch, paste them below (one per line, or comma-separated), then select Import list. Private Twitch follows are not exposed by the site, so Reelcase cannot read them directly."
+                ? "How to import: copy public channel links or logins from Twitch, paste them below (one per line, or comma-separated), then select Import list. Private Twitch follows are not exposed by the site, so Realhub cannot read them directly."
                 : "How to import: copy YouTube channel URLs or @handles from your subscriptions, paste them below (one per line, or comma-separated), then select Import list. Your pasted list stays saved locally for future refreshes."}
             </p>
             <textarea
@@ -327,7 +327,7 @@ export function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultK
           </div>
         </div>
       )}
-      {savedLists.length > 0 && <div className="border-t border-border px-5 py-4 sm:px-6"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Saved import list</p><p className="mt-1 text-xs text-muted">{savedLists.length} channel entries retained locally for this service. Reelcase retries this list automatically at startup when the follow shelf is empty.</p><div className="mt-3 flex flex-wrap gap-2">{savedLists.slice(0, 12).map((handle) => <span key={handle} className="rounded-sm bg-elevated px-2 py-1 text-xs text-muted">{handle}</span>)}</div><Button className="mt-3" size="sm" variant="secondary" disabled={remoteBusy} onClick={() => void importItems(savedLists.map((query) => ({ query, kind })))}><ListPlus className="size-3.5" /> Load saved list now</Button></div>}
+      {savedLists.length > 0 && <div className="border-t border-border px-5 py-4 sm:px-6"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Saved import list</p><p className="mt-1 text-xs text-muted">{savedLists.length} channel entries retained locally for this service. Realhub retries this list automatically at startup when the follow shelf is empty.</p><div className="mt-3 flex flex-wrap gap-2">{savedLists.slice(0, 12).map((handle) => <span key={handle} className="rounded-sm bg-elevated px-2 py-1 text-xs text-muted">{handle}</span>)}</div><Button className="mt-3" size="sm" variant="secondary" disabled={remoteBusy} onClick={() => void importItems(savedLists.map((query) => ({ query, kind })))}><ListPlus className="size-3.5" /> Load saved list now</Button></div>}
       <div className="flex flex-col gap-3 border-t border-border bg-elevated/30 px-5 py-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <p className="flex items-center gap-2 text-muted">
           <Check className="size-4 text-accent" /> Latest uploads and live streams appear

@@ -10,6 +10,7 @@ const MAX_BY_VIDEO = 280;
 const failedUrls = new Set<string>();
 const goodUrls = new Set<string>();
 const goodByVideo = new Map<string, string>();
+const healthByVideo = new Map<string, "loaded" | "failed">();
 const hostFail = new Map<string, number>();
 const hostOk = new Map<string, number>();
 
@@ -54,8 +55,9 @@ const PREFERRED_HOSTS: Record<string, number> = {
   "media.redgifs.com": 3,
 };
 
-export function markAdultThumbFailed(url: string) {
+export function markAdultThumbFailed(url: string, videoId?: string) {
   if (!url) return;
+  if (videoId && healthByVideo.get(videoId) !== "loaded") { healthByVideo.set(videoId, "failed"); window.dispatchEvent(new Event("reelcase:preview-health")); }
   failedUrls.add(url);
   goodUrls.delete(url);
   trimSet(failedUrls, MAX_FAILED);
@@ -70,12 +72,22 @@ export function markAdultThumbGood(url: string, videoId?: string) {
   const host = hostOf(url);
   if (host) { hostOk.set(host, (hostOk.get(host) ?? 0) + 1); trimHostMap(hostOk, 96); }
   if (videoId) {
+    healthByVideo.set(videoId, "loaded");
+    window.dispatchEvent(new Event("reelcase:preview-health"));
     goodByVideo.set(videoId, url);
     if (goodByVideo.size > MAX_BY_VIDEO) {
       const first = goodByVideo.keys().next().value;
       if (first) goodByVideo.delete(first);
     }
   }
+}
+
+/** Actual decoded artwork observations from cards mounted in this session. */
+export function getAdultPreviewHealth() {
+  let loaded = 0;
+  let failed = 0;
+  for (const status of healthByVideo.values()) status === "loaded" ? loaded++ : failed++;
+  return { loaded, failed, tested: loaded + failed, share: loaded / Math.max(1, loaded + failed) };
 }
 
 export function isAdultThumbBlacklisted(url: string): boolean {

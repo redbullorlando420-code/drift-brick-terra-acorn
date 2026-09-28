@@ -68,7 +68,7 @@ export const ADULT_CATEGORY_HUB: AdultSiteLink = {
 };
 
 /**
- * Sites with no official unauthenticated discovery/embed path used by Reelcase.
+ * Sites with no official unauthenticated discovery/embed path used by Realhub.
  * Shown in the Adult milestones section (link-out only). Source ids still appear
  * as labeled source-tag chips so users can jump out by site.
  */
@@ -670,7 +670,7 @@ export const ADULT_MILESTONE_LINKS: AdultSiteLink[] = [
 ];
 
 /**
- * Destinations with an official public embed/API path Reelcase actually uses.
+ * Destinations with an official public embed/API path Realhub actually uses.
  * - Eporner API v2 + iframe embeds: https://www.eporner.com/api/v2/
  * - RedTube webmaster API + embed.redtube.com: https://api.redtube.com/
  * - Chaturbate public affiliate rooms JSON + /embed/{user}/

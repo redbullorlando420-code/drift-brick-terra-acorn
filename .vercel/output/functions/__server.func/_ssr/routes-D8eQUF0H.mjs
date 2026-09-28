@@ -2,18 +2,18 @@ import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { r as Slot, s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
 import { n as TSS_SERVER_FUNCTION, r as getServerFnById, t as createServerFn } from "./ssr.mjs";
-import { B as isAdultThumbBlacklisted, C as adultRemoteLabel, D as adultTaxonomyTags, E as adultTaxonomyLabel, F as findFreshAdultPullFingerprint, G as mineRedditCommentTags, H as isUsableAdultThumb, I as isAdultGenreTag, J as redditTitleTokens, L as isAdultImageKind, M as expandedAdultTags, O as adultTextFetishTags, P as fetishSearchQuery, R as isAdultMetaTaxonomyTag, S as adultIngestTags, T as adultTagRankBoost, U as markAdultThumbFailed, V as isDecodedAdultThumbLikelyReal, W as markAdultThumbGood, X as rememberAdultPullFingerprint, a as ADULT_FOLDER_BY_PROVIDER, b as RETIRED_ADULT_SOURCE_IDS, c as ADULT_PULL_PROVIDERS, d as ADULT_SOURCE_OPTIONS, h as LIBRARY_LIMITS, i as ADULT_FEATURED_FETISH_TAGS, k as adultThumbCandidatesForVideo, n as ADULT_CURATED_FETISH_TAGS, o as ADULT_FOLDER_IDS, q as redditIngestExtras, r as ADULT_EMBED_LINKS, s as ADULT_MILESTONE_LINKS, t as ADULT_CATEGORY_HUB, u as ADULT_REDDIT_SUBS, w as adultSourceTag, z as isAdultPullKind } from "./adult-pull-cache-aysXgkuS.mjs";
+import { B as isAdultPullKind, C as adultRemoteLabel, D as adultTaxonomyTags, E as adultTaxonomyLabel, F as findFreshAdultPullFingerprint, G as markAdultThumbGood, H as isDecodedAdultThumbLikelyReal, J as redditIngestExtras, K as mineRedditCommentTags, L as isAdultGenreTag, M as expandedAdultTags, O as adultTextFetishTags, P as fetishSearchQuery, R as isAdultImageKind, S as adultIngestTags, T as adultTagRankBoost, U as isUsableAdultThumb, V as isAdultThumbBlacklisted, W as markAdultThumbFailed, Y as redditTitleTokens, Z as rememberAdultPullFingerprint, a as ADULT_FOLDER_BY_PROVIDER, b as RETIRED_ADULT_SOURCE_IDS, c as ADULT_PULL_PROVIDERS, d as ADULT_SOURCE_OPTIONS, h as LIBRARY_LIMITS, i as ADULT_FEATURED_FETISH_TAGS, k as adultThumbCandidatesForVideo, n as ADULT_CURATED_FETISH_TAGS, o as ADULT_FOLDER_IDS, r as ADULT_EMBED_LINKS, s as ADULT_MILESTONE_LINKS, t as ADULT_CATEGORY_HUB, u as ADULT_REDDIT_SUBS, w as adultSourceTag, z as isAdultMetaTaxonomyTag } from "./adult-pull-cache-CS134UtB.mjs";
 import { n as create, t as useShallow } from "../_libs/zustand.mjs";
 import { n as clsx, t as cva } from "../_libs/class-variance-authority+clsx.mjs";
 import { t as twMerge } from "../_libs/tailwind-merge.mjs";
-import { $ as Heart, B as Lock, Ct as Check, D as Play, Dt as Bell, E as Radio, Et as Bot, H as LoaderCircle, I as MessageCircle, J as Images, K as LayoutGrid, L as Menu, M as Monitor, N as MonitorPlay, O as PictureInPicture2, Ot as BellOff, P as Minimize, Q as History, R as Maximize, S as Search, St as ChevronDown, T as RefreshCw, Tt as Box, U as List, V as LockOpen, W as ListPlus, Y as Image, Z as ImageOff, _ as SkipBack, _t as Clock3, a as Volume2, at as FolderPlus, bt as ChevronRight, c as Upload, ct as Film, d as Tag, dt as EyeOff, ft as ExternalLink, g as SkipForward, h as Smartphone, ht as Cpu, i as VolumeX, it as FolderSearch, j as Music2, k as Pause, kt as ArrowLeft, lt as FileText, m as Sparkles, mt as Download, n as X, nt as Gamepad2, o as Video, ot as Flame, p as Star, r as Wifi, rt as Folder, s as Users, st as Flag, t as Youtube, tt as Glasses, u as ThumbsUp, ut as Eye, v as Shuffle, vt as Clapperboard, wt as ChartColumn, x as Settings2, xt as ChevronLeft, y as ShoppingBag, yt as CircleAlert } from "../_libs/lucide-react.mjs";
+import { A as PictureInPicture2, At as Bell, B as Maximize, C as Settings2, Ct as ChevronRight, D as RefreshCw, Dt as ChartColumn, Et as Check, F as MonitorPlay, G as List, H as Lock, I as Minimize, K as ListPlus, Mt as ArrowLeft, N as Music2, O as Radio, Ot as Box, P as Monitor, Q as Image, R as MessageCircle, St as CircleAlert, Tt as ChevronDown, U as LockOpen, W as LoaderCircle, Y as LayoutGrid, Z as Images, _ as Smartphone, _t as Download, a as Volume2, at as Gamepad2, b as Shuffle, bt as Clock3, c as Upload, ct as FolderPlus, d as Trash2, dt as Film, et as ImageOff, f as ThumbsUp, ft as FileText, g as Sparkles, h as Star, ht as ExternalLink, i as VolumeX, it as Glasses, j as Pause, jt as BellOff, k as Play, kt as Bot, l as Twitch, lt as Flame, mt as EyeOff, n as X, nt as Heart, o as Video, ot as Folder, p as Tag, pt as Eye, q as ListChecks, r as Wifi, s as Users, st as FolderSearch, t as Youtube, tt as History, ut as Flag, v as SkipForward, vt as Cpu, w as Search, wt as ChevronLeft, x as ShoppingBag, xt as Clapperboard, y as SkipBack, z as Menu } from "../_libs/lucide-react.mjs";
 import { n as toast, t as Toaster } from "../_libs/sonner.mjs";
 import { i as zipSync, n as strToU8, r as unzipSync, t as strFromU8 } from "../_libs/fflate.mjs";
 import { a as DialogPortal, i as DialogOverlay, n as DialogClose, o as DialogTitle, r as DialogContent, t as Dialog } from "../_libs/@radix-ui/react-dialog+[...].mjs";
 import { t as Root } from "../_libs/radix-ui__react-separator.mjs";
 import { a as Trigger, i as Root2, n as Item2, r as Portal2, t as Content2 } from "../_libs/@radix-ui/react-dropdown-menu+[...].mjs";
 import { i as SliderTrack, n as SliderRange, r as SliderThumb, t as Slider$1 } from "../_libs/@radix-ui/react-slider+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-DowxOMzf.js
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-D8eQUF0H.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var __defProp = Object.defineProperty;
@@ -115,7 +115,7 @@ function adultArchiveDepthLabel(cursors) {
 	if (!rows.length) return "No saved archive depth yet — Pull catalog starts at page 1.";
 	return `Resume cursors · ${rows.sort((a, b) => a[0].localeCompare(b[0])).map(([provider, row]) => `${provider}→p${row.page}`).join(" · ")}`;
 }
-/** Thin client for the optional loopback Reelcase Companion (127.0.0.1 only). */
+/** Thin client for the optional loopback Realhub Companion (127.0.0.1 only). */
 var COMPANION_ORIGIN = "http://127.0.0.1:43123";
 async function companionFetch(path, init) {
 	return fetch(`${COMPANION_ORIGIN}${path}`, {
@@ -353,6 +353,13 @@ function normalizeFollowChannels(raw) {
 		const handle = typeof rec.handle === "string" ? rec.handle.trim() : "";
 		const id = typeof rec.id === "string" ? rec.id.trim() : "";
 		const title = typeof rec.title === "string" ? rec.title.trim() : handle;
+		const cacheRaw = rec.cache && typeof rec.cache === "object" ? rec.cache : null;
+		const cache = cacheRaw && typeof cacheRaw.at === "number" && Number.isFinite(cacheRaw.at) && typeof cacheRaw.hits === "number" && Number.isFinite(cacheRaw.hits) && typeof cacheRaw.misses === "number" && Number.isFinite(cacheRaw.misses) && (cacheRaw.scope === "feed" || cacheRaw.scope === "catalog" || cacheRaw.scope === "uncached") ? {
+			at: cacheRaw.at,
+			hits: Math.max(0, Math.floor(cacheRaw.hits)),
+			misses: Math.max(0, Math.floor(cacheRaw.misses)),
+			scope: cacheRaw.scope
+		} : void 0;
 		if (!kind || !handle && !id) continue;
 		out.push({
 			id: id || `${kind === "twitch" ? "tw" : "yt"}:${handle}`,
@@ -364,7 +371,9 @@ function normalizeFollowChannels(raw) {
 			...typeof rec.live === "boolean" ? { live: rec.live } : {},
 			...typeof rec.lastCheckedAt === "number" ? { lastCheckedAt: rec.lastCheckedAt } : {},
 			...typeof rec.newestPublishedAt === "number" ? { newestPublishedAt: rec.newestPublishedAt } : {},
+			...typeof rec.newestVideoId === "string" && rec.newestVideoId ? { newestVideoId: rec.newestVideoId } : {},
 			...typeof rec.lastResponseCount === "number" ? { lastResponseCount: rec.lastResponseCount } : {},
+			...cache ? { cache } : {},
 			...rec.lastProviderFailure && typeof rec.lastProviderFailure === "object" ? { lastProviderFailure: rec.lastProviderFailure } : {}
 		});
 	}
@@ -766,7 +775,8 @@ async function restoreDurableFeedback() {
 		creatorRatings: pick(fromIdb?.creatorRatings, fromLs?.creatorRatings),
 		creatorLikes: pick(fromIdb?.creatorLikes, fromLs?.creatorLikes),
 		tagLikes: pick(fromIdb?.tagLikes, fromLs?.tagLikes),
-		tagHeartHistory: pick(fromIdb?.tagHeartHistory, fromLs?.tagHeartHistory)
+		tagHeartHistory: pick(fromIdb?.tagHeartHistory, fromLs?.tagHeartHistory),
+		watchTime: pick(fromIdb?.watchTime, fromLs?.watchTime)
 	};
 }
 function normalizePhotoSources(raw) {
@@ -1314,7 +1324,8 @@ function normalize(raw) {
 		groupBy: raw.groupBy ?? "none",
 		follows: Array.isArray(raw.follows) ? raw.follows : [],
 		notices: Array.isArray(raw.notices) ? raw.notices : [],
-		notifyPush: Boolean(raw.notifyPush)
+		notifyPush: Boolean(raw.notifyPush),
+		hiddenVideoIds: Array.isArray(raw.hiddenVideoIds) ? raw.hiddenVideoIds.filter((id) => typeof id === "string") : []
 	};
 }
 var VIEW_PREFS_KEY = "reelcase.view-prefs.v1";
@@ -1539,6 +1550,10 @@ function mergeRemoteRefresh(existing, incoming, refreshedIds, savedIds) {
 			continue;
 		}
 		if (video.remote.kind === "twitch" && !video.remote.live) {
+			merged.push(video);
+			continue;
+		}
+		if (video.folderId.startsWith("ytpl:")) {
 			merged.push(video);
 			continue;
 		}
@@ -1807,6 +1822,13 @@ function getRatingStreakSnapshot(now = /* @__PURE__ */ new Date()) {
 		rewards
 	};
 }
+/** Explicit dislike, neutral, then progressively stronger positive signals. */
+function ratingPreference(rating) {
+	return rating === 1 ? -3 : rating === 2 ? 0 : rating >= 3 ? Math.min(3, rating - 2) : 0;
+}
+function watchTimeScore(time) {
+	return Math.min(12, Math.floor(time.preview / 30) + Math.floor(time.fullscreen / 90) * 2 + Math.floor((time.previewEstimated ?? 0) / 90) + Math.floor((time.fullscreenEstimated ?? 0) / 180));
+}
 var KEY = "reelcase.media-feedback.v1";
 var cached = null;
 var changeTimer;
@@ -1859,7 +1881,8 @@ function read() {
 			creatorRatings: saved.creatorRatings ?? {},
 			creatorLikes: saved.creatorLikes ?? {},
 			tagLikes: saved.tagLikes ?? {},
-			tagHeartHistory: saved.tagHeartHistory ?? {}
+			tagHeartHistory: saved.tagHeartHistory ?? {},
+			watchTime: saved.watchTime ?? {}
 		};
 	} catch {
 		cached = {
@@ -1869,7 +1892,8 @@ function read() {
 			creatorRatings: {},
 			creatorLikes: {},
 			tagLikes: {},
-			tagHeartHistory: {}
+			tagHeartHistory: {},
+			watchTime: {}
 		};
 	}
 	return cached;
@@ -1909,6 +1933,10 @@ async function hydrateDurableFeedback() {
 		tagHeartHistory: {
 			...durable.tagHeartHistory,
 			...current.tagHeartHistory
+		},
+		watchTime: {
+			...durable.watchTime,
+			...current.watchTime
 		}
 	};
 	notifyChange();
@@ -1941,6 +1969,12 @@ function write(next) {
 	pendingWrites = 1;
 	if (persistTimer$1) window.clearTimeout(persistTimer$1);
 	persistTimer$1 = window.setTimeout(persist, 90);
+}
+function writeWatchTime(next) {
+	cached = next;
+	if (typeof window === "undefined") return;
+	pendingWrites = 1;
+	persistTimer$1 ??= window.setTimeout(persist, 15e3);
 }
 function notifyChange() {
 	if (typeof window === "undefined" || changeTimer) return;
@@ -1976,6 +2010,29 @@ function setRating(id, rating) {
 	write(next);
 	notifyChange();
 	lastRatingQueueMs = Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - started);
+}
+function getWatchTime(id) {
+	return read().watchTime[id] ?? {
+		preview: 0,
+		fullscreen: 0
+	};
+}
+function getWatchTimeLedger() {
+	return { ...read().watchTime };
+}
+/** Count real elapsed playback in small bounded increments, never seek distance. */
+function recordWatchTime(id, mode, seconds) {
+	if (!id || !Number.isFinite(seconds) || seconds <= 0) return;
+	const next = read();
+	const current = next.watchTime[id] ?? {
+		preview: 0,
+		fullscreen: 0
+	};
+	next.watchTime[id] = {
+		...current,
+		[mode]: Math.min(1e7, (current[mode] ?? 0) + Math.min(seconds, 5))
+	};
+	writeWatchTime(next);
 }
 /** Local timing only. This never transmits library feedback or usage data. */
 function getFeedbackDiagnostics() {
@@ -2063,6 +2120,7 @@ function importFeedback(partial) {
 	if (partial.creatorLikes) Object.assign(next.creatorLikes, partial.creatorLikes);
 	if (partial.tagLikes) Object.assign(next.tagLikes, partial.tagLikes);
 	if (partial.tagHeartHistory) Object.assign(next.tagHeartHistory, partial.tagHeartHistory);
+	if (partial.watchTime) Object.assign(next.watchTime, partial.watchTime);
 	write(next);
 	notifyChange();
 	flush();
@@ -3031,6 +3089,59 @@ function resolveCreatorCoverage(video, follows) {
 		evidence: candidates[0].evidence
 	};
 }
+/** The review and the store mutation share this calculation so counts match the result. */
+function planFollowRemoval(state, requestedIds, feedback = {}) {
+	const requested = new Set(requestedIds);
+	const channels = state.follows.filter((follow) => requested.has(follow.id)).map((follow) => ({
+		follow,
+		catalogRows: 0,
+		keptRows: 0,
+		removedRows: 0
+	}));
+	const byId = new Map(channels.map((row) => [row.follow.id, row]));
+	const historyIds = new Set(state.history.map((entry) => entry.id));
+	const legacySavedIds = /* @__PURE__ */ new Set();
+	if (typeof localStorage !== "undefined") try {
+		for (let index = 0; index < localStorage.length; index += 1) {
+			const key = localStorage.key(index);
+			if (key?.startsWith("reelcase.rating.") && Number(localStorage.getItem(key)) > 0) legacySavedIds.add(key.slice(16));
+			if (key?.startsWith("reelcase.note.") && localStorage.getItem(key)?.trim()) legacySavedIds.add(key.slice(14));
+		}
+	} catch {}
+	const retainedVideoIds = /* @__PURE__ */ new Set();
+	let keptRows = 0;
+	let removedRows = 0;
+	for (const video of state.videos) {
+		const channel = byId.get(video.folderId);
+		if (!channel) continue;
+		channel.catalogRows += 1;
+		if (Boolean(state.favorites[video.id] || state.likes[video.id] || historyIds.has(video.id) || (state.progress[video.id]?.t ?? 0) > 0 || (state.resumeProgress[video.id]?.t ?? 0) > 0 || (feedback.ratings?.[video.id] ?? 0) > 0 || Boolean(feedback.notes?.[video.id]?.trim()) || legacySavedIds.has(video.id))) {
+			retainedVideoIds.add(video.id);
+			channel.keptRows += 1;
+			keptRows += 1;
+		} else {
+			channel.removedRows += 1;
+			removedRows += 1;
+		}
+	}
+	return {
+		followIds: new Set(channels.map((row) => row.follow.id)),
+		channels,
+		retainedVideoIds,
+		keptRows,
+		removedRows
+	};
+}
+function retainVideosAfterUnfollow(videos, plan) {
+	return videos.flatMap((video) => !plan.followIds.has(video.folderId) ? [video] : plan.retainedVideoIds.has(video.id) ? [{
+		...video,
+		retainedAfterUnfollow: true
+	}] : []);
+}
+/** Durable marker protects locally kept cards before activity stores finish restoring. */
+function shouldRestoreRemoteVideo(video, activeFollowIds, favorites, likes) {
+	return activeFollowIds.has(video.folderId) || Boolean(favorites[video.id] || likes[video.id] || video.retainedAfterUnfollow);
+}
 var createSsrRpc = (functionId) => {
 	const url = "/_serverFn/" + functionId;
 	const serverFnMeta = { id: functionId };
@@ -3056,6 +3167,8 @@ var fetchTwitchFollowing = createServerFn({ method: "POST" }).validator(input).h
 var searchAdultVideos = createServerFn({ method: "POST" }).validator(input).handler(createSsrRpc("0e94cec61957c6cccbe0dc56ae15e7a5544920a3a6da937df6a89d530e96fb39"));
 var fetchAdultComments = createServerFn({ method: "POST" }).validator(input).handler(createSsrRpc("3250c7fe9ae5ccef9fa5787d5e016af43eee3512d762581de88ac40b08152dad"));
 var searchRedtubeStars = createServerFn({ method: "POST" }).validator(input).handler(createSsrRpc("bcf52ff714b81b8c64a4700ab9a64674ed5afcf8786fb9b74bdc3c4557ca86bf"));
+var resolveBooruOriginal = createServerFn({ method: "POST" }).validator(input).handler(createSsrRpc("dd1d1916a4839a4ceb55923d6e545e56caf6cd3f77b36275c007d928335b1d12"));
+var youtubeCreatorProfiles = createServerFn({ method: "POST" }).validator(input).handler(createSsrRpc("01ab33bc0455dc5351da5f13e553736c0034ee0d18195c486c175d01ae271321"));
 var restoring = false;
 var navigationChanged = false;
 var remoteRefreshCursor = 0;
@@ -3119,7 +3232,8 @@ function persistNow(get) {
 		follows: s.follows,
 		notices: s.notices.slice(0, 40),
 		notifyPush: s.notifyPush,
-		unavailableVideoIds: Object.keys(s.unavailable)
+		unavailableVideoIds: Object.keys(s.unavailable),
+		hiddenVideoIds: Object.keys(s.hiddenVideos)
 	};
 	saveFollows(s.follows);
 	saveDurableHistory(s.history);
@@ -3296,6 +3410,11 @@ function cacheRemotesSoon(get) {
 	}, 1200);
 }
 function canonicalFollowHandle(kind, raw) {
+	if (kind === "youtube") try {
+		const url = new URL(raw.trim());
+		const playlist = url.searchParams.get("list");
+		if (/(^|\.)youtube\.com$/i.test(url.hostname) && playlist && /^[a-z0-9_-]{10,80}$/i.test(playlist)) return `playlist:${playlist}`;
+	} catch {}
 	const value = raw.trim().replaceAll("\\_", "_").toLowerCase();
 	if (kind === "twitch") return (value.match(/(?:https?:\/\/)?(?:www\.)?twitch\.tv\/([^/?#]+)/i)?.[1] ?? value.replace(/^tw:/, "")).replace(/^@/, "").replace(/[^a-z0-9_]/g, "");
 	return (value.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:@|channel\/)?([^/?#]+)/i)?.[1] ?? value).replace(/^@/, "").replace(/[^a-z0-9_-]/g, "");
@@ -3573,7 +3692,8 @@ function applyPrefs(partial) {
 		follows: dedupeFollows$1(prefs.follows ?? []),
 		notices: prefs.notices ?? [],
 		notifyPush: prefs.notifyPush ?? false,
-		unavailable: Object.fromEntries((prefs.unavailableVideoIds ?? []).map((id) => [id, true]))
+		unavailable: Object.fromEntries((prefs.unavailableVideoIds ?? []).map((id) => [id, true])),
+		hiddenVideos: Object.fromEntries((prefs.hiddenVideoIds ?? []).map((id) => [id, true]))
 	};
 }
 function adultIdSet(folders) {
@@ -3687,6 +3807,7 @@ var useLibrary = create((set, get) => ({
 	follows: STARTER_FOLLOWS,
 	notices: [],
 	unavailable: {},
+	hiddenVideos: {},
 	notifyPush: false,
 	remoteBusy: false,
 	refreshing: false,
@@ -4087,6 +4208,25 @@ var useLibrary = create((set, get) => ({
 	},
 	closePreview: () => set({ previewId: null }),
 	closePlayer: () => set({ activeId: null }),
+	hideVideo: (id) => {
+		set((s) => ({
+			hiddenVideos: {
+				...s.hiddenVideos,
+				[id]: true
+			},
+			activeId: s.activeId === id ? null : s.activeId,
+			previewId: s.previewId === id ? null : s.previewId
+		}));
+		persistNow(get);
+	},
+	unhideVideo: (id) => {
+		set((s) => {
+			const hiddenVideos = { ...s.hiddenVideos };
+			delete hiddenVideos[id];
+			return { hiddenVideos };
+		});
+		persistNow(get);
+	},
 	removeVideo: (id) => {
 		set((s) => {
 			const favorites = { ...s.favorites };
@@ -4593,12 +4733,17 @@ var useLibrary = create((set, get) => ({
 				};
 			});
 		}).catch(() => void 0);
+		set({ hydrated: true });
+		await new Promise((resolve) => {
+			if (typeof window === "undefined") resolve();
+			else window.setTimeout(resolve, 32);
+		});
 		try {
 			const snapshot = await loadRemoteSnapshot();
 			if (snapshot) {
 				const ids = new Set(get().follows.map((channel) => channel.id));
 				set((s) => {
-					const videos = mergeVideos(s.videos, snapshot.videos.filter((v) => ids.has(v.folderId) || s.favorites[v.id] || s.likes[v.id]));
+					const videos = mergeVideos(s.videos, snapshot.videos.filter((video) => shouldRestoreRemoteVideo(video, ids, s.favorites, s.likes)));
 					const enriched = enrichRemoteTags(s.tags, s.metadataProvenance, snapshot.videos);
 					return {
 						videos,
@@ -4635,7 +4780,6 @@ var useLibrary = create((set, get) => ({
 				return { folders };
 			});
 		}).catch(() => void 0);
-		set({ hydrated: true });
 		restoring = false;
 		if (typeof window !== "undefined") {
 			let index = 0;
@@ -5135,12 +5279,29 @@ var useLibrary = create((set, get) => ({
 			throw err;
 		}
 	},
-	unfollow: (id) => {
+	unfollow: (id) => get().unfollowMany([id]),
+	updateFollowProfiles: (profiles) => {
+		const byId = new Map(profiles.filter((profile) => profile.thumb || profile.description).map((profile) => [profile.id, profile]));
+		if (!byId.size) return;
+		set((s) => ({ follows: s.follows.map((follow) => {
+			const profile = byId.get(follow.id);
+			return profile ? {
+				...follow,
+				thumb: profile.thumb || follow.thumb,
+				description: profile.description || follow.description
+			} : follow;
+		}) }));
+		saveFollows(get().follows);
+		persistSoon(get);
+	},
+	unfollowMany: (ids) => {
+		const plan = planFollowRemoval(get(), ids, exportFeedback());
+		if (!plan.followIds.size) return;
 		set((s) => ({
-			follows: s.follows.filter((f) => f.id !== id),
-			folders: s.folders.filter((f) => f.id !== id),
-			videos: s.videos.filter((v) => v.folderId !== id || s.favorites[v.id] || s.likes[v.id]),
-			sourceId: s.sourceId === id ? "home" : s.sourceId
+			follows: s.follows.filter((f) => !plan.followIds.has(f.id)),
+			folders: s.folders.filter((f) => !plan.followIds.has(f.id)),
+			videos: retainVideosAfterUnfollow(s.videos, plan),
+			sourceId: plan.followIds.has(s.sourceId) ? "home" : s.sourceId
 		}));
 		persistNow(get);
 		cacheRemotes(get);
@@ -5324,7 +5485,7 @@ function computePublicList(state) {
 	if (memo.public) return memo.public;
 	const adult = adultIdSet(state.folders);
 	const knownFolders = new Set(state.folders.map((folder) => folder.id));
-	let list = state.videos.filter((v) => !state.unavailable[v.id] && !adult.has(v.folderId) && (knownFolders.has(v.folderId) || Boolean(v.remote) || v.isSample));
+	let list = state.videos.filter((v) => !state.unavailable[v.id] && !state.hiddenVideos[v.id] && !adult.has(v.folderId) && (knownFolders.has(v.folderId) || Boolean(v.remote) || v.isSample));
 	if (state.hideDemo) list = list.filter((v) => !v.isSample);
 	memo.public = list;
 	return list;
@@ -5333,7 +5494,7 @@ function computeAdultList(state) {
 	const memo = memoFor(state);
 	if (memo.adult) return memo.adult;
 	const adult = adultIdSet(state.folders);
-	memo.adult = dedupeAdultVideoCards(state.videos.filter((v) => !state.unavailable[v.id] && adult.has(v.folderId) && !RETIRED_ADULT_SOURCE_IDS.includes(v.remote?.kind ?? v.folderId.split(":")[0]) && (state.showHiddenAdult || !(state.tags[v.id] ?? []).includes("hidden"))));
+	memo.adult = dedupeAdultVideoCards(state.videos.filter((v) => !state.unavailable[v.id] && !state.hiddenVideos[v.id] && adult.has(v.folderId) && !RETIRED_ADULT_SOURCE_IDS.includes(v.remote?.kind ?? v.folderId.split(":")[0]) && (state.showHiddenAdult || !(state.tags[v.id] ?? []).includes("hidden"))));
 	return memo.adult;
 }
 function computeSelectVisible(state) {
@@ -5379,6 +5540,7 @@ function computeRecoveryList(state, adult) {
 	const adultIds = adultIdSet(state.folders);
 	return state.videos.filter((video) => {
 		if (state.hideDemo && video.isSample) return false;
+		if (state.hiddenVideos[video.id]) return false;
 		return adult ? adultIds.has(video.folderId) : !adultIds.has(video.folderId);
 	});
 }
@@ -5394,6 +5556,7 @@ function computeSelectContinue(state, adult = false) {
 	};
 	for (const video of recoveryList(state, adult)) recordMark(video.id, resumeForVideo(state, video));
 	for (const entry of state.history) {
+		if (state.hiddenVideos[entry.id]) continue;
 		if (!entry.position || !entry.duration || entry.position < 2 || entry.position / entry.duration >= .992) continue;
 		recordMark(entry.id, {
 			t: entry.position,
@@ -5422,7 +5585,7 @@ function resumeForVideo(state, video) {
 function computeSelectHistory(state, adult = false) {
 	const byId = resumeLookup(recoveryList(state, adult));
 	const seen = /* @__PURE__ */ new Set();
-	return state.history.filter((h) => !seen.has(h.id) && Boolean(seen.add(h.id))).map((h) => {
+	return state.history.filter((h) => !state.hiddenVideos[h.id] && !seen.has(h.id) && Boolean(seen.add(h.id))).map((h) => {
 		const cached = byId.get(h.id) ?? (h.url ? byId.get(h.url) : void 0);
 		if (cached) return cached;
 		const live = state.videos.find((item) => item.id === h.id);
@@ -5480,7 +5643,7 @@ function computeSelectHistory(state, adult = false) {
 function computeSelectAdultRemote(state) {
 	const memo = memoFor(state);
 	if (memo.adultRemote) return memo.adultRemote;
-	const matching = state.videos.filter((v) => v.remote?.kind === "eporner" || v.remote?.kind === "redtube" || v.remote?.kind === "chaturbate" || v.remote?.kind === "myfreecams" || v.remote?.kind === "reddit" || v.remote?.kind === "booru" || v.remote?.kind === "redgifs" || ADULT_FOLDER_IDS.includes(v.folderId)).filter((video) => state.showHiddenAdult || !(state.tags[video.id] ?? []).includes("hidden"));
+	const matching = state.videos.filter((v) => v.remote?.kind === "eporner" || v.remote?.kind === "redtube" || v.remote?.kind === "chaturbate" || v.remote?.kind === "myfreecams" || v.remote?.kind === "reddit" || v.remote?.kind === "booru" || v.remote?.kind === "redgifs" || ADULT_FOLDER_IDS.includes(v.folderId)).filter((video) => !state.hiddenVideos[video.id] && (state.showHiddenAdult || !(state.tags[video.id] ?? []).includes("hidden")));
 	memo.adultRemote = dedupeAdultVideoCards([...new Map(matching.map((video) => [video.id, video])).values()]).sort((a, b) => b.addedAt - a.addedAt);
 	return memo.adultRemote;
 }
@@ -5525,6 +5688,7 @@ var adultList = memoizeSelector(computeAdultList, [
 	"videos",
 	"folders",
 	"unavailable",
+	"hiddenVideos",
 	"tags",
 	"showHiddenAdult"
 ]);
@@ -5535,6 +5699,7 @@ var recoveryList = memoizeSelector(computeRecoveryList, [
 ]);
 var selectAdultRemote = memoizeSelector(computeSelectAdultRemote, [
 	"videos",
+	"hiddenVideos",
 	"tags",
 	"showHiddenAdult"
 ]);
@@ -5542,18 +5707,21 @@ var selectFavorites = memoizeSelector(computeSelectFavorites, [
 	"videos",
 	"folders",
 	"hideDemo",
+	"hiddenVideos",
 	"favorites"
 ]);
 var selectHistory = memoizeSelector(computeSelectHistory, [
 	"videos",
 	"folders",
 	"hideDemo",
+	"hiddenVideos",
 	"history"
 ]);
 var selectContinue = memoizeSelector(computeSelectContinue, [
 	"videos",
 	"folders",
 	"hideDemo",
+	"hiddenVideos",
 	"history",
 	"progress",
 	"resumeProgress"
@@ -5563,6 +5731,7 @@ var selectVisible = memoizeSelector(computeSelectVisible, [
 	"folders",
 	"hideDemo",
 	"unavailable",
+	"hiddenVideos",
 	"sourceId",
 	"query",
 	"searchResult",
@@ -6214,6 +6383,7 @@ var VideoCard = (0, import_react.memo)(function VideoCard({ video, variant = "gr
 	const toggleLike = useLibrary((s) => s.toggleLike);
 	const openPreview = useLibrary((s) => s.openPreview);
 	const toggleFavorite = useLibrary((s) => s.toggleFavorite);
+	const hideVideo = useLibrary((s) => s.hideVideo);
 	const setVideoTags = useLibrary((s) => s.setVideoTags);
 	const setQuery = useLibrary((s) => s.setQuery);
 	const setSource = useLibrary((s) => s.setSource);
@@ -6363,7 +6533,7 @@ var VideoCard = (0, import_react.memo)(function VideoCard({ video, variant = "gr
 		if (!artVisible || !artAllowed || !activeThumb || showPreview || candidateReady) return;
 		if (paintedSrc === activeThumb) return;
 		const timer = window.setTimeout(() => {
-			markAdultThumbFailed(activeThumb);
+			markAdultThumbFailed(activeThumb, adult ? video.id : void 0);
 			releaseImageSlot();
 			advanceThumb();
 		}, THUMB_LOAD_TIMEOUT_MS);
@@ -6445,12 +6615,12 @@ var VideoCard = (0, import_react.memo)(function VideoCard({ video, variant = "gr
 					const url = activeThumb;
 					if (!url) return;
 					if (!isDecodedAdultThumbLikelyReal(img)) {
-						markAdultThumbFailed(url);
+						markAdultThumbFailed(url, adult ? video.id : void 0);
 						releaseImageSlot();
 						advanceThumb();
 						return;
 					}
-					markAdultThumbGood(url, video.id);
+					markAdultThumbGood(url, adult ? video.id : void 0);
 					setPaintedSrc(url);
 					setCandidateReady(true);
 					releaseImageSlot();
@@ -6458,7 +6628,7 @@ var VideoCard = (0, import_react.memo)(function VideoCard({ video, variant = "gr
 				},
 				onError: () => {
 					if (showPreview) return;
-					if (activeThumb) markAdultThumbFailed(activeThumb);
+					if (activeThumb) markAdultThumbFailed(activeThumb, adult ? video.id : void 0);
 					releaseImageSlot();
 					advanceThumb();
 				},
@@ -6651,6 +6821,18 @@ var VideoCard = (0, import_react.memo)(function VideoCard({ video, variant = "gr
 				},
 				className: cn("absolute top-2 right-2 flex size-9 items-center justify-center rounded-sm bg-bg/55 text-fg opacity-0 backdrop-blur-sm transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100", fav && "opacity-100", variant === "list" && "top-3 right-3"),
 				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Heart, { className: cn("size-3.5", fav && "fill-accent text-accent") })
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+				type: "button",
+				"aria-label": `Hide ${video.name} from your library`,
+				title: "Hide this title everywhere until restored in Settings",
+				onClick: (event) => {
+					event.stopPropagation();
+					hideVideo(video.id);
+					toast.message("Title hidden. Restore it from Settings → Hidden titles.");
+				},
+				className: "absolute top-2 left-2 flex size-9 items-center justify-center rounded-sm bg-bg/75 text-fg opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 focus-visible:opacity-100",
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(EyeOff, { className: "size-3.5" })
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 				type: "button",
@@ -6943,7 +7125,7 @@ function scoreAdultVideo(video, ctx) {
 	const boost = itemTags.reduce((sum, tag) => sum + adultTagRankBoost(tag), 0);
 	const recency = Math.max(0, 1 - (Date.now() - video.addedAt) / 18144e5) * 8;
 	const reddit = video.remote?.kind === "reddit" ? 6 + redditSignal(itemTags) : redditSignal(itemTags);
-	return rating * 14 + (ctx.favorites[video.id] ? 10 : 0) + (ctx.likes[video.id] ? 6 : 0) + came + views + boost + recency + reddit + Math.min(6, itemTags.length) * .35;
+	return ratingPreference(rating) * 14 + (ctx.favorites[video.id] ? 10 : 0) + (ctx.likes[video.id] ? 6 : 0) + came + views + boost + recency + reddit + Math.min(6, itemTags.length) * .35;
 }
 function stabilizedTagScore(engagement, count, recency, boost, providerCoverage = 1, videoScoreSum = 0) {
 	const support = Math.max(count === 1 ? .42 : .28, count / (count + 3));
@@ -6964,7 +7146,7 @@ function rankAdultTags(videos, ctx, limit = 64) {
 	const rows = /* @__PURE__ */ new Map();
 	for (const video of videos) {
 		const rating = ctx.ratingOf(video.id);
-		const signal = Math.max(rating, ctx.favorites[video.id] ? 4 : 0, ctx.likes[video.id] ? 3 : 0, Math.min(5, ctx.cameCounts[video.id] ?? 0), .35);
+		const signal = rating === 1 ? -3 : Math.max(ratingPreference(rating), ctx.favorites[video.id] ? 4 : 0, ctx.likes[video.id] ? 3 : 0, Math.min(5, ctx.cameCounts[video.id] ?? 0), .35);
 		const kind = adultProviderKind(video);
 		const itemTags = ctx.tags[video.id] ?? [];
 		const videoScore = scoreAdultVideo(video, ctx);
@@ -7002,7 +7184,7 @@ function rankAdultTags(videos, ctx, limit = 64) {
 function rankAdultMetaTags(videos, ctx, limit = 64) {
 	const rows = /* @__PURE__ */ new Map();
 	for (const video of videos) {
-		const engagement = Math.max(ctx.ratingOf(video.id), ctx.favorites[video.id] ? 4 : 0, ctx.likes[video.id] ? 3 : 0, Math.min(5, ctx.cameCounts[video.id] ?? 0), 1);
+		const engagement = ctx.ratingOf(video.id) === 1 ? -3 : Math.max(ratingPreference(ctx.ratingOf(video.id)), ctx.favorites[video.id] ? 4 : 0, ctx.likes[video.id] ? 3 : 0, Math.min(5, ctx.cameCounts[video.id] ?? 0), 1);
 		const provider = adultProviderKind(video) || "other";
 		const itemTags = ctx.tags[video.id] ?? [];
 		for (const tag of expandedAdultTags(itemTags)) {
@@ -7633,6 +7815,53 @@ function exportAdultStats(snapshot, format) {
 	}
 	downloadTextFile(adultStatsToCsv(snapshot), `reelcase-adult-stats-${stamp}.csv`, "text/csv;charset=utf-8");
 }
+var FOLLOW_COLLECTIONS_KEY = "reelcase.follow-collections.v1";
+var FOLLOW_COLLECTIONS_CHANGED = "reelcase:follow-collections-change";
+function normalizeCreatorCollections(raw) {
+	if (!Array.isArray(raw)) return [];
+	const byId = /* @__PURE__ */ new Map();
+	for (const value of raw.slice(0, 200)) {
+		if (!value || typeof value !== "object") continue;
+		const row = value;
+		if (typeof row.id !== "string" || !row.id.trim() || typeof row.name !== "string" || !row.name.trim() || !Array.isArray(row.followIds)) continue;
+		const followIds = [...new Set(row.followIds.filter((id) => typeof id === "string" && Boolean(id.trim())).slice(0, 1e4))];
+		if (!followIds.length) continue;
+		byId.set(row.id, {
+			id: row.id,
+			name: row.name.trim().slice(0, 48),
+			followIds,
+			createdAt: typeof row.createdAt === "number" && Number.isFinite(row.createdAt) ? row.createdAt : 0
+		});
+	}
+	return [...byId.values()];
+}
+function loadCreatorCollections() {
+	if (typeof localStorage === "undefined") return [];
+	try {
+		return normalizeCreatorCollections(JSON.parse(localStorage.getItem("reelcase.follow-collections.v1") ?? "[]"));
+	} catch {
+		return [];
+	}
+}
+function saveCreatorCollections(collections) {
+	const normalized = normalizeCreatorCollections(collections);
+	try {
+		localStorage.setItem(FOLLOW_COLLECTIONS_KEY, JSON.stringify(normalized));
+		if (typeof window !== "undefined") window.dispatchEvent(new Event(FOLLOW_COLLECTIONS_CHANGED));
+	} catch {}
+}
+/** Merge by stable collection ID so a recovery pack never erases newer local groups. */
+function mergeCreatorCollections(current, incoming) {
+	const byId = new Map(normalizeCreatorCollections(current).map((row) => [row.id, row]));
+	for (const row of normalizeCreatorCollections(incoming)) {
+		const prior = byId.get(row.id);
+		byId.set(row.id, prior ? {
+			...prior,
+			followIds: [.../* @__PURE__ */ new Set([...prior.followIds, ...row.followIds])]
+		} : row);
+	}
+	return [...byId.values()];
+}
 var LIBRARY_PACK_ROOT = "reelcase-library-pack";
 function stamp() {
 	return (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
@@ -7689,6 +7918,13 @@ function normalizeFollowRow(row) {
 	const handle = String(row.handle ?? row.channel ?? row.title ?? "").trim().replace(/^@/, "");
 	const id = String(row.id ?? "").trim() || (kind && handle ? `${kind === "twitch" ? "tw" : "yt"}:${handle}` : "");
 	const title = String(row.title ?? row.channel ?? handle).trim() || handle;
+	const cacheRaw = row.cache && typeof row.cache === "object" ? row.cache : null;
+	const cache = cacheRaw && typeof cacheRaw.at === "number" && Number.isFinite(cacheRaw.at) && typeof cacheRaw.hits === "number" && Number.isFinite(cacheRaw.hits) && typeof cacheRaw.misses === "number" && Number.isFinite(cacheRaw.misses) && (cacheRaw.scope === "feed" || cacheRaw.scope === "catalog" || cacheRaw.scope === "uncached") ? {
+		at: cacheRaw.at,
+		hits: Math.max(0, Math.floor(cacheRaw.hits)),
+		misses: Math.max(0, Math.floor(cacheRaw.misses)),
+		scope: cacheRaw.scope
+	} : void 0;
 	if (!kind || !handle) return null;
 	return {
 		id,
@@ -7696,7 +7932,12 @@ function normalizeFollowRow(row) {
 		handle,
 		title,
 		...typeof row.channelId === "string" && row.channelId ? { channelId: row.channelId } : {},
-		...typeof row.thumb === "string" && row.thumb ? { thumb: row.thumb } : {}
+		...typeof row.thumb === "string" && row.thumb ? { thumb: row.thumb } : {},
+		...typeof row.lastCheckedAt === "number" && Number.isFinite(row.lastCheckedAt) ? { lastCheckedAt: row.lastCheckedAt } : {},
+		...typeof row.newestPublishedAt === "number" && Number.isFinite(row.newestPublishedAt) ? { newestPublishedAt: row.newestPublishedAt } : {},
+		...typeof row.newestVideoId === "string" && row.newestVideoId ? { newestVideoId: row.newestVideoId } : {},
+		...typeof row.lastResponseCount === "number" && Number.isFinite(row.lastResponseCount) ? { lastResponseCount: row.lastResponseCount } : {},
+		...cache ? { cache } : {}
 	};
 }
 function dedupeFollows(rows) {
@@ -7730,9 +7971,9 @@ function engagementSummary(input) {
 	};
 }
 function packReadme() {
-	return `# Reelcase library pack
+	return `# Realhub library pack
 
-Local-only backup / fill-in folder for YouTube & Twitch follows, watch history,
+Local-only backup / fill-in folder for YouTube & Twitch follows, creator collections, watch history,
 saved video links, continue-watching pointers, favorites/likes, Photos sources & likes, Adult marks,
 ratings & tag hearts, and Adult stats snapshots.
 
@@ -7749,6 +7990,7 @@ ${LIBRARY_PACK_ROOT}/
     youtube.json
     twitch.json
     follows.csv
+    collections.json
   history/
     history.json
     history.csv
@@ -7774,7 +8016,7 @@ ${LIBRARY_PACK_ROOT}/
 1. Copy \`public/import-templates/\` (or an exported zip) to your PC.
 2. Edit the JSON/CSV files in a spreadsheet or text editor.
 3. Zip the folder back to \`${LIBRARY_PACK_ROOT}.zip\` (keep the same paths).
-4. In Reelcase → **Settings** → **Import library pack**, choose the zip (or
+4. In Realhub → **Settings** → **Import library pack**, choose the zip (or
    individual files). Confirm only if you want to replace all follows.
 
 ### follows/follows.csv
@@ -7783,6 +8025,10 @@ Columns: \`kind,handle,title,channelId,id\`
 - \`handle\` is the channel handle (no @ required)
 - \`title\` is optional display name
 - \`channelId\` optional provider id
+
+### follows/collections.json
+Optional named creator groups. Each entry stores a name and stable follow IDs;
+import merges membership without removing local groups.
 
 ### history/history.csv
 Columns: \`id,at,url,title,position,duration,source,eventId\`
@@ -7817,7 +8063,8 @@ Photo media bytes stay on disk; the pack only stores source stubs and like/ratin
 
 | Pack file | IndexedDB key (\`activity\`) | localStorage mirror |
 |---|---|---|
-| follows/* | \`follows\` | \`reelcase.follows.v1\` |
+| follows/youtube+twitch+follows.csv | \`follows\` | \`reelcase.follows.v1\` |
+| follows/collections.json | — | \`reelcase.follow-collections.v1\` |
 | history/* | \`history\` | \`reelcase.history.v1\` |
 | resume/* | \`resume\` | \`reelcase.resume.v1\` |
 | marks/view+came | \`marks\` | \`reelcase.marks.v1\` |
@@ -7845,7 +8092,7 @@ function buildLibraryPackFiles(input) {
 		[`${LIBRARY_PACK_ROOT}/manifest.json`]: JSON.stringify({
 			version: 1,
 			exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
-			note: "Reelcase local library pack. Metadata only — no media files.",
+			note: "Realhub local library pack. Metadata only — no media files.",
 			counts: engagementSummary(input)
 		}, null, 2),
 		[`${LIBRARY_PACK_ROOT}/follows/youtube.json`]: JSON.stringify({
@@ -7869,6 +8116,10 @@ function buildLibraryPackFiles(input) {
 			f.channelId ?? "",
 			f.id
 		])]),
+		[`${LIBRARY_PACK_ROOT}/follows/collections.json`]: JSON.stringify({
+			exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
+			collections: loadCreatorCollections()
+		}, null, 2),
 		[`${LIBRARY_PACK_ROOT}/history/history.json`]: JSON.stringify({
 			exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
 			entries: input.history
@@ -8119,6 +8370,22 @@ function applyLibraryPackFiles(files, hooks, mode = "merge") {
 		hooks.setFollows(next);
 		saveFollows(next);
 	}
+	let collectionsMerged = 0;
+	let collectionsRead = false;
+	for (const [name, body] of Object.entries(files)) {
+		if (!fileEndsWith(name, "follows/collections.json")) continue;
+		collectionsRead = true;
+		try {
+			const parsed = JSON.parse(body);
+			if (!Array.isArray(parsed.collections)) throw new Error("invalid collection list");
+			const current = loadCreatorCollections();
+			const merged = mergeCreatorCollections(current, normalizeCreatorCollections(parsed.collections));
+			collectionsMerged = Math.max(0, merged.length - current.length);
+			saveCreatorCollections(merged);
+		} catch {
+			warnings.push(`Could not parse ${name}`);
+		}
+	}
 	let historyMerged = 0;
 	if (incomingHistory.length) {
 		const merged = mergeHistory(hooks.getHistory(), incomingHistory);
@@ -8247,7 +8514,7 @@ function applyLibraryPackFiles(files, hooks, mode = "merge") {
 		hooks.setPhotoSources?.(sources);
 		photosMerged = sources.length + likes.length;
 	}
-	if (!incomingFollows.length && !incomingHistory.length && !incomingLinks.length && !marksMerged && !shelvesMerged && !feedbackMerged && !photosMerged) warnings.push("No recognized pack files were found. Expect follows/, history/, links/, marks/, resume/, or photos/ paths.");
+	if (!incomingFollows.length && !incomingHistory.length && !incomingLinks.length && !marksMerged && !shelvesMerged && !feedbackMerged && !photosMerged && !collectionsRead) warnings.push("No recognized pack files were found. Expect follows/, history/, links/, marks/, resume/, or photos/ paths.");
 	return {
 		followsAdded,
 		historyMerged,
@@ -8256,6 +8523,7 @@ function applyLibraryPackFiles(files, hooks, mode = "merge") {
 		shelvesMerged,
 		feedbackMerged,
 		photosMerged,
+		collectionsMerged,
 		filesRead,
 		warnings
 	};
@@ -8374,6 +8642,163 @@ async function listNetworkDevices() {
 	const response = await fetch("/api/network-presence", { cache: "no-store" });
 	if (!response.ok) throw new Error("Network devices could not be read");
 	return response.json();
+}
+var COMMENT_KINDS = /* @__PURE__ */ new Set([
+	"reddit",
+	"youtube",
+	"twitch"
+]);
+function supportsRemoteComments(kind) {
+	return Boolean(kind && COMMENT_KINDS.has(kind));
+}
+function AdultComments({ video }) {
+	const setVideoTags = useLibrary((s) => s.setVideoTags);
+	const setVideoComments = useLibrary((s) => s.setVideoComments);
+	const [comments, setComments] = (0, import_react.useState)(video.remote?.comments ?? []);
+	const [note, setNote] = (0, import_react.useState)("");
+	const [loading, setLoading] = (0, import_react.useState)(false);
+	const [reload, setReload] = (0, import_react.useState)(0);
+	const lastLoadedReload = (0, import_react.useRef)(-1);
+	const linkedRedgifs = Boolean(video.remote?.sourceKinds?.includes("redgifs"));
+	const kind = video.remote?.kind;
+	const providerVideoId = video.remote?.videoId || (kind === "youtube" ? video.remote?.watchUrl?.match(/[?&]v=([A-Za-z0-9_-]{11})/)?.[1] : void 0);
+	(0, import_react.useEffect)(() => {
+		let cancelled = false;
+		if (!supportsRemoteComments(kind) || !providerVideoId) {
+			setComments(video.remote?.comments ?? []);
+			setNote(supportsRemoteComments(kind) ? "" : "No documented public comment feed for this source.");
+			return;
+		}
+		if (kind === "twitch" && (video.extension === "clip" || video.id.startsWith("tw:c:"))) {
+			setComments(video.remote?.comments ?? []);
+			setNote("Twitch clips do not expose VOD chat replay.");
+			return;
+		}
+		if (video.remote?.comments?.length && (!reload || lastLoadedReload.current === reload)) {
+			setComments(video.remote.comments);
+			setNote("");
+			setLoading(false);
+			return;
+		}
+		setLoading(true);
+		(async () => {
+			try {
+				const result = await fetchAdultComments({ data: {
+					kind: kind ?? "",
+					videoId: providerVideoId,
+					watchUrl: video.remote?.watchUrl ?? ""
+				} });
+				if (cancelled) return;
+				lastLoadedReload.current = reload;
+				setComments(result.comments);
+				setNote(linkedRedgifs && result.comments.length ? `${result.note} Linked Redgifs media stays attached to this original Reddit thread.` : result.note);
+				if (result.comments.length) {
+					setVideoComments(video.id, result.comments);
+					if (kind === "reddit") {
+						const blob = result.comments.map((c) => c.body).join(" ");
+						const mined = [
+							...mineRedditCommentTags(blob, 24),
+							...adultTextFetishTags(blob, 16),
+							...redditTitleTokens(video.name, 8)
+						];
+						if (mined.length) {
+							const existing = useLibrary.getState().tags[video.id] ?? [];
+							const merged = [.../* @__PURE__ */ new Set([...existing, ...mined])].slice(0, 120);
+							setVideoTags(video.id, merged);
+						}
+					}
+				}
+			} catch (err) {
+				if (!cancelled) setNote(err instanceof Error ? err.message : "Comments unavailable.");
+			} finally {
+				if (!cancelled) setLoading(false);
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [
+		linkedRedgifs,
+		kind,
+		video.id,
+		video.extension,
+		video.name,
+		providerVideoId,
+		video.remote?.watchUrl,
+		video.remote?.comments,
+		reload,
+		setVideoTags,
+		setVideoComments
+	]);
+	if (!supportsRemoteComments(kind)) return null;
+	const authorPrefix = kind === "reddit" ? "u/" : kind === "youtube" ? "" : "";
+	const chatRows = kind === "youtube" ? comments.filter((row) => row.kind === "chat") : [];
+	const commentRows = kind === "youtube" ? comments.filter((row) => row.kind !== "chat") : comments;
+	const heading = linkedRedgifs ? "Reddit comments for linked Redgifs media" : kind === "twitch" ? "VOD chat" : kind === "youtube" && chatRows.length ? "Chat + comments" : "Comments";
+	const renderList = (rows, emptyLabel) => rows.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
+		className: "mt-2 max-h-48 space-y-2 overflow-y-auto",
+		children: rows.map((comment) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
+			className: "rounded-sm bg-elevated/60 px-2 py-1.5 text-xs text-fg",
+			children: [comment.author && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+				className: "font-medium text-accent",
+				children: [
+					authorPrefix,
+					comment.author,
+					typeof comment.score === "number" ? ` · ${comment.score}` : "",
+					" · "
+				]
+			}), comment.body]
+		}, comment.id))
+	}) : emptyLabel ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+		className: "mt-2 text-xs text-muted",
+		children: emptyLabel
+	}) : null;
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+		className: "mt-3 rounded-lg border border-border bg-bg/40 p-3",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+				className: "flex items-center gap-2 text-xs font-medium tracking-[0.14em] text-accent uppercase",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(MessageCircle, { className: "size-3.5" }),
+					" ",
+					heading
+				]
+			}),
+			kind === "youtube" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+				type: "button",
+				className: "mt-2 text-xs text-accent underline",
+				disabled: loading,
+				onClick: () => setReload((value) => value + 1),
+				children: ["Refresh public comments", comments.length ? ` · ${comments.filter((row) => row.kind !== "chat").length} threads` : ""]
+			}),
+			loading && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				className: "mt-2 text-xs text-muted",
+				children: "Loading comments…"
+			}),
+			!loading && note && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				className: "mt-2 text-xs text-muted",
+				children: note
+			}),
+			!loading && kind === "youtube" && (chatRows.length > 0 || commentRows.length > 0) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "mt-2 space-y-3",
+				children: [chatRows.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "text-[11px] font-medium uppercase tracking-wider text-subtle",
+					children: "Live chat / replay"
+				}), renderList(chatRows)] }), commentRows.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "text-[11px] font-medium uppercase tracking-wider text-subtle",
+					children: "Comments"
+				}), renderList(commentRows)] })]
+			}),
+			!loading && kind !== "youtube" && renderList(commentRows),
+			!loading && kind === "reddit" && !commentRows.length && video.remote?.watchUrl && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
+				href: video.remote.watchUrl,
+				target: "_blank",
+				rel: "noreferrer",
+				className: "mt-3 inline-flex min-h-8 items-center gap-1 text-xs font-medium text-accent hover:underline",
+				children: ["Open discussion on Reddit ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExternalLink, { className: "size-3.5" })]
+			})
+		]
+	});
 }
 function Sheet(props) {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Dialog, { ...props });
@@ -9530,7 +9955,7 @@ function SidebarNav({ onAddFolder, onNavigate }) {
 	const adultCatalog = useLibrary(selectAdultRemote);
 	const [followingOpen, setFollowingOpen] = (0, import_react.useState)(false);
 	const [sourcesOpen, setSourcesOpen] = (0, import_react.useState)(false);
-	const [followingLimit, setFollowingLimit] = (0, import_react.useState)(48);
+	const [followingLimit] = (0, import_react.useState)(12);
 	const [sourceLimit, setSourceLimit] = (0, import_react.useState)(80);
 	(0, import_react.useEffect)(() => {
 		try {
@@ -9628,7 +10053,7 @@ function SidebarNav({ onAddFolder, onNavigate }) {
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Clapperboard, { className: "size-5" })
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "font-display text-2xl leading-none tracking-tight text-fg",
-						children: "Reelcase"
+						children: "Realhub"
 					})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 					className: "mt-1 text-xs text-muted",
@@ -9869,12 +10294,19 @@ function SidebarNav({ onAddFolder, onNavigate }) {
 							onToggleAdult: () => {},
 							hideAdult: true
 						}, folder.id)),
-						followingOpen && (youtubeFollowing.length > followingLimit || twitchFollowing.length > followingLimit) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-							variant: "ghost",
-							size: "sm",
-							className: "mx-1 mt-1",
-							onClick: () => setFollowingLimit((value) => value + 48),
-							children: "Show 48 more follows"
+						followingOpen && (youtubeFollowing.length > followingLimit || twitchFollowing.length > followingLimit) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "mx-1 mt-2 grid gap-1",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								variant: "ghost",
+								size: "sm",
+								onClick: () => go("youtube"),
+								children: "Manage YouTube follows"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								variant: "ghost",
+								size: "sm",
+								onClick: () => go("twitch"),
+								children: "Manage Twitch follows"
+							})]
 						})
 					] }),
 					adultFolders.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
@@ -12135,7 +12567,7 @@ function AdultPanel({ showMilestones = false, autoPull = true, sourceFilter = "a
 								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Flag, { className: "size-4" })
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 								className: "mt-2 max-w-2xl text-sm text-muted",
-								children: "These sites do not expose a documented public discovery/embed API we can use without scraping or bypassing logins/paywalls. Reelcase keeps them as milestones with source tags — open the official page in a new tab."
+								children: "These sites do not expose a documented public discovery/embed API we can use without scraping or bypassing logins/paywalls. Realhub keeps them as milestones with source tags — open the official page in a new tab."
 							}) })]
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
@@ -13007,155 +13439,26 @@ function Slider({ className, ...props }) {
 		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SliderThumb, { className: "block size-3 rounded-full bg-accent shadow-lift outline-none transition-transform duration-150 hover:scale-110 focus-visible:ring-2 focus-visible:ring-ring/70" })]
 	});
 }
-var COMMENT_KINDS = /* @__PURE__ */ new Set([
-	"reddit",
-	"youtube",
-	"twitch"
-]);
-function supportsRemoteComments(kind) {
-	return Boolean(kind && COMMENT_KINDS.has(kind));
-}
-function AdultComments({ video }) {
-	const setVideoTags = useLibrary((s) => s.setVideoTags);
-	const setVideoComments = useLibrary((s) => s.setVideoComments);
-	const [comments, setComments] = (0, import_react.useState)(video.remote?.comments ?? []);
-	const [note, setNote] = (0, import_react.useState)("");
-	const [loading, setLoading] = (0, import_react.useState)(false);
-	const linkedRedgifs = Boolean(video.remote?.sourceKinds?.includes("redgifs"));
-	const kind = video.remote?.kind;
-	(0, import_react.useEffect)(() => {
-		let cancelled = false;
-		if (!supportsRemoteComments(kind) || !video.remote?.videoId) {
-			setComments(video.remote?.comments ?? []);
-			setNote(supportsRemoteComments(kind) ? "" : "No documented public comment feed for this source.");
-			return;
-		}
-		if (kind === "twitch" && (video.extension === "clip" || video.id.startsWith("tw:c:"))) {
-			setComments(video.remote?.comments ?? []);
-			setNote("Twitch clips do not expose VOD chat replay.");
-			return;
-		}
-		if (video.remote?.comments?.length) {
-			setComments(video.remote.comments);
-			setNote("");
-			setLoading(false);
-			return;
-		}
-		setLoading(true);
-		(async () => {
-			try {
-				const result = await fetchAdultComments({ data: {
-					kind: kind ?? "",
-					videoId: video.remote?.videoId ?? "",
-					watchUrl: video.remote?.watchUrl ?? ""
-				} });
-				if (cancelled) return;
-				setComments(result.comments);
-				setNote(linkedRedgifs && result.comments.length ? `${result.note} Linked Redgifs media stays attached to this original Reddit thread.` : result.note);
-				if (result.comments.length) {
-					setVideoComments(video.id, result.comments);
-					if (kind === "reddit") {
-						const blob = result.comments.map((c) => c.body).join(" ");
-						const mined = [
-							...mineRedditCommentTags(blob, 24),
-							...adultTextFetishTags(blob, 16),
-							...redditTitleTokens(video.name, 8)
-						];
-						if (mined.length) {
-							const existing = useLibrary.getState().tags[video.id] ?? [];
-							const merged = [.../* @__PURE__ */ new Set([...existing, ...mined])].slice(0, 120);
-							setVideoTags(video.id, merged);
-						}
-					}
-				}
-			} catch (err) {
-				if (!cancelled) setNote(err instanceof Error ? err.message : "Comments unavailable.");
-			} finally {
-				if (!cancelled) setLoading(false);
-			}
-		})();
-		return () => {
-			cancelled = true;
-		};
-	}, [
-		linkedRedgifs,
-		kind,
-		video.id,
-		video.extension,
-		video.name,
-		video.remote?.videoId,
-		video.remote?.watchUrl,
-		video.remote?.comments,
-		setVideoTags,
-		setVideoComments
-	]);
-	if (!supportsRemoteComments(kind)) return null;
-	const authorPrefix = kind === "reddit" ? "u/" : kind === "youtube" ? "" : "";
-	const chatRows = kind === "youtube" ? comments.filter((row) => row.kind === "chat") : [];
-	const commentRows = kind === "youtube" ? comments.filter((row) => row.kind !== "chat") : comments;
-	const heading = linkedRedgifs ? "Reddit comments for linked Redgifs media" : kind === "twitch" ? "VOD chat" : kind === "youtube" && chatRows.length ? "Chat + comments" : "Comments";
-	const renderList = (rows, emptyLabel) => rows.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
-		className: "mt-2 max-h-48 space-y-2 overflow-y-auto",
-		children: rows.map((comment) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
-			className: "rounded-sm bg-elevated/60 px-2 py-1.5 text-xs text-fg",
-			children: [comment.author && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-				className: "font-medium text-accent",
-				children: [
-					authorPrefix,
-					comment.author,
-					typeof comment.score === "number" ? ` · ${comment.score}` : "",
-					" · "
-				]
-			}), comment.body]
-		}, comment.id))
-	}) : emptyLabel ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-		className: "mt-2 text-xs text-muted",
-		children: emptyLabel
-	}) : null;
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
-		className: "mt-3 rounded-lg border border-border bg-bg/40 p-3",
-		children: [
-			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-				className: "flex items-center gap-2 text-xs font-medium tracking-[0.14em] text-accent uppercase",
-				children: [
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(MessageCircle, { className: "size-3.5" }),
-					" ",
-					heading
-				]
-			}),
-			loading && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-				className: "mt-2 text-xs text-muted",
-				children: "Loading comments…"
-			}),
-			!loading && note && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-				className: "mt-2 text-xs text-muted",
-				children: note
-			}),
-			!loading && kind === "youtube" && (chatRows.length > 0 || commentRows.length > 0) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "mt-2 space-y-3",
-				children: [chatRows.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-					className: "text-[11px] font-medium uppercase tracking-wider text-subtle",
-					children: "Live chat / replay"
-				}), renderList(chatRows)] }), commentRows.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-					className: "text-[11px] font-medium uppercase tracking-wider text-subtle",
-					children: "Comments"
-				}), renderList(commentRows)] })]
-			}),
-			!loading && kind !== "youtube" && renderList(commentRows),
-			!loading && kind === "reddit" && !commentRows.length && video.remote?.watchUrl && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
-				href: video.remote.watchUrl,
-				target: "_blank",
-				rel: "noreferrer",
-				className: "mt-3 inline-flex min-h-8 items-center gap-1 text-xs font-medium text-accent hover:underline",
-				children: ["Open discussion on Reddit ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExternalLink, { className: "size-3.5" })]
-			})
-		]
-	});
-}
 /** In-app full-bleed image viewer for booru / photo-kind adult pulls. */
 function AdultImageLightbox({ video, tags = [] }) {
 	const remote = video.remote;
-	const src = video.src || remote?.embedUrl || remote?.previewUrl || video.poster || "";
+	const [original, setOriginal] = (0, import_react.useState)(null);
+	(0, import_react.useEffect)(() => {
+		setOriginal(null);
+		if (remote?.kind !== "booru" || remote.channelId !== "tbib" || !remote.videoId) return;
+		let active = true;
+		resolveBooruOriginal({ data: { id: remote.videoId } }).then((url) => {
+			if (active && url) setOriginal(url);
+		}).catch(() => {});
+		return () => {
+			active = false;
+		};
+	}, [
+		remote?.channelId,
+		remote?.kind,
+		remote?.videoId
+	]);
+	const src = original || video.src || remote?.embedUrl || remote?.previewUrl || video.poster || "";
 	const sourceTags = tags.filter((tag) => tag.startsWith("source-")).slice(0, 4);
 	const creatorTags = tags.filter((tag) => tag.startsWith("creator-")).slice(0, 4);
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -13198,7 +13501,14 @@ function AdultImageLightbox({ video, tags = [] }) {
 							size: "sm",
 							variant: "default",
 							onClick: () => {
-								downloadAdultPhoto(video).then((result) => {
+								downloadAdultPhoto(original ? {
+									...video,
+									src: original,
+									remote: remote ? {
+										...remote,
+										embedUrl: original
+									} : void 0
+								} : video).then((result) => {
 									if (result.ok) toast.success(`Saved ${result.name}`);
 									else toast.error(result.error);
 								});
@@ -13250,9 +13560,9 @@ async function requestAdultOfflineSave(url) {
 	} catch {
 		return {
 			ok: false,
-			error: "Reelcase Companion is not running. Start it locally to enable offline save.",
+			error: "Realhub Companion is not running. Start it locally to enable offline save.",
 			needs: [
-				"Start Reelcase Companion",
+				"Start Realhub Companion",
 				"Install yt-dlp on PATH or set YT_DLP_PATH",
 				"Set REELCASE_ALLOWED_ROOTS / optional REELCASE_DOWNLOAD_DIR"
 			]
@@ -13359,11 +13669,13 @@ function Player({ playlist }) {
 	const scrubbing = (0, import_react.useRef)(false);
 	const remoteStartedAt = (0, import_react.useRef)(0);
 	const lastProgressWrite = (0, import_react.useRef)(0);
+	const lastWatchTick = (0, import_react.useRef)(0);
+	const pendingWatchSeconds = (0, import_react.useRef)(0);
 	const enterVrTheater = (0, import_react.useCallback)(async () => {
 		const xr = navigator.xr;
 		const media = mediaRef.current;
 		if (!xr) {
-			setVrStatus("VR needs Meta Quest Browser on a secure site. Open Reelcase there, allow immersive VR, then try again.");
+			setVrStatus("VR needs Meta Quest Browser on a secure site. Open Realhub there, allow immersive VR, then try again.");
 			return;
 		}
 		if (!media) {
@@ -13520,8 +13832,19 @@ function Player({ playlist }) {
 	(0, import_react.useEffect)(() => {
 		const el = mediaRef.current;
 		if (!el || !src) return;
-		const onPlay = () => setPlaying(true);
-		const onPause = () => setPlaying(false);
+		const flushWatchTime = () => {
+			if (video && pendingWatchSeconds.current > 0) recordWatchTime(video.id, "fullscreen", pendingWatchSeconds.current);
+			pendingWatchSeconds.current = 0;
+			lastWatchTick.current = 0;
+		};
+		const onPlay = () => {
+			setPlaying(true);
+			lastWatchTick.current = performance.now();
+		};
+		const onPause = () => {
+			setPlaying(false);
+			flushWatchTime();
+		};
 		const onMeta = () => {
 			setDuration(el.duration || 0);
 			const resume = saved;
@@ -13543,6 +13866,12 @@ function Player({ playlist }) {
 		};
 		const stopFrames = attachFrameCallback(el, (t) => {
 			if (scrubbing.current) return;
+			if (!el.paused && !el.seeking && document.visibilityState === "visible") {
+				const now = performance.now();
+				if (lastWatchTick.current) pendingWatchSeconds.current += Math.min(.5, Math.max(0, (now - lastWatchTick.current) / 1e3));
+				lastWatchTick.current = now;
+				if (pendingWatchSeconds.current >= 4) flushWatchTime();
+			} else lastWatchTick.current = 0;
 			setCurrent(t);
 			if (video && el.duration) {
 				const now = Date.now();
@@ -13559,6 +13888,7 @@ function Player({ playlist }) {
 		el.addEventListener("error", onErr);
 		el.play().catch(() => {});
 		return () => {
+			flushWatchTime();
 			stopFrames();
 			el.removeEventListener("play", onPlay);
 			el.removeEventListener("pause", onPause);
@@ -13576,6 +13906,7 @@ function Player({ playlist }) {
 			if (document.visibilityState === "hidden") return;
 			const elapsed = Math.max(2, (Date.now() - remoteStartedAt.current) / 1e3);
 			markProgress(video.id, Math.min(elapsed, durationHint * .94), durationHint);
+			if (elapsed >= 8 && document.hasFocus()) recordWatchTime(video.id, "fullscreenEstimated", 5);
 		};
 		const timer = window.setInterval(heartbeat, 1e4);
 		return () => {
@@ -13948,7 +14279,7 @@ function Player({ playlist }) {
 						className: "mt-5 border-t border-border pt-4",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 							className: "text-xs leading-5 text-subtle",
-							children: "Reelcase still has this title in your catalog, but the browser no longer has permission to read its folder."
+							children: "Realhub still has this title in your catalog, but the browser no longer has permission to read its folder."
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 							className: "mt-3",
 							onClick: () => void restoreOne(folder.id),
@@ -14247,6 +14578,7 @@ function PreVideo() {
 	const folders = useLibrary((s) => s.folders);
 	const allTags = useLibrary((s) => s.tags);
 	const unavailable = useLibrary((s) => s.unavailable);
+	const hiddenVideos = useLibrary((s) => s.hiddenVideos);
 	const openVideo = useLibrary((s) => s.openVideo);
 	const closePreview = useLibrary((s) => s.closePreview);
 	const setSource = useLibrary((s) => s.setSource);
@@ -14276,8 +14608,20 @@ function PreVideo() {
 	const [localPreviewSrc, setLocalPreviewSrc] = (0, import_react.useState)(null);
 	const [previewError, setPreviewError] = (0, import_react.useState)("");
 	const [shelfReady, setShelfReady] = (0, import_react.useState)(false);
+	const previewWatchTick = (0, import_react.useRef)(0);
+	const previewWatchPending = (0, import_react.useRef)(0);
 	const markUnavailable = useLibrary((s) => s.markUnavailable);
 	const video = videos.find((item) => item.id === previewId);
+	const flushPreviewWatch = () => {
+		if (previewId && previewWatchPending.current > 0) recordWatchTime(previewId, "preview", previewWatchPending.current);
+		previewWatchPending.current = 0;
+		previewWatchTick.current = 0;
+	};
+	(0, import_react.useEffect)(() => () => {
+		if (previewId && previewWatchPending.current > 0) recordWatchTime(previewId, "preview", previewWatchPending.current);
+		previewWatchPending.current = 0;
+		previewWatchTick.current = 0;
+	}, [previewId]);
 	const adultFolderIds = (0, import_react.useMemo)(() => new Set(folders.filter((folder) => folder.adult).map((folder) => folder.id)), [folders]);
 	const previewIsAdult = Boolean(video && (isAdultPullKind(video.remote?.kind) || adultFolderIds.has(video.folderId)));
 	(0, import_react.useEffect)(() => {
@@ -14291,7 +14635,10 @@ function PreVideo() {
 			const watched = (Date.now() - openedAt) / 1e3;
 			if (watched >= 8) markProgress(video.id, Math.min(watched, durationHint * .94), durationHint);
 		};
-		const timer = window.setInterval(savePreviewWatch, 5e3);
+		const timer = window.setInterval(() => {
+			savePreviewWatch();
+			if (Date.now() - openedAt >= 8e3 && document.visibilityState === "visible" && document.hasFocus()) recordWatchTime(video.id, "previewEstimated", 5);
+		}, 5e3);
 		return () => {
 			savePreviewWatch();
 			window.clearInterval(timer);
@@ -14311,7 +14658,7 @@ function PreVideo() {
 				total: 0,
 				count: 0
 			};
-			entry.total += getRating(item.id);
+			entry.total += ratingPreference(getRating(item.id));
 			entry.count += 1;
 			scores.set(tag, entry);
 		}
@@ -14378,7 +14725,7 @@ function PreVideo() {
 		const sourceKind = video.remote?.kind;
 		return videos.filter((item) => {
 			const itemIsAdult = isAdultPullKind(item.remote?.kind) || adultFolderIds.has(item.folderId);
-			return item.id !== video.id && !isExcludedPreviewCandidate(item) && !unavailable[item.id] && itemIsAdult === previewIsAdult;
+			return item.id !== video.id && !isExcludedPreviewCandidate(item) && !unavailable[item.id] && !hiddenVideos[item.id] && itemIsAdult === previewIsAdult;
 		}).map((item) => {
 			const itemTags = allTags[item.id] ?? EMPTY_TAGS;
 			const sharedTopics = itemTags.filter((tag) => sourceTags.has(tag)).length;
@@ -14386,7 +14733,7 @@ function PreVideo() {
 			const liveToVod = Boolean(video.remote?.live && !item.remote?.live && sameCreator);
 			return {
 				item,
-				score: Number(sameCreator) * 14 + Number(liveToVod) * 8 + Number(item.folderId === video.folderId) * 5 + Number(item.genre === video.genre) * 4 + Number(item.remote?.kind === sourceKind) * (previewIsAdult ? 5 : 2) + sharedTopics * (previewIsAdult ? 6 : 3) + itemTags.filter((tag) => tagIsLiked(tag)).length * 2 + getRating(item.id) * 1.5 + getCreatorRating(item.remote?.channelName ?? "") * 2 + Number(creatorIsLiked(item.remote?.channelName ?? "")) * 3,
+				score: Number(sameCreator) * 14 + Number(liveToVod) * 8 + Number(item.folderId === video.folderId) * 5 + Number(item.genre === video.genre) * 4 + Number(item.remote?.kind === sourceKind) * (previewIsAdult ? 5 : 2) + sharedTopics * (previewIsAdult ? 6 : 3) + itemTags.filter((tag) => tagIsLiked(tag)).length * 2 + ratingPreference(getRating(item.id)) * 1.5 + ratingPreference(getCreatorRating(item.remote?.channelName ?? "")) * 2 + Number(creatorIsLiked(item.remote?.channelName ?? "")) * 3,
 				random: previewShuffle(`${video.id}:${item.id}:${recommendationSeed}`, recommendationSeed)
 			};
 		}).filter((row) => row.score > 0).sort((a, b) => b.score - a.score || a.random - b.random).slice(0, 8).map((row) => row.item);
@@ -14394,6 +14741,7 @@ function PreVideo() {
 		adultFolderIds,
 		allTags,
 		creatorRevision,
+		hiddenVideos,
 		previewIsAdult,
 		recommendationSeed,
 		shelfReady,
@@ -14414,13 +14762,13 @@ function PreVideo() {
 		const relatedIds = new Set(related.map((relatedItem) => relatedItem.id));
 		return videos.filter((item) => {
 			const itemIsAdult = isAdultPullKind(item.remote?.kind) || adultFolderIds.has(item.folderId);
-			return item.id !== video.id && !isExcludedPreviewCandidate(item) && !unavailable[item.id] && !relatedIds.has(item.id) && itemIsAdult === previewIsAdult;
+			return item.id !== video.id && !isExcludedPreviewCandidate(item) && !unavailable[item.id] && !hiddenVideos[item.id] && !relatedIds.has(item.id) && itemIsAdult === previewIsAdult;
 		}).map((item) => {
 			const itemTags = allTags[item.id] ?? EMPTY_TAGS;
 			const sharedTopics = itemTags.filter((tag) => sourceTags.has(tag)).length;
 			return {
 				item,
-				score: Number(item.genre === video.genre) * 3 + Number(item.remote?.kind === sourceKind) * (previewIsAdult ? 4 : 1.5) + sharedTopics * (previewIsAdult ? 6 : 3) + getRating(item.id) * 2 + getCreatorRating(item.remote?.channelName ?? "") * 2 + Number(creatorIsLiked(item.remote?.channelName ?? "")) * 3 + itemTags.filter((tag) => highlyRatedTags.has(tag)).length * 3 + itemTags.filter((tag) => tagIsLiked(tag)).length * 2,
+				score: Number(item.genre === video.genre) * 3 + Number(item.remote?.kind === sourceKind) * (previewIsAdult ? 4 : 1.5) + sharedTopics * (previewIsAdult ? 6 : 3) + ratingPreference(getRating(item.id)) * 2 + ratingPreference(getCreatorRating(item.remote?.channelName ?? "")) * 2 + Number(creatorIsLiked(item.remote?.channelName ?? "")) * 3 + itemTags.filter((tag) => highlyRatedTags.has(tag)).length * 3 + itemTags.filter((tag) => tagIsLiked(tag)).length * 2,
 				random: previewShuffle(`${video.id}:${item.id}:${seed}`, seed)
 			};
 		}).sort((a, b) => b.score - a.score || a.random - b.random).slice(0, 6).map((row) => row.item);
@@ -14428,6 +14776,7 @@ function PreVideo() {
 		adultFolderIds,
 		allTags,
 		creatorRevision,
+		hiddenVideos,
 		previewIsAdult,
 		recommendationSeed,
 		related,
@@ -14513,8 +14862,15 @@ function PreVideo() {
 								controls: true,
 								onTimeUpdate: (event) => {
 									const element = event.currentTarget;
+									if (!element.paused && !element.seeking && document.visibilityState === "visible") {
+										const now = performance.now();
+										if (previewWatchTick.current) previewWatchPending.current += Math.min(1, Math.max(0, (now - previewWatchTick.current) / 1e3));
+										previewWatchTick.current = now;
+										if (previewWatchPending.current >= 4) flushPreviewWatch();
+									} else previewWatchTick.current = 0;
 									if (Number.isFinite(element.duration) && element.duration > 0) markProgress(video.id, element.currentTime, element.duration);
-								}
+								},
+								onPause: flushPreviewWatch
 							}) : previewError ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 								className: "flex aspect-video items-center justify-center bg-bg px-6 text-center text-sm text-muted",
 								children: previewError
@@ -14914,7 +15270,7 @@ function AiGuide() {
 	]);
 	const liveNow = (0, import_react.useMemo)(() => videos.filter((video) => video.remote?.kind === "twitch" && video.remote.live).sort((a, b) => (hasFreshViewerCount(b.remote) ? b.remote?.viewers ?? 0 : 0) - (hasFreshViewerCount(a.remote) ? a.remote?.viewers ?? 0 : 0)), [videos]);
 	const localAnswer = () => {
-		if (/live|twitch|stream/i.test(prompt) && liveNow.length) return `Live on your followed Twitch channels:\n${liveNow.slice(0, 4).map((video, index) => `${index + 1}. ${video.remote?.channelName ?? video.name}${hasFreshViewerCount(video.remote) ? ` · ${video.remote?.viewers?.toLocaleString()} viewers` : ""}`).join("\n")}\n\nLive status comes from the latest refresh in Reelcase. Open a card to watch it.`;
+		if (/live|twitch|stream/i.test(prompt) && liveNow.length) return `Live on your followed Twitch channels:\n${liveNow.slice(0, 4).map((video, index) => `${index + 1}. ${video.remote?.channelName ?? video.name}${hasFreshViewerCount(video.remote) ? ` · ${video.remote?.viewers?.toLocaleString()} viewers` : ""}`).join("\n")}\n\nLive status comes from the latest refresh in Realhub. Open a card to watch it.`;
 		return localPicks.length ? `Local recommendation${localPicks.length === 1 ? "" : "s"} for “${prompt}”:\n${localPicks.slice(0, 3).map((video, index) => `${index + 1}. ${video.name} — ${video.genre ?? "a library pick"}${(tags[video.id] ?? []).length ? ` · ${(tags[video.id] ?? []).slice(0, 2).join(", ")}` : ""}`).join("\n")}\n\nThe optional cloud guide is unavailable, so these picks were ranked privately from your library signals.` : "Add a few titles, tags, likes, or favorites and the local guide will start making picks.";
 	};
 	const ask = async () => {
@@ -15102,7 +15458,7 @@ function ConnectPanel({ defaultKind = "youtube", lockedKind }) {
 		try {
 			await followRemoteQuery(items[0].query, kind);
 			setQuery("");
-			toast.success(kind === "twitch" ? "Twitch channel added" : "YouTube channel added");
+			toast.success(kind === "twitch" ? "Twitch channel added" : items[0].query.includes("list=") ? "YouTube playlist added" : "YouTube channel added");
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Could not add that source");
 		}
@@ -15213,7 +15569,7 @@ function ConnectPanel({ defaultKind = "youtube", lockedKind }) {
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "mt-2 text-sm text-muted",
-						children: kind === "youtube" ? "Paste a channel URL, @handle, channel ID, or a video link. Several at once is fine." : "Paste one or more Twitch usernames or channel URLs (comma, space, or newline separated)."
+						children: kind === "youtube" ? "Paste a channel URL, @handle, channel ID, video link, or public playlist link. Several at once is fine." : "Paste one or more Twitch usernames or channel URLs (comma, space, or newline separated)."
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", {
 						className: "mt-3 flex flex-col gap-2 sm:flex-row",
@@ -15224,8 +15580,8 @@ function ConnectPanel({ defaultKind = "youtube", lockedKind }) {
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
 							value: query,
 							onChange: (event) => setQuery(event.target.value),
-							placeholder: kind === "youtube" ? "youtube.com/@creator or @creator" : "ironmouse, zackrawrr  or  twitch.tv/creator",
-							"aria-label": kind === "youtube" ? "YouTube channel or video" : "Twitch channels"
+							placeholder: kind === "youtube" ? "youtube.com/@creator or youtube.com/playlist?list=…" : "ironmouse, zackrawrr  or  twitch.tv/creator",
+							"aria-label": kind === "youtube" ? "YouTube channel, playlist, or video" : "Twitch channels"
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 							type: "submit",
 							disabled: remoteBusy || !query.trim(),
@@ -15245,11 +15601,11 @@ function ConnectPanel({ defaultKind = "youtube", lockedKind }) {
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 							className: "mt-2 text-sm text-muted",
-							children: kind === "twitch" ? "Paste a list of Twitch logins or channel URLs. You can also look up someone else's public follows below." : "Paste one channel URL or @handle per line. This is the fastest way to move a saved subscription list into Reelcase."
+							children: kind === "twitch" ? "Paste a list of Twitch logins or channel URLs. You can also look up someone else's public follows below." : "Paste one channel URL or @handle per line. This is the fastest way to move a saved subscription list into Realhub."
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 							className: "mt-2 rounded-md bg-bg/45 px-3 py-2 text-xs leading-5 text-muted",
-							children: kind === "twitch" ? "How to import: copy public channel links or logins from Twitch, paste them below (one per line, or comma-separated), then select Import list. Private Twitch follows are not exposed by the site, so Reelcase cannot read them directly." : "How to import: copy YouTube channel URLs or @handles from your subscriptions, paste them below (one per line, or comma-separated), then select Import list. Your pasted list stays saved locally for future refreshes."
+							children: kind === "twitch" ? "How to import: copy public channel links or logins from Twitch, paste them below (one per line, or comma-separated), then select Import list. Private Twitch follows are not exposed by the site, so Realhub cannot read them directly." : "How to import: copy YouTube channel URLs or @handles from your subscriptions, paste them below (one per line, or comma-separated), then select Import list. Your pasted list stays saved locally for future refreshes."
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("textarea", {
 							value: bulk,
@@ -15352,7 +15708,7 @@ function ConnectPanel({ defaultKind = "youtube", lockedKind }) {
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 						className: "mt-1 text-xs text-muted",
-						children: [savedLists.length, " channel entries retained locally for this service. Reelcase retries this list automatically at startup when the follow shelf is empty."]
+						children: [savedLists.length, " channel entries retained locally for this service. Realhub retries this list automatically at startup when the follow shelf is empty."]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "mt-3 flex flex-wrap gap-2",
@@ -15485,6 +15841,762 @@ function ImportReview({ items, onImport, busy }) {
 		}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 			className: "mt-2 line-clamp-2 text-xs text-muted",
 			children: [items.slice(0, 12).map((item) => item.query).join(" · "), items.length > 12 ? " · …" : ""]
+		})]
+	});
+}
+var PAGE_SIZE = 48;
+var CREATOR_PAGE_SIZE = 120;
+function creatorLabel(channel) {
+	return channel.title.trim() || channel.handle.trim() || "Untitled creator";
+}
+function initials(label) {
+	return label.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]).join("").toUpperCase() || "?";
+}
+function CreatorAvatar({ channel, label }) {
+	const [failed, setFailed] = (0, import_react.useState)(false);
+	(0, import_react.useEffect)(() => setFailed(false), [channel.thumb]);
+	return channel.thumb && !failed ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+		src: channel.thumb,
+		alt: "",
+		className: "size-full object-cover",
+		loading: "lazy",
+		onError: () => {
+			setFailed(true);
+			window.dispatchEvent(new CustomEvent("reelcase:creator-avatar-error", { detail: channel.id }));
+		}
+	}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+		"aria-hidden": "true",
+		children: initials(label)
+	});
+}
+function ProviderGlyph({ kind, className }) {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(kind === "youtube" ? Youtube : Twitch, {
+		"aria-hidden": "true",
+		className: cn("size-3", className)
+	});
+}
+function channelStatus(channel) {
+	if (channel.lastProviderFailure) return channel.lastProviderFailure.kind.replaceAll("-", " ");
+	if (channel.live) return "live now";
+	if (channel.lastCheckedAt) return `checked ${new Date(channel.lastCheckedAt).toLocaleDateString([], {
+		month: "short",
+		day: "numeric"
+	})}`;
+	return "not checked yet";
+}
+/** A bounded, local-first control surface for large YouTube and Twitch follow lists. */
+function FollowManager({ kind }) {
+	const follows = useLibrary((state) => state.follows);
+	const unfollow = useLibrary((state) => state.unfollow);
+	const unfollowMany = useLibrary((state) => state.unfollowMany);
+	const updateFollowProfiles = useLibrary((state) => state.updateFollowProfiles);
+	const setSource = useLibrary((state) => state.setSource);
+	const openPreview = useLibrary((state) => state.openPreview);
+	const [query, setQuery] = (0, import_react.useState)("");
+	const deferredQuery = (0, import_react.useDeferredValue)(query);
+	const [provider, setProvider] = (0, import_react.useState)(kind ?? "all");
+	const [sort, setSort] = (0, import_react.useState)("recent");
+	const [visible, setVisible] = (0, import_react.useState)(CREATOR_PAGE_SIZE);
+	const attemptedCreatorProfiles = (0, import_react.useRef)(/* @__PURE__ */ new Set());
+	const [brokenCreatorIds, setBrokenCreatorIds] = (0, import_react.useState)(() => /* @__PURE__ */ new Set());
+	(0, import_react.useEffect)(() => {
+		const note = (event) => {
+			const id = event.detail;
+			if (id) setBrokenCreatorIds((current) => new Set(current).add(id));
+		};
+		window.addEventListener("reelcase:creator-avatar-error", note);
+		return () => window.removeEventListener("reelcase:creator-avatar-error", note);
+	}, []);
+	const [selectedId, setSelectedId] = (0, import_react.useState)(null);
+	const [feedbackRevision, setFeedbackRevision] = (0, import_react.useState)(0);
+	const [selectionMode, setSelectionMode] = (0, import_react.useState)(false);
+	const [selectedIds, setSelectedIds] = (0, import_react.useState)([]);
+	const [collectionName, setCollectionName] = (0, import_react.useState)("");
+	const [collections, setCollections] = (0, import_react.useState)([]);
+	const [reviewingRemoval, setReviewingRemoval] = (0, import_react.useState)(false);
+	const [reviewVisible, setReviewVisible] = (0, import_react.useState)(PAGE_SIZE);
+	const videos = useLibrary((state) => state.videos);
+	const hiddenVideos = useLibrary((state) => state.hiddenVideos);
+	const favorites = useLibrary((state) => state.favorites);
+	const likes = useLibrary((state) => state.likes);
+	const progress = useLibrary((state) => state.progress);
+	const resumeProgress = useLibrary((state) => state.resumeProgress);
+	const history = useLibrary((state) => state.history);
+	(0, import_react.useEffect)(() => {
+		setProvider(kind ?? "all");
+		setVisible(CREATOR_PAGE_SIZE);
+	}, [kind]);
+	(0, import_react.useEffect)(() => {
+		setVisible(CREATOR_PAGE_SIZE);
+	}, [
+		deferredQuery,
+		provider,
+		sort
+	]);
+	(0, import_react.useEffect)(() => {
+		const sync = () => setFeedbackRevision((revision) => revision + 1);
+		window.addEventListener("reelcase:rating-change", sync);
+		return () => window.removeEventListener("reelcase:rating-change", sync);
+	}, []);
+	(0, import_react.useEffect)(() => {
+		const sync = () => setCollections(loadCreatorCollections());
+		sync();
+		window.addEventListener(FOLLOW_COLLECTIONS_CHANGED, sync);
+		const syncStorage = (event) => {
+			if (event.key === "reelcase.follow-collections.v1") sync();
+		};
+		window.addEventListener("storage", syncStorage);
+		return () => {
+			window.removeEventListener(FOLLOW_COLLECTIONS_CHANGED, sync);
+			window.removeEventListener("storage", syncStorage);
+		};
+	}, []);
+	(0, import_react.useEffect)(() => {
+		const followIds = new Set(follows.map((follow) => follow.id));
+		setSelectedIds((ids) => ids.filter((id) => followIds.has(id)));
+	}, [follows]);
+	(0, import_react.useEffect)(() => {
+		setReviewVisible(PAGE_SIZE);
+	}, [selectedIds]);
+	const filtered = (0, import_react.useMemo)(() => {
+		const needle = deferredQuery.trim().toLocaleLowerCase();
+		return follows.filter((channel) => (!kind || channel.kind === kind) && (provider === "all" || channel.kind === provider)).filter((channel) => !needle || `${creatorLabel(channel)} ${channel.handle}`.toLocaleLowerCase().includes(needle)).sort((left, right) => {
+			const leftName = creatorLabel(left);
+			const rightName = creatorLabel(right);
+			if (sort === "name") return leftName.localeCompare(rightName);
+			if (sort === "favorite") return Number(creatorIsLiked(rightName)) - Number(creatorIsLiked(leftName)) || leftName.localeCompare(rightName);
+			if (sort === "rating") return ratingPreference(getCreatorRating(rightName)) - ratingPreference(getCreatorRating(leftName)) || leftName.localeCompare(rightName);
+			return (right.lastCheckedAt ?? 0) - (left.lastCheckedAt ?? 0) || leftName.localeCompare(rightName);
+		});
+	}, [
+		deferredQuery,
+		feedbackRevision,
+		follows,
+		kind,
+		provider,
+		sort
+	]);
+	const selected = (0, import_react.useMemo)(() => filtered.find((channel) => channel.id === selectedId) ?? filtered[0] ?? null, [filtered, selectedId]);
+	const shown = filtered.slice(0, visible);
+	const missingCreatorIds = shown.filter((channel) => channel.kind === "youtube" && (!channel.thumb || brokenCreatorIds.has(channel.id)) && /^yt:UC[A-Za-z0-9_-]{20,}$/.test(channel.id)).map((channel) => channel.id).join(",");
+	(0, import_react.useEffect)(() => {
+		const pending = missingCreatorIds.split(",").filter((id) => id && !attemptedCreatorProfiles.current.has(id));
+		if (!pending.length) return;
+		let cancelled = false;
+		(async () => {
+			for (let index = 0; index < pending.length && !cancelled; index += 16) {
+				const ids = pending.slice(index, index + 16);
+				ids.forEach((id) => attemptedCreatorProfiles.current.add(id));
+				try {
+					const profiles = await youtubeCreatorProfiles({ data: ids });
+					if (!cancelled) updateFollowProfiles(profiles);
+				} catch {}
+				if (index + 16 < pending.length) await new Promise((resolve) => window.setTimeout(resolve, 250));
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [missingCreatorIds, updateFollowProfiles]);
+	const selectedName = selected ? creatorLabel(selected) : "";
+	const selectedVideos = (0, import_react.useMemo)(() => selected ? videos.filter((video) => !hiddenVideos[video.id] && (video.folderId === selected.id || selected.channelId && video.remote?.channelId === selected.channelId)).sort((a, b) => b.addedAt - a.addedAt) : [], [
+		hiddenVideos,
+		selected,
+		videos
+	]);
+	const selectedPage = selected?.kind === "youtube" ? selected.channelId ? `https://www.youtube.com/channel/${encodeURIComponent(selected.channelId)}` : selected.handle.startsWith("http") ? selected.handle : `https://www.youtube.com/@${encodeURIComponent(selected.handle.replace(/^@/, ""))}` : selected ? `https://www.twitch.tv/${encodeURIComponent(selected.handle.replace(/^@/, ""))}` : "";
+	const selectedRating = selected ? getCreatorRating(selectedName) : 0;
+	const selectedFavorite = selected ? creatorIsLiked(selectedName) : false;
+	const removalPlan = (0, import_react.useMemo)(() => reviewingRemoval ? planFollowRemoval({
+		follows,
+		videos,
+		favorites,
+		likes,
+		progress,
+		resumeProgress,
+		history
+	}, selectedIds, exportFeedback()) : null, [
+		reviewingRemoval,
+		follows,
+		videos,
+		favorites,
+		likes,
+		progress,
+		resumeProgress,
+		history,
+		selectedIds
+	]);
+	const scopedCollections = (0, import_react.useMemo)(() => {
+		const scope = new Set(follows.filter((channel) => !kind || channel.kind === kind).map((channel) => channel.id));
+		return collections.map((collection) => ({
+			...collection,
+			followIds: collection.followIds.filter((id) => scope.has(id))
+		})).filter((collection) => collection.followIds.length);
+	}, [
+		collections,
+		follows,
+		kind
+	]);
+	const changeFavorite = () => {
+		if (!selected) return;
+		toggleCreatorLike(selectedName);
+		setFeedbackRevision((revision) => revision + 1);
+	};
+	const rate = (rating) => {
+		if (!selected) return;
+		setCreatorRating(selectedName, selectedRating === rating ? 0 : rating);
+		setFeedbackRevision((revision) => revision + 1);
+	};
+	const remove = () => {
+		if (!selected || !window.confirm(`Remove ${selectedName} from your followed creators? Saved videos and favorites stay in your library.`)) return;
+		unfollow(selected.id);
+		setSelectedId(null);
+	};
+	const toggleSelected = (id) => {
+		setSelectedIds((ids) => ids.includes(id) ? ids.filter((value) => value !== id) : [...ids, id]);
+		setReviewingRemoval(false);
+	};
+	const updateCollections = (update) => {
+		const next = update(collections);
+		setCollections(next);
+		saveCreatorCollections(next);
+	};
+	const saveCollection = () => {
+		const name = collectionName.trim();
+		if (!name || !selectedIds.length) return;
+		const next = {
+			id: `collection:${Date.now()}`,
+			name: name.slice(0, 48),
+			followIds: selectedIds,
+			createdAt: Date.now()
+		};
+		updateCollections((saved) => [...saved.filter((collection) => collection.name.toLocaleLowerCase() !== next.name.toLocaleLowerCase()), next]);
+		setCollectionName("");
+	};
+	const loadCollection = (collection) => {
+		const available = new Set(follows.filter((channel) => !kind || channel.kind === kind).map((channel) => channel.id));
+		setSelectedIds(collection.followIds.filter((id) => available.has(id)));
+		setSelectionMode(true);
+		setReviewingRemoval(false);
+	};
+	const removeCollection = (id) => updateCollections((saved) => saved.filter((collection) => collection.id !== id));
+	const removeSelected = () => {
+		if (!removalPlan?.channels.length) return;
+		unfollowMany(removalPlan.channels.map((row) => row.follow.id));
+		setSelectedIds([]);
+		setReviewingRemoval(false);
+		setSelectedId(null);
+	};
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+		className: "mb-7 overflow-hidden rounded-xl border border-border bg-surface shadow-border",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			className: "border-b border-border bg-elevated/45 p-5 sm:p-6",
+			children: [
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "flex flex-col justify-between gap-4 lg:flex-row lg:items-end",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+							children: "Following system"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+							className: "mt-2 font-display text-2xl text-fg",
+							children: kind === "youtube" ? "YouTube creator control" : kind === "twitch" ? "Twitch creator control" : "Creator control"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "mt-1 max-w-2xl text-sm text-muted",
+							children: kind ? `Search, sort, and act on ${kind === "youtube" ? "YouTube" : "Twitch"} follows without mounting the whole list at once.` : "Search, sort, and act on every followed creator without mounting the whole list at once."
+						})
+					] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						className: "text-sm text-muted",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								className: "font-mono text-fg",
+								children: filtered.length.toLocaleString()
+							}),
+							" of ",
+							follows.filter((channel) => !kind || channel.kind === kind).length.toLocaleString(),
+							" creator",
+							follows.length === 1 ? "" : "s"
+						]
+					})]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "mt-5 flex flex-col gap-3 lg:flex-row lg:items-center",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+							className: "relative block min-w-0 flex-1",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Search, {
+								"aria-hidden": "true",
+								className: "pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+								value: query,
+								onChange: (event) => setQuery(event.target.value),
+								className: "h-11 pl-10",
+								placeholder: "Find a creator or handle",
+								"aria-label": "Find a followed creator"
+							})]
+						}),
+						!kind && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "flex flex-wrap gap-2",
+							"aria-label": "Filter by service",
+							children: [
+								"all",
+								"youtube",
+								"twitch"
+							].map((value) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								type: "button",
+								size: "sm",
+								variant: provider === value ? "default" : "secondary",
+								onClick: () => setProvider(value),
+								children: value === "all" ? "All services" : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ProviderGlyph, { kind: value }), value === "youtube" ? "YouTube" : "Twitch"] })
+							}, value))
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "flex flex-wrap gap-2",
+							"aria-label": "Sort followed creators",
+							children: [
+								"recent",
+								"name",
+								"favorite",
+								"rating"
+							].map((value) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								type: "button",
+								size: "sm",
+								variant: sort === value ? "default" : "secondary",
+								onClick: () => setSort(value),
+								children: value === "recent" ? "Recently checked" : value === "name" ? "A–Z" : value === "favorite" ? "Favorites" : "Rating"
+							}, value))
+						})
+					]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "mt-4 border-t border-border pt-4",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "flex flex-wrap items-center gap-2",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+									type: "button",
+									size: "sm",
+									variant: selectionMode ? "default" : "secondary",
+									onClick: () => {
+										setSelectionMode((value) => !value);
+										setReviewingRemoval(false);
+									},
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ListChecks, {
+										"aria-hidden": "true",
+										className: "size-4"
+									}), selectionMode ? `Selecting ${selectedIds.length}` : "Select creators"]
+								}),
+								selectionMode && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+									type: "button",
+									size: "sm",
+									variant: "secondary",
+									disabled: !filtered.length,
+									onClick: () => {
+										const ids = new Set(selectedIds);
+										filtered.forEach((channel) => ids.add(channel.id));
+										setSelectedIds([...ids]);
+										setReviewingRemoval(false);
+									},
+									children: [
+										"Select all ",
+										filtered.length.toLocaleString(),
+										" matching"
+									]
+								}),
+								selectionMode && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+									type: "button",
+									size: "sm",
+									variant: "ghost",
+									onClick: () => {
+										setSelectedIds([]);
+										setReviewingRemoval(false);
+									},
+									children: "Clear selection"
+								}),
+								scopedCollections.map((collection) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+									className: "inline-flex items-center rounded-sm bg-bg/45",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+										type: "button",
+										size: "sm",
+										variant: "ghost",
+										onClick: () => loadCollection(collection),
+										children: [
+											collection.name,
+											" · ",
+											collection.followIds.length
+										]
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										type: "button",
+										size: "icon-sm",
+										variant: "ghost",
+										onClick: () => removeCollection(collection.id),
+										"aria-label": `Remove ${collection.name} collection`,
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, {
+											"aria-hidden": "true",
+											className: "size-3.5"
+										})
+									})]
+								}, collection.id))
+							]
+						}),
+						selectionMode && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "mt-3 grid gap-3 rounded-lg bg-bg/45 p-3 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-center",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+									value: collectionName,
+									onChange: (event) => setCollectionName(event.target.value),
+									className: "h-11",
+									placeholder: "Save selected creators as a collection",
+									"aria-label": "Collection name"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+									type: "button",
+									variant: "secondary",
+									disabled: !collectionName.trim() || !selectedIds.length,
+									onClick: saveCollection,
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FolderPlus, {
+										"aria-hidden": "true",
+										className: "size-4"
+									}), "Save collection"]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+									type: "button",
+									variant: reviewingRemoval ? "danger" : "secondary",
+									disabled: !selectedIds.length,
+									onClick: () => setReviewingRemoval((value) => !value),
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Trash2, {
+											"aria-hidden": "true",
+											className: "size-4"
+										}),
+										"Review removal",
+										selectedIds.length ? ` · ${selectedIds.length}` : ""
+									]
+								})
+							]
+						}),
+						reviewingRemoval && removalPlan && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "mt-3 rounded-lg border border-danger/50 bg-danger/10 p-4",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "flex items-start justify-between gap-3",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "font-medium text-fg",
+										children: [
+											"Review ",
+											removalPlan.channels.length,
+											" selected creator",
+											removalPlan.channels.length === 1 ? "" : "s"
+										]
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "mt-1 text-sm text-muted",
+										children: [
+											"Removing follows also removes their source folders and ",
+											removalPlan.removedRows.toLocaleString(),
+											" unprotected catalog rows. ",
+											removalPlan.keptRows.toLocaleString(),
+											" saved or watched rows stay with favorites, likes, ratings, notes, and playback history."
+										]
+									})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										type: "button",
+										size: "icon-sm",
+										variant: "ghost",
+										onClick: () => setReviewingRemoval(false),
+										"aria-label": "Close removal review",
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, {
+											"aria-hidden": "true",
+											className: "size-4"
+										})
+									})]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "mt-3 max-h-64 space-y-1 overflow-y-auto rounded-md bg-bg/50 p-2",
+									"aria-label": "Affected creator preview",
+									children: removalPlan.channels.slice(0, reviewVisible).map(({ follow, keptRows, removedRows }) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "flex items-center justify-between gap-3 rounded-sm px-2 py-1 text-xs",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+											className: "min-w-0 truncate text-fg",
+											children: [
+												creatorLabel(follow),
+												" ",
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+													className: "text-muted",
+													children: ["· ", follow.kind === "youtube" ? "YouTube" : "Twitch"]
+												})
+											]
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+											className: "shrink-0 text-muted",
+											children: [
+												removedRows,
+												" remove · ",
+												keptRows,
+												" keep"
+											]
+										})]
+									}, follow.id))
+								}),
+								reviewVisible < removalPlan.channels.length && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+									type: "button",
+									size: "sm",
+									variant: "ghost",
+									className: "mt-2",
+									onClick: () => setReviewVisible((count) => Math.min(removalPlan.channels.length, count + PAGE_SIZE)),
+									children: [
+										"Show next ",
+										Math.min(PAGE_SIZE, removalPlan.channels.length - reviewVisible),
+										" affected creators"
+									]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+									type: "button",
+									className: "mt-4",
+									variant: "danger",
+									disabled: !removalPlan.channels.length,
+									onClick: removeSelected,
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Trash2, {
+											"aria-hidden": "true",
+											className: "size-4"
+										}),
+										"Remove ",
+										removalPlan.channels.length,
+										" reviewed follows"
+									]
+								})
+							]
+						})
+					]
+				})
+			]
+		}), !filtered.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+			className: "p-6 text-sm text-muted",
+			children: query ? "No followed creators match that search." : "No creators are followed here yet. Use the import tools below to add channels."
+		}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			className: "grid gap-0 lg:grid-cols-[minmax(0,1fr)_20rem]",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "p-5 sm:p-6",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					className: "grid grid-cols-6 gap-3 sm:grid-cols-8 lg:grid-cols-10 2xl:grid-cols-12",
+					children: shown.map((channel) => {
+						const label = creatorLabel(channel);
+						const favorite = creatorIsLiked(label);
+						const rating = getCreatorRating(label);
+						const active = selectionMode ? selectedIds.includes(channel.id) : selected?.id === channel.id;
+						return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+							type: "button",
+							onClick: () => selectionMode ? toggleSelected(channel.id) : setSelectedId(channel.id),
+							"aria-label": `${selectionMode ? "Select" : "Manage"} ${label}`,
+							"aria-pressed": active,
+							title: label,
+							className: cn("group relative flex size-11 items-center justify-center overflow-visible rounded-full border bg-elevated text-sm font-semibold text-fg shadow-border transition-[transform,background-color,border-color] duration-150 hover:-translate-y-0.5 hover:bg-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", active ? "border-accent ring-2 ring-accent/40" : "border-border"),
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									className: "flex size-full items-center justify-center overflow-hidden rounded-full bg-bg/60",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CreatorAvatar, {
+										channel,
+										label
+									})
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									className: "absolute -right-1 -bottom-1 flex size-5 items-center justify-center rounded-full border border-surface bg-bg text-accent",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ProviderGlyph, { kind: channel.kind })
+								}),
+								favorite && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									className: "absolute -top-1 -left-1 flex size-5 items-center justify-center rounded-full bg-accent text-accent-fg",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Heart, {
+										"aria-hidden": "true",
+										className: "size-3 fill-current"
+									})
+								}),
+								!favorite && rating > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									className: "absolute -top-1 -left-1 flex size-5 items-center justify-center rounded-full bg-elevated text-accent",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "text-[10px] leading-none",
+										children: rating
+									})
+								})
+							]
+						}, channel.id);
+					})
+				}), visible < filtered.length && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+					type: "button",
+					variant: "secondary",
+					className: "mt-5",
+					onClick: () => setVisible((count) => Math.min(filtered.length, count + CREATOR_PAGE_SIZE)),
+					children: [
+						"Show ",
+						Math.min(CREATOR_PAGE_SIZE, filtered.length - visible),
+						" more creators"
+					]
+				})]
+			}), selected && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("aside", {
+				className: "border-t border-border bg-elevated/35 p-5 lg:border-t-0 lg:border-l sm:p-6",
+				"aria-label": `Manage ${selectedName}`,
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "flex items-center gap-3",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+							className: "relative flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-bg text-sm font-semibold text-fg",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CreatorAvatar, {
+								channel: selected,
+								label: selectedName
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								className: "absolute -right-0.5 -bottom-0.5 flex size-5 items-center justify-center rounded-full border border-surface bg-elevated text-accent",
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ProviderGlyph, { kind: selected.kind })
+							})]
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "min-w-0",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "truncate font-medium text-fg",
+								children: selectedName
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+								className: "truncate text-xs text-muted",
+								children: [
+									selected.handle,
+									" · ",
+									channelStatus(selected)
+								]
+							})]
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-5 grid gap-3",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-xs leading-5 text-muted",
+								children: selected.description || "No channel description supplied yet. Refresh this creator to look for a public profile description."
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "grid grid-cols-3 gap-2 text-center text-xs",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "rounded-md bg-bg/55 p-2",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", {
+											className: "block text-lg text-fg",
+											children: selectedVideos.length
+										}), "videos"]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "rounded-md bg-bg/55 p-2",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", {
+											className: "block text-lg text-fg",
+											children: selectedVideos.filter((video) => favorites[video.id]).length
+										}), "favorites"]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "rounded-md bg-bg/55 p-2",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", {
+											className: "block text-lg text-fg",
+											children: new Set(history.filter((entry) => selectedVideos.some((video) => video.id === entry.id)).map((entry) => entry.id)).size
+										}), "watched"]
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "flex flex-wrap gap-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+									size: "sm",
+									variant: "secondary",
+									onClick: () => setSource(selected.id),
+									children: "Open creator tab"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
+									href: selectedPage,
+									target: "_blank",
+									rel: "noreferrer",
+									className: "inline-flex min-h-9 items-center gap-1 rounded-md bg-bg/55 px-3 text-xs text-fg",
+									children: ["Channel page ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExternalLink, { className: "size-3" })]
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mb-2 text-xs font-medium tracking-wide text-subtle uppercase",
+								children: "Recent videos"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "max-h-52 space-y-1 overflow-y-auto",
+								children: [selectedVideos.slice(0, 12).map((video) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+									type: "button",
+									className: "block w-full truncate rounded-md bg-bg/55 px-2 py-1.5 text-left text-xs text-fg hover:text-accent",
+									title: video.name,
+									onClick: () => openPreview(video.id),
+									children: video.name
+								}, video.id)), !selectedVideos.length && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-xs text-muted",
+									children: "No saved videos for this creator yet."
+								})]
+							})] }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+								type: "button",
+								variant: selectedFavorite ? "default" : "secondary",
+								onClick: changeFavorite,
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Heart, {
+									"aria-hidden": "true",
+									className: cn("size-4", selectedFavorite && "fill-current")
+								}), selectedFavorite ? "Creator favorite" : "Favorite creator"]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mb-2 text-xs font-medium tracking-wide text-subtle uppercase",
+									children: "Creator rating"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "flex gap-1",
+									"aria-label": `Rate ${selectedName}`,
+									children: [
+										1,
+										2,
+										3,
+										4,
+										5
+									].map((rating) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										type: "button",
+										onClick: () => rate(rating),
+										className: "flex size-11 items-center justify-center rounded-md text-accent hover:bg-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+										"aria-label": `${rating} star${rating === 1 ? "" : "s"}`,
+										"aria-pressed": selectedRating === rating,
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Star, {
+											"aria-hidden": "true",
+											className: cn("size-5", rating <= selectedRating && "fill-current")
+										})
+									}, rating))
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-1 text-xs text-muted",
+									children: selectedRating ? `${selectedRating} of 5 stars` : "Not rated"
+								})
+							] }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+								type: "button",
+								variant: "danger",
+								onClick: remove,
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Trash2, {
+									"aria-hidden": "true",
+									className: "size-4"
+								}), "Remove following"]
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-5 border-t border-border pt-4 text-xs text-muted",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+							className: "flex items-center gap-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Radio, {
+								"aria-hidden": "true",
+								className: "size-3.5 text-accent"
+							}), selected.live ? "Live status is active." : "Follow remains locally stored."]
+						}), selected.cache && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+							className: "mt-2",
+							children: [
+								selected.cache.scope === "catalog" ? "Focused catalog" : selected.cache.scope === "feed" ? "Routine feed" : "No retained",
+								" cache · ",
+								Math.round(selected.cache.hits / Math.max(1, selected.cache.hits + selected.cache.misses) * 100),
+								"% hit rate"
+							]
+						})]
+					})
+				]
+			})]
 		})]
 	});
 }
@@ -15631,7 +16743,7 @@ function shouldWarmHubRoute(hints) {
 }
 var hubModulePromise;
 var loadHub = () => {
-	if (!hubModulePromise) hubModulePromise = import("./hub-sections-BopJbiQt.mjs").then((n) => n.t).catch((error) => {
+	if (!hubModulePromise) hubModulePromise = import("./hub-sections-ly0PoLFx.mjs").then((n) => n.t).catch((error) => {
 		hubModulePromise = void 0;
 		throw error;
 	});
@@ -15758,6 +16870,7 @@ function LibraryApp() {
 	const [youtubeExploreVisible, setYoutubeExploreVisible] = (0, import_react.useState)(false);
 	const [youtubeDeepVisible, setYoutubeDeepVisible] = (0, import_react.useState)(false);
 	const [youtubeHealthVisible, setYoutubeHealthVisible] = (0, import_react.useState)(false);
+	const [youtubeHealthLimit] = (0, import_react.useState)(48);
 	const [adultDeepVisible, setAdultDeepVisible] = (0, import_react.useState)(false);
 	const archiveQueueRef = (0, import_react.useRef)([]);
 	const archiveQueueBusyRef = (0, import_react.useRef)(false);
@@ -15793,6 +16906,7 @@ function LibraryApp() {
 	const pruneHistory = useLibrary((s) => s.pruneHistory);
 	const folders = useLibrary((s) => s.folders);
 	const catalogVideos = useLibrary((s) => s.videos);
+	const hiddenVideos = useLibrary((s) => s.hiddenVideos);
 	const sourceId = useLibrary((s) => s.sourceId);
 	const setSource = useLibrary((s) => s.setSource);
 	const hydrated = useLibrary((s) => s.hydrated);
@@ -15916,7 +17030,7 @@ function LibraryApp() {
 		input.onchange = () => {
 			const file = input.files?.[0];
 			if (!file) return;
-			if (!window.confirm("Merge this Reelcase recovery pack? Existing activity is kept and duplicate entries are ignored.")) return;
+			if (!window.confirm("Merge this Realhub recovery pack? Existing activity is kept and duplicate entries are ignored.")) return;
 			importLibraryPackZip(file, {
 				getFollows: () => useLibrary.getState().follows,
 				setFollows: (follows) => useLibrary.setState({ follows }),
@@ -16158,7 +17272,7 @@ function LibraryApp() {
 		const adultIds = new Set(folders.filter((folder) => folder.adult).map((folder) => folder.id));
 		const inAdults = sourceId === "adults" || sourceId === "adult-fetishes";
 		const pool = catalogVideos.filter((video) => {
-			if (video.isSample) return false;
+			if (video.isSample || hiddenVideos[video.id]) return false;
 			const isAdult = adultIds.has(video.folderId) || Boolean(video.remote && [
 				"eporner",
 				"redtube",
@@ -16180,7 +17294,7 @@ function LibraryApp() {
 			const exactTagHits = videoTags.filter((tag) => terms.some((term) => tag === term || tag.includes(term))).length;
 			const titleHits = terms.filter((term) => title.includes(term)).length;
 			const creatorHits = terms.filter((term) => creator.includes(term)).length;
-			return exactTag + (title.includes(needle) ? 120 : 0) + (creator.includes(needle) ? 95 : 0) + titleHits * 28 + creatorHits * 22 + exactTagHits * 18 + getRating(video.id) * 7 + (favorites[video.id] ? 12 : 0) + (likes[video.id] ? 6 : 0) + Math.min(8, viewCounts[video.id] ?? 0);
+			return exactTag + (title.includes(needle) ? 120 : 0) + (creator.includes(needle) ? 95 : 0) + titleHits * 28 + creatorHits * 22 + exactTagHits * 18 + ratingPreference(getRating(video.id)) * 7 + (favorites[video.id] ? 12 : 0) + (likes[video.id] ? 6 : 0) + Math.min(8, viewCounts[video.id] ?? 0);
 		};
 		const rankedRows = pool.map((video) => ({
 			video,
@@ -16210,6 +17324,7 @@ function LibraryApp() {
 		catalogVideos,
 		favorites,
 		folders,
+		hiddenVideos,
 		likes,
 		query,
 		ratingRevision,
@@ -16228,6 +17343,27 @@ function LibraryApp() {
 	const resumeProgress = useLibrary((s) => s.resumeProgress);
 	const unavailable = useLibrary((s) => s.unavailable);
 	const follows = useLibrary((s) => s.follows);
+	const youtubePlaylistShelves = (0, import_react.useMemo)(() => {
+		if (sourceId !== "youtube") return [];
+		const playlistFollows = follows.filter((follow) => follow.id.startsWith("ytpl:")).slice(0, 6);
+		if (!playlistFollows.length) return [];
+		const wanted = new Set(playlistFollows.map((follow) => follow.id));
+		const byFolder = /* @__PURE__ */ new Map();
+		for (const video of youtubeVideos) if (wanted.has(video.folderId)) {
+			const rows = byFolder.get(video.folderId) ?? [];
+			if (rows.length < 24) rows.push(video);
+			byFolder.set(video.folderId, rows);
+		}
+		return playlistFollows.map((follow) => ({
+			id: follow.id,
+			title: follow.title,
+			videos: byFolder.get(follow.id) ?? []
+		})).filter((row) => row.videos.length);
+	}, [
+		follows,
+		sourceId,
+		youtubeVideos
+	]);
 	const remoteCheckedAt = useLibrary((s) => s.remoteCheckedAt);
 	const remoteRetryAt = useLibrary((s) => s.remoteRetryAt);
 	const youtubeHealth = (0, import_react.useMemo)(() => {
@@ -16249,11 +17385,12 @@ function LibraryApp() {
 				newest: 0
 			},
 			retryAt: remoteRetryAt[channel.id]
-		})).sort((a, b) => (a.lastCheckedAt ?? 0) - (b.lastCheckedAt ?? 0) || a.title.localeCompare(b.title));
+		})).sort((a, b) => (a.lastCheckedAt ?? 0) - (b.lastCheckedAt ?? 0) || a.title.localeCompare(b.title)).slice(0, youtubeHealthLimit);
 	}, [
 		follows,
 		remoteRetryAt,
 		sourceId,
+		youtubeHealthLimit,
 		youtubeHealthVisible,
 		youtubeVideos
 	]);
@@ -16279,10 +17416,11 @@ function LibraryApp() {
 	const movieCatalog = (0, import_react.useMemo)(() => {
 		if (sourceId !== "movies") return [];
 		const adultIds = new Set(folders.filter((folder) => folder.adult).map((folder) => folder.id));
-		return catalogVideos.filter((video) => !video.remote && !video.isSample && !adultIds.has(video.folderId) && !unavailable[video.id]);
+		return catalogVideos.filter((video) => !video.remote && !video.isSample && !adultIds.has(video.folderId) && !unavailable[video.id] && !hiddenVideos[video.id]);
 	}, [
 		catalogVideos,
 		folders,
+		hiddenVideos,
 		sourceId,
 		unavailable
 	]);
@@ -16375,7 +17513,7 @@ function LibraryApp() {
 		const creatorsByScore = /* @__PURE__ */ new Map();
 		for (const video of videos) {
 			const rating = getRating(video.id);
-			const signal = Math.max(rating, favorites[video.id] ? 4 : 0, likes[video.id] ? 3 : 0);
+			const signal = rating === 1 ? -3 : Math.max(ratingPreference(rating), favorites[video.id] ? 2 : 0, likes[video.id] ? 1 : 0) + Math.min(1, watchTimeScore(getWatchTime(video.id)) / 6);
 			if (!signal) continue;
 			for (const tag of topicsForVideo(video, tags[video.id])) {
 				const row = tagsByScore.get(tag) ?? {
@@ -16397,7 +17535,7 @@ function LibraryApp() {
 				creatorsByScore.set(creator, row);
 			}
 		}
-		const score = (row) => (row.total + 9) / (row.count + 3);
+		const score = (row) => row.total / (row.count + 3);
 		const confidence = (row) => Math.min(1, row.count / 5);
 		return {
 			tag: new Map([...tagsByScore].map(([key, row]) => [key, {
@@ -16430,7 +17568,7 @@ function LibraryApp() {
 				return total + (signal ? (signal.score - 3) * signal.confidence : 0);
 			}, 0);
 			const creatorLift = creatorAverage ? (creatorAverage.score - 3) * creatorAverage.confidence : 0;
-			return getRating(video.id) * 18 + getCreatorRating(video.remote?.channelName ?? "") * 10 + creatorLift * 9 + tagAverage * 7 + (creatorIsLiked(video.remote?.channelName ?? "") ? 9 : 0) + (favorites[video.id] ? 6 : 0) + (likes[video.id] ? 4 : 0) + topicsForVideo(video, tags[video.id]).filter((tag) => isTasteTag(tag) && preferredTags.has(tag)).length * 2 + (video.remote?.live ? 1 : 0);
+			return ratingPreference(getRating(video.id)) * 18 + (getRating(video.id) === 1 ? 0 : watchTimeScore(getWatchTime(video.id))) + ratingPreference(getCreatorRating(video.remote?.channelName ?? "")) * 10 + creatorLift * 9 + tagAverage * 7 + (creatorIsLiked(video.remote?.channelName ?? "") ? 9 : 0) + (favorites[video.id] ? 6 : 0) + (likes[video.id] ? 4 : 0) + topicsForVideo(video, tags[video.id]).filter((tag) => isTasteTag(tag) && preferredTags.has(tag)).length * 2 + (video.remote?.live ? 1 : 0);
 		};
 		return videos.filter((video) => !video.isSample && !watched.has(video.id)).map((video) => ({
 			video,
@@ -16452,7 +17590,7 @@ function LibraryApp() {
 		const perFolder = /* @__PURE__ */ new Map();
 		return personalizedPicks.filter((video) => !video.remote && !video.isSample).map((video) => ({
 			video,
-			score: getRating(video.id) * 5 + (favorites[video.id] ? 2 : 0) + (likes[video.id] ? 1 : 0) + shuffleRank(`local-rated:${video.id}:${homePickShuffle}`, homePickShuffle) / 4294967295 * 5
+			score: ratingPreference(getRating(video.id)) * 5 + (getRating(video.id) === 1 ? 0 : watchTimeScore(getWatchTime(video.id))) + (favorites[video.id] ? 2 : 0) + (likes[video.id] ? 1 : 0) + shuffleRank(`local-rated:${video.id}:${homePickShuffle}`, homePickShuffle) / 4294967295 * 5
 		})).sort((a, b) => b.score - a.score).filter(({ video }) => {
 			const seen = perFolder.get(video.folderId) ?? 0;
 			if (seen >= 3) return false;
@@ -16511,7 +17649,7 @@ function LibraryApp() {
 	]);
 	const twitchVodPicks = (0, import_react.useMemo)(() => {
 		if (sourceId !== "twitch") return [];
-		const popularity = (video) => (hasFreshViewerCount(video.remote) ? video.remote?.viewers ?? 0 : 0) + getRating(video.id) * 40 + (favorites[video.id] ? 28 : 0) + (likes[video.id] ? 16 : 0) + (viewCounts[video.id] ?? 0) * 5 + topicsForVideo(video, tags[video.id]).filter((tag) => highlyRatedTags.has(tag)).length * 8;
+		const popularity = (video) => (hasFreshViewerCount(video.remote) ? video.remote?.viewers ?? 0 : 0) + ratingPreference(getRating(video.id)) * 40 + (getRating(video.id) === 1 ? 0 : watchTimeScore(getWatchTime(video.id))) + (favorites[video.id] ? 28 : 0) + (likes[video.id] ? 16 : 0) + (viewCounts[video.id] ?? 0) * 5 + topicsForVideo(video, tags[video.id]).filter((tag) => highlyRatedTags.has(tag)).length * 8;
 		return sortedTwitch.filter((video) => !video.remote?.live).map((video) => ({
 			video,
 			score: popularity(video)
@@ -16599,7 +17737,7 @@ function LibraryApp() {
 		return [...groups.entries()].map(([creator, vods]) => ({
 			creator,
 			vods,
-			score: vods.reduce((total, video) => total + getRating(video.id) * 10 + (favorites[video.id] ? 8 : 0) + (likes[video.id] ? 4 : 0) + (viewCounts[video.id] ?? 0), 0)
+			score: vods.reduce((total, video) => total + ratingPreference(getRating(video.id)) * 10 + (favorites[video.id] ? 8 : 0) + (likes[video.id] ? 4 : 0) + (viewCounts[video.id] ?? 0), 0)
 		})).sort((a, b) => b.score - a.score || b.vods.length - a.vods.length || a.creator.localeCompare(b.creator)).slice(0, 12);
 	}, [
 		favorites,
@@ -16643,7 +17781,7 @@ function LibraryApp() {
 			}, 0);
 			const sharedFavoriteTopics = topicsForVideo(video, tags[video.id]).filter((tag) => isTasteTag(tag) && favoriteTags.has(tag)).length;
 			const creatorLift = creatorAverage ? (creatorAverage.score - 3) * creatorAverage.confidence : 0;
-			return getRating(video.id) * 14 + getCreatorRating(video.remote?.channelName ?? "") * 15 + creatorLift * 14 + tagAverage * 11 + (creatorIsLiked(video.remote?.channelName ?? "") ? 16 : 0) + (likedChannels.has(video.remote?.channelName) ? 12 : 0) + sharedFavoriteTopics * 18;
+			return ratingPreference(getRating(video.id)) * 14 + (getRating(video.id) === 1 ? 0 : watchTimeScore(getWatchTime(video.id))) + ratingPreference(getCreatorRating(video.remote?.channelName ?? "")) * 15 + creatorLift * 14 + tagAverage * 11 + (creatorIsLiked(video.remote?.channelName ?? "") ? 16 : 0) + (likedChannels.has(video.remote?.channelName) ? 12 : 0) + sharedFavoriteTopics * 18;
 		};
 		return youtubeVideos.map((video) => ({
 			video,
@@ -16695,7 +17833,7 @@ function LibraryApp() {
 			return [...groups.entries()].filter(([, items]) => items.length >= 2).map(([tag, videos]) => ({
 				tag,
 				videos,
-				score: videos.reduce((score, video) => score + getRating(video.id) * 2, 0)
+				score: videos.reduce((score, video) => score + ratingPreference(getRating(video.id)) * 2 + (getRating(video.id) === 1 ? 0 : watchTimeScore(getWatchTime(video.id)) / 4), 0)
 			})).sort((a, b) => b.score - a.score || b.videos.length - a.videos.length || a.tag.localeCompare(b.tag)).slice(0, 40).map(({ tag, videos }) => ({
 				tag,
 				videos: diversifyCreators(videos)
@@ -16936,7 +18074,7 @@ function LibraryApp() {
 			})();
 			if (preferences["alerts-go-live-alerts"] === true) for (const ch of wentLive) pushNotice({
 				title: `${ch.title} is live`,
-				body: "Tap to watch in Reelcase.",
+				body: "Tap to watch in Realhub.",
 				kind: "twitch",
 				videoId: `tw:${ch.handle}:live`
 			});
@@ -17365,7 +18503,7 @@ function LibraryApp() {
 											}),
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 												className: "self-center text-xs text-muted",
-												children: "Saved channels retry in rotating background batches; each result adds to this cached count."
+												children: "Routine checks return only uploads ahead of each saved feed cursor; focused creator pulls can still deepen a catalog."
 											})
 										]
 									}),
@@ -17400,12 +18538,20 @@ function LibraryApp() {
 														})}` : "not checked yet"
 													]
 												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+													className: "mt-1 text-xs text-muted",
+													children: [
+														channel.newestVideoId ? "Feed cursor active" : "Awaiting initial feed cursor",
+														" · ",
+														channel.lastProviderFailure ? `${channel.lastProviderFailure.kind.replaceAll("-", " ")} · ${channel.lastProviderFailure.recovery}` : channel.retryAt && channel.retryAt > Date.now() ? `Retry ${new Date(channel.retryAt).toLocaleTimeString([], {
+															hour: "numeric",
+															minute: "2-digit"
+														})}` : "Provider ready"
+													]
+												}),
 												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 													className: "mt-1 text-xs text-muted",
-													children: channel.lastProviderFailure ? `${channel.lastProviderFailure.kind.replaceAll("-", " ")} · ${channel.lastProviderFailure.recovery}` : channel.retryAt && channel.retryAt > Date.now() ? `Retry ${new Date(channel.retryAt).toLocaleTimeString([], {
-														hour: "numeric",
-														minute: "2-digit"
-													})}` : "Provider ready"
+													children: channel.cache ? `${channel.cache.scope === "catalog" ? "Catalog cache" : channel.cache.scope === "feed" ? "Feed cache" : "Not retained"} · ${Math.max(0, Math.floor((Date.now() - channel.cache.at) / 1e3))}s old · ${Math.round(channel.cache.hits / Math.max(1, channel.cache.hits + channel.cache.misses) * 100)}% hit rate` : "Cache telemetry appears after the first refresh"
 												}),
 												channel.lastProviderFailure && channel.retryAt && channel.retryAt > Date.now() && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 													className: "mt-1 text-xs text-accent",
@@ -17419,6 +18565,14 @@ function LibraryApp() {
 									})
 								]
 							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FollowManager, { kind: "youtube" }),
+							youtubePlaylistShelves.map((playlist) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
+								title: `Playlist · ${playlist.title}`,
+								reason: "Public playlist saved to your library.",
+								videos: playlist.videos,
+								variant: "rail",
+								onTitleClick: () => setSource(playlist.id)
+							}, playlist.id)),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TitleRail, {
 								title: "Latest uploads",
 								videos: filteredYoutube,
@@ -17658,6 +18812,7 @@ function LibraryApp() {
 									})
 								]
 							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FollowManager, { kind: "twitch" }),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 								className: "mb-5 flex flex-wrap gap-2",
 								children: [
@@ -17896,7 +19051,7 @@ function LibraryApp() {
 										children: [
 											"Focused archive queue · ",
 											archiveQueued.length,
-											" waiting. Reelcase continues creator-by-creator toward the oldest public VOD available; it retains every accepted page."
+											" waiting. Realhub continues creator-by-creator toward the oldest public VOD available; it retains every accepted page."
 										]
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
@@ -18774,13 +19929,22 @@ function LibraryApp() {
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PosterGrid, { videos: favoriteVideos })
 						}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "rounded-xl bg-surface px-6 py-16 text-center shadow-border",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "font-display text-2xl text-fg",
-								children: "Nothing in Favorites"
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "mx-auto mt-2 max-w-sm text-sm text-muted",
-								children: "Heart a title or use My List on the billboard."
-							})]
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+									src: "/art/realhub-media-cards.webp",
+									alt: "",
+									loading: "lazy",
+									className: "mx-auto mb-4 h-28 w-36 object-contain"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "font-display text-2xl text-fg",
+									children: "Nothing in Favorites"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mx-auto mt-2 max-w-sm text-sm text-muted",
+									children: "Heart a title or use My List on the billboard."
+								})
+							]
 						}) : null,
 						(sourceId === "history" || sourceId === "continue" || query || !browsing && sourceId !== "favorites" && sourceId !== "home" && sourceId !== "movies" && sourceId !== "adults" && sourceId !== "adult-fetishes" && sourceId !== "genres" && sourceId !== "stats" && sourceId !== "connection" && sourceId !== "find-phone") && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -19118,7 +20282,7 @@ function LibraryApp() {
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 											className: "mt-1 max-w-2xl text-xs leading-5 text-muted",
-											children: "Merge a Reelcase library pack to recover History, Continue marks, follows, favorites, ratings, Adult marks, and saved provider links. Duplicate activity is ignored; it never clears data already here."
+											children: "Merge a Realhub library pack to recover History, Continue marks, follows, favorites, ratings, Adult marks, and saved provider links. Duplicate activity is ignored; it never clears data already here."
 										})
 									] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 										size: "sm",
@@ -19347,4 +20511,4 @@ function Home() {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LibraryApp, {});
 }
 //#endregion
-export { createLocalId as $, topicsForVideo as A, restoreDurablePhotos as B, resumeForVideo as C, canonicalTopic as D, useSourceAssets as E, toggleTagLike as F, companionHealth as G, companionAckJobs as H, getInteractionBudgetSnapshot as I, companionListPrints as J, companionImportLibraryPack as K, measureInteraction as L, getFeedbackDiagnostics as M, getRating as N, isTopicTag as O, tagIsLiked as P, companionSteamEpicGames as Q, linksFromHistoryAndResume as R, isAdultVideo as S, resolveCreatorCoverage as T, companionArtworkAudit as U, saveDurablePhotos as V, companionExportLibraryPack as W, companionSavePrint as X, companionReadPrint as Y, companionSetAutostart as Z, VideoCard as _, twitchEmbedUrl as a, useThumbs as b, downloadLibraryPackZip as c, exportAdultStats as d, createShortLocalId as et, rankAdultTags as f, openTopic as g, Input as h, getFirstShelfTrace as i, exportFeedback as j, topicEvidence as k, importLibraryPackZip as l, countAdultBySource as m, getNetworkDeviceId as n, applyLibraryPackFiles as o, countAdultBooruHosts as p, companionInspectMedia as q, listNetworkDevices as r, buildLibraryPackFiles as s, routes_exports as t, __exportAll as tt, buildAdultStatsSnapshot as u, getRenderBudgetSnapshot as v, useLibrary as w, Button as x, getThumbDiagnostics as y, loadDurablePhotosSync as z };
+export { companionInspectMedia as $, topicEvidence as A, toggleTagLike as B, isAdultVideo as C, useSourceAssets as D, resolveCreatorCoverage as E, getWatchTime as F, loadDurablePhotosSync as G, getInteractionBudgetSnapshot as H, getWatchTimeLedger as I, companionAckJobs as J, restoreDurablePhotos as K, ratingPreference as L, exportFeedback as M, getFeedbackDiagnostics as N, canonicalTopic as O, getRating as P, companionImportLibraryPack as Q, setRating as R, Button as S, useLibrary as T, measureInteraction as U, watchTimeScore as V, linksFromHistoryAndResume as W, companionExportLibraryPack as X, companionArtworkAudit as Y, companionHealth as Z, openTopic as _, getFirstShelfTrace as a, createLocalId as at, getThumbDiagnostics as b, buildLibraryPackFiles as c, buildAdultStatsSnapshot as d, companionListPrints as et, exportAdultStats as f, Input as g, countAdultBySource as h, listNetworkDevices as i, companionSteamEpicGames as it, topicsForVideo as j, isTopicTag as k, downloadLibraryPackZip as l, countAdultBooruHosts as m, AdultComments as n, companionSavePrint as nt, twitchEmbedUrl as o, createShortLocalId as ot, rankAdultTags as p, saveDurablePhotos as q, getNetworkDeviceId as r, companionSetAutostart as rt, applyLibraryPackFiles as s, __exportAll as st, routes_exports as t, companionReadPrint as tt, importLibraryPackZip as u, VideoCard as v, resumeForVideo as w, useThumbs as x, getRenderBudgetSnapshot as y, tagIsLiked as z };

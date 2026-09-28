@@ -1,11 +1,11 @@
 import { topicEvidence } from '@/lib/videos/topics';
 import { openTopic } from '@/lib/videos/topic-navigation';
-import { startTransition, useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ExternalLink, Glasses, Heart, Play, Star, Tag, ThumbsUp, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLibrary } from "@/lib/videos/store";
-import { creatorIsLiked, getCreatorRating, getRating, setCreatorRating, setRating as saveRating, tagIsLiked, toggleCreatorLike, toggleTagLike } from "@/lib/media-feedback";
+import { creatorIsLiked, getCreatorRating, getRating, ratingPreference, recordWatchTime, setCreatorRating, setRating as saveRating, tagIsLiked, toggleCreatorLike, toggleTagLike } from "@/lib/media-feedback";
 import { resolvePlayUrl } from "@/lib/videos/sources";
 import { twitchEmbedUrl } from "@/lib/videos/twitch-embed";
 import { isAdultImageKind, isAdultPullKind } from "@/lib/videos/adult-sites";
@@ -27,6 +27,7 @@ export function PreVideo() {
   const folders = useLibrary((s) => s.folders);
   const allTags = useLibrary((s) => s.tags);
   const unavailable = useLibrary((s) => s.unavailable);
+  const hiddenVideos = useLibrary((s) => s.hiddenVideos);
   const openVideo = useLibrary((s) => s.openVideo);
   const closePreview = useLibrary((s) => s.closePreview);
   const setSource = useLibrary((s) => s.setSource);
@@ -56,8 +57,16 @@ export function PreVideo() {
   const [localPreviewSrc, setLocalPreviewSrc] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState("");
   const [shelfReady, setShelfReady] = useState(false);
+  const previewWatchTick = useRef(0);
+  const previewWatchPending = useRef(0);
   const markUnavailable = useLibrary((s) => s.markUnavailable);
   const video = videos.find((item) => item.id === previewId);
+  const flushPreviewWatch = () => {
+    if (previewId && previewWatchPending.current > 0) recordWatchTime(previewId, "preview", previewWatchPending.current);
+    previewWatchPending.current = 0;
+    previewWatchTick.current = 0;
+  };
+  useEffect(() => () => { if (previewId && previewWatchPending.current > 0) recordWatchTime(previewId, "preview", previewWatchPending.current); previewWatchPending.current = 0; previewWatchTick.current = 0; }, [previewId]);
   const adultFolderIds = useMemo(() => new Set(folders.filter((folder) => folder.adult).map((folder) => folder.id)), [folders]);
   const previewIsAdult = Boolean(video && (isAdultPullKind(video.remote?.kind) || adultFolderIds.has(video.folderId)));
   useEffect(() => {
@@ -74,7 +83,10 @@ export function PreVideo() {
       const watched = (Date.now() - openedAt) / 1_000;
       if (watched >= 8) markProgress(video.id, Math.min(watched, durationHint * 0.94), durationHint);
     };
-    const timer = window.setInterval(savePreviewWatch, 5_000);
+    const timer = window.setInterval(() => {
+      savePreviewWatch();
+      if ((Date.now() - openedAt) >= 8_000 && document.visibilityState === "visible" && document.hasFocus()) recordWatchTime(video.id, "previewEstimated", 5);
+    }, 5_000);
     return () => { savePreviewWatch(); window.clearInterval(timer); };
   }, [markProgress, video?.id, video?.remote]);
   const creator = video?.remote?.channelName?.trim() ?? "";
@@ -84,7 +96,7 @@ export function PreVideo() {
     for (const item of videos) for (const rawTag of allTags[item.id] ?? EMPTY_TAGS) {
       const tag = rawTag.replace(/^(?:keyword-|creator-)/i, "");
       const entry = scores.get(tag) ?? { total: 0, count: 0 };
-      entry.total += getRating(item.id); entry.count += 1; scores.set(tag, entry);
+      entry.total += ratingPreference(getRating(item.id)); entry.count += 1; scores.set(tag, entry);
     }
     return scores;
   }, [allTags, ratingRevision, videos]);
@@ -151,7 +163,7 @@ export function PreVideo() {
     const sourceKind = video.remote?.kind;
     return videos.filter((item) => {
       const itemIsAdult = isAdultPullKind(item.remote?.kind) || adultFolderIds.has(item.folderId);
-      return item.id !== video.id && !isExcludedPreviewCandidate(item) && !unavailable[item.id] && itemIsAdult === previewIsAdult;
+      return item.id !== video.id && !isExcludedPreviewCandidate(item) && !unavailable[item.id] && !hiddenVideos[item.id] && itemIsAdult === previewIsAdult;
     }).map((item) => {
       const itemTags = allTags[item.id] ?? EMPTY_TAGS;
       const sharedTopics = itemTags.filter((tag) => sourceTags.has(tag)).length;
@@ -164,12 +176,12 @@ export function PreVideo() {
         + Number(item.remote?.kind === sourceKind) * (previewIsAdult ? 5 : 2)
         + sharedTopics * (previewIsAdult ? 6 : 3)
         + itemTags.filter((tag) => tagIsLiked(tag)).length * 2
-        + getRating(item.id) * 1.5
-        + getCreatorRating(item.remote?.channelName ?? "") * 2
+        + ratingPreference(getRating(item.id)) * 1.5
+        + ratingPreference(getCreatorRating(item.remote?.channelName ?? "")) * 2
         + Number(creatorIsLiked(item.remote?.channelName ?? "")) * 3;
       return { item, score, random: previewShuffle(`${video.id}:${item.id}:${recommendationSeed}`, recommendationSeed) };
     }).filter((row) => row.score > 0).sort((a, b) => b.score - a.score || a.random - b.random).slice(0, 8).map((row) => row.item);
-  }, [adultFolderIds, allTags, creatorRevision, previewIsAdult, recommendationSeed, shelfReady, tags, unavailable, video, videos]);
+  }, [adultFolderIds, allTags, creatorRevision, hiddenVideos, previewIsAdult, recommendationSeed, shelfReady, tags, unavailable, video, videos]);
   const recommended = useMemo(() => {
     if (!video || !shelfReady) return [];
     const sourceTags = new Set(tags);
@@ -182,21 +194,21 @@ export function PreVideo() {
     const relatedIds = new Set(related.map((relatedItem) => relatedItem.id));
     return videos.filter((item) => {
       const itemIsAdult = isAdultPullKind(item.remote?.kind) || adultFolderIds.has(item.folderId);
-      return item.id !== video.id && !isExcludedPreviewCandidate(item) && !unavailable[item.id] && !relatedIds.has(item.id) && itemIsAdult === previewIsAdult;
+      return item.id !== video.id && !isExcludedPreviewCandidate(item) && !unavailable[item.id] && !hiddenVideos[item.id] && !relatedIds.has(item.id) && itemIsAdult === previewIsAdult;
     }).map((item) => {
       const itemTags = allTags[item.id] ?? EMPTY_TAGS;
       const sharedTopics = itemTags.filter((tag) => sourceTags.has(tag)).length;
       const score = Number(item.genre === video.genre) * 3
         + Number(item.remote?.kind === sourceKind) * (previewIsAdult ? 4 : 1.5)
         + sharedTopics * (previewIsAdult ? 6 : 3)
-        + getRating(item.id) * 2
-        + getCreatorRating(item.remote?.channelName ?? "") * 2
+        + ratingPreference(getRating(item.id)) * 2
+        + ratingPreference(getCreatorRating(item.remote?.channelName ?? "")) * 2
         + Number(creatorIsLiked(item.remote?.channelName ?? "")) * 3
         + itemTags.filter((tag) => highlyRatedTags.has(tag)).length * 3
         + itemTags.filter((tag) => tagIsLiked(tag)).length * 2;
       return { item, score, random: previewShuffle(`${video.id}:${item.id}:${seed}`, seed) };
     }).sort((a, b) => b.score - a.score || a.random - b.random).slice(0, 6).map((row) => row.item);
-  }, [adultFolderIds, allTags, creatorRevision, previewIsAdult, recommendationSeed, related, shelfReady, tagRevision, tags, unavailable, video, videos]);
+  }, [adultFolderIds, allTags, creatorRevision, hiddenVideos, previewIsAdult, recommendationSeed, related, shelfReady, tagRevision, tags, unavailable, video, videos]);
   if (!video) return null;
   const adultImage = Boolean(video.remote && isAdultImageKind(video.remote.kind, video.mime, video.extension));
   const myFreeCamsRoom = video.remote?.kind === "myfreecams";
@@ -271,8 +283,15 @@ export function PreVideo() {
                   controls
                   onTimeUpdate={(event) => {
                     const element = event.currentTarget;
+                    if (!element.paused && !element.seeking && document.visibilityState === "visible") {
+                      const now = performance.now();
+                      if (previewWatchTick.current) previewWatchPending.current += Math.min(1, Math.max(0, (now - previewWatchTick.current) / 1000));
+                      previewWatchTick.current = now;
+                      if (previewWatchPending.current >= 4) flushPreviewWatch();
+                    } else previewWatchTick.current = 0;
                     if (Number.isFinite(element.duration) && element.duration > 0) markProgress(video.id, element.currentTime, element.duration);
                   }}
+                  onPause={flushPreviewWatch}
                 />
               ) : previewError ? (
                 <div className="flex aspect-video items-center justify-center bg-bg px-6 text-center text-sm text-muted">{previewError}</div>

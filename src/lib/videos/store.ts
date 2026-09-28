@@ -169,6 +169,7 @@ export type LibraryState = {
   follows: FollowedChannel[];
   notices: AppNotice[];
   unavailable: Record<string, true>;
+  hiddenVideos: Record<string, true>;
   notifyPush: boolean;
   remoteBusy: boolean;
   remoteCheckedAt: number;
@@ -211,6 +212,8 @@ export type LibraryState = {
   closePreview: () => void;
   closePlayer: () => void;
   removeVideo: (id: string) => void;
+  hideVideo: (id: string) => void;
+  unhideVideo: (id: string) => void;
   playRelative: (delta: number, playlist: string[]) => void;
   setHideDemo: (hide: boolean) => void;
   setShowHiddenAdult: (show: boolean) => void;
@@ -236,6 +239,7 @@ export type LibraryState = {
   ) => Promise<{ ok: number; failed: number; failedQueries: string[]; failedReasons: Record<string, string> }>;
   unfollow: (id: string) => void;
   unfollowMany: (ids: string[]) => void;
+  updateFollowProfiles: (profiles: Array<{ id: string; thumb?: string; description?: string }>) => void;
   refreshFollows: (kind?: "twitch" | "youtube") => Promise<{ wentLive: FollowedChannel[]; newVideos: LibraryVideo[] }>;
   pushNotice: (n: Omit<AppNotice, "id" | "at" | "read">) => void;
   markNoticesRead: () => void;
@@ -274,6 +278,7 @@ function persistNow(get: () => LibraryState) {
     notices: s.notices.slice(0, 40),
     notifyPush: s.notifyPush,
     unavailableVideoIds: Object.keys(s.unavailable),
+    hiddenVideoIds: Object.keys(s.hiddenVideos),
   };
   // Follow lists are durable on their own key/store so Adult tag bloat,
   // history caps, and thumb prune cannot erase YouTube/Twitch subscriptions.
@@ -454,6 +459,13 @@ function cacheRemotesSoon(get: () => LibraryState) {
 }
 
 function canonicalFollowHandle(kind: "youtube" | "twitch", raw: string): string {
+  if (kind === "youtube") {
+    try {
+      const url = new URL(raw.trim());
+      const playlist = url.searchParams.get("list");
+      if (/(^|\.)youtube\.com$/i.test(url.hostname) && playlist && /^[a-z0-9_-]{10,80}$/i.test(playlist)) return `playlist:${playlist}`;
+    } catch { /* A channel handle is not necessarily a URL. */ }
+  }
   const value = raw.trim().replaceAll("\\_", "_").toLowerCase();
   if (kind === "twitch") {
     const match = value.match(/(?:https?:\/\/)?(?:www\.)?twitch\.tv\/([^/?#]+)/i);
@@ -732,6 +744,7 @@ function applyPrefs(partial: Partial<LibraryState>): Partial<LibraryState> {
     notices: prefs.notices ?? [],
     notifyPush: prefs.notifyPush ?? false,
     unavailable: Object.fromEntries((prefs.unavailableVideoIds ?? []).map((id) => [id, true])),
+    hiddenVideos: Object.fromEntries((prefs.hiddenVideoIds ?? []).map((id) => [id, true])),
   };
 }
 
@@ -855,6 +868,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   follows: STARTER_FOLLOWS,
   notices: [],
   unavailable: {},
+  hiddenVideos: {},
   notifyPush: false,
   remoteBusy: false,
   refreshing: false,
@@ -1168,6 +1182,14 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   },
   closePreview: () => set({ previewId: null }),
   closePlayer: () => set({ activeId: null }),
+  hideVideo: (id) => {
+    set((s) => ({ hiddenVideos: { ...s.hiddenVideos, [id]: true }, activeId: s.activeId === id ? null : s.activeId, previewId: s.previewId === id ? null : s.previewId }));
+    persistNow(get);
+  },
+  unhideVideo: (id) => {
+    set((s) => { const hiddenVideos = { ...s.hiddenVideos }; delete hiddenVideos[id]; return { hiddenVideos }; });
+    persistNow(get);
+  },
   removeVideo: (id) => {
     set((s) => {
       const favorites = { ...s.favorites };
@@ -1683,6 +1705,13 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         };
       });
     }).catch(() => undefined);
+    // Let React paint the shell and saved preferences before opening and
+    // merging a potentially very large remote catalog from IndexedDB.
+    set({ hydrated: true });
+    await new Promise<void>((resolve) => {
+      if (typeof window === "undefined") resolve();
+      else window.setTimeout(resolve, 32);
+    });
     try {
       const snapshot = await loadRemoteSnapshot();
       if (snapshot) {
@@ -1732,7 +1761,6 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         return { folders };
       });
     }).catch(() => undefined);
-    set({ hydrated: true });
     restoring = false;
     // Older catalogs may still carry hundreds of keyword tags per remote card.
     // Compact them in tiny idle slices after first paint, rather than turning a
@@ -2235,6 +2263,16 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     }
   },
   unfollow: (id) => get().unfollowMany([id]),
+  updateFollowProfiles: (profiles) => {
+    const byId = new Map(profiles.filter((profile) => profile.thumb || profile.description).map((profile) => [profile.id, profile]));
+    if (!byId.size) return;
+    set((s) => ({ follows: s.follows.map((follow) => {
+      const profile = byId.get(follow.id);
+      return profile ? { ...follow, thumb: profile.thumb || follow.thumb, description: profile.description || follow.description } : follow;
+    }) }));
+    saveFollows(get().follows);
+    persistSoon(get);
+  },
   unfollowMany: (ids) => {
     const plan = planFollowRemoval(get(), ids, exportFeedback());
     if (!plan.followIds.size) return;
@@ -2412,7 +2450,7 @@ function computePublicList(state: LibraryState): LibraryVideo[] {
   const knownFolders = new Set(state.folders.map((folder) => folder.id));
   // Cached catalog entries can outlive a removed source. Keep their metadata in storage,
   // but never promote an orphaned entry into Home or search results.
-  let list = state.videos.filter((v) => !state.unavailable[v.id] && !adult.has(v.folderId) && (knownFolders.has(v.folderId) || Boolean(v.remote) || v.isSample));
+  let list = state.videos.filter((v) => !state.unavailable[v.id] && !state.hiddenVideos[v.id] && !adult.has(v.folderId) && (knownFolders.has(v.folderId) || Boolean(v.remote) || v.isSample));
   if (state.hideDemo) list = list.filter((v) => !v.isSample);
   memo.public = list;
   return list;
@@ -2428,6 +2466,7 @@ function computeAdultList(state: LibraryState): LibraryVideo[] {
   // and its direct Redgifs record can never render (and load posters) twice.
   memo.adult = dedupeAdultVideoCards(state.videos.filter((v) =>
     !state.unavailable[v.id]
+    && !state.hiddenVideos[v.id]
     && adult.has(v.folderId)
     && !RETIRED_ADULT_SOURCE_IDS.includes((v.remote?.kind ?? v.folderId.split(":")[0]) as "camsoda")
     && (state.showHiddenAdult || !(state.tags[v.id] ?? []).includes("hidden")),
@@ -2503,6 +2542,7 @@ function computeRecoveryList(state: LibraryState, adult: boolean): LibraryVideo[
   const adultIds = adultIdSet(state.folders);
   return state.videos.filter((video) => {
     if (state.hideDemo && video.isSample) return false;
+    if (state.hiddenVideos[video.id]) return false;
     return adult ? adultIds.has(video.folderId) : !adultIds.has(video.folderId);
   });
 }
@@ -2536,6 +2576,7 @@ function computeSelectContinue(state: LibraryState, adult = false): LibraryVideo
   // History keeps URL/title snapshots even after a provider refresh evicts a
   // row. Replay its saved position into Continue using the same recovery card.
   for (const entry of state.history) {
+    if (state.hiddenVideos[entry.id]) continue;
     if (!entry.position || !entry.duration || entry.position < 2 || entry.position / entry.duration >= 0.992) continue;
     recordMark(entry.id, { t: entry.position, d: entry.duration, at: entry.at });
   }
@@ -2567,7 +2608,7 @@ function computeSelectHistory(state: LibraryState, adult = false): LibraryVideo[
   const byId = resumeLookup(list);
   const seen = new Set<string>();
   return state.history
-    .filter((h) => !seen.has(h.id) && Boolean(seen.add(h.id)))
+    .filter((h) => !state.hiddenVideos[h.id] && !seen.has(h.id) && Boolean(seen.add(h.id)))
     .map((h) => {
       const cached = byId.get(h.id) ?? (h.url ? byId.get(h.url) : undefined);
       if (cached) return cached;
@@ -2657,7 +2698,7 @@ function computeSelectAdultRemote(state: LibraryState): LibraryVideo[] {
         v.remote?.kind === "redgifs" ||
         (ADULT_FOLDER_IDS as readonly string[]).includes(v.folderId),
     )
-    .filter((video) => state.showHiddenAdult || !(state.tags[video.id] ?? []).includes("hidden"));
+    .filter((video) => !state.hiddenVideos[video.id] && (state.showHiddenAdult || !(state.tags[video.id] ?? []).includes("hidden")));
   memo.adultRemote = dedupeAdultVideoCards([...new Map(matching.map((video) => [video.id, video])).values()])
     .sort((a, b) => b.addedAt - a.addedAt);
   return memo.adultRemote;
@@ -2703,26 +2744,26 @@ export function userFolderCount(folders: Folder[]) {
 
 // These dependency lists are the cache invalidation contract. Keep UI and
 // playback-only fields out of catalog selectors. Store slices are immutable.
-const publicList = memoizeSelector(computePublicList, ["videos", "folders", "unavailable", "hideDemo"]);
+const publicList = memoizeSelector(computePublicList, ["videos", "folders", "unavailable", "hiddenVideos", "hideDemo"]);
 
-const adultList = memoizeSelector(computeAdultList, ["videos", "folders", "unavailable", "tags", "showHiddenAdult"]);
+const adultList = memoizeSelector(computeAdultList, ["videos", "folders", "unavailable", "hiddenVideos", "tags", "showHiddenAdult"]);
 
-const recoveryList = memoizeSelector(computeRecoveryList, ["videos", "folders", "hideDemo"]);
+const recoveryList = memoizeSelector(computeRecoveryList, ["videos", "folders", "hideDemo", "hiddenVideos"]);
 
-export const selectAdultRemote = memoizeSelector(computeSelectAdultRemote, ["videos", "tags", "showHiddenAdult"]);
+export const selectAdultRemote = memoizeSelector(computeSelectAdultRemote, ["videos", "hiddenVideos", "tags", "showHiddenAdult"]);
 
-export const selectFavorites = memoizeSelector(computeSelectFavorites, ["videos", "folders", "hideDemo", "favorites"]);
+export const selectFavorites = memoizeSelector(computeSelectFavorites, ["videos", "folders", "hideDemo", "hiddenVideos", "favorites"]);
 
-export const selectHistory = memoizeSelector(computeSelectHistory, ["videos", "folders", "hideDemo", "history"]);
+export const selectHistory = memoizeSelector(computeSelectHistory, ["videos", "folders", "hideDemo", "hiddenVideos", "history"]);
 
-export const selectContinue = memoizeSelector(computeSelectContinue, ["videos", "folders", "hideDemo", "history", "progress", "resumeProgress"]);
+export const selectContinue = memoizeSelector(computeSelectContinue, ["videos", "folders", "hideDemo", "hiddenVideos", "history", "progress", "resumeProgress"]);
 
-export const selectVisible = memoizeSelector(computeSelectVisible, ["videos", "folders", "hideDemo", "unavailable", "sourceId", "query", "searchResult", "tags", "categories", "sort", "favorites", "likes", "history", "progress", "resumeProgress"]);
+export const selectVisible = memoizeSelector(computeSelectVisible, ["videos", "folders", "hideDemo", "unavailable", "hiddenVideos", "sourceId", "query", "searchResult", "tags", "categories", "sort", "favorites", "likes", "history", "progress", "resumeProgress"]);
 
-export const selectYoutube = memoizeSelector(computeSelectYoutube, ["videos", "folders", "unavailable", "hideDemo"]);
+export const selectYoutube = memoizeSelector(computeSelectYoutube, ["videos", "folders", "unavailable", "hiddenVideos", "hideDemo"]);
 
-export const selectTwitch = memoizeSelector(computeSelectTwitch, ["videos", "folders", "unavailable", "hideDemo"]);
+export const selectTwitch = memoizeSelector(computeSelectTwitch, ["videos", "folders", "unavailable", "hiddenVideos", "hideDemo"]);
 
-export const selectLive = memoizeSelector(computeSelectLive, ["videos", "folders", "unavailable", "hideDemo"]);
+export const selectLive = memoizeSelector(computeSelectLive, ["videos", "folders", "unavailable", "hiddenVideos", "hideDemo"]);
 
-export const selectClassics = memoizeSelector(computeSelectClassics, ["videos", "folders", "unavailable", "hideDemo"]);
+export const selectClassics = memoizeSelector(computeSelectClassics, ["videos", "folders", "unavailable", "hiddenVideos", "hideDemo"]);

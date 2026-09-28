@@ -7,6 +7,8 @@ import {
   runRefreshRemotes,
   runSearchAdultVideos,
   runSearchRedtubeStars,
+  runBooruOriginal,
+  runYoutubeCreatorProfiles,
 } from "./api";
 
 /**
@@ -43,5 +45,13 @@ export const fetchAdultComments = createServerFn({ method: "POST" })
 export const searchRedtubeStars = createServerFn({ method: "POST" })
   .validator(input)
   .handler(({ data }) => runSearchRedtubeStars(data));
+
+export const resolveBooruOriginal = createServerFn({ method: "POST" })
+  .validator(input)
+  .handler(({ data }) => runBooruOriginal(data));
+
+export const youtubeCreatorProfiles = createServerFn({ method: "POST" })
+  .validator(input)
+  .handler(({ data }) => runYoutubeCreatorProfiles(data));
 
 export type { AdultComment } from "./api";

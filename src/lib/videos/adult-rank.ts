@@ -7,6 +7,7 @@ import type { LibraryVideo } from "./types";
 import { adultTagRankBoost } from "./adult-fetishes";
 import { adultProviderKind } from "./adult-filter";
 import { expandedAdultTags, isAdultGenreTag, isAdultMetaTaxonomyTag } from "./adult-taxonomy";
+import { ratingPreference } from "../media-feedback";
 
 /** Stable personal-interest tags for the main Adults browser. Sources and
  * creators already have dedicated filters; raw API keyword dumps stay
@@ -49,7 +50,7 @@ export function scoreAdultVideo(video: LibraryVideo, ctx: AdultRankContext): num
   const recency = Math.max(0, 1 - (Date.now() - video.addedAt) / (21 * 86_400_000)) * 8;
   const reddit = video.remote?.kind === "reddit" ? 6 + redditSignal(itemTags) : redditSignal(itemTags);
   return (
-    rating * 14
+    ratingPreference(rating) * 14
     + (ctx.favorites[video.id] ? 10 : 0)
     + (ctx.likes[video.id] ? 6 : 0)
     + came
@@ -125,8 +126,8 @@ export function rankAdultTags(
   const rows = new Map<string, { total: number; count: number; recent: number; videoScoreSum: number }>();
   for (const video of videos) {
     const rating = ctx.ratingOf(video.id);
-    const signal = Math.max(
-      rating,
+    const signal = rating === 1 ? -3 : Math.max(
+      ratingPreference(rating),
       ctx.favorites[video.id] ? 4 : 0,
       ctx.likes[video.id] ? 3 : 0,
       Math.min(5, ctx.cameCounts[video.id] ?? 0),
@@ -210,8 +211,8 @@ export function rankAdultMetaTags(
 ): AdultTagRankRow[] {
   const rows = new Map<string, { total: number; count: number; recent: number; providers: Set<string> }>();
   for (const video of videos) {
-    const engagement = Math.max(
-      ctx.ratingOf(video.id),
+    const engagement = ctx.ratingOf(video.id) === 1 ? -3 : Math.max(
+      ratingPreference(ctx.ratingOf(video.id)),
       ctx.favorites[video.id] ? 4 : 0,
       ctx.likes[video.id] ? 3 : 0,
       Math.min(5, ctx.cameCounts[video.id] ?? 0),

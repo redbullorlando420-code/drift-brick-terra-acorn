@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ExternalLink, MessageCircle } from "lucide-react";
 import { adultTextFetishTags } from "@/lib/videos/adult-sites";
 import { mineRedditCommentTags, redditTitleTokens } from "@/lib/videos/adult-reddit-tags";
@@ -18,12 +18,15 @@ export function AdultComments({ video }: { video: LibraryVideo }) {
   const [comments, setComments] = useState<AdultComment[]>(video.remote?.comments ?? []);
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
+  const [reload, setReload] = useState(0);
+  const lastLoadedReload = useRef(-1);
   const linkedRedgifs = Boolean(video.remote?.sourceKinds?.includes("redgifs"));
   const kind = video.remote?.kind;
+  const providerVideoId = video.remote?.videoId || (kind === "youtube" ? video.remote?.watchUrl?.match(/[?&]v=([A-Za-z0-9_-]{11})/)?.[1] : undefined);
 
   useEffect(() => {
     let cancelled = false;
-    if (!supportsRemoteComments(kind) || !video.remote?.videoId) {
+    if (!supportsRemoteComments(kind) || !providerVideoId) {
       setComments(video.remote?.comments ?? []);
       setNote(supportsRemoteComments(kind) ? "" : "No documented public comment feed for this source.");
       return;
@@ -34,7 +37,7 @@ export function AdultComments({ video }: { video: LibraryVideo }) {
       setNote("Twitch clips do not expose VOD chat replay.");
       return;
     }
-    if (video.remote?.comments?.length) {
+    if (video.remote?.comments?.length && (!reload || lastLoadedReload.current === reload)) {
       setComments(video.remote.comments);
       setNote("");
       setLoading(false);
@@ -51,11 +54,12 @@ export function AdultComments({ video }: { video: LibraryVideo }) {
         const result = await fetchAdultComments({
           data: {
             kind: kind ?? "",
-            videoId: video.remote?.videoId ?? "",
+            videoId: providerVideoId,
             watchUrl: video.remote?.watchUrl ?? "",
           },
         });
         if (cancelled) return;
+        lastLoadedReload.current = reload;
         setComments(result.comments);
         setNote(
           linkedRedgifs && result.comments.length
@@ -87,7 +91,7 @@ export function AdultComments({ video }: { video: LibraryVideo }) {
     return () => {
       cancelled = true;
     };
-  }, [linkedRedgifs, kind, video.id, video.extension, video.name, video.remote?.videoId, video.remote?.watchUrl, video.remote?.comments, setVideoTags, setVideoComments]);
+  }, [linkedRedgifs, kind, video.id, video.extension, video.name, providerVideoId, video.remote?.watchUrl, video.remote?.comments, reload, setVideoTags, setVideoComments]);
 
   if (!supportsRemoteComments(kind)) return null;
 
@@ -120,6 +124,7 @@ export function AdultComments({ video }: { video: LibraryVideo }) {
       <p className="flex items-center gap-2 text-xs font-medium tracking-[0.14em] text-accent uppercase">
         <MessageCircle className="size-3.5" /> {heading}
       </p>
+      {kind === "youtube" && <button type="button" className="mt-2 text-xs text-accent underline" disabled={loading} onClick={() => setReload((value) => value + 1)}>Refresh public comments{comments.length ? ` · ${comments.filter((row) => row.kind !== "chat").length} threads` : ""}</button>}
       {loading && <p className="mt-2 text-xs text-muted">Loading comments…</p>}
       {!loading && note && <p className="mt-2 text-xs text-muted">{note}</p>}
       {!loading && kind === "youtube" && (chatRows.length > 0 || commentRows.length > 0) && (

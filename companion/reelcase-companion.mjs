@@ -1,5 +1,5 @@
 /**
- * Reelcase Companion — opt-in, loopback-only native bridge.
+ * Realhub Companion — opt-in, loopback-only native bridge.
  * It never accepts arbitrary network connections and only launches files below
  * explicitly configured allowed roots.
  */
@@ -635,7 +635,7 @@ async function cacheRemoteThumb(id, url) {
   try {
     const response = await fetch(url, {
       signal: AbortSignal.timeout(12_000),
-      headers: { accept: "image/*,*/*;q=0.8", "user-agent": "ReelcaseCompanion/10" },
+      headers: { accept: "image/*,*/*;q=0.8", "user-agent": "RealhubCompanion/10" },
     });
     if (!response.ok) return { ok: false, error: `Upstream HTTP ${response.status}` };
     const mime = String(response.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
@@ -709,7 +709,7 @@ function setAutostart(enabled) {
   if (process.platform !== "win32") {
     return { ok: false, error: "Auto-start is implemented for Windows Companion only." };
   }
-  const scriptPath = resolve(process.cwd(), "companion", "Start-Reelcase-Companion.cmd");
+  const scriptPath = resolve(process.cwd(), "companion", "Start-Realhub-Companion.cmd");
   const launch = existsSync(scriptPath) ? scriptPath : resolve(process.argv[1] || ".");
   const name = "ReelcaseCompanion";
   try {
@@ -730,7 +730,7 @@ function setAutostart(enabled) {
 
 function notifyTray(title, body) {
   if (process.platform !== "win32") return false;
-  const safeTitle = String(title || "Reelcase").replace(/'/g, "''").slice(0, 60);
+  const safeTitle = String(title || "Realhub").replace(/'/g, "''").slice(0, 60);
   const safeBody = String(body || "").replace(/'/g, "''").slice(0, 180);
   const script = [
     "Add-Type -AssemblyName System.Windows.Forms",
@@ -755,7 +755,7 @@ function rememberJob(job) {
   if (job.status === "done" || job.status === "error") {
     trayBadge = Math.min(99, trayBadge + 1);
     notifyTray(
-      job.status === "done" ? "Reelcase download ready" : "Reelcase download issue",
+      job.status === "done" ? "Realhub download ready" : "Realhub download issue",
       job.detail || job.url || "",
     );
   }
@@ -1032,14 +1032,14 @@ server.on("error", async (error) => {
       });
       const health = await response.json();
       if (health?.service === "reelcase-companion") {
-        console.log(`Reelcase Companion is already running on http://127.0.0.1:${port}`);
+        console.log(`Realhub Companion is already running on http://127.0.0.1:${port}`);
         process.exit(0);
       }
     } catch { /* The port is held by an unknown process; report that below. */ }
     console.error(`Port ${port} is already in use by another application. Choose REELCASE_COMPANION_PORT or close that application.`);
     process.exit(1);
   }
-  console.error("Reelcase Companion could not start:", error?.message || error);
+  console.error("Realhub Companion could not start:", error?.message || error);
   process.exit(1);
 });
-server.listen(port, "127.0.0.1", () => console.log(`Reelcase Companion listening on http://127.0.0.1:${port}`));
+server.listen(port, "127.0.0.1", () => console.log(`Realhub Companion listening on http://127.0.0.1:${port}`));

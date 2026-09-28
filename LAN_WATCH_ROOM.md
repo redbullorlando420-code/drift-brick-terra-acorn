@@ -7,6 +7,7 @@
 - The stage has compact, theater, and cinema widths. Compact is the default so the room does not stretch video wider than a normal player.
 - Hosts can add titles to the queue, reorder the next item, remove an entry, or trigger **Play next**. A local video moving to its end advances the queue.
 - A guest-consent checkbox is required before requesting any local-video sharing. The app does not upload local media.
+- A `localhost` room invitation is never copied for another device. Open Connection guide, follow the detected home-network address, start the room there, and then copy the invitation. An invitation can only work while the Reelcase server remains running.
 
 ## Protocol messages
 

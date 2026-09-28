@@ -2,6 +2,7 @@ import type { LibraryVideo } from "./types";
 import { isAdultImageKind } from "./adult-sites";
 import { videoMatchesAdultSource, videoMatchesAdultTag } from "./adult-filter";
 import { ADULT_TOP_TAG_RAIL_MIN_COUNT, rankAdultMetaTags, rankAdultTags, sortAdultVideos, type AdultRankContext } from "./adult-rank";
+import { ratingPreference } from "../media-feedback";
 
 export type AdultBrowseParams = { source: string; tag: string; view: "all" | "videos" | "photos" | "live"; limit: number; seed: number };
 export type AdultBrowseSignals = {
@@ -194,7 +195,7 @@ export function buildAdultBrowseModel(data: AdultBrowseData, params: AdultBrowse
         const itemTags = tags[video.id] ?? [];
         const overlap = itemTags.filter((tag) => seedTags.has(tag)).length;
         const previewReady = Number(Boolean(video.poster || video.remote?.previewUrl));
-        const score = overlap * 12 + getRating(video.id) * 8 + (favorites[video.id] ? 5 : 0) + (likes[video.id] ? 3 : 0) + previewReady * 3;
+        const score = overlap * 12 + ratingPreference(getRating(video.id)) * 8 + (favorites[video.id] ? 5 : 0) + (likes[video.id] ? 3 : 0) + previewReady * 3;
         return { video, score, shuffle: shuffleRank(`adult-rel:${video.id}:${adultRailSeed}`, adultRailSeed) };
       })
       .filter((row) => row.score > 0)

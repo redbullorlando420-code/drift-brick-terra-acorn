@@ -203,6 +203,7 @@ export type DurableFeedback = {
   creatorLikes: Record<string, true>;
   tagLikes: Record<string, true>;
   tagHeartHistory: Record<string, number>;
+  watchTime: Record<string, { preview: number; fullscreen: number; previewEstimated?: number; fullscreenEstimated?: number }>;
   savedAt: number;
 };
 
@@ -221,6 +222,7 @@ export type DurablePhotoMeta = {
   tags?: string[];
   album?: string;
   favorite?: boolean;
+  hidden?: boolean;
   rating?: number;
   width?: number;
   height?: number;
@@ -502,6 +504,7 @@ export async function restoreDurableFeedback(): Promise<Omit<DurableFeedback, "s
     creatorLikes: pick(fromIdb?.creatorLikes as Record<string, true> | undefined, fromLs?.creatorLikes as Record<string, true> | undefined),
     tagLikes: pick(fromIdb?.tagLikes as Record<string, true> | undefined, fromLs?.tagLikes as Record<string, true> | undefined),
     tagHeartHistory: pick(fromIdb?.tagHeartHistory as Record<string, number> | undefined, fromLs?.tagHeartHistory as Record<string, number> | undefined),
+    watchTime: pick(fromIdb?.watchTime as DurableFeedback["watchTime"] | undefined, fromLs?.watchTime as DurableFeedback["watchTime"] | undefined),
   };
 }
 
@@ -698,6 +701,7 @@ export type Prefs = {
   notices: AppNotice[];
   notifyPush: boolean;
   unavailableVideoIds?: string[];
+  hiddenVideoIds?: string[];
 };
 
 function migrateSource(id: string | undefined): string {
@@ -1088,6 +1092,7 @@ function normalize(raw: Record<string, unknown>): Prefs {
     follows: Array.isArray(raw.follows) ? (raw.follows as FollowedChannel[]) : [],
     notices: Array.isArray(raw.notices) ? (raw.notices as AppNotice[]) : [],
     notifyPush: Boolean(raw.notifyPush),
+    hiddenVideoIds: Array.isArray(raw.hiddenVideoIds) ? raw.hiddenVideoIds.filter((id): id is string => typeof id === "string") : [],
   };
 }
 

@@ -1,15 +1,17 @@
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { FolderPlus, Heart, ListChecks, Radio, Search, Star, Trash2, Twitch, X, Youtube } from "lucide-react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { ExternalLink, FolderPlus, Heart, ListChecks, Radio, Search, Star, Trash2, Twitch, X, Youtube } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { creatorIsLiked, exportFeedback, getCreatorRating, setCreatorRating, toggleCreatorLike } from "@/lib/media-feedback";
+import { creatorIsLiked, exportFeedback, getCreatorRating, ratingPreference, setCreatorRating, toggleCreatorLike } from "@/lib/media-feedback";
 import { useLibrary } from "@/lib/videos/store";
 import type { FollowKind, FollowedChannel } from "@/lib/videos/types";
 import { FOLLOW_COLLECTIONS_CHANGED, loadCreatorCollections, saveCreatorCollections, type CreatorCollection } from "@/lib/videos/follow-collections";
 import { planFollowRemoval } from "@/lib/videos/follow-removal";
+import { youtubeCreatorProfiles } from "@/lib/remote/functions";
 
 const PAGE_SIZE = 48;
+const CREATOR_PAGE_SIZE = 120;
 type SortMode = "recent" | "name" | "favorite" | "rating";
 
 function creatorLabel(channel: FollowedChannel) {
@@ -18,6 +20,14 @@ function creatorLabel(channel: FollowedChannel) {
 
 function initials(label: string) {
   return label.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]).join("").toUpperCase() || "?";
+}
+
+function CreatorAvatar({ channel, label }: { channel: FollowedChannel; label: string }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [channel.thumb]);
+  return channel.thumb && !failed
+    ? <img src={channel.thumb} alt="" className="size-full object-cover" loading="lazy" onError={() => { setFailed(true); window.dispatchEvent(new CustomEvent("reelcase:creator-avatar-error", { detail: channel.id })); }} />
+    : <span aria-hidden="true">{initials(label)}</span>;
 }
 
 function ProviderGlyph({ kind, className }: { kind: FollowKind; className?: string }) {
@@ -37,11 +47,17 @@ export function FollowManager({ kind }: { kind?: FollowKind }) {
   const follows = useLibrary((state) => state.follows);
   const unfollow = useLibrary((state) => state.unfollow);
   const unfollowMany = useLibrary((state) => state.unfollowMany);
+  const updateFollowProfiles = useLibrary((state) => state.updateFollowProfiles);
+  const setSource = useLibrary((state) => state.setSource);
+  const openPreview = useLibrary((state) => state.openPreview);
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
   const [provider, setProvider] = useState<"all" | FollowKind>(kind ?? "all");
   const [sort, setSort] = useState<SortMode>("recent");
-  const [visible, setVisible] = useState(PAGE_SIZE);
+  const [visible, setVisible] = useState(CREATOR_PAGE_SIZE);
+  const attemptedCreatorProfiles = useRef(new Set<string>());
+  const [brokenCreatorIds, setBrokenCreatorIds] = useState<Set<string>>(() => new Set());
+  useEffect(() => { const note = (event: Event) => { const id = (event as CustomEvent<string>).detail; if (id) setBrokenCreatorIds((current) => new Set(current).add(id)); }; window.addEventListener("reelcase:creator-avatar-error", note); return () => window.removeEventListener("reelcase:creator-avatar-error", note); }, []);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [feedbackRevision, setFeedbackRevision] = useState(0);
   const [selectionMode, setSelectionMode] = useState(false);
@@ -51,6 +67,7 @@ export function FollowManager({ kind }: { kind?: FollowKind }) {
   const [reviewingRemoval, setReviewingRemoval] = useState(false);
   const [reviewVisible, setReviewVisible] = useState(PAGE_SIZE);
   const videos = useLibrary((state) => state.videos);
+  const hiddenVideos = useLibrary((state) => state.hiddenVideos);
   const favorites = useLibrary((state) => state.favorites);
   const likes = useLibrary((state) => state.likes);
   const progress = useLibrary((state) => state.progress);
@@ -59,10 +76,10 @@ export function FollowManager({ kind }: { kind?: FollowKind }) {
 
   useEffect(() => {
     setProvider(kind ?? "all");
-    setVisible(PAGE_SIZE);
+    setVisible(CREATOR_PAGE_SIZE);
   }, [kind]);
   useEffect(() => {
-    setVisible(PAGE_SIZE);
+    setVisible(CREATOR_PAGE_SIZE);
   }, [deferredQuery, provider, sort]);
   useEffect(() => {
     const sync = () => setFeedbackRevision((revision) => revision + 1);
@@ -97,7 +114,7 @@ export function FollowManager({ kind }: { kind?: FollowKind }) {
           return favoriteDifference || leftName.localeCompare(rightName);
         }
         if (sort === "rating") {
-          const ratingDifference = getCreatorRating(rightName) - getCreatorRating(leftName);
+          const ratingDifference = ratingPreference(getCreatorRating(rightName)) - ratingPreference(getCreatorRating(leftName));
           return ratingDifference || leftName.localeCompare(rightName);
         }
         return (right.lastCheckedAt ?? 0) - (left.lastCheckedAt ?? 0) || leftName.localeCompare(rightName);
@@ -106,7 +123,25 @@ export function FollowManager({ kind }: { kind?: FollowKind }) {
 
   const selected = useMemo(() => filtered.find((channel) => channel.id === selectedId) ?? filtered[0] ?? null, [filtered, selectedId]);
   const shown = filtered.slice(0, visible);
+  const missingCreatorIds = shown.filter((channel) => channel.kind === "youtube" && (!channel.thumb || brokenCreatorIds.has(channel.id)) && /^yt:UC[A-Za-z0-9_-]{20,}$/.test(channel.id)).map((channel) => channel.id).join(",");
+  useEffect(() => {
+    const pending = missingCreatorIds.split(",").filter((id) => id && !attemptedCreatorProfiles.current.has(id));
+    if (!pending.length) return;
+    let cancelled = false;
+    void (async () => {
+      for (let index = 0; index < pending.length && !cancelled; index += 16) {
+        const ids = pending.slice(index, index + 16);
+        ids.forEach((id) => attemptedCreatorProfiles.current.add(id));
+        try { const profiles = await youtubeCreatorProfiles({ data: ids }); if (!cancelled) updateFollowProfiles(profiles); }
+        catch { /* Existing initials remain when the provider blocks a batch. */ }
+        if (index + 16 < pending.length) await new Promise<void>((resolve) => window.setTimeout(resolve, 250));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [missingCreatorIds, updateFollowProfiles]);
   const selectedName = selected ? creatorLabel(selected) : "";
+  const selectedVideos = useMemo(() => selected ? videos.filter((video) => !hiddenVideos[video.id] && (video.folderId === selected.id || (selected.channelId && video.remote?.channelId === selected.channelId))).sort((a, b) => b.addedAt - a.addedAt) : [], [hiddenVideos, selected, videos]);
+  const selectedPage = selected?.kind === "youtube" ? selected.channelId ? `https://www.youtube.com/channel/${encodeURIComponent(selected.channelId)}` : selected.handle.startsWith("http") ? selected.handle : `https://www.youtube.com/@${encodeURIComponent(selected.handle.replace(/^@/, ""))}` : selected ? `https://www.twitch.tv/${encodeURIComponent(selected.handle.replace(/^@/, ""))}` : "";
   const selectedRating = selected ? getCreatorRating(selectedName) : 0;
   const selectedFavorite = selected ? creatorIsLiked(selectedName) : false;
   const removalPlan = useMemo(() => reviewingRemoval
@@ -209,28 +244,32 @@ export function FollowManager({ kind }: { kind?: FollowKind }) {
 
       {!filtered.length ? <div className="p-6 text-sm text-muted">{query ? "No followed creators match that search." : "No creators are followed here yet. Use the import tools below to add channels."}</div> : <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="p-5 sm:p-6">
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(2.75rem,1fr))] gap-3 sm:grid-cols-[repeat(auto-fill,minmax(3rem,1fr))]">
+          <div className="grid grid-cols-6 gap-3 sm:grid-cols-8 lg:grid-cols-10 2xl:grid-cols-12">
             {shown.map((channel) => {
               const label = creatorLabel(channel);
               const favorite = creatorIsLiked(label);
               const rating = getCreatorRating(label);
               const active = selectionMode ? selectedIds.includes(channel.id) : selected?.id === channel.id;
               return <button key={channel.id} type="button" onClick={() => selectionMode ? toggleSelected(channel.id) : setSelectedId(channel.id)} aria-label={`${selectionMode ? "Select" : "Manage"} ${label}`} aria-pressed={active} title={label} className={cn("group relative flex size-11 items-center justify-center overflow-visible rounded-full border bg-elevated text-sm font-semibold text-fg shadow-border transition-[transform,background-color,border-color] duration-150 hover:-translate-y-0.5 hover:bg-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", active ? "border-accent ring-2 ring-accent/40" : "border-border")}>
-                <span className="flex size-full items-center justify-center overflow-hidden rounded-full bg-bg/60">{channel.thumb ? <img src={channel.thumb} alt="" className="size-full object-cover" loading="lazy" /> : initials(label)}</span>
+                <span className="flex size-full items-center justify-center overflow-hidden rounded-full bg-bg/60"><CreatorAvatar channel={channel} label={label} /></span>
                 <span className="absolute -right-1 -bottom-1 flex size-5 items-center justify-center rounded-full border border-surface bg-bg text-accent"><ProviderGlyph kind={channel.kind} /></span>
                 {favorite && <span className="absolute -top-1 -left-1 flex size-5 items-center justify-center rounded-full bg-accent text-accent-fg"><Heart aria-hidden="true" className="size-3 fill-current" /></span>}
                 {!favorite && rating > 0 && <span className="absolute -top-1 -left-1 flex size-5 items-center justify-center rounded-full bg-elevated text-accent"><span className="text-[10px] leading-none">{rating}</span></span>}
               </button>;
             })}
           </div>
-          {visible < filtered.length && <Button type="button" variant="secondary" className="mt-5" onClick={() => setVisible((count) => Math.min(filtered.length, count + PAGE_SIZE))}>Show 48 more creators</Button>}
+          {visible < filtered.length && <Button type="button" variant="secondary" className="mt-5" onClick={() => setVisible((count) => Math.min(filtered.length, count + CREATOR_PAGE_SIZE))}>Show {Math.min(CREATOR_PAGE_SIZE, filtered.length - visible)} more creators</Button>}
         </div>
         {selected && <aside className="border-t border-border bg-elevated/35 p-5 lg:border-t-0 lg:border-l sm:p-6" aria-label={`Manage ${selectedName}`}>
           <div className="flex items-center gap-3">
-            <span className="relative flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-bg text-sm font-semibold text-fg">{selected.thumb ? <img src={selected.thumb} alt="" className="size-full object-cover" /> : initials(selectedName)}<span className="absolute -right-0.5 -bottom-0.5 flex size-5 items-center justify-center rounded-full border border-surface bg-elevated text-accent"><ProviderGlyph kind={selected.kind} /></span></span>
+            <span className="relative flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-bg text-sm font-semibold text-fg"><CreatorAvatar channel={selected} label={selectedName} /><span className="absolute -right-0.5 -bottom-0.5 flex size-5 items-center justify-center rounded-full border border-surface bg-elevated text-accent"><ProviderGlyph kind={selected.kind} /></span></span>
             <div className="min-w-0"><p className="truncate font-medium text-fg">{selectedName}</p><p className="truncate text-xs text-muted">{selected.handle} · {channelStatus(selected)}</p></div>
           </div>
           <div className="mt-5 grid gap-3">
+            <p className="text-xs leading-5 text-muted">{selected.description || "No channel description supplied yet. Refresh this creator to look for a public profile description."}</p>
+            <div className="grid grid-cols-3 gap-2 text-center text-xs"><div className="rounded-md bg-bg/55 p-2"><strong className="block text-lg text-fg">{selectedVideos.length}</strong>videos</div><div className="rounded-md bg-bg/55 p-2"><strong className="block text-lg text-fg">{selectedVideos.filter((video) => favorites[video.id]).length}</strong>favorites</div><div className="rounded-md bg-bg/55 p-2"><strong className="block text-lg text-fg">{new Set(history.filter((entry) => selectedVideos.some((video) => video.id === entry.id)).map((entry) => entry.id)).size}</strong>watched</div></div>
+            <div className="flex flex-wrap gap-2"><Button size="sm" variant="secondary" onClick={() => setSource(selected.id)}>Open creator tab</Button><a href={selectedPage} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center gap-1 rounded-md bg-bg/55 px-3 text-xs text-fg">Channel page <ExternalLink className="size-3" /></a></div>
+            <div><p className="mb-2 text-xs font-medium tracking-wide text-subtle uppercase">Recent videos</p><div className="max-h-52 space-y-1 overflow-y-auto">{selectedVideos.slice(0, 12).map((video) => <button key={video.id} type="button" className="block w-full truncate rounded-md bg-bg/55 px-2 py-1.5 text-left text-xs text-fg hover:text-accent" title={video.name} onClick={() => openPreview(video.id)}>{video.name}</button>)}{!selectedVideos.length && <p className="text-xs text-muted">No saved videos for this creator yet.</p>}</div></div>
             <Button type="button" variant={selectedFavorite ? "default" : "secondary"} onClick={changeFavorite}><Heart aria-hidden="true" className={cn("size-4", selectedFavorite && "fill-current")} />{selectedFavorite ? "Creator favorite" : "Favorite creator"}</Button>
             <div><p className="mb-2 text-xs font-medium tracking-wide text-subtle uppercase">Creator rating</p><div className="flex gap-1" aria-label={`Rate ${selectedName}`}>
               {[1, 2, 3, 4, 5].map((rating) => <button key={rating} type="button" onClick={() => rate(rating)} className="flex size-11 items-center justify-center rounded-md text-accent hover:bg-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={`${rating} star${rating === 1 ? "" : "s"}`} aria-pressed={selectedRating === rating}><Star aria-hidden="true" className={cn("size-5", rating <= selectedRating && "fill-current")} /></button>)}

@@ -1,11 +1,11 @@
 import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
-import { L as isAdultImageKind, z as isAdultPullKind } from "./adult-pull-cache-aysXgkuS.mjs";
-import { A as PackageSearch, D as Play, E as Radio, Et as Bot, G as Lightbulb, I as MessageCircle, J as Images, N as MonitorPlay, S as Search, T as RefreshCw, Tt as Box, X as ImagePlus, b as ShieldCheck, bt as ChevronRight, c as Upload, ft as ExternalLink, gt as Copy, h as Smartphone, j as Music2, k as Pause, mt as Download, n as X, nt as Gamepad2, p as Star, q as Laptop, r as Wifi, s as Users, ut as Eye, v as Shuffle, vt as Clapperboard, w as Rocket, wt as ChartColumn, x as Settings2, xt as ChevronLeft, y as ShoppingBag, z as Maximize2 } from "../_libs/lucide-react.mjs";
-import { $ as createLocalId, A as topicsForVideo, B as restoreDurablePhotos, C as resumeForVideo, D as canonicalTopic, E as useSourceAssets, F as toggleTagLike, G as companionHealth, H as companionAckJobs, I as getInteractionBudgetSnapshot, J as companionListPrints, K as companionImportLibraryPack, L as measureInteraction, M as getFeedbackDiagnostics, N as getRating, O as isTopicTag, P as tagIsLiked, Q as companionSteamEpicGames, R as linksFromHistoryAndResume, S as isAdultVideo, T as resolveCreatorCoverage, U as companionArtworkAudit, V as saveDurablePhotos, W as companionExportLibraryPack, X as companionSavePrint, Y as companionReadPrint, Z as companionSetAutostart, _ as VideoCard, a as twitchEmbedUrl, b as useThumbs, c as downloadLibraryPackZip, d as exportAdultStats, et as createShortLocalId, f as rankAdultTags, g as openTopic, h as Input, i as getFirstShelfTrace, j as exportFeedback, k as topicEvidence, l as importLibraryPackZip, m as countAdultBySource, n as getNetworkDeviceId, o as applyLibraryPackFiles, p as countAdultBooruHosts, q as companionInspectMedia, r as listNetworkDevices, s as buildLibraryPackFiles, tt as __exportAll, u as buildAdultStatsSnapshot, v as getRenderBudgetSnapshot, w as useLibrary, x as Button, y as getThumbDiagnostics, z as loadDurablePhotosSync } from "./routes-DowxOMzf.mjs";
+import { B as isAdultPullKind, I as getAdultPreviewHealth, R as isAdultImageKind } from "./adult-pull-cache-CS134UtB.mjs";
+import { $ as ImagePlus, C as Settings2, Ct as ChevronRight, D as RefreshCw, Dt as ChartColumn, E as Rocket, F as MonitorPlay, J as Lightbulb, M as PackageSearch, N as Music2, O as Radio, Ot as Box, R as MessageCircle, S as ShieldCheck, V as Maximize2, X as Laptop, Z as Images, _ as Smartphone, _t as Download, at as Gamepad2, b as Shuffle, c as Upload, h as Star, ht as ExternalLink, j as Pause, k as Play, kt as Bot, mt as EyeOff, n as X, nt as Heart, pt as Eye, r as Wifi, s as Users, w as Search, wt as ChevronLeft, x as ShoppingBag, xt as Clapperboard, yt as Copy } from "../_libs/lucide-react.mjs";
+import { $ as companionInspectMedia, A as topicEvidence, B as toggleTagLike, C as isAdultVideo, D as useSourceAssets, E as resolveCreatorCoverage, F as getWatchTime, G as loadDurablePhotosSync, H as getInteractionBudgetSnapshot, I as getWatchTimeLedger, J as companionAckJobs, K as restoreDurablePhotos, L as ratingPreference, M as exportFeedback, N as getFeedbackDiagnostics, O as canonicalTopic, P as getRating, Q as companionImportLibraryPack, R as setRating, S as Button, T as useLibrary, U as measureInteraction, V as watchTimeScore, W as linksFromHistoryAndResume, X as companionExportLibraryPack, Y as companionArtworkAudit, Z as companionHealth, _ as openTopic, a as getFirstShelfTrace, at as createLocalId, b as getThumbDiagnostics, c as buildLibraryPackFiles, d as buildAdultStatsSnapshot, et as companionListPrints, f as exportAdultStats, g as Input, h as countAdultBySource, i as listNetworkDevices, it as companionSteamEpicGames, j as topicsForVideo, k as isTopicTag, l as downloadLibraryPackZip, m as countAdultBooruHosts, n as AdultComments, nt as companionSavePrint, o as twitchEmbedUrl, ot as createShortLocalId, p as rankAdultTags, q as saveDurablePhotos, r as getNetworkDeviceId, rt as companionSetAutostart, s as applyLibraryPackFiles, st as __exportAll, tt as companionReadPrint, u as importLibraryPackZip, v as VideoCard, w as resumeForVideo, x as useThumbs, y as getRenderBudgetSnapshot, z as tagIsLiked } from "./routes-D8eQUF0H.mjs";
 import { a as Bar, c as ResponsiveContainer, i as XAxis, l as Tooltip, n as BarChart, o as Pie, r as YAxis, s as Cell, t as PieChart } from "../_libs/recharts+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/hub-sections-BopJbiQt.js
+//#region node_modules/.nitro/vite/services/ssr/assets/hub-sections-ly0PoLFx.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function TopicLinks({ explorer = false }) {
@@ -13,6 +13,7 @@ function TopicLinks({ explorer = false }) {
 	const tags = useLibrary((s) => s.tags);
 	const folders = useLibrary((s) => s.folders);
 	const unavailable = useLibrary((s) => s.unavailable);
+	const hiddenVideos = useLibrary((s) => s.hiddenVideos);
 	const hideDemo = useLibrary((s) => s.hideDemo);
 	const query = useLibrary((s) => s.query);
 	const [provider, setProvider] = (0, import_react.useState)("all");
@@ -28,7 +29,7 @@ function TopicLinks({ explorer = false }) {
 	const index = (0, import_react.useMemo)(() => {
 		const hidden = new Set(folders.filter((f) => f.adult).map((f) => f.id));
 		const known = new Set(folders.map((f) => f.id));
-		const rows = videos.filter((v) => !hidden.has(v.folderId) && !unavailable[v.id] && !(hideDemo && v.isSample) && (known.has(v.folderId) || v.remote || v.isSample)).map((video) => ({
+		const rows = videos.filter((v) => !hidden.has(v.folderId) && !unavailable[v.id] && !hiddenVideos[v.id] && !(hideDemo && v.isSample) && (known.has(v.folderId) || v.remote || v.isSample)).map((video) => ({
 			video,
 			topics: topicsForVideo(video, tags[video.id]),
 			provider: video.remote?.kind ?? "local"
@@ -53,7 +54,7 @@ function TopicLinks({ explorer = false }) {
 					ratingTotal: 0
 				};
 				entry.count++;
-				entry.ratingTotal += getRating(row.video.id);
+				entry.ratingTotal += ratingPreference(getRating(row.video.id)) + (getRating(row.video.id) === 1 ? 0 : watchTimeScore(getWatchTime(row.video.id)) / 12);
 				entry.providers.add(row.provider);
 				counts.set(topic, entry);
 			}
@@ -73,6 +74,7 @@ function TopicLinks({ explorer = false }) {
 		tags,
 		folders,
 		unavailable,
+		hiddenVideos,
 		hideDemo,
 		favoriteRevision
 	]);
@@ -92,7 +94,7 @@ function TopicLinks({ explorer = false }) {
 					ratingTotal: 0
 				};
 				entry.shared++;
-				entry.ratingTotal += getRating(row.video.id);
+				entry.ratingTotal += ratingPreference(getRating(row.video.id)) + (getRating(row.video.id) === 1 ? 0 : watchTimeScore(getWatchTime(row.video.id)) / 12);
 				counts.set(topic, entry);
 			}
 		}
@@ -107,8 +109,8 @@ function TopicLinks({ explorer = false }) {
 		const body = [[
 			"topic",
 			"public_titles",
-			"rating_score_0_to_5000",
-			"ratings_total",
+			"taste_score_points",
+			"taste_total",
 			"providers",
 			"saved_tag_titles",
 			"inferred_only_titles"
@@ -179,9 +181,9 @@ function TopicLinks({ explorer = false }) {
 					selectedScore && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
 						className: "text-xs text-muted",
 						children: [
-							"score ",
+							"taste score ",
 							Math.round(selectedScore.ratingTotal / selectedScore.count * 1e3).toLocaleString(),
-							"/5,000 from ",
+							" points from ",
 							selectedScore.count.toLocaleString(),
 							" linked titles"
 						]
@@ -632,6 +634,15 @@ var P2PRoom = class {
 	lastRosterCount = -1;
 	/** Same-origin tabs get a zero-config reliable fallback while WebRTC negotiates. */
 	localRelay = null;
+	onPageHide = () => {
+		if (this.closed) return;
+		const body = JSON.stringify({
+			op: "leave",
+			room: this.opts.room,
+			peer: this.opts.selfId
+		});
+		navigator.sendBeacon?.("/api/rtc", new Blob([body], { type: "application/json" }));
+	};
 	debug(event) {
 		this.opts.onDebug?.(`${(/* @__PURE__ */ new Date()).toLocaleTimeString([], {
 			hour: "2-digit",
@@ -648,6 +659,7 @@ var P2PRoom = class {
 	* room: the loop and timers start regardless and the next poll retries.
 	*/
 	async join() {
+		window.addEventListener("pagehide", this.onPageHide);
 		if (typeof BroadcastChannel !== "undefined" && this.opts.iceTransportPolicy !== "relay") {
 			this.localRelay = new BroadcastChannel(`reelcase-watch:${this.opts.room}`);
 			this.localRelay.onmessage = (event) => {
@@ -673,6 +685,7 @@ var P2PRoom = class {
 	}
 	close() {
 		this.closed = true;
+		window.removeEventListener("pagehide", this.onPageHide);
 		if (this.pollTimer) clearTimeout(this.pollTimer);
 		if (this.pingTimer) clearInterval(this.pingTimer);
 		this.localRelay?.close();
@@ -829,7 +842,7 @@ var P2PRoom = class {
 		};
 		pc.ondatachannel = (e) => this.attachChannel(slot, e.channel);
 		if (initiator) {
-			this.debug(`Negotiating direct channel with ${name || "guest"}`);
+			this.debug(`Negotiating peer channel with ${name || "guest"}`);
 			this.attachChannel(slot, pc.createDataChannel("state", {
 				ordered: false,
 				maxRetransmits: 0
@@ -843,7 +856,7 @@ var P2PRoom = class {
 		else slot.reliable = channel;
 		channel.onopen = () => {
 			slot.lastProgressAt = Date.now();
-			this.debug(`Direct ${channel.label} channel open with ${slot.info.name || "guest"}`);
+			this.debug(`Peer ${channel.label} channel open with ${slot.info.name || "guest"}`);
 		};
 		channel.onmessage = (e) => {
 			let msg;
@@ -974,6 +987,7 @@ var P2PRoom = class {
 				slot.pingSentAt = performance.now();
 				slot.state.send(wire);
 			}
+			if (!slot.info.candidateType && slot.pc.connectionState === "connected") this.readCandidateType(slot);
 		}
 	}
 	/**
@@ -1017,11 +1031,16 @@ var P2PRoom = class {
 		try {
 			const stats = await slot.pc.getStats();
 			let selected;
+			let selectedPairId;
 			stats.forEach((s) => {
-				if (s.type === "candidate-pair" && s.nominated) selected = s;
+				if (s.type === "transport") selectedPairId = s.selectedCandidatePairId;
+			});
+			if (selectedPairId) selected = stats.get(selectedPairId);
+			if (!selected) stats.forEach((s) => {
+				if (s.type === "candidate-pair" && s.nominated && s.state === "succeeded") selected = s;
 			});
 			const localId = selected?.localCandidateId;
-			if (localId) {
+			if (localId && this.peers.get(slot.info.id) === slot) {
 				const local = stats.get(localId);
 				slot.info.candidateType = local?.candidateType ?? null;
 				this.emitPeers();
@@ -1096,6 +1115,34 @@ function useP2PRoom(room, name, relay) {
 			};
 		}, [])
 	};
+}
+/** The provider epoch already includes the starting position; do not add it again. */
+function estimatedProviderPosition(lastPosition, playbackPosition, startedAt, now) {
+	const elapsedPosition = startedAt === null ? 0 : Math.max(0, (now - startedAt) / 1e3);
+	return Math.max(0, lastPosition, playbackPosition, elapsedPosition);
+}
+/** Keep a seek inside a known VOD; unknown and live streams retain a safety cap. */
+function clampRoomPosition(seconds, duration) {
+	return Math.max(0, Math.min(typeof duration === "number" && Number.isFinite(duration) && duration > 0 ? Math.min(duration, 43200) : 43200, Number.isFinite(seconds) ? seconds : 0));
+}
+/** A loopback URL opens only on the device that created it. */
+function shareableRoomInvite(origin, pathname, room) {
+	try {
+		const url = new URL(pathname, origin);
+		if ([
+			"localhost",
+			"127.0.0.1",
+			"::1",
+			"[::1]"
+		].includes(url.hostname.toLowerCase())) return null;
+		url.search = "";
+		url.hash = "";
+		url.searchParams.set("room", room);
+		url.searchParams.set("theater", "1");
+		return url.toString();
+	} catch {
+		return null;
+	}
 }
 /** Visit-only credentials: never persist this object or include it in diagnostics. */
 function roomRelayConfig(urls, username, credential, relayOnly) {
@@ -1453,6 +1500,7 @@ function loadWidgets() {
 function XTimeline({ account, topic }) {
 	const container = (0, import_react.useRef)(null);
 	const [attempt, setAttempt] = (0, import_react.useState)(0);
+	const [phase, setPhase] = (0, import_react.useState)("loading");
 	const [status, setStatus] = (0, import_react.useState)("Loading public posts…");
 	const deskKey = `reelcase.x-desk.${topic ? `topic:${topic.query}` : `account:${account ?? "public"}`}`;
 	const [lastReadAt, setLastReadAt] = (0, import_react.useState)(() => typeof window === "undefined" ? 0 : Number(localStorage.getItem(deskKey) ?? 0));
@@ -1460,11 +1508,15 @@ function XTimeline({ account, topic }) {
 		const element = container.current;
 		if (!element) return;
 		let cancelled = false;
+		setPhase("loading");
 		setStatus("Loading public posts…");
 		element.replaceChildren();
 		const timelineUrl = topic ? `https://twitter.com/search?q=${encodeURIComponent(topic.query)}&src=typed_query&f=live` : `https://twitter.com/${account}`;
 		const timeout = window.setTimeout(() => {
-			if (!cancelled) setStatus("X hasn’t supplied a timeline. Open the profile to view posts, or retry.");
+			if (!cancelled) {
+				setPhase("unavailable");
+				setStatus("X hasn’t supplied a timeline. Open the profile to view posts, or retry.");
+			}
 		}, 15e3);
 		const observer = new MutationObserver(() => {
 			const frame = element.querySelector("iframe");
@@ -1474,7 +1526,8 @@ function XTimeline({ account, topic }) {
 					const now = Date.now();
 					localStorage.setItem(deskKey, String(now));
 					setLastReadAt(now);
-					setStatus("Public timeline supplied by X. If posts are unavailable, open the profile.");
+					setPhase("ready");
+					setStatus("X embed loaded. If posts are blank, open the profile.");
 				}
 			}, { once: true });
 		});
@@ -1512,6 +1565,7 @@ function XTimeline({ account, topic }) {
 		}).catch(() => {
 			if (!cancelled) {
 				clearTimeout(timeout);
+				setPhase("unavailable");
 				setStatus("X is unavailable here. Your saved accounts are still ready to open.");
 			}
 		});
@@ -1529,7 +1583,7 @@ function XTimeline({ account, topic }) {
 	]);
 	const destination = topic ? `https://x.com/search?q=${encodeURIComponent(topic.query)}&src=typed_query&f=live` : `https://x.com/${account}`;
 	const title = topic ? topic.label : `@${account}`;
-	const unavailable = /hasn’t supplied|unavailable/i.test(status);
+	const unavailable = phase === "unavailable";
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 		className: "mt-5 rounded-lg border border-border bg-elevated p-5",
 		children: [
@@ -1561,7 +1615,7 @@ function XTimeline({ account, topic }) {
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 				className: "mb-3 text-xs text-subtle",
-				children: lastReadAt ? `Reading position saved locally · last loaded ${new Date(lastReadAt).toLocaleString()}` : "No public timeline has loaded in this browser yet."
+				children: lastReadAt ? `Embed last loaded ${new Date(lastReadAt).toLocaleString()}` : "No public timeline has loaded in this browser yet."
 			}),
 			unavailable && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "mb-4 grid gap-3 rounded-md bg-bg/45 p-4 sm:grid-cols-2",
@@ -1570,7 +1624,7 @@ function XTimeline({ account, topic }) {
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ShieldCheck, { className: "size-4 text-accent" }), "Public-reader fallback"]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 					className: "mt-1 text-xs leading-5 text-muted",
-					children: "X did not permit an embedded timeline in this browser. Reelcase does not invent posts or store credentials."
+					children: "The official X embed did not load in this browser. Realhub does not invent posts or store credentials."
 				})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "flex flex-wrap items-center gap-2",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
@@ -1649,7 +1703,7 @@ var hub_sections_exports = /* @__PURE__ */ __exportAll({
 	WatchRoomSection: () => WatchRoomSection
 });
 var PrintModelViewer = (0, import_react.lazy)(async () => {
-	return { default: (await import("./print-model-viewer-BLhIAaxO.mjs")).PrintModelViewer };
+	return { default: (await import("./print-model-viewer-CWWodAjc.mjs")).PrintModelViewer };
 });
 var HUB_KEY = "reelcase.hub.v1";
 function gameKind(item) {
@@ -1695,7 +1749,7 @@ var ACTIVE_PREFERENCE_DETAILS = {
 	"alerts-go-live-alerts": "Active: adds an in-app notice when a tracked Twitch channel goes live after a refresh.",
 	"alerts-new-twitch-vod-alerts": "Active: adds an in-app notice when a tracked Twitch channel has a newly discovered VOD or clip.",
 	"alerts-new-youtube-upload-alerts": "Active: adds an in-app notice when a tracked YouTube channel has a newly discovered upload.",
-	"alerts-desktop-notifications": "Active: asks the browser for permission, then mirrors enabled Reelcase alerts as desktop notifications.",
+	"alerts-desktop-notifications": "Active: asks the browser for permission, then mirrors enabled Realhub alerts as desktop notifications.",
 	"playback-autoplay-next-video": "Active: starts the next library title when a local video ends.",
 	"playback-start-muted": "Active: local video playback starts muted until you raise the player volume.",
 	"display-day-mode": "Active: uses the light palette throughout this browser.",
@@ -1703,7 +1757,7 @@ var ACTIVE_PREFERENCE_DETAILS = {
 	"performance-use-cached-sources-first": "Active: opens the saved catalog before asking folders or the Companion for fresh file details.",
 	"performance-low-memory-grids": "Active: keeps only a smaller card batch mounted in large grids, reducing image decode pressure.",
 	"performance-small-home-shelves": "Active: draws shorter Home rails first; use Show more inside a rail when you want depth.",
-	"privacy-reduce-motion": "Active: reduces animation and scrolling motion across Reelcase.",
+	"privacy-reduce-motion": "Active: reduces animation and scrolling motion across Realhub.",
 	"privacy-hide-demo-media": "Active: hides bundled demonstration titles from your library shelves."
 };
 var PREFERENCES = Object.entries(PREFERENCE_GROUPS).flatMap(([group, labels]) => labels.map((label) => ({
@@ -1717,14 +1771,14 @@ function readHub() {
 	const samples = [
 		{
 			name: "Calibration cube.stl",
-			path: "Reelcase samples/Calibration cube.stl",
+			path: "Realhub samples/Calibration cube.stl",
 			size: 2618,
 			addedAt: 1,
 			sampleSrc: "/samples/prints/calibration-cube.stl"
 		},
 		{
 			name: "Cable clip.3mf",
-			path: "Reelcase samples/Cable clip.3mf",
+			path: "Realhub samples/Cable clip.3mf",
 			size: 94100,
 			addedAt: 2
 		},
@@ -1756,7 +1810,7 @@ function readHub() {
 		},
 		{
 			name: "Tool tray.gcode",
-			path: "Reelcase samples/Tool tray.gcode",
+			path: "Realhub samples/Tool tray.gcode",
 			size: 1248e3,
 			addedAt: 3
 		}
@@ -1991,7 +2045,7 @@ function AnimeSection() {
 		eyebrow: "Anime library",
 		icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Clapperboard, { className: "size-4" }),
 		title: "Keep anime on its own shelf.",
-		copy: "A fast, local-first view for anime already in your Reelcase catalog. Saved #anime tags and clear title/category evidence keep it separate without copying or proxying third-party playback.",
+		copy: "A fast, local-first view for anime already in your Realhub catalog. Saved #anime tags and clear title/category evidence keep it separate without copying or proxying third-party playback.",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 				className: "mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4",
@@ -2184,7 +2238,7 @@ function AnimeSection() {
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "mt-1 max-w-3xl text-sm leading-6 text-muted",
-						children: "Reelcase does not fetch, download, proxy, or embed video from unverified third-party streaming sites. The Anime desk only organizes media already added to your catalog, and sends external viewing choices through the separate Streaming desk."
+						children: "Realhub does not fetch, download, proxy, or embed video from unverified third-party streaming sites. The Anime desk only organizes media already added to your catalog, and sends external viewing choices through the separate Streaming desk."
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 						size: "sm",
@@ -2213,12 +2267,57 @@ function StatsSection() {
 	const [showAllSources, setShowAllSources] = (0, import_react.useState)(false);
 	const [remediationView, setRemediationView] = (0, import_react.useState)("");
 	const [favoriteRevision, setFavoriteRevision] = (0, import_react.useState)(0);
+	const [previewHealthRevision, setPreviewHealthRevision] = (0, import_react.useState)(0);
 	const [recoveryNote, setRecoveryNote] = (0, import_react.useState)("");
 	(0, import_react.useEffect)(() => {
 		const refresh = () => setFavoriteRevision((value) => value + 1);
 		window.addEventListener("reelcase:rating-change", refresh);
 		return () => window.removeEventListener("reelcase:rating-change", refresh);
 	}, []);
+	(0, import_react.useEffect)(() => {
+		const refresh = () => setPreviewHealthRevision((value) => value + 1);
+		window.addEventListener("reelcase:preview-health", refresh);
+		return () => window.removeEventListener("reelcase:preview-health", refresh);
+	}, []);
+	const observedPreviewHealth = (0, import_react.useMemo)(() => getAdultPreviewHealth(), [previewHealthRevision]);
+	const watchScores = (0, import_react.useMemo)(() => {
+		const ledger = getWatchTimeLedger();
+		const byId = new Map(videos.map((video) => [video.id, video]));
+		const rows = Object.entries(ledger).flatMap(([id, time]) => {
+			const video = byId.get(id);
+			return video && (time.preview || time.fullscreen || time.previewEstimated || time.fullscreenEstimated) ? [{
+				video,
+				...time,
+				score: watchTimeScore(time)
+			}] : [];
+		}).sort((a, b) => b.score - a.score || b.fullscreen - a.fullscreen);
+		const tagTotals = /* @__PURE__ */ new Map();
+		for (const row of rows) for (const tag of (tags[row.video.id] ?? []).slice(0, 20)) {
+			const current = tagTotals.get(tag) ?? {
+				preview: 0,
+				fullscreen: 0,
+				previewEstimated: 0,
+				fullscreenEstimated: 0
+			};
+			current.preview += row.preview;
+			current.fullscreen += row.fullscreen;
+			current.previewEstimated += row.previewEstimated ?? 0;
+			current.fullscreenEstimated += row.fullscreenEstimated ?? 0;
+			tagTotals.set(tag, current);
+		}
+		return {
+			videos: rows.slice(0, 8),
+			tags: [...tagTotals].map(([tag, time]) => ({
+				tag,
+				...time,
+				score: watchTimeScore(time)
+			})).sort((a, b) => b.score - a.score).slice(0, 8)
+		};
+	}, [
+		favoriteRevision,
+		tags,
+		videos
+	]);
 	const summary = (0, import_react.useMemo)(() => {
 		const byFolder = /* @__PURE__ */ new Map();
 		const byGenre = /* @__PURE__ */ new Map();
@@ -2562,7 +2661,7 @@ function StatsSection() {
 		input.onchange = () => {
 			const file = input.files?.[0];
 			if (!file) return;
-			if (!window.confirm("Merge this Reelcase recovery pack? Current catalog and activity stay intact.")) return;
+			if (!window.confirm("Merge this Realhub recovery pack? Current catalog and activity stay intact.")) return;
 			importLibraryPackZip(file, {
 				getFollows: () => useLibrary.getState().follows,
 				setFollows: (follows) => useLibrary.setState({ follows }),
@@ -2598,6 +2697,73 @@ function StatsSection() {
 		title: "Know what your library needs next.",
 		copy: "These local-only counts help identify coverage gaps, oversized source folders, and the tags that are driving discovery.",
 		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "mt-2 rounded-xl border border-border bg-elevated p-5 shadow-border",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+						children: "How your ratings work"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+						className: "mt-2 font-display text-2xl text-fg",
+						children: "Your choices steer discovery"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-2 text-sm leading-6 text-muted",
+						children: "1 star lowers a video and its related topics. 2 stars is neutral. 3 to 5 stars raise recommendations progressively. Favorites and likes add separate positive signals. Watch time is a smaller secondary score: preview and full player time count separately, while seeking adds nothing. Local playback is measured directly; visible YouTube and Twitch embeds contribute a lower-weight estimate."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 grid gap-3 lg:grid-cols-2",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "rounded-lg bg-bg/50 p-3",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-sm font-medium text-fg",
+								children: "Most watched videos"
+							}), watchScores.videos.length ? watchScores.videos.map((row) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+								className: "mt-2 truncate text-xs text-muted",
+								title: row.video.name,
+								children: [
+									row.video.name,
+									" · preview ",
+									Math.floor(row.preview / 60),
+									"m · player ",
+									Math.floor(row.fullscreen / 60),
+									"m",
+									row.previewEstimated || row.fullscreenEstimated ? ` · embed estimate ${Math.floor(((row.previewEstimated ?? 0) + (row.fullscreenEstimated ?? 0)) / 60)}m` : "",
+									" · +",
+									row.score
+								]
+							}, row.video.id)) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-2 text-xs text-muted",
+								children: "Watch time will appear after playback."
+							})]
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "rounded-lg bg-bg/50 p-3",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-sm font-medium text-fg",
+								children: "Most watched tags"
+							}), watchScores.tags.length ? watchScores.tags.map((row) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+								className: "mt-2 truncate text-xs text-muted",
+								children: [
+									"#",
+									row.tag,
+									" · preview ",
+									Math.floor(row.preview / 60),
+									"m · player ",
+									Math.floor(row.fullscreen / 60),
+									"m",
+									row.previewEstimated || row.fullscreenEstimated ? ` · embed estimate ${Math.floor((row.previewEstimated + row.fullscreenEstimated) / 60)}m` : "",
+									" · +",
+									row.score
+								]
+							}, row.tag)) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-2 text-xs text-muted",
+								children: "Tags inherit watch time from videos you play."
+							})]
+						})]
+					})
+				]
+			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 				id: "adult-stats",
 				className: "mt-2 scroll-mt-24 rounded-xl border border-accent/35 bg-elevated p-5 shadow-border",
@@ -2712,7 +2878,7 @@ function StatsSection() {
 								children: [
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 										className: "text-xs text-muted",
-										children: "Preview-ready"
+										children: "Preview URLs supplied"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 										className: "mt-1 text-lg font-medium text-fg",
@@ -2720,7 +2886,7 @@ function StatsSection() {
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 										className: "text-xs text-muted",
-										children: [adultTagStats.previewCoverage.ready.toLocaleString(), " cards declare artwork"]
+										children: [adultTagStats.previewCoverage.ready.toLocaleString(), " cards declare artwork; loading is measured separately"]
 									})
 								]
 							}),
@@ -2729,18 +2895,21 @@ function StatsSection() {
 								children: [
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 										className: "text-xs text-muted",
-										children: "Backup preview paths"
+										children: "Observed preview loads"
 									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 										className: "mt-1 text-lg font-medium text-fg",
-										children: [Math.round(adultTagStats.previewCoverage.backedShare * 100), "%"]
+										children: observedPreviewHealth.tested ? `${Math.round(observedPreviewHealth.share * 100)}%` : "—"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 										className: "text-xs text-muted",
 										children: [
-											"Redgifs ",
-											Math.round(adultTagStats.previewCoverage.redgifs.share * 100),
-											"% ready"
+											observedPreviewHealth.loaded,
+											" loaded · ",
+											observedPreviewHealth.failed,
+											" failed · ",
+											observedPreviewHealth.tested,
+											" tested this session"
 										]
 									})
 								]
@@ -2828,9 +2997,9 @@ function StatsSection() {
 										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 											className: "mt-1",
 											children: [
-												"Preview ",
+												"Artwork URLs ",
 												Math.round(source.previewCoverage.share * 100),
-												"% · backup ",
+												"% · backup URLs ",
 												Math.round(source.backupPreviewCoverage.share * 100),
 												"%"
 											]
@@ -2862,7 +3031,7 @@ function StatsSection() {
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 									className: "mt-1 text-xs text-muted",
-									children: "Declared preview coverage for the current Adult catalog. Use it to favor providers that consistently return viewable cards."
+									children: "Declared artwork URLs by provider. Actual image loading is measured above from cards opened this session."
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ResponsiveContainer, {
 									width: "100%",
@@ -2891,7 +3060,7 @@ function StatsSection() {
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tooltip, {}),
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bar, {
 												dataKey: "ready",
-												name: "Preview ready %",
+												name: "Artwork URLs supplied %",
 												fill: "var(--color-accent)",
 												radius: 4
 											}),
@@ -3350,7 +3519,7 @@ function StatsSection() {
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 							className: "mt-1 max-w-2xl text-xs leading-5 text-muted",
-							children: "Import a Reelcase library pack to merge exported history, resume marks, favorites, follows, ratings, Adult marks, and saved links. Insight CSV files stay read-only reports; use the pack for recovery."
+							children: "Import a Realhub library pack to merge exported history, resume marks, favorites, follows, ratings, Adult marks, and saved links. Insight CSV files stay read-only reports; use the pack for recovery."
 						})
 					] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 						size: "sm",
@@ -3813,7 +3982,7 @@ function StatsSection() {
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "mt-1 text-sm text-muted",
-						children: "Review signals only. Reelcase will not rename, reconnect, or remove a folder from this page."
+						children: "Review signals only. Realhub will not rename, reconnect, or remove a folder from this page."
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "mt-3 space-y-2",
@@ -3940,6 +4109,10 @@ function StatsSection() {
 }
 function LanConnectionSection() {
 	const [origin, setOrigin] = (0, import_react.useState)("");
+	const [localHost, setLocalHost] = (0, import_react.useState)(false);
+	const [quickTunnel, setQuickTunnel] = (0, import_react.useState)({});
+	const [tunnelBusy, setTunnelBusy] = (0, import_react.useState)(false);
+	const [lanOrigins, setLanOrigins] = (0, import_react.useState)([]);
 	const [copied, setCopied] = (0, import_react.useState)(false);
 	const [companion, setCompanion] = (0, import_react.useState)("checking");
 	const [devices, setDevices] = (0, import_react.useState)([]);
@@ -3949,7 +4122,7 @@ function LanConnectionSection() {
 		try {
 			const result = await listNetworkDevices();
 			setDevices(result.devices);
-			setMapStatus(result.devices.length ? `${result.devices.length} active device${result.devices.length === 1 ? "" : "s"}` : "Waiting for another device to open Reelcase");
+			setMapStatus(result.devices.length ? `${result.devices.length} active device${result.devices.length === 1 ? "" : "s"}` : "Waiting for another device to open Realhub");
 		} catch {
 			setMapStatus("Device map is temporarily unavailable");
 		}
@@ -3957,12 +4130,39 @@ function LanConnectionSection() {
 	(0, import_react.useEffect)(() => {
 		const current = window.location;
 		const loopback = current.hostname === "localhost" || current.hostname === "127.0.0.1" || current.hostname === "::1";
+		setLocalHost(loopback && current.port === "8080");
+		let tunnelTimer;
+		if (loopback && current.port === "8080") {
+			const checkTunnel = () => void fetch("/api/quick-tunnel").then((response) => response.json()).then(setQuickTunnel).catch(() => setQuickTunnel({ error: "Tunnel status unavailable." }));
+			checkTunnel();
+			tunnelTimer = window.setInterval(checkTunnel, 2500);
+		}
 		setOrigin(loopback ? "" : current.origin);
-		fetch("http://127.0.0.1:43123/health").then((response) => setCompanion(response.ok ? "ready" : "offline")).catch(() => setCompanion("offline"));
+		if (loopback) fetch("/api/lan-origin").then((response) => response.ok ? response.json() : { origins: [] }).then((data) => setLanOrigins(Array.isArray(data.origins) ? data.origins : [])).catch(() => setLanOrigins([]));
+		if (current.port === "8080" && loopback) fetch("http://127.0.0.1:43123/health").then((response) => setCompanion(response.ok ? "ready" : "offline")).catch(() => setCompanion("offline"));
+		else setCompanion("offline");
 		refreshDeviceMap();
 		const timer = window.setInterval(() => void refreshDeviceMap(), 1e4);
-		return () => window.clearInterval(timer);
+		return () => {
+			window.clearInterval(timer);
+			if (tunnelTimer) window.clearInterval(tunnelTimer);
+		};
 	}, []);
+	const changeTunnel = async (action) => {
+		setTunnelBusy(true);
+		try {
+			const response = await fetch("/api/quick-tunnel", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ action })
+			});
+			setQuickTunnel(await response.json());
+		} catch {
+			setQuickTunnel({ error: "Could not reach the local tunnel controller." });
+		} finally {
+			setTunnelBusy(false);
+		}
+	};
 	const copyAddress = async () => {
 		if (!origin) return;
 		try {
@@ -3976,7 +4176,7 @@ function LanConnectionSection() {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(HubShell, {
 		eyebrow: "Home network",
 		icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Wifi, { className: "size-4" }),
-		title: "Bring another screen into Reelcase.",
+		title: "Bring another screen into Realhub.",
 		copy: "Share one address, watch the device map appear, then start a room when everyone is connected.",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
@@ -4004,14 +4204,24 @@ function LanConnectionSection() {
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 							className: "mt-4 text-xs leading-5 text-muted",
-							children: "On another computer, phone, or TV browser: join the same normal home Wi‑Fi, open this exact address, and leave Reelcase open. It will appear in the map below within about 25 seconds."
+							children: "On another computer, phone, or TV browser: join the same normal home Wi‑Fi, open this exact address, and leave Realhub open. It will appear in the map below within about 25 seconds."
 						})
 					] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "mt-2 text-sm text-fg",
-						children: "Open Reelcase through the Ethernet address before sharing."
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						children: "This localhost address works only on this computer."
+					}), lanOrigins.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "mt-2 text-sm leading-6 text-muted",
-						children: "This local-only address cannot be reached by another device. Use the Connection guide from the shared Ethernet address, then copy the address it shows."
+						children: "Open Realhub through your home-network address, start a room there, then copy its invitation:"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "mt-3 flex flex-wrap gap-2",
+						children: lanOrigins.map((candidate) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", {
+							className: "rounded-sm bg-elevated px-3 py-2 font-mono text-xs text-accent shadow-border",
+							href: candidate,
+							children: candidate
+						}, candidate))
+					})] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-2 text-sm leading-6 text-muted",
+						children: "No home-network address was found. Connect this computer to your normal home network, then reopen this guide."
 					})] })]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "rounded-lg border border-border bg-surface p-5",
@@ -4026,10 +4236,66 @@ function LanConnectionSection() {
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 							className: "mt-2 text-sm text-muted",
-							children: "The companion speeds up local folders on this computer. Other devices can join the Reelcase page and Watch Rooms, but do not receive its local files."
+							children: "The companion speeds up local folders on this computer. Other devices can join the Realhub page and Watch Rooms, but do not receive its local files."
 						})
 					]
 				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "mt-5 rounded-lg bg-elevated p-5 shadow-border",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+						children: "Across networks · Cloudflare trial"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+						className: "mt-2 font-display text-2xl text-fg",
+						children: "Temporary public address"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-2 max-w-3xl text-sm leading-6 text-muted",
+						children: "Start a Quick Tunnel on the host computer to give guests a temporary address for Realhub and Watch Room signaling. Share it only with people you invite. The address disappears when you stop the tunnel or close the host server."
+					}),
+					localHost ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "mt-4 flex flex-wrap items-center gap-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								disabled: tunnelBusy || Boolean(quickTunnel.starting),
+								onClick: () => void changeTunnel(quickTunnel.running ? "stop" : "start"),
+								children: quickTunnel.running ? "Stop trial tunnel" : quickTunnel.starting ? "Starting…" : "Start trial tunnel"
+							}), quickTunnel.url && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+								variant: "secondary",
+								onClick: () => void navigator.clipboard.writeText(quickTunnel.url),
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Copy, { className: "size-4" }), "Copy public address"]
+							})]
+						}),
+						quickTunnel.url && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "mt-3 break-all font-mono text-sm text-accent",
+							children: quickTunnel.url
+						}),
+						quickTunnel.error && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+							className: "mt-3 text-sm text-muted",
+							children: [
+								quickTunnel.error,
+								" ",
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", {
+									className: "text-accent underline",
+									href: "https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/",
+									target: "_blank",
+									rel: "noopener noreferrer",
+									children: "Cloudflare install instructions"
+								})
+							]
+						})
+					] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-3 text-sm text-muted",
+						children: "Open this tab on the host computer to control its trial tunnel."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-3 text-xs leading-5 text-subtle",
+						children: "Quick Tunnels are for testing. A tunnel carries the page and room signaling; peer media may still require a TURN relay when direct connectivity fails."
+					})
+				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 				className: "mt-5 rounded-lg bg-elevated p-5 shadow-border",
@@ -4046,7 +4312,7 @@ function LanConnectionSection() {
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 							className: "mt-1 text-sm text-muted",
-							children: "Devices appear only after they open Reelcase. The map stores a short-lived browser label, never network addresses or files."
+							children: "Devices appear only after they open Realhub. The map stores a short-lived browser label, never network addresses or files."
 						})
 					] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 						size: "sm",
@@ -4062,7 +4328,7 @@ function LanConnectionSection() {
 							className: "flex items-center gap-3",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Wifi, { className: "size-5 text-accent" }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 								className: "text-sm font-medium text-fg",
-								children: "Reelcase host"
+								children: "Realhub host"
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 								className: "text-xs text-muted",
 								children: origin || "Local preview"
@@ -4085,7 +4351,7 @@ function LanConnectionSection() {
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 									className: "mt-2 text-xs text-muted",
-									children: device.id === ownDeviceId ? device.label : "Connected to Reelcase"
+									children: device.id === ownDeviceId ? device.label : "Connected to Realhub"
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 									className: "mt-1 text-[11px] text-accent",
@@ -4139,7 +4405,7 @@ function LanConnectionSection() {
 										children: "3. Look for the device map."
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
-									"A guest that opens Reelcase shows up here automatically. Refresh the map if it has just joined."
+									"A guest that opens Realhub shows up here automatically. Refresh the map if it has just joined."
 								]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
@@ -4157,7 +4423,7 @@ function LanConnectionSection() {
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "mt-4 text-xs leading-5 text-subtle",
-						children: "If the shared page does not open, allow Reelcase through the host computer’s private-network firewall and confirm the guest is on the same normal home network."
+						children: "If the shared page does not open, allow Realhub through the host computer’s private-network firewall and confirm the guest is on the same normal home network."
 					})
 				]
 			})
@@ -4169,7 +4435,7 @@ function FindPhoneSection() {
 		eyebrow: "Device recovery",
 		icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Search, { className: "size-4" }),
 		title: "Find your phone.",
-		copy: "Open your device maker’s official locator. Reelcase does not collect location data or keep a copy of your account credentials.",
+		copy: "Open your device maker’s official locator. Realhub does not collect location data or keep a copy of your account credentials.",
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 			className: "mt-6 grid gap-4 md:grid-cols-2",
 			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
@@ -4306,6 +4572,15 @@ function SettingsSection() {
 	const follows = useLibrary((s) => s.follows);
 	const refreshSourcePhotos = useLibrary((s) => s.refreshSourcePhotos);
 	const unavailableVideoCount = useLibrary((s) => Object.keys(s.unavailable).length);
+	const hiddenVideos = useLibrary((s) => s.hiddenVideos);
+	const unhideVideo = useLibrary((s) => s.unhideVideo);
+	const hiddenTitles = (0, import_react.useMemo)(() => {
+		const byId = new Map(videos.map((video) => [video.id, video.name]));
+		return Object.keys(hiddenVideos).map((id) => ({
+			id,
+			name: byId.get(id) ?? id
+		}));
+	}, [hiddenVideos, videos]);
 	const remoteCheckedAt = useLibrary((s) => s.remoteCheckedAt);
 	const smartTagStatus = (0, import_react.useMemo)(() => {
 		const local = videos.filter((video) => !video.remote);
@@ -4568,7 +4843,7 @@ function SettingsSection() {
 		const state = useLibrary.getState();
 		const payload = {
 			exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
-			note: "Reelcase library metadata only. Original local files and browser permission handles are never exported.",
+			note: "Realhub library metadata only. Original local files and browser permission handles are never exported.",
 			library: {
 				folders: state.folders,
 				videos: state.videos,
@@ -4740,7 +5015,7 @@ function SettingsSection() {
 		eyebrow: "Library control",
 		icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Settings2, { className: "size-4" }),
 		title: "Settings & local export",
-		copy: "Your Reelcase library stays in this browser. Export a portable metadata backup whenever you need it.",
+		copy: "Your Realhub library stays in this browser. Export a portable metadata backup whenever you need it.",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "grid gap-4 sm:grid-cols-3",
@@ -4772,6 +5047,37 @@ function SettingsSection() {
 					className: "mt-1 text-xs leading-5 text-muted",
 					children: "These catalog entries were hidden after a browser file-permission or decode failure. Reconnect the source folder from the playback message to rebuild its live file handles."
 				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
+				className: "mt-4 rounded-lg border border-border bg-elevated p-4",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("summary", {
+						className: "cursor-pointer text-sm font-medium text-fg",
+						children: ["Hidden titles · ", hiddenTitles.length]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "mt-2 text-xs text-muted",
+						children: "Hidden videos and image cards stay out of recommendations, search, and Watch Room. Your ratings and history remain saved."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "mt-3 max-h-64 space-y-2 overflow-y-auto",
+						children: hiddenTitles.length ? hiddenTitles.map((item) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "flex items-center justify-between gap-3 rounded-md bg-bg/50 px-3 py-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								className: "min-w-0 truncate text-sm text-fg",
+								children: item.name
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								size: "sm",
+								variant: "secondary",
+								onClick: () => unhideVideo(item.id),
+								children: "Restore"
+							})]
+						}, item.id)) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-xs text-muted",
+							children: "Nothing hidden yet."
+						})
+					})
+				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 				className: "mt-4 rounded-lg bg-elevated p-5 shadow-border",
@@ -5228,7 +5534,7 @@ function SettingsSection() {
 								className: "text-fg",
 								children: "public/import-templates/"
 							}),
-							": follows, watch history, saved video URLs, continue-watching pointers, favorites/likes, Photos sources & likes, Adult marks, ratings & tag hearts, and stats. Import merges into durable IndexedDB stores and does not wipe unrelated data unless you confirm replace-follows."
+							": follows, watch history, creator collections, saved video URLs, continue-watching pointers, favorites/likes, Photos sources & likes, Adult marks, ratings & tag hearts, and stats. Import merges into durable IndexedDB stores and does not wipe unrelated data unless you confirm replace-follows."
 						]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -5273,7 +5579,7 @@ function SettingsSection() {
 									input.onchange = () => {
 										const file = input.files?.[0];
 										if (!file) return;
-										if (!window.confirm("Import this library pack into Reelcase?\n\nData merges into durable local stores. Unrelated data is kept.")) {
+										if (!window.confirm("Import this library pack into Realhub?\n\nData merges into durable local stores. Unrelated data is kept.")) {
 											setServiceNote("Import cancelled.");
 											return;
 										}
@@ -5332,7 +5638,7 @@ function SettingsSection() {
 											getLinks: () => linksFromHistoryAndResume(useLibrary.getState().history, useLibrary.getState().resumeProgress),
 											setLinks: () => {}
 										}, mode).then((result) => {
-											setServiceNote(`Pack import · +${result.followsAdded} follows · +${result.historyMerged} history · +${result.linksMerged} links${result.photosMerged ? ` · photos ${result.photosMerged}` : ""}${result.feedbackMerged ? " · ratings/hearts merged" : ""}${result.warnings.length ? ` · ${result.warnings[0]}` : ""}`);
+											setServiceNote(`Pack import · +${result.followsAdded} follows · +${result.collectionsMerged} creator collections · +${result.historyMerged} history · +${result.linksMerged} links${result.photosMerged ? ` · photos ${result.photosMerged}` : ""}${result.feedbackMerged ? " · ratings/hearts merged" : ""}${result.warnings.length ? ` · ${result.warnings[0]}` : ""}`);
 										}).catch((error) => {
 											setServiceNote(error instanceof Error ? error.message : "Library pack import failed.");
 										});
@@ -5382,7 +5688,7 @@ function SettingsSection() {
 											setServiceNote(pack.error || "No library pack files in the companion folder.");
 											return;
 										}
-										if (!window.confirm("Import the companion-folder library pack into Reelcase?\n\nData merges into durable local stores.")) {
+										if (!window.confirm("Import the companion-folder library pack into Realhub?\n\nData merges into durable local stores.")) {
 											setServiceNote("Companion import cancelled.");
 											return;
 										}
@@ -5520,7 +5826,7 @@ function SettingsSection() {
 										const data = await (await fetch("http://127.0.0.1:43123/roku/discover")).json();
 										setServiceNote(`Roku refresh complete · ${(data.devices ?? []).length} device(s) found.`);
 									} catch {
-										setServiceNote("Roku refresh needs the local Reelcase Companion running.");
+										setServiceNote("Roku refresh needs the local Realhub Companion running.");
 									}
 								}
 							},
@@ -5575,7 +5881,7 @@ function SettingsSection() {
 						children: "Device & performance"
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "mt-1 text-sm text-muted",
-						children: "The controls that change how Reelcase runs and fits your screen."
+						children: "The controls that change how Realhub runs and fits your screen."
 					})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "grid gap-4 sm:grid-cols-2 xl:grid-cols-4",
@@ -5603,10 +5909,10 @@ function SettingsSection() {
 												className: "text-accent",
 												children: "1."
 											}),
-											" In the main Reelcase folder, double-click ",
+											" In the main Realhub folder, double-click ",
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", {
 												className: "text-fg",
-												children: "Start-Reelcase-Companion.cmd"
+												children: "Start-Realhub-Companion.cmd"
 											}),
 											"."
 										] }),
@@ -5704,7 +6010,7 @@ function SettingsSection() {
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 									className: "mt-2 text-sm leading-6 text-muted",
-									children: "Scale the entire library interface for this browser. Your choice is remembered everywhere in Reelcase."
+									children: "Scale the entire library interface for this browser. Your choice is remembered everywhere in Realhub."
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 									className: "mt-4 flex flex-wrap gap-2",
@@ -5736,7 +6042,7 @@ function SettingsSection() {
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 									className: "mt-2 text-sm leading-6 text-muted",
-									children: "Choose the palette that is easiest on your eyes. It applies to every Reelcase page and stays on this device."
+									children: "Choose the palette that is easiest on your eyes. It applies to every Realhub page and stays on this device."
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 									className: "mt-4 flex flex-wrap gap-2",
@@ -6141,7 +6447,7 @@ function SettingsSection() {
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(InfoCard, {
 							icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PackageSearch, { className: "size-5" }),
-							title: "How Reelcase works",
+							title: "How Realhub works",
 							copy: "Folders and files are cataloged locally; channel follows use their public pages; Watch Room sends direct peer events; and external services open only when you choose them. See PROJECT_GUIDE.md and LAN_WATCH_ROOM.md in the repository for the complete maintainer guide."
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AlexaLightControl, {}),
@@ -6159,7 +6465,7 @@ function SettingsSection() {
 							children: "Working preferences"
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 							className: "mt-1 text-sm text-muted",
-							children: "Every switch below works now, changes Reelcase immediately, and is saved in this browser. Future ideas belong in the Mission plan—not in this control panel."
+							children: "Every switch below works now, changes Realhub immediately, and is saved in this browser. Future ideas belong in the Mission plan—not in this control panel."
 						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 							className: "text-xs text-muted",
 							children: [Object.values(preferences).filter(Boolean).length, " enabled"]
@@ -6266,7 +6572,7 @@ function SpotifySection() {
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "mt-1 text-sm text-muted",
-						children: "Account sign-in and playback remain on Spotify’s official site or app. Reelcase does not collect your Spotify password or tokens."
+						children: "Account sign-in and playback remain on Spotify’s official site or app. Realhub does not collect your Spotify password or tokens."
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "mt-4 flex flex-wrap gap-2",
@@ -6480,7 +6786,7 @@ function GoogleYouTubeConnection() {
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 				className: "mt-2 text-sm leading-6 text-muted",
-				children: "Paste only the OAuth Client ID—never a secret. Google’s popup authorizes this browser session, then Reelcase can read permitted YouTube metadata and available creator tags."
+				children: "Paste only the OAuth Client ID—never a secret. Google’s popup authorizes this browser session, then Realhub can read permitted YouTube metadata and available creator tags."
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("ol", {
 				className: "mt-3 list-decimal space-y-1 pl-5 text-xs leading-5 text-muted",
@@ -6591,6 +6897,7 @@ function PhotosSection() {
 		}
 	});
 	const [photos, setPhotos] = (0, import_react.useState)([]);
+	const [showHiddenPhotos, setShowHiddenPhotos] = (0, import_react.useState)(false);
 	const [selectedPerson, setSelectedPerson] = (0, import_react.useState)("All photos");
 	const [selectedAlbum, setSelectedAlbum] = (0, import_react.useState)(() => {
 		try {
@@ -6734,7 +7041,7 @@ function PhotosSection() {
 		if (!/^https:\/\//i.test(url) || !/^[a-f0-9]{64}$/.test(expected)) {
 			setUpscalerHealth({
 				state: "missing",
-				detail: "Enter an HTTPS model URL and the publisher’s exact 64-character SHA-256 checksum. Reelcase will not install an unverifiable model."
+				detail: "Enter an HTTPS model URL and the publisher’s exact 64-character SHA-256 checksum. Realhub will not install an unverifiable model."
 			});
 			return;
 		}
@@ -6846,6 +7153,7 @@ function PhotosSection() {
 				tags: remembered[id]?.tags ?? [],
 				album: remembered[id]?.album ?? paths?.[index]?.split("/")[0] ?? folderName,
 				favorite: remembered[id]?.favorite ?? false,
+				hidden: remembered[id]?.hidden ?? false,
 				rating: remembered[id]?.rating ?? 0,
 				addedAt: file.lastModified,
 				width: remembered[id]?.width,
@@ -6889,12 +7197,13 @@ function PhotosSection() {
 			try {
 				persistPhotoMetadata({
 					...photoMetadata(),
-					...Object.fromEntries(photos.map(({ id, path, people, tags, album, favorite, rating, width, height, vision, visionModel }) => [id, {
+					...Object.fromEntries(photos.map(({ id, path, people, tags, album, favorite, hidden, rating, width, height, vision, visionModel }) => [id, {
 						path,
 						people,
 						tags,
 						album,
 						favorite,
+						hidden,
 						rating,
 						width,
 						height,
@@ -7066,9 +7375,9 @@ function PhotosSection() {
 	const visionProcessed = (0, import_react.useMemo)(() => photos.filter((photo) => photo.vision?.length || photo.tags.some((tag) => tag.startsWith("vision-"))).length, [photos]);
 	const visionPending = Math.max(0, photos.length - visionProcessed);
 	const visionReviewedPhotos = (0, import_react.useMemo)(() => photos.filter((photo) => photo.vision?.length || photo.tags.some((tag) => tag.startsWith("vision-"))).sort((a, b) => b.addedAt - a.addedAt), [photos]);
-	const visible = (0, import_react.useMemo)(() => photos.filter((photo) => (selectedPerson === "All photos" || photo.people.includes(selectedPerson)) && (selectedAlbum === "All albums" || photo.album === selectedAlbum) && (selectedTag === "All tags" || photo.tags.includes(selectedTag)) && (!favoritesOnly || photo.favorite) && (ratingFilter === "all" || (ratingFilter === "unrated" ? !photo.rating : photo.rating >= Number(ratingFilter))) && (discoveryFilter === "all" || (discoveryFilter === "screenshots" ? /screenshot|screen[_ -]?shot/i.test(photo.name) : discoveryFilter === "camera" ? /^(img|dsc|pxl|photo)[_ -]?\d/i.test(photo.name) : /download|image|copy|edited/i.test(photo.name))) && `${photo.name} ${photo.path} ${photo.people.join(" ")} ${photo.tags.join(" ")} ${photo.album}`.toLowerCase().includes(photoSearch.toLowerCase())).sort((a, b) => {
+	const visible = (0, import_react.useMemo)(() => photos.filter((photo) => (showHiddenPhotos || !photo.hidden) && (selectedPerson === "All photos" || photo.people.includes(selectedPerson)) && (selectedAlbum === "All albums" || photo.album === selectedAlbum) && (selectedTag === "All tags" || photo.tags.includes(selectedTag)) && (!favoritesOnly || photo.favorite) && (ratingFilter === "all" || (ratingFilter === "unrated" ? !photo.rating : photo.rating >= Number(ratingFilter))) && (discoveryFilter === "all" || (discoveryFilter === "screenshots" ? /screenshot|screen[_ -]?shot/i.test(photo.name) : discoveryFilter === "camera" ? /^(img|dsc|pxl|photo)[_ -]?\d/i.test(photo.name) : /download|image|copy|edited/i.test(photo.name))) && `${photo.name} ${photo.path} ${photo.people.join(" ")} ${photo.tags.join(" ")} ${photo.album}`.toLowerCase().includes(photoSearch.toLowerCase())).sort((a, b) => {
 		if (photoSort === "name") return a.name.localeCompare(b.name);
-		if (photoSort === "rating") return b.rating - a.rating || b.addedAt - a.addedAt;
+		if (photoSort === "rating") return ratingPreference(b.rating) - ratingPreference(a.rating) || b.addedAt - a.addedAt;
 		if (photoSort === "favorite") return Number(b.favorite) - Number(a.favorite) || b.addedAt - a.addedAt;
 		if (photoSort === "auto-tags") return b.tags.length - a.tags.length || b.addedAt - a.addedAt;
 		return b.addedAt - a.addedAt;
@@ -7081,7 +7390,8 @@ function PhotosSection() {
 		ratingFilter,
 		selectedAlbum,
 		selectedPerson,
-		selectedTag
+		selectedTag,
+		showHiddenPhotos
 	]);
 	const renderedPhotos = visible.slice(0, photoLimit);
 	(0, import_react.useEffect)(() => setPhotoLimit(80), [
@@ -7358,6 +7668,19 @@ function PhotosSection() {
 							" rated"
 						]
 					})
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "mt-3 flex flex-wrap items-center gap-3 text-xs text-muted",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [photos.filter((photo) => photo.hidden).length, " hidden photos"] }),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						size: "sm",
+						variant: "secondary",
+						onClick: () => setShowHiddenPhotos((value) => !value),
+						children: showHiddenPhotos ? "Hide hidden photos" : "Manage hidden photos"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Hidden photos stay saved in their albums and can be restored here." })
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -8086,7 +8409,12 @@ function PhotosSection() {
 			!photos.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "mt-5 rounded-lg bg-elevated px-5 py-14 text-center shadow-border",
 				children: [
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Images, { className: "mx-auto size-7 text-accent" }),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+						src: "/art/realhub-media-cards.webp",
+						alt: "",
+						loading: "lazy",
+						className: "mx-auto h-28 w-36 object-contain"
+					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "mt-3 font-display text-2xl text-fg",
 						children: "Start with a few favorites"
@@ -8200,6 +8528,16 @@ function PhotosSection() {
 													"aria-label": `Download ${photo.name}`,
 													onClick: () => downloadPhoto(photo),
 													children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Download, { className: "size-4" })
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+													size: "sm",
+													variant: "secondary",
+													"aria-label": `${photo.hidden ? "Restore" : "Hide"} ${photo.name}`,
+													onClick: () => setPhotos((items) => items.map((item) => item.id === photo.id ? {
+														...item,
+														hidden: !item.hidden
+													} : item)),
+													children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(EyeOff, { className: "size-4" })
 												})
 											]
 										}),
@@ -8418,7 +8756,35 @@ function PhotosSection() {
 		]
 	});
 }
+var missionStatus = (mission) => mission.done ? "complete" : mission.status ?? "planned";
+var missionStatusLabel = {
+	planned: "Planned",
+	"in-progress": "In progress",
+	blocked: "Blocked",
+	complete: "Complete"
+};
+var missionStatusTone = {
+	planned: "bg-bg/65 text-muted",
+	"in-progress": "bg-accent/15 text-accent",
+	blocked: "bg-danger/15 text-danger",
+	complete: "bg-accent/10 text-accent"
+};
 function missionSteps(mission) {
+	if (mission.id === "watch") return [
+		"Keep host state authoritative and reject stale playback or queue messages.",
+		"Run isolated desktop-host and mobile-guest browser checks for connection, chat, playback, seek, and leave.",
+		"Confirm the same flows on separate home-network devices, including local-file drift and queue changes."
+	];
+	if (mission.id === "sprint-19") return [
+		"Verify the local guest-window fallback and isolated browser sessions.",
+		"Check desktop and mobile room layout, chat, playback, seek, and reconnect in a repeatable browser run.",
+		"Repeat on physical home-network devices and record browser, network, drift, and queue results."
+	];
+	if (mission.id === "watch-room-cross-device") return [
+		"Enter temporary TURN credentials on both devices and enable relay-only mode.",
+		"Verify both peers report a connected relay candidate and exchange chat and playback commands.",
+		"Repeat across separate networks and record the diagnostic result without credentials."
+	];
 	if (mission.id.startsWith("watch") || mission.id.startsWith("twitch")) return [
 		"Capture the current provider or room state without replacing a healthy cached result.",
 		"Exercise the focused path with a bounded request, retry, and recovery case.",
@@ -8456,8 +8822,9 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "watch",
 		title: "Watch room reliability",
-		detail: "Host-authoritative state, stale-command rejection, revisioned queue reconciliation, LAN diagnostics, and guest-access messaging are implemented; real cross-device matrix validation remains in progress.",
-		done: false
+		detail: "Host-authoritative state, stale-command rejection, revisioned queue reconciliation, LAN diagnostics, and guest-access messaging are implemented. Isolated desktop-host/mobile-guest WebRTC, chat, play/pause/seek, reload reconciliation, resync, local-file matching, queue edits, and leave checks pass. Twitch status now waits for playback. Physical-device drift and catalog queue play remain.",
+		done: false,
+		status: "in-progress"
 	},
 	{
 		id: "watch-room-state-integrity",
@@ -8522,7 +8889,7 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "recovery-import",
 		title: "History & stats recovery imports",
-		detail: "History and Stats now expose a merge-safe Reelcase library-pack import for exported activity, resume marks, follows, shelves, ratings, Adult marks, and saved links.",
+		detail: "History and Stats now expose a merge-safe Realhub library-pack import for exported activity, resume marks, follows, shelves, ratings, Adult marks, and saved links.",
 		done: true
 	},
 	{
@@ -8606,8 +8973,9 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "watch-room-cross-device",
 		title: "Watch Room cross-device relay",
-		detail: "Temporary TURN credentials and relay-only testing are implemented. Verification with a working TURN service and separate devices remains open.",
-		done: false
+		detail: "Temporary TURN credentials and relay-only mode are implemented. Candidate diagnostics now distinguish direct from TURN paths. A real TURN service and two devices on separate networks are still required to prove relay connectivity.",
+		done: false,
+		status: "blocked"
 	},
 	{
 		id: "movie-private-tag-shelves",
@@ -8726,8 +9094,9 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "sprint-19",
 		title: "Watch room device matrix",
-		detail: "Validate host and guest paths across browsers and home-network devices.",
-		done: false
+		detail: "The local guest-window fallback and isolated desktop/mobile browser sessions are covered; direct WebRTC, chat, playback requests, seek, resync after reload, local-file consent/match, queue add/remove, leave, and mobile layout pass. In the isolated check, host-to-guest play and pause arrived in roughly 70 ms. Physical home-network devices and additional browser engines remain unverified.",
+		done: false,
+		status: "in-progress"
 	},
 	{
 		id: "sprint-20",
@@ -9057,18 +9426,23 @@ var ROADMAP_EXPANSION = [
 		[
 			"twitch-view-modes",
 			"Twitch viewing modes",
-			"Keep official Twitch playback available in theater or side-details mode, while filtering offline channels and ranking VODs by useful signals."
+			"Done · the official Twitch player switches between theater and side-details views. Offline channel placeholders stay out of playable shelves, while useful signals rank saved VODs."
 		],
 		[
 			"games-shortcut-curation",
 			"Games shortcut curation",
-			"Promote verified game launchers with companion/folder icon pull + local icon cache while keeping unrelated web links and desktop helpers out of game recommendations."
+			"Done · Games keeps approved launchers only, enriches companion/folder icons, and stores artwork separately in the local game-icon cache so unrelated desktop helpers cannot enter recommendations."
 		]
 	].map(([id, title, detail]) => ({
 		id,
 		title,
 		detail,
-		done: id === "print-file-viewer" || id === "adult-thumbnail-coverage"
+		done: [
+			"print-file-viewer",
+			"adult-thumbnail-coverage",
+			"twitch-view-modes",
+			"games-shortcut-curation"
+		].includes(id)
 	})),
 	...[
 		[
@@ -9119,13 +9493,13 @@ var ROADMAP_EXPANSION = [
 		[
 			"history-10",
 			"History restore benchmark",
-			"Measure large-history hydration and replay before changing the default journal path."
+			"Done · the repeatable isolated-history benchmark restores a 2,400-event IndexedDB snapshot plus append-only journal without duplicate events or lost source provenance."
 		]
 	].map(([id, title, detail]) => ({
 		id,
 		title,
 		detail,
-		done: id !== "history-10"
+		done: true
 	})),
 	...[
 		[
@@ -9176,24 +9550,50 @@ var ROADMAP_EXPANSION = [
 		[
 			"continue-10",
 			"Continue recovery test",
-			"Exercise local, YouTube, Twitch, and Watch Room resume paths in one repeatable check."
+			"Done · a repeatable browser check validates local, YouTube, Twitch, and Watch Room recovery cards, including provider records no longer in the active catalog."
 		]
 	].map(([id, title, detail]) => ({
 		id,
 		title,
 		detail,
-		done: id !== "continue-10"
+		done: true
+	})),
+	...[
+		[
+			"follow-manager-01",
+			"Bounded creator directory",
+			"Done · YouTube and Twitch follows now use a searchable, sorted creator directory that mounts 48 channel bubbles at a time instead of expanding a thousand-channel desk."
+		],
+		[
+			"follow-manager-02",
+			"Creator bubble actions",
+			"Done · each creator has a distinct provider-marked bubble and a focused control panel for creator favorite, 1–5 rating, health context, and safe manual unfollow."
+		],
+		[
+			"follow-manager-03",
+			"Follow collection actions",
+			"Done · optional creator collections travel in the library pack. Bulk removal previews every affected creator and retains locally saved or watched catalog rows."
+		]
+	].map(([id, title, detail]) => ({
+		id,
+		title,
+		detail,
+		done: [
+			"follow-manager-01",
+			"follow-manager-02",
+			"follow-manager-03"
+		].includes(id)
 	})),
 	...[
 		[
 			"youtube-upgrade-01",
 			"Feed delta cursor",
-			"Persist the newest trustworthy upload identity per channel, request only newer feed entries during routine refresh, and fall back to a bounded recent window if the cursor is missing."
+			"Done · routine checks persist the newest Atom upload identity, return only feed entries ahead of it, and fall back to a bounded recent window when YouTube has aged the cursor out."
 		],
 		[
 			"youtube-upgrade-02",
 			"Channel cache budget",
-			"Track response size, age, and cache-hit rate per channel; retain a short deep-catalog cache while returning only the requested shallow slice to routine refreshes."
+			"Done · channel health now reports response size, cache age, and session hit rate. The server retains only a short feed or ≤2,000-item focused catalog cache, while routine refreshes read the feed slice only."
 		],
 		[
 			"youtube-upgrade-03",
@@ -9290,6 +9690,8 @@ var ROADMAP_EXPANSION = [
 		title,
 		detail,
 		done: [
+			"youtube-upgrade-01",
+			"youtube-upgrade-02",
 			"youtube-upgrade-10",
 			"youtube-upgrade-11",
 			"youtube-upgrade-12",
@@ -9560,12 +9962,17 @@ function MissionPlanSection() {
 			const saved = JSON.parse(localStorage.getItem("reelcase.mission-plan.v1") ?? "null");
 			return Array.isArray(saved) ? [...saved.map((item) => {
 				const current = ALL_DEFAULT_MISSIONS.find((mission) => mission.id === item.id);
-				return current ? {
+				if (!current) return item;
+				const done = item.done || current.done;
+				const savedStatus = item.status === "planned" || item.status === "in-progress" || item.status === "blocked" ? item.status : void 0;
+				return {
+					...current,
 					...item,
 					title: current.title,
 					detail: current.detail,
-					done: item.done || current.done
-				} : item;
+					done,
+					status: done ? "complete" : savedStatus ?? current.status ?? "planned"
+				};
 			}), ...ALL_DEFAULT_MISSIONS.filter((mission) => !saved.some((item) => item.id === mission.id))] : ALL_DEFAULT_MISSIONS;
 		} catch {
 			return ALL_DEFAULT_MISSIONS;
@@ -9579,9 +9986,14 @@ function MissionPlanSection() {
 			localStorage.setItem("reelcase.mission-plan.v1", JSON.stringify(missions));
 		} catch {}
 	}, [missions]);
-	const completed = missions.filter((mission) => mission.done).length;
-	const activeMissions = missions.filter((mission) => !mission.done);
-	const archivedMissions = missions.filter((mission) => mission.done);
+	const completed = missions.filter((mission) => missionStatus(mission) === "complete").length;
+	const activeMissions = missions.filter((mission) => missionStatus(mission) !== "complete");
+	const archivedMissions = missions.filter((mission) => missionStatus(mission) === "complete");
+	const setMissionStatus = (id, status) => setMissions((items) => items.map((item) => item.id === id ? {
+		...item,
+		status,
+		done: status === "complete"
+	} : item));
 	const exportMissions = () => downloadCsv([[
 		"step",
 		"title",
@@ -9590,14 +10002,14 @@ function MissionPlanSection() {
 	], ...missions.map((mission, index) => [
 		index + 1,
 		mission.title,
-		mission.done ? "complete" : "in-progress",
+		missionStatus(mission),
 		mission.detail
 	])], `reelcase-mission-plan-${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.csv`);
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(HubShell, {
 		eyebrow: "Mission plan",
 		icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Rocket, { className: "size-4" }),
 		title: "Build a private media home that scales.",
-		copy: "Reelcase is moving toward a fast, local-first media hub: your files load from a durable catalog, your watch room works across your home network, and connected services remain optional and easy to control.",
+		copy: "Realhub is moving toward a fast, local-first media hub: your files load from a durable catalog, your watch room works across your home network, and connected services remain optional and easy to control.",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
 				className: "mt-6 rounded-lg bg-elevated p-5 shadow-border",
@@ -9654,46 +10066,81 @@ function MissionPlanSection() {
 							activeMissions.length,
 							" milestone",
 							activeMissions.length === 1 ? "" : "s",
-							" still need implementation or verification."
+							" still need implementation or verification. Each status is saved locally with the plan."
 						]
 					})] })
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 					className: "space-y-3",
-					children: activeMissions.map((mission, index) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("article", {
-						className: "flex gap-4 rounded-lg bg-elevated p-4 shadow-border",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-							size: "sm",
-							variant: "secondary",
-							"aria-label": `Mark ${mission.title} complete`,
-							onClick: () => setMissions((items) => items.map((item) => item.id === mission.id ? {
-								...item,
-								done: true
-							} : item)),
-							children: `Step ${index + 1}`
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "min-w-0 flex-1",
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
-									className: "text-sm font-medium text-fg",
-									children: mission.title
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "mt-1 text-sm text-muted",
-									children: mission.detail
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
-									className: "mt-3 rounded-sm bg-bg/45 px-3 py-2 text-xs text-muted",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("summary", {
-										className: "cursor-pointer font-medium text-fg",
-										children: "Break this down"
-									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ol", {
-										className: "mt-2 list-decimal space-y-1 pl-4",
-										children: missionSteps(mission).map((step) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: step }, step))
-									})]
-								})
-							]
-						})]
-					}, mission.id))
+					children: activeMissions.map((mission, index) => {
+						const status = missionStatus(mission);
+						return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("article", {
+							className: "flex gap-4 rounded-lg bg-elevated p-4 shadow-border",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "flex shrink-0 flex-col gap-2",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "inline-flex min-h-8 items-center justify-center rounded-sm bg-bg/65 px-2 text-xs font-medium text-muted",
+										children: `Step ${index + 1}`
+									}),
+									status === "planned" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										size: "sm",
+										variant: "secondary",
+										"aria-label": `Start ${mission.title}`,
+										onClick: () => setMissionStatus(mission.id, "in-progress"),
+										children: "Start"
+									}),
+									status === "in-progress" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										size: "sm",
+										variant: "secondary",
+										"aria-label": `Mark ${mission.title} complete`,
+										onClick: () => setMissionStatus(mission.id, "complete"),
+										children: "Done"
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										size: "sm",
+										variant: "ghost",
+										"aria-label": `Mark ${mission.title} blocked`,
+										onClick: () => setMissionStatus(mission.id, "blocked"),
+										children: "Block"
+									})] }),
+									status === "blocked" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										size: "sm",
+										variant: "secondary",
+										"aria-label": `Resume ${mission.title}`,
+										onClick: () => setMissionStatus(mission.id, "in-progress"),
+										children: "Resume"
+									})
+								]
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "min-w-0 flex-1",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "flex flex-wrap items-center gap-2",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+											className: "text-sm font-medium text-fg",
+											children: mission.title
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: `rounded-full px-2 py-1 text-xs font-medium ${missionStatusTone[status]}`,
+											children: missionStatusLabel[status]
+										})]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "mt-1 text-sm text-muted",
+										children: mission.detail
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
+										className: "mt-3 rounded-sm bg-bg/45 px-3 py-2 text-xs text-muted",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("summary", {
+											className: "cursor-pointer font-medium text-fg",
+											children: "Break this down"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ol", {
+											className: "mt-2 list-decimal space-y-1 pl-4",
+											children: missionSteps(mission).map((step) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: step }, step))
+										})]
+									})
+								]
+							})]
+						}, mission.id);
+					})
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
@@ -9719,11 +10166,8 @@ function MissionPlanSection() {
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 							size: "sm",
 							variant: "ghost",
-							"aria-label": `Restore ${mission.title} to active work`,
-							onClick: () => setMissions((items) => items.map((item) => item.id === mission.id ? {
-								...item,
-								done: false
-							} : item)),
+							"aria-label": `Restore ${mission.title} to planned work`,
+							onClick: () => setMissionStatus(mission.id, "planned"),
 							children: "Done"
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "min-w-0",
@@ -9760,7 +10204,7 @@ function MissionPlanSection() {
 										children: "1. Start Companion"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
-									"Double-click Start-Reelcase-Companion.cmd in the main Reelcase folder."
+									"Double-click Start-Realhub-Companion.cmd in the main Realhub folder."
 								]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
@@ -9883,7 +10327,7 @@ function MissionPlanSection() {
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 						variant: "secondary",
-						onClick: () => setMissions(DEFAULT_MISSIONS),
+						onClick: () => setMissions(ALL_DEFAULT_MISSIONS),
 						children: "Reset to the current delivery queue"
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
@@ -10013,7 +10457,7 @@ function GamesSection() {
 			})).json();
 			setLaunchNotice(result.ok ? `Launching ${game.name} through the local companion.` : result.error ?? "The companion could not launch this item.");
 		} catch {
-			setLaunchNotice("Desktop launch needs the Reelcase Companion running and this shortcut inside one of its approved Windows folders.");
+			setLaunchNotice("Desktop launch needs the Realhub Companion running and this shortcut inside one of its approved Windows folders.");
 		}
 	};
 	const loadApprovedShortcuts = async () => {
@@ -10048,7 +10492,7 @@ function GamesSection() {
 			const got = (await pullMissingIcons(merged.length ? merged : next)).filter((game) => game.iconData).length;
 			setLaunchNotice(next.length ? `Added ${next.length} approved desktop shortcuts · ${got} icons cached. Desktop launch still needs the companion.` : "No approved desktop shortcuts were found. Add a shortcut to Desktop or another approved companion folder.");
 		} catch {
-			setLaunchNotice("Companion connection unavailable. Start the local Reelcase Companion, then try again.");
+			setLaunchNotice("Companion connection unavailable. Start the local Realhub Companion, then try again.");
 		} finally {
 			setCompanionLoading(false);
 		}
@@ -10531,7 +10975,7 @@ function LocalCatalog({ kind, eyebrow, icon, title, copy, accept, directory, foo
 							try {
 								const { prints } = await companionListPrints(120);
 								if (!prints.length) {
-									setCompanionNote("No STL/OBJ/GLB/3MF under approved roots (or Reelcase Prints). Add a prints folder to REELCASE_ALLOWED_ROOTS.");
+									setCompanionNote("No STL/OBJ/GLB/3MF under approved roots (or Realhub Prints). Add a prints folder to REELCASE_ALLOWED_ROOTS.");
 									return;
 								}
 								const nextItems = [];
@@ -10576,7 +11020,7 @@ function LocalCatalog({ kind, eyebrow, icon, title, copy, accept, directory, foo
 								let saved = 0;
 								for (const item of items.slice(0, 20)) {
 									if (!item.id || !isViewablePrintName(item.name)) continue;
-									const { loadPrintBlob } = await import("./prints-blobs-QNyJmYf_.mjs");
+									const { loadPrintBlob } = await import("./prints-blobs-3BsYtcE3.mjs");
 									const record = await loadPrintBlob(item.id);
 									if (!record?.blob) continue;
 									const buffer = new Uint8Array(await record.blob.arrayBuffer());
@@ -10584,7 +11028,7 @@ function LocalCatalog({ kind, eyebrow, icon, title, copy, accept, directory, foo
 									for (let i = 0; i < buffer.length; i += 1) binary += String.fromCharCode(buffer[i]);
 									if ((await companionSavePrint(item.name, btoa(binary))).ok) saved += 1;
 								}
-								setCompanionNote(saved ? `Saved ${saved} print file${saved === 1 ? "" : "s"} into the companion Reelcase Prints folder.` : "Nothing saved — start Companion and ensure an approved prints folder exists.");
+								setCompanionNote(saved ? `Saved ${saved} print file${saved === 1 ? "" : "s"} into the companion Realhub Prints folder.` : "Nothing saved — start Companion and ensure an approved prints folder exists.");
 							} finally {
 								setBusy(false);
 							}
@@ -10861,7 +11305,7 @@ function StreamingSection() {
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 					className: "mt-1 text-sm text-muted",
-					children: "Look up a title on the source you trust. Searches open on the official site; Reelcase does not copy ratings into your local catalog."
+					children: "Look up a title on the source you trust. Searches open on the official site; Realhub does not copy ratings into your local catalog."
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "mt-3 flex flex-col gap-2 sm:flex-row",
@@ -11061,7 +11505,7 @@ function SocialSection() {
 		eyebrow: "Social desk",
 		icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(X, { className: "size-4" }),
 		title: "Keep your people close.",
-		copy: "Save X profiles, switch between public timelines, and pick up where you left off. Public timelines render inside Reelcase through X’s official widget; private posts and account likes stay on X.",
+		copy: "Save X profiles, switch between public timelines, and pick up where you left off. Public timelines render inside Realhub through X’s official widget; private posts and account likes stay on X.",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", {
 				className: "mt-6 flex flex-col gap-2 sm:flex-row",
@@ -11188,7 +11632,7 @@ function WatchRoomSection() {
 	});
 	const [roomLedger, setRoomLedger] = (0, import_react.useState)([]);
 	const [ledgerRoom, setLedgerRoom] = (0, import_react.useState)("");
-	const [stageSize, setStageSize] = (0, import_react.useState)("compact");
+	const [stageSize, setStageSize] = (0, import_react.useState)("theater");
 	const [playback, setPlayback] = (0, import_react.useState)({
 		playing: false,
 		position: 0
@@ -11199,6 +11643,9 @@ function WatchRoomSection() {
 	});
 	const [chat, setChat] = (0, import_react.useState)([]);
 	const [message, setMessage] = (0, import_react.useState)("");
+	const [roomSearch, setRoomSearch] = (0, import_react.useState)("");
+	const deferredRoomSearch = (0, import_react.useDeferredValue)(roomSearch);
+	const [roomRatingRevision, setRoomRatingRevision] = (0, import_react.useState)(0);
 	const [partyPrompt, setPartyPrompt] = (0, import_react.useState)("Pick the next vibe");
 	const [partyVotes, setPartyVotes] = (0, import_react.useState)({
 		Comedy: 0,
@@ -11208,7 +11655,7 @@ function WatchRoomSection() {
 	const [friendName, setFriendName] = (0, import_react.useState)("");
 	const [friendCode, setFriendCode] = (0, import_react.useState)("");
 	const [inviteNotice, setInviteNotice] = (0, import_react.useState)("");
-	const [pulseStatus, setPulseStatus] = (0, import_react.useState)("No direct transport test yet.");
+	const [pulseStatus, setPulseStatus] = (0, import_react.useState)("No chat transport test yet.");
 	const [friends, setFriends] = (0, import_react.useState)(() => {
 		try {
 			const saved = JSON.parse(localStorage.getItem("reelcase.lan-friends.v1") ?? "[]");
@@ -11219,6 +11666,8 @@ function WatchRoomSection() {
 	});
 	const videos = useLibrary((s) => s.videos);
 	const favorites = useLibrary((s) => s.favorites);
+	const hiddenVideos = useLibrary((s) => s.hiddenVideos);
+	const toggleFavorite = useLibrary((s) => s.toggleFavorite);
 	const history = useLibrary((s) => s.history);
 	const recordPlay = useLibrary((s) => s.recordPlay);
 	(0, import_react.useEffect)(() => {
@@ -11229,22 +11678,51 @@ function WatchRoomSection() {
 		return (pending ? videos.find((video) => video.id === pending && Boolean(video.src || video.remote?.embedUrl)) : void 0)?.id ?? videos.find((video) => Boolean(video.src || video.remote?.embedUrl))?.id ?? "";
 	});
 	const sharedVideo = videos.find((video) => video.id === sharedVideoId);
-	const roomClockCeiling = Math.max(60, Math.min(sharedVideo?.duration && sharedVideo.duration > 0 ? sharedVideo.duration + 30 : 43200, 43200));
-	const clampRoomClock = (seconds) => Math.max(0, Math.min(roomClockCeiling, Number.isFinite(seconds) ? seconds : 0));
+	const roomRating = (0, import_react.useMemo)(() => sharedVideoId ? getRating(sharedVideoId) : 0, [roomRatingRevision, sharedVideoId]);
+	const twitchClip = sharedVideo?.remote?.kind === "twitch" && (sharedVideo.extension === "clip" || sharedVideo.remote.embedUrl?.includes("clips.twitch.tv"));
+	const [measuredDuration, setMeasuredDuration] = (0, import_react.useState)(null);
+	const roomDuration = (videoId = sharedVideoId) => {
+		if (videoId === sharedVideoId) {
+			const mediaDuration = roomVideoRef.current?.duration;
+			const twitchDuration = sharedVideo?.remote?.kind === "twitch" && !sharedVideo.remote.live ? twitchPlayerRef.current?.getDuration?.() : void 0;
+			for (const duration of [
+				mediaDuration,
+				twitchDuration,
+				measuredDuration?.videoId === videoId ? measuredDuration.seconds : void 0
+			]) if (typeof duration === "number" && Number.isFinite(duration) && duration > 0) return duration;
+		}
+		const video = videoId === sharedVideoId ? sharedVideo : videos.find((item) => item.id === videoId);
+		return video?.remote?.live ? void 0 : video?.duration;
+	};
+	const clampRoomClock = (seconds, videoId = sharedVideoId) => clampRoomPosition(seconds, roomDuration(videoId));
+	const currentHostClock = () => {
+		const media = roomVideoRef.current;
+		if (media && !sharedVideo?.remote) {
+			const actual = media.currentTime;
+			return clampRoomClock(actual > .25 || playback.position <= .25 ? actual : playback.position);
+		}
+		const estimated = estimatedProviderPosition(lastRoomPosition.current, playback.position, playback.playing && (sharedVideo?.remote?.kind !== "twitch" || twitchPlayingRef.current) ? youtubePlaybackStartedAt.current : null, Date.now());
+		const twitch = sharedVideo?.remote?.kind === "twitch" ? twitchPlayerRef.current?.getCurrentTime() : void 0;
+		return clampRoomClock(typeof twitch === "number" && Number.isFinite(twitch) && twitch > .25 ? Math.max(twitch, estimated) : estimated);
+	};
 	const localShareIsMatched = !sharedVideoId.startsWith("local:") || localShare?.fingerprint === sharedVideoId.slice(6);
 	const roomVideoRef = (0, import_react.useRef)(null);
 	const remoteFrameRef = (0, import_react.useRef)(null);
 	const twitchPlayerHostRef = (0, import_react.useRef)(null);
 	const twitchPlayerRef = (0, import_react.useRef)(null);
+	const twitchPlayingRef = (0, import_react.useRef)(false);
+	const [twitchActuallyPlaying, setTwitchActuallyPlaying] = (0, import_react.useState)(false);
 	const [remoteFrameReady, setRemoteFrameReady] = (0, import_react.useState)(0);
 	const [remoteSeekNonce, setRemoteSeekNonce] = (0, import_react.useState)(0);
 	const lastYoutubeSeekNonce = (0, import_react.useRef)(0);
 	const lastTwitchSeekNonce = (0, import_react.useRef)(0);
+	const lastTwitchPlaybackCommand = (0, import_react.useRef)(null);
 	const suppressRemotePlayerEchoUntil = (0, import_react.useRef)(0);
 	const [twitchPlayerStatus, setTwitchPlayerStatus] = (0, import_react.useState)("Waiting for Twitch player…");
 	const [twitchPlayerReady, setTwitchPlayerReady] = (0, import_react.useState)(0);
 	const [candidateSeed, setCandidateSeed] = (0, import_react.useState)(() => Date.now());
 	const [roomPickLimit, setRoomPickLimit] = (0, import_react.useState)(18);
+	const [youtubePickLimit, setYoutubePickLimit] = (0, import_react.useState)(24);
 	const youtubePlaybackStartedAt = (0, import_react.useRef)(null);
 	const [localVideoUrl, setLocalVideoUrl] = (0, import_react.useState)("");
 	const lastRoomTick = (0, import_react.useRef)(0);
@@ -11258,6 +11736,7 @@ function WatchRoomSection() {
 	const room = activeRoom ?? "";
 	const [relayConfig, setRelayConfig] = (0, import_react.useState)();
 	const p2p = useP2PRoom(room, name.trim() || "Guest", relayConfig);
+	const roomInvite = shareableRoomInvite(window.location.origin, window.location.pathname, activeRoom ?? roomCode);
 	(0, import_react.useEffect)(() => {
 		queueRevisionRef.current = 0;
 		lastAcceptedQueueRevision.current = 0;
@@ -11328,7 +11807,7 @@ function WatchRoomSection() {
 	}, []);
 	const roomCandidates = (0, import_react.useMemo)(() => {
 		const played = new Set(history.map((entry) => entry.id));
-		return videos.filter((video) => !video.isSample && !/\b(blender|big buck bunny|cosmos laundromat|tears of steel|elephants dream|sintel|night rain|empty house|golden coast|tungsten reel)\b/i.test(`${video.name} ${video.remote?.channelName ?? ""} ${video.tagline ?? ""}`) && !useLibrary.getState().unavailable[video.id] && Boolean(video.remote?.embedUrl || video.src)).map((video) => {
+		return videos.filter((video) => !video.isSample && !/\b(blender|big buck bunny|cosmos laundromat|tears of steel|elephants dream|sintel|night rain|empty house|golden coast|tungsten reel)\b/i.test(`${video.name} ${video.remote?.channelName ?? ""} ${video.tagline ?? ""}`) && !useLibrary.getState().unavailable[video.id] && !hiddenVideos[video.id] && Boolean(video.remote?.embedUrl || video.src)).map((video) => {
 			return {
 				video,
 				rank: roomShuffleRank(`${video.id}:${candidateSeed}`, candidateSeed) / 4294967295 + (favorites[video.id] ? .18 : 0) - (played.has(video.id) ? .32 : 0)
@@ -11337,14 +11816,25 @@ function WatchRoomSection() {
 	}, [
 		candidateSeed,
 		favorites,
+		hiddenVideos,
 		history,
 		videos
 	]);
+	const roomSearchResults = (0, import_react.useMemo)(() => {
+		const needle = deferredRoomSearch.trim().toLowerCase();
+		return (needle ? roomCandidates.filter((video) => `${video.name} ${video.remote?.channelName ?? ""}`.toLowerCase().includes(needle)) : roomCandidates).slice(0, needle ? 20 : 12);
+	}, [deferredRoomSearch, roomCandidates]);
+	(0, import_react.useEffect)(() => {
+		const refresh = () => setRoomRatingRevision((value) => value + 1);
+		window.addEventListener("reelcase:rating-change", refresh);
+		return () => window.removeEventListener("reelcase:rating-change", refresh);
+	}, []);
 	const localQueueCandidates = (0, import_react.useMemo)(() => roomCandidates.filter((video) => !video.remote && video.id !== sharedVideoId && !queue.includes(video.id)).slice(0, 18), [
 		queue,
 		roomCandidates,
 		sharedVideoId
 	]);
+	const youtubeRoomCandidates = (0, import_react.useMemo)(() => roomCandidates.filter((video) => video.remote?.kind === "youtube"), [roomCandidates]);
 	const queueRecommendations = (0, import_react.useMemo)(() => {
 		const alreadyShown = new Set(roomCandidates.slice(0, roomPickLimit).map((video) => video.id));
 		const queued = new Set(queue);
@@ -11402,21 +11892,35 @@ function WatchRoomSection() {
 		sharedVideoId
 	]);
 	(0, import_react.useEffect)(() => {
-		if (!joinedAsGuest || !p2p.joined) return;
-		p2p.send({
-			type: "resync-request",
-			sentAt: Date.now()
-		});
-		setRoomHealth((health) => ({
-			...health,
-			resyncRequests: health.resyncRequests + 1
-		}));
-		noteRoom("request", "Requested the host’s initial state.");
+		if (!joinedAsGuest || !p2p.joined || lastAcceptedRoomStateAt.current) return;
+		let attempts = 0;
+		const request = () => {
+			if (lastAcceptedRoomStateAt.current || ++attempts > 8) {
+				window.clearInterval(retry);
+				return;
+			}
+			p2p.send({
+				type: "resync-request",
+				sentAt: Date.now()
+			});
+			setRoomHealth((health) => ({
+				...health,
+				resyncRequests: health.resyncRequests + 1
+			}));
+			if (attempts === 1) noteRoom("request", "Requested the host’s initial state.");
+		};
+		const initial = window.setTimeout(request, 0);
+		const retry = window.setInterval(request, 1500);
+		return () => {
+			window.clearTimeout(initial);
+			window.clearInterval(retry);
+		};
 	}, [
 		joinedAsGuest,
 		noteRoom,
 		p2p.joined,
-		p2p.send
+		p2p.send,
+		room
 	]);
 	(0, import_react.useEffect)(() => p2p.onMessage((from, raw, channel) => {
 		const data = raw;
@@ -11425,7 +11929,7 @@ function WatchRoomSection() {
 			type: "room-pulse-ack",
 			sentAt: data.sentAt
 		}, from);
-		if (data.type === "room-pulse-ack" && data.sentAt) setPulseStatus(`Direct transport confirmed · ${Math.max(0, Date.now() - data.sentAt)}ms round trip.`);
+		if (data.type === "room-pulse-ack" && data.sentAt) setPulseStatus(`Chat transport confirmed · ${Math.max(0, Date.now() - data.sentAt)}ms round trip.`);
 		if (data.type === "share-ready" && data.name && data.fingerprint) {
 			const share = {
 				name: data.name,
@@ -11434,7 +11938,7 @@ function WatchRoomSection() {
 				modified: Number(data.modified) || 0
 			};
 			setPendingLocalShare(share);
-			setInviteNotice(`${data.name} is waiting for a permitted local match. Select the same file on this device; Reelcase compares name, size, and modified time without sending file contents.`);
+			setInviteNotice(`${data.name} is waiting for a permitted local match. Select the same file on this device; Realhub compares name, size, and modified time without sending file contents.`);
 		}
 		if (data.type === "share-matched" && data.name && data.fingerprint) {
 			setLocalShareMatches((matches) => ({
@@ -11456,10 +11960,14 @@ function WatchRoomSection() {
 				noteRoom("dropped", "Ignored a guest playback request with an invalid clock.");
 			} else {
 				noteRoom("request", data.seek ? "Accepted a guest timeline seek request." : "Accepted a guest playback request.");
-				sync({
-					playing: Boolean(data.playing),
-					position: clampRoomClock(Number(data.position) || playback.position)
-				}, Boolean(data.seek));
+				if (data.videoId && data.videoId !== sharedVideoId) noteRoom("dropped", "Ignored a playback request for a different video.");
+				else {
+					const requested = typeof data.position === "number" && Number.isFinite(data.position) ? data.position : playback.position;
+					sync({
+						playing: Boolean(data.playing),
+						position: clampRoomClock(requested)
+					}, Boolean(data.seek));
+				}
 			}
 		}
 		if (data.type === "sync") {
@@ -11475,7 +11983,7 @@ function WatchRoomSection() {
 			}
 			if (data.videoId && sharedVideoId && data.videoId !== sharedVideoId) return;
 			const nextPosition = (Number(data.position) || 0) + (data.playing ? Math.max(0, (Date.now() - sentAt) / 1e3) : 0);
-			const safePosition = clampRoomClock(!data.seek && nextPosition < lastRoomPosition.current ? lastRoomPosition.current : nextPosition);
+			const safePosition = clampRoomClock(!data.seek && nextPosition < lastRoomPosition.current ? lastRoomPosition.current : nextPosition, data.videoId);
 			const drift = Math.abs(safePosition - playback.position);
 			lastAcceptedTimelineAt.current = sentAt;
 			lastRoomPosition.current = safePosition;
@@ -11484,7 +11992,7 @@ function WatchRoomSection() {
 				source: "remote",
 				at: Date.now()
 			});
-			if (data.seek) setRemoteSeekNonce((value) => value + 1);
+			if (data.seek || drift > .75) setRemoteSeekNonce((value) => value + 1);
 			setPlayback({
 				playing: Boolean(data.playing),
 				position: safePosition
@@ -11598,7 +12106,7 @@ function WatchRoomSection() {
 			}
 			if (Array.isArray(data.localQueue)) setLocalQueue(normalizeLocalRoomQueue(data.localQueue));
 			const nextPosition = (Number(data.position) || 0) + (data.playing ? Math.max(0, (Date.now() - sentAt) / 1e3) : 0);
-			const safePosition = clampRoomClock(!videoChanged && nextPosition + .75 < lastRoomPosition.current ? lastRoomPosition.current : nextPosition);
+			const safePosition = clampRoomClock(!videoChanged && nextPosition + .75 < lastRoomPosition.current ? lastRoomPosition.current : nextPosition, data.videoId);
 			const drift = Math.abs(safePosition - playback.position);
 			lastAcceptedRoomStateAt.current = sentAt;
 			lastAcceptedTimelineAt.current = Math.max(lastAcceptedTimelineAt.current, sentAt);
@@ -11608,6 +12116,7 @@ function WatchRoomSection() {
 				source: "remote",
 				at: Date.now()
 			});
+			if (videoChanged || drift > .75) setRemoteSeekNonce((value) => value + 1);
 			setPlayback({
 				playing: Boolean(data.playing),
 				position: safePosition
@@ -11620,11 +12129,11 @@ function WatchRoomSection() {
 			if (drift >= 1) noteRoom("timeline", `Reconciled ${drift.toFixed(1)}s from the authoritative room state.`);
 		}
 		if (data.type === "resync-request" && !joinedAsGuest) {
-			const position = roomVideoRef.current?.currentTime ?? playback.position;
+			const position = currentHostClock();
 			const sentAt = Date.now();
 			p2p.send({
 				type: "room-state",
-				playing: !roomVideoRef.current?.paused && playback.playing,
+				playing: playback.playing,
 				position,
 				videoId: sharedVideoId,
 				queue,
@@ -11647,9 +12156,9 @@ function WatchRoomSection() {
 		playback.playing,
 		playback.position,
 		queue,
-		roomClockCeiling,
 		sharedVideoId,
-		videos
+		videos,
+		measuredDuration
 	]);
 	const sync = (next, seek = false) => {
 		if (!seek && Date.now() < applyingRemotePlaybackUntil.current) return;
@@ -11667,12 +12176,11 @@ function WatchRoomSection() {
 		}
 		const isYoutube = sharedVideo?.remote?.kind === "youtube";
 		const isTwitch = sharedVideo?.remote?.kind === "twitch";
-		const elapsed = (isYoutube || isTwitch) && playback.playing && youtubePlaybackStartedAt.current ? Math.max(0, (Date.now() - youtubePlaybackStartedAt.current) / 1e3) : 0;
 		const playerPosition = isTwitch ? twitchPlayerRef.current?.getCurrentTime() : void 0;
 		const hasTwitchPosition = typeof playerPosition === "number" && Number.isFinite(playerPosition) && playerPosition > .25;
 		const providerFallback = lastRoomPosition.current > .25 && next.position <= .25 && !seek;
-		const providerClock = Math.max(lastRoomPosition.current, playback.position + elapsed);
-		const position = !seek && (isYoutube || isTwitch) && !next.playing ? Math.max(providerClock, next.position) : isTwitch ? hasTwitchPosition ? playerPosition : providerFallback ? providerClock : Math.max(providerClock, next.position) : providerFallback ? providerClock : isYoutube ? Math.max(providerClock, next.position) : next.position;
+		const providerClock = estimatedProviderPosition(lastRoomPosition.current, playback.position, playback.playing ? youtubePlaybackStartedAt.current : null, Date.now());
+		const position = seek ? next.position : (isYoutube || isTwitch) && !next.playing ? Math.max(providerClock, next.position) : isTwitch ? hasTwitchPosition ? Math.max(playerPosition, providerClock, next.position) : providerFallback ? providerClock : Math.max(providerClock, next.position) : providerFallback ? providerClock : isYoutube ? Math.max(providerClock, next.position) : next.position;
 		const resolved = {
 			...next,
 			position: clampRoomClock(position)
@@ -11708,7 +12216,8 @@ function WatchRoomSection() {
 		const timer = window.setInterval(() => {
 			const twitchTime = provider === "twitch" ? twitchPlayerRef.current?.getCurrentTime() : void 0;
 			const actual = typeof twitchTime === "number" && twitchTime > .25 ? twitchTime : void 0;
-			const estimated = clampRoomClock(actual ?? Math.max(lastRoomPosition.current, (Date.now() - youtubePlaybackStartedAt.current) / 1e3));
+			const estimated = clampRoomClock(actual ?? estimatedProviderPosition(lastRoomPosition.current, playback.position, youtubePlaybackStartedAt.current, Date.now()));
+			if (provider === "twitch" && !twitchPlayingRef.current) return;
 			if (estimated <= lastRoomPosition.current + .2) return;
 			lastRoomPosition.current = estimated;
 			setPlayback((current) => current.playing ? {
@@ -11750,11 +12259,11 @@ function WatchRoomSection() {
 			setInviteNotice("Requested the host’s current room state.");
 			return;
 		}
-		const localPosition = roomVideoRef.current?.currentTime;
-		const twitchPosition = sharedVideo?.remote?.kind === "twitch" ? twitchPlayerRef.current?.getCurrentTime() : void 0;
-		const position = typeof localPosition === "number" && localPosition > .25 ? localPosition : typeof twitchPosition === "number" && twitchPosition > .25 ? twitchPosition : playback.position;
+		const position = currentHostClock();
 		const playing = roomVideoRef.current ? !roomVideoRef.current.paused : playback.playing;
-		sync({
+		lastRoomPosition.current = position;
+		youtubePlaybackStartedAt.current = playing ? Date.now() - position * 1e3 : null;
+		setPlayback({
 			playing,
 			position
 		});
@@ -11777,12 +12286,21 @@ function WatchRoomSection() {
 		setInviteNotice("Sent the current video and timeline to every guest.");
 	};
 	const copyInvite = async () => {
-		const link = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(roomCode)}&theater=1`;
+		const link = shareableRoomInvite(window.location.origin, window.location.pathname, roomCode);
+		if (!link) {
+			setInviteNotice("localhost works only on this computer. Open Realhub from its home-network address, then copy the room invitation.");
+			return;
+		}
 		try {
+			if (!(await fetch(window.location.pathname, {
+				method: "HEAD",
+				cache: "no-store",
+				signal: AbortSignal.timeout(5e3)
+			})).ok) throw new Error("app unavailable");
 			await navigator.clipboard.writeText(link);
 			setInviteNotice("Theater invitation link copied.");
 		} catch {
-			setInviteNotice(`Share this theater link: ${link}`);
+			setInviteNotice("Realhub is not responding at this address. Reopen the app from its home-network address before copying the invitation.");
 		}
 	};
 	(0, import_react.useEffect)(() => {
@@ -11812,13 +12330,13 @@ function WatchRoomSection() {
 			args: []
 		}), target);
 	}, [
-		playback,
+		playback.playing,
 		remoteFrameReady,
 		remoteSeekNonce,
-		sharedVideo
+		sharedVideo?.id
 	]);
 	(0, import_react.useEffect)(() => {
-		if (sharedVideo?.remote?.kind !== "twitch") {
+		if (sharedVideo?.remote?.kind !== "twitch" || twitchClip) {
 			twitchPlayerRef.current = null;
 			return;
 		}
@@ -11828,6 +12346,8 @@ function WatchRoomSection() {
 		const hostId = `reelcase-twitch-${p2p.selfId}`;
 		host.id = hostId;
 		host.replaceChildren();
+		twitchPlayingRef.current = false;
+		setTwitchActuallyPlaying(false);
 		setTwitchPlayerStatus("Loading Twitch interactive player…");
 		loadTwitchEmbed().then((api) => {
 			if (cancelled) return;
@@ -11843,9 +12363,15 @@ function WatchRoomSection() {
 				...live ? { channel: sharedVideo.remote?.watchUrl?.split("/").pop() } : { video }
 			});
 			twitchPlayerRef.current = player;
+			lastTwitchPlaybackCommand.current = null;
 			const events = player.constructor;
 			player.addEventListener(events.READY ?? "ready", () => {
 				if (!cancelled) {
+					const duration = player.getDuration?.();
+					if (!live && typeof duration === "number" && Number.isFinite(duration) && duration > 0) setMeasuredDuration({
+						videoId: sharedVideo.id,
+						seconds: duration
+					});
 					setTwitchPlayerStatus("Twitch player ready. Use room controls to start.");
 					setTwitchPlayerReady(Date.now());
 				}
@@ -11858,6 +12384,8 @@ function WatchRoomSection() {
 				});
 			});
 			player.addEventListener(events.PAUSE ?? "pause", () => {
+				twitchPlayingRef.current = false;
+				setTwitchActuallyPlaying(false);
 				const position = player.getCurrentTime();
 				if (!cancelled && Date.now() > suppressRemotePlayerEchoUntil.current) sync({
 					playing: false,
@@ -11865,10 +12393,24 @@ function WatchRoomSection() {
 				});
 			});
 			player.addEventListener(events.SEEK ?? "seek", () => {
-				if (!cancelled && !live) sync({
+				if (!cancelled && !live && Date.now() > suppressRemotePlayerEchoUntil.current) sync({
 					playing: true,
-					position: player.getCurrentTime() || playback.position
+					position: player.getCurrentTime()
 				}, true);
+			});
+			player.addEventListener(events.PLAYING ?? "playing", () => {
+				if (!cancelled) {
+					twitchPlayingRef.current = true;
+					setTwitchActuallyPlaying(true);
+					setTwitchPlayerStatus("Twitch playback started.");
+				}
+			});
+			player.addEventListener(events.PLAYBACK_BLOCKED ?? "playback-blocked", () => {
+				if (!cancelled) {
+					twitchPlayingRef.current = false;
+					setTwitchActuallyPlaying(false);
+					setTwitchPlayerStatus("Twitch blocked playback. Press Play in its player.");
+				}
 			});
 		}).catch(() => {
 			if (!cancelled) setTwitchPlayerStatus("Twitch interactive player could not load. Open Twitch directly below.");
@@ -11876,38 +12418,55 @@ function WatchRoomSection() {
 		return () => {
 			cancelled = true;
 			twitchPlayerRef.current = null;
+			lastTwitchPlaybackCommand.current = null;
 			host.replaceChildren();
 		};
-	}, [p2p.selfId, sharedVideo?.id]);
+	}, [
+		p2p.selfId,
+		room,
+		sharedVideo?.id
+	]);
 	(0, import_react.useEffect)(() => {
-		if (sharedVideo?.remote?.kind !== "twitch") return;
+		if (sharedVideo?.remote?.kind !== "twitch" || twitchClip) return;
 		const player = twitchPlayerRef.current;
 		if (!player) return;
 		if (remoteSeekNonce !== lastTwitchSeekNonce.current) {
 			lastTwitchSeekNonce.current = remoteSeekNonce;
-			if (remoteSeekNonce && !sharedVideo.remote.live) player.seek(playback.position);
+			if (remoteSeekNonce && !sharedVideo.remote.live) {
+				suppressRemotePlayerEchoUntil.current = Date.now() + 1e3;
+				player.seek(clampRoomClock(playback.position));
+			}
 		}
-		suppressRemotePlayerEchoUntil.current = Date.now() + 750;
-		if (playback.playing) player.play();
-		else player.pause();
+		if (lastTwitchPlaybackCommand.current !== playback.playing) {
+			lastTwitchPlaybackCommand.current = playback.playing;
+			suppressRemotePlayerEchoUntil.current = Date.now() + 750;
+			if (playback.playing) player.play();
+			else player.pause();
+		}
 	}, [
-		playback,
+		playback.playing,
+		playback.position,
 		remoteSeekNonce,
-		sharedVideo,
+		sharedVideo?.id,
 		twitchPlayerReady
 	]);
 	const toggleRoomPlayback = () => {
 		const playing = !playback.playing;
 		const player = twitchPlayerRef.current;
-		if (sharedVideo?.remote?.kind === "twitch" && (!player || !twitchPlayerReady)) {
+		if (sharedVideo?.remote?.kind === "twitch" && !twitchClip && (!player || !twitchPlayerReady)) {
 			setInviteNotice("Twitch is still preparing its player. Wait for “Twitch player ready,” then press Play.");
 			return;
 		}
-		if (sharedVideo?.remote?.kind === "twitch" && player) {
+		if (sharedVideo?.remote?.kind === "twitch" && !twitchClip && player) {
+			lastTwitchPlaybackCommand.current = playing;
+			suppressRemotePlayerEchoUntil.current = Date.now() + 750;
 			if (playing) {
 				player.setMuted?.(false);
 				player.play();
 				setTwitchPlayerStatus("Starting Twitch from the room control…");
+				window.setTimeout(() => {
+					if (!twitchPlayingRef.current) setTwitchPlayerStatus("Twitch is waiting for a Play press inside its player.");
+				}, 1800);
 			} else player.pause();
 		}
 		sync({
@@ -12072,22 +12631,13 @@ function WatchRoomSection() {
 			setInviteNotice(`${share.name} matched locally. Waiting for the host to stage or play it.`);
 			return;
 		}
-		setSharedVideoId(`local:${share.fingerprint}`);
 		setLocalShareMatches({});
 		setPlayback({
 			playing: false,
 			position: 0
 		});
 		lastRoomPosition.current = 0;
-		p2p.send({
-			type: "share-ready",
-			...share
-		});
-		p2p.send({
-			type: "video",
-			videoId: `local:${share.fingerprint}`
-		});
-		setInviteNotice("Local video is staged by a privacy-preserving fingerprint. Guests choose their own permitted matching copy; no file bytes leave this computer.");
+		setInviteNotice("Local video selected on this device. Confirm guest access, then send a sharing request; no file bytes leave this computer.");
 	};
 	const queueVideo = (video) => {
 		if (video.id !== sharedVideoId && !queue.includes(video.id)) updateQueue([...queue, video.id]);
@@ -12133,7 +12683,7 @@ function WatchRoomSection() {
 		eyebrow: "LAN watch room",
 		icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Users, { className: "size-4" }),
 		title: "Watch together, on your terms.",
-		copy: "Create a private room code or join one on the same network. Peers connect directly; names, chat, and playback commands stay in the room.",
+		copy: "Create a private room code or join one on the same network. Peers exchange names, chat, and playback commands over a direct or configured relay path.",
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 			className: "mt-6 grid gap-4 lg:grid-cols-2",
 			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -12156,6 +12706,15 @@ function WatchRoomSection() {
 						className: "mt-3 w-full",
 						onClick: () => void copyInvite(),
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Copy, { className: "size-4" }), " Copy theater invitation link"]
+					}),
+					!roomInvite && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						className: "mt-2 text-xs leading-5 text-muted",
+						children: ["This localhost address opens only on this computer. Use the home-network address in the Connection guide before sharing with another device. ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							type: "button",
+							className: "text-accent underline",
+							onClick: () => useLibrary.getState().setSource("connection"),
+							children: "Open Connection guide"
+						})]
 					}),
 					inviteNotice && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "mt-2 break-all text-xs text-accent",
@@ -12297,9 +12856,9 @@ function WatchRoomSection() {
 		eyebrow: "Connected watch room",
 		icon: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Users, { className: "size-4" }),
 		title: joinedAsGuest ? `Theater · ${activeRoom}` : `Room ${activeRoom}`,
-		copy: joinedAsGuest ? "Guest theater view. The host's current video, queue, and timeline arrive as the connection settles." : "Direct peer connection for your selected guests. Playback events are synchronized across connected devices.",
+		copy: joinedAsGuest ? "Guest theater view. The host's current video, queue, and timeline arrive as the connection settles." : "Peer connection for your selected guests. Playback events are synchronized across connected devices.",
 		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-			className: "mt-6 grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(18rem,0.7fr)]",
+			className: "mt-6 grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(20rem,0.6fr)]",
 			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "min-w-0 rounded-lg bg-elevated p-5 shadow-border",
 				children: [
@@ -12318,6 +12877,7 @@ function WatchRoomSection() {
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 							size: "sm",
 							variant: "secondary",
+							disabled: !p2p.joined,
 							onClick: () => {
 								const invite = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(activeRoom)}&theater=1`;
 								const opened = window.open(invite, "reelcase-local-guest", "noopener,width=1200,height=820");
@@ -12329,7 +12889,8 @@ function WatchRoomSection() {
 							variant: "ghost",
 							onClick: () => void navigator.clipboard?.writeText(JSON.stringify({
 								room: activeRoom,
-								invitation: `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(activeRoom)}&theater=1`,
+								invitation: roomInvite,
+								invitationNote: roomInvite ? void 0 : "Open Realhub from a home-network address before sharing this room with another device.",
 								role: joinedAsGuest ? "guest" : "host",
 								self: p2p.selfId,
 								signaling: p2p.joined,
@@ -12343,9 +12904,28 @@ function WatchRoomSection() {
 							children: "Copy room diagnostic"
 						})]
 					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					!roomInvite && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						className: "mt-2 text-xs leading-5 text-muted",
+						children: ["A localhost invitation cannot open on another device. Open this room through the home-network address before sharing. ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							type: "button",
+							className: "text-accent underline",
+							onClick: () => useLibrary.getState().setSource("connection"),
+							children: "Open Connection guide"
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
 						className: "mt-3 rounded-sm bg-bg/45 p-3",
 						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("summary", {
+								className: "cursor-pointer text-xs font-medium text-fg",
+								children: [
+									"Connection details · ",
+									p2p.peers.filter((peer) => peer.connectionState === "connected").length,
+									"/",
+									p2p.peers.length,
+									" connected"
+								]
+							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "flex items-center justify-between gap-3",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
@@ -12403,7 +12983,7 @@ function WatchRoomSection() {
 									variant: "secondary",
 									disabled: !p2p.peers.some((peer) => peer.connectionState === "connected"),
 									onClick: () => {
-										setPulseStatus("Sending direct transport test…");
+										setPulseStatus("Sending chat transport test…");
 										p2p.send({
 											type: "room-pulse",
 											sentAt: Date.now()
@@ -12419,7 +12999,7 @@ function WatchRoomSection() {
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
 						className: "mt-2 font-display text-3xl text-fg",
-						children: playback.playing ? "Playing together" : "Paused together"
+						children: playback.playing && sharedVideo?.remote?.kind === "twitch" && !twitchClip && !twitchActuallyPlaying ? "Twitch waiting for playback" : playback.playing ? "Playing together" : "Paused together"
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 						className: "mt-2 text-sm text-muted",
@@ -12439,10 +13019,20 @@ function WatchRoomSection() {
 							"."
 						]
 					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
 						className: "mt-4 rounded-md border border-border bg-bg/45 p-3",
 						"aria-label": "Room reliability",
 						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("summary", {
+								className: "cursor-pointer text-xs font-medium text-fg",
+								children: [
+									"Room reliability · r",
+									roomHealth.queueRevision,
+									" · ",
+									roomHealth.staleDropped,
+									" stale commands dropped"
+								]
+							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "flex flex-wrap items-center justify-between gap-2",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
@@ -12453,7 +13043,11 @@ function WatchRoomSection() {
 									children: joinedAsGuest ? "Guest commands are requests; the host publishes the canonical state." : "This device is the host and publishes the canonical state."
 								})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 									className: "rounded-full bg-accent/15 px-2 py-1 text-xs text-accent",
-									children: p2p.peers.filter((peer) => peer.connectionState === "connected").length ? "direct path available" : "relay/signaling only"
+									children: p2p.peers.some((peer) => peer.connectionState === "connected" && peer.candidateType === "relay") ? "TURN relay connected" : p2p.peers.some((peer) => peer.connectionState === "connected" && [
+										"host",
+										"srflx",
+										"prflx"
+									].includes(peer.candidateType ?? "")) ? "direct path connected" : p2p.peers.some((peer) => peer.connectionState === "connected") ? "connected · path pending" : p2p.joined ? "signaling online · peer pending" : "connecting"
 								})]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -12548,7 +13142,7 @@ function WatchRoomSection() {
 								variant: "secondary",
 								onClick: () => sync({
 									...playback,
-									position: Math.max(0, playback.position - 15)
+									position: clampRoomClock(playback.position - 15)
 								}, true),
 								children: "−15 sec"
 							}),
@@ -12556,7 +13150,7 @@ function WatchRoomSection() {
 								variant: "secondary",
 								onClick: () => sync({
 									...playback,
-									position: playback.position + 15
+									position: clampRoomClock(playback.position + 15)
 								}, true),
 								children: "+15 sec"
 							}),
@@ -12596,12 +13190,19 @@ function WatchRoomSection() {
 						}, size))]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: `mt-3 mx-auto w-full max-w-full overflow-hidden rounded-md bg-bg shadow-border ${stageSize === "compact" ? "lg:max-w-2xl" : stageSize === "theater" ? "lg:max-w-6xl" : ""}`,
+						className: `mt-3 mx-auto w-full max-w-full overflow-hidden rounded-md bg-bg shadow-border ${stageSize === "compact" ? "lg:max-w-3xl" : ""}`,
 						children: localVideoUrl && localShareIsMatched ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("video", {
 							ref: roomVideoRef,
 							className: "aspect-video w-full bg-bg",
 							src: localVideoUrl,
 							controls: true,
+							onLoadedMetadata: () => {
+								const seconds = roomVideoRef.current?.duration;
+								if (typeof seconds === "number" && Number.isFinite(seconds)) setMeasuredDuration({
+									videoId: sharedVideoId,
+									seconds
+								});
+							},
 							onEnded: playNext,
 							onPlay: () => sync({
 								playing: true,
@@ -12615,7 +13216,7 @@ function WatchRoomSection() {
 								playing: roomVideoRef.current ? !roomVideoRef.current.paused : false,
 								position: roomVideoRef.current?.currentTime ?? 0
 							})
-						}) : sharedVideo?.remote?.kind === "twitch" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						}) : sharedVideo?.remote?.kind === "twitch" && !twitchClip ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "relative aspect-video w-full bg-bg",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 								ref: twitchPlayerHostRef,
@@ -12637,6 +13238,13 @@ function WatchRoomSection() {
 							className: "aspect-video w-full bg-bg",
 							src: sharedVideo.src,
 							controls: true,
+							onLoadedMetadata: () => {
+								const seconds = roomVideoRef.current?.duration;
+								if (typeof seconds === "number" && Number.isFinite(seconds)) setMeasuredDuration({
+									videoId: sharedVideoId,
+									seconds
+								});
+							},
 							onEnded: playNext,
 							onPlay: () => sync({
 								playing: true,
@@ -12659,20 +13267,38 @@ function WatchRoomSection() {
 									position: media.currentTime
 								});
 							}
-						}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "flex aspect-video items-center justify-center px-6 text-center text-sm text-muted",
-							children: sharedVideoId.startsWith("local:") ? "This local handoff is waiting for a matching permitted file on this device." : "Choose a starter movie or an online video to show it to the room."
+						}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "flex aspect-video flex-col items-center justify-center px-6 text-center text-sm text-muted",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+								src: "/art/realhub-projector.webp",
+								alt: "",
+								loading: "lazy",
+								className: "mb-2 h-28 w-36 object-contain"
+							}), sharedVideoId.startsWith("local:") ? "This local handoff is waiting for a matching permitted file on this device." : "Choose a starter movie or an online video to show it to the room."]
 						})
 					}),
 					sharedVideo?.remote?.kind === "youtube" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 						className: "mt-2 text-xs text-subtle",
 						children: "YouTube room controls retain the last trusted clock on pause, then resume from that same point. Use the room controls so every guest receives the same command."
+					}) : sharedVideo?.remote?.kind === "twitch" && twitchClip ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						className: "mt-2 text-xs text-subtle",
+						children: [
+							"Twitch clips use Twitch’s separate clip player. Use its own controls to watch; room selection and chat remain shared. If Twitch shows a content classification error, ",
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", {
+								href: sharedVideo.remote.watchUrl,
+								target: "_blank",
+								rel: "noreferrer",
+								className: "text-accent underline",
+								children: "open the clip directly"
+							}),
+							"."
+						]
 					}) : sharedVideo?.remote?.kind === "twitch" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "mt-2 flex flex-wrap items-center gap-2 text-xs text-subtle",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", {
 							className: "text-fg",
 							children: "Twitch currently needs one manual Play press in each viewer’s embed."
-						}), " Browser media rules prevent Reelcase from forcing a guest stream to start. Selection, queue, chat, and the preserved pause clock still sync through the room controls."] }), sharedVideo.remote.watchUrl && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
+						}), " Browser media rules prevent Realhub from forcing a guest stream to start. Selection, queue, chat, and the preserved pause clock still sync through the room controls."] }), sharedVideo.remote.watchUrl && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("a", {
 							href: sharedVideo.remote.watchUrl,
 							target: "_blank",
 							rel: "noreferrer",
@@ -12680,521 +13306,724 @@ function WatchRoomSection() {
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ExternalLink, { className: "mr-1 size-3" }), "Open Twitch directly"]
 						})]
 					}) : null,
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-						className: "mt-3 text-xs text-muted",
-						children: "Recommended from your playable library — saved titles get a small lift while unplayed playable videos rotate to the front. Ready local files can be added to the queue below without taking over the stage."
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "mt-2 flex flex-wrap gap-2",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-							size: "sm",
-							variant: "ghost",
-							onClick: () => {
-								setCandidateSeed(Date.now());
-								setRoomPickLimit(18);
-							},
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Shuffle, { className: "size-3.5" }), " Mix playable picks"]
-						}), roomCandidates.length > roomPickLimit && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-							size: "sm",
-							variant: "ghost",
-							onClick: () => setRoomPickLimit((limit) => Math.min(roomCandidates.length, limit + 18)),
-							children: "Load 18 more playable videos"
-						})]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "mt-3 flex gap-2 overflow-x-auto pb-2",
-						children: roomCandidates.slice(0, roomPickLimit).map((video) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-							type: "button",
-							onClick: () => chooseVideo(video),
-							className: `w-36 shrink-0 overflow-hidden rounded-sm text-left shadow-border ${video.id === sharedVideoId ? "bg-accent text-accent-fg" : "bg-bg/45 text-fg"}`,
-							children: [watchRoomPoster(video) ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
-								src: watchRoomPoster(video),
-								alt: "",
-								className: "aspect-video w-full object-cover",
-								onError: (event) => {
-									const fallback = video.remote?.kind === "youtube" && video.remote.videoId ? `https://i.ytimg.com/vi/${video.remote.videoId}/mqdefault.jpg` : "";
-									if (fallback && event.currentTarget.src !== fallback) event.currentTarget.src = fallback;
-									else event.currentTarget.style.display = "none";
-								}
-							}) : null, /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-								className: "block truncate px-2 py-2 text-xs",
-								children: video.name
-							})]
-						}, video.id))
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "mt-3 rounded-md bg-bg/45 p-3 shadow-border",
+					sharedVideo && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 flex flex-wrap items-center gap-2 rounded-md border border-border bg-bg/45 p-3",
 						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "flex items-center justify-between gap-3",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "text-sm font-medium text-fg",
-									children: "Up next queue"
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "text-xs text-muted",
-									children: joinedAsGuest ? "Propose changes; host confirms the shared order" : "Host-controlled shared order"
-								})]
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								className: "mr-auto min-w-0 truncate text-sm font-medium text-fg",
+								children: sharedVideo.name
 							}),
-							queue.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "mt-2 space-y-2",
-								children: queue.map((id, index) => {
-									const video = videos.find((item) => item.id === id);
-									return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "flex items-center justify-between gap-3 rounded-sm bg-elevated p-2",
-										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-											className: "flex min-w-0 items-center gap-3",
-											children: [
-												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-													className: "flex size-7 shrink-0 items-center justify-center rounded-full bg-accent/15 text-xs font-semibold text-accent",
-													children: index + 1
-												}),
-												video && watchRoomPoster(video) ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
-													src: watchRoomPoster(video),
-													alt: "",
-													className: "aspect-video w-16 shrink-0 rounded-sm object-cover"
-												}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-													className: "flex aspect-video w-16 shrink-0 items-center justify-center rounded-sm bg-bg/60 text-xs text-muted",
-													children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Play, { className: "size-3" })
-												}),
-												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-													className: "min-w-0",
-													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-														className: "block truncate text-sm text-fg",
-														children: video?.name ?? "Unavailable title"
-													}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-														className: "block truncate text-xs text-muted",
-														children: video?.remote?.channelName ?? (video?.remote ? "Remote video" : "Local file")
-													})]
-												})
-											]
-										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-											className: "flex gap-1",
-											children: [
-												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-													size: "sm",
-													variant: "secondary",
-													disabled: joinedAsGuest,
-													onClick: () => playQueuedNow(id),
-													children: "Play now"
-												}),
-												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-													size: "sm",
-													variant: "ghost",
-													disabled: joinedAsGuest || index === 0,
-													onClick: () => {
-														const next = [...queue];
-														[next[index - 1], next[index]] = [next[index], next[index - 1]];
-														updateQueue(next);
-													},
-													children: "↑"
-												}),
-												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-													size: "sm",
-													variant: "ghost",
-													disabled: joinedAsGuest,
-													onClick: () => updateQueue(queue.filter((item) => item !== id)),
-													children: "Remove"
-												})
-											]
-										})]
-									}, id);
-								})
-							}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "mt-2 text-xs text-muted",
-								children: "Choose “Add next” below to build the shared queue."
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+								size: "sm",
+								variant: favorites[sharedVideo.id] ? "default" : "secondary",
+								onClick: () => toggleFavorite(sharedVideo.id),
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Heart, { className: `size-4 ${favorites[sharedVideo.id] ? "fill-current" : ""}` }), favorites[sharedVideo.id] ? "Favorited" : "Favorite"]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "mt-3 flex gap-2 overflow-x-auto pb-1",
-								children: roomCandidates.filter((video) => video.id !== sharedVideoId).slice(0, 12).map((video) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-									className: "inline-flex shrink-0 overflow-hidden rounded-sm shadow-border",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-										size: "sm",
-										variant: "secondary",
-										onClick: () => queueImmediately(video),
-										children: "Play next"
-									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-										size: "sm",
-										variant: "ghost",
-										disabled: queue.includes(video.id),
-										onClick: () => queueVideo(video),
-										children: ["+ queue · ", video.name]
+								className: "flex items-center gap-1",
+								"aria-label": "Rate current room video",
+								children: [
+									1,
+									2,
+									3,
+									4,
+									5
+								].map((value) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+									type: "button",
+									className: "flex size-9 items-center justify-center rounded-md text-accent hover:bg-elevated",
+									"aria-label": `Rate ${sharedVideo.name} ${value} stars`,
+									"aria-pressed": roomRating === value,
+									onClick: () => {
+										setRating(sharedVideo.id, roomRating === value ? 0 : value);
+										setRoomRatingRevision((revision) => revision + 1);
+									},
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Star, { className: `size-4 ${value <= roomRating ? "fill-current" : ""}` })
+								}, value))
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
+						className: "mt-5 rounded-md border border-border bg-bg/35 p-3",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("summary", {
+								className: "cursor-pointer text-sm font-medium text-fg",
+								children: "Explore more videos and advanced queue controls"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-3 text-xs text-muted",
+								children: "Recommended from your playable library — saved titles get a small lift while unplayed playable videos rotate to the front. Ready local files can be added to the queue below without taking over the stage."
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "mt-2 flex flex-wrap gap-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+									size: "sm",
+									variant: "ghost",
+									onClick: () => {
+										setCandidateSeed(Date.now());
+										setRoomPickLimit(18);
+										setYoutubePickLimit(24);
+									},
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Shuffle, { className: "size-3.5" }), " Mix playable picks"]
+								}), roomCandidates.length > roomPickLimit && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+									size: "sm",
+									variant: "ghost",
+									onClick: () => setRoomPickLimit((limit) => Math.min(roomCandidates.length, limit + 18)),
+									children: "Load 18 more playable videos"
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "mt-3 flex gap-2 overflow-x-auto pb-2",
+								children: roomCandidates.slice(0, roomPickLimit).map((video) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+									type: "button",
+									onClick: () => chooseVideo(video),
+									className: `w-36 shrink-0 overflow-hidden rounded-sm text-left shadow-border ${video.id === sharedVideoId ? "bg-accent text-accent-fg" : "bg-bg/45 text-fg"}`,
+									children: [watchRoomPoster(video) ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+										src: watchRoomPoster(video),
+										alt: "",
+										className: "aspect-video w-full object-cover",
+										onError: (event) => {
+											const fallback = video.remote?.kind === "youtube" && video.remote.videoId ? `https://i.ytimg.com/vi/${video.remote.videoId}/mqdefault.jpg` : "";
+											if (fallback && event.currentTarget.src !== fallback) event.currentTarget.src = fallback;
+											else event.currentTarget.style.display = "none";
+										}
+									}) : null, /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "block truncate px-2 py-2 text-xs",
+										children: video.name
 									})]
 								}, video.id))
 							}),
-							queueRecommendations.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "mt-4 border-t border-border pt-3",
+							youtubeRoomCandidates.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+								className: "mt-4",
+								"aria-label": "YouTube recommendations",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "flex items-center justify-between gap-3",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										className: "text-xs font-medium text-fg",
-										children: "More queue ideas"
-									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									className: "flex flex-wrap items-center justify-between gap-2",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
+										className: "text-sm font-semibold text-fg",
+										children: "More from YouTube"
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 										className: "text-xs text-muted",
-										children: "Different from the theater picks above"
+										children: [youtubeRoomCandidates.length, " playable titles in your library"]
+									})] }), youtubeRoomCandidates.length > youtubePickLimit && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										size: "sm",
+										variant: "secondary",
+										onClick: () => setYoutubePickLimit((limit) => Math.min(youtubeRoomCandidates.length, limit + 24)),
+										children: "Show 24 more YouTube videos"
 									})]
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-									className: "mt-2 flex gap-2 overflow-x-auto pb-1",
-									children: queueRecommendations.map((video) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-										className: "inline-flex shrink-0 overflow-hidden rounded-sm shadow-border",
-										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-											size: "sm",
-											variant: "secondary",
-											onClick: () => queueImmediately(video),
-											children: "Play next"
-										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-											size: "sm",
-											variant: "ghost",
-											onClick: () => queueVideo(video),
-											children: ["+ queue · ", video.name]
+									className: "mt-2 flex gap-2 overflow-x-auto pb-2",
+									children: youtubeRoomCandidates.slice(0, youtubePickLimit).map((video) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+										type: "button",
+										onClick: () => chooseVideo(video),
+										className: `w-36 shrink-0 overflow-hidden rounded-sm text-left shadow-border ${video.id === sharedVideoId ? "bg-accent text-accent-fg" : "bg-bg/45 text-fg"}`,
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+											src: watchRoomPoster(video) || `https://i.ytimg.com/vi/${video.remote?.videoId}/mqdefault.jpg`,
+											alt: "",
+											loading: "lazy",
+											className: "aspect-video w-full object-cover",
+											onError: (event) => {
+												const fallback = `https://i.ytimg.com/vi/${video.remote?.videoId}/mqdefault.jpg`;
+												if (event.currentTarget.src !== fallback) event.currentTarget.src = fallback;
+												else event.currentTarget.style.display = "none";
+											}
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "block truncate px-2 py-2 text-xs",
+											children: video.name
 										})]
 									}, video.id))
 								})]
 							}),
-							localQueueCandidates.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "mt-4 border-t border-border pt-3",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "flex items-center justify-between gap-3",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										className: "text-xs font-medium text-fg",
-										children: "Ready local files"
-									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-										className: "text-xs text-muted",
-										children: "Add to queue without opening now"
-									})]
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-									className: "mt-2 flex gap-2 overflow-x-auto pb-1",
-									children: localQueueCandidates.map((video) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-										size: "sm",
-										variant: "ghost",
-										onClick: () => queueVideo(video),
-										children: ["+ queue · ", video.name]
-									}, video.id))
-								})]
-							}),
-							localQueue.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "mt-4 border-t border-border pt-3",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "flex items-center justify-between gap-3",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										className: "text-xs font-medium text-fg",
-										children: "Approved local handoffs"
-									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-										className: "text-xs text-muted",
-										children: "Shared manifest · files stay on each device"
-									})]
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-									className: "mt-2 space-y-2",
-									children: localQueue.map((share) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "flex flex-wrap items-center justify-between gap-2 rounded-sm bg-elevated px-3 py-2",
-										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-											className: "min-w-0 truncate text-xs text-fg",
-											children: [
-												share.name,
-												" · ",
-												bytes(share.size)
-											]
-										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-											className: "flex gap-1",
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "mt-3 rounded-md bg-bg/45 p-3 shadow-border",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "flex items-center justify-between gap-3",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "text-sm font-medium text-fg",
+											children: "Up next queue"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "text-xs text-muted",
+											children: joinedAsGuest ? "Propose changes; host confirms the shared order" : "Host-controlled shared order"
+										})]
+									}),
+									queue.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "mt-2 space-y-2",
+										children: queue.map((id, index) => {
+											const video = videos.find((item) => item.id === id);
+											return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												className: "flex items-center justify-between gap-3 rounded-sm bg-elevated p-2",
+												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "flex min-w-0 items-center gap-3",
+													children: [
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+															className: "flex size-7 shrink-0 items-center justify-center rounded-full bg-accent/15 text-xs font-semibold text-accent",
+															children: index + 1
+														}),
+														video && watchRoomPoster(video) ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+															src: watchRoomPoster(video),
+															alt: "",
+															className: "aspect-video w-16 shrink-0 rounded-sm object-cover"
+														}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+															className: "flex aspect-video w-16 shrink-0 items-center justify-center rounded-sm bg-bg/60 text-xs text-muted",
+															children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Play, { className: "size-3" })
+														}),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+															className: "min-w-0",
+															children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+																className: "block truncate text-sm text-fg",
+																children: video?.name ?? "Unavailable title"
+															}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+																className: "block truncate text-xs text-muted",
+																children: video?.remote?.channelName ?? (video?.remote ? "Remote video" : "Local file")
+															})]
+														})
+													]
+												}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "flex gap-1",
+													children: [
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+															size: "sm",
+															variant: "secondary",
+															disabled: joinedAsGuest,
+															onClick: () => playQueuedNow(id),
+															children: "Play now"
+														}),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+															size: "sm",
+															variant: "ghost",
+															disabled: joinedAsGuest || index === 0,
+															onClick: () => {
+																const next = [...queue];
+																[next[index - 1], next[index]] = [next[index], next[index - 1]];
+																updateQueue(next);
+															},
+															children: "↑"
+														}),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+															size: "sm",
+															variant: "ghost",
+															disabled: joinedAsGuest,
+															onClick: () => updateQueue(queue.filter((item) => item !== id)),
+															children: "Remove"
+														})
+													]
+												})]
+											}, id);
+										})
+									}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "mt-2 text-xs text-muted",
+										children: "Choose “Add next” below to build the shared queue."
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "mt-3 flex gap-2 overflow-x-auto pb-1",
+										children: roomCandidates.filter((video) => video.id !== sharedVideoId).slice(0, 12).map((video) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+											className: "inline-flex shrink-0 overflow-hidden rounded-sm shadow-border",
 											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
 												size: "sm",
 												variant: "secondary",
-												onClick: () => stageLocalShare(share),
-												children: "Stage"
-											}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+												onClick: () => queueImmediately(video),
+												children: "Play next"
+											}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
 												size: "sm",
 												variant: "ghost",
-												onClick: () => updateLocalQueue(localQueue.filter((item) => item.fingerprint !== share.fingerprint)),
-												children: "Remove"
+												disabled: queue.includes(video.id),
+												onClick: () => queueVideo(video),
+												children: ["+ queue · ", video.name]
 											})]
+										}, video.id))
+									}),
+									queueRecommendations.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "mt-4 border-t border-border pt-3",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "flex items-center justify-between gap-3",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+												className: "text-xs font-medium text-fg",
+												children: "More queue ideas"
+											}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+												className: "text-xs text-muted",
+												children: "Different from the theater picks above"
+											})]
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "mt-2 flex gap-2 overflow-x-auto pb-1",
+											children: queueRecommendations.map((video) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+												className: "inline-flex shrink-0 overflow-hidden rounded-sm shadow-border",
+												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+													size: "sm",
+													variant: "secondary",
+													onClick: () => queueImmediately(video),
+													children: "Play next"
+												}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+													size: "sm",
+													variant: "ghost",
+													onClick: () => queueVideo(video),
+													children: ["+ queue · ", video.name]
+												})]
+											}, video.id))
 										})]
-									}, share.fingerprint))
-								})]
+									}),
+									localQueueCandidates.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "mt-4 border-t border-border pt-3",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "flex items-center justify-between gap-3",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+												className: "text-xs font-medium text-fg",
+												children: "Ready local files"
+											}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+												className: "text-xs text-muted",
+												children: "Add to queue without opening now"
+											})]
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "mt-2 flex gap-2 overflow-x-auto pb-1",
+											children: localQueueCandidates.map((video) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+												size: "sm",
+												variant: "ghost",
+												onClick: () => queueVideo(video),
+												children: ["+ queue · ", video.name]
+											}, video.id))
+										})]
+									}),
+									localQueue.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "mt-4 border-t border-border pt-3",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "flex items-center justify-between gap-3",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+												className: "text-xs font-medium text-fg",
+												children: "Approved local handoffs"
+											}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+												className: "text-xs text-muted",
+												children: "Shared manifest · files stay on each device"
+											})]
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "mt-2 space-y-2",
+											children: localQueue.map((share) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												className: "flex flex-wrap items-center justify-between gap-2 rounded-sm bg-elevated px-3 py-2",
+												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+													className: "min-w-0 truncate text-xs text-fg",
+													children: [
+														share.name,
+														" · ",
+														bytes(share.size)
+													]
+												}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "flex gap-1",
+													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+														size: "sm",
+														variant: "secondary",
+														onClick: () => stageLocalShare(share),
+														children: "Stage"
+													}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+														size: "sm",
+														variant: "ghost",
+														onClick: () => updateLocalQueue(localQueue.filter((item) => item.fingerprint !== share.fingerprint)),
+														children: "Remove"
+													})]
+												})]
+											}, share.fingerprint))
+										})]
+									})
+								]
 							})
 						]
 					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "mt-5 rounded-md bg-bg/45 p-4 shadow-border",
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
+						className: "mt-4 rounded-md border border-border bg-bg/35 p-3",
 						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "flex items-center gap-2",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(MonitorPlay, { className: "size-4 text-accent" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "text-sm font-medium text-fg",
-									children: "Share local video"
-								})]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "mt-1 text-xs text-muted",
-								children: "Choose a file only when every guest has permission to view it. Guests confirm access before you start sharing."
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
-								className: "mt-3 block",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-									className: "sr-only",
-									type: "file",
-									accept: "video/*",
-									onChange: (event) => {
-										const file = event.target.files?.[0] ?? null;
-										selectLocalVideo(file);
-									}
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "inline-flex min-h-10 items-center rounded-sm bg-elevated px-3 text-sm text-fg shadow-border",
-									children: localVideo ? localVideo.name : "Choose local video"
-								})]
-							}),
-							localShare && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-								className: "mt-2 text-xs text-subtle",
-								children: [
-									"Fingerprint match: name + ",
-									bytes(localShare.size),
-									" + modified ",
-									new Date(localShare.modified).toLocaleDateString(),
-									". This is shared as metadata only."
-								]
-							}),
-							localShare && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-								className: "mt-1 text-xs text-muted",
-								children: [
-									"Compatibility matrix · ",
-									Object.values(localShareMatches).filter((match) => match.fingerprint === localShare.fingerprint).length,
-									"/",
-									p2p.peers.length,
-									" guests matched this exact file",
-									p2p.peers.length ? ". Stage or play only when the expected guests are ready." : ". Connect a guest to verify the handoff."
-								]
-							}),
-							pendingLocalShare && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-								className: "mt-2 text-xs text-accent",
-								children: [
-									"Guest match requested: ",
-									pendingLocalShare.name,
-									" · ",
-									bytes(pendingLocalShare.size),
-									". Choose the matching permitted copy above."
-								]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
-								className: "mt-3 flex items-start gap-2 text-xs text-muted",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-									type: "checkbox",
-									checked: guestAccess,
-									onChange: (event) => setGuestAccess(event.target.checked)
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "I confirm guests have access to this video and may receive this direct share." })]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-								size: "sm",
-								className: "mt-3",
-								disabled: !localVideo || !guestAccess || !p2p.peers.length,
-								onClick: () => {
-									if (!localShare) return;
-									setLocalShareMatches({});
-									p2p.send({
-										type: "share-ready",
-										...localShare
-									});
-									p2p.send({
-										type: "video",
-										videoId: `local:${localShare.fingerprint}`
-									});
-									setInviteNotice("Local-share request sent with a match fingerprint. Guests must choose their permitted local copy before playback can align.");
-								},
-								children: "Send sharing request"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-								size: "sm",
-								variant: "secondary",
-								className: "mt-3 ml-2",
-								disabled: !localShare,
-								onClick: () => {
-									if (!localShare) return;
-									if (!localQueue.some((item) => item.fingerprint === localShare.fingerprint)) updateLocalQueue([...localQueue, localShare]);
-									setInviteNotice("Added this local file to the shared handoff queue. Guests see only its match metadata.");
-								},
-								children: "Add to local queue"
-							})
-						]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "mt-4 rounded-md bg-bg/45 p-4 shadow-border",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "text-sm font-medium text-fg",
-								children: "Watch-party mini games"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "mt-1 text-xs text-muted",
-								children: "Start a lightweight shared vote while the room is paused. Votes are sent to connected guests."
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-								className: "mt-3",
-								value: partyPrompt,
-								onChange: (event) => setPartyPrompt(event.target.value),
-								"aria-label": "Party vote question"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "mt-3 flex flex-wrap gap-2",
-								children: Object.keys(partyVotes).map((choice) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-									size: "sm",
-									variant: "secondary",
-									onClick: () => {
-										const next = (partyVotes[choice] ?? 0) + 1;
-										setPartyVotes((votes) => ({
-											...votes,
-											[choice]: next
-										}));
-										p2p.send({
-											type: "party-vote",
-											name: choice,
-											position: next
-										});
-									},
-									children: [
-										choice,
-										" · ",
-										partyVotes[choice] ?? 0
-									]
-								}, choice))
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-								className: "mt-3 text-xs text-accent",
-								children: ["Now voting: ", partyPrompt]
-							})
-						]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "mt-3 rounded-md bg-bg/45 p-4 shadow-border",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-								className: "flex items-center gap-2 text-sm font-medium text-fg",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(MonitorPlay, { className: "size-4 text-accent" }), "Roku handoff"]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("ol", {
-								className: "mt-2 space-y-1 text-xs text-muted",
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-										className: "mr-2 text-accent",
-										children: "1."
-									}), "On Roku, open Settings → Network → About and copy its IP address."] }),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-										className: "mr-2 text-accent",
-										children: "2."
-									}), "Enter it below to save this TV as a trusted handoff target."] }),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-										className: "mr-2 text-accent",
-										children: "3."
-									}), "Launch the channel and copy the room invitation to your Roku browser or companion app."] })
-								]
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("summary", {
+								className: "cursor-pointer text-sm font-medium text-fg",
+								children: "Local sharing, games & TV"
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "mt-3 flex flex-col gap-2 sm:flex-row",
+								className: "mt-5 rounded-md bg-bg/45 p-4 shadow-border",
 								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-										value: rokuAddress,
-										onChange: (event) => {
-											setRokuAddress(event.target.value);
-											setRokuReady(false);
-										},
-										placeholder: "Roku IP address, e.g. 192.168.1.24",
-										"aria-label": "Roku IP address"
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "flex items-center gap-2",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(MonitorPlay, { className: "size-4 text-accent" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "text-sm font-medium text-fg",
+											children: "Share local video"
+										})]
 									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-										variant: "secondary",
-										disabled: !rokuAddress.trim(),
-										onClick: () => {
-											setRokuReady(true);
-											localStorage.setItem("reelcase.roku", rokuAddress.trim());
-										},
-										children: "Save & pair TV"
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "mt-1 text-xs text-muted",
+										children: "Choose a file only when every guest has permission to view it. Guests confirm access before you start sharing."
 									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-										variant: "secondary",
-										onClick: () => void (async () => {
-											try {
-												const devices = (await (await fetch("http://127.0.0.1:43123/roku/discover")).json()).devices ?? [];
-												setRokuDevices(devices);
-												setRokuNotice(devices.length ? `${devices.length} Roku device${devices.length === 1 ? "" : "s"} found on this network.` : "No Roku devices responded. You can still pair one by its IP address.");
-											} catch {
-												setRokuNotice("Roku discovery needs the local Reelcase Companion running on this Windows computer.");
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+										className: "mt-3 block",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+											className: "sr-only",
+											type: "file",
+											accept: "video/*",
+											onChange: (event) => {
+												const file = event.target.files?.[0] ?? null;
+												selectLocalVideo(file);
 											}
-										})(),
-										children: "Discover TVs"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "inline-flex min-h-10 items-center rounded-sm bg-elevated px-3 text-sm text-fg shadow-border",
+											children: localVideo ? localVideo.name : "Choose local video"
+										})]
+									}),
+									localShare && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "mt-2 text-xs text-subtle",
+										children: [
+											"Fingerprint match: name + ",
+											bytes(localShare.size),
+											" + modified ",
+											new Date(localShare.modified).toLocaleDateString(),
+											". This is shared as metadata only."
+										]
+									}),
+									localShare && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "mt-1 text-xs text-muted",
+										children: [
+											"Compatibility matrix · ",
+											Object.values(localShareMatches).filter((match) => match.fingerprint === localShare.fingerprint).length,
+											"/",
+											p2p.peers.length,
+											" guests matched this exact file",
+											p2p.peers.length ? ". Stage or play only when the expected guests are ready." : ". Connect a guest to verify the handoff."
+										]
+									}),
+									pendingLocalShare && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "mt-2 text-xs text-accent",
+										children: [
+											"Guest match requested: ",
+											pendingLocalShare.name,
+											" · ",
+											bytes(pendingLocalShare.size),
+											". Choose the matching permitted copy above."
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+										className: "mt-3 flex items-start gap-2 text-xs text-muted",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+											type: "checkbox",
+											checked: guestAccess,
+											onChange: (event) => setGuestAccess(event.target.checked)
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "I confirm guests have access to this video and may receive this direct share." })]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										size: "sm",
+										className: "mt-3",
+										disabled: !localVideo || !guestAccess || !p2p.peers.length,
+										onClick: () => {
+											if (!localShare) return;
+											setSharedVideoId(`local:${localShare.fingerprint}`);
+											setLocalShareMatches({});
+											p2p.send({
+												type: "share-ready",
+												...localShare
+											});
+											p2p.send({
+												type: "video",
+												videoId: `local:${localShare.fingerprint}`
+											});
+											setInviteNotice("Local-share request sent with a match fingerprint. Guests must choose their permitted local copy before playback can align.");
+										},
+										children: "Send sharing request"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										size: "sm",
+										variant: "secondary",
+										className: "mt-3 ml-2",
+										disabled: !localShare,
+										onClick: () => {
+											if (!localShare) return;
+											if (!localQueue.some((item) => item.fingerprint === localShare.fingerprint)) updateLocalQueue([...localQueue, localShare]);
+											setInviteNotice("Added this local file to the shared handoff queue. Guests see only its match metadata.");
+										},
+										children: "Add to local queue"
 									})
 								]
 							}),
-							rokuNotice && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								className: "mt-2 text-xs text-muted",
-								children: rokuNotice
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "mt-4 rounded-md bg-bg/45 p-4 shadow-border",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "text-sm font-medium text-fg",
+										children: "Watch-party mini games"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "mt-1 text-xs text-muted",
+										children: "Start a lightweight shared vote while the room is paused. Votes are sent to connected guests."
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+										className: "mt-3",
+										value: partyPrompt,
+										onChange: (event) => setPartyPrompt(event.target.value),
+										"aria-label": "Party vote question"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "mt-3 flex flex-wrap gap-2",
+										children: Object.keys(partyVotes).map((choice) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+											size: "sm",
+											variant: "secondary",
+											onClick: () => {
+												const next = (partyVotes[choice] ?? 0) + 1;
+												setPartyVotes((votes) => ({
+													...votes,
+													[choice]: next
+												}));
+												p2p.send({
+													type: "party-vote",
+													name: choice,
+													position: next
+												});
+											},
+											children: [
+												choice,
+												" · ",
+												partyVotes[choice] ?? 0
+											]
+										}, choice))
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "mt-3 text-xs text-accent",
+										children: ["Now voting: ", partyPrompt]
+									})
+								]
 							}),
-							rokuDevices.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "mt-2 flex flex-wrap gap-2",
-								children: rokuDevices.map((device) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-									size: "sm",
-									variant: "secondary",
-									onClick: () => {
-										setRokuAddress(device.address);
-										setRokuReady(true);
-										localStorage.setItem("reelcase.roku", device.address);
-									},
-									children: device.address
-								}, device.address))
-							}),
-							rokuReady && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "mt-3 rounded-sm bg-elevated p-3",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-									className: "text-xs text-accent",
-									children: ["Step 3 ready · ", rokuAddress]
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "mt-2 flex flex-wrap gap-2",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-										size: "sm",
-										onClick: () => {
-											const url = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(activeRoom)}`;
-											window.open(`http://${rokuAddress}:8060/launch/837`, "_blank", "noopener");
-											navigator.clipboard?.writeText(url).catch(() => {});
-										},
-										children: "Launch & copy room link"
-									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-										size: "sm",
-										variant: "ghost",
-										onClick: () => {
-											setRokuReady(false);
-											localStorage.removeItem("reelcase.roku");
-										},
-										children: "Forget TV"
-									})]
-								})]
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "mt-3 rounded-md bg-bg/45 p-4 shadow-border",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+										className: "flex items-center gap-2 text-sm font-medium text-fg",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(MonitorPlay, { className: "size-4 text-accent" }), "Roku handoff"]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("ol", {
+										className: "mt-2 space-y-1 text-xs text-muted",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+												className: "mr-2 text-accent",
+												children: "1."
+											}), "On Roku, open Settings → Network → About and copy its IP address."] }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+												className: "mr-2 text-accent",
+												children: "2."
+											}), "Enter it below to save this TV as a trusted handoff target."] }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+												className: "mr-2 text-accent",
+												children: "3."
+											}), "Launch the channel and copy the room invitation to your Roku browser or companion app."] })
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "mt-3 flex flex-col gap-2 sm:flex-row",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+												value: rokuAddress,
+												onChange: (event) => {
+													setRokuAddress(event.target.value);
+													setRokuReady(false);
+												},
+												placeholder: "Roku IP address, e.g. 192.168.1.24",
+												"aria-label": "Roku IP address"
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+												variant: "secondary",
+												disabled: !rokuAddress.trim(),
+												onClick: () => {
+													setRokuReady(true);
+													localStorage.setItem("reelcase.roku", rokuAddress.trim());
+												},
+												children: "Save & pair TV"
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+												variant: "secondary",
+												onClick: () => void (async () => {
+													try {
+														const devices = (await (await fetch("http://127.0.0.1:43123/roku/discover")).json()).devices ?? [];
+														setRokuDevices(devices);
+														setRokuNotice(devices.length ? `${devices.length} Roku device${devices.length === 1 ? "" : "s"} found on this network.` : "No Roku devices responded. You can still pair one by its IP address.");
+													} catch {
+														setRokuNotice("Roku discovery needs the local Realhub Companion running on this Windows computer.");
+													}
+												})(),
+												children: "Discover TVs"
+											})
+										]
+									}),
+									rokuNotice && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "mt-2 text-xs text-muted",
+										children: rokuNotice
+									}),
+									rokuDevices.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "mt-2 flex flex-wrap gap-2",
+										children: rokuDevices.map((device) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+											size: "sm",
+											variant: "secondary",
+											onClick: () => {
+												setRokuAddress(device.address);
+												setRokuReady(true);
+												localStorage.setItem("reelcase.roku", device.address);
+											},
+											children: device.address
+										}, device.address))
+									}),
+									rokuReady && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "mt-3 rounded-sm bg-elevated p-3",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+											className: "text-xs text-accent",
+											children: ["Step 3 ready · ", rokuAddress]
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "mt-2 flex flex-wrap gap-2",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+												size: "sm",
+												onClick: () => {
+													const url = `${window.location.origin}${window.location.pathname}?room=${encodeURIComponent(activeRoom)}`;
+													window.open(`http://${rokuAddress}:8060/launch/837`, "_blank", "noopener");
+													navigator.clipboard?.writeText(url).catch(() => {});
+												},
+												children: "Launch & copy room link"
+											}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+												size: "sm",
+												variant: "ghost",
+												onClick: () => {
+													setRokuReady(false);
+													localStorage.removeItem("reelcase.roku");
+												},
+												children: "Forget TV"
+											})]
+										})]
+									})
+								]
 							})
 						]
 					})
 				]
 			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "rounded-lg bg-elevated p-4 shadow-border",
+				className: "min-w-0 space-y-4 self-start",
 				children: [
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-						className: "flex items-center gap-2 text-sm font-medium text-fg",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(MessageCircle, { className: "size-4 text-accent" }), " Room chat"]
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+						className: "rounded-lg bg-elevated p-4 shadow-border",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+								className: "flex items-center gap-2 text-sm font-medium text-fg",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(MessageCircle, { className: "size-4 text-accent" }), " Room chat"]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "mt-3 min-h-24 max-h-48 space-y-2 overflow-y-auto text-sm text-muted",
+								children: chat.map((row, index) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "rounded-sm bg-bg/45 px-3 py-2",
+									children: row
+								}, `${row}-${index}`))
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "mt-3 flex gap-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+									value: message,
+									onChange: (event) => setMessage(event.target.value),
+									onKeyDown: (event) => {
+										if (event.key === "Enter") send();
+									},
+									placeholder: "Say something",
+									"aria-label": "Room chat message"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+									size: "sm",
+									onClick: send,
+									children: "Send"
+								})]
+							})
+						]
 					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "mt-3 max-h-48 space-y-2 overflow-y-auto text-sm text-muted",
-						children: chat.map((row, index) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-							className: "rounded-sm bg-bg/45 px-3 py-2",
-							children: row
-						}, `${row}-${index}`))
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+						className: "rounded-lg border border-border bg-elevated p-4 shadow-border",
+						"aria-label": "Room query and queue",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "flex items-center justify-between gap-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+									children: "Find & queue"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
+									className: "mt-1 font-display text-xl text-fg",
+									children: "Choose what plays next"
+								})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+									className: "rounded-full bg-accent/15 px-2 py-1 text-xs text-accent",
+									children: [queue.length, " queued"]
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+								className: "mt-3",
+								value: roomSearch,
+								onChange: (event) => setRoomSearch(event.target.value),
+								placeholder: "Search playable titles or creators",
+								"aria-label": "Search room videos"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "mt-3 max-h-72 space-y-2 overflow-y-auto",
+								children: [roomSearchResults.map((video) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "flex min-w-0 items-center gap-2 rounded-md bg-bg/50 p-2",
+									children: [
+										watchRoomPoster(video) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+											src: watchRoomPoster(video),
+											alt: "",
+											loading: "lazy",
+											className: "aspect-video w-14 shrink-0 rounded-sm object-cover"
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+											type: "button",
+											className: "min-w-0 flex-1 truncate text-left text-xs text-fg hover:text-accent",
+											title: video.name,
+											onClick: () => chooseVideo(video),
+											children: video.name
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+											size: "sm",
+											variant: "secondary",
+											disabled: queue.includes(video.id) || video.id === sharedVideoId,
+											onClick: () => queueVideo(video),
+											children: "Queue"
+										})
+									]
+								}, video.id)), !roomSearchResults.length && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-xs text-muted",
+									children: "No playable videos match this search."
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "mt-4 border-t border-border pt-3",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+									className: "text-xs font-medium text-fg",
+									children: ["Up next · ", joinedAsGuest ? "host confirms changes" : "shared order"]
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "mt-2 max-h-52 space-y-1 overflow-y-auto",
+									children: queue.length ? queue.map((id, index) => {
+										const video = videos.find((item) => item.id === id);
+										return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "flex items-center gap-2 rounded-md bg-bg/45 px-2 py-1.5 text-xs",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+													className: "text-accent",
+													children: index + 1
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+													className: "min-w-0 flex-1 truncate text-fg",
+													children: video?.name ?? "Unavailable title"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+													type: "button",
+													className: "text-accent",
+													onClick: () => playQueuedNow(id),
+													disabled: joinedAsGuest,
+													children: "Play"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+													type: "button",
+													className: "text-muted hover:text-fg",
+													onClick: () => updateQueue(queue.filter((item) => item !== id)),
+													children: "×"
+												})
+											]
+										}, id);
+									}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "text-xs text-muted",
+										children: "Search above and add a title to the queue."
+									})
+								})]
+							})
+						]
 					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "mt-3 flex gap-2",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-							value: message,
-							onChange: (event) => setMessage(event.target.value),
-							onKeyDown: (event) => {
-								if (event.key === "Enter") send();
-							},
-							placeholder: "Say something",
-							"aria-label": "Room chat message"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-							size: "sm",
-							onClick: send,
-							children: "Send"
-						})]
+					sharedVideo?.remote?.kind === "youtube" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("section", {
+						className: "rounded-lg bg-elevated p-2 shadow-border",
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AdultComments, { video: sharedVideo })
 					})
 				]
 			})]

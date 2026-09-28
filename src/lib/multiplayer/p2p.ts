@@ -111,6 +111,11 @@ export class P2PRoom {
   private lastRosterCount = -1;
   /** Same-origin tabs get a zero-config reliable fallback while WebRTC negotiates. */
   private localRelay: BroadcastChannel | null = null;
+  private readonly onPageHide = () => {
+    if (this.closed) return;
+    const body = JSON.stringify({ op: "leave", room: this.opts.room, peer: this.opts.selfId });
+    navigator.sendBeacon?.("/api/rtc", new Blob([body], { type: "application/json" }));
+  };
   private debug(event: string) { this.opts.onDebug?.(`${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })} · ${event}`); }
 
   constructor(opts: P2PRoomOptions) {
@@ -123,6 +128,7 @@ export class P2PRoom {
    * room: the loop and timers start regardless and the next poll retries.
    */
   async join(): Promise<void> {
+    window.addEventListener("pagehide", this.onPageHide);
     // WebRTC is still the cross-device transport. BroadcastChannel fills the
     // gap for the very common "test the guest window on this computer" flow:
     // it does not need a database, ICE candidate, or a successful WebRTC offer.
@@ -153,6 +159,7 @@ export class P2PRoom {
 
   close(): void {
     this.closed = true;
+    window.removeEventListener("pagehide", this.onPageHide);
     if (this.pollTimer) clearTimeout(this.pollTimer);
     if (this.pingTimer) clearInterval(this.pingTimer);
     this.localRelay?.close();

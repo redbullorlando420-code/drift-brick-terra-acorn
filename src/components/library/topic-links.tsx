@@ -4,13 +4,14 @@ import { topicsForVideo, topicEvidence, canonicalTopic } from '@/lib/videos/topi
 import { Button } from '@/components/ui/button';
 import { VideoCard } from './video-card';
 import { openTopic } from '@/lib/videos/topic-navigation';
-import { getRating, tagIsLiked, toggleTagLike } from '@/lib/media-feedback';
+import { getRating, getWatchTime, ratingPreference, tagIsLiked, toggleTagLike, watchTimeScore } from '@/lib/media-feedback';
 
 export function TopicLinks({ explorer = false }: { explorer?: boolean }) {
   const videos = useLibrary((s) => s.videos);
   const tags = useLibrary((s) => s.tags);
   const folders = useLibrary((s) => s.folders);
   const unavailable = useLibrary((s) => s.unavailable);
+  const hiddenVideos = useLibrary((s) => s.hiddenVideos);
   const hideDemo = useLibrary((s) => s.hideDemo);
   const query = useLibrary((s) => s.query);
   const [provider, setProvider] = useState('all');
@@ -26,7 +27,7 @@ export function TopicLinks({ explorer = false }: { explorer?: boolean }) {
   const index = useMemo(() => {
     const hidden = new Set(folders.filter((f) => f.adult).map((f) => f.id));
     const known = new Set(folders.map((f) => f.id));
-    const rows = videos.filter((v) => !hidden.has(v.folderId) && !unavailable[v.id] && !(hideDemo && v.isSample) && (known.has(v.folderId) || v.remote || v.isSample)).map((video) => ({ video, topics: topicsForVideo(video, tags[video.id]), provider: video.remote?.kind ?? 'local' }));
+    const rows = videos.filter((v) => !hidden.has(v.folderId) && !unavailable[v.id] && !hiddenVideos[v.id] && !(hideDemo && v.isSample) && (known.has(v.folderId) || v.remote || v.isSample)).map((video) => ({ video, topics: topicsForVideo(video, tags[video.id]), provider: video.remote?.kind ?? 'local' }));
     const counts = new Map<string, { count: number; providers: Set<string>; ratingTotal: number }>();
     const sources = new Map<string, { total: number; linked: number }>();
     let saved = 0, linked = 0;
@@ -38,24 +39,24 @@ export function TopicLinks({ explorer = false }: { explorer?: boolean }) {
       if (topicEvidence(row.video, tags[row.video.id]).some((link) => link.saved)) saved++;
       for (const topic of row.topics) {
         const entry = counts.get(topic) ?? { count: 0, providers: new Set<string>(), ratingTotal: 0 };
-        entry.count++; entry.ratingTotal += getRating(row.video.id); entry.providers.add(row.provider); counts.set(topic, entry);
+        entry.count++; entry.ratingTotal += ratingPreference(getRating(row.video.id)) + (getRating(row.video.id) === 1 ? 0 : watchTimeScore(getWatchTime(row.video.id)) / 12); entry.providers.add(row.provider); counts.set(topic, entry);
       }
     }
     return { rows, saved, linked, counts: [...counts].sort((a, b) => Number(tagIsLiked(b[0])) - Number(tagIsLiked(a[0])) || (b[1].ratingTotal / b[1].count) - (a[1].ratingTotal / a[1].count) || b[1].count - a[1].count || a[0].localeCompare(b[0])), gaps: [...sources].map(([id, s]) => ({ id, ...s })).sort((a, b) => (b.total - b.linked) - (a.total - a.linked)).slice(0, 8) };
-  }, [videos, tags, folders, unavailable, hideDemo, favoriteRevision]);
+  }, [videos, tags, folders, unavailable, hiddenVideos, hideDemo, favoriteRevision]);
   const genres = useMemo(() => [...new Set(index.rows.map((r) => r.video.genre).filter((g): g is string => Boolean(g)))].sort(), [index]);
   const matching = useMemo(() => index.rows.filter((row) => (!selected || row.topics.includes(selected)) && (!selectedGenre || row.video.genre === selectedGenre) && (provider === 'all' || provider === row.provider)), [index, selected, selectedGenre, provider]);
   const related = useMemo(() => {
     const counts = new Map<string, { shared: number; ratingTotal: number }>();
     if (selected) for (const row of matching) for (const topic of row.topics) if (topic !== selected) {
       const entry = counts.get(topic) ?? { shared: 0, ratingTotal: 0 };
-      entry.shared++; entry.ratingTotal += getRating(row.video.id); counts.set(topic, entry);
+      entry.shared++; entry.ratingTotal += ratingPreference(getRating(row.video.id)) + (getRating(row.video.id) === 1 ? 0 : watchTimeScore(getWatchTime(row.video.id)) / 12); counts.set(topic, entry);
     }
     return [...counts].sort((a, b) => (b[1].ratingTotal / b[1].shared) - (a[1].ratingTotal / a[1].shared) || b[1].shared - a[1].shared || a[0].localeCompare(b[0])).slice(0, 12);
   }, [matching, selected]);
   const choose = (topic: string) => { setLimit(48); setProvider('all'); openTopic(topic); };
   const exportLinks = () => {
-    const rows = [['topic', 'public_titles', 'rating_score_0_to_5000', 'ratings_total', 'providers', 'saved_tag_titles', 'inferred_only_titles'], ...index.counts.map(([topic, data]) => {
+    const rows = [['topic', 'public_titles', 'taste_score_points', 'taste_total', 'providers', 'saved_tag_titles', 'inferred_only_titles'], ...index.counts.map(([topic, data]) => {
       const saved = index.rows.filter((r) => topicEvidence(r.video, tags[r.video.id]).some((link) => link.topic === topic && link.saved)).length;
       return [topic, data.count, String(Math.round(data.ratingTotal / data.count * 1000)), data.ratingTotal.toFixed(1), [...data.providers].join(' + '), saved, data.count - saved];
     })];
@@ -69,7 +70,7 @@ export function TopicLinks({ explorer = false }: { explorer?: boolean }) {
     <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Connected topics</p>
     <h2 className="mt-2 font-display text-2xl text-fg">{selected || selectedGenre ? `Explore ${selected ?? selectedGenre}` : 'Follow an idea across your library.'}</h2>
     <p className="mt-2 text-sm text-muted">{index.linked.toLocaleString()} of {index.rows.length.toLocaleString()} public titles linked · {index.saved.toLocaleString()} with saved topics · {(index.linked - index.saved).toLocaleString()} connected by title or category evidence. Saved tags are unchanged.</p>
-    {selected && <div className="mt-4 flex flex-wrap items-center gap-2 rounded-md border border-border bg-bg/45 px-3 py-2"><span className="text-sm text-fg">#{selected}</span><Button size="sm" variant={tagIsLiked(selected) ? 'default' : 'secondary'} onClick={() => { toggleTagLike(selected); setFavoriteRevision((value) => value + 1); }}>{tagIsLiked(selected) ? '★ Favorite topic' : '☆ Favorite topic'}</Button><span className="text-xs text-muted">Favorite topics stay at the start of Topics and Stats.</span>{selectedScore && <span className="text-xs text-muted">score {Math.round(selectedScore.ratingTotal / selectedScore.count * 1000).toLocaleString()}/5,000 from {selectedScore.count.toLocaleString()} linked titles</span>}</div>}
+    {selected && <div className="mt-4 flex flex-wrap items-center gap-2 rounded-md border border-border bg-bg/45 px-3 py-2"><span className="text-sm text-fg">#{selected}</span><Button size="sm" variant={tagIsLiked(selected) ? 'default' : 'secondary'} onClick={() => { toggleTagLike(selected); setFavoriteRevision((value) => value + 1); }}>{tagIsLiked(selected) ? '★ Favorite topic' : '☆ Favorite topic'}</Button><span className="text-xs text-muted">Favorite topics stay at the start of Topics and Stats.</span>{selectedScore && <span className="text-xs text-muted">taste score {Math.round(selectedScore.ratingTotal / selectedScore.count * 1000).toLocaleString()} points from {selectedScore.count.toLocaleString()} linked titles</span>}</div>}
     <div className="mt-4 flex flex-wrap gap-2">{index.counts.map(([topic, data]) => <Button key={topic} size="sm" variant={selected === topic ? 'default' : 'secondary'} onClick={() => choose(topic)} title={[...data.providers].join(' + ')}>{tagIsLiked(topic) ? '★ ' : ''}#{topic} · {data.count.toLocaleString()} · score {Math.round(data.ratingTotal / data.count * 1000).toLocaleString()}{data.providers.size > 1 ? ' · ↔' : ''}</Button>)}</div>
     {!index.counts.length && <p className="mt-4 text-sm text-muted">No supported topics yet. Add descriptive titles or saved topic tags to connect your media.</p>}
     <Button className="mt-4" size="sm" variant="secondary" onClick={exportLinks}>Export topic connections</Button>

@@ -1,4 +1,4 @@
-# Reelcase library pack templates
+# Realhub library pack templates
 
 Fill these files offline, zip the folder as `reelcase-library-pack.zip`, then
 import from **Settings → Import library pack**.

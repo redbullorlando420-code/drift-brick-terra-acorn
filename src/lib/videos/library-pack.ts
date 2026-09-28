@@ -158,7 +158,7 @@ function engagementSummary(input: LibraryPackBuildInput) {
 }
 
 export function packReadme(): string {
-  return `# Reelcase library pack
+  return `# Realhub library pack
 
 Local-only backup / fill-in folder for YouTube & Twitch follows, creator collections, watch history,
 saved video links, continue-watching pointers, favorites/likes, Photos sources & likes, Adult marks,
@@ -203,7 +203,7 @@ ${LIBRARY_PACK_ROOT}/
 1. Copy \`public/import-templates/\` (or an exported zip) to your PC.
 2. Edit the JSON/CSV files in a spreadsheet or text editor.
 3. Zip the folder back to \`${LIBRARY_PACK_ROOT}.zip\` (keep the same paths).
-4. In Reelcase → **Settings** → **Import library pack**, choose the zip (or
+4. In Realhub → **Settings** → **Import library pack**, choose the zip (or
    individual files). Confirm only if you want to replace all follows.
 
 ### follows/follows.csv
@@ -284,7 +284,7 @@ export function buildLibraryPackFiles(input: LibraryPackBuildInput): Record<stri
     [`${LIBRARY_PACK_ROOT}/manifest.json`]: JSON.stringify({
       version: LIBRARY_PACK_VERSION,
       exportedAt: new Date().toISOString(),
-      note: "Reelcase local library pack. Metadata only — no media files.",
+      note: "Realhub local library pack. Metadata only — no media files.",
       counts: engagementSummary(input),
     }, null, 2),
     [`${LIBRARY_PACK_ROOT}/follows/youtube.json`]: JSON.stringify({ exportedAt: new Date().toISOString(), channels: youtube }, null, 2),

@@ -32,9 +32,9 @@ export async function requestAdultOfflineSave(url: string): Promise<OfflineSaveR
   } catch {
     return {
       ok: false,
-      error: "Reelcase Companion is not running. Start it locally to enable offline save.",
+      error: "Realhub Companion is not running. Start it locally to enable offline save.",
       needs: [
-        "Start Reelcase Companion",
+        "Start Realhub Companion",
         "Install yt-dlp on PATH or set YT_DLP_PATH",
         "Set REELCASE_ALLOWED_ROOTS / optional REELCASE_DOWNLOAD_DIR",
       ],

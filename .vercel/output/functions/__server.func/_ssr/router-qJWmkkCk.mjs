@@ -2,11 +2,13 @@ import { o as __toESM, r as __exportAll } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { _ as useRouter, f as createRouter, g as createRootRoute, h as createFileRoute, l as Scripts, m as lazyRouteComponent, p as Outlet, u as HeadContent } from "../_libs/@tanstack/react-router+[...].mjs";
 import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
-import { l as TriangleAlert } from "../_libs/lucide-react.mjs";
+import { u as TriangleAlert } from "../_libs/lucide-react.mjs";
 import { a as number, c as union, i as literal, l as unknown, n as _enum, o as object, r as discriminatedUnion, s as string, t as number$1 } from "../_libs/zod.mjs";
 import { t as Provider } from "../_libs/radix-ui__react-tooltip.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/router-Cr4wMr4d.js
-var router_Cr4wMr4d_exports = /* @__PURE__ */ __exportAll({ getRouter: () => getRouter });
+import { networkInterfaces } from "node:os";
+import { spawn } from "node:child_process";
+//#region node_modules/.nitro/vite/services/ssr/assets/router-qJWmkkCk.js
+var router_qJWmkkCk_exports = /* @__PURE__ */ __exportAll({ getRouter: () => getRouter });
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function AppErrorComponent({ error }) {
@@ -281,9 +283,9 @@ function TooltipProvider({ delayDuration = 250, ...props }) {
 		...props
 	});
 }
-var styles_default = "/assets/styles-CzdSwczz.css";
-var APP_NAME = "Reelcase";
-var Route$3 = createRootRoute({
+var styles_default = "/assets/styles-CweAZHRF.css";
+var APP_NAME = "Realhub";
+var Route$5 = createRootRoute({
 	head: () => ({
 		meta: [
 			{ charSet: "utf-8" },
@@ -348,8 +350,27 @@ var Route$3 = createRootRoute({
 		})]
 	})
 });
-var $$splitComponentImporter = () => import("./routes-DowxOMzf.mjs").then((n) => n.t);
-var Route$2 = createFileRoute("/")({ component: lazyRouteComponent($$splitComponentImporter, "component") });
+var $$splitComponentImporter = () => import("./routes-D8eQUF0H.mjs").then((n) => n.t);
+var Route$4 = createFileRoute("/")({ component: lazyRouteComponent($$splitComponentImporter, "component") });
+var isPrivateV4 = (address) => {
+	const parts = address.split(".").map(Number);
+	return parts.length === 4 && parts.every((part) => Number.isInteger(part) && part >= 0 && part <= 255) && (parts[0] === 10 || parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31 || parts[0] === 192 && parts[1] === 168);
+};
+var Route$3 = createFileRoute("/api/lan-origin")({ server: { handlers: { GET: ({ request }) => {
+	const url = new URL(request.url);
+	if (process.env.VERCEL || ![
+		"localhost",
+		"127.0.0.1",
+		"[::1]"
+	].includes(url.hostname.toLowerCase())) return Response.json({ origins: [] }, { headers: { "cache-control": "no-store" } });
+	const candidates = Object.entries(networkInterfaces()).filter(([name]) => !/nord|vpn|tun|tap|wireguard|veth|virtual|hyper-v|loopback|wsl|docker|tailscale|zerotier/i.test(name)).flatMap(([name, rows]) => (rows ?? []).filter((row) => row.family === "IPv4" && !row.internal && isPrivateV4(row.address)).map((row) => ({
+		name,
+		address: row.address
+	})));
+	candidates.sort((a, b) => Number(/ethernet|wi-?fi|wlan/i.test(b.name)) - Number(/ethernet|wi-?fi|wlan/i.test(a.name)));
+	const origins = [...new Set(candidates.map(({ address }) => `${url.protocol}//${address}${url.port ? `:${url.port}` : ""}`))].slice(0, 4);
+	return Response.json({ origins }, { headers: { "cache-control": "no-store" } });
+} } } });
 var _0002_network_presence_default = "CREATE TABLE IF NOT EXISTS reelcase_network_presence (\n  scope TEXT NOT NULL,\n  device_id TEXT NOT NULL,\n  label TEXT NOT NULL,\n  device_kind TEXT NOT NULL,\n  last_seen TIMESTAMPTZ NOT NULL DEFAULT now(),\n  PRIMARY KEY (scope, device_id)\n);\n\nCREATE INDEX IF NOT EXISTS reelcase_network_presence_active\n  ON reelcase_network_presence (scope, last_seen DESC);\n";
 /**
 * Migration bookkeeping shared by the two appliers — `scripts/migrate.mjs`
@@ -570,9 +591,87 @@ async function handleNetworkPresence(request) {
 	}
 }
 var handle$1 = ({ request }) => handleNetworkPresence(request);
-var Route$1 = createFileRoute("/api/network-presence")({ server: { handlers: {
+var Route$2 = createFileRoute("/api/network-presence")({ server: { handlers: {
 	GET: handle$1,
 	POST: handle$1
+} } });
+var globalTunnel = globalThis;
+var state = globalTunnel.reelcaseQuickTunnel ??= {};
+function localRequest(request) {
+	if (process.env.VERCEL) return false;
+	const host = request.headers.get("host")?.toLowerCase() ?? "";
+	const loopback = /^(?:localhost|127\.0\.0\.1|\[::1\]):8080$/.test(host);
+	if (request.headers.has("cf-connecting-ip") || request.headers.has("cf-ray") || request.headers.has("x-forwarded-host")) return false;
+	const origin = request.headers.get("origin");
+	return loopback && (!origin || origin === `http://${host}` || origin === `https://${host}`);
+}
+function response(request) {
+	if (!localRequest(request)) return Response.json({ error: "Quick Tunnel can only be controlled on the host computer." }, { status: 403 });
+	return Response.json({
+		running: Boolean(state.url && state.process && !state.process.killed),
+		starting: Boolean(state.starting),
+		url: state.url ?? null,
+		error: state.error ?? null
+	}, { headers: { "cache-control": "no-store" } });
+}
+function startTunnel() {
+	if (state.process || state.starting) return;
+	state.starting = true;
+	state.url = void 0;
+	state.error = void 0;
+	const child = spawn("cloudflared", [
+		"tunnel",
+		"--url",
+		"http://127.0.0.1:8080"
+	], {
+		windowsHide: true,
+		stdio: [
+			"ignore",
+			"pipe",
+			"pipe"
+		]
+	});
+	state.process = child;
+	const capture = (chunk) => {
+		const output = chunk.toString();
+		const match = output.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com\b/i);
+		if (match) {
+			state.url = match[0];
+			state.starting = false;
+			state.error = void 0;
+		} else if (/failed to|error|fatal/i.test(output) && !state.url) state.error = output.trim().slice(0, 240);
+	};
+	child.stdout?.on("data", capture);
+	child.stderr?.on("data", capture);
+	child.on("error", (error) => {
+		state.error = error.code === "ENOENT" ? "Install cloudflared on this computer to start a trial tunnel." : error.message;
+		state.starting = false;
+		if (state.process === child) state.process = void 0;
+	});
+	child.on("exit", (code) => {
+		if (state.process === child) {
+			state.process = void 0;
+			state.url = void 0;
+			state.starting = false;
+			if (code && !state.error) state.error = `cloudflared exited with code ${code}.`;
+		}
+	});
+}
+var Route$1 = createFileRoute("/api/quick-tunnel")({ server: { handlers: {
+	GET: ({ request }) => response(request),
+	POST: async ({ request }) => {
+		if (!localRequest(request)) return response(request);
+		const body = await request.json().catch(() => ({}));
+		if (body.action === "start") startTunnel();
+		else if (body.action === "stop") {
+			state.process?.kill();
+			state.process = void 0;
+			state.url = void 0;
+			state.starting = false;
+			state.error = void 0;
+		} else return Response.json({ error: "Unknown action." }, { status: 400 });
+		return response(request);
+	}
 } } });
 var id = string().regex(/^[a-zA-Z0-9_-]{1,64}$/);
 var signal = object({
@@ -682,23 +781,33 @@ var Route = createFileRoute("/api/rtc")({ server: { handlers: {
 	POST: handle
 } } });
 var rootRouteChildren = {
-	IndexRoute: Route$2.update({
+	IndexRoute: Route$4.update({
 		id: "/",
 		path: "/",
-		getParentRoute: () => Route$3
+		getParentRoute: () => Route$5
 	}),
-	ApiNetworkPresenceRoute: Route$1.update({
+	ApiLanOriginRoute: Route$3.update({
+		id: "/api/lan-origin",
+		path: "/api/lan-origin",
+		getParentRoute: () => Route$5
+	}),
+	ApiNetworkPresenceRoute: Route$2.update({
 		id: "/api/network-presence",
 		path: "/api/network-presence",
-		getParentRoute: () => Route$3
+		getParentRoute: () => Route$5
+	}),
+	ApiQuickTunnelRoute: Route$1.update({
+		id: "/api/quick-tunnel",
+		path: "/api/quick-tunnel",
+		getParentRoute: () => Route$5
 	}),
 	ApiRtcRoute: Route.update({
 		id: "/api/rtc",
 		path: "/api/rtc",
-		getParentRoute: () => Route$3
+		getParentRoute: () => Route$5
 	})
 };
-var routeTree = Route$3._addFileChildren(rootRouteChildren)._addFileTypes();
+var routeTree = Route$5._addFileChildren(rootRouteChildren)._addFileTypes();
 function getRouter() {
 	return createRouter({
 		routeTree,
@@ -706,4 +815,4 @@ function getRouter() {
 	});
 }
 //#endregion
-export { getRouter, router_Cr4wMr4d_exports as t };
+export { getRouter, router_qJWmkkCk_exports as t };

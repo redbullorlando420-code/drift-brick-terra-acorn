@@ -4,7 +4,7 @@ import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import appCss from "../styles.css?url";
 
-const APP_NAME = "Reelcase";
+const APP_NAME = "Realhub";
 
 export const Route = createRootRoute({
   head: () => ({

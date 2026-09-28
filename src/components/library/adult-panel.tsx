@@ -785,7 +785,7 @@ export function AdultPanel({
           <div>
             <p className="mt-2 max-w-2xl text-sm text-muted">
               These sites do not expose a documented public discovery/embed API we can use without
-              scraping or bypassing logins/paywalls. Reelcase keeps them as milestones with source
+              scraping or bypassing logins/paywalls. Realhub keeps them as milestones with source
               tags — open the official page in a new tab.
             </p>
           </div>

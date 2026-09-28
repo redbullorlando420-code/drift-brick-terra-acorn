@@ -2,7 +2,11 @@ import { recordRatingForStreak } from "./rating-streaks";
 import { restoreDurableFeedback, saveDurableFeedback } from "./videos/persist";
 
 export type RatingLedgerEntry = { rating: number; updatedAt: number };
-export type Feedback = { ratings: Record<string, number>; ratingHistory: Record<string, RatingLedgerEntry>; notes: Record<string, string>; creatorRatings: Record<string, number>; creatorLikes: Record<string, true>; tagLikes: Record<string, true>; tagHeartHistory: Record<string, number> };
+export type WatchTime = { preview: number; fullscreen: number; previewEstimated?: number; fullscreenEstimated?: number };
+export type Feedback = { ratings: Record<string, number>; ratingHistory: Record<string, RatingLedgerEntry>; notes: Record<string, string>; creatorRatings: Record<string, number>; creatorLikes: Record<string, true>; tagLikes: Record<string, true>; tagHeartHistory: Record<string, number>; watchTime: Record<string, WatchTime> };
+/** Explicit dislike, neutral, then progressively stronger positive signals. */
+export function ratingPreference(rating: number): number { return rating === 1 ? -3 : rating === 2 ? 0 : rating >= 3 ? Math.min(3, rating - 2) : 0; }
+export function watchTimeScore(time: WatchTime): number { return Math.min(12, Math.floor(time.preview / 30) + Math.floor(time.fullscreen / 90) * 2 + Math.floor((time.previewEstimated ?? 0) / 90) + Math.floor((time.fullscreenEstimated ?? 0) / 180)); }
 const KEY = "reelcase.media-feedback.v1";
 let cached: Feedback | null = null;
 let changeTimer: number | undefined;
@@ -49,8 +53,8 @@ function read(): Feedback {
   if (cached) return cached;
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) ?? "{}") as Partial<Feedback>;
-    cached = { ratings: saved.ratings ?? {}, ratingHistory: saved.ratingHistory ?? {}, notes: saved.notes ?? {}, creatorRatings: saved.creatorRatings ?? {}, creatorLikes: saved.creatorLikes ?? {}, tagLikes: saved.tagLikes ?? {}, tagHeartHistory: saved.tagHeartHistory ?? {} };
-  } catch { cached = { ratings: {}, ratingHistory: {}, notes: {}, creatorRatings: {}, creatorLikes: {}, tagLikes: {}, tagHeartHistory: {} }; }
+    cached = { ratings: saved.ratings ?? {}, ratingHistory: saved.ratingHistory ?? {}, notes: saved.notes ?? {}, creatorRatings: saved.creatorRatings ?? {}, creatorLikes: saved.creatorLikes ?? {}, tagLikes: saved.tagLikes ?? {}, tagHeartHistory: saved.tagHeartHistory ?? {}, watchTime: saved.watchTime ?? {} };
+  } catch { cached = { ratings: {}, ratingHistory: {}, notes: {}, creatorRatings: {}, creatorLikes: {}, tagLikes: {}, tagHeartHistory: {}, watchTime: {} }; }
   return cached;
 }
 /** Merge IndexedDB feedback backup once so QuotaExceeded on localStorage cannot erase ratings/hearts. */
@@ -68,6 +72,7 @@ export async function hydrateDurableFeedback() {
     creatorLikes: { ...durable.creatorLikes, ...current.creatorLikes },
     tagLikes: { ...durable.tagLikes, ...current.tagLikes },
     tagHeartHistory: { ...durable.tagHeartHistory, ...current.tagHeartHistory },
+    watchTime: { ...durable.watchTime, ...current.watchTime },
   };
   notifyChange();
 }
@@ -104,6 +109,14 @@ function write(next: Feedback) {
   if (persistTimer) window.clearTimeout(persistTimer);
   persistTimer = window.setTimeout(persist, 90);
 }
+function writeWatchTime(next: Feedback) {
+  cached = next;
+  if (typeof window === "undefined") return;
+  pendingWrites = 1;
+  // Playback updates arrive every few seconds. Keep one bounded save timer
+  // instead of serializing the whole feedback archive on each video tick.
+  persistTimer ??= window.setTimeout(persist, 15_000);
+}
 function notifyChange() {
   if (typeof window === "undefined" || changeTimer) return;
   changeTimer = window.setTimeout(() => {
@@ -138,6 +151,16 @@ export function setRating(id: string, rating: number) {
   lastRatingQueueMs = Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - started);
 }
 export function getRatingLedger(): Record<string, RatingLedgerEntry> { return { ...read().ratingHistory }; }
+export function getWatchTime(id: string): WatchTime { return read().watchTime[id] ?? { preview: 0, fullscreen: 0 }; }
+export function getWatchTimeLedger(): Record<string, WatchTime> { return { ...read().watchTime }; }
+/** Count real elapsed playback in small bounded increments, never seek distance. */
+export function recordWatchTime(id: string, mode: keyof WatchTime, seconds: number) {
+  if (!id || !Number.isFinite(seconds) || seconds <= 0) return;
+  const next = read();
+  const current = next.watchTime[id] ?? { preview: 0, fullscreen: 0 };
+  next.watchTime[id] = { ...current, [mode]: Math.min(10_000_000, (current[mode] ?? 0) + Math.min(seconds, 5)) };
+  writeWatchTime(next);
+}
 /** Local timing only. This never transmits library feedback or usage data. */
 export function getFeedbackDiagnostics() { return { lastRatingQueueMs, lastPersistMs, pendingWrites }; }
 function creatorKey(name: string) { return name.trim().toLowerCase(); }
@@ -170,6 +193,7 @@ export function importFeedback(partial: Partial<Feedback> & { version?: number }
   if (partial.creatorLikes) Object.assign(next.creatorLikes, partial.creatorLikes);
   if (partial.tagLikes) Object.assign(next.tagLikes, partial.tagLikes);
   if (partial.tagHeartHistory) Object.assign(next.tagHeartHistory, partial.tagHeartHistory);
+  if (partial.watchTime) Object.assign(next.watchTime, partial.watchTime);
   write(next);
   notifyChange();
   flush();

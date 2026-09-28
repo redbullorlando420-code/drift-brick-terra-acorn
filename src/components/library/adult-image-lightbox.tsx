@@ -1,9 +1,11 @@
 import { ExternalLink } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { AdultComments } from "@/components/library/adult-comments";
 import { adultRemoteLabel } from "@/lib/videos/adult-sites";
 import { downloadAdultPhoto } from "@/lib/videos/adult-photo-download";
+import { resolveBooruOriginal } from "@/lib/remote/functions";
 import type { LibraryVideo } from "@/lib/videos/types";
 
 /** In-app full-bleed image viewer for booru / photo-kind adult pulls. */
@@ -15,7 +17,16 @@ export function AdultImageLightbox({
   tags?: string[];
 }) {
   const remote = video.remote;
+  const [original, setOriginal] = useState<string | null>(null);
+  useEffect(() => {
+    setOriginal(null);
+    if (remote?.kind !== "booru" || remote.channelId !== "tbib" || !remote.videoId) return;
+    let active = true;
+    void resolveBooruOriginal({ data: { id: remote.videoId } }).then((url) => { if (active && url) setOriginal(url); }).catch(() => {});
+    return () => { active = false; };
+  }, [remote?.channelId, remote?.kind, remote?.videoId]);
   const src =
+    original ||
     video.src ||
     remote?.embedUrl ||
     remote?.previewUrl ||
@@ -59,7 +70,7 @@ export function AdultImageLightbox({
               size="sm"
               variant="default"
               onClick={() => {
-                void downloadAdultPhoto(video).then((result) => {
+                void downloadAdultPhoto(original ? { ...video, src: original, remote: remote ? { ...remote, embedUrl: original } : undefined } : video).then((result) => {
                   if (result.ok) toast.success(`Saved ${result.name}`);
                   else toast.error(result.error);
                 });

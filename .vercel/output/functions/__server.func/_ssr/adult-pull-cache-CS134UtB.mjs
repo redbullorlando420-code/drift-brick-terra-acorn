@@ -1,4 +1,4 @@
-//#region node_modules/.nitro/vite/services/ssr/assets/adult-pull-cache-aysXgkuS.js
+//#region node_modules/.nitro/vite/services/ssr/assets/adult-pull-cache-CS134UtB.js
 var ADULT_EXTRA_MILESTONES = [
 	{
 		name: "CooMeet",
@@ -2483,7 +2483,7 @@ var ADULT_CATEGORY_HUB = {
 	sourceId: "theporndude"
 };
 /**
-* Sites with no official unauthenticated discovery/embed path used by Reelcase.
+* Sites with no official unauthenticated discovery/embed path used by Realhub.
 * Shown in the Adult milestones section (link-out only). Source ids still appear
 * as labeled source-tag chips so users can jump out by site.
 */
@@ -3074,7 +3074,7 @@ var ADULT_MILESTONE_LINKS = [
 	...ADULT_NICHE_MILESTONES
 ];
 /**
-* Destinations with an official public embed/API path Reelcase actually uses.
+* Destinations with an official public embed/API path Realhub actually uses.
 * - Eporner API v2 + iframe embeds: https://www.eporner.com/api/v2/
 * - RedTube webmaster API + embed.redtube.com: https://api.redtube.com/
 * - Chaturbate public affiliate rooms JSON + /embed/{user}/
@@ -3382,6 +3382,7 @@ var MAX_BY_VIDEO = 280;
 var failedUrls = /* @__PURE__ */ new Set();
 var goodUrls = /* @__PURE__ */ new Set();
 var goodByVideo = /* @__PURE__ */ new Map();
+var healthByVideo = /* @__PURE__ */ new Map();
 var hostFail = /* @__PURE__ */ new Map();
 var hostOk = /* @__PURE__ */ new Map();
 function hostOf(url) {
@@ -3421,8 +3422,12 @@ var PREFERRED_HOSTS = {
 	"thumbs1.redgifs.com": 4,
 	"media.redgifs.com": 3
 };
-function markAdultThumbFailed(url) {
+function markAdultThumbFailed(url, videoId) {
 	if (!url) return;
+	if (videoId && healthByVideo.get(videoId) !== "loaded") {
+		healthByVideo.set(videoId, "failed");
+		window.dispatchEvent(new Event("reelcase:preview-health"));
+	}
 	failedUrls.add(url);
 	goodUrls.delete(url);
 	trimSet(failedUrls, MAX_FAILED);
@@ -3442,12 +3447,26 @@ function markAdultThumbGood(url, videoId) {
 		trimHostMap(hostOk, 96);
 	}
 	if (videoId) {
+		healthByVideo.set(videoId, "loaded");
+		window.dispatchEvent(new Event("reelcase:preview-health"));
 		goodByVideo.set(videoId, url);
 		if (goodByVideo.size > MAX_BY_VIDEO) {
 			const first = goodByVideo.keys().next().value;
 			if (first) goodByVideo.delete(first);
 		}
 	}
+}
+/** Actual decoded artwork observations from cards mounted in this session. */
+function getAdultPreviewHealth() {
+	let loaded = 0;
+	let failed = 0;
+	for (const status of healthByVideo.values()) status === "loaded" ? loaded++ : failed++;
+	return {
+		loaded,
+		failed,
+		tested: loaded + failed,
+		share: loaded / Math.max(1, loaded + failed)
+	};
 }
 function isAdultThumbBlacklisted(url) {
 	return Boolean(url) && failedUrls.has(url);
@@ -3960,4 +3979,4 @@ function findFreshAdultPullFingerprint(query, order, page, providers, ttlMs = 72
 	return readAdultPullFingerprints().find((row) => row.query === q && row.order === order && row.page === page && row.providers === providers && now - row.at <= ttlMs) ?? null;
 }
 //#endregion
-export { cachedAdultFetch as A, isAdultThumbBlacklisted as B, adultRemoteLabel as C, adultTaxonomyTags as D, adultTaxonomyLabel as E, findFreshAdultPullFingerprint as F, mineRedditCommentTags as G, isUsableAdultThumb as H, isAdultGenreTag as I, redditTitleTokens as J, pickRedtubeThumb as K, isAdultImageKind as L, expandedAdultTags as M, extractRedditFlair as N, adultTextFetishTags as O, fetishSearchQuery as P, isAdultMetaTaxonomyTag as R, adultIngestTags as S, adultTagRankBoost as T, markAdultThumbFailed as U, isDecodedAdultThumbLikelyReal as V, markAdultThumbGood as W, rememberAdultPullFingerprint as X, redtubeStarNames as Y, REDDIT_FOLDER_ID as _, ADULT_FOLDER_BY_PROVIDER as a, RETIRED_ADULT_SOURCE_IDS as b, ADULT_PULL_PROVIDERS as c, ADULT_SOURCE_OPTIONS as d, BOORU_FOLDER_ID as f, MYFREECAMS_FOLDER_ID as g, LIBRARY_LIMITS as h, ADULT_FEATURED_FETISH_TAGS as i, expandAdultThumbFallbacks as j, adultThumbCandidatesForVideo as k, ADULT_REDDIT_PRIORITY_SUBS as l, EPORNER_FOLDER_ID as m, ADULT_CURATED_FETISH_TAGS as n, ADULT_FOLDER_IDS as o, CHATURBATE_FOLDER_ID as p, redditIngestExtras as q, ADULT_EMBED_LINKS as r, ADULT_MILESTONE_LINKS as s, ADULT_CATEGORY_HUB as t, ADULT_REDDIT_SUBS as u, REDGIFS_FOLDER_ID as v, adultSourceTag as w, adultDeepenQueriesForPage as x, REDTUBE_FOLDER_ID as y, isAdultPullKind as z };
+export { cachedAdultFetch as A, isAdultPullKind as B, adultRemoteLabel as C, adultTaxonomyTags as D, adultTaxonomyLabel as E, findFreshAdultPullFingerprint as F, markAdultThumbGood as G, isDecodedAdultThumbLikelyReal as H, getAdultPreviewHealth as I, redditIngestExtras as J, mineRedditCommentTags as K, isAdultGenreTag as L, expandedAdultTags as M, extractRedditFlair as N, adultTextFetishTags as O, fetishSearchQuery as P, isAdultImageKind as R, adultIngestTags as S, adultTagRankBoost as T, isUsableAdultThumb as U, isAdultThumbBlacklisted as V, markAdultThumbFailed as W, redtubeStarNames as X, redditTitleTokens as Y, rememberAdultPullFingerprint as Z, REDDIT_FOLDER_ID as _, ADULT_FOLDER_BY_PROVIDER as a, RETIRED_ADULT_SOURCE_IDS as b, ADULT_PULL_PROVIDERS as c, ADULT_SOURCE_OPTIONS as d, BOORU_FOLDER_ID as f, MYFREECAMS_FOLDER_ID as g, LIBRARY_LIMITS as h, ADULT_FEATURED_FETISH_TAGS as i, expandAdultThumbFallbacks as j, adultThumbCandidatesForVideo as k, ADULT_REDDIT_PRIORITY_SUBS as l, EPORNER_FOLDER_ID as m, ADULT_CURATED_FETISH_TAGS as n, ADULT_FOLDER_IDS as o, CHATURBATE_FOLDER_ID as p, pickRedtubeThumb as q, ADULT_EMBED_LINKS as r, ADULT_MILESTONE_LINKS as s, ADULT_CATEGORY_HUB as t, ADULT_REDDIT_SUBS as u, REDGIFS_FOLDER_ID as v, adultSourceTag as w, adultDeepenQueriesForPage as x, REDTUBE_FOLDER_ID as y, isAdultMetaTaxonomyTag as z };

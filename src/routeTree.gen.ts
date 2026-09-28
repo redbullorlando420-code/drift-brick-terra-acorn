@@ -10,7 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiLanOriginRouteImport } from './routes/api/lan-origin'
 import { Route as ApiNetworkPresenceRouteImport } from './routes/api/network-presence'
+import { Route as ApiQuickTunnelRouteImport } from './routes/api/quick-tunnel'
 import { Route as ApiRtcRouteImport } from './routes/api/rtc'
 
 const IndexRoute = IndexRouteImport.update({
@@ -18,9 +20,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiLanOriginRoute = ApiLanOriginRouteImport.update({
+  id: '/api/lan-origin',
+  path: '/api/lan-origin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiNetworkPresenceRoute = ApiNetworkPresenceRouteImport.update({
   id: '/api/network-presence',
   path: '/api/network-presence',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiQuickTunnelRoute = ApiQuickTunnelRouteImport.update({
+  id: '/api/quick-tunnel',
+  path: '/api/quick-tunnel',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiRtcRoute = ApiRtcRouteImport.update({
@@ -31,31 +43,55 @@ const ApiRtcRoute = ApiRtcRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/lan-origin': typeof ApiLanOriginRoute
   '/api/network-presence': typeof ApiNetworkPresenceRoute
+  '/api/quick-tunnel': typeof ApiQuickTunnelRoute
   '/api/rtc': typeof ApiRtcRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/lan-origin': typeof ApiLanOriginRoute
   '/api/network-presence': typeof ApiNetworkPresenceRoute
+  '/api/quick-tunnel': typeof ApiQuickTunnelRoute
   '/api/rtc': typeof ApiRtcRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/lan-origin': typeof ApiLanOriginRoute
   '/api/network-presence': typeof ApiNetworkPresenceRoute
+  '/api/quick-tunnel': typeof ApiQuickTunnelRoute
   '/api/rtc': typeof ApiRtcRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/network-presence' | '/api/rtc'
+  fullPaths:
+    | '/'
+    | '/api/lan-origin'
+    | '/api/network-presence'
+    | '/api/quick-tunnel'
+    | '/api/rtc'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/network-presence' | '/api/rtc'
-  id: '__root__' | '/' | '/api/network-presence' | '/api/rtc'
+  to:
+    | '/'
+    | '/api/lan-origin'
+    | '/api/network-presence'
+    | '/api/quick-tunnel'
+    | '/api/rtc'
+  id:
+    | '__root__'
+    | '/'
+    | '/api/lan-origin'
+    | '/api/network-presence'
+    | '/api/quick-tunnel'
+    | '/api/rtc'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiLanOriginRoute: typeof ApiLanOriginRoute
   ApiNetworkPresenceRoute: typeof ApiNetworkPresenceRoute
+  ApiQuickTunnelRoute: typeof ApiQuickTunnelRoute
   ApiRtcRoute: typeof ApiRtcRoute
 }
 
@@ -68,11 +104,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/lan-origin': {
+      id: '/api/lan-origin'
+      path: '/api/lan-origin'
+      fullPath: '/api/lan-origin'
+      preLoaderRoute: typeof ApiLanOriginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/network-presence': {
       id: '/api/network-presence'
       path: '/api/network-presence'
       fullPath: '/api/network-presence'
       preLoaderRoute: typeof ApiNetworkPresenceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/quick-tunnel': {
+      id: '/api/quick-tunnel'
+      path: '/api/quick-tunnel'
+      fullPath: '/api/quick-tunnel'
+      preLoaderRoute: typeof ApiQuickTunnelRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/rtc': {
@@ -87,7 +137,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiLanOriginRoute: ApiLanOriginRoute,
   ApiNetworkPresenceRoute: ApiNetworkPresenceRoute,
+  ApiQuickTunnelRoute: ApiQuickTunnelRoute,
   ApiRtcRoute: ApiRtcRoute,
 }
 export const routeTree = rootRouteImport

@@ -1,6 +1,6 @@
 import { n as TSS_SERVER_FUNCTION, t as createServerFn } from "./ssr.mjs";
-import { A as cachedAdultFetch, H as isUsableAdultThumb, K as pickRedtubeThumb, N as extractRedditFlair, Y as redtubeStarNames, _ as REDDIT_FOLDER_ID, c as ADULT_PULL_PROVIDERS, f as BOORU_FOLDER_ID, g as MYFREECAMS_FOLDER_ID, h as LIBRARY_LIMITS, j as expandAdultThumbFallbacks, l as ADULT_REDDIT_PRIORITY_SUBS, m as EPORNER_FOLDER_ID, p as CHATURBATE_FOLDER_ID, u as ADULT_REDDIT_SUBS, v as REDGIFS_FOLDER_ID, x as adultDeepenQueriesForPage, y as REDTUBE_FOLDER_ID } from "./adult-pull-cache-aysXgkuS.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/functions-Dz2dAS0a.js
+import { A as cachedAdultFetch, N as extractRedditFlair, U as isUsableAdultThumb, X as redtubeStarNames, _ as REDDIT_FOLDER_ID, c as ADULT_PULL_PROVIDERS, f as BOORU_FOLDER_ID, g as MYFREECAMS_FOLDER_ID, h as LIBRARY_LIMITS, j as expandAdultThumbFallbacks, l as ADULT_REDDIT_PRIORITY_SUBS, m as EPORNER_FOLDER_ID, p as CHATURBATE_FOLDER_ID, q as pickRedtubeThumb, u as ADULT_REDDIT_SUBS, v as REDGIFS_FOLDER_ID, x as adultDeepenQueriesForPage, y as REDTUBE_FOLDER_ID } from "./adult-pull-cache-CS134UtB.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/functions-DPX0Cy2m.js
 var createServerRpc = (serverFnMeta, splitImportFn) => {
 	const url = "/_serverFn/" + serverFnMeta.id;
 	return Object.assign(splitImportFn, {
@@ -124,6 +124,93 @@ function shouldKeepRedditEntry(media, title) {
 	if (/welcome|faq|sidebar|chatters|on cam/i.test(title)) return false;
 	return false;
 }
+function selectYoutubeFeedDelta(entries, newestKnownVideoId, fallbackLimit = 24) {
+	const limit = Math.max(1, Math.floor(fallbackLimit) || 1);
+	if (!newestKnownVideoId) return entries.slice(0, limit);
+	const cursorIndex = entries.findIndex((entry) => entry.videoId === newestKnownVideoId);
+	return cursorIndex < 0 ? entries.slice(0, limit) : entries.slice(0, cursorIndex);
+}
+function newestYoutubeFeedVideoId(entries) {
+	return entries.find((entry) => typeof entry.videoId === "string" && entry.videoId.length > 0)?.videoId;
+}
+/** A Gelbooru-style post page can show a resized sample while linking the original. */
+function booruPostImageUrls(html) {
+	const anchor = [...html.matchAll(/<a\b([^>]*)>\s*(?:Original image|Click here to view the original image)\s*<\/a>/gi)].map((match) => match[1]?.match(/\bhref\s*=\s*(["'])(.*?)\1/i)?.[2]).find(Boolean);
+	const sample = (html.match(/<img\b(?=[^>]*\bid\s*=\s*["']image["'])[^>]*>/i)?.[0])?.match(/\bsrc\s*=\s*(["'])(.*?)\1/i)?.[2];
+	return {
+		original: anchor?.replaceAll("&amp;", "&"),
+		sample: sample?.replaceAll("&amp;", "&")
+	};
+}
+function youtubePlaylistId(input) {
+	try {
+		const url = new URL(input.trim());
+		if (!/(^|\.)youtube\.com$/i.test(url.hostname)) return null;
+		const id = url.searchParams.get("list") ?? "";
+		return /^[A-Za-z0-9_-]{10,80}$/.test(id) ? id : null;
+	} catch {
+		return null;
+	}
+}
+function text(value) {
+	return value?.simpleText ?? value?.runs?.map((run) => run.text ?? "").join("") ?? "";
+}
+function publicPlaylistEntries(root, limit) {
+	const out = [];
+	const seen = /* @__PURE__ */ new Set();
+	const stack = [root];
+	while (stack.length && out.length < limit) {
+		const item = stack.pop();
+		if (!item || typeof item !== "object") continue;
+		if (Array.isArray(item)) {
+			for (let i = item.length - 1; i >= 0; i--) stack.push(item[i]);
+			continue;
+		}
+		const record = item;
+		const renderer = record.playlistVideoRenderer ?? record.playlistPanelVideoRenderer;
+		if (renderer?.videoId && !seen.has(renderer.videoId)) {
+			seen.add(renderer.videoId);
+			out.push({
+				id: renderer.videoId,
+				title: text(renderer.title) || renderer.videoId,
+				channelName: text(renderer.shortBylineText) || "YouTube",
+				thumb: renderer.thumbnail?.thumbnails?.at(-1)?.url
+			});
+		}
+		const lockup = record.lockupViewModel;
+		if (lockup?.contentType === "LOCKUP_CONTENT_TYPE_VIDEO" && lockup.contentId && !seen.has(lockup.contentId)) {
+			seen.add(lockup.contentId);
+			out.push({
+				id: lockup.contentId,
+				title: lockup.metadata?.lockupMetadataViewModel?.title?.content || lockup.contentId,
+				channelName: lockup.metadata?.lockupMetadataViewModel?.metadata?.contentMetadataViewModel?.metadataRows?.[0]?.metadataParts?.[0]?.text?.content || "YouTube",
+				thumb: lockup.contentImage?.thumbnailViewModel?.image?.sources?.at(-1)?.url
+			});
+		}
+		for (const value of Object.values(record).reverse()) if (value && typeof value === "object") stack.push(value);
+	}
+	return out;
+}
+function publicPlaylistTitle(root) {
+	const stack = [root];
+	while (stack.length) {
+		const item = stack.pop();
+		if (!item || typeof item !== "object") continue;
+		if (Array.isArray(item)) {
+			stack.push(...item);
+			continue;
+		}
+		const record = item;
+		const header = record.playlistHeaderRenderer ?? record.pageHeaderViewModel ?? record.pageHeaderRenderer;
+		if (header?.title) {
+			const title = text(header.title) || header.title.dynamicTextViewModel?.text?.content;
+			if (title) return title;
+		}
+		if (header?.pageTitle) return header.pageTitle;
+		stack.push(...Object.values(record).filter((value) => value && typeof value === "object"));
+	}
+	return null;
+}
 var providerInflight = /* @__PURE__ */ new Map();
 var providerFailures = /* @__PURE__ */ new Map();
 function providerKey(provider, handle) {
@@ -145,7 +232,7 @@ function classifyProviderFailure(provider, error) {
 	if (/\b429\b|rate.?limit|too many requests|retrying after/.test(lower)) return {
 		...common,
 		kind: "rate-limited",
-		recovery: "Keep the cached channel cards. Reelcase will retry after the shown cooldown; use a focused retry only when you need it now."
+		recovery: "Keep the cached channel cards. Realhub will retry after the shown cooldown; use a focused retry only when you need it now."
 	};
 	if (/integrity|challenge/.test(lower)) return {
 		...common,
@@ -170,7 +257,7 @@ function classifyProviderFailure(provider, error) {
 	return {
 		...common,
 		kind: "network-offline",
-		recovery: "The provider could not be reached. Cached cards remain available and Reelcase will retry after the shown cooldown."
+		recovery: "The provider could not be reached. Cached cards remain available and Realhub will retry after the shown cooldown."
 	};
 }
 /** Share identical work across browser tabs and suppress only background retries. */
@@ -261,6 +348,33 @@ function ytChannelIdFromText(text) {
 	const canon = text.match(/youtube\.com\/channel\/(UC[A-Za-z0-9_-]{20,})/);
 	return canon ? canon[1] : null;
 }
+function youtubeChannelAvatar(html) {
+	const avatar = (html.match(/<meta\s+(?:property|name)=["']og:image["']\s+content=["']([^"']+)["']/i) ?? html.match(/<meta\s+content=["']([^"']+)["']\s+(?:property|name)=["']og:image["']/i))?.[1] ?? html.match(/"avatar"\s*:\s*\{[^}]*"url"\s*:\s*"([^"]+)"/i)?.[1];
+	return avatar && /^https:\/\/[^\s]+$/i.test(avatar) ? decodeXml(avatar) : void 0;
+}
+/** Fill artwork for older saved follows without pulling every channel archive. */
+async function runYoutubeCreatorProfiles(dataRaw) {
+	const ids = Array.isArray(dataRaw) ? dataRaw.filter((id) => typeof id === "string" && /^yt:UC[A-Za-z0-9_-]{20,}$/.test(id)).slice(0, 16) : [];
+	const results = [];
+	for (let start = 0; start < ids.length; start += 4) {
+		const batch = await Promise.all(ids.slice(start, start + 4).map(async (id) => {
+			try {
+				const html = await fetchText(`https://www.youtube.com/channel/${encodeURIComponent(id.slice(3))}`);
+				const thumb = youtubeChannelAvatar(html);
+				const description = decodeXml(html.match(/<meta\s+(?:name|property)=["']description["']\s+content=["']([^"']+)["']/i)?.[1] ?? "").slice(0, 400);
+				return {
+					id,
+					...thumb ? { thumb } : {},
+					...description ? { description } : {}
+				};
+			} catch {
+				return { id };
+			}
+		}));
+		results.push(...batch);
+	}
+	return results;
+}
 function decodeXml(s) {
 	return s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, "\"").replace(/&#39;/g, "'").replace(/&amp;/g, "&");
 }
@@ -272,7 +386,7 @@ async function fetchText(url) {
 	const res = await fetch(url, {
 		signal: AbortSignal.timeout(12e3),
 		headers: {
-			"user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai) AppleWebKit/537.36",
+			"user-agent": "Mozilla/5.0 (compatible; Realhub/1.0; +https://grok.x.ai) AppleWebKit/537.36",
 			accept: "text/html,application/xhtml+xml,application/xml,application/json"
 		}
 	});
@@ -310,6 +424,7 @@ function ytVideo(entry) {
 }
 var YOUTUBE_CHANNEL_CACHE_TTL_MS = 24e4;
 var YOUTUBE_CHANNEL_CACHE_LIMIT = 12;
+var YOUTUBE_DEEP_CACHE_MAX_VIDEOS = 2e3;
 var youtubeChannelCache = /* @__PURE__ */ new Map();
 function rendererText(value) {
 	return value?.simpleText ?? value?.runs?.map((run) => run.text ?? "").join("") ?? "";
@@ -529,7 +644,47 @@ function boundedFollowResult(result, limit) {
 		videos
 	};
 }
-async function youtubeFromChannelUncoalesced(query, limit = LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, deepCatalog = true) {
+/** Return only feed entries ahead of a known upload, while keeping a short
+* provider window as the recovery path if YouTube has aged that upload out. */
+function routineYoutubeFeedDelta(result, limit, newestKnownVideoId) {
+	const live = result.videos.filter((video) => video.remote?.live);
+	const delta = selectYoutubeFeedDelta(result.videos.filter((video) => !video.remote?.live).map((video) => ({
+		videoId: video.remote?.videoId,
+		video
+	})), newestKnownVideoId, limit).map((entry) => entry.video);
+	const videos = [...live, ...delta];
+	return {
+		...result,
+		channel: {
+			...result.channel,
+			lastResponseCount: videos.length
+		},
+		videos
+	};
+}
+function youtubeResultForRequest(result, limit, deepCatalog, newestKnownVideoId) {
+	return deepCatalog ? boundedFollowResult(result, limit) : routineYoutubeFeedDelta(result, limit, newestKnownVideoId);
+}
+function withYoutubeCacheTelemetry(result, entry) {
+	return {
+		...result,
+		channel: {
+			...result.channel,
+			cache: entry ? {
+				at: entry.at,
+				hits: entry.hits,
+				misses: entry.misses,
+				scope: entry.scope
+			} : {
+				at: Date.now(),
+				hits: 0,
+				misses: 1,
+				scope: "uncached"
+			}
+		}
+	};
+}
+async function youtubeFromChannelUncoalesced(query, limit = LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, deepCatalog = true, newestKnownVideoId) {
 	let channelId = "";
 	const trimmed = query.trim();
 	if (/^UC[\w-]{20,}$/.test(trimmed)) channelId = trimmed;
@@ -542,11 +697,17 @@ async function youtubeFromChannelUncoalesced(query, limit = LIBRARY_LIMITS.youtu
 	}
 	const boundedLimit = Math.max(24, Math.min(LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, Math.floor(limit)));
 	const cached = youtubeChannelCache.get(channelId);
-	if (cached && Date.now() - cached.at < YOUTUBE_CHANNEL_CACHE_TTL_MS && cached.result.videos.length >= Math.min(144, boundedLimit)) return boundedFollowResult(cached.result, boundedLimit);
-	const [xml, channelPage] = await Promise.all([fetchText(`https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`), deepCatalog ? fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}/videos`).catch(() => "") : Promise.resolve("")]);
+	if (cached && Date.now() - cached.at < YOUTUBE_CHANNEL_CACHE_TTL_MS) {
+		cached.hits += 1;
+		return youtubeResultForRequest(withYoutubeCacheTelemetry(deepCatalog ? cached.result : {
+			...cached.result,
+			videos: [...cached.result.videos.filter((video) => video.remote?.live), ...cached.feedVideos]
+		}, cached), boundedLimit, deepCatalog, newestKnownVideoId);
+	}
+	const [xml, channelPage] = await Promise.all([fetchText(`https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`), fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}${deepCatalog ? "/videos" : ""}`).catch(() => "")]);
 	const title = tag(xml, "title") || "YouTube";
 	const author = tag(xml, "name") || title;
-	const videos = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)].slice(0, boundedLimit).map((m) => {
+	const feedVideos = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)].slice(0, boundedLimit).map((m) => {
 		const block = m[1];
 		const id = tag(block, "yt:videoId");
 		const thumb = block.match(/url="([^"]+)"/)?.[1] ?? `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
@@ -562,6 +723,7 @@ async function youtubeFromChannelUncoalesced(query, limit = LIBRARY_LIMITS.youtu
 			views: Number(block.match(/<media:statistics[^>]*views="(\d+)"/)?.[1]) || void 0
 		});
 	});
+	const videos = [...feedVideos];
 	const feedIds = new Set(videos.map((video) => video.remote?.videoId).filter((id) => Boolean(id)));
 	const backfill = deepCatalog && channelPage ? await (async () => {
 		const seen = new Set(feedIds);
@@ -595,20 +757,29 @@ async function youtubeFromChannelUncoalesced(query, limit = LIBRARY_LIMITS.youtu
 			handle: author,
 			title: author,
 			channelId,
+			thumb: youtubeChannelAvatar(channelPage),
 			lastCheckedAt: Date.now(),
 			newestPublishedAt: Math.max(0, ...videos.filter((video) => !video.remote?.live).map((video) => video.addedAt)),
+			newestVideoId: newestYoutubeFeedVideoId(feedVideos.map((video) => ({ videoId: video.remote?.videoId }))),
 			lastResponseCount: videos.length
 		},
 		videos
 	};
-	if (boundedLimit <= LIBRARY_LIMITS.youtubeRoutineVideosPerChannel) {
-		youtubeChannelCache.set(channelId, {
-			at: Date.now(),
-			result
-		});
+	const cacheable = videos.length <= YOUTUBE_DEEP_CACHE_MAX_VIDEOS;
+	const cacheScope = videos.length > feedVideos.length ? "catalog" : "feed";
+	const cacheEntry = cacheable ? {
+		at: Date.now(),
+		result,
+		feedVideos,
+		hits: 0,
+		misses: 1,
+		scope: cacheScope
+	} : null;
+	if (cacheEntry) {
+		youtubeChannelCache.set(channelId, cacheEntry);
 		while (youtubeChannelCache.size > YOUTUBE_CHANNEL_CACHE_LIMIT) youtubeChannelCache.delete(youtubeChannelCache.keys().next().value);
 	}
-	return boundedFollowResult(result, boundedLimit);
+	return youtubeResultForRequest(withYoutubeCacheTelemetry(result, cacheEntry), boundedLimit, deepCatalog, newestKnownVideoId);
 }
 function twitchLogin(input) {
 	const raw = input.trim().replaceAll("\\_", "_").replace(/^["'([{<]+|["')\]}>.;:]+$/g, "");
@@ -618,8 +789,107 @@ function twitchLogin(input) {
 		return raw.replace(/^@/, "").replace(/^tw:/, "").replace(/[^a-z0-9_]/gi, "").toLowerCase();
 	}
 }
-function youtubeFromChannel(query, limit = LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, focused = true, deepCatalog = focused) {
-	return providerRequest("youtube", query, focused, () => youtubeFromChannelUncoalesced(query, limit, deepCatalog));
+function youtubeFromChannel(query, limit = LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, focused = true, deepCatalog = focused, newestKnownVideoId) {
+	return providerRequest("youtube", query, focused, () => youtubeFromChannelUncoalesced(query, limit, deepCatalog, newestKnownVideoId));
+}
+async function youtubeFromPlaylist(input, focused = true) {
+	const playlistId = youtubePlaylistId(input);
+	if (!playlistId) throw new Error("Enter a public YouTube playlist URL.");
+	return providerRequest("youtube", `playlist:${playlistId}`, focused, async () => {
+		const html = await fetchText(`https://www.youtube.com/playlist?list=${encodeURIComponent(playlistId)}`);
+		const root = youtubeInitialData(html);
+		if (!root) throw new Error("This playlist did not return public metadata.");
+		const limit = focused ? 300 : 80;
+		const found = publicPlaylistEntries(root, limit);
+		const seen = new Set(found.map((entry) => entry.id));
+		const apiKey = html.match(/"INNERTUBE_API_KEY":"([^"]+)"/)?.[1];
+		const clientVersion = html.match(/"INNERTUBE_CLIENT_VERSION":"([^"]+)"/)?.[1] ?? "2.20250101.00.00";
+		let browseRoot = root;
+		if (!found.length && apiKey) try {
+			const response = await fetch(`https://www.youtube.com/youtubei/v1/browse?key=${encodeURIComponent(apiKey)}`, {
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					"x-youtube-client-name": "1",
+					"x-youtube-client-version": clientVersion
+				},
+				body: JSON.stringify({
+					context: { client: {
+						clientName: "WEB",
+						clientVersion
+					} },
+					browseId: `VL${playlistId}`
+				}),
+				signal: AbortSignal.timeout(1e4)
+			});
+			if (response.ok) {
+				browseRoot = await response.json();
+				for (const entry of publicPlaylistEntries(browseRoot, limit)) if (!seen.has(entry.id)) {
+					seen.add(entry.id);
+					found.push(entry);
+				}
+			}
+		} catch {}
+		let continuation = youtubeContinuation(browseRoot);
+		for (let page = 0; continuation && apiKey && page < (focused ? 4 : 1) && found.length < limit; page++) try {
+			const response = await fetch(`https://www.youtube.com/youtubei/v1/browse?key=${encodeURIComponent(apiKey)}`, {
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					"x-youtube-client-name": "1",
+					"x-youtube-client-version": clientVersion
+				},
+				body: JSON.stringify({
+					context: { client: {
+						clientName: "WEB",
+						clientVersion
+					} },
+					continuation
+				}),
+				signal: AbortSignal.timeout(1e4)
+			});
+			if (!response.ok) break;
+			const pageData = await response.json();
+			for (const entry of publicPlaylistEntries(pageData, limit - found.length)) if (!seen.has(entry.id)) {
+				seen.add(entry.id);
+				found.push(entry);
+			}
+			const next = youtubeContinuation(pageData);
+			continuation = next && next !== continuation ? next : null;
+		} catch {
+			break;
+		}
+		if (!found.length) throw new Error("No public videos were found in that playlist.");
+		const title = publicPlaylistTitle(browseRoot) || publicPlaylistTitle(root) || html.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']+)/i)?.[1] || `YouTube playlist ${playlistId.slice(0, 8)}`;
+		const folderId = `ytpl:${playlistId}`;
+		const videos = found.map((entry) => {
+			const video = ytVideo({
+				id: entry.id,
+				title: entry.title,
+				published: "1970-01-02T00:00:00.000Z",
+				thumb: entry.thumb?.startsWith("//") ? `https:${entry.thumb}` : entry.thumb || `https://i.ytimg.com/vi/${entry.id}/hqdefault.jpg`,
+				desc: `${title} · public playlist`,
+				channelId: "playlist",
+				channelName: entry.channelName
+			});
+			video.id = `${folderId}:${entry.id}`;
+			video.folderId = folderId;
+			return video;
+		});
+		return {
+			channel: {
+				id: folderId,
+				kind: "youtube",
+				handle: `https://www.youtube.com/playlist?list=${playlistId}`,
+				title,
+				thumb: videos[0]?.poster,
+				lastCheckedAt: Date.now(),
+				newestVideoId: found[0]?.id,
+				lastResponseCount: videos.length
+			},
+			videos
+		};
+	});
 }
 var TWITCH_ARCHIVE_PAGE_SIZE = Math.min(100, LIBRARY_LIMITS.twitchArchivePageSize);
 var TWITCH_ARCHIVE_MAX_PAGES = LIBRARY_LIMITS.twitchArchiveMaxPages;
@@ -926,6 +1196,7 @@ function followTwitch(query, compact = false, clipLimit) {
 async function runFollowRemote(dataRaw) {
 	const data = parseFollow(dataRaw);
 	if ((data.kind === "auto" ? guessKind(data.query) : data.kind) === "twitch") return followTwitch(data.query, false, data.clipLimit);
+	if (youtubePlaylistId(data.query)) return youtubeFromPlaylist(data.query);
 	const videoId = ytVideoId(data.query);
 	if (videoId) return youtubeFromVideo(videoId);
 	return youtubeFromChannel(data.query);
@@ -950,11 +1221,14 @@ async function runRefreshRemotes(dataRaw) {
 					folderId: ch.id
 				})));
 			} else {
-				const next = await youtubeFromChannel(ch.channelId ? `https://www.youtube.com/channel/${ch.channelId}` : ch.handle, LIBRARY_LIMITS.youtubeRoutineVideosPerChannel, false, true);
+				const q = ch.channelId ? `https://www.youtube.com/channel/${ch.channelId}` : ch.handle;
+				const next = ch.id.startsWith("ytpl:") ? await youtubeFromPlaylist(ch.handle, false) : await youtubeFromChannel(q, LIBRARY_LIMITS.youtubeRoutineVideosPerChannel, false, false, ch.newestVideoId);
 				channels.push({
 					...ch,
 					...next.channel,
 					id: ch.id,
+					thumb: next.channel.thumb || ch.thumb,
+					newestVideoId: next.channel.newestVideoId ?? ch.newestVideoId,
 					lastProviderFailure: void 0
 				});
 				videos.push(...next.videos.map((video) => ({
@@ -1018,7 +1292,7 @@ async function runImportChannels(dataRaw) {
 	const rows = await mapPool(data.items, 6, async (item) => {
 		for (let attempt = 0; attempt < 2; attempt += 1) try {
 			if (item.kind === "twitch") return await followTwitch(item.query, compact);
-			return await youtubeFromChannel(item.query, compact ? LIBRARY_LIMITS.youtubeBulkImportVideosPerChannel : LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, true, !compact);
+			return youtubePlaylistId(item.query) ? await youtubeFromPlaylist(item.query, !compact) : await youtubeFromChannel(item.query, compact ? LIBRARY_LIMITS.youtubeBulkImportVideosPerChannel : LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, true, !compact);
 		} catch {
 			if (!attempt) await new Promise((resolve) => setTimeout(resolve, 350));
 		}
@@ -1214,7 +1488,7 @@ async function fetchEpornerPageOnce(query, order, page, perPage) {
 		cacheTtlMs: 72e4,
 		headers: {
 			accept: "application/json",
-			"user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)"
+			"user-agent": "Mozilla/5.0 (compatible; Realhub/1.0; +https://grok.x.ai)"
 		}
 	});
 	if (!res.ok) throw new Error(`Eporner API HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
@@ -1333,7 +1607,7 @@ async function fetchRedtubePage(query, order, page) {
 		cacheTtlMs: 72e4,
 		headers: {
 			accept: "application/json",
-			"user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)"
+			"user-agent": "Mozilla/5.0 (compatible; Realhub/1.0; +https://grok.x.ai)"
 		}
 	});
 	if (!res.ok) throw new Error(`RedTube API HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
@@ -1407,7 +1681,7 @@ async function fetchChaturbateRooms(query, maxVideos) {
 			cacheTtlMs: 18e4,
 			headers: {
 				accept: "application/json",
-				"user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)"
+				"user-agent": "Mozilla/5.0 (compatible; Realhub/1.0; +https://grok.x.ai)"
 			}
 		});
 		if (!res.ok) throw new Error(`Chaturbate rooms HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
@@ -1560,7 +1834,7 @@ async function fetchMyFreeCamsRooms(query, maxVideos) {
 					accept: "text/plain, text/html;q=0.8",
 					referer: "https://www.myfreecams.com/#Homepage",
 					"accept-language": "en-US,en;q=0.8",
-					"user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)"
+					"user-agent": "Mozilla/5.0 (compatible; Realhub/1.0; +https://grok.x.ai)"
 				}
 			});
 			if (!res.ok) throw new Error(`MyFreeCams public list HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
@@ -1881,7 +2155,7 @@ async function fetchBooruListing(host, tags, limit, pid) {
 		cacheTtlMs: 6e5,
 		headers: {
 			accept: "text/html,application/xhtml+xml",
-			"user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0)"
+			"user-agent": "Mozilla/5.0 (compatible; Realhub/1.0)"
 		}
 	});
 	if (!res.ok) throw new Error(`${host.id} HTTP ${res.status}`);
@@ -1909,7 +2183,38 @@ async function fetchBooruListing(host, tags, limit, pid) {
 		});
 		if (rows.length >= limit) break;
 	}
-	return rows.map((row) => booruVideo(row, host)).filter((video) => video != null);
+	const videos = rows.map((row) => booruVideo(row, host)).filter((video) => video != null);
+	if (host.id !== "tbib") return videos;
+	let cursor = 0;
+	await Promise.all(Array.from({ length: Math.min(3, videos.length) }, async () => {
+		while (cursor < Math.min(9, videos.length)) {
+			const video = videos[cursor++];
+			try {
+				const response = await cachedAdultFetch(video.remote.watchUrl, {
+					signal: AbortSignal.timeout(5e3),
+					cacheTtlMs: 18e5,
+					headers: {
+						accept: "text/html",
+						"user-agent": "Mozilla/5.0 (compatible; Realhub/1.0)"
+					}
+				});
+				if (!response.ok) continue;
+				const found = booruPostImageUrls(await response.text());
+				const original = normalizedBooruUrl(found.original ?? "", host);
+				const sample = normalizedBooruUrl(found.sample ?? "", host);
+				if (original && original.startsWith("https://")) {
+					video.src = original;
+					video.remote.embedUrl = original;
+				}
+				if (sample && sample.startsWith("https://")) video.remote.thumbFallbacks = [
+					video.poster,
+					sample,
+					original
+				].filter((value) => Boolean(value));
+			} catch {}
+		}
+	}));
+	return videos;
 }
 function rule34PostIdFromQuery(query) {
 	const direct = query.match(/(?:rule34\.xxx\/index\.php\?[^\s]*\bid=|(?:^|\s)rule34:)(\d+)/i)?.[1];
@@ -1921,7 +2226,7 @@ async function fetchRule34Post(host, id) {
 		cacheTtlMs: 18e5,
 		headers: {
 			accept: "text/html,application/xhtml+xml",
-			"user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0)"
+			"user-agent": "Mozilla/5.0 (compatible; Realhub/1.0)"
 		}
 	});
 	if (!res.ok) throw new Error(`${host.id} post ${id} HTTP ${res.status}`);
@@ -1952,7 +2257,7 @@ async function fetchBooruJson(host, tags, limit, pid) {
 		cacheTtlMs: 6e5,
 		headers: {
 			accept: "application/json,text/plain,*/*",
-			"user-agent": "Reelcase/1.0"
+			"user-agent": "Realhub/1.0"
 		}
 	});
 	if (!res.ok) throw new Error(`${host.id} HTTP ${res.status}`);
@@ -1986,6 +2291,27 @@ function booruTagsForHost(host, needle) {
 	const query = needle.trim();
 	if (host.id === "gelbooru") return ["rating:explicit", query].filter(Boolean).join(" ");
 	return query;
+}
+async function runBooruOriginal(data) {
+	const id = typeof data === "object" && data !== null ? String(data.id ?? "") : "";
+	if (!/^\d{1,12}$/.test(id)) return null;
+	const host = BOORU_HOSTS.find((item) => item.id === "tbib");
+	try {
+		const response = await cachedAdultFetch(`${host.base}${host.postPath}${id}`, {
+			signal: AbortSignal.timeout(1e4),
+			cacheTtlMs: 18e5,
+			headers: {
+				accept: "text/html",
+				"user-agent": "Mozilla/5.0 (compatible; Realhub/1.0)"
+			}
+		});
+		if (!response.ok) return null;
+		const { original } = booruPostImageUrls(await response.text());
+		const url = normalizedBooruUrl(original ?? "", host);
+		return /^https:\/\//.test(url) ? url : null;
+	} catch {
+		return null;
+	}
 }
 function e621TagString(tags) {
 	if (!tags) return "";
@@ -2055,7 +2381,7 @@ async function fetchE621Page(tags, limit, page) {
 		cacheKey: `GET:${url}:e621`,
 		headers: {
 			accept: "application/json",
-			"user-agent": "Reelcase/1.0 (adult catalog; local library client)"
+			"user-agent": "Realhub/1.0 (adult catalog; local library client)"
 		}
 	});
 	if (!res.ok) throw new Error(`e621 HTTP ${res.status}`);
@@ -2222,7 +2548,7 @@ async function getRedgifsAccessToken() {
 	const res = await fetch("https://api.redgifs.com/v2/auth/temporary", {
 		headers: {
 			accept: "application/json",
-			"user-agent": "Reelcase/1.0"
+			"user-agent": "Realhub/1.0"
 		},
 		signal: AbortSignal.timeout(12e3)
 	});
@@ -2253,7 +2579,7 @@ async function fetchRedgifsDirect(query, maxVideos, page) {
 		headers: {
 			accept: "application/json",
 			authorization: `Bearer ${token}`,
-			"user-agent": "Reelcase/1.0"
+			"user-agent": "Realhub/1.0"
 		}
 	});
 	if (!res.ok) throw new Error(`Redgifs HTTP ${res.status}`);
@@ -2287,7 +2613,7 @@ async function fetchRedgifsViaAdultDataLink(query, maxVideos, page) {
 			accept: "application/json",
 			authorization: `Bearer ${key}`,
 			"x-api-key": key,
-			"user-agent": "Reelcase/1.0"
+			"user-agent": "Realhub/1.0"
 		}
 	});
 	if (!res.ok) throw new Error(`AdultDataLink Redgifs HTTP ${res.status}`);
@@ -3156,7 +3482,7 @@ async function runSearchRedtubeStars(dataRaw) {
 		cacheTtlMs: 18e5,
 		headers: {
 			accept: "application/json",
-			"user-agent": "Mozilla/5.0 (compatible; Reelcase/1.0; +https://grok.x.ai)"
+			"user-agent": "Mozilla/5.0 (compatible; Realhub/1.0; +https://grok.x.ai)"
 		}
 	});
 	if (!res.ok) throw new Error(`RedTube star API HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
@@ -3230,5 +3556,17 @@ var searchRedtubeStars_createServerFn_handler = createServerRpc({
 	filename: "src/lib/remote/functions.ts"
 }, (opts) => searchRedtubeStars.__executeServer(opts));
 var searchRedtubeStars = createServerFn({ method: "POST" }).validator(input).handler(searchRedtubeStars_createServerFn_handler, ({ data }) => runSearchRedtubeStars(data));
+var resolveBooruOriginal_createServerFn_handler = createServerRpc({
+	id: "dd1d1916a4839a4ceb55923d6e545e56caf6cd3f77b36275c007d928335b1d12",
+	name: "resolveBooruOriginal",
+	filename: "src/lib/remote/functions.ts"
+}, (opts) => resolveBooruOriginal.__executeServer(opts));
+var resolveBooruOriginal = createServerFn({ method: "POST" }).validator(input).handler(resolveBooruOriginal_createServerFn_handler, ({ data }) => runBooruOriginal(data));
+var youtubeCreatorProfiles_createServerFn_handler = createServerRpc({
+	id: "01ab33bc0455dc5351da5f13e553736c0034ee0d18195c486c175d01ae271321",
+	name: "youtubeCreatorProfiles",
+	filename: "src/lib/remote/functions.ts"
+}, (opts) => youtubeCreatorProfiles.__executeServer(opts));
+var youtubeCreatorProfiles = createServerFn({ method: "POST" }).validator(input).handler(youtubeCreatorProfiles_createServerFn_handler, ({ data }) => runYoutubeCreatorProfiles(data));
 //#endregion
-export { fetchAdultComments_createServerFn_handler, fetchTwitchFollowing_createServerFn_handler, followRemote_createServerFn_handler, importChannels_createServerFn_handler, refreshRemotes_createServerFn_handler, searchAdultVideos_createServerFn_handler, searchRedtubeStars_createServerFn_handler };
+export { fetchAdultComments_createServerFn_handler, fetchTwitchFollowing_createServerFn_handler, followRemote_createServerFn_handler, importChannels_createServerFn_handler, refreshRemotes_createServerFn_handler, resolveBooruOriginal_createServerFn_handler, searchAdultVideos_createServerFn_handler, searchRedtubeStars_createServerFn_handler, youtubeCreatorProfiles_createServerFn_handler };
