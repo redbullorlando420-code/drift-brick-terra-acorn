@@ -79,10 +79,12 @@ function sameOrder(left: LibraryVideo[], right: LibraryVideo[]) {
 
 /**
  * Merge a provider refresh without letting a shallow public response erase a
- * known Twitch archive. Twitch's public archive endpoint can legitimately
- * return a partial window (or no rows while it is rate-limited), so archive
- * rows are additive per channel. Fresh rows still win by id, and stale live
- * cards are turned offline when their channel has checked successfully.
+ * known remote archive. Twitch's public archive endpoint can legitimately
+ * return a partial window (or no rows while it is rate-limited), and routine
+ * YouTube refreshes intentionally return only uploads newer than the saved
+ * feed cursor. Archive rows are therefore additive per channel. Fresh rows
+ * still win by id, and stale live cards are turned offline when their channel
+ * has checked successfully.
  *
  * The original catalog order is retained for every existing card. This is
  * more than cosmetic: Zustand shallow selectors can now skip a shelf render
@@ -135,9 +137,10 @@ export function mergeRemoteRefresh(
       merged.push(video);
       continue;
     }
-    // A Twitch VOD is a historical item, not a statement about current live
-    // state. Retain it until an explicit cache cleanup removes it.
-    if (video.remote.kind === "twitch" && !video.remote.live) {
+    // Historical Twitch VODs and YouTube uploads are not statements about
+    // current live state. Routine responses may omit them by design; retain
+    // them until an explicit cache cleanup removes them.
+    if ((video.remote.kind === "twitch" || video.remote.kind === "youtube") && !video.remote.live) {
       merged.push(video);
       continue;
     }
@@ -147,8 +150,6 @@ export function mergeRemoteRefresh(
       merged.push(video);
       continue;
     }
-    // A missing non-live YouTube entry is intentionally removed: a successful
-    // provider page is the source of truth for that shallow current window.
   }
   // Truly new cards append after stable catalog rows. Duplicate provider rows
   // were collapsed by the map above, so an import cannot create two cards.

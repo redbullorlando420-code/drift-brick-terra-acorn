@@ -2130,9 +2130,9 @@ export const useLibrary = create<LibraryState>((set, get) => ({
               || s.favorites[v.id]
               || s.likes[v.id]
               // Archive pages are public and may be temporarily partial. A
-              // manual Twitch refresh must extend/update the archive, never
-              // collapse thousands of retained VOD cards to the newest page.
-              || (result.channel.kind === "twitch" && v.remote?.kind === "twitch" && !v.remote.live),
+              // manual remote refresh must extend/update the archive, never
+              // collapse a retained catalog to a short provider window.
+              || ((result.channel.kind === "twitch" || result.channel.kind === "youtube") && v.remote?.kind === result.channel.kind && !v.remote.live),
             ),
             result.videos,
           ),
@@ -2220,7 +2220,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
                 || s.favorites[v.id]
                 || s.likes[v.id]
                 // Partial/shallow import must not erase a deeper archive already cached.
-                || (row.channel.kind === "twitch" && v.remote?.kind === "twitch" && !v.remote.live),
+                || ((row.channel.kind === "twitch" || row.channel.kind === "youtube") && v.remote?.kind === row.channel.kind && !v.remote.live),
               ),
               row.videos,
             );

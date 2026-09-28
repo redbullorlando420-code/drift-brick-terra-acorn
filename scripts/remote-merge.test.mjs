@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mergeRemoteRefresh } from '../src/lib/videos/remote-merge.ts';
 const video = (id, folderId = 'tw:creator', live = false) => ({ id, folderId, name: id, remote: { kind: 'twitch', live } });
+const youtubeVideo = (id, folderId = 'yt:creator') => ({ id, folderId, name: id, remote: { kind: 'youtube', live: false } });
 test('a failed or unrequested channel keeps its cached catalog', () => {
   const old = [video('saved'), video('other', 'tw:other')];
   assert.deepEqual(mergeRemoteRefresh(old, [], [], new Set()), old);
@@ -10,6 +11,11 @@ test('Twitch VOD history survives a shorter successful refresh', () => {
   const old = [video('liked'), video('favorite'), video('expired')];
   const result = mergeRemoteRefresh(old, [video('new')], ['tw:creator'], new Set(['liked', 'favorite']));
   assert.deepEqual(result.map(v => v.id), ['liked', 'favorite', 'expired', 'new']);
+});
+test('YouTube archive survives a routine refresh with no new uploads', () => {
+  const old = [youtubeVideo('older-1'), youtubeVideo('older-2')];
+  const result = mergeRemoteRefresh(old, [], ['yt:creator'], new Set());
+  assert.deepEqual(result.map(v => v.id), ['older-1', 'older-2']);
 });
 test('a saved channel stops appearing live when a successful check finds it offline', () => {
   const result = mergeRemoteRefresh([video('live', 'tw:creator', true)], [], ['tw:creator'], new Set(['live']));

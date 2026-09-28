@@ -277,6 +277,7 @@ type YoutubeRenderer = {
   title?: { simpleText?: string; runs?: Array<{ text?: string }> };
   viewCountText?: { simpleText?: string; runs?: Array<{ text?: string }> };
   descriptionSnippet?: { simpleText?: string; runs?: Array<{ text?: string }> };
+  thumbnail?: { thumbnails?: Array<{ url?: string }> };
 };
 
 // A deep channel fetch is expensive public metadata work. Keep a short bounded
@@ -317,15 +318,39 @@ function youtubeInitialData(html: string): unknown | null {
 
 function youtubeRenderers(root: unknown, maximum: number): YoutubeRenderer[] {
   const found: YoutubeRenderer[] = [];
+  const seen = new Set<string>();
   const stack: unknown[] = [root];
   while (stack.length && found.length < maximum) {
     const current = stack.pop();
     if (!current || typeof current !== "object") continue;
-    if (Array.isArray(current)) { stack.push(...current); continue; }
+    if (Array.isArray(current)) {
+      for (let index = current.length - 1; index >= 0; index -= 1) stack.push(current[index]);
+      continue;
+    }
     const record = current as Record<string, unknown>;
-    const renderer = record.videoRenderer as YoutubeRenderer | undefined;
-    if (renderer?.videoId) found.push(renderer);
-    for (const value of Object.values(record)) if (value && typeof value === "object") stack.push(value);
+    const renderer = (record.videoRenderer ?? record.gridVideoRenderer ?? record.compactVideoRenderer) as YoutubeRenderer | undefined;
+    if (renderer?.videoId && !seen.has(renderer.videoId)) {
+      seen.add(renderer.videoId);
+      found.push(renderer);
+    }
+    // YouTube is gradually replacing videoRenderer with lockupViewModel in
+    // channel shelves. Normalize the stable fields we need into the same
+    // shape so a layout experiment cannot collapse a creator pull to RSS.
+    const lockup = record.lockupViewModel as {
+      contentId?: string;
+      contentType?: string;
+      metadata?: { lockupMetadataViewModel?: { title?: { content?: string } } };
+      contentImage?: { thumbnailViewModel?: { image?: { sources?: Array<{ url?: string }> } } };
+    } | undefined;
+    if (lockup?.contentId && lockup.contentType === "LOCKUP_CONTENT_TYPE_VIDEO" && !seen.has(lockup.contentId)) {
+      seen.add(lockup.contentId);
+      found.push({
+        videoId: lockup.contentId,
+        title: { simpleText: lockup.metadata?.lockupMetadataViewModel?.title?.content ?? lockup.contentId },
+        thumbnail: { thumbnails: lockup.contentImage?.thumbnailViewModel?.image?.sources?.map((source) => ({ url: source.url })) },
+      });
+    }
+    for (const value of Object.values(record).reverse()) if (value && typeof value === "object") stack.push(value);
   }
   return found;
 }
@@ -340,11 +365,32 @@ function youtubeContinuation(root: unknown): string | null {
   while (stack.length) {
     const current = stack.pop();
     if (!current || typeof current !== "object") continue;
-    if (Array.isArray(current)) { stack.push(...current); continue; }
+    if (Array.isArray(current)) { for (let index = current.length - 1; index >= 0; index -= 1) stack.push(current[index]); continue; }
     const record = current as Record<string, unknown>;
     const command = record.continuationCommand;
     if (command && typeof command === "object" && typeof (command as Record<string, unknown>).token === "string") return (command as Record<string, string>).token;
-    for (const value of Object.values(record)) if (value && typeof value === "object") stack.push(value);
+    // Initial channel shells normally expose nextContinuationData rather than
+    // the continuationCommand used by later append responses. Accept both,
+    // plus the reload form used by some YouTube client variants.
+    for (const key of ["nextContinuationData", "reloadContinuationData", "continuationData"]) {
+      const value = record[key];
+      if (value && typeof value === "object" && typeof (value as Record<string, unknown>).continuation === "string") {
+        return (value as Record<string, string>).continuation;
+      }
+    }
+    const endpoint = record.continuationEndpoint;
+    if (endpoint && typeof endpoint === "object") {
+      const endpointRecord = endpoint as Record<string, unknown>;
+      const endpointCommand = endpointRecord.continuationCommand;
+      if (endpointCommand && typeof endpointCommand === "object" && typeof (endpointCommand as Record<string, unknown>).token === "string") {
+        return (endpointCommand as Record<string, string>).token;
+      }
+      const endpointNext = endpointRecord.nextContinuationData;
+      if (endpointNext && typeof endpointNext === "object" && typeof (endpointNext as Record<string, unknown>).continuation === "string") {
+        return (endpointNext as Record<string, string>).continuation;
+      }
+    }
+    for (const value of Object.values(record).reverse()) if (value && typeof value === "object") stack.push(value);
   }
   return null;
 }
@@ -353,7 +399,7 @@ function youtubeBrowseConfig(html: string, root: unknown) {
   const apiKey = html.match(/"INNERTUBE_API_KEY":"([^"]+)"/)?.[1];
   const clientVersion = html.match(/"INNERTUBE_CLIENT_VERSION":"([^"]+)"/)?.[1] ?? "2.20250101.00.00";
   const continuation = youtubeContinuation(root);
-  return apiKey && continuation ? { apiKey, clientVersion, continuation } : null;
+  return apiKey ? { apiKey, clientVersion, continuation } : null;
 }
 
 async function youtubeContinuationBackfill(html: string, knownIds: Set<string>, channelId: string, channelName: string, limit: number): Promise<LibraryVideo[]> {
@@ -362,7 +408,34 @@ async function youtubeContinuationBackfill(html: string, knownIds: Set<string>, 
   if (!config || limit <= 0) return [];
   const seen = new Set(knownIds);
   const videos: LibraryVideo[] = [];
+  const addPageVideos = (pageData: unknown) => {
+    for (const renderer of youtubeRenderers(pageData, limit - videos.length)) {
+      const id = renderer.videoId;
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      const thumb = renderer.thumbnail?.thumbnails?.at(-1)?.url;
+      videos.push(ytVideo({ id, title: rendererText(renderer.title) || `${channelName} video`, published: "1970-01-01T00:00:00.000Z", thumb: thumb || `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, desc: rendererText(renderer.descriptionSnippet) || `${channelName} public channel catalog item.`, channelId, channelName, views: parsePublicViewCount(rendererText(renderer.viewCountText)) }));
+    }
+  };
   let continuation: string | null = config.continuation;
+  // The channel shell can omit a continuation entirely. Every channel also
+  // has a public uploads playlist (UU + the channel id without UC), which is
+  // a stable Innertube browse target and gives us the same paged archive.
+  if (!continuation && /^UC[A-Za-z0-9_-]{20,}$/.test(channelId)) {
+    try {
+      const response = await fetch(`https://www.youtube.com/youtubei/v1/browse?key=${encodeURIComponent(config.apiKey)}`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-youtube-client-name": "1", "x-youtube-client-version": config.clientVersion },
+        body: JSON.stringify({ context: { client: { clientName: "WEB", clientVersion: config.clientVersion } }, browseId: `UU${channelId.slice(2)}` }),
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (response.ok) {
+        const pageData = await response.json() as unknown;
+        addPageVideos(pageData);
+        continuation = youtubeContinuation(pageData);
+      }
+    } catch { /* The channel shell remains a valid partial source. */ }
+  }
   for (let page = 0; continuation && page < LIBRARY_LIMITS.youtubeArchivePagesPerPull && videos.length < limit; page += 1) {
     try {
       const response = await fetch(`https://www.youtube.com/youtubei/v1/browse?key=${encodeURIComponent(config.apiKey)}`, {
@@ -373,12 +446,7 @@ async function youtubeContinuationBackfill(html: string, knownIds: Set<string>, 
       });
       if (!response.ok) break;
       const pageData = await response.json() as unknown;
-      for (const renderer of youtubeRenderers(pageData, limit - videos.length)) {
-        const id = renderer.videoId;
-        if (!id || seen.has(id)) continue;
-        seen.add(id);
-        videos.push(ytVideo({ id, title: rendererText(renderer.title) || `${channelName} video`, published: "1970-01-01T00:00:00.000Z", thumb: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, desc: rendererText(renderer.descriptionSnippet) || `${channelName} public channel catalog item.`, channelId, channelName, views: parsePublicViewCount(rendererText(renderer.viewCountText)) }));
-      }
+      addPageVideos(pageData);
       const next = youtubeContinuation(pageData);
       continuation = next && next !== continuation ? next : null;
     } catch { break; }
