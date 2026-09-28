@@ -93,7 +93,7 @@ export function SidebarNav({
   const adultCatalog = useLibrary(selectAdultRemote);
   const [followingOpen, setFollowingOpen] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
-  const [followingLimit, setFollowingLimit] = useState(48);
+  const [followingLimit] = useState(12);
   const [sourceLimit, setSourceLimit] = useState(80);
   useEffect(() => { try { setFollowingOpen(localStorage.getItem("reelcase.sidebar.following-open") === "true"); setSourcesOpen(localStorage.getItem("reelcase.sidebar.sources-open") === "true"); } catch { /* defaults */ } }, []);
   const toggleFollowing = () => setFollowingOpen((open) => { const next = !open; try { localStorage.setItem("reelcase.sidebar.following-open", String(next)); } catch { /* session */ } return next; });
@@ -369,7 +369,7 @@ export function SidebarNav({
                 hideAdult
               />
             ))}
-            {followingOpen && (youtubeFollowing.length > followingLimit || twitchFollowing.length > followingLimit) && <Button variant="ghost" size="sm" className="mx-1 mt-1" onClick={() => setFollowingLimit((value) => value + 48)}>Show 48 more follows</Button>}
+            {followingOpen && (youtubeFollowing.length > followingLimit || twitchFollowing.length > followingLimit) && <div className="mx-1 mt-2 grid gap-1"><Button variant="ghost" size="sm" onClick={() => go("youtube")}>Manage YouTube follows</Button><Button variant="ghost" size="sm" onClick={() => go("twitch")}>Manage Twitch follows</Button></div>}
           </>
         )}
         {adultFolders.length > 0 && (

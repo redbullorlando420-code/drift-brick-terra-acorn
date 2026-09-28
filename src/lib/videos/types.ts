@@ -187,7 +187,17 @@ export type FollowedChannel = {
   /** Freshness ledger for provider scheduling and a truthful last-check UI. */
   lastCheckedAt?: number;
   newestPublishedAt?: number;
+  /** Stable Atom upload identity used to trim routine YouTube refreshes. */
+  newestVideoId?: string;
   lastResponseCount?: number;
+  /** Server-session cache telemetry; this is diagnostic metadata, not a claim
+   * that the provider was contacted during this refresh. */
+  cache?: {
+    at: number;
+    hits: number;
+    misses: number;
+    scope: "feed" | "catalog" | "uncached";
+  };
   /** Last failed public refresh. Successful checks explicitly clear this. */
   lastProviderFailure?: ProviderFailure;
 };

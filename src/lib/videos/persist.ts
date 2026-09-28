@@ -58,6 +58,14 @@ function normalizeFollowChannels(raw: unknown): FollowedChannel[] {
     const handle = typeof rec.handle === "string" ? rec.handle.trim() : "";
     const id = typeof rec.id === "string" ? rec.id.trim() : "";
     const title = typeof rec.title === "string" ? rec.title.trim() : handle;
+    const cacheRaw = rec.cache && typeof rec.cache === "object" ? rec.cache as Record<string, unknown> : null;
+    const cache = cacheRaw
+      && typeof cacheRaw.at === "number" && Number.isFinite(cacheRaw.at)
+      && typeof cacheRaw.hits === "number" && Number.isFinite(cacheRaw.hits)
+      && typeof cacheRaw.misses === "number" && Number.isFinite(cacheRaw.misses)
+      && (cacheRaw.scope === "feed" || cacheRaw.scope === "catalog" || cacheRaw.scope === "uncached")
+      ? { at: cacheRaw.at, hits: Math.max(0, Math.floor(cacheRaw.hits)), misses: Math.max(0, Math.floor(cacheRaw.misses)), scope: cacheRaw.scope as NonNullable<FollowedChannel["cache"]>["scope"] }
+      : undefined;
     if (!kind || (!handle && !id)) continue;
     out.push({
       id: id || `${kind === "twitch" ? "tw" : "yt"}:${handle}`,
@@ -69,7 +77,9 @@ function normalizeFollowChannels(raw: unknown): FollowedChannel[] {
       ...(typeof rec.live === "boolean" ? { live: rec.live } : {}),
       ...(typeof rec.lastCheckedAt === "number" ? { lastCheckedAt: rec.lastCheckedAt } : {}),
       ...(typeof rec.newestPublishedAt === "number" ? { newestPublishedAt: rec.newestPublishedAt } : {}),
+      ...(typeof rec.newestVideoId === "string" && rec.newestVideoId ? { newestVideoId: rec.newestVideoId } : {}),
       ...(typeof rec.lastResponseCount === "number" ? { lastResponseCount: rec.lastResponseCount } : {}),
+      ...(cache ? { cache } : {}),
       ...(rec.lastProviderFailure && typeof rec.lastProviderFailure === "object" ? { lastProviderFailure: rec.lastProviderFailure as FollowedChannel["lastProviderFailure"] } : {}),
     });
   }

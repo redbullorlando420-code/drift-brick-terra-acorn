@@ -99,6 +99,14 @@ function normalizeFollowRow(row: Record<string, unknown>): FollowedChannel | nul
   const handle = String(row.handle ?? row.channel ?? row.title ?? "").trim().replace(/^@/, "");
   const id = String(row.id ?? "").trim() || (kind && handle ? `${kind === "twitch" ? "tw" : "yt"}:${handle}` : "");
   const title = String(row.title ?? row.channel ?? handle).trim() || handle;
+  const cacheRaw = row.cache && typeof row.cache === "object" ? row.cache as Record<string, unknown> : null;
+  const cache = cacheRaw
+    && typeof cacheRaw.at === "number" && Number.isFinite(cacheRaw.at)
+    && typeof cacheRaw.hits === "number" && Number.isFinite(cacheRaw.hits)
+    && typeof cacheRaw.misses === "number" && Number.isFinite(cacheRaw.misses)
+    && (cacheRaw.scope === "feed" || cacheRaw.scope === "catalog" || cacheRaw.scope === "uncached")
+    ? { at: cacheRaw.at, hits: Math.max(0, Math.floor(cacheRaw.hits)), misses: Math.max(0, Math.floor(cacheRaw.misses)), scope: cacheRaw.scope as NonNullable<FollowedChannel["cache"]>["scope"] }
+    : undefined;
   if (!kind || !handle) return null;
   return {
     id,
@@ -107,6 +115,11 @@ function normalizeFollowRow(row: Record<string, unknown>): FollowedChannel | nul
     title,
     ...(typeof row.channelId === "string" && row.channelId ? { channelId: row.channelId } : {}),
     ...(typeof row.thumb === "string" && row.thumb ? { thumb: row.thumb } : {}),
+    ...(typeof row.lastCheckedAt === "number" && Number.isFinite(row.lastCheckedAt) ? { lastCheckedAt: row.lastCheckedAt } : {}),
+    ...(typeof row.newestPublishedAt === "number" && Number.isFinite(row.newestPublishedAt) ? { newestPublishedAt: row.newestPublishedAt } : {}),
+    ...(typeof row.newestVideoId === "string" && row.newestVideoId ? { newestVideoId: row.newestVideoId } : {}),
+    ...(typeof row.lastResponseCount === "number" && Number.isFinite(row.lastResponseCount) ? { lastResponseCount: row.lastResponseCount } : {}),
+    ...(cache ? { cache } : {}),
   };
 }
 

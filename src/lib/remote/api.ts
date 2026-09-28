@@ -18,6 +18,7 @@ import {
 import { extractRedditMedia, shouldKeepRedditEntry } from "@/lib/videos/adult-reddit-media";
 import { extractRedditFlair } from "@/lib/videos/adult-reddit-tags";
 import { expandAdultThumbFallbacks, isUsableAdultThumb, pickRedtubeThumb, redtubeStarNames } from "@/lib/videos/adult-thumbs";
+import { newestYoutubeFeedVideoId, selectYoutubeFeedDelta } from "./youtube-feed-cursor";
 
 type FollowInput = { query: string; kind: "auto" | FollowKind; clipLimit?: number };
 type RefreshInput = { channels: FollowedChannel[] };
@@ -256,7 +257,16 @@ type YoutubeRenderer = {
 // embed do not fan out into identical page reads.
 const YOUTUBE_CHANNEL_CACHE_TTL_MS = 4 * 60_000;
 const YOUTUBE_CHANNEL_CACHE_LIMIT = 12;
-const youtubeChannelCache = new Map<string, { at: number; result: FollowResult }>();
+const YOUTUBE_DEEP_CACHE_MAX_VIDEOS = 2_000;
+type YoutubeCacheEntry = {
+  at: number;
+  result: FollowResult;
+  feedVideos: LibraryVideo[];
+  hits: number;
+  misses: number;
+  scope: "feed" | "catalog";
+};
+const youtubeChannelCache = new Map<string, YoutubeCacheEntry>();
 
 function rendererText(value: YoutubeRenderer["title"] | YoutubeRenderer["viewCountText"]) {
   return value?.simpleText ?? value?.runs?.map((run) => run.text ?? "").join("") ?? "";
@@ -459,7 +469,34 @@ function boundedFollowResult(result: FollowResult, limit: number): FollowResult 
   return { ...result, channel: { ...result.channel, lastResponseCount: videos.length }, videos };
 }
 
-async function youtubeFromChannelUncoalesced(query: string, limit: number = LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, deepCatalog = true): Promise<FollowResult> {
+/** Return only feed entries ahead of a known upload, while keeping a short
+ * provider window as the recovery path if YouTube has aged that upload out. */
+function routineYoutubeFeedDelta(result: FollowResult, limit: number, newestKnownVideoId?: string): FollowResult {
+  const live = result.videos.filter((video) => video.remote?.live);
+  const catalog = result.videos.filter((video) => !video.remote?.live);
+  const entries = catalog.map((video) => ({ videoId: video.remote?.videoId, video }));
+  const delta = selectYoutubeFeedDelta(entries, newestKnownVideoId, limit).map((entry) => entry.video);
+  const videos = [...live, ...delta];
+  return { ...result, channel: { ...result.channel, lastResponseCount: videos.length }, videos };
+}
+
+function youtubeResultForRequest(result: FollowResult, limit: number, deepCatalog: boolean, newestKnownVideoId?: string) {
+  return deepCatalog ? boundedFollowResult(result, limit) : routineYoutubeFeedDelta(result, limit, newestKnownVideoId);
+}
+
+function withYoutubeCacheTelemetry(result: FollowResult, entry: YoutubeCacheEntry | null) {
+  return {
+    ...result,
+    channel: {
+      ...result.channel,
+      cache: entry
+        ? { at: entry.at, hits: entry.hits, misses: entry.misses, scope: entry.scope }
+        : { at: Date.now(), hits: 0, misses: 1, scope: "uncached" as const },
+    },
+  };
+}
+
+async function youtubeFromChannelUncoalesced(query: string, limit: number = LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, deepCatalog = true, newestKnownVideoId?: string): Promise<FollowResult> {
   let channelId = "";
   const trimmed = query.trim();
   if (/^UC[\w-]{20,}$/.test(trimmed)) channelId = trimmed;
@@ -476,7 +513,13 @@ async function youtubeFromChannelUncoalesced(query: string, limit: number = LIBR
   }
   const boundedLimit = Math.max(24, Math.min(LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, Math.floor(limit)));
   const cached = youtubeChannelCache.get(channelId);
-  if (cached && Date.now() - cached.at < YOUTUBE_CHANNEL_CACHE_TTL_MS && cached.result.videos.length >= Math.min(144, boundedLimit)) return boundedFollowResult(cached.result, boundedLimit);
+  if (cached && Date.now() - cached.at < YOUTUBE_CHANNEL_CACHE_TTL_MS) {
+    cached.hits += 1;
+    const requestResult = deepCatalog
+      ? cached.result
+      : { ...cached.result, videos: [...cached.result.videos.filter((video) => video.remote?.live), ...cached.feedVideos] };
+    return youtubeResultForRequest(withYoutubeCacheTelemetry(requestResult, cached), boundedLimit, deepCatalog, newestKnownVideoId);
+  }
   const [xml, channelPage] = await Promise.all([
     fetchText(`https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`),
     deepCatalog ? fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}/videos`).catch(() => "") : Promise.resolve(""),
@@ -485,7 +528,7 @@ async function youtubeFromChannelUncoalesced(query: string, limit: number = LIBR
   const author = tag(xml, "name") || title;
   const entries = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)].slice(0, boundedLimit);
 
-  const videos = entries.map((m) => {
+  const feedVideos = entries.map((m) => {
     const block = m[1];
     const id = tag(block, "yt:videoId");
     const thumb = block.match(/url="([^"]+)"/)?.[1] ?? `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
@@ -501,6 +544,7 @@ async function youtubeFromChannelUncoalesced(query: string, limit: number = LIBR
       views: Number(block.match(/<media:statistics[^>]*views="(\d+)"/)?.[1]) || undefined,
     });
   });
+  const videos = [...feedVideos];
   const feedIds = new Set(videos.map((video) => video.remote?.videoId).filter((id): id is string => Boolean(id)));
   const backfill = deepCatalog && channelPage ? await (async () => {
     const seen = new Set(feedIds);
@@ -528,16 +572,23 @@ async function youtubeFromChannelUncoalesced(query: string, limit: number = LIBR
     channelId,
     lastCheckedAt: Date.now(),
     newestPublishedAt: Math.max(0, ...videos.filter((video) => !video.remote?.live).map((video) => video.addedAt)),
+    newestVideoId: newestYoutubeFeedVideoId(feedVideos.map((video) => ({ videoId: video.remote?.videoId }))),
     lastResponseCount: videos.length,
   };
   const result = { channel, videos };
-  // Do not retain a second server-side graph for focused multi-thousand title pulls.
-  // Routine windows remain cached briefly to protect rotating refreshes.
-  if (boundedLimit <= LIBRARY_LIMITS.youtubeRoutineVideosPerChannel) {
-    youtubeChannelCache.set(channelId, { at: Date.now(), result });
+  // Keep routine feed windows and modest focused catalogs only. A large
+  // historical pull never creates a second giant server-side graph, while a
+  // small explicit creator pull can still make its next shallow refresh cheap.
+  const cacheable = videos.length <= YOUTUBE_DEEP_CACHE_MAX_VIDEOS;
+  const cacheScope: YoutubeCacheEntry["scope"] = videos.length > feedVideos.length ? "catalog" : "feed";
+  const cacheEntry: YoutubeCacheEntry | null = cacheable
+    ? { at: Date.now(), result, feedVideos, hits: 0, misses: 1, scope: cacheScope }
+    : null;
+  if (cacheEntry) {
+    youtubeChannelCache.set(channelId, cacheEntry);
     while (youtubeChannelCache.size > YOUTUBE_CHANNEL_CACHE_LIMIT) youtubeChannelCache.delete(youtubeChannelCache.keys().next().value!);
   }
-  return boundedFollowResult(result, boundedLimit);
+  return youtubeResultForRequest(withYoutubeCacheTelemetry(result, cacheEntry), boundedLimit, deepCatalog, newestKnownVideoId);
 }
 
 function twitchLogin(input: string): string {
@@ -551,8 +602,8 @@ function twitchLogin(input: string): string {
   }
 }
 
-function youtubeFromChannel(query: string, limit: number = LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, focused = true, deepCatalog = focused): Promise<FollowResult> {
-  return providerRequest("youtube", query, focused, () => youtubeFromChannelUncoalesced(query, limit, deepCatalog));
+function youtubeFromChannel(query: string, limit: number = LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, focused = true, deepCatalog = focused, newestKnownVideoId?: string): Promise<FollowResult> {
+  return providerRequest("youtube", query, focused, () => youtubeFromChannelUncoalesced(query, limit, deepCatalog, newestKnownVideoId));
 }
 
 // Twitch GQL `videos(first:)` / `clips(first:)` accept 1..100 only. Values
@@ -962,12 +1013,12 @@ export async function runRefreshRemotes(dataRaw: unknown): Promise<RefreshResult
           videos.push(...next.videos.map((video) => ({ ...video, folderId: ch.id })));
         } else {
           const q = ch.channelId ? `https://www.youtube.com/channel/${ch.channelId}` : ch.handle;
-          // RSS only exposes a short recent window. Include the public channel
-          // catalog so a routine refresh can backfill older uploads up to the
-          // configured per-channel budget; server coalescing/cache protects
-          // repeated refreshes from duplicating this work.
-          const next = await youtubeFromChannel(q, LIBRARY_LIMITS.youtubeRoutineVideosPerChannel, false, true);
-          channels.push({ ...ch, ...next.channel, id: ch.id, lastProviderFailure: undefined });
+          // Public RSS only exposes a short recent window. It has no `after`
+          // query parameter, so routine work reads that capped window and cuts
+          // it at the last durable upload identity. Deep catalog paging stays
+          // on the explicit creator pull instead of repeating in the scheduler.
+          const next = await youtubeFromChannel(q, LIBRARY_LIMITS.youtubeRoutineVideosPerChannel, false, false, ch.newestVideoId);
+          channels.push({ ...ch, ...next.channel, id: ch.id, newestVideoId: next.channel.newestVideoId ?? ch.newestVideoId, lastProviderFailure: undefined });
           videos.push(...next.videos.map((video) => ({ ...video, folderId: ch.id })));
         }
         refreshedIds.push(ch.id);

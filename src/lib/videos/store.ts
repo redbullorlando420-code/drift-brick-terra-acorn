@@ -234,6 +234,7 @@ export type LibraryState = {
     items: { query: string; kind: "youtube" | "twitch" }[],
   ) => Promise<{ ok: number; failed: number; failedQueries: string[]; failedReasons: Record<string, string> }>;
   unfollow: (id: string) => void;
+  unfollowMany: (ids: string[]) => void;
   refreshFollows: (kind?: "twitch" | "youtube") => Promise<{ wentLive: FollowedChannel[]; newVideos: LibraryVideo[] }>;
   pushNotice: (n: Omit<AppNotice, "id" | "at" | "read">) => void;
   markNoticesRead: () => void;
@@ -2238,6 +2239,18 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       folders: s.folders.filter((f) => f.id !== id),
       videos: s.videos.filter((v) => v.folderId !== id || s.favorites[v.id] || s.likes[v.id]),
       sourceId: s.sourceId === id ? "home" : s.sourceId,
+    }));
+    persistNow(get);
+    cacheRemotes(get);
+  },
+  unfollowMany: (ids) => {
+    const removed = new Set(ids);
+    if (!removed.size) return;
+    set((s) => ({
+      follows: s.follows.filter((f) => !removed.has(f.id)),
+      folders: s.folders.filter((f) => !removed.has(f.id)),
+      videos: s.videos.filter((v) => !removed.has(v.folderId) || s.favorites[v.id] || s.likes[v.id]),
+      sourceId: removed.has(s.sourceId) ? "home" : s.sourceId,
     }));
     persistNow(get);
     cacheRemotes(get);
