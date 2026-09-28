@@ -21,6 +21,7 @@ import {
 } from "./persist";
 import type { FollowedChannel, HistoryEntry, LibraryVideo, Folder } from "./types";
 import { exportFeedback, importFeedback } from "@/lib/media-feedback";
+import { loadCreatorCollections, mergeCreatorCollections, normalizeCreatorCollections, saveCreatorCollections } from "./follow-collections";
 
 export const LIBRARY_PACK_VERSION = 1;
 export const LIBRARY_PACK_ROOT = "reelcase-library-pack";
@@ -56,6 +57,7 @@ export type LibraryPackImportResult = {
   filesRead: string[];
   warnings: string[];
   photosMerged: number;
+  collectionsMerged: number;
 };
 
 function stamp() {
@@ -158,7 +160,7 @@ function engagementSummary(input: LibraryPackBuildInput) {
 export function packReadme(): string {
   return `# Reelcase library pack
 
-Local-only backup / fill-in folder for YouTube & Twitch follows, watch history,
+Local-only backup / fill-in folder for YouTube & Twitch follows, creator collections, watch history,
 saved video links, continue-watching pointers, favorites/likes, Photos sources & likes, Adult marks,
 ratings & tag hearts, and Adult stats snapshots.
 
@@ -175,6 +177,7 @@ ${LIBRARY_PACK_ROOT}/
     youtube.json
     twitch.json
     follows.csv
+    collections.json
   history/
     history.json
     history.csv
@@ -210,6 +213,10 @@ Columns: \`kind,handle,title,channelId,id\`
 - \`title\` is optional display name
 - \`channelId\` optional provider id
 
+### follows/collections.json
+Optional named creator groups. Each entry stores a name and stable follow IDs;
+import merges membership without removing local groups.
+
 ### history/history.csv
 Columns: \`id,at,url,title,position,duration,source,eventId\`
 - \`at\` is epoch milliseconds
@@ -243,7 +250,8 @@ Photo media bytes stay on disk; the pack only stores source stubs and like/ratin
 
 | Pack file | IndexedDB key (\`activity\`) | localStorage mirror |
 |---|---|---|
-| follows/* | \`follows\` | \`reelcase.follows.v1\` |
+| follows/youtube+twitch+follows.csv | \`follows\` | \`reelcase.follows.v1\` |
+| follows/collections.json | — | \`reelcase.follow-collections.v1\` |
 | history/* | \`history\` | \`reelcase.history.v1\` |
 | resume/* | \`resume\` | \`reelcase.resume.v1\` |
 | marks/view+came | \`marks\` | \`reelcase.marks.v1\` |
@@ -285,6 +293,7 @@ export function buildLibraryPackFiles(input: LibraryPackBuildInput): Record<stri
       ["kind", "handle", "title", "channelId", "id"],
       ...input.follows.map((f) => [f.kind, f.handle, f.title, f.channelId ?? "", f.id]),
     ]),
+    [`${LIBRARY_PACK_ROOT}/follows/collections.json`]: JSON.stringify({ exportedAt: new Date().toISOString(), collections: loadCreatorCollections() }, null, 2),
     [`${LIBRARY_PACK_ROOT}/history/history.json`]: JSON.stringify({ exportedAt: new Date().toISOString(), entries: input.history }, null, 2),
     [`${LIBRARY_PACK_ROOT}/history/history.csv`]: rowsToCsv([
       ["id", "at", "url", "title", "position", "duration", "source", "eventId"],
@@ -535,6 +544,21 @@ export function applyLibraryPackFiles(
     saveFollows(next);
   }
 
+  let collectionsMerged = 0;
+  let collectionsRead = false;
+  for (const [name, body] of Object.entries(files)) {
+    if (!fileEndsWith(name, "follows/collections.json")) continue;
+    collectionsRead = true;
+    try {
+      const parsed = JSON.parse(body) as { collections?: unknown };
+      if (!Array.isArray(parsed.collections)) throw new Error("invalid collection list");
+      const current = loadCreatorCollections();
+      const merged = mergeCreatorCollections(current, normalizeCreatorCollections(parsed.collections));
+      collectionsMerged = Math.max(0, merged.length - current.length);
+      saveCreatorCollections(merged);
+    } catch { warnings.push(`Could not parse ${name}`); }
+  }
+
   let historyMerged = 0;
   if (incomingHistory.length) {
     const merged = mergeHistory(hooks.getHistory(), incomingHistory);
@@ -645,11 +669,11 @@ export function applyLibraryPackFiles(
     photosMerged = sources.length + likes.length;
   }
 
-  if (!incomingFollows.length && !incomingHistory.length && !incomingLinks.length && !marksMerged && !shelvesMerged && !feedbackMerged && !photosMerged) {
+  if (!incomingFollows.length && !incomingHistory.length && !incomingLinks.length && !marksMerged && !shelvesMerged && !feedbackMerged && !photosMerged && !collectionsRead) {
     warnings.push("No recognized pack files were found. Expect follows/, history/, links/, marks/, resume/, or photos/ paths.");
   }
 
-  return { followsAdded, historyMerged, linksMerged, marksMerged, shelvesMerged, feedbackMerged, photosMerged, filesRead, warnings };
+  return { followsAdded, historyMerged, linksMerged, marksMerged, shelvesMerged, feedbackMerged, photosMerged, collectionsMerged, filesRead, warnings };
 }
 
 export async function importLibraryPackZip(

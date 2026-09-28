@@ -1286,7 +1286,7 @@ export function SettingsSection() {
         <h2 className="mt-2 font-display text-2xl text-fg">Export / import follows, history, links & marks</h2>
         <p className="mt-1 max-w-2xl text-sm text-muted">
           Downloads a zip that matches <code className="text-fg">public/import-templates/</code>: follows, watch history,
-          saved video URLs, continue-watching pointers, favorites/likes, Photos sources &amp; likes, Adult marks, ratings &amp; tag hearts, and stats.
+          creator collections, saved video URLs, continue-watching pointers, favorites/likes, Photos sources &amp; likes, Adult marks, ratings &amp; tag hearts, and stats.
           Import merges into durable IndexedDB stores and does not wipe unrelated data unless you confirm replace-follows.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
@@ -1360,7 +1360,7 @@ export function SettingsSection() {
                 getLinks: () => linksFromHistoryAndResume(useLibrary.getState().history, useLibrary.getState().resumeProgress),
                 setLinks: () => { /* links persist via saveDurableLinks inside apply */ },
               }, mode).then((result) => {
-                setServiceNote(`Pack import · +${result.followsAdded} follows · +${result.historyMerged} history · +${result.linksMerged} links${result.photosMerged ? ` · photos ${result.photosMerged}` : ""}${result.feedbackMerged ? " · ratings/hearts merged" : ""}${result.warnings.length ? ` · ${result.warnings[0]}` : ""}`);
+                setServiceNote(`Pack import · +${result.followsAdded} follows · +${result.collectionsMerged} creator collections · +${result.historyMerged} history · +${result.linksMerged} links${result.photosMerged ? ` · photos ${result.photosMerged}` : ""}${result.feedbackMerged ? " · ratings/hearts merged" : ""}${result.warnings.length ? ` · ${result.warnings[0]}` : ""}`);
               }).catch((error) => {
                 setServiceNote(error instanceof Error ? error.message : "Library pack import failed.");
               });
@@ -2817,6 +2817,21 @@ const missionStatusTone: Record<MissionStatus, string> = {
   complete: "bg-accent/10 text-accent",
 };
 function missionSteps(mission: Mission): [string, string, string] {
+  if (mission.id === "watch") return [
+    "Keep host state authoritative and reject stale playback or queue messages.",
+    "Run isolated desktop-host and mobile-guest browser checks for connection, chat, playback, seek, and leave.",
+    "Confirm the same flows on separate home-network devices, including local-file drift and queue changes.",
+  ];
+  if (mission.id === "sprint-19") return [
+    "Verify the local guest-window fallback and isolated browser sessions.",
+    "Check desktop and mobile room layout, chat, playback, seek, and reconnect in a repeatable browser run.",
+    "Repeat on physical home-network devices and record browser, network, drift, and queue results.",
+  ];
+  if (mission.id === "watch-room-cross-device") return [
+    "Enter temporary TURN credentials on both devices and enable relay-only mode.",
+    "Verify both peers report a connected relay candidate and exchange chat and playback commands.",
+    "Repeat across separate networks and record the diagnostic result without credentials.",
+  ];
   if (mission.id.startsWith("watch") || mission.id.startsWith("twitch")) return [
     "Capture the current provider or room state without replacing a healthy cached result.",
     "Exercise the focused path with a bounded request, retry, and recovery case.",
@@ -2841,7 +2856,7 @@ function missionSteps(mission: Mission): [string, string, string] {
 const DEFAULT_MISSIONS: Mission[] = [
   { id: "index", title: "Durable media index", detail: "Catalog source health, cached metadata, persistent thumbnails, and fast search without blocking the first screen.", done: true },
   { id: "companion", title: "Desktop companion", detail: "Verify local files, watch selected folders, and launch approved desktop shortcuts through a local companion.", done: true },
-  { id: "watch", title: "Watch room reliability", detail: "Host-authoritative state, stale-command rejection, revisioned queue reconciliation, LAN diagnostics, and guest-access messaging are implemented; real cross-device matrix validation remains in progress.", done: false, status: "in-progress" },
+  { id: "watch", title: "Watch room reliability", detail: "Host-authoritative state, stale-command rejection, revisioned queue reconciliation, LAN diagnostics, and guest-access messaging are implemented. Isolated desktop-host/mobile-guest WebRTC, chat, play/pause/seek, local-file consent and matching, local queue add/remove, and leave checks pass; physical-device drift and catalog queue play remain.", done: false, status: "in-progress" },
   { id: "watch-room-state-integrity", title: "Watch Room state integrity", detail: "Done · Watch Room now keeps a compact local session ledger, rejects stale or out-of-order host state, gives queue changes monotonic revisions, and routes guest playback or queue changes through host confirmation.", done: true },
   { id: "watch-room-browser-compatibility", title: "Watch Room browser compatibility", detail: "Done · local room and session identifiers now fall back safely when a browser exposes Web Crypto without crypto.randomUUID, preventing the room from failing before it can join.", done: true },
   { id: "services", title: "Connected services", detail: "Keep Twitch, YouTube, Roku, Spotify, and photo imports independently cached and refreshable.", done: true },
@@ -2866,7 +2881,7 @@ const DEFAULT_MISSIONS: Mission[] = [
   { id: "provider-import-recovery", title: "Provider import recovery", detail: "Provider refreshes retain successful channel rows, preserve prior cache on partial failures, and use RSS/channel-page plus public Twitch GraphQL recovery paths.", done: true },
   { id: "adult-source-recovery", title: "Adult source recovery", detail: "Done · Booru pulls use source-aware queries plus JSON, XML, and public-listing recovery so Rule34-style, Gelbooru, and Realbooru responses no longer collapse into empty source chips.", done: true },
   { id: "adult-provider-diverse-recommendations", title: "Adult provider-diverse recommendations", detail: "Done · personal Adult shelves rank by private signals, then apply creator and provider round-robin guards; videos, photos, and picks each have a full-width discovery rail.", done: true },
-  { id: "watch-room-cross-device", title: "Watch Room cross-device relay", detail: "Temporary TURN credentials and relay-only testing are implemented. Verification with a working TURN service and separate devices remains open.", done: false, status: "blocked" },
+  { id: "watch-room-cross-device", title: "Watch Room cross-device relay", detail: "Temporary TURN credentials and relay-only mode are implemented. Candidate diagnostics now distinguish direct from TURN paths. A real TURN service and two devices on separate networks are still required to prove relay connectivity.", done: false, status: "blocked" },
   { id: "movie-private-tag-shelves", title: "Movie and private tag shelves", detail: "Movies have source, genre, and file-type rails; private shelves retain favorites, tags, history, and rating-aware sorting locally.", done: true },
   { id: "sprint-01", title: "Alert rules", detail: "Per-service alert switches and the notification activity center are active locally.", done: true },
   { id: "sprint-02", title: "Preference coverage", detail: "Shipped preferences have concrete local controls, with status copy explaining their effects.", done: true },
@@ -2886,7 +2901,7 @@ const DEFAULT_MISSIONS: Mission[] = [
   { id: "sprint-16", title: "Tag review queue", detail: "Smart name/date/type and vision tags remain explicit, reviewable local labels before you rely on them for browsing.", done: true },
   { id: "sprint-17", title: "Fast filters", detail: "Deferred search indexing, progressive grids, source-scoped selectors, and cached metadata keep large catalog filters off the first paint.", done: true },
   { id: "sprint-18", title: "Offline resilience", detail: "Cached source health, unavailable-card hiding, recovery views, and source diagnostics distinguish a stale cache from an unavailable file.", done: true },
-  { id: "sprint-19", title: "Watch room device matrix", detail: "Validate host and guest paths across browsers and home-network devices. Same-browser fallback is available; separate-browser and home-network runs remain in progress.", done: false, status: "in-progress" },
+  { id: "sprint-19", title: "Watch room device matrix", detail: "The local guest-window fallback and isolated desktop/mobile browser sessions are covered; direct WebRTC, chat, playback requests, seek, local-file consent/match, local queue add/remove, leave, and mobile layout pass. Physical home-network devices and additional browser engines remain unverified.", done: false, status: "in-progress" },
   { id: "sprint-20", title: "Accessibility audit", detail: "Shared controls use visible focus states, accessible labels, responsive targets, contrast tokens, and the persisted reduced-motion preference.", done: true },
   { id: "metadata-provenance", title: "Metadata provenance and locks", detail: "Adopt the open-library pattern: preserve manual tags, record the source of enrichment, and never let a provider overwrite a locked user choice.", done: true },
   { id: "media-inspection", title: "Companion media inspection", detail: "Use the local companion for optional ffprobe/embedded-tag extraction in bounded batches, with a preview before tags are saved.", done: true },
@@ -2975,8 +2990,8 @@ const ROADMAP_EXPANSION: Mission[] = [
   ...[
     ["follow-manager-01", "Bounded creator directory", "Done · YouTube and Twitch follows now use a searchable, sorted creator directory that mounts 48 channel bubbles at a time instead of expanding a thousand-channel desk."],
     ["follow-manager-02", "Creator bubble actions", "Done · each creator has a distinct provider-marked bubble and a focused control panel for creator favorite, 1–5 rating, health context, and safe manual unfollow."],
-    ["follow-manager-03", "Follow collection actions", "Add optional creator collections and a reviewed bulk-unfollow flow that always previews affected channels and preserves saved videos."],
-  ].map(([id, title, detail]) => ({ id, title, detail, done: ["follow-manager-01", "follow-manager-02"].includes(id), status: id === "follow-manager-03" ? "in-progress" as const : undefined })),
+    ["follow-manager-03", "Follow collection actions", "Done · optional creator collections travel in the library pack. Bulk removal previews every affected creator and retains locally saved or watched catalog rows."],
+  ].map(([id, title, detail]) => ({ id, title, detail, done: ["follow-manager-01", "follow-manager-02", "follow-manager-03"].includes(id) })),
   ...[
     ["youtube-upgrade-01", "Feed delta cursor", "Done · routine checks persist the newest Atom upload identity, return only feed entries ahead of it, and fall back to a bounded recent window when YouTube has aged the cursor out."],
     ["youtube-upgrade-02", "Channel cache budget", "Done · channel health now reports response size, cache age, and session hit rate. The server retains only a short feed or ≤2,000-item focused catalog cache, while routine refreshes read the feed slice only."],
@@ -3847,7 +3862,7 @@ export function WatchRoomSection() {
   const [friendName, setFriendName] = useState("");
   const [friendCode, setFriendCode] = useState("");
   const [inviteNotice, setInviteNotice] = useState("");
-  const [pulseStatus, setPulseStatus] = useState("No direct transport test yet.");
+  const [pulseStatus, setPulseStatus] = useState("No chat transport test yet.");
   const [friends, setFriends] = useState<{ name: string; code: string }[]>(() => {
     try { const saved = JSON.parse(localStorage.getItem("reelcase.lan-friends.v1") ?? "[]"); return Array.isArray(saved) ? saved.slice(0, 16) : []; } catch { return []; }
   });
@@ -4026,7 +4041,7 @@ export function WatchRoomSection() {
         if (data.type === "chat" && data.text)
           setChat((rows) => [...rows, `${data.name ?? from}: ${data.text}`].slice(-50));
         if (data.type === "room-pulse") p2p.send({ type: "room-pulse-ack", sentAt: data.sentAt }, from);
-        if (data.type === "room-pulse-ack" && data.sentAt) setPulseStatus(`Direct transport confirmed · ${Math.max(0, Date.now() - data.sentAt)}ms round trip.`);
+        if (data.type === "room-pulse-ack" && data.sentAt) setPulseStatus(`Chat transport confirmed · ${Math.max(0, Date.now() - data.sentAt)}ms round trip.`);
         if (data.type === "share-ready" && data.name && data.fingerprint) {
           const share = { name: data.name, fingerprint: data.fingerprint, size: Number(data.size) || 0, modified: Number(data.modified) || 0 };
           setPendingLocalShare(share);
@@ -4433,13 +4448,10 @@ export function WatchRoomSection() {
       setInviteNotice(`${share.name} matched locally. Waiting for the host to stage or play it.`);
       return;
     }
-    setSharedVideoId(`local:${share.fingerprint}`);
     setLocalShareMatches({});
     setPlayback({ playing: false, position: 0 });
     lastRoomPosition.current = 0;
-    p2p.send({ type: "share-ready", ...share });
-    p2p.send({ type: "video", videoId: `local:${share.fingerprint}` });
-    setInviteNotice("Local video is staged by a privacy-preserving fingerprint. Guests choose their own permitted matching copy; no file bytes leave this computer.");
+    setInviteNotice("Local video selected on this device. Confirm guest access, then send a sharing request; no file bytes leave this computer.");
   };
   const queueVideo = (video: LibraryVideo) => {
     if (video.id !== sharedVideoId && !queue.includes(video.id)) updateQueue([...queue, video.id]);
@@ -4477,7 +4489,7 @@ export function WatchRoomSection() {
         eyebrow="LAN watch room"
         icon={<Users className="size-4" />}
         title="Watch together, on your terms."
-        copy="Create a private room code or join one on the same network. Peers connect directly; names, chat, and playback commands stay in the room."
+        copy="Create a private room code or join one on the same network. Peers exchange names, chat, and playback commands over a direct or configured relay path."
       >
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
           <div className="rounded-lg bg-elevated p-5 shadow-border">
@@ -4559,7 +4571,7 @@ export function WatchRoomSection() {
       copy={
         joinedAsGuest
           ? "Guest theater view. The host's current video, queue, and timeline arrive as the connection settles."
-          : "Direct peer connection for your selected guests. Playback events are synchronized across connected devices."
+          : "Peer connection for your selected guests. Playback events are synchronized across connected devices."
       }
     >
       <div className="mt-6 grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(18rem,0.7fr)]">
@@ -4587,7 +4599,7 @@ export function WatchRoomSection() {
             <div className="mt-2 max-h-28 space-y-1 overflow-y-auto font-mono text-[11px] leading-4 text-muted">{p2p.events.map((event, index) => <p key={`${event}-${index}`}>{event}</p>)}</div>
             {!p2p.peers.length && p2p.joined && <p className="mt-2 text-xs text-accent">Signaling is healthy, but no peer is in <strong>{activeRoom}</strong>. The other window must join this exact code—not create its own. Use Open local guest window or copy this room link.</p>}
             {p2p.peers.length > 0 && <div className="mt-2 space-y-1 text-xs text-muted">{p2p.peers.map((peer) => <p key={peer.id}><strong className="text-fg">{peer.name || "Guest"}</strong> · {peer.connectionState} · {peer.candidateType ?? "path pending"} · {peer.rttMs == null ? "RTT pending" : `${peer.rttMs}ms`} · {peer.id.slice(-6)}</p>)}</div>}
-            <div className="mt-3 flex flex-wrap items-center gap-2"><Button size="sm" variant="secondary" disabled={!p2p.peers.some((peer) => peer.connectionState === "connected")} onClick={() => { setPulseStatus("Sending direct transport test…"); p2p.send({ type: "room-pulse", sentAt: Date.now() }); }}>Test chat transport</Button><span className="text-xs text-muted">{pulseStatus}</span></div>
+            <div className="mt-3 flex flex-wrap items-center gap-2"><Button size="sm" variant="secondary" disabled={!p2p.peers.some((peer) => peer.connectionState === "connected")} onClick={() => { setPulseStatus("Sending chat transport test…"); p2p.send({ type: "room-pulse", sentAt: Date.now() }); }}>Test chat transport</Button><span className="text-xs text-muted">{pulseStatus}</span></div>
           </div>
           <h2 className="mt-2 font-display text-3xl text-fg">
             {playback.playing ? "Playing together" : "Paused together"}
@@ -4597,7 +4609,7 @@ export function WatchRoomSection() {
             {String(Math.floor(playback.position % 60)).padStart(2, "0")} · {timelineEvidence.source === "remote" ? "host-confirmed" : timelineEvidence.source === "local" ? "local player" : "provider estimate"} · checked {new Date(timelineEvidence.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}.
           </p>
           <section className="mt-4 rounded-md border border-border bg-bg/45 p-3" aria-label="Room reliability">
-            <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Room reliability</p><p className="mt-1 text-xs text-muted">{joinedAsGuest ? "Guest commands are requests; the host publishes the canonical state." : "This device is the host and publishes the canonical state."}</p></div><span className="rounded-full bg-accent/15 px-2 py-1 text-xs text-accent">{p2p.peers.filter((peer) => peer.connectionState === "connected").length ? "direct path available" : "relay/signaling only"}</span></div>
+            <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Room reliability</p><p className="mt-1 text-xs text-muted">{joinedAsGuest ? "Guest commands are requests; the host publishes the canonical state." : "This device is the host and publishes the canonical state."}</p></div><span className="rounded-full bg-accent/15 px-2 py-1 text-xs text-accent">{p2p.peers.some((peer) => peer.connectionState === "connected" && peer.candidateType === "relay") ? "TURN relay connected" : p2p.peers.some((peer) => peer.connectionState === "connected" && ["host", "srflx", "prflx"].includes(peer.candidateType ?? "")) ? "direct path connected" : p2p.peers.some((peer) => peer.connectionState === "connected") ? "connected · path pending" : p2p.joined ? "signaling online · peer pending" : "connecting"}</span></div>
             <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2 xl:grid-cols-4"><div className="rounded-sm bg-elevated p-2"><span className="block text-muted">{joinedAsGuest ? "Last host state" : "Last publish"}</span><strong className="mt-1 block text-fg">{roomTimeLabel(joinedAsGuest ? roomHealth.lastHostStateAt : roomHealth.lastPublishedAt)}</strong></div><div className="rounded-sm bg-elevated p-2"><span className="block text-muted">Queue revision</span><strong className="mt-1 block text-fg">r{roomHealth.queueRevision} · {queue.length} title{queue.length === 1 ? "" : "s"}</strong></div><div className="rounded-sm bg-elevated p-2"><span className="block text-muted">Last correction</span><strong className="mt-1 block text-fg">{roomHealth.lastDriftSeconds ? `${roomHealth.lastDriftSeconds.toFixed(1)}s` : "none needed"}</strong></div><div className="rounded-sm bg-elevated p-2"><span className="block text-muted">Safety checks</span><strong className="mt-1 block text-fg">{roomHealth.staleDropped} stale dropped · {roomHealth.resyncRequests} resync</strong></div></div>
             <details className="mt-3 rounded-sm bg-elevated p-2 text-xs text-muted"><summary className="cursor-pointer font-medium text-fg">Session ledger · {roomLedger.length} local event{roomLedger.length === 1 ? "" : "s"}</summary><div className="mt-2 max-h-32 space-y-1 overflow-y-auto">{roomLedger.length ? roomLedger.slice().reverse().map((event, index) => <p key={`${event.at}-${index}`}><span className="font-mono text-subtle">{roomTimeLabel(event.at)}</span> · {event.detail}</p>) : <p>No room decisions recorded yet.</p>}</div></details>
           </section>
@@ -4850,7 +4862,7 @@ export function WatchRoomSection() {
               size="sm"
               className="mt-3"
               disabled={!localVideo || !guestAccess || !p2p.peers.length}
-              onClick={() => { if (!localShare) return; setLocalShareMatches({}); p2p.send({ type: "share-ready", ...localShare }); p2p.send({ type: "video", videoId: `local:${localShare.fingerprint}` }); setInviteNotice("Local-share request sent with a match fingerprint. Guests must choose their permitted local copy before playback can align."); }}
+              onClick={() => { if (!localShare) return; setSharedVideoId(`local:${localShare.fingerprint}`); setLocalShareMatches({}); p2p.send({ type: "share-ready", ...localShare }); p2p.send({ type: "video", videoId: `local:${localShare.fingerprint}` }); setInviteNotice("Local-share request sent with a match fingerprint. Guests must choose their permitted local copy before playback can align."); }}
             >
               Send sharing request
             </Button>

@@ -336,7 +336,7 @@ export class P2PRoom {
     pc.ondatachannel = (e) => this.attachChannel(slot, e.channel);
 
     if (initiator) {
-      this.debug(`Negotiating direct channel with ${name || "guest"}`);
+      this.debug(`Negotiating peer channel with ${name || "guest"}`);
       // Creating the channels triggers negotiationneeded → the offer.
       this.attachChannel(
         slot,
@@ -352,7 +352,7 @@ export class P2PRoom {
     else slot.reliable = channel;
     channel.onopen = () => {
       slot.lastProgressAt = Date.now();
-      this.debug(`Direct ${channel.label} channel open with ${slot.info.name || "guest"}`);
+      this.debug(`Peer ${channel.label} channel open with ${slot.info.name || "guest"}`);
     };
     channel.onmessage = (e) => {
       let msg: { t: string; d?: unknown };
@@ -524,6 +524,7 @@ export class P2PRoom {
         slot.pingSentAt = performance.now();
         slot.state.send(wire);
       }
+      if (!slot.info.candidateType && slot.pc.connectionState === "connected") void this.readCandidateType(slot);
     }
   }
 
@@ -577,13 +578,16 @@ export class P2PRoom {
     try {
       const stats = await slot.pc.getStats();
       let selected: RTCIceCandidatePairStats | undefined;
+      let selectedPairId: string | undefined;
       stats.forEach((s) => {
-        if (s.type === "candidate-pair" && (s as RTCIceCandidatePairStats).nominated) {
-          selected = s as RTCIceCandidatePairStats;
-        }
+        if (s.type === "transport") selectedPairId = (s as RTCTransportStats).selectedCandidatePairId;
+      });
+      if (selectedPairId) selected = stats.get(selectedPairId) as RTCIceCandidatePairStats | undefined;
+      if (!selected) stats.forEach((s) => {
+        if (s.type === "candidate-pair" && (s as RTCIceCandidatePairStats).nominated && (s as RTCIceCandidatePairStats).state === "succeeded") selected = s as RTCIceCandidatePairStats;
       });
       const localId = selected?.localCandidateId;
-      if (localId) {
+      if (localId && this.peers.get(slot.info.id) === slot) {
         const local = stats.get(localId) as { candidateType?: string } | undefined;
         slot.info.candidateType = local?.candidateType ?? null;
         this.emitPeers();

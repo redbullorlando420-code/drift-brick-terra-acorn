@@ -42,3 +42,9 @@
 4. Confirm leaving a room stops messages and that the guest-consent requirement remains in place.
 5. Treat embedded YouTube/Twitch playback as selection sharing unless the provider's official player API confirms timestamp control.
 6. Repeat with relay-only enabled using a real TURN service on separate networks. This external-service/device check remains open.
+
+## Reproducible browser check
+
+Run `node scripts/watch-room-browser-check.mjs` against the development app, or pass the production preview URL as its argument. The check opens isolated Chrome browser contexts with desktop host and mobile guest viewports, so BroadcastChannel cannot carry the messages. It verifies a selected direct ICE path, a transport acknowledgement, guest chat, host play/pause, guest seek, the local-file consent gate and fingerprint match, local queue add/removal, leave, no mobile horizontal overflow, and no browser errors. On a single computer, Chrome needs its local-IP test flag to allow the two isolated contexts to discover one another; the script supplies it. This is a local browser test, not proof of physical device or TURN behavior.
+
+For the physical matrix, record the browser and OS on each device, whether both opened the same home-network address and room code, the candidate type on each peer, chat and play/pause/seek results, local-file drift, queue add/reorder/play, and leave behavior. For the relay matrix, enter short-lived TURN credentials on both devices, enable **Test relay only**, then require `relay` as the connected candidate type on both sides before counting chat and playback as passing. Copy room diagnostics omit credentials.

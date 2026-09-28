@@ -20,7 +20,7 @@ import {
 } from "@/lib/remote/adult-pull-cache";
 import { mergeRemoteRefresh } from "./remote-merge";
 import { measureInteraction } from "@/lib/interaction-budget";
-import { hydrateDurableFeedback } from "@/lib/media-feedback";
+import { exportFeedback, hydrateDurableFeedback } from "@/lib/media-feedback";
 import {
   appendCatalogVideos,
   appendActivityJournal,
@@ -97,6 +97,7 @@ import { useSourceAssets } from "@/lib/source-assets";
 import { isClassicVideo, SYSTEM_SOURCES } from "./types";
 import { LIBRARY_LIMITS } from "@/lib/library-limits";
 import { resolveCreatorCoverage } from "./creator-coverage";
+import { planFollowRemoval, retainVideosAfterUnfollow, shouldRestoreRemoteVideo } from "./follow-removal";
 import {
   followRemote,
   importChannels,
@@ -1687,7 +1688,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       if (snapshot) {
         const ids = new Set(get().follows.map((channel) => channel.id));
         set((s) => {
-          const videos = mergeVideos(s.videos, snapshot.videos.filter((v) => ids.has(v.folderId) || s.favorites[v.id] || s.likes[v.id]));
+          const videos = mergeVideos(s.videos, snapshot.videos.filter((video) => shouldRestoreRemoteVideo(video, ids, s.favorites, s.likes)));
           const enriched = enrichRemoteTags(s.tags, s.metadataProvenance, snapshot.videos);
           return {
             videos,
@@ -2233,24 +2234,15 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       throw err;
     }
   },
-  unfollow: (id) => {
-    set((s) => ({
-      follows: s.follows.filter((f) => f.id !== id),
-      folders: s.folders.filter((f) => f.id !== id),
-      videos: s.videos.filter((v) => v.folderId !== id || s.favorites[v.id] || s.likes[v.id]),
-      sourceId: s.sourceId === id ? "home" : s.sourceId,
-    }));
-    persistNow(get);
-    cacheRemotes(get);
-  },
+  unfollow: (id) => get().unfollowMany([id]),
   unfollowMany: (ids) => {
-    const removed = new Set(ids);
-    if (!removed.size) return;
+    const plan = planFollowRemoval(get(), ids, exportFeedback());
+    if (!plan.followIds.size) return;
     set((s) => ({
-      follows: s.follows.filter((f) => !removed.has(f.id)),
-      folders: s.folders.filter((f) => !removed.has(f.id)),
-      videos: s.videos.filter((v) => !removed.has(v.folderId) || s.favorites[v.id] || s.likes[v.id]),
-      sourceId: removed.has(s.sourceId) ? "home" : s.sourceId,
+      follows: s.follows.filter((f) => !plan.followIds.has(f.id)),
+      folders: s.folders.filter((f) => !plan.followIds.has(f.id)),
+      videos: retainVideosAfterUnfollow(s.videos, plan),
+      sourceId: plan.followIds.has(s.sourceId) ? "home" : s.sourceId,
     }));
     persistNow(get);
     cacheRemotes(get);

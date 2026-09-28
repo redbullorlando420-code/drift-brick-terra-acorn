@@ -4,7 +4,7 @@ The in-app **Mission plan** tracks these larger, local-first improvements:
 
 1. Durable media index — **complete**: cached catalog metadata, source health, persisted thumbnail cache, and fast search.
 2. Desktop companion — **complete**: explicit local-file verification, folder watching, and approved shortcut launching.
-3. Watch room reliability — **in progress**: host-authoritative state publishing, stale-command rejection, revisioned queue reconciliation, a compact local session ledger, LAN diagnostics, guest checks, and compatibility-safe local room identifiers. Optional visit-only TURN credentials and relay-only testing now support blocked direct paths; real TURN and cross-device matrix validation remain. Same-browser fallback no longer reports signaling as healthy before registration succeeds.
+3. Watch room reliability — **in progress**: host-authoritative state publishing, stale-command rejection, revisioned queue reconciliation, a compact local session ledger, LAN diagnostics, guest checks, and compatibility-safe local room identifiers. Isolated desktop-host/mobile-guest sessions now pass direct WebRTC connection, chat, transport acknowledgement, play/pause, guest seek, local-file consent/match, local queue add/remove, and leave checks. The selected ICE candidate is reported as direct or TURN only after detection. Physical home-network devices, local-file drift, catalog queue reorder/play, and real TURN relay remain unverified.
 4. Connected services — **complete**: independently cached Twitch, YouTube, Roku, Spotify, and photo refreshes with focused retries.
 5. VR theater reliability — **complete**: local playable videos open in a real WebXR cinema surface with controller play/pause and seek controls, plus clear Meta Quest recovery guidance. Remote sources remain intentionally excluded until they are safe for the headset surface.
 6. Companion onboarding — **complete**: a one-screen checklist, exact Windows launcher, companion health check, Desktop approval, shortcut validation, and safe first-launch path.
@@ -52,11 +52,13 @@ Recent completed work: Long horizontal rails now retain only a measured card win
 
 Recent completed work: Visible-card actions now receive a short foreground scheduling lease. Ratings, playback, and card opens paint ahead of deferred search indexing, discovery selection, Adult ranking/facets, and speculative artwork work; each background pass resumes promptly once interaction settles.
 
-Recent completed work: YouTube and Twitch now share a bounded creator-management surface: searchable and sortable provider-marked channel bubbles mount in 48-item pages, while the selected creator has direct favorite, rating, health, and unfollow controls. Discovery and sidebar views no longer expand a thousand followed channels by default.
+Recent completed work: YouTube and Twitch now share a bounded creator-management surface: searchable and sortable provider-marked channel bubbles mount in 48-item pages, while the selected creator has direct favorite, rating, health, and unfollow controls. Discovery and sidebar views no longer expand a thousand followed channels by default. Optional collections are included in library-pack recovery, and bulk unfollow previews per-creator catalog effects while retaining saved and watched rows.
 
 Each milestone is broken into an implementation change, a browser verification, and a production build check. The interactive checklist is saved in the browser under `reelcase.mission-plan.v1`.
 
 Mission-plan status is explicit and local: **planned**, **in progress**, **blocked**, or **complete**. The active Watch Room reliability and device-matrix milestones are in progress. The cross-device relay milestone is blocked only on a real TURN service and separate-device validation; configuration acceptance is not counted as proof of relay connectivity.
+
+The Watch Room device matrix now has a repeatable isolated-browser check at `scripts/watch-room-browser-check.mjs`. It passed on desktop host and mobile guest viewports with no browser errors or horizontal overflow. A same-computer test cannot replace physical-device LAN measurements, browser-engine coverage, or relay-only checks on separate networks.
 
 Recent completed work: Live is grouped by Twitch, YouTube, Chaturbate, and MyFreeCams with source counts and shared search, favorite/like filters, sorting, and per-source pagination. Fresh Twitch responses use the current clock instead of an older timer tick; stale observations and missing follows have explicit diagnostics and a Twitch-only refresh action.
 
@@ -70,6 +72,6 @@ Recent completed work: Settings provides an on-demand Companion artwork disk aud
 
 - YouTube: resumable deep-pull checkpoints, live comment/chat regression coverage, channel import health, freshness windows, and selective retries.
 - Twitch: live/archive separation, channel diagnostics, stream freshness, and focused refresh.
-- Following: **in progress** — optional creator collections and a preview-first bulk-unfollow workflow that preserves saved videos and favorites.
+- Following: **complete** — optional creator collections, library-pack recovery, and preview-first bulk unfollow preserve saved videos, favorites, likes, ratings, notes, resume marks, and history.
 - X: explicit source connection status, cache age, opt-in import controls, and retry diagnostics.
 - Startup budget: progressively hydrate shelves, prioritize visible artwork, and measure search, scrolling, and thumbnail queue latency on large libraries.

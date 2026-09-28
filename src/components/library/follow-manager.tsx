@@ -3,14 +3,14 @@ import { FolderPlus, Heart, ListChecks, Radio, Search, Star, Trash2, Twitch, X, 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { creatorIsLiked, getCreatorRating, setCreatorRating, toggleCreatorLike } from "@/lib/media-feedback";
+import { creatorIsLiked, exportFeedback, getCreatorRating, setCreatorRating, toggleCreatorLike } from "@/lib/media-feedback";
 import { useLibrary } from "@/lib/videos/store";
 import type { FollowKind, FollowedChannel } from "@/lib/videos/types";
+import { FOLLOW_COLLECTIONS_CHANGED, loadCreatorCollections, saveCreatorCollections, type CreatorCollection } from "@/lib/videos/follow-collections";
+import { planFollowRemoval } from "@/lib/videos/follow-removal";
 
 const PAGE_SIZE = 48;
-const COLLECTION_KEY = "reelcase.follow-collections.v1";
 type SortMode = "recent" | "name" | "favorite" | "rating";
-type CreatorCollection = { id: string; name: string; followIds: string[]; createdAt: number };
 
 function creatorLabel(channel: FollowedChannel) {
   return channel.title.trim() || channel.handle.trim() || "Untitled creator";
@@ -32,17 +32,6 @@ function channelStatus(channel: FollowedChannel) {
   return "not checked yet";
 }
 
-function loadCollections(): CreatorCollection[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const saved = JSON.parse(localStorage.getItem(COLLECTION_KEY) ?? "[]");
-    if (!Array.isArray(saved)) return [];
-    return saved.flatMap((entry): CreatorCollection[] => typeof entry?.id === "string" && typeof entry?.name === "string" && Array.isArray(entry?.followIds)
-      ? [{ id: entry.id, name: entry.name.slice(0, 48), followIds: entry.followIds.filter((id: unknown): id is string => typeof id === "string"), createdAt: Number(entry.createdAt) || Date.now() }]
-      : []);
-  } catch { return []; }
-}
-
 /** A bounded, local-first control surface for large YouTube and Twitch follow lists. */
 export function FollowManager({ kind }: { kind?: FollowKind }) {
   const follows = useLibrary((state) => state.follows);
@@ -59,8 +48,14 @@ export function FollowManager({ kind }: { kind?: FollowKind }) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [collectionName, setCollectionName] = useState("");
   const [collections, setCollections] = useState<CreatorCollection[]>([]);
-  const [collectionsReady, setCollectionsReady] = useState(false);
   const [reviewingRemoval, setReviewingRemoval] = useState(false);
+  const [reviewVisible, setReviewVisible] = useState(PAGE_SIZE);
+  const videos = useLibrary((state) => state.videos);
+  const favorites = useLibrary((state) => state.favorites);
+  const likes = useLibrary((state) => state.likes);
+  const progress = useLibrary((state) => state.progress);
+  const resumeProgress = useLibrary((state) => state.resumeProgress);
+  const history = useLibrary((state) => state.history);
 
   useEffect(() => {
     setProvider(kind ?? "all");
@@ -75,18 +70,18 @@ export function FollowManager({ kind }: { kind?: FollowKind }) {
     return () => window.removeEventListener("reelcase:rating-change", sync);
   }, []);
   useEffect(() => {
-    setCollections(loadCollections());
-    setCollectionsReady(true);
+    const sync = () => setCollections(loadCreatorCollections());
+    sync();
+    window.addEventListener(FOLLOW_COLLECTIONS_CHANGED, sync);
+    const syncStorage = (event: StorageEvent) => { if (event.key === "reelcase.follow-collections.v1") sync(); };
+    window.addEventListener("storage", syncStorage);
+    return () => { window.removeEventListener(FOLLOW_COLLECTIONS_CHANGED, sync); window.removeEventListener("storage", syncStorage); };
   }, []);
-  useEffect(() => {
-    if (!collectionsReady) return;
-    try { localStorage.setItem(COLLECTION_KEY, JSON.stringify(collections)); } catch { /* Collections remain available for this session. */ }
-  }, [collections, collectionsReady]);
   useEffect(() => {
     const followIds = new Set(follows.map((follow) => follow.id));
     setSelectedIds((ids) => ids.filter((id) => followIds.has(id)));
-    setCollections((saved) => saved.map((collection) => ({ ...collection, followIds: collection.followIds.filter((id) => followIds.has(id)) })).filter((collection) => collection.followIds.length));
   }, [follows]);
+  useEffect(() => { setReviewVisible(PAGE_SIZE); }, [selectedIds]);
 
   const filtered = useMemo(() => {
     const needle = deferredQuery.trim().toLocaleLowerCase();
@@ -114,7 +109,9 @@ export function FollowManager({ kind }: { kind?: FollowKind }) {
   const selectedName = selected ? creatorLabel(selected) : "";
   const selectedRating = selected ? getCreatorRating(selectedName) : 0;
   const selectedFavorite = selected ? creatorIsLiked(selectedName) : false;
-  const selectedForRemoval = useMemo(() => follows.filter((channel) => selectedIds.includes(channel.id)), [follows, selectedIds]);
+  const removalPlan = useMemo(() => reviewingRemoval
+    ? planFollowRemoval({ follows, videos, favorites, likes, progress, resumeProgress, history }, selectedIds, exportFeedback())
+    : null, [reviewingRemoval, follows, videos, favorites, likes, progress, resumeProgress, history, selectedIds]);
   const scopedCollections = useMemo(() => {
     const scope = new Set(follows.filter((channel) => !kind || channel.kind === kind).map((channel) => channel.id));
     return collections.map((collection) => ({ ...collection, followIds: collection.followIds.filter((id) => scope.has(id)) })).filter((collection) => collection.followIds.length);
@@ -135,24 +132,32 @@ export function FollowManager({ kind }: { kind?: FollowKind }) {
     unfollow(selected.id);
     setSelectedId(null);
   };
-  const toggleSelected = (id: string) => setSelectedIds((ids) => ids.includes(id) ? ids.filter((value) => value !== id) : [...ids, id]);
+  const toggleSelected = (id: string) => {
+    setSelectedIds((ids) => ids.includes(id) ? ids.filter((value) => value !== id) : [...ids, id]);
+    setReviewingRemoval(false);
+  };
+  const updateCollections = (update: (current: CreatorCollection[]) => CreatorCollection[]) => {
+    const next = update(collections);
+    setCollections(next);
+    saveCreatorCollections(next);
+  };
   const saveCollection = () => {
     const name = collectionName.trim();
     if (!name || !selectedIds.length) return;
     const next: CreatorCollection = { id: `collection:${Date.now()}`, name: name.slice(0, 48), followIds: selectedIds, createdAt: Date.now() };
-    setCollections((saved) => [...saved.filter((collection) => collection.name.toLocaleLowerCase() !== next.name.toLocaleLowerCase()), next]);
+    updateCollections((saved) => [...saved.filter((collection) => collection.name.toLocaleLowerCase() !== next.name.toLocaleLowerCase()), next]);
     setCollectionName("");
   };
   const loadCollection = (collection: CreatorCollection) => {
-    const available = new Set(follows.map((channel) => channel.id));
+    const available = new Set(follows.filter((channel) => !kind || channel.kind === kind).map((channel) => channel.id));
     setSelectedIds(collection.followIds.filter((id) => available.has(id)));
     setSelectionMode(true);
     setReviewingRemoval(false);
   };
-  const removeCollection = (id: string) => setCollections((saved) => saved.filter((collection) => collection.id !== id));
+  const removeCollection = (id: string) => updateCollections((saved) => saved.filter((collection) => collection.id !== id));
   const removeSelected = () => {
-    if (!selectedForRemoval.length || !window.confirm(`Remove ${selectedForRemoval.length} followed creator${selectedForRemoval.length === 1 ? "" : "s"}? Saved videos and favorites stay in your library.`)) return;
-    unfollowMany(selectedForRemoval.map((channel) => channel.id));
+    if (!removalPlan?.channels.length) return;
+    unfollowMany(removalPlan.channels.map((row) => row.follow.id));
     setSelectedIds([]);
     setReviewingRemoval(false);
     setSelectedId(null);
@@ -189,7 +194,8 @@ export function FollowManager({ kind }: { kind?: FollowKind }) {
         <div className="mt-4 border-t border-border pt-4">
           <div className="flex flex-wrap items-center gap-2">
             <Button type="button" size="sm" variant={selectionMode ? "default" : "secondary"} onClick={() => { setSelectionMode((value) => !value); setReviewingRemoval(false); }}><ListChecks aria-hidden="true" className="size-4" />{selectionMode ? `Selecting ${selectedIds.length}` : "Select creators"}</Button>
-            {selectionMode && <Button type="button" size="sm" variant="ghost" onClick={() => setSelectedIds([])}>Clear selection</Button>}
+            {selectionMode && <Button type="button" size="sm" variant="secondary" disabled={!filtered.length} onClick={() => { const ids = new Set(selectedIds); filtered.forEach((channel) => ids.add(channel.id)); setSelectedIds([...ids]); setReviewingRemoval(false); }}>Select all {filtered.length.toLocaleString()} matching</Button>}
+            {selectionMode && <Button type="button" size="sm" variant="ghost" onClick={() => { setSelectedIds([]); setReviewingRemoval(false); }}>Clear selection</Button>}
             {scopedCollections.map((collection) => <span key={collection.id} className="inline-flex items-center rounded-sm bg-bg/45"><Button type="button" size="sm" variant="ghost" onClick={() => loadCollection(collection)}>{collection.name} · {collection.followIds.length}</Button><Button type="button" size="icon-sm" variant="ghost" onClick={() => removeCollection(collection.id)} aria-label={`Remove ${collection.name} collection`}><X aria-hidden="true" className="size-3.5" /></Button></span>)}
           </div>
           {selectionMode && <div className="mt-3 grid gap-3 rounded-lg bg-bg/45 p-3 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-center">
@@ -197,7 +203,7 @@ export function FollowManager({ kind }: { kind?: FollowKind }) {
             <Button type="button" variant="secondary" disabled={!collectionName.trim() || !selectedIds.length} onClick={saveCollection}><FolderPlus aria-hidden="true" className="size-4" />Save collection</Button>
             <Button type="button" variant={reviewingRemoval ? "danger" : "secondary"} disabled={!selectedIds.length} onClick={() => setReviewingRemoval((value) => !value)}><Trash2 aria-hidden="true" className="size-4" />Review removal{selectedIds.length ? ` · ${selectedIds.length}` : ""}</Button>
           </div>}
-          {reviewingRemoval && <div className="mt-3 rounded-lg border border-danger/50 bg-danger/10 p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-medium text-fg">Review {selectedForRemoval.length} selected creator{selectedForRemoval.length === 1 ? "" : "s"}</p><p className="mt-1 text-sm text-muted">Saved videos and video favorites stay in the library. Only the follow, source folder, and unprotected provider rows are removed.</p></div><Button type="button" size="icon-sm" variant="ghost" onClick={() => setReviewingRemoval(false)} aria-label="Close removal review"><X aria-hidden="true" className="size-4" /></Button></div><p className="mt-3 text-xs text-muted">{selectedForRemoval.slice(0, 12).map(creatorLabel).join(" · ")}{selectedForRemoval.length > 12 ? ` · and ${selectedForRemoval.length - 12} more` : ""}</p><Button type="button" className="mt-4" variant="danger" disabled={!selectedForRemoval.length} onClick={removeSelected}><Trash2 aria-hidden="true" className="size-4" />Remove selected follows</Button></div>}
+          {reviewingRemoval && removalPlan && <div className="mt-3 rounded-lg border border-danger/50 bg-danger/10 p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-medium text-fg">Review {removalPlan.channels.length} selected creator{removalPlan.channels.length === 1 ? "" : "s"}</p><p className="mt-1 text-sm text-muted">Removing follows also removes their source folders and {removalPlan.removedRows.toLocaleString()} unprotected catalog rows. {removalPlan.keptRows.toLocaleString()} saved or watched rows stay with favorites, likes, ratings, notes, and playback history.</p></div><Button type="button" size="icon-sm" variant="ghost" onClick={() => setReviewingRemoval(false)} aria-label="Close removal review"><X aria-hidden="true" className="size-4" /></Button></div><div className="mt-3 max-h-64 space-y-1 overflow-y-auto rounded-md bg-bg/50 p-2" aria-label="Affected creator preview">{removalPlan.channels.slice(0, reviewVisible).map(({ follow, keptRows, removedRows }) => <div key={follow.id} className="flex items-center justify-between gap-3 rounded-sm px-2 py-1 text-xs"><span className="min-w-0 truncate text-fg">{creatorLabel(follow)} <span className="text-muted">· {follow.kind === "youtube" ? "YouTube" : "Twitch"}</span></span><span className="shrink-0 text-muted">{removedRows} remove · {keptRows} keep</span></div>)}</div>{reviewVisible < removalPlan.channels.length && <Button type="button" size="sm" variant="ghost" className="mt-2" onClick={() => setReviewVisible((count) => Math.min(removalPlan.channels.length, count + PAGE_SIZE))}>Show next {Math.min(PAGE_SIZE, removalPlan.channels.length - reviewVisible)} affected creators</Button>}<Button type="button" className="mt-4" variant="danger" disabled={!removalPlan.channels.length} onClick={removeSelected}><Trash2 aria-hidden="true" className="size-4" />Remove {removalPlan.channels.length} reviewed follows</Button></div>}
         </div>
       </div>
 

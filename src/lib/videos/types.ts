@@ -101,6 +101,8 @@ export type LibraryVideo = {
   duration?: number;
   addedAt: number;
   isSample?: boolean;
+  /** A locally saved/watched provider card retained after its channel was unfollowed. */
+  retainedAfterUnfollow?: boolean;
   src?: string;
   year?: number;
   genre?: string;
