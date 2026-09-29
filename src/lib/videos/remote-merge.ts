@@ -77,6 +77,28 @@ function sameOrder(left: LibraryVideo[], right: LibraryVideo[]) {
   return left.length === right.length && left.every((video, index) => video === right[index]);
 }
 
+/** Additive archive merge using an index shared across a multi-creator sweep. */
+export function mergeRemoteCatalog(existing: LibraryVideo[], incoming: LibraryVideo[], positions: Map<string, number>, mergedIncoming: LibraryVideo[]): LibraryVideo[] {
+  let merged = existing;
+  for (const video of incoming) {
+    const index = positions.get(video.id);
+    const previous = index === undefined ? undefined : merged[index];
+    let next = retainDurableRemoteFields(previous, video);
+    if (previous?.remote?.live && next.remote?.live && (next.remote.observedAt ?? 0) < (previous.remote.observedAt ?? 0)) next = previous;
+    else if (previous && sameVideo(previous, next)) next = previous;
+    if (index === undefined) {
+      if (merged === existing) merged = existing.slice();
+      positions.set(next.id, merged.length);
+      merged.push(next);
+    } else if (next !== previous) {
+      if (merged === existing) merged = existing.slice();
+      merged[index] = next;
+    }
+    mergedIncoming.push(next);
+  }
+  return merged;
+}
+
 /**
  * Merge a provider refresh without letting a shallow public response erase a
  * known remote archive. Twitch's public archive endpoint can legitimately

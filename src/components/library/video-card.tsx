@@ -110,6 +110,7 @@ export const VideoCard = memo(function VideoCard({
   const [hovered, setHovered] = useState(false);
   const [thumbIndex, setThumbIndex] = useState(0);
   const [artVisible, setArtVisible] = useState(false);
+  const [artPriority, setArtPriority] = useState<"high" | "low">("low");
   const [artAllowed, setArtAllowed] = useState(false);
   const [paintedSrc, setPaintedSrc] = useState<string | undefined>();
   const [candidateReady, setCandidateReady] = useState(false);
@@ -174,7 +175,7 @@ export const VideoCard = memo(function VideoCard({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const io = new IntersectionObserver(
+    const nearObserver = new IntersectionObserver(
       (entries) => {
         const visible = entries.some((e) => e.isIntersecting);
         setArtVisible(visible);
@@ -183,8 +184,12 @@ export const VideoCard = memo(function VideoCard({
       },
       { rootMargin: "160px" },
     );
-    io.observe(el);
-    return () => io.disconnect();
+    const visibleObserver = new IntersectionObserver((entries) => {
+      setArtPriority(entries.some((entry) => entry.isIntersecting) ? "high" : "low");
+    });
+    nearObserver.observe(el);
+    visibleObserver.observe(el);
+    return () => { nearObserver.disconnect(); visibleObserver.disconnect(); };
   }, [request, video]);
 
   useEffect(() => {
@@ -192,18 +197,19 @@ export const VideoCard = memo(function VideoCard({
     void recallCompanion(video.id);
   }, [artVisible, recallCompanion, video.id, video.remote]);
 
-  // A visible card owns a high-priority slot only while its current candidate
-  // is loading. Releasing it after load/error lets the next card paint; the
-  // last successful image stays mounted underneath every fallback.
+  // On-screen cards use the high lane; near-view cards use a cancellable low
+  // lane. A slot lasts only while the current candidate loads, and the last
+  // successful image stays mounted underneath every fallback.
   useEffect(() => {
-    if (!artVisible || thumbsExhausted) {
+    if (!artVisible || thumbsExhausted || candidateReady || paintedSrc === activeThumb) {
       setArtAllowed(false);
       return;
     }
     let release: (() => void) | undefined;
     let cancelled = false;
     const controller = new AbortController();
-    void acquireImageSlot({ priority: "high", signal: controller.signal }).then((done) => {
+    void acquireImageSlot({ priority: artPriority, signal: controller.signal }).then((done) => {
+      if (!done) return;
       if (cancelled) {
         done();
         return;
@@ -219,7 +225,7 @@ export const VideoCard = memo(function VideoCard({
       release?.();
       setArtAllowed(false);
     };
-  }, [activeThumb, artVisible, thumbsExhausted, video.id]);
+  }, [activeThumb, artPriority, artVisible, candidateReady, paintedSrc, thumbsExhausted, video.id]);
 
   useEffect(() => {
     setCandidateReady(false);
@@ -299,9 +305,9 @@ export const VideoCard = memo(function VideoCard({
       {!textFirst && artVisible && (artAllowed || candidateReady || paintedSrc === activeThumb) && !thumbsExhausted && (showPreview ? preview : activeThumb) ? (
         <img
           key={`${video.id}:${resolvedThumbIndex}:${showPreview ? "p" : "a"}`}
-          loading={index <= RAIL_WARM_INDEX ? "eager" : "lazy"}
+          loading={artPriority === "high" && index <= RAIL_WARM_INDEX ? "eager" : "lazy"}
           decoding="async"
-          fetchPriority={index <= 3 && artVisible ? "high" : "auto"}
+          fetchPriority={index <= 3 && artPriority === "high" ? "high" : "auto"}
           referrerPolicy={imageReferrerPolicy}
           src={showPreview ? preview! : activeThumb!}
           alt=""

@@ -3,6 +3,7 @@ import { restoreDurableFeedback, saveDurableFeedback } from "./videos/persist";
 
 export type RatingLedgerEntry = { rating: number; updatedAt: number };
 export type WatchTime = { preview: number; fullscreen: number; previewEstimated?: number; fullscreenEstimated?: number };
+const EMPTY_WATCH_TIME: WatchTime = { preview: 0, fullscreen: 0 };
 export type Feedback = { ratings: Record<string, number>; ratingHistory: Record<string, RatingLedgerEntry>; notes: Record<string, string>; creatorRatings: Record<string, number>; creatorLikes: Record<string, true>; tagLikes: Record<string, true>; tagHeartHistory: Record<string, number>; watchTime: Record<string, WatchTime> };
 /** Explicit dislike, neutral, then progressively stronger positive signals. */
 export function ratingPreference(rating: number): number { return rating === 1 ? -3 : rating === 2 ? 0 : rating >= 3 ? Math.min(3, rating - 2) : 0; }
@@ -17,7 +18,23 @@ let pendingWrites = 0;
 // Missing ratings are common in large libraries. Remember the legacy lookup
 // too, so recommendation passes never repeat synchronous storage reads.
 const legacyRatings = new Map<string, number>();
+let legacyRatingKeys: Set<string> | null = null;
 let legacyScan: Promise<void> | undefined;
+
+function legacyKeys() {
+  if (legacyRatingKeys) return legacyRatingKeys;
+  const keys = new Set<string>();
+  if (typeof window !== "undefined") {
+    try {
+      for (let index = 0; index < localStorage.length; index++) {
+        const key = localStorage.key(index);
+        if (key?.startsWith("reelcase.rating.")) keys.add(key.slice("reelcase.rating.".length));
+      }
+    } catch { /* Current feedback remains available without legacy storage. */ }
+  }
+  legacyRatingKeys = keys;
+  return keys;
+}
 
 /** Read old per-title ratings once, in small batches, rather than doing a
  * synchronous storage lookup for every unscored title during recommendation. */
@@ -29,6 +46,7 @@ export async function rankingFeedbackSnapshot() {
           const key = localStorage.key(index);
           if (key?.startsWith("reelcase.rating.")) {
             const id = key.slice("reelcase.rating.".length);
+            legacyRatingKeys?.add(id);
             if (!legacyRatings.has(id)) {
               const value = Number(localStorage.getItem(key));
               legacyRatings.set(id, Number.isFinite(value) ? value : 0);
@@ -130,6 +148,7 @@ export function getRating(id: string): number {
   if (typeof window === "undefined") return 0;
   const known = legacyRatings.get(id);
   if (known !== undefined) return known;
+  if (!legacyKeys().has(id)) return 0;
   let legacy = 0;
   try { legacy = Number(localStorage.getItem(`reelcase.rating.${id}`) ?? 0); } catch { /* session only */ }
   const rating = Number.isFinite(legacy) ? legacy : 0;
@@ -145,13 +164,14 @@ export function setRating(id: string, rating: number) {
   // remain attributable even when a provider card is later replaced.
   next.ratingHistory[id] = { rating: next.ratings[id], updatedAt: Date.now() };
   legacyRatings.set(id, next.ratings[id]);
+  legacyKeys().add(id);
   recordRatingForStreak(id, next.ratings[id]);
   write(next);
   notifyChange();
   lastRatingQueueMs = Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - started);
 }
 export function getRatingLedger(): Record<string, RatingLedgerEntry> { return { ...read().ratingHistory }; }
-export function getWatchTime(id: string): WatchTime { return read().watchTime[id] ?? { preview: 0, fullscreen: 0 }; }
+export function getWatchTime(id: string): WatchTime { return read().watchTime[id] ?? EMPTY_WATCH_TIME; }
 export function getWatchTimeLedger(): Record<string, WatchTime> { return { ...read().watchTime }; }
 /** Count real elapsed playback in small bounded increments, never seek distance. */
 export function recordWatchTime(id: string, mode: keyof WatchTime, seconds: number) {

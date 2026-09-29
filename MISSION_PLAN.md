@@ -54,9 +54,19 @@ Recent completed work: Visible-card actions now receive a short foreground sched
 
 Recent completed work: YouTube and Twitch now share a bounded creator-management surface: searchable and sortable provider-marked channel bubbles mount in 48-item pages, while the selected creator has direct favorite, rating, health, and unfollow controls. Discovery and sidebar views no longer expand a thousand followed channels by default. Optional collections are included in library-pack recovery, and bulk unfollow previews per-creator catalog effects while retaining saved and watched rows.
 
-Each milestone is broken into an implementation change, a browser verification, and a production build check. The interactive checklist is saved in the browser under `reelcase.mission-plan.v1`.
+Recent completed work: remote provider catalogs now restore in bounded 512-row IndexedDB pages, tag recovery avoids repeated taxonomy construction and unchanged provenance writes, and Continue reconciliation skips empty resume maps while retaining stable URL/path aliases. Adult controls, preview/player, and the local guide load on demand; Home recommendations take priority over speculative Hub warmup. The 80,000-video desktop/mobile browser exercise, typecheck, and production build pass.
 
-Mission-plan status is explicit and local: **planned**, **in progress**, **blocked**, or **complete**. The active Watch Room reliability and device-matrix milestones are in progress. The cross-device relay milestone is blocked only on a real TURN service and separate-device validation; configuration acceptance is not counted as proof of relay connectivity.
+Recent completed work: YouTube's rotating archive sweep, per-creator continuation checkpoints, independent live/recent checks, and cross-site pull result ledger are reflected in Mission plan. Long YouTube rails retain bounded card windows. Stats shows recent pull success, partial, and failure counts; cached history is not confused with newly added videos.
+
+Recent completed work: the saved pull-result ledger now loads after the shared server/client first render. A populated library retains its pull result and selected Mission plan after desktop and mobile reloads without a React hydration error. Mission completion migrations are versioned per newly verified item, so a later manual restore to planned is not undone by the next reload.
+
+Recent completed work: YouTube first-click timing now reports how long the latest-upload rail takes to mount usable text-first cards, plus separate catalog-selector, artwork, and overlapping provider timings. The trace stays in memory, records counts and durations only, and appears in YouTube Pull health and opt-in Settings diagnostics. The latest-upload rail mounts a small card window immediately while retaining bounded windowing for large catalogs. Cold Home recommendation readiness remains in progress pending a measured cold production gate.
+
+Recent completed work: YouTube artwork priority now distinguishes on-screen from near-view cards with separate image queues. Visible cards can take the next slot and request eager artwork; near-view cards remain lazy and their queued work is invalidated before a source switch mounts new cards. Titles and actions stay usable when an image is delayed or unavailable.
+
+Each milestone is broken into an implementation change, a browser verification, and a production build check. The interactive checklist is saved in the browser under `reelcase.mission-plan.v1`; code-backed completions upgrade older saved plans without discarding user-added milestones.
+
+Mission-plan status is explicit and local: **planned**, **in progress**, **blocked**, or **complete**. Watch Room reliability, its device matrix, and cold Home readiness remain in progress. The cross-device relay milestone is blocked only on a real TURN service and separate-device validation; configuration acceptance is not counted as proof of relay connectivity. Real-provider archive soaking remains planned; the synthetic 80,000-video check is not a rate-limit or long-session memory proof.
 
 The Watch Room device matrix now has a repeatable isolated-browser check at `scripts/watch-room-browser-check.mjs`. It passed on desktop host and mobile guest viewports with no browser errors or horizontal overflow. A same-computer test cannot replace physical-device LAN measurements, browser-engine coverage, or relay-only checks on separate networks.
 
@@ -70,8 +80,8 @@ Recent completed work: Settings provides an on-demand Companion artwork disk aud
 - [x] Start the gateway on the selected home-LAN interface and verify a 200 response with hostname/certificate validation against its local CA (no TLS bypass). Build and typecheck pass. This transport check is not a browser/device trust or Twitch playback check.
 - [ ] Activate home-network DNS and per-device certificate trust; verify HTTPS and actual Twitch playback on desktop and phone before marking the LAN embed issue resolved. Preserve the original HTTP library until the migration is verified.
 
-- YouTube: resumable deep-pull checkpoints, live comment/chat regression coverage, channel import health, freshness windows, and selective retries.
+- YouTube: live comment/chat regression coverage, channel import health, freshness windows, selective retries, and real-provider archive soaking. Resumable deep-pull checkpoints and bounded background sweeps are complete.
 - Twitch: live/archive separation, channel diagnostics, stream freshness, and focused refresh.
 - Following: **complete** — optional creator collections, library-pack recovery, and preview-first bulk unfollow preserve saved videos, favorites, likes, ratings, notes, resume marks, and history.
 - X: explicit source connection status, cache age, opt-in import controls, and retry diagnostics.
-- Startup budget: progressively hydrate shelves, prioritize visible artwork, and measure search, scrolling, and thumbnail queue latency on large libraries.
+- Startup budget: progressively hydrate shelves, prioritize visible artwork, and measure search, scrolling, and thumbnail queue latency on large libraries. Cold Home still needs a measured time-to-full-recommendations gate; a first production screenshot can show the intentional preparing state even though the shell is visible.

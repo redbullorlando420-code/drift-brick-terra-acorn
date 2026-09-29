@@ -189,9 +189,15 @@ export type FollowedChannel = {
   live?: boolean;
   /** Freshness ledger for provider scheduling and a truthful last-check UI. */
   lastCheckedAt?: number;
+  /** Independent YouTube live-state poll rotation; does not advance the archive cursor. */
+  liveCheckedAt?: number;
   newestPublishedAt?: number;
   /** Stable Atom upload identity used to trim routine YouTube refreshes. */
   newestVideoId?: string;
+  /** Saved Innertube Videos-grid position for bounded archive sweeps. */
+  catalogCursor?: string;
+  catalogCheckedAt?: number;
+  catalogExhaustedAt?: number;
   lastResponseCount?: number;
   /** Server-session cache telemetry; this is diagnostic metadata, not a claim
    * that the provider was contacted during this refresh. */

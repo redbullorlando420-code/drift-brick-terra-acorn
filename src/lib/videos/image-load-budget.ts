@@ -4,13 +4,14 @@
  * Visible cards use a high-priority lane; speculative/offscreen work waits.
  */
 
-import { getInteractionPriorityDelay } from "@/lib/interaction-budget";
+import { getInteractionPriorityDelay } from "../interaction-budget.ts";
 
 export type ImageSlotPriority = "high" | "low";
 
 let active = 0;
 const waitingHigh: Array<() => void> = [];
 const waitingLow: Array<() => void> = [];
+let lowGeneration = 0;
 /** Default ceiling — aggressive enough that dense Adult rails stay scrollable. */
 const MAX_CONCURRENT = 12;
 /** Reserve a few slots so visible cards are not starved by speculative warm. */
@@ -46,12 +47,14 @@ function canStart(priority: ImageSlotPriority) {
   return true;
 }
 
-export async function acquireImageSlot(opts?: { priority?: ImageSlotPriority; signal?: AbortSignal }): Promise<() => void> {
+export async function acquireImageSlot(opts?: { priority?: ImageSlotPriority; signal?: AbortSignal }): Promise<(() => void) | null> {
   const signal = opts?.signal;
-  if (signal?.aborted) return () => {};
+  if (signal?.aborted) return null;
   const priority: ImageSlotPriority = opts?.priority ?? "low";
   const queue = priority === "high" ? waitingHigh : waitingLow;
+  const generation = lowGeneration;
   for (;;) {
+    if (priority === "low" && generation !== lowGeneration) return null;
     while (!canStart(priority)) {
       if (priority === "low" && typeof document !== "undefined" && document.visibilityState === "hidden") {
         await new Promise<void>((resolve) => {
@@ -60,7 +63,7 @@ export async function acquireImageSlot(opts?: { priority?: ImageSlotPriority; si
           document.addEventListener("visibilitychange", onVis);
           signal?.addEventListener("abort", done, { once: true });
         });
-        if (signal?.aborted) return () => {};
+        if (signal?.aborted || generation !== lowGeneration) return null;
         continue;
       }
       await new Promise<void>((resolve) => {
@@ -69,7 +72,7 @@ export async function acquireImageSlot(opts?: { priority?: ImageSlotPriority; si
         queue.push(wake);
         signal?.addEventListener("abort", cancel, { once: true });
       });
-      if (signal?.aborted) { wakeNext(); return () => {}; }
+      if (signal?.aborted || (priority === "low" && generation !== lowGeneration)) { wakeNext(); return null; }
     }
     // Low-priority decode/fetch work is opportunistic: a visible card action
     // gets the next paint window even when an image slot happens to be free.
@@ -84,7 +87,7 @@ export async function acquireImageSlot(opts?: { priority?: ImageSlotPriority; si
       const timer = window.setTimeout(done, delay);
       signal?.addEventListener("abort", done, { once: true });
     });
-    if (signal?.aborted) return () => {};
+    if (signal?.aborted || (priority === "low" && generation !== lowGeneration)) return null;
     // A hidden tab or newly queued visible card may have changed the budget
     // during the foreground lease, so loop back through canStart().
   }
@@ -111,6 +114,7 @@ export function getImageLoadBudgetSnapshot() {
 
 /** Drop speculative decode waiters (keeps high-priority visible cards). */
 export function clearLowPriorityImageQueue() {
+  lowGeneration += 1;
   const pending = waitingLow.splice(0, waitingLow.length);
   for (const wake of pending) wake();
 }

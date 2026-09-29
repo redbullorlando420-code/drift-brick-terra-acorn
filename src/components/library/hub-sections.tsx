@@ -2,8 +2,9 @@ import { TopicLinks } from './topic-links';
 import { ArtworkAuditPanel } from './artwork-audit';
 import { openTopic } from '@/lib/videos/topic-navigation';
 import { createLocalId } from "@/lib/local-id";
+import { mergeMissionPlan, MISSION_PLAN_REVISION, MISSION_PLAN_REVISION_KEY, type Mission, type MissionStatus } from "@/lib/mission-plan";
 import { isTopicTag, canonicalTopic, topicsForVideo } from '@/lib/videos/topics';
-import { type ReactNode, lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   Bot,
   Box,
@@ -86,6 +87,7 @@ import { getAdultPreviewHealth } from "@/lib/videos/adult-thumb-session";
 import { getRenderBudgetSnapshot } from "@/lib/render-budget";
 import { getInteractionBudgetSnapshot, measureInteraction } from "@/lib/interaction-budget";
 import { getFirstShelfTrace } from "@/lib/first-shelf-trace";
+import { getYoutubeFirstClickTrace, getYoutubeTraceRevision, subscribeYoutubeTrace } from "@/lib/youtube-first-click-trace";
 import { benchmarkVisionModelsLocally, classifyImagesLocally, VISION_MODELS, type VisionBenchmark, type VisionLabel, type VisionModelId } from "@/lib/local-vision";
 import { LOCAL_UPSCALER, upscaleImageLocally } from "@/lib/local-upscaler";
 import { getNetworkDeviceId, listNetworkDevices, type NetworkDevice } from "@/lib/network-presence";
@@ -524,6 +526,7 @@ export function StatsSection() {
   const progress = useLibrary((s) => s.progress);
   const resumeProgress = useLibrary((s) => s.resumeProgress);
   const viewCounts = useLibrary((s) => s.viewCounts);
+  const pullHistory = useLibrary((s) => s.pullHistory);
   const [showAllSources, setShowAllSources] = useState(false);
   const [remediationView, setRemediationView] = useState<"" | "topics" | "sources">("");
   const [favoriteRevision, setFavoriteRevision] = useState(0);
@@ -689,6 +692,15 @@ export function StatsSection() {
     return { duplicateNames, largest, concentration: largest ? Math.round(largest.bytes / Math.max(summary.totalBytes, 1) * 100) : 0 };
   }, [folderRows, summary.totalBytes]);
   const visibleFolderRows = showAllSources ? folderRows : folderRows.slice(0, 80);
+  const pullTotals = useMemo(() => ({
+    runs: pullHistory.length,
+    successful: pullHistory.filter((run) => run.status === "success").length,
+    partial: pullHistory.filter((run) => run.status === "partial").length,
+    failed: pullHistory.filter((run) => run.status === "failed").length,
+    checked: pullHistory.reduce((sum, run) => sum + run.done, 0),
+    returned: pullHistory.reduce((sum, run) => sum + run.received, 0),
+    added: pullHistory.reduce((sum, run) => sum + run.added, 0),
+  }), [pullHistory]);
   const exportStats = () => {
     const stamp = new Date().toISOString().slice(0, 10);
     const feedback = exportFeedback();
@@ -698,6 +710,7 @@ export function StatsSection() {
       ["local_storage_bytes", summary.totalBytes],
       ["topic_tag_assignments", summary.tagAssignments],
       ["favorites", Object.keys(favorites).length],
+      ["pull_runs_retained", pullTotals.runs], ["pull_successful_runs", pullTotals.successful], ["pull_partial_runs", pullTotals.partial], ["pull_failed_runs", pullTotals.failed], ["pull_creators_checked", pullTotals.checked], ["pull_videos_returned", pullTotals.returned], ["pull_new_videos", pullTotals.added],
       ["local_titles", summary.localTitles], ["remote_titles", summary.remoteTitles], ["untagged_titles", summary.untaggedTitles], ["fresh_remote_titles_7d", summary.freshRemoteTitles],
       ["youtube_titles", summary.youtubeTitles], ["twitch_titles", summary.twitchTitles], ["live_titles", summary.liveTitles], ["poster_ready_titles", summary.thumbReady], ["unavailable_titles", Object.keys(unavailable).length], ["history_events", history.length],
       ["topic_tag_coverage_percent", Math.round(((videos.length - summary.untaggedTitles) / Math.max(videos.length, 1)) * 100)], ["largest_source_percent", sourceHealth.concentration], ["duplicate_source_names", sourceHealth.duplicateNames.length],
@@ -709,7 +722,7 @@ export function StatsSection() {
       ...summary.genreRows.map(([name, count]) => [`genre:${name}`, count]),
       ...summary.topTags.map(([name, count]) => [`topic_tag:${name}`, count]),
       ...sourceHealth.duplicateNames.map(({ name, count }) => [`duplicate_source:${name}`, count]),
-    ], `reelcase-library-insights-${stamp}.csv`);
+  ], `reelcase-library-insights-${stamp}.csv`);
   };
   const exportSources = () => downloadCsv([
     ["source", "kind", "mapped_titles", "local_storage_bytes", "last_checked"],
@@ -751,6 +764,7 @@ export function StatsSection() {
   };
   return <HubShell eyebrow="Library intelligence" icon={<BarChart3 className="size-4"/>} title="Know what your library needs next." copy="These local-only counts help identify coverage gaps, oversized source folders, and the tags that are driving discovery.">
     <section className="mt-2 rounded-xl border border-border bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">How your ratings work</p><h2 className="mt-2 font-display text-2xl text-fg">Your choices steer discovery</h2><p className="mt-2 text-sm leading-6 text-muted">1 star lowers a video and its related topics. 2 stars is neutral. 3 to 5 stars raise recommendations progressively. Favorites and likes add separate positive signals. Watch time is a smaller secondary score: preview and full player time count separately, while seeking adds nothing. Local playback is measured directly; visible YouTube and Twitch embeds contribute a lower-weight estimate.</p><div className="mt-4 grid gap-3 lg:grid-cols-2"><div className="rounded-lg bg-bg/50 p-3"><p className="text-sm font-medium text-fg">Most watched videos</p>{watchScores.videos.length ? watchScores.videos.map((row) => <p key={row.video.id} className="mt-2 truncate text-xs text-muted" title={row.video.name}>{row.video.name} · preview {Math.floor(row.preview / 60)}m · player {Math.floor(row.fullscreen / 60)}m{row.previewEstimated || row.fullscreenEstimated ? ` · embed estimate ${Math.floor(((row.previewEstimated ?? 0) + (row.fullscreenEstimated ?? 0)) / 60)}m` : ""} · +{row.score}</p>) : <p className="mt-2 text-xs text-muted">Watch time will appear after playback.</p>}</div><div className="rounded-lg bg-bg/50 p-3"><p className="text-sm font-medium text-fg">Most watched tags</p>{watchScores.tags.length ? watchScores.tags.map((row) => <p key={row.tag} className="mt-2 truncate text-xs text-muted">#{row.tag} · preview {Math.floor(row.preview / 60)}m · player {Math.floor(row.fullscreen / 60)}m{row.previewEstimated || row.fullscreenEstimated ? ` · embed estimate ${Math.floor((row.previewEstimated + row.fullscreenEstimated) / 60)}m` : ""} · +{row.score}</p>) : <p className="mt-2 text-xs text-muted">Tags inherit watch time from videos you play.</p>}</div></div></section>
+    <section className="mt-5 rounded-xl border border-border bg-surface p-5 shadow-border" aria-label="Pull success statistics"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Pull success</p><h2 className="mt-2 font-display text-2xl text-fg">Know what updated—and what didn’t.</h2><p className="mt-1 max-w-2xl text-sm text-muted">Recent refresh, archive, import, and creator-pull results are saved locally. A returned count can include already-cached videos; “new” counts only additions.</p></div><span className="rounded-full bg-bg/55 px-3 py-1 text-xs text-muted">{pullTotals.runs} recent runs retained</span></div><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-6"><div className="rounded-md bg-elevated p-3"><p className="text-xs text-muted">Clean-run rate</p><p className="mt-1 font-display text-2xl tabular-nums text-fg">{pullTotals.runs ? `${Math.round(pullTotals.successful / pullTotals.runs * 100)}%` : "—"}</p></div><div className="rounded-md bg-elevated p-3"><p className="text-xs text-muted">Successful</p><p className="mt-1 font-display text-2xl tabular-nums text-fg">{pullTotals.successful.toLocaleString()}</p></div><div className="rounded-md bg-elevated p-3"><p className="text-xs text-muted">Partial</p><p className="mt-1 font-display text-2xl tabular-nums text-fg">{pullTotals.partial.toLocaleString()}</p></div><div className="rounded-md bg-elevated p-3"><p className="text-xs text-muted">Failed</p><p className="mt-1 font-display text-2xl tabular-nums text-fg">{pullTotals.failed.toLocaleString()}</p></div><div className="rounded-md bg-elevated p-3"><p className="text-xs text-muted">Targets checked</p><p className="mt-1 font-display text-2xl tabular-nums text-fg">{pullTotals.checked.toLocaleString()}</p></div><div className="rounded-md bg-elevated p-3"><p className="text-xs text-muted">Videos returned · new</p><p className="mt-1 font-display text-2xl tabular-nums text-fg">{pullTotals.returned.toLocaleString()} <span className="text-sm text-muted">· {pullTotals.added.toLocaleString()}</span></p></div></div><div className="mt-4 divide-y divide-border rounded-md bg-bg/35">{pullHistory.slice(0, 12).map((run) => <details key={run.id} className="px-3 py-3"><summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 text-sm"><span className="min-w-24 font-medium text-fg">{run.provider === "youtube" ? "YouTube" : run.provider === "twitch" ? "Twitch" : run.provider === "adult" ? "Adult sources" : run.provider === "photos" ? "Photos" : "Multiple sources"}</span><span className="text-muted">{run.action}</span><span className="ml-auto text-xs text-muted">{run.done}/{run.total} targets · {run.received} returned · {run.added} new · {run.failed} failed</span><span className={`rounded-full px-2 py-0.5 text-xs ${run.status === "success" ? "bg-accent/15 text-accent" : run.status === "partial" ? "bg-bg text-fg" : "bg-danger/15 text-danger"}`}>{run.status}</span></summary><p className="mt-2 text-xs text-muted">{new Date(run.finishedAt).toLocaleString()} · {run.targets.slice(0, 8).join(", ")}{run.targets.length > 8 ? ` + ${run.targets.length - 8} more` : ""}</p>{run.errors?.length ? <ul className="mt-2 space-y-1 text-xs text-danger">{run.errors.map((error, index) => <li key={`${run.id}:${index}`}>{error}</li>)}</ul> : null}</details>)}{!pullHistory.length && <p className="px-3 py-4 text-sm text-muted">Pull results will appear here after your next refresh or creator pull.</p>}</div></section>
     <section id="adult-stats" className="mt-2 scroll-mt-24 rounded-xl border border-accent/35 bg-elevated p-5 shadow-border">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -996,6 +1010,21 @@ function companionTechnicalSummary(inspection: CompanionMediaInspection) {
 function metadataSourceLabel(source: string) {
   if (source === "local") return "Local files";
   return source.split("-").map((part) => part ? `${part[0].toUpperCase()}${part.slice(1)}` : part).join(" ");
+}
+
+function YoutubeFirstClickDiagnostic() {
+  useSyncExternalStore(subscribeYoutubeTrace, getYoutubeTraceRevision, () => 0);
+  const trace = getYoutubeFirstClickTrace();
+  return <div className="mt-2 rounded-sm bg-bg/45 p-3 text-xs leading-5 text-muted">
+    <p className="font-medium text-fg">YouTube first-click trace</p>
+    <p>{!trace ? "Open YouTube to record a local timing sample." : <>
+      {trace.railReadyMs === undefined ? "Waiting for the first available upload" : `${trace.railReadyMs}ms to ${trace.railCards} text-first cards`}
+      {` · selector ${trace.selectorMs ?? "…"}ms work / ${trace.selectorReadyMs ?? "…"}ms ready · ${trace.catalogRows ?? 0} cached rows`}
+      {` · artwork ${trace.artwork === "pending" ? "pending" : trace.artwork === "loaded" ? `${trace.artworkWaitMs ?? 0}ms after cards` : "deferred or unavailable"}`}
+      {` · provider ${trace.provider === "idle" ? "not needed" : `${trace.providerOverlapMs}ms overlap (${trace.provider})`}`}
+    </>}</p>
+    <p className="text-subtle">Local timings only; cached cards do not wait for artwork or a provider request.</p>
+  </div>;
 }
 
 export function SettingsSection() {
@@ -1516,7 +1545,7 @@ export function SettingsSection() {
         </div>
         {serviceNote && <p className="mt-3 text-xs text-accent">{serviceNote}</p>}
       </section>
-      <section className="mt-6 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Connected services</p><h2 className="mt-2 font-display text-2xl text-fg">Independent caches, on your schedule.</h2><p className="mt-1 text-sm text-muted">Twitch and YouTube refresh together from your saved follows. Photo imports, Roku discovery, and Spotify remain independently local and refresh only when you ask.</p><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{[{ name: "YouTube", detail: "Saved channels", checked: remoteCheckedAt, action: async () => { const result = await refreshFollows(); setServiceNote(`Refreshed channel cache · ${result.newVideos.length} new items.`); } }, { name: "Twitch", detail: "Live + VOD cache", checked: remoteCheckedAt, action: async () => { const result = await refreshFollows(); setServiceNote(`Refreshed Twitch status · ${result.wentLive.length} channels live.`); } }, { name: "Photos", detail: `${folders.filter((folder) => folder.photoCount).length} source folders`, checked: Math.max(0, ...folders.map((folder) => folder.lastCheckedAt ?? 0)), action: async () => { const sources = folders.filter((folder) => folder.photoCount && (folder.kind === "directory" || folder.kind === "files")); const counts = await Promise.all(sources.map((folder) => refreshSourcePhotos(folder.id))); setServiceNote(`Refreshed local photo sources · ${counts.reduce((sum, count) => sum + count, 0)} photos found.`); } }, { name: "Roku", detail: "Companion-assisted", checked: 0, action: async () => { try { const res = await fetch("http://127.0.0.1:43123/roku/discover"); const data = await res.json() as { devices?: unknown[] }; setServiceNote(`Roku refresh complete · ${(data.devices ?? []).length} device(s) found.`); } catch { setServiceNote("Roku refresh needs the local Realhub Companion running."); } } }, { name: "Spotify", detail: "Saved music shortcuts", checked: 0, action: async () => { setServiceNote("Spotify shortcuts are local and ready. Open Spotify from its library section to refresh provider content."); } }].map((service) => <div key={service.name} className="rounded-md bg-bg/45 p-3 shadow-border"><p className="text-sm font-medium text-fg">{service.name}</p><p className="mt-1 text-xs text-muted">{service.detail}</p><p className="mt-1 text-[11px] text-subtle">{service.checked ? `Last refreshed ${new Date(service.checked).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Not refreshed this session"}</p><Button size="sm" variant="secondary" className="mt-3" onClick={() => void service.action()}>Refresh</Button></div>)}</div>{serviceNote && <p className="mt-3 text-xs text-accent">{serviceNote}</p>}</section>
+      <section className="mt-6 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Connected services</p><h2 className="mt-2 font-display text-2xl text-fg">Independent caches, on your schedule.</h2><p className="mt-1 text-sm text-muted">Twitch and YouTube refresh together from your saved follows. Photo imports, Roku discovery, and Spotify remain independently local and refresh only when you ask.</p><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{[{ name: "YouTube", detail: "Saved channels", checked: remoteCheckedAt, action: async () => { const result = await refreshFollows("youtube", { catalog: true }); const status = useLibrary.getState().remoteRefreshStatus; setServiceNote(status?.failed === status?.checked ? "YouTube refresh failed. Check channel health." : `Refreshed YouTube catalog · ${result.newVideos.length} videos added from ${status?.refreshed ?? 0} channels.`); } }, { name: "Twitch", detail: "Live + VOD cache", checked: remoteCheckedAt, action: async () => { const result = await refreshFollows(); setServiceNote(`Refreshed Twitch status · ${result.wentLive.length} channels live.`); } }, { name: "Photos", detail: `${folders.filter((folder) => folder.photoCount).length} source folders`, checked: Math.max(0, ...folders.map((folder) => folder.lastCheckedAt ?? 0)), action: async () => { const sources = folders.filter((folder) => folder.photoCount && (folder.kind === "directory" || folder.kind === "files")); const counts = await Promise.all(sources.map((folder) => refreshSourcePhotos(folder.id))); setServiceNote(`Refreshed local photo sources · ${counts.reduce((sum, count) => sum + count, 0)} photos found.`); } }, { name: "Roku", detail: "Companion-assisted", checked: 0, action: async () => { try { const res = await fetch("http://127.0.0.1:43123/roku/discover"); const data = await res.json() as { devices?: unknown[] }; setServiceNote(`Roku refresh complete · ${(data.devices ?? []).length} device(s) found.`); } catch { setServiceNote("Roku refresh needs the local Realhub Companion running."); } } }, { name: "Spotify", detail: "Saved music shortcuts", checked: 0, action: async () => { setServiceNote("Spotify shortcuts are local and ready. Open Spotify from its library section to refresh provider content."); } }].map((service) => <div key={service.name} className="rounded-md bg-bg/45 p-3 shadow-border"><p className="text-sm font-medium text-fg">{service.name}</p><p className="mt-1 text-xs text-muted">{service.detail}</p><p className="mt-1 text-[11px] text-subtle">{service.checked ? `Last refreshed ${new Date(service.checked).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Not refreshed this session"}</p><Button size="sm" variant="secondary" className="mt-3" onClick={() => void service.action()}>Refresh</Button></div>)}</div>{serviceNote && <p className="mt-3 text-xs text-accent">{serviceNote}</p>}</section>
       <section className="mt-6"><div className="mb-3"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Device & performance</p><p className="mt-1 text-sm text-muted">The controls that change how Realhub runs and fits your screen.</p></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-lg bg-elevated p-5 shadow-border">
           <span className="text-accent"><Settings2 className="size-5" /></span>
@@ -1528,6 +1557,7 @@ export function SettingsSection() {
             {debugEnabled ? "Disable diagnostics" : "Enable diagnostics"}
           </Button>
           {debugEnabled && <div className="mt-3 rounded-sm bg-bg/45 p-3 text-xs leading-5 text-muted"><p>{useLibrary.getState().videos.length} catalog entries · {useLibrary.getState().folders.length} sources · {navigator.onLine ? "browser online" : "browser offline"}</p><p>{useLibrary.getState().folders.filter((folder) => folder.health === "healthy").length} healthy · {useLibrary.getState().folders.filter((folder) => folder.health === "cached").length} cache-first · {useLibrary.getState().folders.filter((folder) => folder.health === "permission-needed" || folder.health === "unavailable").length} need attention</p><p>{(() => { const budget = getRenderBudgetSnapshot(); const feedback = getFeedbackDiagnostics(); const thumbs = useThumbs.getState(); const artwork = getThumbDiagnostics(); return `${budget.mountedCards} mounted cards · ${Object.keys(thumbs.byId).length} artwork cache entries · ${artwork.active} decoding / ${artwork.queued} queued · artwork ${artwork.hits} hit / ${artwork.misses} miss${artwork.evictions ? ` / ${artwork.evictions} evicted` : ""} · ${budget.lastFrameMs}ms last frame${budget.longFrames ? ` · ${budget.longFrames} long frames (worst ${budget.worstFrameMs}ms)` : ""} · rating queue ${feedback.lastRatingQueueMs}ms / disk ${feedback.lastPersistMs}ms${feedback.pendingWrites ? " pending" : ""}`; })()}</p><p>{(() => { const first = getFirstShelfTrace(); return first.elapsedMs ? `First shelf · ${first.elapsedMs}ms · ${first.title} · ${first.cards} visible cards` : "First shelf · waiting for the first visible rail"; })()}</p><p>{(() => { const interaction = getInteractionBudgetSnapshot(); return `Input to next paint · navigation ${interaction.navigation.lastMs}ms (worst ${interaction.navigation.worstMs}ms) · search ${interaction.search.lastMs}ms · rating ${interaction.rating.lastMs}ms`; })()}</p><Button size="sm" variant="ghost" className="mt-2" onClick={() => void (async () => { try { const response = await fetch("http://127.0.0.1:43123/health"); const data = await response.json() as { version?: number; roots?: number; desktopEnabled?: boolean }; setDebugReport(`Companion v${data.version ?? "?"} · ${data.roots ?? 0} approved roots · Desktop ${data.desktopEnabled ? "ready" : "not available"}`); } catch { setDebugReport("Companion is not running or is unavailable to this browser."); } })()}>Check companion</Button>{debugReport && <p className="mt-2 text-accent">{debugReport}</p>}</div>}
+          {debugEnabled && <YoutubeFirstClickDiagnostic />}
         </div>
         <div className="rounded-lg bg-elevated p-5 shadow-border">
           <span className="text-accent">
@@ -2872,8 +2902,6 @@ export function PhotosSection() {
     </HubShell>
   );
 }
-type MissionStatus = "planned" | "in-progress" | "blocked" | "complete";
-type Mission = { id: string; title: string; detail: string; done: boolean; status?: MissionStatus };
 const missionStatus = (mission: Mission): MissionStatus => mission.done ? "complete" : mission.status ?? "planned";
 const missionStatusLabel: Record<MissionStatus, string> = {
   planned: "Planned",
@@ -2996,7 +3024,7 @@ const DEFAULT_MISSIONS: Mission[] = [
   { id: "shelf-explanations", title: "Explainable recommendation shelves", detail: "Done · recommendation rails now state their plain-language reason—ratings, saved creators, freshness, progress, or follow state—without exposing transport tags.", done: true },
   { id: "memory-pressure-observer", title: "Memory-pressure observer", detail: "Done · local Diagnostics reports mounted-card count, decoded artwork cache entries, active/queued decode work, hit/miss/eviction counts, and frame pressure so large shelves have an observable cause.", done: true },
   { id: "warp-01", title: "First-shelf trace", detail: "Done · local Diagnostics records launch-to-first-mounted-shelf time, title, and visible-card count. Deeper cache/index and thumbnail splits remain separate work.", done: true },
-  { id: "warp-02", title: "Route-level code splitting", detail: "Photo, Stats, Watch Room, Settings, and other hub workspaces now load only when opened, keeping media browsing out of their first-load cost.", done: true },
+  { id: "warp-02", title: "Route-level code splitting", detail: "Done · Hub workspaces plus Adult controls, the video preview/player, and the local guide load on demand. The opening Home route no longer downloads those screens before it is usable.", done: true },
   { id: "warp-03", title: "Provider delta rendering", detail: "Done · routine provider refreshes keep unchanged cards at their original indexes and preserve their object identity; changed/new rows alone reach shelves, while shallow responses retain on-demand comments and verified creator names.", done: true },
   { id: "warp-04", title: "Thumbnail decode governor", detail: "Done · visible and near-view artwork uses bounded workers, pauses during input or hidden-tab time, and retains a small queue for responsive recovery.", done: true },
   { id: "warp-05", title: "Search worker index", detail: "Done · full-text tokenization runs in a dedicated worker, while the search box shows an honest warming state until its local index is ready.", done: true },
@@ -3066,13 +3094,13 @@ const ROADMAP_EXPANSION: Mission[] = [
   ...[
     ["youtube-upgrade-01", "Feed delta cursor", "Done · routine checks persist the newest Atom upload identity, return only feed entries ahead of it, and fall back to a bounded recent window when YouTube has aged the cursor out."],
     ["youtube-upgrade-02", "Channel cache budget", "Done · channel health now reports response size, cache age, and session hit rate. The server retains only a short feed or ≤2,000-item focused catalog cache, while routine refreshes read the feed slice only."],
-    ["youtube-upgrade-03", "First-click trace", "Record time from choosing YouTube to its first usable latest-upload rail, split into catalog selector, image work, and provider work without collecting viewing data."],
-    ["youtube-upgrade-04", "Rail windowing", "Keep keyboard and touch navigation intact while mounting only the visible window of long YouTube rails, including an accessible count of deferred cards."],
-    ["youtube-upgrade-05", "Artwork priority", "Queue visible and near-view thumbnails before offscreen cards, cancel obsolete image work on source changes, and preserve text-first cards when artwork is unavailable."],
+    ["youtube-upgrade-03", "First-click trace", "Done · YouTube Pull health and Settings diagnostics show local timing from opening YouTube to mounted text-first latest-upload cards, with selector work, artwork, and overlapping provider work separated. No viewing identities are recorded."],
+    ["youtube-upgrade-04", "Rail windowing", "Done · long YouTube rails mount a measured card window with accessible deferred-card counts, keyboard arrows/Home/End, and focus bridges. The 80,000-video desktop/mobile check passes."],
+    ["youtube-upgrade-05", "Artwork priority", "Done · on-screen cards take the high-priority image lane, near-view cards use a cancellable low-priority lane, and non-primary offscreen rails defer mounting. Source changes invalidate queued speculative images; titles and actions remain usable while artwork loads or fails."],
     ["youtube-upgrade-06", "Creator ambiguity review", "Flag channels whose handle, display name, and channel ID disagree; show a review choice rather than silently merging one creator into another."],
     ["youtube-upgrade-07", "Published-date repair", "Prefer RSS published timestamps, retain the provider-provided date source, and label archive rows with unknown dates instead of sorting them as new uploads."],
     ["youtube-upgrade-08", "Live/VOD split", "Separate current live cards, completed streams, Shorts, and ordinary uploads in selectors so a live event cannot displace historical VODs or recommendations."],
-    ["youtube-upgrade-09", "Deep-pull checkpoint", "Make deep historical pulls resumable per channel with a visible item/page budget and a saved checkpoint; pause safely when provider data stops advancing."],
+    ["youtube-upgrade-09", "Deep-pull checkpoint", "Done · each creator keeps its catalog continuation and last-check state across reloads. Bounded page/item budgets resume older uploads, detect terminal pages, and stop when continuation data cannot advance."],
     ["youtube-upgrade-10", "Provider error taxonomy", "Classify YouTube failures as unavailable, rate-limited, malformed, or network/offline; show the next retry time and keep cached cards untouched."],
     ["youtube-upgrade-11", "Subscription import staging", "Validate, deduplicate, and preview a pasted subscription list before network work begins; report accepted, duplicate, and unresolved handles separately."],
     ["youtube-upgrade-12", "Channel health matrix", "Show each saved channel’s last successful check, newest known upload, response count, cache age, and retry state in one compact diagnostics view."],
@@ -3084,7 +3112,7 @@ const ROADMAP_EXPANSION: Mission[] = [
     ["youtube-upgrade-18", "Mobile rail gesture", "Validate horizontal rail scrolling, focus visibility, and card action targets on a phone viewport without accidental page scroll or gesture conflicts."],
     ["youtube-upgrade-19", "Refresh result diff", "Apply and display only changed channel/video rows after a refresh, preserving card identity, scroll position, ratings, and healthy artwork."],
     ["youtube-upgrade-20", "YouTube regression suite", "Add repeatable checks for first-click load, shallow refresh, deep pull, duplicate handling, cached recovery, and mobile rail rendering."],
-  ].map(([id, title, detail]) => ({ id, title, detail, done: ["youtube-upgrade-01", "youtube-upgrade-02", "youtube-upgrade-10", "youtube-upgrade-11", "youtube-upgrade-12", "youtube-upgrade-13", "youtube-upgrade-14", "youtube-upgrade-15", "youtube-upgrade-16", "youtube-upgrade-19"].includes(id) })),
+  ].map(([id, title, detail]) => ({ id, title, detail, done: ["youtube-upgrade-01", "youtube-upgrade-02", "youtube-upgrade-03", "youtube-upgrade-04", "youtube-upgrade-05", "youtube-upgrade-09", "youtube-upgrade-10", "youtube-upgrade-11", "youtube-upgrade-12", "youtube-upgrade-13", "youtube-upgrade-14", "youtube-upgrade-15", "youtube-upgrade-16", "youtube-upgrade-19"].includes(id) })),
   ...[
     ["twitch-upgrade-01", "Archive page checkpoint", "Persist the last accepted archive cursor and VOD ID for each creator; resume a focused historical pull only when Twitch returns a forward-moving public page."],
     ["twitch-upgrade-02", "Focused pull queue", "Let users queue a small number of explicit archive pulls, run them serially within a visible budget, and never let them starve live-state refreshes."],
@@ -3114,11 +3142,11 @@ const ROADMAP_EXPANSION: Mission[] = [
     ["speed-04", "Visible artwork priority", "Prioritize visible and near-view images, pause offscreen decoding during input, and resume through a bounded queue once the main thread is idle."],
     ["speed-05", "Input latency monitor", "Measure interaction-to-paint time for rating, search, queue, play/pause, and source navigation on a large local and provider catalog."],
     ["speed-06", "Idle enrichment queue", "Run optional tag, metadata, and cache work in short cancelable idle slices; persist each completed batch so tab sleep never loses progress."],
-    ["speed-07", "Route warmup policy", "Warm only the next likely route after the current page is visibly settled, cancel speculative work on navigation, and never fetch a hub just because it exists."],
+    ["speed-07", "Route warmup policy", "Done · one likely Hub module warms after paint and idle time, with Home recommendations given priority. Pending warmup is canceled on navigation or a hidden tab; Save-Data, slow networks, low memory, and active input defer it."],
     ["speed-08", "Cache hit dashboard", "Report catalog, provider, artwork, and thumbnail-cache hit/miss counts with age and size, while retaining metadata only and no media bytes."],
     ["speed-09", "Mobile memory budget", "Exercise scrolling, search, artwork deferment, and card actions in a phone viewport under a small worker/cache budget with no horizontal overflow."],
     ["speed-10", "Performance release gate", "Require repeatable startup, scroll-settle, mounted-card, input-latency, and console-error checks before a shelf or provider feature is marked complete."],
-  ].map(([id, title, detail]) => ({ id, title, detail, done: ["speed-04", "speed-05"].includes(id) })),
+  ].map(([id, title, detail]) => ({ id, title, detail, done: ["speed-04", "speed-05", "speed-07"].includes(id) })),
   ...[
     ["smooth-01", "Navigation transition budget", "Keep source switches responsive by rendering the destination shell first and scheduling expensive derived rails in a transition after controls become interactive."],
     ["smooth-02", "Long-list virtualization proof", "Benchmark and verify virtual windows for grids and horizontal rails at provider-library scale, including keyboard focus, screen-reader counts, and scroll restoration."],
@@ -3133,17 +3161,29 @@ const ROADMAP_EXPANSION: Mission[] = [
     ["smooth-11", "Accessibility performance audit", "Verify deferred and virtualized cards retain focus order, announce loading state, and never make a keyboard action wait for offscreen artwork."],
     ["smooth-12", "Smoothness scorecard", "Publish a local diagnostics scorecard with first interaction, frame pressure, cache health, visible-card count, and the next safest remediation."],
   ].map(([id, title, detail]) => ({ id, title, detail, done: ["smooth-03", "smooth-04", "smooth-05", "smooth-06", "smooth-07", "smooth-08"].includes(id) })),
+  { id: "recent-remote-cache-pages", title: "Paged remote catalog recovery", detail: "Done · saved provider cards restore in bounded 512-row IndexedDB pages instead of one cursor callback per card. Legacy snapshot rows remain readable; an 80,000-video desktop/mobile restore passes.", done: true },
+  { id: "recent-tag-enrichment", title: "Low-allocation tag recovery", detail: "Done · cached provider tags share compiled taxonomy rules, compute inferred tags once per card, and leave already complete provenance untouched. Manual tag locks remain authoritative.", done: true },
+  { id: "recent-resume-reconcile", title: "Sparse Continue recovery", detail: "Done · empty resume maps skip the catalog walk and watched cards resolve stable ID, provider URL, source URL, and path aliases without per-card Set allocations.", done: true },
+  { id: "recent-youtube-sweep", title: "Fair YouTube archive schedule", detail: "Done · hourly background archive sweeps use a small rotating creator budget, recent and live checks have separate clocks, and manual pulls can walk deeper across every eligible creator or playlist. Cursor tests cover reloads and successive next-creator pulls.", done: true },
+  { id: "recent-pull-ledger", title: "Cross-site pull outcomes", detail: "Done · active target and returned/new/failure counts appear during pulls; a bounded local result ledger feeds pull-success statistics and failure details in Stats.", done: true },
+  { id: "recent-cold-home-readiness", title: "Cold Home readiness proof", detail: "The first production snapshot shows the Home shell while recommendations are still preparing. Measure time to the full interactive Home state on cold and warm launches, then reduce or clearly budget the remaining delay.", done: false, status: "in-progress" },
+  { id: "recent-saved-library-hydration", title: "Saved-library hydration integrity", detail: "Done · the first client snapshot now matches the server; saved pull results restore after mount. Populated desktop and phone profiles reload with the result and Mission plan intact and no hydration error.", done: true },
+  { id: "recent-provider-soak", title: "Real-provider archive soak", detail: "Exercise large YouTube/Twitch follow lists under provider limits, confirm fair rotation and retry timing, and record catalog growth, memory pressure, and live-check latency without increasing automatic pull budgets.", done: false, status: "planned" },
 ];
 const ALL_DEFAULT_MISSIONS = [...DEFAULT_MISSIONS, ...ROADMAP_EXPANSION];
 
 export function MissionPlanSection() {
   const [missions, setMissions] = useState<Mission[]>(() => {
-    try { const saved = JSON.parse(localStorage.getItem("reelcase.mission-plan.v1") ?? "null") as Mission[] | null; return Array.isArray(saved) ? [...saved.map((item) => { const current = ALL_DEFAULT_MISSIONS.find((mission) => mission.id === item.id); if (!current) return item; const done = item.done || current.done; const savedStatus = item.status === "planned" || item.status === "in-progress" || item.status === "blocked" ? item.status : undefined; return { ...current, ...item, title: current.title, detail: current.detail, done, status: done ? "complete" : savedStatus ?? current.status ?? "planned" }; }), ...ALL_DEFAULT_MISSIONS.filter((mission) => !saved.some((item) => item.id === mission.id))] : ALL_DEFAULT_MISSIONS; } catch { return ALL_DEFAULT_MISSIONS; }
+    try {
+      const saved = JSON.parse(localStorage.getItem("reelcase.mission-plan.v1") ?? "null") as Mission[] | null;
+      const revision = Number(localStorage.getItem(MISSION_PLAN_REVISION_KEY) ?? "0");
+      return mergeMissionPlan(Array.isArray(saved) ? saved : null, ALL_DEFAULT_MISSIONS, Number.isFinite(revision) ? revision : 0);
+    } catch { return ALL_DEFAULT_MISSIONS; }
   });
   const [idea, setIdea] = useState("");
   const [showArchive, setShowArchive] = useState(false);
   const [companionCheck, setCompanionCheck] = useState<{ ready: boolean; desktop: boolean; detail: string } | null>(null);
-  useEffect(() => { try { localStorage.setItem("reelcase.mission-plan.v1", JSON.stringify(missions)); } catch { /* storage unavailable */ } }, [missions]);
+  useEffect(() => { try { localStorage.setItem("reelcase.mission-plan.v1", JSON.stringify(missions)); localStorage.setItem(MISSION_PLAN_REVISION_KEY, String(MISSION_PLAN_REVISION)); } catch { /* storage unavailable */ } }, [missions]);
   const completed = missions.filter((mission) => missionStatus(mission) === "complete").length;
   const activeMissions = missions.filter((mission) => missionStatus(mission) !== "complete");
   const archivedMissions = missions.filter((mission) => missionStatus(mission) === "complete");

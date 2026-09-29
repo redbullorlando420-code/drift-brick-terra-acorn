@@ -19,9 +19,9 @@ export const LIBRARY_LIMITS = {
   // Keep pace with the Adult catalog without making the first channel paint
   // wait on every archive continuation. Focused pulls retain a deep history;
   // routine and bulk refreshes fill it in wider batches below.
-  // A focused creator pull intentionally targets the full long-tail archive.
-  // This is catalog metadata only, never media-byte downloading; routine and
-  // bulk imports remain bounded below so the normal desk stays responsive.
+  // Hard safety ceiling for a focused archive read. Normal follow, manual,
+  // and scheduled pulls use the smaller resumable batch below so the desk
+  // stays responsive while its accumulated catalog can grow past 50k.
   youtubeFocusedVideosPerChannel: 100_000,
   // Public browse continuations are the route beyond the first channel shelf.
   // A page is usually 30–100 items. 3,500 pages gives a focused pull enough
@@ -29,9 +29,32 @@ export const LIBRARY_LIMITS = {
   // as soon as the requested item count or provider continuation ends.
   youtubeArchivePagesPerPull: 3_500,
   youtubeRoutineVideosPerChannel: 2_000,
-  youtubeBulkImportVideosPerChannel: 1_200,
+  /** Bound view-count sorting to recent archive candidates; the full grid remains available. */
+  youtubeTrendingCandidateWindow: 12_000,
+  /** Archive sweeps are paced separately from fast recent-upload checks. */
+  youtubeCatalogSweepIntervalMs: 60 * 60_000,
+  youtubeCatalogRecheckExhaustedMs: 7 * 24 * 60 * 60_000,
+  youtubeScheduledRefreshChannels: 1,
+  /** Automatic history growth is intentionally much smaller than a user pull. */
+  youtubeScheduledVideosPerChannel: 100,
+  youtubeRecentRefreshIntervalMs: 5 * 60_000,
+  youtubeRecentRefreshChannels: 4,
+  /** Independently poll a fair rotating batch for current YouTube broadcasts. */
+  youtubeLiveRefreshIntervalMs: 60_000,
+  youtubeLiveRefreshChannels: 12,
+  youtubeLiveStateFreshnessMs: 3 * 60_000,
+  youtubeArchivePageGapMs: 80,
+  youtubeManualRefreshChannels: 10_000,
+  /** Each HTTP response and merge stays small even when a sweep visits every source. */
+  youtubeCatalogSourcesPerRequest: 1,
+  /** Resumable page batches: deeper per click without attempting the full archive at once. */
+  youtubeManualRefreshVideosPerChannel: 5_000,
+  youtubeBulkImportVideosPerChannel: 5_000,
+  youtubePlaylistVideosPerPull: 3_000,
+  youtubePlaylistPagesPerPull: 64,
   /** Top-level Innertube comment threads per on-demand video detail pull. */
-  youtubeCommentsPerPull: 40,
+  youtubeCommentsPerPull: 160,
+  youtubeCommentPagesPerPull: 8,
   /** Live chat / chat-replay messages per on-demand YouTube detail pull. */
   youtubeChatPerPull: 60,
   /** Bounded replay pages for YouTube live_chat/get_live_chat_replay. */
@@ -45,9 +68,9 @@ export const LIBRARY_LIMITS = {
   // shallow. Also merge HIGHLIGHT + UPLOAD shelves.
   twitchArchiveMaxPages: 25,
   twitchFocusedVodsPerChannel: 2_000,
-  twitchRoutineVodsPerChannel: 100,
+  twitchRoutineVodsPerChannel: 24,
   /** Numbered clip pulls (public `user.clips`, multi-period + cursor pages). */
-  twitchRoutineClipsPerChannel: 100,
+  twitchRoutineClipsPerChannel: 24,
   twitchFocusedClipsPerChannel: 500,
   twitchClipMaxPages: 8,
   twitchClipPullChoices: [50, 100, 250, 500],

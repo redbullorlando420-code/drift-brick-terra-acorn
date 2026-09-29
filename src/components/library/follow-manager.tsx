@@ -3,16 +3,18 @@ import { ExternalLink, FolderPlus, Heart, ListChecks, Radio, Search, Star, Trash
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { creatorIsLiked, exportFeedback, getCreatorRating, ratingPreference, setCreatorRating, toggleCreatorLike } from "@/lib/media-feedback";
+import { creatorIsLiked, exportFeedback, getCreatorRating, setCreatorRating, toggleCreatorLike } from "@/lib/media-feedback";
 import { useLibrary } from "@/lib/videos/store";
-import type { FollowKind, FollowedChannel } from "@/lib/videos/types";
+import type { FollowKind, FollowedChannel, LibraryVideo } from "@/lib/videos/types";
 import { FOLLOW_COLLECTIONS_CHANGED, loadCreatorCollections, saveCreatorCollections, type CreatorCollection } from "@/lib/videos/follow-collections";
 import { planFollowRemoval } from "@/lib/videos/follow-removal";
 import { youtubeCreatorProfiles } from "@/lib/remote/functions";
 
 const PAGE_SIZE = 48;
-const CREATOR_PAGE_SIZE = 120;
+const CREATOR_PAGE_SIZE = 24;
+const EMPTY_CREATOR_VIDEOS: LibraryVideo[] = [];
 type SortMode = "recent" | "name" | "favorite" | "rating";
+const nameCollator = new Intl.Collator(undefined, { sensitivity: "base", numeric: true });
 
 function creatorLabel(channel: FollowedChannel) {
   return channel.title.trim() || channel.handle.trim() || "Untitled creator";
@@ -42,23 +44,38 @@ function channelStatus(channel: FollowedChannel) {
   return "not checked yet";
 }
 
-/** A bounded, local-first control surface for large YouTube and Twitch follow lists. */
+/** The large controls do not mount or scan the video library until requested. */
 export function FollowManager({ kind }: { kind?: FollowKind }) {
+  const follows = useLibrary((state) => state.follows);
+  const [expanded, setExpanded] = useState(false);
+  const [initialSelectedId, setInitialSelectedId] = useState<string | null>(null);
+  const [sort, setSort] = useState<SortMode>("recent");
+  if (expanded) return <FollowManagerExpanded kind={kind} initialSelectedId={initialSelectedId} sort={sort} setSort={setSort} onCollapse={() => setExpanded(false)} />;
+  const scoped = follows.filter((channel) => !kind || channel.kind === kind);
+  const heading = kind === "youtube" ? "YouTube creator control" : kind === "twitch" ? "Twitch creator control" : "Creator control";
+  return <section className="mb-7 rounded-xl border border-border bg-surface p-5 shadow-border sm:p-6" aria-label={heading}>
+    <div className="flex flex-wrap items-center justify-between gap-4"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Following system</p><h2 className="mt-2 font-display text-2xl text-fg">{heading}</h2><p className="mt-1 text-sm text-muted">{scoped.length.toLocaleString()} followed creator{scoped.length === 1 ? "" : "s"} · open controls to search, sort, pull videos, and manage your list.</p></div><Button type="button" variant="secondary" onClick={() => setExpanded(true)} aria-expanded={false} aria-label={`Expand ${heading}`}>Manage creators</Button></div>
+    {scoped.length > 0 && <div className="mt-4 flex flex-wrap gap-2" aria-label="Quick creator access">{scoped.slice(0, 8).map((channel) => { const label = creatorLabel(channel); return <button key={channel.id} type="button" className="flex size-11 items-center justify-center overflow-hidden rounded-full border border-border bg-elevated text-xs font-semibold text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={`Manage ${label}`} title={label} onClick={() => { setInitialSelectedId(channel.id); setExpanded(true); }}><CreatorAvatar channel={channel} label={label} /></button>; })}{scoped.length > 8 && <span className="flex min-h-11 items-center px-2 text-xs text-muted">+{(scoped.length - 8).toLocaleString()} more</span>}</div>}
+  </section>;
+}
+
+function FollowManagerExpanded({ kind, initialSelectedId, sort, setSort, onCollapse }: { kind?: FollowKind; initialSelectedId: string | null; sort: SortMode; setSort: (sort: SortMode) => void; onCollapse: () => void }) {
   const follows = useLibrary((state) => state.follows);
   const unfollow = useLibrary((state) => state.unfollow);
   const unfollowMany = useLibrary((state) => state.unfollowMany);
   const updateFollowProfiles = useLibrary((state) => state.updateFollowProfiles);
+  const refreshFollows = useLibrary((state) => state.refreshFollows);
+  const refreshing = useLibrary((state) => state.refreshing);
   const setSource = useLibrary((state) => state.setSource);
   const openPreview = useLibrary((state) => state.openPreview);
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
   const [provider, setProvider] = useState<"all" | FollowKind>(kind ?? "all");
-  const [sort, setSort] = useState<SortMode>("recent");
   const [visible, setVisible] = useState(CREATOR_PAGE_SIZE);
   const attemptedCreatorProfiles = useRef(new Set<string>());
   const [brokenCreatorIds, setBrokenCreatorIds] = useState<Set<string>>(() => new Set());
   useEffect(() => { const note = (event: Event) => { const id = (event as CustomEvent<string>).detail; if (id) setBrokenCreatorIds((current) => new Set(current).add(id)); }; window.addEventListener("reelcase:creator-avatar-error", note); return () => window.removeEventListener("reelcase:creator-avatar-error", note); }, []);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
   const [feedbackRevision, setFeedbackRevision] = useState(0);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -66,7 +83,11 @@ export function FollowManager({ kind }: { kind?: FollowKind }) {
   const [collections, setCollections] = useState<CreatorCollection[]>([]);
   const [reviewingRemoval, setReviewingRemoval] = useState(false);
   const [reviewVisible, setReviewVisible] = useState(PAGE_SIZE);
-  const videos = useLibrary((state) => state.videos);
+  const [pullingSelection, setPullingSelection] = useState(false);
+  const [creatorVideoQuery, setCreatorVideoQuery] = useState("");
+  const [creatorVideoSort, setCreatorVideoSort] = useState<"newest" | "oldest" | "title">("newest");
+  const [creatorVideoVisible, setCreatorVideoVisible] = useState(24);
+  const videos = useLibrary((state) => selectedId || reviewingRemoval ? state.videos : EMPTY_CREATOR_VIDEOS);
   const hiddenVideos = useLibrary((state) => state.hiddenVideos);
   const favorites = useLibrary((state) => state.favorites);
   const likes = useLibrary((state) => state.likes);
@@ -102,26 +123,24 @@ export function FollowManager({ kind }: { kind?: FollowKind }) {
 
   const filtered = useMemo(() => {
     const needle = deferredQuery.trim().toLocaleLowerCase();
-    return follows
+    const rows = follows
       .filter((channel) => (!kind || channel.kind === kind) && (provider === "all" || channel.kind === provider))
       .filter((channel) => !needle || `${creatorLabel(channel)} ${channel.handle}`.toLocaleLowerCase().includes(needle))
-      .sort((left, right) => {
-        const leftName = creatorLabel(left);
-        const rightName = creatorLabel(right);
-        if (sort === "name") return leftName.localeCompare(rightName);
-        if (sort === "favorite") {
-          const favoriteDifference = Number(creatorIsLiked(rightName)) - Number(creatorIsLiked(leftName));
-          return favoriteDifference || leftName.localeCompare(rightName);
-        }
-        if (sort === "rating") {
-          const ratingDifference = ratingPreference(getCreatorRating(rightName)) - ratingPreference(getCreatorRating(leftName));
-          return ratingDifference || leftName.localeCompare(rightName);
-        }
-        return (right.lastCheckedAt ?? 0) - (left.lastCheckedAt ?? 0) || leftName.localeCompare(rightName);
+      .map((channel) => {
+        const label = creatorLabel(channel);
+        return { channel, label, favorite: creatorIsLiked(label), rating: getCreatorRating(label), checkedAt: channel.kind === "youtube" ? channel.catalogCheckedAt ?? channel.lastCheckedAt ?? 0 : channel.lastCheckedAt ?? 0 };
       });
+    rows.sort((left, right) => {
+      const byName = nameCollator.compare(left.label, right.label) || left.channel.id.localeCompare(right.channel.id);
+      if (sort === "name") return byName;
+      if (sort === "favorite") return Number(right.favorite) - Number(left.favorite) || right.rating - left.rating || byName;
+      if (sort === "rating") return right.rating - left.rating || Number(right.favorite) - Number(left.favorite) || byName;
+      return right.checkedAt - left.checkedAt || byName;
+    });
+    return rows.map((row) => row.channel);
   }, [deferredQuery, feedbackRevision, follows, kind, provider, sort]);
 
-  const selected = useMemo(() => filtered.find((channel) => channel.id === selectedId) ?? filtered[0] ?? null, [filtered, selectedId]);
+  const selected = useMemo(() => selectedId ? filtered.find((channel) => channel.id === selectedId) ?? null : null, [filtered, selectedId]);
   const shown = filtered.slice(0, visible);
   const missingCreatorIds = shown.filter((channel) => channel.kind === "youtube" && (!channel.thumb || brokenCreatorIds.has(channel.id)) && /^yt:UC[A-Za-z0-9_-]{20,}$/.test(channel.id)).map((channel) => channel.id).join(",");
   useEffect(() => {
@@ -140,7 +159,16 @@ export function FollowManager({ kind }: { kind?: FollowKind }) {
     return () => { cancelled = true; };
   }, [missingCreatorIds, updateFollowProfiles]);
   const selectedName = selected ? creatorLabel(selected) : "";
-  const selectedVideos = useMemo(() => selected ? videos.filter((video) => !hiddenVideos[video.id] && (video.folderId === selected.id || (selected.channelId && video.remote?.channelId === selected.channelId))).sort((a, b) => b.addedAt - a.addedAt) : [], [hiddenVideos, selected, videos]);
+  const selectedVideos = useMemo(() => selected ? videos.filter((video) => !hiddenVideos[video.id] && (video.folderId === selected.id || (selected.channelId && video.remote?.channelId === selected.channelId))) : [], [hiddenVideos, selected, videos]);
+  const selectedVideoStats = useMemo(() => {
+    const ids = new Set(selectedVideos.map((video) => video.id));
+    return { favorites: selectedVideos.reduce((count, video) => count + Number(Boolean(favorites[video.id])), 0), watched: new Set(history.filter((entry) => ids.has(entry.id)).map((entry) => entry.id)).size };
+  }, [favorites, history, selectedVideos]);
+  const filteredCreatorVideos = useMemo(() => {
+    const needle = creatorVideoQuery.trim().toLocaleLowerCase();
+    return selectedVideos.filter((video) => !needle || video.name.toLocaleLowerCase().includes(needle))
+      .sort((a, b) => creatorVideoSort === "title" ? a.name.localeCompare(b.name) : creatorVideoSort === "oldest" ? a.addedAt - b.addedAt : b.addedAt - a.addedAt);
+  }, [creatorVideoQuery, creatorVideoSort, selectedVideos]);
   const selectedPage = selected?.kind === "youtube" ? selected.channelId ? `https://www.youtube.com/channel/${encodeURIComponent(selected.channelId)}` : selected.handle.startsWith("http") ? selected.handle : `https://www.youtube.com/@${encodeURIComponent(selected.handle.replace(/^@/, ""))}` : selected ? `https://www.twitch.tv/${encodeURIComponent(selected.handle.replace(/^@/, ""))}` : "";
   const selectedRating = selected ? getCreatorRating(selectedName) : 0;
   const selectedFavorite = selected ? creatorIsLiked(selectedName) : false;
@@ -197,6 +225,15 @@ export function FollowManager({ kind }: { kind?: FollowKind }) {
     setReviewingRemoval(false);
     setSelectedId(null);
   };
+  const pullCreators = async (ids: string[]) => {
+    const requested = new Set(ids);
+    const youtubeIds = follows.filter((channel) => requested.has(channel.id) && channel.kind === "youtube").map((channel) => channel.id);
+    if (!youtubeIds.length || pullingSelection || refreshing) return;
+    setPullingSelection(true);
+    try {
+      await refreshFollows("youtube", { catalog: true, channelIds: youtubeIds });
+    } finally { setPullingSelection(false); }
+  };
 
   const heading = kind === "youtube" ? "YouTube creator control" : kind === "twitch" ? "Twitch creator control" : "Creator control";
   const description = kind
@@ -212,7 +249,7 @@ export function FollowManager({ kind }: { kind?: FollowKind }) {
             <h2 className="mt-2 font-display text-2xl text-fg">{heading}</h2>
             <p className="mt-1 max-w-2xl text-sm text-muted">{description}</p>
           </div>
-          <p className="text-sm text-muted"><span className="font-mono text-fg">{filtered.length.toLocaleString()}</span> of {follows.filter((channel) => !kind || channel.kind === kind).length.toLocaleString()} creator{follows.length === 1 ? "" : "s"}</p>
+          <div className="flex items-center gap-3"><p className="text-sm text-muted"><span className="font-mono text-fg">{filtered.length.toLocaleString()}</span> of {follows.filter((channel) => !kind || channel.kind === kind).length.toLocaleString()} creator{follows.length === 1 ? "" : "s"}</p><Button type="button" size="sm" variant="ghost" onClick={onCollapse} aria-label={`Collapse ${heading}`}>Collapse controls</Button></div>
         </div>
         <div className="mt-5 flex flex-col gap-3 lg:flex-row lg:items-center">
           <label className="relative block min-w-0 flex-1">
@@ -231,6 +268,7 @@ export function FollowManager({ kind }: { kind?: FollowKind }) {
             <Button type="button" size="sm" variant={selectionMode ? "default" : "secondary"} onClick={() => { setSelectionMode((value) => !value); setReviewingRemoval(false); }}><ListChecks aria-hidden="true" className="size-4" />{selectionMode ? `Selecting ${selectedIds.length}` : "Select creators"}</Button>
             {selectionMode && <Button type="button" size="sm" variant="secondary" disabled={!filtered.length} onClick={() => { const ids = new Set(selectedIds); filtered.forEach((channel) => ids.add(channel.id)); setSelectedIds([...ids]); setReviewingRemoval(false); }}>Select all {filtered.length.toLocaleString()} matching</Button>}
             {selectionMode && <Button type="button" size="sm" variant="ghost" onClick={() => { setSelectedIds([]); setReviewingRemoval(false); }}>Clear selection</Button>}
+            {selectionMode && kind !== "twitch" && <Button type="button" size="sm" disabled={!selectedIds.some((id) => follows.some((channel) => channel.id === id && channel.kind === "youtube")) || pullingSelection || refreshing} onClick={() => void pullCreators(selectedIds)}>{pullingSelection ? "Pulling selected creators…" : `Pull videos · ${selectedIds.filter((id) => follows.some((channel) => channel.id === id && channel.kind === "youtube")).length}`}</Button>}
             {scopedCollections.map((collection) => <span key={collection.id} className="inline-flex items-center rounded-sm bg-bg/45"><Button type="button" size="sm" variant="ghost" onClick={() => loadCollection(collection)}>{collection.name} · {collection.followIds.length}</Button><Button type="button" size="icon-sm" variant="ghost" onClick={() => removeCollection(collection.id)} aria-label={`Remove ${collection.name} collection`}><X aria-hidden="true" className="size-3.5" /></Button></span>)}
           </div>
           {selectionMode && <div className="mt-3 grid gap-3 rounded-lg bg-bg/45 p-3 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-center">
@@ -242,7 +280,7 @@ export function FollowManager({ kind }: { kind?: FollowKind }) {
         </div>
       </div>
 
-      {!filtered.length ? <div className="p-6 text-sm text-muted">{query ? "No followed creators match that search." : "No creators are followed here yet. Use the import tools below to add channels."}</div> : <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      {!filtered.length ? <div className="p-6 text-sm text-muted">{query ? "No followed creators match that search." : "No creators are followed here yet. Use the import tools below to add channels."}</div> : <div className={cn("grid gap-0", selected && "lg:grid-cols-[minmax(0,1fr)_20rem]")}>
         <div className="p-5 sm:p-6">
           <div className="grid grid-cols-6 gap-3 sm:grid-cols-8 lg:grid-cols-10 2xl:grid-cols-12">
             {shown.map((channel) => {
@@ -250,7 +288,7 @@ export function FollowManager({ kind }: { kind?: FollowKind }) {
               const favorite = creatorIsLiked(label);
               const rating = getCreatorRating(label);
               const active = selectionMode ? selectedIds.includes(channel.id) : selected?.id === channel.id;
-              return <button key={channel.id} type="button" onClick={() => selectionMode ? toggleSelected(channel.id) : setSelectedId(channel.id)} aria-label={`${selectionMode ? "Select" : "Manage"} ${label}`} aria-pressed={active} title={label} className={cn("group relative flex size-11 items-center justify-center overflow-visible rounded-full border bg-elevated text-sm font-semibold text-fg shadow-border transition-[transform,background-color,border-color] duration-150 hover:-translate-y-0.5 hover:bg-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", active ? "border-accent ring-2 ring-accent/40" : "border-border")}>
+              return <button key={channel.id} type="button" onClick={() => selectionMode ? toggleSelected(channel.id) : setSelectedId(active ? null : channel.id)} aria-label={`${selectionMode ? "Select" : "Manage"} ${label}`} aria-pressed={active} title={label} className={cn("group relative flex size-11 items-center justify-center overflow-visible rounded-full border bg-elevated text-sm font-semibold text-fg shadow-border transition-[transform,background-color,border-color] duration-150 hover:-translate-y-0.5 hover:bg-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", active ? "border-accent ring-2 ring-accent/40" : "border-border")}>
                 <span className="flex size-full items-center justify-center overflow-hidden rounded-full bg-bg/60"><CreatorAvatar channel={channel} label={label} /></span>
                 <span className="absolute -right-1 -bottom-1 flex size-5 items-center justify-center rounded-full border border-surface bg-bg text-accent"><ProviderGlyph kind={channel.kind} /></span>
                 {favorite && <span className="absolute -top-1 -left-1 flex size-5 items-center justify-center rounded-full bg-accent text-accent-fg"><Heart aria-hidden="true" className="size-3 fill-current" /></span>}
@@ -258,6 +296,7 @@ export function FollowManager({ kind }: { kind?: FollowKind }) {
               </button>;
             })}
           </div>
+          {!selected && !selectionMode && <p className="mt-4 text-xs text-muted">Choose a creator icon to see videos and actions. More icons load only when you ask.</p>}
           {visible < filtered.length && <Button type="button" variant="secondary" className="mt-5" onClick={() => setVisible((count) => Math.min(filtered.length, count + CREATOR_PAGE_SIZE))}>Show {Math.min(CREATOR_PAGE_SIZE, filtered.length - visible)} more creators</Button>}
         </div>
         {selected && <aside className="border-t border-border bg-elevated/35 p-5 lg:border-t-0 lg:border-l sm:p-6" aria-label={`Manage ${selectedName}`}>
@@ -267,9 +306,9 @@ export function FollowManager({ kind }: { kind?: FollowKind }) {
           </div>
           <div className="mt-5 grid gap-3">
             <p className="text-xs leading-5 text-muted">{selected.description || "No channel description supplied yet. Refresh this creator to look for a public profile description."}</p>
-            <div className="grid grid-cols-3 gap-2 text-center text-xs"><div className="rounded-md bg-bg/55 p-2"><strong className="block text-lg text-fg">{selectedVideos.length}</strong>videos</div><div className="rounded-md bg-bg/55 p-2"><strong className="block text-lg text-fg">{selectedVideos.filter((video) => favorites[video.id]).length}</strong>favorites</div><div className="rounded-md bg-bg/55 p-2"><strong className="block text-lg text-fg">{new Set(history.filter((entry) => selectedVideos.some((video) => video.id === entry.id)).map((entry) => entry.id)).size}</strong>watched</div></div>
-            <div className="flex flex-wrap gap-2"><Button size="sm" variant="secondary" onClick={() => setSource(selected.id)}>Open creator tab</Button><a href={selectedPage} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center gap-1 rounded-md bg-bg/55 px-3 text-xs text-fg">Channel page <ExternalLink className="size-3" /></a></div>
-            <div><p className="mb-2 text-xs font-medium tracking-wide text-subtle uppercase">Recent videos</p><div className="max-h-52 space-y-1 overflow-y-auto">{selectedVideos.slice(0, 12).map((video) => <button key={video.id} type="button" className="block w-full truncate rounded-md bg-bg/55 px-2 py-1.5 text-left text-xs text-fg hover:text-accent" title={video.name} onClick={() => openPreview(video.id)}>{video.name}</button>)}{!selectedVideos.length && <p className="text-xs text-muted">No saved videos for this creator yet.</p>}</div></div>
+            <div className="grid grid-cols-3 gap-2 text-center text-xs"><div className="rounded-md bg-bg/55 p-2"><strong className="block text-lg text-fg">{selectedVideos.length}</strong>videos</div><div className="rounded-md bg-bg/55 p-2"><strong className="block text-lg text-fg">{selectedVideoStats.favorites}</strong>favorites</div><div className="rounded-md bg-bg/55 p-2"><strong className="block text-lg text-fg">{selectedVideoStats.watched}</strong>watched</div></div>
+            <div className="flex flex-wrap gap-2"><Button size="sm" onClick={() => void pullCreators([selected.id])} disabled={refreshing || pullingSelection || selected.kind !== "youtube"}>{refreshing || pullingSelection ? "Pulling videos…" : "Pull creator videos"}</Button><Button size="sm" variant="secondary" onClick={() => setSource(selected.id)}>Open creator catalog</Button><a href={selectedPage} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center gap-1 rounded-md bg-bg/55 px-3 text-xs text-fg">Channel page <ExternalLink className="size-3" /></a></div>
+            <div><div className="mb-2 flex items-center justify-between gap-2"><p className="text-xs font-medium tracking-wide text-subtle uppercase">Creator videos · {filteredCreatorVideos.length.toLocaleString()}</p><select aria-label="Sort creator videos" value={creatorVideoSort} onChange={(event) => setCreatorVideoSort(event.target.value as "newest" | "oldest" | "title")} className="h-8 rounded-md border border-border bg-bg px-2 text-xs text-fg"><option value="newest">Newest</option><option value="oldest">Oldest</option><option value="title">Title A–Z</option></select></div><Input value={creatorVideoQuery} onChange={(event) => { setCreatorVideoQuery(event.target.value); setCreatorVideoVisible(24); }} className="mb-2 h-9" placeholder="Search this creator’s videos" aria-label="Search creator videos" /><div className="max-h-72 space-y-1 overflow-y-auto">{filteredCreatorVideos.slice(0, creatorVideoVisible).map((video) => <button key={video.id} type="button" className="block w-full rounded-md bg-bg/55 px-2 py-2 text-left text-xs text-fg hover:text-accent" title={video.name} onClick={() => openPreview(video.id)}><span className="block truncate">{video.name}</span><span className="mt-1 block text-[11px] text-muted">{video.addedAt > 0 && video.addedAt < Date.now() ? new Date(video.addedAt).toLocaleDateString() : "Date unavailable"} · {video.duration ? `${Math.round(video.duration / 60)} min` : "runtime unknown"}</span></button>)}{!filteredCreatorVideos.length && <p className="px-2 py-3 text-xs text-muted">{selectedVideos.length ? "No videos match this search." : "No saved videos yet. Pull this creator’s public archive to start the list."}</p>}</div>{creatorVideoVisible < filteredCreatorVideos.length && <Button type="button" size="sm" variant="ghost" className="mt-2 w-full" onClick={() => setCreatorVideoVisible((count) => count + 24)}>Show {Math.min(24, filteredCreatorVideos.length - creatorVideoVisible)} more</Button>}</div>
             <Button type="button" variant={selectedFavorite ? "default" : "secondary"} onClick={changeFavorite}><Heart aria-hidden="true" className={cn("size-4", selectedFavorite && "fill-current")} />{selectedFavorite ? "Creator favorite" : "Favorite creator"}</Button>
             <div><p className="mb-2 text-xs font-medium tracking-wide text-subtle uppercase">Creator rating</p><div className="flex gap-1" aria-label={`Rate ${selectedName}`}>
               {[1, 2, 3, 4, 5].map((rating) => <button key={rating} type="button" onClick={() => rate(rating)} className="flex size-11 items-center justify-center rounded-md text-accent hover:bg-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={`${rating} star${rating === 1 ? "" : "s"}`} aria-pressed={selectedRating === rating}><Star aria-hidden="true" className={cn("size-5", rating <= selectedRating && "fill-current")} /></button>)}

@@ -76,8 +76,12 @@ function normalizeFollowChannels(raw: unknown): FollowedChannel[] {
       ...(typeof rec.thumb === "string" ? { thumb: rec.thumb } : {}),
       ...(typeof rec.live === "boolean" ? { live: rec.live } : {}),
       ...(typeof rec.lastCheckedAt === "number" ? { lastCheckedAt: rec.lastCheckedAt } : {}),
+      ...(typeof rec.liveCheckedAt === "number" && Number.isFinite(rec.liveCheckedAt) ? { liveCheckedAt: rec.liveCheckedAt } : {}),
       ...(typeof rec.newestPublishedAt === "number" ? { newestPublishedAt: rec.newestPublishedAt } : {}),
       ...(typeof rec.newestVideoId === "string" && rec.newestVideoId ? { newestVideoId: rec.newestVideoId } : {}),
+      ...(typeof rec.catalogCursor === "string" && rec.catalogCursor.length > 0 && rec.catalogCursor.length <= 16_384 ? { catalogCursor: rec.catalogCursor } : {}),
+      ...(typeof rec.catalogCheckedAt === "number" && Number.isFinite(rec.catalogCheckedAt) ? { catalogCheckedAt: rec.catalogCheckedAt } : {}),
+      ...(typeof rec.catalogExhaustedAt === "number" && Number.isFinite(rec.catalogExhaustedAt) ? { catalogExhaustedAt: rec.catalogExhaustedAt } : {}),
       ...(typeof rec.lastResponseCount === "number" ? { lastResponseCount: rec.lastResponseCount } : {}),
       ...(cache ? { cache } : {}),
       ...(rec.lastProviderFailure && typeof rec.lastProviderFailure === "object" ? { lastProviderFailure: rec.lastProviderFailure as FollowedChannel["lastProviderFailure"] } : {}),
@@ -933,18 +937,78 @@ async function pruneThumbCache(db: IDBDatabase, maxEntries: number): Promise<voi
 export type RemoteSnapshot = { videos: LibraryVideo[]; folders: Folder[]; checkedAt: number };
 export async function loadRemoteSnapshot(): Promise<RemoteSnapshot | undefined> {
   const db = await openDb();
-  try { return await new Promise((resolve, reject) => {
-    const req = db.transaction("remote-cache").objectStore("remote-cache").get("snapshot");
-    req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error);
-  }); } finally { db.close(); }
+  try {
+    const legacy = await new Promise<{ current?: RemoteSnapshot; meta?: Pick<RemoteSnapshot, "folders" | "checkedAt"> }>((resolve, reject) => {
+      const tx = db.transaction("remote-cache", "readonly");
+      const store = tx.objectStore("remote-cache");
+      const currentReq = store.get("snapshot");
+      const metaReq = store.get("meta");
+      tx.oncomplete = () => resolve({ current: currentReq.result as RemoteSnapshot | undefined, meta: metaReq.result as Pick<RemoteSnapshot, "folders" | "checkedAt"> | undefined });
+      tx.onerror = () => reject(tx.error);
+    });
+    const videos = new Map<string, LibraryVideo>();
+    let afterKey: IDBValidKey | undefined;
+    // One cursor callback per title made a 50–100k catalog spend seconds in
+    // IndexedDB event dispatch. Bounded getAll pages keep clone allocations
+    // small while reducing that work to a few hundred callbacks.
+    while (true) {
+      const page = await new Promise<{ keys: IDBValidKey[]; rows: LibraryVideo[] }>((resolve, reject) => {
+        const tx = db.transaction("remote-cache", "readonly");
+        const store = tx.objectStore("remote-cache");
+        const range = IDBKeyRange.bound(afterKey ?? "video:", "video;", afterKey !== undefined, true);
+        const keysReq = store.getAllKeys(range, 512);
+        const rowsReq = store.getAll(range, 512);
+        tx.oncomplete = () => resolve({ keys: keysReq.result, rows: rowsReq.result as LibraryVideo[] });
+        tx.onerror = () => reject(tx.error);
+      });
+      for (const video of page.rows) if (video?.id) videos.set(video.id, video);
+      if (page.keys.length < 512) break;
+      afterKey = page.keys[page.keys.length - 1];
+    }
+    for (const video of legacy.current?.videos ?? []) if (!videos.has(video.id)) videos.set(video.id, video);
+    const meta = legacy.meta ?? legacy.current;
+    return meta ? { videos: [...videos.values()], folders: meta.folders, checkedAt: meta.checkedAt } : undefined;
+  } finally { db.close(); }
 }
-export async function saveRemoteSnapshot(snapshot: RemoteSnapshot): Promise<void> {
+export async function saveRemoteSnapshot(snapshot: RemoteSnapshot, complete = false): Promise<void> {
   const db = await openDb();
-  try { await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction("remote-cache", "readwrite");
-    tx.objectStore("remote-cache").put(snapshot, "snapshot");
-    tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
-  }); } finally { db.close(); }
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction("remote-cache", "readwrite");
+      tx.objectStore("remote-cache").put({ folders: snapshot.folders, checkedAt: snapshot.checkedAt }, "meta");
+      tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
+    });
+    // Structured cloning a single 30–100k-video object caused large transient
+    // allocations. Rows are upserted in small transactions instead.
+    for (let i = 0; i < snapshot.videos.length; i += IDB_WRITE_CHUNK) {
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction("remote-cache", "readwrite");
+        const store = tx.objectStore("remote-cache");
+        for (const video of snapshot.videos.slice(i, i + IDB_WRITE_CHUNK)) store.put(video, `video:${video.id}`);
+        tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
+      });
+    }
+    if (complete) await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction("remote-cache", "readwrite");
+      tx.objectStore("remote-cache").delete("snapshot");
+      tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
+    });
+  } finally { db.close(); }
+}
+
+export async function removeRemoteSnapshotVideos(ids: string[]): Promise<void> {
+  if (!ids.length) return;
+  const db = await openDb();
+  try {
+    for (let i = 0; i < ids.length; i += IDB_WRITE_CHUNK) {
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction("remote-cache", "readwrite");
+        const store = tx.objectStore("remote-cache");
+        for (const id of ids.slice(i, i + IDB_WRITE_CHUNK)) store.delete(`video:${id}`);
+        tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
+      });
+    }
+  } finally { db.close(); }
 }
 
 export type ActivitySnapshot = Pick<Prefs, "history" | "progress" | "resumeProgress"> & { viewCounts: Record<string, number>; cameCounts?: Record<string, number>; savedAt: number };

@@ -7,6 +7,7 @@ import { useLibrary } from "@/lib/videos/store";
 import { useThumbs } from "@/lib/videos/thumbs";
 import { adultThumbCandidatesForVideo } from "@/lib/videos/adult-thumbs";
 import { markFirstShelf } from "@/lib/first-shelf-trace";
+import { getYoutubeFirstClickTrace, markYoutubeArtworkReady, markYoutubeRailReady } from "@/lib/youtube-first-click-trace";
 import { railKeyboardTarget, railLimitForTarget, railWindow, railWindowStartForTarget } from "@/lib/virtual-rail";
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
@@ -83,6 +84,7 @@ export function TitleRail({
   playedAt,
   onTitleClick,
   reason,
+  priority = false,
 }: {
   title: string;
   videos: LibraryVideo[];
@@ -91,6 +93,8 @@ export function TitleRail({
   onTitleClick?: () => void;
   /** Human explanation for a recommendation shelf; never exposes provider tags. */
   reason?: string;
+  /** A primary rail can mount its small card window before it enters the viewport. */
+  priority?: boolean;
 }) {
   const shelfRef = useRef<HTMLElement>(null);
   const railRef = useRef<HTMLDivElement | null>(null);
@@ -98,7 +102,7 @@ export function TitleRail({
   const pendingFocus = useRef<number | undefined>(undefined);
   const attachRail = useCallback((rail: HTMLDivElement | null) => { railRef.current = rail; if (rail) rail.scrollLeft = scrollLeft.current; }, []);
   const leaveTimer = useRef<number | undefined>(undefined);
-  const [nearViewport, setNearViewport] = useState(false);
+  const [nearViewport, setNearViewport] = useState(priority);
   const [collapsed, setCollapsed] = useState(false);
   const [shelfHeight, setShelfHeight] = useState<number>();
   const [railWidth, setRailWidth] = useState(0);
@@ -110,6 +114,7 @@ export function TitleRail({
   useEffect(() => {
     const shelf = shelfRef.current;
     if (!shelf || !videos.length) return;
+    if (priority) { setNearViewport(true); return; }
     if (typeof IntersectionObserver === "undefined") { setNearViewport(true); return; }
     const observer = new IntersectionObserver(([entry]) => {
       const keep = entry.isIntersecting || shelf.contains(document.activeElement);
@@ -128,7 +133,7 @@ export function TitleRail({
       observer.disconnect();
       if (leaveTimer.current) window.clearTimeout(leaveTimer.current);
     };
-  }, [Boolean(videos.length)]);
+  }, [priority, Boolean(videos.length)]);
   useEffect(() => {
     const shelf = shelfRef.current;
     if (!shelf || !nearViewport) return;
@@ -164,6 +169,38 @@ export function TitleRail({
     trigger.focus({ preventScroll: true });
   }, [cardStride, focusRequest, limit, nearViewport, railWidth, windowStart]);
   useEffect(() => { if (nearViewport && videos.length) markFirstShelf(title, Math.min(videos.length, limit)); }, [nearViewport, limit, title, videos.length]);
+  useEffect(() => {
+    if (!priority || title !== "Latest uploads" || !nearViewport || !videos.length) return;
+    const rail = railRef.current;
+    const mountedCards = rail?.querySelectorAll("[data-rail-index]").length ?? 0;
+    if (!rail || !mountedCards) return;
+    markYoutubeRailReady(mountedCards);
+    // React Strict Mode replays effects after cleanup; keep the artwork watch
+    // alive even when the first pass already recorded the text-first rail.
+    if (getYoutubeFirstClickTrace()?.artwork !== "pending" || getYoutubeFirstClickTrace()?.railReadyMs === undefined) return;
+    let finished = false;
+    const seen = new WeakSet<HTMLImageElement>();
+    const finish = (loaded: boolean) => {
+      if (finished) return;
+      finished = true;
+      markYoutubeArtworkReady(loaded);
+      observer.disconnect();
+      window.clearTimeout(timeout);
+    };
+    const watchImages = () => {
+      for (const image of rail.querySelectorAll<HTMLImageElement>("img")) {
+        if (image.complete && image.naturalWidth > 0) { finish(true); return; }
+        if (seen.has(image)) continue;
+        seen.add(image);
+        image.addEventListener("load", () => finish(true), { once: true });
+      }
+    };
+    const observer = new MutationObserver(watchImages);
+    const timeout = window.setTimeout(() => finish(false), 5_000);
+    observer.observe(rail, { childList: true, subtree: true });
+    watchImages();
+    return () => { observer.disconnect(); window.clearTimeout(timeout); };
+  }, [priority, title, nearViewport, Boolean(videos.length), limit]);
   if (!videos.length) return null;
   const shown = videos.slice(0, limit);
   const { start, end, visibleSlots } = railWindow(shown.length, railWidth || 320, cardStride, windowStart, overscan);
@@ -280,10 +317,9 @@ export function PosterGrid({ videos }: { videos: LibraryVideo[] }) {
   }, []);
   const safePageSize = pageSize;
   const [limit, setLimit] = useState(safePageSize);
-  // Selectors may return an equivalent new array after catalog metadata
-  // changes. Reset only when the displayed catalog size or chosen page budget
-  // actually changes, otherwise a grid can feed its own state update loop.
-  useEffect(() => setLimit(safePageSize), [safePageSize, videos.length]);
+  // Background pulls append archive rows frequently. Keep the user's current
+  // page depth when that happens; only an explicit render-budget change resets it.
+  useEffect(() => setLimit(safePageSize), [safePageSize]);
   useEffect(() => {
     const grid = gridRef.current;
     if (!grid || !videos.length) return;

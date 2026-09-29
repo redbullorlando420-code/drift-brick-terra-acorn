@@ -16,6 +16,14 @@ export function hasFreshTwitchLiveState(video: LibraryVideo, now: number, maxAge
   return observedAt > 0 && observedAt <= now + 5_000 && now - observedAt <= maxAge;
 }
 
+export function hasFreshRemoteLiveState(video: LibraryVideo, now: number, twitchMaxAge: number, youtubeMaxAge: number) {
+  if (!video.remote?.live) return true;
+  if (video.remote.kind === "twitch") return hasFreshTwitchLiveState(video, now, twitchMaxAge);
+  if (video.remote.kind !== "youtube") return true;
+  const observedAt = video.remote.observedAt ?? 0;
+  return observedAt > 0 && observedAt <= now + 5_000 && now - observedAt <= youtubeMaxAge;
+}
+
 export function liveDeskRows(videos: LibraryVideo[], adultVideos: LibraryVideo[]) {
   const unique = new Map<string, LibraryVideo>();
   for (const video of [...videos, ...adultVideos]) {
