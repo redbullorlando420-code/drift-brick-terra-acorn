@@ -1,0 +1,1 @@
+import{p as e}from"./store-ptgt6Zv-.js";function t(t){let n=t.trim().replace(/^#/,``);if(!n)return;let r=e.getState();if(r.sourceId===`adults`||r.sourceId===`adult-fetishes`){r.setQuery(``),r.setSource(`adults`),typeof window<`u`&&window.dispatchEvent(new CustomEvent(`reelcase:adult-tag`,{detail:{tag:n}}));return}r.setQuery(n),r.setSource(`genres`)}export{t};

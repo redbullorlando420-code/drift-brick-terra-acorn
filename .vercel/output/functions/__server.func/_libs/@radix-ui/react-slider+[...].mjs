@@ -2,7 +2,7 @@ import { o as __toESM } from "../../_runtime.mjs";
 import { u as require_react } from "../@floating-ui/react-dom+[...].mjs";
 import { n as createContextScope, o as useComposedRefs, s as require_jsx_runtime, t as createCollection } from "./react-collection+[...].mjs";
 import { t as composeEventHandlers } from "../radix-ui__primitive.mjs";
-import { _ as useControllableState, h as Primitive } from "./react-dialog+[...].mjs";
+import { g as Primitive, v as useControllableState } from "./react-dialog+[...].mjs";
 import { t as useDirection } from "../radix-ui__react-direction.mjs";
 import { s as useSize } from "./react-dropdown-menu+[...].mjs";
 import { t as clamp } from "../radix-ui__number.mjs";

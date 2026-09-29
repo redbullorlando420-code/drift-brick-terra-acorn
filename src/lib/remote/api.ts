@@ -418,19 +418,23 @@ type YoutubeBackfillResult = { videos: LibraryVideo[]; cursor: string | null; co
 async function youtubeContinuationBackfill(html: string, knownIds: Set<string>, channelId: string, channelName: string, limit: number, resumeCursor?: string): Promise<YoutubeBackfillResult> {
   const root = youtubeInitialData(html);
   const config = root ? youtubeBrowseConfig(html, root) : null;
-  if (!config || limit <= 0) return { videos: [], cursor: resumeCursor ?? null, completed: false };
+  if (!config) return { videos: [], cursor: resumeCursor ?? null, completed: false };
+  // A full sweep batch still needs to persist its continuation. Dropping it
+  // here makes the next sweep restart at the creator shell and appear stuck.
+  if (limit <= 0) return { videos: [], cursor: resumeCursor ?? config.continuation, completed: false };
   const seen = new Set(knownIds);
   const videos: LibraryVideo[] = [];
   const addPageVideos = (pageData: unknown) => {
-    // Never split a provider page at the sweep boundary: the next token
-    // starts after this page, so dropping its tail would make holes forever.
-    for (const renderer of youtubeRenderers(pageData, Math.max(256, limit - videos.length))) {
+    const pageVideos = youtubeRenderers(pageData, 100_000).filter((renderer, index, all) => renderer.videoId && all.findIndex((candidate) => candidate.videoId === renderer.videoId) === index);
+    const room = Math.max(0, limit - videos.length);
+    for (const renderer of pageVideos.slice(0, room)) {
       const id = renderer.videoId;
       if (!id || seen.has(id)) continue;
       seen.add(id);
       const thumb = renderer.thumbnail?.thumbnails?.at(-1)?.url;
       videos.push(ytVideo({ id, title: rendererText(renderer.title) || `${channelName} video`, published: "1970-01-01T00:00:00.000Z", thumb: thumb || `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, desc: rendererText(renderer.descriptionSnippet) || `${channelName} public channel catalog item.`, channelId, channelName, views: parsePublicViewCount(rendererText(renderer.viewCountText)) }));
     }
+    return pageVideos.length <= room;
   };
   let continuation: string | null = resumeCursor ?? config.continuation;
   const initialCount = root ? youtubeRenderers(root, 31).length : 0;
@@ -448,12 +452,12 @@ async function youtubeContinuationBackfill(html: string, knownIds: Set<string>, 
       });
       if (response.ok) {
         const pageData = await response.json() as unknown;
-        addPageVideos(pageData);
+        const fullyConsumed = addPageVideos(pageData);
         continuation = youtubeCatalogContinuation(pageData);
         // A few channel layouts still expose renderer-shaped rows but not a
         // parseable Videos grid. Those rows are useful, but are not evidence
         // that the public archive has ended.
-        completed = !continuation && youtubeCatalogHasTerminalPage(pageData) && videos.length > 0;
+        completed = fullyConsumed && !continuation && youtubeCatalogHasTerminalPage(pageData) && videos.length > 0;
       }
     } catch { /* The channel shell remains a valid partial source. */ }
   }
@@ -467,7 +471,14 @@ async function youtubeContinuationBackfill(html: string, knownIds: Set<string>, 
       });
       if (!response.ok) break;
       const pageData = await response.json() as unknown;
-      addPageVideos(pageData);
+      const pageToken = continuation;
+      const fullyConsumed = addPageVideos(pageData);
+      if (!fullyConsumed) {
+        // Keep the token that produced this page. Advancing past an
+        // unconsumed page permanently loses its tail on the next sweep.
+        continuation = pageToken;
+        break;
+      }
       const next = youtubeCatalogContinuation(pageData);
       if (next && next !== continuation) continuation = next;
       else if (youtubeCatalogHasTerminalPage(pageData) && youtubeRenderers(pageData, 1).length) { continuation = null; completed = true; }
@@ -773,7 +784,7 @@ async function youtubeFromPlaylist(input: string, focused = true, resumeCursor?:
         }
       } catch { /* A public playlist can still be unavailable to this server. */ }
     }
-    let continuation = resumeCursor ?? youtubeContinuation(browseRoot);
+    let continuation = resumeCursor ?? youtubeCatalogContinuation(browseRoot) ?? youtubeContinuation(browseRoot);
     let completed = !continuation && found.length > 0;
     for (let page = 0; continuation && apiKey && page < (focused ? LIBRARY_LIMITS.youtubePlaylistPagesPerPull : 1) && found.length < limit; page++) {
       try {
@@ -785,7 +796,7 @@ async function youtubeFromPlaylist(input: string, focused = true, resumeCursor?:
         const pageData = await response.json() as unknown;
         // Keep the whole provider page: the next continuation starts after it.
         for (const entry of publicPlaylistEntries(pageData, Math.max(100, limit - found.length))) if (!seen.has(entry.id)) { seen.add(entry.id); found.push(entry); }
-        const next = youtubeContinuation(pageData);
+        const next = youtubeCatalogContinuation(pageData) ?? youtubeContinuation(pageData);
         if (next && next !== continuation) continuation = next;
         else { continuation = null; completed = true; }
         if (continuation && found.length < limit) await new Promise((resolve) => setTimeout(resolve, LIBRARY_LIMITS.youtubeArchivePageGapMs));
@@ -1190,7 +1201,7 @@ export async function runFollowRemote(dataRaw: unknown): Promise<FollowResult> {
     const data = parseFollow(dataRaw);
     const kind = data.kind === "auto" ? guessKind(data.query) : data.kind;
     if (kind === "twitch") return followTwitch(data.query, false, data.clipLimit);
-    if (youtubePlaylistId(data.query)) return youtubeFromPlaylist(data.query);
+    if (youtubePlaylistId(data.query)) return youtubeFromPlaylist(data.query, true, data.catalogCursor, LIBRARY_LIMITS.youtubeManualRefreshVideosPerChannel);
     const videoId = ytVideoId(data.query);
     if (videoId) return youtubeFromVideo(videoId);
     // A new follow should paint promptly; the timed cursor sweep fills its

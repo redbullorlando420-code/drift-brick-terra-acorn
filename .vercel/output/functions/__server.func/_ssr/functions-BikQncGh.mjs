@@ -1,6 +1,7 @@
+import { G as pickRedtubeThumb, J as redtubeStarNames, O as cachedAdultFetch, V as isUsableAdultThumb, _ as REDTUBE_FOLDER_ID, c as ADULT_PULL_PROVIDERS, d as CHATURBATE_FOLDER_ID, f as EPORNER_FOLDER_ID, g as REDGIFS_FOLDER_ID, h as REDDIT_FOLDER_ID, j as extractRedditFlair, k as expandAdultThumbFallbacks, m as MYFREECAMS_FOLDER_ID, p as LIBRARY_LIMITS, u as BOORU_FOLDER_ID, y as adultDeepenQueriesForPage } from "./adult-pull-cache-CM6xh6_t.mjs";
 import { n as TSS_SERVER_FUNCTION, t as createServerFn } from "./ssr.mjs";
-import { A as cachedAdultFetch, N as extractRedditFlair, U as isUsableAdultThumb, X as redtubeStarNames, _ as REDDIT_FOLDER_ID, c as ADULT_PULL_PROVIDERS, f as BOORU_FOLDER_ID, g as MYFREECAMS_FOLDER_ID, h as LIBRARY_LIMITS, j as expandAdultThumbFallbacks, l as ADULT_REDDIT_PRIORITY_SUBS, m as EPORNER_FOLDER_ID, p as CHATURBATE_FOLDER_ID, q as pickRedtubeThumb, u as ADULT_REDDIT_SUBS, v as REDGIFS_FOLDER_ID, x as adultDeepenQueriesForPage, y as REDTUBE_FOLDER_ID } from "./adult-pull-cache-CS134UtB.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/functions-DPX0Cy2m.js
+import { n as ADULT_REDDIT_SUBS, t as ADULT_REDDIT_PRIORITY_SUBS } from "./adult-reddit-subs-bzu0GGaT.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/functions-BikQncGh.js
 var createServerRpc = (serverFnMeta, splitImportFn) => {
 	const url = "/_serverFn/" + serverFnMeta.id;
 	return Object.assign(splitImportFn, {
@@ -211,6 +212,57 @@ function publicPlaylistTitle(root) {
 	}
 	return null;
 }
+/** The active Videos grid is the only safe source of archive continuations.
+* Channel headers, descriptions and sort chips carry unrelated tokens. */
+function youtubeCatalogItems(root) {
+	if (!root || typeof root !== "object") return null;
+	const page = root;
+	const tabs = page.contents?.twoColumnBrowseResultsRenderer?.tabs ?? [];
+	const hasGrid = (tab) => Array.isArray(tab.tabRenderer?.content?.richGridRenderer?.contents);
+	const selected = tabs.find((tab) => tab.tabRenderer?.selected && hasGrid(tab));
+	if (selected) return selected.tabRenderer.content.richGridRenderer.contents;
+	const videosTab = tabs.find((tab) => tab.tabRenderer?.title?.trim().toLowerCase() === "videos" && hasGrid(tab));
+	if (videosTab) return videosTab.tabRenderer.content.richGridRenderer.contents;
+	const populatedTabs = tabs.filter(hasGrid);
+	if (populatedTabs.length === 1) return populatedTabs[0].tabRenderer.content.richGridRenderer.contents;
+	for (const action of [...page.onResponseReceivedActions ?? [], ...page.onResponseReceivedEndpoints ?? []]) {
+		const items = action.appendContinuationItemsAction?.continuationItems ?? action.reloadContinuationItemsCommand?.continuationItems;
+		if (Array.isArray(items)) return items;
+	}
+	return null;
+}
+function youtubeCatalogContinuation(root) {
+	const items = youtubeCatalogItems(root);
+	if (!items) return null;
+	for (let index = items.length - 1; index >= 0; index -= 1) {
+		const stack = [items[index]];
+		while (stack.length) {
+			const current = stack.pop();
+			if (!current || typeof current !== "object") continue;
+			if (Array.isArray(current)) {
+				for (let item = current.length - 1; item >= 0; item -= 1) stack.push(current[item]);
+				continue;
+			}
+			const record = current;
+			const command = record.continuationCommand;
+			if (command && typeof command === "object" && typeof command.token === "string") return command.token;
+			for (const key of [
+				"nextContinuationData",
+				"reloadContinuationData",
+				"continuationData"
+			]) {
+				const data = record[key];
+				if (data && typeof data === "object" && typeof data.continuation === "string") return data.continuation;
+			}
+			for (const value of Object.values(record).reverse()) if (value && typeof value === "object") stack.push(value);
+		}
+	}
+	return null;
+}
+/** Only call an archive exhausted when a recognized Videos grid is terminal. */
+function youtubeCatalogHasTerminalPage(root) {
+	return youtubeCatalogItems(root) !== null && youtubeCatalogContinuation(root) === null;
+}
 var providerInflight = /* @__PURE__ */ new Map();
 var providerFailures = /* @__PURE__ */ new Map();
 function providerKey(provider, handle) {
@@ -261,22 +313,28 @@ function classifyProviderFailure(provider, error) {
 	};
 }
 /** Share identical work across browser tabs and suppress only background retries. */
-async function providerRequest(provider, handle, focused, work) {
+async function providerRequest(provider, handle, focused, work, failureHandle = handle) {
 	const key = providerKey(provider, handle);
-	const cooling = providerFailures.get(key);
+	const failureKey = providerKey(provider, failureHandle);
+	const cooling = providerFailures.get(failureKey);
 	if (!focused && cooling && cooling.retryAt > Date.now()) throw new Error(`${provider} is retrying after ${new Date(cooling.retryAt).toLocaleTimeString()}`);
 	const existing = providerInflight.get(key);
 	if (existing) return existing;
 	const pending = work().then((result) => {
-		providerFailures.delete(key);
+		providerFailures.delete(failureKey);
 		return result;
 	}).catch((error) => {
-		const previous = providerFailures.get(key);
+		const previous = providerFailures.get(failureKey);
 		const attempts = Math.min(8, (previous?.attempts ?? 0) + 1);
-		providerFailures.set(key, {
+		providerFailures.set(failureKey, {
 			attempts,
 			retryAt: Date.now() + Math.min(3e5, 15e3 * 2 ** (attempts - 1))
 		});
+		if (providerFailures.size > 512) {
+			const now = Date.now();
+			for (const [entryKey, failure] of providerFailures) if (failure.retryAt < now) providerFailures.delete(entryKey);
+			while (providerFailures.size > 512) providerFailures.delete(providerFailures.keys().next().value);
+		}
 		throw error;
 	}).finally(() => providerInflight.delete(key));
 	providerInflight.set(key, pending);
@@ -293,16 +351,30 @@ function parseFollow(data) {
 	const kind = rec.kind === "youtube" || rec.kind === "twitch" ? rec.kind : "auto";
 	const rawClips = typeof rec.clipLimit === "number" ? rec.clipLimit : Number(rec.clipLimit);
 	const clipLimit = Number.isFinite(rawClips) && rawClips > 0 ? Math.min(LIBRARY_LIMITS.twitchFocusedClipsPerChannel, Math.floor(rawClips)) : void 0;
+	const catalogCursor = typeof rec.catalogCursor === "string" && rec.catalogCursor.length <= 16384 ? rec.catalogCursor : void 0;
 	return {
 		query,
 		kind,
-		...clipLimit ? { clipLimit } : {}
+		...clipLimit ? { clipLimit } : {},
+		...catalogCursor ? { catalogCursor } : {}
 	};
 }
 function parseRefresh(data) {
-	if (typeof data !== "object" || data === null) return { channels: [] };
+	if (typeof data !== "object" || data === null) return {
+		channels: [],
+		youtubeCatalog: false,
+		youtubeBackground: false,
+		youtubeLiveOnly: false,
+		backgroundLive: false
+	};
 	const rec = data;
-	return { channels: (Array.isArray(rec.channels) ? rec.channels : []).slice(0, 80) };
+	return {
+		channels: (Array.isArray(rec.channels) ? rec.channels : []).slice(0, 80),
+		youtubeCatalog: rec.youtubeCatalog === true,
+		youtubeBackground: rec.youtubeBackground === true,
+		youtubeLiveOnly: rec.youtubeLiveOnly === true,
+		backgroundLive: rec.backgroundLive === true
+	};
 }
 function guessKind(query) {
 	const q = query.toLowerCase();
@@ -415,6 +487,7 @@ function ytVideo(entry) {
 			channelId: entry.channelId,
 			channelName: entry.channelName,
 			live: entry.live,
+			...entry.live ? { observedAt: Date.now() } : {},
 			views: entry.views,
 			embedUrl: `https://www.youtube.com/embed/${entry.id}`,
 			watchUrl: `https://www.youtube.com/watch?v=${entry.id}`,
@@ -424,7 +497,7 @@ function ytVideo(entry) {
 }
 var YOUTUBE_CHANNEL_CACHE_TTL_MS = 24e4;
 var YOUTUBE_CHANNEL_CACHE_LIMIT = 12;
-var YOUTUBE_DEEP_CACHE_MAX_VIDEOS = 2e3;
+var YOUTUBE_DEEP_CACHE_MAX_VIDEOS = 250;
 var youtubeChannelCache = /* @__PURE__ */ new Map();
 function rendererText(value) {
 	return value?.simpleText ?? value?.runs?.map((run) => run.text ?? "").join("") ?? "";
@@ -447,18 +520,31 @@ function youtubeInitialData(html) {
 }
 function youtubeRenderers(root, maximum) {
 	const found = [];
-	const stack = [root];
+	const seen = /* @__PURE__ */ new Set();
+	const stack = [youtubeCatalogItems(root) ?? root];
 	while (stack.length && found.length < maximum) {
 		const current = stack.pop();
 		if (!current || typeof current !== "object") continue;
 		if (Array.isArray(current)) {
-			stack.push(...current);
+			for (let index = current.length - 1; index >= 0; index -= 1) stack.push(current[index]);
 			continue;
 		}
 		const record = current;
-		const renderer = record.videoRenderer;
-		if (renderer?.videoId) found.push(renderer);
-		for (const value of Object.values(record)) if (value && typeof value === "object") stack.push(value);
+		const renderer = record.videoRenderer ?? record.gridVideoRenderer ?? record.compactVideoRenderer;
+		if (renderer?.videoId && !seen.has(renderer.videoId)) {
+			seen.add(renderer.videoId);
+			found.push(renderer);
+		}
+		const lockup = record.lockupViewModel;
+		if (lockup?.contentId && lockup.contentType === "LOCKUP_CONTENT_TYPE_VIDEO" && !seen.has(lockup.contentId)) {
+			seen.add(lockup.contentId);
+			found.push({
+				videoId: lockup.contentId,
+				title: { simpleText: lockup.metadata?.lockupMetadataViewModel?.title?.content ?? lockup.contentId },
+				thumbnail: { thumbnails: lockup.contentImage?.thumbnailViewModel?.image?.sources?.map((source) => ({ url: source.url })) }
+			});
+		}
+		for (const value of Object.values(record).reverse()) if (value && typeof value === "object") stack.push(value);
 	}
 	return found;
 }
@@ -472,33 +558,105 @@ function youtubeContinuation(root) {
 		const current = stack.pop();
 		if (!current || typeof current !== "object") continue;
 		if (Array.isArray(current)) {
-			stack.push(...current);
+			for (let index = current.length - 1; index >= 0; index -= 1) stack.push(current[index]);
 			continue;
 		}
 		const record = current;
 		const command = record.continuationCommand;
 		if (command && typeof command === "object" && typeof command.token === "string") return command.token;
-		for (const value of Object.values(record)) if (value && typeof value === "object") stack.push(value);
+		for (const key of [
+			"nextContinuationData",
+			"reloadContinuationData",
+			"continuationData"
+		]) {
+			const value = record[key];
+			if (value && typeof value === "object" && typeof value.continuation === "string") return value.continuation;
+		}
+		const endpoint = record.continuationEndpoint;
+		if (endpoint && typeof endpoint === "object") {
+			const endpointRecord = endpoint;
+			const endpointCommand = endpointRecord.continuationCommand;
+			if (endpointCommand && typeof endpointCommand === "object" && typeof endpointCommand.token === "string") return endpointCommand.token;
+			const endpointNext = endpointRecord.nextContinuationData;
+			if (endpointNext && typeof endpointNext === "object" && typeof endpointNext.continuation === "string") return endpointNext.continuation;
+		}
+		for (const value of Object.values(record).reverse()) if (value && typeof value === "object") stack.push(value);
 	}
 	return null;
 }
 function youtubeBrowseConfig(html, root) {
 	const apiKey = html.match(/"INNERTUBE_API_KEY":"([^"]+)"/)?.[1];
 	const clientVersion = html.match(/"INNERTUBE_CLIENT_VERSION":"([^"]+)"/)?.[1] ?? "2.20250101.00.00";
-	const continuation = youtubeContinuation(root);
-	return apiKey && continuation ? {
+	const continuation = youtubeCatalogContinuation(root);
+	return apiKey ? {
 		apiKey,
 		clientVersion,
 		continuation
 	} : null;
 }
-async function youtubeContinuationBackfill(html, knownIds, channelId, channelName, limit) {
+async function youtubeContinuationBackfill(html, knownIds, channelId, channelName, limit, resumeCursor) {
 	const root = youtubeInitialData(html);
 	const config = root ? youtubeBrowseConfig(html, root) : null;
-	if (!config || limit <= 0) return [];
+	if (!config) return {
+		videos: [],
+		cursor: resumeCursor ?? null,
+		completed: false
+	};
+	if (limit <= 0) return {
+		videos: [],
+		cursor: resumeCursor ?? config.continuation,
+		completed: false
+	};
 	const seen = new Set(knownIds);
 	const videos = [];
-	let continuation = config.continuation;
+	const addPageVideos = (pageData) => {
+		const pageVideos = youtubeRenderers(pageData, 1e5).filter((renderer, index, all) => renderer.videoId && all.findIndex((candidate) => candidate.videoId === renderer.videoId) === index);
+		const room = Math.max(0, limit - videos.length);
+		for (const renderer of pageVideos.slice(0, room)) {
+			const id = renderer.videoId;
+			if (!id || seen.has(id)) continue;
+			seen.add(id);
+			const thumb = renderer.thumbnail?.thumbnails?.at(-1)?.url;
+			videos.push(ytVideo({
+				id,
+				title: rendererText(renderer.title) || `${channelName} video`,
+				published: "1970-01-01T00:00:00.000Z",
+				thumb: thumb || `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+				desc: rendererText(renderer.descriptionSnippet) || `${channelName} public channel catalog item.`,
+				channelId,
+				channelName,
+				views: parsePublicViewCount(rendererText(renderer.viewCountText))
+			}));
+		}
+		return pageVideos.length <= room;
+	};
+	let continuation = resumeCursor ?? config.continuation;
+	const initialCount = root ? youtubeRenderers(root, 31).length : 0;
+	let completed = !continuation && youtubeCatalogHasTerminalPage(root) && initialCount > 0 && initialCount < 30;
+	if (!continuation && /^UC[A-Za-z0-9_-]{20,}$/.test(channelId)) try {
+		const response = await fetch(`https://www.youtube.com/youtubei/v1/browse?key=${encodeURIComponent(config.apiKey)}`, {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				"x-youtube-client-name": "1",
+				"x-youtube-client-version": config.clientVersion
+			},
+			body: JSON.stringify({
+				context: { client: {
+					clientName: "WEB",
+					clientVersion: config.clientVersion
+				} },
+				browseId: `UU${channelId.slice(2)}`
+			}),
+			signal: AbortSignal.timeout(1e4)
+		});
+		if (response.ok) {
+			const pageData = await response.json();
+			const fullyConsumed = addPageVideos(pageData);
+			continuation = youtubeCatalogContinuation(pageData);
+			completed = fullyConsumed && !continuation && youtubeCatalogHasTerminalPage(pageData) && videos.length > 0;
+		}
+	} catch {}
 	for (let page = 0; continuation && page < LIBRARY_LIMITS.youtubeArchivePagesPerPull && videos.length < limit; page += 1) try {
 		const response = await fetch(`https://www.youtube.com/youtubei/v1/browse?key=${encodeURIComponent(config.apiKey)}`, {
 			method: "POST",
@@ -518,27 +676,26 @@ async function youtubeContinuationBackfill(html, knownIds, channelId, channelNam
 		});
 		if (!response.ok) break;
 		const pageData = await response.json();
-		for (const renderer of youtubeRenderers(pageData, limit - videos.length)) {
-			const id = renderer.videoId;
-			if (!id || seen.has(id)) continue;
-			seen.add(id);
-			videos.push(ytVideo({
-				id,
-				title: rendererText(renderer.title) || `${channelName} video`,
-				published: "1970-01-01T00:00:00.000Z",
-				thumb: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
-				desc: rendererText(renderer.descriptionSnippet) || `${channelName} public channel catalog item.`,
-				channelId,
-				channelName,
-				views: parsePublicViewCount(rendererText(renderer.viewCountText))
-			}));
+		const pageToken = continuation;
+		if (!addPageVideos(pageData)) {
+			continuation = pageToken;
+			break;
 		}
-		const next = youtubeContinuation(pageData);
-		continuation = next && next !== continuation ? next : null;
+		const next = youtubeCatalogContinuation(pageData);
+		if (next && next !== continuation) continuation = next;
+		else if (youtubeCatalogHasTerminalPage(pageData) && youtubeRenderers(pageData, 1).length) {
+			continuation = null;
+			completed = true;
+		} else break;
+		if (continuation && videos.length < limit) await new Promise((resolve) => setTimeout(resolve, LIBRARY_LIMITS.youtubeArchivePageGapMs));
 	} catch {
 		break;
 	}
-	return videos;
+	return {
+		videos,
+		cursor: continuation,
+		completed
+	};
 }
 async function youtubeChannelBackfill(channelId, channelName, knownIds, limit) {
 	try {
@@ -605,31 +762,48 @@ async function youtubeFromVideo(id) {
 }
 var YT_INBOX = "youtube:inbox";
 async function youtubeLiveFromChannel(channelId, channelName) {
-	try {
-		const html = await fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}/live`);
-		const match = html.match(/"videoId":"([A-Za-z0-9_-]{11})"[\s\S]{0,3200}?"isLiveNow":true/) ?? html.match(/"isLiveNow":true[\s\S]{0,3200}?"videoId":"([A-Za-z0-9_-]{11})"/);
-		if (!match?.[1]) return null;
-		const id = match[1];
-		const windowStart = Math.max(0, (match.index ?? 0) - 1200);
-		const liveWindow = html.slice(windowStart, (match.index ?? 0) + 4e3);
-		const watchingText = liveWindow.match(/"viewCountText":\{"simpleText":"([^"]+)"/)?.[1] ?? liveWindow.match(/"viewCountText":\{"runs":\[\{"text":"([^"]+)"/)?.[1] ?? "";
-		const video = ytVideo({
-			id,
-			title: `${channelName} live`,
-			published: (/* @__PURE__ */ new Date()).toISOString(),
-			thumb: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
-			desc: `${channelName} is live on YouTube.`,
-			channelId,
-			channelName,
-			live: true,
-			views: parsePublicViewCount(watchingText)
-		});
-		if (video.remote) video.remote.viewers = video.remote.views;
-		video.tagline = `${channelName} is live now`;
-		return video;
-	} catch {
-		return null;
+	const html = await fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}/live`);
+	const match = html.match(/"videoId":"([A-Za-z0-9_-]{11})"[\s\S]{0,3200}?"isLiveNow":true/) ?? html.match(/"isLiveNow":true[\s\S]{0,3200}?"videoId":"([A-Za-z0-9_-]{11})"/);
+	if (!match?.[1]) return null;
+	const id = match[1];
+	const windowStart = Math.max(0, (match.index ?? 0) - 1200);
+	const liveWindow = html.slice(windowStart, (match.index ?? 0) + 4e3);
+	const watchingText = liveWindow.match(/"viewCountText":\{"simpleText":"([^"]+)"/)?.[1] ?? liveWindow.match(/"viewCountText":\{"runs":\[\{"text":"([^"]+)"/)?.[1] ?? "";
+	const video = ytVideo({
+		id,
+		title: `${channelName} live`,
+		published: (/* @__PURE__ */ new Date()).toISOString(),
+		thumb: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+		desc: `${channelName} is live on YouTube.`,
+		channelId,
+		channelName,
+		live: true,
+		views: parsePublicViewCount(watchingText)
+	});
+	if (video.remote) video.remote.viewers = video.remote.views;
+	video.tagline = `${channelName} is live now`;
+	return video;
+}
+async function youtubeLiveForFollow(channel) {
+	let channelId = channel.channelId ?? channel.id.match(/^yt:(UC[A-Za-z0-9_-]{20,})$/)?.[1] ?? "";
+	if (!channelId) {
+		const handle = channel.handle.trim().replace(/^@/, "");
+		channelId = ytChannelIdFromText(await fetchText(/^https?:\/\//i.test(handle) ? handle : `https://www.youtube.com/@${encodeURIComponent(handle)}`)) ?? "";
+		if (!channelId) throw new Error("Could not resolve this YouTube creator for a live check.");
 	}
+	const live = await youtubeLiveFromChannel(channelId, channel.title || channel.handle);
+	const checkedAt = Date.now();
+	return {
+		channel: {
+			...channel,
+			channelId,
+			live: Boolean(live),
+			liveCheckedAt: checkedAt,
+			lastCheckedAt: checkedAt,
+			lastProviderFailure: void 0
+		},
+		videos: live ? [live] : []
+	};
 }
 function boundedFollowResult(result, limit) {
 	const live = result.videos.filter((video) => video.remote?.live);
@@ -684,7 +858,7 @@ function withYoutubeCacheTelemetry(result, entry) {
 		}
 	};
 }
-async function youtubeFromChannelUncoalesced(query, limit = LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, deepCatalog = true, newestKnownVideoId) {
+async function youtubeFromChannelUncoalesced(query, limit = LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, deepCatalog = true, newestKnownVideoId, resumeCursor) {
 	let channelId = "";
 	const trimmed = query.trim();
 	if (/^UC[\w-]{20,}$/.test(trimmed)) channelId = trimmed;
@@ -697,9 +871,9 @@ async function youtubeFromChannelUncoalesced(query, limit = LIBRARY_LIMITS.youtu
 	}
 	const boundedLimit = Math.max(24, Math.min(LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, Math.floor(limit)));
 	const cached = youtubeChannelCache.get(channelId);
-	if (cached && Date.now() - cached.at < YOUTUBE_CHANNEL_CACHE_TTL_MS) {
+	if (!deepCatalog && cached && Date.now() - cached.at < YOUTUBE_CHANNEL_CACHE_TTL_MS) {
 		cached.hits += 1;
-		return youtubeResultForRequest(withYoutubeCacheTelemetry(deepCatalog ? cached.result : {
+		return youtubeResultForRequest(withYoutubeCacheTelemetry({
 			...cached.result,
 			videos: [...cached.result.videos.filter((video) => video.remote?.live), ...cached.feedVideos]
 		}, cached), boundedLimit, deepCatalog, newestKnownVideoId);
@@ -744,11 +918,23 @@ async function youtubeFromChannelUncoalesced(query, limit = LIBRARY_LIMITS.youtu
 			}));
 			if (rows.length >= Math.max(0, boundedLimit - videos.length)) break;
 		}
-		if (rows.length < Math.max(0, boundedLimit - videos.length)) rows.push(...await youtubeContinuationBackfill(channelPage, /* @__PURE__ */ new Set([...feedIds, ...rows.map((video) => video.remote?.videoId).filter((id) => Boolean(id))]), channelId, author, Math.max(0, boundedLimit - videos.length - rows.length)));
-		return rows;
-	})() : deepCatalog ? await youtubeChannelBackfill(channelId, author, feedIds, Math.max(0, boundedLimit - videos.length)) : [];
-	videos.push(...backfill);
-	const live = await youtubeLiveFromChannel(channelId, author);
+		const remaining = Math.max(0, boundedLimit - videos.length - rows.length);
+		const older = await youtubeContinuationBackfill(channelPage, /* @__PURE__ */ new Set([...feedIds, ...rows.map((video) => video.remote?.videoId).filter((id) => Boolean(id))]), channelId, author, remaining, resumeCursor);
+		return {
+			...older,
+			videos: [...rows, ...older.videos]
+		};
+	})() : deepCatalog ? {
+		videos: await youtubeChannelBackfill(channelId, author, feedIds, Math.max(0, boundedLimit - videos.length)),
+		cursor: resumeCursor ?? null,
+		completed: false
+	} : {
+		videos: [],
+		cursor: null,
+		completed: false
+	};
+	videos.push(...backfill.videos);
+	const live = await youtubeLiveFromChannel(channelId, author).catch(() => null);
 	if (live && !videos.some((video) => video.id === live.id)) videos.unshift(live);
 	const result = {
 		channel: {
@@ -759,9 +945,15 @@ async function youtubeFromChannelUncoalesced(query, limit = LIBRARY_LIMITS.youtu
 			channelId,
 			thumb: youtubeChannelAvatar(channelPage),
 			lastCheckedAt: Date.now(),
+			liveCheckedAt: Date.now(),
 			newestPublishedAt: Math.max(0, ...videos.filter((video) => !video.remote?.live).map((video) => video.addedAt)),
 			newestVideoId: newestYoutubeFeedVideoId(feedVideos.map((video) => ({ videoId: video.remote?.videoId }))),
-			lastResponseCount: videos.length
+			lastResponseCount: videos.length,
+			...deepCatalog ? {
+				catalogCursor: backfill.cursor ?? void 0,
+				catalogCheckedAt: Date.now(),
+				catalogExhaustedAt: backfill.completed ? Date.now() : void 0
+			} : {}
 		},
 		videos
 	};
@@ -779,7 +971,7 @@ async function youtubeFromChannelUncoalesced(query, limit = LIBRARY_LIMITS.youtu
 		youtubeChannelCache.set(channelId, cacheEntry);
 		while (youtubeChannelCache.size > YOUTUBE_CHANNEL_CACHE_LIMIT) youtubeChannelCache.delete(youtubeChannelCache.keys().next().value);
 	}
-	return youtubeResultForRequest(withYoutubeCacheTelemetry(result, cacheEntry), boundedLimit, deepCatalog, newestKnownVideoId);
+	return youtubeResultForRequest(withYoutubeCacheTelemetry(result, cacheEntry), deepCatalog ? videos.length : boundedLimit, deepCatalog, newestKnownVideoId);
 }
 function twitchLogin(input) {
 	const raw = input.trim().replaceAll("\\_", "_").replace(/^["'([{<]+|["')\]}>.;:]+$/g, "");
@@ -789,23 +981,23 @@ function twitchLogin(input) {
 		return raw.replace(/^@/, "").replace(/^tw:/, "").replace(/[^a-z0-9_]/gi, "").toLowerCase();
 	}
 }
-function youtubeFromChannel(query, limit = LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, focused = true, deepCatalog = focused, newestKnownVideoId) {
-	return providerRequest("youtube", query, focused, () => youtubeFromChannelUncoalesced(query, limit, deepCatalog, newestKnownVideoId));
+function youtubeFromChannel(query, limit = LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, focused = true, deepCatalog = focused, newestKnownVideoId, resumeCursor) {
+	return providerRequest("youtube", `${query}:${deepCatalog ? "catalog" : "feed"}:${limit}:${resumeCursor ?? "start"}:${newestKnownVideoId ?? "none"}`, focused, () => youtubeFromChannelUncoalesced(query, limit, deepCatalog, newestKnownVideoId, resumeCursor));
 }
-async function youtubeFromPlaylist(input, focused = true) {
+async function youtubeFromPlaylist(input, focused = true, resumeCursor, requestedLimit) {
 	const playlistId = youtubePlaylistId(input);
 	if (!playlistId) throw new Error("Enter a public YouTube playlist URL.");
-	return providerRequest("youtube", `playlist:${playlistId}`, focused, async () => {
+	return providerRequest("youtube", `playlist:${playlistId}:${resumeCursor ?? "start"}:${focused ? "catalog" : "feed"}:${requestedLimit ?? "default"}`, focused, async () => {
 		const html = await fetchText(`https://www.youtube.com/playlist?list=${encodeURIComponent(playlistId)}`);
 		const root = youtubeInitialData(html);
 		if (!root) throw new Error("This playlist did not return public metadata.");
-		const limit = focused ? 300 : 80;
-		const found = publicPlaylistEntries(root, limit);
+		const limit = requestedLimit ?? (focused ? LIBRARY_LIMITS.youtubePlaylistVideosPerPull : 80);
+		const found = resumeCursor ? [] : publicPlaylistEntries(root, Math.max(limit, 100));
 		const seen = new Set(found.map((entry) => entry.id));
 		const apiKey = html.match(/"INNERTUBE_API_KEY":"([^"]+)"/)?.[1];
 		const clientVersion = html.match(/"INNERTUBE_CLIENT_VERSION":"([^"]+)"/)?.[1] ?? "2.20250101.00.00";
 		let browseRoot = root;
-		if (!found.length && apiKey) try {
+		if (!found.length && !resumeCursor && apiKey) try {
 			const response = await fetch(`https://www.youtube.com/youtubei/v1/browse?key=${encodeURIComponent(apiKey)}`, {
 				method: "POST",
 				headers: {
@@ -824,14 +1016,15 @@ async function youtubeFromPlaylist(input, focused = true) {
 			});
 			if (response.ok) {
 				browseRoot = await response.json();
-				for (const entry of publicPlaylistEntries(browseRoot, limit)) if (!seen.has(entry.id)) {
+				for (const entry of publicPlaylistEntries(browseRoot, Math.max(limit, 100))) if (!seen.has(entry.id)) {
 					seen.add(entry.id);
 					found.push(entry);
 				}
 			}
 		} catch {}
-		let continuation = youtubeContinuation(browseRoot);
-		for (let page = 0; continuation && apiKey && page < (focused ? 4 : 1) && found.length < limit; page++) try {
+		let continuation = resumeCursor ?? youtubeCatalogContinuation(browseRoot) ?? youtubeContinuation(browseRoot);
+		let completed = !continuation && found.length > 0;
+		for (let page = 0; continuation && apiKey && page < (focused ? LIBRARY_LIMITS.youtubePlaylistPagesPerPull : 1) && found.length < limit; page++) try {
 			const response = await fetch(`https://www.youtube.com/youtubei/v1/browse?key=${encodeURIComponent(apiKey)}`, {
 				method: "POST",
 				headers: {
@@ -850,12 +1043,17 @@ async function youtubeFromPlaylist(input, focused = true) {
 			});
 			if (!response.ok) break;
 			const pageData = await response.json();
-			for (const entry of publicPlaylistEntries(pageData, limit - found.length)) if (!seen.has(entry.id)) {
+			for (const entry of publicPlaylistEntries(pageData, Math.max(100, limit - found.length))) if (!seen.has(entry.id)) {
 				seen.add(entry.id);
 				found.push(entry);
 			}
-			const next = youtubeContinuation(pageData);
-			continuation = next && next !== continuation ? next : null;
+			const next = youtubeCatalogContinuation(pageData) ?? youtubeContinuation(pageData);
+			if (next && next !== continuation) continuation = next;
+			else {
+				continuation = null;
+				completed = true;
+			}
+			if (continuation && found.length < limit) await new Promise((resolve) => setTimeout(resolve, LIBRARY_LIMITS.youtubeArchivePageGapMs));
 		} catch {
 			break;
 		}
@@ -885,7 +1083,12 @@ async function youtubeFromPlaylist(input, focused = true) {
 				thumb: videos[0]?.poster,
 				lastCheckedAt: Date.now(),
 				newestVideoId: found[0]?.id,
-				lastResponseCount: videos.length
+				lastResponseCount: videos.length,
+				...focused ? {
+					catalogCursor: continuation ?? void 0,
+					catalogCheckedAt: Date.now(),
+					catalogExhaustedAt: completed ? Date.now() : void 0
+				} : {}
 			},
 			videos
 		};
@@ -1191,22 +1394,22 @@ async function followTwitchUncoalesced(query, compact = false, clipLimit) {
 	return result;
 }
 function followTwitch(query, compact = false, clipLimit) {
-	return providerRequest("twitch", query, !compact, () => followTwitchUncoalesced(query, compact, clipLimit));
+	return providerRequest("twitch", `${query}:${compact ? "routine" : "focused"}:${clipLimit ?? "default"}`, !compact, () => followTwitchUncoalesced(query, compact, clipLimit), query);
 }
 async function runFollowRemote(dataRaw) {
 	const data = parseFollow(dataRaw);
 	if ((data.kind === "auto" ? guessKind(data.query) : data.kind) === "twitch") return followTwitch(data.query, false, data.clipLimit);
-	if (youtubePlaylistId(data.query)) return youtubeFromPlaylist(data.query);
+	if (youtubePlaylistId(data.query)) return youtubeFromPlaylist(data.query, true, data.catalogCursor, LIBRARY_LIMITS.youtubeManualRefreshVideosPerChannel);
 	const videoId = ytVideoId(data.query);
 	if (videoId) return youtubeFromVideo(videoId);
-	return youtubeFromChannel(data.query);
+	return youtubeFromChannel(data.query, LIBRARY_LIMITS.youtubeManualRefreshVideosPerChannel, true, true, void 0, data.catalogCursor);
 }
 async function runRefreshRemotes(dataRaw) {
 	const data = parseRefresh(dataRaw);
 	const videos = [];
 	const channels = [];
 	const refreshedIds = [];
-	await mapPool(data.channels, 6, async (ch) => {
+	await mapPool(data.channels, data.youtubeCatalog ? 1 : data.youtubeLiveOnly || data.backgroundLive ? 2 : 3, async (ch) => {
 		try {
 			if (ch.kind === "twitch") {
 				const next = await followTwitch(ch.handle, true);
@@ -1220,15 +1423,26 @@ async function runRefreshRemotes(dataRaw) {
 					...video,
 					folderId: ch.id
 				})));
+			} else if (data.youtubeLiveOnly) {
+				const next = await youtubeLiveForFollow(ch);
+				channels.push({
+					...ch,
+					...next.channel,
+					id: ch.id
+				});
+				videos.push(...next.videos.map((video) => ({
+					...video,
+					folderId: ch.id
+				})));
 			} else {
 				const q = ch.channelId ? `https://www.youtube.com/channel/${ch.channelId}` : ch.handle;
-				const next = ch.id.startsWith("ytpl:") ? await youtubeFromPlaylist(ch.handle, false) : await youtubeFromChannel(q, LIBRARY_LIMITS.youtubeRoutineVideosPerChannel, false, false, ch.newestVideoId);
+				const next = ch.id.startsWith("ytpl:") ? await youtubeFromPlaylist(ch.handle, data.youtubeCatalog, data.youtubeCatalog ? ch.catalogCursor : void 0, data.youtubeBackground ? LIBRARY_LIMITS.youtubeScheduledVideosPerChannel : void 0) : data.youtubeCatalog ? await youtubeFromChannel(q, data.youtubeBackground ? LIBRARY_LIMITS.youtubeScheduledVideosPerChannel : LIBRARY_LIMITS.youtubeManualRefreshVideosPerChannel, true, true, void 0, ch.catalogCursor) : await youtubeFromChannel(q, LIBRARY_LIMITS.youtubeRoutineVideosPerChannel, false, false, ch.newestVideoId);
 				channels.push({
 					...ch,
 					...next.channel,
 					id: ch.id,
 					thumb: next.channel.thumb || ch.thumb,
-					newestVideoId: next.channel.newestVideoId ?? ch.newestVideoId,
+					newestVideoId: ch.id.startsWith("ytpl:") && data.youtubeCatalog ? ch.newestVideoId ?? next.channel.newestVideoId : next.channel.newestVideoId ?? ch.newestVideoId,
 					lastProviderFailure: void 0
 				});
 				videos.push(...next.videos.map((video) => ({
@@ -1240,6 +1454,8 @@ async function runRefreshRemotes(dataRaw) {
 		} catch (error) {
 			channels.push({
 				...ch,
+				...ch.kind === "youtube" && data.youtubeCatalog ? { catalogCheckedAt: Date.now() } : {},
+				...ch.kind === "youtube" && data.youtubeLiveOnly ? { liveCheckedAt: Date.now() } : {},
 				lastProviderFailure: classifyProviderFailure(ch.kind, error)
 			});
 		}
@@ -1292,7 +1508,7 @@ async function runImportChannels(dataRaw) {
 	const rows = await mapPool(data.items, 6, async (item) => {
 		for (let attempt = 0; attempt < 2; attempt += 1) try {
 			if (item.kind === "twitch") return await followTwitch(item.query, compact);
-			return youtubePlaylistId(item.query) ? await youtubeFromPlaylist(item.query, !compact) : await youtubeFromChannel(item.query, compact ? LIBRARY_LIMITS.youtubeBulkImportVideosPerChannel : LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, true, !compact);
+			return youtubePlaylistId(item.query) ? await youtubeFromPlaylist(item.query, !compact) : await youtubeFromChannel(item.query, compact ? LIBRARY_LIMITS.youtubeBulkImportVideosPerChannel : LIBRARY_LIMITS.youtubeManualRefreshVideosPerChannel, true, !compact);
 		} catch {
 			if (!attempt) await new Promise((resolve) => setTimeout(resolve, 350));
 		}
@@ -3106,7 +3322,7 @@ async function fetchYoutubeComments(videoId, limit) {
 		};
 		const comments = [];
 		const seen = /* @__PURE__ */ new Set();
-		for (let page = 0; page < 2 && comments.length < limit && continuation; page += 1) {
+		for (let page = 0; page < LIBRARY_LIMITS.youtubeCommentPagesPerPull && comments.length < limit && continuation; page += 1) {
 			const pageData = await postNext({ continuation });
 			if (!pageData) break;
 			for (const row of youtubeCommentEntities(pageData, limit - comments.length)) {

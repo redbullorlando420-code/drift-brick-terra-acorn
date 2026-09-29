@@ -28,6 +28,16 @@ test("continuation responses read appended video items", () => {
   assert.equal(youtubeCatalogContinuation(root), "next-page");
 });
 
+test("continuation responses read reload items used by refreshed Videos tabs", () => {
+  const items = [
+    { richItemRenderer: { content: { lockupViewModel: { contentId: "reloaded-video" } } } },
+    { continuationItemRenderer: { continuationEndpoint: { continuationCommand: { token: "reloaded-next" } } } },
+  ];
+  const root = { onResponseReceivedEndpoints: [{ reloadContinuationItemsCommand: { continuationItems: items } }] };
+  assert.equal(youtubeCatalogItems(root), items);
+  assert.equal(youtubeCatalogContinuation(root), "reloaded-next");
+});
+
 test("a populated Videos grid is recognized when YouTube omits the selected flag", () => {
   const videos = [{ videoRenderer: { videoId: "video-three" } }, { continuationItemRenderer: { continuationEndpoint: { continuationCommand: { token: "videos-next" } } } }];
   const root = { contents: { twoColumnBrowseResultsRenderer: { tabs: [

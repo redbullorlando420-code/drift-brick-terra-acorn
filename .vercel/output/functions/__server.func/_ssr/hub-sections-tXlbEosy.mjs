@@ -1,11 +1,15 @@
 import { o as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
-import { B as isAdultPullKind, I as getAdultPreviewHealth, R as isAdultImageKind } from "./adult-pull-cache-CS134UtB.mjs";
-import { $ as ImagePlus, C as Settings2, Ct as ChevronRight, D as RefreshCw, Dt as ChartColumn, E as Rocket, F as MonitorPlay, J as Lightbulb, M as PackageSearch, N as Music2, O as Radio, Ot as Box, R as MessageCircle, S as ShieldCheck, V as Maximize2, X as Laptop, Z as Images, _ as Smartphone, _t as Download, at as Gamepad2, b as Shuffle, c as Upload, h as Star, ht as ExternalLink, j as Pause, k as Play, kt as Bot, mt as EyeOff, n as X, nt as Heart, pt as Eye, r as Wifi, s as Users, w as Search, wt as ChevronLeft, x as ShoppingBag, xt as Clapperboard, yt as Copy } from "../_libs/lucide-react.mjs";
-import { $ as companionInspectMedia, A as topicEvidence, B as toggleTagLike, C as isAdultVideo, D as useSourceAssets, E as resolveCreatorCoverage, F as getWatchTime, G as loadDurablePhotosSync, H as getInteractionBudgetSnapshot, I as getWatchTimeLedger, J as companionAckJobs, K as restoreDurablePhotos, L as ratingPreference, M as exportFeedback, N as getFeedbackDiagnostics, O as canonicalTopic, P as getRating, Q as companionImportLibraryPack, R as setRating, S as Button, T as useLibrary, U as measureInteraction, V as watchTimeScore, W as linksFromHistoryAndResume, X as companionExportLibraryPack, Y as companionArtworkAudit, Z as companionHealth, _ as openTopic, a as getFirstShelfTrace, at as createLocalId, b as getThumbDiagnostics, c as buildLibraryPackFiles, d as buildAdultStatsSnapshot, et as companionListPrints, f as exportAdultStats, g as Input, h as countAdultBySource, i as listNetworkDevices, it as companionSteamEpicGames, j as topicsForVideo, k as isTopicTag, l as downloadLibraryPackZip, m as countAdultBooruHosts, n as AdultComments, nt as companionSavePrint, o as twitchEmbedUrl, ot as createShortLocalId, p as rankAdultTags, q as saveDurablePhotos, r as getNetworkDeviceId, rt as companionSetAutostart, s as applyLibraryPackFiles, st as __exportAll, tt as companionReadPrint, u as importLibraryPackZip, v as VideoCard, w as resumeForVideo, x as useThumbs, y as getRenderBudgetSnapshot, z as tagIsLiked } from "./routes-D8eQUF0H.mjs";
+import { Bt as topicsForVideo, C as exportFeedback, D as getFeedbackDiagnostics, F as getYoutubeFirstClickTrace, Ft as tagIsLiked, H as isTopicTag, Ht as useSourceAssets, I as getYoutubeTraceRevision, Jt as Input, K as loadDurablePhotosSync, N as getWatchTime, Nt as subscribeYoutubeTrace, P as getWatchTimeLedger, Rt as toggleTagLike, Vt as useLibrary, W as linksFromHistoryAndResume, Wt as watchTimeScore, Z as measureInteraction, _ as companionSetAutostart, a as canonicalTopic, at as restoreDurablePhotos, b as createShortLocalId, d as companionHealth, et as ratingPreference, f as companionImportLibraryPack, g as companionSavePrint, h as companionReadPrint, j as getRating, jt as setRating, k as getInteractionBudgetSnapshot, l as companionExportLibraryPack, m as companionListPrints, o as companionAckJobs, ot as resumeForVideo, p as companionInspectMedia, qt as Button, rt as resolveCreatorCoverage, s as companionArtworkAudit, ut as saveDurablePhotos, v as companionSteamEpicGames, y as createLocalId, z as isAdultVideo, zt as topicEvidence } from "./store-uZbLuJol.mjs";
+import { I as isAdultImageKind, P as getAdultPreviewHealth, R as isAdultPullKind } from "./adult-pull-cache-CM6xh6_t.mjs";
+import { a as countAdultBySource, i as countAdultBooruHosts, l as rankAdultTags } from "./adult-rank-Bn2wocg4.mjs";
+import { $ as ImagePlus, At as Bot, C as Settings2, D as RefreshCw, E as Rocket, F as MonitorPlay, J as Lightbulb, M as PackageSearch, N as Music2, O as Radio, Ot as ChartColumn, R as MessageCircle, S as ShieldCheck, Tt as ChevronLeft, V as Maximize2, X as Laptop, Z as Images, _ as Smartphone, _t as Download, at as Gamepad2, b as Shuffle, c as Upload, h as Star, ht as ExternalLink, j as Pause, k as Play, kt as Box, mt as EyeOff, n as X, nt as Heart, pt as Eye, r as Wifi, s as Users, w as Search, wt as ChevronRight, x as ShoppingBag, xt as Clapperboard, yt as Copy } from "../_libs/lucide-react.mjs";
+import { t as openTopic } from "./topic-navigation-CjFyUSel.mjs";
+import { r as twitchEmbedUrl, t as AdultComments } from "./adult-comments-Is6oMx6A.mjs";
+import { S as useThumbs, _ as __exportAll, b as getThumbDiagnostics, c as getFirstShelfTrace, d as downloadLibraryPackZip, f as importLibraryPackZip, g as getRenderBudgetSnapshot, h as VideoCard, l as applyLibraryPackFiles, m as exportAdultStats, o as getNetworkDeviceId, p as buildAdultStatsSnapshot, s as listNetworkDevices, u as buildLibraryPackFiles } from "./routes-CcbccQuN.mjs";
 import { a as Bar, c as ResponsiveContainer, i as XAxis, l as Tooltip, n as BarChart, o as Pie, r as YAxis, s as Cell, t as PieChart } from "../_libs/recharts+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/hub-sections-ly0PoLFx.js
+//#region node_modules/.nitro/vite/services/ssr/assets/hub-sections-tXlbEosy.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function TopicLinks({ explorer = false }) {
@@ -430,6 +434,32 @@ function ArtworkAuditPanel() {
 			})
 		]
 	});
+}
+var MISSION_PLAN_REVISION_KEY = "reelcase.mission-plan.revision";
+/** Apply newly verified defaults once, without resetting later manual status changes. */
+function mergeMissionPlan(saved, defaults, previousRevision) {
+	if (!saved) return defaults;
+	const defaultsById = new Map(defaults.map((mission) => [mission.id, mission]));
+	const savedIds = new Set(saved.map((mission) => mission.id));
+	const migrateOriginalCompletions = previousRevision < 2;
+	const migrateHydrationCompletion = previousRevision < 3;
+	const migrateYoutubeTraceCompletion = previousRevision < 4;
+	const migrateYoutubeArtworkCompletion = previousRevision < 5;
+	return [...saved.map((item) => {
+		const current = defaultsById.get(item.id);
+		if (!current) return item;
+		const promoted = current.done && (migrateOriginalCompletions || migrateHydrationCompletion && item.id === "recent-saved-library-hydration" || migrateYoutubeTraceCompletion && item.id === "youtube-upgrade-03" || migrateYoutubeArtworkCompletion && item.id === "youtube-upgrade-05");
+		const done = Boolean(item.done || promoted);
+		const savedStatus = item.status === "planned" || item.status === "in-progress" || item.status === "blocked" ? item.status : void 0;
+		return {
+			...current,
+			...item,
+			title: current.title,
+			detail: current.detail,
+			done,
+			status: done ? "complete" : savedStatus ?? current.status ?? "planned"
+		};
+	}), ...defaults.filter((mission) => !savedIds.has(mission.id))];
 }
 /** Local IndexedDB store for 3D print file bytes (viewer only). Metadata stays in localStorage. */
 var DB_NAME = "reelcase-prints";
@@ -1703,7 +1733,7 @@ var hub_sections_exports = /* @__PURE__ */ __exportAll({
 	WatchRoomSection: () => WatchRoomSection
 });
 var PrintModelViewer = (0, import_react.lazy)(async () => {
-	return { default: (await import("./print-model-viewer-CWWodAjc.mjs")).PrintModelViewer };
+	return { default: (await import("./print-model-viewer-DzhL9tMT.mjs")).PrintModelViewer };
 });
 var HUB_KEY = "reelcase.hub.v1";
 function gameKind(item) {
@@ -2264,6 +2294,7 @@ function StatsSection() {
 	const progress = useLibrary((s) => s.progress);
 	const resumeProgress = useLibrary((s) => s.resumeProgress);
 	const viewCounts = useLibrary((s) => s.viewCounts);
+	const pullHistory = useLibrary((s) => s.pullHistory);
 	const [showAllSources, setShowAllSources] = (0, import_react.useState)(false);
 	const [remediationView, setRemediationView] = (0, import_react.useState)("");
 	const [favoriteRevision, setFavoriteRevision] = (0, import_react.useState)(0);
@@ -2562,6 +2593,15 @@ function StatsSection() {
 		};
 	}, [folderRows, summary.totalBytes]);
 	const visibleFolderRows = showAllSources ? folderRows : folderRows.slice(0, 80);
+	const pullTotals = (0, import_react.useMemo)(() => ({
+		runs: pullHistory.length,
+		successful: pullHistory.filter((run) => run.status === "success").length,
+		partial: pullHistory.filter((run) => run.status === "partial").length,
+		failed: pullHistory.filter((run) => run.status === "failed").length,
+		checked: pullHistory.reduce((sum, run) => sum + run.done, 0),
+		returned: pullHistory.reduce((sum, run) => sum + run.received, 0),
+		added: pullHistory.reduce((sum, run) => sum + run.added, 0)
+	}), [pullHistory]);
 	const exportStats = () => {
 		const stamp = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
 		const feedback = exportFeedback();
@@ -2574,6 +2614,13 @@ function StatsSection() {
 			["local_storage_bytes", summary.totalBytes],
 			["topic_tag_assignments", summary.tagAssignments],
 			["favorites", Object.keys(favorites).length],
+			["pull_runs_retained", pullTotals.runs],
+			["pull_successful_runs", pullTotals.successful],
+			["pull_partial_runs", pullTotals.partial],
+			["pull_failed_runs", pullTotals.failed],
+			["pull_creators_checked", pullTotals.checked],
+			["pull_videos_returned", pullTotals.returned],
+			["pull_new_videos", pullTotals.added],
 			["local_titles", summary.localTitles],
 			["remote_titles", summary.remoteTitles],
 			["untagged_titles", summary.untaggedTitles],
@@ -2760,6 +2807,160 @@ function StatsSection() {
 								className: "mt-2 text-xs text-muted",
 								children: "Tags inherit watch time from videos you play."
 							})]
+						})]
+					})
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", {
+				className: "mt-5 rounded-xl border border-border bg-surface p-5 shadow-border",
+				"aria-label": "Pull success statistics",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "flex flex-wrap items-start justify-between gap-3",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-xs font-medium tracking-[0.14em] text-accent uppercase",
+								children: "Pull success"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+								className: "mt-2 font-display text-2xl text-fg",
+								children: "Know what updated—and what didn’t."
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-1 max-w-2xl text-sm text-muted",
+								children: "Recent refresh, archive, import, and creator-pull results are saved locally. A returned count can include already-cached videos; “new” counts only additions."
+							})
+						] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+							className: "rounded-full bg-bg/55 px-3 py-1 text-xs text-muted",
+							children: [pullTotals.runs, " recent runs retained"]
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-6",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rounded-md bg-elevated p-3",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-xs text-muted",
+									children: "Clean-run rate"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-1 font-display text-2xl tabular-nums text-fg",
+									children: pullTotals.runs ? `${Math.round(pullTotals.successful / pullTotals.runs * 100)}%` : "—"
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rounded-md bg-elevated p-3",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-xs text-muted",
+									children: "Successful"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-1 font-display text-2xl tabular-nums text-fg",
+									children: pullTotals.successful.toLocaleString()
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rounded-md bg-elevated p-3",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-xs text-muted",
+									children: "Partial"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-1 font-display text-2xl tabular-nums text-fg",
+									children: pullTotals.partial.toLocaleString()
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rounded-md bg-elevated p-3",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-xs text-muted",
+									children: "Failed"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-1 font-display text-2xl tabular-nums text-fg",
+									children: pullTotals.failed.toLocaleString()
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rounded-md bg-elevated p-3",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-xs text-muted",
+									children: "Targets checked"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "mt-1 font-display text-2xl tabular-nums text-fg",
+									children: pullTotals.checked.toLocaleString()
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rounded-md bg-elevated p-3",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "text-xs text-muted",
+									children: "Videos returned · new"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+									className: "mt-1 font-display text-2xl tabular-nums text-fg",
+									children: [
+										pullTotals.returned.toLocaleString(),
+										" ",
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+											className: "text-sm text-muted",
+											children: ["· ", pullTotals.added.toLocaleString()]
+										})
+									]
+								})]
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "mt-4 divide-y divide-border rounded-md bg-bg/35",
+						children: [pullHistory.slice(0, 12).map((run) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
+							className: "px-3 py-3",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("summary", {
+									className: "flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 text-sm",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "min-w-24 font-medium text-fg",
+											children: run.provider === "youtube" ? "YouTube" : run.provider === "twitch" ? "Twitch" : run.provider === "adult" ? "Adult sources" : run.provider === "photos" ? "Photos" : "Multiple sources"
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "text-muted",
+											children: run.action
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+											className: "ml-auto text-xs text-muted",
+											children: [
+												run.done,
+												"/",
+												run.total,
+												" targets · ",
+												run.received,
+												" returned · ",
+												run.added,
+												" new · ",
+												run.failed,
+												" failed"
+											]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: `rounded-full px-2 py-0.5 text-xs ${run.status === "success" ? "bg-accent/15 text-accent" : run.status === "partial" ? "bg-bg text-fg" : "bg-danger/15 text-danger"}`,
+											children: run.status
+										})
+									]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+									className: "mt-2 text-xs text-muted",
+									children: [
+										new Date(run.finishedAt).toLocaleString(),
+										" · ",
+										run.targets.slice(0, 8).join(", "),
+										run.targets.length > 8 ? ` + ${run.targets.length - 8} more` : ""
+									]
+								}),
+								run.errors?.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
+									className: "mt-2 space-y-1 text-xs text-danger",
+									children: run.errors.map((error, index) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: error }, `${run.id}:${index}`))
+								}) : null
+							]
+						}, run.id)), !pullHistory.length && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "px-3 py-4 text-sm text-muted",
+							children: "Pull results will appear here after your next refresh or creator pull."
 						})]
 					})
 				]
@@ -4525,6 +4726,29 @@ function metadataSourceLabel(source) {
 	if (source === "local") return "Local files";
 	return source.split("-").map((part) => part ? `${part[0].toUpperCase()}${part.slice(1)}` : part).join(" ");
 }
+function YoutubeFirstClickDiagnostic() {
+	(0, import_react.useSyncExternalStore)(subscribeYoutubeTrace, getYoutubeTraceRevision, () => 0);
+	const trace = getYoutubeFirstClickTrace();
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "mt-2 rounded-sm bg-bg/45 p-3 text-xs leading-5 text-muted",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				className: "font-medium text-fg",
+				children: "YouTube first-click trace"
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: !trace ? "Open YouTube to record a local timing sample." : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+				trace.railReadyMs === void 0 ? "Waiting for the first available upload" : `${trace.railReadyMs}ms to ${trace.railCards} text-first cards`,
+				` · selector ${trace.selectorMs ?? "…"}ms work / ${trace.selectorReadyMs ?? "…"}ms ready · ${trace.catalogRows ?? 0} cached rows`,
+				` · artwork ${trace.artwork === "pending" ? "pending" : trace.artwork === "loaded" ? `${trace.artworkWaitMs ?? 0}ms after cards` : "deferred or unavailable"}`,
+				` · provider ${trace.provider === "idle" ? "not needed" : `${trace.providerOverlapMs}ms overlap (${trace.provider})`}`
+			] }) }),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				className: "text-subtle",
+				children: "Local timings only; cached cards do not wait for artwork or a provider request."
+			})
+		]
+	});
+}
 function SettingsSection() {
 	const [hub, setHub] = (0, import_react.useState)({
 		prints: [],
@@ -5794,8 +6018,9 @@ function SettingsSection() {
 								detail: "Saved channels",
 								checked: remoteCheckedAt,
 								action: async () => {
-									const result = await refreshFollows();
-									setServiceNote(`Refreshed channel cache · ${result.newVideos.length} new items.`);
+									const result = await refreshFollows("youtube", { catalog: true });
+									const status = useLibrary.getState().remoteRefreshStatus;
+									setServiceNote(status?.failed === status?.checked ? "YouTube refresh failed. Check channel health." : `Refreshed YouTube catalog · ${result.newVideos.length} videos added from ${status?.refreshed ?? 0} channels.`);
 								}
 							},
 							{
@@ -5994,7 +6219,8 @@ function SettingsSection() {
 											children: debugReport
 										})
 									]
-								})
+								}),
+								debugEnabled && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(YoutubeFirstClickDiagnostic, {})
 							]
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -9239,7 +9465,7 @@ var DEFAULT_MISSIONS = [
 	{
 		id: "warp-02",
 		title: "Route-level code splitting",
-		detail: "Photo, Stats, Watch Room, Settings, and other hub workspaces now load only when opened, keeping media browsing out of their first-load cost.",
+		detail: "Done · Hub workspaces plus Adult controls, the video preview/player, and the local guide load on demand. The opening Home route no longer downloads those screens before it is usable.",
 		done: true
 	},
 	{
@@ -9598,17 +9824,17 @@ var ROADMAP_EXPANSION = [
 		[
 			"youtube-upgrade-03",
 			"First-click trace",
-			"Record time from choosing YouTube to its first usable latest-upload rail, split into catalog selector, image work, and provider work without collecting viewing data."
+			"Done · YouTube Pull health and Settings diagnostics show local timing from opening YouTube to mounted text-first latest-upload cards, with selector work, artwork, and overlapping provider work separated. No viewing identities are recorded."
 		],
 		[
 			"youtube-upgrade-04",
 			"Rail windowing",
-			"Keep keyboard and touch navigation intact while mounting only the visible window of long YouTube rails, including an accessible count of deferred cards."
+			"Done · long YouTube rails mount a measured card window with accessible deferred-card counts, keyboard arrows/Home/End, and focus bridges. The 80,000-video desktop/mobile check passes."
 		],
 		[
 			"youtube-upgrade-05",
 			"Artwork priority",
-			"Queue visible and near-view thumbnails before offscreen cards, cancel obsolete image work on source changes, and preserve text-first cards when artwork is unavailable."
+			"Done · on-screen cards take the high-priority image lane, near-view cards use a cancellable low-priority lane, and non-primary offscreen rails defer mounting. Source changes invalidate queued speculative images; titles and actions remain usable while artwork loads or fails."
 		],
 		[
 			"youtube-upgrade-06",
@@ -9628,7 +9854,7 @@ var ROADMAP_EXPANSION = [
 		[
 			"youtube-upgrade-09",
 			"Deep-pull checkpoint",
-			"Make deep historical pulls resumable per channel with a visible item/page budget and a saved checkpoint; pause safely when provider data stops advancing."
+			"Done · each creator keeps its catalog continuation and last-check state across reloads. Bounded page/item budgets resume older uploads, detect terminal pages, and stop when continuation data cannot advance."
 		],
 		[
 			"youtube-upgrade-10",
@@ -9692,6 +9918,10 @@ var ROADMAP_EXPANSION = [
 		done: [
 			"youtube-upgrade-01",
 			"youtube-upgrade-02",
+			"youtube-upgrade-03",
+			"youtube-upgrade-04",
+			"youtube-upgrade-05",
+			"youtube-upgrade-09",
 			"youtube-upgrade-10",
 			"youtube-upgrade-11",
 			"youtube-upgrade-12",
@@ -9857,7 +10087,7 @@ var ROADMAP_EXPANSION = [
 		[
 			"speed-07",
 			"Route warmup policy",
-			"Warm only the next likely route after the current page is visibly settled, cancel speculative work on navigation, and never fetch a hub just because it exists."
+			"Done · one likely Hub module warms after paint and idle time, with Home recommendations given priority. Pending warmup is canceled on navigation or a hidden tab; Save-Data, slow networks, low memory, and active input defer it."
 		],
 		[
 			"speed-08",
@@ -9878,7 +10108,11 @@ var ROADMAP_EXPANSION = [
 		id,
 		title,
 		detail,
-		done: ["speed-04", "speed-05"].includes(id)
+		done: [
+			"speed-04",
+			"speed-05",
+			"speed-07"
+		].includes(id)
 	})),
 	...[
 		[
@@ -9953,27 +10187,65 @@ var ROADMAP_EXPANSION = [
 			"smooth-07",
 			"smooth-08"
 		].includes(id)
-	}))
+	})),
+	{
+		id: "recent-remote-cache-pages",
+		title: "Paged remote catalog recovery",
+		detail: "Done · saved provider cards restore in bounded 512-row IndexedDB pages instead of one cursor callback per card. Legacy snapshot rows remain readable; an 80,000-video desktop/mobile restore passes.",
+		done: true
+	},
+	{
+		id: "recent-tag-enrichment",
+		title: "Low-allocation tag recovery",
+		detail: "Done · cached provider tags share compiled taxonomy rules, compute inferred tags once per card, and leave already complete provenance untouched. Manual tag locks remain authoritative.",
+		done: true
+	},
+	{
+		id: "recent-resume-reconcile",
+		title: "Sparse Continue recovery",
+		detail: "Done · empty resume maps skip the catalog walk and watched cards resolve stable ID, provider URL, source URL, and path aliases without per-card Set allocations.",
+		done: true
+	},
+	{
+		id: "recent-youtube-sweep",
+		title: "Fair YouTube archive schedule",
+		detail: "Done · hourly background archive sweeps use a small rotating creator budget, recent and live checks have separate clocks, and manual pulls can walk deeper across every eligible creator or playlist. Cursor tests cover reloads and successive next-creator pulls.",
+		done: true
+	},
+	{
+		id: "recent-pull-ledger",
+		title: "Cross-site pull outcomes",
+		detail: "Done · active target and returned/new/failure counts appear during pulls; a bounded local result ledger feeds pull-success statistics and failure details in Stats.",
+		done: true
+	},
+	{
+		id: "recent-cold-home-readiness",
+		title: "Cold Home readiness proof",
+		detail: "The first production snapshot shows the Home shell while recommendations are still preparing. Measure time to the full interactive Home state on cold and warm launches, then reduce or clearly budget the remaining delay.",
+		done: false,
+		status: "in-progress"
+	},
+	{
+		id: "recent-saved-library-hydration",
+		title: "Saved-library hydration integrity",
+		detail: "Done · the first client snapshot now matches the server; saved pull results restore after mount. Populated desktop and phone profiles reload with the result and Mission plan intact and no hydration error.",
+		done: true
+	},
+	{
+		id: "recent-provider-soak",
+		title: "Real-provider archive soak",
+		detail: "Exercise large YouTube/Twitch follow lists under provider limits, confirm fair rotation and retry timing, and record catalog growth, memory pressure, and live-check latency without increasing automatic pull budgets.",
+		done: false,
+		status: "planned"
+	}
 ];
 var ALL_DEFAULT_MISSIONS = [...DEFAULT_MISSIONS, ...ROADMAP_EXPANSION];
 function MissionPlanSection() {
 	const [missions, setMissions] = (0, import_react.useState)(() => {
 		try {
 			const saved = JSON.parse(localStorage.getItem("reelcase.mission-plan.v1") ?? "null");
-			return Array.isArray(saved) ? [...saved.map((item) => {
-				const current = ALL_DEFAULT_MISSIONS.find((mission) => mission.id === item.id);
-				if (!current) return item;
-				const done = item.done || current.done;
-				const savedStatus = item.status === "planned" || item.status === "in-progress" || item.status === "blocked" ? item.status : void 0;
-				return {
-					...current,
-					...item,
-					title: current.title,
-					detail: current.detail,
-					done,
-					status: done ? "complete" : savedStatus ?? current.status ?? "planned"
-				};
-			}), ...ALL_DEFAULT_MISSIONS.filter((mission) => !saved.some((item) => item.id === mission.id))] : ALL_DEFAULT_MISSIONS;
+			const revision = Number(localStorage.getItem("reelcase.mission-plan.revision") ?? "0");
+			return mergeMissionPlan(Array.isArray(saved) ? saved : null, ALL_DEFAULT_MISSIONS, Number.isFinite(revision) ? revision : 0);
 		} catch {
 			return ALL_DEFAULT_MISSIONS;
 		}
@@ -9984,6 +10256,7 @@ function MissionPlanSection() {
 	(0, import_react.useEffect)(() => {
 		try {
 			localStorage.setItem("reelcase.mission-plan.v1", JSON.stringify(missions));
+			localStorage.setItem(MISSION_PLAN_REVISION_KEY, String(5));
 		} catch {}
 	}, [missions]);
 	const completed = missions.filter((mission) => missionStatus(mission) === "complete").length;
@@ -11020,7 +11293,7 @@ function LocalCatalog({ kind, eyebrow, icon, title, copy, accept, directory, foo
 								let saved = 0;
 								for (const item of items.slice(0, 20)) {
 									if (!item.id || !isViewablePrintName(item.name)) continue;
-									const { loadPrintBlob } = await import("./prints-blobs-3BsYtcE3.mjs");
+									const { loadPrintBlob } = await import("./prints-blobs-Dgv0xm_D.mjs");
 									const record = await loadPrintBlob(item.id);
 									if (!record?.blob) continue;
 									const buffer = new Uint8Array(await record.blob.arrayBuffer());

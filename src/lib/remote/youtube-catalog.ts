@@ -4,8 +4,8 @@ export function youtubeCatalogItems(root: unknown): unknown[] | null {
   if (!root || typeof root !== "object") return null;
   const page = root as {
     contents?: { twoColumnBrowseResultsRenderer?: { tabs?: Array<{ tabRenderer?: { selected?: boolean; title?: string; content?: { richGridRenderer?: { contents?: unknown[] } } } }> } };
-    onResponseReceivedActions?: Array<{ appendContinuationItemsAction?: { continuationItems?: unknown[] } }>;
-    onResponseReceivedEndpoints?: Array<{ appendContinuationItemsAction?: { continuationItems?: unknown[] } }>;
+    onResponseReceivedActions?: Array<{ appendContinuationItemsAction?: { continuationItems?: unknown[] }; reloadContinuationItemsCommand?: { continuationItems?: unknown[] } }>;
+    onResponseReceivedEndpoints?: Array<{ appendContinuationItemsAction?: { continuationItems?: unknown[] }; reloadContinuationItemsCommand?: { continuationItems?: unknown[] } }>;
   };
   const tabs = page.contents?.twoColumnBrowseResultsRenderer?.tabs ?? [];
   const hasGrid = (tab: typeof tabs[number]) => Array.isArray(tab.tabRenderer?.content?.richGridRenderer?.contents);
@@ -19,7 +19,11 @@ export function youtubeCatalogItems(root: unknown): unknown[] | null {
   const populatedTabs = tabs.filter(hasGrid);
   if (populatedTabs.length === 1) return populatedTabs[0].tabRenderer!.content!.richGridRenderer!.contents!;
   for (const action of [...(page.onResponseReceivedActions ?? []), ...(page.onResponseReceivedEndpoints ?? [])]) {
-    const items = action.appendContinuationItemsAction?.continuationItems;
+    // WEB has used both appendContinuationItemsAction and
+    // reloadContinuationItemsCommand for the same Videos-grid continuation.
+    // The latter is common after a tab/filter refresh and must remain inside
+    // the catalog boundary so its next token is not lost.
+    const items = action.appendContinuationItemsAction?.continuationItems ?? action.reloadContinuationItemsCommand?.continuationItems;
     if (Array.isArray(items)) return items;
   }
   return null;
