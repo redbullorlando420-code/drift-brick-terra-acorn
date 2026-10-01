@@ -1,4 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { useShallow } from 'zustand/react/shallow';
+import { cardVisibility, type CardVisibility } from '@/lib/card-visibility';
+import { folderIsPrivate } from '@/lib/videos/folder-privacy';
 import { warmVideoPreview } from "./video-overlay-loader";
 import { allowCardArtwork } from "@/lib/session-activity";
 import { useSessionPhase } from "@/lib/use-session-phase";
@@ -20,7 +23,7 @@ import { toast } from "sonner";
 import { getRating, setRating as setMediaRating } from "@/lib/media-feedback";
 import { registerMountedCard } from "@/lib/render-budget";
 import { measureInteraction } from "@/lib/interaction-budget";
-import { acquireImageSlot } from "@/lib/videos/image-load-budget";
+import { acquireImageSlot, isArtworkSuppressed } from "@/lib/videos/image-load-budget";
 
 const publishedDateFormat = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" });
 
@@ -37,43 +40,33 @@ export const VideoCard = memo(function VideoCard({
   index = 0,
   playedAt,
   className,
+  animate = true,
 }: {
   video: LibraryVideo;
   variant?: Variant;
   index?: number;
   playedAt?: number;
   className?: string;
+  animate?: boolean;
 }) {
   const ref = useRef<HTMLButtonElement>(null);
-  const thumb = useThumbs((s) => s.byId[video.id]);
-  const failed = useThumbs((s) => s.failed[video.id]);
-  const capturedDur = useThumbs((s) => s.durations[video.id]);
-  const request = useThumbs((s) => s.request);
-  const retry = useThumbs((s) => s.retry);
-  const recallCompanion = useThumbs((s) => s.recallCompanion);
-  const artworkDiagnostic = useThumbs((s) => s.diagnostics[video.id]);
-  const repairArtworkSource = useLibrary((s) => s.repairArtworkSource);
-  const followRemoteQuery = useLibrary((s) => s.followRemoteQuery);
-  const progress = useLibrary((s) => s.progress[video.id]);
-  const fav = useLibrary((s) => Boolean(s.favorites[video.id]));
-  const liked = useLibrary((s) => Boolean(s.likes[video.id]));
-  const tags = useLibrary((s) => s.tags[video.id] ?? EMPTY_TAGS);
-  const category = useLibrary((s) => s.categories[video.id] ?? "");
-  const viewCount = useLibrary((s) => s.viewCounts[video.id] ?? 0);
-  const cameCount = useLibrary((s) => s.cameCounts[video.id] ?? 0);
-  // Primitive folder.adult check — avoids re-rendering every card when folders[] identity changes.
-  const adultFolder = useLibrary((s) => Boolean(s.folders.find((folder) => folder.id === video.folderId)?.adult));
-  const markCame = useLibrary((s) => s.markCame);
+  // One subscription per store, scoped to this card's values. Unrelated
+  // progress/thumbnail writes do not allocate dozens of hook snapshots.
+  const { thumb, failed, capturedDur, request, retry, recallCompanion, artworkDiagnostic } = useThumbs(useShallow(s => ({
+    thumb: s.byId[video.id], failed: s.failed[video.id], capturedDur: s.durations[video.id],
+    request: s.request, retry: s.retry, recallCompanion: s.recallCompanion, artworkDiagnostic: s.diagnostics[video.id],
+  })));
+  const { repairArtworkSource, followRemoteQuery, progress, fav, liked, tags, category, viewCount, cameCount,
+    adultFolder, markCame, toggleLike, openPreview, toggleFavorite, hideVideo, setVideoTags, setQuery, setSource, sourceId } = useLibrary(useShallow(s => ({
+    repairArtworkSource: s.repairArtworkSource, followRemoteQuery: s.followRemoteQuery, progress: s.progress[video.id],
+    fav: Boolean(s.favorites[video.id]), liked: Boolean(s.likes[video.id]), tags: s.tags[video.id] ?? EMPTY_TAGS,
+    category: s.categories[video.id] ?? '', viewCount: s.viewCounts[video.id] ?? 0, cameCount: s.cameCounts[video.id] ?? 0,
+    adultFolder: folderIsPrivate(s.folders, video.folderId), markCame: s.markCame, toggleLike: s.toggleLike,
+    openPreview: s.openPreview, toggleFavorite: s.toggleFavorite, hideVideo: s.hideVideo,
+    setVideoTags: s.setVideoTags, setQuery: s.setQuery, setSource: s.setSource, sourceId: s.sourceId,
+  })));
   const adult = adultFolder || isAdultPullKind(video.remote?.kind);
   const adultPhoto = Boolean(adult && isAdultImageKind(video.remote?.kind, video.mime, video.extension));
-  const toggleLike = useLibrary((s) => s.toggleLike);
-  const openPreview = useLibrary((s) => s.openPreview);
-  const toggleFavorite = useLibrary((s) => s.toggleFavorite);
-  const hideVideo = useLibrary((s) => s.hideVideo);
-  const setVideoTags = useLibrary((s) => s.setVideoTags);
-  const setQuery = useLibrary((s) => s.setQuery);
-  const setSource = useLibrary((s) => s.setSource);
-  const sourceId = useLibrary((s) => s.sourceId);
   const hiddenAdult = adult && tags.includes("hidden");
   const duration = capturedDur ?? video.duration;
   const ratio = progress && progress.d > 0 ? Math.min(1, progress.t / progress.d) : 0;
@@ -111,10 +104,10 @@ export const VideoCard = memo(function VideoCard({
   const preview = video.remote?.previewUrl;
   const [hovered, setHovered] = useState(false);
   const [thumbIndex, setThumbIndex] = useState(0);
-  const [artVisible, setArtVisible] = useState(false);
-  const [artPriority, setArtPriority] = useState<"high" | "low">("low");
+  const [artVisibility, setArtVisibility] = useState<CardVisibility>({ near: false, visible: false });
+  const artVisible = artVisibility.near;
+  const artPriority = artVisibility.visible ? 'high' : 'low';
   const sessionPhase = useSessionPhase();
-  const overlayOpen = useLibrary(s => Boolean(s.previewId || s.activeId));
   const artAwake = allowCardArtwork(sessionPhase, artVisible, artPriority === "high");
   const [artAllowed, setArtAllowed] = useState(false);
   const [paintedSrc, setPaintedSrc] = useState<string | undefined>();
@@ -166,7 +159,6 @@ export const VideoCard = memo(function VideoCard({
     setThumbIndex((index) => {
       let next = index + 1;
       while (next < thumbCandidates.length && isAdultThumbBlacklisted(thumbCandidates[next])) next += 1;
-      if (next >= thumbCandidates.length) repairRemoteArtwork();
       return next;
     });
   };
@@ -180,37 +172,29 @@ export const VideoCard = memo(function VideoCard({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const nearObserver = new IntersectionObserver(
-      (entries) => {
-        const visible = entries.some((e) => e.isIntersecting);
-        setArtVisible(visible);
-        // Leaving the viewport cancels speculative retries via the slot effect.
-        if (visible && !video.remote) request(video);
-      },
-      { rootMargin: "320px" },
-    );
-    const visibleObserver = new IntersectionObserver((entries) => {
-      setArtPriority(entries.some((entry) => entry.isIntersecting) ? "high" : "low");
-    });
-    nearObserver.observe(el);
-    visibleObserver.observe(el);
-    return () => { nearObserver.disconnect(); visibleObserver.disconnect(); };
-  }, [request, video]);
+    return cardVisibility.observe(el, value => setArtVisibility(previous =>
+      previous.near === value.near && previous.visible === value.visible ? previous : value));
+  }, [video.id]);
 
   useEffect(() => {
-    if (!artAwake || overlayOpen || !video.remote) return;
+    if (!artAwake || isArtworkSuppressed() || !video.remote) return;
     void recallCompanion(video.id);
-  }, [artAwake, overlayOpen, recallCompanion, video.id, video.remote]);
+  }, [artAwake, recallCompanion, video.id, video.remote]);
 
   useEffect(() => {
-    if (!overlayOpen && sessionPhase === "active" && artVisible && !video.remote && !thumb) request(video);
-  }, [artVisible, overlayOpen, request, sessionPhase, thumb, video]);
+    if (sessionPhase !== 'active' || !artVisible || video.remote || thumb) return;
+    // Keep the subscription through viewer pauses; the queue resumes it on
+    // close and cancels the capture when this card leaves the nearby window.
+    return request(video, { priority: artPriority });
+  }, [artVisible, artPriority, request, sessionPhase, thumb, video]);
 
   // On-screen cards use the high lane; near-view cards use a cancellable low
   // lane. A slot lasts only while the current candidate loads, and the last
   // successful image stays mounted underneath every fallback.
   useEffect(() => {
-    if (!artAwake || overlayOpen || thumbsExhausted || candidateReady || paintedSrc === activeThumb) {
+    // Queue ownership handles viewer pauses. Skipping the request here could
+    // strand a newly mounted card after close, because no card state changes.
+    if (!artAwake || thumbsExhausted || candidateReady || paintedSrc === activeThumb) {
       setArtAllowed(false);
       return;
     }
@@ -234,7 +218,7 @@ export const VideoCard = memo(function VideoCard({
       release?.();
       setArtAllowed(false);
     };
-  }, [activeThumb, artPriority, artAwake, overlayOpen, candidateReady, paintedSrc, thumbsExhausted, video.id]);
+  }, [activeThumb, artPriority, artAwake, candidateReady, paintedSrc, thumbsExhausted, video.id]);
 
   useEffect(() => {
     setCandidateReady(false);
@@ -289,6 +273,12 @@ export const VideoCard = memo(function VideoCard({
     const query = video.remote.channelId ?? video.folderId.replace(/^(?:yt|tw):/, "");
     void followRemoteQuery(query, video.remote.kind).catch(() => undefined);
   };
+
+  // Functional state updaters can run during React rendering. Trigger the
+  // source/store repair after commit, never from the thumbnail-index updater.
+  useEffect(() => {
+    if (thumbsExhausted && thumbIndex > 0) repairRemoteArtwork();
+  }, [thumbsExhausted, thumbIndex, followRemoteQuery, video.folderId, video.remote?.kind, video.remote?.channelId]);
 
   const poster = (
     <div
@@ -414,8 +404,7 @@ export const VideoCard = memo(function VideoCard({
   return (
     <div
       data-video-card
-      className={cn("stagger-in group relative", isPoster && "poster-hit", live && "rounded-lg border border-border bg-surface p-2 shadow-border", className)}
-      style={{ ["--stagger-i" as string]: Math.min(index, 16) }}
+      className={cn("group relative", animate && "card-appear", isPoster && "poster-hit", live && "rounded-lg border border-border bg-surface p-2 shadow-border", className)}
     >
       <button
         ref={ref}

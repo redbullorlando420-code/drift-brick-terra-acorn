@@ -95,6 +95,19 @@ var ArrowLeft = createLucideIcon("arrow-left", [["path", {
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
+var ArrowRight = createLucideIcon("arrow-right", [["path", {
+	d: "M5 12h14",
+	key: "1ays0h"
+}], ["path", {
+	d: "m12 5 7 7-7 7",
+	key: "xquz4c"
+}]]);
+/**
+* @license lucide-react v0.510.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
 var BellOff = createLucideIcon("bell-off", [
 	["path", {
 		d: "M10.268 21a2 2 0 0 0 3.464 0",
@@ -971,6 +984,46 @@ var Laptop = createLucideIcon("laptop", [["path", {
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
+var LayoutDashboard = createLucideIcon("layout-dashboard", [
+	["rect", {
+		width: "7",
+		height: "9",
+		x: "3",
+		y: "3",
+		rx: "1",
+		key: "10lvy0"
+	}],
+	["rect", {
+		width: "7",
+		height: "5",
+		x: "14",
+		y: "3",
+		rx: "1",
+		key: "16une8"
+	}],
+	["rect", {
+		width: "7",
+		height: "9",
+		x: "14",
+		y: "12",
+		rx: "1",
+		key: "1hutg5"
+	}],
+	["rect", {
+		width: "7",
+		height: "5",
+		x: "3",
+		y: "16",
+		rx: "1",
+		key: "ldoo1y"
+	}]
+]);
+/**
+* @license lucide-react v0.510.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
 var LayoutGrid = createLucideIcon("layout-grid", [
 	["rect", {
 		width: "7",
@@ -1405,6 +1458,54 @@ var PackageSearch = createLucideIcon("package-search", [
 	["path", {
 		d: "M20.27 17.27 22 19",
 		key: "1l4muz"
+	}]
+]);
+/**
+* @license lucide-react v0.510.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
+var PanelLeftClose = createLucideIcon("panel-left-close", [
+	["rect", {
+		width: "18",
+		height: "18",
+		x: "3",
+		y: "3",
+		rx: "2",
+		key: "afitv7"
+	}],
+	["path", {
+		d: "M9 3v18",
+		key: "fh3hqa"
+	}],
+	["path", {
+		d: "m16 15-3-3 3-3",
+		key: "14y99z"
+	}]
+]);
+/**
+* @license lucide-react v0.510.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
+var PanelLeftOpen = createLucideIcon("panel-left-open", [
+	["rect", {
+		width: "18",
+		height: "18",
+		x: "3",
+		y: "3",
+		rx: "2",
+		key: "afitv7"
+	}],
+	["path", {
+		d: "M9 3v18",
+		key: "fh3hqa"
+	}],
+	["path", {
+		d: "m14 9 3 3-3 3",
+		key: "8010ee"
 	}]
 ]);
 /**
@@ -2040,4 +2141,4 @@ var Youtube = createLucideIcon("youtube", [["path", {
 	key: "1jp15x"
 }]]);
 //#endregion
-export { ImagePlus as $, PictureInPicture2 as A, Bot as At, Maximize as B, Settings2 as C, CircleAlert as Ct, RefreshCw as D, Check as Dt, Rocket as E, ChevronDown as Et, MonitorPlay as F, List as G, Lock as H, Minimize as I, Lightbulb as J, ListPlus as K, Minimize2 as L, PackageSearch as M, BellOff as Mt, Music2 as N, ArrowLeft as Nt, Radio as O, ChartColumn as Ot, Monitor as P, Image as Q, MessageCircle as R, ShieldCheck as S, CircleCheck as St, RotateCcw as T, ChevronLeft as Tt, LockOpen as U, Maximize2 as V, LoaderCircle as W, Laptop as X, LayoutGrid as Y, Images as Z, Smartphone as _, Download as _t, Volume2 as a, Gamepad2 as at, Shuffle as b, Clock3 as bt, Upload as c, FolderPlus as ct, Trash2 as d, Film as dt, ImageOff as et, ThumbsUp as f, FileText as ft, Sparkles as g, Expand as gt, Star as h, ExternalLink as ht, VolumeX as i, Glasses as it, Pause as j, Bell as jt, Play as k, Box as kt, Twitch as l, Flame as lt, Sun as m, EyeOff as mt, X as n, Heart as nt, Video as o, Folder as ot, Tag as p, Eye as pt, ListChecks as q, Wifi as r, Grid3x3 as rt, Users as s, FolderSearch as st, Youtube as t, History as tt, TriangleAlert as u, Flag as ut, SkipForward as v, Cpu as vt, Search as w, ChevronRight as wt, ShoppingBag as x, Clapperboard as xt, SkipBack as y, Copy as yt, Menu as z };
+export { Laptop as $, PictureInPicture2 as A, Check as At, MessageCircle as B, Settings2 as C, Clock3 as Ct, RefreshCw as D, ChevronRight as Dt, Rocket as E, CircleAlert as Et, Music2 as F, BellOff as Ft, LockOpen as G, Maximize as H, Monitor as I, ArrowRight as It, ListPlus as J, LoaderCircle as K, MonitorPlay as L, ArrowLeft as Lt, PanelLeftOpen as M, Box as Mt, PanelLeftClose as N, Bot as Nt, Radio as O, ChevronLeft as Ot, PackageSearch as P, Bell as Pt, LayoutDashboard as Q, Minimize as R, ShieldCheck as S, Copy as St, RotateCcw as T, CircleCheck as Tt, Maximize2 as U, Menu as V, Lock as W, Lightbulb as X, ListChecks as Y, LayoutGrid as Z, Smartphone as _, EyeOff as _t, Volume2 as a, Heart as at, Shuffle as b, Download as bt, Upload as c, Gamepad2 as ct, Trash2 as d, FolderPlus as dt, Images as et, ThumbsUp as f, Flame as ft, Sparkles as g, Eye as gt, Star as h, FileText as ht, VolumeX as i, History as it, Pause as j, ChartColumn as jt, Play as k, ChevronDown as kt, Twitch as l, Folder as lt, Sun as m, Film as mt, X as n, ImagePlus as nt, Video as o, Grid3x3 as ot, Tag as p, Flag as pt, List as q, Wifi as r, ImageOff as rt, Users as s, Glasses as st, Youtube as t, Image as tt, TriangleAlert as u, FolderSearch as ut, SkipForward as v, ExternalLink as vt, Search as w, Clapperboard as wt, ShoppingBag as x, Cpu as xt, SkipBack as y, Expand as yt, Minimize2 as z };

@@ -13,6 +13,20 @@ export type AdultBrowseSignals = {
 };
 export type AdultBrowseData = { videos: LibraryVideo[]; personalVideos: LibraryVideo[]; deepVideos: LibraryVideo[]; tags: Record<string, string[]>; signals: AdultBrowseSignals };
 
+/** Worker-owned bounded caches. Catalog arrays are stable between refreshes;
+ * signal updates clear only ranked results, while catalog chunks clear all. */
+export type AdultBrowseCache = {
+  sourceMatched: Map<string, LibraryVideo[]>;
+  ranked: Map<string, LibraryVideo[]>;
+  tagRanks: Map<string, ReturnType<typeof rankAdultTags>>;
+  metaTagRanks: Map<string, ReturnType<typeof rankAdultMetaTags>>;
+  deepRankedIds?: string[];
+};
+
+export function createAdultBrowseCache(): AdultBrowseCache {
+  return { sourceMatched: new Map(), ranked: new Map(), tagRanks: new Map(), metaTagRanks: new Map() };
+}
+
 function shuffleRank(id: string, seed: number) {
   let value = seed >>> 0;
   for (let index = 0; index < id.length; index += 1) value = Math.imul(value ^ id.charCodeAt(index), 0x45d9f3b);
@@ -104,7 +118,7 @@ function diversifyAdultSources<T extends { remote?: { kind?: string } }>(items: 
 }
 
 
-export function buildAdultBrowseModel(data: AdultBrowseData, params: AdultBrowseParams) {
+export function buildAdultBrowseModel(data: AdultBrowseData, params: AdultBrowseParams, cache?: AdultBrowseCache) {
   const { videos: adultRemoteVideos, tags, signals } = data;
   const { favorites, likes, cameCounts, viewCounts } = signals;
   const { source: adultSource, tag: adultTag, view: adultView, limit: adultRailLimit, seed: adultRailSeed } = params;
@@ -115,15 +129,30 @@ export function buildAdultBrowseModel(data: AdultBrowseData, params: AdultBrowse
   const adultContinue = signals.continueIds.map(id => byId.get(id)).filter((v): v is LibraryVideo => Boolean(v));
   const adultFavorites = signals.favoriteIds.map(id => byId.get(id)).filter((v): v is LibraryVideo => Boolean(v));
   const markedAdult = adultRemoteVideos.filter(v => (cameCounts[v.id] ?? 0) > 0).sort((a,b) => cameCounts[b.id] - cameCounts[a.id]);
-  const sourceMatchedAdult = adultRemoteVideos.filter(video => videoMatchesAdultSource(video, adultSource));
+  let sourceMatchedAdult = cache?.sourceMatched.get(adultSource);
+  if (!sourceMatchedAdult) {
+    sourceMatchedAdult = adultRemoteVideos.filter(video => videoMatchesAdultSource(video, adultSource));
+    if (cache) {
+      if (cache.sourceMatched.size >= 12) cache.sourceMatched.delete(cache.sourceMatched.keys().next().value!);
+      cache.sourceMatched.set(adultSource, sourceMatchedAdult);
+    }
+  }
   const adultKind = (video: LibraryVideo) => video.remote?.live || ["chaturbate", "myfreecams"].includes(video.remote?.kind ?? "") ? "live" : isAdultImageKind(video.remote?.kind, video.mime, video.extension) ? "photos" : "videos";
   const filteredEporner = sourceMatchedAdult.filter(video => (adultView === "all" || adultKind(video) === adultView) && videoMatchesAdultTag(video, adultTag, tags));
-  const rankedAdultCatalog = (() => {
-    return sortAdultVideos(filteredEporner, adultRankCtx);
-  })();
-  const adultTagRank = (() => {
-    return rankAdultTags(sourceMatchedAdult, adultRankCtx, 48);
-  })();
+  const rankKey = `${adultSource}\u0000${adultView}\u0000${adultTag}`;
+  let rankedAdultCatalog = cache?.ranked.get(rankKey);
+  if (!rankedAdultCatalog) {
+    rankedAdultCatalog = sortAdultVideos(filteredEporner, adultRankCtx);
+    if (cache) {
+      if (cache.ranked.size >= 8) cache.ranked.delete(cache.ranked.keys().next().value!);
+      cache.ranked.set(rankKey, rankedAdultCatalog);
+    }
+  }
+  let adultTagRank = cache?.tagRanks.get(adultSource);
+  if (!adultTagRank) {
+    adultTagRank = rankAdultTags(sourceMatchedAdult, adultRankCtx, 48);
+    if (cache) cache.tagRanks.set(adultSource, adultTagRank);
+  }
   const adultOverviewRails = (() => {
     const videos = rotateAdultRail(rankedAdultCatalog.filter((video) => adultKind(video) === "videos"), "overview-videos", adultRailSeed, adultRailLimit);
     const photos = rotateAdultRail(rankedAdultCatalog.filter((video) => adultKind(video) === "photos"), "overview-photos", adultRailSeed, adultRailLimit);
@@ -152,9 +181,11 @@ export function buildAdultBrowseModel(data: AdultBrowseData, params: AdultBrowse
       })
       .filter((row) => row.videos.length > 0);
   })();
-  const adultMetaTagRank = (() => {
-    return rankAdultMetaTags(sourceMatchedAdult, adultRankCtx, 24);
-  })();
+  let adultMetaTagRank = cache?.metaTagRanks.get(adultSource);
+  if (!adultMetaTagRank) {
+    adultMetaTagRank = rankAdultMetaTags(sourceMatchedAdult, adultRankCtx, 24);
+    if (cache) cache.metaTagRanks.set(adultSource, adultMetaTagRank);
+  }
   const adultRecommended = (() => {
     const preferred = new Set([...adultTagRank.slice(0, 16), ...adultMetaTagRank.slice(0, 12)].map((row) => row.tag));
     const likedTags = new Set(sourceMatchedAdult.filter((video) => favorites[video.id] || likes[video.id] || getRating(video.id) >= 4 || (cameCounts[video.id] ?? 0) > 0).flatMap((video) => tags[video.id] ?? []));
@@ -247,8 +278,9 @@ export function buildAdultBrowseModel(data: AdultBrowseData, params: AdultBrowse
     return { recommended, related, continueRail, marked, reddit, latest, catalog, poster };
   })();
   const ids = (videos: LibraryVideo[]) => videos.map(video => video.id);
+  if (cache && !cache.deepRankedIds) cache.deepRankedIds = ids(sortAdultVideos(data.deepVideos, adultRankCtx));
   return {
-    rankedIds: ids(rankedAdultCatalog), deepRankedIds: ids(sortAdultVideos(data.deepVideos, adultRankCtx)), tagRank: adultTagRank, metaTagRank: adultMetaTagRank,
+    rankedIds: ids(rankedAdultCatalog), deepRankedIds: cache?.deepRankedIds ?? ids(sortAdultVideos(data.deepVideos, adultRankCtx)), tagRank: adultTagRank, metaTagRank: adultMetaTagRank,
     overview: { videos: ids(adultOverviewRails.videos), photos: ids(adultOverviewRails.photos), picks: ids(adultOverviewRails.picks) },
     tagRails: adultTopTagRails.map(row => ({ ...row, videos: ids(row.videos) })),
     shelves: Object.fromEntries(Object.entries(adultShelfRails).map(([key, videos]) => [key, ids(videos)])) as Record<keyof typeof adultShelfRails, string[]>,

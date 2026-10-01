@@ -6,6 +6,7 @@ import { lazy, startTransition, Suspense, useCallback, useEffect, useMemo, useRe
 import type { ComponentType } from "react";
 import { toast, Toaster } from "sonner";
 import { useShallow } from "zustand/react/shallow";
+import { useBrowseLibrary } from './use-browse-library';
 import { AlertCircle, CheckCircle2, LoaderCircle, Lock, Shuffle, Upload, X } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -30,7 +31,7 @@ import { warmVideoPreview } from "./video-overlay-loader";
 import { VideoOverlays } from "./video-overlays";
 import { pullsPaused, subscribePullControl } from "@/lib/pull-control";
 import { buildAdultStatsSnapshot, exportAdultStats } from "@/lib/videos/adult-stats";
-import { loadAdultArchiveCursors } from "@/lib/videos/adult-archive-cursors";
+import { useAdultPulls } from "./use-adult-pulls";
 import { ConnectPanel } from "./connect-panel";
 import { FollowManager } from "./follow-manager";
 type AdultModule = typeof import("./adult-panel");
@@ -74,6 +75,7 @@ const SpotifySection = hubSection("SpotifySection");
 const StreamingSection = hubSection("StreamingSection");
 const WatchRoomSection = hubSection("WatchRoomSection");
 import {
+  clearCatalogSelectorCaches,
   selectClassics,
   selectContinue,
   selectFavorites,
@@ -93,8 +95,8 @@ import type { LibraryVideo, ProviderFailure, WellKnownStart } from "@/lib/videos
 import { hasFreshViewerCount, isClassicVideo } from "@/lib/videos/types";
 import { useThumbs } from "@/lib/videos/thumbs";
 import { ensureImageBudgetVisibilityHook } from "@/lib/videos/image-load-budget";
-import { adultThumbCandidatesForVideo } from "@/lib/videos/adult-thumbs";
-import { librarySearchIndex } from "@/lib/videos/search-index";
+import { hasAdultThumb, adultThumbCandidatesForVideo } from "@/lib/videos/adult-thumbs";
+import { searchCatalog } from "@/lib/videos/search-index";
 import { searchWorkerIndex } from "@/lib/videos/search-worker-index";
 import { importLibraryPackZip } from "@/lib/videos/library-pack";
 import { linksFromHistoryAndResume } from "@/lib/videos/persist";
@@ -149,17 +151,18 @@ function PullStatusBanner() {
   const id = activity?.id ?? latest?.id;
   if (!id || dismissed === id) return null;
   const running = Boolean(activity);
+  const cancelled = !running && latest?.errors?.some(error => /^Pull cancelled[.;]/i.test(error));
   const item = activity ?? latest!;
   const label = pullProviderLabel[item.provider];
   const percent = running ? Math.min(100, Math.round(item.done / Math.max(1, item.total) * 100)) : 100;
   return <section className="mb-5 rounded-lg border border-border bg-elevated px-4 py-3 shadow-border" role={running ? "status" : "region"} aria-label="Latest pull status">
     <div className="flex items-start gap-3">
       {running ? <LoaderCircle aria-hidden="true" className={`mt-0.5 size-4 shrink-0 text-accent ${paused ? "" : "animate-spin"}`} /> : latest?.status === "failed" ? <AlertCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-danger" /> : <CheckCircle2 aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-accent" />}
-      <div className="min-w-0 flex-1"><p className="text-sm font-medium text-fg">{running ? `Pulling ${label} · ${item.action.toLocaleLowerCase()}` : `${label} pull ${latest?.status === "failed" ? "failed" : latest?.status === "partial" ? "finished with issues" : "complete"}`}</p>
+      <div className="min-w-0 flex-1"><p className="text-sm font-medium text-fg">{running ? `Pulling ${label} · ${item.action.toLocaleLowerCase()}` : `${label} pull ${cancelled ? "cancelled" : latest?.status === "failed" ? "failed" : latest?.status === "partial" ? "finished with issues" : "complete"}`}</p>
         <p className="mt-1 text-xs leading-5 text-muted">{running ? `${item.done.toLocaleString()} of ${item.total.toLocaleString()} targets checked · ${item.received.toLocaleString()} videos returned · ${item.added.toLocaleString()} new · ${item.failed.toLocaleString()} failed${item.targets[item.done] ? ` · Now: ${item.targets[item.done]}` : ""}` : `${latest?.done.toLocaleString() ?? 0} / ${latest?.total.toLocaleString() ?? 0} targets · ${latest?.received.toLocaleString() ?? 0} returned · ${latest?.added.toLocaleString() ?? 0} new · ${latest?.failed.toLocaleString() ?? 0} failed · ${latest ? new Date(latest.finishedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : ""}`}</p>
         {paused && <p className="mt-2 text-xs text-accent">Pulls paused. New requests and catalog updates wait until you select Resume pulls. A request already sent may finish.</p>}
         {running && <div className="mt-2 h-1 overflow-hidden rounded-full bg-bg"><div className="h-full rounded-full bg-accent transition-[width] duration-300" style={{ width: `${percent}%` }} /></div>}
-        {!running && latest?.errors?.length ? <details className="mt-2 text-xs text-muted"><summary className="cursor-pointer">Show {latest.errors.length} failure detail{latest.errors.length === 1 ? "" : "s"}</summary><ul className="mt-2 space-y-1">{latest.errors.map((error, index) => <li key={`${index}:${error}`}>{error}</li>)}</ul></details> : null}
+        {!running && latest?.errors?.length ? <details className="mt-2 text-xs text-muted"><summary className="cursor-pointer">{cancelled ? "Show cancellation details" : `Show ${latest.errors.length} failure detail${latest.errors.length === 1 ? "" : "s"}`}</summary><ul className="mt-2 space-y-1">{latest.errors.map((error, index) => <li key={`${index}:${error}`}>{error}</li>)}</ul></details> : null}
       </div>
       {!running && <Button variant="ghost" size="icon-sm" onClick={() => setDismissed(id)} aria-label="Dismiss pull result"><X aria-hidden="true" className="size-4" /></Button>}
     </div>
@@ -254,6 +257,25 @@ function isFreshRemoteUpload(video: { addedAt: number }) {
 }
 const isTasteTag = isTopicTag;
 
+const HUB_SOURCES = new Set([
+    "photos",
+    "anime",
+    "spotify",
+    "prints",
+    "games",
+    "shop",
+    "streaming",
+    "social",
+    "watch-room",
+    "settings",
+    "stats",
+    "genres",
+    "assistant",
+    "mission-plan",
+    "connection",
+    "find-phone",
+  ]);
+
 export function LibraryApp() {
   const [sessionIdle, setSessionIdle] = useState(false);
   useEffect(() => trackSessionActivity(() => {
@@ -262,8 +284,9 @@ export function LibraryApp() {
     useThumbs.getState().trimMemory();
     const { activeId, previewId } = useLibrary.getState();
     trimObjectUrls([activeId, previewId].filter((id): id is string => Boolean(id)));
-    librarySearchIndex.clear();
     searchWorkerIndex.release();
+    clearCatalogSelectorCaches();
+    useLibrary.setState({ searchResult: null });
   }, () => setSessionIdle(false)), []);
   const [liveStateClock, setLiveStateClock] = useState(() => Date.now());
   useEffect(() => {
@@ -354,31 +377,38 @@ export function LibraryApp() {
     catch { return 30_000; }
   });
 
-  const restoreFolders = useLibrary((s) => s.restoreFolders);
-  const openVideo = useLibrary((s) => s.openVideo);
-  const addFolder = useLibrary((s) => s.addFolder);
-  const ingestFromInput = useLibrary((s) => s.ingestFromInput);
-  const ingestDrop = useLibrary((s) => s.ingestDrop);
-  const clearHistory = useLibrary((s) => s.clearHistory);
-  const pruneHistory = useLibrary((s) => s.pruneHistory);
-  const folders = useLibrary((s) => s.folders);
-  const catalogVideos = useLibrary((s) => s.videos);
-  const hiddenVideos = useLibrary((s) => s.hiddenVideos);
-  const sourceId = useLibrary((s) => s.sourceId);
+  const restoreFolders = useBrowseLibrary((s) => s.restoreFolders);
+  const openVideo = useBrowseLibrary((s) => s.openVideo);
+  const addFolder = useBrowseLibrary((s) => s.addFolder);
+  const ingestFromInput = useBrowseLibrary((s) => s.ingestFromInput);
+  const ingestDrop = useBrowseLibrary((s) => s.ingestDrop);
+  const clearHistory = useBrowseLibrary((s) => s.clearHistory);
+  const pruneHistory = useBrowseLibrary((s) => s.pruneHistory);
+  const folders = useBrowseLibrary((s) => s.folders);
+  // Only subscribe the whole application to catalog identity while a screen
+  // needs the raw array. In common browse/player/workspace paths this prevents
+  // every appended library batch from rerendering the full shell.
+  const catalogVideos = useBrowseLibrary((s) =>
+    s.query.trim() || s.sourceId === "movies" || s.sourceId === "history"
+      ? s.videos
+      : EMPTY_PROVIDER_VIDEOS,
+  );
+  const hiddenVideos = useBrowseLibrary((s) => s.hiddenVideos);
+  const sourceId = useBrowseLibrary((s) => s.sourceId);
   useEffect(() => {
     if (sourceId !== "youtube" && sourceId !== "twitch" && sourceId !== "adults") return;
     return scheduleBackgroundWork(warmVideoPreview, { timeoutMs: 1200, fallbackDelayMs: 250 });
   }, [sourceId]);
-  const setSource = useLibrary((s) => s.setSource);
-  const hydrated = useLibrary((s) => s.hydrated);
-  const refreshing = useLibrary((s) => s.refreshing);
-  const remoteBusy = useLibrary((s) => s.remoteBusy);
-  const query = useLibrary((s) => s.query);
-  const searchResult = useLibrary((s) => s.searchResult);
-  const searchPending = useLibrary((s) => Boolean(s.query.trim()) && (!s.searchResult || s.searchResult.query !== s.query.trim().toLowerCase() || s.searchResult.videos !== s.videos || s.searchResult.tags !== s.tags || s.searchResult.categories !== s.categories));
-  const setQuery = useLibrary((s) => s.setQuery);
-  const showHiddenAdult = useLibrary((s) => s.showHiddenAdult);
-  const setShowHiddenAdult = useLibrary((s) => s.setShowHiddenAdult);
+  const setSource = useBrowseLibrary((s) => s.setSource);
+  const hydrated = useBrowseLibrary((s) => s.hydrated);
+  const refreshing = useBrowseLibrary((s) => s.refreshing);
+  const remoteBusy = useBrowseLibrary((s) => s.remoteBusy);
+  const query = useBrowseLibrary((s) => s.query);
+  const searchResult = useBrowseLibrary((s) => s.searchResult);
+  const searchPending = useBrowseLibrary((s) => Boolean(s.query.trim()) && (!s.searchResult || s.searchResult.query !== s.query.trim().toLowerCase() || s.searchResult.videos !== s.videos || s.searchResult.tags !== s.tags || s.searchResult.categories !== s.categories));
+  const setQuery = useBrowseLibrary((s) => s.setQuery);
+  const showHiddenAdult = useBrowseLibrary((s) => s.showHiddenAdult);
+  const setShowHiddenAdult = useBrowseLibrary((s) => s.setShowHiddenAdult);
   const applyAdultTag = useCallback((raw: string) => {
     const tag = canonicalAdultTag(raw);
     // A tag is a complete browsing intent. Reset narrowing controls that can
@@ -391,30 +421,35 @@ export function LibraryApp() {
     setQuery("");
     setSource("adults");
   }, [setQuery, setSource]);
-  const scanning = useLibrary((s) => s.scanning);
-  const history = useLibrary((s) => s.history);
-  const videos = useLibrary(useShallow(s => (s.sourceId === "home" || (s.sourceId === "youtube" && !youtubeExploreVisible)) && !s.query.trim() ? EMPTY_PROVIDER_VIDEOS : selectVisible(s)));
-  const continueVideos = useLibrary(useShallow((s) =>
+  const scanning = useBrowseLibrary((s) => s.scanning);
+  const history = useBrowseLibrary((s) => s.history);
+  // Workspace hubs select their own data. Sorting the public catalog for
+  // Settings/Photos/etc. made unrelated navigation stall at 100k+ entries.
+  const videos = useBrowseLibrary(useShallow(s => HUB_SOURCES.has(s.sourceId) || ((!s.query.trim()) &&
+    (s.sourceId === "home" || (s.sourceId === "youtube" && !youtubeExploreVisible) ||
+     (s.sourceId === "adults" && !adultDeepVisible) || s.sourceId === "adult-fetishes"))
+    ? EMPTY_PROVIDER_VIDEOS : selectVisible(s)));
+  const continueVideos = useBrowseLibrary(useShallow((s) =>
     s.sourceId === "continue" || (s.sourceId === "landing" && homeExpanded && !s.query.trim())
       ? selectContinue(s, false)
       : EMPTY_PROVIDER_VIDEOS,
   ));
-  const favoriteVideos = useLibrary(useShallow((s) =>
+  const favoriteVideos = useBrowseLibrary(useShallow((s) =>
     s.sourceId === "favorites" || (s.sourceId === "landing" && homeExpanded && !s.query.trim())
       ? selectFavorites(s, false)
       : EMPTY_PROVIDER_VIDEOS,
   ));
-  const historyVideos = useLibrary(useShallow((s) =>
+  const historyVideos = useBrowseLibrary(useShallow((s) =>
     s.sourceId === "history" || (s.sourceId === "landing" && homeExpanded && !s.query.trim())
       ? selectHistory(s, false)
       : EMPTY_PROVIDER_VIDEOS,
   ));
   const historyLastDay = useMemo(() => history.filter((entry) => entry.at > Date.now() - 86_400_000).length, [history]);
-  const classics = useLibrary(useShallow(s => s.sourceId === "landing" || s.sourceId === "classics" ? selectClassics(s) : EMPTY_PROVIDER_VIDEOS));
-  const featured = useLibrary((s) => s.sourceId === "movies" ? selectFeatured(s, false) : undefined);
+  const classics = useBrowseLibrary(useShallow(s => s.sourceId === "landing" || s.sourceId === "classics" ? selectClassics(s) : EMPTY_PROVIDER_VIDEOS));
+  const featured = useBrowseLibrary((s) => s.sourceId === "movies" ? selectFeatured(s, false) : undefined);
   const youtubeSelectorWork = useRef(0);
   const youtubeSelectorDoneAt = useRef(0);
-  const youtubeCatalog = useLibrary(useShallow((state) => {
+  const youtubeCatalog = useBrowseLibrary(useShallow((state) => {
     if (state.sourceId !== "landing" && state.sourceId !== "youtube") return EMPTY_PROVIDER_VIDEOS;
     const started = typeof performance === "undefined" ? 0 : performance.now();
     const selected = selectYoutube(state);
@@ -435,7 +470,7 @@ export function LibraryApp() {
   // selectYoutube already returns date ordering. Avoid an unnecessary second
   // full-array sort whenever a rating or thumbnail state changes.
   const newestYoutube = youtubeVideos;
-  const twitchVideos = useLibrary(useShallow((state) => state.sourceId === "landing" || state.sourceId === "twitch" ? selectTwitch(state) : EMPTY_PROVIDER_VIDEOS));
+  const twitchVideos = useBrowseLibrary(useShallow((state) => state.sourceId === "landing" || state.sourceId === "twitch" ? selectTwitch(state) : EMPTY_PROVIDER_VIDEOS));
   const newThisWeek = useMemo(() => {
     if (sourceId !== "landing" || !homeRecommendationsReady) return [];
     const now = Date.now();
@@ -445,7 +480,7 @@ export function LibraryApp() {
       (video) => video.remote && !isOfflineChannelCard(video) && now - video.addedAt >= -5 * 60_000 && now - video.addedAt < 7 * 24 * 60 * 60_000 ? video : null,
       (a, b) => b.addedAt - a.addedAt || a.id.localeCompare(b.id));
   }, [homeRecommendationsReady, sourceId, twitchVideos, youtubeVideos]);
-  const liveVideos = useLibrary(useShallow(s => ["landing", "live", "youtube", "twitch"].includes(s.sourceId) ? selectLive(s) : EMPTY_PROVIDER_VIDEOS));
+  const liveVideos = useBrowseLibrary(useShallow(s => ["landing", "live", "youtube", "twitch"].includes(s.sourceId) ? selectLive(s) : EMPTY_PROVIDER_VIDEOS));
   const currentLiveVideos = useMemo(
     () => liveVideos.filter((video) => hasFreshRemoteLiveState(video, Math.max(Date.now(), liveStateClock), LIBRARY_LIMITS.twitchLiveStateFreshnessMs, LIBRARY_LIMITS.youtubeLiveStateFreshnessMs)),
     [liveStateClock, liveVideos],
@@ -454,11 +489,11 @@ export function LibraryApp() {
     () => liveVideos.filter((video) => video.remote?.kind === "youtube" && video.remote.live && !hasFreshRemoteLiveState(video, Math.max(Date.now(), liveStateClock), LIBRARY_LIMITS.twitchLiveStateFreshnessMs, LIBRARY_LIMITS.youtubeLiveStateFreshnessMs)),
     [liveStateClock, liveVideos],
   );
-  const adultContinue = useLibrary(useShallow((s) => ["adults", "adult-fetishes", "continue", "history", "favorites"].includes(s.sourceId) ? selectContinue(s, true) : EMPTY_PROVIDER_VIDEOS));
-  const adultFavorites = useLibrary(useShallow((s) => ["adults", "adult-fetishes", "continue", "history", "favorites"].includes(s.sourceId) ? selectFavorites(s, true) : EMPTY_PROVIDER_VIDEOS));
-  const adultHistory = useLibrary(useShallow((s) => ["adults", "adult-fetishes", "continue", "history", "favorites"].includes(s.sourceId) ? selectHistory(s, true) : EMPTY_PROVIDER_VIDEOS));
-  const adultRemoteVideos = useLibrary(useShallow(s => s.sourceId === "adults" || s.sourceId === "adult-fetishes" ? selectAdultRemote(s) : EMPTY_PROVIDER_VIDEOS));
-  const cameCounts = useLibrary((s) => s.cameCounts);
+  const adultContinue = useBrowseLibrary(useShallow((s) => ["adults", "adult-fetishes", "continue", "history", "favorites"].includes(s.sourceId) ? selectContinue(s, true) : EMPTY_PROVIDER_VIDEOS));
+  const adultFavorites = useBrowseLibrary(useShallow((s) => ["adults", "adult-fetishes", "continue", "history", "favorites"].includes(s.sourceId) ? selectFavorites(s, true) : EMPTY_PROVIDER_VIDEOS));
+  const adultHistory = useBrowseLibrary(useShallow((s) => ["adults", "adult-fetishes", "continue", "history", "favorites"].includes(s.sourceId) ? selectHistory(s, true) : EMPTY_PROVIDER_VIDEOS));
+  const adultRemoteVideos = useBrowseLibrary(useShallow(s => s.sourceId === "adults" || s.sourceId === "adult-fetishes" ? selectAdultRemote(s) : EMPTY_PROVIDER_VIDEOS));
+  const cameCounts = useBrowseLibrary((s) => s.cameCounts);
   const hasUserFolders = userFolderCount(folders) > 0;
   const publicFolders = folders.filter(
     (f) => f.kind !== "demo" && f.kind !== "youtube" && f.kind !== "twitch" && !f.adult,
@@ -496,7 +531,7 @@ export function LibraryApp() {
     return grouped;
   }, [homeExpandedFolderIds, videos]);
   const adultFolders = folders.filter((f) => f.adult);
-  const tags = useLibrary((s) => s.tags);
+  const tags = useBrowseLibrary((s) => s.tags);
   // Adult history is a private, tagged record. An old generic recovery entry
   // may still exist in durable history, but it cannot appear here unless it
   // carries the explicit #adult contract.
@@ -526,11 +561,11 @@ export function LibraryApp() {
   const filteredEporner = useMemo(
     () => viewMatchedAdult
       .filter((video) => videoMatchesAdultTag(video, adultTag, tags))
-      .filter((video) => !adultArtworkOnly || adultThumbCandidatesForVideo(video).length > 0),
+      .filter((video) => !adultArtworkOnly || hasAdultThumb(video)),
     [adultArtworkOnly, adultTag, tags, viewMatchedAdult],
   );
   const adultArtworkReadyCount = useMemo(
-    () => viewMatchedAdult.filter((video) => adultThumbCandidatesForVideo(video).length > 0).length,
+    () => viewMatchedAdult.filter((video) => hasAdultThumb(video)).length,
     [viewMatchedAdult],
   );
   const adultSourceCounts = useMemo(() => countAdultBySource(adultRemoteVideos), [adultRemoteVideos]);
@@ -539,10 +574,6 @@ export function LibraryApp() {
     live: adultRemoteVideos.filter((video) => adultKind(video) === "live").length,
     photos: adultRemoteVideos.filter((video) => adultKind(video) === "photos").length,
   }), [adultRemoteVideos]);
-  const epornerTagNames = useMemo(
-    () => [...new Set(sourceMatchedAdult.flatMap((video) => tags[video.id] ?? []))].sort(),
-    [sourceMatchedAdult, tags],
-  );
   const historyTopTags = useMemo(() => {
     const counts = new Map<string, number>();
     for (const entry of history) {
@@ -593,11 +624,11 @@ export function LibraryApp() {
     input.click();
   };
   const [savedFilter, setSavedFilter] = useState<"all" | "hearts" | "likes">("all");
-  const favorites = useLibrary((s) => s.favorites);
-  const likes = useLibrary((s) => s.likes);
+  const favorites = useBrowseLibrary((s) => s.favorites);
+  const likes = useBrowseLibrary((s) => s.likes);
   const savedNotVisible = Math.max(0, new Set([...Object.keys(favorites), ...Object.keys(likes)]).size - favoriteVideos.length - adultFavorites.length);
   const savedVideos = useMemo(() => favoriteVideos.filter(video => savedFilter === "all" || (savedFilter === "hearts" ? favorites[video.id] : likes[video.id])), [favoriteVideos, savedFilter, favorites, likes]);
-  const viewCounts = useLibrary((s) => s.viewCounts);
+  const viewCounts = useBrowseLibrary((s) => s.viewCounts);
 
   const adultPersonalVideos = useMemo(() => [...adultContinue, ...adultFavorites], [adultContinue, adultFavorites]);
   const adultBrowseInputs = useMemo(() => ({
@@ -768,11 +799,11 @@ export function LibraryApp() {
     () => sourceId === "youtube" && youtubeExploreVisible ? mixYoutubeCreators(filteredYoutube, homePickShuffle, 48, "trending") : [],
     [filteredYoutube, homePickShuffle, sourceId, youtubeExploreVisible],
   );
-  const categories = useLibrary((s) => s.categories);
-  const progress = useLibrary((s) => s.progress);
-  const resumeProgress = useLibrary((s) => s.resumeProgress);
-  const unavailable = useLibrary((s) => s.unavailable);
-  const follows = useLibrary((s) => s.follows);
+  const categories = useBrowseLibrary((s) => s.categories);
+  const progress = useBrowseLibrary((s) => s.progress);
+  const resumeProgress = useBrowseLibrary((s) => s.resumeProgress);
+  const unavailable = useBrowseLibrary((s) => s.unavailable);
+  const follows = useBrowseLibrary((s) => s.follows);
   const youtubeSourceCounts = useMemo(() => {
     return countYoutubeSources(youtubeVideos, follows.filter(channel => channel.kind === "youtube"));
   }, [youtubeVideos, follows]);
@@ -799,8 +830,8 @@ export function LibraryApp() {
   const youtubePlaylistShelves = useMemo(() => [...youtubePlaylistPools]
     .sort((a, b) => shuffleRank(a.id, homePickShuffle) - shuffleRank(b.id, homePickShuffle))
     .slice(0, 6).map(playlist => ({ ...playlist, videos: mixYoutubeCreators(playlist.videos, homePickShuffle, 24) })), [homePickShuffle, youtubePlaylistPools]);
-  const remoteCheckedAt = useLibrary((s) => s.remoteCheckedAt);
-  const remoteRetryAt = useLibrary((s) => s.remoteRetryAt);
+  const remoteCheckedAt = useBrowseLibrary((s) => s.remoteCheckedAt);
+  const remoteRetryAt = useBrowseLibrary((s) => s.remoteRetryAt);
   const youtubeLiveCheckedAt = useMemo(() => Math.max(0, ...follows.filter((channel) => channel.kind === "youtube").map((channel) => channel.liveCheckedAt ?? 0)), [follows]);
   const youtubeHealth = useMemo(() => {
     if (sourceId !== "youtube" || !youtubeHealthVisible) return [];
@@ -1206,9 +1237,18 @@ export function LibraryApp() {
     // Keep the star/like response immediate.  Ranking every large shelf is
     // useful work, but it belongs in a transition rather than on the button's
     // input frame.
-    const refreshRatedShelves = () => startTransition(() => { setRatingRevision((value) => value + 1); setTagHeartRevision((value) => value + 1); });
+    let pending = false;
+    const refreshRatedShelves = () => {
+      const state = useLibrary.getState();
+      if (state.activeId || state.previewId) { pending = true; return; }
+      pending = false;
+      startTransition(() => { setRatingRevision((value) => value + 1); setTagHeartRevision((value) => value + 1); });
+    };
+    const unsubscribe = useLibrary.subscribe(state => {
+      if (pending && !state.activeId && !state.previewId) refreshRatedShelves();
+    });
     window.addEventListener("reelcase:rating-change", refreshRatedShelves);
-    return () => window.removeEventListener("reelcase:rating-change", refreshRatedShelves);
+    return () => { unsubscribe(); window.removeEventListener("reelcase:rating-change", refreshRatedShelves); };
   }, []);
   useEffect(() => { void useThumbs.getState().hydrate(); }, []);
   useEffect(() => {
@@ -1218,17 +1258,16 @@ export function LibraryApp() {
   }, []);
   useEffect(() => {
     const needle = query.trim().toLowerCase();
-    if (!hydrated || !needle || sessionIdle) return;
-    let active = true;
+    if (!hydrated || !needle || sessionIdle) { searchWorkerIndex.release(); return; }
+    const controller = new AbortController();
     searchWorkerIndex.sync(catalogVideos, tags, categories);
-    void searchWorkerIndex.search(needle).then((ids) => {
-      if (!active || !allowAutomaticRefresh()) return;
-      // Only browsers without a working worker use the synchronous fallback.
-      if (ids === null) librarySearchIndex.sync(catalogVideos, tags, categories);
-      const matches = ids === null ? librarySearchIndex.search(needle) ?? new Set<string>() : new Set(ids);
+    void searchWorkerIndex.search(needle, controller.signal).then(async (ids) => {
+      if (controller.signal.aborted || !allowAutomaticRefresh()) return;
+      const matches = ids === null ? await searchCatalog(catalogVideos, tags, categories, needle, controller.signal) : new Set(ids);
+      if (controller.signal.aborted || !allowAutomaticRefresh()) return;
       useLibrary.setState({ searchResult: { query: needle, ids: matches, videos: catalogVideos, tags, categories } });
-    });
-    return () => { active = false; };
+    }).catch(() => { /* Cancellation discards a superseded fallback scan. */ });
+    return () => { controller.abort(); };
   }, [catalogVideos, categories, hydrated, query, sessionIdle, tags]);
   useEffect(() => {
     // Theater invitations are regular shareable links. Route them to the room
@@ -1240,10 +1279,10 @@ export function LibraryApp() {
     if (invited) setSource("watch-room");
   }, [hydrated, setSource]);
 
-  const refreshFollows = useLibrary((s) => s.refreshFollows);
-  const remoteRefreshStatus = useLibrary((s) => s.remoteRefreshStatus);
-  const followRemoteQuery = useLibrary((s) => s.followRemoteQuery);
-  const pushNotice = useLibrary((s) => s.pushNotice);
+  const refreshFollows = useBrowseLibrary((s) => s.refreshFollows);
+  const remoteRefreshStatus = useBrowseLibrary((s) => s.remoteRefreshStatus);
+  const followRemoteQuery = useBrowseLibrary((s) => s.followRemoteQuery);
+  const pushNotice = useBrowseLibrary((s) => s.pushNotice);
   const [channelRefreshing, setChannelRefreshing] = useState("");
   const drainArchiveQueue = async () => {
     if (archiveQueueBusyRef.current) return;
@@ -1421,49 +1460,7 @@ export function LibraryApp() {
     };
   }, [hydrated, follows.length, refreshFollows]);
 
-  useEffect(() => {
-    if (!hydrated || sourceId !== "adults") return;
-    let cancelled = false;
-    let lastPull = 0;
-    const tick = async () => {
-      if (Date.now() - lastPull < getPullSettings().adultIntervalSeconds * 1000) return;
-      if (cancelled || !getPullSettings().automaticPulls || !catalogPullAvailable() || pullsPaused() || !allowAutomaticRefresh() || !navigator.onLine) return;
-      const state = useLibrary.getState();
-      if (state.remoteBusy || state.refreshing) return;
-      let adultCount = 0;
-      let redditCount = 0;
-      for (const video of state.videos) {
-        if (!video.remote || !(ADULT_PULL_PROVIDERS as readonly string[]).includes(video.remote.kind)) continue;
-        adultCount += 1;
-        if (video.remote.kind === "reddit") redditCount += 1;
-        if (adultCount >= getPullSettings().adultCatalogTarget) return;
-      }
-      const cursors = loadAdultArchiveCursors("all", "top-weekly");
-      const eligible = ADULT_PULL_PROVIDERS.filter(provider => (cursors[provider]?.retryAt ?? 0) <= Date.now())
-        .sort((a, b) => (cursors[a]?.updatedAt ?? 0) - (cursors[b]?.updatedAt ?? 0));
-      const provider = eligible[0];
-      if (!provider) return;
-      lastPull = Date.now();
-      const page = cursors[provider]?.page ?? 1;
-      try {
-        await state.searchAdultFeed("all", "top-weekly", {
-          append: true,
-          providers: [provider],
-          maxVideos: getPullSettings().adultBatchVideos,
-          providerPages: { [provider]: page },
-        });
-      } catch {
-        /* next tick retries */
-      }
-    };
-    const first = window.setTimeout(() => void tick(), 8_000);
-    const id = window.setInterval(() => void tick(), 15_000);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(first);
-      window.clearInterval(id);
-    };
-  }, [hydrated, sourceId]);
+  useAdultPulls();
 
   const prevScanning = useRef<typeof scanning>(null);
   useEffect(() => {
@@ -1594,24 +1591,7 @@ export function LibraryApp() {
       sourceId === "youtube" ||
       sourceId === "twitch" ||
       sourceId === "live");
-  const isHubSection = [
-    "photos",
-    "anime",
-    "spotify",
-    "prints",
-    "games",
-    "shop",
-    "streaming",
-    "social",
-    "watch-room",
-    "settings",
-    "stats",
-    "genres",
-    "assistant",
-    "mission-plan",
-    "connection",
-    "find-phone",
-  ].includes(sourceId) || invitedToTheater;
+  const isHubSection = HUB_SOURCES.has(sourceId) || invitedToTheater;
 
   return (
     <div className="flex min-h-dvh bg-bg text-fg">
@@ -1883,7 +1863,6 @@ export function LibraryApp() {
                   <Suspense fallback={<section className="mb-6 rounded-xl bg-surface p-5 text-sm text-muted shadow-border" role="status">Opening Adult controls…</section>}>
                     <AdultPanel
                       showMilestones={adultDeepVisible}
-                      autoPull
                       sourceFilter={adultSource}
                       tagFilter={adultTag}
                       onSourceFilter={setAdultSource}
@@ -2204,7 +2183,7 @@ export function LibraryApp() {
                         <div className="rounded-md bg-elevated px-3 py-2"><p className="text-xs text-muted">Resume rule</p><p className="mt-1 text-sm font-medium text-fg">Local 5 sec · providers 2 sec</p></div>
                       </div>
                       <p className="mt-3 text-xs leading-5 text-subtle">Repair preview is non-destructive: invalid marks are rejected on recovery, while older marks remain visible for review and no file handle is reopened automatically.</p>
-                      {continueVideos.length > 0 && <div className="mt-4 border-t border-border pt-3"><p className="text-xs font-medium tracking-[0.12em] text-muted uppercase">Why these are here</p><div className="mt-2 grid gap-2">{continueVideos.slice(0, 8).map((video) => { const mark = resumeForVideo({ progress, resumeProgress }, video); const percent = mark ? Math.round(mark.t / mark.d * 100) : 0; return <button key={video.id} onClick={() => openVideo(video.id)} className="flex min-h-11 items-center gap-3 rounded-md border border-border px-3 text-left"><span className="shrink-0 rounded-full bg-accent/15 px-2 py-1 text-[11px] font-medium text-accent">{video.remote ? "Provider key" : "Local path"}</span><span className="min-w-0 flex-1 truncate text-sm text-fg">{video.name}</span><span className="shrink-0 text-xs text-muted">{percent}% · {mark ? new Date(mark.at).toLocaleString() : "awaiting mark"}</span></button>; })}</div></div>}
+                      {continueVideos.length > 0 && <div className="mt-4 border-t border-border pt-3"><p className="text-xs font-medium tracking-[0.12em] text-muted uppercase">Why these are here</p><div className="mt-2 grid gap-2">{continueVideos.slice(0, 8).map((video) => { const mark = resumeForVideo({ progress, resumeProgress }, video); const percent = mark ? Math.round(mark.t / mark.d * 100) : 0; return <button key={video.id} onClick={() => openVideo(video.id)} className="flex min-h-11 min-w-0 flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-border px-3 py-2 text-left sm:flex-nowrap"><span className="shrink-0 rounded-full bg-accent/15 px-2 py-1 text-[11px] font-medium text-accent">{video.remote ? "Provider key" : "Local path"}</span><span className="min-w-0 flex-1 truncate text-sm text-fg">{video.name}</span><span className="w-full shrink-0 text-xs text-muted sm:w-auto">{percent}% · {mark ? new Date(mark.at).toLocaleString() : "awaiting mark"}</span></button>; })}</div></div>}
                     </section>
                   )}
                   {sourceId === "history" && history.length > 0 && (
@@ -2255,14 +2234,14 @@ export function LibraryApp() {
                   {sourceId === "history" && history.length > 0 && (
                     <section className="mb-5 rounded-lg border border-border bg-surface p-4 shadow-border" aria-label="Recent history activity">
                       <div className="flex items-baseline justify-between gap-3"><p className="text-sm font-medium text-fg">Recent activity</p><p className="text-xs text-subtle">Times shown in your local timezone</p></div>
-                      <div className="mt-3 grid gap-2">
+                      <div className="mt-3 grid min-w-0 grid-cols-1 gap-2">
                         {historyVisibleEntries.slice(0, 12).map((entry) => {
                           const video = historyVideoById.get(entry.id);
                           const label = entry.source === "watch-room" ? "Watch Room" : entry.source === "progress" ? "Playback" : "Direct open";
-                          return <button key={entry.eventId ?? `${entry.id}:${entry.at}:${entry.source ?? "open"}`} disabled={!video} onClick={() => video && openVideo(video.id)} className="flex min-h-11 items-center gap-3 rounded-md border border-border px-3 text-left disabled:cursor-default disabled:opacity-75">
+                          return <button key={entry.eventId ?? `${entry.id}:${entry.at}:${entry.source ?? "open"}`} disabled={!video} onClick={() => video && openVideo(video.id)} className="flex min-h-11 min-w-0 flex-wrap items-center gap-3 rounded-md border border-border px-3 py-2 text-left disabled:cursor-default disabled:opacity-75 sm:flex-nowrap">
                             <span className="shrink-0 rounded-full bg-accent/15 px-2 py-1 text-[11px] font-medium text-accent">{label}</span>
                             <span className="min-w-0 flex-1 truncate text-sm text-fg">{video?.name ?? "Recovered activity — source card unavailable"}</span>
-                            <time className="shrink-0 text-xs text-muted" dateTime={new Date(entry.at).toISOString()} title={new Date(entry.at).toISOString()}>{new Date(entry.at).toLocaleString()}</time>
+                            <time className="w-full shrink-0 text-right text-xs text-muted sm:w-auto" dateTime={new Date(entry.at).toISOString()} title={new Date(entry.at).toISOString()}>{new Date(entry.at).toLocaleString()}</time>
                           </button>;
                         })}
                       </div>

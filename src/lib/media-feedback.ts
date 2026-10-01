@@ -1,5 +1,6 @@
 import { recordRatingForStreak } from "./rating-streaks";
 import { restoreDurableFeedback, saveDurableFeedback } from "./videos/persist";
+import { scheduleBackgroundWork } from './interaction-budget';
 
 export type RatingLedgerEntry = { rating: number; updatedAt: number };
 export type WatchTime = { preview: number; fullscreen: number; previewEstimated?: number; fullscreenEstimated?: number };
@@ -12,6 +13,7 @@ const KEY = "reelcase.media-feedback.v1";
 let cached: Feedback | null = null;
 let changeTimer: number | undefined;
 let persistTimer: number | undefined;
+let cancelPersist: (() => void) | undefined;
 let lastRatingQueueMs = 0;
 let lastPersistMs = 0;
 let pendingWrites = 0;
@@ -96,25 +98,44 @@ export async function hydrateDurableFeedback() {
 }
 function persist() {
   persistTimer = undefined;
+  cancelPersist = undefined;
+  if (!pendingWrites || !cached) return;
   const started = typeof performance !== "undefined" ? performance.now() : Date.now();
-  try { if (cached) localStorage.setItem(KEY, JSON.stringify(cached)); } catch { /* IndexedDB backup still writes below. */ }
+  // saveDurableFeedback owns both mirrors. Serializing here too used to write
+  // the same feedback archive twice for every rating and watch-time flush.
+  try { saveDurableFeedback(cached); }
   finally {
     lastPersistMs = Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - started);
     pendingWrites = 0;
   }
-  if (cached) saveDurableFeedback(cached);
 }
 
 /** Finish a queued rating write before a reload, tab close, or mobile app switch. */
 function flush() {
   if (persistTimer !== undefined) window.clearTimeout(persistTimer);
+  persistTimer = undefined;
+  cancelPersist?.(); cancelPersist = undefined;
   persist();
+}
+
+function queuePersist(delay: number) {
+  persistTimer = window.setTimeout(() => {
+    persistTimer = undefined;
+    cancelPersist = scheduleBackgroundWork(persist, { timeoutMs: 1000 });
+  }, delay);
 }
 
 if (typeof window !== "undefined") {
   window.addEventListener("pagehide", flush);
-  document.addEventListener("visibilitychange", () => {
+  const onHidden = () => {
     if (document.visibilityState === "hidden") flush();
+  };
+  document.addEventListener("visibilitychange", onHidden);
+  import.meta.hot?.dispose(() => {
+    flush();
+    if (changeTimer !== undefined) window.clearTimeout(changeTimer);
+    window.removeEventListener('pagehide', flush);
+    document.removeEventListener('visibilitychange', onHidden);
   });
 }
 // Ratings are used on dense rails. Coalesce the JSON write so a star press
@@ -125,7 +146,8 @@ function write(next: Feedback) {
   if (typeof window === "undefined") return;
   pendingWrites = 1;
   if (persistTimer) window.clearTimeout(persistTimer);
-  persistTimer = window.setTimeout(persist, 90);
+  cancelPersist?.(); cancelPersist = undefined;
+  queuePersist(90);
 }
 function writeWatchTime(next: Feedback) {
   cached = next;
@@ -133,7 +155,7 @@ function writeWatchTime(next: Feedback) {
   pendingWrites = 1;
   // Playback updates arrive every few seconds. Keep one bounded save timer
   // instead of serializing the whole feedback archive on each video tick.
-  persistTimer ??= window.setTimeout(persist, 15_000);
+  if (persistTimer === undefined && !cancelPersist) queuePersist(15_000);
 }
 function notifyChange() {
   if (typeof window === "undefined" || changeTimer) return;

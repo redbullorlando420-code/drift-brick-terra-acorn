@@ -15,6 +15,26 @@ test("All saved resolves hearts and likes once while preserving separate private
   assert.equal(hearts.missingSource, true, "missing sources keep their saved intent");
 });
 
+test('warm saved shelves do not reread 100k unwatched titles when display or privacy changes', () => {
+  let reads = 0;
+  const rows = Array.from({ length: 100_000 }, (_, index) => {
+    const video = card(String(index), index === 99_999 ? 'adult' : 'public');
+    Object.defineProperty(video, 'id', { get: () => { reads++; return String(index); } });
+    return video;
+  });
+  // An alias is not a favorite ID, even when the sparse lookup resolves it.
+  rows[0] = { ...card('not-saved'), path: '50000' };
+  const hearts: Record<string, true> = { '50000': true, '99999': true };
+  const adults = new Set(['adult']);
+  assert.deepEqual(selectSavedCards(rows, hearts, {}, adults, false, {}, false), [rows[50000]]);
+  const coldReads = reads;
+  for (let index = 0; index < 100; index++) {
+    assert.deepEqual(selectSavedCards(rows, hearts, {}, adults, true, {}, true), [rows[99999]]);
+    assert.deepEqual(selectSavedCards(rows, hearts, {}, adults, false, { '50000': true }, false), []);
+  }
+  assert.ok(reads - coldReads < 2000, 'warm work stays proportional to saved matches');
+});
+
 test("count packets aggregate a million entries without retaining metadata and remain partition invariant", () => {
   const packet: CountRow[] = Array.from({ length: 500 }, (_, i) => i % 2 ? [1 | 2 | 16, 2] : [32, 0]);
   const counts = emptyCatalogCounts();

@@ -1,5 +1,6 @@
 import type { LibraryVideo } from "./types";
 import { topicsForVideo } from './topics';
+import { forEachCatalogSlice, yieldCatalogTask } from '../catalog-work.ts';
 
 /** Tokenize for indexed search: lowercase alphanumerics, keep path-ish separators as splits. */
 export function tokenize(text: string): string[] {
@@ -52,6 +53,29 @@ function haystackFor(
   return parts.join(" ");
 }
 
+/** Worker-unavailable fallback: scan small tasks instead of retaining a second
+ * full inverted index (and its per-document token arrays) on the UI thread. */
+export async function searchCatalog(videos: readonly LibraryVideo[], tags: Record<string, string[]>,
+  categories: Record<string, string>, query: string, signal?: AbortSignal) {
+  const needle = query.trim().toLowerCase().replace(/^#/, '');
+  const wanted = tokenize(needle), matches = new Set<string>(), exact = new Set<string>();
+  const compound = needle.includes('-') || /^(?:fetish|genre|meta|creator|sub|source)-/.test(needle);
+  const bare = needle.replace(/^(?:fetish|genre|meta|creator|sub|source)-/, '');
+  const shortcuts = new Set([needle, bare, `fetish-${bare}`, `genre-${bare}`]);
+  if (!wanted.length || signal?.aborted) return matches;
+  await forEachCatalogSlice(videos, video => {
+    if (signal?.aborted) return;
+    if (compound && (tags[video.id] ?? []).some(tag => shortcuts.has(tag.toLowerCase()))) exact.add(video.id);
+    const words = tokenize(haystackFor(video, tags, categories));
+    if (wanted.every(word => words.some(token => token === word || token.startsWith(word) || word.length >= 4 && token.includes(word)))) matches.add(video.id);
+  }, async () => {
+    if (signal?.aborted) throw signal.reason;
+    await yieldCatalogTask();
+    if (signal?.aborted) throw signal.reason;
+  });
+  return exact.size ? exact : matches;
+}
+
 /**
  * Inverted token index over the durable catalog.
  * Search is AND-of-tokens with prefix expansion so typing stays cheap
@@ -59,6 +83,7 @@ function haystackFor(
  */
 export class VideoSearchIndex {
   private byToken = new Map<string, Set<string>>();
+  private idsByTag = new Map<string, Set<string>>();
   private docTokens = new Map<string, string[]>();
   private videosRef: LibraryVideo[] | null = null;
   private tagsRef: Record<string, string[]> | null = null;
@@ -66,6 +91,7 @@ export class VideoSearchIndex {
 
   clear() {
     this.byToken.clear();
+    this.idsByTag.clear();
     this.docTokens.clear();
     this.videosRef = null;
     this.tagsRef = null;
@@ -74,14 +100,18 @@ export class VideoSearchIndex {
 
   private unlink(id: string) {
     const prev = this.docTokens.get(id);
-    if (!prev) return;
-    for (const token of prev) {
+    for (const token of prev ?? []) {
       const set = this.byToken.get(token);
       if (!set) continue;
       set.delete(id);
       if (!set.size) this.byToken.delete(token);
     }
     this.docTokens.delete(id);
+    for (const tag of new Set((this.tagsRef?.[id] ?? []).map((entry) => entry.toLowerCase()))) {
+      const ids = this.idsByTag.get(tag);
+      ids?.delete(id);
+      if (!ids?.size) this.idsByTag.delete(tag);
+    }
   }
 
   private link(id: string, text: string) {
@@ -97,6 +127,15 @@ export class VideoSearchIndex {
     }
   }
 
+  private linkTags(id: string, tags: string[]) {
+    const normalized = [...new Set(tags.map((tag) => tag.toLowerCase()))];
+    for (const tag of normalized) {
+      let ids = this.idsByTag.get(tag);
+      if (!ids) { ids = new Set(); this.idsByTag.set(tag, ids); }
+      ids.add(id);
+    }
+  }
+
   upsert(
     video: LibraryVideo,
     tags: Record<string, string[]>,
@@ -104,6 +143,7 @@ export class VideoSearchIndex {
   ) {
     this.unlink(video.id);
     this.link(video.id, haystackFor(video, tags, categories));
+    this.linkTags(video.id, tags[video.id] ?? []);
   }
 
   /** Update one locally edited document without rebuilding a very large catalog. */
@@ -155,9 +195,11 @@ export class VideoSearchIndex {
       }
     } else {
       this.byToken.clear();
+      this.idsByTag.clear();
       this.docTokens.clear();
       for (const video of videos) {
         this.link(video.id, haystackFor(video, tags, categories));
+        this.linkTags(video.id, tags[video.id] ?? []);
       }
     }
 
@@ -175,14 +217,8 @@ export class VideoSearchIndex {
     if (this.tagsRef && (needle.includes("-") || /^(?:fetish|genre|meta|creator|sub|source)-/.test(needle))) {
       const exact = new Set<string>();
       const bare = needle.replace(/^(?:fetish|genre|meta|creator|sub|source)-/, "");
-      for (const [id, list] of Object.entries(this.tagsRef)) {
-        for (const tag of list) {
-          const t = tag.toLowerCase();
-          if (t === needle || t === bare || t === `fetish-${bare}` || t === `genre-${bare}`) {
-            exact.add(id);
-            break;
-          }
-        }
+      for (const key of new Set([needle, bare, `fetish-${bare}`, `genre-${bare}`])) {
+        for (const id of this.idsByTag.get(key) ?? []) exact.add(id);
       }
       if (exact.size) return exact;
     }

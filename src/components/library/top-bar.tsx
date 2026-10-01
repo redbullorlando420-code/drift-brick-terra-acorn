@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PullPauseButton } from "./pull-pause-button";
 import { Clock3, LayoutGrid, List, Menu, Search, Upload, X, Sparkles, FolderSearch, PanelLeftOpen, PanelLeftClose } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,9 +12,11 @@ import {
 import { cn } from "@/lib/utils";
 import { NoticeBell } from "./notice-center";
 import { useLibrary } from "@/lib/videos/store";
-import { librarySearchIndex } from "@/lib/videos/search-index";
 import { searchWorkerIndex } from "@/lib/videos/search-worker-index";
-import type { SortKey } from "@/lib/videos/types";
+import { collectSearchSuggestions } from '@/lib/videos/search-suggestions';
+import { getInteractionPriorityDelay, scheduleBackgroundWork } from '@/lib/interaction-budget';
+import { yieldCatalogTask } from '@/lib/catalog-work';
+import type { LibraryVideo, SortKey } from "@/lib/videos/types";
 import { allowAutomaticRefresh } from "@/lib/session-activity";
 import { useSessionPhase } from "@/lib/use-session-phase";
 
@@ -43,13 +45,17 @@ export function TopBar({
   onToggleSidebar: () => void;
 }) {
   const query = useLibrary((s) => s.query);
-  const setQuery = useLibrary((s) => s.setQuery);
+  const setStoreQuery = useLibrary((s) => s.setQuery);
+  const localCommit = useRef<string | null>(null);
+  const setQuery = useCallback((value: string) => { localCommit.current = value; setStoreQuery(value); }, [setStoreQuery]);
   const sourceId = useLibrary((s) => s.sourceId);
   const [draft, setDraft] = useState(query);
   const [lookup, setLookup] = useState(query);
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
-    setDraft(query);
+    // A debounced commit must not overwrite keystrokes entered since that
+    // commit was scheduled. External tag/navigation searches still sync here.
+    if (query !== localCommit.current) setDraft(query);
   }, [query]);
   useEffect(() => { const id = window.setTimeout(() => setLookup(draft), 140); return () => window.clearTimeout(id); }, [draft]);
   useEffect(() => {
@@ -71,6 +77,9 @@ export function TopBar({
   const openPreview = useLibrary((s) => s.openPreview);
   const setSource = useLibrary((s) => s.setSource);
   const tags = useLibrary((s) => s.tags);
+  const categories = useLibrary(s => s.categories);
+  const hiddenVideos = useLibrary(s => s.hiddenVideos);
+  const hideDemo = useLibrary(s => s.hideDemo);
   const adultsUnlocked = useLibrary((s) => s.adultsUnlocked);
   const [focused, setFocused] = useState(false);
   const sessionPhase = useSessionPhase();
@@ -82,29 +91,35 @@ export function TopBar({
   const sourceCount = sourceId === "home" ? videos.length : folders.find((folder) => folder.id === sourceId)?.videoCount;
   const needle = lookup.trim().toLowerCase();
   const lookupActive = Boolean(needle) && focused && sessionPhase === "active";
-  const [workerIds, setWorkerIds] = useState<string[] | null>(null);
+  const [hits, setHits] = useState<LibraryVideo[]>([]);
   const [searchIndexStatus, setSearchIndexStatus] = useState(searchWorkerIndex.getStatus());
   useEffect(() => searchWorkerIndex.subscribe(setSearchIndexStatus), []);
-  useEffect(() => { let active = true; setWorkerIds(null); if (!lookupActive) return; void searchWorkerIndex.search(needle).then((ids) => { if (active) setWorkerIds(ids); }); return () => { active = false; }; }, [lookupActive, needle, searchIndexStatus]);
-  const videoById = useMemo(() => lookupActive ? new Map(videos.map((video) => [video.id, video])) : new Map<string, typeof videos[number]>(), [lookupActive, videos]);
-  const hits = useMemo(() => {
-    if (!lookupActive || searchIndexStatus === "building" || (workerIds === null && searchIndexStatus !== "failed")) return [];
-    const indexedIds = workerIds ? new Set(workerIds) : librarySearchIndex.search(needle);
-    // The index covers title, creator, description, tags, category, source,
-    // and local path.  A short fallback keeps search useful during its first
-    // background build without making every keystroke the normal slow path.
-    const candidates = indexedIds ? Array.from(indexedIds, (id) => videoById.get(id)).filter((video): video is NonNullable<typeof video> => Boolean(video)) : videos;
-    return candidates.filter((video) => {
-        const folder = folders.find((item) => item.id === video.folderId);
-        if (folder?.adult && !((sourceId === "adults" || sourceId === "adult-fetishes") && adultsUnlocked)) return false;
-        // Source desks intentionally scope their suggestion cards. The same
-        // worker index still powers the lookup, including creator and provider
-        // URL tokens, without walking the full catalog on each keystroke.
-        if (sourceId === "youtube" && video.remote?.kind !== "youtube") return false;
-        if (sourceId === "twitch" && video.remote?.kind !== "twitch") return false;
-        return indexedIds ? true : `${video.name} ${video.path} ${video.description ?? ""} ${video.remote?.channelName ?? ""} ${(tags[video.id] ?? []).join(" ")}`.toLowerCase().includes(needle);
-      }).sort((a, b) => b.addedAt - a.addedAt).slice(0, 6);
-  }, [adultsUnlocked, folders, lookupActive, needle, sourceId, tags, videoById, videos, workerIds, searchIndexStatus]);
+  useEffect(() => {
+    setHits([]);
+    if (!lookupActive) return;
+    const controller = new AbortController();
+    let cancelTurn = () => {}, rejectTurn: ((reason: Error) => void) | undefined;
+    const turn = async () => {
+      await yieldCatalogTask();
+      if (controller.signal.aborted) throw new Error('Suggestion replaced');
+      if (document.hidden || getInteractionPriorityDelay() > 0) await new Promise<void>((resolve, reject) => {
+        rejectTurn = reject;
+        cancelTurn = scheduleBackgroundWork(() => { rejectTurn = undefined; resolve(); });
+      });
+      if (controller.signal.aborted) throw new Error('Suggestion replaced');
+    };
+    void (async () => {
+      await turn();
+      // A six-row dropdown must not wait for the first full-library index.
+      // The Search desk owns that index; suggestions catch up when it is ready.
+      const ids = searchIndexStatus === 'ready' ? await searchWorkerIndex.search(needle, controller.signal) : null;
+      if (controller.signal.aborted) return;
+      const result = await collectSearchSuggestions({ videos, folders, tags, categories, hidden: hiddenVideos,
+        hideDemo, sourceId, adultsUnlocked, query: needle, ids }, turn);
+      if (!controller.signal.aborted) setHits(result);
+    })().catch(() => { /* Blur, typing, or navigation replaces this lookup. */ });
+    return () => { controller.abort(); cancelTurn(); rejectTurn?.(new Error('Suggestion replaced')); };
+  }, [adultsUnlocked, categories, folders, hiddenVideos, hideDemo, lookupActive, needle, sourceId, tags, videos, searchIndexStatus]);
   const suggestionTags = useMemo(() => [...new Set(hits.flatMap((video) => tags[video.id] ?? []))].filter((tag) => tag.length >= 3).slice(0, 5), [hits, tags]);
   const applyAdultTagStay = (raw: string) => {
     const tag = raw.trim().replace(/^#/, "");

@@ -1,3 +1,4 @@
+import { REDDIT_SOURCE_STORAGE_KEY, readRedditSourceSettings, type RedditSourceSetting } from "@/lib/videos/adult-pull-plan";
 import { DEFAULT_PULL_SETTINGS, getPullSettings, subscribePullSettings } from '@/lib/pull-settings';
 import { getPullCancellationRevision } from '@/lib/pull-control';
 import { useDeferredValue, useEffect, useMemo, useState, useSyncExternalStore } from "react";
@@ -66,8 +67,6 @@ const FETISH_EXPLORER_GROUPS: Array<{ label: string; tags: readonly string[] }> 
   { label: "Kink & power", tags: ["bdsm", "cuckold", "femdom", "pegging", "roleplay", "strap on", "taboo"] },
 ];
 
-type RedditSourceSetting = { subreddit: string; priority: 1 | 2 | 3; hidden?: boolean; favorite?: boolean };
-const REDDIT_SOURCE_STORAGE_KEY = "reelcase.adult-reddit-sources.v1";
 type FetishExplorerTab = "topics" | "sources" | "reddit" | "interests";
 
 const FETISH_EXPLORER_TABS: Array<{ id: FetishExplorerTab; label: string; hint: string }> = [
@@ -110,26 +109,6 @@ function pullSourceSelectionLabel(providers: AdultPullProvider[] | "all"): strin
   if (providers === "all") return "All available sources";
   const exact = PROVIDER_CHOICES.find((choice) => JSON.stringify(choice.id) === JSON.stringify(providers));
   return exact?.label ?? `${providers.length} selected sources`;
-}
-
-function readRedditSourceSettings(): RedditSourceSetting[] {
-  try {
-    const raw: unknown = JSON.parse(localStorage.getItem(REDDIT_SOURCE_STORAGE_KEY) ?? "[]");
-    if (!Array.isArray(raw)) return [];
-    const seen = new Set<string>();
-    const settings: RedditSourceSetting[] = [];
-    for (const item of raw.slice(0, 120)) {
-      const row = item && typeof item === "object" ? item as Record<string, unknown> : {};
-      const subreddit = String(row.subreddit ?? "").trim().replace(/^r\//i, "");
-      if (!/^[a-z0-9_]{3,48}$/i.test(subreddit) || seen.has(subreddit.toLowerCase())) continue;
-      seen.add(subreddit.toLowerCase());
-      const priority = Number(row.priority);
-      settings.push({ subreddit, priority: priority >= 3 ? 3 : priority <= 1 ? 1 : 2, hidden: Boolean(row.hidden), favorite: Boolean(row.favorite) });
-    }
-    return settings;
-  } catch {
-    return [];
-  }
 }
 
 /**
@@ -415,7 +394,6 @@ function SiteCard({
 
 export function AdultPanel({
   showMilestones = false,
-  autoPull = true,
   sourceFilter = "all",
   tagFilter: tagFilterProp,
   onSourceFilter,
@@ -423,8 +401,6 @@ export function AdultPanel({
 }: {
   /** Link-out hub + milestone catalogs — deferred behind Adults deep shelves. */
   showMilestones?: boolean;
-  /** Soft first pull when the cache is thin; explore can disable for render-only. */
-  autoPull?: boolean;
   sourceFilter?: string;
   tagFilter?: string;
   onSourceFilter?: (source: string) => void;
@@ -440,7 +416,6 @@ export function AdultPanel({
   const [query, setQuery] = useState("");
   const [order, setOrder] = useState("top-weekly");
   const [providers, setProviders] = useState<AdultPullProvider[] | "all">("all");
-  const [booted, setBooted] = useState(false);
   const [localTag, setLocalTag] = useState("all");
   const [facetQuery, setFacetQuery] = useState("");
   const deferredFacetQuery = useDeferredValue(facetQuery);
@@ -594,25 +569,6 @@ export function AdultPanel({
       .slice(0, 30);
   }, [adultVideos, deferredFacetQuery, facetsReady, tags]);
 
-  useEffect(() => {
-    if (!autoPull || !getPullSettings().automaticPulls || booted || !redditSourcesReady) return;
-    setBooted(true);
-    // Cached IndexedDB shelves already paint on fast-start; only top up a thin cache.
-    if (adultVideos.length >= LIBRARY_LIMITS.adultFastStartVideosPerPull) return;
-    void searchAdultFeed("all", "top-weekly", {
-      providers: "all",
-      maxVideos: adultMaxVideos,
-      ...redditPullOptions,
-    })
-      .then((n) => {
-        setNextPage(2);
-        if (n) toast.success(`Loaded ${n.toLocaleString()} adult titles`);
-      })
-      .catch((err: unknown) => {
-        toast.error(err instanceof Error ? err.message : "Could not load adult feed.");
-      });
-  }, [adultMaxVideos, autoPull, booted, adultVideos.length, redditPullOptions, redditSourcesReady, searchAdultFeed]);
-
   const refreshArchiveLabel = (q: string, ord: string) => {
     setArchiveLabel(adultArchiveDepthLabel(loadAdultArchiveCursors(q, ord)));
   };
@@ -639,6 +595,7 @@ export function AdultPanel({
       page: resume ? 1 : page,
       maxVideos: adultMaxVideos,
       append: append || resume,
+      resumeArchive: append || resume,
       providers,
       providerPages,
       ...redditPullOptions,

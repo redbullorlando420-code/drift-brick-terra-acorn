@@ -1,8 +1,11 @@
 import { selectSavedCards } from "./saved-library";
 import { memoizeSelector } from "./selector-cache";
-import { waitForPulls, setPullViewerOpen, getPullCancellationRevision, pullsPaused } from "@/lib/pull-control";
+import { waitForPulls, setPullViewerOpen, getPullCancellationRevision, pullsPaused, waitForCatalogCommit } from "@/lib/pull-control";
 import { getPullSettings } from '@/lib/pull-settings';
+import { forEachCatalogSlice, copyCatalogArray, copyCatalogRecord, yieldCatalogTask } from "@/lib/catalog-work";
+import { walkAdultPull } from './adult-pull-walk';
 import { catalogCard, withCatalogDetails } from './catalog-card';
+import { SliceWriter } from '../slice-writer';
 import { create } from "zustand";
 import { createShortLocalId } from "@/lib/local-id";
 import {
@@ -26,6 +29,7 @@ import {
 import { mergeRemoteCatalog, mergeRemoteRefresh, remoteVideoIndex } from "./remote-merge";
 import { canonicalFollowHandle, dedupeFollows } from "./follow-identity";
 import { lookupVideo, lookupVideos, rememberVideo } from "./video-lookup";
+import { activityLookup, activityCandidates } from './activity-lookup';
 import { canonicalTopic, reconcileProviderTopicTags, topicsForVideo } from "./topics";
 import { applyCachedTagPatches, type CachedTagPatch } from "./tag-patches";
 import { youtubeSourceCounts, youtubeVideoKey } from "../remote/youtube-sources";
@@ -104,7 +108,7 @@ import type {
   WellKnownStart,
 } from "./types";
 import { getRating } from "../media-feedback";
-import { librarySearchIndex } from "./search-index";
+
 import { useSourceAssets } from "@/lib/source-assets";
 import { isClassicVideo, SYSTEM_SOURCES } from "./types";
 import { LIBRARY_LIMITS } from "@/lib/library-limits";
@@ -275,6 +279,7 @@ export type LibraryState = {
 
 let preferencesRestored = false;
 let savedShelfRevision = 0;
+const durableSliceWriter = new SliceWriter();
 function persistNow(get: () => LibraryState) {
   if (!preferencesRestored) return;
   const s = get();
@@ -309,34 +314,45 @@ function persistNow(get: () => LibraryState) {
   };
   // Follow lists are durable on their own key/store so Adult tag bloat,
   // history caps, and thumb prune cannot erase YouTube/Twitch subscriptions.
-  saveFollows(s.follows);
-  saveDurableHistory(s.history);
-  saveDurableResume(s.progress, s.resumeProgress);
-  saveDurableMarks(s.viewCounts, s.cameCounts);
-  saveDurableShelves(Object.keys(s.favorites), Object.keys(s.likes));
-  saveDurableLinks(linksFromHistoryAndResume(s.history, s.resumeProgress));
-  const photoSources = s.folders
-    .filter((folder) => folder.kind === "directory" || folder.kind === "files")
-    .map((folder) => ({
+  durableSliceWriter.write('follows', [s.follows], () => saveFollows(s.follows));
+  persistActivityNow(get);
+  durableSliceWriter.write('shelves', [s.favorites, s.likes], () => saveDurableShelves(Object.keys(s.favorites), Object.keys(s.likes)));
+  const photoFolders = s.folders.filter(folder => folder.kind === 'directory' || folder.kind === 'files');
+  durableSliceWriter.write('photos', photoFolders, () => {
+    const photoSources = photoFolders.map(folder => ({
       id: folder.id,
       name: folder.name,
-      kind: folder.kind as "directory" | "files",
+      kind: folder.kind as 'directory' | 'files',
       ...(folder.photoCount != null ? { photoCount: folder.photoCount } : {}),
       ...(folder.lastCheckedAt != null ? { lastCheckedAt: folder.lastCheckedAt } : {}),
     }));
-  if (photoSources.length) saveDurablePhotos({ sources: photoSources });
-  savePrefs(prefs);
-  void saveActivitySnapshot({ history: s.history, progress: s.progress, resumeProgress: s.resumeProgress, viewCounts: s.viewCounts, cameCounts: s.cameCounts, savedAt: Date.now() }).catch(() => queueResumeReplay(s.resumeProgress));
+    if (photoSources.length) saveDurablePhotos({ sources: photoSources });
+  });
+  durableSliceWriter.write('preferences', [s.favorites, s.likes, s.tags, s.metadataProvenance, s.categories, s.progress, s.resumeProgress, s.history, s.viewCounts, s.cameCounts, s.view, s.sort, s.hideDemo, s.sourceId, s.hardwareAccel, s.folders, s.adultPinHash, s.follows, s.notices, s.notifyPush, s.unavailable, s.hiddenVideos], () => savePrefs(prefs));
 }
 
-function persistActivity(get: () => LibraryState) {
+function persistActivityNow(get: () => LibraryState) {
   if (!preferencesRestored) return;
   const s = get();
-  saveDurableHistory(s.history);
-  saveDurableResume(s.progress, s.resumeProgress);
-  saveDurableMarks(s.viewCounts, s.cameCounts);
-  saveDurableLinks(linksFromHistoryAndResume(s.history, s.resumeProgress));
-  void saveActivitySnapshot({ history: s.history, progress: s.progress, resumeProgress: s.resumeProgress, viewCounts: s.viewCounts, cameCounts: s.cameCounts, savedAt: Date.now() }).catch(() => queueResumeReplay(s.resumeProgress));
+  durableSliceWriter.write('history', [s.history], () => saveDurableHistory(s.history));
+  durableSliceWriter.write('resume', [s.progress, s.resumeProgress], () => saveDurableResume(s.progress, s.resumeProgress));
+  durableSliceWriter.write('marks', [s.viewCounts, s.cameCounts], () => saveDurableMarks(s.viewCounts, s.cameCounts));
+  durableSliceWriter.write('links', [s.history, s.resumeProgress], () => saveDurableLinks(linksFromHistoryAndResume(s.history, s.resumeProgress)));
+  durableSliceWriter.write('activity', [s.history, s.progress, s.resumeProgress, s.viewCounts, s.cameCounts], () => {
+    void saveActivitySnapshot({ history: s.history, progress: s.progress, resumeProgress: s.resumeProgress, viewCounts: s.viewCounts, cameCounts: s.cameCounts, savedAt: Date.now() }).catch(() => queueResumeReplay(s.resumeProgress));
+  });
+}
+
+let cancelActivitySave: (() => void) | undefined;
+function persistActivity(get: () => LibraryState) {
+  if (typeof window === 'undefined') { persistActivityNow(get); return; }
+  // The small per-event journal is already queued by the action. Larger resume
+  // snapshots wait for the foreground interaction to paint and read latest state.
+  if (cancelActivitySave) return;
+  cancelActivitySave = scheduleBackgroundWork(() => {
+    cancelActivitySave = undefined;
+    persistActivityNow(get);
+  }, { timeoutMs: 1000, fallbackDelayMs: 250 });
 }
 
 function mergeHistory(a: HistoryEntry[], b: HistoryEntry[]): HistoryEntry[] {
@@ -429,20 +445,23 @@ function takeQueuedResumeReplay(): Record<string, ResumeMark> {
 }
 
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
+let cancelPrefsSave: (() => void) | undefined;
 
 function persistSoon(get: () => LibraryState) {
   if (typeof window === "undefined") {
     persistNow(get);
     return;
   }
-  if (persistTimer != null) return;
+  if (persistTimer != null || cancelPrefsSave) return;
   persistTimer = setTimeout(() => {
     persistTimer = null;
-    persistNow(get);
+    cancelPrefsSave = scheduleBackgroundWork(() => { cancelPrefsSave = undefined; persistNow(get); });
   }, 900);
 }
 
 function flushPersist(get: () => LibraryState) {
+  cancelPrefsSave?.(); cancelPrefsSave = undefined;
+  cancelActivitySave?.(); cancelActivitySave = undefined;
   if (persistTimer != null) {
     clearTimeout(persistTimer);
     persistTimer = null;
@@ -986,8 +1005,6 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       },
     }));
     const state = get();
-    const video = state.videos.find((item) => item.id === id);
-    if (video) librarySearchIndex.updateMetadata(video, state.videos, state.tags, state.categories);
     saveTagEdit(id, state.tags[id] ?? []);
     saveMetadataEdit(id, state.metadataProvenance[id] ?? { tags: {}, lockedFields: ["tags"] });
     // Keep the small per-title journal synchronous for recovery, then defer
@@ -996,7 +1013,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   },
   applyReviewedTags: (id, tags, source) => {
     const stateBefore = get();
-    const video = stateBefore.videos.find((item) => item.id === id);
+    const video = lookupVideo(stateBefore.videos, id);
     const existing = stateBefore.tags[id] ?? [];
     const provenance = stateBefore.metadataProvenance[id];
     const inspected = tags.map(normalizeTagValue).filter(Boolean);
@@ -1012,7 +1029,6 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       },
     }));
     const state = get();
-    librarySearchIndex.updateMetadata(video, state.videos, state.tags, state.categories);
     // The person explicitly confirmed this preview, so journal the accepted
     // result alongside the source attribution for crash-safe recovery.
     saveTagEdit(id, state.tags[id] ?? []);
@@ -1040,11 +1056,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       }
       return { tags, metadataProvenance };
     });
-    const state = get();
-    // Autotagging changes many records at once. Rebuild the shared search
-    // index from the committed tag map so clicking or typing a newly inferred
-    // tag finds the same set of titles immediately.
-    librarySearchIndex.sync(state.videos, state.tags, state.categories);
+    // The search worker observes the committed tag map on demand.
     persistNow(get);
     return changed;
   },
@@ -1082,8 +1094,6 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       if (!sameTags(existing, compact)) row.changed += 1;
     }
     set({ tags, metadataProvenance });
-    const next = get();
-    librarySearchIndex.sync(next.videos, next.tags, next.categories);
     persistNow(get);
     return {
       processed: batch.length,
@@ -1102,15 +1112,18 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     if (!batch.length) return { processed: 0, repaired: 0, tagged: 0, remaining: 0 };
 
     const repairs = new Map(batch.map((candidate) => [candidate.video.id, candidate.channelName]));
+    const repairedById = new Map<string, LibraryVideo>();
     const videos = state.videos.map((video) => {
       const channelName = repairs.get(video.id);
-      return channelName && video.remote ? { ...video, remote: { ...video.remote, channelName } } : video;
+      const repaired = channelName && video.remote ? { ...video, remote: { ...video.remote, channelName } } : video;
+      if (channelName && repaired !== video) repairedById.set(video.id, repaired);
+      return repaired;
     });
     const tags = { ...state.tags };
     const metadataProvenance = { ...state.metadataProvenance };
     let tagged = 0;
     for (const { video } of batch) {
-      const repaired = videos.find((item) => item.id === video.id)!;
+      const repaired = repairedById.get(video.id) ?? video;
       if (tagsLocked(metadataProvenance[video.id])) continue;
       // This focused repair deliberately contributes only creator attribution.
       // Metadata-tail coverage handles descriptions and other provider tags in
@@ -1129,8 +1142,6 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       }
     }
     set({ videos, tags, metadataProvenance });
-    const next = get();
-    librarySearchIndex.sync(next.videos, next.tags, next.categories);
     // This is an explicit user action that changes remote card metadata. Save
     // it immediately so a reload cannot discard an exact-ID repair.
     cacheRemotes(get);
@@ -1148,8 +1159,6 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       metadataProvenance: { ...s.metadataProvenance, [id]: { ...s.metadataProvenance[id], tags: s.metadataProvenance[id]?.tags ?? {}, category: "manual", lockedFields: [...new Set([...(s.metadataProvenance[id]?.lockedFields ?? []), "category"])] as Array<"tags" | "category">, updatedAt: Date.now() } },
     }));
     const state = get();
-    const video = state.videos.find((item) => item.id === id);
-    if (video) librarySearchIndex.updateMetadata(video, state.videos, state.tags, state.categories);
     saveTagEdit(id, state.tags[id] ?? []);
     saveMetadataEdit(id, state.metadataProvenance[id] ?? { tags: {}, lockedFields: ["category"] });
     persistNow(get);
@@ -1316,16 +1325,13 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     const cursors = loadAdultArchiveCursors(query, order);
     let received = 0, added = 0, done = 0;
     const diagnostics: AdultPullDiagnostic[] = [];
-    const positions = new Map<string, number>(), counts = new Map<string, number>();
-    let indexedVideos = get().videos;
-    const indexAdultRows = () => {
-      positions.clear(); counts.clear();
-      indexedVideos.forEach((video, index) => {
-        if (!(ADULT_FOLDER_IDS as readonly string[]).includes(video.folderId)) return;
-        positions.set(video.id, index); counts.set(video.folderId, (counts.get(video.folderId) ?? 0) + 1);
-      });
+    const counts = new Map<string, number>();
+    // Yield a real browser task, then respect the shared pull gate. A resolved
+    // promise alone would keep all preparation in one blocking microtask chain.
+    const turn = async () => {
+      await yieldCatalogTask();
+      await waitForCatalogCommit(cancellation);
     };
-    indexAdultRows();
     get().beginPull({ id: pullId, provider: 'adult', action: 'Catalog pull', startedAt, targets, done, total: providerList.length, received, added, failed: 0 });
     set({ remoteBusy: true, adultPullStatus: null, importProgress: { done: 0, total: providerList.length, label: 'Starting paced Adult pull…' } });
     try {
@@ -1338,79 +1344,102 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         const offset = opts?.resumeArchive === false || (opts?.providerPages?.[provider] !== undefined && opts.providerPages[provider] !== saved?.page) ? 0 : saved?.offset ?? 0;
         set({ importProgress: { done, total: providerList.length, label: `Pulling ${provider} · page ${page} · up to ${budget} entries…` } });
         try {
-          const result = await searchAdultVideos({ data: { query, order, page, maxVideos: budget, append: true, providers: [provider], providerPages: { [provider]: page }, providerOffsets: { [provider]: offset }, redditSources: opts?.redditSources } });
+          const walked = await walkAdultPull(budget, page, offset, async (nextPage, nextOffset, limit) => {
+            set({ importProgress: { done, total: providerList.length, label: `Pulling ${provider} · page ${nextPage} · target ${budget.toLocaleString()} entries…` } });
+            const response = await searchAdultVideos({ data: { query, order, page: nextPage, maxVideos: limit, append: true, providers: [provider], providerPages: { [provider]: nextPage }, providerOffsets: { [provider]: nextOffset }, redditSources: opts?.redditSources } });
+            return { ...response, nextPage: response.providerNextPages[provider] ?? null, nextOffset: response.providerNextOffsets[provider] ?? 0 };
+          }, turn);
+          if (!walked.latest) continue;
+          const result = { ...walked.latest, videos: walked.videos,
+            providerDiagnostics: walked.latest.providerDiagnostics.map(row => ({ ...row, titles: walked.videos.length, detail: `${walked.videos.length.toLocaleString()} entries across archive pages${walked.error ? ' · stopped after a provider error; saved results are retained' : ''}` })) };
+          if (walked.error) result.providerDiagnostics.push({ provider, status: 'failed', titles: 0, detail: walked.error instanceof Error ? walked.error.message : String(walked.error) });
+          await turn();
           const fetchedVideos = applyCachedAdultUrls(result.videos);
           const videos = dedupeAdultVideoCards(fetchedVideos);
-          // Write only this response; never rewrite the entire provider archive.
-          await appendCatalogVideos(videos);
-          if (getPullCancellationRevision() !== cancellation) break;
-          cacheAdultVideoUrls(videos);
-          received += videos.length;
-          diagnostics.push(...result.providerDiagnostics);
-          set(s => {
-            // Folder removal/import can change array positions during a request.
-            if (s.videos !== indexedVideos) { indexedVideos = s.videos; indexAdultRows(); }
-            const nextVideos = s.videos.slice(), tagPatch: Record<string, string[]> = {}, metadataPatch: Record<string, VideoMetadataProvenance> = {};
-            for (const video of videos) {
-              const position = positions.get(video.id);
-              if (position === undefined) {
-                positions.set(video.id, nextVideos.length); nextVideos.push(catalogCard(video)); added++;
-                counts.set(video.folderId, (counts.get(video.folderId) ?? 0) + 1);
-              } else nextVideos[position] = catalogCard(video);
-            }
-        for (const video of videos) {
-          const source = video.remote?.kind ?? video.folderId.split(":")[0] ?? "eporner";
-          const hostExtra = [
-            ...(video.remote?.sourceKinds ?? []).filter((kind) => kind !== source),
-            source === "booru" && video.remote?.channelId
-              ? [video.remote.channelId]
-              : source === "reddit" && video.remote?.channelId
-                ? [`reddit-${video.remote.channelId}`]
-                : [],
-          ].flat();
-          const creatorNames = [
-            video.remote?.channelName,
-            video.remote?.videoId && (source === "chaturbate" || source === "myfreecams")
-              ? video.remote.videoId
-              : undefined,
-          ];
-          const redditExtra = source === "reddit"
-            ? redditIngestExtras({
-                subreddit: video.remote?.channelId,
-                title: video.name,
-                extraText: `${video.description ?? ""} ${video.tagline ?? ""}`,
-                mediaKind: video.extension === "image" ? "image" : /video/i.test(video.mime) ? "video" : undefined,
-              })
-            : [];
-          const inferred = [
-            ...adultIngestTags({
-              source,
-              extraSources: hostExtra,
-              creatorNames,
-              apiKeywords: video.description ?? video.tagline ?? "",
-              title: video.name,
-              description: video.description ?? video.tagline ?? "",
-              extraTags: redditExtra,
-              extraText: source === "reddit" ? `${video.name} ${video.tagline ?? ""}` : undefined,
-              limit: LIBRARY_LIMITS.adultKeywordTagsPerTitle + 36,
-            }),
-          ];
-          const current = s.tags[video.id] ?? [];
-          if (tagsLocked(s.metadataProvenance[video.id])) {
-            tagPatch[video.id] = current;
+          if (!videos.length) {
+            // Empty windows still advance/cool down, without copying the entire
+            // catalog and its metadata just to publish an unchanged shelf.
+            diagnostics.push(...result.providerDiagnostics);
+            saveAdultArchiveCursors(query, order, result.providerNextPages, result.providerNextOffsets);
+            done++;
+            get().updatePull({ done, received, added, failed: diagnostics.filter(row => row.status === 'failed').length });
             continue;
           }
-          const compact = compactIngestedTags(current, inferred);
-          tagPatch[video.id] = compact;
-          metadataPatch[video.id] = mergeInferredTagProvenance(current, compact, s.metadataProvenance[video.id], inferred, `provider:${video.remote?.kind ?? "eporner"}`);
-        }
-
-
+          // Enrichment is bounded by this response and runs outside the store
+          // update, so unrelated UI subscribers stay available between slices.
+          const inferredTags = new Map<string, string[]>();
+          await forEachCatalogSlice(videos, video => {
+            const source = video.remote?.kind ?? video.folderId.split(":")[0] ?? "eporner";
+            const redditExtra = source === 'reddit' ? redditIngestExtras({
+              subreddit: video.remote?.channelId, title: video.name,
+              extraText: `${video.description ?? ''} ${video.tagline ?? ''}`,
+              mediaKind: video.extension === 'image' ? 'image' : /video/i.test(video.mime) ? 'video' : undefined,
+            }) : [];
+            inferredTags.set(video.id, adultIngestTags({ source,
+              extraSources: [...(video.remote?.sourceKinds ?? []).filter(kind => kind !== source),
+                ...(source === 'booru' && video.remote?.channelId ? [video.remote.channelId] : []),
+                ...(source === 'reddit' && video.remote?.channelId ? [`reddit-${video.remote.channelId}`] : [])],
+              creatorNames: [video.remote?.channelName, source === 'chaturbate' || source === 'myfreecams' ? video.remote?.videoId : undefined],
+              apiKeywords: video.description ?? video.tagline ?? '', title: video.name,
+              description: video.description ?? video.tagline ?? '', extraTags: redditExtra,
+              extraText: source === 'reddit' ? `${video.name} ${video.tagline ?? ''}` : undefined,
+              limit: LIBRARY_LIMITS.adultKeywordTagsPerTitle + 36,
+            }));
+          }, turn);
+          // Commit only against the current immutable inputs. A tag edit, folder
+          // removal, or other ingest during a yield causes a safe rebase.
+          let committed = false;
+          while (!committed) {
+            const base = get(), wanted = new Set(videos.map(video => video.id));
+            const positions = new Map<string, number>();
+            counts.clear();
+            await forEachCatalogSlice(base.videos, (video, index) => {
+              if (wanted.has(video.id)) positions.set(video.id, index);
+              if ((ADULT_FOLDER_IDS as readonly string[]).includes(video.folderId)) counts.set(video.folderId, (counts.get(video.folderId) ?? 0) + 1);
+            }, turn);
+            const nextTags = await copyCatalogRecord(base.tags, turn);
+            const nextMetadata = await copyCatalogRecord(base.metadataProvenance, turn);
+            const nextVideos = await copyCatalogArray(base.videos, turn);
+            let batchAdded = 0;
+            await forEachCatalogSlice(videos, video => {
+              const position = positions.get(video.id);
+              if (position === undefined) {
+                positions.set(video.id, nextVideos.length); nextVideos.push(catalogCard(video)); batchAdded++;
+                counts.set(video.folderId, (counts.get(video.folderId) ?? 0) + 1);
+              } else nextVideos[position] = catalogCard(video);
+              const current = base.tags[video.id] ?? [];
+              if (tagsLocked(base.metadataProvenance[video.id])) return;
+              const inferred = inferredTags.get(video.id) ?? [];
+              const compact = compactIngestedTags(current, inferred);
+              nextTags[video.id] = compact;
+              nextMetadata[video.id] = mergeInferredTagProvenance(current, compact, base.metadataProvenance[video.id], inferred, `provider:${video.remote?.kind ?? 'eporner'}`);
+            }, turn);
+            await turn();
+            const latest = get();
+            if (latest.videos !== base.videos || latest.tags !== base.tags || latest.metadataProvenance !== base.metadataProvenance) continue;
+            // Save rows before publishing their resume point. Once this write
+            // starts it is accepted work, even if Cancel arrives mid-transaction.
+            await appendCatalogVideos(videos);
+            await waitForCatalogCommit(cancellation).catch(error => {
+              if (getPullCancellationRevision() === cancellation) throw error;
+            });
+            const afterSave = get();
+            if (afterSave.videos !== base.videos || afterSave.tags !== base.tags || afterSave.metadataProvenance !== base.metadataProvenance) {
+              if (getPullCancellationRevision() !== cancellation) break;
+              continue;
+            }
             const folder = ADULT_FOLDER_BY_PROVIDER[provider];
             const nextFolder = { ...folder, videoCount: counts.get(folder.id) ?? 0, adult: true };
-            indexedVideos = nextVideos;
-            return { videos: nextVideos, folders: s.folders.some(row => row.id === folder.id) ? s.folders.map(row => row.id === folder.id ? nextFolder : row) : [...s.folders, nextFolder], tags: { ...s.tags, ...tagPatch }, metadataProvenance: { ...s.metadataProvenance, ...metadataPatch }, adultsUnlocked: true };
-          });
+            set({ videos: nextVideos,
+              folders: afterSave.folders.some(row => row.id === folder.id) ? afterSave.folders.map(row => row.id === folder.id ? nextFolder : row) : [...afterSave.folders, nextFolder],
+              tags: nextTags, metadataProvenance: nextMetadata, adultsUnlocked: true });
+            added += batchAdded; received += videos.length;
+            committed = true;
+          }
+          if (!committed) break;
+          cacheAdultVideoUrls(videos);
+          diagnostics.push(...result.providerDiagnostics);
+          for (const diagnostic of result.providerDiagnostics) if (diagnostic.status === 'failed' && (ADULT_PULL_PROVIDERS as readonly string[]).includes(diagnostic.provider)) recordAdultArchiveFailure(query, order, diagnostic.provider as AdultPullProvider);
           saveAdultArchiveCursors(query, order, result.providerNextPages, result.providerNextOffsets);
         } catch (error) {
           if (getPullCancellationRevision() !== cancellation) break;
@@ -1421,7 +1450,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         get().updatePull({ done, received, added, failed: diagnostics.filter(row => row.status === 'failed').length });
         await new Promise(resolve => setTimeout(resolve, 0));
       }
-      persistNow(get);
+      if (received) persistSoon(get);
       const failed = diagnostics.filter(row => row.status === 'failed');
       const cancelled = getPullCancellationRevision() !== cancellation;
       set({ adultPullStatus: { note: cancelled ? 'Pull cancelled. Accepted entries and archive resume points are saved.' : `${added.toLocaleString()} new entries · ${received.toLocaleString()} received. Archive pages are saved separately for each provider.`, diagnostics } });
@@ -2556,7 +2585,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     persistNow(get);
   },
   markUnavailable: (id, reason) => {
-    const video = get().videos.find((item) => item.id === id);
+    const video = lookupVideo(get().videos, id);
     if (!video || video.remote) return;
     set((s) => ({ unavailable: { ...s.unavailable, [id]: true } }));
     get().pushNotice({ title: "Hidden unavailable video", body: `${video.name} · ${reason}`, kind: "system" });
@@ -2582,21 +2611,31 @@ export const useLibrary = create<LibraryState>((set, get) => ({
 }));
 
 type SelectorMemo = { public?: LibraryVideo[]; adult?: LibraryVideo[]; adultRemote?: LibraryVideo[]; youtube?: LibraryVideo[]; twitch?: LibraryVideo[]; live?: LibraryVideo[]; classics?: LibraryVideo[]; continuePublic?: LibraryVideo[]; continueAdult?: LibraryVideo[] };
-const selectorMemo = new WeakMap<LibraryState, SelectorMemo>();
-function memoFor(state: LibraryState) { let memo = selectorMemo.get(state); if (!memo) { memo = {}; selectorMemo.set(state, memo); } return memo; }
-const resumeLookupMemo = new WeakMap<LibraryVideo[], Map<string, LibraryVideo>>();
-function resumeLookup(list: LibraryVideo[]) {
-  const cached = resumeLookupMemo.get(list);
-  if (cached) return cached;
-  const index = new Map<string, LibraryVideo>();
-  for (const video of list) {
-    // Provider watch URLs and local path/fingerprint-like identifiers survive
-    // a reimport more reliably than a transient catalog row id.
-    for (const key of [video.id, video.remote?.watchUrl, video.remote?.embedUrl, video.src, video.path]) if (key) index.set(key, video);
-  }
-  resumeLookupMemo.set(list, index);
-  return index;
+let youtubeSelectorSnapshot: {
+  videos: LibraryVideo[]; folders: Folder[]; unavailable: Record<string, true>;
+  hiddenVideos: Record<string, true>; hideDemo: boolean; result: LibraryVideo[];
+} | undefined;
+// Flush only pending deferred user activity/preferences on close or app switch.
+// A visibility event with no edits must not write another full library snapshot.
+if (typeof window !== 'undefined') {
+  const flushPending = () => {
+    if (persistTimer != null || cancelPrefsSave) flushPersist(useLibrary.getState);
+    else if (cancelActivitySave) {
+      cancelActivitySave(); cancelActivitySave = undefined;
+      persistActivityNow(useLibrary.getState);
+    }
+  };
+  const onHidden = () => { if (document.hidden) flushPending(); };
+  window.addEventListener('pagehide', flushPending);
+  document.addEventListener('visibilitychange', onHidden);
+  import.meta.hot?.dispose(() => {
+    flushPending();
+    window.removeEventListener('pagehide', flushPending);
+    document.removeEventListener('visibilitychange', onHidden);
+  });
 }
+let selectorMemo = new WeakMap<LibraryState, SelectorMemo>();
+function memoFor(state: LibraryState) { let memo = selectorMemo.get(state); if (!memo) { memo = {}; selectorMemo.set(state, memo); } return memo; }
 
 function computePublicList(state: LibraryState): LibraryVideo[] {
   const memo = memoFor(state);
@@ -2633,7 +2672,12 @@ const videoNameOrder = new Intl.Collator(undefined, { sensitivity: "base" });
 function computeSelectVisible(state: LibraryState): LibraryVideo[] {
   const q = state.query.trim().toLowerCase();
   const inAdults = state.sourceId === "adults" || state.sourceId === "adult-fetishes";
-  let list = state.sourceId === "favorites" ? selectFavorites(state, false) : inAdults ? adultList(state) : publicList(state);
+  // Recovery pages already resolve their saved activity. Do not first filter
+  // and index the entire public catalog merely to throw that work away.
+  let list = state.sourceId === "history" ? selectHistory(state, false)
+    : state.sourceId === "continue" ? selectContinue(state, false)
+    : state.sourceId === "favorites" ? selectFavorites(state, false)
+    : inAdults ? adultList(state) : publicList(state);
   if (state.sourceId === "favorites") {
     list = list.filter((v) => (state.favorites[v.id] || state.likes[v.id]));
   } else if (state.sourceId === "continue") {
@@ -2642,8 +2686,7 @@ function computeSelectVisible(state: LibraryState): LibraryVideo[] {
     // valid and should still be resumable.
     list = selectContinue(state, false);
   } else if (state.sourceId === "history") {
-    const byId = new Map(list.map((v) => [v.id, v]));
-    list = state.history.map((h) => byId.get(h.id)).filter((v): v is LibraryVideo => v != null);
+    // selectHistory also retains playable links evicted from the catalog.
   } else if (state.sourceId === "movies") {
     list = list.filter((v) => !v.remote);
   } else if (state.sourceId === "youtube") {
@@ -2662,6 +2705,10 @@ function computeSelectVisible(state: LibraryState): LibraryVideo[] {
     if (!result || result.query !== q || result.videos !== state.videos || result.tags !== state.tags || result.categories !== state.categories) return [];
     list = list.filter((v) => result.ids.has(v.id));
   }
+  // The YouTube selector already returns the default addedAt order. Reuse it
+  // directly instead of cloning and sorting tens of thousands of cached cards
+  // again whenever the visible YouTube catalog is invalidated.
+  if (state.sourceId === "youtube" && state.sort === "added") return list;
   if (state.sourceId === "history") return list;
   const sorted = [...list];
   sorted.sort((a, b) => {
@@ -2691,18 +2738,6 @@ function scoped(state: LibraryState, adult: boolean): LibraryVideo[] {
   return adult ? adultList(state) : publicList(state);
 }
 
-// Favorites and history are recovery views. Unlike a browse shelf, they must
-// retain a title when its folder needs reconnecting or a remote embed was
-// briefly marked unavailable; the card can still explain that state.
-function computeRecoveryList(state: LibraryState, adult: boolean): LibraryVideo[] {
-  const adultIds = adultIdSet(state.folders);
-  return state.videos.filter((video) => {
-    if (state.hideDemo && video.isSample) return false;
-    if (state.hiddenVideos[video.id]) return false;
-    return adult ? adultIds.has(video.folderId) : !adultIds.has(video.folderId);
-  });
-}
-
 /** Keep a small newest-first result without sorting an entire remote library. */
 function newestFirst(items: LibraryVideo[], limit: number): LibraryVideo[] {
   const top: LibraryVideo[] = [];
@@ -2728,7 +2763,22 @@ function computeSelectContinue(state: LibraryState, adult = false): LibraryVideo
     const current = marks.get(id);
     if (!current || mark.at > current.at) marks.set(id, mark);
   };
-  for (const video of recoveryList(state, adult)) recordMark(video.id, resumeForVideo(state, video));
+  const resumeKeys = Object.keys(state.resumeProgress);
+  const watchedIds = [...Object.keys(state.progress), ...resumeKeys.filter(key => key.startsWith("id:")).map(key => key.slice(3))];
+  // Search URL/path aliases against the original catalog without first
+  // allocating a second recovery list. IDs take the cheaper direct-match path
+  // inside activityCandidates; playback aliases still resolve across reimports.
+  const adultIds = adultIdSet(state.folders);
+  const watched = activityCandidates(
+    state.videos,
+    resumeKeys.filter(key => !key.startsWith("id:")),
+    watchedIds,
+  ).filter(video =>
+    !(state.hideDemo && video.isSample)
+    && !state.hiddenVideos[video.id]
+    && adult === adultIds.has(video.folderId),
+  );
+  for (const video of watched) recordMark(video.id, resumeForVideo(state, video));
   // History keeps URL/title snapshots even after a provider refresh evicts a
   // row. Replay its saved position into Continue using the same recovery card.
   for (const entry of state.history) {
@@ -2736,7 +2786,7 @@ function computeSelectContinue(state: LibraryState, adult = false): LibraryVideo
     if (!entry.position || !entry.duration || entry.position < 2 || entry.position / entry.duration >= 0.992) continue;
     recordMark(entry.id, { t: entry.position, d: entry.duration, at: entry.at });
   }
-  const candidates = [...recoveryList(state, adult), ...selectHistory(state, adult)];
+  const candidates = [...watched, ...selectHistory(state, adult)];
   const seen = new Set<string>();
   const items = candidates.filter((video) => {
     if (seen.has(video.id)) return false;
@@ -2760,17 +2810,29 @@ export function resumeForVideo(state: Pick<LibraryState, "progress" | "resumePro
 }
 
 function computeSelectHistory(state: LibraryState, adult = false): LibraryVideo[] {
-  const list = recoveryList(state, adult);
-  const byId = resumeLookup(list);
+  // Public and private History share the original catalog's sparse activity
+  // lookup. Privacy/display changes filter only matches, and no full second
+  // recovery array or alias cache is retained for either scope.
+  const adultIds = adultIdSet(state.folders);
+  const byId = activityLookup(state.videos, state.history.flatMap(entry => entry.url ? [entry.id, entry.url] : [entry.id]));
+  const lastMatch = (key: string) => {
+    const matches = byId.get(key);
+    for (let index = (matches?.length ?? 0) - 1; index >= 0; index--) {
+      const video = matches![index]!;
+      if (!(state.hideDemo && video.isSample) && !state.hiddenVideos[video.id] && adult === adultIds.has(video.folderId)) return video;
+    }
+  };
   const seen = new Set<string>();
+  const resolvedIds = new Set<string>();
   return state.history
     .filter((h) => !state.hiddenVideos[h.id] && !seen.has(h.id) && Boolean(seen.add(h.id)))
     .map((h) => {
-      const cached = byId.get(h.id) ?? (h.url ? byId.get(h.url) : undefined);
+      const cached = lastMatch(h.id) ?? (h.url ? lastMatch(h.url) : undefined);
       if (cached) return cached;
-      const live = state.videos.find((item) => item.id === h.id);
+      const live = byId.get(h.id)?.[0];
       if (live) {
-        const isAdult = adultIdSet(state.folders).has(live.folderId);
+        if (state.hiddenVideos[live.id] || state.hideDemo && live.isSample) return null;
+        const isAdult = adultIds.has(live.folderId);
         if (adult === isAdult) return live;
         if (!adult && isAdult) return null;
       }
@@ -2823,7 +2885,11 @@ function computeSelectHistory(state: LibraryState, adult = false): LibraryVideo[
       if (historyRecoveryCardCache.size > 1_500) historyRecoveryCardCache.delete(historyRecoveryCardCache.keys().next().value!);
       return recovered;
     })
-    .filter((v): v is LibraryVideo => v != null);
+    .filter((v): v is LibraryVideo => {
+      if (!v || resolvedIds.has(v.id)) return false;
+      resolvedIds.add(v.id);
+      return true;
+    });
 }
 
 export function selectEporner(state: LibraryState): LibraryVideo[] {
@@ -2862,7 +2928,52 @@ function computeSelectAdultRemote(state: LibraryState): LibraryVideo[] {
 
 function computeSelectYoutube(state: LibraryState): LibraryVideo[] {
   const memo = memoFor(state);
-  return memo.youtube ?? (memo.youtube = [...publicList(state).filter((v) => v.remote?.kind === "youtube")].sort((a, b) => b.addedAt - a.addedAt));
+  if (memo.youtube) return memo.youtube;
+  const previous = youtubeSelectorSnapshot;
+  const sameVisibility = previous
+    && previous.folders === state.folders
+    && previous.unavailable === state.unavailable
+    && previous.hiddenVideos === state.hiddenVideos
+    && previous.hideDemo === state.hideDemo;
+  let result: LibraryVideo[];
+  if (sameVisibility && previous.videos !== state.videos) {
+    let sharedPrefix = previous.videos.length <= state.videos.length;
+    for (let index = 0; sharedPrefix && index < previous.videos.length; index += 1) {
+      if (previous.videos[index] !== state.videos[index]) sharedPrefix = false;
+    }
+    if (sharedPrefix) {
+      const newVideos = state.videos.slice(previous.videos.length);
+      const adult = adultIdSet(state.folders);
+      const knownFolders = new Set(state.folders.map((folder) => folder.id));
+      const added = newVideos.filter((video) =>
+        video.remote?.kind === "youtube"
+        && !state.unavailable[video.id]
+        && !state.hiddenVideos[video.id]
+        && !adult.has(video.folderId)
+        && (knownFolders.has(video.folderId) || Boolean(video.remote) || video.isSample)
+        && !(state.hideDemo && video.isSample),
+      ).sort((a, b) => b.addedAt - a.addedAt);
+      // The old prefix precedes the appended cards in catalog order, so keep
+      // it first for equal timestamps to preserve stable Array.sort behavior.
+      result = [];
+      let oldIndex = 0, newIndex = 0;
+      while (oldIndex < previous.result.length && newIndex < added.length) {
+        if (previous.result[oldIndex]!.addedAt >= added[newIndex]!.addedAt) result.push(previous.result[oldIndex++]!);
+        else result.push(added[newIndex++]!);
+      }
+      result.push(...previous.result.slice(oldIndex), ...added.slice(newIndex));
+    } else {
+      result = [...publicList(state).filter((video) => video.remote?.kind === "youtube")].sort((a, b) => b.addedAt - a.addedAt);
+    }
+  } else {
+    result = [...publicList(state).filter((video) => video.remote?.kind === "youtube")].sort((a, b) => b.addedAt - a.addedAt);
+  }
+  memo.youtube = result;
+  youtubeSelectorSnapshot = {
+    videos: state.videos, folders: state.folders, unavailable: state.unavailable,
+    hiddenVideos: state.hiddenVideos, hideDemo: state.hideDemo, result,
+  };
+  return result;
 }
 
 function computeSelectTwitch(state: LibraryState): LibraryVideo[] {
@@ -2904,8 +3015,6 @@ const publicList = memoizeSelector(computePublicList, ["videos", "folders", "una
 
 const adultList = memoizeSelector(computeAdultList, ["videos", "folders", "unavailable", "hiddenVideos", "tags", "showHiddenAdult"]);
 
-const recoveryList = memoizeSelector(computeRecoveryList, ["videos", "folders", "hideDemo", "hiddenVideos"]);
-
 export const selectAdultRemote = memoizeSelector(computeSelectAdultRemote, ["videos", "hiddenVideos", "tags", "showHiddenAdult"]);
 
 export const selectFavorites = memoizeSelector(computeSelectFavorites, ["videos", "folders", "hideDemo", "hiddenVideos", "favorites", "likes"]);
@@ -2933,3 +3042,18 @@ export const selectTwitch = memoizeSelector(computeSelectTwitch, ["videos", "fol
 export const selectLive = memoizeSelector(computeSelectLive, ["videos", "folders", "unavailable", "hiddenVideos", "hideDemo"]);
 
 export const selectClassics = memoizeSelector(computeSelectClassics, ["videos", "folders", "unavailable", "hiddenVideos", "hideDemo"]);
+
+const catalogSelectors = [publicList, adultList, selectAdultRemote, selectFavorites, selectHistory,
+  selectContinue, selectVisible, selectYoutube, selectTwitch, selectLive, selectClassics];
+export function clearCatalogSelectorCaches() {
+  for (const selector of catalogSelectors) selector.clear();
+  selectorMemo = new WeakMap();
+}
+// Inactive desks must not pin old catalog/card/tag generations indefinitely.
+// Invalidating checks only a handful of references; it never computes a list.
+const stopSelectorEviction = useLibrary.subscribe((state, previous) => {
+  if (state.videos === previous.videos && state.tags === previous.tags && state.folders === previous.folders
+    && state.categories === previous.categories && state.hiddenVideos === previous.hiddenVideos) return;
+  for (const selector of catalogSelectors) selector.evictStale(state);
+});
+import.meta.hot?.dispose(stopSelectorEviction);

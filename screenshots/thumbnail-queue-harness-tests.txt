@@ -1,0 +1,111 @@
+✔ keeps VITE_-prefixed string entries (2.8654ms)
+✔ drops non-VITE keys, non-string values and malformed documents (0.5654ms)
+✔ a missing app-env.json is a clean no-op (1.3565ms)
+✔ reads the app env from a workspace (4.9902ms)
+✔ an explicit process-env override wins over the file (0.4987ms)
+✔ the template ships auth off (0.9291ms)
+✔ vite loadEnv resolves the wrapped value (3.4501ms)
+✖ the wrapped command runs with the app env applied (248.9322ms)
+✖ the wrapped command sees an explicit override, not the file value (245.0873ms)
+✖ the wrapper propagates the command's exit code (184.3454ms)
+✔ a signal-killed command is never reported as success (213.1668ms)
+✖ the CLI still runs when invoked through a symlinked path (3.1064ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 8
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1138.7549
+
+✖ failing tests:
+
+test at scripts\with-app-env.test.mjs:76:1
+✖ the wrapped command runs with the app env applied (248.9322ms)
+  Error: Command failed: C:\Program Files\nodejs\node.exe E:\codex\drift-brick-terra-acorn\scripts\with-app-env.mjs C:\Program Files\nodejs\node.exe -e process.stdout.write(String(process.env.VITE_AUTH_ENABLED));
+  'C:\Program' is not recognized as an internal or external command,
+  operable program or batch file.
+  
+      at genericNodeError (node:internal/errors:986:15)
+      at wrappedFn (node:internal/errors:540:14)
+      at ChildProcess.exithandler (node:child_process:417:12)
+      at ChildProcess.emit (node:events:514:28)
+      at maybeClose (node:internal/child_process:1141:16)
+      at ChildProcess._handle.onexit (node:internal/child_process:306:5) {
+    code: 1,
+    killed: false,
+    signal: null,
+    cmd: 'C:\\Program Files\\nodejs\\node.exe E:\\codex\\drift-brick-terra-acorn\\scripts\\with-app-env.mjs C:\\Program Files\\nodejs\\node.exe -e process.stdout.write(String(process.env.VITE_AUTH_ENABLED));',
+    stdout: '',
+    stderr: "'C:\\Program' is not recognized as an internal or external command,\r\noperable program or batch file.\r\n"
+  }
+
+test at scripts\with-app-env.test.mjs:86:1
+✖ the wrapped command sees an explicit override, not the file value (245.0873ms)
+  Error: Command failed: C:\Program Files\nodejs\node.exe E:\codex\drift-brick-terra-acorn\scripts\with-app-env.mjs C:\Program Files\nodejs\node.exe -e process.stdout.write(String(process.env.VITE_AUTH_ENABLED));
+  'C:\Program' is not recognized as an internal or external command,
+  operable program or batch file.
+  
+      at genericNodeError (node:internal/errors:986:15)
+      at wrappedFn (node:internal/errors:540:14)
+      at ChildProcess.exithandler (node:child_process:417:12)
+      at ChildProcess.emit (node:events:514:28)
+      at maybeClose (node:internal/child_process:1141:16)
+      at ChildProcess._handle.onexit (node:internal/child_process:306:5) {
+    code: 1,
+    killed: false,
+    signal: null,
+    cmd: 'C:\\Program Files\\nodejs\\node.exe E:\\codex\\drift-brick-terra-acorn\\scripts\\with-app-env.mjs C:\\Program Files\\nodejs\\node.exe -e process.stdout.write(String(process.env.VITE_AUTH_ENABLED));',
+    stdout: '',
+    stderr: "'C:\\Program' is not recognized as an internal or external command,\r\noperable program or batch file.\r\n"
+  }
+
+test at scripts\with-app-env.test.mjs:95:1
+✖ the wrapper propagates the command's exit code (184.3454ms)
+  AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+  
+  Caught error:
+  
+  Error: Command failed: C:\Program Files\nodejs\node.exe E:\codex\drift-brick-terra-acorn\scripts\with-app-env.mjs C:\Program Files\nodejs\node.exe -e process.exit(3)
+  'C:\Program' is not recognized as an internal or external command,
+  operable program or batch file.
+  
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/with-app-env.test.mjs:96:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: Command failed: C:\Program Files\nodejs\node.exe E:\codex\drift-brick-terra-acorn\scripts\with-app-env.mjs C:\Program Files\nodejs\node.exe -e process.exit(3)
+    'C:\Program' is not recognized as an internal or external command,
+    operable program or batch file.
+    
+        at genericNodeError (node:internal/errors:986:15)
+        at wrappedFn (node:internal/errors:540:14)
+        at ChildProcess.exithandler (node:child_process:417:12)
+        at ChildProcess.emit (node:events:514:28)
+        at maybeClose (node:internal/child_process:1141:16)
+        at ChildProcess._handle.onexit (node:internal/child_process:306:5),
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at scripts\with-app-env.test.mjs:116:1
+✖ the CLI still runs when invoked through a symlinked path (3.1064ms)
+  Error: EPERM: operation not permitted, symlink 'E:\codex\drift-brick-terra-acorn\scripts' -> 'C:\Users\icecr\AppData\Local\Temp\app-env-link-j7SSoM\scripts'
+      at symlinkSync (node:fs:1937:11)
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/with-app-env.test.mjs:120:3)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'symlink',
+    path: 'E:\\codex\\drift-brick-terra-acorn\\scripts',
+    dest: 'C:\\Users\\icecr\\AppData\\Local\\Temp\\app-env-link-j7SSoM\\scripts'
+  }

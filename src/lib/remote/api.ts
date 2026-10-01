@@ -2368,7 +2368,7 @@ function booruVideo(row: BooruPost, host: (typeof BOORU_HOSTS)[number]): Library
     addedAt: Date.now(),
     tagline: `${host.id} · photo${owner ? ` · ${owner}` : ""}`,
     description: tags.slice(0, 400),
-    poster: preview || sample || undefined,
+    poster: sample || preview || undefined,
     src: image,
     remote: {
       kind: "booru",
@@ -2378,8 +2378,8 @@ function booruVideo(row: BooruPost, host: (typeof BOORU_HOSTS)[number]): Library
       observedAt: Date.now(),
       embedUrl: image,
       watchUrl: watch,
-      previewUrl: preview || sample || undefined,
-      thumbFallbacks: [preview, sample, file].filter(isUsableAdultThumb).slice(0, 4),
+      previewUrl: sample || preview || undefined,
+      thumbFallbacks: [sample, preview, file].filter(isUsableAdultThumb).slice(0, 4),
     },
   };
 }
@@ -2453,24 +2453,8 @@ async function fetchBooruListing(host: (typeof BOORU_HOSTS)[number], tags: strin
     }
   }
   const videos = rows.map((row) => booruVideo(row, host)).filter((video): video is LibraryVideo => video != null);
-  if (host.id !== "tbib") return videos;
-  // TBIB's HTML listing exposes tiny thumbnails but no file URL. Resolve a
-  // bounded visible batch to its post page so the lightbox opens the original.
-  let cursor = 0;
-  await Promise.all(Array.from({ length: Math.min(3, videos.length) }, async () => {
-    while (cursor < Math.min(9, videos.length)) {
-      const video = videos[cursor++];
-      try {
-        const response = await cachedAdultFetch(video.remote!.watchUrl!, { signal: AbortSignal.timeout(5_000), cacheTtlMs: 30 * 60_000, headers: { accept: "text/html", "user-agent": "Mozilla/5.0 (compatible; Realhub/1.0)" } });
-        if (!response.ok) continue;
-        const found = booruPostImageUrls(await response.text());
-        const original = normalizedBooruUrl(found.original ?? "", host);
-        const sample = normalizedBooruUrl(found.sample ?? "", host);
-        if (original && original.startsWith("https://")) { video.src = original; video.remote!.embedUrl = original; }
-        if (sample && sample.startsWith("https://")) video.remote!.thumbFallbacks = [video.poster, sample, original].filter((value): value is string => Boolean(value));
-      } catch { /* Keep the listing thumbnail if a detail page is unavailable. */ }
-    }
-  }));
+  // Detail recovery is shared by preview and player, on demand. Walking nine
+  // post pages for every HTML catalog page made large pulls unnecessarily slow.
   return videos;
 }
 
@@ -2487,13 +2471,14 @@ async function fetchRule34Post(host: (typeof BOORU_HOSTS)[number], id: string): 
   });
   if (!res.ok) throw new Error(`${host.id} post ${id} HTTP ${res.status}`);
   const html = await res.text();
-  const image = html.match(/<img\b(?=[^>]*\bid="image")[^>]*\bsrc="([^"]+)"[^>]*>/i)?.[1];
+  const found = booruPostImageUrls(html);
+  const image = found.original || found.sample;
   const tags = html.match(/<img\b(?=[^>]*\bid="image")[^>]*\balt="([^"]*)"[^>]*>/i)?.[1] ?? "";
   if (!image) throw new Error(`${host.id} post ${id} has no public image`);
   return booruVideo({ id, file_url: decodeBooruHtml(image), preview_url: decodeBooruHtml(image), tags: decodeBooruHtml(tags) }, host);
 }
 
-async function fetchBooruJson(host: (typeof BOORU_HOSTS)[number], tags: string, limit: number, pid: number): Promise<LibraryVideo[]> {
+async function fetchBooruJson(host: (typeof BOORU_HOSTS)[number], tags: string, limit: number, pid: number, postId?: string): Promise<LibraryVideo[]> {
   const params = new URLSearchParams({
     page: "dapi",
     s: "post",
@@ -2503,9 +2488,10 @@ async function fetchBooruJson(host: (typeof BOORU_HOSTS)[number], tags: string, 
     pid: String(Math.max(0, pid)),
     tags,
   });
+  if (postId) params.set('id', postId);
   const url = `${("apiBase" in host ? host.apiBase : host.base)}/index.php?${params.toString()}`;
   const res = await cachedAdultFetch(url, {
-    signal: AbortSignal.timeout(15_000),
+    signal: AbortSignal.timeout(postId ? 6_000 : 15_000),
     cacheTtlMs: 10 * 60_000,
     headers: { accept: "application/json,text/plain,*/*", "user-agent": "Realhub/1.0" },
   });
@@ -2559,10 +2545,30 @@ function booruTagsForHost(host: (typeof BOORU_HOSTS)[number], needle: string): s
 }
 
 export async function runBooruOriginal(data: unknown): Promise<string | null> {
-  const id = typeof data === "object" && data !== null ? String((data as { id?: unknown }).id ?? "") : "";
+  const input = asRecord(data);
+  const id = String(input?.id ?? "");
   if (!/^\d{1,12}$/.test(id)) return null;
-  const host = BOORU_HOSTS.find((item) => item.id === "tbib")!;
+  const hostId = String(input?.host ?? 'tbib');
+  const host = BOORU_HOSTS.find((item) => item.id === hostId);
+  if (!host && hostId !== 'e621') return null;
   try {
+    if (hostId === 'e621') {
+      const response = await cachedAdultFetch(`https://e621.net/posts/${id}.json`, { signal: AbortSignal.timeout(10_000), cacheTtlMs: 30 * 60_000, headers: { accept: 'application/json', 'user-agent': 'Realhub/1.0' } });
+      if (!response.ok) return null;
+      const body = asRecord(await response.json());
+      const url = asString(asRecord(asRecord(body?.post)?.file)?.url);
+      return /^https:\/\//.test(url) ? url : null;
+    }
+    if (!host) return null;
+    // Cached HTML-only cards need their file_url recovered. Some hosts allow
+    // the post API while challenging their HTML pages, so try a single ID first.
+    if (host.id !== 'tbib') {
+      try {
+        const cards = await fetchBooruJson(host, '', 1, 0, id);
+        const file = cards.find(card => card.remote?.videoId === id)?.src;
+        if (file && /^https:\/\//.test(file) && !/(?:thumbnails?|samples?|resized)\//i.test(file)) return file;
+      } catch { /* Recover through the public post page below. */ }
+    }
     const response = await cachedAdultFetch(`${host.base}${host.postPath}${id}`, { signal: AbortSignal.timeout(10_000), cacheTtlMs: 30 * 60_000, headers: { accept: "text/html", "user-agent": "Mozilla/5.0 (compatible; Realhub/1.0)" } });
     if (!response.ok) return null;
     const { original } = booruPostImageUrls(await response.text());

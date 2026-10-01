@@ -87,4 +87,4 @@ function useShallow(selector) {
 	};
 }
 //#endregion
-export { create as n, useShallow as t };
+export { create as n, useStore as r, useShallow as t };

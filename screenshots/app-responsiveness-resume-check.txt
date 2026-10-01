@@ -1,0 +1,27 @@
+npm notice run check:continue-recovery
+npm notice run node scripts/continue-recovery-check.mjs
+{
+  "scenario": "local, YouTube, Twitch, and Watch Room resume recovery",
+  "recovered": [
+    {
+      "id": "room-recovery",
+      "kind": "twitch",
+      "title": "Watch Room VOD"
+    },
+    {
+      "id": "twitch",
+      "kind": "twitch",
+      "title": "Twitch VOD"
+    },
+    {
+      "id": "youtube",
+      "kind": "youtube",
+      "title": "YouTube episode"
+    },
+    {
+      "id": "local",
+      "kind": "local",
+      "title": "Local film"
+    }
+  ]
+}

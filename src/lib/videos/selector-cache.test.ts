@@ -1,6 +1,19 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { memoizeSelector } from "./selector-cache.ts";
+
+test('inactive scopes release obsolete catalog generations without recomputing valid results', () => {
+  let calls = 0;
+  const select = memoizeSelector((s: { rows: object[]; progress: number }, adult) => { calls++; return { rows: s.rows, adult }; }, ['rows']);
+  const old = { rows: [{}], progress: 0 };
+  const result = select(old); select(old, true);
+  select.evictStale({ ...old, progress: 1 });
+  assert.equal(select.peek(old), result); assert.equal(calls, 2);
+  const next = { rows: [{}], progress: 1 };
+  select.evictStale(next);
+  assert.equal(select.peek(old), undefined); assert.equal(select.peek(old, true), undefined); assert.equal(calls, 2);
+  select(next); select.clear(); assert.equal(select.peek(next), undefined);
+});
 test('peek reuses only current inputs without computing a catalog', () => {
   let calls = 0;
   const select = memoizeSelector((state: { rows: number[] }) => { calls++; return state.rows; }, ['rows']);

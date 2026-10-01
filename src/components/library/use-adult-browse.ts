@@ -1,3 +1,4 @@
+import { yieldCatalogTask } from "@/lib/catalog-work";
 import { startTransition, useEffect, useRef, useState } from "react";
 import { rankingFeedbackSnapshot } from "@/lib/media-feedback";
 import { scheduleBackgroundWork } from "@/lib/interaction-budget";
@@ -48,6 +49,7 @@ export function useAdultBrowse(enabled: boolean, inputs: AdultBrowseInputs, para
     let busy: Job | undefined;
     let queued: Job | undefined;
     let sent: AdultBrowseInputs | undefined;
+    let sentSignalInputs: AdultBrowseInputs | undefined;
     let timeout: ReturnType<typeof setTimeout> | undefined;
     const fail = () => {
       if (!active) return;
@@ -60,26 +62,45 @@ export function useAdultBrowse(enabled: boolean, inputs: AdultBrowseInputs, para
     try { worker = new Worker(new URL("../../lib/videos/adult-browse.worker.ts", import.meta.url), { type: "module" }); }
     catch { fail(); return; }
     setFailed(false);
-    const pump = () => {
+    const pump = async () => {
       if (!active || busy || !queued) return;
       const job = queued;
       busy = job;
       queued = undefined;
       try {
         if (!sent || sent.videos !== job.inputs.videos || sent.tags !== job.inputs.tags || sent.personalVideos !== job.inputs.personalVideos || sent.deepVideos !== job.inputs.deepVideos) {
-          const scopedTags: Record<string, string[]> = {};
-          for (const list of [job.inputs.videos, job.inputs.personalVideos, job.inputs.deepVideos]) {
-            for (const video of list) if (job.inputs.tags[video.id]) scopedTags[video.id] = job.inputs.tags[video.id];
+          worker.postMessage({ type: 'catalog-start' });
+          for (const list of ['videos', 'personalVideos', 'deepVideos'] as const) {
+            const rows = job.inputs[list];
+            for (let offset = 0; offset < rows.length; offset += 512) {
+              await yieldCatalogTask();
+              if (!active) return;
+              const chunk = rows.slice(offset, offset + 512), tags: Record<string, string[]> = {};
+              for (const video of chunk) if (job.inputs.tags[video.id]) tags[video.id] = job.inputs.tags[video.id];
+              worker.postMessage({ type: 'catalog-chunk', list, videos: chunk.map(rankingVideo), tags });
+            }
           }
-          worker.postMessage({ type: "catalog", videos: job.inputs.videos.map(rankingVideo), personalVideos: job.inputs.personalVideos.map(rankingVideo), deepVideos: job.inputs.deepVideos.map(rankingVideo), tags: scopedTags });
         }
-        if (sent !== job.inputs) worker.postMessage({ type: "signals", signals: job.signals });
+        const previousSignals = sentSignalInputs;
+        const signalsChanged = !previousSignals
+          || previousSignals.favorites !== job.inputs.favorites
+          || previousSignals.likes !== job.inputs.likes
+          || previousSignals.cameCounts !== job.inputs.cameCounts
+          || previousSignals.viewCounts !== job.inputs.viewCounts
+          || previousSignals.continueIds !== job.inputs.continueIds
+          || previousSignals.favoriteIds !== job.inputs.favoriteIds
+          || previousSignals.ratingRevision !== job.inputs.ratingRevision
+          || previousSignals.tagHeartRevision !== job.inputs.tagHeartRevision;
+        if (signalsChanged || !sent || sent.videos !== job.inputs.videos) {
+          worker.postMessage({ type: "signals", signals: job.signals });
+          sentSignalInputs = job.inputs;
+        }
         sent = job.inputs;
         worker.postMessage({ type: "browse", requestId: job.id, params: job.params });
         timeout = setTimeout(fail, 30_000);
       } catch { fail(); }
     };
-    enqueue.current = job => { queued = job; pump(); };
+    enqueue.current = job => { queued = job; void pump(); };
     worker.onmessage = ({ data }: MessageEvent<{ requestId: number; result: AdultBrowseResult; error?: boolean }>) => {
       if (!active || !busy || data.requestId !== busy.id) return;
       clearTimeout(timeout);
@@ -89,7 +110,7 @@ export function useAdultBrowse(enabled: boolean, inputs: AdultBrowseInputs, para
       if (data.requestId === sequence.current) {
         startTransition(() => setPacket({ inputs: completed.inputs, params: completed.params, result: data.result }));
       }
-      pump();
+      void pump();
     };
     worker.onerror = event => { event.preventDefault(); fail(); };
     worker.onmessageerror = fail;

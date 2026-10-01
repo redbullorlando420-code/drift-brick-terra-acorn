@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Realhub",
+      "hasCanvas": false,
+      "bodyTextLen": 625,
+      "bodyTextHash": "8e67e9d910d8b8f0cbc8f334934fe714646aa88ce77dbdb738a1f8e5f33927f2",
+      "bodyTextPrefix": "Realhub Vault · networks · live Library Home Landing page 0 Movi",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\large-library-followup.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Realhub",
+      "hasCanvas": false,
+      "bodyTextLen": 405,
+      "bodyTextHash": "2c903248f1cce27af9197981a6287b4735f27ff11bbf9e777fdd83d26c8ddc36",
+      "bodyTextPrefix": "Home 0 indexed Date added Pause pulls REALHUB Home A quiet place",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\large-library-followup-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\large-library-followup.json"
+}

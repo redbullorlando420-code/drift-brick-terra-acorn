@@ -1,0 +1,47 @@
+{
+  "scenario": "local, YouTube, Twitch, and Watch Room resume recovery plus large saved activity",
+  "recovered": [
+    {
+      "id": "room-recovery",
+      "kind": "twitch",
+      "title": "Watch Room VOD"
+    },
+    {
+      "id": "twitch",
+      "kind": "twitch",
+      "title": "Twitch VOD"
+    },
+    {
+      "id": "youtube",
+      "kind": "youtube",
+      "title": "YouTube episode"
+    },
+    {
+      "id": "local",
+      "kind": "local",
+      "title": "Local film"
+    }
+  ],
+  "activity": {
+    "catalogSize": 100004,
+    "publicHistory": [
+      "90000",
+      "alias-public",
+      "evicted"
+    ],
+    "privateHistory": [
+      "private"
+    ],
+    "visibleHistory": [
+      "90000",
+      "alias-public",
+      "evicted"
+    ],
+    "savedPublic": [
+      "90000"
+    ],
+    "savedPrivate": [
+      "private"
+    ]
+  }
+}

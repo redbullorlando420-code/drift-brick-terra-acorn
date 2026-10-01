@@ -124,6 +124,12 @@
   animation-delay: calc(var(--stagger-i, 0) * var(--motion-stagger));
 }
 
+/* Cards remain visible and clickable from their first paint. Avoid queued
+ * blur/translation animations when navigating or mounting a new rail window. */
+@keyframes card-appear { from { opacity: 0.88; } to { opacity: 1; } }
+.card-appear { animation: card-appear 120ms ease-out; }
+@media (prefers-reduced-motion: reduce) { .card-appear { animation: none; } }
+
 .hw-video {
   transform: translateZ(0);
   backface-visibility: hidden;

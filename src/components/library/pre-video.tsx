@@ -17,6 +17,7 @@ import { isAdultImageKind, isAdultPullKind } from "@/lib/videos/adult-sites";
 import { AdultComments, supportsRemoteComments } from "@/components/library/adult-comments";
 import { lookupVideo, lookupVideos } from "@/lib/videos/video-lookup";
 import { useVideoDetails } from './use-video-details';
+import { useBooruOriginal } from './use-booru-original';
 
 const EMPTY_TAGS: string[] = [];
 export function PreVideo() {
@@ -59,6 +60,7 @@ export function PreVideo() {
   const previewWatchPending = useRef(0);
   const markUnavailable = useLibrary((s) => s.markUnavailable);
   const video = useVideoDetails(lookupVideo(videos, previewId));
+  const booruImage = useBooruOriginal(video);
   const flushPreviewWatch = () => {
     if (previewId && previewWatchPending.current > 0) recordWatchTime(previewId, "preview", previewWatchPending.current);
     previewWatchPending.current = 0;
@@ -165,7 +167,7 @@ export function PreVideo() {
       && !redgifsEmbed,
   );
   const imageSrc = adultImage
-    ? (video.src || video.remote?.embedUrl || video.remote?.previewUrl || video.poster || null)
+    ? (booruImage.original || video.src || video.remote?.embedUrl || video.remote?.previewUrl || video.poster || null)
     : null;
   const embed = adultImage
     ? null
@@ -196,6 +198,8 @@ export function PreVideo() {
                   alt={video.name}
                   className="aspect-video w-full bg-bg object-contain"
                   decoding="async"
+                  referrerPolicy={video.remote?.channelId === 'rule34' ? 'strict-origin-when-cross-origin' : 'no-referrer'}
+                  onError={() => { if (booruImage.original) booruImage.failed(); }}
                 />
               ) : embed ? (
                 <iframe

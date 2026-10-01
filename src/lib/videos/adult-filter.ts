@@ -10,6 +10,38 @@ import type { AdultPullProvider } from "./adult-sites";
 import { ADULT_PULL_PROVIDERS } from "./adult-sites";
 import { expandedAdultTags } from "./adult-taxonomy";
 
+// Adult browse runs tag matching repeatedly in a worker (once for each card,
+// rail, and filter change). Catalog tag arrays are immutable after ingestion,
+// so keep their normalized forms alongside the array's lifetime rather than
+// rebuilding lowercased/expanded/searchable arrays on every comparison.
+type PreparedAdultTags = {
+  lowered: Set<string>;
+  expanded: ReadonlySet<string>;
+  expandedLowered: Set<string>;
+  searchable: string[];
+  suffixes: Set<string>;
+};
+const preparedTags = new WeakMap<string[], PreparedAdultTags>();
+
+function prepareAdultTags(itemTags: string[]): PreparedAdultTags {
+  const cached = preparedTags.get(itemTags);
+  if (cached) return cached;
+  const lowered = new Set(itemTags.map((entry) => entry.toLowerCase()));
+  const expanded = expandedAdultTags(itemTags);
+  const expandedLowered = new Set([...expanded].map((entry) => entry.toLowerCase()));
+  const searchable = [...lowered, ...expandedLowered].map((entry) => entry
+    .replace(/^(?:fetish|genre|meta|creator|source|provider|sub)-/, "")
+    .replace(/[-_]+/g, " "));
+  const suffixes = new Set<string>();
+  for (const entry of lowered) {
+    const suffix = entry.slice(entry.lastIndexOf("-") + 1);
+    if (suffix) suffixes.add(suffix);
+  }
+  const prepared = { lowered, expanded, expandedLowered, searchable, suffixes };
+  preparedTags.set(itemTags, prepared);
+  return prepared;
+}
+
 /** Pull providers plus first-class booru host filters surfaced in Adults UI. */
 export type AdultSourceFilterId = AdultPullProvider | "all" | "rule34" | "e621" | "gelbooru" | "realbooru";
 
@@ -77,11 +109,11 @@ export function videoMatchesAdultTag(
   const needle = tag.trim().toLowerCase().replace(/^#/, "");
   if (!needle) return true;
   const itemTags = tags[video.id] ?? [];
-  const lowered = itemTags.map((entry) => entry.toLowerCase());
-  if (lowered.includes(needle)) return true;
+  const prepared = prepareAdultTags(itemTags);
+  const { lowered, expanded: expandedSet, expandedLowered } = prepared;
+  if (lowered.has(needle)) return true;
   // Taxonomy rows are derived from provider tags for older cached titles too.
-  const expanded = expandedAdultTags(itemTags);
-  if (expanded.has(needle) || [...expanded].some((entry) => entry.toLowerCase() === needle)) return true;
+  if (expandedSet.has(needle) || expandedLowered.has(needle)) return true;
   if (needle.startsWith("creator-")) {
     const slug = needle.slice("creator-".length);
     const name = (video.remote?.channelName ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -90,11 +122,11 @@ export function videoMatchesAdultTag(
   // Sparse / display forms: fetish-foo ↔ foo, genre-foo, meta-foo.
   const bare = needle.replace(/^(?:fetish|genre|meta|creator|sub|source)-/, "");
   if (bare && bare !== needle) {
-    if (lowered.includes(bare) || lowered.includes(`fetish-${bare}`) || lowered.includes(`genre-${bare}`)) return true;
-    if (expanded.has(bare) || expanded.has(`fetish-${bare}`) || expanded.has(`genre-${bare}`) || expanded.has(`meta-${bare}`)) return true;
+    if (lowered.has(bare) || lowered.has(`fetish-${bare}`) || lowered.has(`genre-${bare}`)) return true;
+    if (expandedSet.has(bare) || expandedSet.has(`fetish-${bare}`) || expandedSet.has(`genre-${bare}`) || expandedSet.has(`meta-${bare}`)) return true;
   }
   // Card chips sometimes show the bare keyword while storage keeps fetish-*.
-  if (!needle.includes("-") && lowered.some((entry) => entry === `fetish-${needle}` || entry.endsWith(`-${needle}`))) return true;
+  if (!needle.includes("-") && (lowered.has(`fetish-${needle}`) || prepared.suffixes.has(needle))) return true;
   // The Adult top bar and tag finder accept human-readable partial phrases
   // ("role play", "creator jane", "rule 34") as well as exact stored slugs.
   // Keep the match token-based so one broad substring cannot accidentally
@@ -105,8 +137,7 @@ export function videoMatchesAdultTag(
     .split(/\s+/)
     .filter(Boolean);
   if (!terms.length) return true;
-  const searchable = [...lowered, ...expanded].map((entry) => entry.toLowerCase().replace(/^(?:fetish|genre|meta|creator|source|provider|sub)-/, "").replace(/[-_]+/g, " "));
-  return searchable.some((entry) => terms.every((term) => entry.includes(term)));
+  return prepared.searchable.some((entry) => terms.every((term) => entry.includes(term)));
 }
 
 export function countAdultBySource(videos: LibraryVideo[]): Record<string, number> {

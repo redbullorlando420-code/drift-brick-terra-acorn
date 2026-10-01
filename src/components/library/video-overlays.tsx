@@ -41,7 +41,12 @@ export const VideoOverlays = memo(function VideoOverlays() {
   useEffect(() => {
     setPullViewerOpen(Boolean(activeId || previewId));
     if (!activeId && !previewId) useLibrary.getState().releaseVideoComments();
-    return () => setPullViewerOpen(false);
+    // Preview ↔ player switches should keep the background image gate closed;
+    // the store already contains the next viewer state during effect cleanup.
+    return () => {
+      const next = useLibrary.getState();
+      setPullViewerOpen(Boolean(next.activeId || next.previewId));
+    };
   }, [activeId, previewId]);
   return <Suspense fallback={<div className="fixed inset-0 z-50 flex items-center justify-center bg-bg/90 text-sm text-fg" role="status">Opening video…</div>}>
     {activeId && <Player playlist={playlist} />}

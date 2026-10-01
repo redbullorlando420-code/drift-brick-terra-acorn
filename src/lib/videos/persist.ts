@@ -16,6 +16,7 @@ import { LIBRARY_LIMITS } from "@/lib/library-limits";
 import { companionGetThumb, companionPutThumb } from "@/lib/companion";
 import { CoalescedWriter } from "../coalesced-writer.ts";
 import { catalogCard, withCatalogDetails } from './catalog-card';
+import { artworkBytes, artworkDataUrl } from './binary-artwork';
 
 const DB_NAME = "reelcase";
 const STORE = "dirs";
@@ -911,7 +912,17 @@ export async function loadCatalogVideo(id: string): Promise<LibraryVideo | undef
   } finally { db.close(); }
 }
 
-export type StoredThumb = { id: string; thumb: string; at: number };
+export type StoredThumb = { id: string; thumb: string | Blob; at: number };
+export async function loadCachedThumb(id: string): Promise<StoredThumb | undefined> {
+  const db = await openDb();
+  try {
+    return await new Promise((resolve, reject) => {
+      const request = db.transaction(THUMB_STORE, 'readonly').objectStore(THUMB_STORE).get(id);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  } finally { db.close(); }
+}
 export async function loadThumbCache(limit = 120): Promise<StoredThumb[]> {
   const db = await openDb();
   try {
@@ -924,7 +935,7 @@ export async function loadThumbCache(limit = 120): Promise<StoredThumb[]> {
         const cursor = req.result;
         if (!cursor || rows.length >= Math.max(0, limit)) return;
         const row = cursor.value as StoredThumb;
-        const size = (row.thumb?.length ?? 0) * 2;
+        const size = row.thumb ? artworkBytes(row.thumb) : 0;
         if (size <= 8 * 1024 * 1024 - bytes) { rows.push(row); bytes += size; }
         cursor.continue();
       };
@@ -936,8 +947,8 @@ export async function loadThumbCache(limit = 120): Promise<StoredThumb[]> {
 }
 
 const thumbMirrorWriter = new CoalescedWriter<string, StoredThumb>(async rows => {
-  for (const [, entry] of rows) await companionPutThumb(entry.id, entry.thumb);
-}, { batchSize: 2, maxPending: 16, maxWeight: 2 * 1024 * 1024, weight: row => row.thumb.length * 2 });
+  for (const [, entry] of rows) await companionPutThumb(entry.id, await artworkDataUrl(entry.thumb));
+}, { batchSize: 2, maxPending: 16, maxWeight: 2 * 1024 * 1024, weight: row => artworkBytes(row.thumb) });
 const thumbWriter = new CoalescedWriter<string, { entry: StoredThumb; maxEntries: number }>(async rows => {
   const db = await openDb();
   try {
@@ -951,10 +962,10 @@ const thumbWriter = new CoalescedWriter<string, { entry: StoredThumb; maxEntries
     });
     await pruneThumbCache(db, Math.min(...rows.map(([, row]) => row.maxEntries)));
   } finally { db.close(); }
-  for (const [, { entry }] of rows) if (entry.thumb.startsWith("data:image")) {
+  for (const [, { entry }] of rows) if (typeof entry.thumb !== 'string' || entry.thumb.startsWith("data:image")) {
     void thumbMirrorWriter.write(entry.id, entry).catch(() => undefined);
   }
-}, { batchSize: 64, maxPending: LIBRARY_LIMITS.thumbCacheEntries, maxWeight: 8 * 1024 * 1024, weight: row => row.entry.thumb.length * 2 });
+}, { batchSize: 64, maxPending: LIBRARY_LIMITS.thumbCacheEntries, maxWeight: 8 * 1024 * 1024, weight: row => artworkBytes(row.entry.thumb) });
 
 /** Artwork is a recoverable cache: coalesce bursts, cap pending bytes, and
  * prune keys once per batch without cloning every cached image repeatedly. */

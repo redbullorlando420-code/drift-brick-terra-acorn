@@ -12,13 +12,13 @@ export type PullSettings = {
 };
 export const DEFAULT_PULL_SETTINGS: Readonly<PullSettings> = Object.freeze({
   requestGapMs: 1500, concurrentRequests: 1, youtubeBatchVideos: 100,
-  youtubeSourcesPerSweep: 32, youtubeIntervalSeconds: 300, adultBatchVideos: 160,
+  youtubeSourcesPerSweep: 32, youtubeIntervalSeconds: 300, adultBatchVideos: 2000,
   adultIntervalSeconds: 120, adultCatalogTarget: 100_000,
   automaticPulls: true, pauseWhileWatching: true,
 });
 const limits: Record<Exclude<keyof PullSettings, 'automaticPulls' | 'pauseWhileWatching'>, [number, number]> = {
   requestGapMs: [250, 60_000], concurrentRequests: [1, 3], youtubeBatchVideos: [30, 500],
-  youtubeSourcesPerSweep: [1, 1024], youtubeIntervalSeconds: [60, 3600], adultBatchVideos: [20, 1000],
+  youtubeSourcesPerSweep: [1, 1024], youtubeIntervalSeconds: [60, 3600], adultBatchVideos: [20, 10000],
   adultIntervalSeconds: [30, 3600], adultCatalogTarget: [1000, 1_000_000],
 };
 export function normalizePullSettings(raw: unknown): PullSettings {

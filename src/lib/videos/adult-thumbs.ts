@@ -182,6 +182,14 @@ function redgifsPosterCandidates(video: LibraryVideo): string[] {
 }
 
 /** Ordered poster candidates for any adult (or remote) library card. */
+export function hasAdultThumb(video: LibraryVideo): boolean {
+  // Catalog-wide filtering only needs an existence check. Generate/rank the
+  // full fallback list for visible cards, or the uncommon missing-URL case.
+  const usable = (url?: string) => Boolean(url && isUsableAdultThumb(url) && !isAdultThumbBlacklisted(url));
+  return usable(recallSessionGoodThumb(video.id)) || usable(video.poster) || usable(video.remote?.previewUrl)
+    || Boolean(video.remote?.thumbFallbacks?.some(usable)) || adultThumbCandidatesForVideo(video).length > 0;
+}
+
 export function adultThumbCandidatesForVideo(video: LibraryVideo): string[] {
   const out: string[] = [];
   const seen = new Set<string>();

@@ -9,9 +9,12 @@ import { getInteractionPriorityDelay } from "../interaction-budget.ts";
 export type ImageSlotPriority = "high" | "low";
 
 let active = 0;
-const waitingHigh: Array<() => void> = [];
-const waitingLow: Array<() => void> = [];
-let lowGeneration = 0;
+let artworkSuppressed = false;
+const suppressionListeners = new Set<() => void>();
+type Waiter = { resolve: (release: (() => void) | null) => void; signal?: AbortSignal; cancel: () => void };
+const waitingHigh: Waiter[] = [];
+const waitingLow: Waiter[] = [];
+let interactionTimer: ReturnType<typeof setTimeout> | undefined;
 /** Default ceiling — aggressive enough that dense Adult rails stay scrollable. */
 const MAX_CONCURRENT = 12;
 /** Reserve a few slots so visible cards are not starved by speculative warm. */
@@ -32,73 +35,71 @@ function maxConcurrent() {
   return MAX_CONCURRENT;
 }
 
-function wakeNext() {
-  const next = waitingHigh.shift() ?? waitingLow.shift();
-  if (next) next();
+function settle(waiter: Waiter, release: (() => void) | null) {
+  waiter.signal?.removeEventListener("abort", waiter.cancel);
+  waiter.resolve(release);
 }
 
-function canStart(priority: ImageSlotPriority) {
+/** Reserve capacity synchronously before resolving promises. Refilling the
+ * whole budget avoids serial loading after a viewer/visibility pause. */
+function pump() {
+  if (interactionTimer !== undefined) { clearTimeout(interactionTimer); interactionTimer = undefined; }
+  if (artworkSuppressed || typeof document !== "undefined" && document.visibilityState === "hidden") return;
   const max = maxConcurrent();
-  if (active >= max) return false;
-  if (priority === "high") return true;
-  if (typeof document !== "undefined" && document.visibilityState === "hidden") return false;
-  // Leave headroom for visible cards when the high lane has waiters.
-  if (waitingHigh.length > 0 && active >= Math.max(1, max - HIGH_RESERVED)) return false;
-  return true;
+  while (active < max) {
+    let waiter = waitingHigh.shift();
+    if (!waiter) {
+      // Nearby cards must leave real capacity for newly visible cards.
+      if (!waitingLow.length || active >= Math.max(1, max - HIGH_RESERVED)) return;
+      const delay = getInteractionPriorityDelay();
+      if (delay > 0) { interactionTimer = setTimeout(pump, delay); return; }
+      waiter = waitingLow.shift()!;
+    }
+    if (waiter.signal?.aborted) { settle(waiter, null); continue; }
+    active += 1;
+    let released = false;
+    settle(waiter, () => {
+      if (released) return;
+      released = true;
+      active -= 1;
+      pump();
+    });
+  }
 }
 
-export async function acquireImageSlot(opts?: { priority?: ImageSlotPriority; signal?: AbortSignal }): Promise<(() => void) | null> {
+/** Hold new thumbnail work while a preview/player is opening or visible. */
+export function setArtworkSuppressed(value: boolean) {
+  if (artworkSuppressed === value) return;
+  artworkSuppressed = value;
+  for (const listener of suppressionListeners) listener();
+  pump();
+}
+
+export function isArtworkSuppressed() { return artworkSuppressed; }
+/** Shared background schedulers can pause without subscribing every card. */
+export function subscribeArtworkSuppression(listener: () => void) {
+  suppressionListeners.add(listener);
+  return () => { suppressionListeners.delete(listener); };
+}
+
+export function acquireImageSlot(opts?: { priority?: ImageSlotPriority; signal?: AbortSignal }): Promise<(() => void) | null> {
   const signal = opts?.signal;
-  if (signal?.aborted) return null;
+  if (signal?.aborted) return Promise.resolve(null);
+  ensureImageBudgetVisibilityHook();
   const priority: ImageSlotPriority = opts?.priority ?? "low";
   const queue = priority === "high" ? waitingHigh : waitingLow;
-  const generation = lowGeneration;
-  for (;;) {
-    if (priority === "low" && generation !== lowGeneration) return null;
-    while (!canStart(priority)) {
-      if (priority === "low" && typeof document !== "undefined" && document.visibilityState === "hidden") {
-        await new Promise<void>((resolve) => {
-          const done = () => { signal?.removeEventListener("abort", done); document.removeEventListener("visibilitychange", onVis); resolve(); };
-          const onVis = () => { if (document.visibilityState === "visible") done(); };
-          document.addEventListener("visibilitychange", onVis);
-          signal?.addEventListener("abort", done, { once: true });
-        });
-        if (signal?.aborted || generation !== lowGeneration) return null;
-        continue;
-      }
-      await new Promise<void>((resolve) => {
-        const wake = () => { signal?.removeEventListener("abort", cancel); resolve(); };
-        const cancel = () => { const index = queue.indexOf(wake); if (index >= 0) queue.splice(index, 1); wake(); };
-        queue.push(wake);
-        signal?.addEventListener("abort", cancel, { once: true });
-      });
-      if (signal?.aborted || (priority === "low" && generation !== lowGeneration)) { wakeNext(); return null; }
-    }
-    // Low-priority decode/fetch work is opportunistic: a visible card action
-    // gets the next paint window even when an image slot happens to be free.
-    const delay = priority === "low" ? getInteractionPriorityDelay() : 0;
-    if (delay === 0) break;
-    await new Promise<void>((resolve) => {
-      const done = () => {
-        window.clearTimeout(timer);
-        signal?.removeEventListener("abort", done);
-        resolve();
-      };
-      const timer = window.setTimeout(done, delay);
-      signal?.addEventListener("abort", done, { once: true });
-    });
-    if (signal?.aborted || (priority === "low" && generation !== lowGeneration)) return null;
-    // A hidden tab or newly queued visible card may have changed the budget
-    // during the foreground lease, so loop back through canStart().
-  }
-  active += 1;
-  let released = false;
-  return () => {
-    if (released) return;
-    released = true;
-    active = Math.max(0, active - 1);
-    wakeNext();
-  };
+  return new Promise(resolve => {
+    const waiter: Waiter = { resolve, signal, cancel: () => {
+      const index = queue.indexOf(waiter);
+      if (index < 0) return;
+      queue.splice(index, 1);
+      settle(waiter, null);
+      pump();
+    } };
+    queue.push(waiter);
+    signal?.addEventListener("abort", waiter.cancel, { once: true });
+    pump();
+  });
 }
 
 /** Optional diagnostics for the local render budget panel. */
@@ -114,17 +115,18 @@ export function getImageLoadBudgetSnapshot() {
 
 /** Drop speculative decode waiters (keeps high-priority visible cards). */
 export function clearLowPriorityImageQueue() {
-  lowGeneration += 1;
   const pending = waitingLow.splice(0, waitingLow.length);
-  for (const wake of pending) wake();
+  for (const waiter of pending) settle(waiter, null);
+  pump();
 }
 
 let visibilityHooked = false;
-/** Pause speculative image work while the tab is hidden. */
+/** One shared visibility listener, instead of one listener per waiting card. */
 export function ensureImageBudgetVisibilityHook() {
   if (visibilityHooked || typeof document === "undefined") return;
   visibilityHooked = true;
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") clearLowPriorityImageQueue();
+    else pump();
   });
 }

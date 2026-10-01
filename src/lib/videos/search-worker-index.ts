@@ -9,7 +9,7 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 let idleTimer: ReturnType<typeof setTimeout> | undefined;
 let source: { videos: LibraryVideo[]; tags: Record<string, string[]>; categories: Record<string, string> } | undefined;
 let offset = 0;
-const pending = new Map<number, { query: string; resolve: (ids: string[] | null) => void }>();
+const pending = new Map<number, { query: string; resolve: (ids: string[] | null) => void; cleanup: () => void }>();
 type SearchWorkerStatus = "idle" | "building" | "ready" | "failed";
 let status: SearchWorkerStatus = "idle";
 const listeners = new Set<(status: SearchWorkerStatus) => void>();
@@ -19,7 +19,7 @@ function fail() {
   clearTimeout(idleTimer);
   worker?.terminate(); worker = null; source = undefined;
   setStatus("failed");
-  for (const request of pending.values()) request.resolve(null);
+  for (const request of pending.values()) { request.cleanup(); request.resolve(null); }
   pending.clear();
 }
 function releaseWhenIdle() {
@@ -40,7 +40,7 @@ function release() {
   worker = null;
   source = undefined;
   generation++;
-  for (const request of pending.values()) request.resolve(null);
+  for (const request of pending.values()) { request.cleanup(); request.resolve(null); }
   pending.clear();
   setStatus("idle");
 }
@@ -73,7 +73,8 @@ function instance() {
         else releaseWhenIdle();
         return;
       }
-      pending.get(data.requestId)?.resolve(data.ids);
+      const request = pending.get(data.requestId);
+      request?.cleanup(); request?.resolve(data.ids);
       pending.delete(data.requestId);
       if (!pending.size) { clearTimeout(timer); releaseWhenIdle(); }
     };
@@ -85,16 +86,47 @@ export const searchWorkerIndex = {
   sync(videos: LibraryVideo[], tags: Record<string, string[]>, categories: Record<string, string>) {
     clearTimeout(idleTimer);
     if (source?.videos === videos && source.tags === tags && source.categories === categories) return;
+    const previous = source;
+    const canReuseIndex = status === "ready"
+      && previous != null
+      && tags === previous.tags
+      && categories === previous.categories
+      && videos.length >= previous.videos.length
+      && previous.videos.every((video, index) => videos[index] === video);
+    if (canReuseIndex && videos.length === previous.videos.length) {
+      // Store updates sometimes copy the catalog array without changing any
+      // card. Its existing inverted index still describes the full contents.
+      source = { videos, tags, categories };
+      return;
+    }
+    if (canReuseIndex && videos.length > previous.videos.length) {
+      source = { videos, tags, categories };
+      offset = previous.videos.length;
+      generation++;
+      setStatus("building");
+      try {
+        instance().postMessage({ type: "continue", generation });
+        timer = setTimeout(sendBatch, 0);
+      } catch { fail(); }
+      return;
+    }
     source = { videos, tags, categories }; offset = 0; generation++;
     clearTimeout(timer); setStatus("building");
     try { instance(); timer = setTimeout(sendBatch, 0); } catch { fail(); }
   },
-  search(query: string): Promise<string[] | null> {
+  search(query: string, signal?: AbortSignal): Promise<string[] | null> {
     clearTimeout(idleTimer);
-    if (status === "failed" || status === "idle") return Promise.resolve(null);
+    if (signal?.aborted || status === "failed" || status === "idle") return Promise.resolve(null);
     return new Promise((resolve) => {
       const requestId = ++sequence;
-      pending.set(requestId, { query, resolve });
+      const cancel = () => {
+        pending.delete(requestId);
+        signal?.removeEventListener('abort', cancel);
+        resolve(null);
+        if (!pending.size && status === 'ready') { clearTimeout(timer); releaseWhenIdle(); }
+      };
+      pending.set(requestId, { query, resolve, cleanup: () => { signal?.removeEventListener('abort', cancel); } });
+      signal?.addEventListener('abort', cancel, { once: true });
       if (status === "ready") { worker?.postMessage({ type: "search", generation, requestId, query }); watch(); }
     });
   },

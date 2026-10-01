@@ -3,7 +3,7 @@
 export function memoizeSelector<S, R>(
   compute: (state: S, adult: boolean) => R,
   keys: readonly (keyof S)[] | ((state: S) => readonly (keyof S)[]),
-): ((state: S, adult?: boolean) => R) & { peek: (state: S, adult?: boolean) => R | undefined } {
+): ((state: S, adult?: boolean) => R) & { peek: (state: S, adult?: boolean) => R | undefined; clear: () => void; evictStale: (state: S) => void } {
   const scopes = new Map<boolean, { inputs: unknown[]; result: R }>();
   const inputsFor = (state: S) => {
     const selectedKeys = typeof keys === "function" ? keys(state) : keys;
@@ -22,5 +22,9 @@ export function memoizeSelector<S, R>(
     scopes.set(adult, { inputs: inputsFor(state), result });
     return result;
   };
-  return Object.assign(select, { peek });
+  const evictStale = (state: S) => {
+    const inputs = inputsFor(state);
+    for (const [scope, cached] of scopes) if (inputs.length !== cached.inputs.length || inputs.some((value, index) => !Object.is(value, cached.inputs[index]))) scopes.delete(scope);
+  };
+  return Object.assign(select, { peek, clear: () => scopes.clear(), evictStale });
 }

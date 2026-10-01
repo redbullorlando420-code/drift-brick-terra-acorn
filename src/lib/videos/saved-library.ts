@@ -1,4 +1,5 @@
 import type { LibraryVideo } from "./types";
+import { activityCandidates } from './activity-lookup.ts';
 
 type ShelfSnapshot = { favorites?: string[]; likes?: string[]; savedAt?: number };
 export function recoverSavedShelves(a?: ShelfSnapshot | null, b?: ShelfSnapshot | null) {
@@ -16,7 +17,9 @@ export function selectSavedCards(videos: readonly LibraryVideo[], favorites: Rec
   const savedIds = new Set([...Object.keys(favorites), ...Object.keys(likes)]);
   if (!savedIds.size) return [];
   const saved: LibraryVideo[] = [];
-  for (const video of videos) {
+  // Reopening a saved shelf, changing its privacy scope, or hiding a card
+  // reuses the bounded activity matches instead of scanning every title.
+  for (const video of activityCandidates(videos, [], savedIds)) {
     if (!savedIds.has(video.id) || hidden[video.id] || (hideDemo && video.isSample)) continue;
     if (adult === adultIds.has(video.folderId)) saved.push(video);
   }

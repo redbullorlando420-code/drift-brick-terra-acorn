@@ -7,9 +7,21 @@ import { normalizePullSettings } from './pull-settings.ts';
 import { createPullScheduler } from './pull-scheduler.ts';
 import { playbackWindow } from './videos/playback-queue.ts';
 import { adultFolderIds } from './videos/adult-providers.ts';
+import { folderIsPrivate } from './videos/folder-privacy.ts';
 import type { LibraryVideo } from './videos/types';
 const video = (id: string): LibraryVideo => ({ id, folderId: 'creator', name: id, path: id, addedAt: 0, mime: 'video/youtube', extension: 'youtube', size: 0, remote: { kind: 'youtube', videoId: id, channelName: 'Creator', embedUrl: 'https://youtube.com/embed/example', watchUrl: 'https://youtube.com/watch?v=example' } });
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+test('mounted card privacy checks reuse folder flags while reacting to a new source snapshot', () => {
+  let reads = 0;
+  const folders = Array.from({ length: 1000 }, (_, index) => ({ id: String(index), get adult() { reads++; return index === 999; } }));
+  for (let tick = 0; tick < 100; tick++) for (let card = 0; card < 108; card++) {
+    assert.equal(folderIsPrivate(folders, String(card)), false);
+  }
+  assert.equal(reads, 1000, 'folder flags are inspected once, not once per mounted card and store update');
+  assert.equal(folderIsPrivate(folders, '999'), true);
+  assert.equal(folderIsPrivate([...folders.slice(0, 999), { id: '999', adult: false }], '999'), false);
+});
 
 test('restored provider archives stay private even when a legacy folder omitted its flag', () => {
   const ids = adultFolderIds([{ id: 'redtube:discover' }, { id: 'private-local', adult: true }, { id: 'public-local' }]);
@@ -65,7 +77,7 @@ test('partial archive pages resume without gaps even when the batch limit change
 test('pull policy clamps corrupt settings and caps a million-entry target without deleting rows', () => {
   const settings = normalizePullSettings({ concurrentRequests: 500, requestGapMs: -1, adultBatchVideos: 6000, adultCatalogTarget: 9e12, youtubeBatchVideos: NaN, automaticPulls: false });
   assert.equal(settings.concurrentRequests, 3); assert.equal(settings.requestGapMs, 250);
-  assert.equal(settings.adultBatchVideos, 1000); assert.equal(settings.adultCatalogTarget, 1_000_000);
+  assert.equal(settings.adultBatchVideos, 6000); assert.equal(settings.adultCatalogTarget, 1_000_000);
   assert.equal(settings.youtubeBatchVideos, 100); assert.equal(settings.automaticPulls, false);
 });
 test('pull queue spaces requests, holds responses, and discards cancelled work', async () => {

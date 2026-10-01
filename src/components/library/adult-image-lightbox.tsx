@@ -1,11 +1,10 @@
 import { ExternalLink } from "lucide-react";
-import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { AdultComments } from "@/components/library/adult-comments";
 import { adultRemoteLabel } from "@/lib/videos/adult-sites";
 import { downloadAdultPhoto } from "@/lib/videos/adult-photo-download";
-import { resolveBooruOriginal } from "@/lib/remote/functions";
+import { useBooruOriginal } from './use-booru-original';
 import type { LibraryVideo } from "@/lib/videos/types";
 
 /** In-app full-bleed image viewer for booru / photo-kind adult pulls. */
@@ -17,14 +16,7 @@ export function AdultImageLightbox({
   tags?: string[];
 }) {
   const remote = video.remote;
-  const [original, setOriginal] = useState<string | null>(null);
-  useEffect(() => {
-    setOriginal(null);
-    if (remote?.kind !== "booru" || remote.channelId !== "tbib" || !remote.videoId) return;
-    let active = true;
-    void resolveBooruOriginal({ data: { id: remote.videoId } }).then((url) => { if (active && url) setOriginal(url); }).catch(() => {});
-    return () => { active = false; };
-  }, [remote?.channelId, remote?.kind, remote?.videoId]);
+  const { original, loading, failed } = useBooruOriginal(video);
   const src =
     original ||
     video.src ||
@@ -44,6 +36,7 @@ export function AdultImageLightbox({
             alt={video.name}
             className="max-h-full max-w-full object-contain"
             decoding="async"
+            onError={() => { if (original) failed(); }}
             referrerPolicy={remote?.kind === "booru" && remote.channelId === "rule34" ? "strict-origin-when-cross-origin" : "no-referrer"}
           />
         ) : (
@@ -56,6 +49,7 @@ export function AdultImageLightbox({
             {adultRemoteLabel(remote?.kind)} photo viewer
           </p>
           <p className="truncate text-sm text-fg">{video.name}</p>
+          {remote?.kind === 'booru' && <p className="text-xs text-muted" role="status">{loading ? 'Loading original image…' : original ? 'Original image' : 'Showing saved image · open the post if the original is unavailable.'}</p>}
           {(sourceTags.length > 0 || creatorTags.length > 0) && (
             <div className="flex flex-wrap gap-2">
               {[...sourceTags, ...creatorTags].map((tag) => (

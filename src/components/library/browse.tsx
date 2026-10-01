@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronRight, Heart, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { VideoCard } from "./video-card";
+import { VirtualVideoGrid } from "./virtual-video-grid";
 import { cn } from "@/lib/utils";
 import { titleOf, type LibraryVideo } from "@/lib/videos/types";
 import { useLibrary } from "@/lib/videos/store";
@@ -32,7 +33,7 @@ export function Billboard({ video }: { video: LibraryVideo }) {
   const art = artwork[artIndex];
 
   useEffect(() => {
-    request(video);
+    return request(video, { priority: 'high' });
   }, [request, video]);
   useEffect(() => setArtIndex(0), [video.id]);
 
@@ -291,117 +292,13 @@ export function TitleRail({
   );
 }
 
-// Each row owns its visibility and measured placeholder. Scrolling does not
-// rerender the catalog or retain image subscriptions for previously read pages.
-function PosterRow({ videos, start, estimate }: { videos: LibraryVideo[]; start: number; estimate: number }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const intersecting = useRef(false);
-  const [visible, setVisible] = useState(false);
-  const [height, setHeight] = useState(estimate);
-  useEffect(() => setHeight(estimate), [estimate]);
-  useEffect(() => {
-    const row = ref.current;
-    if (!row) return;
-    if (typeof IntersectionObserver === "undefined") { setVisible(true); return; }
-    const observer = new IntersectionObserver(([entry]) => {
-      intersecting.current = entry.isIntersecting;
-      setVisible(entry.isIntersecting || row.contains(document.activeElement));
-    }, { rootMargin: "180px 0px" });
-    observer.observe(row);
-    return () => observer.disconnect();
-  }, []);
-  useEffect(() => {
-    const row = ref.current;
-    if (!row || !visible) return;
-    const observer = new ResizeObserver(() => setHeight(Math.ceil(row.getBoundingClientRect().height)));
-    observer.observe(row);
-    return () => observer.disconnect();
-  }, [visible]);
-  return <div ref={ref} data-poster-row role="group" aria-label={`Titles ${start + 1}–${start + videos.length}`}
-    tabIndex={visible ? -1 : 0} onFocus={() => setVisible(true)}
-    onBlur={(event) => { if (!intersecting.current && !event.currentTarget.contains(event.relatedTarget)) setVisible(false); }}
-    className="col-span-full grid grid-cols-subgrid gap-3 sm:gap-4" style={!visible ? { height } : undefined}>
-    {visible && videos.map((video, i) => <VideoCard key={video.id} video={video} variant="poster" index={start + i} className="w-full" />)}
-  </div>;
-}
-
 export function PosterGrid({ videos }: { videos: LibraryVideo[] }) {
-  const gridRef = useRef<HTMLElement>(null);
-  const layoutRef = useRef<HTMLDivElement>(null);
-  const [layout, setLayout] = useState({ columns: 3, estimate: 260 });
-  const leaveTimer = useRef<number | undefined>(undefined);
-  const [nearViewport, setNearViewport] = useState(false);
-  const [gridHeight, setGridHeight] = useState<number>();
   const [pageSize, setPageSize] = useState(() => savedRenderBudget("reelcase.grid-page-size", GRID_SIZES, 24));
   useEffect(() => {
     const sync = () => setPageSize(savedRenderBudget("reelcase.grid-page-size", GRID_SIZES, 24));
     window.addEventListener("reelcase:render-settings", sync);
     return () => window.removeEventListener("reelcase:render-settings", sync);
   }, []);
-  const safePageSize = pageSize;
-  const [limit, setLimit] = useState(safePageSize);
-  // Background pulls append archive rows frequently. Keep the user's current
-  // page depth when that happens; only an explicit render-budget change resets it.
-  useEffect(() => setLimit(safePageSize), [safePageSize]);
-  useEffect(() => {
-    const grid = gridRef.current;
-    if (!grid || !videos.length) return;
-    if (typeof IntersectionObserver === "undefined") { setNearViewport(true); return; }
-    const observer = new IntersectionObserver(([entry]) => {
-      // Keep a focused card mounted for keyboard users, even when its shelf is
-      // just outside the viewport. Debounce leave so scroll bounce is cheap.
-      const keep = entry.isIntersecting || grid.contains(document.activeElement);
-      if (keep) {
-        if (leaveTimer.current) window.clearTimeout(leaveTimer.current);
-        leaveTimer.current = undefined;
-        setNearViewport((current) => (current ? current : true));
-        return;
-      }
-      if (leaveTimer.current) window.clearTimeout(leaveTimer.current);
-      leaveTimer.current = window.setTimeout(() => setNearViewport(false), 900);
-    }, { rootMargin: "320px 0px" });
-    observer.observe(grid);
-    return () => {
-      observer.disconnect();
-      if (leaveTimer.current) window.clearTimeout(leaveTimer.current);
-    };
-  }, [videos.length]);
-  useEffect(() => {
-    const grid = gridRef.current;
-    if (!grid || !nearViewport || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(() => {
-      const next = Math.round(grid.getBoundingClientRect().height);
-      setGridHeight((current) => current === next ? current : next);
-    });
-    observer.observe(grid);
-    return () => observer.disconnect();
-  }, [nearViewport]);
-  useEffect(() => {
-    const grid = layoutRef.current;
-    if (!grid) return;
-    const sync = () => {
-      const style = getComputedStyle(grid);
-      const columns = style.gridTemplateColumns.split(" ").length;
-      const gap = parseFloat(style.columnGap) || 12;
-      const estimate = Math.ceil((grid.clientWidth - gap * (columns - 1)) / columns * (9 / 16) + 80);
-      setLayout((old) => old.columns === columns && old.estimate === estimate ? old : { columns, estimate });
-    };
-    sync();
-    const observer = new ResizeObserver(sync);
-    observer.observe(grid);
-    return () => observer.disconnect();
-  }, [nearViewport]);
   if (!videos.length) return null;
-  const visible = videos.slice(0, limit);
-  const rows = Array.from({ length: Math.ceil(visible.length / layout.columns) }, (_, row) => row * layout.columns);
-  return (
-    <section ref={gridRef} className="media-shelf" style={!nearViewport ? { minHeight: gridHeight ?? 900 } : undefined}>
-      {nearViewport && <>
-        <div ref={layoutRef} className="grid grid-cols-3 gap-3 sm:grid-cols-4 sm:gap-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7">
-          {rows.map((start) => <PosterRow key={`${layout.columns}:${start}`} start={start} videos={visible.slice(start, start + layout.columns)} estimate={layout.estimate} />)}
-        </div>
-        {videos.length > limit && <div className="mt-5 flex items-center justify-between gap-3"><p className="text-xs text-muted">Page {Math.ceil(limit / safePageSize)} · showing {limit.toLocaleString()} of {videos.length.toLocaleString()} titles</p><Button variant="secondary" onClick={() => setLimit((value) => Math.min(value + safePageSize, videos.length))}>Next page · {safePageSize}</Button></div>}
-      </>}
-    </section>
-  );
+  return <VirtualVideoGrid videos={videos} variant="poster" pageSize={pageSize} />;
 }

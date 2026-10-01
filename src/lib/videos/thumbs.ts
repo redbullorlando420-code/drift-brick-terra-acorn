@@ -3,10 +3,14 @@ import { LIBRARY_LIMITS } from "@/lib/library-limits";
 import type { LibraryVideo } from "./types";
 import { resolvePlayUrl } from "./sources";
 import { bitmapFromVideo } from "./hw";
-import { loadThumbCache, saveThumbCache } from "./persist";
+import { loadCachedThumb, loadThumbCache, saveThumbCache } from "./persist";
 import { companionGetThumb } from "@/lib/companion";
 import { boundedRecord } from "../bounded-record.ts";
-import { allowAutomaticRefresh } from "../session-activity.ts";
+import { allowAutomaticRefresh, subscribeSessionPhase } from "../session-activity.ts";
+import { getInteractionPriorityDelay } from "../interaction-budget.ts";
+import { isArtworkSuppressed, subscribeArtworkSuppression } from './image-load-budget.ts';
+import { createThumbnailQueue } from './thumbnail-queue.ts';
+import { artworkBytes, artworkUrl, binaryArtwork, releaseArtwork } from './binary-artwork';
 export { companionCacheThumbUrl as mirrorRemotePosterToCompanion } from "@/lib/companion";
 
 type ThumbState = {
@@ -14,18 +18,14 @@ type ThumbState = {
   failed: Record<string, true>;
   durations: Record<string, number>;
   diagnostics: Record<string, { attempts: number; lastError: string; at: number }>;
-  request: (video: LibraryVideo) => void;
+  request: (video: LibraryVideo, options?: { priority?: 'high' | 'low' }) => () => void;
   retry: (video: LibraryVideo) => void;
   hydrate: () => Promise<void>;
   recallCompanion: (id: string) => Promise<void>;
   trimMemory: () => void;
 };
 
-const inflight = new Set<string>();
-const controllers = new Map<string, AbortController>();
 const recalling = new Set<string>();
-let active = 0;
-const waiting: Array<() => void> = [];
 const MAX_MEMORY_THUMBS = LIBRARY_LIMITS.memoryThumbEntries;
 const MAX_ARTWORK_ATTEMPTS = 3;
 const MAX_THUMB_QUEUE = 96;
@@ -33,11 +33,6 @@ const MAX_THUMB_BYTES = 8 * 1024 * 1024;
 let artworkHits = 0;
 let artworkMisses = 0;
 let artworkEvictions = 0;
-
-function inputOrBackgroundWork() {
-  const nav = typeof navigator !== "undefined" ? navigator as Navigator & { scheduling?: { isInputPending?: () => boolean } } : undefined;
-  return Boolean(nav?.scheduling?.isInputPending?.()) || (typeof document !== "undefined" && document.visibilityState !== "visible");
-}
 
 function maxThumbnailWorkers() {
   const nav = typeof navigator !== "undefined" ? navigator as Navigator & { deviceMemory?: number; scheduling?: { isInputPending?: () => boolean } } : undefined;
@@ -53,42 +48,44 @@ function maxThumbnailWorkers() {
   } catch { return adaptive; }
 }
 
-async function acquire(signal: AbortSignal) {
-  // Do not start a decode in the same slice as typing, scrolling, or a hidden
-  // tab. The bounded queue remains intact and wakes quickly when input ends.
-  while (inputOrBackgroundWork() || active >= maxThumbnailWorkers()) {
-    if (signal.aborted) return false;
-    if (inputOrBackgroundWork()) {
-      await new Promise<void>((resolve) => window.setTimeout(resolve, 80));
-    } else {
-      await new Promise<void>((resolve) => {
-        const wake = () => { signal.removeEventListener("abort", cancel); resolve(); };
-        const cancel = () => { const index = waiting.indexOf(wake); if (index >= 0) waiting.splice(index, 1); wake(); };
-        waiting.push(wake);
-        signal.addEventListener("abort", cancel, { once: true });
-      });
-    }
-  }
-  if (signal.aborted) return false;
-  active += 1;
-  return true;
-}
+let inputPriorityUntil = 0;
+const thumbnailQueue = createThumbnailQueue({
+  workers: maxThumbnailWorkers,
+  limit: MAX_THUMB_QUEUE,
+  delay: () => {
+    if (isArtworkSuppressed() || !allowAutomaticRefresh()) return Infinity;
+    const nav = navigator as Navigator & { scheduling?: { isInputPending?: () => boolean } };
+    return Math.max(getInteractionPriorityDelay(), inputPriorityUntil - performance.now(), nav.scheduling?.isInputPending?.() ? 80 : 0);
+  },
+  subscribe: wake => {
+    const input = () => { inputPriorityUntil = performance.now() + 160; wake(); };
+    const events = ['pointerdown', 'keydown', 'wheel', 'touchmove'] as const;
+    for (const event of events) window.addEventListener(event, input, { passive: true });
+    document.addEventListener('visibilitychange', wake);
+    const stopViewer = subscribeArtworkSuppression(wake);
+    const stopSession = subscribeSessionPhase(wake);
+    return () => {
+      for (const event of events) window.removeEventListener(event, input);
+      document.removeEventListener('visibilitychange', wake);
+      stopViewer(); stopSession();
+    };
+  },
+});
+import.meta.hot?.dispose(() => {
+  thumbnailQueue.dispose();
+  for (const url of Object.values(useThumbs.getState().byId)) releaseArtwork(url);
+});
 
 /** Local-only artwork queue/cache numbers for the opt-in diagnostics panel. */
 export function getThumbDiagnostics() {
   const s = useThumbs.getState();
-  return { active, queued: waiting.length, inflight: inflight.size, recalling: recalling.size, entries: Object.keys(s.byId).length,
-    bytes: Object.values(s.byId).reduce((sum, value) => sum + value.length * 2, 0),
+  const queue = thumbnailQueue.snapshot();
+  return { active: queue.active, queued: queue.queued, inflight: queue.jobs, recalling: recalling.size, entries: Object.keys(s.byId).length,
+    bytes: Object.values(s.byId).reduce((sum, value) => sum + artworkBytes(value), 0),
     failures: Object.keys(s.failed).length, hits: artworkHits, misses: artworkMisses, evictions: artworkEvictions };
 }
 
-function release() {
-  active = Math.max(0, active - 1);
-  const next = waiting.shift();
-  if (next) next();
-}
-
-function capture(src: string, signal: AbortSignal): Promise<{ thumb: string | null; duration?: number }> {
+function capture(src: string, signal: AbortSignal): Promise<{ thumb: Blob | null; duration?: number }> {
   return new Promise((resolve) => {
     const video = document.createElement("video");
     video.muted = true;
@@ -97,7 +94,7 @@ function capture(src: string, signal: AbortSignal): Promise<{ thumb: string | nu
     video.crossOrigin = "anonymous";
     video.className = "hw-video";
     let settled = false;
-    const finish = (thumb: string | null, duration?: number) => {
+    const finish = (thumb: Blob | null, duration?: number) => {
       if (settled) return;
       settled = true;
       window.clearTimeout(timer);
@@ -149,7 +146,9 @@ function capture(src: string, signal: AbortSignal): Promise<{ thumb: string | nu
             if (settled || signal.aborted) return;
             if (bitmap) ctx.drawImage(bitmap, 0, 0, w, h);
             else ctx.drawImage(video, 0, 0, w, h);
-            finish(canvas.toDataURL("image/jpeg", 0.74), Number.isFinite(video.duration) ? video.duration : undefined);
+            const duration = Number.isFinite(video.duration) ? video.duration : undefined;
+            const thumb = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/jpeg", 0.74));
+            if (!settled && !signal.aborted) finish(thumb, duration);
           } finally {
             bitmap?.close();
             canvas.width = canvas.height = 0;
@@ -168,10 +167,10 @@ function boundedThumbState(s: Pick<ThumbState, "byId" | "failed" | "durations" |
   // Disk hydration and companion recalls can finish after idle cleanup. Keep
   // their late results inside the resting budget instead of refilling it.
   if (!allowAutomaticRefresh()) { count = Math.min(count, 32); bytes = Math.min(bytes, 1024 * 1024); }
-  const byId = boundedRecord(s.byId, count, bytes, value => value.length * 2);
+  const byId = boundedRecord(s.byId, count, bytes, artworkBytes);
   for (const [id, url] of Object.entries(s.byId)) if (!byId[id]) {
     artworkEvictions++;
-    if (url.startsWith("blob:")) URL.revokeObjectURL(url);
+    releaseArtwork(url);
   }
   return { byId, failed: boundedRecord(s.failed, MAX_MEMORY_THUMBS * 2), durations: boundedRecord(s.durations, MAX_MEMORY_THUMBS * 2), diagnostics: boundedRecord(s.diagnostics, MAX_MEMORY_THUMBS * 2) };
 }
@@ -181,51 +180,55 @@ export const useThumbs = create<ThumbState>((set, get) => ({
   failed: {},
   durations: {},
   diagnostics: {},
-  request: (video) => {
-    if (!allowAutomaticRefresh()) return;
+  request: (video, options) => {
+    const noop = () => {};
+    if (!allowAutomaticRefresh()) return noop;
     const { byId, failed, diagnostics } = get();
-    if (byId[video.id]) { artworkHits += 1; return; }
-    if (failed[video.id] || inflight.has(video.id)) return;
-    if ((diagnostics[video.id]?.attempts ?? 0) >= MAX_ARTWORK_ATTEMPTS) return;
-    if (inflight.size >= MAX_THUMB_QUEUE) return;
-    artworkMisses += 1;
+    if (byId[video.id]) { artworkHits += 1; return noop; }
+    if (failed[video.id]) return noop;
+    if ((diagnostics[video.id]?.attempts ?? 0) >= MAX_ARTWORK_ATTEMPTS) return noop;
     if (video.remote) {
       // Cross-origin embeds cannot be frame-captured. Leave cards on provider
       // artwork rather than duplicating provider URLs for every browsed remote
       // card in the in-memory thumbnail cache. VideoCard reads those URLs
       // directly, so this cache entry was redundant.
-      return;
+      return noop;
     }
-    inflight.add(video.id);
-    const controller = new AbortController();
-    controllers.set(video.id, controller);
-    void (async () => {
-      const acquired = await acquire(controller.signal);
+    if (!thumbnailQueue.has(video.id)) artworkMisses += 1;
+    return thumbnailQueue.enqueue(video.id, async signal => {
       try {
-        if (!acquired || controller.signal.aborted) return;
+        if (signal.aborted) return;
+        // Eviction frees RAM only. Re-open the compressed disk image before
+        // asking for file access or decoding the video a second time.
+        const cached = await loadCachedThumb(video.id).catch(() => undefined);
+        if (signal.aborted) return;
+        if (cached?.thumb) {
+          const thumb = await binaryArtwork(cached.thumb);
+          if (signal.aborted) return;
+          set(s => s.byId[video.id] ? s : boundedThumbState({ ...s, byId: { ...s.byId, [video.id]: artworkUrl(thumb) } }));
+          artworkHits++;
+          if (thumb !== cached.thumb) void saveThumbCache({ ...cached, thumb }).catch(() => undefined);
+          return;
+        }
         const src = await resolvePlayUrl(video);
-        if (controller.signal.aborted) return;
-        const { thumb, duration } = await capture(src, controller.signal);
-        if (controller.signal.aborted) return;
+        if (signal.aborted) return;
+        const { thumb, duration } = await capture(src, signal);
+        if (signal.aborted) return;
         set(s => boundedThumbState({
           ...s,
-          byId: thumb ? { ...s.byId, [video.id]: thumb } : s.byId,
-          failed: thumb ? s.failed : { ...s.failed, [video.id]: true },
-          diagnostics: thumb ? s.diagnostics : { ...s.diagnostics, [video.id]: { attempts: (s.diagnostics[video.id]?.attempts ?? 0) + 1, lastError: "No decodable frame", at: Date.now() } },
+          byId: thumb && !s.byId[video.id] ? { ...s.byId, [video.id]: artworkUrl(thumb) } : s.byId,
+          failed: thumb || s.byId[video.id] ? s.failed : { ...s.failed, [video.id]: true },
+          diagnostics: thumb || s.byId[video.id] ? s.diagnostics : { ...s.diagnostics, [video.id]: { attempts: (s.diagnostics[video.id]?.attempts ?? 0) + 1, lastError: "No decodable frame", at: Date.now() } },
           durations: duration && duration > 0 ? { ...s.durations, [video.id]: duration } : s.durations,
         }));
         if (thumb) void saveThumbCache({ id: video.id, thumb, at: Date.now() }).catch(() => undefined);
       } catch {
-        if (!controller.signal.aborted) set(s => boundedThumbState({ ...s,
+        if (!signal.aborted) set(s => boundedThumbState({ ...s,
           failed: { ...s.failed, [video.id]: true },
           diagnostics: { ...s.diagnostics, [video.id]: { attempts: (s.diagnostics[video.id]?.attempts ?? 0) + 1, lastError: "Source could not be reopened", at: Date.now() } },
         }));
-      } finally {
-        inflight.delete(video.id);
-        controllers.delete(video.id);
-        if (acquired) release();
       }
-    })();
+    }, options?.priority);
   },
   retry: (video) => {
     set((s) => {
@@ -238,26 +241,40 @@ export const useThumbs = create<ThumbState>((set, get) => ({
   },
   hydrate: async () => {
     try {
-      const rows = await loadThumbCache(MAX_MEMORY_THUMBS);
+      // Keep startup cheap. Other disk entries are reopened only when their
+      // cards enter the existing visibility/decode queue.
+      const rows = await loadThumbCache(32);
       // Keep insertion order oldest-first so idle/LRU trimming retains the
       // newest disk artwork, followed by frames captured in this session.
-      set((s) => boundedThumbState({ ...s, byId: { ...Object.fromEntries(rows.reverse().map((row) => [row.id, row.thumb])), ...s.byId } }));
+      const restored: Record<string, string> = {};
+      for (const row of rows.reverse()) {
+        if (get().byId[row.id] || restored[row.id]) continue;
+        const thumb = await binaryArtwork(row.thumb);
+        restored[row.id] = artworkUrl(thumb);
+        if (thumb !== row.thumb) void saveThumbCache({ ...row, thumb }).catch(() => undefined);
+      }
+      set(s => {
+        for (const [id, url] of Object.entries(restored)) if (s.byId[id]) releaseArtwork(url);
+        return boundedThumbState({ ...s, byId: { ...restored, ...s.byId } });
+      });
     } catch { /* Thumbnail cache is an optional speed-up. */ }
   },
   /** Recall a companion-disk thumb when browser IndexedDB was pruned. */
   recallCompanion: async (id) => {
-    if (!allowAutomaticRefresh()) return;
+    if (!allowAutomaticRefresh() || isArtworkSuppressed()) return;
     if (!id || get().byId[id] || recalling.has(id) || recalling.size >= 8) return;
     recalling.add(id);
     try {
       const dataUrl = await companionGetThumb(id);
       if (!dataUrl) return;
-      set(s => boundedThumbState({ ...s, byId: { ...s.byId, [id]: dataUrl } }));
-      void saveThumbCache({ id, thumb: dataUrl, at: Date.now() }).catch(() => undefined);
+      const thumb = await binaryArtwork(dataUrl);
+      if (get().byId[id]) return;
+      set(s => boundedThumbState({ ...s, byId: { ...s.byId, [id]: artworkUrl(thumb) } }));
+      void saveThumbCache({ id, thumb, at: Date.now() }).catch(() => undefined);
     } finally { recalling.delete(id); }
   },
   trimMemory: () => {
-    for (const controller of controllers.values()) controller.abort();
+    thumbnailQueue.clear();
     set(s => boundedThumbState(s, 32, 1024 * 1024));
   },
 }));

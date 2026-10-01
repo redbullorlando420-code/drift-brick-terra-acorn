@@ -56,7 +56,7 @@ export const youtubeCreatorProfiles = createServerFn({ method: "POST" })
   .handler(({ data }) => runYoutubeCreatorProfiles(data));
 
 export type { AdultComment } from "./api";
-export const followRemote = (...args: Parameters<typeof followRemoteRequest>) => runPausablePull(() => followRemoteRequest(...args));
-export const refreshRemotes = (...args: Parameters<typeof refreshRemotesRequest>) => runPausablePull(() => refreshRemotesRequest(...args));
-export const importChannels = (...args: Parameters<typeof importChannelsRequest>) => runPausablePull(() => importChannelsRequest(...args));
-export const searchAdultVideos = (...args: Parameters<typeof searchAdultVideosRequest>) => runPausablePull(() => searchAdultVideosRequest(...args));
+export const followRemote = (...args: Parameters<typeof followRemoteRequest>) => runPausablePull(signal => followRemoteRequest({ ...args[0], signal }));
+export const refreshRemotes = (...args: Parameters<typeof refreshRemotesRequest>) => runPausablePull(signal => refreshRemotesRequest({ ...args[0], signal }));
+export const importChannels = (...args: Parameters<typeof importChannelsRequest>) => runPausablePull(signal => importChannelsRequest({ ...args[0], signal }));
+export const searchAdultVideos = (...args: Parameters<typeof searchAdultVideosRequest>) => runPausablePull(signal => searchAdultVideosRequest({ ...args[0], signal }));
