@@ -18,6 +18,26 @@ export function youtubeCatalogItems(root: unknown): unknown[] | null {
   if (videosTab) return videosTab.tabRenderer!.content!.richGridRenderer!.contents!;
   const populatedTabs = tabs.filter(hasGrid);
   if (populatedTabs.length === 1) return populatedTabs[0].tabRenderer!.content!.richGridRenderer!.contents!;
+  // Uploads playlists use item sections and playlistVideoListRenderer rather
+  // than a rich grid. Stay within the selected tab; don't follow header tokens.
+  const selectedContent = tabs.find(tab => tab.tabRenderer?.selected)?.tabRenderer?.content;
+  const stack: unknown[] = [selectedContent, (root as any).contents?.singleColumnBrowseResultsRenderer?.tabs?.find((tab: any) => tab.tabRenderer?.selected)?.tabRenderer?.content];
+  while (stack.length) {
+    const node = stack.pop();
+    if (!node || typeof node !== "object") continue;
+    const record = node as Record<string, any>;
+    for (const name of ["playlistVideoListRenderer", "gridRenderer"]) {
+      const items = record[name]?.contents ?? record[name]?.items;
+      if (Array.isArray(items)) return items;
+    }
+    for (const value of Object.values(record)) if (value && typeof value === "object") stack.push(value);
+  }
+  for (const name of ["playlistVideoListContinuation", "gridContinuation", "richGridContinuation"]) {
+    const continuation = (root as any).continuationContents?.[name];
+    if (!continuation) continue;
+    const items = continuation.contents ?? continuation.items;
+    if (Array.isArray(items)) return [...items, ...(continuation.continuations ?? [])];
+  }
   for (const action of [...(page.onResponseReceivedActions ?? []), ...(page.onResponseReceivedEndpoints ?? [])]) {
     // WEB has used both appendContinuationItemsAction and
     // reloadContinuationItemsCommand for the same Videos-grid continuation.

@@ -33,6 +33,17 @@ function releaseWhenIdle() {
     setStatus("idle");
   }, 60_000);
 }
+function release() {
+  clearTimeout(timer);
+  clearTimeout(idleTimer);
+  worker?.terminate();
+  worker = null;
+  source = undefined;
+  generation++;
+  for (const request of pending.values()) request.resolve(null);
+  pending.clear();
+  setStatus("idle");
+}
 function watch() { clearTimeout(timer); timer = setTimeout(fail, 15_000); }
 function sendBatch() {
   if (!source || !worker) return;
@@ -70,6 +81,7 @@ function instance() {
   return worker;
 }
 export const searchWorkerIndex = {
+  release,
   sync(videos: LibraryVideo[], tags: Record<string, string[]>, categories: Record<string, string>) {
     clearTimeout(idleTimer);
     if (source?.videos === videos && source.tags === tags && source.categories === categories) return;

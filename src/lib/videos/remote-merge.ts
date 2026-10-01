@@ -1,3 +1,5 @@
+import { repairLegacyYoutubeDate } from "../remote/youtube-page.ts";
+import { retainYoutubeSources, youtubeVideoKey } from "../remote/youtube-sources.ts";
 import type { LibraryVideo } from "./types";
 
 function sameList(left?: readonly string[], right?: readonly string[]) {
@@ -20,6 +22,7 @@ function sameRemote(left: LibraryVideo["remote"], right: LibraryVideo["remote"])
     && left.watchUrl === right.watchUrl
     && left.previewUrl === right.previewUrl
     && sameList(left.sourceKinds, right.sourceKinds)
+    && sameList(left.sourceIds, right.sourceIds)
     && sameList(left.thumbFallbacks, right.thumbFallbacks)
     // Provider comments are intentionally not part of routine YouTube/Twitch
     // refresh payloads. If supplied, retain the fresh object safely.
@@ -57,14 +60,17 @@ function sameVideo(left: LibraryVideo, right: LibraryVideo) {
  * possible), and no object is allocated when there is nothing to preserve.
  */
 function retainDurableRemoteFields(previous: LibraryVideo | undefined, incoming: LibraryVideo) {
+  incoming = retainYoutubeSources(previous, incoming);
   if (!previous?.remote || !incoming.remote) return incoming;
   const channelName = incoming.remote.channelName?.trim() || previous.remote.channelName?.trim();
   const comments = incoming.remote.comments?.length ? incoming.remote.comments : previous.remote.comments;
   const keepsName = Boolean(channelName && channelName !== incoming.remote.channelName);
   const keepsComments = Boolean(comments?.length && comments !== incoming.remote.comments);
-  if (!keepsName && !keepsComments) return incoming;
+  const keepsPublished = incoming.remote.kind === "youtube" && incoming.addedAt === 0 && repairLegacyYoutubeDate(previous).addedAt > 0;
+  if (!keepsName && !keepsComments && !keepsPublished) return incoming;
   return {
     ...incoming,
+    ...(keepsPublished ? { addedAt: previous.addedAt } : {}),
     remote: {
       ...incoming.remote,
       ...(keepsName ? { channelName } : {}),
@@ -77,11 +83,28 @@ function sameOrder(left: LibraryVideo[], right: LibraryVideo[]) {
   return left.length === right.length && left.every((video, index) => video === right[index]);
 }
 
+const remoteVideoIndexes = new WeakMap<LibraryVideo[], Map<string, LibraryVideo>>();
+
+/** Share one id index among accounting, merging, and offline cleanup for a snapshot. */
+export function remoteVideoIndex(videos: LibraryVideo[]) {
+  const cached = remoteVideoIndexes.get(videos);
+  if (cached) return cached;
+  const index = new Map<string, LibraryVideo>();
+  for (const video of videos) {
+    index.set(video.id, video);
+    const key = youtubeVideoKey(video);
+    if (key && !index.has(key)) index.set(key, video);
+  }
+  remoteVideoIndexes.set(videos, index);
+  return index;
+}
+
 /** Additive archive merge using an index shared across a multi-creator sweep. */
 export function mergeRemoteCatalog(existing: LibraryVideo[], incoming: LibraryVideo[], positions: Map<string, number>, mergedIncoming: LibraryVideo[]): LibraryVideo[] {
   let merged = existing;
   for (const video of incoming) {
-    const index = positions.get(video.id);
+    const key = youtubeVideoKey(video);
+    const index = positions.get(video.id) ?? (key ? positions.get(key) : undefined);
     const previous = index === undefined ? undefined : merged[index];
     let next = retainDurableRemoteFields(previous, video);
     if (previous?.remote?.live && next.remote?.live && (next.remote.observedAt ?? 0) < (previous.remote.observedAt ?? 0)) next = previous;
@@ -89,6 +112,7 @@ export function mergeRemoteCatalog(existing: LibraryVideo[], incoming: LibraryVi
     if (index === undefined) {
       if (merged === existing) merged = existing.slice();
       positions.set(next.id, merged.length);
+      if (key) positions.set(key, merged.length);
       merged.push(next);
     } else if (next !== previous) {
       if (merged === existing) merged = existing.slice();
@@ -115,12 +139,13 @@ export function mergeRemoteCatalog(existing: LibraryVideo[], incoming: LibraryVi
  */
 export function mergeRemoteRefresh(
   existing: LibraryVideo[], incoming: LibraryVideo[], refreshedIds: string[], savedIds: Set<string>,
+  options?: { index?: Map<string, LibraryVideo>; staleLiveIds?: string[] },
 ): LibraryVideo[] {
   const refreshed = new Set(refreshedIds);
-  const existingById = new Map(existing.map((video) => [video.id, video]));
+  const existingById = options?.index ?? remoteVideoIndex(existing);
   const fresh = new Map<string, LibraryVideo>();
   for (const incomingVideo of incoming) {
-    const previous = existingById.get(incomingVideo.id);
+    const previous = existingById.get(incomingVideo.id) ?? existingById.get(youtubeVideoKey(incomingVideo) ?? incomingVideo.id);
     let next = retainDurableRemoteFields(previous, incomingVideo);
     const incomingObservation = next.remote?.observedAt ?? 0;
     const previousObservation = previous?.remote?.observedAt ?? 0;
@@ -153,6 +178,7 @@ export function mergeRemoteRefresh(
       // single offline transition for saved/live surfaces, then reuse it on
       // future refreshes rather than allocating another card object.
       merged.push({ ...video, tagline: "Offline · saved channel", remote: { ...video.remote, live: false } });
+      options?.staleLiveIds?.push(video.id);
       continue;
     }
     if (savedIds.has(video.id)) {

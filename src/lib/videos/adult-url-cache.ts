@@ -70,7 +70,14 @@ export function applyCachedAdultUrls(videos: LibraryVideo[]): LibraryVideo[] {
 }
 
 export function cacheAdultVideoUrls(videos: LibraryVideo[]) {
+  const map = readMap();
+  const at = Date.now();
   for (const video of videos) {
-    rememberAdultPreviewUrl(video.id, video.poster, video.remote?.previewUrl);
+    const poster = video.poster && isUsableAdultThumb(video.poster) ? video.poster : undefined;
+    const previewUrl = video.remote?.previewUrl && isUsableAdultThumb(video.remote.previewUrl) ? video.remote.previewUrl : poster;
+    if (!poster && !previewUrl) continue;
+    map[video.id] = { poster, previewUrl, at };
+    void saveThumbCache({ id: video.id, thumb: poster ?? previewUrl ?? "", at }).catch(() => undefined);
   }
+  writeMap(map);
 }

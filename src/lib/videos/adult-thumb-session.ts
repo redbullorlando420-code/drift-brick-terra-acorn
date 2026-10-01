@@ -6,6 +6,7 @@
 const MAX_FAILED = 600;
 const MAX_GOOD = 400;
 const MAX_BY_VIDEO = 280;
+const MAX_HEALTH = 560;
 
 const failedUrls = new Set<string>();
 const goodUrls = new Set<string>();
@@ -13,6 +14,15 @@ const goodByVideo = new Map<string, string>();
 const healthByVideo = new Map<string, "loaded" | "failed">();
 const hostFail = new Map<string, number>();
 const hostOk = new Map<string, number>();
+
+function markHealth(id: string, next: "loaded" | "failed") {
+  const previous = healthByVideo.get(id);
+  if (previous === next || (previous === "loaded" && next === "failed")) return;
+  healthByVideo.delete(id);
+  healthByVideo.set(id, next);
+  if (healthByVideo.size > MAX_HEALTH) healthByVideo.delete(healthByVideo.keys().next().value!);
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("reelcase:preview-health"));
+}
 
 function hostOf(url: string): string {
   try {
@@ -57,7 +67,7 @@ const PREFERRED_HOSTS: Record<string, number> = {
 
 export function markAdultThumbFailed(url: string, videoId?: string) {
   if (!url) return;
-  if (videoId && healthByVideo.get(videoId) !== "loaded") { healthByVideo.set(videoId, "failed"); window.dispatchEvent(new Event("reelcase:preview-health")); }
+  if (videoId) markHealth(videoId, "failed");
   failedUrls.add(url);
   goodUrls.delete(url);
   trimSet(failedUrls, MAX_FAILED);
@@ -72,8 +82,7 @@ export function markAdultThumbGood(url: string, videoId?: string) {
   const host = hostOf(url);
   if (host) { hostOk.set(host, (hostOk.get(host) ?? 0) + 1); trimHostMap(hostOk, 96); }
   if (videoId) {
-    healthByVideo.set(videoId, "loaded");
-    window.dispatchEvent(new Event("reelcase:preview-health"));
+    markHealth(videoId, "loaded");
     goodByVideo.set(videoId, url);
     if (goodByVideo.size > MAX_BY_VIDEO) {
       const first = goodByVideo.keys().next().value;

@@ -19,6 +19,8 @@ export function AdultComments({ video }: { video: LibraryVideo }) {
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(false);
   const [reload, setReload] = useState(0);
+  const [opened, setOpened] = useState(video.remote?.kind !== "youtube");
+  const [visibleRows, setVisibleRows] = useState(20);
   const lastLoadedReload = useRef(-1);
   const linkedRedgifs = Boolean(video.remote?.sourceKinds?.includes("redgifs"));
   const kind = video.remote?.kind;
@@ -26,6 +28,7 @@ export function AdultComments({ video }: { video: LibraryVideo }) {
 
   useEffect(() => {
     let cancelled = false;
+    if (!opened) return;
     if (!supportsRemoteComments(kind) || !providerVideoId) {
       setComments(video.remote?.comments ?? []);
       setNote(supportsRemoteComments(kind) ? "" : "No documented public comment feed for this source.");
@@ -91,7 +94,7 @@ export function AdultComments({ video }: { video: LibraryVideo }) {
     return () => {
       cancelled = true;
     };
-  }, [linkedRedgifs, kind, video.id, video.extension, video.name, providerVideoId, video.remote?.watchUrl, video.remote?.comments, reload, setVideoTags, setVideoComments]);
+  }, [opened, linkedRedgifs, kind, video.id, video.extension, video.name, providerVideoId, video.remote?.watchUrl, video.remote?.comments, reload, setVideoTags, setVideoComments]);
 
   if (!supportsRemoteComments(kind)) return null;
 
@@ -109,7 +112,7 @@ export function AdultComments({ video }: { video: LibraryVideo }) {
   const renderList = (rows: AdultComment[], emptyLabel?: string) => (
     rows.length > 0 ? (
       <ul className="mt-2 max-h-48 space-y-2 overflow-y-auto">
-        {rows.map((comment) => (
+        {rows.slice(0, visibleRows).map((comment) => (
           <li key={comment.id} className="rounded-sm bg-elevated/60 px-2 py-1.5 text-xs text-fg">
             {comment.author && <span className="font-medium text-accent">{authorPrefix}{comment.author}{typeof comment.score === "number" ? ` · ${comment.score}` : ""} · </span>}
             {comment.body}
@@ -121,9 +124,11 @@ export function AdultComments({ video }: { video: LibraryVideo }) {
 
   return (
     <section className="mt-3 rounded-lg border border-border bg-bg/40 p-3">
-      <p className="flex items-center gap-2 text-xs font-medium tracking-[0.14em] text-accent uppercase">
+      <button type="button" aria-expanded={opened} onClick={() => setOpened(value => !value)} className="flex min-h-9 items-center gap-2 text-xs font-medium tracking-[0.14em] text-accent uppercase">
         <MessageCircle className="size-3.5" /> {heading}
-      </p>
+        <span className="text-muted">{opened ? "Hide" : "Show"}</span>
+      </button>
+      {opened && <>
       {kind === "youtube" && <button type="button" className="mt-2 text-xs text-accent underline" disabled={loading} onClick={() => setReload((value) => value + 1)}>Refresh public comments{comments.length ? ` · ${comments.filter((row) => row.kind !== "chat").length} threads` : ""}</button>}
       {loading && <p className="mt-2 text-xs text-muted">Loading comments…</p>}
       {!loading && note && <p className="mt-2 text-xs text-muted">{note}</p>}
@@ -144,6 +149,7 @@ export function AdultComments({ video }: { video: LibraryVideo }) {
         </div>
       )}
       {!loading && kind !== "youtube" && renderList(commentRows)}
+      {!loading && Math.max(chatRows.length, commentRows.length) > visibleRows && <button type="button" className="mt-2 min-h-9 text-xs text-accent underline" onClick={() => setVisibleRows(value => value + 20)}>Show more</button>}
       {!loading && kind === "reddit" && !commentRows.length && video.remote?.watchUrl && (
         <a
           href={video.remote.watchUrl}
@@ -154,6 +160,7 @@ export function AdultComments({ video }: { video: LibraryVideo }) {
           Open discussion on Reddit <ExternalLink className="size-3.5" />
         </a>
       )}
+      </>}
     </section>
   );
 }

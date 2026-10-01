@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
 registerHooks({ resolve(specifier,context,next) {
+ if (specifier.startsWith("@/")) return next(new URL(`../src/${specifier.slice(2)}.ts`, import.meta.url).href,context);
  try { return next(specifier,context); } catch(error) {
   if(specifier.startsWith('.')&&!/\.[a-z]+$/i.test(specifier)) return next(specifier+'.ts',context);
   throw error;
@@ -15,7 +16,7 @@ test('cancelled offscreen thumbnail requests leave no queued work or leaked slot
  const requests=controllers.map(c=>acquireImageSlot({priority:'high',signal:c.signal}));
  assert.equal(getImageLoadBudgetSnapshot().queued,100);
  controllers.forEach(c=>c.abort());
- (await Promise.all(requests)).forEach(release=>release());
+ (await Promise.all(requests)).forEach(release=>release?.());
  assert.equal(getImageLoadBudgetSnapshot().queued,0);
  assert.equal(getImageLoadBudgetSnapshot().active,releases.length);
  releases.forEach(release=>{release();release();});
@@ -27,7 +28,7 @@ test('aborting an awakened waiter still lets the next visible image load',async(
  const cancelled=acquireImageSlot({priority:'high',signal:controller.signal});
  const next=acquireImageSlot({priority:'high'});
  releases.pop()(); controller.abort();
- (await cancelled)(); (await next)(); releases.forEach(release=>release());
+ (await cancelled)?.(); (await next)?.(); releases.forEach(release=>release());
  assert.equal(getImageLoadBudgetSnapshot().queued,0);
  assert.equal(getImageLoadBudgetSnapshot().active,0);
 });

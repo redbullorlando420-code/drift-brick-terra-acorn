@@ -1,0 +1,38 @@
+{
+  "url": "http://127.0.0.1:8082/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Realhub",
+      "hasCanvas": false,
+      "bodyTextLen": 2360,
+      "bodyTextHash": "46ad215780170492ee7296dce0f0dddb0d55ea760ebb9e002934508ade0c5b5f",
+      "bodyTextPrefix": "Realhub Vault · networks · live Library Home 0 Movies Anime Topi",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-live-checked-built.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Realhub",
+      "hasCanvas": false,
+      "bodyTextLen": 2151,
+      "bodyTextHash": "445305c9d4d8d94fa21576413ef3734ce22cc335dcbc085ab222c2b6b0ca9964",
+      "bodyTextPrefix": "Home 0 indexed Date added Pause pulls YOUR DAILY DETOUR Somethin",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-live-checked-built-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-live-checked-built.json",
+  "divergesFromBaseline": false,
+  "baselineReasons": []
+}

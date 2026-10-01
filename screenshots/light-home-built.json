@@ -1,0 +1,38 @@
+{
+  "url": "http://127.0.0.1:8082/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Realhub",
+      "hasCanvas": false,
+      "bodyTextLen": 625,
+      "bodyTextHash": "33affea3bfe4671fac9b724d5c4505b3f960346249621bd26b4806f5a00cb6de",
+      "bodyTextPrefix": "Realhub Vault · networks · live Library Home Landing page 0 Movi",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\light-home-built.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Realhub",
+      "hasCanvas": false,
+      "bodyTextLen": 405,
+      "bodyTextHash": "2c903248f1cce27af9197981a6287b4735f27ff11bbf9e777fdd83d26c8ddc36",
+      "bodyTextPrefix": "Home 0 indexed Date added Pause pulls REALHUB Home A quiet place",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\light-home-built-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\light-home-built.json",
+  "divergesFromBaseline": false,
+  "baselineReasons": []
+}

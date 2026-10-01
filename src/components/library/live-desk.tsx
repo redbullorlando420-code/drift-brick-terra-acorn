@@ -7,8 +7,8 @@ import type { LibraryVideo } from "@/lib/videos/types";
 import { filterLiveRows, liveDeskRows, LIVE_SOURCES } from "@/lib/videos/live-desk";
 import { VideoCard } from "./video-card";
 
-export function LiveDesk({ videos, adultLiveVideos = [], staleTwitchCount = 0, staleYoutubeCount = 0 }: {
-  videos: LibraryVideo[]; adultLiveVideos?: LibraryVideo[]; staleTwitchCount?: number; staleYoutubeCount?: number;
+export function LiveDesk({ videos, adultLiveVideos = [], staleYoutubeVideos = [], staleTwitchCount = 0, staleYoutubeCount = 0 }: {
+  videos: LibraryVideo[]; adultLiveVideos?: LibraryVideo[]; staleYoutubeVideos?: LibraryVideo[]; staleTwitchCount?: number; staleYoutubeCount?: number;
 }) {
   const favorites = useLibrary(s => s.favorites);
   const likes = useLibrary(s => s.likes);
@@ -48,6 +48,11 @@ export function LiveDesk({ videos, adultLiveVideos = [], staleTwitchCount = 0, s
   const rows = useMemo(() => liveDeskRows(videos, adultLiveVideos), [videos, adultLiveVideos]);
   const counts = useMemo(() => Object.fromEntries(LIVE_SOURCES.map(s => [s.id, rows.filter(v => v.remote?.kind === s.id).length])), [rows]);
   const visible = useMemo(() => filterLiveRows(rows, { source, filter, sort, search, favorites, likes }), [rows, source, filter, sort, search, favorites, likes]);
+  const recentlyLiveYoutube = useMemo(() => filterLiveRows(staleYoutubeVideos.map(video => ({
+    ...video,
+    tagline: "Last seen live · waiting for a fresh YouTube check",
+    remote: video.remote ? { ...video.remote, live: false } : video.remote,
+  })), { source, filter, sort, search, favorites, likes }), [staleYoutubeVideos, source, filter, sort, search, favorites, likes]);
   const twitchFollows = follows.filter(f => f.kind === "twitch");
   const youtubeFollows = follows.filter(f => f.kind === "youtube" && !f.id.startsWith("ytpl:"));
   const youtubeFailures = youtubeFollows.filter(f => f.lastProviderFailure);
@@ -85,12 +90,12 @@ export function LiveDesk({ videos, adultLiveVideos = [], staleTwitchCount = 0, s
 
     {(source === "all" || source === "youtube") && <aside className="mb-6 rounded-lg border border-border bg-elevated p-4" aria-label="YouTube live status">
       <p className="text-sm font-medium text-fg">YouTube · {counts.youtube} live · {youtubeFollows.length} followed</p>
-      <p className="mt-1 text-sm text-muted">{!youtubeFollows.length ? "Follow YouTube creators to check their current broadcasts here." : staleYoutubeCount ? `${staleYoutubeCount} saved stream${staleYoutubeCount === 1 ? " needs" : "s need"} a fresh check. YouTube creators rotate through live checks every minute.` : counts.youtube ? "Showing recently confirmed broadcasts. Creator checks rotate every minute." : "No followed creator is currently confirmed live. YouTube checks continue in rotating batches every minute."}{lastYoutubeLiveCheck ? ` Last creator check ${new Date(lastYoutubeLiveCheck).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.` : ""}</p>
+      <p className="mt-1 text-sm text-muted">{!youtubeFollows.length ? "Follow YouTube creators to check their current broadcasts here." : staleYoutubeCount ? `${staleYoutubeCount} saved stream${staleYoutubeCount === 1 ? " needs" : "s need"} confirmation. Known-live creators now get priority while new channels continue rotating in.` : counts.youtube ? "Showing recently confirmed broadcasts. Known-live creators stay in the refresh rotation." : "No followed creator is currently confirmed live. YouTube checks continue in rotating batches."}{lastYoutubeLiveCheck ? ` Last creator check ${new Date(lastYoutubeLiveCheck).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.` : ""}</p>
       {youtubeFailures.length > 0 && <p className="mt-2 text-sm text-muted">{youtubeFailures.length} creator check{youtubeFailures.length === 1 ? "" : "s"} failed. {youtubeFailures[0].lastProviderFailure?.recovery}</p>}
       <div className="mt-3 flex flex-wrap gap-2"><Button variant="secondary" disabled={refreshing || !youtubeFollows.length} onClick={() => void refresh("youtube", { youtubeLiveOnly: true })}>Check YouTube live now</Button><Button variant="ghost" onClick={() => setSource("youtube")}>Manage YouTube creators</Button></div>
     </aside>}
 
-    {!visible.length && <div className="mb-6 rounded-lg border border-border p-6"><h2 className="font-display text-2xl text-fg">No streams match this view</h2><p className="mt-2 text-sm text-muted">Try a different source, clear your search, or check your saved channels.</p><Button className="mt-4" variant="secondary" onClick={reset}>Reset live filters</Button></div>}
+    {!visible.length && !recentlyLiveYoutube.length && <div className="mb-6 rounded-lg border border-border p-6"><h2 className="font-display text-2xl text-fg">No streams match this view</h2><p className="mt-2 text-sm text-muted">Try a different source, clear your search, or check your saved channels.</p><Button className="mt-4" variant="secondary" onClick={reset}>Reset live filters</Button></div>}
     {sources.map(s => {
       const items = visible.filter(v => v.remote?.kind === s.id);
       if (!items.length) return null;
@@ -102,6 +107,10 @@ export function LiveDesk({ videos, adultLiveVideos = [], staleTwitchCount = 0, s
         {items.length > limit && <Button className="mt-4" variant="secondary" onClick={() => setLimits(previous => ({ ...previous, [s.id]: limit + 24 }))}>Show more {s.label} · {items.length - limit} remaining</Button>}
       </section>;
     })}
+    {recentlyLiveYoutube.length > 0 && (source === "all" || source === "youtube") && <section className="mb-8" aria-label="Recently live YouTube streams awaiting confirmation">
+      <div className="mb-3"><h2 className="font-display text-2xl text-fg">Recently live on YouTube <span className="text-base text-muted">{recentlyLiveYoutube.length.toLocaleString()} awaiting confirmation</span></h2><p className="mt-1 text-sm text-muted">These broadcasts were live at the last successful check. They are kept visible here without being counted as currently live until YouTube confirms them again.</p></div>
+      <div className={grid}>{recentlyLiveYoutube.slice(0, 24).map((video, index) => <VideoCard key={`stale-${video.id}`} video={video} variant="rail" index={index} className="w-full"/>)}</div>
+    </section>}
     {(source === "all" || source === "twitch") && <details className="mt-6 rounded-lg border border-border bg-surface p-5"><summary className="cursor-pointer font-medium text-fg">Discover more Twitch channels</summary><p className="mt-2 text-sm text-muted">Following a channel adds it to your saved feed and checks its current status.</p><div className="mt-4 flex flex-wrap gap-2">{["twitch", "eslcs", "gamesdonequick", "otknetwork", "criticalrole"].filter(handle => !twitchFollows.some(f => f.handle.toLowerCase() === handle)).map(handle => <Button key={handle} variant="secondary" disabled={Boolean(adding)} onClick={() => void (async () => { setAdding(handle); try { await follow(handle, "twitch"); } finally { setAdding(""); } })()}>{adding === handle ? "Checking…" : `Follow ${handle}`}</Button>)}</div></details>}
   </section>;
 }

@@ -331,7 +331,7 @@ export function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultK
       <div className="flex flex-col gap-3 border-t border-border bg-elevated/30 px-5 py-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <p className="flex items-center gap-2 text-muted">
           <Check className="size-4 text-accent" /> Latest uploads and live streams appear
-          automatically on Home.
+          on Landing page.
         </p>
         {importProgress && (
           <p role="status" aria-live="polite" className="font-mono text-xs text-accent">
@@ -368,7 +368,7 @@ export function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultK
           </div>
           <p className="mt-2 text-xs text-subtle">
             Open a live channel, then paste it above to add it to your guide. Your followed channels
-            remain browsable, refreshable, and ready for a random pick from Home.
+            remain browsable, refreshable, and ready for a random pick from Landing page.
           </p>
         </div>
       )}

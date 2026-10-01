@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { runPausablePull } from "@/lib/pull-control";
 import {
   runFetchAdultComments,
   runFetchTwitchFollowing,
@@ -18,15 +19,15 @@ import {
  */
 const input = (data: unknown) => data;
 
-export const followRemote = createServerFn({ method: "POST" })
+const followRemoteRequest = createServerFn({ method: "POST" })
   .validator(input)
   .handler(({ data }) => runFollowRemote(data));
 
-export const refreshRemotes = createServerFn({ method: "POST" })
+const refreshRemotesRequest = createServerFn({ method: "POST" })
   .validator(input)
   .handler(({ data }) => runRefreshRemotes(data));
 
-export const importChannels = createServerFn({ method: "POST" })
+const importChannelsRequest = createServerFn({ method: "POST" })
   .validator(input)
   .handler(({ data }) => runImportChannels(data));
 
@@ -34,7 +35,7 @@ export const fetchTwitchFollowing = createServerFn({ method: "POST" })
   .validator(input)
   .handler(({ data }) => runFetchTwitchFollowing(data));
 
-export const searchAdultVideos = createServerFn({ method: "POST" })
+const searchAdultVideosRequest = createServerFn({ method: "POST" })
   .validator(input)
   .handler(({ data }) => runSearchAdultVideos(data));
 
@@ -55,3 +56,7 @@ export const youtubeCreatorProfiles = createServerFn({ method: "POST" })
   .handler(({ data }) => runYoutubeCreatorProfiles(data));
 
 export type { AdultComment } from "./api";
+export const followRemote = (...args: Parameters<typeof followRemoteRequest>) => runPausablePull(() => followRemoteRequest(...args));
+export const refreshRemotes = (...args: Parameters<typeof refreshRemotesRequest>) => runPausablePull(() => refreshRemotesRequest(...args));
+export const importChannels = (...args: Parameters<typeof importChannelsRequest>) => runPausablePull(() => importChannelsRequest(...args));
+export const searchAdultVideos = (...args: Parameters<typeof searchAdultVideosRequest>) => runPausablePull(() => searchAdultVideosRequest(...args));

@@ -24,6 +24,20 @@ test("routine refreshes keep historical YouTube uploads that were not repeated b
   assert.equal(merged[0], archived);
 });
 
+test("a successful live check reports stale broadcast cards while marking them offline", () => {
+  const live: LibraryVideo = {
+    ...archivedYoutubeVideo(),
+    id: "yt-live-stream",
+    name: "Creator live",
+    remote: { kind: "youtube", videoId: "live-stream", channelName: "Creator", live: true, observedAt: 10 },
+  };
+  const staleLiveIds: string[] = [];
+  const merged = mergeRemoteRefresh([live], [], [live.folderId], new Set(), { staleLiveIds });
+  assert.deepEqual(staleLiveIds, [live.id]);
+  assert.equal(merged[0].remote?.live, false);
+  assert.equal(merged[0].tagline, "Offline · saved channel");
+});
+
 test("catalog sweeps reuse unchanged rows and append new uploads without dropping saved details", () => {
   const archived = archivedYoutubeVideo();
   const withComments = { ...archived, remote: { ...archived.remote!, comments: [{ id: "comment-1", author: "Viewer", body: "Saved", kind: "comment" as const }] } } as LibraryVideo;
@@ -39,4 +53,11 @@ test("catalog sweeps reuse unchanged rows and append new uploads without droppin
   assert.equal(merged[0], same[0]);
   assert.equal(positions.get(newer.id), 1);
   assert.equal(nextRows[0], merged[1]);
+});
+
+test("an archive row with an unknown date retains a known feed publication date", () => {
+ const previous = {...archivedYoutubeVideo(),addedAt:1800000000000};
+ const incoming = {...previous,addedAt:0};
+ const merged = mergeRemoteCatalog([previous],[incoming],new Map([[previous.id,0]]),[]);
+ assert.equal(merged[0].addedAt,previous.addedAt);
 });

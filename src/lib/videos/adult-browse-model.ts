@@ -159,9 +159,7 @@ export function buildAdultBrowseModel(data: AdultBrowseData, params: AdultBrowse
     const preferred = new Set([...adultTagRank.slice(0, 16), ...adultMetaTagRank.slice(0, 12)].map((row) => row.tag));
     const likedTags = new Set(sourceMatchedAdult.filter((video) => favorites[video.id] || likes[video.id] || getRating(video.id) >= 4 || (cameCounts[video.id] ?? 0) > 0).flatMap((video) => tags[video.id] ?? []));
     // Reuse already-ranked catalog when filters align; otherwise rank the source set once.
-    const rankedBase = adultTag === "All" && adultSource === "all"
-      ? rankedAdultCatalog
-      : sortAdultVideos(sourceMatchedAdult, adultRankCtx);
+    const rankedBase = rankedAdultCatalog;
     const overviewIds = new Set([...adultOverviewRails.videos, ...adultOverviewRails.photos, ...adultOverviewRails.picks].map((video) => video.id));
     const freshBase = rankedBase.filter((video) => !overviewIds.has(video.id));
     const recommendationBase = freshBase.length >= Math.min(16, adultRailLimit) ? freshBase : rankedBase;
@@ -226,9 +224,11 @@ export function buildAdultBrowseModel(data: AdultBrowseData, params: AdultBrowse
     // Personal shelves claim first so resume/marks never disappear behind recs.
     const continueRail = take(scoped(adultContinue), Math.min(24, adultRailLimit));
     const marked = take(scoped(markedAdult), Math.min(24, adultRailLimit));
-    const recommended = take(
-      scoped(adultRecommended), adultRailLimit,
-    );
+    // A small photo/tag catalog can already be fully represented in overview.
+    // Keep recommendations useful there; prefer fresh titles when available.
+    const candidates = scoped(adultRecommended);
+    const recommended = take(candidates, adultRailLimit);
+    if (!recommended.length) recommended.push(...candidates.slice(0, adultRailLimit));
     const related = take(
       scoped(adultRelatedRecommended), adultRailLimit,
     );

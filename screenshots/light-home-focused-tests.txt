@@ -1,0 +1,20 @@
+✔ restored provider archives stay private even when a legacy folder omitted its flag (0.9867ms)
+✔ bounded playback preserves ordered previous and next neighbors (3.202ms)
+✔ million-entry preview path reads a bounded sample and always keeps the selected card (21.8034ms)
+✔ listing cards shed transcripts without losing playback or durable full details (0.4235ms)
+✔ partial archive pages resume without gaps even when the batch limit changes (0.4146ms)
+✔ pull policy clamps corrupt settings and caps a million-entry target without deleting rows (0.3179ms)
+✔ pull queue spaces requests, holds responses, and discards cancelled work (252.728ms)
+✔ All saved resolves hearts and likes once while preserving separate private shelves (2.4461ms)
+✔ count packets aggregate a million entries without retaining metadata and remain partition invariant (11.0234ms)
+✔ recovery keeps removals and empty shelves from the newest snapshot (0.4548ms)
+✔ warm route cache selects only the next adjacent Hub destination (0.9269ms)
+✔ warm route cache yields to hidden, constrained, or active contexts (0.4471ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 464.5385

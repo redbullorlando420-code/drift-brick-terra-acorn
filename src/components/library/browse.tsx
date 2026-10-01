@@ -100,7 +100,15 @@ export function TitleRail({
   const railRef = useRef<HTMLDivElement | null>(null);
   const scrollLeft = useRef(0);
   const pendingFocus = useRef<number | undefined>(undefined);
-  const attachRail = useCallback((rail: HTMLDivElement | null) => { railRef.current = rail; if (rail) rail.scrollLeft = scrollLeft.current; }, []);
+  const attachRail = useCallback((rail: HTMLDivElement | null) => {
+    railRef.current = rail;
+    if (!rail) return;
+    rail.scrollLeft = scrollLeft.current;
+    // Seed virtualization from the actual mount width so delayed shelves do
+    // not briefly render (or remain at) the four-card fallback window.
+    const width = Math.max(320, Math.round(rail.clientWidth));
+    setRailWidth((current) => current === width ? current : width);
+  }, []);
   const leaveTimer = useRef<number | undefined>(undefined);
   const [nearViewport, setNearViewport] = useState(priority);
   const [collapsed, setCollapsed] = useState(false);
@@ -149,7 +157,10 @@ export function TitleRail({
     const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(sync) : undefined;
     observer?.observe(rail);
     return () => observer?.disconnect();
-  }, [nearViewport, variant]);
+  // A shelf can render empty first, then receive its videos after the initial
+  // effect has run. Reattach the observer when that happens so the virtual
+  // window uses the real rail width instead of its narrow fallback width.
+  }, [nearViewport, variant, Boolean(videos.length)]);
   const [limit, setLimit] = useState(() => savedRenderBudget("reelcase.home-rail-limit", RAIL_SIZES, 8));
   useEffect(() => {
     const sync = () => setLimit(savedRenderBudget("reelcase.home-rail-limit", RAIL_SIZES, 8));
@@ -217,6 +228,10 @@ export function TitleRail({
       setLimit((value) => Math.min(videos.length, value + 16));
     }
   };
+  const pageRail = (direction: -1 | 1) => {
+    const rail = railRef.current;
+    if (rail) rail.scrollBy({ left: direction * Math.max(cardStride, rail.clientWidth - cardStride), behavior: "smooth" });
+  };
   const focusRailIndex = (target: number) => {
     if (target < 0 || target >= videos.length) return;
     pendingFocus.current = target;
@@ -239,7 +254,15 @@ export function TitleRail({
     <section ref={shelfRef} className="media-shelf mb-8 min-w-0" style={!nearViewport ? { minHeight: shelfHeight ?? (variant === "poster" ? 320 : 250) } : undefined}>
       <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0 flex-1 basis-48">{onTitleClick ? <button type="button" onClick={onTitleClick} className="block min-w-0 truncate font-display text-xl text-fg hover:text-accent sm:text-2xl">{title} <span className="text-sm text-muted">Open source →</span></button> : <h2 className="min-w-0 truncate font-display text-xl text-fg sm:text-2xl">{title}</h2>}{reason && <p className="mt-1 truncate text-xs text-muted">{reason}</p>}</div>
-        <div className="flex shrink-0 items-center gap-1">{videos.length > limit && !collapsed && <Button size="sm" variant="ghost" className="text-xs" onClick={() => setLimit((value) => Math.min(videos.length, value + 16))}>Show 16 more · {videos.length - limit}</Button>}<Button size="sm" variant="ghost" aria-expanded={!collapsed} aria-label={`${collapsed ? "Expand" : "Minimize"} ${title}`} onClick={() => setCollapsed((value) => !value)}>{collapsed ? <ChevronRight className="size-4"/> : <ChevronDown className="size-4"/>}{collapsed ? "Expand" : "Minimize"}</Button></div>
+        <div className="flex shrink-0 items-center gap-1">
+          {variant === "rail" && videos.length > visibleSlots && <>
+            <span className="hidden text-xs tabular-nums text-muted sm:inline">{Math.min(videos.length, limit).toLocaleString()} titles</span>
+            <Button size="sm" variant="ghost" disabled={windowStart === 0} aria-label={`Previous ${title} videos`} onClick={() => pageRail(-1)}>Previous</Button>
+            <Button size="sm" variant="ghost" disabled={windowStart + visibleSlots >= shown.length} aria-label={`Next ${title} videos`} onClick={() => pageRail(1)}>Next</Button>
+          </>}
+          {videos.length > limit && !collapsed && <Button size="sm" variant="ghost" className="text-xs" onClick={() => setLimit((value) => Math.min(videos.length, value + 16))}>Show 16 more · {videos.length - limit}</Button>}
+          <Button size="sm" variant="ghost" aria-expanded={!collapsed} aria-label={`${collapsed ? "Expand" : "Minimize"} ${title}`} onClick={() => setCollapsed((value) => !value)}>{collapsed ? <ChevronRight className="size-4"/> : <ChevronDown className="size-4"/>}{collapsed ? "Expand" : "Minimize"}</Button>
+        </div>
       </div>
       {nearViewport && !collapsed && <div ref={attachRail} onScroll={(event) => onRailScroll(event.currentTarget)} onKeyDown={onRailKeyDown} className="rail-scroll flex gap-3 overflow-x-auto pb-3 sm:gap-4">
         {leadPx > 0 && <div aria-hidden="true" className="shrink-0" style={{ width: leadPx, height: 1 }} />}

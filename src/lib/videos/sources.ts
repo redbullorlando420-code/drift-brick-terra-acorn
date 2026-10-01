@@ -4,6 +4,18 @@ const dirHandles = new Map<string, FileSystemDirectoryHandle>();
 const objectUrls = new Map<string, string>();
 const MAX_OBJECT_URLS = 48;
 
+/** Release transient media blobs after idle/background time, keeping the
+ * open player/preview valid. File handles and saved metadata remain intact. */
+export function trimObjectUrls(keepIds: readonly string[] = []) {
+  const keep = new Set(keepIds);
+  for (const [id, url] of objectUrls) if (!keep.has(id)) {
+    URL.revokeObjectURL(url);
+    objectUrls.delete(id);
+  }
+}
+
+export function getSourceMemorySnapshot() { return { objectUrls: objectUrls.size, fileHandles: fileHandles.size, files: files.size }; }
+
 export function rememberFile(id: string, file: File) {
   files.set(id, file);
 }

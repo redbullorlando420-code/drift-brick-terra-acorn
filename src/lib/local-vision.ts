@@ -41,8 +41,9 @@ const SEMANTIC_TOPICS = [
   "a document", "a receipt", "an invoice", "a form", "a book", "a screen", "a screenshot", "a computer", "a phone", "a television", "a video game", "a chart", "a map", "a product", "clothing", "shoes", "jewelry", "furniture", "a toy", "art", "a drawing", "a painting", "a meme",
   "an indoor scene", "an outdoor scene", "night", "low light", "snow", "rain", "autumn", "spring", "summer", "winter", "black and white photo", "close-up photo",
 ] as const;
-type ImageClassifier = (url: string, options: { topk: number } | readonly string[]) => Promise<Array<{ label: string; score: number }>>;
+type ImageClassifier = ((url: string, options: { topk: number } | readonly string[]) => Promise<Array<{ label: string; score: number }>>) & { dispose: () => Promise<void> };
 const classifiers = new Map<VisionModelId, Promise<ImageClassifier>>();
+const activeClassifiers = new Map<VisionModelId, number>();
 
 function cleanLabel(label: string) { return label.toLowerCase().split(",")[0].replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
 function device() { return typeof navigator !== "undefined" && "gpu" in navigator ? "webgpu" : "wasm"; }
@@ -75,7 +76,9 @@ async function classifierFor(model: VisionModelId, onStatus?: (status: VisionMod
  * The model download is cached by the browser for later passes.
  */
 export async function classifyImagesLocally(urls: string[], onProgress?: VisionProgress, model: VisionModelId = "semanticPlus", onModelStatus?: (status: VisionModelStatus) => void): Promise<VisionLabel[][]> {
+  if (!urls.length) return [];
   const classifier = await classifierFor(model, onModelStatus);
+  activeClassifiers.set(model, (activeClassifiers.get(model) ?? 0) + 1);
   // WebGPU can keep two inferences in flight; WASM stays serial because a
   // second large tensor normally makes it slower and less responsive.
   const results: VisionLabel[][] = Array.from({ length: urls.length }, () => [] as VisionLabel[]);
@@ -96,8 +99,21 @@ export async function classifyImagesLocally(urls: string[], onProgress?: VisionP
       onProgress?.(completed, urls.length);
     }
   });
-  await Promise.all(workers);
-  return results;
+  try {
+    await Promise.all(workers);
+    return results;
+  } finally {
+    // A failed worker may leave another inference in flight. Wait for both
+    // before freeing GPU/WASM tensors; downloaded model files remain cached.
+    await Promise.allSettled(workers);
+    const remaining = (activeClassifiers.get(model) ?? 1) - 1;
+    if (remaining) activeClassifiers.set(model, remaining);
+    else {
+      activeClassifiers.delete(model);
+      classifiers.delete(model);
+      await classifier.dispose().catch(() => undefined);
+    }
+  }
 }
 
 /** Measures preparation and inference on the same local sample; it never changes defaults. */

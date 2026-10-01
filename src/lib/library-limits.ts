@@ -48,8 +48,8 @@ export const LIBRARY_LIMITS = {
   /** Each HTTP response and merge stays small even when a sweep visits every source. */
   youtubeCatalogSourcesPerRequest: 1,
   /** Resumable page batches: deeper per click without attempting the full archive at once. */
-  youtubeManualRefreshVideosPerChannel: 5_000,
-  youtubeBulkImportVideosPerChannel: 5_000,
+  youtubeManualRefreshVideosPerChannel: 100,
+  youtubeBulkImportVideosPerChannel: 100,
   youtubePlaylistVideosPerPull: 3_000,
   youtubePlaylistPagesPerPull: 64,
   /** Top-level Innertube comment threads per on-demand video detail pull. */

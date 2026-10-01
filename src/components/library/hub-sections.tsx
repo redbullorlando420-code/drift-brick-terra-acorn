@@ -4,6 +4,7 @@ import { openTopic } from '@/lib/videos/topic-navigation';
 import { createLocalId } from "@/lib/local-id";
 import { mergeMissionPlan, MISSION_PLAN_REVISION, MISSION_PLAN_REVISION_KEY, type Mission, type MissionStatus } from "@/lib/mission-plan";
 import { isTopicTag, canonicalTopic, topicsForVideo } from '@/lib/videos/topics';
+import { youtubeSourceIndex, youtubeSourceCounts } from '@/lib/remote/youtube-sources';
 import { type ReactNode, lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   Bot,
@@ -45,6 +46,7 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PullSettingsPanel } from './pull-settings-panel';
 import type { PrintViewerTarget } from "@/lib/prints-blobs";
 const PrintModelViewer = lazy(async () => {
   const mod = await import("@/components/library/print-model-viewer");
@@ -66,11 +68,14 @@ import {
   companionSavePrint,
   companionSetAutostart,
   companionHealth,
+  getCompanionMemorySnapshot,
   companionAckJobs,
   companionInspectMedia,
   type CompanionMediaInspection,
 } from "@/lib/companion";
-import { linksFromHistoryAndResume, saveDurablePhotos, restoreDurablePhotos, loadDurablePhotosSync, type DurablePhotoMeta } from "@/lib/videos/persist";
+import { linksFromHistoryAndResume, saveDurablePhotos, restoreDurablePhotos, loadDurablePhotosSync, getPersistenceMemorySnapshot, type DurablePhotoMeta } from "@/lib/videos/persist";
+import { getSourceMemorySnapshot } from "@/lib/videos/sources";
+import { allowAutomaticRefresh } from "@/lib/session-activity";
 import { rankAdultTags } from "@/lib/videos/adult-rank";
 import { twitchEmbedUrl } from "@/lib/videos/twitch-embed";
 import { countAdultBySource, countAdultBooruHosts } from "@/lib/videos/adult-filter";
@@ -527,7 +532,6 @@ export function StatsSection() {
   const resumeProgress = useLibrary((s) => s.resumeProgress);
   const viewCounts = useLibrary((s) => s.viewCounts);
   const pullHistory = useLibrary((s) => s.pullHistory);
-  const [showAllSources, setShowAllSources] = useState(false);
   const [remediationView, setRemediationView] = useState<"" | "topics" | "sources">("");
   const [favoriteRevision, setFavoriteRevision] = useState(0);
   const [previewHealthRevision, setPreviewHealthRevision] = useState(0);
@@ -557,11 +561,13 @@ export function StatsSection() {
     const byFolder = new Map<string, { videos: number; bytes: number }>();
     const byGenre = new Map<string, number>();
     const byTag = new Map<string, number>();
-    const topicRatings = new Map<string, { total: number; newest: number }>();
+    const topicRatings = new Map<string, { total: number; rated: number; newest: number }>();
     let totalBytes = 0;
     let localTitles = 0;
     let remoteTitles = 0;
     let untaggedTitles = 0;
+    let publicTopicTitles = 0;
+    let savedTopicTitles = 0;
     let freshRemoteTitles = 0;
     let thumbReady = 0;
     let youtubeTitles = 0;
@@ -577,6 +583,7 @@ export function StatsSection() {
     let multiTopicTitles = 0;
     let operationalTagAssignments = 0;
     const topicSources = new Map<string, Set<string>>();
+    const adultFolders = new Set(folders.filter(folder => folder.adult).map(folder => folder.id));
     for (const video of videos) {
       totalBytes += video.size;
       if (video.remote) remoteTitles += 1; else localTitles += 1;
@@ -590,16 +597,21 @@ export function StatsSection() {
       const videoTags = tags[video.id] ?? [];
       // Adult tags have their own scored taxonomy above. Do not let generic
       // provider keywords (for example "music") displace library topics.
-      const adultRemote = ["eporner", "redtube", "chaturbate", "myfreecams", "reddit", "booru", "redgifs"].includes(video.remote?.kind ?? "");
-      const usefulTopics = adultRemote ? new Set<string>() : new Set(videoTags.map(canonicalTopic).filter((tag): tag is string => Boolean(tag)));
+      const adultRemote = adultFolders.has(video.folderId) || ["eporner", "redtube", "chaturbate", "myfreecams", "reddit", "booru", "redgifs"].includes(video.remote?.kind ?? "");
+      const usefulTopics = adultRemote ? new Set<string>() : new Set(topicsForVideo(video, videoTags));
+      if (!adultRemote) {
+        publicTopicTitles++;
+        if (videoTags.some(isTopicTag)) savedTopicTitles++;
+      }
       if (videoTags.length) metadataTaggedTitles += 1;
       if (video.remote?.channelName?.trim()) creatorTaggedTitles += 1;
       if (video.description?.trim()) descriptionTaggedTitles += 1;
-      if (!adultRemote && !videoTags.some(isTopicTag)) untaggedTitles += 1;
+      if (!adultRemote && !usefulTopics.size) untaggedTitles += 1;
       for (const topic of usefulTopics) {
         byTag.set(topic, (byTag.get(topic) ?? 0) + 1);
-        const rating = topicRatings.get(topic) ?? { total: 0, newest: 0 };
-        rating.total += getRating(video.id); rating.newest = Math.max(rating.newest, video.addedAt);
+        const rating = topicRatings.get(topic) ?? { total: 0, rated: 0, newest: 0 };
+        const feedback = getRating(video.id) || (favorites[video.id] ? 5 : likes[video.id] ? 4 : 0);
+        rating.total += feedback; if (feedback > 0) rating.rated++; rating.newest = Math.max(rating.newest, video.addedAt);
         topicRatings.set(topic, rating);
         const sources = topicSources.get(topic) ?? new Set<string>();
         sources.add(video.remote?.kind ?? 'local');
@@ -621,16 +633,30 @@ export function StatsSection() {
     const tagAssignments = [...byTag.values()].reduce((sum, count) => sum + count, 0);
     const bridgeTopics = [...topicSources.values()].filter((sources) => sources.size >= 2).length;
     const topicRows = [...byTag.entries()].filter(([, count]) => count >= 2).sort((a, b) => {
-      const aRating = (topicRatings.get(a[0])?.total ?? 0) / a[1];
-      const bRating = (topicRatings.get(b[0])?.total ?? 0) / b[1];
+      const aRating = (topicRatings.get(a[0])?.total ?? 0) / Math.max(1, topicRatings.get(a[0])?.rated ?? 0);
+      const bRating = (topicRatings.get(b[0])?.total ?? 0) / Math.max(1, topicRatings.get(b[0])?.rated ?? 0);
       return Number(tagIsLiked(b[0])) - Number(tagIsLiked(a[0])) || bRating - aRating || (topicRatings.get(b[0])?.newest ?? 0) - (topicRatings.get(a[0])?.newest ?? 0) || b[1] - a[1] || a[0].localeCompare(b[0]);
     });
     // “Most useful” is driven by saved reactions. An unrated topic may still
     // be useful for browsing, but it must not displace a topic with evidence.
-    const ratedTopicRows = topicRows.filter(([topic, count]) => ((topicRatings.get(topic)?.total ?? 0) / count) > 0);
-    return { totalBytes, byFolder, localTitles, remoteTitles, untaggedTitles, metadataTaggedTitles, creatorTaggedTitles, descriptionTaggedTitles, multiTopicTitles, operationalTagAssignments, bridgeTopics, freshRemoteTitles, thumbReady, youtubeTitles, twitchTitles, liveTitles, knownDuration, durationTitles, resumedTitles, totalViews, genreRows: [...byGenre.entries()].filter(([, count]) => count >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])), topicRows, topicRatings, topTags: (ratedTopicRows.length ? ratedTopicRows : topicRows).slice(0, 14), tagAssignments, tagDensity: tagAssignments / Math.max(videos.length, 1), remoteShare: remoteTitles / Math.max(videos.length, 1) };
-  }, [favoriteRevision, progress, resumeProgress, tags, videos, viewCounts]);
-  const folderRows = useMemo(() => folders.filter((folder) => folder.kind !== "demo").map((folder) => ({ folder, ...(summary.byFolder.get(folder.id) ?? { videos: 0, bytes: 0 }) })).sort((a, b) => b.bytes - a.bytes || b.videos - a.videos || a.folder.name.localeCompare(b.folder.name)), [folders, summary.byFolder]);
+    const ratedTopicRows = topicRows.filter(([topic]) => tagIsLiked(topic) || (topicRatings.get(topic)?.total ?? 0) > 0);
+    return { publicTopicTitles, savedTopicTitles, totalBytes, byFolder, localTitles, remoteTitles, untaggedTitles, metadataTaggedTitles, creatorTaggedTitles, descriptionTaggedTitles, multiTopicTitles, operationalTagAssignments, bridgeTopics, freshRemoteTitles, thumbReady, youtubeTitles, twitchTitles, liveTitles, knownDuration, durationTitles, resumedTitles, totalViews, genreRows: [...byGenre.entries()].filter(([, count]) => count >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])), topicRows, topicRatings, topTags: ratedTopicRows.slice(0, 24), tagAssignments, tagDensity: tagAssignments / Math.max(publicTopicTitles, 1), remoteShare: remoteTitles / Math.max(videos.length, 1) };
+  }, [favoriteRevision, favorites, likes, folders, progress, resumeProgress, tags, videos, viewCounts]);
+  const youtubeHealth = useMemo(() => youtubeSourceIndex(videos), [videos]);
+  const youtubeMappedCounts = useMemo(() => youtubeSourceCounts(videos, folders.filter(folder => folder.kind === "youtube")), [folders, videos]);
+  const folderRows = useMemo(() => folders.filter((folder) => folder.kind !== "demo").map((folder) => {
+    const primary = summary.byFolder.get(folder.id) ?? { videos: 0, bytes: 0 };
+    return {folder,...primary,videos:folder.kind === "youtube" ? youtubeMappedCounts.get(folder.id) ?? primary.videos : primary.videos};
+  }).sort((a, b) => b.bytes - a.bytes || b.videos - a.videos || a.folder.name.localeCompare(b.folder.name)), [folders, summary.byFolder, youtubeMappedCounts]);
+  const topicReviewQueue = useMemo(() => {
+    const adultIds = new Set(folders.filter(folder => folder.adult).map(folder => folder.id));
+    const queue: LibraryVideo[] = [];
+    for (const video of videos) {
+      if (!adultIds.has(video.folderId) && !isAdultPullKind(video.remote?.kind) && !topicsForVideo(video, tags[video.id]).length) queue.push(video);
+      if (queue.length >= 500) break;
+    }
+    return queue;
+  }, [folders,tags,videos]);
   const adultTagStats = useMemo(() => {
     const adultFolderIds = new Set(folders.filter((folder) => folder.adult).map((folder) => folder.id));
     const adultVideos = videos.filter((video) => adultFolderIds.has(video.folderId) || Boolean(video.remote && ["eporner", "redtube", "chaturbate", "myfreecams", "reddit", "booru", "redgifs"].includes(video.remote.kind)));
@@ -652,7 +678,8 @@ export function StatsSection() {
       if (getRating(video.id) > 0) adultRated += 1;
     }
     const booruHosts = countAdultBooruHosts(adultVideos);
-    const historyAdult = history.filter((entry) => adultVideos.some((video) => video.id === entry.id)).length;
+    const adultVideoIds = new Set(adultVideos.map(video => video.id));
+    const historyAdult = history.filter((entry) => adultVideoIds.has(entry.id)).length;
     return {
       adultTitles: adultVideos.length,
       sourceMix: Object.entries(bySource).filter(([, count]) => count > 0).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
@@ -691,7 +718,6 @@ export function StatsSection() {
     const largest = folderRows[0];
     return { duplicateNames, largest, concentration: largest ? Math.round(largest.bytes / Math.max(summary.totalBytes, 1) * 100) : 0 };
   }, [folderRows, summary.totalBytes]);
-  const visibleFolderRows = showAllSources ? folderRows : folderRows.slice(0, 80);
   const pullTotals = useMemo(() => ({
     runs: pullHistory.length,
     successful: pullHistory.filter((run) => run.status === "success").length,
@@ -713,9 +739,9 @@ export function StatsSection() {
       ["pull_runs_retained", pullTotals.runs], ["pull_successful_runs", pullTotals.successful], ["pull_partial_runs", pullTotals.partial], ["pull_failed_runs", pullTotals.failed], ["pull_creators_checked", pullTotals.checked], ["pull_videos_returned", pullTotals.returned], ["pull_new_videos", pullTotals.added],
       ["local_titles", summary.localTitles], ["remote_titles", summary.remoteTitles], ["untagged_titles", summary.untaggedTitles], ["fresh_remote_titles_7d", summary.freshRemoteTitles],
       ["youtube_titles", summary.youtubeTitles], ["twitch_titles", summary.twitchTitles], ["live_titles", summary.liveTitles], ["poster_ready_titles", summary.thumbReady], ["unavailable_titles", Object.keys(unavailable).length], ["history_events", history.length],
-      ["topic_tag_coverage_percent", Math.round(((videos.length - summary.untaggedTitles) / Math.max(videos.length, 1)) * 100)], ["largest_source_percent", sourceHealth.concentration], ["duplicate_source_names", sourceHealth.duplicateNames.length],
+      ["topic_tag_coverage_percent", Math.round(((summary.publicTopicTitles - summary.untaggedTitles) / Math.max(summary.publicTopicTitles, 1)) * 100)], ["public_topic_titles", summary.publicTopicTitles], ["saved_topic_titles", summary.savedTopicTitles], ["derived_only_topic_titles", summary.publicTopicTitles - summary.untaggedTitles - summary.savedTopicTitles], ["youtube_distinct_video_ids", youtubeHealth.distinctVideos], ["youtube_duplicate_cached_rows", youtubeHealth.duplicateRows], ["largest_source_percent", sourceHealth.concentration], ["duplicate_source_names", sourceHealth.duplicateNames.length],
       ["metadata_tagged_titles", summary.metadataTaggedTitles], ["metadata_tag_coverage_percent", Math.round(summary.metadataTaggedTitles / Math.max(videos.length, 1) * 100)], ["creator_tagged_titles", summary.creatorTaggedTitles], ["titles_with_description", summary.descriptionTaggedTitles],
-      ["multi_topic_titles", summary.multiTopicTitles], ["cross_source_bridge_topics", summary.bridgeTopics], ["operational_tag_assignments", summary.operationalTagAssignments], ["useful_topic_share_percent", Math.round(((videos.length - summary.untaggedTitles) / Math.max(videos.length, 1)) * 100)],
+      ["multi_topic_titles", summary.multiTopicTitles], ["cross_source_bridge_topics", summary.bridgeTopics], ["operational_tag_assignments", summary.operationalTagAssignments], ["useful_topic_share_percent", Math.round(((summary.publicTopicTitles - summary.untaggedTitles) / Math.max(summary.publicTopicTitles, 1)) * 100)],
       ["favorites_saved", favoriteHealth.saved], ["favorites_resolved", favoriteHealth.resolved], ["favorites_waiting_for_source", favoriteHealth.missing],
       ["video_ratings_saved", Object.keys(feedback.ratings).length], ["creator_ratings_saved", Object.keys(feedback.creatorRatings).length], ["creator_likes_saved", Object.keys(feedback.creatorLikes).length], ["notes_saved", Object.keys(feedback.notes).length],
       ["known_duration_titles", summary.durationTitles], ["known_duration_hours", Math.round(summary.knownDuration / 3600)], ["resume_marks", summary.resumedTitles], ["local_view_events", summary.totalViews],
@@ -725,12 +751,12 @@ export function StatsSection() {
   ], `reelcase-library-insights-${stamp}.csv`);
   };
   const exportSources = () => downloadCsv([
-    ["source", "kind", "mapped_titles", "local_storage_bytes", "last_checked"],
-    ...folderRows.map(({ folder, videos: mapped, bytes: mappedBytes }) => [folder.name, folder.kind, mapped, mappedBytes, folder.lastCheckedAt ? new Date(folder.lastCheckedAt).toISOString() : ""]),
+    ["source", "kind", "mapped_titles", "local_storage_bytes", "last_checked", "source_id", "primary_folder_titles"],
+    ...folderRows.map(({ folder, videos: mapped, bytes: mappedBytes }) => [folder.name, folder.kind, mapped, mappedBytes, folder.lastCheckedAt ? new Date(folder.lastCheckedAt).toISOString() : "", folder.id, summary.byFolder.get(folder.id)?.videos ?? 0]),
   ], `reelcase-source-map-${new Date().toISOString().slice(0, 10)}.csv`);
   const exportRemediation = () => downloadCsv([
     ["queue", "priority", "title_or_source", "reason", "suggested_safe_action"],
-    ...videos.filter((video) => !(tags[video.id] ?? []).some(isTopicTag)).slice(0, 500).map((video, index) => ["topic-coverage", index + 1, video.name, "No useful topic tag", "Review in preview or apply explainable smart tags"]),
+    ...topicReviewQueue.map((video, index) => ["topic-coverage", index + 1, video.name, "No saved or inferred public topic", "Review in preview or apply explainable smart tags"]),
     ...sourceHealth.duplicateNames.flatMap(({ name, count }) => [["source-hygiene", 1, name, `${count} identical source labels`, "Open source map and rename only after review"]]),
     ...(sourceHealth.largest ? [["storage-concentration", 1, sourceHealth.largest.folder.name, `${sourceHealth.concentration}% of mapped local bytes`, "Review source contents; no files are changed automatically"]] : []),
   ], `reelcase-remediation-plan-${new Date().toISOString().slice(0, 10)}.csv`);
@@ -862,14 +888,13 @@ export function StatsSection() {
     <div className="mt-5 flex flex-wrap gap-2"><Button size="sm" variant="secondary" onClick={exportStats}><Download className="size-4"/>Download insight CSV</Button><Button size="sm" variant="secondary" onClick={exportSources}><Download className="size-4"/>Download source-map CSV</Button><Button size="sm" variant="secondary" onClick={exportRemediation}><Download className="size-4"/>Download remediation CSV</Button><span className="self-center text-xs text-muted">Exports only local catalog metadata, useful for improving sorting and discovery rules.</span></div>
     <section className="mt-5 rounded-lg border border-border bg-elevated p-4 shadow-border" aria-label="Stats recovery import"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Recovery import</p><h2 className="mt-1 text-lg font-medium text-fg">Bring back your exported signals.</h2><p className="mt-1 max-w-2xl text-xs leading-5 text-muted">Import a Realhub library pack to merge exported history, resume marks, favorites, follows, ratings, Adult marks, and saved links. Insight CSV files stay read-only reports; use the pack for recovery.</p></div><Button size="sm" variant="secondary" onClick={importRecoveryPack}><Upload className="size-4"/>Import recovery pack</Button></div>{recoveryNote && <p className="mt-3 text-xs text-accent" role="status">{recoveryNote}</p>}</section>
     <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Stat label="Catalog titles" value={videos.length.toLocaleString()}/><Stat label="Local storage mapped" value={bytes(summary.totalBytes)}/><Stat label="Saved topic assignments" value={summary.tagAssignments.toLocaleString()}/><Stat label="Favorites" value={Object.keys(favorites).length.toLocaleString()}/></div>
-    <section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Stat label="Local / remote" value={`${summary.localTitles.toLocaleString()} / ${summary.remoteTitles.toLocaleString()}`}/><Stat label="Remote catalog share" value={`${Math.round(summary.remoteShare * 100)}%`}/><Stat label="New provider items · 7d" value={summary.freshRemoteTitles.toLocaleString()}/><Stat label="Needs useful topic" value={`${summary.untaggedTitles.toLocaleString()} titles`}/><Stat label="Saved topic coverage" value={`${Math.round(((videos.length - summary.untaggedTitles) / Math.max(videos.length, 1)) * 100)}%`}/><Stat label="Topic tags per title" value={summary.tagDensity.toFixed(2)}/><Stat label="Cross-source topic bridges" value={summary.bridgeTopics.toLocaleString()}/><Stat label="Multi-topic titles" value={summary.multiTopicTitles.toLocaleString()}/><Stat label="Operational labels" value={summary.operationalTagAssignments.toLocaleString()}/><Stat label="Any metadata coverage" value={`${Math.round(summary.metadataTaggedTitles / Math.max(videos.length, 1) * 100)}%`}/><Stat label="Creator / description coverage" value={`${summary.creatorTaggedTitles.toLocaleString()} / ${summary.descriptionTaggedTitles.toLocaleString()}`}/><Stat label="YouTube / Twitch" value={`${summary.youtubeTitles.toLocaleString()} / ${summary.twitchTitles.toLocaleString()}`}/><Stat label="Known runtime" value={`${Math.round(summary.knownDuration / 3600).toLocaleString()} hours`}/><Stat label="Resume marks" value={summary.resumedTitles.toLocaleString()}/><Stat label="Local view events" value={summary.totalViews.toLocaleString()}/><Stat label="Live right now" value={summary.liveTitles.toLocaleString()}/><Stat label="Artwork coverage" value={`${Math.round(summary.thumbReady / Math.max(videos.length, 1) * 100)}%`}/><Stat label="History events" value={history.length.toLocaleString()}/><Stat label="Unavailable cards" value={Object.keys(unavailable).length.toLocaleString()}/></section>
+    <section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Stat label="Local / remote" value={`${summary.localTitles.toLocaleString()} / ${summary.remoteTitles.toLocaleString()}`}/><Stat label="Remote catalog share" value={`${Math.round(summary.remoteShare * 100)}%`}/><Stat label="New provider items · 7d" value={summary.freshRemoteTitles.toLocaleString()}/><Stat label="Needs useful topic" value={`${summary.untaggedTitles.toLocaleString()} titles`}/><Stat label="Connected topic coverage" value={`${Math.round((summary.publicTopicTitles - summary.untaggedTitles) / Math.max(summary.publicTopicTitles, 1) * 100)}%`}/><Stat label="Saved topic coverage" value={`${Math.round(summary.savedTopicTitles / Math.max(summary.publicTopicTitles, 1) * 100)}%`}/><Stat label="YouTube duplicate rows" value={youtubeHealth.duplicateRows.toLocaleString()}/><Stat label="Topic tags per title" value={summary.tagDensity.toFixed(2)}/><Stat label="Cross-source topic bridges" value={summary.bridgeTopics.toLocaleString()}/><Stat label="Multi-topic titles" value={summary.multiTopicTitles.toLocaleString()}/><Stat label="Operational labels" value={summary.operationalTagAssignments.toLocaleString()}/><Stat label="Any metadata coverage" value={`${Math.round(summary.metadataTaggedTitles / Math.max(videos.length, 1) * 100)}%`}/><Stat label="Creator / description coverage" value={`${summary.creatorTaggedTitles.toLocaleString()} / ${summary.descriptionTaggedTitles.toLocaleString()}`}/><Stat label="YouTube / Twitch" value={`${summary.youtubeTitles.toLocaleString()} / ${summary.twitchTitles.toLocaleString()}`}/><Stat label="Known runtime" value={`${Math.round(summary.knownDuration / 3600).toLocaleString()} hours`}/><Stat label="Resume marks" value={summary.resumedTitles.toLocaleString()}/><Stat label="Local view events" value={summary.totalViews.toLocaleString()}/><Stat label="Saved live entries" value={summary.liveTitles.toLocaleString()}/><Stat label="Artwork coverage" value={`${Math.round(summary.thumbReady / Math.max(videos.length, 1) * 100)}%`}/><Stat label="History events" value={history.length.toLocaleString()}/><Stat label="Unavailable cards" value={Object.keys(unavailable).length.toLocaleString()}/></section>
     <section className="mt-5 rounded-lg border border-border bg-surface p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Fast paths from your library</p><h2 className="mt-2 font-display text-2xl text-fg">Use the small, useful slice first.</h2><p className="mt-1 max-w-3xl text-sm leading-6 text-muted">Topic, Continue, and source views now reuse saved metadata and mount cards progressively. Favorite topics lead every topic list so the first results match what you actually want to browse.</p><div className="mt-4 grid gap-3 md:grid-cols-3"><div className="rounded-md bg-elevated p-3"><p className="text-xs text-muted">Favorite topics</p><p className="mt-1 text-lg font-medium text-fg">{summary.topicRows.filter(([topic]) => tagIsLiked(topic)).length}</p><p className="mt-1 text-xs text-muted">Pinned ahead of large catalog scans.</p></div><div className="rounded-md bg-elevated p-3"><p className="text-xs text-muted">Ready to resume</p><p className="mt-1 text-lg font-medium text-fg">{summary.resumedTitles.toLocaleString()}</p><p className="mt-1 text-xs text-muted">Stable resume records survive catalog refreshes.</p><Button className="mt-3" size="sm" variant="secondary" onClick={() => useLibrary.getState().setSource("continue")}>Open Continue</Button></div><div className="rounded-md bg-elevated p-3"><p className="text-xs text-muted">Metadata-first catalog</p><p className="mt-1 text-lg font-medium text-fg">{Math.round(summary.metadataTaggedTitles / Math.max(videos.length, 1) * 100)}%</p><p className="mt-1 text-xs text-muted">Existing metadata is used before slower title-only inference.</p><Button className="mt-3" size="sm" variant="secondary" onClick={() => useLibrary.getState().setSource("genres")}>Open Topics</Button></div></div>{summary.topicRows.filter(([topic]) => tagIsLiked(topic)).length > 0 && <div className="mt-4 flex flex-wrap gap-2">{summary.topicRows.filter(([topic]) => tagIsLiked(topic)).slice(0, 12).map(([topic, count]) => <Button key={topic} size="sm" variant="secondary" onClick={() => openTopic(topic)}>★ #{topic} · {count.toLocaleString()}</Button>)}</div>}</section>
-    <section className="mt-5 grid gap-5 xl:grid-cols-2"><div className="h-72 rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Provider mix</h2><p className="mt-1 text-xs text-muted">Includes local, public video providers, and the active Adult catalog sources.</p><ResponsiveContainer width="100%" height="80%"><BarChart data={[{ name: "Local", titles: summary.localTitles }, { name: "YouTube", titles: summary.youtubeTitles }, { name: "Twitch", titles: summary.twitchTitles }, ...adultTagStats.providerMix.filter((row) => row.titles > 0).map((row) => ({ name: row.label, titles: row.titles }))]}><XAxis dataKey="name" stroke="currentColor" fontSize={10} interval={0} angle={-24} textAnchor="end" height={50}/><YAxis stroke="currentColor" fontSize={12}/><Tooltip/><Bar dataKey="titles" fill="var(--color-accent)" radius={4}/></BarChart></ResponsiveContainer></div><div className="h-72 rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Most useful topics</h2><p className="mt-1 text-xs text-muted">Only topics with a saved rating appear here. Score is scaled to 5,000.</p><ResponsiveContainer width="100%" height="80%"><BarChart layout="vertical" margin={{ left: 16 }} data={summary.topTags.map(([name, titles]) => ({ name, titles, score: Math.round(((summary.topicRatings.get(name)?.total ?? 0) / titles) * 1000) })).filter((topic) => topic.score > 0).slice(0, 8)}><XAxis type="number" stroke="currentColor" fontSize={12}/><YAxis type="category" dataKey="name" width={150} stroke="currentColor" fontSize={10}/><Tooltip/><Bar dataKey="score" fill="var(--color-accent)" radius={4}/></BarChart></ResponsiveContainer></div></section>
-    <section className="mt-5 grid gap-3 lg:grid-cols-4"><div className="rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Tagging backlog</p><p className="mt-2 font-display text-3xl text-fg">{summary.untaggedTitles.toLocaleString()}</p><p className="mt-1 text-sm text-muted">titles still need a useful topic tag. Prioritize these before adding more discovery rules.</p><Button className="mt-3" size="sm" variant="secondary" onClick={() => setRemediationView(remediationView === "topics" ? "" : "topics")}>Review safe queue</Button></div><div className="rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Storage concentration</p><p className="mt-2 font-display text-3xl text-fg">{sourceHealth.concentration}%</p><p className="mt-1 text-sm text-muted">of mapped local bytes sit in {sourceHealth.largest?.folder.name ?? "the largest source"}.</p><Button className="mt-3" size="sm" variant="secondary" onClick={() => setRemediationView(remediationView === "sources" ? "" : "sources")}>Review source queue</Button></div><div className="rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Source hygiene</p><p className="mt-2 font-display text-3xl text-fg">{sourceHealth.duplicateNames.length}</p><p className="mt-1 text-sm text-muted">duplicate source labels can make refresh results harder to interpret.</p><Button className="mt-3" size="sm" variant="secondary" onClick={() => setRemediationView(remediationView === "sources" ? "" : "sources")}>Review duplicates</Button></div><div className="rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Favorite recovery</p><p className="mt-2 font-display text-3xl text-fg">{favoriteHealth.resolved} / {favoriteHealth.saved}</p><p className="mt-1 text-sm text-muted">{favoriteHealth.missing ? `${favoriteHealth.missing} saved favorites are waiting for their source to return.` : "Every saved favorite resolves in the current catalog."}</p></div></section>
-    {remediationView === "topics" && <section className="mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Safe tag review queue</p><p className="mt-1 text-sm text-muted">These are review candidates only—nothing is tagged or deleted by opening this queue.</p></div><Button size="sm" variant="secondary" onClick={() => useLibrary.getState().setSource("settings")}>Open smart-tag tools</Button></div><div className="mt-3 space-y-2">{videos.filter((video) => !(tags[video.id] ?? []).some(isTopicTag)).slice(0, 12).map((video) => <button key={video.id} type="button" className="block w-full rounded-sm bg-bg/45 px-3 py-2 text-left text-sm text-fg" onClick={() => useLibrary.getState().openPreview(video.id)}>{video.name}<span className="ml-2 text-xs text-muted">· no useful topic yet</span></button>)}</div></section>}
+    <section className="mt-5 grid gap-5 xl:grid-cols-2"><div className="h-[42rem] min-w-0 rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Provider mix</h2><p className="mt-1 text-xs text-muted">Includes local, public video providers, and the active Adult catalog sources.</p><ResponsiveContainer width="100%" height="88%"><BarChart data={[{ name: "Local", titles: summary.localTitles }, { name: "YouTube", titles: summary.youtubeTitles }, { name: "Twitch", titles: summary.twitchTitles }, ...adultTagStats.providerMix.filter((row) => row.titles > 0).map((row) => ({ name: row.label, titles: row.titles }))]}><XAxis dataKey="name" stroke="currentColor" fontSize={10} interval={0} angle={-24} textAnchor="end" height={50}/><YAxis stroke="currentColor" fontSize={12}/><Tooltip/><Bar dataKey="titles" fill="var(--color-accent)" radius={4}/></BarChart></ResponsiveContainer></div><div className="h-[42rem] min-w-0 rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Most useful topics</h2><p className="mt-1 text-xs text-muted">Up to 20 topics ranked by ratings, hearts, and likes. Unrated titles do not dilute your score.</p>{!summary.topTags.length && <p className="mt-8 text-sm text-muted">Heart, like, or rate a tagged video to build your topic ranking.</p>}<ResponsiveContainer width="100%" height="88%"><BarChart layout="vertical" margin={{ left: 16 }} data={summary.topTags.map(([name, titles]) => ({ name, titles, score: Math.round((tagIsLiked(name) ? 5 : (summary.topicRatings.get(name)?.total ?? 0) / Math.max(1, summary.topicRatings.get(name)?.rated ?? 0)) * 1000) })).filter((topic) => topic.score > 0).slice(0, 20)}><XAxis type="number" stroke="currentColor" fontSize={12}/><YAxis type="category" dataKey="name" width={150} stroke="currentColor" fontSize={10}/><Tooltip/><Bar dataKey="score" fill="var(--color-accent)" radius={4}/></BarChart></ResponsiveContainer></div></section>
+    <section className="mt-5 grid gap-3 lg:grid-cols-4"><div className="rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Tagging backlog</p><p className="mt-2 font-display text-3xl text-fg">{summary.untaggedTitles.toLocaleString()}</p><p className="mt-1 text-sm text-muted">titles still need a useful topic tag. Prioritize these before adding more discovery rules.</p><Button className="mt-3" size="sm" variant="secondary" onClick={() => setRemediationView(remediationView === "topics" ? "" : "topics")}>Review safe queue</Button></div><div className="rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Storage concentration</p><p className="mt-2 font-display text-3xl text-fg">{sourceHealth.concentration}%</p><p className="mt-1 text-sm text-muted">of mapped local bytes sit in {sourceHealth.largest?.folder.name ?? "the largest source"}.</p><Button className="mt-3" size="sm" variant="secondary" onClick={() => setRemediationView(remediationView === "sources" ? "" : "sources")}>Review source queue</Button></div><div className="rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Source hygiene</p><p className="mt-2 font-display text-3xl text-fg">{sourceHealth.duplicateNames.length}</p><p className="mt-1 text-sm text-muted">duplicate source labels can make refresh results harder to interpret.</p><Button className="mt-3" size="sm" variant="secondary" onClick={() => setRemediationView(remediationView === "sources" ? "" : "sources")}>Review duplicates</Button></div><div className="rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Heart recovery</p><p className="mt-2 font-display text-3xl text-fg">{favoriteHealth.resolved} / {favoriteHealth.saved}</p><p className="mt-1 text-sm text-muted">{favoriteHealth.missing ? `${favoriteHealth.missing} saved favorites are waiting for their source to return.` : "Every saved favorite resolves in the current catalog."}</p></div></section>
+    {remediationView === "topics" && <section className="mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Safe tag review queue</p><p className="mt-1 text-sm text-muted">These are review candidates only—nothing is tagged or deleted by opening this queue.</p></div><Button size="sm" variant="secondary" onClick={() => useLibrary.getState().setSource("settings")}>Open smart-tag tools</Button></div><div className="mt-3 space-y-2">{topicReviewQueue.slice(0, 12).map((video) => <button key={video.id} type="button" className="block w-full rounded-sm bg-bg/45 px-3 py-2 text-left text-sm text-fg" onClick={() => useLibrary.getState().openPreview(video.id)}>{video.name}<span className="ml-2 text-xs text-muted">· no useful topic yet</span></button>)}</div></section>}
     {remediationView === "sources" && <section className="mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Safe source review queue</p><p className="mt-1 text-sm text-muted">Review signals only. Realhub will not rename, reconnect, or remove a folder from this page.</p><div className="mt-3 space-y-2">{sourceHealth.largest && <button type="button" className="block w-full rounded-sm bg-bg/45 px-3 py-2 text-left text-sm text-fg" onClick={() => useLibrary.getState().setSource(sourceHealth.largest!.folder.id)}>Largest source · {sourceHealth.largest.folder.name} · {bytes(sourceHealth.largest.bytes)}</button>}{sourceHealth.duplicateNames.map(({ name, count }) => <p key={name} className="rounded-sm bg-bg/45 px-3 py-2 text-sm text-fg">Duplicate label · {name} · {count} sources</p>)}</div></section>}
-    <div className="mt-6 grid gap-5 xl:grid-cols-2"><section className="rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Genre distribution</h2><p className="mt-1 text-xs text-muted">Bars compare genres with the most common genre in this list.</p><div className="mt-4 space-y-3">{summary.genreRows.slice(0, 18).map(([genre, count]) => <DistributionRow key={genre} label={genre} value={count} total={summary.genreRows[0]?.[1] ?? 1}/>) || <p className="text-sm text-muted">Genres will appear as media is tagged.</p>}</div></section><section className="rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Most useful tags</h2><p className="mt-1 text-xs text-muted">Bars compare useful topics with the leading topic, not the full catalog.</p><div className="mt-4 space-y-3">{summary.topTags.map(([tag, count]) => <button key={tag} className="block w-full text-left" onClick={() => openTopic(tag)}><DistributionRow label={`#${tag}`} value={count} total={summary.topTags[0]?.[1] ?? 1}/></button>) || <p className="text-sm text-muted">Tags will appear as media is indexed.</p>}</div></section></div>
-    <section className="mt-5 rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Source mapping & storage</h2><p className="mt-1 text-sm text-muted">Only local files contribute bytes; remote providers report catalog counts but not source storage.</p><div className="mt-4 space-y-2">{visibleFolderRows.map(({ folder, videos: mapped, bytes: folderBytes }) => <div key={folder.id} className="flex flex-wrap items-center justify-between gap-3 rounded-sm bg-bg/45 px-3 py-3"><span className="min-w-0 truncate text-sm text-fg">{folder.name}</span><span className="text-xs text-muted">{mapped.toLocaleString()} mapped · {folderBytes ? bytes(folderBytes) : folder.kind === "youtube" || folder.kind === "twitch" ? "remote catalog" : "no local media yet"}</span></div>)}</div>{folderRows.length > visibleFolderRows.length && <Button variant="secondary" size="sm" className="mt-4" onClick={() => setShowAllSources(true)}>Show all {folderRows.length.toLocaleString()} sources</Button>}</section>
+    <div className="mt-6"><section className="rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Genre distribution</h2><p className="mt-1 text-xs text-muted">Bars compare genres with the most common genre in this list.</p><div className="mt-4 space-y-3">{summary.genreRows.slice(0, 18).map(([genre, count]) => <DistributionRow key={genre} label={genre} value={count} total={summary.genreRows[0]?.[1] ?? 1}/>) || <p className="text-sm text-muted">Genres will appear as media is tagged.</p>}</div></section></div>
   </HubShell>;
 }
 
@@ -1035,7 +1060,6 @@ export function SettingsSection() {
   const [zoom, setZoom] = useState(100);
   const [railLimit, setRailLimit] = useState(8);
   const [adultRailLimit, setAdultRailLimit] = useState(48);
-  const [adultPullLimit, setAdultPullLimit] = useState(1200);
   const [gridPageSize, setGridPageSize] = useState(48);
   const [thumbnailWorkers, setThumbnailWorkers] = useState(0);
   const [textFirstArtwork, setTextFirstArtwork] = useState(false);
@@ -1058,6 +1082,7 @@ export function SettingsSection() {
   const [debugEnabled, setDebugEnabled] = useState(false);
   const [theme, setTheme] = useState<"night" | "day">("night");
   const [debugReport, setDebugReport] = useState("");
+  const [, refreshMemoryReadout] = useState(0);
   const [, refreshDebug] = useState(0);
   const refreshFollows = useLibrary((s) => s.refreshFollows);
   const folders = useLibrary((s) => s.folders);
@@ -1075,7 +1100,9 @@ export function SettingsSection() {
   const hiddenVideos = useLibrary((s) => s.hiddenVideos);
   const unhideVideo = useLibrary((s) => s.unhideVideo);
   const hiddenTitles = useMemo(() => {
-    const byId = new Map(videos.map((video) => [video.id, video.name]));
+    const wanted = new Set(Object.keys(hiddenVideos));
+    const byId = new Map<string, string>();
+    for (const video of videos) { if (wanted.delete(video.id)) byId.set(video.id, video.name); if (!wanted.size) break; }
     return Object.keys(hiddenVideos).map((id) => ({ id, name: byId.get(id) ?? id }));
   }, [hiddenVideos, videos]);
   const remoteCheckedAt = useLibrary((s) => s.remoteCheckedAt);
@@ -1105,15 +1132,17 @@ export function SettingsSection() {
     setMetadataTailNote(`Processed ${result.processed} cached title${result.processed === 1 ? "" : "s"}; ${result.changed} gained safe metadata tags${result.remaining ? ` · ${result.remaining} remain in the queue` : " · queue complete"}${sourceSummary ? ` · ${sourceSummary}` : ""}.`);
   };
   const creatorCoverage = useMemo(() => {
-    const rows = videos.filter((video) => video.remote?.kind === "youtube" || video.remote?.kind === "twitch").map((video) => ({ video, resolution: resolveCreatorCoverage(video, follows) }));
-    const ambiguous = rows.flatMap(({ video, resolution }) => resolution.status === "ambiguous" ? [{ id: video.id, name: video.name, candidates: resolution.candidates }] : []);
-    return {
-      total: rows.length,
-      present: rows.filter(({ resolution }) => resolution.status === "present").length,
-      repairable: rows.filter(({ resolution }) => resolution.status === "resolved").length,
-      unresolved: rows.filter(({ resolution }) => resolution.status === "unresolved").length,
-      ambiguous,
-    };
+    const result = { total: 0, present: 0, repairable: 0, unresolved: 0, ambiguous: [] as Array<{ id: string; name: string; candidates: string[] }> };
+    for (const video of videos) {
+      if (video.remote?.kind !== 'youtube' && video.remote?.kind !== 'twitch') continue;
+      result.total++;
+      const resolution = resolveCreatorCoverage(video, follows);
+      if (resolution.status === 'present') result.present++;
+      else if (resolution.status === 'resolved') result.repairable++;
+      else if (resolution.status === 'unresolved') result.unresolved++;
+      else if (resolution.status === 'ambiguous' && result.ambiguous.length < 48) result.ambiguous.push({ id: video.id, name: video.name, candidates: resolution.candidates });
+    }
+    return result;
   }, [follows, videos]);
   const runCreatorCoverageRepair = () => {
     const result = repairCreatorCoverage();
@@ -1142,7 +1171,7 @@ export function SettingsSection() {
       setPreferences({});
     }
   }, []);
-  useEffect(() => { const rail = Number(localStorage.getItem("reelcase.adult-rail-limit") ?? "48"); const pull = Number(localStorage.getItem("reelcase.adult-pull-limit") ?? "1200"); setAdultRailLimit([16, 24, 48, 72].includes(rail) ? rail : 48); setAdultPullLimit([240, 480, 800, 1200].includes(pull) ? pull : 1200); }, []);
+  useEffect(() => { const rail = Number(localStorage.getItem("reelcase.adult-rail-limit") ?? "48"); setAdultRailLimit([16, 24, 48, 72].includes(rail) ? rail : 48);  }, []);
   useEffect(() => {
     const saved = Number(localStorage.getItem("reelcase.ui-zoom") ?? "100");
     const value = [80, 90, 100, 110, 125].includes(saved) ? saved : 100;
@@ -1348,6 +1377,7 @@ export function SettingsSection() {
       title="Settings & local export"
       copy="Your Realhub library stays in this browser. Export a portable metadata backup whenever you need it."
     >
+      <PullSettingsPanel />
       <div className="grid gap-4 sm:grid-cols-3">
         <Stat label="Video entries" value={useLibrary((s) => s.videos.length)} />
         <Stat label="Followed channels" value={useLibrary((s) => s.follows.length)} />
@@ -1556,7 +1586,7 @@ export function SettingsSection() {
           <Button size="sm" variant={debugEnabled ? "default" : "secondary"} className="mt-4" onClick={() => { const next = !debugEnabled; setDebugEnabled(next); localStorage.setItem("reelcase.debug-panel", String(next)); if (!next) setDebugReport(""); }}>
             {debugEnabled ? "Disable diagnostics" : "Enable diagnostics"}
           </Button>
-          {debugEnabled && <div className="mt-3 rounded-sm bg-bg/45 p-3 text-xs leading-5 text-muted"><p>{useLibrary.getState().videos.length} catalog entries · {useLibrary.getState().folders.length} sources · {navigator.onLine ? "browser online" : "browser offline"}</p><p>{useLibrary.getState().folders.filter((folder) => folder.health === "healthy").length} healthy · {useLibrary.getState().folders.filter((folder) => folder.health === "cached").length} cache-first · {useLibrary.getState().folders.filter((folder) => folder.health === "permission-needed" || folder.health === "unavailable").length} need attention</p><p>{(() => { const budget = getRenderBudgetSnapshot(); const feedback = getFeedbackDiagnostics(); const thumbs = useThumbs.getState(); const artwork = getThumbDiagnostics(); return `${budget.mountedCards} mounted cards · ${Object.keys(thumbs.byId).length} artwork cache entries · ${artwork.active} decoding / ${artwork.queued} queued · artwork ${artwork.hits} hit / ${artwork.misses} miss${artwork.evictions ? ` / ${artwork.evictions} evicted` : ""} · ${budget.lastFrameMs}ms last frame${budget.longFrames ? ` · ${budget.longFrames} long frames (worst ${budget.worstFrameMs}ms)` : ""} · rating queue ${feedback.lastRatingQueueMs}ms / disk ${feedback.lastPersistMs}ms${feedback.pendingWrites ? " pending" : ""}`; })()}</p><p>{(() => { const first = getFirstShelfTrace(); return first.elapsedMs ? `First shelf · ${first.elapsedMs}ms · ${first.title} · ${first.cards} visible cards` : "First shelf · waiting for the first visible rail"; })()}</p><p>{(() => { const interaction = getInteractionBudgetSnapshot(); return `Input to next paint · navigation ${interaction.navigation.lastMs}ms (worst ${interaction.navigation.worstMs}ms) · search ${interaction.search.lastMs}ms · rating ${interaction.rating.lastMs}ms`; })()}</p><Button size="sm" variant="ghost" className="mt-2" onClick={() => void (async () => { try { const response = await fetch("http://127.0.0.1:43123/health"); const data = await response.json() as { version?: number; roots?: number; desktopEnabled?: boolean }; setDebugReport(`Companion v${data.version ?? "?"} · ${data.roots ?? 0} approved roots · Desktop ${data.desktopEnabled ? "ready" : "not available"}`); } catch { setDebugReport("Companion is not running or is unavailable to this browser."); } })()}>Check companion</Button>{debugReport && <p className="mt-2 text-accent">{debugReport}</p>}</div>}
+          {debugEnabled && <div className="mt-3 rounded-sm bg-bg/45 p-3 text-xs leading-5 text-muted"><p>{useLibrary.getState().videos.length} catalog entries · {useLibrary.getState().folders.length} sources · {navigator.onLine ? "browser online" : "browser offline"}</p><p>{useLibrary.getState().folders.filter((folder) => folder.health === "healthy").length} healthy · {useLibrary.getState().folders.filter((folder) => folder.health === "cached").length} cache-first · {useLibrary.getState().folders.filter((folder) => folder.health === "permission-needed" || folder.health === "unavailable").length} need attention</p><p>{(() => { const budget = getRenderBudgetSnapshot(); const feedback = getFeedbackDiagnostics(); const thumbs = useThumbs.getState(); const artwork = getThumbDiagnostics(); return `${budget.mountedCards} mounted cards · ${Object.keys(thumbs.byId).length} artwork cache entries · ${artwork.active} decoding / ${artwork.queued} queued · artwork ${artwork.hits} hit / ${artwork.misses} miss${artwork.evictions ? ` / ${artwork.evictions} evicted` : ""} · ${budget.lastFrameMs}ms last frame${budget.longFrames ? ` · ${budget.longFrames} long frames (worst ${budget.worstFrameMs}ms)` : ""} · rating queue ${feedback.lastRatingQueueMs}ms / disk ${feedback.lastPersistMs}ms${feedback.pendingWrites ? " pending" : ""}`; })()}</p><p>{(() => { const artwork = getThumbDiagnostics(); const writes = getPersistenceMemorySnapshot(); const sources = getSourceMemorySnapshot(); const companion = getCompanionMemorySnapshot(); return `Session memory · artwork ${(artwork.bytes / 1048576).toFixed(1)} MiB / 8 MiB · ${sources.objectUrls} temporary media URLs · ${writes.artwork.pending} artwork saves queued (${(writes.artwork.pendingWeight / 1048576).toFixed(1)} MiB) · ${writes.activity.pending} latest activity snapshots · ${companion.posters.pending} poster mirrors queued · automatic refresh ${allowAutomaticRefresh() ? "active" : "paused while idle or hidden"}`; })()}</p><Button size="sm" variant="ghost" onClick={() => refreshMemoryReadout(value => value + 1)}>Refresh memory readout</Button><p>{(() => { const first = getFirstShelfTrace(); return first.elapsedMs ? `First shelf · ${first.elapsedMs}ms · ${first.title} · ${first.cards} visible cards` : "First shelf · waiting for the first visible rail"; })()}</p><p>{(() => { const interaction = getInteractionBudgetSnapshot(); return `Input to next paint · navigation ${interaction.navigation.lastMs}ms (worst ${interaction.navigation.worstMs}ms) · search ${interaction.search.lastMs}ms · rating ${interaction.rating.lastMs}ms`; })()}</p><Button size="sm" variant="ghost" className="mt-2" onClick={() => void (async () => { try { const response = await fetch("http://127.0.0.1:43123/health"); const data = await response.json() as { version?: number; roots?: number; desktopEnabled?: boolean }; setDebugReport(`Companion v${data.version ?? "?"} · ${data.roots ?? 0} approved roots · Desktop ${data.desktopEnabled ? "ready" : "not available"}`); } catch { setDebugReport("Companion is not running or is unavailable to this browser."); } })()}>Check companion</Button>{debugReport && <p className="mt-2 text-accent">{debugReport}</p>}</div>}
           {debugEnabled && <YoutubeFirstClickDiagnostic />}
         </div>
         <div className="rounded-lg bg-elevated p-5 shadow-border">
@@ -1635,7 +1665,7 @@ export function SettingsSection() {
             disk again.
           </p>
         </div>
-        <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><PackageSearch className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Adult performance</h2><p className="mt-2 text-sm leading-6 text-muted">Tune Adult rails and one catalog request separately. Smaller choices reduce decoding and keep filtering responsive.</p><p className="mt-4 text-xs text-muted">Cards per Adult rail</p><div className="mt-2 flex flex-wrap gap-2">{[16, 24, 48, 72].map((value) => <Button key={value} size="sm" variant={adultRailLimit === value ? "default" : "secondary"} onClick={() => { setAdultRailLimit(value); localStorage.setItem("reelcase.adult-rail-limit", String(value)); window.dispatchEvent(new Event("reelcase:adult-render-settings")); }}>{value} cards</Button>)}</div><p className="mt-4 text-xs text-muted">Maximum titles per Adult pull</p><div className="mt-2 flex flex-wrap gap-2">{[240, 480, 800, 1200].map((value) => <Button key={value} size="sm" variant={adultPullLimit === value ? "default" : "secondary"} onClick={() => { setAdultPullLimit(value); localStorage.setItem("reelcase.adult-pull-limit", String(value)); window.dispatchEvent(new Event("reelcase:adult-render-settings")); }}>{value}</Button>)}</div></div>
+        <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><PackageSearch className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Adult performance</h2><p className="mt-2 text-sm leading-6 text-muted">Tune Adult rails and one catalog request separately. Smaller choices reduce decoding and keep filtering responsive.</p><p className="mt-4 text-xs text-muted">Cards per Adult rail</p><div className="mt-2 flex flex-wrap gap-2">{[16, 24, 48, 72].map((value) => <Button key={value} size="sm" variant={adultRailLimit === value ? "default" : "secondary"} onClick={() => { setAdultRailLimit(value); localStorage.setItem("reelcase.adult-rail-limit", String(value)); window.dispatchEvent(new Event("reelcase:adult-render-settings")); }}>{value} cards</Button>)}</div><p className="mt-4 text-xs text-muted">Batch limits and automatic pacing are in Pull management above.</p></div>
         <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><PackageSearch className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Grid memory budget</h2><p className="mt-2 text-sm leading-6 text-muted">Sets how many poster cards are mounted at once before a Next page control. Use 24 for the smoothest experience with very large YouTube and Twitch libraries.</p><div className="mt-4 flex flex-wrap gap-2">{[24, 48, 96, 144].map((value) => <Button key={value} size="sm" variant={gridPageSize === value ? "default" : "secondary"} onClick={() => { setGridPageSize(value); localStorage.setItem("reelcase.grid-page-size", String(value)); window.dispatchEvent(new Event("reelcase:render-settings")); }}>{value} cards</Button>)}</div></div>
         <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><PackageSearch className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Artwork worker budget</h2><p className="mt-2 text-sm leading-6 text-muted">Controls concurrent local thumbnail extraction. Adaptive uses device cores, available memory, and foreground input pressure.</p><div className="mt-4 flex flex-wrap gap-2">{[[0, "Adaptive"], [1, "Text-first · 1"], [2, "Gentle · 2"], [3, "Balanced · 3"], [4, "Fast · 4"]].map(([value, label]) => <Button key={value} size="sm" variant={thumbnailWorkers === value ? "default" : "secondary"} onClick={() => { setThumbnailWorkers(value as number); localStorage.setItem("reelcase.thumbnail-workers", String(value)); }}>{label}</Button>)}</div><Button size="sm" variant={textFirstArtwork ? "default" : "secondary"} className="mt-4" onClick={() => { const next = !textFirstArtwork; setTextFirstArtwork(next); localStorage.setItem("reelcase.artwork-mode", next ? "text" : "images"); document.documentElement.dataset.artworkMode = next ? "text" : "images"; }}> {textFirstArtwork ? "Text-first provider rows on" : "Use text-first provider rows"}</Button></div>
         <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><PackageSearch className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Photo scan workers</h2><p className="mt-2 text-sm leading-6 text-muted">Sets background folder workers for cached photo metadata. Adaptive protects browsing; use Fast when you want a newly added photo source ready sooner.</p><div className="mt-4 flex flex-wrap gap-2">{[[0, "Adaptive"], [2, "Gentle · 2"], [4, "Balanced · 4"], [6, "Fast · 6"], [8, "Max · 8"], [12, "Turbo · 12"]].map(([value, label]) => <Button key={value} size="sm" variant={photoWorkers === value ? "default" : "secondary"} onClick={() => { setPhotoWorkers(value as number); localStorage.setItem("reelcase.photo-scan-workers", String(value)); }}>{label}</Button>)}</div></div>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Clock3, LayoutGrid, List, Menu, Search, Upload, X, Sparkles, FolderSearch } from "lucide-react";
+import { PullPauseButton } from "./pull-pause-button";
+import { Clock3, LayoutGrid, List, Menu, Search, Upload, X, Sparkles, FolderSearch, PanelLeftOpen, PanelLeftClose } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -14,6 +15,8 @@ import { useLibrary } from "@/lib/videos/store";
 import { librarySearchIndex } from "@/lib/videos/search-index";
 import { searchWorkerIndex } from "@/lib/videos/search-worker-index";
 import type { SortKey } from "@/lib/videos/types";
+import { allowAutomaticRefresh } from "@/lib/session-activity";
+import { useSessionPhase } from "@/lib/use-session-phase";
 
 const SORTS: { key: SortKey; label: string }[] = [
   { key: "name", label: "Name" },
@@ -29,9 +32,15 @@ const SORTS: { key: SortKey; label: string }[] = [
 export function TopBar({
   onMenu,
   onAddFolder,
+  menuOpen,
+  sidebarCollapsed,
+  onToggleSidebar,
 }: {
   onMenu: () => void;
   onAddFolder: () => void;
+  menuOpen: boolean;
+  sidebarCollapsed: boolean;
+  onToggleSidebar: () => void;
 }) {
   const query = useLibrary((s) => s.query);
   const setQuery = useLibrary((s) => s.setQuery);
@@ -51,7 +60,7 @@ export function TopBar({
     const t = window.setTimeout(() => setQuery(draft), 180);
     return () => window.clearTimeout(t);
   }, [draft, query, setQuery, sourceId]);
-  useEffect(() => { setNow(new Date()); const id = window.setInterval(() => setNow(new Date()), 15_000); return () => window.clearInterval(id); }, []);
+  useEffect(() => { setNow(new Date()); const id = window.setInterval(() => { if (allowAutomaticRefresh()) setNow(new Date()); }, 15_000); return () => window.clearInterval(id); }, []);
   const view = useLibrary((s) => s.view);
   const setView = useLibrary((s) => s.setView);
   const sort = useLibrary((s) => s.sort);
@@ -64,20 +73,22 @@ export function TopBar({
   const tags = useLibrary((s) => s.tags);
   const adultsUnlocked = useLibrary((s) => s.adultsUnlocked);
   const [focused, setFocused] = useState(false);
+  const sessionPhase = useSessionPhase();
   const [recent, setRecent] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem("reelcase.search.recent") ?? "[]") as string[]; } catch { return []; }
   });
   const sortLabel = SORTS.find((s) => s.key === sort)?.label ?? "Name";
-  const sourceLabel = sourceId === "live" ? "Live" : sourceId === "home" ? "Home" : sourceId === "movies" ? "Movies" : sourceId === "photos" ? "Photos" : sourceId === "twitch" ? "Twitch" : sourceId === "youtube" ? "YouTube" : folders.find((folder) => folder.id === sourceId)?.name ?? "Library";
+  const sourceLabel = sourceId === "live" ? "Live" : sourceId === "home" ? "Home" : sourceId === "landing" ? "Landing page" : sourceId === "movies" ? "Movies" : sourceId === "photos" ? "Photos" : sourceId === "twitch" ? "Twitch" : sourceId === "youtube" ? "YouTube" : folders.find((folder) => folder.id === sourceId)?.name ?? "Library";
   const sourceCount = sourceId === "home" ? videos.length : folders.find((folder) => folder.id === sourceId)?.videoCount;
   const needle = lookup.trim().toLowerCase();
+  const lookupActive = Boolean(needle) && focused && sessionPhase === "active";
   const [workerIds, setWorkerIds] = useState<string[] | null>(null);
   const [searchIndexStatus, setSearchIndexStatus] = useState(searchWorkerIndex.getStatus());
   useEffect(() => searchWorkerIndex.subscribe(setSearchIndexStatus), []);
-  useEffect(() => { let active = true; setWorkerIds(null); if (!needle) { setWorkerIds(null); return; } void searchWorkerIndex.search(needle).then((ids) => { if (active) setWorkerIds(ids); }); return () => { active = false; }; }, [needle, searchIndexStatus]);
-  const videoById = useMemo(() => new Map(videos.map((video) => [video.id, video])), [videos]);
+  useEffect(() => { let active = true; setWorkerIds(null); if (!lookupActive) return; void searchWorkerIndex.search(needle).then((ids) => { if (active) setWorkerIds(ids); }); return () => { active = false; }; }, [lookupActive, needle, searchIndexStatus]);
+  const videoById = useMemo(() => lookupActive ? new Map(videos.map((video) => [video.id, video])) : new Map<string, typeof videos[number]>(), [lookupActive, videos]);
   const hits = useMemo(() => {
-    if (!needle || searchIndexStatus === "building" || (workerIds === null && searchIndexStatus !== "failed")) return [];
+    if (!lookupActive || searchIndexStatus === "building" || (workerIds === null && searchIndexStatus !== "failed")) return [];
     const indexedIds = workerIds ? new Set(workerIds) : librarySearchIndex.search(needle);
     // The index covers title, creator, description, tags, category, source,
     // and local path.  A short fallback keeps search useful during its first
@@ -93,7 +104,7 @@ export function TopBar({
         if (sourceId === "twitch" && video.remote?.kind !== "twitch") return false;
         return indexedIds ? true : `${video.name} ${video.path} ${video.description ?? ""} ${video.remote?.channelName ?? ""} ${(tags[video.id] ?? []).join(" ")}`.toLowerCase().includes(needle);
       }).sort((a, b) => b.addedAt - a.addedAt).slice(0, 6);
-  }, [adultsUnlocked, folders, needle, sourceId, tags, videoById, videos, workerIds, searchIndexStatus]);
+  }, [adultsUnlocked, folders, lookupActive, needle, sourceId, tags, videoById, videos, workerIds, searchIndexStatus]);
   const suggestionTags = useMemo(() => [...new Set(hits.flatMap((video) => tags[video.id] ?? []))].filter((tag) => tag.length >= 3).slice(0, 5), [hits, tags]);
   const applyAdultTagStay = (raw: string) => {
     const tag = raw.trim().replace(/^#/, "");
@@ -126,20 +137,26 @@ export function TopBar({
   };
 
   return (
-    <header className="grid gap-3 border-b border-border px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-6 xl:grid-cols-[minmax(13rem,0.55fr)_minmax(20rem,1.4fr)_auto]">
+    <header className="grid gap-3 border-b border-border px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-6 2xl:grid-cols-[minmax(10rem,0.55fr)_minmax(12rem,1.4fr)_auto]">
       <div className="flex min-w-0 items-center gap-2">
         <Button
           variant="ghost"
           size="icon-sm"
           className="lg:hidden"
           aria-label="Open menu"
+          aria-expanded={menuOpen}
+          aria-controls="mobile-sidebar-navigation"
           onClick={onMenu}
         >
           <Menu className="size-5" />
         </Button>
+        <Button variant="ghost" size="icon" className="hidden size-11 shrink-0 lg:flex" onClick={onToggleSidebar}
+          aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!sidebarCollapsed} aria-controls="desktop-sidebar-navigation" title="Toggle sidebar (Ctrl+B)">
+          {sidebarCollapsed ? <PanelLeftOpen className="size-5" /> : <PanelLeftClose className="size-5" />}
+        </Button>
         <div className="min-w-0"><p className="truncate font-display text-lg leading-none text-fg">{sourceLabel}</p><p className="mt-1 text-xs text-muted">{typeof sourceCount === "number" ? `${sourceCount.toLocaleString()} indexed` : "Control room"}</p></div>
       </div>
-      <div className="relative min-w-0 xl:max-w-3xl">
+      <div className="relative min-w-0 sm:col-span-2 sm:row-start-2 2xl:col-span-1 2xl:row-start-1 2xl:max-w-3xl">
         <Search className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-accent" />
         <Input
           type="search"
@@ -173,7 +190,7 @@ export function TopBar({
           </div>
         )}
       </div>
-      <div className="flex items-center gap-1.5 sm:justify-end">
+      <div className="flex flex-wrap items-center gap-1.5 sm:col-start-2 sm:row-start-1 sm:justify-end 2xl:col-start-3">
         {scanning && (
           <span className="mr-2 hidden truncate text-xs text-muted sm:inline">
             Scanning {scanning.folderName} · {scanning.found}
@@ -197,6 +214,7 @@ export function TopBar({
           </DropdownMenu>
         )}
         <span className="hidden items-center gap-1.5 px-2 text-xs tabular-nums text-muted xl:flex"><Clock3 className="size-3.5" />{now ? now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "--:--"}</span>
+        <PullPauseButton />
         <NoticeBell />
         <div className="flex rounded-md bg-elevated p-0.5 shadow-border">
           <button

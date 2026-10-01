@@ -1,3 +1,4 @@
+import { youtubeEmbedUrl } from "@/lib/videos/youtube-embed";
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import {
   ChevronLeft,
@@ -32,6 +33,7 @@ import {
 import { cn, formatBytes, formatTime } from "@/lib/utils";
 import { getNote, getRating, recordWatchTime, setNote as saveNote, setRating as saveRating } from "@/lib/media-feedback";
 import { AdultComments, supportsRemoteComments } from "@/components/library/adult-comments";
+import { PullPauseButton } from "./pull-pause-button";
 import { AdultImageLightbox } from "@/components/library/adult-image-lightbox";
 import { adultRemoteLabel, isAdultImageKind, isAdultPullKind } from "@/lib/videos/adult-sites";
 import { requestAdultOfflineSave } from "@/lib/videos/adult-offline-save";
@@ -43,33 +45,21 @@ import { twitchEmbedUrl } from "@/lib/videos/twitch-embed";
 import { hasFreshViewerCount, isLikelyPlayable } from "@/lib/videos/types";
 import { attachFrameCallback, probeHardwareDecode, type HwInfo } from "@/lib/videos/hw";
 import { measureInteraction } from "@/lib/interaction-budget";
+import { lookupVideo } from "@/lib/videos/video-lookup";
+import { useVideoDetails } from './use-video-details';
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 const EMPTY_TAGS: string[] = [];
 const TAG_PRESETS = ["watch-later", "favorite", "family", "4k", "short", "documentary", "how-to", "comfort"];
 
-function youtubeEmbed(base: string) {
-  if (!base) return null;
-  const url = new URL(base, "https://www.youtube.com");
-  url.protocol = "https:";
-  url.hostname = "www.youtube.com";
-  url.searchParams.set("autoplay", "1");
-  url.searchParams.set("rel", "0");
-  url.searchParams.set("modestbranding", "1");
-  url.searchParams.set("playsinline", "1");
-  // Ask for YouTube's standard control bar. Its controls remain inside the
-  // provider iframe, but this prevents the compact top-overlay variant where
-  // the browser has enough room for the normal bottom transport row.
-  url.searchParams.set("controls", "1");
-  if (typeof window !== "undefined") {
-    url.searchParams.set("origin", window.location.origin);
-  }
-  return url.toString();
-}
-
 export function Player({ playlist }: { playlist: string[] }) {
   const activeId = useLibrary((s) => s.activeId);
-  const video = useLibrary((s) => (s.activeId ? s.videos.find((v) => v.id === s.activeId) : undefined));
+  const card = useLibrary((s) => lookupVideo(s.videos, s.activeId));
+  const video = useVideoDetails(card);
+  const directAdultMedia = Boolean(video?.remote && isAdultPullKind(video.remote.kind) && video.src
+    && /\.(?:mp4|webm|gifv)(?:\?|$)/i.test(video.src)
+    && !(video.remote.kind === "redgifs" && video.remote.embedUrl));
+  const providerPlayback = Boolean(video?.remote) && !directAdultMedia;
   const closePlayer = useLibrary((s) => s.closePlayer);
   const openVideo = useLibrary((s) => s.openVideo);
   const playRelative = useLibrary((s) => s.playRelative);
@@ -95,6 +85,7 @@ export function Player({ playlist }: { playlist: string[] }) {
 
   const wrapRef = useRef<HTMLDivElement>(null);
   const mediaRef = useRef<HTMLVideoElement>(null);
+  const embedRef = useRef<HTMLIFrameElement>(null);
   const hideTimer = useRef<number>(0);
   const [src, setSrc] = useState<string | null>(null);
   const [srcError, setSrcError] = useState<string | null>(null);
@@ -205,13 +196,14 @@ export function Player({ playlist }: { playlist: string[] }) {
   const reveal = useCallback(() => {
     setChrome(true);
     window.clearTimeout(hideTimer.current);
+    // Pointer and touch events inside a provider iframe do not reach this
+    // document. Keep Back/Pause pulls reachable instead of hiding them forever.
+    if (providerPlayback) return;
     hideTimer.current = window.setTimeout(() => {
-      // Provider embeds do not expose a local <video> element, so the old
-      // condition never hid their chrome. Hide after inactivity for every
-      // player; any pointer movement, touch, or key immediately reveals it.
+      // Local playback can reveal its controls from pointer/touch events.
       setChrome(false);
     }, 2400);
-  }, []);
+  }, [providerPlayback]);
 
   useEffect(() => {
     reveal();
@@ -349,7 +341,7 @@ export function Player({ playlist }: { playlist: string[] }) {
     const wrap = wrapRef.current;
     if (!wrap) return;
     if (document.fullscreenElement) await document.exitFullscreen();
-    else await wrap.requestFullscreen().catch(() => {});
+    else await (embedRef.current ?? wrap).requestFullscreen().catch(() => {});
   }, []);
 
   const playRandom = useCallback(() => {
@@ -361,7 +353,9 @@ export function Player({ playlist }: { playlist: string[] }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (e.target as HTMLElement)?.isContentEditable) return;
+      // The official iframe owns playback keys and fullscreen controls.
+      if (embedRef.current && !["Escape", "n", "N", "p", "P"].includes(e.key)) return;
       switch (e.key) {
         case " ":
         case "k":
@@ -429,21 +423,13 @@ export function Player({ playlist }: { playlist: string[] }) {
   // session-bound, while the iframe is also the proven playback path for a
   // Redgifs clip discovered through Reddit. Other providers retain their
   // direct media route when that is all they offer.
-  const redgifsEmbed = remote?.kind === "redgifs" && Boolean(remote.embedUrl);
-  const directAdultMedia = Boolean(
-    remote
-      && isAdultPullKind(remote.kind)
-      && video.src
-      && /\.(?:mp4|webm|gifv)(?:\?|$)/i.test(video.src)
-      && !redgifsEmbed,
-  );
   const embedSrc = adultImage
     ? null
     : remote
       ? remote.kind === "twitch"
         ? twitchEmbedUrl(remote, typeof window === "undefined" ? "" : window.location.hostname)
         : remote.kind === "youtube"
-          ? youtubeEmbed(remote.embedUrl ?? video.src ?? "")
+          ? youtubeEmbedUrl(remote.embedUrl ?? video.src ?? remote.watchUrl ?? "", remote.videoId, typeof window === "undefined" ? undefined : window.location.origin)
           : isAdultPullKind(remote.kind)
             // MyFreeCams does not offer a permitted iframe player. Its public
             // roster still supplies live cards, and the player gives each card
@@ -459,12 +445,13 @@ export function Player({ playlist }: { playlist: string[] }) {
   const i = playlist.indexOf(video.id);
   const hwLabel =
     hardwareAccel && hw?.powerEfficient ? "GPU decode" : hardwareAccel ? "Hardware on" : "Software";
+  const officialPlayer = Boolean(embedSrc);
   const twitchSideMode = remote?.kind === "twitch" && !twitchTheater;
 
   return (
     <div
       ref={wrapRef}
-      className={cn("fixed inset-0 z-50 flex flex-col bg-bg", twitchSideMode && "p-4 sm:p-6")}
+      className={cn("fixed inset-0 z-50 flex flex-col bg-bg", officialPlayer && "overflow-hidden", twitchSideMode && "p-4 sm:p-6")}
       onMouseMove={reveal}
       onTouchStart={reveal}
     >
@@ -472,10 +459,11 @@ export function Player({ playlist }: { playlist: string[] }) {
         <AdultImageLightbox video={video} tags={tags} />
       ) : embedSrc ? (
         <iframe
+          ref={embedRef}
           key={`embed:${video.id}`}
           title={video.name}
           src={embedSrc}
-          className={cn("absolute border-0 bg-bg", twitchSideMode ? "left-4 top-20 h-[58vh] w-[calc(100%-2rem)] rounded-lg sm:left-6 sm:w-[calc(68%-2rem)]" : "inset-0 size-full")}
+          className={cn("order-2 min-h-0 w-full flex-1 border-0 bg-bg", twitchSideMode && "sm:w-[68%]")}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
           allowFullScreen
           referrerPolicy="strict-origin-when-cross-origin"
@@ -525,17 +513,17 @@ export function Player({ playlist }: { playlist: string[] }) {
       )}
 
       {twitchSideMode && <aside className="absolute right-4 top-20 hidden w-[28%] rounded-lg bg-elevated p-4 shadow-border sm:block"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Twitch details</p><h3 className="mt-2 font-display text-xl text-fg">{remote?.channelName ?? video.name}</h3><p className="mt-2 text-sm leading-6 text-muted">{video.description || video.tagline || "Live and VOD details stay visible beside the official Twitch player."}</p>{remote?.watchUrl && <a href={remote.watchUrl} target="_blank" rel="noreferrer" className="mt-4 inline-flex text-sm text-accent">Open on Twitch <ExternalLink className="ml-1 size-4"/></a>}</aside>}
-      <div
+      {!officialPlayer && <div
         className={cn(
           "pointer-events-none absolute inset-0 bg-linear-to-t from-bg via-transparent to-bg/50 transition-opacity duration-200 ease-[var(--ease-out)]",
           chrome ? "opacity-100" : "opacity-0",
         )}
-      />
+      />}
 
       <div
         className={cn(
           "relative z-10 flex items-center justify-between gap-3 px-4 py-3 transition-[opacity,transform] duration-200 ease-[var(--ease-smooth-out)] sm:px-6",
-          chrome ? "opacity-100" : "pointer-events-none opacity-0 -translate-y-1",
+          officialPlayer ? "order-1 shrink-0 flex-wrap border-b border-border bg-surface" : chrome ? "opacity-100" : "pointer-events-none opacity-0 -translate-y-1",
         )}
       >
         <div className="flex min-w-0 items-center gap-2">
@@ -567,11 +555,11 @@ export function Player({ playlist }: { playlist: string[] }) {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="mr-1 hidden items-center gap-1 rounded-full bg-elevated px-2 py-1 text-xs text-muted shadow-border sm:inline-flex">
+        <div className="flex max-w-full items-center gap-1 overflow-x-auto">
+          {!officialPlayer && <span className="mr-1 hidden items-center gap-1 rounded-full bg-elevated px-2 py-1 text-xs text-muted shadow-border sm:inline-flex">
             <Cpu className="size-3" />
             {hwLabel}
-          </span>
+          </span>}
           <Button
             variant="ghost"
             size="icon"
@@ -581,7 +569,7 @@ export function Player({ playlist }: { playlist: string[] }) {
             <Heart className={cn("size-4", fav && "fill-accent text-accent")} />
           </Button>
           {remote?.kind === "twitch" && <Button variant="ghost" size="sm" onClick={() => setTwitchTheater((value) => !value)}>{twitchTheater ? <Minimize className="size-4"/> : <Maximize className="size-4"/>}{twitchTheater ? "Side details" : "Theater"}</Button>}
-          <Button variant="ghost" size="sm" disabled={!vrAvailable} title={vrAvailable ? "Enter the headset theater" : "VR requires Meta Quest Browser on a secure site"} onClick={() => void enterVrTheater()}><Glasses className="size-4" /> VR theater</Button>
+          {!officialPlayer && <Button variant="ghost" size="sm" disabled={!vrAvailable} title={vrAvailable ? "Enter the headset theater" : "VR requires Meta Quest Browser on a secure site"} onClick={() => void enterVrTheater()}><Glasses className="size-4" /> VR theater</Button>}
           <Button
             variant="ghost"
             size="icon"
@@ -619,6 +607,7 @@ export function Player({ playlist }: { playlist: string[] }) {
               />
             </DropdownMenuContent>
           </DropdownMenu>
+          <PullPauseButton />
           <Button variant="ghost" size="icon" aria-label="Close" onClick={closePlayer}>
             <X className="size-5" />
           </Button>
@@ -659,13 +648,13 @@ export function Player({ playlist }: { playlist: string[] }) {
       )}
       {vrStatus && <p className="absolute z-20 right-4 bottom-4 max-w-sm rounded-md bg-surface/95 px-3 py-2 text-xs text-fg shadow-border sm:right-6">{vrStatus}</p>}
       {remote && supportsRemoteComments(remote.kind) && chrome && (
-        <div className="absolute z-20 bottom-24 left-4 right-4 max-w-xl sm:left-6">
-          <AdultComments video={video} />
+        <div className={cn(officialPlayer ? "order-3 max-h-48 shrink-0 overflow-y-auto border-t border-border bg-surface px-4" : "absolute z-20 bottom-24 left-4 right-4 max-w-xl sm:left-6")}>
+          <AdultComments key={video.id} video={video} />
         </div>
       )}
 
 
-      {!remote && (
+      {(!remote || directAdultMedia) && (
         <div
           className={cn(
             "relative z-10 mt-auto px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] transition-[opacity,transform] duration-200 ease-[var(--ease-smooth-out)] sm:px-6",
@@ -809,8 +798,8 @@ export function Player({ playlist }: { playlist: string[] }) {
           </p>
         </div>
       )}
-      {remote && (
-        <div className="relative z-10 mt-auto flex items-center justify-between gap-3 px-4 py-4 sm:px-6">
+      {remote && !directAdultMedia && (
+        <div className={cn("relative z-10 flex items-center justify-between gap-3 px-4 py-3 sm:px-6", officialPlayer ? "order-4 shrink-0 border-t border-border bg-surface" : "mt-auto")}>
           {remote.watchUrl && (
             <a
               href={remote.watchUrl}
@@ -821,14 +810,16 @@ export function Player({ playlist }: { playlist: string[] }) {
               Open on {adultRemoteLabel(remote.kind)}
             </a>
           )}
+          {officialPlayer ? <span className="text-xs text-muted">Playback and fullscreen controls are in the {adultRemoteLabel(remote.kind)} player.</span> : (
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label="Fullscreen"
+            aria-label={officialPlayer ? "Fullscreen official player" : "Fullscreen"}
             onClick={() => void toggleFs()}
           >
             {fs ? <Minimize className="size-4" /> : <Maximize className="size-4" />}
           </Button>
+          )}
         </div>
       )}
     </div>

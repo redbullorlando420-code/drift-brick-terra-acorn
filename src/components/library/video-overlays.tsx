@@ -1,0 +1,50 @@
+import { lazy, memo, Suspense, useMemo, useEffect, useRef } from "react";
+import { useLibrary, selectVisible } from "@/lib/videos/store";
+import { loadVideoPlayer, loadVideoPreview } from "./video-overlay-loader";
+import { setPullViewerOpen } from '@/lib/pull-control';
+import { lookupVideo, rememberVideo } from '@/lib/videos/video-lookup';
+import { previewCandidates } from '@/lib/videos/preview-candidates';
+import { peekYoutubeOwner } from '@/lib/remote/youtube-sources';
+import { playbackWindow } from '@/lib/videos/playback-queue';
+import type { LibraryVideo } from '@/lib/videos/types';
+const Player = lazy(async () => ({ default: (await loadVideoPlayer()).Player }));
+const PreVideo = lazy(async () => ({ default: (await loadVideoPreview()).PreVideo }));
+export const VideoOverlays = memo(function VideoOverlays() {
+  const activeId = useLibrary(s => s.activeId);
+  const previewId = useLibrary(s => s.previewId);
+  const videos = useLibrary(s => s.videos);
+  const sourceId = useLibrary(s => s.sourceId);
+  const query = useLibrary(s => s.query);
+  const hidden = useLibrary(s => s.hiddenVideos);
+  const unavailable = useLibrary(s => s.unavailable);
+  const queue = useRef<{ sourceId: string; query: string; ids: string[]; rows: LibraryVideo[] } | undefined>(undefined);
+  const playlist = useMemo(() => {
+    if (!activeId) { queue.current = undefined; return []; }
+    if (queue.current?.sourceId === sourceId && queue.current.query === query && queue.current.ids.includes(activeId)) {
+      const selected = queue.current.rows.find(row => row.id === activeId);
+      if (selected) rememberVideo(videos, selected);
+      return queue.current.ids.filter(id => id === activeId || !hidden[id] && !unavailable[id]);
+    }
+    const current = lookupVideo(videos, activeId);
+    if (!current) return [];
+    const visible = selectVisible.peek(useLibrary.getState());
+    const owner = peekYoutubeOwner(videos, current);
+    const rows = visible?.includes(current) ? playbackWindow(visible, current)
+      : owner.length ? playbackWindow(owner, current)
+      : previewCandidates(videos, current, [], 512).filter(video => video.id === current.id || video.folderId === current.folderId && !video.remote?.live);
+    const ids = rows.filter(video => video.id === current.id || !hidden[video.id] && !unavailable[video.id]).map(video => video.id);
+    // Next/Previous retain their position as playback advances; a new active
+    // title must not reshuffle the queue or reset the index to zero.
+    queue.current = { sourceId, query, ids, rows };
+    return ids;
+  }, [videos, activeId, sourceId, query, hidden, unavailable]);
+  useEffect(() => {
+    setPullViewerOpen(Boolean(activeId || previewId));
+    if (!activeId && !previewId) useLibrary.getState().releaseVideoComments();
+    return () => setPullViewerOpen(false);
+  }, [activeId, previewId]);
+  return <Suspense fallback={<div className="fixed inset-0 z-50 flex items-center justify-center bg-bg/90 text-sm text-fg" role="status">Opening video…</div>}>
+    {activeId && <Player playlist={playlist} />}
+    {previewId && <PreVideo />}
+  </Suspense>;
+});

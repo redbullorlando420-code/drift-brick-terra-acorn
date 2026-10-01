@@ -31,7 +31,7 @@ try {
         ...Array.from({ length: 180 }, (_, index) => ({ id: `yt:qa-${index}`, kind: "youtube", handle: `qa-${index}`, title: `YouTube creator ${index + 1}`, catalogCheckedAt: (index + 1) * 1000 })),
       ];
       localStorage.setItem("reelcase.follows.v1", JSON.stringify({ channels: follows, savedAt: Date.now() }));
-      const db = await new Promise((resolve, reject) => { const req = indexedDB.open("reelcase", 7); req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); });
+      const db = await new Promise((resolve, reject) => { const req = indexedDB.open("reelcase"); req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); });
       try {
         await new Promise((resolve, reject) => { const tx = db.transaction("remote-cache", "readwrite"); tx.objectStore("remote-cache").put({ folders: [], checkedAt: Date.now() }, "meta"); tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); });
         for (let offset = 0; offset < videos.length; offset += 400) {

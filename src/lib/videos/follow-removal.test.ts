@@ -45,6 +45,24 @@ test("retained cards survive remote snapshot restore after the follow disappears
   assert.equal(shouldRestoreRemoteVideo(kept[0]!, new Set(), {}, {}), true);
   assert.equal(shouldRestoreRemoteVideo(video("untouched"), new Set(), {}, {}), false);
 });
+test("channel aliases and playlist memberships survive restore without duplicate rows", () => {
+  const row = {...video("shared", "yt:old-handle"),remote:{kind:"youtube" as const,channelId:"UCexact",sourceIds:["yt:old-handle","ytpl:saved"]}};
+  assert.equal(shouldRestoreRemoteVideo(row, new Set(["yt:resolved"]), {}, {}, new Set(["UCexact"])), true);
+  assert.equal(shouldRestoreRemoteVideo(row, new Set(["ytpl:saved"]), {}, {}), true);
+  assert.equal(shouldRestoreRemoteVideo(row, new Set(["yt:unrelated"]), {}, {}, new Set(["UCother"])), false);
+});
+test("unfollowing one source retains a shared video under its remaining membership", () => {
+  const row = {...video("shared"),remote:{kind:"youtube" as const,sourceIds:["yt:one","ytpl:remaining"]}};
+  const state = {follows:[...follows,{id:"ytpl:remaining",kind:"youtube" as const,handle:"playlist",title:"Playlist"}],videos:[row],favorites:{},likes:{},history:[],progress:{},resumeProgress:{}};
+  const plan = planFollowRemoval(state,["yt:one"]);
+  const kept = retainVideosAfterUnfollow(state.videos,plan);
+  assert.equal(plan.removedRows,0);
+  assert.equal(kept[0]!.id,"shared");
+  assert.equal(kept[0]!.folderId,"ytpl:remaining");
+  assert.deepEqual(kept[0]!.remote!.sourceIds,["ytpl:remaining"]);
+  const lastPlan = planFollowRemoval({...state,follows:state.follows.filter(follow => follow.id !== "yt:one"),videos:kept},["ytpl:remaining"]);
+  assert.deepEqual(retainVideosAfterUnfollow(kept,lastPlan),[]);
+});
 
 test("legacy rating and note keys still protect older saved cards", () => {
   const values = new Map([["reelcase.rating.rated-legacy", "5"], ["reelcase.note.noted-legacy", "A note"]]);

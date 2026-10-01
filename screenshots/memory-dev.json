@@ -1,5 +1,36 @@
 {
-  "ok": false,
   "url": "http://127.0.0.1:8080/",
-  "error": "page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:8080/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:8080/\", waiting until \"domcontentloaded\"\u001b[22m\n"
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Realhub",
+      "hasCanvas": false,
+      "bodyTextLen": 2461,
+      "bodyTextHash": "21cf3bc5cdb7b156884c70eef52bc33d9710fdeec487ee376ed29a8a66d5d002",
+      "bodyTextPrefix": "Realhub Vault · networks · live Home 0 Movies Anime Topics YouTu",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\memory-dev.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Realhub",
+      "hasCanvas": false,
+      "bodyTextLen": 2139,
+      "bodyTextHash": "6dfc5f94684aac5cb3f18c9434218ee9e55b07020cc73cc98dbf3c47502f6c1d",
+      "bodyTextPrefix": "Home 0 indexed Date added YOUR DAILY DETOUR Something worth find",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\memory-dev-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\memory-dev.json"
 }

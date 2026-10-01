@@ -7,6 +7,7 @@ import { ADULT_SOURCE_FILTERS, adultProviderKind, adultProviderKinds, countAdult
 import { isAdultInterestTag, isAdultMetaTag, rankAdultMetaTags, rankAdultTags, type AdultRankContext } from "./adult-rank";
 import { adultTaxonomyLabel, adultTaxonomyTags, isAdultGenreTag } from "./adult-taxonomy";
 import { ADULT_PULL_PROVIDERS, adultRemoteLabel, type AdultPullProvider } from "./adult-sites";
+import { adultConnectionTags, adultMediaIdentity } from "./adult-stat-signals";
 
 type Coverage = { ready: number; missing: number; share: number };
 
@@ -146,29 +147,22 @@ function redgifsSlug(raw: string): string | undefined {
     ?? raw.match(/https?:\/\/(?:i|media)\.redgifs\.com\/([a-z0-9_-]+)(?:[._-]|$)/i)?.[1];
 }
 
-function canonicalMediaLink(raw: string): string | undefined {
-  const redgifs = redgifsSlug(raw);
-  if (redgifs) return `redgifs:${redgifs.toLowerCase()}`;
-  try {
-    const url = new URL(raw);
-    const host = url.hostname.replace(/^www\./, "").toLowerCase();
-    const path = url.pathname.replace(/\/+$/, "").toLowerCase();
-    const hash = url.hash && url.hash !== "#" ? url.hash.toLowerCase() : "";
-    if (host && path && path !== "/") return `url:${host}${path}${hash}`;
-    return host && hash ? `url:${host}${hash}` : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
 function duplicateSignalsFor(video: LibraryVideo): Array<{ signal: DuplicateSignal; key: string }> {
   const rows: Array<{ signal: DuplicateSignal; key: string }> = [];
   const kind = adultProviderKind(video);
   const id = video.remote?.videoId?.trim();
   if (kind && id) rows.push({ signal: "provider-id", key: `provider:${kind}:${id.toLowerCase()}` });
-  for (const url of [video.remote?.embedUrl, video.remote?.watchUrl, video.src, video.poster, video.remote?.previewUrl].filter(isHttpUrl)) {
-    const key = canonicalMediaLink(url);
-    if (key) rows.push({ signal: "media-link", key });
+  if (!video.remote?.live && kind !== "chaturbate" && kind !== "myfreecams") {
+    for (const url of [video.remote?.embedUrl, video.remote?.watchUrl, video.src].filter(isHttpUrl)) {
+      const key = adultMediaIdentity(url);
+      if (key) rows.push({ signal: "media-link", key });
+    }
+    // The RedGIFs poster slug is a provider-issued identity; generic posters
+    // are presentation assets and are never duplicate evidence.
+    for (const url of [video.poster, video.remote?.previewUrl].filter(isHttpUrl)) {
+      const slug = redgifsSlug(url);
+      if (slug) rows.push({ signal: "media-link", key: `redgifs:${slug.toLowerCase()}` });
+    }
   }
   const seen = new Set<string>();
   return rows.filter((row) => {
@@ -339,7 +333,7 @@ export function buildAdultStatsSnapshot(
     usefulTagAssignments += interests.length;
     for (const tag of itemTags) if (isAdultStatsNoiseTag(tag)) noisyTagAssignments += 1;
 
-    const useful = interests.slice(0, 8).sort();
+    const useful = adultConnectionTags(itemTags, Boolean(video.remote?.live || kind === "chaturbate" || kind === "myfreecams"));
     for (const tag of useful) interestCounts.set(tag, (interestCounts.get(tag) ?? 0) + 1);
     for (let left = 0; left < useful.length; left += 1) for (let right = left + 1; right < useful.length; right += 1) {
       const key = `${useful[left]}\u0000${useful[right]}`;

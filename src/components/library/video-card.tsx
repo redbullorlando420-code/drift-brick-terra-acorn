@@ -1,4 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { warmVideoPreview } from "./video-overlay-loader";
+import { allowCardArtwork } from "@/lib/session-activity";
+import { useSessionPhase } from "@/lib/use-session-phase";
 import { Download, Eye, EyeOff, Flame, Heart, ImageOff, LoaderCircle, Play, Tag, ThumbsUp, RefreshCw, Star, Users } from "lucide-react";
 import { cn, formatAgo, formatBytes, formatTime } from "@/lib/utils";
 import type { LibraryVideo } from "@/lib/videos/types";
@@ -22,7 +25,6 @@ import { acquireImageSlot } from "@/lib/videos/image-load-budget";
 const publishedDateFormat = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" });
 
 const THUMB_LOAD_TIMEOUT_MS = 4500;
-const RAIL_WARM_INDEX = 8;
 
 type Variant = "grid" | "list" | "rail" | "poster";
 const EMPTY_TAGS: string[] = [];
@@ -111,6 +113,9 @@ export const VideoCard = memo(function VideoCard({
   const [thumbIndex, setThumbIndex] = useState(0);
   const [artVisible, setArtVisible] = useState(false);
   const [artPriority, setArtPriority] = useState<"high" | "low">("low");
+  const sessionPhase = useSessionPhase();
+  const overlayOpen = useLibrary(s => Boolean(s.previewId || s.activeId));
+  const artAwake = allowCardArtwork(sessionPhase, artVisible, artPriority === "high");
   const [artAllowed, setArtAllowed] = useState(false);
   const [paintedSrc, setPaintedSrc] = useState<string | undefined>();
   const [candidateReady, setCandidateReady] = useState(false);
@@ -155,7 +160,7 @@ export const VideoCard = memo(function VideoCard({
   })();
   const thumbsExhausted = thumbCandidates.length === 0 || resolvedThumbIndex >= thumbCandidates.length;
   const activeThumb = thumbsExhausted ? undefined : thumbCandidates[resolvedThumbIndex];
-  const showPreview = Boolean(hovered && preview && preview !== activeThumb && resolvedThumbIndex === 0 && !isAdultThumbBlacklisted(preview));
+  const showPreview = Boolean(sessionPhase === "active" && hovered && preview && preview !== activeThumb && resolvedThumbIndex === 0 && !isAdultThumbBlacklisted(preview));
   const advanceThumb = () => {
     setCandidateReady(false);
     setThumbIndex((index) => {
@@ -182,7 +187,7 @@ export const VideoCard = memo(function VideoCard({
         // Leaving the viewport cancels speculative retries via the slot effect.
         if (visible && !video.remote) request(video);
       },
-      { rootMargin: "160px" },
+      { rootMargin: "320px" },
     );
     const visibleObserver = new IntersectionObserver((entries) => {
       setArtPriority(entries.some((entry) => entry.isIntersecting) ? "high" : "low");
@@ -193,15 +198,19 @@ export const VideoCard = memo(function VideoCard({
   }, [request, video]);
 
   useEffect(() => {
-    if (!artVisible || !video.remote) return;
+    if (!artAwake || overlayOpen || !video.remote) return;
     void recallCompanion(video.id);
-  }, [artVisible, recallCompanion, video.id, video.remote]);
+  }, [artAwake, overlayOpen, recallCompanion, video.id, video.remote]);
+
+  useEffect(() => {
+    if (!overlayOpen && sessionPhase === "active" && artVisible && !video.remote && !thumb) request(video);
+  }, [artVisible, overlayOpen, request, sessionPhase, thumb, video]);
 
   // On-screen cards use the high lane; near-view cards use a cancellable low
   // lane. A slot lasts only while the current candidate loads, and the last
   // successful image stays mounted underneath every fallback.
   useEffect(() => {
-    if (!artVisible || thumbsExhausted || candidateReady || paintedSrc === activeThumb) {
+    if (!artAwake || overlayOpen || thumbsExhausted || candidateReady || paintedSrc === activeThumb) {
       setArtAllowed(false);
       return;
     }
@@ -225,15 +234,21 @@ export const VideoCard = memo(function VideoCard({
       release?.();
       setArtAllowed(false);
     };
-  }, [activeThumb, artPriority, artVisible, candidateReady, paintedSrc, thumbsExhausted, video.id]);
+  }, [activeThumb, artPriority, artAwake, overlayOpen, candidateReady, paintedSrc, thumbsExhausted, video.id]);
 
   useEffect(() => {
     setCandidateReady(false);
   }, [activeThumb]);
 
+  useEffect(() => {
+    if (artAwake) return;
+    setPaintedSrc(undefined);
+    setCandidateReady(false);
+  }, [artAwake]);
+
   // Stuck CDN loads: advance fallback instead of sitting on a blank forever.
   useEffect(() => {
-    if (!artVisible || !artAllowed || !activeThumb || showPreview || candidateReady) return;
+    if (!artAwake || !artAllowed || !activeThumb || showPreview || candidateReady) return;
     if (paintedSrc === activeThumb) return;
     const timer = window.setTimeout(() => {
       markAdultThumbFailed(activeThumb, adult ? video.id : undefined);
@@ -243,7 +258,7 @@ export const VideoCard = memo(function VideoCard({
     return () => window.clearTimeout(timer);
     // advanceThumb closes over thumbCandidates; thumbIndex drives activeThumb.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeThumb, artAllowed, artVisible, candidateReady, paintedSrc, showPreview, thumbIndex]);
+  }, [activeThumb, artAllowed, artAwake, candidateReady, paintedSrc, showPreview, thumbIndex]);
 
   useEffect(() => { setRating(getRating(video.id)); }, [video.id]);
   useEffect(() => { setTextFirst(document.documentElement.dataset.artworkMode === "text"); }, []);
@@ -289,7 +304,7 @@ export const VideoCard = memo(function VideoCard({
         <span className="text-xs">{failed || thumbsExhausted ? "Artwork unavailable" : "Loading preview"}</span>
       </div>
       {/* Hold last good paint under the candidate so fallbacks never flash blank. */}
-      {paintedSrc && !textFirst && (
+      {paintedSrc && artAwake && !textFirst && (paintedSrc !== activeThumb || showPreview) && (
         <img
           src={paintedSrc}
           alt=""
@@ -302,10 +317,12 @@ export const VideoCard = memo(function VideoCard({
       {/* Once decoded, keep the active image mounted after its scheduling slot
           is released. Unmounting it immediately forced a second decode of the
           same CDN asset and caused the visible Adult-card flash. */}
-      {!textFirst && artVisible && (artAllowed || candidateReady || paintedSrc === activeThumb) && !thumbsExhausted && (showPreview ? preview : activeThumb) ? (
+      {!textFirst && artAwake && (artAllowed || candidateReady || paintedSrc === activeThumb) && !thumbsExhausted && (showPreview ? preview : activeThumb) ? (
         <img
           key={`${video.id}:${resolvedThumbIndex}:${showPreview ? "p" : "a"}`}
-          loading={artPriority === "high" && index <= RAIL_WARM_INDEX ? "eager" : "lazy"}
+          // Intersection + slot admission already provide lazy loading. Native
+          // lazy loading could hold a slot for an image it had not requested.
+          loading="eager"
           decoding="async"
           fetchPriority={index <= 3 && artPriority === "high" ? "high" : "auto"}
           referrerPolicy={imageReferrerPolicy}
@@ -404,9 +421,11 @@ export const VideoCard = memo(function VideoCard({
         ref={ref}
         data-video-card-open
         type="button"
-        onMouseEnter={() => setHovered(true)}
+        onMouseEnter={() => { setHovered(true); warmVideoPreview(); }}
+        onFocus={warmVideoPreview}
+        onPointerDown={warmVideoPreview}
         onMouseLeave={() => setHovered(false)}
-        onClick={() => openPreview(video.id)}
+        onClick={() => openPreview(video.id, video)}
         className={cn(
           "w-full text-left outline-none",
           variant === "list" && "flex items-center gap-3 rounded-lg p-2 hover:bg-elevated",

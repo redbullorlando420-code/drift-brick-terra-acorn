@@ -1,4 +1,4 @@
-import type { LibraryVideo } from './types';
+import type { LibraryVideo, VideoMetadataProvenance } from './types';
 
 export const TOPICS = new Set(['gaming', 'technology', 'news-commentary', 'music', 'film', 'anime', 'food', 'travel', 'fitness', 'learning', 'comedy', 'relaxing', 'talk', 'commentary', 'creative', 'nature', 'business', 'style', 'motors', 'horror', 'maker', 'sports', 'science', 'relationships', 'wellbeing', 'skills', 'hardware', 'legal', 'animation', 'documentary', 'history', 'true-crime', 'photography', 'art', 'design', 'family', 'animals', 'lifestyle', 'beauty', 'fashion', 'home', 'outdoors', 'space', 'environment', 'politics', 'finance']);
 const aliases: Record<string, string> = { tech: 'technology', coding: 'technology', programming: 'technology', cooking: 'food', recipes: 'food', automotive: 'motors', cars: 'motors', diy: 'maker', education: 'learning', meditation: 'wellbeing', football: 'sports', podcast: 'talk', photos: 'photography', photo: 'photography', artworks: 'art', documentaries: 'documentary', truecrime: 'true-crime', pets: 'animals', makeup: 'beauty', skincare: 'beauty', investing: 'finance', money: 'finance', hiking: 'outdoors' };
@@ -11,13 +11,13 @@ export const isTopicTag = (tag: string) => Boolean(canonicalTopic(tag));
 // Only specific title/category evidence. Descriptions, paths, creator names and
 // generic genres must not turn promotional boilerplate into viewer interests.
 const rules: Array<[string, RegExp]> = [
-  ['gaming', /\b(gaming|gameplay|playthrough|speedrun|walkthrough|minecraft|fortnite|valorant|counter.strike|grand theft auto|gta [v56]|call of duty|cod zombies|zombies|elden ring|roblox|league of legends|streamer games|nba 2k\d*|cozy games|\barc\b)\b/i],
+  ['gaming', /\b(gaming|gameplay|playthrough|speedrun|walkthrough|minecraft|fortnite|valorant|counter.strike|grand theft auto|gta [v56]|call of duty|cod zombies|elden ring|roblox|league of legends|world of warcraft|warcraft iii|dota|overwatch|apex legends|baldur.s gate|resident evil|silent hill|dark souls|rust|runescape|stardew valley|pokemon|pokémon|rainbow six|rocket league|marvel rivals|deadlock|mario kart|super smash bros|street fighter|mortal kombat|dark and darker|path of exile|pubg|streamer games|nba 2k\d*|cozy games|arc raiders)\b/i],
   ['technology', /\b(software|programming|coding|artificial intelligence|machine learning|linux|javascript)\b/i],
   ['hardware', /\b(pc build|graphics card|gpu|cpu|keyboard|smartphone|iphone|computer hardware)\b/i],
   ['motors', /\b(dash.?cam|tesla.?cam|car repair|motorcycle|automotive|formula (one|1)|nascar|simucube|racing rig)\b/i],
   ['legal', /\b(police chase|body.?cam|courtroom|lawsuit|trial verdict)\b/i],
   ['food', /\b(cooking|recipe|baking|restaurant|street food|chef|cake|cake decorating)\b/i],
-  ['travel', /\b(travel|vacation|bali|backpacking|road trip|walking tour|pool party)\b/i],
+  ['travel', /\b(travel|vacation|backpacking|road trip|walking tour|city tour|japan trip|china trip|travel vlog|visiting|sightseeing|airport lounge)\b/i],
   ['music', /\b(music|concert|song|album|guitar|piano|dj set|karaoke)\b/i],
   ['film', /\b(movie|cinema|film review|movie trailer)\b/i],
   ['anime', /\b(anime|manga)\b/i],
@@ -49,6 +49,8 @@ const rules: Array<[string, RegExp]> = [
   ['comedy', /\b(comedy|stand.up|sketch comedy)\b/i],
   ['nature', /\b(wildlife|birdwatching|rainforest|coral reef)\b/i],
   ['wellbeing', /\b(meditation|mental health|mindfulness|acupuncture)\b/i],
+  ['relaxing', /\b(asmr|massage|relaxation|relaxing|sleep sounds|ambient sounds|white noise|meditation)\b/i],
+  ['skills', /\b(language lesson|learn japanese|learn spanish|public speaking|study tips|skill tutorial)\b/i],
   ['business', /\b(entrepreneur|small business|startup funding|investing)\b/i],
   ['news-commentary', /\b(election|political|breaking news)\b/i],
 ];
@@ -74,3 +76,16 @@ function resolve(video: LibraryVideo, tags: readonly string[] = EMPTY) {
 }
 export const topicEvidence = (video: LibraryVideo, tags?: readonly string[]) => resolve(video, tags).links;
 export const topicsForVideo = (video: LibraryVideo, tags?: readonly string[]) => resolve(video, tags).topics;
+
+/** Refresh only explicitly provider-authored interests. Unknown legacy tags,
+ * manual choices, and locked fields remain the owner's saved decisions. */
+export function reconcileProviderTopicTags(video: LibraryVideo, tags: string[], provenance?: VideoMetadataProvenance): string[] {
+  const kind = video.remote?.kind;
+  if ((kind !== 'youtube' && kind !== 'twitch') || provenance?.lockedFields?.includes('tags')) return tags;
+  const evidence = new Set(topicsForVideo(video));
+  const unsupported = (tag: string) => {
+    const topic = canonicalTopic(tag);
+    return Boolean(topic && provenance?.tags[tag] === `provider:${kind}` && !evidence.has(topic));
+  };
+  return tags.some(unsupported) ? tags.filter(tag => !unsupported(tag)) : tags;
+}

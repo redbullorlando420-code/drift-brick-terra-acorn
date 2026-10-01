@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { LIBRARY_LIMITS } from "../library-limits.ts";
-import { selectYoutubeLiveChannels, selectYoutubeSweepChannels, youtubeSweepDue } from "./youtube-sweep.ts";
+import { selectYoutubeCoverageRecovery, selectYoutubeLiveChannels, selectYoutubeSweepChannels, youtubeSweepDue } from "./youtube-sweep.ts";
 
 test("automatic YouTube history stays bounded while manual pulls retain depth", () => {
   assert.equal(LIBRARY_LIMITS.youtubeCatalogSweepIntervalMs, 60 * 60_000);
@@ -10,8 +10,8 @@ test("automatic YouTube history stays bounded while manual pulls retain depth", 
   assert.equal(LIBRARY_LIMITS.youtubeRecentRefreshChannels, 4);
   assert.equal(LIBRARY_LIMITS.youtubeLiveRefreshIntervalMs, 60_000);
   assert.equal(LIBRARY_LIMITS.youtubeLiveRefreshChannels, 12);
-  assert.equal(LIBRARY_LIMITS.youtubeManualRefreshVideosPerChannel, 5_000);
-  assert.equal(LIBRARY_LIMITS.youtubeBulkImportVideosPerChannel, 5_000);
+  assert.equal(LIBRARY_LIMITS.youtubeManualRefreshVideosPerChannel, 100);
+  assert.equal(LIBRARY_LIMITS.youtubeBulkImportVideosPerChannel, 100);
   assert.equal(LIBRARY_LIMITS.youtubeCatalogSourcesPerRequest, 1);
 });
 
@@ -73,4 +73,46 @@ test("YouTube live checks rotate independently of archive cursors", () => {
     { id: "tw:channel", kind: "twitch" },
   ];
   assert.deepEqual(selectYoutubeLiveChannels(channels, 2).map((channel) => channel.id), ["yt:second", "yt:first"]);
+});
+
+test("YouTube live checks keep confirmed live creators fresh while discovering others", () => {
+  const channels = [
+    { id: "yt:active-old", kind: "youtube", live: true, liveCheckedAt: 100 },
+    { id: "yt:active-new", kind: "youtube", live: true, liveCheckedAt: 900 },
+    ...Array.from({ length: 12 }, (_, index) => ({ id: `yt:discover-${index}`, kind: "youtube", liveCheckedAt: index + 1 })),
+    { id: "ytpl:list", kind: "youtube", live: true },
+  ];
+  assert.deepEqual(selectYoutubeLiveChannels(channels, 4).map(channel => channel.id), [
+    "yt:active-old", "yt:active-new", "yt:discover-0", "yt:discover-1",
+  ]);
+  const allActive = channels.filter(channel => channel.id.startsWith("yt:active"));
+  assert.deepEqual(selectYoutubeLiveChannels(allActive, 4).map(channel => channel.id), ["yt:active-old", "yt:active-new"]);
+});
+
+test("empty creators precede deep archives", () => {
+ const channels = [{id:"deep",kind:"youtube"},{id:"empty",kind:"youtube",catalogCheckedAt:900}];
+ assert.deepEqual(selectYoutubeSweepChannels(channels,1000,2,2000,{videoCounts:new Map([["deep",10000]])}).map(c=>c.id),["empty","deep"]);
+});
+
+test("a recently failed empty creator cannot monopolize scheduled pulls", () => {
+ const channels = [{id:"empty",kind:"youtube",lastProviderFailure:{at:999}},{id:"thin",kind:"youtube",catalogCheckedAt:100}];
+ assert.deepEqual(selectYoutubeSweepChannels(channels,1000,1,2000,{videoCounts:new Map([["thin",12]])}).map(c=>c.id),["thin"]);
+ assert.equal(selectYoutubeSweepChannels(channels,1000,2,2000,{includeExhausted:true}).length,2);
+});
+test("thin creators rotate by last attempt rather than exact volume", () => {
+ const channels = [{id:"empty",kind:"youtube",catalogCheckedAt:900},{id:"thin",kind:"youtube",catalogCheckedAt:100}];
+ assert.deepEqual(selectYoutubeSweepChannels(channels,1000,1,2000,{videoCounts:new Map([["thin",12]])}).map(c=>c.id),["thin"]);
+});
+
+test("empty retries cannot starve archives older than the coverage head start", () => {
+ const day = 24 * 60 * 60_000;
+ const channels = [{id:"empty",kind:"youtube",catalogCheckedAt:day * 3},{id:"deep",kind:"youtube",catalogCheckedAt:day}];
+ assert.equal(selectYoutubeSweepChannels(channels,day * 3,1,day * 7,{videoCounts:new Map([["deep",10000]])})[0].id,"deep");
+});
+
+test("recent checks reserve bounded slots for empty creators and rotate failures out", () => {
+  const now = 2 * 60 * 60_000;
+  const channels = [{id:"a",kind:"youtube",lastCheckedAt:100}, {id:"b",kind:"youtube",lastCheckedAt:50}, {id:"c",kind:"youtube",lastCheckedAt:1,lastProviderFailure:{at:now-100}}, {id:"full",kind:"youtube"}];
+  assert.deepEqual(selectYoutubeCoverageRecovery(channels, new Map([["full",100]]), now, 2).map(row=>row.id), ["b","a"]);
+  assert.equal(selectYoutubeCoverageRecovery(channels, new Map([["full",100]]), now, 1).length, 1);
 });

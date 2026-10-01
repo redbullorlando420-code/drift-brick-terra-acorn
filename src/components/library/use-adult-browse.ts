@@ -29,7 +29,7 @@ function rankingVideo(video: LibraryVideo): LibraryVideo {
   };
 }
 
-export function useAdultBrowse(enabled: boolean, inputs: AdultBrowseInputs, params: AdultBrowseParams) {
+export function useAdultBrowse(enabled: boolean, inputs: AdultBrowseInputs, params: AdultBrowseParams, paused = false) {
   const [packet, setPacket] = useState<Packet>();
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -42,7 +42,7 @@ export function useAdultBrowse(enabled: boolean, inputs: AdultBrowseInputs, para
   }, [enabled]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || paused) return;
     let worker: Worker;
     let active = true;
     let busy: Job | undefined;
@@ -94,11 +94,11 @@ export function useAdultBrowse(enabled: boolean, inputs: AdultBrowseInputs, para
     worker.onerror = event => { event.preventDefault(); fail(); };
     worker.onmessageerror = fail;
     return () => { active = false; clearTimeout(timeout); enqueue.current = undefined; worker.terminate(); };
-  }, [enabled, attempt]);
+  }, [enabled, paused, attempt]);
 
   useEffect(() => {
     const id = ++sequence.current;
-    if (!enabled) return;
+    if (!enabled || paused) return;
     let cancelled = false;
     // Packing a large catalog for structured clone is intentionally deferred
     // until the Adult controls have painted. This keeps filter taps and the
@@ -111,11 +111,11 @@ export function useAdultBrowse(enabled: boolean, inputs: AdultBrowseInputs, para
     };
     const cancelSchedule = scheduleBackgroundWork(start, { timeoutMs: 500, fallbackDelayMs: 80 });
     return () => { cancelled = true; cancelSchedule(); };
-  }, [enabled, inputs, params, attempt]);
+  }, [enabled, paused, inputs, params, attempt]);
 
   // Never flash results from the previously selected source/type/tag. Ratings
   // may keep the last completed mix visible while its new order is calculated.
-  const result = enabled && packet?.params === params && packet.inputs.videos === inputs.videos && packet.inputs.tags === inputs.tags ? packet.result : undefined;
-  const facets = enabled && packet?.params.source === params.source && packet.inputs.videos === inputs.videos && packet.inputs.tags === inputs.tags ? packet.result : undefined;
+  const result = enabled && packet?.params.source === params.source && packet.params.tag === params.tag && packet.params.view === params.view ? packet.result : undefined;
+  const facets = enabled && packet?.params.source === params.source ? packet.result : undefined;
   return { result, facets, failed, pending: enabled && (!result || packet?.inputs !== inputs), retry: () => setAttempt(value => value + 1) };
 }

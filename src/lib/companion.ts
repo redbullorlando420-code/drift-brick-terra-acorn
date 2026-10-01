@@ -1,4 +1,6 @@
 /** Thin client for the optional loopback Realhub Companion (127.0.0.1 only). */
+import { CoalescedWriter } from "./coalesced-writer.ts";
+import { allowAutomaticRefresh } from "./session-activity.ts";
 
 export const COMPANION_ORIGIN = "http://127.0.0.1:43123";
 
@@ -20,6 +22,7 @@ export type CompanionHealth = {
 async function companionFetch(path: string, init?: RequestInit): Promise<Response> {
   return fetch(`${COMPANION_ORIGIN}${path}`, {
     ...init,
+    signal: init?.signal ?? AbortSignal.timeout(10_000),
     headers: {
       ...(init?.body ? { "content-type": "application/json" } : {}),
       ...(init?.headers ?? {}),
@@ -198,15 +201,28 @@ export async function companionAckJobs(): Promise<void> {
   }
 }
 
-export async function companionCacheThumbUrl(id: string, url: string): Promise<boolean> {
-  try {
-    const response = await companionFetch("/thumbs/cache-url", {
-      method: "POST",
-      body: JSON.stringify({ id, url }),
-    });
-    const data = await response.json() as { ok?: boolean };
-    return Boolean(data.ok);
-  } catch {
-    return false;
+const mirroredPosters = new Map<string, string>();
+let posterRetryAt = 0;
+const posterMirror = new CoalescedWriter<string, string>(async rows => {
+  for (const [id, url] of rows) {
+    if (!allowAutomaticRefresh() || Date.now() < posterRetryAt || mirroredPosters.get(id) === url) continue;
+    try {
+      const response = await companionFetch("/thumbs/cache-url", { method: "POST", body: JSON.stringify({ id, url }) });
+      const data = await response.json() as { ok?: boolean };
+      if (response.ok && data.ok) {
+        mirroredPosters.delete(id);
+        mirroredPosters.set(id, url);
+        if (mirroredPosters.size > 256) mirroredPosters.delete(mirroredPosters.keys().next().value!);
+      } else posterRetryAt = Date.now() + 60_000;
+    } catch { posterRetryAt = Date.now() + 60_000; }
   }
+}, { batchSize: 2, maxPending: 96, maxWeight: 256 * 1024, weight: url => url.length * 2 });
+
+export async function companionCacheThumbUrl(id: string, url: string): Promise<boolean> {
+  if (!id || !url || !allowAutomaticRefresh() || Date.now() < posterRetryAt) return false;
+  if (mirroredPosters.get(id) === url) return true;
+  await posterMirror.write(id, url);
+  return mirroredPosters.get(id) === url;
 }
+
+export function getCompanionMemorySnapshot() { return { posters: posterMirror.snapshot(), rememberedPosters: mirroredPosters.size }; }

@@ -3,7 +3,8 @@ import test from "node:test";
 import { nextLikelyHub, shouldWarmHubRoute } from "./warm-route-cache.ts";
 
 test("warm route cache selects only the next adjacent Hub destination", () => {
-  assert.equal(nextLikelyHub("home"), "anime");
+  assert.equal(nextLikelyHub("home"), null);
+  assert.equal(nextLikelyHub("landing"), "anime");
   assert.equal(nextLikelyHub("photos"), "spotify");
   assert.equal(nextLikelyHub("settings"), "stats");
   assert.equal(nextLikelyHub("unmanaged-folder"), null);

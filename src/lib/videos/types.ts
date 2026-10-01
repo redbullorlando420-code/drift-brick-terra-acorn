@@ -103,6 +103,8 @@ export type LibraryVideo = {
   isSample?: boolean;
   /** A locally saved/watched provider card retained after its channel was unfollowed. */
   retainedAfterUnfollow?: boolean;
+  /** Lightweight browse record; the full description/comments remain on disk. */
+  detailsOnDisk?: boolean;
   src?: string;
   year?: number;
   genre?: string;
@@ -145,6 +147,8 @@ export type RemoteRef = {
   kind: RemoteKind;
   /** A post can be discovered on one provider while its media is hosted by another. */
   sourceKinds?: RemoteKind[];
+  /** Saved creator/playlist memberships for one deduplicated YouTube card. */
+  sourceIds?: string[];
   videoId?: string;
   channelId?: string;
   channelName?: string;
@@ -232,6 +236,7 @@ export type GroupBy = "none" | "folder" | "letter" | "type";
 
 export type SourceId =
   | "home"
+  | "landing"
   | "movies"
   | "anime"
   | "favorites"
@@ -378,6 +383,7 @@ export function letterOf(video: LibraryVideo): string {
 
 export const SYSTEM_SOURCES = new Set([
   "home",
+  "landing",
   "all",
   "movies",
   "favorites",

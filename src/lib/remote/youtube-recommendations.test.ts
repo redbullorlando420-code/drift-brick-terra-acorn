@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { LibraryVideo } from "@/lib/videos/types";
-import { rankYoutubeRecommendations } from "./youtube-recommendations.ts";
+import { createYoutubeRecommendationRanker, rankYoutubeRecommendations } from "./youtube-recommendations.ts";
 
 function video(id: string, creator: string, tag: string, published: number): LibraryVideo {
   return { id, folderId: `yt:${creator}`, name: id, path: id, extension: "mp4", mime: "video/mp4", size: 0, addedAt: published, remote: { kind: "youtube", channelName: creator } };
@@ -48,4 +48,40 @@ test("a single prolific archive can still fill the requested shelf with its best
   const ranked = rankYoutubeRecommendations(archive, { ...base, limit: 12 });
   assert.equal(ranked.length, 12);
   assert.deepEqual(ranked.map((item) => item.id), archive.slice(0, 12).map((item) => item.id));
+});
+
+test("feedback lookups scale with unique creators and tags, and exclude other providers", () => {
+ const archive = Array.from({length:1000},(_,i)=>video(`item-${i}`,"maker","science",base.now-i));
+ const other = {...video("other","other","science",base.now),remote:{kind:"twitch" as const,channelName:"other"}};
+ let ratings=0, creators=0, tags=0;
+ const ranked=rankYoutubeRecommendations([...archive,other],{...base,limit:12,
+   tags:Object.fromEntries(archive.map(v=>[v.id,["science"," SCIENCE "]])),
+   ratingOf:()=>{ratings++;return 0;},creatorRating:()=>{creators++;return 0;},tagIsLiked:()=>{tags++;return true;}});
+ assert.equal(ratings,1000);assert.equal(creators,1);assert.equal(tags,1);assert.equal(ranked.length,12);
+});
+
+test("cached catalog follows immutable replacements and rejects invalid limits", () => {
+ const first=[video("first","maker","",1)];
+ assert.equal(rankYoutubeRecommendations(first,{...base,limit:1})[0].id,"first");
+ assert.equal(rankYoutubeRecommendations([video("replacement","maker","",2)],{...base,limit:1})[0].id,"replacement");
+ assert.deepEqual(rankYoutubeRecommendations(first,{...base,limit:NaN}),[]);
+});
+
+test("filtered recommendations still learn from watched videos outside the filter", () => {
+ const watched=video("watched","maker","",1);
+ const older=video("older","maker","",0);
+ const other=video("other","other","",2);
+ const ranked=rankYoutubeRecommendations([other,older,watched],{...base,history:[{id:"watched",at:base.now-1000}],limit:2},[other,older]);
+ assert.deepEqual(ranked.map(row=>row.id),["older","other"]);
+});
+
+test("reshuffling reuses scored evidence instead of reading feedback again", () => {
+ const rows=Array.from({length:1000},(_,i)=>video(`v-${i}`,`maker-${i%20}`,"",1));
+ let reads=0;
+ const ranker=createYoutubeRecommendationRanker(rows,{...base,limit:12,ratingOf:()=>{reads++;return 0;}});
+ const first=ranker(id=>Number(id.slice(2)));
+ const second=ranker(id=>1000-Number(id.slice(2)));
+ assert.equal(reads,1000);
+ assert.notDeepEqual(first,second);
+ assert.equal(new Set(second.map(row=>row.remote?.channelName)).size,12);
 });

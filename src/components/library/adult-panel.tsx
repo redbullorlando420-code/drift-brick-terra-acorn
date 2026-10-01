@@ -1,4 +1,6 @@
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { DEFAULT_PULL_SETTINGS, getPullSettings, subscribePullSettings } from '@/lib/pull-settings';
+import { getPullCancellationRevision } from '@/lib/pull-control';
+import { useDeferredValue, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { ChevronDown, ChevronRight, ExternalLink, Flag, LoaderCircle, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
@@ -153,19 +155,11 @@ export function AdultFetishExplorer({
   const [order, setOrder] = useState("top-weekly");
   const [query, setQuery] = useState("");
   const [showAll, setShowAll] = useState(false);
-  const [pullLimit, setPullLimit] = useState<number>(LIBRARY_LIMITS.adultInteractiveVideosPerPull);
+  const pullSettings = useSyncExternalStore(subscribePullSettings, getPullSettings, () => DEFAULT_PULL_SETTINGS);
+  const pullLimit = pullSettings.adultBatchVideos;
   const [activeTab, setActiveTab] = useState<FetishExplorerTab>("topics");
   const [redditSourceRevision, setRedditSourceRevision] = useState(0);
   const [feedbackRevision, setFeedbackRevision] = useState(0);
-
-  useEffect(() => {
-    try {
-      const saved = Number(localStorage.getItem("reelcase.adult-pull-limit") ?? LIBRARY_LIMITS.adultInteractiveVideosPerPull);
-      setPullLimit([240, 480, 800].includes(saved) ? saved : LIBRARY_LIMITS.adultInteractiveVideosPerPull);
-    } catch {
-      // The default remains suitable for this visit when preferences are unavailable.
-    }
-  }, []);
 
   useEffect(() => {
     const refresh = () => setFeedbackRevision((revision) => revision + 1);
@@ -461,8 +455,8 @@ export function AdultPanel({
   const [stars, setStars] = useState<Array<{ name: string; thumb?: string; url?: string }>>([]);
   const [starNote, setStarNote] = useState("");
   const [archiveLabel, setArchiveLabel] = useState("No saved archive depth yet — Pull catalog starts at page 1.");
-  const [autoArchiveRounds, setAutoArchiveRounds] = useState(0);
-  const [adultMaxVideos, setAdultMaxVideos] = useState<number>(LIBRARY_LIMITS.adultInteractiveVideosPerPull);
+  const pullSettings = useSyncExternalStore(subscribePullSettings, getPullSettings, () => DEFAULT_PULL_SETTINGS);
+  const adultMaxVideos = pullSettings.adultBatchVideos;
   const [useCustomRedditSources, setUseCustomRedditSources] = useState(false);
   const [redditSources, setRedditSources] = useState<RedditSourceSetting[]>([]);
   const [redditSourceInput, setRedditSourceInput] = useState("");
@@ -473,15 +467,7 @@ export function AdultPanel({
   // refresh still runs, and an explicit expansion remains remembered.
   const [discoveryCollapsed, setDiscoveryCollapsed] = useState(true);
 
-  useEffect(() => {
-    const load = () => {
-      const saved = Number(localStorage.getItem("reelcase.adult-pull-limit") ?? LIBRARY_LIMITS.adultInteractiveVideosPerPull);
-      setAdultMaxVideos([240, 480, 800].includes(saved) ? saved : LIBRARY_LIMITS.adultInteractiveVideosPerPull);
-    };
-    load();
-    window.addEventListener("reelcase:adult-render-settings", load);
-    return () => window.removeEventListener("reelcase:adult-render-settings", load);
-  }, []);
+
 
   useEffect(() => {
     const saved = readRedditSourceSettings();
@@ -609,7 +595,7 @@ export function AdultPanel({
   }, [adultVideos, deferredFacetQuery, facetsReady, tags]);
 
   useEffect(() => {
-    if (!autoPull || booted || !redditSourcesReady) return;
+    if (!autoPull || !getPullSettings().automaticPulls || booted || !redditSourcesReady) return;
     setBooted(true);
     // Cached IndexedDB shelves already paint on fast-start; only top up a thin cache.
     if (adultVideos.length >= LIBRARY_LIMITS.adultFastStartVideosPerPull) return;
@@ -641,6 +627,7 @@ export function AdultPanel({
       return;
     }
     const q = query.trim() || "all";
+    const cancellation = getPullCancellationRevision();
     const cursors = loadAdultArchiveCursors(q, order);
     const providerPages = resume
       ? Object.fromEntries(
@@ -657,8 +644,9 @@ export function AdultPanel({
       ...redditPullOptions,
     })
       .then((n) => {
+        if (getPullCancellationRevision() !== cancellation) return;
         setNextPage((resume ? Math.max(2, ...Object.values(cursors).map((c) => c.page)) : page) + 1);
-        setTagFilter("all");
+        if (['adults', 'adult-fetishes'].includes(useLibrary.getState().sourceId)) setTagFilter("all");
         refreshArchiveLabel(q, order);
         toast.success(
           n
@@ -713,25 +701,8 @@ export function AdultPanel({
     setRedditSourceInput("");
   };
 
-  // After the interactive first pull is usable, quietly advance a few saved
-  // provider cursors. This imports more variety without turning first paint
-  // into a long blocking crawl or repeatedly hammering an unavailable source.
-  useEffect(() => {
-    if (
-      !autoPull
-      || !redditSourcesReady
-      || remoteBusy
-      || query.trim()
-      || providers !== "all"
-      || adultVideos.length >= LIBRARY_LIMITS.adultTargetCatalogVideos
-      || autoArchiveRounds >= LIBRARY_LIMITS.adultAutoArchivePagesPerVisit
-    ) return;
-    const timer = window.setTimeout(() => {
-      setAutoArchiveRounds((rounds) => rounds + 1);
-      runSearch(false, true);
-    }, LIBRARY_LIMITS.adultAutoArchiveDelayMs);
-    return () => window.clearTimeout(timer);
-  }, [adultVideos.length, autoArchiveRounds, autoPull, order, providers, query, redditPullOptions, redditSourcesReady, remoteBusy]);
+  // Automatic archive pacing is owned by LibraryApp's fair provider queue.
+  // The panel keeps manual pulls and source preferences without a second timer.
 
   const milestoneLinks = ADULT_MILESTONE_LINKS.filter((site) => site.href !== ADULT_CATEGORY_HUB.href);
 
@@ -891,7 +862,7 @@ export function AdultPanel({
           >
             RedTube webmaster API
           </a>{" "}
-          (up to {LIBRARY_LIMITS.adultInteractiveVideosPerPull.toLocaleString()} titles per pull). Every pulled
+          (up to {adultMaxVideos.toLocaleString()} entries across the selected providers per pull). Every pulled
           item always gets a filterable <code className="text-fg">source-*</code> tag, plus{" "}
           <code className="text-fg">creator-*</code> when a username/channel/owner is known, API
           keywords, and curated fetish tokens mined from titles/descriptions. Cards open the same
@@ -1028,9 +999,7 @@ export function AdultPanel({
             Continue archive
           </Button>
         </div>
-        {autoPull && autoArchiveRounds > 0 && adultVideos.length < LIBRARY_LIMITS.adultTargetCatalogVideos && (
-          <p className="mt-2 text-xs text-muted">Background archive catch-up · {autoArchiveRounds}/{LIBRARY_LIMITS.adultAutoArchivePagesPerVisit} saved cursor passes this visit · {adultVideos.length.toLocaleString()}/{LIBRARY_LIMITS.adultTargetCatalogVideos.toLocaleString()} title target.</p>
-        )}
+        <p className="mt-2 text-xs text-muted">Pull cap: {pullSettings.adultBatchVideos.toLocaleString()} entries · change pace and catalog target in Settings.</p>
         <details className="mt-3 rounded-md border border-border bg-bg/35 p-3">
           <summary className="cursor-pointer text-xs font-medium text-fg">Provider adapter platform · active and planned sources</summary>
           <p className="mt-2 text-xs leading-5 text-muted">Each adapter needs a documented public API, public feed, or permitted embed before it can enter the catalog. This keeps unsupported sites as safe link-outs until their source contract is implemented.</p>

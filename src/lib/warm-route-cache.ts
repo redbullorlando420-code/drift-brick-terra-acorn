@@ -6,7 +6,7 @@
  * per-desk splitting without changing the caller's interaction contract.
  */
 const NEXT_LIKELY_HUB: Readonly<Record<string, string>> = {
-  home: "anime",
+  landing: "anime",
   movies: "anime",
   anime: "genres",
   genres: "photos",

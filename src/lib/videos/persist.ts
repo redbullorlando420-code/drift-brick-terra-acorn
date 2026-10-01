@@ -1,3 +1,4 @@
+import { recoverSavedShelves } from "./saved-library";
 import type {
   AppNotice,
   FollowedChannel,
@@ -13,6 +14,8 @@ import type {
 } from "./types";
 import { LIBRARY_LIMITS } from "@/lib/library-limits";
 import { companionGetThumb, companionPutThumb } from "@/lib/companion";
+import { CoalescedWriter } from "../coalesced-writer.ts";
+import { catalogCard, withCatalogDetails } from './catalog-card';
 
 const DB_NAME = "reelcase";
 const STORE = "dirs";
@@ -108,20 +111,11 @@ export function saveFollows(channels: FollowedChannel[]) {
   const payload: DurableFollows = { channels, savedAt: Date.now() };
   try { localStorage.setItem(FOLLOWS_LS_KEY, JSON.stringify(payload)); }
   catch { /* IndexedDB remains the durable path when localStorage is full. */ }
-  followsWrites = followsWrites.catch(() => undefined).then(async () => {
-    const db = await openDb();
-    try {
-      await new Promise<void>((resolve, reject) => {
-        const tx = db.transaction(ACTIVITY_STORE, "readwrite");
-        // Dedicated key — thumb prune, history journal prune, and Adult catalog caps never touch this.
-        tx.objectStore(ACTIVITY_STORE).put(payload, FOLLOWS_IDB_KEY);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-        tx.onabort = () => reject(tx.error);
-      });
-    } finally { db.close(); }
-  });
-  void followsWrites.catch(() => undefined);
+  const pending = putActivityBlob(FOLLOWS_IDB_KEY, payload);
+  if (followsWrites !== pending) {
+    followsWrites = pending;
+    void pending.catch(() => undefined);
+  }
 }
 
 export function loadFollows(): FollowedChannel[] | null {
@@ -243,22 +237,22 @@ export type DurablePhotos = {
   savedAt: number;
 };
 
-let durableWriteChain: Promise<void> = Promise.resolve();
-
-function putActivityBlob(key: string, payload: unknown): Promise<void> {
-  durableWriteChain = durableWriteChain.catch(() => undefined).then(async () => {
+const activityWriter = new CoalescedWriter<string, unknown>(async rows => {
     const db = await openDb();
     try {
       await new Promise<void>((resolve, reject) => {
         const tx = db.transaction(ACTIVITY_STORE, "readwrite");
-        tx.objectStore(ACTIVITY_STORE).put(payload, key);
+        const store = tx.objectStore(ACTIVITY_STORE);
+        for (const [key, payload] of rows) store.put(payload, key);
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
         tx.onabort = () => reject(tx.error);
       });
     } finally { db.close(); }
-  });
-  return durableWriteChain;
+});
+
+function putActivityBlob(key: string, payload: unknown): Promise<void> {
+  return activityWriter.write(key, payload);
 }
 
 async function getActivityBlob<T>(key: string): Promise<T | undefined> {
@@ -456,15 +450,12 @@ export function saveDurableShelves(favorites: string[], likes: string[]) {
   void putActivityBlob(DURABLE_SHELVES_IDB_KEY, payload).catch(() => undefined);
 }
 
-export async function restoreDurableShelves(): Promise<{ favorites: string[]; likes: string[] }> {
-  if (typeof window === "undefined") return { favorites: [], likes: [] };
+export async function restoreDurableShelves(): Promise<{ favorites: string[]; likes: string[]; authoritative: boolean }> {
+  if (typeof window === "undefined") return { favorites: [], likes: [], authoritative: false };
   let fromIdb: DurableShelves | undefined;
   try { fromIdb = await getActivityBlob<DurableShelves>(DURABLE_SHELVES_IDB_KEY); } catch { /* ignore */ }
   const fromLs = readJsonLocal<DurableShelves>(DURABLE_SHELVES_LS_KEY);
-  return {
-    favorites: [...new Set([...normalizeStringList(fromIdb?.favorites), ...normalizeStringList(fromLs?.favorites)])],
-    likes: [...new Set([...normalizeStringList(fromIdb?.likes), ...normalizeStringList(fromLs?.likes)])],
-  };
+  return recoverSavedShelves(fromIdb, fromLs);
 }
 
 export function saveDurableLinks(links: SavedVideoLink[]) {
@@ -639,7 +630,7 @@ export function loadDurablePhotosSync(): DurablePhotos | null {
   };
 }
 
-export function waitForDurableWrites() { return durableWriteChain; }
+export function waitForDurableWrites() { return activityWriter.idle(); }
 
 
 const TAG_EDITS_KEY = "reelcase.tag-edits.v1";
@@ -718,7 +709,7 @@ function migrateSource(id: string | undefined): string {
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 7);
+    const req = indexedDB.open(DB_NAME, 8);
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains("remote-cache")) db.createObjectStore("remote-cache");
@@ -733,10 +724,16 @@ function openDb(): Promise<IDBDatabase> {
         db.createObjectStore(SOURCE_HEALTH_STORE, { keyPath: "id" });
       }
       if (!db.objectStoreNames.contains(THUMB_STORE)) db.createObjectStore(THUMB_STORE, { keyPath: "id" });
+      const thumbs = req.transaction!.objectStore(THUMB_STORE);
+      if (!thumbs.indexNames.contains("at")) thumbs.createIndex("at", "at");
       if (!db.objectStoreNames.contains(ACTIVITY_STORE)) db.createObjectStore(ACTIVITY_STORE);
       if (!db.objectStoreNames.contains(ACTIVITY_JOURNAL_STORE)) db.createObjectStore(ACTIVITY_JOURNAL_STORE, { keyPath: "key" });
     };
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      const db = req.result;
+      db.onversionchange = () => db.close();
+      resolve(db);
+    };
     req.onerror = () => reject(req.error);
   });
 }
@@ -816,7 +813,11 @@ async function putVideosChunked(db: IDBDatabase, videos: LibraryVideo[]): Promis
       try {
         for (const video of slice) {
           if (video.isSample) continue;
-          store.put(video);
+          const previous = store.get(video.id);
+          previous.onsuccess = () => {
+            try { store.put(withCatalogDetails(video, previous.result as LibraryVideo | undefined)); }
+            catch (error) { tx.abort(); reject(error); }
+          };
         }
       } catch (error) {
         tx.abort();
@@ -876,62 +877,117 @@ export async function clearFolderVideos(folderId: string): Promise<void> {
 
 export async function loadCatalogVideos(): Promise<LibraryVideo[]> {
   const db = await openDb();
-  const rows = await new Promise<LibraryVideo[]>((resolve, reject) => {
-    const tx = db.transaction(VIDEO_STORE, "readonly");
-    const req = tx.objectStore(VIDEO_STORE).getAll();
-    req.onsuccess = () => resolve((req.result as LibraryVideo[]) ?? []);
-    req.onerror = () => reject(req.error);
-  });
-  db.close();
-  return rows.filter((v) => !v.isSample);
+  try {
+    const rows: LibraryVideo[] = [];
+    let after: IDBValidKey | undefined;
+    while (true) {
+      const page = await new Promise<{ keys: IDBValidKey[]; rows: LibraryVideo[] }>((resolve, reject) => {
+        const tx = db.transaction(VIDEO_STORE, 'readonly');
+        const store = tx.objectStore(VIDEO_STORE);
+        const range = after === undefined ? undefined : IDBKeyRange.lowerBound(after, true);
+        const keys = store.getAllKeys(range, 512), values = store.getAll(range, 512);
+        tx.oncomplete = () => resolve({ keys: keys.result, rows: values.result });
+        tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error);
+      });
+      for (const video of page.rows) if (!video.isSample) rows.push(catalogCard(video));
+      if (page.keys.length < 512) break;
+      after = page.keys.at(-1);
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+    return rows;
+  } finally { db.close(); }
+}
+
+export async function loadCatalogVideo(id: string): Promise<LibraryVideo | undefined> {
+  const db = await openDb();
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction([VIDEO_STORE, 'remote-cache'], 'readonly');
+      const local = tx.objectStore(VIDEO_STORE).get(id);
+      const remote = tx.objectStore('remote-cache').get(`video:${id}`);
+      tx.oncomplete = () => resolve(remote.result ? withCatalogDetails(remote.result, local.result) : local.result);
+      tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error);
+    });
+  } finally { db.close(); }
 }
 
 export type StoredThumb = { id: string; thumb: string; at: number };
 export async function loadThumbCache(limit = 120): Promise<StoredThumb[]> {
   const db = await openDb();
   try {
-    const rows = await new Promise<StoredThumb[]>((resolve, reject) => {
-      const req = db.transaction(THUMB_STORE, "readonly").objectStore(THUMB_STORE).getAll();
-      req.onsuccess = () => resolve((req.result as StoredThumb[]) ?? []);
-      req.onerror = () => reject(req.error);
+    return await new Promise<StoredThumb[]>((resolve, reject) => {
+      const rows: StoredThumb[] = [];
+      let bytes = 0;
+      const tx = db.transaction(THUMB_STORE, "readonly");
+      const req = tx.objectStore(THUMB_STORE).index("at").openCursor(null, "prev");
+      req.onsuccess = () => {
+        const cursor = req.result;
+        if (!cursor || rows.length >= Math.max(0, limit)) return;
+        const row = cursor.value as StoredThumb;
+        const size = (row.thumb?.length ?? 0) * 2;
+        if (size <= 8 * 1024 * 1024 - bytes) { rows.push(row); bytes += size; }
+        cursor.continue();
+      };
+      tx.oncomplete = () => resolve(rows);
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
     });
-    return rows.sort((a, b) => b.at - a.at).slice(0, limit);
   } finally { db.close(); }
 }
-export async function saveThumbCache(entry: StoredThumb, maxEntries = LIBRARY_LIMITS.thumbCacheEntries): Promise<void> {
+
+const thumbMirrorWriter = new CoalescedWriter<string, StoredThumb>(async rows => {
+  for (const [, entry] of rows) await companionPutThumb(entry.id, entry.thumb);
+}, { batchSize: 2, maxPending: 16, maxWeight: 2 * 1024 * 1024, weight: row => row.thumb.length * 2 });
+const thumbWriter = new CoalescedWriter<string, { entry: StoredThumb; maxEntries: number }>(async rows => {
   const db = await openDb();
   try {
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(THUMB_STORE, "readwrite");
-      tx.objectStore(THUMB_STORE).put(entry);
+      const store = tx.objectStore(THUMB_STORE);
+      for (const [, { entry }] of rows) store.put(entry);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
     });
-    await pruneThumbCache(db, maxEntries);
+    await pruneThumbCache(db, Math.min(...rows.map(([, row]) => row.maxEntries)));
   } finally { db.close(); }
-  // Mirror durable data-URL artwork to the companion disk cache when available.
-  if (entry.thumb?.startsWith("data:image")) {
-    void companionPutThumb(entry.id, entry.thumb);
+  for (const [, { entry }] of rows) if (entry.thumb.startsWith("data:image")) {
+    void thumbMirrorWriter.write(entry.id, entry).catch(() => undefined);
   }
+}, { batchSize: 64, maxPending: LIBRARY_LIMITS.thumbCacheEntries, maxWeight: 8 * 1024 * 1024, weight: row => row.entry.thumb.length * 2 });
+
+/** Artwork is a recoverable cache: coalesce bursts, cap pending bytes, and
+ * prune keys once per batch without cloning every cached image repeatedly. */
+export function saveThumbCache(entry: StoredThumb, maxEntries = LIBRARY_LIMITS.thumbCacheEntries): Promise<void> {
+  return thumbWriter.write(entry.id, { entry, maxEntries });
 }
 
-/** Drop oldest thumb-cache rows so data-URL artwork cannot grow without bound. */
 async function pruneThumbCache(db: IDBDatabase, maxEntries: number): Promise<void> {
   if (maxEntries <= 0) return;
-  const rows = await new Promise<StoredThumb[]>((resolve, reject) => {
-    const req = db.transaction(THUMB_STORE, "readonly").objectStore(THUMB_STORE).getAll();
-    req.onsuccess = () => resolve((req.result as StoredThumb[]) ?? []);
-    req.onerror = () => reject(req.error);
-  });
-  if (rows.length <= maxEntries) return;
-  const drop = [...rows].sort((a, b) => (a.at ?? 0) - (b.at ?? 0)).slice(0, rows.length - maxEntries);
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(THUMB_STORE, "readwrite");
     const store = tx.objectStore(THUMB_STORE);
-    for (const row of drop) store.delete(row.id);
+    const count = store.count();
+    count.onsuccess = () => {
+      let remaining = count.result - maxEntries;
+      if (remaining <= 0) return;
+      const req = store.index("at").openKeyCursor();
+      req.onsuccess = () => {
+        const cursor = req.result;
+        if (!cursor || remaining <= 0) return;
+        store.delete(cursor.primaryKey);
+        remaining--;
+        cursor.continue();
+      };
+    };
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
   });
+}
+
+export function getPersistenceMemorySnapshot() {
+  return { activity: activityWriter.snapshot(), artwork: thumbWriter.snapshot(), artworkMirror: thumbMirrorWriter.snapshot() };
 }
 
 export type RemoteSnapshot = { videos: LibraryVideo[]; folders: Folder[]; checkedAt: number };
@@ -961,11 +1017,20 @@ export async function loadRemoteSnapshot(): Promise<RemoteSnapshot | undefined> 
         tx.oncomplete = () => resolve({ keys: keysReq.result, rows: rowsReq.result as LibraryVideo[] });
         tx.onerror = () => reject(tx.error);
       });
-      for (const video of page.rows) if (video?.id) videos.set(video.id, video);
+      for (const video of page.rows) if (video?.id) videos.set(video.id, catalogCard(video));
       if (page.keys.length < 512) break;
       afterKey = page.keys[page.keys.length - 1];
+      await new Promise(resolve => setTimeout(resolve, 0));
     }
-    for (const video of legacy.current?.videos ?? []) if (!videos.has(video.id)) videos.set(video.id, video);
+    // Migrate the old giant snapshot once so on-demand detail reads can use
+    // individual records too. Never mark a legacy detail as disk-addressable
+    // before its normalized record has actually been saved.
+    if (legacy.current?.videos.length) {
+      const missing = legacy.current.videos.filter(video => !videos.has(video.id));
+      let migrated = false;
+      try { await saveRemoteSnapshot({ ...legacy.current, videos: missing }, true); migrated = true; } catch { /* Retain full legacy details in this session. */ }
+      for (const video of missing) videos.set(video.id, migrated ? catalogCard(video) : video);
+    }
     const meta = legacy.meta ?? legacy.current;
     return meta ? { videos: [...videos.values()], folders: meta.folders, checkedAt: meta.checkedAt } : undefined;
   } finally { db.close(); }
@@ -976,7 +1041,7 @@ export async function saveRemoteSnapshot(snapshot: RemoteSnapshot, complete = fa
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction("remote-cache", "readwrite");
       tx.objectStore("remote-cache").put({ folders: snapshot.folders, checkedAt: snapshot.checkedAt }, "meta");
-      tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
+      tx.oncomplete = () => resolve(); tx.onerror = tx.onabort = () => reject(tx.error);
     });
     // Structured cloning a single 30–100k-video object caused large transient
     // allocations. Rows are upserted in small transactions instead.
@@ -984,14 +1049,20 @@ export async function saveRemoteSnapshot(snapshot: RemoteSnapshot, complete = fa
       await new Promise<void>((resolve, reject) => {
         const tx = db.transaction("remote-cache", "readwrite");
         const store = tx.objectStore("remote-cache");
-        for (const video of snapshot.videos.slice(i, i + IDB_WRITE_CHUNK)) store.put(video, `video:${video.id}`);
-        tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
+        for (const video of snapshot.videos.slice(i, i + IDB_WRITE_CHUNK)) {
+          const key = `video:${video.id}`, previous = store.get(key);
+          previous.onsuccess = () => {
+            try { store.put(withCatalogDetails(video, previous.result as LibraryVideo | undefined), key); }
+            catch (error) { tx.abort(); reject(error); }
+          };
+        }
+        tx.oncomplete = () => resolve(); tx.onerror = tx.onabort = () => reject(tx.error);
       });
     }
     if (complete) await new Promise<void>((resolve, reject) => {
       const tx = db.transaction("remote-cache", "readwrite");
       tx.objectStore("remote-cache").delete("snapshot");
-      tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
+      tx.oncomplete = () => resolve(); tx.onerror = tx.onabort = () => reject(tx.error);
     });
   } finally { db.close(); }
 }
@@ -1194,7 +1265,9 @@ export function loadPrefs(): Prefs | null {
       if (saved && ["grid", "list"].includes(saved.view) && ["name", "added", "size", "duration", "recent", "type", "folder", "path"].includes(saved.sort) && typeof saved.sourceId === "string") viewPrefs = saved;
     } catch { /* Ignore malformed display preferences. */ }
   }
-  return viewPrefs ? { ...(full ?? normalize({})), ...viewPrefs } : full;
+  const prefs = viewPrefs ? { ...(full ?? normalize({})), ...viewPrefs } : full;
+  const shelves = recoverSavedShelves(null, readJsonLocal<DurableShelves>(DURABLE_SHELVES_LS_KEY));
+  return shelves.authoritative ? { ...(prefs ?? normalize({})), favorites: shelves.favorites, likes: shelves.likes } : prefs;
 }
 
 export function savePrefs(prefs: Prefs) {
@@ -1203,20 +1276,12 @@ export function savePrefs(prefs: Prefs) {
   durablePrefs = prefs;
   // Keep large metadata out of synchronous, quota-limited localStorage.
   // Ordered transactions prevent an older edit overwriting a newer one.
-  prefsWrites = prefsWrites.catch(() => undefined).then(async () => {
-    const db = await openDb();
-    try {
-      await new Promise<void>((resolve, reject) => {
-        const tx = db.transaction(ACTIVITY_STORE, "readwrite");
-        tx.objectStore(ACTIVITY_STORE).put(prefs, "preferences");
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-        tx.onabort = () => reject(tx.error);
-      });
-    } finally { db.close(); }
-  });
-  void prefsWrites.catch(() => {
-    try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); }
-    catch { window.dispatchEvent(new CustomEvent("reelcase:save-error")); }
-  });
+  const pending = putActivityBlob("preferences", prefs);
+  if (prefsWrites !== pending) {
+    prefsWrites = pending;
+    void pending.catch(() => {
+      try { localStorage.setItem(PREFS_KEY, JSON.stringify(durablePrefs)); }
+      catch { window.dispatchEvent(new CustomEvent("reelcase:save-error")); }
+    });
+  }
 }

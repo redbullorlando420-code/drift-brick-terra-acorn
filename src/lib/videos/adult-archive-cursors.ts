@@ -1,5 +1,4 @@
-import type { AdultPullProvider } from "./adult-sites";
-import { ADULT_PULL_PROVIDERS } from "./adult-sites";
+import { ADULT_PULL_PROVIDERS, type AdultPullProvider } from './adult-providers.ts';
 
 const KEY = "reelcase.adult-archive-cursors.v1";
 
@@ -8,6 +7,8 @@ export type AdultArchiveCursor = {
   query: string;
   order: string;
   updatedAt: number;
+  offset?: number;
+  retryAt?: number;
 };
 
 export type AdultArchiveCursorMap = Partial<Record<AdultPullProvider, AdultArchiveCursor>>;
@@ -53,17 +54,21 @@ export function saveAdultArchiveCursors(
   query: string,
   order: string,
   pages: Partial<Record<AdultPullProvider, number | null>>,
+  offsets: Partial<Record<AdultPullProvider, number>> = {},
 ) {
   const raw = readRaw();
   const now = Date.now();
   for (const provider of ADULT_PULL_PROVIDERS) {
+    if (!Object.prototype.hasOwnProperty.call(pages, provider)) continue;
     const next = pages[provider];
     const key = slotKey(provider, query, order);
     if (next == null || next < 1) {
-      delete raw[key];
+      // Keep the last successful resume point. Empty/live windows are revisited
+      // after a cooldown instead of restarting every automatic tick.
+      raw[key] = { ...(raw[key] ?? { page: 1, query, order }), retryAt: now + 30 * 60_000, updatedAt: now };
       continue;
     }
-    raw[key] = { page: next, query: query.trim().toLowerCase() || "all", order, updatedAt: now };
+    raw[key] = { page: next, offset: offsets[provider] ?? 0, query: query.trim().toLowerCase() || "all", order, updatedAt: now };
   }
   writeRaw(raw);
 }
@@ -86,6 +91,11 @@ export function clearAdultArchiveCursors(query?: string, order?: string) {
   }
   writeRaw(raw);
 }
+export function recordAdultArchiveFailure(query: string, order: string, provider: AdultPullProvider) {
+  const raw = readRaw(), key = slotKey(provider, query, order), now = Date.now();
+  raw[key] = { ...(raw[key] ?? { page: 1, query, order }), updatedAt: now, retryAt: now + 5 * 60_000 };
+  writeRaw(raw);
+}
 
 /** Summarize how deep the archive resume points go for UI copy. */
 export function adultArchiveDepthLabel(cursors: AdultArchiveCursorMap): string {
@@ -93,6 +103,6 @@ export function adultArchiveDepthLabel(cursors: AdultArchiveCursorMap): string {
   if (!rows.length) return "No saved archive depth yet — Pull catalog starts at page 1.";
   const parts = rows
     .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([provider, row]) => `${provider}→p${row.page}`);
+    .map(([provider, row]) => `${provider}→p${row.page}${row.offset ? `+${row.offset}` : ''}`);
   return `Resume cursors · ${parts.join(" · ")}`;
 }

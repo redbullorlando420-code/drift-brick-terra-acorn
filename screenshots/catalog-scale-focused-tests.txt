@@ -1,0 +1,33 @@
+✔ catalog cache ignores UI changes, isolates scopes, and invalidates changed slices (1.0284ms)
+✔ expanded metadata is reused until a title receives an edited tag array (0.9835ms)
+✔ linear provider interleave preserves the prior ranking and does not drop titles (22.4878ms)
+✔ worker model respects type/source/tag filters and keeps the full catalog (40.9554ms)
+✔ worker keeps recovered personal shelves and ranks private local videos (7.9544ms)
+✔ worker recommendations respond to feedback without changing catalog identity (13.9243ms)
+✔ Adult rails rotate through a broad preview-ready catalog instead of a fixed top slice (116.6252ms)
+✔ navigation persists only display settings and preserves full library metadata (1.6475ms)
+✔ cancelled offscreen thumbnail requests leave no queued work or leaked slots (3.6323ms)
+✔ aborting an awakened waiter still lets the next visible image load (0.3658ms)
+✔ remote artwork does not grow the local frame-thumbnail cache (5.1715ms)
+✔ worker batches preserve search metadata and replace stale generations (13.1818ms)
+✔ search client applies backpressure, rejects stale replies, and settles worker failures (37.7521ms)
+✔ restored provider archives stay private even when a legacy folder omitted its flag (0.9761ms)
+✔ bounded playback preserves ordered previous and next neighbors (4.7815ms)
+✔ million-entry preview path reads a bounded sample and always keeps the selected card (24.1136ms)
+✔ listing cards shed transcripts without losing playback or durable full details (0.4139ms)
+✔ partial archive pages resume without gaps even when the batch limit changes (0.4419ms)
+✔ pull policy clamps corrupt settings and caps a million-entry target without deleting rows (0.2118ms)
+✔ pull queue spaces requests, holds responses, and discards cancelled work (258.7349ms)
+✔ single-provider writes preserve other resume points and failures preserve partial offsets (1.6797ms)
+✔ peek reuses only current inputs without computing a catalog (0.8657ms)
+✔ dynamic dependencies retain large catalog results across irrelevant playback updates (2.032ms)
+✔ changing dependency keys invalidates equal-valued selections (0.1692ms)
+✔ shortening a dynamic dependency list cannot reuse a longer cached selection (0.1122ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 582.1143

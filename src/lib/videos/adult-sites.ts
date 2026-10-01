@@ -766,9 +766,8 @@ export const ADULT_SOURCE_OPTIONS: { id: string; label: string; href?: string; p
       pull: Boolean(link.embeds),
     }));
 
-export type AdultPullProvider = "eporner" | "redtube" | "chaturbate" | "myfreecams" | "reddit" | "booru" | "redgifs";
-
-export const ADULT_PULL_PROVIDERS: AdultPullProvider[] = ["eporner", "redtube", "chaturbate", "myfreecams", "reddit", "booru", "redgifs"];
+import { ADULT_PULL_PROVIDERS, type AdultPullProvider } from './adult-providers';
+export { ADULT_PULL_PROVIDERS, type AdultPullProvider } from './adult-providers';
 /** Retired sources are excluded from all restored catalog views and never fetched. */
 export const RETIRED_ADULT_SOURCE_IDS = ["camsoda"] as const;
 

@@ -1,0 +1,40 @@
+{
+  "url": "http://127.0.0.1:8080",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Realhub",
+      "hasCanvas": false,
+      "bodyTextLen": 66,
+      "bodyTextHash": "5c0ba53ce085d2a0e5b88b92b33ed4ec8c0d8ef2d5c9e94f04a7fe7637dcf525",
+      "bodyTextPrefix": "Something went wrong Cannot access 'history' before initializati",
+      "horizontalOverflow": false,
+      "consoleErrors": [
+        "%o\n\n%s\n\n%s\n ReferenceError: Cannot access 'history' before initialization\n    at SidebarNav (http://127.0.0.1:8080/src/components/library/sidebar.tsx?t=1790793645928:261:3)\n    at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=f04a831e:12866:12)\n    at renderWithHooks (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=f04a831e:4213:19)\n    at updateFunctionComponent (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=f04a831e:5569:16)\n    at beginWork (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=f04a831e:6140:20)\n    at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=f04a831e:851:66)\n    at performUnitOfWork (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=f04a831e:8429:92)\n    at workLoopSync (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=f04a831e:8325:37)\n    at renderRootSync (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=f04a831e:8309:6)\n    at performWorkOnRoot (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=f04a831e:7994:27) The above error occurred in the <SidebarNav> component. React will try to recreate this component tree from scratch using the error boundary you provided, CatchBoundary."
+      ],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\lag-final.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Realhub",
+      "hasCanvas": false,
+      "bodyTextLen": 2151,
+      "bodyTextHash": "445305c9d4d8d94fa21576413ef3734ce22cc335dcbc085ab222c2b6b0ca9964",
+      "bodyTextPrefix": "Home 0 indexed Date added Pause pulls YOUR DAILY DETOUR Somethin",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [
+        "Switched to client rendering because the server rendering errored:\n\nCannot access 'history' before initialization"
+      ],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\lag-final-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\lag-final.json"
+}

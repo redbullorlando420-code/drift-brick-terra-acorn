@@ -1,0 +1,11 @@
+{
+  "entries": 1000000,
+  "fixture": "Actual lightweight metadata objects; no transcripts, tags, IndexedDB or browser UI",
+  "allocatedMiB": 367,
+  "fixtureBuildMs": 454,
+  "sampleLimit": 4096,
+  "samplingMedianMs": 1.78,
+  "samplingWorstMs": 4.3,
+  "retainedAfterSamplingMiB": 0,
+  "limitation": "This does not establish a million-entry browser catalog or long-session memory stability."
+}

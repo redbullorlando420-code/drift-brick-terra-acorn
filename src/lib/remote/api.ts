@@ -1,3 +1,6 @@
+import { uniqueYoutubePage, youtubePublishedTime } from "./youtube-page";
+import { archivePageWindow } from './archive-page';
+import { youtubeLivePage } from "./youtube-live";
 import type { FollowedChannel, FollowKind, LibraryVideo, ProviderFailure } from "@/lib/videos/types";
 import { LIBRARY_LIMITS } from "@/lib/library-limits";
 import { cachedAdultFetch } from "@/lib/remote/adult-pull-cache";
@@ -22,9 +25,10 @@ import { newestYoutubeFeedVideoId, selectYoutubeFeedDelta } from "./youtube-feed
 import { booruPostImageUrls } from "./booru-image";
 import { publicPlaylistEntries, publicPlaylistTitle, youtubePlaylistId } from "./youtube-playlist";
 import { youtubeCatalogContinuation, youtubeCatalogHasTerminalPage, youtubeCatalogItems } from "./youtube-catalog";
+import { youtubeInitialData, youtubePageChannelId, youtubeVideoRenderers, type YoutubeRenderer } from "./youtube-page-data";
 
 type FollowInput = { query: string; kind: "auto" | FollowKind; clipLimit?: number; catalogCursor?: string };
-type RefreshInput = { channels: FollowedChannel[]; youtubeCatalog: boolean; youtubeBackground: boolean; youtubeLiveOnly: boolean; backgroundLive: boolean };
+type RefreshInput = { channels: FollowedChannel[]; youtubeCatalog: boolean; youtubeBackground: boolean; youtubeLiveOnly: boolean; backgroundLive: boolean; youtubeVideoLimit?: number };
 
 export type FollowResult = {
   channel: FollowedChannel;
@@ -130,7 +134,8 @@ function parseRefresh(data: unknown): RefreshInput {
   const channels = Array.isArray(rec.channels) ? (rec.channels as FollowedChannel[]) : [];
   // Keep a sizeable saved list live after restore; the refresh worker remains
   // concurrency-limited below so this does not flood providers.
-  return { channels: channels.slice(0, 80), youtubeCatalog: rec.youtubeCatalog === true, youtubeBackground: rec.youtubeBackground === true, youtubeLiveOnly: rec.youtubeLiveOnly === true, backgroundLive: rec.backgroundLive === true };
+  const limit = Number(rec.youtubeVideoLimit);
+  return { channels: channels.slice(0, 80), youtubeCatalog: rec.youtubeCatalog === true, youtubeBackground: rec.youtubeBackground === true, youtubeLiveOnly: rec.youtubeLiveOnly === true, backgroundLive: rec.backgroundLive === true, youtubeVideoLimit: Number.isFinite(limit) ? Math.max(30, Math.min(500, Math.floor(limit))) : 100 };
 }
 
 function guessKind(query: string): FollowKind {
@@ -176,12 +181,7 @@ function ytHandle(input: string): string | null {
 }
 
 function ytChannelIdFromText(text: string): string | null {
-  const rss = text.match(/channel_id=([A-Za-z0-9_-]{16,})/);
-  if (rss) return rss[1];
-  const json = text.match(/"channelId":"(UC[A-Za-z0-9_-]{20,})"/);
-  if (json) return json[1];
-  const canon = text.match(/youtube\.com\/channel\/(UC[A-Za-z0-9_-]{20,})/);
-  return canon ? canon[1] : null;
+  return youtubePageChannelId(text);
 }
 
 function youtubeChannelAvatar(html: string): string | undefined {
@@ -248,7 +248,7 @@ function ytVideo(entry: {
   duration?: number;
   views?: number;
 }): LibraryVideo {
-  const published = Date.parse(entry.published) || Date.now();
+  const published = youtubePublishedTime(entry.published);
   return {
     id: `yt:${entry.id}`,
     folderId: `yt:${entry.channelId}`,
@@ -281,14 +281,6 @@ function ytVideo(entry: {
   };
 }
 
-type YoutubeRenderer = {
-  videoId?: string;
-  title?: { simpleText?: string; runs?: Array<{ text?: string }> };
-  viewCountText?: { simpleText?: string; runs?: Array<{ text?: string }> };
-  descriptionSnippet?: { simpleText?: string; runs?: Array<{ text?: string }> };
-  thumbnail?: { thumbnails?: Array<{ url?: string }> };
-};
-
 // A deep channel fetch is expensive public metadata work. Keep a short bounded
 // server cache so opening a creator, refreshing its shelf, and retrying an
 // embed do not fan out into identical page reads.
@@ -319,51 +311,10 @@ function parsePublicViewCount(text: string) {
   return Number.isFinite(value) ? Math.round(value * multiplier) : undefined;
 }
 
-function youtubeInitialData(html: string): unknown | null {
-  const match = html.match(/var ytInitialData\s*=\s*({[\s\S]*?});<\/script>/);
-  if (!match?.[1]) return null;
-  try {
-    return JSON.parse(match[1]) as unknown;
-  } catch { return null; }
-}
-
 function youtubeRenderers(root: unknown, maximum: number): YoutubeRenderer[] {
-  const found: YoutubeRenderer[] = [];
-  const seen = new Set<string>();
-  const stack: unknown[] = [youtubeCatalogItems(root) ?? root];
-  while (stack.length && found.length < maximum) {
-    const current = stack.pop();
-    if (!current || typeof current !== "object") continue;
-    if (Array.isArray(current)) {
-      for (let index = current.length - 1; index >= 0; index -= 1) stack.push(current[index]);
-      continue;
-    }
-    const record = current as Record<string, unknown>;
-    const renderer = (record.videoRenderer ?? record.gridVideoRenderer ?? record.compactVideoRenderer) as YoutubeRenderer | undefined;
-    if (renderer?.videoId && !seen.has(renderer.videoId)) {
-      seen.add(renderer.videoId);
-      found.push(renderer);
-    }
-    // YouTube is gradually replacing videoRenderer with lockupViewModel in
-    // channel shelves. Normalize the stable fields we need into the same
-    // shape so a layout experiment cannot collapse a creator pull to RSS.
-    const lockup = record.lockupViewModel as {
-      contentId?: string;
-      contentType?: string;
-      metadata?: { lockupMetadataViewModel?: { title?: { content?: string } } };
-      contentImage?: { thumbnailViewModel?: { image?: { sources?: Array<{ url?: string }> } } };
-    } | undefined;
-    if (lockup?.contentId && lockup.contentType === "LOCKUP_CONTENT_TYPE_VIDEO" && !seen.has(lockup.contentId)) {
-      seen.add(lockup.contentId);
-      found.push({
-        videoId: lockup.contentId,
-        title: { simpleText: lockup.metadata?.lockupMetadataViewModel?.title?.content ?? lockup.contentId },
-        thumbnail: { thumbnails: lockup.contentImage?.thumbnailViewModel?.image?.sources?.map((source) => ({ url: source.url })) },
-      });
-    }
-    for (const value of Object.values(record).reverse()) if (value && typeof value === "object") stack.push(value);
-  }
-  return found;
+  // Unrecognized pages can contain recommendations belonging to other
+  // creators. Never mistake those for the requested creator's archive.
+  return youtubeVideoRenderers(youtubeCatalogItems(root), maximum);
 }
 
 function channelPageRenderers(html: string): YoutubeRenderer[] {
@@ -425,16 +376,13 @@ async function youtubeContinuationBackfill(html: string, knownIds: Set<string>, 
   const seen = new Set(knownIds);
   const videos: LibraryVideo[] = [];
   const addPageVideos = (pageData: unknown) => {
-    const pageVideos = youtubeRenderers(pageData, 100_000).filter((renderer, index, all) => renderer.videoId && all.findIndex((candidate) => candidate.videoId === renderer.videoId) === index);
-    const room = Math.max(0, limit - videos.length);
-    for (const renderer of pageVideos.slice(0, room)) {
+    const pageVideos = uniqueYoutubePage(youtubeRenderers(pageData, 500), seen);
+    for (const renderer of pageVideos) {
       const id = renderer.videoId;
-      if (!id || seen.has(id)) continue;
-      seen.add(id);
+      if (!id) continue;
       const thumb = renderer.thumbnail?.thumbnails?.at(-1)?.url;
       videos.push(ytVideo({ id, title: rendererText(renderer.title) || `${channelName} video`, published: "1970-01-01T00:00:00.000Z", thumb: thumb || `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, desc: rendererText(renderer.descriptionSnippet) || `${channelName} public channel catalog item.`, channelId, channelName, views: parsePublicViewCount(rendererText(renderer.viewCountText)) }));
     }
-    return pageVideos.length <= room;
   };
   let continuation: string | null = resumeCursor ?? config.continuation;
   const initialCount = root ? youtubeRenderers(root, 31).length : 0;
@@ -452,16 +400,21 @@ async function youtubeContinuationBackfill(html: string, knownIds: Set<string>, 
       });
       if (response.ok) {
         const pageData = await response.json() as unknown;
-        const fullyConsumed = addPageVideos(pageData);
+        addPageVideos(pageData);
         continuation = youtubeCatalogContinuation(pageData);
         // A few channel layouts still expose renderer-shaped rows but not a
         // parseable Videos grid. Those rows are useful, but are not evidence
         // that the public archive has ended.
-        completed = fullyConsumed && !continuation && youtubeCatalogHasTerminalPage(pageData) && videos.length > 0;
+        completed = !continuation && youtubeCatalogHasTerminalPage(pageData) && videos.length > 0;
       }
     } catch { /* The channel shell remains a valid partial source. */ }
   }
-  for (let page = 0; continuation && page < LIBRARY_LIMITS.youtubeArchivePagesPerPull && videos.length < limit; page += 1) {
+  const archiveDeadline = Date.now() + (limit <= 100 ? 20_000 : 120_000);
+  const visitedTokens = new Set<string>();
+  const pageBudget = Math.min(LIBRARY_LIMITS.youtubeArchivePagesPerPull, Math.max(4, Math.ceil(limit / 30) + 2));
+  for (let page = 0; continuation && page < pageBudget && videos.length < limit; page += 1) {
+    if (visitedTokens.has(continuation) || Date.now() >= archiveDeadline) break;
+    visitedTokens.add(continuation);
     try {
       const response = await fetch(`https://www.youtube.com/youtubei/v1/browse?key=${encodeURIComponent(config.apiKey)}`, {
         method: "POST",
@@ -471,14 +424,7 @@ async function youtubeContinuationBackfill(html: string, knownIds: Set<string>, 
       });
       if (!response.ok) break;
       const pageData = await response.json() as unknown;
-      const pageToken = continuation;
-      const fullyConsumed = addPageVideos(pageData);
-      if (!fullyConsumed) {
-        // Keep the token that produced this page. Advancing past an
-        // unconsumed page permanently loses its tail on the next sweep.
-        continuation = pageToken;
-        break;
-      }
+      addPageVideos(pageData);
       const next = youtubeCatalogContinuation(pageData);
       if (next && next !== continuation) continuation = next;
       else if (youtubeCatalogHasTerminalPage(pageData) && youtubeRenderers(pageData, 1).length) { continuation = null; completed = true; }
@@ -573,17 +519,14 @@ async function youtubeLiveFromChannel(channelId: string, channelName: string): P
   // enough: require the page's actual live-now state so scheduled streams do
   // not leak into the Live shelf. Let transport errors reach the caller so a
   // failed check never silently marks a cached stream offline.
-  const html = await fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}/live`);
-  const match = html.match(/"videoId":"([A-Za-z0-9_-]{11})"[\s\S]{0,3200}?"isLiveNow":true/)
-    ?? html.match(/"isLiveNow":true[\s\S]{0,3200}?"videoId":"([A-Za-z0-9_-]{11})"/);
-  if (!match?.[1]) return null;
-  const id = match[1];
-  const windowStart = Math.max(0, (match.index ?? 0) - 1_200);
-  const liveWindow = html.slice(windowStart, (match.index ?? 0) + 4_000);
-  const watchingText = liveWindow.match(/"viewCountText":\{"simpleText":"([^"]+)"/)?.[1]
-    ?? liveWindow.match(/"viewCountText":\{"runs":\[\{"text":"([^"]+)"/)?.[1]
-    ?? "";
-  const video = ytVideo({ id, title: `${channelName} live`, published: new Date().toISOString(), thumb: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, desc: `${channelName} is live on YouTube.`, channelId, channelName, live: true, views: parsePublicViewCount(watchingText) });
+  // Public channel streams remain readable when the watch-page player asks
+  // server requests to sign in. Modern channels use lockup LIVE badges.
+  let observed: ReturnType<typeof youtubeLivePage>;
+  try { observed = youtubeLivePage(await fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}/streams`), channelId); }
+  catch { observed = youtubeLivePage(await fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}/live`), channelId); }
+  if (!observed) return null;
+  const id = observed.id;
+  const video = ytVideo({ id, title: observed.title || `${channelName} live`, published: new Date().toISOString(), thumb: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, desc: `${channelName} is live on YouTube.`, channelId, channelName, live: true, views: observed.viewers });
   if (video.remote) video.remote.viewers = video.remote.views;
   video.tagline = `${channelName} is live now`;
   return video;
@@ -665,11 +608,20 @@ async function youtubeFromChannelUncoalesced(query: string, limit: number = LIBR
     const requestResult = { ...cached.result, videos: [...cached.result.videos.filter((video) => video.remote?.live), ...cached.feedVideos] };
     return youtubeResultForRequest(withYoutubeCacheTelemetry(requestResult, cached), boundedLimit, deepCatalog, newestKnownVideoId);
   }
-  const [xml, channelPage] = await Promise.all([
-    fetchText(`https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`),
-    fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}${deepCatalog ? "/videos" : ""}`).catch(() => ""),
+  const [xml, fetchedChannelPage] = await Promise.all([
+    fetchText(`https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`).catch(() => ""),
+    fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}/videos`).catch(() => ""),
   ]);
-  const title = tag(xml, "title") || "YouTube";
+  let channelPage = fetchedChannelPage;
+  // Shorts-only creators can have an empty Videos tab and no RSS uploads.
+  // Read their public Shorts grid before treating the pull as empty.
+  if (!xml.includes("<entry>") && !channelPageRenderers(channelPage).length) {
+    const shortsPage = await fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}/shorts`).catch(() => "");
+    if (channelPageRenderers(shortsPage).length) channelPage = shortsPage;
+  }
+  if (!xml && !channelPage) throw new Error("YouTube feed and channel page are unavailable. Retry this creator later.");
+  const pageTitle = channelPage.match(/<title>([^<]+)<\/title>/i)?.[1]?.replace(/\s*-\s*YouTube\s*$/, "");
+  const title = tag(xml, "title") || pageTitle || query;
   const author = tag(xml, "name") || title;
   const entries = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)].slice(0, boundedLimit);
 
@@ -691,16 +643,19 @@ async function youtubeFromChannelUncoalesced(query: string, limit: number = LIBR
   });
   const videos = [...feedVideos];
   const feedIds = new Set(videos.map((video) => video.remote?.videoId).filter((id): id is string => Boolean(id)));
-  const backfill = deepCatalog && channelPage ? await (async (): Promise<YoutubeBackfillResult> => {
+  const backfill = (deepCatalog || !feedVideos.length) && channelPage ? await (async (): Promise<YoutubeBackfillResult> => {
     const seen = new Set(feedIds);
     const rows: LibraryVideo[] = [];
-    for (const renderer of channelPageRenderers(channelPage)) {
+    for (const renderer of resumeCursor ? [] : channelPageRenderers(channelPage)) {
       const id = renderer.videoId;
       if (!id || seen.has(id)) continue;
       seen.add(id);
       rows.push(ytVideo({ id, title: rendererText(renderer.title) || `${author} video`, published: "1970-01-01T00:00:00.000Z", thumb: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, desc: rendererText(renderer.descriptionSnippet) || `${author} public channel catalog item.`, channelId, channelName: author, views: parsePublicViewCount(rendererText(renderer.viewCountText)) }));
-      if (rows.length >= Math.max(0, boundedLimit - videos.length)) break;
+      if (rows.length >= Math.max(0, (deepCatalog ? boundedLimit : Math.min(30, boundedLimit)) - videos.length)) break;
     }
+    // RSS can fail independently of the public page. A routine refresh can
+    // still recover a shallow upload window without starting an archive walk.
+    if (!deepCatalog) return { videos: rows, cursor: null, completed: false };
     const remaining = Math.max(0, boundedLimit - videos.length - rows.length);
     const older = await youtubeContinuationBackfill(channelPage, new Set([...feedIds, ...rows.map((video) => video.remote?.videoId).filter((id): id is string => Boolean(id))]), channelId, author, remaining, resumeCursor);
     return { ...older, videos: [...rows, ...older.videos] };
@@ -710,10 +665,11 @@ async function youtubeFromChannelUncoalesced(query: string, limit: number = LIBR
   videos.push(...backfill.videos);
   const live = await youtubeLiveFromChannel(channelId, author).catch(() => null);
   if (live && !videos.some((video) => video.id === live.id)) videos.unshift(live);
+  if (!videos.length && (deepCatalog || !feedVideos.length)) throw new Error("YouTube returned no readable public uploads. The source may be empty or its public page is unavailable; retry from the first page later.");
   const channel: FollowedChannel = {
     id: `yt:${channelId}`,
     kind: "youtube",
-    handle: author,
+    handle: (youtubeInitialData(channelPage) as { metadata?: { channelMetadataRenderer?: { vanityChannelUrl?: string } } } | null)?.metadata?.channelMetadataRenderer?.vanityChannelUrl || `https://www.youtube.com/channel/${channelId}`,
     title: author,
     channelId,
     thumb: youtubeChannelAvatar(channelPage),
@@ -1234,11 +1190,11 @@ export async function runRefreshRemotes(dataRaw: unknown): Promise<RefreshResult
           // it at the last durable upload identity. Explicit and scheduled
           // archive sweeps resume the separate Videos-grid continuation.
           const next = ch.id.startsWith("ytpl:")
-            ? await youtubeFromPlaylist(ch.handle, data.youtubeCatalog, data.youtubeCatalog ? ch.catalogCursor : undefined, data.youtubeBackground ? LIBRARY_LIMITS.youtubeScheduledVideosPerChannel : undefined)
+            ? await youtubeFromPlaylist(ch.handle, data.youtubeCatalog, data.youtubeCatalog ? ch.catalogCursor : undefined, data.youtubeVideoLimit)
             : data.youtubeCatalog
-              ? await youtubeFromChannel(q, data.youtubeBackground ? LIBRARY_LIMITS.youtubeScheduledVideosPerChannel : LIBRARY_LIMITS.youtubeManualRefreshVideosPerChannel, true, true, undefined, ch.catalogCursor)
+              ? await youtubeFromChannel(q, data.youtubeVideoLimit ?? 100, true, true, undefined, ch.catalogCursor)
               : await youtubeFromChannel(q, LIBRARY_LIMITS.youtubeRoutineVideosPerChannel, false, false, ch.newestVideoId);
-          channels.push({ ...ch, ...next.channel, id: ch.id, thumb: next.channel.thumb || ch.thumb, newestVideoId: ch.id.startsWith("ytpl:") && data.youtubeCatalog ? ch.newestVideoId ?? next.channel.newestVideoId : next.channel.newestVideoId ?? ch.newestVideoId, lastProviderFailure: undefined });
+          channels.push({ ...ch, ...next.channel, id: ch.id, handle: ch.handle || next.channel.handle, thumb: next.channel.thumb || ch.thumb, newestVideoId: ch.id.startsWith("ytpl:") && data.youtubeCatalog ? ch.newestVideoId ?? next.channel.newestVideoId : next.channel.newestVideoId ?? ch.newestVideoId, lastProviderFailure: undefined });
           videos.push(...next.videos.map((video) => ({ ...video, folderId: ch.id })));
         }
         refreshedIds.push(ch.id);
@@ -1404,6 +1360,7 @@ type AdultSearchIn = {
   providers?: AdultPullProvider[] | "all";
   /** Per-provider resume pages (archive depth). Overrides shared `page` when set. */
   providerPages?: Partial<Record<AdultPullProvider, number>>;
+  providerOffsets?: Partial<Record<AdultPullProvider, number>>;
   /** Optional user-managed Reddit list. When absent, rotate the curated catalog. */
   redditSources?: Array<{ subreddit: string; priority: number }>;
 };
@@ -1482,8 +1439,8 @@ function parseAdultSearch(data: unknown): ParsedAdultSearch {
   const page = Number.isFinite(pageNum) && pageNum >= 1 ? Math.min(Math.floor(pageNum), 100000) : 1;
   const maxRaw = typeof rec.maxVideos === "number" ? rec.maxVideos : Number(rec.maxVideos);
   const maxVideos = Number.isFinite(maxRaw) && maxRaw > 0
-    ? Math.min(Math.floor(maxRaw), LIBRARY_LIMITS.epornerVideosPerPull)
-    : LIBRARY_LIMITS.epornerVideosPerPull;
+    ? Math.max(1, Math.min(Math.floor(maxRaw), 1000))
+    : 160;
   const append = Boolean(rec.append);
   return {
     query: query.slice(0, 80),
@@ -1493,6 +1450,7 @@ function parseAdultSearch(data: unknown): ParsedAdultSearch {
     append,
     providers: parseAdultProviders(rec.providers),
     providerPages: parseProviderPages(rec.providerPages),
+    providerOffsets: Object.fromEntries(Object.entries(parseProviderPages(rec.providerOffsets)).map(([key, value]) => [key, Math.min(value!, 10_000)])),
     redditSources: parseRedditSources(rec.redditSources),
   };
 }
@@ -2303,7 +2261,7 @@ async function fetchRedditFeed(query: string, maxVideos: number, page = 1, confi
   const configuredPages = configuredSources.length
     ? Math.max(1, Math.ceil(configuredSources.length / LIBRARY_LIMITS.redditSubsPerPull))
     : LIBRARY_LIMITS.redditWindowsPerPull;
-  const windows = Math.min(Math.max(1, LIBRARY_LIMITS.redditWindowsPerPull), configuredPages);
+  const windows = 1; // One stable community window per resumable request.
   const collected: LibraryVideo[] = [];
   const seen = new Set<string>();
   const errors: string[] = [];
@@ -3031,112 +2989,42 @@ function adultPullFailureDetail(error: unknown): string {
 }
 
 async function pullProviderPages(
-  provider: AdultPullProvider,
-  query: string,
-  order: string,
-  startPage: number,
-  maxVideos: number,
-  redditSources: readonly RedditSourcePreference[] = [],
-): Promise<{ videos: LibraryVideo[]; page: number; nextPage: number | null; totalCount: number }> {
-  if (provider === "reddit") {
-    const batch = await fetchRedditFeed(query, maxVideos, startPage, redditSources);
-    return {
-      videos: batch.videos,
-      page: startPage,
-      nextPage: batch.nextPage,
-      totalCount: batch.totalCount,
-    };
-  }
-  if (provider === "booru") {
-    const batch = await fetchBooruFeed(query, maxVideos, startPage);
-    return {
-      videos: batch.videos,
-      page: startPage,
-      nextPage: batch.videos.length ? startPage + 1 : null,
-      totalCount: batch.totalCount,
-    };
-  }
-  if (provider === "redgifs") {
-    const collected: LibraryVideo[] = [];
-    const seen = new Set<string>();
-    let page = startPage;
-    let totalCount = 0;
-    let hasNext = false;
-    // Pull enough documented API pages to meet the Redgifs budget. This keeps
-    // its representation comparable with the other catalog providers.
-    const pages = Math.max(1, Math.ceil(maxVideos / LIBRARY_LIMITS.redgifsPageSize));
-    for (let index = 0; index < pages && collected.length < maxVideos; index += 1) {
-      const batch = await fetchRedgifsFeed(query, Math.min(LIBRARY_LIMITS.redgifsPageSize, maxVideos - collected.length), page);
-      totalCount += batch.totalCount;
-      for (const video of batch.videos) {
-        if (seen.has(video.id)) continue;
-        seen.add(video.id);
-        collected.push(video);
-      }
-      if (batch.videos.length < LIBRARY_LIMITS.redgifsPageSize) break;
-      page += 1;
-      hasNext = true;
-    }
-    return {
-      videos: collected,
-      page: startPage,
-      nextPage: collected.length && hasNext ? page : null,
-      totalCount,
-    };
-  }
+  provider: AdultPullProvider, query: string, order: string, startPage: number,
+  maxVideos: number, redditSources: readonly RedditSourcePreference[] = [], startOffset = 0,
+): Promise<{ videos: LibraryVideo[]; page: number; nextPage: number | null; nextOffset: number; totalCount: number }> {
   if (provider === "chaturbate" || provider === "myfreecams") {
-    const batch = provider === "chaturbate"
-      ? await fetchChaturbateRooms(query, maxVideos)
-      : await fetchMyFreeCamsRooms(query, maxVideos);
-    return {
-      videos: batch.videos,
-      page: 1,
-      nextPage: null,
-      totalCount: batch.totalCount,
-    };
+    const batch = provider === "chaturbate" ? await fetchChaturbateRooms(query, maxVideos) : await fetchMyFreeCamsRooms(query, maxVideos);
+    return { videos: batch.videos, page: 1, nextPage: null, nextOffset: 0, totalCount: batch.totalCount };
   }
-  const collected: LibraryVideo[] = [];
-  const seen = new Set<string>();
-  let page = startPage;
-  let totalPages = page;
-  let totalCount = 0;
-  let pagesFetched = 0;
-  const { maxPages, perPage } = providerPageBudget(provider);
-
-  // Rotate RedTube/Eporner orderings every few pages so "all" pulls are not
-  // one weekly ranking slice — newest, rated, and popular archives mix in.
-  const varietyOrders = ["top-weekly", "latest", "top-rated", "most-popular", "top-monthly"] as const;
-  while (collected.length < maxVideos && pagesFetched < maxPages) {
-    const varietyOrder = provider === "redtube" || provider === "eporner"
-      ? (query.trim().toLowerCase() === "all"
-          ? varietyOrders[(page - 1) % varietyOrders.length]!
-          : order)
-      : order;
-    const batch =
-      provider === "redtube"
-        ? await fetchRedtubePage(query, varietyOrder, page)
-        : await fetchEpornerPage(query, varietyOrder, page, perPage);
-    totalPages = batch.totalPages;
-    totalCount = batch.totalCount;
-    pagesFetched += 1;
-    if (!batch.videos.length) break;
-    for (const video of batch.videos) {
-      if (seen.has(video.id)) continue;
-      seen.add(video.id);
-      collected.push(video);
-      if (collected.length >= maxVideos) break;
+  const videos: LibraryVideo[] = [], seen = new Set<string>();
+  let page = startPage, offset = startOffset, totalCount = 0, nextPage: number | null = page, nextOffset = offset;
+  const started = Date.now();
+  // A request is a small archive step, never an unbounded hidden keyword sweep.
+  const maxPages = provider === 'eporner' || provider === 'reddit' || provider === 'booru' ? 1 : 4;
+  for (let step = 0; step < maxPages && videos.length < maxVideos && Date.now() - started < 12_000; step++) {
+    let rows: LibraryVideo[], following: number | null;
+    if (provider === 'reddit') {
+      const batch = await fetchRedditFeed(query, 1000, page, redditSources);
+      rows = batch.videos; following = batch.nextPage; totalCount = batch.totalCount;
+    } else if (provider === 'booru') {
+      const batch = await fetchBooruFeed(query, 400, page);
+      rows = batch.videos; following = rows.length ? page + 1 : null; totalCount = batch.totalCount;
+    } else if (provider === 'redgifs') {
+      const batch = await fetchRedgifsFeed(query, LIBRARY_LIMITS.redgifsPageSize, page);
+      rows = batch.videos; following = page < batch.totalPages ? page + 1 : null; totalCount = batch.totalCount;
+    } else {
+      const varietyOrders = ["top-weekly", "latest", "top-rated", "most-popular", "top-monthly"];
+      const sort = query.trim().toLowerCase() === 'all' ? varietyOrders[(page - 1) % varietyOrders.length]! : order;
+      const batch = provider === 'redtube' ? await fetchRedtubePage(query, sort, page) : await fetchEpornerPage(query, sort, page, LIBRARY_LIMITS.epornerPageSize);
+      rows = batch.videos; following = page < batch.totalPages ? page + 1 : null; totalCount = batch.totalCount;
     }
-    if (page >= totalPages) break;
-    page += 1;
+    const window = archivePageWindow(rows, page, offset, maxVideos - videos.length, following);
+    for (const video of window.rows) if (!seen.has(video.id)) { seen.add(video.id); videos.push(video); }
+    nextPage = window.nextPage; nextOffset = window.nextOffset;
+    if (!rows.length || nextPage == null || nextPage === page) break;
+    page = nextPage; offset = 0;
   }
-
-  const computedNext = startPage + pagesFetched;
-  return {
-    videos: collected,
-    page: startPage,
-    nextPage: computedNext <= totalPages && collected.length ? computedNext : null,
-    totalCount,
-  };
+  return { videos, page: startPage, nextPage, nextOffset, totalCount };
 }
 
 export async function runSearchAdultVideos(dataRaw: unknown): Promise<{
@@ -3148,6 +3036,7 @@ export async function runSearchAdultVideos(dataRaw: unknown): Promise<{
     totalCount: number;
     providers: AdultPullProvider[];
     providerNextPages: Partial<Record<AdultPullProvider, number | null>>;
+    providerNextOffsets: Partial<Record<AdultPullProvider, number>>;
     providerDiagnostics: AdultPullDiagnostic[];
   }> {
     const data = parseAdultSearch(dataRaw);
@@ -3159,28 +3048,14 @@ export async function runSearchAdultVideos(dataRaw: unknown): Promise<{
     let totalCount = 0;
     const errors: string[] = [];
     const providerNextPages: Partial<Record<AdultPullProvider, number | null>> = {};
+    const providerNextOffsets: Partial<Record<AdultPullProvider, number>> = {};
     const providerDiagnostics: AdultPullDiagnostic[] = [];
 
     const batches = await Promise.allSettled(providers.map(async (provider) => {
-      const rawBudget = share + (provider === "reddit" ? leftovers : 0);
-      const live = liveRoomLimit(provider);
-      const redditFloor = Math.min(
-        LIBRARY_LIMITS.redditVideosPerPull,
-        Math.max(rawBudget, Math.min(480, Math.floor(data.maxVideos * 0.45))),
-      );
-      const underrepresentedFloor = Math.min(160, Math.max(rawBudget, Math.floor(data.maxVideos * 0.2)));
-      const budget = provider === "reddit"
-        ? redditFloor
-        : provider === "booru"
-          ? Math.min(LIBRARY_LIMITS.booruVideosPerPull, underrepresentedFloor)
-          : provider === "redgifs"
-            ? Math.min(LIBRARY_LIMITS.redgifsVideosPerPull, underrepresentedFloor)
-        // Keep the established Eporner / RedTube allocation. Smaller live
-        // providers receive a viable sample when every source is selected.
-        : live ? Math.min(live, underrepresentedFloor) : rawBudget;
+      const budget = share + (provider === providers[0] ? leftovers : 0);
       const startPage = data.providerPages?.[provider] ?? data.page;
       const batch = await withinAdultPullDeadline(
-        pullProviderPages(provider, data.query, data.order, startPage, budget, data.redditSources),
+        pullProviderPages(provider, data.query, data.order, startPage, budget, data.redditSources, data.providerOffsets[provider] ?? 0),
         provider,
       );
       return { provider, batch };
@@ -3197,6 +3072,7 @@ export async function runSearchAdultVideos(dataRaw: unknown): Promise<{
         }
         totalCount += batch.totalCount;
         providerNextPages[provider] = batch.nextPage;
+        providerNextOffsets[provider] = batch.nextOffset;
         providerDiagnostics.push({
           provider,
           status: batch.videos.length ? "loaded" : "empty",
@@ -3211,61 +3087,8 @@ export async function runSearchAdultVideos(dataRaw: unknown): Promise<{
       const provider = providers[batches.indexOf(result)]!;
       const message = adultPullFailureDetail(result.reason);
       errors.push(`${provider}: ${message}`);
-      providerNextPages[provider] = null;
+      // Failed providers keep their last accepted archive cursor.
       providerDiagnostics.push({ provider, status: "failed", titles: 0, detail: message });
-    }
-
-    const redditHave = collected.filter((video) => video.remote?.kind === "reddit").length;
-    const redditWant = Math.min(LIBRARY_LIMITS.redditVideosPerPull, Math.max(240, Math.min(480, Math.floor(data.maxVideos * 0.45))));
-    // A saved list is fully covered by its first deterministic pass. Repeating
-    // it only replays the same cached Atom window and prolongs the spinner.
-    if (providers.includes("reddit") && !data.redditSources.length && redditHave < redditWant) {
-      const extraPage = (data.providerPages?.reddit ?? data.page) + LIBRARY_LIMITS.redditWindowsPerPull;
-      try {
-        const batch = await pullProviderPages("reddit", data.query, data.order, extraPage, redditWant - redditHave, data.redditSources);
-        for (const video of batch.videos) {
-          if (seen.has(video.id)) continue;
-          seen.add(video.id);
-          collected.push(video);
-        }
-        totalCount += batch.totalCount;
-        if (batch.nextPage != null) providerNextPages.reddit = batch.nextPage;
-      } catch (err) {
-        const message = adultPullFailureDetail(err);
-        errors.push(`reddit/extra: ${message}`);
-        providerDiagnostics.push({ provider: "reddit extra", status: "failed", titles: 0, detail: message });
-      }
-    }
-
-    // When browsing "all", deepen official video APIs with curated fetish
-    // keyword pages so shelves pick up DP / roleplay / milf / feet and more.
-    // Leave headroom so RedTube/Eporner cannot refill the entire catalog after Reddit.
-    if (data.append && data.query.toLowerCase() === "all" && collected.length < data.maxVideos) {
-      const fetishQueries = adultDeepenQueriesForPage(data.page, 12);
-      const deepenProviders = providers.filter((p) => p === "eporner" || p === "redtube");
-      const remaining = Math.max(0, data.maxVideos - collected.length);
-      const slots = Math.max(1, fetishQueries.length * Math.max(1, deepenProviders.length));
-      const perQuery = Math.max(20, Math.floor(remaining / slots));
-      for (const fetish of fetishQueries) {
-        for (const provider of deepenProviders) {
-          if (collected.length >= data.maxVideos) break;
-          try {
-            const batch = await pullProviderPages(provider, fetish, data.order, 1, perQuery);
-            for (const video of batch.videos) {
-              if (seen.has(video.id)) continue;
-              seen.add(video.id);
-              collected.push(video);
-              if (collected.length >= data.maxVideos) break;
-            }
-            totalCount += batch.totalCount;
-          } catch (err) {
-            const message = adultPullFailureDetail(err);
-            errors.push(`${provider}/${fetish}: ${message}`);
-            providerDiagnostics.push({ provider: `${provider} · ${fetish}`, status: "failed", titles: 0, detail: message });
-          }
-        }
-        if (collected.length >= data.maxVideos) break;
-      }
     }
 
     if (!collected.length && errors.length) {
@@ -3273,7 +3096,7 @@ export async function runSearchAdultVideos(dataRaw: unknown): Promise<{
     }
 
     return {
-      videos: collected,
+      videos: collected.slice(0, data.maxVideos),
       source: providers.join("+"),
       note:
         errors.length
@@ -3284,6 +3107,7 @@ export async function runSearchAdultVideos(dataRaw: unknown): Promise<{
       totalCount,
       providers,
       providerNextPages,
+      providerNextOffsets,
       providerDiagnostics,
     };
 }

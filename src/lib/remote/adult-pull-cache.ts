@@ -14,6 +14,14 @@ type CacheEntry = {
 const STORE = new Map<string, CacheEntry>();
 const DEFAULT_TTL_MS = 10 * 60_000;
 const MAX_ENTRIES = 240;
+const MAX_BYTES = 12 * 1024 * 1024;
+const MAX_BODY_BYTES = 2 * 1024 * 1024;
+let cachedBytes = 0;
+function remove(key: string) {
+  const entry = STORE.get(key);
+  if (entry) cachedBytes -= entry.body.length * 2;
+  STORE.delete(key);
+}
 
 export function adultPullCacheKey(parts: Record<string, string | number | boolean | null | undefined>) {
   return Object.keys(parts)
@@ -23,14 +31,12 @@ export function adultPullCacheKey(parts: Record<string, string | number | boolea
 }
 
 function prune(now: number) {
-  if (STORE.size <= MAX_ENTRIES) return;
-  const rows = [...STORE.entries()].sort((a, b) => a[1].at - b[1].at);
-  const drop = rows.slice(0, Math.max(24, STORE.size - MAX_ENTRIES));
-  for (const [key] of drop) STORE.delete(key);
   for (const [key, entry] of STORE) {
-    if (now - entry.at > DEFAULT_TTL_MS * 3) STORE.delete(key);
+    if (now - entry.at > DEFAULT_TTL_MS * 3) remove(key);
   }
+  while (STORE.size > MAX_ENTRIES || cachedBytes > MAX_BYTES) remove(STORE.keys().next().value!);
 }
+export const adultPullCacheSnapshot = () => ({ entries: STORE.size, bytes: cachedBytes, maxBytes: MAX_BYTES });
 
 export async function cachedAdultFetch(
   url: string,
@@ -55,7 +61,11 @@ export async function cachedAdultFetch(
   // Only cache successful readable bodies (JSON/XML/text).
   if (res.ok && method === "GET" && /json|xml|text|atom|rss/i.test(contentType)) {
     const body = await res.text();
-    STORE.set(key, { at: now, status: res.status, body, contentType });
+    remove(key);
+    if (body.length * 2 <= MAX_BODY_BYTES) {
+      STORE.set(key, { at: now, status: res.status, body, contentType });
+      cachedBytes += body.length * 2;
+    }
     prune(now);
     return new Response(body, {
       status: res.status,

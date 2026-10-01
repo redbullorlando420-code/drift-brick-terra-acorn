@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLibrary } from '@/lib/videos/store';
 import { topicsForVideo, topicEvidence, canonicalTopic } from '@/lib/videos/topics';
+import { isAdultPullKind } from '@/lib/videos/adult-sites';
 import { Button } from '@/components/ui/button';
 import { VideoCard } from './video-card';
 import { openTopic } from '@/lib/videos/topic-navigation';
@@ -27,7 +28,7 @@ export function TopicLinks({ explorer = false }: { explorer?: boolean }) {
   const index = useMemo(() => {
     const hidden = new Set(folders.filter((f) => f.adult).map((f) => f.id));
     const known = new Set(folders.map((f) => f.id));
-    const rows = videos.filter((v) => !hidden.has(v.folderId) && !unavailable[v.id] && !hiddenVideos[v.id] && !(hideDemo && v.isSample) && (known.has(v.folderId) || v.remote || v.isSample)).map((video) => ({ video, topics: topicsForVideo(video, tags[video.id]), provider: video.remote?.kind ?? 'local' }));
+    const rows = videos.filter((v) => !hidden.has(v.folderId) && !isAdultPullKind(v.remote?.kind) && !unavailable[v.id] && !hiddenVideos[v.id] && !(hideDemo && v.isSample) && (known.has(v.folderId) || v.remote || v.isSample)).map((video) => ({ video, topics: topicsForVideo(video, tags[video.id]), provider: video.remote?.kind ?? 'local' }));
     const counts = new Map<string, { count: number; providers: Set<string>; ratingTotal: number }>();
     const sources = new Map<string, { total: number; linked: number }>();
     let saved = 0, linked = 0;

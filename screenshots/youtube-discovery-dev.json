@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Realhub",
+      "hasCanvas": false,
+      "bodyTextLen": 2460,
+      "bodyTextHash": "69dd87bd4028e9459b121fc79aec311e040f6ca9fc9c2b8d30a5709a34170ccf",
+      "bodyTextPrefix": "Realhub Vault · networks · live Home 0 Movies Anime Topics YouTu",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-discovery-dev.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Realhub",
+      "hasCanvas": false,
+      "bodyTextLen": 2139,
+      "bodyTextHash": "6dfc5f94684aac5cb3f18c9434218ee9e55b07020cc73cc98dbf3c47502f6c1d",
+      "bodyTextPrefix": "Home 0 indexed Date added YOUR DAILY DETOUR Something worth find",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-discovery-dev-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-discovery-dev.json"
+}
