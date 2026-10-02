@@ -1,8 +1,9 @@
+import { bestRanked } from './bounded-ranking';
+import { rankingTags, ratingPreference, confidenceAdjustedPreference } from './ranking-core';
 import type { LibraryVideo } from "./types";
 import { isAdultImageKind } from "./adult-sites";
 import { videoMatchesAdultSource, videoMatchesAdultTag } from "./adult-filter";
-import { ADULT_TOP_TAG_RAIL_MIN_COUNT, rankAdultMetaTags, rankAdultTags, sortAdultVideos, type AdultRankContext } from "./adult-rank";
-import { ratingPreference } from "../media-feedback";
+import { ADULT_TOP_TAG_RAIL_MIN_COUNT, rankAdultMetaTags, rankAdultTags, scoreAdultVideo, sortAdultVideos, type AdultRankContext } from "./adult-rank";
 
 export type AdultBrowseParams = { source: string; tag: string; view: "all" | "videos" | "photos" | "live"; limit: number; seed: number };
 export type AdultBrowseSignals = {
@@ -10,6 +11,7 @@ export type AdultBrowseSignals = {
   cameCounts: Record<string, number>; viewCounts: Record<string, number>;
   ratings: Record<string, number>; heartedTags: string[]; historicTags: string[];
   continueIds: string[]; favoriteIds: string[];
+  creatorLikes?: Record<string, true>; creatorFavorites?: Record<string, true>; creatorRatings?: Record<string, number>; watchScores?: Record<string, number>;
 };
 export type AdultBrowseData = { videos: LibraryVideo[]; personalVideos: LibraryVideo[]; deepVideos: LibraryVideo[]; tags: Record<string, string[]>; signals: AdultBrowseSignals };
 
@@ -21,6 +23,9 @@ export type AdultBrowseCache = {
   tagRanks: Map<string, ReturnType<typeof rankAdultTags>>;
   metaTagRanks: Map<string, ReturnType<typeof rankAdultMetaTags>>;
   deepRankedIds?: string[];
+  scores?: Map<string, number>;
+  topicAffinity?: Record<string, number>;
+  signalIdentity?: AdultBrowseSignals;
 };
 
 export function createAdultBrowseCache(): AdultBrowseCache {
@@ -122,9 +127,34 @@ export function buildAdultBrowseModel(data: AdultBrowseData, params: AdultBrowse
   const { videos: adultRemoteVideos, tags, signals } = data;
   const { favorites, likes, cameCounts, viewCounts } = signals;
   const { source: adultSource, tag: adultTag, view: adultView, limit: adultRailLimit, seed: adultRailSeed } = params;
+  if (cache && cache.signalIdentity !== signals) {
+    cache.signalIdentity = signals; cache.scores?.clear(); cache.topicAffinity = undefined;
+    cache.ranked.clear(); cache.tagRanks.clear(); cache.metaTagRanks.clear(); cache.deepRankedIds = undefined;
+  }
+  let topicAffinity = cache?.topicAffinity;
+  if (!topicAffinity) {
+    const evidence = new Map<string, { total: number; count: number }>();
+    for (const video of adultRemoteVideos) {
+      const rating = signals.ratings[video.id] ?? 0;
+      const signal = rating === 1 ? -3 : Math.max(ratingPreference(rating), favorites[video.id] ? 3 : 0, likes[video.id] ? 2 : 0)
+        + Math.min(2, Math.log2(1 + Math.max(0, cameCounts[video.id] ?? 0))) + Math.min(2, (signals.watchScores?.[video.id] ?? 0) / 6);
+      if (!signal && !rating) continue;
+      for (const tag of rankingTags(tags[video.id] ?? [])) {
+        const row = evidence.get(tag) ?? { total: 0, count: 0 }; row.total += signal; row.count++; evidence.set(tag, row);
+      }
+    }
+    topicAffinity = Object.create(null) as Record<string, number>;
+    for (const [tag, row] of evidence) topicAffinity[tag] = Math.max(-12, Math.min(12, confidenceAdjustedPreference(row.total, row.count) * 4));
+    if (cache) cache.topicAffinity = topicAffinity;
+  }
   const getRating = (id: string) => signals.ratings[id] ?? 0;
   const hearts = new Set(signals.heartedTags), historic = new Set(signals.historicTags);
-  const adultRankCtx: AdultRankContext = { tags, favorites, likes, cameCounts, viewCounts, ratingOf: getRating, tagIsHearted: tag => hearts.has(tag), tagHasHeartHistory: tag => historic.has(tag) };
+  const adultRankCtx: AdultRankContext = { tags, favorites, likes, cameCounts, viewCounts, ratingOf: getRating, tagIsHearted: tag => hearts.has(tag), tagHasHeartHistory: tag => historic.has(tag), now: Date.now(),
+    watchScore: id => signals.watchScores?.[id] ?? 0,
+    creatorIsLiked: name => Boolean(signals.creatorLikes?.[name.trim().toLowerCase()]),
+    creatorIsFavorited: name => Boolean(signals.creatorFavorites?.[name.trim().toLowerCase()]),
+    creatorRating: name => signals.creatorRatings?.[name.trim().toLowerCase()] ?? 0,
+    topicAffinity, scores: cache ? (cache.scores ??= new Map()) : new Map() };
   const byId = new Map([...adultRemoteVideos, ...data.personalVideos].map(video => [video.id, video]));
   const adultContinue = signals.continueIds.map(id => byId.get(id)).filter((v): v is LibraryVideo => Boolean(v));
   const adultFavorites = signals.favoriteIds.map(id => byId.get(id)).filter((v): v is LibraryVideo => Boolean(v));
@@ -188,25 +218,23 @@ export function buildAdultBrowseModel(data: AdultBrowseData, params: AdultBrowse
   }
   const adultRecommended = (() => {
     const preferred = new Set([...adultTagRank.slice(0, 16), ...adultMetaTagRank.slice(0, 12)].map((row) => row.tag));
-    const likedTags = new Set(sourceMatchedAdult.filter((video) => favorites[video.id] || likes[video.id] || getRating(video.id) >= 4 || (cameCounts[video.id] ?? 0) > 0).flatMap((video) => tags[video.id] ?? []));
+    const likedTags = new Set(sourceMatchedAdult.filter((video) => getRating(video.id) !== 1 && (favorites[video.id] || likes[video.id] || getRating(video.id) >= 4 || (cameCounts[video.id] ?? 0) > 0)).flatMap((video) => tags[video.id] ?? []));
     // Reuse already-ranked catalog when filters align; otherwise rank the source set once.
     const rankedBase = rankedAdultCatalog;
     const overviewIds = new Set([...adultOverviewRails.videos, ...adultOverviewRails.photos, ...adultOverviewRails.picks].map((video) => video.id));
     const freshBase = rankedBase.filter((video) => !overviewIds.has(video.id));
     const recommendationBase = freshBase.length >= Math.min(16, adultRailLimit) ? freshBase : rankedBase;
-    const ranked = recommendationBase
-      .map((video) => {
-        const itemTags = tags[video.id] ?? [];
-        const overlap = itemTags.filter((tag) => preferred.has(tag)).length;
-        const likedOverlap = itemTags.filter((tag) => likedTags.has(tag)).length;
-        const previewReady = Number(Boolean(video.poster || video.remote?.previewUrl));
-        const rotation = (shuffleRank(`adult-recommended:${video.id}`, adultRailSeed) / 0xffffffff) * 8;
-        const bonus = overlap * 8 + likedOverlap * 10 + previewReady * 3 + rotation;
-        return { video, score: bonus };
-      })
-      .sort((a, b) => b.score - a.score)
-      .map(({ video }) => video)
-      .slice(0, 96);
+    function* candidates() {
+      for (const video of recommendationBase) {
+        if (getRating(video.id) === 1) continue;
+        const itemTags = rankingTags(tags[video.id] ?? []);
+        let overlap = 0, likedOverlap = 0;
+        for (const tag of itemTags) { if (preferred.has(tag)) overlap++; if (likedTags.has(tag)) likedOverlap++; }
+        const bonus = Math.min(12, overlap * 4) + Math.min(10, likedOverlap * 3) + Number(Boolean(video.poster || video.remote?.previewUrl)) * 3;
+        yield { video, score: scoreAdultVideo(video, adultRankCtx) + bonus, shuffle: shuffleRank(`adult-recommended:${video.id}`, adultRailSeed) };
+      }
+    }
+    const ranked = bestRanked(candidates(), 96, (a, b) => b.score - a.score || a.shuffle - b.shuffle).map(row => row.video);
     return diversifyAdultSources(diversifyCreators(ranked, 96), 48);
   })();
   const adultRelatedRecommended = (() => {
@@ -218,19 +246,15 @@ export function buildAdultBrowseModel(data: AdultBrowseData, params: AdultBrowse
         ),
     );
     const recommendedIds = new Set(adultRecommended.map((video) => video.id));
-    const ranked = adultRemoteVideos
-      .filter((video) => !recommendedIds.has(video.id))
-      .map((video) => {
-        const itemTags = tags[video.id] ?? [];
-        const overlap = itemTags.filter((tag) => seedTags.has(tag)).length;
-        const previewReady = Number(Boolean(video.poster || video.remote?.previewUrl));
-        const score = overlap * 12 + ratingPreference(getRating(video.id)) * 8 + (favorites[video.id] ? 5 : 0) + (likes[video.id] ? 3 : 0) + previewReady * 3;
-        return { video, score, shuffle: shuffleRank(`adult-rel:${video.id}:${adultRailSeed}`, adultRailSeed) };
-      })
-      .filter((row) => row.score > 0)
-      .sort((a, b) => b.score - a.score || a.shuffle - b.shuffle)
-      .map(({ video }) => video)
-      .slice(0, 96);
+    function* candidates() {
+      for (const video of filteredEporner) {
+        if (getRating(video.id) === 1 || recommendedIds.has(video.id)) continue;
+        let overlap = 0; for (const tag of rankingTags(tags[video.id] ?? [])) if (seedTags.has(tag)) overlap++;
+        const score = scoreAdultVideo(video, adultRankCtx) + Math.min(16, overlap * 4) + Number(Boolean(video.poster || video.remote?.previewUrl)) * 3;
+        if (score > 0) yield { video, score, shuffle: shuffleRank(`adult-rel:${video.id}:${adultRailSeed}`, adultRailSeed) };
+      }
+    }
+    const ranked = bestRanked(candidates(), 96, (a, b) => b.score - a.score || a.shuffle - b.shuffle).map(row => row.video);
     return diversifyAdultSources(diversifyCreators(ranked, 96), 48);
   })();
   const adultShelfRails = (() => {

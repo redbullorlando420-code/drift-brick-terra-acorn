@@ -1,0 +1,39 @@
+✔ catalog cache ignores UI changes, isolates scopes, and invalidates changed slices (1.6986ms)
+✔ expanded metadata is reused until a title receives an edited tag array (1.6009ms)
+✔ linear provider interleave preserves the prior ranking and does not drop titles (38.0735ms)
+✔ worker model respects type/source/tag filters and keeps the full catalog (58.4651ms)
+✔ worker keeps recovered personal shelves and ranks private local videos (18.8478ms)
+✔ worker recommendations respond to feedback without changing catalog identity (19.6455ms)
+✔ recommendation bonuses preserve rating order and exclude explicitly disliked titles (19.9764ms)
+✔ Adult rails rotate through a broad preview-ready catalog instead of a fixed top slice (126.4041ms)
+✔ navigation persists only display settings and preserves full library metadata (22.4066ms)
+✔ small photo catalogs retain recommendations across filters and rotations (42.8566ms)
+✔ a single matching photo still has a recommendation shelf (1.2199ms)
+✔ worker-free search yields, preserves metadata and exact tags, and cancels without an index (191.9172ms)
+✔ cancelled offscreen thumbnail requests leave no queued work or leaked slots (8.2218ms)
+✔ aborting an awakened waiter still lets the next visible image load (0.4025ms)
+✔ remote artwork does not grow the local frame-thumbnail cache (1.7797ms)
+✔ real frame captures release media on viewer pause, resume subscribed cards, and cancel unmounted work (34.1665ms)
+✔ binary thumbnails obey backing-byte limits and revoke evicted URLs (2.261ms)
+✔ an evicted binary disk thumbnail reopens without file access or video decoding (24.7707ms)
+✔ worker batches preserve search metadata and replace stale generations (28.6567ms)
+✔ search client applies backpressure, rejects stale replies, and settles worker failures (33.1212ms)
+✔ recent creator viewing raises unseen older uploads from that creator (2.6133ms)
+✔ liked tags and explicit creator favorites influence ranking (0.3731ms)
+✔ a deliberately unliked tag is a negative recommendation signal (2.224ms)
+✔ recommendations interleave creators and de-prioritize already watched videos (0.6928ms)
+✔ a single prolific archive can still fill the requested shelf with its best-ranked uploads (1.9257ms)
+✔ feedback lookups scale with unique creators and tags, and exclude other providers (20.4517ms)
+✔ cached catalog follows immutable replacements and rejects invalid limits (28.4902ms)
+✔ filtered recommendations still learn from watched videos outside the filter (3.1848ms)
+✔ reshuffling reuses scored evidence instead of reading feedback again (19.9543ms)
+✔ ratings improve candidate order even when watched discovery evidence is negative (0.7622ms)
+✔ repeating tags or adding many hearted tags cannot create unlimited ranking bonuses (1.1201ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 652.924

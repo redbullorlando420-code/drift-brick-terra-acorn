@@ -7,7 +7,7 @@ import type { LibraryVideo } from "./types";
 import { adultTagRankBoost } from "./adult-fetishes";
 import { adultProviderKind } from "./adult-filter";
 import { expandedAdultTags, isAdultGenreTag, isAdultMetaTaxonomyTag } from "./adult-taxonomy";
-import { ratingPreference } from "../media-feedback";
+import { rankingTags, confidenceAdjustedPreference, personalRankScore, ratingPreference } from './ranking-core';
 
 /** Stable personal-interest tags for the main Adults browser. Sources and
  * creators already have dedicated filters; raw API keyword dumps stay
@@ -29,6 +29,14 @@ export type AdultRankContext = {
   ratingOf: (id: string) => number;
   tagIsHearted?: (tag: string) => boolean;
   tagHasHeartHistory?: (tag: string) => boolean;
+  now?: number;
+  watchScore?: (id: string) => number;
+  creatorIsLiked?: (creator: string) => boolean;
+  creatorIsFavorited?: (creator: string) => boolean;
+  creatorRating?: (creator: string) => number;
+  scores?: Map<string, number>;
+  topicAffinity?: Record<string, number>;
+
 };
 
 function redditSignal(tags: string[]): number {
@@ -42,24 +50,18 @@ function redditSignal(tags: string[]): number {
 }
 
 export function scoreAdultVideo(video: LibraryVideo, ctx: AdultRankContext): number {
-  const itemTags = ctx.tags[video.id] ?? [];
+  const previous = ctx.scores?.get(video.id); if (previous !== undefined) return previous;
   const rating = ctx.ratingOf(video.id);
-  const came = Math.min(24, (ctx.cameCounts[video.id] ?? 0) * 7);
-  const views = Math.min(8, (ctx.viewCounts?.[video.id] ?? 0) * 1.2);
-  const boost = itemTags.reduce((sum, tag) => sum + adultTagRankBoost(tag), 0);
-  const recency = Math.max(0, 1 - (Date.now() - video.addedAt) / (21 * 86_400_000)) * 8;
-  const reddit = video.remote?.kind === "reddit" ? 6 + redditSignal(itemTags) : redditSignal(itemTags);
-  return (
-    ratingPreference(rating) * 14
-    + (ctx.favorites[video.id] ? 10 : 0)
-    + (ctx.likes[video.id] ? 6 : 0)
-    + came
-    + views
-    + boost
-    + recency
-    + reddit
-    + Math.min(6, itemTags.length) * 0.35
-  );
+  const distinct = rankingTags(ctx.tags[video.id] ?? []);
+  const boost = Math.min(4, distinct.reduce((sum, tag) => sum + adultTagRankBoost(tag), 0));
+  const hearts = Math.min(8, distinct.filter(tag => isAdultInterestTag(tag) && ctx.tagIsHearted?.(tag)).length * 4);
+  const creator = video.remote?.channelName ?? "";
+  const score = personalRankScore({ rating, favorite: Boolean(ctx.favorites[video.id]), liked: Boolean(ctx.likes[video.id]),
+    creatorLiked: ctx.creatorIsLiked?.(creator), creatorFavorite: ctx.creatorIsFavorited?.(creator), creatorRating: ctx.creatorRating?.(creator),
+    watch: ctx.watchScore?.(video.id), tagHearts: hearts / 4,
+    marks: ctx.cameCounts[video.id], plays: ctx.viewCounts?.[video.id], topics: boost + hearts + Math.min(2, redditSignal(distinct)) + distinct.reduce((sum, tag) => sum + (ctx.topicAffinity?.[tag] ?? 0), 0) / Math.max(1, distinct.length),
+    freshness: Math.max(0, 1 - ((ctx.now ?? Date.now()) - video.addedAt) / (21 * 86_400_000)) });
+  ctx.scores?.set(video.id, score); return score;
 }
 
 export type AdultTagRankRow = { tag: string; score: number; count: number };
@@ -123,7 +125,7 @@ export function rankAdultTags(
   ctx: AdultRankContext,
   limit = 64,
 ): AdultTagRankRow[] {
-  const rows = new Map<string, { total: number; count: number; recent: number; videoScoreSum: number }>();
+  const rows = new Map<string, { total: number; evidence: number; count: number; recent: number; videoScoreSum: number }>();
   for (const video of videos) {
     const rating = ctx.ratingOf(video.id);
     const signal = rating === 1 ? -3 : Math.max(
@@ -131,17 +133,16 @@ export function rankAdultTags(
       ctx.favorites[video.id] ? 4 : 0,
       ctx.likes[video.id] ? 3 : 0,
       Math.min(5, ctx.cameCounts[video.id] ?? 0),
-      // Zero-score videos still count as support so rare tags stay findable.
-      0.35,
+      Math.min(2, (ctx.watchScore?.(video.id) ?? 0) / 6),
+      0,
     );
-    const kind = adultProviderKind(video);
     const itemTags = ctx.tags[video.id] ?? [];
     const videoScore = scoreAdultVideo(video, ctx);
     for (const tag of expandedAdultTags(itemTags)) {
       if (!isAdultInterestTag(tag)) continue;
-      const row = rows.get(tag) ?? { total: 0, count: 0, recent: 0, videoScoreSum: 0 };
-      const redditBoost = kind === "reddit" && (tag.startsWith("source-reddit") || tag.startsWith("sub-") || tag.startsWith("fetish-")) ? 2 : 0;
-      row.total += signal + adultTagRankBoost(tag) + redditBoost;
+      const row = rows.get(tag) ?? { total: 0, evidence: 0, count: 0, recent: 0, videoScoreSum: 0 };
+      row.total += signal;
+      if (rating > 0 || signal !== 0) row.evidence++;
       row.count += 1;
       row.recent = Math.max(row.recent, video.addedAt);
       row.videoScoreSum += videoScore;
@@ -151,7 +152,7 @@ export function rankAdultTags(
   const now = Date.now();
   return [...rows.entries()]
     .map(([tag, row]) => {
-      const engagement = (row.total + 9) / (row.count + 3);
+      const engagement = 1 + confidenceAdjustedPreference(row.total, row.evidence);
       const recency = Math.max(0, 1 - (now - row.recent) / (30 * 86_400_000));
       const hearted = Boolean(ctx.tagIsHearted?.(tag));
       const historic = Boolean(ctx.tagHasHeartHistory?.(tag));
@@ -170,6 +171,7 @@ export function rankAdultTags(
 }
 
 export function sortAdultVideos<T extends LibraryVideo>(videos: T[], ctx: AdultRankContext): T[] {
+  ctx = { ...ctx, now: ctx.now ?? Date.now(), scores: ctx.scores ?? new Map() };
   // Score once per title — comparator-time scoring was O(n log n) re-walks over tags.
   const scored = videos
     .map((video) => ({ video, score: scoreAdultVideo(video, ctx) }))
@@ -209,21 +211,23 @@ export function rankAdultMetaTags(
   ctx: AdultRankContext,
   limit = 64,
 ): AdultTagRankRow[] {
-  const rows = new Map<string, { total: number; count: number; recent: number; providers: Set<string> }>();
+  const rows = new Map<string, { total: number; evidence: number; count: number; recent: number; providers: Set<string> }>();
   for (const video of videos) {
     const engagement = ctx.ratingOf(video.id) === 1 ? -3 : Math.max(
       ratingPreference(ctx.ratingOf(video.id)),
       ctx.favorites[video.id] ? 4 : 0,
       ctx.likes[video.id] ? 3 : 0,
       Math.min(5, ctx.cameCounts[video.id] ?? 0),
-      1,
+      Math.min(2, (ctx.watchScore?.(video.id) ?? 0) / 6),
+      0,
     );
     const provider = adultProviderKind(video) || "other";
     const itemTags = ctx.tags[video.id] ?? [];
     for (const tag of expandedAdultTags(itemTags)) {
       if (!isAdultMetaTag(tag)) continue;
-      const row = rows.get(tag) ?? { total: 0, count: 0, recent: 0, providers: new Set<string>() };
+      const row = rows.get(tag) ?? { total: 0, evidence: 0, count: 0, recent: 0, providers: new Set<string>() };
       row.total += engagement;
+      if (ctx.ratingOf(video.id) > 0 || engagement !== 0) row.evidence++;
       row.count += 1;
       row.recent = Math.max(row.recent, video.addedAt);
       row.providers.add(provider);
@@ -233,7 +237,7 @@ export function rankAdultMetaTags(
   const now = Date.now();
   return [...rows.entries()]
     .map(([tag, row]) => {
-      const engagement = (row.total + 6) / (row.count + 2);
+      const engagement = 1 + confidenceAdjustedPreference(row.total, row.evidence);
       const recency = Math.max(0, 1 - (now - row.recent) / (30 * 86_400_000));
       // A tag that appears across providers is a stronger recommendation seed
       // than an API-specific keyword dump.

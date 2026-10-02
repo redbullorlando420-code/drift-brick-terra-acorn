@@ -1,12 +1,12 @@
-✔ worker-free search yields, preserves metadata and exact tags, and cancels without an index (146.9019ms)
-✔ cancelled offscreen thumbnail requests leave no queued work or leaked slots (2.4749ms)
-✔ aborting an awakened waiter still lets the next visible image load (0.2887ms)
-✔ remote artwork does not grow the local frame-thumbnail cache (0.5297ms)
-✔ real frame captures release media on viewer pause, resume subscribed cards, and cancel unmounted work (21.1026ms)
-✔ binary thumbnails obey backing-byte limits and revoke evicted URLs (1.3387ms)
-✔ an evicted binary disk thumbnail reopens without file access or video decoding (34.6955ms)
-✔ worker batches preserve search metadata and replace stale generations (3.6792ms)
-✔ search client applies backpressure, rejects stale replies, and settles worker failures (42.4238ms)
+✔ worker-free search yields, preserves metadata and exact tags, and cancels without an index (175.4165ms)
+✔ cancelled offscreen thumbnail requests leave no queued work or leaked slots (1.5917ms)
+✔ aborting an awakened waiter still lets the next visible image load (0.1564ms)
+✔ remote artwork does not grow the local frame-thumbnail cache (0.4417ms)
+✔ real frame captures release media on viewer pause, resume subscribed cards, and cancel unmounted work (17.4345ms)
+✔ binary thumbnails obey backing-byte limits and revoke evicted URLs (1.2233ms)
+✔ an evicted binary disk thumbnail reopens without file access or video decoding (25.8495ms)
+✔ worker batches preserve search metadata and replace stale generations (3.2244ms)
+✔ search client applies backpressure, rejects stale replies, and settles worker failures (42.8672ms)
 ℹ tests 9
 ℹ suites 0
 ℹ pass 9
@@ -14,4 +14,4 @@
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 385.0479
+ℹ duration_ms 407.3267

@@ -45,13 +45,23 @@ export async function announceNetworkPresence() {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ id: getDeviceId(), ...details }),
     keepalive: true,
+    signal: AbortSignal.timeout(3000),
   });
   if (!response.ok) throw new Error("Network presence could not be updated");
   return response.json() as Promise<{ devices: NetworkDevice[] }>;
 }
 
-export async function listNetworkDevices() {
-  const response = await fetch("/api/network-presence", { cache: "no-store" });
-  if (!response.ok) throw new Error("Network devices could not be read");
-  return response.json() as Promise<{ devices: NetworkDevice[] }>;
+let devicesPending: Promise<{ devices: NetworkDevice[] }> | null = null;
+let devicesCached: { devices: NetworkDevice[] } | null = null;
+let devicesExpires = 0;
+export function listNetworkDevices() {
+  if (devicesPending) return devicesPending;
+  if (devicesCached && Date.now() < devicesExpires) return Promise.resolve(devicesCached);
+  devicesPending = (async () => {
+    const response = await fetch('/api/network-presence', { cache: 'no-store', signal: AbortSignal.timeout(3000) });
+    if (!response.ok) throw new Error('Network devices could not be read');
+    const data = await response.json() as { devices: NetworkDevice[] };
+    devicesCached = data; devicesExpires = Date.now() + 2000; return data;
+  })().finally(() => { devicesPending = null; });
+  return devicesPending;
 }

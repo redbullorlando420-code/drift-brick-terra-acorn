@@ -1,4 +1,5 @@
 import { usePreviewRanking } from "./use-preview-ranking";
+import { confidenceAdjustedPreference } from '@/lib/videos/ranking-core';
 import { PullPauseButton } from "./pull-pause-button";
 import { allowAutomaticRefresh } from "@/lib/session-activity";
 import { warmVideoPlayer } from "./video-overlay-loader";
@@ -10,13 +11,14 @@ import { ArrowLeft, ExternalLink, Glasses, Heart, Play, Star, Tag, ThumbsUp, X }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLibrary } from "@/lib/videos/store";
-import { creatorIsLiked, getCreatorRating, getRating, recordWatchTime, setCreatorRating, setRating as saveRating, tagIsLiked, toggleCreatorLike, toggleTagLike } from "@/lib/media-feedback";
+import { creatorIsFavorited, toggleCreatorFavorite, creatorIsLiked, getCreatorRating, getRating, recordWatchTime, setCreatorRating, setRating as saveRating, tagIsLiked, toggleCreatorLike, toggleTagLike } from "@/lib/media-feedback";
 import { resolvePlayUrl } from "@/lib/videos/sources";
 import { twitchEmbedUrl } from "@/lib/videos/twitch-embed";
 import { isAdultImageKind, isAdultPullKind } from "@/lib/videos/adult-sites";
 import { AdultComments, supportsRemoteComments } from "@/components/library/adult-comments";
 import { lookupVideo, lookupVideos } from "@/lib/videos/video-lookup";
 import { useVideoDetails } from './use-video-details';
+import { useRedditMedia } from './use-reddit-media';
 import { useBooruOriginal } from './use-booru-original';
 
 const EMPTY_TAGS: string[] = [];
@@ -61,6 +63,7 @@ export function PreVideo() {
   const markUnavailable = useLibrary((s) => s.markUnavailable);
   const video = useVideoDetails(lookupVideo(videos, previewId));
   const booruImage = useBooruOriginal(video);
+  const redditRemoved = useRedditMedia(video);
   const flushPreviewWatch = () => {
     if (previewId && previewWatchPending.current > 0) recordWatchTime(previewId, "preview", previewWatchPending.current);
     previewWatchPending.current = 0;
@@ -108,6 +111,7 @@ export function PreVideo() {
     .map((source) => source === "manual" ? "your edit" : source === "local-name" ? "local filename" : source === "companion-inspection" ? "Companion inspection" : source === "local-vision" ? "local vision" : source === "legacy" ? "saved library" : source.replace(/^provider:/, "provider · "))
     .join(", ");
   const creatorRating = creator ? getCreatorRating(creator) : 0;
+  const creatorFavorite = creator ? creatorIsFavorited(creator) : false;
   const creatorLiked = creator ? creatorIsLiked(creator) : false;
   useEffect(() => { if (!previewId) return; setRating(getRating(previewId)); }, [previewId]);
   useEffect(() => {
@@ -150,6 +154,12 @@ export function PreVideo() {
   }, [ranked, videos, unavailable, hiddenVideos, adultFolderIds, previewIsAdult]);
   const { related, recommended } = rankedVideos;
   const tagScores = useMemo(() => new Map(Object.entries(ranked.tagScores)), [ranked]);
+  const tagEvidence = (tag: string) => tagScores.get(tag.trim().toLowerCase());
+  const tagPreference = (tag: string) => {
+    const row = tagEvidence(tag);
+    const score = confidenceAdjustedPreference(row?.total ?? 0, row?.count ?? 0);
+    return `${score > 0 ? '+' : ''}${score.toFixed(2)}`;
+  };
   if (!video) return null;
   const adultImage = Boolean(video.remote && isAdultImageKind(video.remote.kind, video.mime, video.extension));
   const myFreeCamsRoom = video.remote?.kind === "myfreecams";
@@ -192,7 +202,7 @@ export function PreVideo() {
         <div className={video.remote?.kind === "twitch" ? "mt-5 grid min-w-0 grid-cols-1 gap-7" : video.remote?.kind === "youtube" ? "mt-5 grid min-w-0 grid-cols-1 gap-7 xl:grid-cols-[minmax(0,2.35fr)_minmax(20rem,0.65fr)]" : "mt-5 grid min-w-0 grid-cols-1 gap-7 lg:grid-cols-[minmax(0,1.55fr)_minmax(18rem,0.7fr)]"}>
           <div className="min-w-0">
             <div className="overflow-hidden rounded-lg bg-elevated shadow-border">
-              {imageSrc ? (
+              {redditRemoved ? <p role="status" className="flex aspect-video items-center justify-center p-6 text-sm text-muted">Removed by Reddit · hidden from photo recommendations.</p> : imageSrc ? (
                 <img
                   src={imageSrc}
                   alt={video.name}
@@ -294,7 +304,7 @@ export function PreVideo() {
                 <AdultComments key={video.id} video={video} />
               </div>
             )}
-{creator && <div className="mt-4 rounded-lg border border-border bg-elevated/55 p-4"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Creator taste</p><div className="mt-2 flex flex-wrap items-center gap-2"><button type="button" onClick={() => { setSource(video.remote?.kind === "twitch" ? "twitch" : video.remote?.kind === "youtube" ? "youtube" : isAdultPullKind(video.remote?.kind) ? "adults" : "youtube"); setQuery(creator); closePreview(); }} className="font-medium text-fg hover:text-accent">{creator}</button><Button size="sm" variant={creatorLiked ? "default" : "secondary"} onClick={() => { toggleCreatorLike(creator); setCreatorRevision((value) => value + 1); }}><ThumbsUp className={creatorLiked ? "size-3.5 fill-current" : "size-3.5"}/>{creatorLiked ? "Creator liked" : "Like creator"}</Button>{[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" onClick={() => { setCreatorRating(creator, value); setCreatorRevision((revision) => revision + 1); }} className={`flex size-8 items-center justify-center rounded-sm text-xs shadow-border ${value <= creatorRating ? "bg-accent text-accent-fg" : "bg-bg/50 text-accent"}`} aria-label={`Rate creator ${creator} ${value} stars`}>{value}</button>)}</div><div className="mt-3 flex flex-wrap gap-2"><Button size="sm" variant="secondary" disabled={creatorLoading || !video.remote} onClick={() => void (async () => { if (!video.remote) return; setCreatorLoading(true); try { if (video.remote.kind === "youtube" || video.remote.kind === "twitch") await followRemoteQuery(creator, video.remote.kind); setCreatorRevision((value) => value + 1); } finally { setCreatorLoading(false); } })()}>{creatorLoading ? "Pulling older videos…" : "Pull older creator videos"}</Button></div><p className="mt-2 text-xs text-muted">Creator likes, ratings, and the older-video pull boost this creator and shared tags across related recommendations.</p></div>}
+{creator && <div className="mt-4 rounded-lg border border-border bg-elevated/55 p-4"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Creator taste</p><div className="mt-2 flex flex-wrap items-center gap-2"><button type="button" onClick={() => { setSource(video.remote?.kind === "twitch" ? "twitch" : video.remote?.kind === "youtube" ? "youtube" : isAdultPullKind(video.remote?.kind) ? "adults" : "youtube"); setQuery(creator); closePreview(); }} className="font-medium text-fg hover:text-accent">{creator}</button><Button size="sm" variant={creatorLiked ? "default" : "secondary"} onClick={() => { toggleCreatorLike(creator); setCreatorRevision((value) => value + 1); }}><ThumbsUp className={creatorLiked ? "size-3.5 fill-current" : "size-3.5"}/>{creatorLiked ? "Creator liked" : "Like creator"}</Button><Button size="sm" variant={creatorFavorite ? "default" : "secondary"} aria-pressed={creatorFavorite} onClick={() => { toggleCreatorFavorite(creator); setCreatorRevision(value => value + 1); }}><Heart className={creatorFavorite ? "size-3.5 fill-current" : "size-3.5"}/>{creatorFavorite ? "Creator favorite" : "Favorite creator"}</Button>{[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" onClick={() => { setCreatorRating(creator, value); setCreatorRevision((revision) => revision + 1); }} className={`flex size-8 items-center justify-center rounded-sm text-xs shadow-border ${value <= creatorRating ? "bg-accent text-accent-fg" : "bg-bg/50 text-accent"}`} aria-label={`Rate creator ${creator} ${value} stars`}>{value}</button>)}</div><div className="mt-3 flex flex-wrap gap-2"><Button size="sm" variant="secondary" disabled={creatorLoading || !video.remote} onClick={() => void (async () => { if (!video.remote) return; setCreatorLoading(true); try { if (video.remote.kind === "youtube" || video.remote.kind === "twitch") await followRemoteQuery(creator, video.remote.kind); setCreatorRevision((value) => value + 1); } finally { setCreatorLoading(false); } })()}>{creatorLoading ? "Pulling older videos…" : "Pull older creator videos"}</Button></div><p className="mt-2 text-xs text-muted">Creator likes, favorites and ratings boost related recommendations. Watch time and private marks add bounded interest. Pulling older videos expands coverage.</p></div>}
           </div>
           <aside className="min-w-0 rounded-lg bg-elevated p-5 shadow-border">
             <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Details</p>
@@ -307,7 +317,7 @@ export function PreVideo() {
               {visibleTags.length ? (
                 visibleTags.map((tag) => (
                   <span key={tag} className="inline-flex overflow-hidden rounded-xs bg-bg/50 text-xs text-muted">
-                    <button type="button" title={`Show videos tagged ${tag} · score ${Math.round(((tagScores.get(tag)?.total ?? 0) / Math.max(1, tagScores.get(tag)?.count ?? 1)) * 1000).toLocaleString()}`} onClick={() => {
+                    <button type="button" title={`Show videos tagged ${tag} · confidence-adjusted preference ${tagPreference(tag)} · ${tagEvidence(tag)?.count ?? 0} rated videos`} onClick={() => {
                       if (previewIsAdult) {
                         // Stay on Adults and filter in-place — never jump to Search/Home via setQuery.
                         setQuery("");
@@ -319,7 +329,7 @@ export function PreVideo() {
                       setSource(video.remote?.kind === "twitch" ? "twitch" : video.remote?.kind === "youtube" ? "youtube" : "all");
                       setQuery(tag);
                       closePreview();
-                    }} className="px-2 py-1 transition-colors hover:bg-accent/15 hover:text-accent focus-visible:outline-2 focus-visible:outline-accent">#{tag} <span className="text-accent">· {Math.round(((tagScores.get(tag)?.total ?? 0) / Math.max(1, tagScores.get(tag)?.count ?? 1)) * 1000).toLocaleString()}</span></button>
+                    }} className="px-2 py-1 transition-colors hover:bg-accent/15 hover:text-accent focus-visible:outline-2 focus-visible:outline-accent">#{tag} <span className="text-accent">· {tagPreference(tag)}</span></button>
                     <button type="button" title={tagIsLiked(tag) ? `Unlike tag ${tag}` : `Like tag ${tag}`} aria-label={tagIsLiked(tag) ? `Unlike tag ${tag}` : `Like tag ${tag}`} onClick={() => { toggleTagLike(tag); setTagRevision((value) => value + 1); }} className={`border-l border-border px-1.5 transition-colors hover:bg-accent/15 ${tagIsLiked(tag) ? "text-accent" : "text-subtle"}`}><Heart className={tagIsLiked(tag) ? "size-3 fill-current" : "size-3"}/></button>
                   </span>
                 ))

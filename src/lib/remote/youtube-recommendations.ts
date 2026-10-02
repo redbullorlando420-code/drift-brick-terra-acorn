@@ -1,4 +1,5 @@
 import type { LibraryVideo } from "@/lib/videos/types";
+import { applyInterestMultipliers, rankingTags, confidenceAdjustedPreference, normalizeRating, ratingAdjustedScore, ratingPreference, RATING_STAR_WEIGHTS } from '../videos/ranking-core.ts';
 
 export type YoutubeTaste = {
   tags: Record<string, string[]>;
@@ -13,6 +14,8 @@ export type YoutubeTaste = {
   watchScore: (id: string) => number;
   creatorIsLiked: (creator: string) => boolean;
   creatorRating: (creator: string) => number;
+  creatorIsFavorited?: (creator: string) => boolean;
+  marksOf?: (id: string) => number;
   shuffle?: (id: string) => number;
   now?: number;
   limit?: number;
@@ -75,6 +78,7 @@ export function createYoutubeRecommendationRanker(videos: LibraryVideo[], taste:
     catalogIndexes.set(videos, byId);
   }
   const ratings = new Map<string, number>();
+  const interactions = new Map<string, { watch: number; marks: number; tags: string[] }>();
 
   for (const [id, at] of watchedAt) {
     const video = byId.get(id);
@@ -85,14 +89,18 @@ export function createYoutubeRecommendationRanker(videos: LibraryVideo[], taste:
     }
   }
   for (const video of byId.values()) {
-    const rating = taste.ratingOf(video.id);
+    const rating = normalizeRating(taste.ratingOf(video.id));
     ratings.set(video.id, rating);
-    const feedback = rating === 1 ? -3 : Math.max(taste.ratingPreference(rating), taste.favorites[video.id] ? 2 : 0, taste.likes[video.id] ? 1 : 0);
-    const watch = Math.min(2, taste.watchScore(video.id) / 4 + Math.log2(1 + (taste.viewCounts[video.id] ?? 0)) * 0.35);
-    const evidence = feedback + watch;
-    for (const tag of new Set((taste.tags[video.id] ?? []).map((raw) => raw.trim().toLowerCase()))) {
+    const feedback = rating === 1 ? -3 : Math.max(ratingPreference(rating), taste.favorites[video.id] ? 2 : 0, taste.likes[video.id] ? 1 : 0);
+    const time = Math.max(0, Math.min(12, taste.watchScore(video.id) || 0));
+    const marks = Math.max(0, Math.min(1_000_000, taste.marksOf?.(video.id) || 0));
+    const tags = rankingTags(taste.tags[video.id] ?? []);
+    interactions.set(video.id, { watch: time, marks, tags });
+    const watch = Math.min(2, time / 4 + Math.log2(1 + (taste.viewCounts[video.id] ?? 0)) * 0.35);
+    const evidence = feedback + watch + (rating === 1 ? 0 : Math.min(2, Math.log2(1 + marks)));
+    for (const tag of tags) {
       if (!tag || tag.length < 3) continue;
-      if (evidence) {
+      if (rating > 0 || evidence) {
         const row = tagEvidence.get(tag) ?? { total: 0, count: 0 };
         row.total += evidence;
         row.count += 1;
@@ -100,14 +108,14 @@ export function createYoutubeRecommendationRanker(videos: LibraryVideo[], taste:
       }
     }
     const creator = creatorKey(video);
-    if (creator && evidence) {
+    if (creator && (rating > 0 || evidence)) {
       creatorAffinity.set(creator, (creatorAffinity.get(creator) ?? 0) + evidence / 5);
       creatorEvidenceCount.set(creator, (creatorEvidenceCount.get(creator) ?? 0) + 1);
     }
   }
 
   const scored: Omit<RankedVideo, "shuffle">[] = [];
-  const creatorFeedback = new Map<string, number>();
+  const creatorFeedback = new Map<string, { points: number; liked: boolean; favorite: boolean }>();
   const tagScores = new Map<string, { inferred: number; explicit: number }>();
   const candidateIds = new Set<string>();
   for (const video of candidates) {
@@ -115,38 +123,47 @@ export function createYoutubeRecommendationRanker(videos: LibraryVideo[], taste:
     candidateIds.add(video.id);
     const creatorLabel = video.remote?.channelName?.trim() ?? "";
     const creator = creatorKey(video);
-    const rating = ratings.get(video.id) ?? 0;
+    const rating = normalizeRating(ratings.get(video.id) ?? 0);
+    if (rating === 1) continue;
     const watched = watchedAt.has(video.id) || (taste.viewCounts[video.id] ?? 0) > 0;
-    const tags = [...new Set((taste.tags[video.id] ?? []).map((tag) => tag.trim().toLowerCase()).filter((tag) => tag.length >= 3))];
+    const interaction = interactions.get(video.id)!;
+    const tags = interaction.tags;
     for (const tag of tags) if (!tagScores.has(tag)) {
       const row = tagEvidence.get(tag);
-      tagScores.set(tag, { inferred: row ? row.total / (row.count + 2) : 0,
+      tagScores.set(tag, { inferred: row ? confidenceAdjustedPreference(row.total, row.count) : 0,
         explicit: taste.tagIsLiked(tag) ? 12 : taste.tagHasHeartHistory(tag) ? -5 : 0 });
     }
     const tagScore = tags.reduce((sum, tag) => {
       return sum + (tagScores.get(tag)?.inferred ?? 0);
     }, 0) / Math.max(tags.length, 1);
-    const explicitTagScore = tags.reduce((sum, tag) => sum + (tagScores.get(tag)?.explicit ?? 0), 0);
+    const explicitTagScore = Math.max(-15, Math.min(24, tags.reduce((sum, tag) => sum + (tagScores.get(tag)?.explicit ?? 0), 0)));
     const creatorWatch = activeCreatorWatch.get(creator) ?? 0;
-    if (!creatorFeedback.has(creatorLabel)) creatorFeedback.set(creatorLabel,
-      (taste.creatorIsLiked(creatorLabel) ? 14 : 0) + taste.ratingPreference(taste.creatorRating(creatorLabel)) * 3);
+    if (!creatorFeedback.has(creatorLabel)) {
+      const liked = taste.creatorIsLiked(creatorLabel), favorite = Boolean(taste.creatorIsFavorited?.(creatorLabel));
+      creatorFeedback.set(creatorLabel, { liked, favorite, points: (liked ? 14 : 0) + (favorite ? 18 : 0) + ratingPreference(taste.creatorRating(creatorLabel)) * 3 });
+    }
+    const channel = creatorFeedback.get(creatorLabel)!;
     const creatorScore = (creatorAffinity.get(creator) ?? 0) / Math.max(1, creatorEvidenceCount.get(creator) ?? 0);
-    const score = tagScore * 10
+    const baseScore = tagScore * 10
       + creatorScore * 2.5
       + Math.min(24, creatorWatch * 7)
-      + (creatorFeedback.get(creatorLabel) ?? 0)
+      + channel.points
       + explicitTagScore
       + (watched ? -28 : 10)
       + (creatorWatch && video.addedAt < (latestWatchedPublishAt.get(creator) ?? 0) ? Math.min(10, Math.log2(1 + ((latestWatchedPublishAt.get(creator) ?? 0) - video.addedAt) / 86_400_000) * 2) : 0)
-      + (rating === 1 ? -50 : 0)
-      + (taste.favorites[video.id] ? -8 : 0)
-      + (taste.likes[video.id] ? -5 : 0)
+      + (taste.favorites[video.id] ? 12 : 0)
+      + (taste.likes[video.id] ? 6 : 0)
       + (video.addedAt > now - 90 * 86_400_000 ? 2 : 0);
-    scored.push({ video, score, creator: creator || `unknown:${video.id}` });
+    scored.push({ video, score: applyInterestMultipliers(ratingAdjustedScore(baseScore, rating, RATING_STAR_WEIGHTS.youtube), {
+      favorite: Boolean(taste.favorites[video.id]), liked: Boolean(taste.likes[video.id]), topics: tagScore * 10,
+      tagHearts: tags.reduce((count, tag) => count + Number((tagScores.get(tag)?.explicit ?? 0) > 0), 0),
+      creatorLiked: channel.liked, creatorFavorite: channel.favorite, watch: interaction.watch, marks: interaction.marks,
+    }), creator: creator || `unknown:${video.id}` });
   }
   // Feedback/evidence is stable between reshuffles. Compute it once, then
   // change only the seeded tie-breaker when the user asks for another mix.
-  return (shuffle = taste.shuffle) => {
+  const defaultShuffle = taste.shuffle;
+  return (shuffle = defaultShuffle) => {
     const buckets = new Map<string, RankedVideo[]>();
     for (const candidate of scored) {
       const row = { ...candidate, shuffle: shuffle?.(candidate.video.id) ?? 0 };

@@ -1,16 +1,21 @@
 import { recordRatingForStreak } from "./rating-streaks";
 import { restoreDurableFeedback, saveDurableFeedback } from "./videos/persist";
+import { copyCatalogRecord, yieldCatalogTask } from './catalog-work';
 import { scheduleBackgroundWork } from './interaction-budget';
 
 export type RatingLedgerEntry = { rating: number; updatedAt: number };
 export type WatchTime = { preview: number; fullscreen: number; previewEstimated?: number; fullscreenEstimated?: number };
 const EMPTY_WATCH_TIME: WatchTime = { preview: 0, fullscreen: 0 };
-export type Feedback = { ratings: Record<string, number>; ratingHistory: Record<string, RatingLedgerEntry>; notes: Record<string, string>; creatorRatings: Record<string, number>; creatorLikes: Record<string, true>; tagLikes: Record<string, true>; tagHeartHistory: Record<string, number>; watchTime: Record<string, WatchTime> };
+export type Feedback = { ratings: Record<string, number>; ratingHistory: Record<string, RatingLedgerEntry>; notes: Record<string, string>; creatorRatings: Record<string, number>; creatorLikes: Record<string, true>; creatorFavorites?: Record<string, true>; tagLikes: Record<string, true>; tagHeartHistory: Record<string, number>; watchTime: Record<string, WatchTime> };
 /** Explicit dislike, neutral, then progressively stronger positive signals. */
-export function ratingPreference(rating: number): number { return rating === 1 ? -3 : rating === 2 ? 0 : rating >= 3 ? Math.min(3, rating - 2) : 0; }
+export { ratingPreference } from './videos/ranking-core';
 export function watchTimeScore(time: WatchTime): number { return Math.min(12, Math.floor(time.preview / 30) + Math.floor(time.fullscreen / 90) * 2 + Math.floor((time.previewEstimated ?? 0) / 90) + Math.floor((time.fullscreenEstimated ?? 0) / 180)); }
 const KEY = "reelcase.media-feedback.v1";
 let cached: Feedback | null = null;
+let signalVersion = 0;
+type RankingSnapshot = { ratings: Record<string, number>; heartedTags: string[]; historicTags: string[];
+  creatorLikes: Record<string, true>; creatorFavorites: Record<string, true>; creatorRatings: Record<string, number>; watchScores: Record<string, number> };
+let snapshot: { version: number; pending: Promise<RankingSnapshot> } | undefined;
 let changeTimer: number | undefined;
 let persistTimer: number | undefined;
 let cancelPersist: (() => void) | undefined;
@@ -40,7 +45,7 @@ function legacyKeys() {
 
 /** Read old per-title ratings once, in small batches, rather than doing a
  * synchronous storage lookup for every unscored title during recommendation. */
-export async function rankingFeedbackSnapshot() {
+export async function rankingFeedbackSnapshot(): Promise<RankingSnapshot> {
   if (typeof window !== "undefined") {
     legacyScan ??= (async () => {
       try {
@@ -60,12 +65,32 @@ export async function rankingFeedbackSnapshot() {
     })();
     await legacyScan;
   }
-  const feedback = read();
-  return {
-    ratings: { ...Object.fromEntries(legacyRatings), ...feedback.ratings },
-    heartedTags: Object.keys(feedback.tagLikes),
-    historicTags: Object.keys(feedback.tagHeartHistory),
-  };
+  if (snapshot?.version === signalVersion) {
+    const current = snapshot, result = await current.pending;
+    return current.version === signalVersion ? result : rankingFeedbackSnapshot();
+  }
+  const version = signalVersion, feedback = read();
+  const pending = (async (): Promise<RankingSnapshot> => {
+    const ratings = await copyCatalogRecord(feedback.ratings, yieldCatalogTask);
+    let count = 0;
+    for (const [id, rating] of legacyRatings) {
+      if (!(id in ratings)) ratings[id] = rating;
+      if (++count % 512 === 0) await yieldCatalogTask();
+    }
+    const watchScores: Record<string, number> = Object.create(null);
+    count = 0;
+    for (const id in feedback.watchTime) {
+      watchScores[id] = watchTimeScore(feedback.watchTime[id]);
+      if (++count % 512 === 0) await yieldCatalogTask();
+    }
+    return { ratings, heartedTags: Object.keys(feedback.tagLikes), historicTags: Object.keys(feedback.tagHeartHistory),
+      creatorLikes: await copyCatalogRecord(feedback.creatorLikes, yieldCatalogTask), creatorFavorites: await copyCatalogRecord(feedback.creatorFavorites ?? {}, yieldCatalogTask),
+      creatorRatings: await copyCatalogRecord(feedback.creatorRatings, yieldCatalogTask), watchScores };
+  })();
+  snapshot = { version, pending };
+  const result = await pending;
+  // Feedback can change while batches yield. Never send mixed old/new taste to a worker.
+  return version === signalVersion ? result : rankingFeedbackSnapshot();
 }
 
 let feedbackHydrated = false;
@@ -73,8 +98,8 @@ function read(): Feedback {
   if (cached) return cached;
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) ?? "{}") as Partial<Feedback>;
-    cached = { ratings: saved.ratings ?? {}, ratingHistory: saved.ratingHistory ?? {}, notes: saved.notes ?? {}, creatorRatings: saved.creatorRatings ?? {}, creatorLikes: saved.creatorLikes ?? {}, tagLikes: saved.tagLikes ?? {}, tagHeartHistory: saved.tagHeartHistory ?? {}, watchTime: saved.watchTime ?? {} };
-  } catch { cached = { ratings: {}, ratingHistory: {}, notes: {}, creatorRatings: {}, creatorLikes: {}, tagLikes: {}, tagHeartHistory: {}, watchTime: {} }; }
+    cached = { ratings: saved.ratings ?? {}, ratingHistory: saved.ratingHistory ?? {}, notes: saved.notes ?? {}, creatorRatings: saved.creatorRatings ?? {}, creatorLikes: saved.creatorLikes ?? {}, creatorFavorites: saved.creatorFavorites ?? { ...saved.creatorLikes }, tagLikes: saved.tagLikes ?? {}, tagHeartHistory: saved.tagHeartHistory ?? {}, watchTime: saved.watchTime ?? {} };
+  } catch { cached = { ratings: {}, ratingHistory: {}, notes: {}, creatorRatings: {}, creatorLikes: {}, creatorFavorites: {}, tagLikes: {}, tagHeartHistory: {}, watchTime: {} }; }
   return cached;
 }
 /** Merge IndexedDB feedback backup once so QuotaExceeded on localStorage cannot erase ratings/hearts. */
@@ -90,11 +115,12 @@ export async function hydrateDurableFeedback() {
     notes: { ...durable.notes, ...current.notes },
     creatorRatings: { ...durable.creatorRatings, ...current.creatorRatings },
     creatorLikes: { ...durable.creatorLikes, ...current.creatorLikes },
+    creatorFavorites: { ...durable.creatorFavorites, ...current.creatorFavorites },
     tagLikes: { ...durable.tagLikes, ...current.tagLikes },
     tagHeartHistory: { ...durable.tagHeartHistory, ...current.tagHeartHistory },
     watchTime: { ...durable.watchTime, ...current.watchTime },
   };
-  notifyChange();
+  signalVersion++; snapshot = undefined; notifyChange();
 }
 function persist() {
   persistTimer = undefined;
@@ -142,7 +168,7 @@ if (typeof window !== "undefined") {
 // paints immediately instead of serializing the entire feedback archive on the
 // input frame. The in-memory version remains authoritative for this session.
 function write(next: Feedback) {
-  cached = next;
+  cached = next; signalVersion++; snapshot = undefined;
   if (typeof window === "undefined") return;
   pendingWrites = 1;
   if (persistTimer) window.clearTimeout(persistTimer);
@@ -150,7 +176,7 @@ function write(next: Feedback) {
   queuePersist(90);
 }
 function writeWatchTime(next: Feedback) {
-  cached = next;
+  cached = next; signalVersion++; snapshot = undefined;
   if (typeof window === "undefined") return;
   pendingWrites = 1;
   // Playback updates arrive every few seconds. Keep one bounded save timer
@@ -208,6 +234,13 @@ export function getFeedbackDiagnostics() { return { lastRatingQueueMs, lastPersi
 function creatorKey(name: string) { return name.trim().toLowerCase(); }
 export function getCreatorRating(name: string): number { return read().creatorRatings[creatorKey(name)] ?? 0; }
 export function setCreatorRating(name: string, rating: number) { const next = read(); next.creatorRatings[creatorKey(name)] = Math.max(0, Math.min(5, Math.round(rating))); write(next); notifyChange(); }
+export function creatorIsFavorited(name: string): boolean { return Boolean(read().creatorFavorites?.[creatorKey(name)]); }
+export function toggleCreatorFavorite(name: string) {
+  const key = creatorKey(name); if (!key) return;
+  const next = read(), favorites = next.creatorFavorites ??= {};
+  if (favorites[key]) delete favorites[key]; else favorites[key] = true;
+  write(next); notifyChange();
+}
 export function creatorIsLiked(name: string): boolean { return Boolean(read().creatorLikes[creatorKey(name)]); }
 export function toggleCreatorLike(name: string) { const next = read(); const key = creatorKey(name); if (next.creatorLikes[key]) delete next.creatorLikes[key]; else next.creatorLikes[key] = true; write(next); notifyChange(); }
 function tagKey(tag: string) { return tag.trim().toLowerCase(); }
@@ -233,6 +266,7 @@ export function importFeedback(partial: Partial<Feedback> & { version?: number }
   if (partial.notes) Object.assign(next.notes, partial.notes);
   if (partial.creatorRatings) Object.assign(next.creatorRatings, partial.creatorRatings);
   if (partial.creatorLikes) Object.assign(next.creatorLikes, partial.creatorLikes);
+  if (partial.creatorFavorites) Object.assign(next.creatorFavorites ??= {}, partial.creatorFavorites);
   if (partial.tagLikes) Object.assign(next.tagLikes, partial.tagLikes);
   if (partial.tagHeartHistory) Object.assign(next.tagHeartHistory, partial.tagHeartHistory);
   if (partial.watchTime) Object.assign(next.watchTime, partial.watchTime);

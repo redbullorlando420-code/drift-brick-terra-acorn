@@ -55,7 +55,7 @@ test('linear provider interleave preserves the prior ranking and does not drop t
   assert.equal(videos[0].id, 'v0');
 });
 
-const { buildAdultBrowseModel } = await import('../src/lib/videos/adult-browse-model.ts');
+const { buildAdultBrowseModel, createAdultBrowseCache } = await import('../src/lib/videos/adult-browse-model.ts');
 const fixture = () => {
   const videos = Array.from({length: 360}, (_, i) => ({ id: 'item-' + i, folderId: i % 2 ? 'booru:discover' : 'eporner:discover', name: 'Title ' + i, addedAt: 1700000000000 + i, extension: i % 2 ? 'jpg' : 'mp4', mime: i % 2 ? 'image/jpeg' : 'video/mp4', poster: 'available', remote: { kind: i % 2 ? 'booru' : 'eporner', channelName: 'Creator ' + i % 12 } }));
   const tags = Object.fromEntries(videos.map(v => [v.id, ['adult', 'amateur', 'pov']]));
@@ -98,6 +98,19 @@ test('worker recommendations respond to feedback without changing catalog identi
  assert.equal(new Set(visible).size,visible.length);
 });
 
+test('recommendation bonuses preserve rating order and exclude explicitly disliked titles', () => {
+ const data=fixture();
+ data.videos=data.videos.filter(v=>v.remote.kind==='eporner').map(v=>({...v,remote:{...v.remote,channelName:'same creator'}}));
+ for(let i=0;i<80;i++) data.signals.ratings[data.videos[i].id]=5;
+ for(let i=80;i<100;i++) data.signals.ratings[data.videos[i].id]=1;
+ for(const seed of [1,7,123]) {
+  const result=buildAdultBrowseModel(data,{...params,limit:8,seed});
+  assert.ok(result.shelves.recommended.length>0);
+  assert.equal(data.signals.ratings[result.shelves.recommended[0]],5);
+  for(const id of [...result.shelves.recommended,...result.shelves.related]) assert.notEqual(data.signals.ratings[id],1);
+ }
+});
+
 test('Adult rails rotate through a broad preview-ready catalog instead of a fixed top slice', () => {
  const data=fixture();
  const visible=new Set();
@@ -133,4 +146,19 @@ test('navigation persists only display settings and preserves full library metad
   if(oldWindow===undefined) delete globalThis.window; else globalThis.window=oldWindow;
   if(oldStorage===undefined) delete globalThis.localStorage; else globalThis.localStorage=oldStorage;
  }
+});
+
+test('Adult scores reuse feedback and tags, but a new signal snapshot invalidates prior scores', () => {
+  const data = fixture();
+  data.signals.creatorFavorites = { 'creator 0': true };
+  data.signals.watchScores = { 'item-0': 12 };
+  const cache = createAdultBrowseCache();
+  const params = { source: 'all', tag: 'All', view: 'all', limit: 24, seed: 1 };
+  buildAdultBrowseModel(data, params, cache);
+  const before = cache.scores.get('item-0');
+  buildAdultBrowseModel(data, { ...params, seed: 2 }, cache);
+  assert.equal(cache.scores.get('item-0'), before);
+  data.signals = { ...data.signals, creatorFavorites: {}, watchScores: {} };
+  buildAdultBrowseModel(data, params, cache);
+  assert.ok(cache.scores.get('item-0') < before);
 });

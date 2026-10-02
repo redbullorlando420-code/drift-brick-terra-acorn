@@ -1,3 +1,4 @@
+import { isRemovedRedditVideo } from './reddit-removed';
 /**
  * Adult source + tag matching. Source chips must filter by provider kind
  * (reddit / redtube / eporner / …), not only by a source-* tag that may
@@ -88,6 +89,7 @@ export function adultBooruHost(video: LibraryVideo): string {
 }
 
 export function videoMatchesAdultSource(video: LibraryVideo, source: string): boolean {
+  if (isRemovedRedditVideo(video)) return false;
   if (!source || source === "all" || source === "All") return true;
   const kinds = adultProviderKinds(video);
   const needle = source.replace(/^source-/, "").toLowerCase();

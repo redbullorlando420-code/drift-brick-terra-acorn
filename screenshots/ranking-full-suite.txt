@@ -1,0 +1,587 @@
+npm notice run test
+npm notice run node --test scripts/*.test.mjs && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/lib/mission-plan.test.ts src/lib/multiplayer/room-clock.test.ts src/lib/multiplayer/room-invite.test.ts src/lib/videos/adult-reddit-media.test.ts src/lib/videos/creator-coverage.test.ts src/lib/videos/follow-collections.test.ts src/lib/videos/follow-removal.test.ts src/lib/videos/image-load-budget.test.ts src/lib/interaction-budget.test.ts src/lib/warm-route-cache.test.ts src/lib/virtual-rail.test.ts src/lib/virtual-grid.test.ts src/lib/deferred-store.test.ts src/lib/card-visibility.test.ts src/lib/videos/thumbnail-queue.test.ts src/lib/videos/search-suggestions.test.ts src/lib/videos/compact-postings.test.ts src/lib/videos/binary-artwork.test.ts src/lib/youtube-first-click-trace.test.ts src/lib/coalesced-writer.test.ts src/lib/bounded-record.test.ts src/lib/session-activity.test.ts src/lib/videos/sources.test.ts src/lib/local-vision.test.ts src/lib/sidebar-state.test.ts src/lib/companion-memory.test.ts src/lib/videos/adult-thumb-session.test.ts src/lib/videos/preview-ranking.test.ts src/lib/videos/ranking-core.test.ts src/lib/videos/video-lookup.test.ts src/lib/videos/follow-identity.test.ts src/lib/remote/youtube-sources.test.ts src/lib/remote/youtube-page-data.test.ts src/lib/remote/youtube-catalog.test.ts src/lib/remote/youtube-sweep.test.ts src/lib/videos/adult-stat-signals.test.ts src/lib/videos/topics.test.ts src/lib/videos/tag-patches.test.ts src/lib/remote/youtube-live.test.ts src/lib/pull-control.test.ts src/lib/videos/selector-cache.test.ts src/lib/catalog-scale.test.ts src/lib/videos/adult-archive-cursors.test.ts src/lib/videos/saved-library.test.ts src/lib/pull-scheduler.test.ts src/lib/catalog-work.test.ts src/lib/videos/activity-lookup.test.ts src/lib/videos/adult-pull-walk.test.ts src/lib/remote/booru-image.test.ts
+✔ catalog cache ignores UI changes, isolates scopes, and invalidates changed slices (1.5623ms)
+✔ expanded metadata is reused until a title receives an edited tag array (1.076ms)
+✔ linear provider interleave preserves the prior ranking and does not drop titles (72.1638ms)
+✔ worker model respects type/source/tag filters and keeps the full catalog (43.8386ms)
+✔ worker keeps recovered personal shelves and ranks private local videos (15.1249ms)
+✔ worker recommendations respond to feedback without changing catalog identity (97.8456ms)
+✔ recommendation bonuses preserve rating order and exclude explicitly disliked titles (18.8498ms)
+✔ Adult rails rotate through a broad preview-ready catalog instead of a fixed top slice (152.3244ms)
+✔ navigation persists only display settings and preserves full library metadata (33.5499ms)
+✔ small photo catalogs retain recommendations across filters and rotations (119.8987ms)
+✔ a single matching photo still has a recommendation shelf (1.0607ms)
+✔ artwork audit counts disk bytes and real reads by source without descending into folders (72.4735ms)
+✔ non-canvas app with no custom card gets a soft BRAND NOTE (utility exception) (6.9232ms)
+✔ non-canvas app with a compliant card is silent (39.5947ms)
+✔ card file without site.json card=custom warns (9.1014ms)
+✔ card file with missing site.json warns for card=custom (5.2088ms)
+✔ card file with invalid site.json warns for card=custom (6.3106ms)
+✔ oversized card warns for non-canvas apps too (6.616ms)
+✔ canvas app with no card warns 'missing' and missing og:type (4.7991ms)
+✔ canvas card without type still warns for og:type (3.1777ms)
+✔ oversized card warns on the scraper budget (jpg and legacy png) (37.5903ms)
+✔ compliant game (custom card + site.json type + x-banner) is silent (5.5586ms)
+✔ __root.tsx og:type no longer satisfies the canvas gate (6.2522ms)
+✔ oversized x-banner warns on the same scraper budget as og.jpg (7.4173ms)
+✔ legacy png + site.json type still needs the X feed card (5.2352ms)
+✔ siteDeclaresOgTypeGame reads the site contract (0.3979ms)
+✔ a fresh og-pending marker silences the whole gate view (4.2851ms)
+✔ a stale og-pending marker is ignored and the warnings return (23.0686ms)
+✔ the marker goes stale on the clock, not on the file (15.2522ms)
+✔ no marker means nothing is in flight (2.9935ms)
+✔ parseBrandCheckArgs takes --game, --placeholder-ok and --root, and rejects the rest (1.4657ms)
+✔ cli: a game missing its card reports JSON and exits 1 (239.971ms)
+✔ cli: a compliant game passes (130.8053ms)
+✔ cli: the task's own marker is reported, not honoured (83.8974ms)
+✔ cli: a bad argument fails with JSON on stderr (85.5517ms)
+✔ cli: a non-game with no card fails too — the pass exists to produce one (73.412ms)
+✔ cli: --placeholder-ok is how a plain-utility pass reports no card as expected (163.2055ms)
+✔ cli: a non-game with a compliant card passes (84.8993ms)
+✔ SKILL.md and AGENTS.md name the marker path and bound this script uses (0.8546ms)
+✔ the sections that own the brand-task prohibition never affirm a wait (1.0746ms)
+✔ SKILL.md tells the pass to self-check with the flag this CLI accepts (0.3517ms)
+✔ normalizes whitespace before hashing (1.9768ms)
+✔ nullish and blank body text normalize to the empty string (0.1899ms)
+✔ body text prefix is normalized and capped (0.1513ms)
+✔ identical runs do not diverge (2.3019ms)
+✔ status change diverges (0.4359ms)
+✔ title change diverges (0.169ms)
+✔ title comparison is skipped when either side lacks one (0.1075ms)
+✔ canvas disappearing diverges; canvas appearing does not (0.1745ms)
+✔ horizontal overflow appearing diverges; clearing does not (0.131ms)
+✔ new console errors diverge (0.2084ms)
+✔ errors already present in the baseline do not re-diverge (0.2064ms)
+✔ body text collapse diverges (0.1133ms)
+✔ body text dropping to zero reports collapse (0.1017ms)
+✔ zero-length baseline reports growth via the hash branch, not collapse (0.1058ms)
+✔ hash mismatch with a trivial length delta and same page start is tolerated (0.4225ms)
+✔ hash mismatch with a trivial length delta but changed page start diverges (0.1547ms)
+✔ prefix check is skipped when either side lacks a prefix (0.3246ms)
+✔ length-delta tolerance boundary: 50 tolerated, 51 diverges (500-char baseline) (0.2034ms)
+✔ length-delta floor dominates small baselines: 20 tolerated, 21 diverges (100-char baseline) (18.4021ms)
+✔ collapse boundary: exactly half is 'changed', one below is 'collapsed' (13.3006ms)
+✔ missing baseline viewport diverges (0.2804ms)
+✔ empty or null baseline diverges for every viewport (0.1809ms)
+✔ degenerate current verdict fails closed (0.2442ms)
+✔ multiple signals across viewports all accumulate (0.2263ms)
+✔ baselineComparison round-trips a valid baseline (0.2232ms)
+✔ baselineComparison fails closed on malformed or wrong-shape baselines (0.7129ms)
+✔ parseSmokeArgs defaults (0.1881ms)
+✔ parseSmokeArgs consumes --baseline without shifting positionals (0.0607ms)
+✔ parseSmokeArgs rejects a trailing --baseline flag (0.0429ms)
+✔ parseSmokeArgs supports the --baseline= form (0.0531ms)
+✔ parseSmokeArgs rejects unknown flags instead of treating them as positionals (0.0566ms)
+✔ parseSmokeArgs env fallback and flag precedence (0.051ms)
+✔ derivedPaths handles .png, .PNG, and extensionless inputs (0.183ms)
+✔ exitCodeFor: clean run exits 0 (0.1155ms)
+✔ exitCodeFor: errors in any single viewport exit 2 (0.0596ms)
+✔ exitCodeFor: navigation failure in any viewport exits 1, beating errors (0.07ms)
+✔ exitCodeFor: 4xx boundary and missing status (0.0543ms)
+✔ exitCodeFor: no viewport data is a failure (0.0464ms)
+✖ browser-smoke wires the guard and verdict helpers (1.8293ms)
+✔ browser-smoke file I/O only touches guarded paths (0.4883ms)
+✔ the flag predicate matches src/lib/auth (1.0943ms)
+✔ reads the value a live dev server resolved (0.3184ms)
+✔ a server started without the flag reads as sign-in on (0.1598ms)
+✔ agreement passes (0.2634ms)
+✔ divergence fails in either direction (0.2504ms)
+✔ an unobservable dev server is indeterminate, not agreement (0.1088ms)
+✔ a dev server that cannot be reached probes as null (0.1733ms)
+✔ a server without the endpoint probes as null, not as agreement (0.3507ms)
+✔ only a divergence warns the smoke verdict (1.2074ms)
+✔ the build side resolves the template's shipped app-env (1.3093ms)
+✖ the CLI reports rather than silently passing when run via a symlink (1.8951ms)
+✔ injects before </head> (4.9589ms)
+✔ injects the extensions script without a project id (1.3455ms)
+✔ injects project id on the script and meta when provided (1.3347ms)
+✔ does not duplicate grok:app_id (23.7146ms)
+✔ omits x:creator tags without both creator values (1.8668ms)
+✔ injects x:creator tags when both creator values are set (0.5103ms)
+✔ escapes x:creator values (0.1377ms)
+✔ does not duplicate x:creator tags (0.6429ms)
+✔ platform chrome overwrites share-card metas and always sets og:title (0.3668ms)
+✔ does not duplicate twitter:card or og:title (1.5522ms)
+✔ a baked site.image is treated as a custom card (3.7242ms)
+✔ baked identity does not need a workspace filesystem (2.6332ms)
+✔ a public card file wins over a baked site without card=custom (2.0328ms)
+✔ public/og.png wins when jpg is absent (2.7215ms)
+✔ resolveOgCardAsset: disk file, then bake, then empty (placeholder) (2.9445ms)
+✔ snapshotOgIdentity stamps card=custom from a public card file (1.4753ms)
+✔ snapshotOgIdentity stamps banner from public/x-banner.jpg (5.5544ms)
+✔ emits x:game:image for a public host when site.banner is set (1.2042ms)
+✔ does not emit x:game:image without a public host or banner (0.4973ms)
+✔ site title Grok App is a real name, not a sentinel (0.3405ms)
+✔ published grok.me slug is still a title fallback (0.4812ms)
+✔ rejects Vercel system hosts as og:image origins (0.111ms)
+✔ published VITE_PUBLIC_HOSTNAME wins over request Host for og:image (0.5474ms)
+✔ vercel Host without a public hostname emits no og:image (0.4579ms)
+✔ emits og:image for a public host and prefers a custom card (2.9744ms)
+✔ placeholder og:image appends site.color when it is 6-digit hex (0.6923ms)
+✔ document title entities are not double-escaped on og:title (0.2356ms)
+✔ site.json title wins over the host slug (0.236ms)
+✔ injects into documents with no head element (0.2549ms)
+✔ streaming injector matches </HEAD> case-insensitively (0.4099ms)
+✔ does not duplicate the extensions script (2.5189ms)
+✔ is idempotent (1.0814ms)
+✔ uses the app name in the injected title tag (0.2338ms)
+✔ streaming injector handles </head> split across chunks (0.9698ms)
+✔ streaming injector passes post-head chunks through untouched (0.4801ms)
+✔ streaming injector falls back when no </head> is seen (0.4259ms)
+✔ detects install query (0.1931ms)
+✔ filters non-document paths (0.3136ms)
+✔ strips install params from the app link (0.4045ms)
+✔ names the install page from host slug (0.3484ms)
+✔ rejects hosts that are not plain slugs (0.1165ms)
+✔ renders install page markup (0.3811ms)
+✔ escapes host-derived values in the install page (0.2954ms)
+✔ renders the manifest with the per-app name (0.1396ms)
+✔ vite config keeps the nitro serverDir wiring (4.6885ms)
+✔ nitro middleware and its bundled assets exist (18.4214ms)
+✔ vite plugin bakes og identity as a virtual module (0.4202ms)
+✔ new Twitch observations survive refresh between clock ticks while stale/unknown state is excluded (0.7605ms)
+✔ live sources deduplicate, exclude offline cards, and search the full adult catalog before paging (32.5262ms)
+✔ worker-free search yields, preserves metadata and exact tags, and cancels without an index (261.6915ms)
+✔ cancelled offscreen thumbnail requests leave no queued work or leaked slots (2.7942ms)
+✔ aborting an awakened waiter still lets the next visible image load (0.4694ms)
+✔ remote artwork does not grow the local frame-thumbnail cache (0.7908ms)
+✔ real frame captures release media on viewer pause, resume subscribed cards, and cancel unmounted work (47.2598ms)
+✔ binary thumbnails obey backing-byte limits and revoke evicted URLs (5.596ms)
+✔ an evicted binary disk thumbnail reopens without file access or video decoding (33.1232ms)
+✔ worker batches preserve search metadata and replace stale generations (8.1905ms)
+✔ search client applies backpressure, rejects stale replies, and settles worker failures (41.97ms)
+✔ _migrations keys on basename, not path (1.4556ms)
+✔ a file already applied from another directory does not re-apply (2.5392ms)
+✔ pending migrations are returned in name order (13.2694ms)
+✔ non-.sql entries are dropped (readdir also yields the auth/ directory) (2.5451ms)
+✖ the auth schema ships outside the globbed directory (8.8768ms)
+✔ this workspace's auth schema copy is byte-identical to its source (0.6924ms)
+✔ the copy check reads both files and catches an edit (8.0107ms)
+✔ parsePreviewArgs accepts the two actions (22.8121ms)
+✔ parsePreviewArgs rejects missing, unknown and extra arguments (0.5538ms)
+✔ parsePid reads a pidfile and rejects junk (0.2214ms)
+✔ parsePgid reads the pgrp field past a comm containing spaces (2.3872ms)
+✔ parseListenerInodes picks LISTEN sockets on the wanted port only (0.5738ms)
+✔ parseListenerInodes reads the tcp6 dump the same way (0.2553ms)
+✔ looksLikePreviewProcess matches the npm wrapper and its vite child (0.8986ms)
+✔ looksLikePreviewProcess spares the sibling scripts and re-used pids (12.9937ms)
+✔ previewOwners trusts port owners and dedupes the pidfile pid (0.3387ms)
+✔ previewOwners adds a pidfile pid whose command line is still the preview (0.5975ms)
+✔ previewOwners drops a stale pidfile pid re-used by another process (0.2031ms)
+✔ previewOwners drops a pidfile pid that no longer exists (0.1642ms)
+✔ previewOwners on a free port with no pidfile signals nothing (1.1611ms)
+✔ stopOutcome fails when a pid survives or the port is still held (0.2666ms)
+✔ stopOutcome reports a verified free port (0.1698ms)
+✔ stopOutcome fails on a listener whose owner cannot be attributed (0.184ms)
+✔ terminatePids SIGTERMs live pids and skips dead ones (0.5206ms)
+✔ terminatePids escalates to SIGKILL when SIGTERM is ignored (0.3186ms)
+✔ terminatePids reports a pid that survives SIGKILL as stubborn (0.689ms)
+✔ terminatePids on a free port signals nothing (0.3182ms)
+✔ a failed or unrequested channel keeps its cached catalog (2.1846ms)
+✔ Twitch VOD history survives a shorter successful refresh (1.9094ms)
+✔ YouTube archive survives a routine refresh with no new uploads (0.5576ms)
+✔ a saved channel stops appearing live when a successful check finds it offline (0.2582ms)
+✔ fresh metadata wins without duplicating a saved card (0.2375ms)
+✔ an unchanged refresh returns the original array and card identity (0.2673ms)
+✔ a changed provider row replaces only that card and keeps existing order (0.1927ms)
+✔ a shallow response retains on-demand comments and a repaired creator name (0.577ms)
+✔ TURN configuration accepts bounded standard endpoints and relay-only policy (1.4363ms)
+✔ TURN configuration rejects unsafe or malformed inputs (0.3792ms)
+✔ preview: a successful sign-out clears the token, then redirects (2.3807ms)
+✔ preview: a rejected sign-out still clears the token and redirects (0.2479ms)
+✔ preview: a sign-out that throws synchronously still clears and redirects (0.1394ms)
+✔ preview: a sign-out that never settles clears and redirects once the wait expires (17.6824ms)
+✔ preview: no bearer means nothing to invalidate, so no request is made (0.556ms)
+✔ preview: a stored bearer is still invalidated server-side (0.174ms)
+✔ deployed: a confirmed sign-out clears the token, then redirects (0.1746ms)
+✔ deployed: a sign-out that never settles throws and does NOT redirect (43.8756ms)
+✔ deployed: a rejected sign-out throws and does NOT redirect (0.7641ms)
+✔ deployed: the timeout is distinguishable from a rejection (40.0173ms)
+✔ settleWithin reports the outcome and never rejects (34.0901ms)
+✔ settleWithin waits its full window, then gives up rather than hanging (13.3815ms)
+✔ pre-sign-in: the preview clear gives up at the preview bound (1.4614ms)
+✔ pre-sign-in: a deployed session gets the deployed window, not the preview one (0.5225ms)
+✔ pre-sign-in: a failed clear never blocks sign-in (0.2518ms)
+✔ pre-sign-in: the preview skips the request when there is no bearer (0.1812ms)
+✔ every sign-out bound comes from one rule (0.0791ms)
+✔ the defaults are bounded, and deployed waits longer than preview (0.246ms)
+✔ keeps VITE_-prefixed string entries (3.1329ms)
+✔ drops non-VITE keys, non-string values and malformed documents (0.4708ms)
+✔ a missing app-env.json is a clean no-op (2.0876ms)
+✔ reads the app env from a workspace (2.0622ms)
+✔ an explicit process-env override wins over the file (0.364ms)
+✔ the template ships auth off (0.7175ms)
+✔ vite loadEnv resolves the wrapped value (1.7779ms)
+✖ the wrapped command runs with the app env applied (195.251ms)
+✖ the wrapped command sees an explicit override, not the file value (133.2864ms)
+✖ the wrapper propagates the command's exit code (114.1492ms)
+✔ a signal-killed command is never reported as success (114.6674ms)
+✖ the CLI still runs when invoked through a symlinked path (2.3079ms)
+✔ parseWriteAtomicArgs needs exactly a staged file and a target (1.8678ms)
+✔ stagingError refuses a temp inside public/ and a no-op move (0.3337ms)
+✔ handOver replaces the target and clears the staged file (4.2563ms)
+✔ handOver creates a missing target directory (4.7443ms)
+✔ an interrupted pass leaves the target on its old bytes, temp-free (4.4123ms)
+✔ a failed hand-over creates no directory for the target it never wrote (2.6424ms)
+✔ a staged file on another filesystem is refused, not copied (4.2671ms)
+✔ cli: hands the file over, and refuses a temp staged in public/ (199.579ms)
+✔ cli: relative paths follow the script's root, not the caller's cwd (83.8159ms)
+✔ every hand-over the og skill prints is one this script accepts (1.4929ms)
+✔ cli: a missing staged file fails without touching the target (71.1724ms)
+✔ recent creator viewing raises unseen older uploads from that creator (2.9717ms)
+✔ liked tags and explicit creator favorites influence ranking (0.6211ms)
+✔ a deliberately unliked tag is a negative recommendation signal (1.9675ms)
+✔ recommendations interleave creators and de-prioritize already watched videos (0.7927ms)
+✔ a single prolific archive can still fill the requested shelf with its best-ranked uploads (2.2193ms)
+✔ feedback lookups scale with unique creators and tags, and exclude other providers (11.442ms)
+✔ cached catalog follows immutable replacements and rejects invalid limits (0.4646ms)
+✔ filtered recommendations still learn from watched videos outside the filter (0.3443ms)
+✔ reshuffling reuses scored evidence instead of reading feedback again (11.9589ms)
+✔ ratings improve candidate order even when watched discovery evidence is negative (1.2503ms)
+✔ repeating tags or adding many hearted tags cannot create unlimited ranking bonuses (0.552ms)
+ℹ tests 239
+ℹ suites 0
+ℹ pass 232
+ℹ fail 7
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1325.004
+
+✖ failing tests:
+
+test at scripts\browser-smoke-verdict.test.mjs:374:1
+✖ browser-smoke wires the guard and verdict helpers (1.8293ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /const outPng = checkedOutputPath\(args\.outPng, \["\/workspace"\]\)/. Input:
+  
+  '#!/usr/bin/env node\r\n' +
+    'import { mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";\r\n' +
+    'import { dirname } from "node:path";\r\n' +
+    'import { fileURLToPath } from "node:url";\r\n' +
+    'const WORKSPACE_ROOT = fileURLToPath(new URL("../", import.meta.url));\r\n' +
+    'import { chromium } from "playwright";\r\n' +
+    'import { checkedOutputPath, checkedUrl } from "./browser-guard.mjs";\r\n' +
+    'import { computeBrandWarnings } from "./brand-check.mjs";\r\n' +
+    'import {\r\n' +
+    '  authInvariantWarnings,\r\n' +
+    '  buildAuthEnabled,\r\n' +
+    '  compareAuthInvariant,\r\n' +
+    '  probeDevAuthEnabled,\r\n' +
+    '} from "./check-auth-invariant.mjs";\r\n' +
+    'import {\r\n' +
+    '  baselineComparison,\r\n' +
+    '  bodyTextPrefix,\r\n' +
+    '  derivedPaths,\r\n' +
+    '  exitCodeFor,\r\n' +
+    '  normalizeBodyText,\r\n' +
+    '  normalizedBodyTextHash,\r\n' +
+    '  parseSmokeArgs,\r\n' +
+    '} from "./browser-smoke-verdict.mjs";\r\n' +
+    '\r\n' +
+    'const args = parseSmokeArgs(process.argv.slice(2), process.env);\r\n' +
+    'if (args.error) {\r\n' +
+    '  console.error(JSON.stringify({ ok: false, error: args.error }, null, 2));\r\n' +
+    '  process.exit(1);\r\n' +
+    '}\r\n' +
+    '\r\n' +
+    'const url = checkedUrl(args.url);\r\n' +
+    'const outPng = checkedOutputPath(args.outPng, [WORKSPACE_ROOT]);\r\n' +
+    'const derived = derivedPaths(outPng);\r\n' +
+    'const mobilePng = checkedOutputPath(derived.mobilePng, [WORKSPACE_ROOT]);\r\n' +
+    'const outJson = checkedOutputPath(derived.verdictJson, [WORKSPACE_ROOT], "verdict JSON");\r\n' +
+    '\r\n' +
+    'const MAX_BASELINE_BYTES = 1024 * 1024;\r\n' +
+    'const baselineRequested = Boolean(args.baseline);\r\n' +
+    'let baselinePath = null;\r\n' +
+    'let baselineResolveError = null;\r\n' +
+    'if (baselineRequested) {\r\n' +
+    '  try {\r\n' +
+    '    baselinePath = checkedOutputPath(realpathSync(args.baseline), [WORKSPACE_ROOT], "baseline");\r\n' +
+    '  } catch (err) {\r\n' +
+    '    baselineResolveError = err?.code ?? "unresolvable path";\r\n' +
+    '  }\r\n' +
+    '  if (baselinePath === outJson) {\r\n' +
+    '    console.error(\r\n' +
+    '      JSON.stringify(\r\n' +
+    '        {\r\n' +
+    '          ok: false,\r\n' +
+    '          error:\r\n' +
+    "            `--baseline ${args.baseline} is this run's own verdict output; ` +\r\n" +
+    '            "pass a distinct output PNG (e.g. app-builder-built.png) so the baseline is not overwritten",\r\n' +
+    '        },\r\n' +
+    '        null,\r\n' +
+    '        2,\r\n' +
+    '      ),\r\n' +
+    '    );\r\n' +
+    '    process.exit(1);\r\n' +
+    '  }\r\n' +
+    '}\r\n' +
+    '\r\n' +
+    'const timeoutMs = Number(process.env.BROWSER_SMOKE_TIMEOUT_MS || 45000);\r\n' +
+    '\r\n' +
+    'const VIEWPORTS = [\r\n' +
+    '  { name: "desktop", width: 1280, height: 800, screenshot: outPng },\r\n' +
+    '  { name: "mobile", width: 390, height: 844, screenshot: mobilePng },\r\n' +
+    '];\r\n' +
+    '\r\n' +
+    'mkdirSync(dirname(outPng), { recursive: true });\r\n' +
+    '\r\n' +
+    'function compareAgainstBaseline(verdict) {\r\n' +
+    '  if (!baselinePath) {\r\n' +
+    '    return {\r\n' +
+    '      divergesFromBaseline: true,\r\n' +
+    '      reasons: [`baseline unreadable: ${baselineResolveError ?? "unresolvable path"}`],\r\n' +
+    '    };\r\n' +
+    '  }\r\n' +
+    '  try {\r\n' +
+    '    if (statSync(baselinePath).size > MAX_BASELINE_BYTES) {\r\n' +
+    '      return { divergesFromBaseline: true, reasons: ["baseline unreadable: too large"] };\r\n' +
+    '    }\r\n' +
+    '    return baselineComparison(verdict, readFileSync(baselinePath, "utf8"));\r\n' +
+    '  } catch (err) {\r\n' +
+    '    return {\r\n' +
+    '      divergesFromBaseline: true,\r\n' +
+    '      reasons: [`baseline unreadable: ${err?.code ?? "read error"}`],\r\n' +
+    '    };\r\n' +
+    '  }\r\n' +
+    '}\r\n' +
+    '\r\n' +
+    'let browser = null;\r\n' +
+    'try {\r\n' +
+    '  browser = await chromium.launch({\n' +
+    '    ...(process.platform === "win32" ? { channel: "chrome" } : {}),\n' +
+    '    headless: true,\r\n' +
+    '    args: ["--no-sandbox", "--disable-dev-shm-usage"],\r\n' +
+    '  });\r\n' +
+    '\r\n' +
+    '  const viewports = {};\r\n' +
+    '  for (const vp of VIEWPORTS) {\r\n' +
+    '    const errors = { consoleErrors: [], pageErrors: [] };\r\n' +
+    '    const page = await browser.newPage({\r\n' +
+    '      viewport: { width: vp.width, height: vp.height },\r\n' +
+    '    });\r\n' +
+    '    page.on("console", (msg) => {\r\n' +
+    '      if (msg.type() === "error") errors.consoleErrors.push(msg.text());\r\n' +
+    '    });\r\n' +
+    '    page.on("pageerror", (err) => errors.pageErrors.push(String(err?.message || err)));\r\n' +
+    '    // `domcontentloaded`, not `networkidle`: Vite keeps an HMR websocket open, so\r\n' +
+    '    // networkidle never settles and would burn the whole timeout.\r\n' +
+    '    const resp = await page.goto(url, { waitUntil: "domcontentloaded", timeout: timeoutMs });\r\n' +
+    '    const status = resp?.status() ?? 0;\r\n' +
+    '    await page.waitForTimeout(1000);\r\n' +
+    '\r\n' +
+    '    const title = await page.title();\r\n' +
+    '    const hasCanvas = (await page.locator("canvas").count()) > 0;\r\n' +
+    '    const bodyText = await page\r\n' +
+    '      .locator("body")\r\n' +
+    '      .innerText()\r\n' +
+    '      .catch(() => "");\r\n' +
+    '    const horizontalOverflow = await page.evaluate(() => {\r\n' +
+    '      const el = document.documentElement;\r\n' +
+    '      return el.scrollWidth > el.clientWidth + 1;\r\n' +
+    '    });\r\n' +
+    '    await page.screenshot({ path: vp.screenshot, fullPage: false });\r\n' +
+    '    await page.close();\r\n' +
+    '\r\n' +
+    '    viewports[vp.name] = {\r\n' +
+    '      width: vp.width,\r\n' +
+    '      height: vp.height,\r\n' +
+    '      status,\r\n' +
+    '      title,\r\n' +
+    '      hasCanvas,\r\n' +
+    '      bodyTextLen: normalizeBodyText(bodyText).length,\r\n' +
+    '      bodyTextHash: normalizedBodyTextHash(bodyText),\r\n' +
+    '      bodyTextPrefix: bodyTextPrefix(bodyText),\r\n' +
+    '      horizontalOverflow,\r\n' +
+    '      consoleErrors: errors.consoleErrors,\r\n' +
+    '      pageErrors: errors.pageErrors,\r\n' +
+    '      screenshot: vp.screenshot,\r\n' +
+    '    };\r\n' +
+    '  }\r\n' +
+    '\r\n' +
+    '  const brandWarnings = computeBrandWarnings({ hasCanvas: viewports.desktop.hasCanvas, workspaceRoot: WORKSPACE_ROOT });\n' +
+    '  // Only a dev server answers /__app-env, so smoking the built output reads as\r\n' +
+    '  // indeterminate — report a divergence, never the absence of an observation.\r\n' +
+    '  const authWarnings = authInvariantWarnings(\r\n' +
+    '    compareAuthInvariant({\r\n' +
+    '      devAuthEnabled: await probeDevAuthEnabled(url),\r\n' +
+    '      buildAuthEnabled: buildAuthEnabled(),\r\n' +
+    '    }),\r\n' +
+    '  );\r\n' +
+    '  const verdict = { url, viewports, brandWarnings, authWarnings, verdictFile: outJson };\r\n' +
+    '  if (baselineRequested) {\r\n' +
+    '    const { divergesFromBaseline, reasons } = compareAgainstBaseline(verdict);\r\n' +
+    '    verdict.divergesFromBaseline = divergesFromBaseline;\r\n' +
+    '    verdict.baselineReasons = reasons;\r\n' +
+    '  }\r\n' +
+    '\r\n' +
+    '  writeFileSync(outJson, JSON.stringify(verdict, null, 2));\r\n' +
+    '  console.log(JSON.stringify(verdict, null, 2));\r\n' +
+    '  for (const w of [...brandWarnings, ...authWarnings]) console.error(w);\r\n' +
+    '  // Set the code rather than aborting the process so the `finally` browser\r\n' +
+    '  // teardown always runs (agents typically smoke twice per turn; leaking\r\n' +
+    '  // Chromium accumulates across retries).\r\n' +
+    '  process.exitCode = exitCodeFor(viewports);\r\n' +
+    '} catch (err) {\r\n' +
+    '  const failure = { ok: false, url, error: String(err?.message || err) };\r\n' +
+    '  try {\r\n' +
+    '    writeFileSync(outJson, JSON.stringify(failure, null, 2));\r\n' +
+    '  } catch (writeErr) {\r\n' +
+    '    failure.verdictWriteError = String(writeErr?.message || writeErr);\r\n' +
+    '  }\r\n' +
+    '  console.error(JSON.stringify(failure, null, 2));\r\n' +
+    '  process.exitCode = 1;\r\n' +
+    '} finally {\r\n' +
+    '  await browser?.close();\r\n' +
+    '}\r\n' +
+    '\r\n'
+  
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/browser-smoke-verdict.test.mjs:380:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '#!/usr/bin/env node\r\nimport { mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";\r\nimport { dirname } from "node:path";\r\nimport { fileURLToPath } from "node:url";\r\nconst WORKSPACE_ROOT = fileURLToPath(new URL("../", import.meta.url));\r\nimport { chromium } from "playwright";\r\nimport { checkedOutputPath, checkedUrl } from "./browser-guard.mjs";\r\nimport { computeBrandWarnings } from "./brand-check.mjs";\r\nimport {\r\n  authInvariantWarnings,\r\n  buildAuthEnabled,\r\n  compareAuthInvariant,\r\n  probeDevAuthEnabled,\r\n} from "./check-auth-invariant.mjs";\r\nimport {\r\n  baselineComparison,\r\n  bodyTextPrefix,\r\n  derivedPaths,\r\n  exitCodeFor,\r\n  normalizeBodyText,\r\n  normalizedBodyTextHash,\r\n  parseSmokeArgs,\r\n} from "./browser-smoke-verdict.mjs";\r\n\r\nconst args = parseSmokeArgs(process.argv.slice(2), process.env);\r\nif (args.error) {\r\n  console.error(JSON.stringify({ ok: false, error: args.error }, null, 2));\r\n  process.exit(1);\r\n}\r\n\r\nconst url = checkedUrl(args.url);\r\nconst outPng = checkedOutputPath(args.outPng, [WORKSPACE_ROOT]);\r\nconst derived = derivedPaths(outPng);\r\nconst mobilePng = checkedOutputPath(derived.mobilePng, [WORKSPACE_ROOT]);\r\nconst outJson = checkedOutputPath(derived.verdictJson, [WORKSPACE_ROOT], "verdict JSON");\r\n\r\nconst MAX_BASELINE_BYTES = 1024 * 1024;\r\nconst baselineRequested = Boolean(args.baseline);\r\nlet baselinePath = null;\r\nlet baselineResolveError = null;\r\nif (baselineRequested) {\r\n  try {\r\n    baselinePath = checkedOutputPath(realpathSync(args.baseline), [WORKSPACE_ROOT], "baseline");\r\n  } catch (err) {\r\n    baselineResolveError = err?.code ?? "unresolvable path";\r\n  }\r\n  if (baselinePath === outJson) {\r\n    console.error(\r\n      JSON.stringify(\r\n        {\r\n          ok: false,\r\n          error:\r\n            `--baseline ${args.baseline} is this run\'s own verdict output; ` +\r\n            "pass a distinct output PNG (e.g. app-builder-built.png) so the baseline is not overwritten",\r\n        },\r\n        null,\r\n        2,\r\n      ),\r\n    );\r\n    process.exit(1);\r\n  }\r\n}\r\n\r\nconst timeoutMs = Number(process.env.BROWSER_SMOKE_TIMEOUT_MS || 45000);\r\n\r\nconst VIEWPORTS = [\r\n  { name: "desktop", width: 1280, height: 800, screenshot: outPng },\r\n  { name: "mobile", width: 390, height: 844, screenshot: mobilePng },\r\n];\r\n\r\nmkdirSync(dirname(outPng), { recursive: true });\r\n\r\nfunction compareAgainstBaseline(verdict) {\r\n  if (!baselinePath) {\r\n    return {\r\n      divergesFromBaseline: true,\r\n      reasons: [`baseline unreadable: ${baselineResolveError ?? "unresolvable path"}`],\r\n    };\r\n  }\r\n  try {\r\n    if (statSync(baselinePath).size > MAX_BASELINE_BYTES) {\r\n      return { divergesFromBaseline: true, reasons: ["baseline unreadable: too large"] };\r\n    }\r\n    return baselineComparison(verdict, readFileSync(baselinePath, "utf8"));\r\n  } catch (err) {\r\n    return {\r\n      divergesFromBaseline: true,\r\n      reasons: [`baseline unreadable: ${err?.code ?? "read error"}`],\r\n    };\r\n  }\r\n}\r\n\r\nlet browser = null;\r\ntry {\r\n  browser = await chromium.launch({\n    ...(process.platform === "win32" ? { channel: "chrome" } : {}),\n    headless: true,\r\n    args: ["--no-sandbox", "--disable-dev-shm-usage"],\r\n  });\r\n\r\n  const viewports = {};\r\n  for (const vp of VIEWPORTS) {\r\n    const errors = { consoleErrors: [], pageErrors: [] };\r\n    const page = await browser.newPage({\r\n      viewport: { width: vp.width, height: vp.height },\r\n    });\r\n    page.on("console", (msg) => {\r\n      if (msg.type() === "error") errors.consoleErrors.push(msg.text());\r\n    });\r\n    page.on("pageerror", (err) => errors.pageErrors.push(String(err?.message || err)));\r\n    // `domcontentloaded`, not `networkidle`: Vite keeps an HMR websocket open, so\r\n    // networkidle never settles and would burn the whole timeout.\r\n    const resp = await page.goto(url, { waitUntil: "domcontentloaded", timeout: timeoutMs });\r\n    const status = resp?.status() ?? 0;\r\n    await page.waitForTimeout(1000);\r\n\r\n    const title = await page.title();\r\n    const hasCanvas = (await page.locator("canvas").count()) > 0;\r\n    const bodyText = await page\r\n      .locator("body")\r\n      .innerText()\r\n      .catch(() => "");\r\n    const horizontalOverflow = await page.evaluate(() => {\r\n      const el = document.documentElement;\r\n      return el.scrollWidth > el.clientWidth + 1;\r\n    });\r\n    await page.screenshot({ path: vp.screenshot, fullPage: false });\r\n    await page.close();\r\n\r\n    viewports[vp.name] = {\r\n      width: vp.width,\r\n      height: vp.height,\r\n      status,\r\n      title,\r\n      hasCanvas,\r\n      bodyTextLen: normalizeBodyText(bodyText).length,\r\n      bodyTextHash: normalizedBodyTextHash(bodyText),\r\n      bodyTextPrefix: bodyTextPrefix(bodyText),\r\n      horizontalOverflow,\r\n      consoleErrors: errors.consoleErrors,\r\n      pageErrors: errors.pageErrors,\r\n      screenshot: vp.screenshot,\r\n    };\r\n  }\r\n\r\n  const brandWarnings = computeBrandWarnings({ hasCanvas: viewports.desktop.hasCanvas, workspaceRoot: WORKSPACE_ROOT });\n  // Only a dev server answers /__app-env, so smoking the built output reads as\r\n  // indeterminate — report a divergence, never the absence of an observation.\r\n  const authWarnings = authInvariantWarnings(\r\n    compareAuthInvariant({\r\n      devAuthEnabled: await probeDevAuthEnabled(url),\r\n      buildAuthEnabled: buildAuthEnabled(),\r\n    }),\r\n  );\r\n  const verdict = { url, viewports, brandWarnings, authWarnings, verdictFile: outJson };\r\n  if (baselineRequested) {\r\n    const { divergesFromBaseline, reasons } = compareAgainstBaseline(verdict);\r\n    verdict.divergesFromBaseline = divergesFromBaseline;\r\n    verdict.baselineReasons = reasons;\r\n  }\r\n\r\n  writeFileSync(outJson, JSON.stringify(verdict, null, 2));\r\n  console.log(JSON.stringify(verdict, null, 2));\r\n  for (const w of [...brandWarnings, ...authWarnings]) console.error(w);\r\n  // Set the code rather than aborting the process so the `finally` browser\r\n  // teardown always runs (agents typically smoke twice per turn; leaking\r\n  // Chromium accumulates across retries).\r\n  process.exitCode = exitCodeFor(viewports);\r\n} catch (err) {\r\n  const failure = { ok: false, url, error: String(err?.message || err) };\r\n  try {\r\n    writeFileSync(outJson, JSON.stringify(failure, null, 2));\r\n  } catch (writeErr) {\r\n    failure.verdictWriteError = String(writeErr?.message || writeErr);\r\n  }\r\n  console.error(JSON.stringify(failure, null, 2));\r\n  process.exitCode = 1;\r\n} finally {\r\n  await browser?.close();\r\n}\r\n\r\n',
+    expected: /const outPng = checkedOutputPath\(args\.outPng, \["\/workspace"\]\)/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at scripts\check-auth-invariant.test.mjs:98:1
+✖ the CLI reports rather than silently passing when run via a symlink (1.8951ms)
+  Error: EPERM: operation not permitted, symlink 'E:\codex\drift-brick-terra-acorn\scripts' -> 'C:\Users\icecr\AppData\Local\Temp\auth-invariant-link-IACqlX\scripts'
+      at symlinkSync (node:fs:1937:11)
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/check-auth-invariant.test.mjs:102:3)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'symlink',
+    path: 'E:\\codex\\drift-brick-terra-acorn\\scripts',
+    dest: 'C:\\Users\\icecr\\AppData\\Local\\Temp\\auth-invariant-link-IACqlX\\scripts'
+  }
+
+test at scripts\migration-plan.test.mjs:59:1
+✖ the auth schema ships outside the globbed directory (8.8768ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   {
+  +     name: '0002_network_presence.sql',
+  +     path: '0002_network_presence.sql'
+  +   }
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/migration-plan.test.mjs:61:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ { name: '0002_network_presence.sql', path: '0002_network_presence.sql' } ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at scripts\with-app-env.test.mjs:76:1
+✖ the wrapped command runs with the app env applied (195.251ms)
+  Error: Command failed: C:\Program Files\nodejs\node.exe E:\codex\drift-brick-terra-acorn\scripts\with-app-env.mjs C:\Program Files\nodejs\node.exe -e process.stdout.write(String(process.env.VITE_AUTH_ENABLED));
+  'C:\Program' is not recognized as an internal or external command,
+  operable program or batch file.
+  
+      at genericNodeError (node:internal/errors:986:15)
+      at wrappedFn (node:internal/errors:540:14)
+      at ChildProcess.exithandler (node:child_process:417:12)
+      at ChildProcess.emit (node:events:514:28)
+      at maybeClose (node:internal/child_process:1141:16)
+      at ChildProcess._handle.onexit (node:internal/child_process:306:5) {
+    code: 1,
+    killed: false,
+    signal: null,
+    cmd: 'C:\\Program Files\\nodejs\\node.exe E:\\codex\\drift-brick-terra-acorn\\scripts\\with-app-env.mjs C:\\Program Files\\nodejs\\node.exe -e process.stdout.write(String(process.env.VITE_AUTH_ENABLED));',
+    stdout: '',
+    stderr: "'C:\\Program' is not recognized as an internal or external command,\r\noperable program or batch file.\r\n"
+  }
+
+test at scripts\with-app-env.test.mjs:86:1
+✖ the wrapped command sees an explicit override, not the file value (133.2864ms)
+  Error: Command failed: C:\Program Files\nodejs\node.exe E:\codex\drift-brick-terra-acorn\scripts\with-app-env.mjs C:\Program Files\nodejs\node.exe -e process.stdout.write(String(process.env.VITE_AUTH_ENABLED));
+  'C:\Program' is not recognized as an internal or external command,
+  operable program or batch file.
+  
+      at genericNodeError (node:internal/errors:986:15)
+      at wrappedFn (node:internal/errors:540:14)
+      at ChildProcess.exithandler (node:child_process:417:12)
+      at ChildProcess.emit (node:events:514:28)
+      at maybeClose (node:internal/child_process:1141:16)
+      at ChildProcess._handle.onexit (node:internal/child_process:306:5) {
+    code: 1,
+    killed: false,
+    signal: null,
+    cmd: 'C:\\Program Files\\nodejs\\node.exe E:\\codex\\drift-brick-terra-acorn\\scripts\\with-app-env.mjs C:\\Program Files\\nodejs\\node.exe -e process.stdout.write(String(process.env.VITE_AUTH_ENABLED));',
+    stdout: '',
+    stderr: "'C:\\Program' is not recognized as an internal or external command,\r\noperable program or batch file.\r\n"
+  }
+
+test at scripts\with-app-env.test.mjs:95:1
+✖ the wrapper propagates the command's exit code (114.1492ms)
+  AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+  
+  Caught error:
+  
+  Error: Command failed: C:\Program Files\nodejs\node.exe E:\codex\drift-brick-terra-acorn\scripts\with-app-env.mjs C:\Program Files\nodejs\node.exe -e process.exit(3)
+  'C:\Program' is not recognized as an internal or external command,
+  operable program or batch file.
+  
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/with-app-env.test.mjs:96:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: Command failed: C:\Program Files\nodejs\node.exe E:\codex\drift-brick-terra-acorn\scripts\with-app-env.mjs C:\Program Files\nodejs\node.exe -e process.exit(3)
+    'C:\Program' is not recognized as an internal or external command,
+    operable program or batch file.
+    
+        at genericNodeError (node:internal/errors:986:15)
+        at wrappedFn (node:internal/errors:540:14)
+        at ChildProcess.exithandler (node:child_process:417:12)
+        at ChildProcess.emit (node:events:514:28)
+        at maybeClose (node:internal/child_process:1141:16)
+        at ChildProcess._handle.onexit (node:internal/child_process:306:5),
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at scripts\with-app-env.test.mjs:116:1
+✖ the CLI still runs when invoked through a symlinked path (2.3079ms)
+  Error: EPERM: operation not permitted, symlink 'E:\codex\drift-brick-terra-acorn\scripts' -> 'C:\Users\icecr\AppData\Local\Temp\app-env-link-YmJIzQ\scripts'
+      at symlinkSync (node:fs:1937:11)
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/with-app-env.test.mjs:120:3)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'symlink',
+    path: 'E:\\codex\\drift-brick-terra-acorn\\scripts',
+    dest: 'C:\\Users\\icecr\\AppData\\Local\\Temp\\app-env-link-YmJIzQ\\scripts'
+  }

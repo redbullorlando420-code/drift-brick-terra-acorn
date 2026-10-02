@@ -1,6 +1,7 @@
 import { repairLegacyYoutubeDate } from "../remote/youtube-page.ts";
 import { retainYoutubeSources, youtubeVideoKey } from "../remote/youtube-sources.ts";
 import type { LibraryVideo } from "./types";
+import { copyCatalogArray, forEachCatalogSlice, yieldCatalogTask } from '../catalog-work.ts';
 
 function sameList(left?: readonly string[], right?: readonly string[]) {
   return left === right || (left?.length === right?.length && left?.every((value, index) => value === right?.[index]));
@@ -99,6 +100,51 @@ export function remoteVideoIndex(videos: LibraryVideo[]) {
   return index;
 }
 
+const pendingIndexes = new WeakMap<LibraryVideo[], Promise<Map<string, LibraryVideo>>>();
+/** Prepare the shared lookup without monopolizing input on large libraries. */
+export function remoteVideoIndexAsync(videos: LibraryVideo[]): Promise<Map<string, LibraryVideo>> {
+  const cached = remoteVideoIndexes.get(videos);
+  if (cached) return Promise.resolve(cached);
+  const pending = pendingIndexes.get(videos);
+  if (pending) return pending;
+  const index = new Map<string, LibraryVideo>();
+  const work = forEachCatalogSlice(videos, video => {
+    index.set(video.id, video);
+    const key = youtubeVideoKey(video);
+    if (key && !index.has(key)) index.set(key, video);
+  }, yieldCatalogTask).then(() => { remoteVideoIndexes.set(videos, index); return index; }).finally(() => pendingIndexes.delete(videos));
+  pendingIndexes.set(videos, work);
+  return work;
+}
+
+/** Focused/bulk imports scan once per batch; transient positions cover only incoming IDs. */
+export async function mergeRemoteCatalogAsync(existing: LibraryVideo[], incoming: LibraryVideo[]) {
+  if (!incoming.length) return existing;
+  const wanted = new Set(incoming.flatMap(video => [video.id, youtubeVideoKey(video) ?? video.id]));
+  const positions = new Map<string, number>();
+  await forEachCatalogSlice(existing, (video, index) => {
+    const key = youtubeVideoKey(video);
+    if (wanted.has(video.id)) positions.set(video.id, index);
+    if (key && wanted.has(key) && !positions.has(key)) positions.set(key, index);
+  }, yieldCatalogTask);
+  const merged = await copyCatalogArray(existing, yieldCatalogTask);
+  let changed = false;
+  await forEachCatalogSlice(incoming, video => {
+    const key = youtubeVideoKey(video);
+    const index = positions.get(video.id) ?? (key ? positions.get(key) : undefined);
+    const previous = index === undefined ? undefined : merged[index];
+    let next = retainDurableRemoteFields(previous, video);
+    if (previous?.remote?.live && next.remote?.live && (next.remote.observedAt ?? 0) < (previous.remote.observedAt ?? 0)) next = previous;
+    else if (previous && sameVideo(previous, next)) next = previous;
+    if (index === undefined) {
+      positions.set(next.id, merged.length);
+      if (key) positions.set(key, merged.length);
+      merged.push(next); changed = true;
+    } else if (next !== previous) { merged[index] = next; changed = true; }
+  }, yieldCatalogTask);
+  return changed ? merged : existing;
+}
+
 /** Additive archive merge using an index shared across a multi-creator sweep. */
 export function mergeRemoteCatalog(existing: LibraryVideo[], incoming: LibraryVideo[], positions: Map<string, number>, mergedIncoming: LibraryVideo[]): LibraryVideo[] {
   let merged = existing;
@@ -137,70 +183,51 @@ export function mergeRemoteCatalog(existing: LibraryVideo[], incoming: LibraryVi
  * when a response repeats its prior rows, while a single changed card keeps
  * its neighbours' artwork and focus identity intact.
  */
-export function mergeRemoteRefresh(
-  existing: LibraryVideo[], incoming: LibraryVideo[], refreshedIds: string[], savedIds: Set<string>,
-  options?: { index?: Map<string, LibraryVideo>; staleLiveIds?: string[] },
-): LibraryVideo[] {
-  const refreshed = new Set(refreshedIds);
-  const existingById = options?.index ?? remoteVideoIndex(existing);
+function remoteRefreshPlan(existing: LibraryVideo[], incoming: LibraryVideo[], refreshedIds: string[], savedIds: Set<string>,
+  options?: { index?: Map<string, LibraryVideo>; staleLiveIds?: string[] }) {
+  const refreshed = new Set(refreshedIds), existingById = options?.index ?? remoteVideoIndex(existing);
   const fresh = new Map<string, LibraryVideo>();
-  for (const incomingVideo of incoming) {
-    const previous = existingById.get(incomingVideo.id) ?? existingById.get(youtubeVideoKey(incomingVideo) ?? incomingVideo.id);
-    let next = retainDurableRemoteFields(previous, incomingVideo);
-    const incomingObservation = next.remote?.observedAt ?? 0;
-    const previousObservation = previous?.remote?.observedAt ?? 0;
-    // Network responses can resolve out of order. A delayed live response must
-    // never flash an older stream title, category, poster, or viewer count.
-    if (previous?.remote?.live && next.remote?.live && incomingObservation < previousObservation) next = previous;
-    // Preserve object identity for an unchanged provider card. This prevents
-    // healthy artwork and scroll-position-sensitive rails from re-rendering
-    // just because a routine refresh repeated the same provider row.
+  for (const video of incoming) {
+    const previous = existingById.get(video.id) ?? existingById.get(youtubeVideoKey(video) ?? video.id);
+    let next = retainDurableRemoteFields(previous, video);
+    if (previous?.remote?.live && next.remote?.live && (next.remote.observedAt ?? 0) < (previous.remote.observedAt ?? 0)) next = previous;
     else if (previous && sameVideo(previous, next)) next = previous;
     fresh.set(next.id, next);
   }
-
-  const merged: LibraryVideo[] = [];
-  for (const video of existing) {
+  const visit = (video: LibraryVideo): LibraryVideo | undefined => {
     const next = fresh.get(video.id);
-    if (next) {
-      // Replace a changed card at its existing index; never move an unchanged
-      // channel window to the end of a rail just because it was refreshed.
-      merged.push(next);
-      fresh.delete(video.id);
-      continue;
-    }
-    if (!video.remote || !refreshed.has(video.folderId)) {
-      merged.push(video);
-      continue;
-    }
+    if (next) { fresh.delete(video.id); return next; }
+    if (!video.remote || !refreshed.has(video.folderId)) return video;
     if (video.remote.live) {
-      // The channel was successfully checked without this live card. Retain a
-      // single offline transition for saved/live surfaces, then reuse it on
-      // future refreshes rather than allocating another card object.
-      merged.push({ ...video, tagline: "Offline · saved channel", remote: { ...video.remote, live: false } });
+      // A successful check without a live card records one offline transition.
       options?.staleLiveIds?.push(video.id);
-      continue;
+      return { ...video, tagline: 'Offline · saved channel', remote: { ...video.remote, live: false } };
     }
-    if (savedIds.has(video.id)) {
-      merged.push(video);
-      continue;
-    }
-    // Historical Twitch VODs and YouTube uploads are not statements about
-    // current live state. Routine responses may omit them by design; retain
-    // them until an explicit cache cleanup removes them.
-    if ((video.remote.kind === "twitch" || video.remote.kind === "youtube") && !video.remote.live) {
-      merged.push(video);
-      continue;
-    }
-    // Routine playlist checks read a shallow public page. Keep older items
-    // that a short provider response did not repeat.
-    if (video.folderId.startsWith("ytpl:")) {
-      merged.push(video);
-      continue;
-    }
-  }
-  // Truly new cards append after stable catalog rows. Duplicate provider rows
-  // were collapsed by the map above, so an import cannot create two cards.
-  merged.push(...fresh.values());
+    // Partial routine pages cannot erase historical archives or saved cards.
+    if (savedIds.has(video.id) || video.remote.kind === 'twitch' || video.remote.kind === 'youtube' || video.folderId.startsWith('ytpl:')) return video;
+  };
+  return { fresh, visit };
+}
+export function mergeRemoteRefresh(existing: LibraryVideo[], incoming: LibraryVideo[], refreshedIds: string[], savedIds: Set<string>,
+  options?: { index?: Map<string, LibraryVideo>; staleLiveIds?: string[] }): LibraryVideo[] {
+  const plan = remoteRefreshPlan(existing, incoming, refreshedIds, savedIds, options);
+  const merged: LibraryVideo[] = [];
+  for (const video of existing) { const next = plan.visit(video); if (next) merged.push(next); }
+  merged.push(...plan.fresh.values());
   return sameOrder(existing, merged) ? existing : merged;
+}
+/** Routine refreshes share the same merge contract while yielding the catalog traversal. */
+export async function mergeRemoteRefreshAsync(existing: LibraryVideo[], incoming: LibraryVideo[], refreshedIds: string[], savedIds: Set<string>,
+  options?: { index?: Map<string, LibraryVideo>; staleLiveIds?: string[] }): Promise<LibraryVideo[]> {
+  const index = options?.index ?? await remoteVideoIndexAsync(existing);
+  const plan = remoteRefreshPlan(existing, incoming, refreshedIds, savedIds, { ...options, index });
+  const merged: LibraryVideo[] = [];
+  let unchanged = true;
+  await forEachCatalogSlice(existing, video => {
+    const next = plan.visit(video);
+    if (next !== video) unchanged = false;
+    if (next) merged.push(next);
+  }, yieldCatalogTask);
+  if (plan.fresh.size) { unchanged = false; merged.push(...plan.fresh.values()); }
+  return unchanged ? existing : merged;
 }

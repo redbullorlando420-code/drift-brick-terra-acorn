@@ -1,4 +1,6 @@
 import { getPullSettings } from '@/lib/pull-settings';
+import { personalRankScore } from '@/lib/videos/ranking-core';
+import { RankingGuide } from './ranking-panel';
 import { catalogPullAvailable } from '@/lib/pull-control';
 import { topicsForVideo, isTopicTag } from '@/lib/videos/topics';
 import { youtubeSourceCounts as countYoutubeSources, youtubeSourceIndex, youtubeVideosForSource } from '@/lib/remote/youtube-sources';
@@ -100,7 +102,7 @@ import { searchCatalog } from "@/lib/videos/search-index";
 import { searchWorkerIndex } from "@/lib/videos/search-worker-index";
 import { importLibraryPackZip } from "@/lib/videos/library-pack";
 import { linksFromHistoryAndResume } from "@/lib/videos/persist";
-import { creatorIsLiked, getCreatorRating, getHeartedTagHistory, getRating, getWatchTime, ratingPreference, tagHasHeartHistory, tagIsLiked, watchTimeScore } from "@/lib/media-feedback";
+import { creatorIsFavorited, creatorIsLiked, getCreatorRating, getHeartedTagHistory, getRating, getWatchTime, ratingPreference, tagHasHeartHistory, tagIsLiked, watchTimeScore } from "@/lib/media-feedback";
 import { announceNetworkPresence } from "@/lib/network-presence";
 import { nextLikelyHub, shouldWarmHubRoute } from "@/lib/warm-route-cache";
 import { scheduleBackgroundWork } from "@/lib/interaction-budget";
@@ -111,7 +113,7 @@ import { hasFreshRemoteLiveState } from "@/lib/videos/live-desk";
 import type { PullProvider } from "@/lib/remote/pull-ledger";
 import { mixYoutubeCreators, youtubeCreatorKey, sampleYoutubeCreatorShelves } from "@/lib/remote/youtube-mix";
 import { youtubeOutsideFollows, youtubeTopicIndex } from "@/lib/remote/youtube-discovery";
-import { createYoutubeRecommendationRanker } from "@/lib/remote/youtube-recommendations";
+import { useYoutubeRanking } from "./use-youtube-ranking";
 import { isTwitchClip, sampleTwitchClips } from "@/lib/videos/twitch-clips";
 import { concatIterables, takeBestMapped } from "@/lib/videos/bounded-picks";
 import { getYoutubeFirstClickTrace, getYoutubeTraceRevision, markYoutubeSelectorReady, subscribeYoutubeTrace } from "@/lib/youtube-first-click-trace";
@@ -899,13 +901,13 @@ export function LibraryApp() {
     return preferred;
   }, [ratingRevision, sourceId, tags, videos]);
   const tasteAverages = useMemo(() => {
-    if (!((sourceId === "landing" && homeRecommendationsReady) || (sourceId === "youtube" && youtubeExploreVisible))) return { tag: new Map<string, { score: number; confidence: number }>(), creator: new Map<string, { score: number; confidence: number }>() };
+    if (sourceId !== "landing" || !homeRecommendationsReady) return { tag: new Map<string, { score: number; confidence: number }>(), creator: new Map<string, { score: number; confidence: number }>() };
     const tagsByScore = new Map<string, { total: number; count: number }>();
     const creatorsByScore = new Map<string, { total: number; count: number }>();
     for (const video of videos) {
       const rating = getRating(video.id);
       const signal = rating === 1 ? -3 : Math.max(ratingPreference(rating), favorites[video.id] ? 2 : 0, likes[video.id] ? 1 : 0) + Math.min(1, watchTimeScore(getWatchTime(video.id)) / 6);
-      if (!signal) continue;
+      if (!signal && rating === 0) continue;
       for (const tag of topicsForVideo(video, tags[video.id])) {
         const row = tagsByScore.get(tag) ?? { total: 0, count: 0 };
         row.total += signal;
@@ -929,44 +931,49 @@ export function LibraryApp() {
       tag: new Map([...tagsByScore].map(([key, row]) => [key, { score: score(row), confidence: confidence(row) }])),
       creator: new Map([...creatorsByScore].map(([key, row]) => [key, { score: score(row), confidence: confidence(row) }])),
     };
-  }, [favorites, homeRecommendationsReady, likes, ratingRevision, sourceId, tags, videos, youtubeExploreVisible]);
+  }, [favorites, homeRecommendationsReady, likes, ratingRevision, sourceId, tags, videos]);
   const personalizedPicks = useMemo(() => {
     if (sourceId !== "landing" || !homeRecommendationsReady) return [];
     const watched = new Set(history.map((entry) => entry.id));
-    const preferredTags = new Set(videos.filter((video) => favorites[video.id] || likes[video.id] || getRating(video.id) >= 4).flatMap((video) => topicsForVideo(video, tags[video.id])));
+    const preferredTags = new Set(videos.filter((video) => getRating(video.id) !== 1 && (favorites[video.id] || likes[video.id] || getRating(video.id) >= 4)).flatMap((video) => topicsForVideo(video, tags[video.id])));
     // Compute expensive taste/tag scores once per title, not on both sides of
     // every sort comparison (which multiplied the work by log(catalog size)).
     const score = (video: typeof videos[number]) => {
       const creatorAverage = tasteAverages.creator.get(video.remote?.channelName?.trim().toLowerCase() ?? "");
       const tagAverage = topicsForVideo(video, tags[video.id]).reduce((total, tag) => {
         const signal = tasteAverages.tag.get(tag);
-        return total + (signal ? (signal.score - 3) * signal.confidence : 0);
+        return total + (signal ? signal.score * signal.confidence : 0);
       }, 0);
-      const creatorLift = creatorAverage ? (creatorAverage.score - 3) * creatorAverage.confidence : 0;
-      return ratingPreference(getRating(video.id)) * 18 + (getRating(video.id) === 1 ? 0 : watchTimeScore(getWatchTime(video.id))) + ratingPreference(getCreatorRating(video.remote?.channelName ?? "")) * 10 + creatorLift * 9 + tagAverage * 7 + (creatorIsLiked(video.remote?.channelName ?? "") ? 9 : 0) + (favorites[video.id] ? 6 : 0) + (likes[video.id] ? 4 : 0) + topicsForVideo(video, tags[video.id]).filter((tag) => isTasteTag(tag) && preferredTags.has(tag)).length * 2 + (video.remote?.live ? 1 : 0);
+      const creatorLift = creatorAverage ? creatorAverage.score * creatorAverage.confidence : 0;
+      return personalRankScore({ rating: getRating(video.id), favorite: Boolean(favorites[video.id]), liked: Boolean(likes[video.id]),
+        marks: cameCounts[video.id], plays: viewCounts[video.id], tagHearts: topicsForVideo(video, tags[video.id]).filter(tagIsLiked).length,
+        watch: watchTimeScore(getWatchTime(video.id)), creatorRating: getCreatorRating(video.remote?.channelName ?? ''),
+        creatorLiked: creatorIsLiked(video.remote?.channelName ?? ''), creatorFavorite: creatorIsFavorited(video.remote?.channelName ?? ''), creatorAffinity: creatorLift * 4,
+        topics: tagAverage + topicsForVideo(video, tags[video.id]).filter(tag => isTasteTag(tag) && preferredTags.has(tag)).length * 2 });
       };
       // A recommendation shelf should have a bias, not a fixed handful of
       // winners. Blend preference signals with a fresh shuffle so lower-score
       // local titles still get a real chance to reach the first cards.
     // Only the local shelf consumes this ranking. Remote candidates were
     // discarded by its next step, after paying to score and sort all of them.
-    return videos.filter((video) => !video.remote && !video.isSample && !watched.has(video.id))
+    return videos.filter((video) => !video.remote && !video.isSample && getRating(video.id) !== 1 && !watched.has(video.id))
       .map((video) => ({ video, rank: score(video) * 0.45 + shuffleRank(`${video.id}:${homePickShuffle}`, homePickShuffle) / 0xffffffff }))
       .sort((a, b) => b.rank - a.rank)
       .map(({ video }) => video);
-  }, [favorites, history, homePickShuffle, homeRecommendationsReady, likes, ratingRevision, sourceId, tags, tasteAverages, videos]);
+  }, [favorites, history, homePickShuffle, homeRecommendationsReady, likes, cameCounts, viewCounts, ratingRevision, sourceId, tags, tasteAverages, videos]);
   const topRatedLocalPicks = useMemo(() => {
+    if (sourceId !== 'landing' || !homeRecommendationsReady) return [];
     // The previous shelf inherited the global score wholesale, which let a
-    // handful of old five-star files occupy every visit. Keep the taste bias,
-    // but shuffle within rating bands and prevent one folder from taking over.
+    // few unseen files define the shelf. Include watched favorites too,
+    // keep stars first, and prevent one folder from taking over.
     const perFolder = new Map<string, number>();
-    return personalizedPicks
-      .filter((video) => !video.remote && !video.isSample)
+    return videos
+      .filter((video) => !video.remote && !video.isSample && getRating(video.id) >= 3)
       .map((video) => ({
         video,
-        score: ratingPreference(getRating(video.id)) * 5 + (getRating(video.id) === 1 ? 0 : watchTimeScore(getWatchTime(video.id))) + (favorites[video.id] ? 2 : 0) + (likes[video.id] ? 1 : 0) + shuffleRank(`local-rated:${video.id}:${homePickShuffle}`, homePickShuffle) / 0xffffffff * 5,
+        score: personalRankScore({ rating: getRating(video.id), watch: watchTimeScore(getWatchTime(video.id)), favorite: Boolean(favorites[video.id]), liked: Boolean(likes[video.id]) }),
       }))
-      .sort((a, b) => b.score - a.score)
+      .sort((a, b) => getRating(b.video.id) - getRating(a.video.id) || b.score - a.score || shuffleRank(a.video.id, homePickShuffle) - shuffleRank(b.video.id, homePickShuffle))
       .filter(({ video }) => {
         const seen = perFolder.get(video.folderId) ?? 0;
         if (seen >= 3) return false;
@@ -974,7 +981,7 @@ export function LibraryApp() {
         return true;
       })
       .map(({ video }) => video);
-  }, [favorites, homePickShuffle, likes, personalizedPicks]);
+  }, [favorites, homePickShuffle, homeRecommendationsReady, likes, ratingRevision, sourceId, videos]);
   const freshPicks = useMemo(() => {
     if (sourceId === "landing" ? !homeRecommendationsReady : sourceId === "youtube" ? !youtubeExploreVisible : sourceId !== "twitch") return [];
     const seed = Math.floor(Date.now() / 3_600_000);
@@ -1077,15 +1084,8 @@ export function LibraryApp() {
       .filter((group) => group.vods.length > 0)
       .slice(0, 8);
   }, [sortedTwitch, twitchVodPicks]);
-  const youtubeRecommendationRanker = useMemo(() => {
-    if (sourceId !== "youtube" || !youtubeExploreVisible) return null;
-    return createYoutubeRecommendationRanker(youtubeVideos, {
-      tags, history, viewCounts, favorites, likes, ratingOf: getRating, tagIsLiked, tagHasHeartHistory,
-      ratingPreference, watchScore: (id) => watchTimeScore(getWatchTime(id)), creatorIsLiked, creatorRating: getCreatorRating,
-      limit: 48,
-    }, filteredYoutube);
-  }, [favorites, history, likes, ratingRevision, sourceId, tags, viewCounts, youtubeExploreVisible, youtubeVideos, filteredYoutube]);
-  const relatedYoutube = useMemo(() => youtubeRecommendationRanker?.((id) => shuffleRank(`${id}:${homePickShuffle}`, homePickShuffle)) ?? [], [youtubeRecommendationRanker, homePickShuffle]);
+  const youtubeRankInputs = useMemo(() => ({ videos: youtubeVideos, candidates: filteredYoutube, tags, history, viewCounts, favorites, likes, cameCounts, revision: ratingRevision }), [youtubeVideos, filteredYoutube, tags, history, viewCounts, favorites, likes, cameCounts, ratingRevision]);
+  const relatedYoutube = useYoutubeRanking(sourceId === "youtube" && youtubeExploreVisible, youtubeRankInputs, homePickShuffle, sessionIdle);
   const watchedYoutubeCreators = useMemo(() => {
     if (sourceId !== "youtube") return new Set<string>();
     const videosById = new Map(youtubeVideos.map((video) => [video.id, video]));
@@ -1665,7 +1665,8 @@ export function LibraryApp() {
                   {!homeRecommendationsReady && <div className="mb-8 flex min-h-12 items-center gap-3 rounded-lg bg-elevated/70 px-4 py-3 text-sm text-muted shadow-border" role="status" aria-live="polite"><LoaderCircle className="size-4 animate-spin text-accent"/>Preparing recommendations after the first screen…</div>}
                   {homeRecommendationsReady && <><RatingStreakCard /><TitleRail title="Recently added from your folders" reason="Fresh additions from your local folders." videos={homeLocalRecent} variant="rail" />
                   <TitleRail title="Unseen & ready to discover" reason="Less-played titles, rotated so familiar picks do not take over." videos={freshPicks} variant="rail" />
-                  <TitleRail title="Top-rated local picks" reason="Built from your ratings, likes, and saved favorites." videos={topRatedLocalPicks} variant="rail" />
+                  <RankingGuide desk="Landing" />
+                  <TitleRail title="Top-rated local picks" reason="Rated 3–5 only. Stars lead, then capped personal evidence; up to three per folder. Shuffle breaks ties." videos={topRatedLocalPicks} variant="rail" />
                   <TitleRail title="Live now" reason="Channels confirmed live in the latest check." videos={currentLiveVideos} variant="rail" />
                   <TitleRail title="New this week" reason="Recently published or added from your saved sources." videos={newThisWeek} variant="rail" />
                   <TitleRail
@@ -1702,6 +1703,7 @@ export function LibraryApp() {
                     {youtubeHealthVisible && <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{youtubeHealth.map((channel) => <article key={channel.id} className="rounded-sm bg-bg/45 p-3"><p className="truncate text-sm font-medium text-fg">{channel.title}</p><p className="mt-1 text-xs text-muted">{channel.cached.toLocaleString()} cached · last result {channel.lastResponseCount ?? 0} rows</p><p className="mt-1 text-xs text-muted">{channel.newest ? `Newest ${new Date(channel.newest).toLocaleDateString()}` : "No published item cached"} · {channel.lastCheckedAt ? `checked ${new Date(channel.lastCheckedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "not checked yet"}</p><p className="mt-1 text-xs text-muted">{channel.catalogCursor ? "Archive paging in progress" : channel.catalogExhaustedAt ? "Public archive reached" : "Archive sweep not started"} · {channel.lastProviderFailure ? `${channel.lastProviderFailure.kind.replaceAll("-", " ")} · ${channel.lastProviderFailure.recovery}` : channel.retryAt && channel.retryAt > Date.now() ? `Retry ${new Date(channel.retryAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Provider ready"}</p><p className="mt-1 text-xs text-muted">{channel.cache ? `${channel.cache.scope === "catalog" ? "Catalog cache" : channel.cache.scope === "feed" ? "Feed cache" : "Not retained"} · ${Math.max(0, Math.floor((Date.now() - channel.cache.at) / 1_000))}s old · ${Math.round(channel.cache.hits / Math.max(1, channel.cache.hits + channel.cache.misses) * 100)}% hit rate` : "Cache telemetry appears after the first refresh"}</p>{channel.lastProviderFailure && channel.retryAt && channel.retryAt > Date.now() && <p className="mt-1 text-xs text-accent">Retry {new Date(channel.retryAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}</p>}</article>)}</div>}
                   </section>
                   <FollowManager kind="youtube" />
+                  <RankingGuide desk="YouTube" />
                   {youtubeExploreVisible && <><div className="mb-5 flex flex-wrap gap-2"><Button size="sm" variant={youtubeTagFilter === "all" ? "default" : "secondary"} aria-pressed={youtubeTagFilter === "all"} onClick={() => startTransition(() => setYoutubeTagFilter("all"))}>All tags</Button>{visibleYoutubeTags.map((shelf) => <Button key={shelf.tag} size="sm" variant={youtubeTagFilter === shelf.tag ? "default" : "secondary"} aria-pressed={youtubeTagFilter === shelf.tag} onClick={() => startTransition(() => setYoutubeTagFilter(shelf.tag))}>#{shelf.tag} · {shelf.count.toLocaleString()}</Button>)}{youtubeTagChoices.length > 12 && <Button size="sm" variant="ghost" aria-expanded={youtubeTagsExpanded} onClick={() => setYoutubeTagsExpanded(value => !value)}>{youtubeTagsExpanded ? "Fewer topics" : `Show all ${youtubeTagChoices.length} topics`}</Button>}</div>{youtubeTagFilter !== "all" && <p className="-mt-2 mb-5 text-xs text-accent">Filtering every YouTube shelf and the full catalog by #{youtubeTagFilter} · {filteredYoutube.length.toLocaleString()} matching videos.</p>}</>}
                   {youtubePlaylistShelves.map((playlist) => <TitleRail key={playlist.id} title={`Playlist · ${playlist.title}`} reason="Public playlist saved to your library." videos={playlist.videos} variant="rail" onTitleClick={() => setSource(playlist.id)} />)}
                   <TitleRail title="Mixed from your creators" reason="A rotating mix across your saved creators, including older uploads." videos={youtubeMix} variant="rail" priority /><Button className="mb-5" variant="secondary" onClick={() => setHomePickShuffle(Date.now())}>Mix it up</Button><TitleRail title="Latest uploads" videos={youtubeLatest} variant="rail" />
@@ -1717,6 +1719,7 @@ export function LibraryApp() {
                   <section className="mb-7 rounded-xl bg-elevated p-5 shadow-border sm:p-6"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Live desk</p><h1 className="mt-2 font-display text-4xl text-fg">Twitch, live first.</h1><p className="mt-2 max-w-2xl text-sm text-muted">Sort live streams and VODs by what matters right now. {follows.filter((channel) => channel.kind === "twitch").length} channel{follows.filter((channel) => channel.kind === "twitch").length === 1 ? "" : "s"} tracked locally. A different rotating batch checks every minute; a successful check removes stale live cards.</p><p className="mt-2 text-xs text-accent">{remoteCheckedAt ? `Live state checked ${new Date(remoteCheckedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Live state has not been checked yet."} · {sortedTwitch.filter((video) => video.remote?.live).length} live · {twitchVodPicks.length} VODs · {twitchClipTotal.toLocaleString()} clips{remoteRefreshStatus ? ` · last batch returned ${remoteRefreshStatus.twitch.toLocaleString()} VODs from ${remoteRefreshStatus.refreshed}/${remoteRefreshStatus.checked} checked channels${remoteRefreshStatus.failed ? ` (${remoteRefreshStatus.failed} unavailable)` : ""}` : ""}</p><div className="mt-4 flex flex-wrap gap-2">{(["live", "viewers", "name"] as const).map((sort) => <Button key={sort} size="sm" variant={twitchSort === sort ? "default" : "secondary"} onClick={() => setTwitchSort(sort)}>{sort === "live" ? "Live first" : sort === "viewers" ? "Most viewers" : "A–Z"}</Button>)}<Button size="sm" variant="secondary" onClick={() => void refreshFollows()}>Refresh next live batch</Button>{follows.filter((channel) => channel.kind === "twitch").slice(0, 12).map((channel) => <Button key={channel.id} size="sm" variant="ghost" disabled={channelRefreshing === channel.id} onClick={() => void (async () => { setChannelRefreshing(channel.id); try { await followRemoteQuery(channel.handle, "twitch"); } finally { setChannelRefreshing(""); } })()}>{channelRefreshing === channel.id ? "Checking…" : `Refresh ${channel.title}`}</Button>)}</div></section>
 
                   <FollowManager kind="twitch" />
+                  <RankingGuide desk="Other" />
                   <div className="mb-5 flex flex-wrap gap-2">{[["all", "All Twitch"], ["favorites", "Favorites"], ["likes", "Liked"]].map(([value, label]) => <Button key={value} variant={twitchFilter === value ? "default" : "secondary"} onClick={() => setTwitchFilter(value)}>{label}{value === "all" ? "" : " · " + twitchVideos.filter((video) => value === "favorites" ? favorites[video.id] : likes[video.id]).length}</Button>)}</div>
                   <div className="mb-5 flex flex-wrap gap-2"><Button size="sm" variant={twitchTagFilter === "all" ? "default" : "secondary"} onClick={() => setTwitchTagFilter("all")}>All tags</Button>{channelTagShelves.twitch.map((shelf) => <Button key={shelf.tag} size="sm" variant={twitchTagFilter === shelf.tag ? "default" : "secondary"} onClick={() => setTwitchTagFilter(shelf.tag)}>#{shelf.tag} · {shelf.videos.length}</Button>)}</div>
                   {twitchFilter === "all" ? <><TitleRail title="Favorite Twitch videos" videos={favoriteTwitchPicks} variant="rail"/><TitleRail title="Liked on Twitch · discovery" videos={likedTwitchPicks} variant="rail"/></> : null}
@@ -1860,6 +1863,7 @@ export function LibraryApp() {
 
               {sourceId === "adults" && browsing && (
                 <>
+                  <RankingGuide desk="Adults" />
                   <Suspense fallback={<section className="mb-6 rounded-xl bg-surface p-5 text-sm text-muted shadow-border" role="status">Opening Adult controls…</section>}>
                     <AdultPanel
                       showMilestones={adultDeepVisible}

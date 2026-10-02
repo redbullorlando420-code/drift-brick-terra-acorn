@@ -30,14 +30,22 @@ async function companionFetch(path: string, init?: RequestInit): Promise<Respons
   });
 }
 
-export async function companionHealth(): Promise<CompanionHealth | null> {
-  try {
-    const response = await companionFetch("/health");
-    if (!response.ok) return null;
-    return await response.json() as CompanionHealth;
-  } catch {
-    return null;
-  }
+let healthPending: Promise<CompanionHealth | null> | null = null;
+let healthCached: CompanionHealth | null = null;
+let healthExpires = 0;
+/** One short availability probe for simultaneous consumers; failures cool down. */
+export function companionHealth(force = false): Promise<CompanionHealth | null> {
+  if (healthPending) return healthPending;
+  if (!force && Date.now() < healthExpires) return Promise.resolve(healthCached);
+  healthPending = (async () => {
+    try {
+      const response = await companionFetch('/health', { signal: AbortSignal.timeout(1500) });
+      healthCached = response.ok ? await response.json() as CompanionHealth : null;
+    } catch { healthCached = null; }
+    healthExpires = Date.now() + (healthCached ? 15000 : 3000);
+    return healthCached;
+  })().finally(() => { healthPending = null; });
+  return healthPending;
 }
 
 export type CompanionMediaInspection = {
@@ -127,13 +135,16 @@ export async function companionPutThumb(id: string, dataUrl: string): Promise<bo
   }
 }
 
+let thumbOfflineUntil = 0;
 export async function companionGetThumb(id: string): Promise<string | null> {
+  if (Date.now() < thumbOfflineUntil) return null;
   try {
-    const response = await companionFetch(`/thumbs/get?id=${encodeURIComponent(id)}`);
+    const response = await companionFetch(`/thumbs/get?id=${encodeURIComponent(id)}`, { signal: AbortSignal.timeout(1000) });
     if (!response.ok) return null;
     const data = await response.json() as { ok?: boolean; dataUrl?: string };
     return data.ok && data.dataUrl?.startsWith("data:image") ? data.dataUrl : null;
   } catch {
+    thumbOfflineUntil = Date.now() + 10000;
     return null;
   }
 }

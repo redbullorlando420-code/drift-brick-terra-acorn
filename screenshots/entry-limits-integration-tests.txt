@@ -1,0 +1,42 @@
+✔ catalog cache ignores UI changes, isolates scopes, and invalidates changed slices (1.0187ms)
+✔ expanded metadata is reused until a title receives an edited tag array (0.9885ms)
+✔ linear provider interleave preserves the prior ranking and does not drop titles (68.2134ms)
+✔ worker model respects type/source/tag filters and keeps the full catalog (60.0094ms)
+✔ worker keeps recovered personal shelves and ranks private local videos (12.8119ms)
+✔ worker recommendations respond to feedback without changing catalog identity (84.955ms)
+✔ recommendation bonuses preserve rating order and exclude explicitly disliked titles (12.2611ms)
+✔ Adult rails rotate through a broad preview-ready catalog instead of a fixed top slice (192.6148ms)
+✔ navigation persists only display settings and preserves full library metadata (38.4238ms)
+✔ worker-free search yields, preserves metadata and exact tags, and cancels without an index (230.4275ms)
+✔ cancelled offscreen thumbnail requests leave no queued work or leaked slots (2.3627ms)
+✔ aborting an awakened waiter still lets the next visible image load (0.3074ms)
+✔ remote artwork does not grow the local frame-thumbnail cache (0.7716ms)
+✔ real frame captures release media on viewer pause, resume subscribed cards, and cancel unmounted work (52.9147ms)
+✔ binary thumbnails obey backing-byte limits and revoke evicted URLs (2.8934ms)
+✔ an evicted binary disk thumbnail reopens without file access or video decoding (60.4319ms)
+✔ worker batches preserve search metadata and replace stale generations (9.0014ms)
+✔ search client applies backpressure, rejects stale replies, and settles worker failures (30.6359ms)
+✔ focused pulls cap memory, metadata and disk together, preserving the rejected page resume point (237.12ms)
+✔ bulk imports use one cap across creators and persist only admitted entries (170.5646ms)
+✔ routine checks refresh stored titles at a zero cap while excluding new rows from disk and metadata (215.5879ms)
+✔ settings changed while a provider is in flight apply before admission (100.1753ms)
+✔ Adult pulls apply a lowered in-flight cap before tags and append transactions (147.6974ms)
+✔ recent creator viewing raises unseen older uploads from that creator (1.5383ms)
+✔ liked tags and explicit creator favorites influence ranking (0.2777ms)
+✔ a deliberately unliked tag is a negative recommendation signal (0.9565ms)
+✔ recommendations interleave creators and de-prioritize already watched videos (0.3529ms)
+✔ a single prolific archive can still fill the requested shelf with its best-ranked uploads (1.5846ms)
+✔ feedback lookups scale with unique creators and tags, and exclude other providers (7.9336ms)
+✔ cached catalog follows immutable replacements and rejects invalid limits (0.3361ms)
+✔ filtered recommendations still learn from watched videos outside the filter (0.2288ms)
+✔ reshuffling reuses scored evidence instead of reading feedback again (10.7737ms)
+✔ ratings improve candidate order even when watched discovery evidence is negative (0.56ms)
+✔ repeating tags or adding many hearted tags cannot create unlimited ranking bonuses (0.4385ms)
+ℹ tests 34
+ℹ suites 0
+ℹ pass 34
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1458.4717

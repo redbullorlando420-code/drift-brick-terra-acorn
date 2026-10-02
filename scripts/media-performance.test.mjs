@@ -169,6 +169,10 @@ test('worker batches preserve search metadata and replace stale generations',asy
   assert.deepEqual(replies.at(-1).ids,[]);
   send({type:'search',generation:2,requestId:5,query:'newtag'});
   assert.deepEqual(replies.at(-1).ids,['c']);
+  send({type:'continue',generation:3});
+  send({type:'batch',generation:3,reset:false,done:true,batch:[{video:{...video,id:'d'},tags:['newtag']}]});
+  send({type:'search',generation:3,requestId:6,query:'newtag'});
+  assert.deepEqual(replies.at(-1).ids,['c','d'],'appended ordinals retain older search postings');
  } finally { globalThis.self=oldSelf; }
 });
 

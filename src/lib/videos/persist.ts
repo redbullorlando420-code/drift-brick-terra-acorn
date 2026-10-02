@@ -200,6 +200,7 @@ export type DurableFeedback = {
   notes: Record<string, string>;
   creatorRatings: Record<string, number>;
   creatorLikes: Record<string, true>;
+  creatorFavorites?: Record<string, true>;
   tagLikes: Record<string, true>;
   tagHeartHistory: Record<string, number>;
   watchTime: Record<string, { preview: number; fullscreen: number; previewEstimated?: number; fullscreenEstimated?: number }>;
@@ -497,6 +498,7 @@ export async function restoreDurableFeedback(): Promise<Omit<DurableFeedback, "s
     ratingHistory: pick(fromIdb?.ratingHistory as DurableFeedback["ratingHistory"] | undefined, fromLs?.ratingHistory as DurableFeedback["ratingHistory"] | undefined),
     notes: pick(fromIdb?.notes as Record<string, string> | undefined, fromLs?.notes as Record<string, string> | undefined),
     creatorRatings: pick(fromIdb?.creatorRatings as Record<string, number> | undefined, fromLs?.creatorRatings as Record<string, number> | undefined),
+    creatorFavorites: pick(fromIdb?.creatorFavorites ?? fromIdb?.creatorLikes, fromLs?.creatorFavorites ?? fromLs?.creatorLikes),
     creatorLikes: pick(fromIdb?.creatorLikes as Record<string, true> | undefined, fromLs?.creatorLikes as Record<string, true> | undefined),
     tagLikes: pick(fromIdb?.tagLikes as Record<string, true> | undefined, fromLs?.tagLikes as Record<string, true> | undefined),
     tagHeartHistory: pick(fromIdb?.tagHeartHistory as Record<string, number> | undefined, fromLs?.tagHeartHistory as Record<string, number> | undefined),

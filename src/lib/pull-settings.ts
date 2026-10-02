@@ -9,17 +9,26 @@ export type PullSettings = {
   adultCatalogTarget: number;
   automaticPulls: boolean;
   pauseWhileWatching: boolean;
+  remoteMaxEntries: number;
+  youtubeMaxEntries: number;
+  twitchMaxEntries: number;
+  adultMaxEntries: number;
+  otherMaxEntries: number;
 };
 export const DEFAULT_PULL_SETTINGS: Readonly<PullSettings> = Object.freeze({
   requestGapMs: 1500, concurrentRequests: 1, youtubeBatchVideos: 100,
   youtubeSourcesPerSweep: 32, youtubeIntervalSeconds: 300, adultBatchVideos: 2000,
   adultIntervalSeconds: 120, adultCatalogTarget: 100_000,
   automaticPulls: true, pauseWhileWatching: true,
+  remoteMaxEntries: 200_000, youtubeMaxEntries: 100_000, twitchMaxEntries: 25_000,
+  adultMaxEntries: 100_000, otherMaxEntries: 25_000,
 });
 const limits: Record<Exclude<keyof PullSettings, 'automaticPulls' | 'pauseWhileWatching'>, [number, number]> = {
   requestGapMs: [250, 60_000], concurrentRequests: [1, 3], youtubeBatchVideos: [30, 500],
   youtubeSourcesPerSweep: [1, 1024], youtubeIntervalSeconds: [60, 3600], adultBatchVideos: [20, 10000],
   adultIntervalSeconds: [30, 3600], adultCatalogTarget: [1000, 1_000_000],
+  remoteMaxEntries: [0, 1_000_000], youtubeMaxEntries: [0, 1_000_000], twitchMaxEntries: [0, 1_000_000],
+  adultMaxEntries: [0, 1_000_000], otherMaxEntries: [0, 1_000_000],
 };
 export function normalizePullSettings(raw: unknown): PullSettings {
   const input = raw && typeof raw === 'object' ? raw as Partial<PullSettings> : {};

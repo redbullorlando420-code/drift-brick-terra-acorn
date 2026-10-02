@@ -8,6 +8,7 @@ import { getPullSettings, subscribePullSettings } from '@/lib/pull-settings';
 import { catalogPullAvailable, subscribePullControl } from '@/lib/pull-control';
 import { allowAutomaticRefresh, subscribeSessionPhase } from '@/lib/session-activity';
 
+import { remoteEntryCounts, remainingEntrySlots } from '@/lib/videos/entry-limits';
 const LAST_ATTEMPT_KEY = 'reelcase.adult-sweep-at.v1';
 let lastAttempt = 0;
 /** The only automatic Adult pull owner. Thin caches and archive continuation
@@ -28,15 +29,18 @@ export function useAdultPulls() {
       // Folder totals are updated at ingest/restore, avoiding a million-row
       // traversal on every timer tick just to decide whether to request work.
       const count = state.folders.reduce((sum, folder) => sum + ((ADULT_PULL_PROVIDERS as readonly string[]).includes(folder.kind) ? folder.videoCount : 0), 0);
-      const remaining = policy.adultCatalogTarget - count;
+      const remaining = Math.min(policy.adultCatalogTarget - count, policy.adultMaxEntries - count, policy.remoteMaxEntries);
       if (remaining <= 0) return;
       const providers = planAdultPull(loadAdultArchiveCursors('all', 'top-weekly'), now);
       if (!providers.length) return;
-      busy = true; lastAttempt = now;
+      busy = true;
+      const capacity = remainingEntrySlots(await remoteEntryCounts(state.videos), getPullSettings(), "adult");
+      if (!capacity || stopped || !catalogPullAvailable()) { busy = false; return; }
+      lastAttempt = now;
       try { localStorage.setItem(LAST_ATTEMPT_KEY, String(now)); } catch { /* Session pacing remains. */ }
       try {
         await state.searchAdultFeed('all', 'top-weekly', { append: true, providers,
-          maxVideos: Math.min(remaining, policy.adultBatchVideos), redditSources: adultRedditPullSources(ADULT_REDDIT_SUBS) });
+          maxVideos: Math.min(capacity, remaining, policy.adultBatchVideos), redditSources: adultRedditPullSources(ADULT_REDDIT_SUBS) });
       } catch { /* Pull ledger/cooldowns explain provider failures. */ }
       finally { busy = false; }
     };

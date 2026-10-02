@@ -1,3 +1,4 @@
+import { isRedditRemovalText, isRedditRemovalUrl } from './reddit-removed.ts';
 /**
  * Reddit Atom/RSS media extraction.
  * The feed's [link] is often a gallery, redgifs, or v.redd.it page — not a
@@ -9,6 +10,7 @@ export type RedditMediaKind = "image" | "video" | "page";
 
 export type RedditMedia = {
   kind: RedditMediaKind;
+  removed?: boolean;
   /** Best still for the card (full-size when we can upgrade a preview). */
   poster?: string;
   /** Direct image or playable gif when available. */
@@ -125,7 +127,9 @@ function collectUrls(entryXml: string, contentHtml: string): string[] {
 }
 
 export function extractRedditMedia(entryXml: string, contentHtml: string): RedditMedia {
+  if (isRedditRemovalText(decode(contentHtml))) return { kind: 'page', removed: true };
   const urls = collectUrls(entryXml, contentHtml);
+  if (urls.some(isRedditRemovalUrl)) return { kind: 'page', removed: true };
   const images = urls.filter((url) => isImageHost(url) && !isJunkLink(url)).map(upgradePreview);
   const videos = urls.filter((url) => isVideoHost(url) && !isJunkLink(url));
   const pages = urls.filter((url) => /reddit\.com\/gallery\//i.test(url) || /reddit\.com\/r\/[^/]+\/comments\//i.test(url));
@@ -163,6 +167,7 @@ export function extractRedditMedia(entryXml: string, contentHtml: string): Reddi
 }
 
 export function shouldKeepRedditEntry(media: RedditMedia, title: string): boolean {
+  if (media.removed || isRedditRemovalText(title)) return false;
   if (media.kind === "image" || media.kind === "video") return true;
   if (/welcome|faq|sidebar|chatters|on cam/i.test(title)) return false;
   return false;

@@ -60,3 +60,11 @@ export const followRemote = (...args: Parameters<typeof followRemoteRequest>) =>
 export const refreshRemotes = (...args: Parameters<typeof refreshRemotesRequest>) => runPausablePull(signal => refreshRemotesRequest({ ...args[0], signal }));
 export const importChannels = (...args: Parameters<typeof importChannelsRequest>) => runPausablePull(signal => importChannelsRequest({ ...args[0], signal }));
 export const searchAdultVideos = (...args: Parameters<typeof searchAdultVideosRequest>) => runPausablePull(signal => searchAdultVideosRequest({ ...args[0], signal }));
+
+/** Selected-photo validation must continue while bulk pulling is paused. */
+export const inspectRedditImage = createServerFn({ method: 'POST' })
+  .validator((data: unknown) => typeof data === 'string' && data.length <= 2048 ? data : '')
+  .handler(async ({ data }) => {
+    const { inspectRedditImageUrl } = await import('./reddit-media-status');
+    return inspectRedditImageUrl(data);
+  });

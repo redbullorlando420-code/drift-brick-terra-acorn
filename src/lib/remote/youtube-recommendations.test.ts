@@ -85,3 +85,34 @@ test("reshuffling reuses scored evidence instead of reading feedback again", () 
  assert.notDeepEqual(first,second);
  assert.equal(new Set(second.map(row=>row.remote?.channelName)).size,12);
 });
+
+test('ratings improve candidate order even when watched discovery evidence is negative', () => {
+  const rows=[video('neutral','maker','',1),video('excellent','maker','',1),video('good','maker','',1),video('disliked','maker','',1)];
+  const ratings:Record<string,number>={neutral:2,excellent:5,good:3,disliked:1};
+  const ranked=rankYoutubeRecommendations(rows,{...base,history:rows.map(v=>({id:v.id,at:base.now-1000})),ratingOf:id=>ratings[id],creatorIsLiked:()=>true});
+  assert.deepEqual(ranked.map(v=>v.id),['excellent','good','neutral']);
+});
+
+test('repeating tags or adding many hearted tags cannot create unlimited ranking bonuses', () => {
+  const rows=[video('spam','maker','',1),video('excellent','maker','',1)];
+  const ranked=rankYoutubeRecommendations(rows,{...base,tags:{spam:Array.from({length:100},(_,i)=>`tag-${i}`),excellent:['tag-0','tag-1']},tagIsLiked:()=>true,ratingOf:id=>id==='excellent'?5:0});
+  assert.equal(ranked[0].id,'excellent');
+  const duplicate=rankYoutubeRecommendations(rows,{...base,tags:{spam:Array(100).fill('same-tag'),excellent:['same-tag']},tagIsLiked:()=>true,ratingOf:id=>id==='excellent'?5:0});
+  assert.equal(duplicate[0].id,'excellent');
+});
+
+test('video likes, favorites, creator favorites, time and private marks each improve discovery priority', () => {
+  const a = video('a', 'alpha', '', 1), b = video('b', 'beta', '', 1);
+  for (const extra of [{ likes: { b: true as const } }, { favorites: { b: true as const } }, { creatorIsFavorited: (name: string) => name === 'beta' }, { watchScore: (id: string) => id === 'b' ? 6 : 0 }, { marksOf: (id: string) => id === 'b' ? 3 : 0 }]) {
+    assert.equal(rankYoutubeRecommendations([a, b], { ...base, ...extra, limit: 2 })[0].id, 'b');
+  }
+});
+test('60k-title scoring reads per-title signals once and reuses them across mixes', () => {
+  const rows = Array.from({ length: 60_000 }, (_, i) => video(`big-${i}`, `creator-${i % 100}`, '', 1));
+  let watchReads = 0, markReads = 0, creatorReads = 0;
+  const rank = createYoutubeRecommendationRanker(rows, { ...base, limit: 48,
+    watchScore: () => { watchReads++; return 0; }, marksOf: () => { markReads++; return 0; },
+    creatorIsFavorited: () => { creatorReads++; return false; } });
+  assert.equal(rank().length, 48); assert.equal(rank(() => 1).length, 48);
+  assert.equal(watchReads, 60_000); assert.equal(markReads, 60_000); assert.equal(creatorReads, 100);
+});

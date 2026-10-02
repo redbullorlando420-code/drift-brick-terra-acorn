@@ -19,7 +19,7 @@ self.onmessage = ({ data }: MessageEvent<Request>) => {
   if (data.type === "catalog") { catalog = data; cache = createAdultBrowseCache(); return; }
   if (data.type === "signals") {
     signals = data.signals;
-    cache.ranked.clear(); cache.tagRanks.clear(); cache.metaTagRanks.clear(); cache.deepRankedIds = undefined;
+    cache.ranked.clear(); cache.tagRanks.clear(); cache.metaTagRanks.clear(); cache.deepRankedIds = undefined; cache.scores?.clear(); cache.topicAffinity = undefined;
     return;
   }
   try {

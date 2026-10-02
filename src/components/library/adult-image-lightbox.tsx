@@ -1,3 +1,4 @@
+import { useRedditMedia } from './use-reddit-media';
 import { ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -15,6 +16,7 @@ export function AdultImageLightbox({
   video: LibraryVideo;
   tags?: string[];
 }) {
+  const removed = useRedditMedia(video);
   const remote = video.remote;
   const { original, loading, failed } = useBooruOriginal(video);
   const src =
@@ -30,7 +32,7 @@ export function AdultImageLightbox({
   return (
     <div className="absolute inset-0 flex flex-col bg-bg">
       <div className="flex min-h-0 flex-1 items-center justify-center p-3 sm:p-6">
-        {src ? (
+        {removed ? <p role="status" className="text-sm text-muted">Removed by Reddit · hidden from photo recommendations.</p> : src ? (
           <img
             src={src}
             alt={video.name}
@@ -63,6 +65,7 @@ export function AdultImageLightbox({
             <Button
               size="sm"
               variant="default"
+              disabled={removed}
               onClick={() => {
                 void downloadAdultPhoto(original ? { ...video, src: original, remote: remote ? { ...remote, embedUrl: original } : undefined } : video).then((result) => {
                   if (result.ok) toast.success(`Saved ${result.name}`);

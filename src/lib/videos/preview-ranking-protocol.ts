@@ -20,7 +20,7 @@ export function createPreviewRankingProcessor(emit: (result: PreviewWorkerResult
     pending = undefined;
     const result = rankPreviewCatalog(catalog, request.id, request.seed);
     const target = catalog.byId.get(request.id);
-    const keys = new Set(target?.tags.map(tag => tag.replace(/^(?:keyword-|creator-)/i, "")));
+    const keys = new Set(target?.tags.map(tag => tag.replace(/^(?:keyword-|creator-)/i, "").trim().toLowerCase()));
     if (target?.creator) keys.add(target.creator.replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""));
     // The preview displays this title's tag scores. Keep the complete taste
     // ledger in the worker instead of cloning every catalog keyword per click.

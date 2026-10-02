@@ -1,5 +1,5 @@
 import { startTransition, useEffect, useState } from "react";
-import { creatorIsLiked, getCreatorRating, rankingFeedbackSnapshot } from "@/lib/media-feedback";
+import { rankingFeedbackSnapshot } from "@/lib/media-feedback";
 import { scheduleBackgroundWork } from "@/lib/interaction-budget";
 import { isAdultPullKind } from "@/lib/videos/adult-sites";
 import type { LibraryVideo } from "@/lib/videos/types";
@@ -7,6 +7,8 @@ import type { PreviewRanking, PreviewRow } from "@/lib/videos/preview-ranking";
 import type { PreviewWorkerRequest, PreviewWorkerResult } from "@/lib/videos/preview-ranking-protocol";
 import { previewCandidates } from '@/lib/videos/preview-candidates';
 import { peekYoutubeOwner } from '@/lib/remote/youtube-sources';
+import { useLibrary } from '@/lib/videos/store';
+import { isRemovedRedditVideo } from '@/lib/videos/reddit-removed';
 import { rememberVideo } from '@/lib/videos/video-lookup';
 
 const EMPTY: PreviewRanking = { related: [], recommended: [], tagScores: {} };
@@ -15,6 +17,7 @@ const SAMPLE_TITLE = /\b(blender|big buck bunny|cosmos laundromat|tears of steel
 type Inputs = {
   target: LibraryVideo;
   videos: LibraryVideo[]; tags: Record<string, string[]>; adultFolders: Set<string>;
+  favorites: Record<string, true>; likes: Record<string, true>; cameCounts: Record<string, number>; viewCounts: Record<string, number>;
   unavailable: Record<string, unknown>; hidden: Record<string, unknown>; feedbackRevision: number;
 };
 type Session = {
@@ -72,6 +75,7 @@ function sessionForPreview() {
 }
 function sameInputs(left: Inputs | undefined, right: Inputs) {
   return left && left.target.id === right.target.id && left.videos === right.videos && left.tags === right.tags && left.unavailable === right.unavailable
+    && left.favorites === right.favorites && left.likes === right.likes && left.cameCounts === right.cameCounts && left.viewCounts === right.viewCounts
     && left.hidden === right.hidden && left.feedbackRevision === right.feedbackRevision
     && left.adultFolders.size === right.adultFolders.size && [...right.adultFolders].every(id => left.adultFolders.has(id));
 }
@@ -94,7 +98,7 @@ function prepare(session: Session, inputs: Inputs) {
     const feedback = await rankingFeedbackSnapshot();
     if (cancelled) return;
     send(session, { type: "reset", generation, hearted: feedback.heartedTags });
-    const creators = new Map<string, { rating: number; liked: boolean }>();
+    const creators = new Map<string, { rating: number; liked: boolean; favorite: boolean }>();
     let offset = 0;
     const next = () => {
       if (cancelled) return;
@@ -104,11 +108,12 @@ function prepare(session: Session, inputs: Inputs) {
         const item = candidates[offset++];
         const creator = item.remote?.channelName?.trim().toLowerCase() ?? "";
         let taste = creators.get(creator);
-        if (!taste) { taste = { rating: getCreatorRating(creator), liked: creatorIsLiked(creator) }; creators.set(creator, taste); }
+        if (!taste) { taste = { rating: feedback.creatorRatings[creator] ?? 0, liked: Boolean(feedback.creatorLikes[creator]), favorite: Boolean(feedback.creatorFavorites[creator]) }; creators.set(creator, taste); }
         rows.push({ id: item.id, folderId: item.folderId, genre: item.genre, kind: item.remote?.kind, creator,
-          tags: (inputs.tags[item.id] ?? EMPTY_TAGS).slice(0, 32), rating: feedback.ratings[item.id] ?? 0, creatorRating: taste.rating, creatorLiked: taste.liked,
+          tags: (inputs.tags[item.id] ?? EMPTY_TAGS).slice(0, 32), rating: feedback.ratings[item.id] ?? 0, creatorRating: taste.rating, creatorLiked: taste.liked, creatorFavorite: taste.favorite, favorite: Boolean(inputs.favorites[item.id]), liked: Boolean(inputs.likes[item.id]),
+          marks: inputs.cameCounts[item.id] ?? 0, plays: inputs.viewCounts[item.id] ?? 0, watch: feedback.watchScores[item.id] ?? 0,
           adult: isAdultPullKind(item.remote?.kind) || inputs.adultFolders.has(item.folderId), live: Boolean(item.remote?.live),
-          eligible: !inputs.unavailable[item.id] && !inputs.hidden[item.id] && !item.isSample && !SAMPLE_TITLE.test(`${item.name} ${creator} ${item.tagline ?? ""}`) });
+          eligible: !isRemovedRedditVideo(item) && !inputs.unavailable[item.id] && !inputs.hidden[item.id] && !item.isSample && !SAMPLE_TITLE.test(`${item.name} ${creator} ${item.tagline ?? ""}`) });
         if (rows.length % 32 === 0 && performance.now() - started >= 4) break;
       }
       send(session, { type: "append", generation, rows });
@@ -126,13 +131,14 @@ function prepare(session: Session, inputs: Inputs) {
 }
 
 export function usePreviewRanking(video: LibraryVideo | undefined, videos: LibraryVideo[], tags: Record<string, string[]>, adultFolders: Set<string>, unavailable: Record<string, unknown>, hidden: Record<string, unknown>, seed: number, revision: string) {
+  const favorites = useLibrary(s => s.favorites), likes = useLibrary(s => s.likes), cameCounts = useLibrary(s => s.cameCounts), viewCounts = useLibrary(s => s.viewCounts);
   const [packet, setPacket] = useState<{ id: string; result: PreviewRanking }>();
   useEffect(() => {
     if (!video) return;
     const session = sessionForPreview();
     const receive = (data: PreviewWorkerResult) => startTransition(() => setPacket({ id: data.id, result: data.result }));
     session.listener = receive;
-    prepare(session, { target: video, videos, tags, adultFolders, unavailable, hidden, feedbackRevision });
+    prepare(session, { target: video, videos, tags, adultFolders, unavailable, hidden, feedbackRevision, favorites, likes, cameCounts, viewCounts });
     const message = { type: "rank" as const, generation: session.generation, requestId: ++session.requestId, id: video.id, seed };
     latestRequest = { session, message };
     send(session, message);
@@ -143,6 +149,6 @@ export function usePreviewRanking(video: LibraryVideo | undefined, videos: Libra
       // releases it completely rather than retaining workers indefinitely.
       session.disposeTimer = window.setTimeout(() => dispose(session), 1000);
     };
-  }, [video?.id, videos, tags, adultFolders, unavailable, hidden, seed, revision]);
+  }, [video?.id, videos, tags, adultFolders, unavailable, hidden, seed, revision, favorites, likes, cameCounts, viewCounts]);
   return packet && packet.id === video?.id ? packet.result : EMPTY;
 }
