@@ -40,6 +40,7 @@ export type YoutubeRenderer = {
   viewCountText?: { simpleText?: string; runs?: Array<{ text?: string }> };
   descriptionSnippet?: { simpleText?: string; runs?: Array<{ text?: string }> };
   thumbnail?: { thumbnails?: Array<{ url?: string }> };
+  shortBylineText?: { simpleText?: string; runs?: Array<{ text?: string }> };
 };
 
 /** Only traverse the requested catalog boundary. Playlist rows and Shorts
@@ -58,6 +59,10 @@ export function youtubeVideoRenderers(items: unknown, maximum: number): YoutubeR
       videoId: lockup.contentId,
       title: { simpleText: lockup.metadata?.lockupMetadataViewModel?.title?.content },
       thumbnail: { thumbnails: lockup.contentImage?.thumbnailViewModel?.image?.sources },
+      shortBylineText: { simpleText: lockup.metadata?.lockupMetadataViewModel?.metadata?.contentMetadataViewModel?.metadataRows?.[0]?.metadataParts?.[0]?.text?.content },
+      viewCountText: { simpleText: lockup.metadata?.lockupMetadataViewModel?.metadata?.contentMetadataViewModel?.metadataRows
+        ?.flatMap((row: any) => row.metadataParts?.map((part: any) => part.text?.content) ?? [])
+        .find((text: unknown) => typeof text === 'string' && /\bviews\b/i.test(text)) },
     } : short ? {
       videoId: short.onTap?.innertubeCommand?.reelWatchEndpoint?.videoId,
       title: { simpleText: short.overlayMetadata?.primaryText?.content ?? short.accessibilityText },

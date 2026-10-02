@@ -71,6 +71,7 @@ test('large catalog counting shares concurrent work and yields to UI tasks', asy
 test('legacy pull preferences migrate without resetting pacing; limits accept zero and clamp malformed values', () => {
   const migrated = normalizePullSettings({ requestGapMs: 4500, adultBatchVideos: 4000 });
   assert.equal(migrated.requestGapMs, 4500);
+  assert.equal(migrated.youtubeRequestGapMs, 80, 'archive pages keep their earlier pacing independently of pull jobs');
   assert.equal(migrated.adultBatchVideos, 4000);
   assert.equal(migrated.youtubeMaxEntries, 100000);
   const normalized = normalizePullSettings({ youtubeMaxEntries: 0, adultMaxEntries: -5, remoteMaxEntries: 99999999, twitchMaxEntries: NaN });
@@ -78,4 +79,13 @@ test('legacy pull preferences migrate without resetting pacing; limits accept ze
   assert.equal(normalized.adultMaxEntries, 0);
   assert.equal(normalized.remoteMaxEntries, 1000000);
   assert.equal(normalized.twitchMaxEntries, DEFAULT_PULL_SETTINGS.twitchMaxEntries);
+});
+
+test('YouTube page pacing can be disabled or slowed independently without changing job pacing', () => {
+  const fast = normalizePullSettings({ requestGapMs: 1500, youtubeRequestGapMs: 0 });
+  assert.equal(fast.youtubeRequestGapMs, 0);
+  assert.equal(fast.requestGapMs, 1500);
+  assert.equal(normalizePullSettings({ youtubeRequestGapMs: 999999 }).youtubeRequestGapMs, 60000);
+  assert.equal(normalizePullSettings({ youtubeRequestGapMs: -5 }).youtubeRequestGapMs, 0);
+  assert.equal(normalizePullSettings({ youtubeRequestGapMs: NaN }).youtubeRequestGapMs, 80);
 });

@@ -68,14 +68,18 @@ function retainDurableRemoteFields(previous: LibraryVideo | undefined, incoming:
   const keepsName = Boolean(channelName && channelName !== incoming.remote.channelName);
   const keepsComments = Boolean(comments?.length && comments !== incoming.remote.comments);
   const keepsPublished = incoming.remote.kind === "youtube" && incoming.addedAt === 0 && repairLegacyYoutubeDate(previous).addedAt > 0;
-  if (!keepsName && !keepsComments && !keepsPublished) return incoming;
+  const keepsViews = incoming.remote.kind === 'youtube' && incoming.remote.views === undefined && previous.remote.views !== undefined;
+  const keepsDuration = incoming.remote.kind === 'youtube' && incoming.duration === undefined && previous.duration !== undefined;
+  if (!keepsName && !keepsComments && !keepsPublished && !keepsViews && !keepsDuration) return incoming;
   return {
     ...incoming,
     ...(keepsPublished ? { addedAt: previous.addedAt } : {}),
+    ...(keepsDuration ? { duration: previous.duration } : {}),
     remote: {
       ...incoming.remote,
       ...(keepsName ? { channelName } : {}),
       ...(keepsComments ? { comments } : {}),
+      ...(keepsViews ? { views: previous.remote.views } : {}),
     },
   };
 }

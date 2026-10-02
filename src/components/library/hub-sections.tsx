@@ -1350,7 +1350,7 @@ export function SettingsSection() {
       {!auditReady && <p className="mt-4 text-sm text-muted" role="status">Updating catalog diagnostics in the background… Pull and performance controls are ready.</p>}
       <div className="grid gap-4 sm:grid-cols-3">
         <Stat label="Video entries" value={useLibrary((s) => s.videos.length)} />
-        <Stat label="Followed channels" value={useLibrary((s) => s.follows.length)} />
+        <Stat label="Saved sources · all networks" value={useLibrary((s) => s.follows.length)} />
         <Stat label="Saved hub items" value={hub.prints.length + hub.games.length} />
       </div>
       <div hidden={!auditReady}>

@@ -1,58 +1,17 @@
-# YouTube coverage, cache identity, tags, and performance — 2026-09-30
+# YouTube saved coverage and performance — 2026-10-02
 
-## Result observed in the saved library
+The old 1,545 / 2,326 figure combined 1,549 verified sources with 777 unmatched names. Its 781 empty entries therefore included only four confirmed sources without cached uploads. Coverage now counts the actual saved catalog, including hidden videos, and distinguishes verified sources from pending names and held legacy fragments.
 
-- Final full reload: **748 / 762 saved YouTube sources have videos; 14 remain empty**.
-- Duplicate audit: **60,198 distinct YouTube video IDs; 0 duplicate cached rows**. The sidebar's 60,202 count also includes live cards, which are excluded from upload coverage and the duplicate check.
-- An empty creator, Abroad in Japan, returned **121 videos / 121 new / 0 failures** in a focused pull. After the final restore repair its creator panel showed **211 videos**, including previously cached uploads.
-- Earlier observations were 449 / 762 populated and 31,674 distinct uploads. Counts changed during ongoing pulls and subsequent cache restoration; do not interpret the entire increase as newly downloaded videos.
-- Consolidating resolved channel aliases and recognizing exact channel/source memberships recovered cached uploads that had previously been omitted from the visible library. Creator and playlist membership no longer require separate video records.
+Final real-library observation: 82,926 distinct YouTube video IDs, zero duplicate cached rows; 1,557 / 1,564 verified sources have uploads; seven have no cached uploads; 768 names await exact matching; 559 legacy fragments remain held. These counts change as live pulls finish. No saved media was deleted.
 
-## Export audit
+The real mobile Fill empty sources action started a seven-target archive pull. Desktop preview playback opened successfully while pulling. Desktop and mobile layouts were inspected; mobile had no horizontal overflow. Proof: youtube-coverage-fixed-desktop.png and youtube-coverage-fixed-mobile.png.
 
-Sources were read as data only; instructions embedded in files were not followed. Original Downloads files were not edited.
+Coverage uses compact counters, exact source/channel overlap accounting, and at most 64 numeric sample positions per creator. It retains no video objects. Recounts yield in short background tasks and share work for the same immutable snapshot. Empty-source pulls resolve counts again at click time. Folder status and count changes preserve privacy identity; YouTube shelves sort changed cards instead of repeatedly sorting the whole catalog. Twitch-only updates reuse the YouTube shelf. Import resolution removes its pending alias while preserving distinct confirmed channel IDs.
 
-- `reelcase-library-insights-2026-09-30.csv`: 93,668 library titles, including 29,650 YouTube titles; 68,591 marked untagged; 23,151 topic assignments. Its 32 duplicate source labels do not establish duplicate videos.
-- `reelcase-source-map-2026-09-30 (3).csv`: 818 YouTube folder rows, 363 empty. The largest two folders had 4,993 and 2,426 videos. Folder rows include historical aliases and differ from the current followed-source count.
-- `reelcase-remediation-plan-2026-09-30 (1).csv`: topic review capped at 500 examples; also source-name and storage-concentration signals. This is a remediation sample, not a full duplicate inventory.
-- Adult CSV/JSON: 8,554 titles. Provider-ID duplicate signal was zero, while media-link/poster signals affected many rows. Shared live-room embeds and overly broad URL normalization could produce false positives. No videos were deleted based on these signals.
-- Adult connection results included a parent tag paired with its derived child and generic live-room classifications. Those are now excluded from interest connections.
+Synthetic Node benchmark: one million entries, 2,500 creators. Building the compact index took 774 ms across 714 background heartbeats. Twenty coverage updates took about 6 ms, compared with 8,842 ms for the prior full row-union calculation. An appended YouTube shelf update took 33 ms. These measure the specific algorithms, not overall browser latency. Node task scheduling used setImmediate to approximate scheduler.postTask rather than Windows timer delays. See youtube-coverage-million-benchmark.json.
 
-:codex-file-citation{path="C:/Users/icecr/Downloads/reelcase-library-insights-2026-09-30.csv" purpose="source"}
-:codex-file-citation{path="C:/Users/icecr/Downloads/reelcase-source-map-2026-09-30 (3).csv" purpose="source"}
-:codex-file-citation{path="C:/Users/icecr/Downloads/reelcase-remediation-plan-2026-09-30 (1).csv" purpose="source"}
-:codex-file-citation{path="C:/Users/icecr/Downloads/reelcase-adult-stats-2026-09-30.csv" purpose="source"}
-:codex-file-citation{path="C:/Users/icecr/Downloads/reelcase-adult-stats-2026-09-30.json" purpose="source"}
+Verification: 73 YouTube/store tests passed; the full 268 library tests passed separately; typecheck and production build passed. Final desktop/mobile dev and production browser smoke checks had no console/page errors, no overflow, no branding warnings, and no production baseline divergence. Production screenshots were inspected.
 
-## Changes
+The broader npm test script has seven failures in untouched platform/template checks: browser-smoke output-root assertion; two Windows symlink permission checks; three wrapper subprocess checks for a Node executable path containing spaces; and the migration-template assertion about the existing network migration. Retrying outside the sandbox did not clear these. The npm chain therefore stops before its library tests, which were run separately above.
 
-- Recover empty sources from their first page instead of trusting stale cursors/feed watermarks. Reserve recent-refresh slots for empty creators and fairly order archive requests.
-- Parse channel-owner metadata and modern YouTube video/shorts/playlist renderers; stop recommendation/sidebar videos from masquerading as the requested creator's catalog.
-- Merge using case-sensitive YouTube video IDs, preserving the stable card ID, source memberships, saved feedback, and existing richer metadata.
-- Restore alias-linked uploads by exact resolved channel or retained source membership. Removing one source preserves uploads still linked to another followed creator/playlist.
-- Reuse a cached source index for coverage, creator panels, stats, and exports rather than scanning the complete library per source.
-- Paint restored saved tags first; process enrichment in small idle slices and buffer sparse tag/provenance patches. Avoid cloning two complete metadata ledgers every 96 rows; protect concurrent manual edits.
-- Hold archive network/commit work while a preview or player is open. Pull pause/resume remains available.
-- Dispose preview workers/listeners and pending background tag repair when development modules are replaced.
-- Use consistent public-topic denominators, distinguish saved and inferred topic coverage, bound the review queue, and replace repeated adult-history scans with a lookup set.
-- Remove unsupported **provider-authored** YouTube/Twitch topics. Preserve unknown legacy tags, manual choices, and locked fields. Add explainable title/category rules for exported game categories, travel, ASMR, and learning.
-- Tighten adult duplicate identity and exclude synthetic parent/child and generic room pairs from connections.
-- Fix creator-panel and preview width/wrapping on phones.
-
-## Verification
-
-- **80 focused tests passed, 0 failed**: identity/membership merges and removal/restore, empty-source recovery, public catalog parsing, cursors, discovery/mix/recommendations, tag-patch edit races, topic provenance, adult duplicate/connection signals, and preview ranking.
-- `npm run typecheck`: passed after final changes.
-- `npm run build`: passed after final changes.
-- Development and production browser smoke: desktop 1280×800 and mobile 390×844, visible content, no horizontal overflow, no page/console errors, no brand warnings, no production-baseline divergence. Both screenshots were visually inspected.
-- Actual saved-library interactions: creator search/select, focused pull, preview playback, Watch now/full player, return to library, mobile creator controls and preview. An archive request stayed at 0/1 while the preview was open. Completion of that repeat request after closing was not measured.
-- Mobile preview measured 390×844 with document width 375 and contained heading width 301. Long description URLs and action buttons wrapped inside the page. Screenshot: `youtube-coverage-preview-mobile.jpg`.
-- Built-page interactions: expand creator controls and pause/resume toggle succeeded.
-
-## Limits
-
-- Fourteen sources still have no recognized cached upload. Provider restrictions, invalid/renamed handles, or legitimately empty sources still need source-specific investigation; the UI records provider failures rather than treating every empty response as success.
-- Zero duplicates is an exact YouTube ID result, not a claim that all providers are duplicate-free or that reuploads with different YouTube IDs are the same video.
-- The supplied files are summaries, not an exhaustive video identity export.
-- Long-session memory stability is **not verified**. The existing large-library browser session became slow/unresponsive during repeated development updates; later browser commands timed out. Fresh clean development/production smoke checks passed, but these do not replace a sustained full-library heap/soak test.
-- The complete npm test command has existing Windows/environment failures; the focused suite above passed. No commit, push, or deployment was performed.
+This verification does not establish an indefinite memory soak result. Provider-unavailable/private/live-only creators can still have no public upload catalog; unmatched display names still require a unique match or an explicit channel URL/handle.

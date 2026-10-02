@@ -1,0 +1,10 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {registerHooks} from 'node:module';
+registerHooks({resolve(s,c,n){if(s==='@/lib/companion')return {url:'data:text/javascript,export const companionGetThumb=async()=>null;export const companionPutThumb=async()=>false;',shortCircuit:true};if(s.startsWith('@/'))return n(new URL('../src/'+s.slice(2)+'.ts',import.meta.url).href,c);try{return n(s,c)}catch(e){if(s.startsWith('.')&&!/\.[a-z]+$/i.test(s))return n(s+'.ts',c);throw e}}});
+const {loadFollows,saveFollows,waitForFollowsWrites}=await import('../src/lib/videos/persist.ts');
+const rows=[{id:'yt:fragment',kind:'youtube',handle:'fragment',title:'fragment',importNeedsReview:true},{id:'yt:UCResolved1234567890123456',kind:'youtube',handle:'@ExactHandle',title:'Display Name',importQuery:'Display Name',channelId:'UCResolved1234567890123456'}];
+globalThis.window={};
+globalThis.localStorage={getItem:key=>key==='reelcase.follows.v1'?JSON.stringify({channels:rows}):null,setItem:()=>{throw new Error('QuotaExceededError');}};
+test('follow normalization retains import review flags and original query aliases over reload',()=>{assert.deepEqual(loadFollows(),rows);});
+test('full local storage does not erase the in-session durable follow queue',async()=>{saveFollows(rows);assert.deepEqual(loadFollows(),rows);await waitForFollowsWrites().catch(()=>undefined);});

@@ -4,11 +4,16 @@ export function memoizeSelector<S, R>(
   compute: (state: S, adult: boolean) => R,
   keys: readonly (keyof S)[] | ((state: S) => readonly (keyof S)[]),
 ): ((state: S, adult?: boolean) => R) & { peek: (state: S, adult?: boolean) => R | undefined; clear: () => void; evictStale: (state: S) => void } {
-  const scopes = new Map<boolean, { inputs: unknown[]; result: R }>();
   const inputsFor = (state: S) => {
     const selectedKeys = typeof keys === "function" ? keys(state) : keys;
     return selectedKeys.flatMap((key) => [key, state[key]]);
   };
+  return memoizeSelectorInputs(compute, inputsFor);
+}
+
+/** Derived immutable inputs can ignore status-only changes to a large slice. */
+export function memoizeSelectorInputs<S, R>(compute: (state: S, adult: boolean) => R, inputsFor: (state: S) => unknown[]) {
+  const scopes = new Map<boolean, { inputs: unknown[]; result: R }>();
   const peek = (state: S, adult = false) => {
     const inputs = inputsFor(state);
     const cached = scopes.get(adult);

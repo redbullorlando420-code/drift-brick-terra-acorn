@@ -1,0 +1,17 @@
+warning: in the working copy of 'scripts/pull-entry-limits.test.mjs', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/library/live-desk.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/pull-control.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/pull-scheduler.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/pull-settings.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/remote/youtube-catalog.test.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/remote/youtube-catalog.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/remote/youtube-live.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/remote/youtube-page-data.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/remote/youtube-sources.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/session-activity.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/videos/adult-providers.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/videos/entry-limits.test.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/videos/follow-identity.test.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/videos/follow-identity.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/videos/selector-cache.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/lib/videos/types.ts', LF will be replaced by CRLF the next time Git touches it

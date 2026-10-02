@@ -39,6 +39,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { DEFAULT_SIDEBAR_GROUPS, SIDEBAR_GROUPS_KEY, restoreSidebarGroups, type SidebarGroup } from "@/lib/sidebar-state";
 import { scheduleBackgroundWork } from "@/lib/interaction-budget";
 import { useCatalogCounts } from "./use-catalog-counts";
+import { useBrowseLibrary } from "./use-browse-library";
 
 const NAV_GROUPS = [
   { id: "library", label: "Library", items: [
@@ -105,31 +106,31 @@ export function SidebarNav({
   compact?: boolean;
   onToggleCompact?: () => void;
 }) {
-  const folders = useLibrary((s) => s.folders);
-  const videos = useLibrary((s) => s.videos);
+  const folders = useBrowseLibrary((s) => s.folders);
+  const videos = useBrowseLibrary((s) => s.videos);
   const sourceId = useLibrary((s) => s.sourceId);
-  const hideDemo = useLibrary((s) => s.hideDemo);
+  const hideDemo = useBrowseLibrary((s) => s.hideDemo);
   const setSource = useLibrary((s) => s.setSource);
   const removeFolder = useLibrary((s) => s.removeFolder);
   const restoreOne = useLibrary((s) => s.restoreOne);
   const setFolderAdult = useLibrary((s) => s.setFolderAdult);
   const unfollow = useLibrary((s) => s.unfollow);
-  const favorites = useLibrary((s) => s.favorites);
-  const likes = useLibrary((s) => s.likes);
-  const progress = useLibrary((s) => s.progress);
-  const resumeProgress = useLibrary((s) => s.resumeProgress);
-  const hiddenVideos = useLibrary((s) => s.hiddenVideos);
-  const history = useLibrary((s) => s.history);
+  const favorites = useBrowseLibrary((s) => s.favorites);
+  const likes = useBrowseLibrary((s) => s.likes);
+  const progress = useBrowseLibrary((s) => s.progress);
+  const resumeProgress = useBrowseLibrary((s) => s.resumeProgress);
+  const hiddenVideos = useBrowseLibrary((s) => s.hiddenVideos);
+  const history = useBrowseLibrary((s) => s.history);
   // Continue is a large derived selector. The library page computes it when
   // opened; running the same full-catalog pass in the sidebar on every route
   // change needlessly delays Home and the other desks.
-  const activeContinueCount = useLibrary(s => s.sourceId === "continue" ? selectContinue(s, false).length : null);
+  const activeContinueCount = useBrowseLibrary(s => s.sourceId === "continue" ? selectContinue(s, false).length : null);
   const [lastContinueCount, setLastContinueCount] = useState<number | null>(null);
   useEffect(() => { if (activeContinueCount !== null) setLastContinueCount(activeContinueCount); }, [activeContinueCount]);
   useEffect(() => {
     if (activeContinueCount !== null || sourceId === "home") return;
     return scheduleBackgroundWork(
-      () => setLastContinueCount(selectContinue(useLibrary.getState(), false).length),
+      () => { const state = useLibrary.getState(); if (!state.activeId && !state.previewId) setLastContinueCount(selectContinue(state, false).length); },
       { timeoutMs: 2_000, fallbackDelayMs: 350 },
     );
   }, [sourceId, activeContinueCount, folders, hideDemo, hiddenVideos, history, progress, resumeProgress, videos]);
@@ -177,7 +178,7 @@ export function SidebarNav({
   const youtubeFollowing = networkFolders.filter((folder) => folder.kind === "youtube");
   const twitchFollowing = networkFolders.filter((folder) => folder.kind === "twitch");
 
-  const badges: Record<string, number> = { ...counts, ...(continueCount === null ? {} : { continueCount }) };
+  const badges: Record<string, number | undefined> = { ...counts, ...(continueCount === null ? {} : { continueCount }) };
   const folderRows = (items: Folder[], limit: number) => {
     const selected = items.find(folder => folder.id === sourceId);
     const shown = items.slice(0, limit);

@@ -32,6 +32,17 @@ export function youtubeCatalogItems(root: unknown): unknown[] | null {
     }
     for (const value of Object.values(record)) if (value && typeof value === "object") stack.push(value);
   }
+  // Current WEB uploads playlists render lockupViewModel rows directly in
+  // item sections, without a playlistVideoListRenderer. Keep this boundary
+  // restricted to a playlist response so a channel Home section's suggested
+  // videos cannot be mistaken for that creator's archive.
+  if ((root as any).metadata?.playlistMetadataRenderer) {
+    const sections = (selectedContent as any)?.sectionListRenderer?.contents;
+    if (Array.isArray(sections)) {
+      const items = sections.flatMap(section => section.itemSectionRenderer?.contents ?? [section]);
+      return items;
+    }
+  }
   for (const name of ["playlistVideoListContinuation", "gridContinuation", "richGridContinuation"]) {
     const continuation = (root as any).continuationContents?.[name];
     if (!continuation) continue;

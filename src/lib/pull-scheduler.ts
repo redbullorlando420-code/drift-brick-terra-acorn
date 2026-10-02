@@ -5,7 +5,7 @@ const cancelledError = () => new Error('Pull cancelled; accepted catalog entries
 /** A bounded queue sleeps on pause/visibility changes. Each active slot retains
  * at most one response; cancellation aborts transport and releases that slot. */
 export function createPullScheduler(policy: () => Policy, available: () => boolean, maxWaiting = 8,
-  options: { availabilityDelay?: () => number; requestTimeoutMs?: number } = {}) {
+  options: { availabilityDelay?: () => number; requestTimeoutMs?: number | (() => number) } = {}) {
   const queue: Job[] = [], running = new Set<Job>(), held = new Set<() => void>();
   const listeners = new Set<() => void>();
   let lastStarted = -Infinity, timer: ReturnType<typeof setTimeout> | undefined;
@@ -44,7 +44,8 @@ export function createPullScheduler(policy: () => Policy, available: () => boole
         const interruption = new Promise<never>((_, reject) => {
             abort = () => reject(job.controller.signal.reason ?? cancelledError());
             job.controller.signal.addEventListener('abort', abort, { once: true });
-            timeout = setTimeout(() => job.controller.abort(new Error('Catalog request timed out. Its saved resume point is unchanged; retry the pull.')), options.requestTimeoutMs ?? 90_000);
+            const requestTimeout = typeof options.requestTimeoutMs === 'function' ? options.requestTimeoutMs() : options.requestTimeoutMs ?? 90_000;
+            timeout = setTimeout(() => job.controller.abort(new Error('Catalog request timed out. Its saved resume point is unchanged; retry the pull.')), requestTimeout);
           });
         // Measure the actual transport start, after setup and before notifying
         // subscribers. A slow store listener must not compress the next gap.

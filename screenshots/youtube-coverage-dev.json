@@ -1,5 +1,5 @@
 {
-  "url": "http://127.0.0.1:8080",
+  "url": "http://127.0.0.1:8080/",
   "viewports": {
     "desktop": {
       "width": 1280,
@@ -7,9 +7,9 @@
       "status": 200,
       "title": "Realhub",
       "hasCanvas": false,
-      "bodyTextLen": 2360,
-      "bodyTextHash": "5ac36bda683f3f7075ad47814cd9b3fdbc3e246d497cb2d71c7471e340d2b14b",
-      "bodyTextPrefix": "Realhub Vault · networks · live Library Home 0 Movies Anime Topi",
+      "bodyTextLen": 626,
+      "bodyTextHash": "743666550e1bcdc234c7a52c4669cb1d7768d3242fcfed6eb42bdc54ee10679e",
+      "bodyTextPrefix": "Realhub Vault · networks · live Library Home Landing page 0 Movi",
       "horizontalOverflow": false,
       "consoleErrors": [],
       "pageErrors": [],
@@ -21,9 +21,9 @@
       "status": 200,
       "title": "Realhub",
       "hasCanvas": false,
-      "bodyTextLen": 2151,
-      "bodyTextHash": "445305c9d4d8d94fa21576413ef3734ce22cc335dcbc085ab222c2b6b0ca9964",
-      "bodyTextPrefix": "Home 0 indexed Date added Pause pulls YOUR DAILY DETOUR Somethin",
+      "bodyTextLen": 405,
+      "bodyTextHash": "2c903248f1cce27af9197981a6287b4735f27ff11bbf9e777fdd83d26c8ddc36",
+      "bodyTextPrefix": "Home 0 indexed Date added Pause pulls REALHUB Home A quiet place",
       "horizontalOverflow": false,
       "consoleErrors": [],
       "pageErrors": [],

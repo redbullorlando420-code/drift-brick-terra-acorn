@@ -2,6 +2,18 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { youtubeCatalogContinuation, youtubeCatalogHasTerminalPage, youtubeCatalogItems } from "./youtube-catalog.ts";
 
+test('current uploads playlists retain lockup rows and continuationItemViewModel tokens', () => {
+  const items = [
+    { lockupViewModel: { contentId: 'real-upload', contentType: 'LOCKUP_CONTENT_TYPE_VIDEO' } },
+    { continuationItemViewModel: { continuationCommand: { innertubeCommand: { continuationCommand: { token: 'uploads-next' } } } } },
+  ];
+  const root = { metadata: { playlistMetadataRenderer: { title: 'Uploads' } }, contents: { twoColumnBrowseResultsRenderer: { tabs: [{ tabRenderer: { selected: true, content: { sectionListRenderer: { contents: [{ itemSectionRenderer: { contents: items } }] } } } }] } } };
+  assert.deepEqual(youtubeCatalogItems(root), items);
+  assert.equal(youtubeCatalogContinuation(root), 'uploads-next');
+  assert.equal(youtubeCatalogHasTerminalPage(root), false);
+  assert.equal(youtubeCatalogItems({ ...root, metadata: { channelMetadataRenderer: {} } }), null, 'a Home section cannot supply a creator archive');
+});
+
 test("channel archive uses the selected Videos grid continuation", () => {
   const videos = [
     { richItemRenderer: { content: { lockupViewModel: { contentId: "video-one" } } } },

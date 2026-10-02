@@ -1,0 +1,12 @@
+{
+  "entries": 1000000,
+  "creators": 2500,
+  "compactBuildMs": 774,
+  "backgroundHeartbeats": 714,
+  "compact20CoverageUpdatesMs": 6,
+  "legacy20CoverageUpdatesMs": 8842,
+  "coverageSpeedup": 1437.2,
+  "appendShelfMs": 33,
+  "compactCounterKeys": 7500,
+  "retainedVideoReferencesInCompactIndex": 0
+}

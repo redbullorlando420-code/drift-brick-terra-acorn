@@ -20,8 +20,9 @@ export function sessionIsActive(lastInput: number, now: number, visible = true) 
   return visible && now - lastInput < SESSION_IDLE_MS;
 }
 
-/** Automatic catalog/live refreshes stop after five minutes without input.
- * Explicit pulls and ongoing playback are independent of this gate. */
+/** Speculative refreshes stop after five minutes without input. Bounded
+ * YouTube archive turns use visibility, pause, playback and entry-limit gates
+ * instead, so an idle page can recover after a longer provider cooldown. */
 export function allowAutomaticRefresh(now = Date.now()) {
   return typeof document !== "undefined" && sessionIsActive(lastActivityAt, now, !document.hidden);
 }

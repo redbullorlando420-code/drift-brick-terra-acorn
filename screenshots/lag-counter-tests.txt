@@ -1,0 +1,19 @@
+✔ 10,000 watch updates cause no covered browse work and publish the latest save on close (3.2087ms)
+✔ unmounted browse stores release the held catalog and reconnect to current data (42.6578ms)
+✔ visible updates stay immediate and preview first-mount has a stable snapshot (0.2819ms)
+✔ count snapshots preserve hidden provider totals, adult privacy, live and demo visibility (2.5082ms)
+✔ health-only source edits reuse completed counts without inspecting 100k card fields (129.0138ms)
+✔ small merges read changed metadata only and keep exact counts across replacements and removals (121.8488ms)
+✔ concurrent readers share work and replaced passes never publish partial results (1.437ms)
+✔ playback updates reuse requested cards without scanning a large snapshot again (33.8608ms)
+✔ missing cards and changed card objects invalidate with a new immutable snapshot (0.3248ms)
+✔ bounded lookup eviction retains every card in the current batched request (0.9343ms)
+✔ position hints keep playback lookup bounded across provider merges and validate moved or changed rows (83.2928ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 401.9536

@@ -77,6 +77,8 @@ function normalizeFollowChannels(raw: unknown): FollowedChannel[] {
       handle: handle || id.replace(/^(?:yt|tw):/i, ""),
       title: title || handle || id,
       ...(typeof rec.channelId === "string" ? { channelId: rec.channelId } : {}),
+      ...(typeof rec.importQuery === 'string' && rec.importQuery.length <= 2048 ? { importQuery: rec.importQuery } : {}),
+      ...(rec.importNeedsReview === true ? { importNeedsReview: true } : {}),
       ...(typeof rec.thumb === "string" ? { thumb: rec.thumb } : {}),
       ...(typeof rec.live === "boolean" ? { live: rec.live } : {}),
       ...(typeof rec.lastCheckedAt === "number" ? { lastCheckedAt: rec.lastCheckedAt } : {}),
@@ -89,6 +91,7 @@ function normalizeFollowChannels(raw: unknown): FollowedChannel[] {
       ...(typeof rec.lastResponseCount === "number" ? { lastResponseCount: rec.lastResponseCount } : {}),
       ...(cache ? { cache } : {}),
       ...(rec.lastProviderFailure && typeof rec.lastProviderFailure === "object" ? { lastProviderFailure: rec.lastProviderFailure as FollowedChannel["lastProviderFailure"] } : {}),
+      ...(rec.lastLiveFailure && typeof rec.lastLiveFailure === "object" ? { lastLiveFailure: rec.lastLiveFailure as FollowedChannel["lastLiveFailure"] } : {}),
     });
   }
   return out;

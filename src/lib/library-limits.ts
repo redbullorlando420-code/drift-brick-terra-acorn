@@ -34,7 +34,7 @@ export const LIBRARY_LIMITS = {
   /** Archive sweeps are paced separately from fast recent-upload checks. */
   youtubeCatalogSweepIntervalMs: 60 * 60_000,
   youtubeCatalogRecheckExhaustedMs: 7 * 24 * 60 * 60_000,
-  youtubeScheduledRefreshChannels: 1,
+  youtubeScheduledRefreshChannels: 4,
   /** Automatic history growth is intentionally much smaller than a user pull. */
   youtubeScheduledVideosPerChannel: 100,
   youtubeRecentRefreshIntervalMs: 5 * 60_000,
@@ -43,7 +43,6 @@ export const LIBRARY_LIMITS = {
   youtubeLiveRefreshIntervalMs: 60_000,
   youtubeLiveRefreshChannels: 12,
   youtubeLiveStateFreshnessMs: 3 * 60_000,
-  youtubeArchivePageGapMs: 80,
   youtubeManualRefreshChannels: 10_000,
   /** Each HTTP response and merge stays small even when a sweep visits every source. */
   youtubeCatalogSourcesPerRequest: 1,

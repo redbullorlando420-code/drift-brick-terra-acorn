@@ -61,3 +61,14 @@ test("an archive row with an unknown date retains a known feed publication date"
  const merged = mergeRemoteCatalog([previous],[incoming],new Map([[previous.id,0]]),[]);
  assert.equal(merged[0].addedAt,previous.addedAt);
 });
+
+test('compact YouTube archive rows retain known views and duration while accepting explicit fresh values', () => {
+  const previous = { ...archivedYoutubeVideo(), duration: 120, remote: { ...archivedYoutubeVideo().remote!, views: 1500 } };
+  const incoming = { ...previous, duration: undefined, remote: { ...previous.remote, views: undefined } };
+  const kept = mergeRemoteCatalog([previous], [incoming], new Map([[previous.id, 0]]), [])[0];
+  assert.equal(kept.duration, 120);
+  assert.equal(kept.remote?.views, 1500);
+  const updated = mergeRemoteCatalog([kept], [{ ...incoming, duration: 90, remote: { ...incoming.remote, views: 0 } }], new Map([[previous.id, 0]]), [])[0];
+  assert.equal(updated.duration, 90);
+  assert.equal(updated.remote?.views, 0);
+});

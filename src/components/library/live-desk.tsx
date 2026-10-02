@@ -6,6 +6,7 @@ import { useLibrary } from "@/lib/videos/store";
 import type { LibraryVideo } from "@/lib/videos/types";
 import { filterLiveRows, liveDeskRows, LIVE_SOURCES } from "@/lib/videos/live-desk";
 import { VideoCard } from "./video-card";
+import { verifiedYoutubeSource, youtubeFollowHealth } from '@/lib/videos/follow-import';
 
 export function LiveDesk({ videos, adultLiveVideos = [], staleYoutubeVideos = [], staleTwitchCount = 0, staleYoutubeCount = 0 }: {
   videos: LibraryVideo[]; adultLiveVideos?: LibraryVideo[]; staleYoutubeVideos?: LibraryVideo[]; staleTwitchCount?: number; staleYoutubeCount?: number;
@@ -54,8 +55,9 @@ export function LiveDesk({ videos, adultLiveVideos = [], staleYoutubeVideos = []
     remote: video.remote ? { ...video.remote, live: false } : video.remote,
   })), { source, filter, sort, search, favorites, likes }), [staleYoutubeVideos, source, filter, sort, search, favorites, likes]);
   const twitchFollows = follows.filter(f => f.kind === "twitch");
-  const youtubeFollows = follows.filter(f => f.kind === "youtube" && !f.id.startsWith("ytpl:"));
-  const youtubeFailures = youtubeFollows.filter(f => f.lastProviderFailure);
+  const youtubeFollows = follows.filter(f => verifiedYoutubeSource(f) && !f.id.startsWith("ytpl:"));
+  const youtubeHealth = youtubeFollowHealth(follows);
+  const youtubeFailures = youtubeFollows.filter(f => f.lastLiveFailure);
   const lastYoutubeLiveCheck = Math.max(0, ...youtubeFollows.map(f => f.liveCheckedAt ?? 0));
   const twitchFailures = twitchFollows.filter(f => f.lastProviderFailure);
   const sources = LIVE_SOURCES.filter(s => source === "all" || source === s.id);
@@ -89,9 +91,10 @@ export function LiveDesk({ videos, adultLiveVideos = [], staleYoutubeVideos = []
     </aside>}
 
     {(source === "all" || source === "youtube") && <aside className="mb-6 rounded-lg border border-border bg-elevated p-4" aria-label="YouTube live status">
-      <p className="text-sm font-medium text-fg">YouTube · {counts.youtube} live · {youtubeFollows.length} followed</p>
+      <p className="text-sm font-medium text-fg">YouTube · {counts.youtube} live · {youtubeFollows.length.toLocaleString()} verified creators</p>
+      {(youtubeHealth.pending > 0 || youtubeHealth.review > 0) && <p className="mt-1 text-xs text-muted">{youtubeHealth.pending.toLocaleString()} names awaiting channel verification · {youtubeHealth.review.toLocaleString()} legacy fragments held for review.</p>}
       <p className="mt-1 text-sm text-muted">{!youtubeFollows.length ? "Follow YouTube creators to check their current broadcasts here." : staleYoutubeCount ? `${staleYoutubeCount} saved stream${staleYoutubeCount === 1 ? " needs" : "s need"} confirmation. Known-live creators now get priority while new channels continue rotating in.` : counts.youtube ? "Showing recently confirmed broadcasts. Known-live creators stay in the refresh rotation." : "No followed creator is currently confirmed live. YouTube checks continue in rotating batches."}{lastYoutubeLiveCheck ? ` Last creator check ${new Date(lastYoutubeLiveCheck).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.` : ""}</p>
-      {youtubeFailures.length > 0 && <p className="mt-2 text-sm text-muted">{youtubeFailures.length} creator check{youtubeFailures.length === 1 ? "" : "s"} failed. {youtubeFailures[0].lastProviderFailure?.recovery}</p>}
+      {youtubeFailures.length > 0 && <p className="mt-2 text-sm text-muted">{youtubeFailures.length} live check{youtubeFailures.length === 1 ? "" : "s"} failed. {youtubeFailures[0].lastLiveFailure?.recovery}</p>}
       <div className="mt-3 flex flex-wrap gap-2"><Button variant="secondary" disabled={refreshing || !youtubeFollows.length} onClick={() => void refresh("youtube", { youtubeLiveOnly: true })}>Check YouTube live now</Button><Button variant="ghost" onClick={() => setSource("youtube")}>Manage YouTube creators</Button></div>
     </aside>}
 

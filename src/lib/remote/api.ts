@@ -26,9 +26,14 @@ import { booruPostImageUrls } from "./booru-image";
 import { publicPlaylistEntries, publicPlaylistTitle, youtubePlaylistId } from "./youtube-playlist";
 import { youtubeCatalogContinuation, youtubeCatalogHasTerminalPage, youtubeCatalogItems } from "./youtube-catalog";
 import { youtubeInitialData, youtubePageChannelId, youtubeVideoRenderers, type YoutubeRenderer } from "./youtube-page-data";
+import { assertYoutubeReady, fetchYoutubeResponse, youtubeRetryAt, youtubeCooldownScope, setYoutubeRequestGap, createYoutubeManualRetry, YoutubeRequestError, type YoutubeRequestScope, type YoutubeManualRetry } from './youtube-transport';
+import { exactYoutubeChannel } from './youtube-channel-search';
+import { youtubeUploadsArchive, youtubeBrowseArchive, youtubePlaylistBrowseId } from './youtube-browse';
+import { resolveYoutubeCreator } from './youtube-resolve';
+import { browseYoutubeLives } from './youtube-live-browse';
 
 type FollowInput = { query: string; kind: "auto" | FollowKind; clipLimit?: number; catalogCursor?: string };
-type RefreshInput = { channels: FollowedChannel[]; youtubeCatalog: boolean; youtubeBackground: boolean; youtubeLiveOnly: boolean; backgroundLive: boolean; youtubeVideoLimit?: number };
+type RefreshInput = { channels: FollowedChannel[]; youtubeCatalog: boolean; youtubeBackground: boolean; youtubeLiveOnly: boolean; backgroundLive: boolean; forceYoutube?: boolean; youtubeVideoLimit?: number };
 
 export type FollowResult = {
   channel: FollowedChannel;
@@ -41,6 +46,8 @@ export type RefreshResult = {
   refreshedIds: string[];
   /** Exact next eligible time for a provider/channel cooling down after failures. */
   retryAt: Record<string, number>;
+  providerRetryAt?: number;
+  providerCooldownScope?: YoutubeRequestScope;
 };
 
 type ProviderName = "youtube" | "twitch";
@@ -62,9 +69,9 @@ export function classifyProviderFailure(provider: ProviderName, error: unknown):
   const raw = error instanceof Error ? error.message : String(error || "Unknown provider failure");
   const message = raw.replace(/\s+/g, " ").trim().slice(0, 240) || "Unknown provider failure";
   const lower = message.toLowerCase();
-  const common = { message, at: Date.now() };
+  const common = { message, at: Date.now(), ...(error instanceof YoutubeRequestError && error.retryAt ? { retryAt: error.retryAt, cooldownScope: error.cooldownScope } : {}) };
   if (/\b429\b|rate.?limit|too many requests|retrying after/.test(lower)) {
-    return { ...common, kind: "rate-limited", recovery: "Keep the cached channel cards. Realhub will retry after the shown cooldown; use a focused retry only when you need it now." };
+    return { ...common, kind: "rate-limited", recovery: `${provider === 'youtube' ? 'Automatic YouTube pulls wait for the recommended cooldown. You can force a fresh pull from the YouTube page.' : 'Twitch pulls wait for the provider cooldown before retrying.'} Cached cards and archive positions are preserved.` };
   }
   if (/integrity|challenge/.test(lower)) {
     return { ...common, kind: "integrity-challenge", recovery: "Twitch accepted the cached archive but requires its public integrity check for deeper pages. Try a focused pull later; no cached VODs were removed." };
@@ -135,7 +142,7 @@ function parseRefresh(data: unknown): RefreshInput {
   // Keep a sizeable saved list live after restore; the refresh worker remains
   // concurrency-limited below so this does not flood providers.
   const limit = Number(rec.youtubeVideoLimit);
-  return { channels: channels.slice(0, 80), youtubeCatalog: rec.youtubeCatalog === true, youtubeBackground: rec.youtubeBackground === true, youtubeLiveOnly: rec.youtubeLiveOnly === true, backgroundLive: rec.backgroundLive === true, youtubeVideoLimit: Number.isFinite(limit) ? Math.max(30, Math.min(500, Math.floor(limit))) : 100 };
+  return { channels: channels.slice(0, 80), youtubeCatalog: rec.youtubeCatalog === true, youtubeBackground: rec.youtubeBackground === true, youtubeLiveOnly: rec.youtubeLiveOnly === true, backgroundLive: rec.backgroundLive === true, forceYoutube: rec.forceYoutube === true && rec.youtubeCatalog === true && rec.youtubeBackground !== true && rec.youtubeLiveOnly !== true && rec.backgroundLive !== true, youtubeVideoLimit: Number.isFinite(limit) ? Math.max(30, Math.min(500, Math.floor(limit))) : 100 };
 }
 
 function guessKind(query: string): FollowKind {
@@ -224,16 +231,22 @@ function tag(xml: string, name: string): string {
   return m ? decodeXml(m[1]).trim() : "";
 }
 
-async function fetchText(url: string): Promise<string> {
-  const res = await fetch(url, {
+async function fetchText(url: string, manualRetry?: YoutubeManualRetry): Promise<string> {
+  const youtube = new URL(url).hostname === 'www.youtube.com';
+  const headers = {
+    "user-agent": "Mozilla/5.0 (compatible; Realhub/1.0; +https://grok.x.ai) AppleWebKit/537.36",
+    accept: "text/html,application/xhtml+xml,application/xml,application/json",
+  };
+  const res = await (youtube ? fetchYoutubeResponse(url, { timeoutMs: 12000, headers, manualRetry }) : fetch(url, {
     signal: AbortSignal.timeout(12000),
-    headers: {
-      "user-agent": "Mozilla/5.0 (compatible; Realhub/1.0; +https://grok.x.ai) AppleWebKit/537.36",
-      accept: "text/html,application/xhtml+xml,application/xml,application/json",
-    },
-  });
-  if (!res.ok) throw new Error(`Could not reach ${url}`);
+    headers,
+  }));
+  if (!res.ok) throw new Error(`HTTP ${res.status}: Could not reach ${url}`);
   return res.text();
+}
+
+function applyYoutubePullPacing(data: unknown) {
+  if (data && typeof data === 'object') setYoutubeRequestGap((data as { youtubeRequestGapMs?: unknown }).youtubeRequestGapMs);
 }
 
 function ytVideo(entry: {
@@ -366,7 +379,7 @@ function youtubeBrowseConfig(html: string, root: unknown) {
 
 type YoutubeBackfillResult = { videos: LibraryVideo[]; cursor: string | null; completed: boolean };
 
-async function youtubeContinuationBackfill(html: string, knownIds: Set<string>, channelId: string, channelName: string, limit: number, resumeCursor?: string): Promise<YoutubeBackfillResult> {
+async function youtubeContinuationBackfill(html: string, knownIds: Set<string>, channelId: string, channelName: string, limit: number, resumeCursor?: string, manualRetry?: YoutubeManualRetry): Promise<YoutubeBackfillResult> {
   const root = youtubeInitialData(html);
   const config = root ? youtubeBrowseConfig(html, root) : null;
   if (!config) return { videos: [], cursor: resumeCursor ?? null, completed: false };
@@ -392,11 +405,11 @@ async function youtubeContinuationBackfill(html: string, knownIds: Set<string>, 
   // a stable Innertube browse target and gives us the same paged archive.
   if (!continuation && /^UC[A-Za-z0-9_-]{20,}$/.test(channelId)) {
     try {
-      const response = await fetch(`https://www.youtube.com/youtubei/v1/browse?key=${encodeURIComponent(config.apiKey)}`, {
+      const response = await fetchYoutubeResponse(`https://www.youtube.com/youtubei/v1/browse?key=${encodeURIComponent(config.apiKey)}`, {
         method: "POST",
         headers: { "content-type": "application/json", "x-youtube-client-name": "1", "x-youtube-client-version": config.clientVersion },
-        body: JSON.stringify({ context: { client: { clientName: "WEB", clientVersion: config.clientVersion } }, browseId: `UU${channelId.slice(2)}` }),
-        signal: AbortSignal.timeout(10_000),
+        body: JSON.stringify({ context: { client: { clientName: "WEB", clientVersion: config.clientVersion } }, browseId: youtubePlaylistBrowseId(`UU${channelId.slice(2)}`) }),
+        timeoutMs: 10_000, manualRetry,
       });
       if (response.ok) {
         const pageData = await response.json() as unknown;
@@ -416,28 +429,37 @@ async function youtubeContinuationBackfill(html: string, knownIds: Set<string>, 
     if (visitedTokens.has(continuation) || Date.now() >= archiveDeadline) break;
     visitedTokens.add(continuation);
     try {
-      const response = await fetch(`https://www.youtube.com/youtubei/v1/browse?key=${encodeURIComponent(config.apiKey)}`, {
+      const response = await fetchYoutubeResponse(`https://www.youtube.com/youtubei/v1/browse?key=${encodeURIComponent(config.apiKey)}`, {
         method: "POST",
         headers: { "content-type": "application/json", "x-youtube-client-name": "1", "x-youtube-client-version": config.clientVersion },
         body: JSON.stringify({ context: { client: { clientName: "WEB", clientVersion: config.clientVersion } }, continuation }),
-        signal: AbortSignal.timeout(10_000),
+        timeoutMs: 10_000, manualRetry,
       });
-      if (!response.ok) break;
       const pageData = await response.json() as unknown;
       addPageVideos(pageData);
       const next = youtubeCatalogContinuation(pageData);
       if (next && next !== continuation) continuation = next;
       else if (youtubeCatalogHasTerminalPage(pageData) && youtubeRenderers(pageData, 1).length) { continuation = null; completed = true; }
-      else break;
-      if (continuation && videos.length < limit) await new Promise((resolve) => setTimeout(resolve, LIBRARY_LIMITS.youtubeArchivePageGapMs));
-    } catch { break; }
+      else if (resumeCursor && continuation === resumeCursor) {
+        // Saved tokens can expire. Recover the first page once rather than
+        // returning the same RSS window forever with a stuck archive cursor.
+        addPageVideos(root); continuation = config.continuation;
+      } else break;
+      // The transport owns page pacing. A second sleep here would silently
+      // add delay even when the user selected no additional page wait.
+    } catch (error) {
+      if (resumeCursor && continuation === resumeCursor && error instanceof YoutubeRequestError && (error.status === 400 || error.status === 404)) {
+        addPageVideos(root); continuation = config.continuation; continue;
+      }
+      break;
+    }
   }
   return { videos, cursor: continuation, completed };
 }
 
-async function youtubeChannelBackfill(channelId: string, channelName: string, knownIds: Set<string>, limit: number): Promise<LibraryVideo[]> {
+async function youtubeChannelBackfill(channelId: string, channelName: string, knownIds: Set<string>, limit: number, manualRetry?: YoutubeManualRetry): Promise<LibraryVideo[]> {
   try {
-    const html = await fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}/videos`);
+    const html = await fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}/videos`, manualRetry);
     const seen = new Set(knownIds);
     const videos: LibraryVideo[] = [];
     for (const renderer of channelPageRenderers(html)) {
@@ -466,9 +488,9 @@ async function youtubeChannelBackfill(channelId: string, channelName: string, kn
 }
 
 async function youtubeFromVideo(id: string): Promise<FollowResult> {
-  const oembed = await fetch(
+  const oembed = await fetchYoutubeResponse(
     `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${id}`)}&format=json`,
-    { signal: AbortSignal.timeout(12000) },
+    { timeoutMs: 12000 },
   );
   if (!oembed.ok) throw new Error("That YouTube video could not be found.");
   const meta = (await oembed.json()) as {
@@ -514,38 +536,39 @@ async function youtubeFromVideo(id: string): Promise<FollowResult> {
 
 const YT_INBOX = "youtube:inbox";
 
-async function youtubeLiveFromChannel(channelId: string, channelName: string): Promise<LibraryVideo | null> {
+async function youtubeLiveFromChannel(channelId: string, channelName: string): Promise<LibraryVideo[]> {
   // /live can include upcoming broadcasts. "isLiveContent" alone is not
   // enough: require the page's actual live-now state so scheduled streams do
   // not leak into the Live shelf. Let transport errors reach the caller so a
   // failed check never silently marks a cached stream offline.
   // Public channel streams remain readable when the watch-page player asks
   // server requests to sign in. Modern channels use lockup LIVE badges.
-  let observed: ReturnType<typeof youtubeLivePage>;
-  try { observed = youtubeLivePage(await fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}/streams`), channelId); }
-  catch { observed = youtubeLivePage(await fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}/live`), channelId); }
-  if (!observed) return null;
+  let observations: Awaited<ReturnType<typeof browseYoutubeLives>>;
+  try { observations = await browseYoutubeLives(channelId); }
+  catch (error) {
+    if (error instanceof YoutubeRequestError && error.retryAt) throw error;
+    const observed = youtubeLivePage(await fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}/streams`), channelId);
+    observations = observed ? [observed] : [];
+  }
+  return observations.map(observed => {
   const id = observed.id;
   const video = ytVideo({ id, title: observed.title || `${channelName} live`, published: new Date().toISOString(), thumb: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, desc: `${channelName} is live on YouTube.`, channelId, channelName, live: true, views: observed.viewers });
   if (video.remote) video.remote.viewers = video.remote.views;
   video.tagline = `${channelName} is live now`;
   return video;
+  });
 }
 
 async function youtubeLiveForFollow(channel: FollowedChannel): Promise<{ channel: FollowedChannel; videos: LibraryVideo[] }> {
   let channelId = channel.channelId ?? channel.id.match(/^yt:(UC[A-Za-z0-9_-]{20,})$/)?.[1] ?? "";
   if (!channelId) {
-    const handle = channel.handle.trim().replace(/^@/, "");
-    const profileUrl = /^https?:\/\//i.test(handle) ? handle : `https://www.youtube.com/@${encodeURIComponent(handle)}`;
-    const profile = await fetchText(profileUrl);
-    channelId = ytChannelIdFromText(profile) ?? "";
-    if (!channelId) throw new Error("Could not resolve this YouTube creator for a live check.");
+    channelId = await resolveYoutubeCreator(channel.handle);
   }
   const live = await youtubeLiveFromChannel(channelId, channel.title || channel.handle);
   const checkedAt = Date.now();
   return {
-    channel: { ...channel, channelId, live: Boolean(live), liveCheckedAt: checkedAt, lastCheckedAt: checkedAt, lastProviderFailure: undefined },
-    videos: live ? [live] : [],
+    channel: { ...channel, channelId, live: live.length > 0, liveCheckedAt: checkedAt, lastCheckedAt: checkedAt, lastProviderFailure: undefined, lastLiveFailure: undefined },
+    videos: live,
   };
 }
 
@@ -583,7 +606,8 @@ function withYoutubeCacheTelemetry(result: FollowResult, entry: YoutubeCacheEntr
   };
 }
 
-async function youtubeFromChannelUncoalesced(query: string, limit: number = LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, deepCatalog = true, newestKnownVideoId?: string, resumeCursor?: string): Promise<FollowResult> {
+async function youtubeFromChannelUncoalesced(query: string, limit: number = LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, deepCatalog = true, newestKnownVideoId?: string, resumeCursor?: string, manualRetry?: YoutubeManualRetry, titleHint?: string): Promise<FollowResult> {
+  if (deepCatalog) assertYoutubeReady(Date.now(), 'catalog', manualRetry);
   let channelId = "";
   const trimmed = query.trim();
   if (/^UC[\w-]{20,}$/.test(trimmed)) channelId = trimmed;
@@ -592,11 +616,7 @@ async function youtubeFromChannelUncoalesced(query: string, limit: number = LIBR
     channelId = asUrl.split("/channel/")[1]?.split(/[/?#]/)[0] ?? "";
   }
   if (!channelId) {
-    const handle = ytHandle(query) ?? query.replace(/^@/, "");
-    const page = `https://www.youtube.com/@${encodeURIComponent(handle)}`;
-    const html = await fetchText(page);
-    channelId = ytChannelIdFromText(html) ?? "";
-    if (!channelId) throw new Error("Could not find that YouTube channel.");
+    channelId = await resolveYoutubeCreator(trimmed, manualRetry);
   }
   const boundedLimit = Math.max(24, Math.min(LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, Math.floor(limit)));
   const cached = youtubeChannelCache.get(channelId);
@@ -608,15 +628,66 @@ async function youtubeFromChannelUncoalesced(query: string, limit: number = LIBR
     const requestResult = { ...cached.result, videos: [...cached.result.videos.filter((video) => video.remote?.live), ...cached.feedVideos] };
     return youtubeResultForRequest(withYoutubeCacheTelemetry(requestResult, cached), boundedLimit, deepCatalog, newestKnownVideoId);
   }
-  const [xml, fetchedChannelPage] = await Promise.all([
-    fetchText(`https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`).catch(() => ""),
-    fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}/videos`).catch(() => ""),
-  ]);
+  // An older-page continuation does not need the same recent RSS window
+  // again. Keep feed reads for first pages and routine upload discovery.
+  const resumingArchive = deepCatalog && Boolean(resumeCursor);
+  const feedRead = resumingArchive
+    ? [{ status: 'fulfilled' as const, value: '' }]
+    : await Promise.allSettled([fetchText(`https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`, manualRetry)]);
+  // Recent checks stay RSS-only. An unavailable feed does not justify another
+  // HTML/Shorts/catalog scan that can block every otherwise healthy creator.
+  // The independent archive queue supplies older uploads and feed recovery.
+  if (!deepCatalog) {
+    const recentRead = feedRead[0];
+    if (recentRead.status === 'rejected') throw recentRead.reason;
+    if (!recentRead.value.includes('<entry>')) throw new Error('YouTube public upload feed is empty or unavailable; the archive queue will check its catalog separately.');
+  }
+  if (deepCatalog) {
+    const archive: Awaited<ReturnType<typeof youtubeUploadsArchive>> = await youtubeUploadsArchive(channelId, boundedLimit, resumeCursor, manualRetry).catch(error => {
+      // A healthy recent feed remains useful when the first archive request
+      // fails. Accept it with the real failure, retaining the archive cursor.
+      if (feedRead[0].status === 'fulfilled' && feedRead[0].value.includes('<entry>')) return { rows: [], cursor: resumeCursor ?? null, completed: false, failure: error };
+      throw error;
+    });
+    if (archive) {
+      const xml = feedRead[0].status === 'fulfilled' ? feedRead[0].value : '';
+      const author = tag(xml, 'name') || archive.author || titleHint || tag(xml, 'title') || query;
+      const feedEntries = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)];
+      const feedById = new Map(feedEntries.map(match => [tag(match[1], 'yt:videoId'), match[1]]));
+      const seen = new Set<string>();
+      const videos = archive.rows.map(row => {
+        const id = row.videoId!; seen.add(id);
+        const entry = feedById.get(id) ?? '';
+        return ytVideo({ id, title: rendererText(row.title) || tag(entry, 'title') || id,
+          published: tag(entry, 'published'), thumb: row.thumbnail?.thumbnails?.at(-1)?.url || `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+          desc: tag(entry, 'media:description') || rendererText(row.descriptionSnippet) || `${author} public channel catalog item.`,
+          channelId, channelName: author, views: Number(entry.match(/<media:statistics[^>]*views="(\d+)"/)?.[1]) || parsePublicViewCount(rendererText(row.viewCountText)), duration: Number(entry.match(/<yt:duration[^>]*seconds="(\d+)"/)?.[1]) || undefined });
+      });
+      // RSS includes very new uploads that may not have reached the playlist.
+      for (const [id, entry] of feedById) if (id && !seen.has(id)) videos.push(ytVideo({ id, title: tag(entry, 'title') || id, published: tag(entry, 'published'), thumb: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, desc: tag(entry, 'media:description'), channelId, channelName: author, views: Number(entry.match(/<media:statistics[^>]*views="(\d+)"/)?.[1]) || undefined, duration: Number(entry.match(/<yt:duration[^>]*seconds="(\d+)"/)?.[1]) || undefined }));
+      return { channel: { id: `yt:${channelId}`, kind: 'youtube', channelId, handle: `https://www.youtube.com/channel/${channelId}`, title: author,
+        lastCheckedAt: Date.now(), catalogCheckedAt: Date.now(), lastResponseCount: videos.length,
+        catalogCursor: archive.cursor ?? undefined, catalogExhaustedAt: archive.completed ? Date.now() : undefined,
+        ...(!resumingArchive ? { newestVideoId: newestYoutubeFeedVideoId(feedEntries.map(match => ({ videoId: tag(match[1], 'yt:videoId') }))), newestPublishedAt: Math.max(0, ...videos.map(video => video.addedAt)) } : {}),
+        ...(archive.failure ? { lastProviderFailure: classifyProviderFailure('youtube', archive.failure) } : {}),
+      }, videos };
+    }
+  }
+  // Healthy routine feeds need one request, not a Videos page plus a live
+  // scan for every creator. Empty/unavailable feeds retain page recovery.
+  const needPage = deepCatalog || feedRead[0].status === 'rejected' || !feedRead[0].value.includes('<entry>');
+  const pageRead = needPage ? await Promise.allSettled([fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}/videos`, manualRetry)]) : [{ status: 'fulfilled' as const, value: '' }];
+  const sourceReads = [feedRead[0], pageRead[0]];
+  const xml = sourceReads[0].status === 'fulfilled' ? sourceReads[0].value : '';
+  const fetchedChannelPage = sourceReads[1].status === 'fulfilled' ? sourceReads[1].value : '';
+  const sourceError = sourceReads.find(row => row.status === 'rejected' && row.reason instanceof YoutubeRequestError && row.reason.retryAt)
+    ?? sourceReads.find(row => row.status === 'rejected');
+  if (!xml && !fetchedChannelPage && sourceError?.status === 'rejected') throw sourceError.reason;
   let channelPage = fetchedChannelPage;
   // Shorts-only creators can have an empty Videos tab and no RSS uploads.
   // Read their public Shorts grid before treating the pull as empty.
-  if (!xml.includes("<entry>") && !channelPageRenderers(channelPage).length) {
-    const shortsPage = await fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}/shorts`).catch(() => "");
+  if (!resumingArchive && !youtubeRetryAt() && !xml.includes("<entry>") && !channelPageRenderers(channelPage).length) {
+    const shortsPage = await fetchText(`https://www.youtube.com/channel/${encodeURIComponent(channelId)}/shorts`, manualRetry).catch(() => "");
     if (channelPageRenderers(shortsPage).length) channelPage = shortsPage;
   }
   if (!xml && !channelPage) throw new Error("YouTube feed and channel page are unavailable. Retry this creator later.");
@@ -651,20 +722,21 @@ async function youtubeFromChannelUncoalesced(query: string, limit: number = LIBR
       if (!id || seen.has(id)) continue;
       seen.add(id);
       rows.push(ytVideo({ id, title: rendererText(renderer.title) || `${author} video`, published: "1970-01-01T00:00:00.000Z", thumb: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, desc: rendererText(renderer.descriptionSnippet) || `${author} public channel catalog item.`, channelId, channelName: author, views: parsePublicViewCount(rendererText(renderer.viewCountText)) }));
-      if (rows.length >= Math.max(0, (deepCatalog ? boundedLimit : Math.min(30, boundedLimit)) - videos.length)) break;
+      // Finish the visible provider page before persisting its next token.
     }
     // RSS can fail independently of the public page. A routine refresh can
     // still recover a shallow upload window without starting an archive walk.
     if (!deepCatalog) return { videos: rows, cursor: null, completed: false };
     const remaining = Math.max(0, boundedLimit - videos.length - rows.length);
-    const older = await youtubeContinuationBackfill(channelPage, new Set([...feedIds, ...rows.map((video) => video.remote?.videoId).filter((id): id is string => Boolean(id))]), channelId, author, remaining, resumeCursor);
+    const older = await youtubeContinuationBackfill(channelPage, new Set([...feedIds, ...rows.map((video) => video.remote?.videoId).filter((id): id is string => Boolean(id))]), channelId, author, remaining, resumeCursor, manualRetry);
     return { ...older, videos: [...rows, ...older.videos] };
   })() : deepCatalog
-    ? { videos: await youtubeChannelBackfill(channelId, author, feedIds, Math.max(0, boundedLimit - videos.length)), cursor: resumeCursor ?? null, completed: false }
+    ? { videos: await youtubeChannelBackfill(channelId, author, feedIds, Math.max(0, boundedLimit - videos.length), manualRetry), cursor: resumeCursor ?? null, completed: false }
     : { videos: [], cursor: null, completed: false };
   videos.push(...backfill.videos);
-  const live = await youtubeLiveFromChannel(channelId, author).catch(() => null);
-  if (live && !videos.some((video) => video.id === live.id)) videos.unshift(live);
+  // Live discovery has its own rotating queue. Archive/feed pulls must not
+  // spend two extra requests checking streams or poison that observation.
+  if (!videos.length && sourceError?.status === 'rejected') throw sourceError.reason;
   if (!videos.length && (deepCatalog || !feedVideos.length)) throw new Error("YouTube returned no readable public uploads. The source may be empty or its public page is unavailable; retry from the first page later.");
   const channel: FollowedChannel = {
     id: `yt:${channelId}`,
@@ -674,10 +746,12 @@ async function youtubeFromChannelUncoalesced(query: string, limit: number = LIBR
     channelId,
     thumb: youtubeChannelAvatar(channelPage),
     lastCheckedAt: Date.now(),
-    liveCheckedAt: Date.now(),
-    newestPublishedAt: Math.max(0, ...videos.filter((video) => !video.remote?.live).map((video) => video.addedAt)),
-    newestVideoId: newestYoutubeFeedVideoId(feedVideos.map((video) => ({ videoId: video.remote?.videoId }))),
+    ...(!resumingArchive ? {
+      newestPublishedAt: Math.max(0, ...videos.filter((video) => !video.remote?.live).map((video) => video.addedAt)),
+      newestVideoId: newestYoutubeFeedVideoId(feedVideos.map((video) => ({ videoId: video.remote?.videoId }))),
+    } : {}),
     lastResponseCount: videos.length,
+    ...(youtubeRetryAt() ? { lastProviderFailure: classifyProviderFailure('youtube', new YoutubeRequestError('YouTube HTTP 429: partial catalog accepted; archive resumes after cooldown.', 429, youtubeRetryAt(), youtubeCooldownScope())) } : {}),
     ...(deepCatalog ? {
       catalogCursor: backfill.cursor ?? undefined,
       catalogCheckedAt: Date.now(),
@@ -688,7 +762,7 @@ async function youtubeFromChannelUncoalesced(query: string, limit: number = LIBR
   // Keep routine feed windows and modest focused catalogs only. A large
   // historical pull never creates a second giant server-side graph, while a
   // small explicit creator pull can still make its next shallow refresh cheap.
-  const cacheable = videos.length <= YOUTUBE_DEEP_CACHE_MAX_VIDEOS;
+  const cacheable = !resumingArchive && videos.length <= YOUTUBE_DEEP_CACHE_MAX_VIDEOS;
   const cacheScope: YoutubeCacheEntry["scope"] = videos.length > feedVideos.length ? "catalog" : "feed";
   const cacheEntry: YoutubeCacheEntry | null = cacheable
     ? { at: Date.now(), result, feedVideos, hits: 0, misses: 1, scope: cacheScope }
@@ -711,15 +785,31 @@ function twitchLogin(input: string): string {
   }
 }
 
-function youtubeFromChannel(query: string, limit: number = LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, focused = true, deepCatalog = focused, newestKnownVideoId?: string, resumeCursor?: string): Promise<FollowResult> {
-  return providerRequest("youtube", `${query}:${deepCatalog ? "catalog" : "feed"}:${limit}:${resumeCursor ?? "start"}:${newestKnownVideoId ?? "none"}`, focused, () => youtubeFromChannelUncoalesced(query, limit, deepCatalog, newestKnownVideoId, resumeCursor));
+function youtubeFromChannel(query: string, limit: number = LIBRARY_LIMITS.youtubeFocusedVideosPerChannel, focused = true, deepCatalog = focused, newestKnownVideoId?: string, resumeCursor?: string, manualRetry?: YoutubeManualRetry, titleHint?: string): Promise<FollowResult> {
+  return providerRequest("youtube", `${query}:${deepCatalog ? "catalog" : "feed"}:${limit}:${resumeCursor ?? "start"}:${newestKnownVideoId ?? "none"}:${manualRetry ? `manual-${manualRetry.revision}` : 'normal'}`, focused, () => youtubeFromChannelUncoalesced(query, limit, deepCatalog, newestKnownVideoId, resumeCursor, manualRetry, titleHint));
 }
 
-async function youtubeFromPlaylist(input: string, focused = true, resumeCursor?: string, requestedLimit?: number): Promise<FollowResult> {
+async function youtubeFromPlaylist(input: string, focused = true, resumeCursor?: string, requestedLimit?: number, manualRetry?: YoutubeManualRetry, titleHint?: string): Promise<FollowResult> {
   const playlistId = youtubePlaylistId(input);
   if (!playlistId) throw new Error("Enter a public YouTube playlist URL.");
-  return providerRequest("youtube", `playlist:${playlistId}:${resumeCursor ?? "start"}:${focused ? "catalog" : "feed"}:${requestedLimit ?? "default"}`, focused, async () => {
-    const html = await fetchText(`https://www.youtube.com/playlist?list=${encodeURIComponent(playlistId)}`);
+  return providerRequest("youtube", `playlist:${playlistId}:${resumeCursor ?? "start"}:${focused ? "catalog" : "feed"}:${requestedLimit ?? "default"}:${manualRetry ? `manual-${manualRetry.revision}` : 'normal'}`, focused, async () => {
+    const direct = await youtubeBrowseArchive(playlistId, requestedLimit ?? (focused ? LIBRARY_LIMITS.youtubePlaylistVideosPerPull : 80), resumeCursor, manualRetry);
+    if (direct) {
+      const folderId = `ytpl:${playlistId}`;
+      const videos = direct.rows.map(entry => {
+        const video = ytVideo({ id: entry.videoId!, title: rendererText(entry.title) || entry.videoId!, published: '',
+          thumb: entry.thumbnail?.thumbnails?.at(-1)?.url || `https://i.ytimg.com/vi/${entry.videoId}/hqdefault.jpg`,
+          desc: 'Public YouTube playlist', channelId: 'playlist', channelName: rendererText(entry.shortBylineText) || 'YouTube' });
+        video.id = `${folderId}:${entry.videoId}`; video.folderId = folderId; return video;
+      });
+      return { channel: { id: folderId, kind: 'youtube', handle: `https://www.youtube.com/playlist?list=${playlistId}`,
+        title: direct.title || titleHint || `YouTube playlist ${playlistId.slice(0, 8)}`, thumb: videos[0]?.poster, lastCheckedAt: Date.now(), lastResponseCount: videos.length,
+        ...(!resumeCursor ? { newestVideoId: direct.rows[0]?.videoId } : {}),
+        ...(direct.failure ? { lastProviderFailure: classifyProviderFailure('youtube', direct.failure) } : {}),
+        ...(focused ? { catalogCursor: direct.cursor ?? undefined, catalogCheckedAt: Date.now(), catalogExhaustedAt: direct.completed ? Date.now() : undefined } : {}),
+      }, videos };
+    }
+    const html = await fetchText(`https://www.youtube.com/playlist?list=${encodeURIComponent(playlistId)}`, manualRetry);
     const root = youtubeInitialData(html);
     if (!root) throw new Error("This playlist did not return public metadata.");
     const limit = requestedLimit ?? (focused ? LIBRARY_LIMITS.youtubePlaylistVideosPerPull : 80);
@@ -730,9 +820,9 @@ async function youtubeFromPlaylist(input: string, focused = true, resumeCursor?:
     let browseRoot: unknown = root;
     if (!found.length && !resumeCursor && apiKey) {
       try {
-        const response = await fetch(`https://www.youtube.com/youtubei/v1/browse?key=${encodeURIComponent(apiKey)}`, {
+        const response = await fetchYoutubeResponse(`https://www.youtube.com/youtubei/v1/browse?key=${encodeURIComponent(apiKey)}`, {
           method: "POST", headers: { "content-type": "application/json", "x-youtube-client-name": "1", "x-youtube-client-version": clientVersion },
-          body: JSON.stringify({ context: { client: { clientName: "WEB", clientVersion } }, browseId: `VL${playlistId}` }), signal: AbortSignal.timeout(10_000),
+          body: JSON.stringify({ context: { client: { clientName: "WEB", clientVersion } }, browseId: `VL${playlistId}` }), timeoutMs: 10_000, manualRetry,
         });
         if (response.ok) {
           browseRoot = await response.json() as unknown;
@@ -744,9 +834,9 @@ async function youtubeFromPlaylist(input: string, focused = true, resumeCursor?:
     let completed = !continuation && found.length > 0;
     for (let page = 0; continuation && apiKey && page < (focused ? LIBRARY_LIMITS.youtubePlaylistPagesPerPull : 1) && found.length < limit; page++) {
       try {
-        const response = await fetch(`https://www.youtube.com/youtubei/v1/browse?key=${encodeURIComponent(apiKey)}`, {
+        const response = await fetchYoutubeResponse(`https://www.youtube.com/youtubei/v1/browse?key=${encodeURIComponent(apiKey)}`, {
           method: "POST", headers: { "content-type": "application/json", "x-youtube-client-name": "1", "x-youtube-client-version": clientVersion },
-          body: JSON.stringify({ context: { client: { clientName: "WEB", clientVersion } }, continuation }), signal: AbortSignal.timeout(10_000),
+          body: JSON.stringify({ context: { client: { clientName: "WEB", clientVersion } }, continuation }), timeoutMs: 10_000, manualRetry,
         });
         if (!response.ok) break;
         const pageData = await response.json() as unknown;
@@ -755,7 +845,7 @@ async function youtubeFromPlaylist(input: string, focused = true, resumeCursor?:
         const next = youtubeCatalogContinuation(pageData) ?? youtubeContinuation(pageData);
         if (next && next !== continuation) continuation = next;
         else { continuation = null; completed = true; }
-        if (continuation && found.length < limit) await new Promise((resolve) => setTimeout(resolve, LIBRARY_LIMITS.youtubeArchivePageGapMs));
+        // Actual requests are paced once by the shared YouTube transport.
       } catch { break; }
     }
     if (!found.length) throw new Error("No public videos were found in that playlist.");
@@ -1154,6 +1244,7 @@ function followTwitch(query: string, compact = false, clipLimit?: number): Promi
 }
 
 export async function runFollowRemote(dataRaw: unknown): Promise<FollowResult> {
+    applyYoutubePullPacing(dataRaw);
     const data = parseFollow(dataRaw);
     const kind = data.kind === "auto" ? guessKind(data.query) : data.kind;
     if (kind === "twitch") return followTwitch(data.query, false, data.clipLimit);
@@ -1166,7 +1257,9 @@ export async function runFollowRemote(dataRaw: unknown): Promise<FollowResult> {
 }
 
 export async function runRefreshRemotes(dataRaw: unknown): Promise<RefreshResult> {
+    applyYoutubePullPacing(dataRaw);
     const data = parseRefresh(dataRaw);
+    const manualRetry = data.forceYoutube ? createYoutubeManualRetry() : undefined;
     const videos: LibraryVideo[] = [];
     const channels: FollowedChannel[] = [];
     const refreshedIds: string[] = [];
@@ -1184,17 +1277,18 @@ export async function runRefreshRemotes(dataRaw: unknown): Promise<RefreshResult
           channels.push({ ...ch, ...next.channel, id: ch.id });
           videos.push(...next.videos.map((video) => ({ ...video, folderId: ch.id })));
         } else {
-          const q = ch.channelId ? `https://www.youtube.com/channel/${ch.channelId}` : ch.handle;
+          const id = ch.channelId ?? ch.id.match(/^yt:(UC[\w-]{20,})$/)?.[1];
+          const q = id ? `https://www.youtube.com/channel/${id}` : ch.handle;
           // Public RSS only exposes a short recent window. It has no `after`
           // query parameter, so routine work reads that capped window and cuts
           // it at the last durable upload identity. Explicit and scheduled
           // archive sweeps resume the separate Videos-grid continuation.
           const next = ch.id.startsWith("ytpl:")
-            ? await youtubeFromPlaylist(ch.handle, data.youtubeCatalog, data.youtubeCatalog ? ch.catalogCursor : undefined, data.youtubeVideoLimit)
+            ? await youtubeFromPlaylist(ch.handle, data.youtubeCatalog, data.youtubeCatalog ? ch.catalogCursor : undefined, data.youtubeVideoLimit, manualRetry, ch.title)
             : data.youtubeCatalog
-              ? await youtubeFromChannel(q, data.youtubeVideoLimit ?? 100, true, true, undefined, ch.catalogCursor)
+              ? await youtubeFromChannel(q, data.youtubeVideoLimit ?? 100, true, true, undefined, ch.catalogCursor, manualRetry, ch.title)
               : await youtubeFromChannel(q, LIBRARY_LIMITS.youtubeRoutineVideosPerChannel, false, false, ch.newestVideoId);
-          channels.push({ ...ch, ...next.channel, id: ch.id, handle: ch.handle || next.channel.handle, thumb: next.channel.thumb || ch.thumb, newestVideoId: ch.id.startsWith("ytpl:") && data.youtubeCatalog ? ch.newestVideoId ?? next.channel.newestVideoId : next.channel.newestVideoId ?? ch.newestVideoId, lastProviderFailure: undefined });
+          channels.push({ ...ch, ...next.channel, id: ch.id, handle: next.channel.handle || ch.handle, thumb: next.channel.thumb || ch.thumb, newestVideoId: ch.id.startsWith("ytpl:") && data.youtubeCatalog ? ch.newestVideoId ?? next.channel.newestVideoId : next.channel.newestVideoId ?? ch.newestVideoId, importNeedsReview: undefined, lastProviderFailure: next.channel.lastProviderFailure });
           videos.push(...next.videos.map((video) => ({ ...video, folderId: ch.id })));
         }
         refreshedIds.push(ch.id);
@@ -1204,17 +1298,18 @@ export async function runRefreshRemotes(dataRaw: unknown): Promise<RefreshResult
         // later scheduled sweep while preserving its continuation and cache.
         channels.push({
           ...ch,
+          lastCheckedAt: Date.now(),
           ...(ch.kind === "youtube" && data.youtubeCatalog ? { catalogCheckedAt: Date.now() } : {}),
-          ...(ch.kind === "youtube" && data.youtubeLiveOnly ? { liveCheckedAt: Date.now() } : {}),
+          ...(ch.kind === "youtube" && data.youtubeLiveOnly ? { liveCheckedAt: Date.now(), lastLiveFailure: classifyProviderFailure(ch.kind, error) } : {}),
           lastProviderFailure: classifyProviderFailure(ch.kind, error),
         });
       }
     });
     const retryAt = Object.fromEntries(data.channels.flatMap((channel) => {
-      const retry = retryAtFor(channel.kind, channel.handle);
+      const retry = channel.kind === "youtube" ? youtubeRetryAt(Date.now(), data.youtubeLiveOnly ? 'live' : data.youtubeCatalog ? 'catalog' : 'feed') ?? channels.find(row => row.id === channel.id)?.lastProviderFailure?.retryAt ?? retryAtFor(channel.kind, channel.handle) : retryAtFor(channel.kind, channel.handle);
       return retry ? [[channel.id, retry]] : [];
     }));
-    return { videos, channels, refreshedIds, retryAt };
+    return { videos, channels, refreshedIds, retryAt, ...(data.channels.some(channel => channel.kind === "youtube") && youtubeRetryAt() ? { providerRetryAt: youtubeRetryAt(), providerCooldownScope: youtubeCooldownScope() } : {}) };
 }
 
 type ImportItemIn = { query: string; kind: "youtube" | "twitch" };
@@ -1257,11 +1352,18 @@ export type ImportBatchResult = {
   ok: FollowResult[];
   failed: number;
   failedQueries: string[];
+  failedReasons?: Record<string, string>;
+  failedFailures?: Record<string, ProviderFailure>;
+  providerRetryAt?: number;
+  providerCooldownScope?: YoutubeRequestScope;
 };
 
 export async function runImportChannels(dataRaw: unknown): Promise<ImportBatchResult> {
+    applyYoutubePullPacing(dataRaw);
     const data = parseImport(dataRaw);
-    const compact = data.items.length > 1;
+    const compact = data.items.length > 1 || data.items.some(item => item.kind === 'youtube');
+    const failureReasons = new Map<string, string>();
+    const failureDetails = new Map<string, ProviderFailure>();
     const rows = await mapPool(data.items, 6, async (item) => {
       for (let attempt = 0; attempt < 2; attempt += 1) {
         try {
@@ -1269,8 +1371,25 @@ export async function runImportChannels(dataRaw: unknown): Promise<ImportBatchRe
           // Bulk imports used to request only eight entries per creator, which
           // made a healthy library look arbitrarily capped. RSS availability
           // ultimately controls the ceiling, but ask for a practical window.
-          return youtubePlaylistId(item.query) ? await youtubeFromPlaylist(item.query, !compact) : await youtubeFromChannel(item.query, compact ? LIBRARY_LIMITS.youtubeBulkImportVideosPerChannel : LIBRARY_LIMITS.youtubeManualRefreshVideosPerChannel, true, !compact);
-        } catch {
+          let result: FollowResult;
+          if (youtubePlaylistId(item.query)) result = await youtubeFromPlaylist(item.query, !compact);
+          else {
+            const channelId = await resolveYoutubeCreator(item.query);
+            // Identity verification survives an empty/private/unavailable
+            // uploads catalog. Keep its honest failure for the archive queue.
+            result = await youtubeFromChannel(channelId, 24, false, true, undefined, undefined, undefined, item.query).catch(error => ({
+              channel: { id: `yt:${channelId}`, kind: 'youtube' as const, handle: `https://www.youtube.com/channel/${channelId}`, channelId, title: item.query, lastResponseCount: 0, catalogCheckedAt: Date.now(), lastProviderFailure: classifyProviderFailure('youtube', error) }, videos: [],
+            }));
+          }
+          return { ...result, channel: { ...result.channel, importQuery: item.query } };
+        } catch (error) {
+          const failure = classifyProviderFailure(item.kind, error);
+          failureReasons.set(item.query, failure.message);
+          failureDetails.set(item.query, failure);
+          // A shared provider limit cannot recover by repeating the same
+          // request 350ms later, or by trying the next imported handle.
+          if (item.kind === 'youtube' && youtubeRetryAt()) break;
+          if (item.kind === 'youtube' && failure.message.includes('unique exact')) break;
           if (!attempt) await new Promise((resolve) => setTimeout(resolve, 350));
         }
       }
@@ -1283,7 +1402,7 @@ export async function runImportChannels(dataRaw: unknown): Promise<ImportBatchRe
       if (row) ok.push(row);
       else failedQueries.push(data.items[i]?.query ?? "");
     }
-    return { ok, failed: failedQueries.length, failedQueries: failedQueries.filter(Boolean) };
+    return { ok, failed: failedQueries.length, failedQueries: failedQueries.filter(Boolean), failedReasons: Object.fromEntries(failedQueries.map(query => [query, failureReasons.get(query) ?? 'Public metadata unavailable'])), failedFailures: Object.fromEntries(failureDetails), ...(data.items.some(item => item.kind === 'youtube') && youtubeRetryAt() ? { providerRetryAt: youtubeRetryAt(), providerCooldownScope: youtubeCooldownScope() } : {}) };
 }
 
 type FollowList = {
@@ -3317,7 +3436,7 @@ async function fetchYoutubeComments(videoId: string, limit: number): Promise<{ c
     if (!apiKey) return { comments: [], note: "YouTube Innertube key unavailable." };
 
     const postNext = async (body: Record<string, unknown>) => {
-      const response = await fetch(`https://www.youtube.com/youtubei/v1/next?key=${encodeURIComponent(apiKey)}`, {
+      const response = await fetchYoutubeResponse(`https://www.youtube.com/youtubei/v1/next?key=${encodeURIComponent(apiKey)}`, {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -3328,7 +3447,7 @@ async function fetchYoutubeComments(videoId: string, limit: number): Promise<{ c
           context: { client: { clientName: "WEB", clientVersion, hl: "en", gl: "US" } },
           ...body,
         }),
-        signal: AbortSignal.timeout(15_000),
+        timeoutMs: 15_000,
       });
       if (!response.ok) return null;
       return await response.json() as unknown;
@@ -3481,7 +3600,7 @@ async function fetchYoutubeChat(videoId: string, limit: number): Promise<{ comme
     if (!apiKey) return { comments: [], note: "YouTube Innertube key unavailable for chat." };
 
     const postJson = async (path: string, body: Record<string, unknown>) => {
-      const response = await fetch(`https://www.youtube.com/youtubei/v1/${path}?key=${encodeURIComponent(apiKey)}`, {
+      const response = await fetchYoutubeResponse(`https://www.youtube.com/youtubei/v1/${path}?key=${encodeURIComponent(apiKey)}`, {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -3492,7 +3611,7 @@ async function fetchYoutubeChat(videoId: string, limit: number): Promise<{ comme
           context: { client: { clientName: "WEB", clientVersion, hl: "en", gl: "US" } },
           ...body,
         }),
-        signal: AbortSignal.timeout(15_000),
+        timeoutMs: 15_000,
       });
       if (!response.ok) return null;
       return await response.json() as unknown;

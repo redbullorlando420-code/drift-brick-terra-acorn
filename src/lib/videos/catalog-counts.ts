@@ -3,6 +3,19 @@ export const emptyCatalogCounts = (): CatalogCounts => ({ publicCount: 0, ytCoun
 import type { LibraryVideo } from './types';
 // A packet carries numeric flags and history multiplicity, never video metadata.
 export type CountRow = [flags: number, historyEvents: number];
+export function catalogCountFlags(video: LibraryVideo, adultIds: ReadonlySet<string>, hidden: Record<string, true>, hideDemo: boolean) {
+  const visible = !hidden[video.id] && !(hideDemo && video.isSample);
+  if (adultIds.has(video.folderId)) return visible ? 32 : 0;
+  return (visible ? 1 : 0) | (video.remote?.kind === 'youtube' ? 2 : 0)
+    | (video.remote?.kind === 'twitch' ? 4 : 0) | (video.remote?.live ? 8 : 0);
+}
+export function applyCatalogFlags(counts: CatalogCounts, flags: number, direction = 1) {
+  if (flags & 1) counts.publicCount += direction;
+  if (flags & 2) counts.ytCount += direction;
+  if (flags & 4) counts.twitchCount += direction;
+  if (flags & 8) counts.liveCount += direction;
+  if (flags & 32) counts.adultCount += direction;
+}
 export function addCountBatch(counts: CatalogCounts, rows: CountRow[]) {
   for (const [flags, events] of rows) {
     if (flags & 1) counts.publicCount++;

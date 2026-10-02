@@ -1,0 +1,34 @@
+✔ focused pulls cap memory, metadata and disk together, preserving the rejected page resume point (241.4623ms)
+✔ bulk imports use one cap across creators and persist only admitted entries (170.5928ms)
+✔ routine checks refresh stored titles at a zero cap while excluding new rows from disk and metadata (217.9594ms)
+✔ settings changed while a provider is in flight apply before admission (108.8784ms)
+✔ Adult pulls apply a lowered in-flight cap before tags and append transactions (156.7546ms)
+✔ removed cached Reddit images and confirmed unavailable photos leave Adult shelves without deleting saves (1.7825ms)
+✔ a provider-wide cooldown stops the archive queue without marking unattempted creators failed (7.2411ms)
+✔ unresolved saved stubs do not prevent a real import from resolving them (69.1993ms)
+✔ Twitch status cannot replace the YouTube cooldown or archive result (1.4893ms)
+✔ manual completion returns its own counts even when another provider changes pull history (106.4365ms)
+✔ cooldown stops focused, import and live work while mixed checks still service Twitch (1.1957ms)
+✔ an import provider limit checkpoints the cooldown and leaves later batches unattempted (2.2785ms)
+✔ automatic provider detection still permits a focused Twitch URL during a YouTube cooldown (0.4451ms)
+✔ a catalog-only cooldown allows live discovery on confirmed channel IDs (0.5228ms)
+✔ scheduled archive growth checks four creators in small responses and persists new entries and cursors (526.5417ms)
+✔ manual force ignores the old timer, stops on a new rejection, and leaves automatic work waiting (46.8752ms)
+✔ healthy forced pulls resume the batch, keep entry caps, and clear obsolete restored deadlines (234.097ms)
+✔ a recovered manual pull prevents untouched old creator failures restoring a global cooldown (109.6396ms)
+✔ a 70000-entry library admits 3000 new YouTube entries in six bounded creator commits (7247.1655ms)
+ℹ 70000 existing + 3000 added in six commits: 7236ms with mocked network/disk; no full catalog persistence.
+✔ resolving a saved query removes its stub and preserves distinct channels sharing its name (1.8986ms)
+✔ saved coverage separates verified empty channels from unresolved names and held fragments (0.9161ms)
+✔ compact exact union counts match creator and playlist rows without retaining card indexes (0.5624ms)
+✔ 100k saved rows yield to input and simultaneous readers share the same compact index (3055.4774ms)
+✔ live health and folder counts do not invalidate a provider shelf; privacy edits do (27.5859ms)
+✔ small refreshes update dates, preserve equal-date metadata order and reuse shelves for Twitch-only changes (44.7265ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9639.4625

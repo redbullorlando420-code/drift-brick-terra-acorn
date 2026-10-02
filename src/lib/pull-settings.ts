@@ -1,5 +1,6 @@
 export type PullSettings = {
   requestGapMs: number;
+  youtubeRequestGapMs: number;
   concurrentRequests: number;
   youtubeBatchVideos: number;
   youtubeSourcesPerSweep: number;
@@ -16,7 +17,7 @@ export type PullSettings = {
   otherMaxEntries: number;
 };
 export const DEFAULT_PULL_SETTINGS: Readonly<PullSettings> = Object.freeze({
-  requestGapMs: 1500, concurrentRequests: 1, youtubeBatchVideos: 100,
+  requestGapMs: 1500, youtubeRequestGapMs: 80, concurrentRequests: 1, youtubeBatchVideos: 100,
   youtubeSourcesPerSweep: 32, youtubeIntervalSeconds: 300, adultBatchVideos: 2000,
   adultIntervalSeconds: 120, adultCatalogTarget: 100_000,
   automaticPulls: true, pauseWhileWatching: true,
@@ -24,7 +25,7 @@ export const DEFAULT_PULL_SETTINGS: Readonly<PullSettings> = Object.freeze({
   adultMaxEntries: 100_000, otherMaxEntries: 25_000,
 });
 const limits: Record<Exclude<keyof PullSettings, 'automaticPulls' | 'pauseWhileWatching'>, [number, number]> = {
-  requestGapMs: [250, 60_000], concurrentRequests: [1, 3], youtubeBatchVideos: [30, 500],
+  requestGapMs: [250, 60_000], youtubeRequestGapMs: [0, 60_000], concurrentRequests: [1, 3], youtubeBatchVideos: [30, 500],
   youtubeSourcesPerSweep: [1, 1024], youtubeIntervalSeconds: [60, 3600], adultBatchVideos: [20, 10000],
   adultIntervalSeconds: [30, 3600], adultCatalogTarget: [1000, 1_000_000],
   remoteMaxEntries: [0, 1_000_000], youtubeMaxEntries: [0, 1_000_000], twitchMaxEntries: [0, 1_000_000],

@@ -1,6 +1,7 @@
 import { isRemovedRedditVideo } from './reddit-removed';
 import { selectSavedCards } from "./saved-library";
-import { memoizeSelector } from "./selector-cache";
+import { updateYoutubeShelf } from "./youtube-shelf";
+import { memoizeSelector, memoizeSelectorInputs } from "./selector-cache";
 import { waitForPulls, setPullViewerOpen, getPullCancellationRevision, pullsPaused, waitForCatalogCommit } from "@/lib/pull-control";
 import { getPullSettings } from '@/lib/pull-settings';
 import { forEachCatalogSlice, copyCatalogArray, copyCatalogRecord, yieldCatalogTask } from "@/lib/catalog-work";
@@ -29,13 +30,15 @@ import {
 } from "@/lib/remote/adult-pull-cache";
 import { mergeRemoteCatalog, mergeRemoteRefreshAsync, remoteVideoIndex, remoteVideoIndexAsync, mergeRemoteCatalogAsync } from "./remote-merge";
 import { admitRemoteEntries, holdEntryLimitCursors, remoteEntryCounts, remainingEntrySlots, rememberEntryCounts } from './entry-limits';
-import { canonicalFollowHandle, dedupeFollows } from "./follow-identity";
+import { canonicalFollowHandle, dedupeFollows, mergeResolvedFollow } from "./follow-identity";
+import { importedFollowStub, repairYoutubeImport, resolvedFollowQueries, reviewYoutubeImport, bindYoutubeCorrection } from './follow-import';
+import { restoreYoutubeCooldown, saveYoutubeCooldown, clearYoutubeCooldown, youtubeCooldownMessage, type RefreshFollowsResult } from '../remote/youtube-pull-feedback';
 import { lookupVideo, rememberVideo } from "./video-lookup";
 import { activityLookup, activityCandidates } from './activity-lookup';
 import { canonicalTopic, reconcileProviderTopicTags, topicsForVideo } from "./topics";
 import { applyCachedTagPatches, type CachedTagPatch } from "./tag-patches";
-import { youtubeSourceCounts, youtubeVideoKey } from "../remote/youtube-sources";
-import { selectYoutubeCoverageRecovery } from "../remote/youtube-sweep";
+import { youtubeVideoKey } from "../remote/youtube-sources";
+import { youtubeCoverageCounts, youtubeCoverageIndexAsync } from '../remote/youtube-coverage';
 import { measureInteraction, scheduleBackgroundWork } from "@/lib/interaction-budget";
 import { exportFeedback, hydrateDurableFeedback } from "@/lib/media-feedback";
 import {
@@ -115,6 +118,8 @@ import { useSourceAssets } from "@/lib/source-assets";
 import { isClassicVideo, SYSTEM_SOURCES } from "./types";
 import { LIBRARY_LIMITS } from "@/lib/library-limits";
 import { selectYoutubeLiveChannels, selectYoutubeSweepChannels } from "@/lib/remote/youtube-sweep";
+import { scheduledYoutubeSources } from '@/lib/remote/background-refresh';
+import { selectYoutubeFeedChannels } from '@/lib/remote/youtube-sweep';
 import { repairLegacyYoutubeDate } from "@/lib/remote/youtube-page";
 import { resolveCreatorCoverage } from "./creator-coverage";
 import { loadPullHistory, makePullId, savePullHistory, type PullActivity, type PullRecord } from "@/lib/remote/pull-ledger";
@@ -200,7 +205,8 @@ export type LibraryState = {
   remoteBusy: boolean;
   remoteCheckedAt: number;
   refreshing: boolean;
-  remoteRefreshStatus: { at: number; checked: number; refreshed: number; failed: number; youtube: number; twitch: number } | null;
+  remoteRefreshStatus: { at: number; checked: number; refreshed: number; failed: number; youtube: number; twitch: number; retryAt?: number; error?: string; cooldownScope?: 'catalog' | 'page' | 'feed' | 'live' | 'details' | 'all' } | null;
+  youtubeRefreshStatus: LibraryState["remoteRefreshStatus"];
   /** Provider retry deadlines keyed by followed-channel id. Focused refreshes bypass these. */
   remoteRetryAt: Record<string, number>;
   importProgress: { done: number; total: number; label: string } | null;
@@ -265,14 +271,14 @@ export type LibraryState = {
   repairArtworkSource: (folderId: string) => Promise<boolean>;
   refreshSourcePhotos: (folderId: string) => Promise<number>;
   removeFolder: (folderId: string) => Promise<void>;
-  followRemoteQuery: (query: string, kind?: "auto" | "youtube" | "twitch", opts?: { clipLimit?: number }) => Promise<void>;
+  followRemoteQuery: (query: string, kind?: "auto" | "youtube" | "twitch", opts?: { clipLimit?: number; correctFollowId?: string }) => Promise<void>;
   importBatch: (
     items: { query: string; kind: "youtube" | "twitch" }[],
   ) => Promise<{ ok: number; failed: number; failedQueries: string[]; failedReasons: Record<string, string> }>;
   unfollow: (id: string) => void;
   unfollowMany: (ids: string[]) => void;
   updateFollowProfiles: (profiles: Array<{ id: string; thumb?: string; description?: string }>) => void;
-  refreshFollows: (kind?: "twitch" | "youtube", options?: { catalog?: boolean; scheduled?: boolean; youtubeLiveOnly?: boolean; backgroundLive?: boolean; channelIds?: string[] }) => Promise<{ wentLive: FollowedChannel[]; newVideos: LibraryVideo[] }>;
+  refreshFollows: (kind?: "twitch" | "youtube", options?: { catalog?: boolean; force?: boolean; scheduled?: boolean; youtubeLiveOnly?: boolean; backgroundLive?: boolean; channelIds?: string[] }) => Promise<RefreshFollowsResult>;
   pushNotice: (n: Omit<AppNotice, "id" | "at" | "read">) => void;
   markNoticesRead: () => void;
   setNotifyPush: (on: boolean) => void;
@@ -939,6 +945,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   refreshing: false,
   remoteCheckedAt: 0,
   remoteRefreshStatus: null,
+  youtubeRefreshStatus: null,
   remoteRetryAt: {},
   importProgress: null,
   adultPullStatus: null,
@@ -1686,6 +1693,8 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     const prefsFollows = Array.isArray(prefsState.follows) ? prefsState.follows : [];
     const migratedFollows = dedupeFollows([...dedicatedFollows, ...prefsFollows]);
     prefsState.follows = migratedFollows;
+    const youtubeCooldown = restoreYoutubeCooldown(migratedFollows);
+    if (youtubeCooldown) prefsState.youtubeRefreshStatus = { at: Date.now(), checked: 0, refreshed: 0, failed: 0, youtube: 0, twitch: 0, ...youtubeCooldown };
     // Persist migration immediately so a later prefs-only wipe cannot drop the list again.
     if (migratedFollows.length) saveFollows(migratedFollows);
     const adultIds = new Set(loadPrefs()?.privateFolderIds ?? []);
@@ -1881,22 +1890,22 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     // entry—not only an entirely empty shelf—so partial Twitch imports keep
     // progressing across reloads without requiring “Load saved list now”.
     if (typeof window !== "undefined") {
-      const recover = async (kind: "twitch" | "youtube") => {
+      const recover = (kind: "twitch" | "youtube") => {
         try {
           const saved = JSON.parse(localStorage.getItem(`reelcase.import-history.${kind}`) ?? "[]") as unknown;
           if (!Array.isArray(saved) || !saved.length) return;
-          const handles = saved.filter((value): value is string => typeof value === "string" && Boolean(value.trim()));
+          const original = saved.filter((value): value is string => typeof value === "string" && Boolean(value.trim()));
+          const repaired = kind === 'youtube' ? repairYoutubeImport(original, localStorage.getItem('reelcase.import-draft.youtube') ?? '') : null;
+          const handles = repaired?.queries ?? original;
+          if (repaired?.fragments.size) {
+            try { localStorage.setItem('reelcase.import-history.youtube', JSON.stringify(handles)); } catch { /* A full mirror must not block durable follow recovery. */ }
+            set({ follows: reviewYoutubeImport(get().follows, localStorage.getItem('reelcase.import-draft.youtube') ?? '') });
+          }
           // Seed durable follow stubs from the import list before network pulls so a
           // refresh mid-recovery cannot leave the shelf empty again.
-          const stubs = handles.map((query) => {
-            const handle = canonicalFollowHandle(kind, query);
-            return {
-              id: `${kind === "twitch" ? "tw" : "yt"}:${handle}`,
-              kind,
-              handle,
-              title: handle,
-            } satisfies FollowedChannel;
-          }).filter((row) => row.handle);
+          const resolvedQueries = resolvedFollowQueries(get().follows, kind);
+          const pendingHandles = handles.filter(query => !resolvedQueries.has(canonicalFollowHandle(kind, query)));
+          const stubs = pendingHandles.map(query => importedFollowStub(query, kind)).filter(row => row.handle);
           if (stubs.length) {
             const merged = dedupeFollows([...get().follows, ...stubs]);
             set({ follows: merged });
@@ -1905,11 +1914,20 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           // Startup recovery must never monopolize the first screen when a user
           // has hundreds of subscriptions. The complete saved list stays intact;
           // each refresh resumes a bounded, provider-friendly batch.
-          if (!getPullSettings().automaticPulls || pullsPaused()) return;
-          await get().importBatch(handles.slice(0, 80).map((query) => ({ query, kind })));
+          const failures = new Map(get().follows.filter(channel => channel.kind === kind && channel.lastProviderFailure).map(channel => [canonicalFollowHandle(kind, channel.importQuery ?? channel.handle), channel.lastProviderFailure!]));
+          return pendingHandles.filter(query => {
+            const failure = failures.get(canonicalFollowHandle(kind, query));
+            return !failure || Date.now() >= (failure.retryAt ?? failure.at + 60 * 60_000);
+          }).slice(0, kind === 'youtube' ? 4 : 80).map(query => ({ query, kind }));
         } catch { /* no saved import list */ }
       };
-      void (async () => { await recover("twitch"); await recover("youtube"); })();
+      // Seed both queues before either provider waits on pause/network work.
+      const twitchRecovery = recover('twitch') ?? [];
+      const youtubeRecovery = recover('youtube') ?? [];
+      if (getPullSettings().automaticPulls && !pullsPaused()) void (async () => {
+        if (twitchRecovery.length) await get().importBatch(twitchRecovery);
+        if (youtubeRecovery.length) await get().importBatch(youtubeRecovery);
+      })().catch(() => undefined);
     }
     // Saved follows hydrate synchronously from preferences. The app shell owns the
     // single background refresh, avoiding two competing refreshes and rail flicker.
@@ -2194,16 +2212,19 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   },
   followRemoteQuery: async (query, kind = "auto", opts) => {
     if (get().remoteBusy || get().refreshing) throw new Error("A catalog pull is already running.");
+    const provider = kind === 'twitch' || kind === 'auto' && (query.toLowerCase().includes('twitch.tv') || query.toLowerCase().startsWith('tw:')) ? 'twitch' : 'youtube';
+    if (provider === 'youtube' && (get().youtubeRefreshStatus?.retryAt ?? 0) > Date.now()) throw new Error(youtubeCooldownMessage(get().youtubeRefreshStatus!.retryAt!));
     const startedAt = Date.now();
     const pullId = makePullId();
-    const provider = kind === "twitch" ? "twitch" : "youtube";
     get().beginPull({ id: pullId, provider, action: "Creator video pull", startedAt, targets: [query], done: 0, total: 1, received: 0, added: 0, failed: 0 });
     set({ remoteBusy: true });
     try {
       if (!remainingEntrySlots(await remoteEntryCounts(get().videos), getPullSettings(), provider)) throw new Error(ENTRY_LIMIT_MESSAGE);
-      const knownYoutube = get().follows.find((channel) => channel.kind === "youtube"
+      const correction = opts?.correctFollowId ? get().follows.find(channel => channel.kind === 'youtube' && channel.id === opts.correctFollowId) : undefined;
+      const knownYoutube = !correction && get().follows.find((channel) => channel.kind === "youtube"
         && (channel.id === query || channel.channelId === query || canonicalFollowHandle("youtube", channel.handle) === canonicalFollowHandle("youtube", query)));
-      const result = await followRemote({ data: { query, kind, ...(opts?.clipLimit ? { clipLimit: opts.clipLimit } : {}), ...(knownYoutube?.catalogCursor ? { catalogCursor: knownYoutube.catalogCursor } : {}) } });
+      const fetched = await followRemote({ data: { query, kind, ...(opts?.clipLimit ? { clipLimit: opts.clipLimit } : {}), ...(knownYoutube && knownYoutube.catalogCursor ? { catalogCursor: knownYoutube.catalogCursor } : {}) } });
+      const result = correction ? bindYoutubeCorrection(fetched, correction, query) : fetched;
       const received = result.videos.length;
       let prepared = await prepareRemotePull(get, result.videos, undefined, true);
       while (get().videos !== prepared.base.videos || get().tags !== prepared.base.tags || get().metadataProvenance !== prepared.base.metadataProvenance || getPullSettings() !== prepared.admission.settings) prepared = await prepareRemotePull(get, result.videos, undefined, true);
@@ -2244,7 +2265,8 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   },
   importBatch: async (items) => {
     if (get().remoteBusy || get().refreshing) throw new Error("A catalog pull is already running.");
-    const savedHandles = new Set(get().follows.map((follow) => `${follow.kind}:${canonicalFollowHandle(follow.kind, follow.handle)}`));
+    if (items.some(item => item.kind === 'youtube') && (get().youtubeRefreshStatus?.retryAt ?? 0) > Date.now()) throw new Error(youtubeCooldownMessage(get().youtubeRefreshStatus!.retryAt!));
+    const savedHandles = new Set(['youtube','twitch'].flatMap(kind => [...resolvedFollowQueries(get().follows, kind as 'youtube' | 'twitch')].map(key => `${kind}:${key}`)));
     const seenQueries = new Set<string>();
     const unique = items
       .map((i) => ({ query: i.query.trim().replaceAll("\\_", "_"), kind: i.kind }))
@@ -2256,6 +2278,11 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         return true;
       });
     if (!unique.length) return { ok: 0, failed: 0, failedQueries: [], failedReasons: {} };
+    // Every submitted name is durable before the first request, including
+    // ambiguous/unavailable names and entries beyond a cancelled batch.
+    const queuedFollows = dedupeFollows([...get().follows, ...unique.map(item => importedFollowStub(item.query, item.kind))]);
+    set({ follows: queuedFollows });
+    saveFollows(queuedFollows);
     const startedAt = Date.now();
     const pullId = makePullId();
     const cancellation = getPullCancellationRevision();
@@ -2271,10 +2298,14 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     const failedReasons: Record<string, string> = {};
     let pulledVideos = 0;
     let addedVideos = 0;
+    let importRetryAt: number | undefined;
     // Each request resolves a small concurrent pool on the server. Keeping batches
     // below the provider cap but larger than the old ten-item batches makes long
     // Twitch imports visibly faster without overwhelming public endpoints.
-    const chunk = 20;
+    // Provider requests inside each import now honor the configured gap too.
+    // Size a job for its network budget instead of letting 20 display-name
+    // lookups overrun the connection timeout at slow pacing settings.
+    const chunk = unique.some(item => item.kind === 'youtube') ? 1 : 20;
     try {
       for (let i = 0; i < unique.length; i += chunk) {
         if (getPullCancellationRevision() !== cancellation) break;
@@ -2299,18 +2330,40 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         if (getPullCancellationRevision() !== cancellation) break;
         ok += result.ok.length;
         failed += result.failed;
+        if (result.failedQueries?.length) {
+          failedQueries.push(...result.failedQueries);
+          for (const query of result.failedQueries) failedReasons[query] = result.failedReasons?.[query] ?? 'Could not verify the creator.';
+          const failures = new Map(slice.filter(item => result.failedFailures?.[item.query]).map(item => [`${item.kind}:${canonicalFollowHandle(item.kind, item.query)}`, result.failedFailures![item.query]]));
+          set(s => ({ follows: s.follows.map(channel => {
+            const failure = failures.get(`${channel.kind}:${canonicalFollowHandle(channel.kind, channel.handle)}`);
+            return failure ? { ...channel, lastProviderFailure: failure, lastCheckedAt: Date.now() } : channel;
+          }) }));
+        }
+        // A failed name lookup has no catalog to merge. Avoid scanning the
+        // entire 100k+ library and rewriting its tag maps for every miss.
+        if (!result.ok.length) {
+          set({ importProgress: { done: Math.min(i + slice.length, unique.length), total: unique.length, label: 'Verifying creators' } });
+          get().updatePull({ done: Math.min(i + slice.length, unique.length), received: pulledVideos, added: addedVideos, failed });
+          persistSoon(get);
+          if (result.providerRetryAt) {
+            importRetryAt = result.providerRetryAt;
+            const cooldown = { retryAt: importRetryAt, error: Object.values(result.failedReasons ?? {})[0] ?? youtubeCooldownMessage(importRetryAt), cooldownScope: result.providerCooldownScope === 'all' ? 'all' as const : 'catalog' as const };
+            saveYoutubeCooldown(cooldown);
+            set(s => ({ youtubeRefreshStatus: { ...(s.youtubeRefreshStatus ?? { at: Date.now(), checked: 0, refreshed: 0, failed: 0, youtube: 0, twitch: 0 }), ...cooldown } }));
+            break;
+          }
+          continue;
+        }
         const incoming = result.ok.flatMap(row => row.videos);
         let prepared = await prepareRemotePull(get, incoming, undefined, true);
         while (get().videos !== prepared.base.videos || get().tags !== prepared.base.tags || get().metadataProvenance !== prepared.base.metadataProvenance || getPullSettings() !== prepared.admission.settings) prepared = await prepareRemotePull(get, incoming, undefined, true);
         if (getPullCancellationRevision() !== cancellation) break;
         pulledVideos += result.ok.reduce((sum, row) => sum + row.videos.length, 0);
         addedVideos += prepared.admission.added;
-        const held = holdEntryLimitCursors(get().follows, result.ok.map(row => row.channel), prepared.admission.skippedSources);
+        const held = holdEntryLimitCursors(get().follows, result.ok.map(row => ({ ...row.channel,
+          importQuery: row.channel.importQuery ?? (slice.length === 1 ? slice[0].query : undefined),
+        })), prepared.admission.skippedSources);
         result.ok = result.ok.map((row, index) => ({ ...row, channel: held[index] }));
-        if (result.failedQueries?.length) {
-          failedQueries.push(...result.failedQueries);
-          for (const query of result.failedQueries) failedReasons[query] = "Channel was not found publicly, is unavailable, or provider metadata could not be read";
-        }
         get().updatePull({ done: Math.min(i + slice.length, unique.length), received: pulledVideos, added: addedVideos, failed });
         set((s) => {
           let follows = s.follows;
@@ -2318,8 +2371,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           const videos = prepared.merged;
           rememberEntryCounts(videos, prepared.admission.counts);
           for (const row of result.ok) {
-            const key = canonicalFollowHandle(row.channel.kind, row.channel.handle);
-            follows = [row.channel, ...follows.filter((f) => canonicalFollowHandle(f.kind, f.handle) !== key)];
+            follows = mergeResolvedFollow(follows, row.channel);
             const folder: Folder = {
               id: row.channel.id,
               name: row.channel.title,
@@ -2346,19 +2398,26 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         // unavailable. Queue its metadata for local persistence immediately.
         persistSoon(get);
         void cacheRemotes(get, prepared.admission.videos);
+        if (result.providerRetryAt) {
+          importRetryAt = result.providerRetryAt;
+          const cooldown = { retryAt: importRetryAt, error: Object.values(result.failedReasons ?? {})[0] ?? youtubeCooldownMessage(importRetryAt), cooldownScope: result.providerCooldownScope === 'all' ? 'all' as const : 'catalog' as const };
+          saveYoutubeCooldown(cooldown);
+          set(s => ({ youtubeRefreshStatus: { ...(s.youtubeRefreshStatus ?? { at: Date.now(), checked: 0, refreshed: 0, failed: 0, youtube: 0, twitch: 0 }), ...cooldown } }));
+          break;
+        }
       }
       persistNow(get);
       const added = get().follows.filter((f) => !existing.has(f.id)).length;
       if (getPullCancellationRevision() === cancellation) get().pushNotice({
         title: `Imported ${added || ok} channel${(added || ok) === 1 ? "" : "s"}`,
-        body: failed ? `${failed} need attention. Open the importer for the saved reason list.` : "Latest uploads are on the shelves.",
+        body: importRetryAt ? `${ok + failed} of ${unique.length} checked. ${youtubeCooldownMessage(importRetryAt)}` : failed ? `${failed} need attention. Open the importer for the saved reason list.` : "Latest uploads are on the shelves.",
         kind: unique[0]?.kind === "twitch" ? "twitch" : "youtube",
       });
       set({
         remoteBusy: false,
         importProgress: null,
       });
-      get().finishPull({ id: pullId, provider: unique.every((item) => item.kind === unique[0].kind) ? unique[0].kind : "multi", action: "Creator import", startedAt, finishedAt: Date.now(), targets: unique.map((item) => item.query), done: Math.min(unique.length, ok + failed), total: unique.length, received: pulledVideos, added: addedVideos, failed, status: getPullCancellationRevision() !== cancellation ? "partial" : failed ? ok ? "partial" : "failed" : "success", ...(failedQueries.length ? { errors: failedQueries.slice(0, 12).map((query) => `${query}: ${failedReasons[query] ?? "Unavailable"}`) } : {}) });
+      get().finishPull({ id: pullId, provider: unique.every((item) => item.kind === unique[0].kind) ? unique[0].kind : "multi", action: "Creator import", startedAt, finishedAt: Date.now(), targets: unique.map((item) => item.query), done: Math.min(unique.length, ok + failed), total: unique.length, received: pulledVideos, added: addedVideos, failed, status: importRetryAt || getPullCancellationRevision() !== cancellation ? "partial" : failed ? ok ? "partial" : "failed" : "success", ...(failedQueries.length ? { errors: failedQueries.slice(0, 12).map((query) => `${query}: ${failedReasons[query] ?? "Unavailable"}`) } : {}) });
       persistNow(get);
       return { ok, failed, failedQueries, failedReasons };
     } catch (err) {
@@ -2391,11 +2450,18 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     cacheRemotes(get);
   },
   refreshFollows: async (kind, options) => {
+    const forceYoutube = kind === 'youtube' && options?.catalog === true && options.force === true && !options.scheduled && !options.youtubeLiveOnly && !options.backgroundLive;
+    let forceNextRequest = forceYoutube;
+    let recoveredCooldown = false;
+    const holdYoutube = () => !forceYoutube && (get().youtubeRefreshStatus?.retryAt ?? 0) > Date.now()
+      && (get().youtubeRefreshStatus?.cooldownScope === 'all' || !get().youtubeRefreshStatus?.cooldownScope || options?.catalog === true);
+    if (kind === 'youtube' && holdYoutube()) return { wentLive: [], newVideos: [], skipped: 'cooldown', retryAt: get().youtubeRefreshStatus!.retryAt };
     await waitForPulls();
+    if (kind === 'youtube' && holdYoutube()) return { wentLive: [], newVideos: [], skipped: 'cooldown', retryAt: get().youtubeRefreshStatus!.retryAt };
     const overlappingLive = Boolean((options?.youtubeLiveOnly || options?.backgroundLive) && get().refreshing);
-    if ((get().refreshing && !overlappingLive) || get().remoteBusy || (options?.youtubeLiveOnly && youtubeLiveCheckBusy) || (options?.backgroundLive && twitchLiveCheckBusy)) return { wentLive: [], newVideos: [] };
-    const allFollows = dedupeFollows(get().follows).filter(follow => !kind || follow.kind === kind);
-    if (!allFollows.length) return { wentLive: [], newVideos: [] };
+    if ((get().refreshing && !overlappingLive) || get().remoteBusy || (options?.youtubeLiveOnly && youtubeLiveCheckBusy) || (options?.backgroundLive && twitchLiveCheckBusy)) return { wentLive: [], newVideos: [], skipped: 'busy' };
+    const allFollows = dedupeFollows(get().follows).filter(follow => (!kind || follow.kind === kind) && !(follow.kind === 'youtube' && holdYoutube()));
+    if (!allFollows.length) return { wentLive: [], newVideos: [], skipped: 'empty' };
     const rotate = (items: FollowedChannel[], limit: number, cursor: "twitch" | "youtube" | "all") => {
       if (!items.length) return [];
       const savedCursor = cursor === "twitch" ? twitchRefreshCursor : cursor === "youtube" ? youtubeRefreshCursor : remoteRefreshCursor;
@@ -2413,29 +2479,32 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     // Twitch archive depth used to depend on wherever a mixed channel cursor
     // happened to land. Reserve part of every refresh for it so a large
     // YouTube list cannot starve VOD refreshes indefinitely.
-    const youtubeCoverage = kind === "youtube" && !options?.youtubeLiveOnly ? youtubeSourceCounts(get().videos, youtube) : undefined;
-    const recovering = youtubeCoverage && !options?.catalog ? selectYoutubeCoverageRecovery(youtube, youtubeCoverage, Date.now(), Math.ceil(LIBRARY_LIMITS.youtubeRecentRefreshChannels / 2)) : [];
+    const youtubeCoverage = kind === "youtube" && !options?.youtubeLiveOnly
+      ? youtubeCoverageCounts(await youtubeCoverageIndexAsync(get().videos), youtube) : undefined;
+    // Counting may yield on a large catalog. Recheck job ownership before
+    // starting a second sweep if another action won while the task yielded.
+    if ((get().refreshing && !overlappingLive) || get().remoteBusy) return { wentLive: [], newVideos: [], skipped: 'busy' };
     const requestedIds = options?.channelIds?.length ? new Set(options.channelIds) : null;
     const current = requestedIds
       ? kind === "youtube" && options?.catalog
         ? selectYoutubeSweepChannels(allFollows.filter((follow) => requestedIds.has(follow.id)), Date.now(), getPullSettings().youtubeSourcesPerSweep, LIBRARY_LIMITS.youtubeCatalogRecheckExhaustedMs, { includeExhausted: true, includePlaylists: true, videoCounts: youtubeCoverage })
         : allFollows.filter((follow) => requestedIds.has(follow.id))
       : kind === "youtube" && options?.youtubeLiveOnly
-      ? selectYoutubeLiveChannels(youtube, LIBRARY_LIMITS.youtubeLiveRefreshChannels)
+      ? selectYoutubeLiveChannels(youtube, LIBRARY_LIMITS.youtubeLiveRefreshChannels, true)
       : kind === "youtube" && options?.catalog && options.scheduled
-      ? selectYoutubeSweepChannels(youtube, Date.now(), Math.min(getPullSettings().youtubeSourcesPerSweep, LIBRARY_LIMITS.youtubeScheduledRefreshChannels), LIBRARY_LIMITS.youtubeCatalogRecheckExhaustedMs, { includePlaylists: true, videoCounts: youtubeCoverage })
+      ? selectYoutubeSweepChannels(youtube, Date.now(), scheduledYoutubeSources(getPullSettings().youtubeSourcesPerSweep, getPullSettings().requestGapMs), LIBRARY_LIMITS.youtubeCatalogRecheckExhaustedMs, { includePlaylists: true, videoCounts: youtubeCoverage })
       // Least-recently checked creators go first. This remains fair across
       // reloads and does not let a large archive list favor a fixed prefix.
       : kind === "youtube" && options?.catalog
       ? selectYoutubeSweepChannels(youtube, Date.now(), getPullSettings().youtubeSourcesPerSweep, LIBRARY_LIMITS.youtubeCatalogRecheckExhaustedMs, { includeExhausted: true, includePlaylists: true, videoCounts: youtubeCoverage })
       : kind === "youtube"
-      ? [...recovering, ...rotate(youtube.filter(channel => !recovering.some(row => row.id === channel.id)), LIBRARY_LIMITS.youtubeRecentRefreshChannels - recovering.length, "youtube")]
+      ? selectYoutubeFeedChannels(youtube, youtubeCoverage!, Date.now(), LIBRARY_LIMITS.youtubeRecentRefreshChannels)
       : kind === "twitch" && options?.backgroundLive
       ? rotate(twitch, LIBRARY_LIMITS.twitchChannelsReservedPerRefresh, "twitch")
       : twitch.length && youtube.length
       ? [...rotate(twitch, Math.min(LIBRARY_LIMITS.twitchChannelsReservedPerRefresh, REMOTE_REFRESH_BATCH_SIZE), "twitch"), ...rotate(youtube, REMOTE_REFRESH_BATCH_SIZE - Math.min(LIBRARY_LIMITS.twitchChannelsReservedPerRefresh, REMOTE_REFRESH_BATCH_SIZE), "youtube")]
       : rotate(allFollows, REMOTE_REFRESH_BATCH_SIZE, "all");
-    if (!current.length) return { wentLive: [], newVideos: [] };
+    if (!current.length) return { wentLive: [], newVideos: [], skipped: 'empty' };
     if (options?.youtubeLiveOnly) youtubeLiveCheckBusy = true;
     if (options?.backgroundLive) twitchLiveCheckBusy = true;
     if (!overlappingLive) set({ refreshing: true });
@@ -2449,6 +2518,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     let received = 0;
     let added = 0;
     let refreshed = 0;
+    let checked = 0;
     const errors: string[] = [];
     const wentLive: FollowedChannel[] = [];
     const newVideos: LibraryVideo[] = [];
@@ -2488,10 +2558,13 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       await syncCatalogIndex();
       let result: Awaited<ReturnType<typeof refreshRemotes>>;
       try {
-        result = await refreshRemotes({ data: { youtubeVideoLimit: getPullSettings().youtubeBatchVideos, channels: batch, youtubeCatalog: catalogQueue, youtubeBackground: options?.scheduled === true, youtubeLiveOnly: options?.youtubeLiveOnly === true, backgroundLive: options?.backgroundLive === true } });
+        const forceYoutubeRequest = forceNextRequest;
+        forceNextRequest = false;
+        result = await refreshRemotes({ data: { forceYoutube: forceYoutubeRequest, youtubeVideoLimit: getPullSettings().youtubeBatchVideos, channels: batch, youtubeCatalog: catalogQueue, youtubeBackground: options?.scheduled === true, youtubeLiveOnly: options?.youtubeLiveOnly === true, backgroundLive: options?.backgroundLive === true } });
       } catch (error) {
         if (getPullCancellationRevision() !== cancellation) break;
         errors.push(`${batch.map((channel) => channel.title).join(", ")}: ${error instanceof Error ? error.message : String(error)}`);
+        checked += batch.length;
         if (!overlappingLive) get().updatePull({ done: Math.min(current.length, offset + batch.length), received, added, failed: Math.min(current.length, offset + batch.length) - refreshed });
         continue;
       }
@@ -2499,6 +2572,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       await syncCatalogIndex();
       if (getPullCancellationRevision() !== cancellation) break;
       const providerReceived = result.videos.length;
+      checked += batch.length;
       const providerRows = result.videos;
       let prepared: Awaited<ReturnType<typeof prepareRemotePull>>;
       let existingIndex: Map<string, LibraryVideo> | null;
@@ -2518,6 +2592,15 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       }
       if (getPullCancellationRevision() !== cancellation) break;
       result.videos = prepared.admission.videos;
+      if (result.providerRetryAt) {
+        const cooldown = { retryAt: result.providerRetryAt, error: result.channels.find(channel => channel.kind === 'youtube' && channel.lastProviderFailure)?.lastProviderFailure?.message, cooldownScope: result.providerCooldownScope === 'all' ? 'all' as const : 'catalog' as const };
+        saveYoutubeCooldown(cooldown);
+        // Live/mixed checks share the provider deadline, without replacing the
+        // last YouTube archive's counts with a different operation's result.
+        set(s => ({ youtubeRefreshStatus: { ...(s.youtubeRefreshStatus ?? { at: Date.now(), checked: 0, refreshed: 0, failed: 0, youtube: 0, twitch: 0 }), ...cooldown } }));
+      }
+      const recovered = catalogQueue && !recoveredCooldown && !result.providerRetryAt && result.refreshedIds.length > 0;
+      if (recovered) { recoveredCooldown = true; clearYoutubeCooldown(); }
       result.channels = holdEntryLimitCursors(get().follows, result.channels, prepared.admission.skippedSources);
       if (prepared.admission.skipped && errors.length < 12) errors.push(ENTRY_LIMIT_MESSAGE);
       const knownVideoIndex = catalogPositions ?? existingIndex!;
@@ -2533,6 +2616,16 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         if (channel.live && !beforeLiveChannels.has(channel.id)) wentLive.push(channel);
       }
       if (!overlappingLive) get().updatePull({ done: Math.min(current.length, offset + batch.length), received, added, failed: Math.min(current.length, offset + batch.length) - refreshed });
+      const refreshStatus = {
+          at: Date.now(),
+          checked: offset + batch.length,
+          refreshed,
+          failed: offset + batch.length - refreshed,
+          youtube: catalogQueue ? received : result.videos.filter((video) => video.remote?.kind === "youtube").length,
+          twitch: result.videos.filter((video) => video.remote?.kind === "twitch" && !video.remote.live).length,
+          ...(result.providerRetryAt ? { retryAt: result.providerRetryAt, cooldownScope: result.providerCooldownScope } : {}),
+          ...(result.channels.find(channel => channel.lastProviderFailure)?.lastProviderFailure ? { error: result.channels.find(channel => channel.lastProviderFailure)!.lastProviderFailure!.message } : {}),
+        };
       const mergedIncoming: LibraryVideo[] = [];
       set((s) => {
         const mergedVideos = catalogPositions
@@ -2543,7 +2636,14 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         const folderCounts = catalogFolderCounts ?? new Map(s.folders.map((folder) => [folder.id, folder.videoCount ?? 0]));
         for (const video of result.videos) if (newVideoIds.has(video.id)) { folderCounts.set(video.folderId, (folderCounts.get(video.folderId) ?? 0) + 1); newVideoIds.delete(video.id); }
         return {
-        follows: dedupeFollows([...result.channels, ...s.follows]),
+        follows: dedupeFollows([...result.channels, ...s.follows]).map(channel => {
+          const failure = channel.lastProviderFailure;
+          // Keep the diagnosis, but do not restore an obsolete provider-wide
+          // deadline on reload after a healthy catalog request.
+          return recovered && channel.kind === 'youtube' && failure?.kind === 'rate-limited'
+            && (failure.cooldownScope === 'all' || failure.cooldownScope === 'catalog') && failure.at <= startedAt
+            ? { ...channel, lastProviderFailure: { ...failure, retryAt: undefined, cooldownScope: undefined } } : channel;
+        }),
         ...(!catalogQueue && kind !== "youtube" ? { remoteCheckedAt: Date.now() } : {}),
         folders: [
           ...s.folders.filter((f) => !result.channels.some((channel) => channel.id === f.id)),
@@ -2560,14 +2660,8 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         progress: reconcileResumeForVideos(result.videos, s.progress, s.resumeProgress),
         tags: enriched.tags,
         metadataProvenance: enriched.metadataProvenance,
-        ...(!overlappingLive && !options?.youtubeLiveOnly ? { remoteRefreshStatus: {
-          at: Date.now(),
-          checked: offset + batch.length,
-          refreshed,
-          failed: offset + batch.length - refreshed,
-          youtube: catalogQueue ? received : result.videos.filter((video) => video.remote?.kind === "youtube").length,
-          twitch: result.videos.filter((video) => video.remote?.kind === "twitch" && !video.remote.live).length,
-        } } : {}),
+        ...(!overlappingLive && !options?.youtubeLiveOnly ? { remoteRefreshStatus: refreshStatus } : {}),
+        ...(kind === 'youtube' && !options?.youtubeLiveOnly ? { youtubeRefreshStatus: refreshStatus } : {}),
         ...(!overlappingLive && !options?.youtubeLiveOnly ? { remoteRetryAt: result.retryAt } : {}),
       };
       });
@@ -2586,15 +2680,24 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         await cacheRemotes(get, result.videos);
         if (staleLiveIds.length) await removeRemoteSnapshotVideos(staleLiveIds).catch(() => undefined);
       }
+      if (result.providerRetryAt) {
+        errors.push(`YouTube is cooling down until ${new Date(result.providerRetryAt).toLocaleTimeString()}; ${current.length - checked} targets remain queued for a later sweep.`);
+        break;
+      }
       }
       persistNow(get);
-      const failed = current.length - refreshed;
-      if (!overlappingLive) get().finishPull({ id: pullId, provider, action, startedAt, finishedAt: Date.now(), targets: current.slice(0, 12).map((channel) => channel.title || channel.handle), done: current.length, total: current.length, received, added, failed, status: errors.length ? "partial" : failed ? refreshed ? "partial" : "failed" : "success", ...(errors.length ? { errors: errors.slice(0, 12) } : {}) });
-      return { wentLive, newVideos };
+      const failed = checked - refreshed;
+      const pull: PullRecord = { id: pullId, provider, action, startedAt, finishedAt: Date.now(), targets: current.slice(0, 12).map((channel) => channel.title || channel.handle), done: checked, total: current.length, received, added, failed, status: errors.length ? "partial" : failed ? refreshed ? "partial" : "failed" : "success", ...(errors.length ? { errors: errors.slice(0, 12) } : {}) };
+      if (!overlappingLive) get().finishPull(pull);
+      return { wentLive, newVideos, pull, retryAt: get().youtubeRefreshStatus?.retryAt };
     } catch (error) {
-      if (!options?.youtubeLiveOnly) set({ remoteRefreshStatus: { at: Date.now(), checked: current.length, refreshed: 0, failed: current.length, youtube: 0, twitch: 0 } });
-      if (!overlappingLive) get().finishPull({ id: pullId, provider, action, startedAt, finishedAt: Date.now(), targets: current.slice(0, 12).map((channel) => channel.title || channel.handle), done: current.length, total: current.length, received: 0, added: 0, failed: current.length, status: "failed", errors: [error instanceof Error ? error.message : String(error)] });
-      return { wentLive: [], newVideos: [] };
+      if (!options?.youtubeLiveOnly) {
+        const status = { at: Date.now(), checked, refreshed, failed: checked - refreshed, youtube: received, twitch: 0, error: error instanceof Error ? error.message : String(error) };
+        set({ remoteRefreshStatus: status, ...(kind === 'youtube' ? { youtubeRefreshStatus: status } : {}) });
+      }
+      const pull: PullRecord = { id: pullId, provider, action, startedAt, finishedAt: Date.now(), targets: current.slice(0, 12).map((channel) => channel.title || channel.handle), done: checked, total: current.length, received, added, failed: checked - refreshed, status: "failed", errors: [error instanceof Error ? error.message : String(error)] };
+      if (!overlappingLive) get().finishPull(pull);
+      return { wentLive, newVideos, pull };
     } finally {
       if (options?.youtubeLiveOnly) youtubeLiveCheckBusy = false;
       if (options?.backgroundLive) twitchLiveCheckBusy = false;
@@ -2659,7 +2762,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
 
 type SelectorMemo = { public?: LibraryVideo[]; adult?: LibraryVideo[]; adultRemote?: LibraryVideo[]; youtube?: LibraryVideo[]; twitch?: LibraryVideo[]; live?: LibraryVideo[]; classics?: LibraryVideo[]; continuePublic?: LibraryVideo[]; continueAdult?: LibraryVideo[] };
 let youtubeSelectorSnapshot: {
-  videos: LibraryVideo[]; folders: Folder[]; unavailable: Record<string, true>;
+  videos: LibraryVideo[]; privateFolders: Set<string>; unavailable: Record<string, true>;
   hiddenVideos: Record<string, true>; hideDemo: boolean; result: LibraryVideo[];
 } | undefined;
 // Flush only pending deferred user activity/preferences on close or app switch.
@@ -2978,47 +3081,24 @@ function computeSelectYoutube(state: LibraryState): LibraryVideo[] {
   const memo = memoFor(state);
   if (memo.youtube) return memo.youtube;
   const previous = youtubeSelectorSnapshot;
+  const privateFolders = adultIdSet(state.folders);
   const sameVisibility = previous
-    && previous.folders === state.folders
+    && previous.privateFolders === privateFolders
     && previous.unavailable === state.unavailable
     && previous.hiddenVideos === state.hiddenVideos
     && previous.hideDemo === state.hideDemo;
   let result: LibraryVideo[];
-  if (sameVisibility && previous.videos !== state.videos) {
-    let sharedPrefix = previous.videos.length <= state.videos.length;
-    for (let index = 0; sharedPrefix && index < previous.videos.length; index += 1) {
-      if (previous.videos[index] !== state.videos[index]) sharedPrefix = false;
-    }
-    if (sharedPrefix) {
-      const newVideos = state.videos.slice(previous.videos.length);
-      const adult = adultIdSet(state.folders);
-      const knownFolders = new Set(state.folders.map((folder) => folder.id));
-      const added = newVideos.filter((video) =>
-        video.remote?.kind === "youtube"
-        && !state.unavailable[video.id]
-        && !state.hiddenVideos[video.id]
-        && !adult.has(video.folderId)
-        && (knownFolders.has(video.folderId) || Boolean(video.remote) || video.isSample)
-        && !(state.hideDemo && video.isSample),
-      ).sort((a, b) => b.addedAt - a.addedAt);
-      // The old prefix precedes the appended cards in catalog order, so keep
-      // it first for equal timestamps to preserve stable Array.sort behavior.
-      result = [];
-      let oldIndex = 0, newIndex = 0;
-      while (oldIndex < previous.result.length && newIndex < added.length) {
-        if (previous.result[oldIndex]!.addedAt >= added[newIndex]!.addedAt) result.push(previous.result[oldIndex++]!);
-        else result.push(added[newIndex++]!);
-      }
-      result.push(...previous.result.slice(oldIndex), ...added.slice(newIndex));
-    } else {
-      result = [...publicList(state).filter((video) => video.remote?.kind === "youtube")].sort((a, b) => b.addedAt - a.addedAt);
-    }
-  } else {
-    result = [...publicList(state).filter((video) => video.remote?.kind === "youtube")].sort((a, b) => b.addedAt - a.addedAt);
-  }
+  if (sameVisibility && previous.videos === state.videos) return previous.result;
+  const updated = sameVisibility ? updateYoutubeShelf(previous.videos, state.videos, previous.result, video =>
+    !state.unavailable[video.id] && !state.hiddenVideos[video.id]
+    && !privateFolders.has(video.folderId) && !(state.hideDemo && video.isSample)) : undefined;
+  result = updated ?? state.videos.filter(video => video.remote?.kind === "youtube"
+    && !state.unavailable[video.id] && !state.hiddenVideos[video.id]
+    && !privateFolders.has(video.folderId) && !(state.hideDemo && video.isSample))
+    .sort((a, b) => b.addedAt - a.addedAt);
   memo.youtube = result;
   youtubeSelectorSnapshot = {
-    videos: state.videos, folders: state.folders, unavailable: state.unavailable,
+    videos: state.videos, privateFolders, unavailable: state.unavailable,
     hiddenVideos: state.hiddenVideos, hideDemo: state.hideDemo, result,
   };
   return result;
@@ -3083,7 +3163,8 @@ export const selectVisible = memoizeSelector(computeSelectVisible, state => {
   return keys;
 });
 
-export const selectYoutube = memoizeSelector(computeSelectYoutube, ["videos", "folders", "unavailable", "hiddenVideos", "hideDemo"]);
+export const selectYoutube = memoizeSelectorInputs(computeSelectYoutube, (state: LibraryState) =>
+  [state.videos, adultIdSet(state.folders), state.unavailable, state.hiddenVideos, state.hideDemo]);
 
 export const selectTwitch = memoizeSelector(computeSelectTwitch, ["videos", "folders", "unavailable", "hiddenVideos", "hideDemo"]);
 

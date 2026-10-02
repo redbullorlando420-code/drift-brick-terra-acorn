@@ -8,6 +8,7 @@ import { useLibrary } from "@/lib/videos/store";
 import type { FollowKind, FollowedChannel, LibraryVideo } from "@/lib/videos/types";
 import { FOLLOW_COLLECTIONS_CHANGED, loadCreatorCollections, saveCreatorCollections, type CreatorCollection } from "@/lib/videos/follow-collections";
 import { planFollowRemoval } from "@/lib/videos/follow-removal";
+import { youtubeFollowHealth, verifiedYoutubeSource } from "@/lib/videos/follow-import";
 import { youtubeCreatorProfiles } from "@/lib/remote/functions";
 
 const PAGE_SIZE = 48;
@@ -38,6 +39,8 @@ function ProviderGlyph({ kind, className }: { kind: FollowKind; className?: stri
 }
 
 function channelStatus(channel: FollowedChannel) {
+  if (channel.importNeedsReview) return "legacy import fragment · review link";
+  if (channel.kind === 'youtube' && !verifiedYoutubeSource(channel)) return 'awaiting exact channel match';
   if (channel.lastProviderFailure) return channel.lastProviderFailure.kind.replaceAll("-", " ");
   if (channel.live) return "live now";
   if (channel.lastCheckedAt) return `checked ${new Date(channel.lastCheckedAt).toLocaleDateString([], { month: "short", day: "numeric" })}`;
@@ -51,10 +54,11 @@ export function FollowManager({ kind }: { kind?: FollowKind }) {
   const [initialSelectedId, setInitialSelectedId] = useState<string | null>(null);
   const [sort, setSort] = useState<SortMode>("recent");
   if (expanded) return <FollowManagerExpanded kind={kind} initialSelectedId={initialSelectedId} sort={sort} setSort={setSort} onCollapse={() => setExpanded(false)} />;
-  const scoped = follows.filter((channel) => !kind || channel.kind === kind);
+  const health = youtubeFollowHealth(follows);
+  const scoped = follows.filter((channel) => (!kind || channel.kind === kind) && !channel.importNeedsReview);
   const heading = kind === "youtube" ? "YouTube creator control" : kind === "twitch" ? "Twitch creator control" : "Creator control";
   return <section className="mb-7 rounded-xl border border-border bg-surface p-5 shadow-border sm:p-6" aria-label={heading}>
-    <div className="flex flex-wrap items-center justify-between gap-4"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Following system</p><h2 className="mt-2 font-display text-2xl text-fg">{heading}</h2><p className="mt-1 text-sm text-muted">{scoped.length.toLocaleString()} followed creator{scoped.length === 1 ? "" : "s"} · open controls to search, sort, pull videos, and manage your list.</p></div><Button type="button" variant="secondary" onClick={() => setExpanded(true)} aria-expanded={false} aria-label={`Expand ${heading}`}>Manage creators</Button></div>
+    <div className="flex flex-wrap items-center justify-between gap-4"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Following system</p><h2 className="mt-2 font-display text-2xl text-fg">{heading}</h2><p className="mt-1 text-sm text-muted">{scoped.length.toLocaleString()} saved creator{scoped.length === 1 ? "" : "s"}{kind === "youtube" ? ` · ${health.verified.toLocaleString()} verified · ${health.pending.toLocaleString()} pending · ${health.review.toLocaleString()} held for review` : ""} · open controls to search, sort, pull videos, and manage your list.</p></div><Button type="button" variant="secondary" onClick={() => setExpanded(true)} aria-expanded={false} aria-label={`Expand ${heading}`}>Manage creators</Button></div>
     {scoped.length > 0 && <div className="mt-4 flex flex-wrap gap-2" aria-label="Quick creator access">{scoped.slice(0, 8).map((channel) => { const label = creatorLabel(channel); return <button key={channel.id} type="button" className="flex size-16 items-center justify-center overflow-hidden rounded-full border border-border bg-elevated text-xs font-semibold text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={`Manage ${label}`} title={label} onClick={() => { setInitialSelectedId(channel.id); setExpanded(true); }}><CreatorAvatar channel={channel} label={label} /></button>; })}{scoped.length > 8 && <span className="flex min-h-11 items-center px-2 text-xs text-muted">+{(scoped.length - 8).toLocaleString()} more</span>}</div>}
   </section>;
 }
@@ -64,6 +68,11 @@ function FollowManagerExpanded({ kind, initialSelectedId, sort, setSort, onColla
   const unfollow = useLibrary((state) => state.unfollow);
   const unfollowMany = useLibrary((state) => state.unfollowMany);
   const updateFollowProfiles = useLibrary((state) => state.updateFollowProfiles);
+  const followRemoteQuery = useLibrary((state) => state.followRemoteQuery);
+  const remoteBusy = useLibrary((state) => state.remoteBusy);
+  const [correctedLink, setCorrectedLink] = useState('');
+  const [correctionError, setCorrectionError] = useState('');
+  const [correcting, setCorrecting] = useState(false);
   const refreshFollows = useLibrary((state) => state.refreshFollows);
   const refreshing = useLibrary((state) => state.refreshing);
   const setSource = useLibrary((state) => state.setSource);
@@ -72,10 +81,12 @@ function FollowManagerExpanded({ kind, initialSelectedId, sort, setSort, onColla
   const deferredQuery = useDeferredValue(query);
   const [provider, setProvider] = useState<"all" | FollowKind>(kind ?? "all");
   const [visible, setVisible] = useState(CREATOR_PAGE_SIZE);
+  const [identityFilter, setIdentityFilter] = useState("active");
   const attemptedCreatorProfiles = useRef(new Set<string>());
   const [brokenCreatorIds, setBrokenCreatorIds] = useState<Set<string>>(() => new Set());
   useEffect(() => { const note = (event: Event) => { const id = (event as CustomEvent<string>).detail; if (id) setBrokenCreatorIds((current) => new Set(current).add(id)); }; window.addEventListener("reelcase:creator-avatar-error", note); return () => window.removeEventListener("reelcase:creator-avatar-error", note); }, []);
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
+  useEffect(() => { setCorrectedLink(''); setCorrectionError(''); }, [selectedId]);
   const [feedbackRevision, setFeedbackRevision] = useState(0);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -102,7 +113,7 @@ function FollowManagerExpanded({ kind, initialSelectedId, sort, setSort, onColla
   }, [kind]);
   useEffect(() => {
     setVisible(CREATOR_PAGE_SIZE);
-  }, [deferredQuery, provider, sort]);
+  }, [deferredQuery, provider, sort, identityFilter]);
   useEffect(() => {
     const sync = () => setFeedbackRevision((revision) => revision + 1);
     window.addEventListener("reelcase:rating-change", sync);
@@ -126,6 +137,7 @@ function FollowManagerExpanded({ kind, initialSelectedId, sort, setSort, onColla
     const needle = deferredQuery.trim().toLocaleLowerCase();
     const rows = follows
       .filter((channel) => (!kind || channel.kind === kind) && (provider === "all" || channel.kind === provider))
+      .filter(channel => channel.kind !== "youtube" || identityFilter === "all" || (identityFilter === "review" ? channel.importNeedsReview : identityFilter === "verified" ? verifiedYoutubeSource(channel) : identityFilter === "pending" ? !channel.importNeedsReview && !verifiedYoutubeSource(channel) : !channel.importNeedsReview))
       .filter((channel) => !needle || `${creatorLabel(channel)} ${channel.handle}`.toLocaleLowerCase().includes(needle))
       .map((channel) => {
         const label = creatorLabel(channel);
@@ -139,7 +151,7 @@ function FollowManagerExpanded({ kind, initialSelectedId, sort, setSort, onColla
       return right.checkedAt - left.checkedAt || byName;
     });
     return rows.map((row) => row.channel);
-  }, [deferredQuery, feedbackRevision, follows, kind, provider, sort]);
+  }, [deferredQuery, feedbackRevision, follows, kind, provider, sort, identityFilter]);
 
   const selected = useMemo(() => selectedId ? filtered.find((channel) => channel.id === selectedId) ?? null : null, [filtered, selectedId]);
   const shown = filtered.slice(0, visible);
@@ -176,7 +188,7 @@ function FollowManagerExpanded({ kind, initialSelectedId, sort, setSort, onColla
       return true;
     }).sort((a, b) => creatorVideoSort === "title" ? a.name.localeCompare(b.name) : creatorVideoSort === "oldest" ? a.addedAt - b.addedAt : creatorVideoSort === "popular" ? (b.remote?.views ?? 0) - (a.remote?.views ?? 0) || b.addedAt - a.addedAt : b.addedAt - a.addedAt);
   }, [creatorVideoFilter, creatorVideoQuery, creatorVideoSort, favorites, selectedVideos, watchedVideoIds]);
-  const selectedPage = selected?.kind === "youtube" ? selected.channelId ? `https://www.youtube.com/channel/${encodeURIComponent(selected.channelId)}` : selected.handle.startsWith("http") ? selected.handle : `https://www.youtube.com/@${encodeURIComponent(selected.handle.replace(/^@/, ""))}` : selected ? `https://www.twitch.tv/${encodeURIComponent(selected.handle.replace(/^@/, ""))}` : "";
+  const selectedPage = selected?.kind === "youtube" ? selected.channelId ? `https://www.youtube.com/channel/${encodeURIComponent(selected.channelId)}` : selected.handle.startsWith("http") ? selected.handle : selected.handle.startsWith('@') ? `https://www.youtube.com/${encodeURI(selected.handle)}` : `https://www.youtube.com/results?search_query=${encodeURIComponent(selected.handle)}&sp=EgIQAg%3D%3D` : selected ? `https://www.twitch.tv/${encodeURIComponent(selected.handle.replace(/^@/, ""))}` : "";
   const selectedRating = selected ? getCreatorRating(selectedName) : 0;
   const selectedFavorite = selected ? creatorIsFavorited(selectedName) : false;
   const removalPlan = useMemo(() => reviewingRemoval
@@ -266,6 +278,7 @@ function FollowManagerExpanded({ kind, initialSelectedId, sort, setSort, onColla
           {!kind && <div className="flex flex-wrap gap-2" aria-label="Filter by service">
             {(["all", "youtube", "twitch"] as const).map((value) => <Button key={value} type="button" size="sm" variant={provider === value ? "default" : "secondary"} onClick={() => setProvider(value)}>{value === "all" ? "All services" : <><ProviderGlyph kind={value} />{value === "youtube" ? "YouTube" : "Twitch"}</>}</Button>)}
           </div>}
+          <select aria-label="Channel verification filter" value={identityFilter} onChange={event => setIdentityFilter(event.target.value)} className="h-11 max-w-full rounded-md border border-border bg-elevated px-3 text-sm text-fg"><option value="active">Active sources</option><option value="verified">Verified channels</option><option value="pending">Awaiting match</option><option value="review">Legacy import review</option><option value="all">All saved entries</option></select>
           <div className="flex flex-wrap gap-2" aria-label="Sort followed creators">
             {(["recent", "name", "favorite", "rating"] as const).map((value) => <Button key={value} type="button" size="sm" variant={sort === value ? "default" : "secondary"} onClick={() => setSort(value)}>{value === "recent" ? "Recently checked" : value === "name" ? "A–Z" : value === "favorite" ? "Favorites" : "Rating"}</Button>)}
           </div>
@@ -313,6 +326,7 @@ function FollowManagerExpanded({ kind, initialSelectedId, sort, setSort, onColla
           </div>
           <div className="mt-5 grid min-w-0 grid-cols-1 gap-3">
             <p className="break-words text-xs leading-5 text-muted">{selected.description || "No channel description supplied yet. Refresh this creator to look for a public profile description."}</p>
+            {selected.kind === 'youtube' && <div className="space-y-2 rounded-md border border-border bg-bg/40 p-3"><p className="text-xs text-muted">{selected.channelId ? `Verified channel ID: ${selected.channelId}` : 'This name has not been verified as a channel.'}</p>{selected.lastProviderFailure && <p className="break-words text-xs text-muted">{selected.lastProviderFailure.message}</p>}<Input aria-label="Correct YouTube channel URL or handle" placeholder="Correct channel URL or @handle" value={correctedLink} onChange={event => setCorrectedLink(event.target.value)} /><Button type="button" size="sm" disabled={remoteBusy || refreshing || correcting || !/^(?:@|https?:\/\/|UC[\w-]{22}$)/.test(correctedLink.trim())} onClick={() => void (async () => { setCorrecting(true); setCorrectionError(''); try { await followRemoteQuery(correctedLink.trim(), 'youtube', { correctFollowId: selected.id }); setCorrectedLink(''); } catch (error) { setCorrectionError(error instanceof Error ? error.message : 'Could not verify that channel.'); } finally { setCorrecting(false); } })()}>{correcting ? 'Verifying…' : 'Verify & correct channel'}</Button>{correctionError && <p role="alert" className="text-xs text-muted">{correctionError}</p>}</div>}
             <div className="grid grid-cols-3 gap-2 text-center text-xs"><div className="rounded-md bg-bg/55 p-2"><strong className="block text-lg text-fg">{selectedVideos.length}</strong>videos</div><div className="rounded-md bg-bg/55 p-2"><strong className="block text-lg text-fg">{selectedVideoStats.favorites}</strong>favorites</div><div className="rounded-md bg-bg/55 p-2"><strong className="block text-lg text-fg">{selectedVideoStats.watched}</strong>watched</div></div>
             <p className="text-xs text-muted">Latest saved upload · {selectedVideoStats.newest ? new Date(selectedVideoStats.newest).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" }) : "No saved uploads yet"}</p>
             <div className="flex flex-wrap gap-2"><Button size="sm" onClick={() => void pullCreators([selected.id])} disabled={refreshing || pullingSelection || selected.kind !== "youtube"}>{refreshing || pullingSelection ? "Pulling videos…" : "Pull creator videos"}</Button><Button size="sm" variant="secondary" onClick={() => setSource(selected.id)}>Open creator catalog</Button><a href={selectedPage} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center gap-1 rounded-md bg-bg/55 px-3 text-xs text-fg">Channel page <ExternalLink className="size-3" /></a></div>

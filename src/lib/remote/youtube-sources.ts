@@ -1,4 +1,5 @@
 import type { FollowedChannel, LibraryVideo } from "../videos/types";
+import { peekYoutubeCoverageOwner, youtubeCoverageCounts, youtubeCoverageIndex } from './youtube-coverage.ts';
 
 /** Provider IDs are case-sensitive. Titles and thumbnail URLs are never identity. */
 export function youtubeVideoKey(video: LibraryVideo): string | undefined {
@@ -21,9 +22,10 @@ export const peekYoutubeSourceIndex = (videos: LibraryVideo[]) => indexes.get(vi
  * catalog and the shelf indexed its YouTube slice. Never retain an old index. */
 export function peekYoutubeOwner(videos: LibraryVideo[], video: LibraryVideo): LibraryVideo[] {
   const index = indexes.get(videos) ?? latestIndex?.deref();
-  if (!index || video.remote?.kind !== 'youtube') return [];
+  if (video.remote?.kind !== 'youtube') return [];
+  if (!index) return peekYoutubeCoverageOwner(videos, video);
   const rows = index.byChannel.get(video.remote.channelId ?? '') ?? index.bySource.get(video.folderId) ?? [];
-  return rows.some(row => row === video) ? rows : [];
+  return rows.some(row => row === video) ? rows : peekYoutubeCoverageOwner(videos, video);
 }
 
 /** Shared by coverage, creator panels, scheduling and diagnostics. A repeated
@@ -67,8 +69,7 @@ export function youtubeVideosForSource(index: Index, source: Pick<FollowedChanne
 }
 
 export function youtubeSourceCounts(videos: LibraryVideo[], sources: Array<Pick<FollowedChannel, "id" | "channelId">>) {
-  const index = youtubeSourceIndex(videos);
-  return new Map(sources.map(source => [source.id, youtubeVideosForSource(index, source).length]));
+  return youtubeCoverageCounts(youtubeCoverageIndex(videos), sources);
 }
 
 /** One stored card, multiple source edges. Keep its primary folder stable so

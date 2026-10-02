@@ -16,22 +16,12 @@ import { cn } from "@/lib/utils";
 import { fetchTwitchFollowing } from "@/lib/remote/functions";
 import { useLibrary } from "@/lib/videos/store";
 import type { FollowKind } from "@/lib/videos/types";
+import { parseFollowImport, repairYoutubeImport, resolvedFollowQueries, youtubeFollowHealth } from '@/lib/videos/follow-import';
+import { canonicalFollowHandle } from '@/lib/videos/follow-identity';
 
 type ImportCandidate = { query: string; kind: "youtube" | "twitch" };
-/** Split pasted lists on newlines, commas, or whitespace (URLs never contain spaces). */
-function linesToCandidates(value: string, kind: FollowKind): ImportCandidate[] {
-  return [
-    ...new Set(
-      value
-        .split(/[\s,]+/)
-        // Lists copied from Markdown often escape underscores (\_) and may
-        // carry quote or trailing punctuation characters. Normalize those
-        // before deduplication so a large pasted Twitch list stays usable.
-        .map((line) => line.trim().replaceAll("\\_", "_").replace(/^["'([{<]+|["')\]}>.;:]+$/g, ""))
-        .filter(Boolean),
-    ),
-  ].map((query) => ({ query, kind }));
-}
+/** Preserve whole creator names while accepting URL and handle lists. */
+const linesToCandidates = parseFollowImport;
 
 export function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultKind?: FollowKind; lockedKind?: FollowKind }) {
   const followRemoteQuery = useLibrary((s) => s.followRemoteQuery);
@@ -55,13 +45,24 @@ export function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultK
     }
   }, [kind]);
   useEffect(() => { if (lockedKind) setKind(lockedKind); }, [lockedKind]);
-  useEffect(() => { try { setSavedLists(JSON.parse(localStorage.getItem(`reelcase.import-history.${kind}`) ?? "[]") as string[]); } catch { setSavedLists([]); } }, [kind]);
+  useEffect(() => { try {
+    const raw: unknown = JSON.parse(localStorage.getItem(`reelcase.import-history.${kind}`) ?? '[]');
+    const saved = Array.isArray(raw) ? raw.filter((value): value is string => typeof value === 'string') : [];
+    setSavedLists(kind === 'youtube' ? repairYoutubeImport(saved, localStorage.getItem(`reelcase.import-draft.${kind}`) ?? '').queries : saved);
+  } catch { setSavedLists([]); } }, [kind]);
   const candidates = useMemo(() => linesToCandidates(bulk, kind), [bulk, kind]);
   const networkFollows = follows.filter((follow) => follow.kind === kind);
+  const health = useMemo(() => youtubeFollowHealth(follows), [follows]);
+  const importPreview = useMemo(() => {
+    const resolved = resolvedFollowQueries(follows, kind);
+    const already = candidates.filter(item => resolved.has(canonicalFollowHandle(kind, item.query))).length;
+    const names = candidates.filter(item => !resolved.has(canonicalFollowHandle(kind, item.query)) && !/^(?:@|https?:\/\/|(?:www\.)?youtube\.com\/|UC[\w-]{22}$)/i.test(item.query)).length;
+    return { already, names };
+  }, [follows, kind, candidates]);
   const recommended = (
     kind === "twitch"
       ? ["Northernlion", "CohhCarnage", "LIRIK"]
-      : ["H3Podcast", "LinusTechTips", "MarquesBrownlee", "Kurzgesagt"]
+      : ["@H3Podcast", "@LinusTechTips", "@MarquesBrownlee", "@Kurzgesagt"]
   ).filter(
     (handle) =>
       !follows.some(
@@ -89,9 +90,11 @@ export function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultK
     const normalized = items.map((item) => ({ ...item, query: item.query.trim().replaceAll("\\_", "_") }));
     // Save the submitted list before requesting providers. A partial outage
     // must never make a pasted collection disappear.
-    const saved = [...new Set([...normalized.map((item) => item.query), ...savedLists])].slice(0, 1000);
-    localStorage.setItem(`reelcase.import-history.${kind}`, JSON.stringify(saved));
-    localStorage.setItem(`reelcase.import-draft.${kind}`, bulk);
+    const saved = [...new Set([...normalized.map((item) => item.query), ...savedLists])].slice(0, 10000);
+    try {
+      localStorage.setItem(`reelcase.import-history.${kind}`, JSON.stringify(saved));
+      localStorage.setItem(`reelcase.import-draft.${kind}`, bulk);
+    } catch { /* Durable follows and the session queue still recover at quota. */ }
     setSavedLists(saved);
     try {
       const result = await importBatch(normalized);
@@ -153,8 +156,8 @@ export function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultK
             </p>
           </div>
           <div className="flex shrink-0 gap-2">
-            <Metric label="Following" value={follows.length} />
-            <Metric label="This network" value={networkFollows.length} />
+            <Metric label={kind === 'youtube' ? 'YouTube verified' : 'Twitch follows'} value={kind === 'youtube' ? health.verified : networkFollows.length} />
+            <Metric label={kind === 'youtube' ? 'Awaiting match' : 'All networks'} value={kind === 'youtube' ? health.pending : follows.length} />
           </div>
         </div>
         {!lockedKind && <div
@@ -223,18 +226,18 @@ export function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultK
             <p className="mt-2 text-sm text-muted">
               {kind === "twitch"
                 ? "Paste a list of Twitch logins or channel URLs. You can also look up someone else's public follows below."
-                : "Paste one channel URL or @handle per line. This is the fastest way to move a saved subscription list into Realhub."}
+                : "Paste creator names, @handles, channel URLs, or a YouTube subscriptions CSV. Names with spaces stay together; quote names containing commas."}
             </p>
             <p className="mt-2 rounded-md bg-bg/45 px-3 py-2 text-xs leading-5 text-muted">
               {kind === "twitch"
                 ? "How to import: copy public channel links or logins from Twitch, paste them below (one per line, or comma-separated), then select Import list. Private Twitch follows are not exposed by the site, so Realhub cannot read them directly."
-                : "How to import: copy YouTube channel URLs or @handles from your subscriptions, paste them below (one per line, or comma-separated), then select Import list. Your pasted list stays saved locally for future refreshes."}
+                : "Names must match one exact public channel. Ambiguous names stay pending until you supply a URL or @handle. Import checks a small upload page first; archive pulls fill older videos later. Your list stays saved locally."}
             </p>
             <textarea
               value={bulk}
               onChange={(event) => {
                 setBulk(event.target.value);
-                localStorage.setItem(`reelcase.import-draft.${kind}`, event.target.value);
+                try { localStorage.setItem(`reelcase.import-draft.${kind}`, event.target.value); } catch { /* Keep the editable draft usable at quota. */ }
               }}
               className="mt-3 min-h-28 w-full resize-y rounded-md bg-elevated px-3 py-2.5 text-sm text-fg shadow-border outline-none transition-[box-shadow] duration-150 placeholder:text-subtle focus-visible:ring-2 focus-visible:ring-ring/50"
               placeholder={
@@ -249,8 +252,8 @@ export function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultK
             <div className="mt-2 flex items-center justify-between gap-3">
               <p className="text-xs text-subtle">
                 {candidates.length
-                  ? `${candidates.length} channels ready`
-                  : "Separate with spaces, commas, or new lines."}
+                  ? `${candidates.length.toLocaleString()} unique entries · ${importPreview.already.toLocaleString()} already verified${kind === 'youtube' ? ` · ${importPreview.names.toLocaleString()} names to match` : ''}`
+                  : kind === 'youtube' ? "Separate with commas or new lines. Spaces stay inside names." : "Separate with spaces, commas, or new lines."}
               </p>
               <Button
                 size="sm"
@@ -265,6 +268,7 @@ export function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultK
                 Import list
               </Button>
             </div>
+            {kind === 'youtube' && <p className="mt-3 text-xs leading-5 text-muted" aria-label="YouTube subscription health">{health.verified.toLocaleString()} verified sources · {health.pending.toLocaleString()} awaiting exact channel match · {health.review.toLocaleString()} legacy fragments held for review. Review entries keep their videos and are excluded from automatic pulls.</p>}
             {kind === "twitch" && (
               <div className="mt-4 border-t border-border pt-4">
                 <p className="text-sm text-muted">
@@ -327,7 +331,7 @@ export function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultK
           </div>
         </div>
       )}
-      {savedLists.length > 0 && <div className="border-t border-border px-5 py-4 sm:px-6"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Saved import list</p><p className="mt-1 text-xs text-muted">{savedLists.length} channel entries retained locally for this service. Realhub retries this list automatically at startup when the follow shelf is empty.</p><div className="mt-3 flex flex-wrap gap-2">{savedLists.slice(0, 12).map((handle) => <span key={handle} className="rounded-sm bg-elevated px-2 py-1 text-xs text-muted">{handle}</span>)}</div><Button className="mt-3" size="sm" variant="secondary" disabled={remoteBusy} onClick={() => void importItems(savedLists.map((query) => ({ query, kind })))}><ListPlus className="size-3.5" /> Load saved list now</Button></div>}
+      {savedLists.length > 0 && <div className="border-t border-border px-5 py-4 sm:px-6"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Saved import list</p><p className="mt-1 text-xs text-muted">{savedLists.length} channel entries retained locally for this service. Unverified entries resume in small batches; verified entries are skipped.</p><div className="mt-3 flex flex-wrap gap-2">{savedLists.slice(0, 12).map((handle) => <span key={handle} className="rounded-sm bg-elevated px-2 py-1 text-xs text-muted">{handle}</span>)}</div><Button className="mt-3" size="sm" variant="secondary" disabled={remoteBusy} onClick={() => void importItems(savedLists.map((query) => ({ query, kind })))}><ListPlus className="size-3.5" /> Load saved list now</Button></div>}
       <div className="flex flex-col gap-3 border-t border-border bg-elevated/30 px-5 py-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <p className="flex items-center gap-2 text-muted">
           <Check className="size-4 text-accent" /> Latest uploads and live streams appear

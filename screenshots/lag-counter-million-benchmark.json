@@ -1,0 +1,14 @@
+{
+  "entries": 1000000,
+  "coldCounterMs": 641.2,
+  "cached100CounterUpdatesMs": 0.12,
+  "cachedMetadataReads": 0,
+  "cachedTasks": 0,
+  "appendCounterMs": 80.7,
+  "appendMetadataReadsOnUnchangedCards": 0,
+  "appendBackgroundTasks": 1954,
+  "playbackLookups": 100,
+  "selectedIdReads": 100,
+  "lookup100MsIncludingArrayCopies": 1016.3,
+  "retainedStrongPreviousCatalogReferences": 0
+}

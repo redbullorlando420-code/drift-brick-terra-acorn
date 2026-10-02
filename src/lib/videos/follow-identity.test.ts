@@ -33,3 +33,10 @@ test("unique follow snapshots retain identity and incomplete handles do not coll
   const rows = [channel("yt:first", ""), channel("yt:second", "")];
   assert.equal(dedupeFollows(rows), rows);
 });
+test('channel IDs retain case and confirmed creators cannot collapse by display names', () => {
+  const one = 'UCAbCdEf1234567890123456', two = 'UCabcdef1234567890123456';
+  assert.notEqual(canonicalFollowHandle('youtube', one), canonicalFollowHandle('youtube', two));
+  const rows = [{...channel(`yt:${one}`, 'Shared'),channelId:one},{...channel(`yt:${two}`, 'Shared'),channelId:two}];
+  assert.equal(dedupeFollows(rows), rows);
+  assert.notEqual(canonicalFollowHandle('youtube','A B'),canonicalFollowHandle('youtube','AB'));
+});

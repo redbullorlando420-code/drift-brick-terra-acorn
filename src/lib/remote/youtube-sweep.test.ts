@@ -1,11 +1,25 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { LIBRARY_LIMITS } from "../library-limits.ts";
-import { selectYoutubeCoverageRecovery, selectYoutubeLiveChannels, selectYoutubeSweepChannels, youtubeSweepDue } from "./youtube-sweep.ts";
+import { selectYoutubeCoverageRecovery, selectYoutubeFeedChannels, selectYoutubeLiveChannels, selectYoutubeSweepChannels, youtubeSweepDue } from "./youtube-sweep.ts";
+
+test('RSS rotation skips unresolved and failing sources but continues during a catalog-only cooldown', () => {
+  const now = 1_000_000;
+  const channels = [
+    { id: 'yt:unknown', kind: 'youtube', lastCheckedAt: 0 },
+    { id: 'yt:cooling', kind: 'youtube', channelId: 'UCknown', lastCheckedAt: 1, lastProviderFailure: { kind: 'rate-limited', at: now, retryAt: now + 100_000, cooldownScope: 'catalog' } },
+    { id: 'yt:feed-blocked', kind: 'youtube', channelId: 'UCknown', lastCheckedAt: 0, lastProviderFailure: { kind: 'rate-limited', at: now, retryAt: now + 100_000, cooldownScope: 'feed' } },
+    { id: 'yt:missing', kind: 'youtube', channelId: 'UCknown', lastCheckedAt: 0, lastProviderFailure: { kind: 'unavailable', at: now } },
+    { id: 'yt:healthy', kind: 'youtube', channelId: 'UCknown', lastCheckedAt: 10 },
+  ];
+  assert.deepEqual(selectYoutubeFeedChannels(channels, new Map(), now, 4).map(row => row.id), ['yt:cooling', 'yt:healthy']);
+  channels[1].lastCheckedAt = now;
+  assert.equal(selectYoutubeFeedChannels(channels, new Map(), now, 1)[0].id, 'yt:healthy', 'failed checks and healthy checks both consume a durable turn');
+});
 
 test("automatic YouTube history stays bounded while manual pulls retain depth", () => {
   assert.equal(LIBRARY_LIMITS.youtubeCatalogSweepIntervalMs, 60 * 60_000);
-  assert.equal(LIBRARY_LIMITS.youtubeScheduledRefreshChannels, 1);
+  assert.equal(LIBRARY_LIMITS.youtubeScheduledRefreshChannels, 4);
   assert.equal(LIBRARY_LIMITS.youtubeScheduledVideosPerChannel, 100);
   assert.equal(LIBRARY_LIMITS.youtubeRecentRefreshChannels, 4);
   assert.equal(LIBRARY_LIMITS.youtubeLiveRefreshIntervalMs, 60_000);
@@ -13,6 +27,16 @@ test("automatic YouTube history stays bounded while manual pulls retain depth", 
   assert.equal(LIBRARY_LIMITS.youtubeManualRefreshVideosPerChannel, 100);
   assert.equal(LIBRARY_LIMITS.youtubeBulkImportVideosPerChannel, 100);
   assert.equal(LIBRARY_LIMITS.youtubeCatalogSourcesPerRequest, 1);
+});
+
+test('expired provider cooldowns release creators without adding a one-hour missing-source delay', () => {
+  const now = 1_000_000;
+  const source = { id: 'yt:confirmed', kind: 'youtube', channelId: 'UC1234567890123456789012', lastProviderFailure: { kind: 'rate-limited', at: now - 900_000, retryAt: now } };
+  assert.deepEqual(selectYoutubeSweepChannels([source], now - 1, 4, 7 * 86_400_000), []);
+  assert.deepEqual(selectYoutubeSweepChannels([source], now, 4, 7 * 86_400_000), [source]);
+  assert.deepEqual(selectYoutubeCoverageRecovery([source], new Map(), now, 2), [source]);
+  assert.deepEqual(selectYoutubeSweepChannels([{ ...source, lastProviderFailure: { kind: 'rate-limited', at: now - 300_000 } }], now, 4, 7 * 86_400_000).map(row => row.id), [source.id]);
+  assert.deepEqual(selectYoutubeSweepChannels([{ ...source, lastProviderFailure: { kind: 'unavailable', at: now - 900_000 } }], now, 4, 7 * 86_400_000), []);
 });
 
 test("archive sweeps remain due after reload and honor their interval", () => {
@@ -90,7 +114,7 @@ test("YouTube live checks keep confirmed live creators fresh while discovering o
 });
 
 test("empty creators precede deep archives", () => {
- const channels = [{id:"deep",kind:"youtube"},{id:"empty",kind:"youtube",catalogCheckedAt:900}];
+ const channels = [{id:"deep",kind:"youtube"},{id:"empty",kind:"youtube",channelId:'UCconfirmed',catalogCheckedAt:900}];
  assert.deepEqual(selectYoutubeSweepChannels(channels,1000,2,2000,{videoCounts:new Map([["deep",10000]])}).map(c=>c.id),["empty","deep"]);
 });
 
@@ -115,4 +139,16 @@ test("recent checks reserve bounded slots for empty creators and rotate failures
   const channels = [{id:"a",kind:"youtube",lastCheckedAt:100}, {id:"b",kind:"youtube",lastCheckedAt:50}, {id:"c",kind:"youtube",lastCheckedAt:1,lastProviderFailure:{at:now-100}}, {id:"full",kind:"youtube"}];
   assert.deepEqual(selectYoutubeCoverageRecovery(channels, new Map([["full",100]]), now, 2).map(row=>row.id), ["b","a"]);
   assert.equal(selectYoutubeCoverageRecovery(channels, new Map([["full",100]]), now, 1).length, 1);
+});
+test('confirmed creators receive archive turns while unresolved imports recover in a bounded lane', () => {
+  const channels: Array<{id:string;kind:string;channelId?:string;importNeedsReview?:boolean}> = [...Array.from({length:100},(_,i)=>({id:`yt:stub${i}`,kind:'youtube'})),...Array.from({length:100},(_,i)=>({id:`yt:real${i}`,kind:'youtube',channelId:`UC${i}`})),{id:'yt:fragment',kind:'youtube',importNeedsReview:true}];
+  const chosen = selectYoutubeSweepChannels(channels,1000,100,2000,{includeExhausted:true,videoCounts:new Map()});
+  assert.equal(chosen.filter(row=>row.channelId).length,87);
+  assert.equal(chosen.length,100);assert(!chosen.some(row=>row.importNeedsReview));
+  assert.equal(selectYoutubeSweepChannels(channels,1000,1,2000,{videoCounts:new Map()})[0].channelId,'UC0');
+});
+
+test('background live discovery does not spend its request budget resolving imported display names', () => {
+  const channels = [{ id: 'yt:unresolved', kind: 'youtube', title: 'Display Name' }, { id: 'yt:confirmed', kind: 'youtube', channelId: 'UCconfirmed' }];
+  assert.deepEqual(selectYoutubeLiveChannels(channels, 12, true).map(row => row.id), ['yt:confirmed']);
 });

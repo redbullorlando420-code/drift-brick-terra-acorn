@@ -1,0 +1,27 @@
+✔ focused pulls cap memory, metadata and disk together, preserving the rejected page resume point (236.9533ms)
+✔ bulk imports use one cap across creators and persist only admitted entries (169.2717ms)
+✔ routine checks refresh stored titles at a zero cap while excluding new rows from disk and metadata (216.2877ms)
+✔ settings changed while a provider is in flight apply before admission (108.7607ms)
+✔ Adult pulls apply a lowered in-flight cap before tags and append transactions (126.9399ms)
+✔ removed cached Reddit images and confirmed unavailable photos leave Adult shelves without deleting saves (1.5235ms)
+✔ a provider-wide cooldown stops the archive queue without marking unattempted creators failed (33.4659ms)
+✔ unresolved saved stubs do not prevent a real import from resolving them (27.1285ms)
+✔ Twitch status cannot replace the YouTube cooldown or archive result (1.3002ms)
+✔ manual completion returns its own counts even when another provider changes pull history (93.5722ms)
+✔ cooldown stops focused, import and live work while mixed checks still service Twitch (1.2836ms)
+✔ an import provider limit checkpoints the cooldown and leaves later batches unattempted (1.8385ms)
+✔ automatic provider detection still permits a focused Twitch URL during a YouTube cooldown (0.7339ms)
+✔ follow normalization retains import review flags and original query aliases over reload (1.7229ms)
+✔ full local storage does not erase the in-session durable follow queue (0.6692ms)
+✔ reload restores the latest provider deadline and expired deadlines allow new pulls (32.4133ms)
+✔ compact checkpoint survives reload and falls back to durable follows when storage is full (0.9197ms)
+✔ archive pages finish, expired tokens recover, and rate limits preserve accepted rows (50.3226ms)
+✔ display-name resolution requires a unique exact channel, without importing a recommendation (0.8078ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1340.8401

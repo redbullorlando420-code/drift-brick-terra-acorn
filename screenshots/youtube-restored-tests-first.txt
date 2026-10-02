@@ -1,0 +1,17 @@
+✔ archive pages finish, expired tokens recover, and rate limits preserve accepted rows (1857.3772ms)
+✔ display-name resolution requires a unique exact channel, without importing a recommendation (0.8237ms)
+✔ a healthy routine refresh reads RSS once and clears a stale creator failure (21.5624ms)
+✔ a live-only HTTP 429 does not stop a healthy creator archive (756.5513ms)
+✔ manual force crosses server guards, recovers from RSS 404, and continues the catalog (1056.5905ms)
+✔ a newly rejected forced catalog does not re-probe RSS and every following creator (511.2509ms)
+✔ a forced playlist retry resumes older public pages during the old cooldown (529.5744ms)
+✔ a healthy 3000-entry archive grows through small resumable responses without rereading RSS or losing pages (47.825ms)
+ℹ 3000 unique entries; largest response 510; 101 requests; one RSS read across six archive turns.
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3062.8133

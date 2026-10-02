@@ -7,7 +7,8 @@ import { cancelQueuedPulls, getPullQueueSnapshot, pullsPaused, setPullsPaused, s
 import { remoteEntryCounts, type EntryCounts } from '@/lib/videos/entry-limits';
 const entryFields = [['remoteMaxEntries', 'All remote entries', 'total'], ['youtubeMaxEntries', 'YouTube', 'youtube'], ['twitchMaxEntries', 'Twitch', 'twitch'], ['adultMaxEntries', 'Adults (including booru and live)', 'adult'], ['otherMaxEntries', 'Other remote providers', 'other']] as const;
 const fields: Array<[keyof PullSettings, string, number, number, number]> = [
-  ['requestGapMs', 'Minimum gap between catalog requests (ms)', 250, 60000, 250],
+  ['requestGapMs', 'Minimum gap between pull jobs (ms)', 250, 60000, 250],
+  ['youtubeRequestGapMs', 'YouTube gap between archive requests (ms)', 0, 60000, 10],
   ['concurrentRequests', 'Concurrent catalog requests', 1, 3, 1],
   ['youtubeBatchVideos', 'YouTube entries per creator batch (target)', 30, 500, 10],
   ['youtubeSourcesPerSweep', 'YouTube sources per archive sweep', 1, 1024, 1],
@@ -24,7 +25,7 @@ export function PullSettingsPanel() {
   return <section className="mt-6 rounded-xl border border-border bg-elevated p-5 shadow-border" aria-labelledby="pull-settings-title">
     <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Pull management</p>
     <h2 id="pull-settings-title" className="mt-2 font-display text-2xl text-fg">Control the pace of your catalog.</h2>
-    <p className="mt-2 max-w-3xl text-sm leading-6 text-muted">Larger pulls walk saved archive pages through small paced requests. Adult pulls default to 2,000 entries and can target up to 10,000. Provider availability and duplicate results can reduce the number of new entries.</p>
+    <p className="mt-2 max-w-3xl text-sm leading-6 text-muted">Larger pulls walk saved archive pages through small requests. YouTube page pacing is separate from the gap between pull jobs and defaults to 80ms. Set it to zero for no added wait between completed requests, or raise it when you want slower pulling. Adult pulls default to 2,000 entries and can target up to 10,000. Provider availability and duplicate results can reduce the number of new entries.</p>
     <div className="mt-4 flex flex-wrap items-center gap-2">
       <Button onClick={() => setPullsPaused(!paused)}>{paused ? 'Resume pulling' : 'Pause pulling'}</Button>
       <Button variant="secondary" disabled={!processing && !queue.active && !queue.waiting} onClick={cancelQueuedPulls}>Cancel current pull queue</Button>

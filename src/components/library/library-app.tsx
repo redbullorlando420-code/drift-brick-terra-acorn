@@ -1,9 +1,13 @@
 import { getPullSettings } from '@/lib/pull-settings';
+import { youtubeCooldownMessage } from '@/lib/remote/youtube-pull-feedback';
+import { nextRemoteRefresh } from '@/lib/remote/background-refresh';
 import { personalRankScore } from '@/lib/videos/ranking-core';
 import { RankingGuide } from './ranking-panel';
 import { catalogPullAvailable } from '@/lib/pull-control';
 import { topicsForVideo, isTopicTag } from '@/lib/videos/topics';
-import { youtubeSourceCounts as countYoutubeSources, youtubeSourceIndex, youtubeVideosForSource } from '@/lib/remote/youtube-sources';
+import { youtubeCatalogCoverage, youtubeCoverageCounts, youtubeCoverageIndexAsync, youtubeSourceNewest } from '@/lib/remote/youtube-coverage';
+import { useYoutubeCoverage } from './use-youtube-coverage';
+import { verifiedYoutubeSource } from '@/lib/videos/follow-import';
 import { lazy, startTransition, Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { ComponentType } from "react";
 import { toast, Toaster } from "sonner";
@@ -24,7 +28,7 @@ import { VideoGrid } from "./video-grid";
 import { VideoCard } from "./video-card";
 import { Billboard, PosterGrid, TitleRail } from "./browse";
 import { LIBRARY_LIMITS } from "@/lib/library-limits";
-import { selectYoutubeLiveChannels, selectYoutubeSweepChannels, youtubeSweepDue } from "@/lib/remote/youtube-sweep";
+import { selectYoutubeLiveChannels, selectYoutubeSweepChannels } from "@/lib/remote/youtube-sweep";
 import { Input } from "@/components/ui/input";
 import { ADULT_PULL_PROVIDERS, isAdultImageKind } from "@/lib/videos/adult-sites";
 import { ADULT_SOURCE_FILTERS, countAdultBySource, videoMatchesAdultSource, videoMatchesAdultTag } from "@/lib/videos/adult-filter";
@@ -130,6 +134,33 @@ const YOUTUBE_LIVE_KEY = "reelcase.youtube-live-check.v1";
 let youtubeLiveLastAttemptAt = 0;
 
 const pullProviderLabel: Record<PullProvider, string> = { youtube: "YouTube", twitch: "Twitch", adult: "Adult sources", photos: "Photo sources", multi: "Multiple sources" };
+
+// Only these small controls wake at the deadline. Avoid a ticking clock that
+// re-ranks and re-renders the entire large-library page.
+function useYoutubeCoolingDown(retryAt?: number) {
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    setNow(Date.now());
+    if (!retryAt || retryAt <= Date.now()) return;
+    const timer = setTimeout(() => setNow(Date.now()), Math.min(2_147_483_647, retryAt - Date.now() + 20));
+    return () => clearTimeout(timer);
+  }, [retryAt]);
+  return Boolean(retryAt && retryAt > now);
+}
+
+function YoutubeCatalogPullButton({ retryAt, busy, pulling, empty, onPull }: { retryAt?: number; busy: boolean; pulling: boolean; empty: boolean; onPull: () => void }) {
+  const cooling = useYoutubeCoolingDown(retryAt);
+  return <Button disabled={busy || pulling || empty} onClick={onPull}>{pulling ? "Pulling creator batch…" : busy ? "Another pull is running…" : cooling ? "Force pull now" : "Pull next creator batch"}</Button>;
+}
+
+function YoutubeProviderStatus({ retryAt, error }: { retryAt?: number; error?: string }) {
+  const cooling = useYoutubeCoolingDown(retryAt);
+  if (!cooling && !error) return null;
+  return <div role="status" className="border-t border-border px-5 py-3 text-sm leading-6 text-accent sm:px-7">
+    <p>{cooling ? youtubeCooldownMessage(retryAt!, error) : `Last provider result: ${error}`}</p>
+    {retryAt && <p className="text-xs text-muted">{cooling ? "Force pull now checks YouTube again immediately. A fresh provider rejection stops that batch. Recent upload feeds keep checking when available while archive pulls wait." : "The recommended wait has ended. Pull the next batch to check whether YouTube has recovered."}</p>}
+  </div>;
+}
 
 function YoutubeFirstClickStatus() {
   useSyncExternalStore(subscribeYoutubeTrace, getYoutubeTraceRevision, () => 0);
@@ -806,15 +837,9 @@ export function LibraryApp() {
   const resumeProgress = useBrowseLibrary((s) => s.resumeProgress);
   const unavailable = useBrowseLibrary((s) => s.unavailable);
   const follows = useBrowseLibrary((s) => s.follows);
-  const youtubeSourceCounts = useMemo(() => {
-    return countYoutubeSources(youtubeVideos, follows.filter(channel => channel.kind === "youtube"));
-  }, [youtubeVideos, follows]);
-  const youtubeIdentityHealth = useMemo(() => youtubeSourceIndex(youtubeVideos), [youtubeVideos]);
-  const youtubeCoverage = useMemo(() => {
-    const sources = follows.filter(channel => channel.kind === "youtube");
-    const missing = sources.filter(channel => !(youtubeSourceCounts.get(channel.id) ?? 0));
-    return { total: sources.length, ready: sources.length - missing.length, missing: missing.map(channel => channel.id) };
-  }, [follows, youtubeSourceCounts]);
+  const { index: youtubeIdentityHealth, updating: youtubeCoverageUpdating } = useYoutubeCoverage(sourceId === 'youtube' || sourceId === 'landing');
+  const youtubeSourceCounts = useMemo(() => youtubeCoverageCounts(youtubeIdentityHealth, follows.filter(channel => channel.kind === 'youtube')), [follows, youtubeIdentityHealth]);
+  const youtubeCoverage = useMemo(() => youtubeCatalogCoverage(youtubeIdentityHealth, follows), [follows, youtubeIdentityHealth]);
 
   const youtubePlaylistPools = useMemo(() => {
     if (sourceId !== "youtube") return [];
@@ -837,14 +862,10 @@ export function LibraryApp() {
   const youtubeLiveCheckedAt = useMemo(() => Math.max(0, ...follows.filter((channel) => channel.kind === "youtube").map((channel) => channel.liveCheckedAt ?? 0)), [follows]);
   const youtubeHealth = useMemo(() => {
     if (sourceId !== "youtube" || !youtubeHealthVisible) return [];
-    const index = youtubeSourceIndex(youtubeVideos);
-    return follows.filter((channel) => channel.kind === "youtube").map((channel) => {
-      const rows = youtubeVideosForSource(index, channel);
-      return { ...channel, cached: rows.length, newest: rows.reduce((latest, video) => Math.max(latest, video.addedAt), 0), retryAt: remoteRetryAt[channel.id] };
-    })
+    return follows.filter(verifiedYoutubeSource)
       .sort((a, b) => (a.lastCheckedAt ?? 0) - (b.lastCheckedAt ?? 0) || a.title.localeCompare(b.title))
-      .slice(0, youtubeHealthLimit);
-  }, [follows, remoteRetryAt, sourceId, youtubeHealthLimit, youtubeHealthVisible, youtubeVideos]);
+      .slice(0, youtubeHealthLimit).map(channel => ({ ...channel, cached: youtubeSourceCounts.get(channel.id) ?? 0, newest: youtubeSourceNewest(youtubeIdentityHealth, channel), retryAt: remoteRetryAt[channel.id] }));
+  }, [follows, remoteRetryAt, sourceId, youtubeHealthLimit, youtubeHealthVisible, youtubeSourceCounts, youtubeIdentityHealth]);
   const continueInsights = useMemo(() => {
     const marks = Object.values(progress);
     const staleBefore = Date.now() - 180 * 24 * 60 * 60_000;
@@ -1280,7 +1301,7 @@ export function LibraryApp() {
   }, [hydrated, setSource]);
 
   const refreshFollows = useBrowseLibrary((s) => s.refreshFollows);
-  const remoteRefreshStatus = useBrowseLibrary((s) => s.remoteRefreshStatus);
+  const remoteRefreshStatus = useBrowseLibrary((s) => sourceId === "youtube" ? s.youtubeRefreshStatus : s.remoteRefreshStatus);
   const followRemoteQuery = useBrowseLibrary((s) => s.followRemoteQuery);
   const pushNotice = useBrowseLibrary((s) => s.pushNotice);
   const [channelRefreshing, setChannelRefreshing] = useState("");
@@ -1315,31 +1336,39 @@ export function LibraryApp() {
 
   const refreshYoutubeCatalog = async (emptyOnly = false) => {
     const state = useLibrary.getState();
+    if (pullsPaused()) { toast.message("Pulls are paused. Select Resume pulls before starting a creator batch."); return; }
     if (state.refreshing || state.remoteBusy) {
       toast.message("Another catalog pull is still running.");
       return;
     }
-    const missingSources = emptyOnly ? new Set(youtubeCoverage.missing) : null;
-    const candidates = selectYoutubeSweepChannels(state.follows, Date.now(), getPullSettings().youtubeSourcesPerSweep, LIBRARY_LIMITS.youtubeCatalogRecheckExhaustedMs, { includeExhausted: true, includePlaylists: true }).filter(channel => !missingSources || missingSources.has(channel.id));
+    // Resolve against current saved rows at click time, rather than a shelf's
+    // previous visibility snapshot or a count still being computed.
+    const freshCoverage = emptyOnly ? youtubeCatalogCoverage(await youtubeCoverageIndexAsync(state.videos), useLibrary.getState().follows) : undefined;
+    const missingSources = freshCoverage ? new Set(freshCoverage.missing) : null;
+    const candidates = selectYoutubeSweepChannels(state.follows.filter(channel => !missingSources || missingSources.has(channel.id)), Date.now(), getPullSettings().youtubeSourcesPerSweep, LIBRARY_LIMITS.youtubeCatalogRecheckExhaustedMs, { includeExhausted: true, includePlaylists: true });
     if (!candidates.length) {
-      toast.message(emptyOnly ? "Every saved YouTube source has cached videos." : "Add a YouTube creator or public playlist to pull an archive.");
+      toast.message(emptyOnly ? "Remaining empty sources need a creator URL or @handle. Review them in creator controls." : "Add a YouTube creator or public playlist to pull an archive.");
       return;
     }
     setChannelRefreshing("youtube-refresh");
     try {
-      await refreshFollows("youtube", { catalog: true, ...(emptyOnly ? { channelIds: youtubeCoverage.missing } : {}) });
-      const status = useLibrary.getState().remoteRefreshStatus;
-      const added = useLibrary.getState().pullHistory[0]?.added ?? 0;
-      const checked = status?.checked ?? 0;
-      const failed = status?.failed ?? 0;
-      if (!checked || failed === checked) {
-        toast.error("YouTube did not return a channel catalog. Open Channel health for the provider result.");
+      const result = await refreshFollows("youtube", { catalog: true, force: true, ...(freshCoverage ? { channelIds: freshCoverage.missing } : {}) });
+      if (result.retryAt && result.retryAt > Date.now()) {
+        toast.message("YouTube rate limit", { description: `${result.pull?.added ? `${result.pull.added.toLocaleString()} new videos saved. ` : ""}${youtubeCooldownMessage(result.retryAt)}`, duration: 12_000, action: { label: "Pull health", onClick: () => setYoutubeHealthVisible(true) } });
         return;
       }
-      const received = useLibrary.getState().pullHistory[0]?.received ?? 0;
+      if (!result.pull) {
+        toast.message(result.skipped === 'busy' ? "Another catalog pull is still running." : "No eligible creators were checked. Review the saved sources in Manage creators.");
+        return;
+      }
+      const { added, done: checked, failed, received, errors } = result.pull;
+      if (result.pull.status === 'failed' || errors?.length && !received || checked > 0 && failed === checked) {
+        toast.error("YouTube pull stopped", { description: errors?.[0] ?? "The checked creators returned no public catalog. Review their provider results in Pull health.", duration: 12_000, action: { label: "Pull health", onClick: () => setYoutubeHealthVisible(true) } });
+        return;
+      }
       pushNotice({
         title: "YouTube refresh complete",
-        body: `${added.toLocaleString()} new videos added · ${received.toLocaleString()} returned from ${checked - failed} checked creator/playlist source${checked - failed === 1 ? "" : "s"}${failed ? ` · ${failed} unavailable` : ""}.`,
+        body: `${added.toLocaleString()} new videos added · ${received.toLocaleString()} returned · ${checked} creator/playlist source${checked === 1 ? "" : "s"} checked${failed ? ` · ${failed} unavailable` : ""}.`,
         kind: "youtube",
       });
     } catch (error) {
@@ -1350,115 +1379,63 @@ export function LibraryApp() {
   };
 
   useEffect(() => {
-    if (!hydrated || !follows.some((channel) => channel.kind === "twitch")) return;
-    let cancelled = false;
-    const tick = async () => {
-      if (!getPullSettings().automaticPulls || !catalogPullAvailable() || pullsPaused() || !allowAutomaticRefresh() || !navigator.onLine) return;
-      // Twitch live/VOD checks have their own lane. A YouTube archive update
-      // must not reset the live timer or absorb this request batch.
-      const now = Date.now();
-      if (now - twitchLastAttemptAt < remoteRefreshMs || useLibrary.getState().remoteBusy) return;
-      twitchLastAttemptAt = now;
-      const { wentLive, newVideos } = await refreshFollows("twitch", { backgroundLive: true });
-      if (cancelled) return;
-      const preferences = (() => { try { return JSON.parse(localStorage.getItem("reelcase.settings.v2") ?? "{}") as Record<string, boolean>; } catch { return {}; } })();
-      if (preferences["alerts-go-live-alerts"] === true) for (const ch of wentLive) {
-        pushNotice({
-          title: `${ch.title} is live`,
-          body: "Tap to watch in Realhub.",
-          kind: "twitch",
-          videoId: `tw:${ch.handle}:live`,
-        });
-      }
-      // Routine YouTube sweeps are deliberately quiet. The cache/status line
-      // records their outcome without turning a multi-channel refresh into a
-      // constant stream of notifications. Explicit Refresh now stays visible.
-      for (const v of newVideos.filter((video) => video.remote?.kind === "twitch" && preferences["alerts-new-twitch-vod-alerts"] === true).slice(0, 3)) pushNotice({ title: v.name, body: v.remote?.channelName ?? "New Twitch video", kind: "twitch", videoId: v.id });
+    if (!hydrated) return;
+    let cancelled = false, running = false;
+    const readTime = (key: string) => {
+      try { const value = Number(localStorage.getItem(key)); return Number.isFinite(value) ? value : 0; }
+      catch { return 0; }
     };
-    const id = window.setInterval(() => void tick(), remoteRefreshMs);
-    const first = window.setTimeout(() => void tick(), 1500);
-    const onVisibilityChange = () => { if (!document.hidden) void tick(); };
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => {
-      cancelled = true;
-      window.clearInterval(id);
-      window.clearTimeout(first);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-    };
-  }, [hydrated, follows.length, refreshFollows, pushNotice, remoteRefreshMs]);
-
-  useEffect(() => {
-    if (!hydrated || !follows.some((channel) => channel.kind === "youtube" && !channel.id.startsWith("ytpl:"))) return;
     const tick = async () => {
-      if (!getPullSettings().automaticPulls || !catalogPullAvailable() || pullsPaused() || !allowAutomaticRefresh() || !navigator.onLine) return;
+      if (cancelled || running || !getPullSettings().automaticPulls || !catalogPullAvailable() || !navigator.onLine) return;
       const state = useLibrary.getState();
       if (state.refreshing || state.remoteBusy) return;
-      const now = Date.now();
-      if (now - youtubeRecentLastAttemptAt < getPullSettings().youtubeIntervalSeconds * 1000) return;
-      youtubeRecentLastAttemptAt = now;
-      await refreshFollows("youtube");
-    };
-    const first = window.setTimeout(() => void tick(), 12_000);
-    const interval = window.setInterval(() => void tick(), 60_000);
-    const onVisible = () => { if (!document.hidden) void tick(); };
-    document.addEventListener("visibilitychange", onVisible);
-    return () => { window.clearTimeout(first); window.clearInterval(interval); document.removeEventListener("visibilitychange", onVisible); };
-  }, [hydrated, follows.length, refreshFollows]);
-
-  useEffect(() => {
-    if (!hydrated || !follows.some((channel) => channel.kind === "youtube")) return;
-    const tick = async () => {
-      if (!getPullSettings().automaticPulls || !catalogPullAvailable() || pullsPaused() || !allowAutomaticRefresh() || !navigator.onLine) return;
-      const state = useLibrary.getState();
-      if (state.refreshing || state.remoteBusy) return;
-      const now = Date.now();
-      const saved = (() => { try { return Number(localStorage.getItem(YOUTUBE_SWEEP_KEY)); } catch { return 0; } })();
+      const now = Date.now(), settings = getPullSettings();
+      const cooldown = state.youtubeRefreshStatus;
+      const blocked = (cooldown?.retryAt ?? 0) > now;
+      const allBlocked = blocked && cooldown?.cooldownScope !== 'catalog';
       let latestCatalogCheck = 0;
-      for (const channel of state.follows) if (channel.kind === "youtube") latestCatalogCheck = Math.max(latestCatalogCheck, channel.catalogCheckedAt ?? 0);
-      if (!youtubeSweepDue(Math.max(saved, youtubeSweepLastAttemptAt, latestCatalogCheck), now, getPullSettings().youtubeIntervalSeconds * 1000)) return;
-      if (!selectYoutubeSweepChannels(state.follows, now, 1, LIBRARY_LIMITS.youtubeCatalogRecheckExhaustedMs).length) return;
-      youtubeSweepLastAttemptAt = now;
-      try { localStorage.setItem(YOUTUBE_SWEEP_KEY, String(now)); } catch { /* In-memory pacing still applies. */ }
-      // Archive metadata is additive and quiet. Recent uploads continue to use
-      // the much lighter feed check above; this resumes older pages in chunks.
-      await refreshFollows("youtube", { catalog: true, scheduled: true });
+      for (const channel of state.follows) if (channel.kind === 'youtube') latestCatalogCheck = Math.max(latestCatalogCheck, channel.catalogCheckedAt ?? 0);
+      const catalogAt = Math.max(readTime(YOUTUBE_SWEEP_KEY), youtubeSweepLastAttemptAt, latestCatalogCheck);
+      const liveAt = Math.max(readTime(YOUTUBE_LIVE_KEY), youtubeLiveLastAttemptAt);
+      const archiveReady = !blocked && selectYoutubeSweepChannels(state.follows, now, 1, LIBRARY_LIMITS.youtubeCatalogRecheckExhaustedMs).length > 0;
+      const lane = nextRemoteRefresh([
+        { lane: 'youtube-archive', lastAttemptAt: catalogAt, intervalMs: settings.youtubeIntervalSeconds * 1000, eligible: archiveReady,
+          recovery: Boolean(archiveReady && cooldown?.retryAt && cooldown.retryAt <= now && youtubeSweepLastAttemptAt < cooldown.retryAt) },
+        { lane: 'twitch', lastAttemptAt: twitchLastAttemptAt, intervalMs: remoteRefreshMs, eligible: state.follows.some(channel => channel.kind === 'twitch') },
+        { lane: 'youtube-feed', lastAttemptAt: youtubeRecentLastAttemptAt, intervalMs: settings.youtubeIntervalSeconds * 1000, eligible: !allBlocked && state.follows.some(channel => channel.kind === 'youtube' && !channel.importNeedsReview && !channel.id.startsWith('ytpl:')) },
+        { lane: 'youtube-live', lastAttemptAt: liveAt, intervalMs: LIBRARY_LIMITS.youtubeLiveRefreshIntervalMs, eligible: !allBlocked && selectYoutubeLiveChannels(state.follows, 1, true).length > 0 },
+      ], now, allowAutomaticRefresh());
+      if (!lane) return;
+      running = true;
+      try {
+        const result = lane === 'youtube-archive' ? await refreshFollows('youtube', { catalog: true, scheduled: true })
+          : lane === 'youtube-feed' ? await refreshFollows('youtube')
+          : lane === 'youtube-live' ? await refreshFollows('youtube', { youtubeLiveOnly: true })
+          : await refreshFollows('twitch', { backgroundLive: true });
+        // Busy, paused and cooldown skips keep their place in the schedule.
+        if (!result.pull) return;
+        const finishedAt = Date.now();
+        if (lane === 'youtube-archive') {
+          youtubeSweepLastAttemptAt = finishedAt;
+          try { localStorage.setItem(YOUTUBE_SWEEP_KEY, String(finishedAt)); } catch { /* Session pacing remains. */ }
+        } else if (lane === 'youtube-feed') youtubeRecentLastAttemptAt = finishedAt;
+        else if (lane === 'youtube-live') {
+          youtubeLiveLastAttemptAt = finishedAt;
+          try { localStorage.setItem(YOUTUBE_LIVE_KEY, String(finishedAt)); } catch { /* Session pacing remains. */ }
+        } else twitchLastAttemptAt = finishedAt;
+        if (cancelled || lane !== 'twitch') return;
+        const preferences = (() => { try { return JSON.parse(localStorage.getItem('reelcase.settings.v2') ?? '{}') as Record<string, boolean>; } catch { return {}; } })();
+        if (preferences['alerts-go-live-alerts'] === true) for (const channel of result.wentLive) pushNotice({ title: `${channel.title} is live`, body: 'Tap to watch in Realhub.', kind: 'twitch', videoId: `tw:${channel.handle}:live` });
+        for (const video of result.newVideos.filter(video => video.remote?.kind === 'twitch' && preferences['alerts-new-twitch-vod-alerts'] === true).slice(0, 3)) pushNotice({ title: video.name, body: video.remote?.channelName ?? 'New Twitch video', kind: 'twitch', videoId: video.id });
+      } catch (error) { console.warn('Background refresh failed', error instanceof Error ? error.message : String(error)); }
+      finally { running = false; }
     };
-    const first = window.setTimeout(() => void tick(), 25_000);
-    const interval = window.setInterval(() => void tick(), 60_000);
-    const onVisible = () => { if (!document.hidden) void tick(); };
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      window.clearTimeout(first);
-      window.clearInterval(interval);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, [hydrated, follows.length, refreshFollows]);
-
-  useEffect(() => {
-    if (!hydrated || !follows.some((channel) => channel.kind === "youtube" && !channel.id.startsWith("ytpl:"))) return;
-    const tick = async () => {
-      if (!getPullSettings().automaticPulls || !catalogPullAvailable() || pullsPaused() || !allowAutomaticRefresh() || !navigator.onLine) return;
-      const state = useLibrary.getState();
-      if (state.remoteBusy) return;
-      const now = Date.now();
-      const stored = (() => { try { return Number(localStorage.getItem(YOUTUBE_LIVE_KEY)); } catch { return 0; } })();
-      const lastAttempt = Number.isFinite(stored) ? Math.max(stored, youtubeLiveLastAttemptAt) : youtubeLiveLastAttemptAt;
-      if (!youtubeSweepDue(lastAttempt, now, LIBRARY_LIMITS.youtubeLiveRefreshIntervalMs)) return;
-      if (!selectYoutubeLiveChannels(state.follows, 1).length) return;
-      youtubeLiveLastAttemptAt = now;
-      try { localStorage.setItem(YOUTUBE_LIVE_KEY, String(now)); } catch { /* In-memory pacing still applies. */ }
-      await refreshFollows("youtube", { youtubeLiveOnly: true });
-    };
-    const first = window.setTimeout(() => void tick(), 5_000);
+    const first = window.setTimeout(() => void tick(), 1500);
     const interval = window.setInterval(() => void tick(), 15_000);
     const onVisible = () => { if (!document.hidden) void tick(); };
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      window.clearTimeout(first);
-      window.clearInterval(interval);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, [hydrated, follows.length, refreshFollows]);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { cancelled = true; window.clearTimeout(first); window.clearInterval(interval); document.removeEventListener('visibilitychange', onVisible); };
+  }, [hydrated, follows.length, refreshFollows, pushNotice, remoteRefreshMs]);
 
   useAdultPulls();
 
@@ -1695,12 +1672,14 @@ export function LibraryApp() {
                   <section className="mb-7 overflow-hidden rounded-xl border border-border bg-surface shadow-border">
                     <div className="grid gap-6 bg-elevated/60 p-5 sm:p-7 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
                       <div><p className="text-xs font-medium tracking-[0.16em] text-accent uppercase">YouTube · your archive</p><h1 className="mt-2 font-display text-4xl tracking-tight text-fg sm:text-5xl">More of what you watch.</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-muted">Recommendations learn from watched creators, tag likes, ratings, and watch time. Archive pulls resume across creators fairly; older public uploads stay in each creator’s catalog.</p></div>
-                      <div className="flex flex-wrap gap-2"><Button disabled={refreshing || remoteBusy || channelRefreshing === "youtube-refresh" || !follows.some((channel) => channel.kind === "youtube")} onClick={() => void refreshYoutubeCatalog()}>{channelRefreshing === "youtube-refresh" ? "Pulling all sources…" : refreshing || remoteBusy ? "Pull in progress…" : "Pull next creator batch"}</Button><Button variant="secondary" onClick={() => setYoutubeHealthVisible((value) => !value)}>{youtubeHealthVisible ? "Hide pull health" : "Pull health"}</Button></div>
+                      <div className="flex flex-wrap gap-2"><YoutubeCatalogPullButton retryAt={remoteRefreshStatus?.retryAt} busy={refreshing || remoteBusy} pulling={channelRefreshing === "youtube-refresh"} empty={!follows.some(channel => channel.kind === "youtube")} onPull={() => void refreshYoutubeCatalog()} /><Button variant="secondary" onClick={() => setYoutubeHealthVisible((value) => !value)}>{youtubeHealthVisible ? "Hide pull health" : "Pull health"}</Button></div>
                     </div>
-                    <div className="grid grid-cols-2 divide-x divide-y divide-border border-t border-border sm:grid-cols-4 sm:divide-y-0"><div className="p-4 sm:px-5"><p className="text-xs text-muted">Following</p><p className="mt-1 font-display text-2xl tabular-nums text-fg">{follows.filter((channel) => channel.kind === "youtube").length.toLocaleString()}</p></div><div className="p-4 sm:px-5"><p className="text-xs text-muted">Cached videos</p><p className="mt-1 font-display text-2xl tabular-nums text-fg">{youtubeVideos.length.toLocaleString()}</p></div><div className="p-4 sm:px-5"><p className="text-xs text-muted">Creators you watched</p><p className="mt-1 font-display text-2xl tabular-nums text-fg">{watchedYoutubeCreators.size.toLocaleString()}</p></div><div className="p-4 sm:px-5"><p className="text-xs text-muted">Last YouTube live check</p><p className="mt-1 truncate text-sm font-medium text-fg">{youtubeLiveCheckedAt ? new Date(youtubeLiveCheckedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "Not checked yet"}</p></div></div>
-                    <div className="border-t border-border px-5 py-3 text-xs text-muted sm:px-7">Catalog requests are paced {getPullSettings().requestGapMs.toLocaleString()}ms apart with {getPullSettings().concurrentRequests} active at most. Each archive sweep covers up to {getPullSettings().youtubeSourcesPerSweep} saved sources, targeting {getPullSettings().youtubeBatchVideos} videos per creator or playlist. YouTube finishes complete pages so the next cursor never skips remaining entries. Automatic sweeps wait {getPullSettings().youtubeIntervalSeconds} seconds between passes, and {getPullSettings().pauseWhileWatching ? "hold while a preview or player is open" : "can run during playback"}. Repeat pulls resume older pages. Change these limits in Settings. {remoteRefreshStatus ? `Last archive/feed refresh checked ${remoteRefreshStatus.refreshed}/${remoteRefreshStatus.checked} sources · ${remoteRefreshStatus.youtube.toLocaleString()} videos returned · ${remoteRefreshStatus.failed} failed.` : "Select specific creators below to target their archive."}</div>
-                    <div className="flex flex-wrap items-center gap-3 border-t border-border px-5 py-3 text-sm sm:px-7"><span className="text-muted">{youtubeCoverage.ready.toLocaleString()} / {youtubeCoverage.total.toLocaleString()} saved sources have videos{youtubeCoverage.missing.length ? ` · ${youtubeCoverage.missing.length.toLocaleString()} still empty` : ""}.</span>{youtubeCoverage.missing.length > 0 && <Button size="sm" variant="secondary" disabled={refreshing || remoteBusy} onClick={() => void refreshYoutubeCatalog(true)}>Fill empty sources</Button>}<span className="text-xs text-muted" aria-label="YouTube duplicate check">{youtubeIdentityHealth.distinctVideos.toLocaleString()} distinct video IDs · {youtubeIdentityHealth.duplicateRows.toLocaleString()} duplicate cached rows. Creator and playlist memberships share one video record.</span></div>{youtubeHealthVisible && <YoutubeFirstClickStatus />}
-                    {youtubeHealthVisible && <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{youtubeHealth.map((channel) => <article key={channel.id} className="rounded-sm bg-bg/45 p-3"><p className="truncate text-sm font-medium text-fg">{channel.title}</p><p className="mt-1 text-xs text-muted">{channel.cached.toLocaleString()} cached · last result {channel.lastResponseCount ?? 0} rows</p><p className="mt-1 text-xs text-muted">{channel.newest ? `Newest ${new Date(channel.newest).toLocaleDateString()}` : "No published item cached"} · {channel.lastCheckedAt ? `checked ${new Date(channel.lastCheckedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "not checked yet"}</p><p className="mt-1 text-xs text-muted">{channel.catalogCursor ? "Archive paging in progress" : channel.catalogExhaustedAt ? "Public archive reached" : "Archive sweep not started"} · {channel.lastProviderFailure ? `${channel.lastProviderFailure.kind.replaceAll("-", " ")} · ${channel.lastProviderFailure.recovery}` : channel.retryAt && channel.retryAt > Date.now() ? `Retry ${new Date(channel.retryAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Provider ready"}</p><p className="mt-1 text-xs text-muted">{channel.cache ? `${channel.cache.scope === "catalog" ? "Catalog cache" : channel.cache.scope === "feed" ? "Feed cache" : "Not retained"} · ${Math.max(0, Math.floor((Date.now() - channel.cache.at) / 1_000))}s old · ${Math.round(channel.cache.hits / Math.max(1, channel.cache.hits + channel.cache.misses) * 100)}% hit rate` : "Cache telemetry appears after the first refresh"}</p>{channel.lastProviderFailure && channel.retryAt && channel.retryAt > Date.now() && <p className="mt-1 text-xs text-accent">Retry {new Date(channel.retryAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}</p>}</article>)}</div>}
+                    <div className="grid grid-cols-2 divide-x divide-y divide-border border-t border-border sm:grid-cols-4 sm:divide-y-0"><div className="p-4 sm:px-5"><p className="text-xs text-muted">Verified sources</p><p className="mt-1 font-display text-2xl tabular-nums text-fg">{youtubeCoverage.verified.toLocaleString()}</p></div><div className="p-4 sm:px-5"><p className="text-xs text-muted">Cached videos</p><p className="mt-1 font-display text-2xl tabular-nums text-fg">{youtubeCoverageUpdating ? "Updating…" : youtubeIdentityHealth.distinctVideos.toLocaleString()}</p></div><div className="p-4 sm:px-5"><p className="text-xs text-muted">Creators you watched</p><p className="mt-1 font-display text-2xl tabular-nums text-fg">{watchedYoutubeCreators.size.toLocaleString()}</p></div><div className="p-4 sm:px-5"><p className="text-xs text-muted">Last YouTube live check</p><p className="mt-1 truncate text-sm font-medium text-fg">{youtubeLiveCheckedAt ? new Date(youtubeLiveCheckedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "Not checked yet"}</p></div></div>
+                    <div className="border-t border-border px-5 py-3 text-xs text-muted sm:px-7">Pull jobs start at least {getPullSettings().requestGapMs.toLocaleString()}ms apart. YouTube archive requests have a separate {getPullSettings().youtubeRequestGapMs.toLocaleString()}ms gap and run one at a time. Live checks run separately from archive pulls. Each archive sweep covers up to {getPullSettings().youtubeSourcesPerSweep} saved sources, targeting {getPullSettings().youtubeBatchVideos} videos per creator or playlist ({(getPullSettings().youtubeSourcesPerSweep * getPullSettings().youtubeBatchVideos).toLocaleString()} entries across the batch, before duplicates and provider availability). YouTube finishes complete pages so the next cursor never skips remaining entries. Automatic archive turns check up to four creators in small responses while this page is visible, including when idle. They wait {getPullSettings().youtubeIntervalSeconds} seconds between passes, and {getPullSettings().pauseWhileWatching ? "hold while a preview or player is open" : "can run during playback"}. Repeat pulls resume older pages without rereading the recent RSS window. Change these limits in Settings. {remoteRefreshStatus?.checked ? `Last archive/feed refresh checked ${remoteRefreshStatus.checked} sources · ${remoteRefreshStatus.refreshed} succeeded · ${remoteRefreshStatus.youtube.toLocaleString()} videos returned · ${remoteRefreshStatus.failed} failed.` : "Select specific creators below to target their archive."}</div>
+                    <div className="border-t border-border px-5 py-3 text-sm text-muted sm:px-7" aria-label="YouTube catalog capacity" aria-busy={youtubeCoverageUpdating}>{youtubeCoverageUpdating ? "Updating saved entry count…" : `${youtubeIdentityHealth.distinctVideos.toLocaleString()} / ${getPullSettings().youtubeMaxEntries.toLocaleString()} YouTube entry limit · ${Math.max(0, getPullSettings().youtubeMaxEntries - youtubeIdentityHealth.distinctVideos).toLocaleString()} slots remaining.`} {youtubeCoverage.verified.toLocaleString()} verified sources · {youtubeCoverage.pending.toLocaleString()} awaiting exact channel match · {youtubeCoverage.review.toLocaleString()} legacy fragments held for review.</div>
+                    <YoutubeProviderStatus retryAt={remoteRefreshStatus?.retryAt} error={remoteRefreshStatus?.error} />
+                    <div className="flex flex-wrap items-center gap-3 border-t border-border px-5 py-3 text-sm sm:px-7"><span className="text-muted" aria-label="YouTube source coverage" aria-live="polite" aria-busy={youtubeCoverageUpdating}>{youtubeCoverageUpdating ? "Updating saved catalog coverage…" : `${youtubeCoverage.ready.toLocaleString()} / ${youtubeCoverage.total.toLocaleString()} verified sources have saved uploads${youtubeCoverage.missing.length ? ` · ${youtubeCoverage.missing.length.toLocaleString()} have no cached uploads` : ""}. Hidden videos still count toward coverage.`}</span>{youtubeCoverage.missing.length > 0 && <Button size="sm" variant="secondary" disabled={refreshing || remoteBusy || youtubeCoverageUpdating} onClick={() => void refreshYoutubeCatalog(true)}>Fill empty sources</Button>}<span className="text-xs text-muted" aria-label="YouTube duplicate check" aria-busy={youtubeCoverageUpdating}>{youtubeCoverageUpdating ? "Checking saved video IDs…" : `${youtubeIdentityHealth.distinctVideos.toLocaleString()} distinct video IDs · ${youtubeIdentityHealth.duplicateRows.toLocaleString()} duplicate cached rows.`} Creator and playlist memberships share one video record.</span></div>{youtubeHealthVisible && <YoutubeFirstClickStatus />}
+                    {youtubeHealthVisible && <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{youtubeHealth.map((channel) => <article key={channel.id} className="rounded-sm bg-bg/45 p-3"><p className="truncate text-sm font-medium text-fg">{channel.title}</p><p className="mt-1 text-xs text-muted">{channel.cached.toLocaleString()} cached · last result {channel.lastResponseCount ?? 0} rows</p><p className="mt-1 text-xs text-muted">{channel.newest ? `Newest ${new Date(channel.newest).toLocaleDateString()}` : "No published item cached"} · {channel.lastCheckedAt ? `checked ${new Date(channel.lastCheckedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "not checked yet"}</p><p className="mt-1 text-xs text-muted">{channel.catalogCursor ? "Archive paging in progress" : channel.catalogExhaustedAt ? "Public archive reached" : "Archive sweep not started"} · {channel.lastProviderFailure ? `${channel.lastProviderFailure.message} · ${channel.lastProviderFailure.recovery}` : channel.retryAt && channel.retryAt > Date.now() ? `Retry ${new Date(channel.retryAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Provider ready"}</p><p className="mt-1 text-xs text-muted">{channel.cache ? `${channel.cache.scope === "catalog" ? "Catalog cache" : channel.cache.scope === "feed" ? "Feed cache" : "Not retained"} · ${Math.max(0, Math.floor((Date.now() - channel.cache.at) / 1_000))}s old · ${Math.round(channel.cache.hits / Math.max(1, channel.cache.hits + channel.cache.misses) * 100)}% hit rate` : "Cache telemetry appears after the first refresh"}</p>{channel.lastProviderFailure && channel.retryAt && channel.retryAt > Date.now() && <p className="mt-1 text-xs text-accent">Retry {new Date(channel.retryAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}</p>}</article>)}</div>}
                   </section>
                   <FollowManager kind="youtube" />
                   <RankingGuide desk="YouTube" />
@@ -1791,7 +1770,7 @@ export function LibraryApp() {
                   <TitleRail title={`Clips to explore · ${twitchClipTotal.toLocaleString()} cached`} videos={twitchClips} variant="rail" />
                   {channelTagShelves.twitch.map((shelf) => <TitleRail key={`twitch-tag-${shelf.tag}`} title={`Twitch · ${shelf.tag}`} videos={shelf.videos} variant="rail" />)}
                   </>}
-                  <details className="mb-5 rounded-lg border border-border bg-surface p-4 shadow-border"><summary className="cursor-pointer list-none"><div className="flex items-center justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Archive coverage</p><p className="mt-1 text-sm text-muted">{twitchArchiveDepth.total.toLocaleString()} cached VODs across {twitchArchiveDepth.channels.length} channels · expand to review and queue deep pulls.</p></div><span className="text-xs text-accent">Expand</span></div></summary><div className="mt-4 flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Archive coverage</p><p className="mt-1 text-sm text-fg">{twitchArchiveDepth.total.toLocaleString()} cached VODs across {twitchArchiveDepth.channels.length} channels · {twitchArchiveDepth.sparse} sparse channel{twitchArchiveDepth.sparse === 1 ? "" : "s"} under 24 VODs.</p><p className="mt-1 text-xs text-muted">Background checks use a fast recent-VOD window. Focused pulls run serially through the queued creators, so live-state checks retain their budget. Partial responses preserve the existing archive.</p></div><div className="flex flex-wrap gap-2"><Button size="sm" variant="secondary" disabled={channelRefreshing === "twitch-archives"} onClick={() => void (async () => { setChannelRefreshing("twitch-archives"); try { await refreshFollows(); } finally { setChannelRefreshing(""); } })()}>{channelRefreshing === "twitch-archives" ? "Refreshing archives…" : "Refresh Twitch archives"}</Button><Button size="sm" variant="secondary" disabled={Boolean(channelRefreshing) || archiveQueued.length > 0} onClick={queueAllArchivePulls}>Queue all deep pulls</Button></div></div>{archiveQueued.length > 0 && <p className="mt-3 rounded-sm bg-bg/45 px-3 py-2 text-xs text-accent">Focused archive queue · {archiveQueued.length} waiting. Realhub continues creator-by-creator toward the oldest public VOD available; it retains every accepted page.</p>}<div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{twitchArchiveDepth.channels.map((channel) => <div key={channel.id} className="rounded-sm bg-bg/45 p-3"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-sm font-medium text-fg">{channel.name}</p><p className="mt-1 text-xs text-muted">{channel.count.toLocaleString()} cached VODs · {channel.clips} confirmed clip{channel.clips === 1 ? "" : "s"} · last result {channel.lastResponseCount ?? 0} rows</p><p className="mt-1 text-xs text-muted">{channel.oldest ? `${new Date(channel.oldest).toLocaleDateString()} – ${new Date(channel.newest).toLocaleDateString()}` : "No archive dates yet"} · public depth may be limited</p><p className="mt-1 text-xs text-muted">{channel.lastProviderFailure ? `${channel.lastProviderFailure.kind.replaceAll("-", " ")} · ${channel.lastProviderFailure.recovery}` : channel.lastCheckedAt ? `Checked ${new Date(channel.lastCheckedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "Not checked yet"}</p>{channel.retryAt && channel.retryAt > Date.now() && <p className="mt-1 text-xs text-accent">Cooldown until {new Date(channel.retryAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}</p>}</div><Button size="sm" variant="secondary" disabled={channelRefreshing === channel.id || archiveQueued.includes(channel.id)} onClick={() => queueArchivePull(channel.id, channel.id.replace(/^tw:/, ""))}>{channelRefreshing === channel.id ? "Pulling…" : archiveQueued.includes(channel.id) ? "Queued" : "Queue deep pull"}</Button></div></div>)}</div></details>
+                  <details className="mb-5 rounded-lg border border-border bg-surface p-4 shadow-border"><summary className="cursor-pointer list-none"><div className="flex items-center justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Archive coverage</p><p className="mt-1 text-sm text-muted">{twitchArchiveDepth.total.toLocaleString()} cached VODs across {twitchArchiveDepth.channels.length} channels · expand to review and queue deep pulls.</p></div><span className="text-xs text-accent">Expand</span></div></summary><div className="mt-4 flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Archive coverage</p><p className="mt-1 text-sm text-fg">{twitchArchiveDepth.total.toLocaleString()} cached VODs across {twitchArchiveDepth.channels.length} channels · {twitchArchiveDepth.sparse} sparse channel{twitchArchiveDepth.sparse === 1 ? "" : "s"} under 24 VODs.</p><p className="mt-1 text-xs text-muted">Background checks use a fast recent-VOD window. Focused pulls run serially through the queued creators, so live-state checks retain their budget. Partial responses preserve the existing archive.</p></div><div className="flex flex-wrap gap-2"><Button size="sm" variant="secondary" disabled={channelRefreshing === "twitch-archives"} onClick={() => void (async () => { setChannelRefreshing("twitch-archives"); try { await refreshFollows(); } finally { setChannelRefreshing(""); } })()}>{channelRefreshing === "twitch-archives" ? "Refreshing archives…" : "Refresh Twitch archives"}</Button><Button size="sm" variant="secondary" disabled={Boolean(channelRefreshing) || archiveQueued.length > 0} onClick={queueAllArchivePulls}>Queue all deep pulls</Button></div></div>{archiveQueued.length > 0 && <p className="mt-3 rounded-sm bg-bg/45 px-3 py-2 text-xs text-accent">Focused archive queue · {archiveQueued.length} waiting. Realhub continues creator-by-creator toward the oldest public VOD available; it retains every accepted page.</p>}<div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{twitchArchiveDepth.channels.map((channel) => <div key={channel.id} className="rounded-sm bg-bg/45 p-3"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-sm font-medium text-fg">{channel.name}</p><p className="mt-1 text-xs text-muted">{channel.count.toLocaleString()} cached VODs · {channel.clips} confirmed clip{channel.clips === 1 ? "" : "s"} · last result {channel.lastResponseCount ?? 0} rows</p><p className="mt-1 text-xs text-muted">{channel.oldest ? `${new Date(channel.oldest).toLocaleDateString()} – ${new Date(channel.newest).toLocaleDateString()}` : "No archive dates yet"} · public depth may be limited</p><p className="mt-1 text-xs text-muted">{channel.lastProviderFailure ? `${channel.lastProviderFailure.message} · ${channel.lastProviderFailure.recovery}` : channel.lastCheckedAt ? `Checked ${new Date(channel.lastCheckedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "Not checked yet"}</p>{channel.retryAt && channel.retryAt > Date.now() && <p className="mt-1 text-xs text-accent">Cooldown until {new Date(channel.retryAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}</p>}</div><Button size="sm" variant="secondary" disabled={channelRefreshing === channel.id || archiveQueued.includes(channel.id)} onClick={() => queueArchivePull(channel.id, channel.id.replace(/^tw:/, ""))}>{channelRefreshing === channel.id ? "Pulling…" : archiveQueued.includes(channel.id) ? "Queued" : "Queue deep pull"}</Button></div></div>)}</div></details>
                   <PosterGrid videos={sortedTwitch.filter((video) => (twitchFilter === "all" || (twitchFilter === "favorites" ? favorites[video.id] : likes[video.id])) && (twitchTagFilter === "all" || topicsForVideo(video, tags[video.id]).includes(twitchTagFilter)))} />
                   {!twitchVideos.length && (
                     <p className="text-sm text-muted">Add a channel from the follow manager below to fill this shelf.</p>

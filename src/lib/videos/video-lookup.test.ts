@@ -31,3 +31,18 @@ test("bounded lookup eviction retains every card in the current batched request"
   for (let index = 0; index < 128; index++) lookupVideo(videos, String(index));
   assert.deepEqual(lookupVideos(videos, ["0", "128", "139", "missing"]), [videos[0], videos[128], videos[139], undefined]);
 });
+test('position hints keep playback lookup bounded across provider merges and validate moved or changed rows', () => {
+  let reads = 0;
+  const rows = Array.from({ length: 100_000 }, (_, i) => ({ get id() { reads++; return `position:${i}`; } } as LibraryVideo));
+  const id = 'position:99999';
+  assert.equal(lookupVideo(rows, id), rows[99999]);
+  const coldReads = reads;
+  for (let i = 0; i < 50; i++) assert.equal(lookupVideo([...rows, { id: `new:${i}` } as LibraryVideo], id), rows[99999]);
+  assert.ok(reads - coldReads <= 50, 'new catalog snapshots inspect one position, not the full 100k prefix');
+  const replacement = { id, name: 'Refreshed' } as LibraryVideo;
+  const changed = [...rows]; changed[99999] = replacement;
+  assert.equal(lookupVideo(changed, id), replacement);
+  const moved = [replacement, ...rows.slice(0, 99999)];
+  assert.equal(lookupVideo(moved, id), replacement);
+  assert.equal(lookupVideo(rows.slice(0, 500), id), undefined);
+});

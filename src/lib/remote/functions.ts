@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { runPausablePull } from "@/lib/pull-control";
+import { getPullSettings } from '@/lib/pull-settings';
 import {
   runFetchAdultComments,
   runFetchTwitchFollowing,
@@ -56,9 +57,10 @@ export const youtubeCreatorProfiles = createServerFn({ method: "POST" })
   .handler(({ data }) => runYoutubeCreatorProfiles(data));
 
 export type { AdultComment } from "./api";
-export const followRemote = (...args: Parameters<typeof followRemoteRequest>) => runPausablePull(signal => followRemoteRequest({ ...args[0], signal }));
-export const refreshRemotes = (...args: Parameters<typeof refreshRemotesRequest>) => runPausablePull(signal => refreshRemotesRequest({ ...args[0], signal }));
-export const importChannels = (...args: Parameters<typeof importChannelsRequest>) => runPausablePull(signal => importChannelsRequest({ ...args[0], signal }));
+const pacedData = (data: unknown) => ({ ...(data && typeof data === 'object' ? data : {}), youtubeRequestGapMs: getPullSettings().youtubeRequestGapMs });
+export const followRemote = (...args: Parameters<typeof followRemoteRequest>) => runPausablePull(signal => followRemoteRequest({ ...args[0], data: pacedData(args[0]?.data), signal }));
+export const refreshRemotes = (...args: Parameters<typeof refreshRemotesRequest>) => runPausablePull(signal => refreshRemotesRequest({ ...args[0], data: pacedData(args[0]?.data), signal }));
+export const importChannels = (...args: Parameters<typeof importChannelsRequest>) => runPausablePull(signal => importChannelsRequest({ ...args[0], data: pacedData(args[0]?.data), signal }));
 export const searchAdultVideos = (...args: Parameters<typeof searchAdultVideosRequest>) => runPausablePull(signal => searchAdultVideosRequest({ ...args[0], signal }));
 
 /** Selected-photo validation must continue while bulk pulling is paused. */

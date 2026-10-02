@@ -141,6 +141,8 @@ export type ProviderFailure = {
   message: string;
   recovery: string;
   at: number;
+  retryAt?: number;
+  cooldownScope?: 'catalog' | 'page' | 'feed' | 'live' | 'details' | 'all';
 };
 
 export type RemoteRef = {
@@ -190,6 +192,9 @@ export type FollowedChannel = {
   channelId?: string;
   thumb?: string;
   description?: string;
+  /** An unresolved word created by the legacy whitespace importer. */
+  importNeedsReview?: boolean;
+  importQuery?: string;
   live?: boolean;
   /** Freshness ledger for provider scheduling and a truthful last-check UI. */
   lastCheckedAt?: number;
@@ -213,6 +218,8 @@ export type FollowedChannel = {
   };
   /** Last failed public refresh. Successful checks explicitly clear this. */
   lastProviderFailure?: ProviderFailure;
+  /** Live checks have separate failures from upload/feed catalog checks. */
+  lastLiveFailure?: ProviderFailure;
 };
 
 export type AppNotice = {

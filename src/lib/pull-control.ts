@@ -45,6 +45,7 @@ export function catalogPullAvailable() {
     && (typeof document === 'undefined' || !document.hidden) && getInteractionPriorityDelay() === 0;
 }
 const scheduler = createPullScheduler(() => ({ concurrency: getPullSettings().concurrentRequests, gapMs: getPullSettings().requestGapMs }), catalogPullAvailable, 8, {
+  requestTimeoutMs: () => Math.max(90_000, getPullSettings().requestGapMs * 12 + 30_000, getPullSettings().youtubeRequestGapMs * 4 + 90_000),
   availabilityDelay: () => !pullsPaused() && !(getPullSettings().pauseWhileWatching && viewing) && (typeof document === 'undefined' || !document.hidden) ? getInteractionPriorityDelay() : Infinity,
 });
 const stopControl = control.subscribe(gateChanged);

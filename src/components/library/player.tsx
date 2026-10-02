@@ -38,7 +38,8 @@ import { AdultImageLightbox } from "@/components/library/adult-image-lightbox";
 import { adultRemoteLabel, isAdultImageKind, isAdultPullKind } from "@/lib/videos/adult-sites";
 import { requestAdultOfflineSave } from "@/lib/videos/adult-offline-save";
 import { toast } from "sonner";
-import { isAdultVideo, useLibrary } from "@/lib/videos/store";
+import { useLibrary } from "@/lib/videos/store";
+import { adultFolderIds } from "@/lib/videos/adult-providers";
 import { useThumbs } from "@/lib/videos/thumbs";
 import { resolvePlayUrl } from "@/lib/videos/sources";
 import { twitchEmbedUrl } from "@/lib/videos/twitch-embed";
@@ -78,7 +79,7 @@ export function Player({ playlist }: { playlist: string[] }) {
   const liked = useLibrary((s) => (s.activeId ? Boolean(s.likes[s.activeId]) : false));
   const cameCount = useLibrary((s) => (s.activeId ? (s.cameCounts[s.activeId] ?? 0) : 0));
   const markCame = useLibrary((s) => s.markCame);
-  const folders = useLibrary((s) => s.folders);
+  const privateFolders = useLibrary((s) => adultFolderIds(s.folders));
   const tags = useLibrary((s) => (s.activeId ? (s.tags[s.activeId] ?? EMPTY_TAGS) : EMPTY_TAGS));
   const category = useLibrary((s) => (s.activeId ? (s.categories[s.activeId] ?? "") : ""));
   const saved = useLibrary((s) => (s.activeId ? s.progress[s.activeId] : undefined));
@@ -578,7 +579,7 @@ export function Player({ playlist }: { playlist: string[] }) {
           >
             <ThumbsUp className={cn("size-4", liked && "fill-accent text-accent")} />
           </Button>
-          {isAdultVideo(video, folders) && (
+          {privateFolders.has(video.folderId) && (
             <Button
               variant={cameCount > 0 ? "secondary" : "ghost"}
               size="sm"

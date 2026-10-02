@@ -1,0 +1,10 @@
+✔ follow normalization retains import review flags and original query aliases over reload (0.9469ms)
+✔ full local storage does not erase the in-session durable follow queue (0.3361ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 120.8288

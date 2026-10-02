@@ -1,17 +1,26 @@
-# YouTube opening, live checks, and Adult Photos verification
+# YouTube archive throughput — 2026-10-02
 
-Verified September 30, 2026.
+## Findings and changes
 
-- Preview recommendation/tag aggregation now runs in a short-lived worker; lightweight row packing yields every 250 records and cancels when closed. Player chunks warm before use. Full catalog playlist IDs are memoized.
-- Card artwork starts ahead of scrolling, avoids a second browser lazy-loading delay, and pauses queued work while preview/player overlays open.
-- YouTube comments open explicitly; comment/chat rows render in batches of 20. Recommendation rotation rests when the session is hidden or idle.
-- Live detection parses channel JSON and current live badges, including modern lockupViewModel thumbnails. Scheduled/replayed/unrelated videos are excluded; blocked or malformed responses fail rather than marking channels offline. A real public Lofi Girl streams page returned a live broadcast through the parser.
-- Adult recommendation candidates respect the current media filter before ranking. Small photo catalogs retain a shelf even when overview picks consume all candidates; compatible previous worker results remain visible while refreshed results arrive.
+The recent HTTP transport applied the 1,500ms pull-job gap to every upstream YouTube page. Earlier archive paging used an 80ms gap. The client now sends a separate `youtubeRequestGapMs` preference to the server, defaulting to 80ms and configurable from 0 to 60,000ms. The global pull-job gap, entry caps, pause/playback gates, manual cooldown override, and serialized upstream transfers remain intact. Redundant sleeps inside channel and playlist continuation loops were removed so the transport applies pacing once.
 
-Checks: typecheck and production build passed. 60 focused tests passed (58 YouTube/catalog/preview/image/creator tests plus 2 Adult Photos tests). Development and built smoke checks passed on desktop and mobile with no console/page errors or horizontal overflow. The first cold production snapshot preceded deferred Home content; the warm retry matched the development baseline.
+Archive continuations no longer reread the same recent RSS feed or probe Shorts. First-page and routine recent-upload checks retain RSS. Resumed archive results preserve the recent upload identity and timestamp, and cannot poison the recent-feed cache with an empty feed.
 
-Interactive browser: saved catalog had 5,717 YouTube videos. Opened previews, switched to the player, opened comments, checked visible thumbnails, and inspected a 390×844 preview without horizontal overflow. Photos recommendations survived Combined→Photos transitions. The live guide checked both followed creators and reported none currently confirmed live.
+The YouTube page displays both pacing values and the batch target. The saved preferences on this browser remain 100 sources × 200 entries (20,000 target entries), with a 100,000 YouTube entry cap and 32,297 remaining slots. The new YouTube page gap is 80ms; the existing job gap remains 1,500ms.
 
-Playback limitation: YouTube embeds displayed “Sign in to confirm you’re not a bot” in this browser. The app iframe and controls rendered; actual video playback and external startup latency could not be verified past that provider restriction.
+## Verification
 
-Smoke evidence: youtube-speed-dev.json, youtube-speed-built.json, plus desktop/mobile PNGs alongside this report. Existing unrelated full-suite failures are documented in memory-sidebar-full-tests.txt from the preceding verification.
+- 49 script tests and 42 TypeScript catalog/control/entry-limit tests passed.
+- Real server path with a deterministic public-provider fixture returned 3,000 distinct archive entries over six turns: responses of 510/510/510/510/510/450, 99 unique continuation tokens, one RSS read, no skipped pages, and retained recent-upload metadata.
+- Real store with mocked network/disk admitted 3,000 new entries into a 70,000-entry library in six bounded creator commits, preserving all six continuation cursors. The measured test run took 5,352ms, including cooperative preparation/commit yields; this is not a live network throughput measurement.
+- Deterministic transport tests cover 0ms, 80ms, and 1,500ms pacing without an additional hidden wait, serial body transfers, timeouts, manual overrides, and provider cooldowns.
+- Type checking and production build passed.
+- Development and production browser audits passed on desktop and 390 × 844 mobile with visible content, no page/console errors, no horizontal overflow, and no production divergence.
+- Interactive saved-library Settings verification accepted 0ms without changing the 1,500ms job gap, then restored the new default of 80ms. Mobile Settings rendered without overflow. Desktop viewport reset after testing.
+- Real YouTube page displayed the separate 80ms archive gap, 20,000-entry batch target, available Force pull button, 67,703 distinct IDs, and zero duplicate cached rows. Browser error log was empty.
+
+## Live provider limitation
+
+The previous direct HTTP request path, using the same headers and without the new transport/cooldown, still received Google's unusual-traffic HTTP 429 page for the channel Videos URL. RSS returned HTTP 404. These responses are recorded in `youtube-speed-legacy-http.txt`. Live bulk growth remains unverified; the fixture verifies the restored application path, not Google's availability.
+
+Evidence: `youtube-speed-tests.txt`, `youtube-speed-catalog-tests.txt`, `youtube-speed-typecheck.txt`, `youtube-speed-build.txt`, `youtube-speed-dev.json`, `youtube-speed-production.json`, `youtube-speed-desktop.png`, and `youtube-speed-settings-{desktop,mobile}.png`.

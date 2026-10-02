@@ -1,4 +1,6 @@
 import { usePreviewRanking } from "./use-preview-ranking";
+import { useBrowseLibrary } from "./use-browse-library";
+import { adultFolderIds as privateFolderIds } from "@/lib/videos/adult-providers";
 import { confidenceAdjustedPreference } from '@/lib/videos/ranking-core';
 import { PullPauseButton } from "./pull-pause-button";
 import { allowAutomaticRefresh } from "@/lib/session-activity";
@@ -25,8 +27,8 @@ const EMPTY_TAGS: string[] = [];
 export function PreVideo() {
   useEffect(() => { const timer = window.setTimeout(warmVideoPlayer, 100); return () => window.clearTimeout(timer); }, []);
   const previewId = useLibrary((s) => s.previewId);
-  const videos = useLibrary((s) => s.videos);
-  const folders = useLibrary((s) => s.folders);
+  const videos = useBrowseLibrary((s) => s.videos);
+  const adultFolderIds = useLibrary(s => privateFolderIds(s.folders));
   const allTags = useLibrary((s) => s.tags);
   const unavailable = useLibrary((s) => s.unavailable);
   const hiddenVideos = useLibrary((s) => s.hiddenVideos);
@@ -61,7 +63,8 @@ export function PreVideo() {
   const previewWatchTick = useRef(0);
   const previewWatchPending = useRef(0);
   const markUnavailable = useLibrary((s) => s.markUnavailable);
-  const video = useVideoDetails(lookupVideo(videos, previewId));
+  const selectedVideo = useLibrary(s => lookupVideo(s.videos, s.previewId));
+  const video = useVideoDetails(selectedVideo);
   const booruImage = useBooruOriginal(video);
   const redditRemoved = useRedditMedia(video);
   const flushPreviewWatch = () => {
@@ -70,7 +73,6 @@ export function PreVideo() {
     previewWatchTick.current = 0;
   };
   useEffect(() => () => { if (previewId && previewWatchPending.current > 0) recordWatchTime(previewId, "preview", previewWatchPending.current); previewWatchPending.current = 0; previewWatchTick.current = 0; }, [previewId]);
-  const adultFolderIds = useMemo(() => new Set(folders.filter((folder) => folder.adult).map((folder) => folder.id)), [folders]);
   const previewIsAdult = Boolean(video && (isAdultPullKind(video.remote?.kind) || adultFolderIds.has(video.folderId)));
   useEffect(() => {
     if (!video) return;

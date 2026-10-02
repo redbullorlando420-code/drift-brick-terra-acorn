@@ -1,0 +1,41 @@
+✔ cancel aborts active transport and frees its slot even if transport never settles (5.5209ms)
+✔ paused queue and held responses use gate wakeups and remain bounded (1.4675ms)
+✔ cancel releases a completed response held behind pause (1.3007ms)
+✔ request deadline releases stalled slot and permits a retry (18.6516ms)
+✔ concurrency and request gap apply across independent providers (140.6845ms)
+✔ channel archive uses the selected Videos grid continuation (1.8619ms)
+✔ continuation responses read appended video items (0.1922ms)
+✔ continuation responses read reload items used by refreshed Videos tabs (0.1683ms)
+✔ a populated Videos grid is recognized when YouTube omits the selected flag (0.3485ms)
+✔ a unique populated grid is retained even without tab metadata (0.1336ms)
+✔ continuation tokens nested in a migrated row still resume the archive (0.1625ms)
+✔ unrecognized renderer-shaped rows are never declared a completed archive (0.2897ms)
+✔ live detection is independent of field order and description length (2.6193ms)
+✔ upcoming, recorded and unrelated broadcasts cannot become current live cards (1.0076ms)
+✔ unreadable/blocked live responses report failure instead of marking a creator offline (0.4307ms)
+✔ channel live badges belong to a specific current renderer (1.1988ms)
+✔ modern channel lockups distinguish current live and scheduled thumbnails (0.3106ms)
+✔ automatic YouTube history stays bounded while manual pulls retain depth (0.888ms)
+✔ expired provider cooldowns release creators without adding a one-hour missing-source delay (0.9372ms)
+✔ archive sweeps remain due after reload and honor their interval (0.1702ms)
+✔ scheduled sweeps rotate to unfinished creators (0.3208ms)
+✔ full source sweep includes playlists but still leaves completed catalogs resting (0.2731ms)
+✔ manual next-creator pulls can retry completed channels when every archive is marked done (0.1822ms)
+✔ successive next-creator pulls advance past recently checked creators (12.135ms)
+✔ YouTube live checks rotate independently of archive cursors (0.496ms)
+✔ YouTube live checks keep confirmed live creators fresh while discovering others (0.4123ms)
+✔ empty creators precede deep archives (0.7762ms)
+✔ a recently failed empty creator cannot monopolize scheduled pulls (0.2265ms)
+✔ thin creators rotate by last attempt rather than exact volume (0.0981ms)
+✔ empty retries cannot starve archives older than the coverage head start (0.2217ms)
+✔ recent checks reserve bounded slots for empty creators and rotate failures out (0.1674ms)
+✔ confirmed creators receive archive turns while unresolved imports recover in a bounded lane (0.9745ms)
+✔ background live discovery does not spend its request budget resolving imported display names (0.1863ms)
+ℹ tests 33
+ℹ suites 0
+ℹ pass 33
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 331.7977
