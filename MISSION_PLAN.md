@@ -74,6 +74,8 @@ Recent completed work: Live is grouped by Twitch, YouTube, Chaturbate, and MyFre
 
 Recent completed work: Settings provides an on-demand Companion artwork disk audit with per-source sizes, file counts, oldest updates, and hit/miss samples since Companion startup. Scans are bounded, report partial inventories, and leave retention unchanged. Cross-device Watch Room validation remains open.
 
+Recent completed work: Twitch pulls now seed up to 100 recent VODs per channel and cover 12 rotating channels per automatic pass. Never-checked import stubs get an early fair turn, failed imports remain retryable, and Twitch-only refresh controls do not spend their batch on YouTube. A live provider pass returned 920 new videos from 12/12 channels with zero failures; deep archives and long provider soaking remain on-demand/open.
+
 ## Next quality and performance stream
 
 - [x] Prepare an opt-in, private LAN HTTPS gateway with checksum-verified Caddy installation, LAN-interface binding, private CA storage outside the served workspace, and a non-destructive recovery-pack migration guide.

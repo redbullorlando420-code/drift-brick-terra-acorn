@@ -8,13 +8,26 @@ import { peekYoutubeOwner } from '@/lib/remote/youtube-sources';
 import { playbackWindow } from '@/lib/videos/playback-queue';
 import type { LibraryVideo } from '@/lib/videos/types';
 import { viewerDetails } from '@/lib/videos/viewer-details';
+import { ViewerDialog, useViewerInitialFocus } from './viewer-dialog';
+import { Button } from '@/components/ui/button';
 const Player = lazy(async () => ({ default: (await loadVideoPlayer()).Player }));
 const PreVideo = lazy(async () => ({ default: (await loadVideoPreview()).PreVideo }));
 const EMPTY_VIDEOS: LibraryVideo[] = [];
 const EMPTY_FLAGS: Record<string, true> = {};
+function ViewerLoading() {
+  const closeFocus = useViewerInitialFocus();
+  return <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-bg/90 text-sm text-fg">
+    <p role="status">Opening video…</p>
+    <Button ref={closeFocus} variant="secondary" onClick={() => {
+      const state = useLibrary.getState();
+      state.closePlayer(); state.closePreview();
+    }}>Cancel opening video</Button>
+  </div>;
+}
 export const VideoOverlays = memo(function VideoOverlays() {
   const activeId = useLibrary(s => s.activeId);
   const previewId = useLibrary(s => s.previewId);
+  const title = useLibrary(s => lookupVideo(s.videos, s.activeId ?? s.previewId)?.name ?? 'Video');
   const videos = useLibrary(s => s.activeId ? s.videos : EMPTY_VIDEOS);
   const sourceId = useLibrary(s => s.sourceId);
   const query = useLibrary(s => s.query);
@@ -52,8 +65,11 @@ export const VideoOverlays = memo(function VideoOverlays() {
       setPullViewerOpen(Boolean(next.activeId || next.previewId));
     };
   }, [activeId, previewId]);
-  return <Suspense fallback={<div className="fixed inset-0 z-50 flex items-center justify-center bg-bg/90 text-sm text-fg" role="status">Opening video…</div>}>
+  if (!activeId && !previewId) return null;
+  return <ViewerDialog title={`${activeId ? 'Player' : 'Preview'}: ${title}`}>
+    <Suspense fallback={<ViewerLoading />}>
     {activeId && <Player playlist={playlist} />}
     {previewId && <PreVideo />}
-  </Suspense>;
+    </Suspense>
+  </ViewerDialog>;
 });

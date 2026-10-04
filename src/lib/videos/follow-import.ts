@@ -71,7 +71,9 @@ export function bindYoutubeCorrection<T extends { channel: FollowedChannel; vide
 export function resolvedFollowQueries(follows: FollowedChannel[], kind: FollowKind): Set<string> {
   const keys = new Set<string>(), titles = new Map<string, number>();
   for (const channel of follows) {
-    if (channel.kind !== kind || channel.importNeedsReview || !(kind === 'twitch' ? channel.lastCheckedAt : verifiedYoutubeSource(channel))) continue;
+    if (channel.kind !== kind || channel.importNeedsReview || !(kind === 'twitch'
+      ? channel.lastCheckedAt && !channel.lastProviderFailure
+      : verifiedYoutubeSource(channel))) continue;
     keys.add(canonicalFollowHandle(kind, channel.handle));
     if (channel.importQuery) keys.add(canonicalFollowHandle(kind, channel.importQuery));
     const title = canonicalFollowHandle(kind, channel.title);

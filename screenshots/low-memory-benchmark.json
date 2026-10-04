@@ -16,26 +16,26 @@
     {
       "entries": 100000,
       "fixtureResidentMiB": 20.4,
-      "noChangeMs": 52.2,
+      "noChangeMs": 44,
       "noChangeReads": 100001,
       "unchangedArrayReused": true,
       "fullArrayCopiesOnNoChange": 0,
       "approximateReferenceBytesAvoided": 800000,
       "railMax": 6,
       "gridMax": 35,
-      "heapAfterRestoreMiB": 41.4
+      "heapAfterRestoreMiB": 40.7
     },
     {
       "entries": 1000000,
       "fixtureResidentMiB": 135,
-      "noChangeMs": 378.6,
+      "noChangeMs": 361.7,
       "noChangeReads": 1000001,
       "unchangedArrayReused": true,
       "fullArrayCopiesOnNoChange": 0,
       "approximateReferenceBytesAvoided": 8000000,
       "railMax": 6,
       "gridMax": 35,
-      "heapAfterRestoreMiB": 257.9
+      "heapAfterRestoreMiB": 258.2
     }
   ],
   "limitations": "Run with a 384 MiB Node old-space limit. Two-core/two-GiB capability hints select production budgets; this does not emulate CPU speed or establish browser/physical-device memory soak. Fixture omits artwork, transcripts, browser/IndexedDB overhead. Reference bytes are an estimate, not measured browser heap savings."

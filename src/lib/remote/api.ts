@@ -31,9 +31,11 @@ import { exactYoutubeChannel } from './youtube-channel-search';
 import { youtubeUploadsArchive, youtubeBrowseArchive, youtubePlaylistBrowseId } from './youtube-browse';
 import { resolveYoutubeCreator } from './youtube-resolve';
 import { browseYoutubeLives } from './youtube-live-browse';
+import { advanceTwitchArchiveCursor, decodeTwitchArchiveCursor, encodeTwitchArchiveCursor, type TwitchArchiveCursor } from '@/lib/videos/twitch-archive-cursor';
+import { advanceTwitchClipCursor, decodeTwitchClipCursor, encodeTwitchClipCursor } from '@/lib/videos/twitch-clip-cursor';
 
-type FollowInput = { query: string; kind: "auto" | FollowKind; clipLimit?: number; catalogCursor?: string };
-type RefreshInput = { channels: FollowedChannel[]; youtubeCatalog: boolean; youtubeBackground: boolean; youtubeLiveOnly: boolean; backgroundLive: boolean; forceYoutube?: boolean; youtubeVideoLimit?: number };
+type FollowInput = { query: string; kind: "auto" | FollowKind; clipLimit?: number; catalogCursor?: string; twitchArchiveCursor?: string; twitchClipCursor?: string };
+type RefreshInput = { channels: FollowedChannel[]; youtubeCatalog: boolean; youtubeBackground: boolean; youtubeLiveOnly: boolean; twitchLiveOnly: boolean; twitchRoutine: boolean; forceYoutube?: boolean; youtubeVideoLimit?: number };
 
 export type FollowResult = {
   channel: FollowedChannel;
@@ -132,17 +134,19 @@ function parseFollow(data: unknown): FollowInput {
     ? Math.min(LIBRARY_LIMITS.twitchFocusedClipsPerChannel, Math.floor(rawClips))
     : undefined;
   const catalogCursor = typeof rec.catalogCursor === "string" && rec.catalogCursor.length <= 16_384 ? rec.catalogCursor : undefined;
-  return { query, kind, ...(clipLimit ? { clipLimit } : {}), ...(catalogCursor ? { catalogCursor } : {}) };
+  const twitchArchiveCursor = typeof rec.twitchArchiveCursor === "string" && rec.twitchArchiveCursor.length <= 16_384 ? rec.twitchArchiveCursor : undefined;
+  const twitchClipCursor = typeof rec.twitchClipCursor === "string" && rec.twitchClipCursor.length <= 8_192 ? rec.twitchClipCursor : undefined;
+  return { query, kind, ...(clipLimit ? { clipLimit } : {}), ...(catalogCursor ? { catalogCursor } : {}), ...(twitchArchiveCursor ? { twitchArchiveCursor } : {}), ...(twitchClipCursor ? { twitchClipCursor } : {}) };
 }
 
 function parseRefresh(data: unknown): RefreshInput {
-  if (typeof data !== "object" || data === null) return { channels: [], youtubeCatalog: false, youtubeBackground: false, youtubeLiveOnly: false, backgroundLive: false };
+  if (typeof data !== "object" || data === null) return { channels: [], youtubeCatalog: false, youtubeBackground: false, youtubeLiveOnly: false, twitchLiveOnly: false, twitchRoutine: false };
   const rec = data as Record<string, unknown>;
   const channels = Array.isArray(rec.channels) ? (rec.channels as FollowedChannel[]) : [];
   // Keep a sizeable saved list live after restore; the refresh worker remains
   // concurrency-limited below so this does not flood providers.
   const limit = Number(rec.youtubeVideoLimit);
-  return { channels: channels.slice(0, 80), youtubeCatalog: rec.youtubeCatalog === true, youtubeBackground: rec.youtubeBackground === true, youtubeLiveOnly: rec.youtubeLiveOnly === true, backgroundLive: rec.backgroundLive === true, forceYoutube: rec.forceYoutube === true && rec.youtubeCatalog === true && rec.youtubeBackground !== true && rec.youtubeLiveOnly !== true && rec.backgroundLive !== true, youtubeVideoLimit: Number.isFinite(limit) ? Math.max(30, Math.min(500, Math.floor(limit))) : 100 };
+  return { channels: channels.slice(0, 80), youtubeCatalog: rec.youtubeCatalog === true, youtubeBackground: rec.youtubeBackground === true, youtubeLiveOnly: rec.youtubeLiveOnly === true, twitchLiveOnly: rec.twitchLiveOnly === true, twitchRoutine: rec.twitchRoutine === true, forceYoutube: rec.forceYoutube === true && rec.youtubeCatalog === true && rec.youtubeBackground !== true && rec.youtubeLiveOnly !== true && rec.twitchLiveOnly !== true && rec.twitchRoutine !== true, youtubeVideoLimit: Number.isFinite(limit) ? Math.max(30, Math.min(500, Math.floor(limit))) : 100 };
 }
 
 function guessKind(query: string): FollowKind {
@@ -914,6 +918,7 @@ type GqlUser = {
     game?: { name?: string };
   } | null;
   videos?: {
+    providerError?: boolean;
     pageInfo?: {
       hasNextPage?: boolean;
       endCursor?: string | null;
@@ -923,6 +928,8 @@ type GqlUser = {
       node?: TwitchVideoNode;
     }>;
   };
+  twitchArchiveCursor?: string;
+  twitchArchiveExhaustedAt?: number;
 };
 
 type TwitchBroadcastType = "ARCHIVE" | "HIGHLIGHT" | "UPLOAD";
@@ -964,9 +971,43 @@ async function twitchUser(
   // A GraphQL field error on `videos` still returns the user shell. Treat that
   // as an empty page so callers can retry with a smaller `first`.
   if (user && json.errors?.some((error) => /videos|first/i.test(error.message ?? ""))) {
-    return { ...user, videos: { pageInfo: { hasNextPage: false, endCursor: null }, edges: [] } };
+    return { ...user, videos: { providerError: true, pageInfo: { hasNextPage: false, endCursor: null }, edges: [] } };
   }
   return user;
+}
+
+/** A live check must not inherit the three-minute archive cache or walk VOD
+ * and clip pages. Twitch stream state has its own short freshness window. */
+async function twitchLiveForFollow(channel: FollowedChannel): Promise<FollowResult> {
+  const login = twitchLogin(channel.handle);
+  if (!login) throw new Error("Enter a Twitch channel.");
+  const json = await twitchGqlJson(
+    `query($login:String!){user(login:$login){id displayName profileImageURL(width:70) stream{title viewersCount previewImageURL(width:640,height:360) game{name}}}}`,
+    { login },
+  );
+  const user = json?.data?.user;
+  if (!user?.id) throw new Error(`Twitch could not check live status for ${login}`);
+  const streamFailure = json?.errors?.find(error => /stream|user/i.test(error.message ?? ""));
+  if (streamFailure) throw new Error(`Twitch live check failed for ${login}: ${(streamFailure.message ?? "provider error").slice(0, 180)}`);
+  if (user.stream === undefined) throw new Error(`Twitch returned no live status for ${login}`);
+  const now = Date.now();
+  const videos = user.stream ? twitchVideos(login, { ...user, videos: { edges: [] } }, 0) : [];
+  return {
+    channel: {
+      ...channel,
+      id: channel.id,
+      kind: "twitch",
+      handle: login,
+      channelId: user.id,
+      title: user.displayName ?? channel.title ?? login,
+      thumb: user.profileImageURL ?? channel.thumb,
+      live: Boolean(user.stream),
+      lastCheckedAt: now,
+      liveCheckedAt: now,
+      lastLiveFailure: undefined,
+    },
+    videos,
+  };
 }
 
 /**
@@ -975,8 +1016,8 @@ async function twitchUser(
  * empty / integrity failures stop the loop (rate-limit friendly gap between
  * pages). Focused pulls also merge HIGHLIGHT + UPLOAD shelves.
  */
-async function twitchArchive(login: string, limit: number): Promise<GqlUser | null> {
-  let after: string | null | undefined;
+async function twitchArchive(login: string, limit: number, savedCursor?: string): Promise<GqlUser | null> {
+  let cursor: TwitchArchiveCursor | null = decodeTwitchArchiveCursor(savedCursor);
   let first: GqlUser | null = null;
   const edges: NonNullable<NonNullable<GqlUser["videos"]>["edges"]> = [];
   const seen = new Set<string>();
@@ -988,13 +1029,17 @@ async function twitchArchive(login: string, limit: number): Promise<GqlUser | nu
     if (page?.id && !(page.videos?.edges?.length) && pageSize > 30 && !cursor && type === "ARCHIVE") {
       page = await twitchUser(login, null, 30, type);
     }
+    if (page?.videos?.providerError) throw new Error(`Twitch rejected the ${type.toLowerCase()} catalog page for ${login}; the saved archive cursor was preserved.`);
     return page;
   };
 
-  for (let pageIndex = 0; pageIndex < maxPages && edges.length < limit; pageIndex += 1) {
+  for (let pageIndex = 0; pageIndex < maxPages && edges.length < limit && cursor; pageIndex += 1) {
     if (pageIndex > 0) await twitchPageGap();
-    const page = await takePage(Math.min(TWITCH_ARCHIVE_PAGE_SIZE, limit - edges.length), after, "ARCHIVE");
-    if (!page) return first;
+    const page = await takePage(Math.min(TWITCH_ARCHIVE_PAGE_SIZE, limit - edges.length), cursor.after, cursor.stage);
+    if (!page) {
+      if (!first) return null;
+      break;
+    }
     if (!first) first = page;
     const before = edges.length;
     for (const edge of page.videos?.edges ?? []) {
@@ -1005,37 +1050,21 @@ async function twitchArchive(login: string, limit: number): Promise<GqlUser | nu
       if (edges.length >= limit) break;
     }
     const pageInfo = page.videos?.pageInfo;
-    const nextCursor = pageInfo?.endCursor ?? page.videos?.edges?.at(-1)?.cursor ?? null;
-    if (edges.length === before || !pageInfo?.hasNextPage || !nextCursor || nextCursor === after) break;
-    after = nextCursor;
-  }
-
-  // Supplement with public highlight + upload shelves (paged lightly).
-  if (first && edges.length < limit) {
-    for (const type of ["HIGHLIGHT", "UPLOAD"] as const) {
-      let typeAfter: string | null | undefined;
-      for (let pageIndex = 0; pageIndex < 3 && edges.length < limit; pageIndex += 1) {
-        if (pageIndex > 0) await twitchPageGap();
-        const page = await takePage(Math.min(TWITCH_ARCHIVE_PAGE_SIZE, limit - edges.length), typeAfter, type);
-        const before = edges.length;
-        for (const edge of page?.videos?.edges ?? []) {
-          const id = edge.node?.id;
-          if (!id || seen.has(id)) continue;
-          seen.add(id);
-          edges.push(edge);
-          if (edges.length >= limit) break;
-        }
-        const pageInfo = page?.videos?.pageInfo;
-        const nextCursor = pageInfo?.endCursor ?? page?.videos?.edges?.at(-1)?.cursor ?? null;
-        if (edges.length === before || !pageInfo?.hasNextPage || !nextCursor || nextCursor === typeAfter) break;
-        typeAfter = nextCursor;
-      }
-      if (edges.length >= limit) break;
-    }
+    const endCursor = pageInfo?.endCursor ?? page.videos?.edges?.at(-1)?.cursor ?? null;
+    const next = advanceTwitchArchiveCursor(cursor, pageInfo?.hasNextPage === true, endCursor);
+    // An empty advancing page is not useful and can indicate a provider
+    // integrity response. Keep the last accepted position for a safe retry.
+    if (edges.length === before && next?.stage === cursor.stage && next.after === cursor.after) break;
+    cursor = next;
   }
 
   if (!first) return null;
-  return { ...first, videos: { edges } };
+  return {
+    ...first,
+    videos: { edges },
+    twitchArchiveCursor: encodeTwitchArchiveCursor(cursor),
+    twitchArchiveExhaustedAt: cursor ? undefined : Date.now(),
+  };
 }
 
 const TWITCH_CLIP_PERIODS = [null, "LAST_WEEK", "LAST_MONTH", "ALL_TIME"] as const;
@@ -1045,22 +1074,27 @@ type TwitchClipsConnection = {
   edges?: Array<{ cursor?: string | null; node?: TwitchClipNode }>;
 };
 
-async function twitchClips(login: string, limit: number): Promise<TwitchClipNode[]> {
-  if (limit <= 0) return [];
+async function twitchClips(login: string, limit: number, savedCursor?: string, variety = false): Promise<{ clips: TwitchClipNode[]; cursor?: string; exhaustedAt?: number }> {
+  if (limit <= 0) return { clips: [] };
   const out: TwitchClipNode[] = [];
   const seen = new Set<string>();
   const maxPages = Math.max(1, Math.min(TWITCH_CLIP_MAX_PAGES, Math.ceil(limit / 100) + 1));
+  let allTimeCursor = decodeTwitchClipCursor(savedCursor);
 
-  // Prefer ALL_TIME with cursor paging when the budget is large; otherwise
-  // sample across periods for a diverse short shelf without burning pages.
-  const periods = limit > 100 ? (["ALL_TIME"] as const) : TWITCH_CLIP_PERIODS;
+  // Routine refreshes split a small budget across time periods. Focused pulls
+  // page through ALL_TIME and persist their continuation for the next click.
+  const periods = variety ? TWITCH_CLIP_PERIODS : (["ALL_TIME"] as const);
 
-  for (const period of periods) {
+  for (const [periodIndex, period] of periods.entries()) {
     if (out.length >= limit) break;
-    let after: string | null | undefined;
-    for (let pageIndex = 0; pageIndex < maxPages && out.length < limit; pageIndex += 1) {
+    let after: string | null | undefined = !variety && period === "ALL_TIME" ? allTimeCursor?.after : undefined;
+    const periodsLeft = periods.length - periodIndex;
+    const periodTarget = variety ? Math.ceil((limit - out.length) / periodsLeft) : limit;
+    let periodReceived = 0;
+    let lastPageInfo: TwitchClipsConnection["pageInfo"];
+    for (let pageIndex = 0; pageIndex < maxPages && out.length < limit && periodReceived < periodTarget; pageIndex += 1) {
       if (pageIndex > 0) await twitchPageGap();
-      const first = twitchClampFirst(Math.min(100, limit - out.length));
+      const first = twitchClampFirst(Math.min(100, variety ? periodTarget - periodReceived : limit - out.length));
       const field = period
         ? `clips(first:$first, after:$after, criteria:{period:${period}}){pageInfo{hasNextPage endCursor} edges{cursor node{id slug title viewCount durationSeconds createdAt thumbnailURL}}}`
         : `clips(first:$first, after:$after){pageInfo{hasNextPage endCursor} edges{cursor node{id slug title viewCount durationSeconds createdAt thumbnailURL}}}`;
@@ -1071,6 +1105,9 @@ async function twitchClips(login: string, limit: number): Promise<TwitchClipNode
       const clipUser = json?.data?.user as (GqlUser & { clips?: TwitchClipsConnection }) | null | undefined;
       const connection = clipUser?.clips;
       const edges = connection?.edges ?? [];
+      if (json?.errors?.some(error => /clips|user/i.test(error.message ?? ""))) throw new Error(`Twitch rejected the ${period ?? "default"} clip page for ${login}.`);
+      if (!connection && !json?.data?.user) throw new Error(`Twitch could not read clips for ${login}.`);
+      lastPageInfo = connection?.pageInfo;
       const before = out.length;
       for (const edge of edges) {
         const node = edge.node;
@@ -1078,14 +1115,19 @@ async function twitchClips(login: string, limit: number): Promise<TwitchClipNode
         if (!key || seen.has(key)) continue;
         seen.add(key);
         out.push(node!);
+        periodReceived++;
         if (out.length >= limit) break;
       }
       const nextCursor = connection?.pageInfo?.endCursor ?? edges.at(-1)?.cursor ?? null;
       if (out.length === before || !connection?.pageInfo?.hasNextPage || !nextCursor || nextCursor === after) break;
       after = nextCursor;
     }
+    if (!variety && period === "ALL_TIME") {
+      const next = advanceTwitchClipCursor(lastPageInfo?.hasNextPage === true, lastPageInfo?.endCursor ?? null, allTimeCursor);
+      allTimeCursor = next;
+    }
   }
-  return out;
+  return { clips: out, ...(!variety ? { cursor: encodeTwitchClipCursor(allTimeCursor), exhaustedAt: allTimeCursor ? undefined : Date.now() } : {}) };
 }
 
 function twitchVideos(
@@ -1205,20 +1247,20 @@ function twitchVideos(
   return out;
 }
 
-async function followTwitchUncoalesced(query: string, compact = false, clipLimit?: number): Promise<FollowResult> {
+async function followTwitchUncoalesced(query: string, compact = false, clipLimit?: number, archiveCursor?: string, clipCursor?: string): Promise<FollowResult> {
   const login = twitchLogin(query);
   if (!login) throw new Error("Enter a Twitch channel.");
   const vodLimit = compact ? TWITCH_REFRESH_VOD_LIMIT : TWITCH_FOCUSED_VOD_LIMIT;
-  const clipsWanted = clipLimit ?? (compact ? TWITCH_REFRESH_CLIP_LIMIT : TWITCH_FOCUSED_CLIP_LIMIT);
-  const cacheKey = `${login}:${compact ? "r" : "f"}:${vodLimit}:${clipsWanted}`;
+  const clipsWanted = clipLimit ?? (compact ? TWITCH_REFRESH_CLIP_LIMIT : archiveCursor ? 0 : TWITCH_FOCUSED_CLIP_LIMIT);
+  const cacheKey = `${login}:${compact ? "r" : "f"}:${vodLimit}:${clipsWanted}:${archiveCursor ?? "start"}:${clipCursor ?? "clip-start"}`;
   const cached = twitchChannelCache.get(cacheKey);
   if (cached && Date.now() - cached.at < TWITCH_CHANNEL_CACHE_TTL_MS) return cached.result;
 
-  const user = await twitchArchive(login, vodLimit);
+  const user = await twitchArchive(login, vodLimit, compact ? undefined : archiveCursor);
   if (!user?.id) throw new Error(`Twitch could not resolve ${login}`);
-  const clips = await twitchClips(login, clipsWanted);
+  const clipResult = await twitchClips(login, clipsWanted, clipCursor, compact);
   const title = user.displayName ?? login;
-  const videos = twitchVideos(login, user, vodLimit, clips);
+  const videos = twitchVideos(login, user, vodLimit, clipResult.clips);
   const channel: FollowedChannel = {
     id: `tw:${login}`,
     kind: "twitch",
@@ -1230,6 +1272,8 @@ async function followTwitchUncoalesced(query: string, compact = false, clipLimit
     lastCheckedAt: Date.now(),
     newestPublishedAt: Math.max(0, ...videos.filter((video) => !video.remote?.live).map((video) => video.addedAt)),
     lastResponseCount: videos.length,
+    ...(!compact ? { twitchArchiveCursor: user.twitchArchiveCursor, twitchArchiveExhaustedAt: user.twitchArchiveExhaustedAt } : {}),
+    ...(!compact && clipsWanted > 0 ? { twitchClipCursor: clipResult.cursor, twitchClipExhaustedAt: clipResult.exhaustedAt } : {}),
   };
   const result = { channel, videos };
   twitchChannelCache.set(cacheKey, { at: Date.now(), result });
@@ -1239,15 +1283,15 @@ async function followTwitchUncoalesced(query: string, compact = false, clipLimit
   return result;
 }
 
-function followTwitch(query: string, compact = false, clipLimit?: number): Promise<FollowResult> {
-  return providerRequest("twitch", `${query}:${compact ? "routine" : "focused"}:${clipLimit ?? "default"}`, !compact, () => followTwitchUncoalesced(query, compact, clipLimit), query);
+function followTwitch(query: string, compact = false, clipLimit?: number, archiveCursor?: string, clipCursor?: string): Promise<FollowResult> {
+  return providerRequest("twitch", `${query}:${compact ? "routine" : "focused"}:${clipLimit ?? "default"}:${archiveCursor ?? "start"}:${clipCursor ?? "clip-start"}`, !compact, () => followTwitchUncoalesced(query, compact, clipLimit, archiveCursor, clipCursor), query);
 }
 
 export async function runFollowRemote(dataRaw: unknown): Promise<FollowResult> {
     applyYoutubePullPacing(dataRaw);
     const data = parseFollow(dataRaw);
     const kind = data.kind === "auto" ? guessKind(data.query) : data.kind;
-    if (kind === "twitch") return followTwitch(data.query, false, data.clipLimit);
+    if (kind === "twitch") return followTwitch(data.query, false, data.clipLimit, data.twitchArchiveCursor, data.twitchClipCursor);
     if (youtubePlaylistId(data.query)) return youtubeFromPlaylist(data.query, true, data.catalogCursor, LIBRARY_LIMITS.youtubeManualRefreshVideosPerChannel);
     const videoId = ytVideoId(data.query);
     if (videoId) return youtubeFromVideo(videoId);
@@ -1263,12 +1307,19 @@ export async function runRefreshRemotes(dataRaw: unknown): Promise<RefreshResult
     const videos: LibraryVideo[] = [];
     const channels: FollowedChannel[] = [];
     const refreshedIds: string[] = [];
-    await mapPool(data.channels, data.youtubeCatalog ? 1 : data.youtubeLiveOnly || data.backgroundLive ? 2 : 3, async (ch) => {
+    await mapPool(data.channels, data.youtubeCatalog ? 1 : data.youtubeLiveOnly || data.twitchLiveOnly || data.twitchRoutine ? 2 : 3, async (ch) => {
       try {
         if (ch.kind === "twitch") {
-          // A rotating refresh is for current live state and new VODs. Keep it
-          // shallow so it cannot turn one scheduled refresh into thousands of
-          // provider requests; the merge path preserves older archive cards.
+          if (data.twitchLiveOnly) {
+            const next = await providerRequest("twitch", `live:${ch.handle}`, true, () => twitchLiveForFollow(ch), ch.handle);
+            channels.push({ ...ch, ...next.channel, id: ch.id, lastLiveFailure: undefined });
+            videos.push(...next.videos.map((video) => ({ ...video, folderId: ch.id })));
+            refreshedIds.push(ch.id);
+            return;
+          }
+          // Scheduled Twitch work collects recent VODs and a varied clip sample
+          // in addition to stream state. Keep it shallow; focused archive and
+          // clip pulls carry their own resumable cursors for deeper history.
           const next = await followTwitch(ch.handle, true);
           channels.push({ ...ch, ...next.channel, id: ch.id, lastProviderFailure: undefined });
           videos.push(...next.videos.map((video) => ({ ...video, folderId: ch.id })));
@@ -1301,6 +1352,7 @@ export async function runRefreshRemotes(dataRaw: unknown): Promise<RefreshResult
           lastCheckedAt: Date.now(),
           ...(ch.kind === "youtube" && data.youtubeCatalog ? { catalogCheckedAt: Date.now() } : {}),
           ...(ch.kind === "youtube" && data.youtubeLiveOnly ? { liveCheckedAt: Date.now(), lastLiveFailure: classifyProviderFailure(ch.kind, error) } : {}),
+          ...(ch.kind === "twitch" && (data.twitchLiveOnly || data.twitchRoutine) ? { liveCheckedAt: Date.now(), lastLiveFailure: classifyProviderFailure(ch.kind, error) } : {}),
           lastProviderFailure: classifyProviderFailure(ch.kind, error),
         });
       }

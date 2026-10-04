@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { GridRowMetrics, gridWindow, gridKeyboardTarget, type GridWindow } from "@/lib/virtual-grid";
 import { windowBoundaryTarget } from '@/lib/virtual-rail';
@@ -20,6 +20,7 @@ export function VirtualVideoGrid({ videos, playedAt, variant, pageSize, automati
   videos: LibraryVideo[]; playedAt?: Record<string, number>; variant: Variant; pageSize: number; automatic?: boolean;
 }) {
   const budget = usePerformanceProfile();
+  const keyboardHint = useId();
   pageSize = budget.lowMemory ? Math.min(pageSize, budget.gridPageSize) : pageSize;
   const root = useRef<HTMLDivElement>(null);
   const probe = useRef<HTMLDivElement>(null);
@@ -168,11 +169,14 @@ export function VirtualVideoGrid({ videos, playedAt, variant, pageSize, automati
   const loadMore = useCallback(() => setLimit(value => Math.min(videos.length, value + pageSize)), [pageSize, videos.length]);
   useEffect(() => {
     const el = sentinel.current;
-    if (!automatic || !el || length >= videos.length) return;
-    const observer = new IntersectionObserver(entries => { if (entries.some(entry => entry.isIntersecting)) loadMore(); }, { rootMargin: "400px 0px" });
+    if (!automatic || viewerOpen || !el || length >= videos.length) return;
+    const observer = new IntersectionObserver(entries => {
+      const state = useLibrary.getState();
+      if (!state.activeId && !state.previewId && entries.some(entry => entry.isIntersecting)) loadMore();
+    }, { rootMargin: "400px 0px" });
     observer.observe(el);
     return () => observer.disconnect();
-  }, [automatic, length, loadMore, videos.length]);
+  }, [automatic, length, loadMore, videos.length, viewerOpen]);
 
   useLayoutEffect(() => {
     if (focusedIndex.current === undefined) return;
@@ -217,7 +221,9 @@ export function VirtualVideoGrid({ videos, playedAt, variant, pageSize, automati
       const target = windowBoundaryTarget('previous', start, end, length, event.relatedTarget instanceof Element && Boolean(event.relatedTarget.closest('[data-video-grid-index]')));
       if (target !== null) focusIndex(target);
     }}>Previous media title</button>}
-    <div role="list" aria-label={`Media catalog · ${videos.length.toLocaleString()} titles`}>
+    <p id={keyboardHint} className="sr-only">Use arrow keys to move between titles, Home and End for the loaded page, and Enter to open a preview. Artwork loads separately.</p>
+    <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">{length.toLocaleString()} of {videos.length.toLocaleString()} titles available on this page.</p>
+    <div role="list" aria-label={`Media catalog · ${videos.length.toLocaleString()} titles`} aria-describedby={keyboardHint}>
     {window.lead > 0 && <div aria-hidden="true" data-grid-spacer="lead" style={{ height: window.lead }} />}
     {rows.map(index => <div key={`${layout.columns}:${index}`} role="presentation" data-video-grid-row={Math.floor(index / layout.columns)} className={layouts[variant]}
       style={{ paddingBottom: index + layout.columns >= length ? 0 : variant === "list" ? 4 : 24 }}>

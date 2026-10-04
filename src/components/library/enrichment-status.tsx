@@ -15,7 +15,7 @@ export function EnrichmentStatus() {
       </Button><Button size="sm" variant="secondary" disabled={queue.jobs.some(job => job.id === 'cached-tags')}
         onClick={() => useLibrary.getState().repairCachedMetadata()}>Recheck cached tags</Button></div>
     </div>
-    <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">Cached tag repair and smart tags share one queue. Each completed batch saves locally. Input, scrolling, a hidden tab, and an open preview or player interrupt unfinished work; it resumes when the desk is available.</p>
+    <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">Cached tag repair and smart tags share one queue. Each completed batch saves locally. Input, scrolling, a hidden tab, an active search, and an open preview or player interrupt unfinished work. Clear search or close the viewer to resume.</p>
     <div className="mt-3 text-xs leading-5 text-accent" role="status">
       {queue.error ? `Save failed · ${queue.error} Retry the metadata action to continue.` : queue.paused ? 'Enrichment paused. Completed batches are saved.'
         : !queue.jobs.length ? 'No metadata work queued.' : queue.state === 'waiting' ? 'Waiting for the library to be available.' : 'Working in short idle slices.'}

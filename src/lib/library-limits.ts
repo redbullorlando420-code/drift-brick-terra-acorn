@@ -15,7 +15,7 @@ export const LIBRARY_LIMITS = {
   // A smaller rotating group prevents one background tick from allocating a
   // whole library's worth of cards. Each selected creator gets a deeper window.
   remoteRefreshChannelBatch: 24,
-  twitchChannelsReservedPerRefresh: 8,
+  twitchChannelsReservedPerRefresh: 12,
   // Keep pace with the Adult catalog without making the first channel paint
   // wait on every archive continuation. Focused pulls retain a deep history;
   // routine and bulk refreshes fill it in wider batches below.
@@ -67,7 +67,7 @@ export const LIBRARY_LIMITS = {
   // shallow. Also merge HIGHLIGHT + UPLOAD shelves.
   twitchArchiveMaxPages: 25,
   twitchFocusedVodsPerChannel: 2_000,
-  twitchRoutineVodsPerChannel: 24,
+  twitchRoutineVodsPerChannel: 100,
   /** Numbered clip pulls (public `user.clips`, multi-period + cursor pages). */
   twitchRoutineClipsPerChannel: 24,
   twitchFocusedClipsPerChannel: 500,

@@ -39,6 +39,15 @@
   --motion-slow: 400ms;
 }
 
+.search-editor-panel {
+  width: min(48rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+}
+.search-suggestions-scroll {
+  max-height: min(24rem, calc(100dvh - 8rem));
+  overscroll-behavior: contain;
+}
+
 @layer base {
   html[data-theme="day"] {
     color-scheme: light;

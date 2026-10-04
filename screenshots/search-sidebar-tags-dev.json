@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Realhub",
+      "hasCanvas": false,
+      "bodyTextLen": 427,
+      "bodyTextHash": "dd8f9139c1d6af44e96026a21c77d05be524ed90ca16b810ff3b51a9c5386429",
+      "bodyTextPrefix": "Home 0 indexed Search Date added 5:33 PM Pause pulls Folder REAL",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\search-sidebar-tags-dev.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Realhub",
+      "hasCanvas": false,
+      "bodyTextLen": 412,
+      "bodyTextHash": "0c3a78671c6d29e34e93316611379c7532890f5faf365368b83465eba8c92e3e",
+      "bodyTextPrefix": "Home 0 indexed Search Date added Pause pulls REALHUB Home A quie",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\search-sidebar-tags-dev-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\search-sidebar-tags-dev.json"
+}

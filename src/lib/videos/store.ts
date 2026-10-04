@@ -1,3 +1,4 @@
+import { youtubeTextTags, refreshYoutubeTags, YOUTUBE_TEXT_TAG_VERSION } from './youtube-text-tags';
 import { isRemovedRedditVideo } from './reddit-removed';
 import { selectSavedCards } from "./saved-library";
 import { updateYoutubeShelf } from "./youtube-shelf";
@@ -7,6 +8,7 @@ import { getPullSettings } from '@/lib/pull-settings';
 import { forEachCatalogSlice, copyCatalogArray, yieldCatalogTask } from "@/lib/catalog-work";
 import { youtubeCatalogSelection } from './youtube-catalog-selection';
 import { walkAdultPull } from './adult-pull-walk';
+import { adultProviderPullBudget } from './adult-pull-plan';
 import { catalogCard, withCatalogDetails } from './catalog-card';
 import { prepareCatalogRestore, reconcileRestoredResume, sameRestoreInputs } from './catalog-restore';
 import { beginStartupPhase, finishStartupPhase, markCatalogReady, beginFirstShelfRoute } from '../first-shelf-trace';
@@ -36,6 +38,7 @@ import { mergeRemoteCatalog, mergeRemoteRefreshAsync, remoteVideoIndex, remoteVi
 import { admitRemoteEntries, holdEntryLimitCursors, remoteEntryCounts, remainingEntrySlots, rememberEntryCounts } from './entry-limits';
 import { canonicalFollowHandle, dedupeFollows, mergeResolvedFollow } from "./follow-identity";
 import { importedFollowStub, repairYoutubeImport, resolvedFollowQueries, reviewYoutubeImport, bindYoutubeCorrection } from './follow-import';
+import { selectTwitchRefreshBatch } from './twitch-refresh-selection';
 import { restoreYoutubeCooldown, saveYoutubeCooldown, clearYoutubeCooldown, youtubeCooldownMessage, type RefreshFollowsResult } from '../remote/youtube-pull-feedback';
 import { lookupVideo, rememberVideo } from "./video-lookup";
 import { activityLookup, activityCandidates } from './activity-lookup';
@@ -210,7 +213,7 @@ export type LibraryState = {
   remoteBusy: boolean;
   remoteCheckedAt: number;
   refreshing: boolean;
-  remoteRefreshStatus: { at: number; checked: number; refreshed: number; failed: number; youtube: number; twitch: number; retryAt?: number; error?: string; cooldownScope?: 'catalog' | 'page' | 'feed' | 'live' | 'details' | 'all' } | null;
+  remoteRefreshStatus: { at: number; checked: number; refreshed: number; failed: number; youtube: number; twitch: number; action?: string; retryAt?: number; error?: string; cooldownScope?: 'catalog' | 'page' | 'feed' | 'live' | 'details' | 'all' } | null;
   youtubeRefreshStatus: LibraryState["remoteRefreshStatus"];
   /** Provider retry deadlines keyed by followed-channel id. Focused refreshes bypass these. */
   remoteRetryAt: Record<string, number>;
@@ -284,7 +287,7 @@ export type LibraryState = {
   unfollow: (id: string) => void;
   unfollowMany: (ids: string[]) => void;
   updateFollowProfiles: (profiles: Array<{ id: string; thumb?: string; description?: string }>) => void;
-  refreshFollows: (kind?: "twitch" | "youtube", options?: { catalog?: boolean; force?: boolean; scheduled?: boolean; youtubeLiveOnly?: boolean; backgroundLive?: boolean; channelIds?: string[] }) => Promise<RefreshFollowsResult>;
+  refreshFollows: (kind?: "twitch" | "youtube", options?: { catalog?: boolean; force?: boolean; scheduled?: boolean; youtubeLiveOnly?: boolean; twitchLiveOnly?: boolean; twitchRoutine?: boolean; channelIds?: string[] }) => Promise<RefreshFollowsResult>;
   pushNotice: (n: Omit<AppNotice, "id" | "at" | "read">) => void;
   markNoticesRead: () => void;
   setNotifyPush: (on: boolean) => void;
@@ -560,6 +563,7 @@ function mergeInferredTagProvenance(
   const tags = Object.fromEntries(nextTags.map((tag) => [tag, previousSources[tag] ?? (inferredSet.has(tag) ? source : "legacy")] as const));
   return {
     ...existing,
+    ...(source === 'provider:youtube' ? { youtubeTextTagVersion: YOUTUBE_TEXT_TAG_VERSION } : {}),
     tags,
     updatedAt: sameTags(previousTags, nextTags) && existing?.updatedAt ? existing.updatedAt : Date.now(),
   };
@@ -575,7 +579,8 @@ function enrichRemoteTags(existing: Record<string, string[]>, existingProvenance
     const provenance = existingProvenance[video.id];
     if (tagsLocked(provenance)) continue;
     const inferred = remoteMetadataTags(video);
-    const compact = compactIngestedTags(reconcileProviderTopicTags(video, current, provenance), inferred);
+    const compact = video.remote.kind === 'youtube' ? refreshYoutubeTags(current, inferred, provenance, LIBRARY_LIMITS.remoteMetadataTagsPerTitle)
+      : compactIngestedTags(reconcileProviderTopicTags(video, current, provenance), inferred);
     const tagsChanged = !sameTags(current, compact);
     if (tagsChanged) {
       if (tags === existing) tags = { ...existing };
@@ -584,7 +589,7 @@ function enrichRemoteTags(existing: Record<string, string[]>, existingProvenance
     // An unchanged, fully attributed card needs no new object (or JSON
     // serialization). Most cards on a large cached restore take this path.
     const sources = provenance?.tags;
-    const provenanceComplete = !tagsChanged && provenance?.updatedAt && sources
+    const provenanceComplete = !tagsChanged && (video.remote.kind !== 'youtube' || provenance?.youtubeTextTagVersion === YOUTUBE_TEXT_TAG_VERSION) && provenance?.updatedAt && sources
       && Object.keys(sources).length === compact.length
       && compact.every((tag) => sources[tag] !== undefined);
     if (!provenanceComplete) {
@@ -629,12 +634,14 @@ function enrichmentPatch(video: LibraryVideo, state: Pick<LibraryState, 'tags' |
   mode: 'cached' | 'tail' | 'smart'): CachedTagPatch | undefined {
   const beforeTags = state.tags[video.id], beforeProvenance = state.metadataProvenance[video.id];
   if (tagsLocked(beforeProvenance) || (mode === 'cached' && !video.remote) || (mode === 'tail' && beforeTags?.length)) return;
+  if (mode === 'cached' && video.remote?.kind === 'youtube' && beforeProvenance?.youtubeTextTagVersion === YOUTUBE_TEXT_TAG_VERSION) return;
   const inferred = metadataTagsForVideo(video, state.folders);
   const current = beforeTags ?? [];
   const existing = mode === 'cached' ? reconcileProviderTopicTags(video, current, beforeProvenance) : current;
-  const compact = compactIngestedTags(existing, inferred), tagsChanged = !sameTags(current, compact);
+  const compact = video.remote?.kind === 'youtube' ? refreshYoutubeTags(current, inferred, beforeProvenance, LIBRARY_LIMITS.remoteMetadataTagsPerTitle) : compactIngestedTags(existing, inferred);
+  const tagsChanged = !sameTags(current, compact);
   const sources = beforeProvenance?.tags;
-  if (!tagsChanged && beforeProvenance?.updatedAt && sources && Object.keys(sources).length === compact.length
+  if (!tagsChanged && (video.remote?.kind !== 'youtube' || beforeProvenance?.youtubeTextTagVersion === YOUTUBE_TEXT_TAG_VERSION) && beforeProvenance?.updatedAt && sources && Object.keys(sources).length === compact.length
     && compact.every(tag => sources[tag] !== undefined)) return;
   if (!compact.length) return;
   return { beforeTags, beforeProvenance, tags: tagsChanged ? compact : current,
@@ -677,29 +684,19 @@ function compactIngestedTags(existing: string[], inferred: string[]) {
 const IGNORED_DESCRIPTION_WORDS = new Set(["about", "after", "also", "because", "being", "between", "channel", "click", "creator", "description", "from", "have", "here", "just", "more", "next", "official", "please", "really", "subscribe", "that", "this", "through", "today", "video", "watch", "with", "youtube", "your"]);
 
 function descriptionKeywordTags(video: LibraryVideo) {
-  // Keep a controlled 300-word ceiling. Provider descriptions are the richest
+  if (video.remote?.kind === 'youtube') return youtubeTextTags(video).tags;
+  // Keep a controlled text ceiling. Provider descriptions are the richest
   // public source for Twitch and YouTube connections, while the ceiling keeps
   // storage, exports, and derived shelves bounded.
-  const text = `${video.remote?.channelName ?? ""} ${video.name} ${video.description ?? video.tagline ?? ""}`.toLowerCase();
+  const text = `${video.remote?.channelName ?? ""} ${video.name} ${video.description ?? video.tagline ?? ""}`.slice(0, 8000).toLowerCase();
   const words = text.match(/[a-z][a-z0-9-]{3,30}/g) ?? [];
   const seen = new Set<string>();
   const tags: string[] = [];
-  const publicTopics = video.remote?.kind === "youtube" || video.remote?.kind === "twitch" ? new Set(topicsForVideo(video)) : null;
+  const publicTopics = video.remote?.kind === "twitch" ? new Set(topicsForVideo(video)) : null;
   const unsupportedTopic = (word: string) => {
     const topic = canonicalTopic(word);
     return publicTopics && topic && !publicTopics.has(topic);
   };
-  // Explicit creator hashtags carry more intent than arbitrary description
-  // words, so reserve the front of the bounded tag window for them.
-  if (video.remote?.kind === "youtube") {
-    for (const match of text.matchAll(/#([a-z][a-z0-9_-]{2,30})\b/g)) {
-      const tag = match[1].replaceAll("_", "-");
-      if (IGNORED_DESCRIPTION_WORDS.has(tag) || seen.has(tag) || unsupportedTopic(tag)) continue;
-      seen.add(tag);
-      tags.push(tag);
-      if (tags.length >= LIBRARY_LIMITS.descriptionKeywordTagsPerTitle) return tags;
-    }
-  }
   for (const word of words) {
     if (IGNORED_DESCRIPTION_WORDS.has(word) || seen.has(word) || unsupportedTopic(word)) continue;
     seen.add(word);
@@ -758,8 +755,9 @@ const SEMANTIC_TAG_RULES: ReadonlyArray<readonly [RegExp, string]> = [
 ];
 
 function semanticTags(video: LibraryVideo) {
-  const text = `${video.name} ${video.path} ${video.tagline ?? ""} ${video.description ?? ""}`.toLowerCase();
   const publicRemote = video.remote?.kind === "youtube" || video.remote?.kind === "twitch";
+  const text = publicRemote ? video.name.slice(0, 500).toLowerCase()
+    : `${video.name} ${video.path} ${video.tagline ?? ""} ${video.description ?? ""}`.slice(0, 8000).toLowerCase();
   const tags: string[] = publicRemote ? [...topicsForVideo(video)] : [];
   if (!publicRemote) for (const [pattern, tag] of SEMANTIC_TAG_RULES) if (pattern.test(text)) tags.push(tag);
   if (video.remote?.kind === "youtube" && ((video.duration ?? 0) > 0 && (video.duration ?? 0) < 90 || /(?:#|\b)shorts?\b/i.test(text))) tags.push("shorts", "short-form");
@@ -1324,7 +1322,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     if (get().remoteBusy || get().refreshing) throw new Error("A catalog pull is already running.");
     const maxVideos = Math.min(capacity, policy.adultBatchVideos, Math.max(1, opts?.maxVideos ?? policy.adultBatchVideos));
     const cursors = loadAdultArchiveCursors(query, order);
-    let received = 0, added = 0, done = 0;
+    let received = 0, added = 0, done = 0, carryBudget = 0;
     const diagnostics: AdultPullDiagnostic[] = [];
     const counts = new Map<string, number>();
     // Yield a real browser task, then respect the shared pull gate. A resolved
@@ -1338,9 +1336,11 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     try {
       for (const [index, provider] of providerList.entries()) {
         if (getPullCancellationRevision() !== cancellation) break;
+        const providerAddedBefore = added;
         const available = remainingEntrySlots(await remoteEntryCounts(get().videos), getPullSettings(), 'adult');
         if (!available) break;
-        const budget = Math.min(available, Math.floor(maxVideos / providerList.length) + (index < maxVideos % providerList.length ? 1 : 0));
+        const budget = Math.min(available, adultProviderPullBudget(maxVideos, providerList.length, index, carryBudget));
+        carryBudget = 0;
         if (!budget) continue;
         const saved = cursors[provider];
         const page = opts?.providerPages?.[provider] ?? (opts?.resumeArchive === false ? opts?.page ?? 1 : saved?.page ?? opts?.page ?? 1);
@@ -1352,7 +1352,12 @@ export const useLibrary = create<LibraryState>((set, get) => ({
             const response = await searchAdultVideos({ data: { query, order, page: nextPage, maxVideos: limit, append: true, providers: [provider], providerPages: { [provider]: nextPage }, providerOffsets: { [provider]: nextOffset }, redditSources: opts?.redditSources } });
             return { ...response, nextPage: response.providerNextPages[provider] ?? null, nextOffset: response.providerNextOffsets[provider] ?? 0 };
           }, turn);
-          if (!walked.latest) continue;
+          if (!walked.latest) {
+            carryBudget += budget;
+            done++;
+            get().updatePull({ done, received, added, failed: diagnostics.filter(row => row.status === 'failed').length });
+            continue;
+          }
           const result = { ...walked.latest, videos: walked.videos,
             providerDiagnostics: walked.latest.providerDiagnostics.map(row => ({ ...row, titles: walked.videos.length, detail: `${walked.videos.length.toLocaleString()} entries across archive pages${walked.error ? ' · stopped after a provider error; saved results are retained' : ''}` })) };
           if (walked.error) result.providerDiagnostics.push({ provider, status: 'failed', titles: 0, detail: walked.error instanceof Error ? walked.error.message : String(walked.error) });
@@ -1367,6 +1372,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
             // catalog and its metadata just to publish an unchanged shelf.
             diagnostics.push(...result.providerDiagnostics);
             if (!admission.skipped) saveAdultArchiveCursors(query, order, result.providerNextPages, result.providerNextOffsets);
+            if (!admission.skipped) carryBudget += budget;
             done++;
             get().updatePull({ done, received, added, failed: diagnostics.filter(row => row.status === 'failed').length });
             continue;
@@ -1452,10 +1458,12 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           diagnostics.push(...result.providerDiagnostics);
           for (const diagnostic of result.providerDiagnostics) if (diagnostic.status === 'failed' && (ADULT_PULL_PROVIDERS as readonly string[]).includes(diagnostic.provider)) recordAdultArchiveFailure(query, order, diagnostic.provider as AdultPullProvider);
           if (!admission.skipped) saveAdultArchiveCursors(query, order, result.providerNextPages, result.providerNextOffsets);
+          if (!admission.skipped) carryBudget += Math.max(0, budget - admission.added);
         } catch (error) {
           if (getPullCancellationRevision() !== cancellation) break;
           recordAdultArchiveFailure(query, order, provider);
           diagnostics.push({ provider, status: 'failed', titles: 0, detail: error instanceof Error ? error.message : String(error) });
+          carryBudget += Math.max(0, budget - (added - providerAddedBefore));
         }
         done++;
         get().updatePull({ done, received, added, failed: diagnostics.filter(row => row.status === 'failed').length });
@@ -2163,7 +2171,9 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       const correction = opts?.correctFollowId ? get().follows.find(channel => channel.kind === 'youtube' && channel.id === opts.correctFollowId) : undefined;
       const knownYoutube = !correction && get().follows.find((channel) => channel.kind === "youtube"
         && (channel.id === query || channel.channelId === query || canonicalFollowHandle("youtube", channel.handle) === canonicalFollowHandle("youtube", query)));
-      const fetched = await followRemote({ data: { query, kind, ...(opts?.clipLimit ? { clipLimit: opts.clipLimit } : {}), ...(knownYoutube && knownYoutube.catalogCursor ? { catalogCursor: knownYoutube.catalogCursor } : {}) } });
+      const knownTwitch = provider === "twitch" ? get().follows.find((channel) => channel.kind === "twitch"
+        && (channel.id === query || canonicalFollowHandle("twitch", channel.handle) === canonicalFollowHandle("twitch", query))) : undefined;
+      const fetched = await followRemote({ data: { query, kind, ...(opts?.clipLimit ? { clipLimit: opts.clipLimit } : {}), ...(knownYoutube && knownYoutube.catalogCursor ? { catalogCursor: knownYoutube.catalogCursor } : {}), ...(knownTwitch?.twitchArchiveCursor ? { twitchArchiveCursor: knownTwitch.twitchArchiveCursor } : {}), ...(knownTwitch?.twitchClipCursor ? { twitchClipCursor: knownTwitch.twitchClipCursor } : {}) } });
       const result = correction ? bindYoutubeCorrection(fetched, correction, query) : fetched;
       const received = result.videos.length;
       let prepared = await prepareRemotePull(get, result.videos, undefined, true);
@@ -2390,27 +2400,35 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     cacheRemotes(get);
   },
   refreshFollows: async (kind, options) => {
-    const forceYoutube = kind === 'youtube' && options?.catalog === true && options.force === true && !options.scheduled && !options.youtubeLiveOnly && !options.backgroundLive;
+    const forceYoutube = kind === 'youtube' && options?.catalog === true && options.force === true && !options.scheduled && !options.youtubeLiveOnly && !options.twitchRoutine;
     let forceNextRequest = forceYoutube;
     let recoveredCooldown = false;
     const holdYoutube = () => !forceYoutube && (get().youtubeRefreshStatus?.retryAt ?? 0) > Date.now()
       && (get().youtubeRefreshStatus?.cooldownScope === 'all' || !get().youtubeRefreshStatus?.cooldownScope || options?.catalog === true);
     if (kind === 'youtube' && holdYoutube()) return { wentLive: [], newVideos: [], skipped: 'cooldown', retryAt: get().youtubeRefreshStatus!.retryAt };
-    await waitForPulls();
+    // A user-requested Twitch live check is a deliberate one-shot action and
+    // must still work while background archive pulling is paused.
+    if (!options?.twitchLiveOnly) await waitForPulls();
     if (kind === 'youtube' && holdYoutube()) return { wentLive: [], newVideos: [], skipped: 'cooldown', retryAt: get().youtubeRefreshStatus!.retryAt };
-    const overlappingLive = Boolean((options?.youtubeLiveOnly || options?.backgroundLive) && get().refreshing);
-    if ((get().refreshing && !overlappingLive) || get().remoteBusy || (options?.youtubeLiveOnly && youtubeLiveCheckBusy) || (options?.backgroundLive && twitchLiveCheckBusy)) return { wentLive: [], newVideos: [], skipped: 'busy' };
+    const twitchLiveOnly = Boolean(options?.twitchLiveOnly);
+    const backgroundTwitchRefresh = Boolean(options?.twitchRoutine && kind === "twitch");
+    const overlappingLive = Boolean((options?.youtubeLiveOnly || twitchLiveOnly) && get().refreshing);
+    if ((get().refreshing && !overlappingLive) || get().remoteBusy || (options?.youtubeLiveOnly && youtubeLiveCheckBusy) || (twitchLiveOnly && twitchLiveCheckBusy)) return { wentLive: [], newVideos: [], skipped: 'busy' };
     const allFollows = dedupeFollows(get().follows).filter(follow => (!kind || follow.kind === kind) && !(follow.kind === 'youtube' && holdYoutube()));
     if (!allFollows.length) return { wentLive: [], newVideos: [], skipped: 'empty' };
     const rotate = (items: FollowedChannel[], limit: number, cursor: "twitch" | "youtube" | "all") => {
       if (!items.length) return [];
-      const savedCursor = cursor === "twitch" ? twitchRefreshCursor : cursor === "youtube" ? youtubeRefreshCursor : remoteRefreshCursor;
+      if (cursor === "twitch") {
+        const batch = selectTwitchRefreshBatch(items, limit, twitchRefreshCursor);
+        twitchRefreshCursor = batch.nextCursor;
+        return batch.channels;
+      }
+      const savedCursor = cursor === "youtube" ? youtubeRefreshCursor : remoteRefreshCursor;
       const count = Math.min(limit, items.length);
       const start = savedCursor % items.length;
       const next = Array.from({ length: count }, (_, index) => items[(start + index) % items.length]);
       const updated = (start + count) % items.length;
-      if (cursor === "twitch") twitchRefreshCursor = updated;
-      else if (cursor === "youtube") youtubeRefreshCursor = updated;
+      if (cursor === "youtube") youtubeRefreshCursor = updated;
       else remoteRefreshCursor = updated;
       return next;
     };
@@ -2439,19 +2457,19 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       ? selectYoutubeSweepChannels(youtube, Date.now(), getPullSettings().youtubeSourcesPerSweep, LIBRARY_LIMITS.youtubeCatalogRecheckExhaustedMs, { includeExhausted: true, includePlaylists: true, videoCounts: youtubeCoverage })
       : kind === "youtube"
       ? selectYoutubeFeedChannels(youtube, youtubeCoverage!, Date.now(), LIBRARY_LIMITS.youtubeRecentRefreshChannels)
-      : kind === "twitch" && options?.backgroundLive
+      : kind === "twitch" && (twitchLiveOnly || backgroundTwitchRefresh)
       ? rotate(twitch, LIBRARY_LIMITS.twitchChannelsReservedPerRefresh, "twitch")
       : twitch.length && youtube.length
       ? [...rotate(twitch, Math.min(LIBRARY_LIMITS.twitchChannelsReservedPerRefresh, REMOTE_REFRESH_BATCH_SIZE), "twitch"), ...rotate(youtube, REMOTE_REFRESH_BATCH_SIZE - Math.min(LIBRARY_LIMITS.twitchChannelsReservedPerRefresh, REMOTE_REFRESH_BATCH_SIZE), "youtube")]
-      : rotate(allFollows, REMOTE_REFRESH_BATCH_SIZE, "all");
+      : rotate(allFollows, REMOTE_REFRESH_BATCH_SIZE, kind === "twitch" ? "twitch" : "all");
     if (!current.length) return { wentLive: [], newVideos: [], skipped: 'empty' };
     if (options?.youtubeLiveOnly) youtubeLiveCheckBusy = true;
-    if (options?.backgroundLive) twitchLiveCheckBusy = true;
+    if (twitchLiveOnly) twitchLiveCheckBusy = true;
     if (!overlappingLive) set({ refreshing: true });
     const startedAt = Date.now();
     const pullId = makePullId();
     const provider = kind ?? (current.some((channel) => channel.kind === "youtube") && current.some((channel) => channel.kind === "twitch") ? "multi" : current[0].kind);
-    const action = options?.youtubeLiveOnly ? "YouTube live check" : options?.scheduled ? "Scheduled YouTube archive sweep" : options?.catalog ? "YouTube archive pull" : "Channel refresh";
+    const action = options?.youtubeLiveOnly ? "YouTube live check" : twitchLiveOnly ? "Twitch live check" : backgroundTwitchRefresh ? "Scheduled Twitch content pull" : options?.scheduled ? "Scheduled YouTube archive sweep" : options?.catalog ? "YouTube archive pull" : "Channel refresh";
     if (!overlappingLive) get().beginPull({ id: pullId, provider, action, startedAt, targets: current.map((channel) => channel.title || channel.handle), done: 0, total: current.length, received: 0, added: 0, failed: 0 });
     const beforeLiveChannels = new Set(get().follows.filter((channel) => channel.live).map((channel) => channel.id));
     const catalogQueue = kind === "youtube" && options?.catalog === true;
@@ -2494,13 +2512,13 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       const batch = current.slice(offset, offset + batchSize).map(channel => youtubeCoverage && !(youtubeCoverage.get(channel.id) ?? 0)
         ? { ...channel, catalogCursor: undefined, catalogExhaustedAt: undefined, newestVideoId: undefined } : channel);
       if (catalogQueue) await waitForCatalogTurn();
-      await waitForPulls();
+      if (!options?.twitchLiveOnly) await waitForPulls();
       await syncCatalogIndex();
       let result: Awaited<ReturnType<typeof refreshRemotes>>;
       try {
         const forceYoutubeRequest = forceNextRequest;
         forceNextRequest = false;
-        result = await refreshRemotes({ data: { forceYoutube: forceYoutubeRequest, youtubeVideoLimit: getPullSettings().youtubeBatchVideos, channels: batch, youtubeCatalog: catalogQueue, youtubeBackground: options?.scheduled === true, youtubeLiveOnly: options?.youtubeLiveOnly === true, backgroundLive: options?.backgroundLive === true } });
+        result = await refreshRemotes({ data: { forceYoutube: forceYoutubeRequest, youtubeVideoLimit: getPullSettings().youtubeBatchVideos, channels: batch, youtubeCatalog: catalogQueue, youtubeBackground: options?.scheduled === true, youtubeLiveOnly: options?.youtubeLiveOnly === true, twitchLiveOnly: options?.twitchLiveOnly === true, twitchRoutine: options?.twitchRoutine === true } });
       } catch (error) {
         if (getPullCancellationRevision() !== cancellation) break;
         errors.push(`${batch.map((channel) => channel.title).join(", ")}: ${error instanceof Error ? error.message : String(error)}`);
@@ -2562,7 +2580,8 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           refreshed,
           failed: offset + batch.length - refreshed,
           youtube: catalogQueue ? received : result.videos.filter((video) => video.remote?.kind === "youtube").length,
-          twitch: result.videos.filter((video) => video.remote?.kind === "twitch" && !video.remote.live).length,
+          twitch: result.videos.filter((video) => video.remote?.kind === "twitch" && (twitchLiveOnly ? video.remote.live : video.extension === "vod" || video.extension === "clip")).length,
+          action,
           ...(result.providerRetryAt ? { retryAt: result.providerRetryAt, cooldownScope: result.providerCooldownScope } : {}),
           ...(result.channels.find(channel => channel.lastProviderFailure)?.lastProviderFailure ? { error: result.channels.find(channel => channel.lastProviderFailure)!.lastProviderFailure!.message } : {}),
         };
@@ -2600,7 +2619,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         progress: reconcileResumeForVideos(result.videos, s.progress, s.resumeProgress),
         tags: enriched.tags,
         metadataProvenance: enriched.metadataProvenance,
-        ...(!overlappingLive && !options?.youtubeLiveOnly ? { remoteRefreshStatus: refreshStatus } : {}),
+        ...(!overlappingLive ? { remoteRefreshStatus: refreshStatus } : {}),
         ...(kind === 'youtube' && !options?.youtubeLiveOnly ? { youtubeRefreshStatus: refreshStatus } : {}),
         ...(!overlappingLive && !options?.youtubeLiveOnly ? { remoteRetryAt: result.retryAt } : {}),
       };
@@ -2632,7 +2651,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       return { wentLive, newVideos, pull, retryAt: get().youtubeRefreshStatus?.retryAt };
     } catch (error) {
       if (!options?.youtubeLiveOnly) {
-        const status = { at: Date.now(), checked, refreshed, failed: checked - refreshed, youtube: received, twitch: 0, error: error instanceof Error ? error.message : String(error) };
+        const status = { at: Date.now(), checked, refreshed, failed: checked - refreshed, youtube: received, twitch: 0, action, error: error instanceof Error ? error.message : String(error) };
         set({ remoteRefreshStatus: status, ...(kind === 'youtube' ? { youtubeRefreshStatus: status } : {}) });
       }
       const pull: PullRecord = { id: pullId, provider, action, startedAt, finishedAt: Date.now(), targets: current.slice(0, 12).map((channel) => channel.title || channel.handle), done: checked, total: current.length, received, added, failed: checked - refreshed, status: "failed", errors: [error instanceof Error ? error.message : String(error)] };
@@ -2640,7 +2659,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       return { wentLive, newVideos, pull };
     } finally {
       if (options?.youtubeLiveOnly) youtubeLiveCheckBusy = false;
-      if (options?.backgroundLive) twitchLiveCheckBusy = false;
+      if (twitchLiveOnly) twitchLiveCheckBusy = false;
       if (!overlappingLive) set({ refreshing: false });
     }
   },
@@ -3144,7 +3163,7 @@ const stopSelectorEviction = useLibrary.subscribe((state, previous) => {
 import.meta.hot?.dispose(stopSelectorEviction);
 
 const stopEnrichmentViewer = useLibrary.subscribe((state, previous) => {
-  if (state.activeId !== previous.activeId || state.previewId !== previous.previewId)
-    setEnrichmentViewerOpen(Boolean(state.activeId || state.previewId));
+  if (state.activeId !== previous.activeId || state.previewId !== previous.previewId || state.query !== previous.query)
+    setEnrichmentViewerOpen(Boolean(state.activeId || state.previewId), Boolean(state.query.trim()));
 });
 import.meta.hot?.dispose(stopEnrichmentViewer);

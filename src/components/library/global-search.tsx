@@ -10,6 +10,8 @@ import { getInteractionPriorityDelay, scheduleBackgroundWork } from '@/lib/inter
 import { yieldCatalogTask } from '@/lib/catalog-work';
 import { useSessionPhase } from '@/lib/use-session-phase';
 import { searchResultSource } from '@/lib/library-navigation';
+import * as Popover from '@radix-ui/react-popover';
+import { queueSearchDraft, searchEditorShortcut } from '@/lib/search-editor';
 
 const EMPTY_VIDEOS: LibraryVideo[] = [];
 const EMPTY_TAGS: Record<string, string[]> = {};
@@ -29,13 +31,16 @@ export const GlobalSearch = memo(function GlobalSearch() {
   const sessionPhase = useSessionPhase();
   const root = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const tabExit = useRef<HTMLElement | null>(null);
   const panelId = useId();
   const localCommit = useRef<string | null>(null);
   const setQuery = useCallback((value: string) => { localCommit.current = value; setStoreQuery(value); }, [setStoreQuery]);
   const [draft, setDraft] = useState(query);
   const [lookup, setLookup] = useState(query);
-  const [focused, setFocused] = useState(false);
-  const panelOpen = focused && !viewerOpen && sessionPhase === 'active';
+  const [expanded, setExpanded] = useState(false);
+  const editorActive = useRef(false);
+  const panelOpen = expanded && !viewerOpen && sessionPhase === 'active';
   const onAdultDesk = sourceId === 'adults' || sourceId === 'adult-fetishes';
   const needle = lookup.trim().toLowerCase();
   const lookupActive = panelOpen && Boolean(needle) && lookup === draft;
@@ -54,10 +59,28 @@ export const GlobalSearch = memo(function GlobalSearch() {
   const [indexStatus, setIndexStatus] = useState(searchWorkerIndex.getStatus());
 
   const dismiss = useCallback(() => {
-    setFocused(false);
+    editorActive.current = false;
+    setExpanded(false);
     setPacket(undefined);
+    setDraft(useLibrary.getState().query);
   }, []);
-  const finish = () => { dismiss(); input.current?.blur(); };
+  const finish = dismiss;
+  const openEditor = useCallback(() => {
+    const current = useLibrary.getState().query;
+    editorActive.current = true;
+    setDraft(current); setLookup(current); setExpanded(true);
+  }, []);
+  useEffect(() => {
+    const shortcut = (event: KeyboardEvent) => {
+      const editing = event.target instanceof Element && Boolean(event.target.closest('input,textarea,select,[contenteditable]:not([contenteditable="false"])'));
+      const state = useLibrary.getState();
+      if (!event.repeat && !state.activeId && !state.previewId && searchEditorShortcut(event, editing)) {
+        event.preventDefault(); openEditor(); input.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', shortcut);
+    return () => window.removeEventListener('keydown', shortcut);
+  }, [openEditor]);
   useEffect(() => {
     try {
       const saved: unknown = JSON.parse(localStorage.getItem('reelcase.search.recent') ?? '[]');
@@ -65,7 +88,7 @@ export const GlobalSearch = memo(function GlobalSearch() {
     } catch { /* Search remains usable without optional recent history. */ }
   }, []);
   useEffect(() => {
-    if (query !== localCommit.current) { setDraft(query); dismiss(); }
+    if (!editorActive.current || query !== localCommit.current) { setDraft(query); dismiss(); }
   }, [query, dismiss]);
   useEffect(() => {
     if (!panelOpen || lookup === draft) return;
@@ -73,22 +96,14 @@ export const GlobalSearch = memo(function GlobalSearch() {
     return () => window.clearTimeout(timer);
   }, [draft, lookup, panelOpen]);
   useEffect(() => {
-    if (draft === query || onAdultDesk) return;
-    const timer = window.setTimeout(() => setQuery(draft), 180);
-    return () => window.clearTimeout(timer);
-  }, [draft, query, setQuery, onAdultDesk]);
+    if (!panelOpen || draft === query || onAdultDesk) return;
+    return queueSearchDraft({ draft, query, sourceId, active: () => editorActive.current, get: useLibrary.getState,
+      commit: setQuery, schedule: work => { const timer = window.setTimeout(work, 180); return () => window.clearTimeout(timer); } });
+  }, [draft, query, setQuery, onAdultDesk, panelOpen, sourceId]);
   useEffect(() => { dismiss(); }, [sourceId, dismiss]);
   useEffect(() => {
     if (viewerOpen || sessionPhase !== 'active') dismiss();
   }, [viewerOpen, sessionPhase, dismiss]);
-  useEffect(() => {
-    if (!panelOpen) return;
-    const outside = (event: PointerEvent) => {
-      if (event.target instanceof Node && !root.current?.contains(event.target)) dismiss();
-    };
-    document.addEventListener('pointerdown', outside, true);
-    return () => document.removeEventListener('pointerdown', outside, true);
-  }, [panelOpen, dismiss]);
   useEffect(() => {
     if (!lookupActive) return;
     setIndexStatus(searchWorkerIndex.getStatus());
@@ -138,22 +153,42 @@ export const GlobalSearch = memo(function GlobalSearch() {
     finish();
   };
 
-  return <div ref={root} className="relative min-w-0 sm:col-span-2 sm:row-start-2 2xl:col-span-1 2xl:row-start-1 2xl:max-w-3xl"
-    onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) dismiss(); }}
-    onKeyDownCapture={event => { if (event.key === 'Escape' && panelOpen) { event.preventDefault(); event.stopPropagation(); finish(); } }}>
+  const clearQuery = () => {
+    setDraft(''); setQuery('');
+    if (onAdultDesk) window.dispatchEvent(new CustomEvent('reelcase:adult-tag', { detail: { tag: 'All' } }));
+    finish();
+  };
+  return <div className="flex min-w-0 items-center gap-1">
+    <Popover.Root open={panelOpen} onOpenChange={open => { if (open) openEditor(); else finish(); }}>
+      <Popover.Trigger asChild><Button ref={trigger} variant="secondary" className="h-11 min-w-11 max-w-52" aria-label="Open search" title={query ? `Search: ${query} · Ctrl+K` : 'Search your library (Ctrl+K or /)'}>
+        <Search className="size-4 shrink-0" /><span className="max-w-36 truncate">{query || 'Search'}</span>
+      </Button></Popover.Trigger>
+      <Popover.Portal><Popover.Content align="end" sideOffset={8} collisionPadding={16} className="search-editor-panel z-40 rounded-lg border border-border bg-surface p-3 shadow-lift outline-none" aria-label="Search editor"
+        onOpenAutoFocus={event => { event.preventDefault(); input.current?.focus(); }}
+        onCloseAutoFocus={event => { if (tabExit.current) { event.preventDefault(); tabExit.current.focus(); tabExit.current = null; } }}
+        onKeyDownCapture={event => {
+          if (event.key !== 'Tab' || event.ctrlKey || event.metaKey || event.altKey) return;
+          const controls = event.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled]),input:not([disabled]),a[href],[tabindex="0"]');
+          if (event.target !== controls[event.shiftKey ? 0 : controls.length - 1]) return;
+          // Radix loops Tab within popovers, even nonmodal ones. Let a search
+          // editor boundary return to the header and release its catalog work.
+          event.preventDefault();
+          const headerControls = [...(trigger.current?.closest('header')?.querySelectorAll<HTMLElement>('button:not([disabled]),a[href]') ?? [])];
+          const index = headerControls.indexOf(trigger.current!);
+          tabExit.current = event.shiftKey ? trigger.current : headerControls[index + 1] ?? trigger.current;
+          finish();
+        }}
+        onEscapeKeyDown={finish} onInteractOutside={finish}>
+    <div ref={root} className="relative min-w-0">
     <Search className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-accent" />
-    <Input ref={input} type="search" enterKeyHint="search" value={draft} onChange={event => { setDraft(event.target.value); setFocused(true); }}
+    <Input ref={input} type="search" enterKeyHint="search" value={draft} onChange={event => setDraft(event.target.value)}
       onKeyDown={event => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); commit(); } }}
-      onFocus={() => setFocused(true)} onClick={() => setFocused(true)}
       placeholder={onAdultDesk ? 'Find Adult tags — e.g. role play or creator…' : 'Search your entire media desk…'}
       className="h-12 border-border bg-elevated pl-11 pr-12 text-base shadow-border [&::-webkit-search-cancel-button]:hidden" aria-label="Global media search"
       aria-expanded={panelOpen} aria-controls={panelOpen ? panelId : undefined} />
-    {draft && <button type="button" aria-label="Clear search" onMouseDown={event => event.preventDefault()} onClick={() => {
-      setDraft(''); setQuery('');
-      if (onAdultDesk) window.dispatchEvent(new CustomEvent('reelcase:adult-tag', { detail: { tag: 'All' } }));
-      finish();
-    }} className="absolute top-1/2 right-0 flex size-11 -translate-y-1/2 items-center justify-center text-subtle hover:text-fg"><X className="size-4" /></button>}
-    {panelOpen && <section id={panelId} aria-label="Search suggestions" className="absolute top-[calc(100%+0.5rem)] z-40 max-h-96 w-full overflow-y-auto rounded-lg bg-surface p-2 shadow-lift shadow-border">
+    {draft && <button type="button" aria-label="Clear search" onMouseDown={event => event.preventDefault()} onClick={clearQuery} className="absolute top-1/2 right-0 flex size-11 -translate-y-1/2 items-center justify-center text-subtle hover:text-fg"><X className="size-4" /></button>}
+    </div>
+    {panelOpen && <section id={panelId} aria-label="Search suggestions" className="search-suggestions-scroll mt-2 w-full overflow-y-auto">
       <div className="flex items-center justify-between gap-2 px-3"><p className="text-xs font-medium text-muted">Search suggestions</p><Button size="icon" variant="ghost" className="size-11 shrink-0" aria-label="Dismiss search suggestions" onMouseDown={event => event.preventDefault()} onClick={finish}><X className="size-4" /></Button></div>
       <div className="mb-2 flex gap-2 border-b border-border px-3 pb-2">{[['home', 'Library'], ['youtube', 'YouTube'], ['twitch', 'Twitch']].map(([id, label]) => <Button key={id} size="sm" className="min-h-11" variant="ghost" onMouseDown={event => event.preventDefault()} onClick={() => { finish(); setSource(id); }}>{label}</Button>)}</div>
       {onAdultDesk && <p className="px-3 py-2 text-xs text-muted">Use plain words or #tags. Adult tag searches stay on this desk.</p>}
@@ -168,5 +203,8 @@ export const GlobalSearch = memo(function GlobalSearch() {
       </>}
       {draft.trim() && <button type="button" onMouseDown={event => event.preventDefault()} onClick={() => commit()} className="mt-1 flex min-h-11 w-full items-center gap-2 rounded-sm px-3 py-2 text-left text-sm text-accent hover:bg-elevated"><Search className="size-4 shrink-0" /><span className="truncate">See all results for “{draft}”</span></button>}
     </section>}
+      </Popover.Content></Popover.Portal>
+    </Popover.Root>
+    {query && !expanded && <Button variant="ghost" size="icon" className="size-11 shrink-0" aria-label="Clear search" onClick={clearQuery}><X className="size-4" /></Button>}
   </div>;
 });

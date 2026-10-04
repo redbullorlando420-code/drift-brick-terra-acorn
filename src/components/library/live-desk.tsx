@@ -59,7 +59,8 @@ export function LiveDesk({ videos, adultLiveVideos = [], staleYoutubeVideos = []
   const youtubeHealth = youtubeFollowHealth(follows);
   const youtubeFailures = youtubeFollows.filter(f => f.lastLiveFailure);
   const lastYoutubeLiveCheck = Math.max(0, ...youtubeFollows.map(f => f.liveCheckedAt ?? 0));
-  const twitchFailures = twitchFollows.filter(f => f.lastProviderFailure);
+  const twitchFailures = twitchFollows.filter(f => f.lastLiveFailure);
+  const lastTwitchLiveCheck = Math.max(0, ...twitchFollows.map(f => f.liveCheckedAt ?? 0));
   const sources = LIVE_SOURCES.filter(s => source === "all" || source === s.id);
   const grid = columns === 3 ? "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" : columns === 6 ? "grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-6" : "grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4";
   const reset = () => { setSourceFilter("all"); setFilter("all"); setSearch(""); };
@@ -69,7 +70,7 @@ export function LiveDesk({ videos, adultLiveVideos = [], staleYoutubeVideos = []
       <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-accent"><Radio className="size-4"/>On air</p>
       <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
         <div><h1 className="font-display text-3xl text-fg sm:text-4xl">Live, by source.</h1><p className="mt-2 text-sm text-muted">{rows.length.toLocaleString()} live streams in your library. Twitch and YouTube come first; Adult rooms have their own sections.</p></div>
-        <Button variant="secondary" disabled={refreshing} onClick={() => void (source === "youtube" ? refresh("youtube", { youtubeLiveOnly: true }) : refresh(source === "twitch" ? "twitch" : undefined))}><RefreshCw className={refreshing ? "size-4 animate-spin" : "size-4"}/>{refreshing ? "Checking channels…" : source === "twitch" ? "Refresh Twitch" : source === "youtube" ? "Check YouTube live" : "Refresh Twitch & YouTube"}</Button>
+        <Button variant="secondary" disabled={refreshing} onClick={() => void (source === "youtube" ? refresh("youtube", { youtubeLiveOnly: true }) : source === "twitch" ? refresh("twitch", { twitchLiveOnly: true }) : refresh(undefined))}><RefreshCw className={refreshing ? "size-4 animate-spin" : "size-4"}/>{refreshing ? "Checking channels…" : source === "twitch" ? "Refresh Twitch live" : source === "youtube" ? "Check YouTube live" : "Refresh Twitch & YouTube"}</Button>
       </div>
       <div className="mt-6 flex flex-wrap gap-2" role="group" aria-label="Filter live by source">
         {[{ id: "all", label: "All sources" }, ...LIVE_SOURCES].map(s => <Button key={s.id} className="min-h-11" variant={source === s.id ? "default" : "secondary"} aria-pressed={source === s.id} onClick={() => setSourceFilter(s.id)}>{s.label} · {s.id === "all" ? rows.length : counts[s.id]}</Button>)}
@@ -85,9 +86,9 @@ export function LiveDesk({ videos, adultLiveVideos = [], staleYoutubeVideos = []
 
     {(source === "all" || source === "twitch") && <aside className="mb-6 rounded-lg border border-border bg-elevated p-4" aria-label="Twitch live status">
       <p className="text-sm font-medium text-fg">Twitch · {counts.twitch} live · {twitchFollows.length} followed</p>
-      <p className="mt-1 text-sm text-muted">{!twitchFollows.length ? "No Twitch channels are saved in this library. Add channels from the Twitch desk to see them here." : staleTwitchCount ? `${staleTwitchCount} cached stream${staleTwitchCount === 1 ? " needs" : "s need"} a fresh check. Older observations are held out of the live grid.` : counts.twitch ? "Showing recently confirmed streams from your followed channels." : "No followed Twitch channel is currently confirmed live. Refresh to check the next batch."}</p>
-      {twitchFailures.length > 0 && <p className="mt-2 text-sm text-muted">{twitchFailures.length} channel check{twitchFailures.length === 1 ? "" : "s"} failed. {twitchFailures[0].lastProviderFailure?.recovery}</p>}
-      <div className="mt-3 flex flex-wrap gap-2"><Button variant="secondary" disabled={refreshing || !twitchFollows.length} onClick={() => void refresh("twitch")}>Check Twitch channels</Button><Button variant="ghost" onClick={() => setSource("twitch")}>Manage Twitch channels</Button></div>
+      <p className="mt-1 text-sm text-muted">{!twitchFollows.length ? "No Twitch channels are saved in this library. Add channels from the Twitch desk to see them here." : staleTwitchCount ? `${staleTwitchCount} cached stream${staleTwitchCount === 1 ? " needs" : "s need"} a fresh check. Older observations are held out of the live grid.` : counts.twitch ? "Showing recently confirmed streams from your followed channels." : "No followed Twitch channel is currently confirmed live. Refresh checks the next rotating batch."}{lastTwitchLiveCheck ? ` Last Twitch check ${new Date(lastTwitchLiveCheck).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.` : ""}</p>
+      {twitchFailures.length > 0 && <p className="mt-2 text-sm text-muted">{twitchFailures.length} live check{twitchFailures.length === 1 ? "" : "s"} failed. {twitchFailures[0].lastLiveFailure?.recovery}</p>}
+      <div className="mt-3 flex flex-wrap gap-2"><Button variant="secondary" disabled={refreshing || !twitchFollows.length} onClick={() => void refresh("twitch", { twitchLiveOnly: true })}>Check Twitch live now</Button><Button variant="ghost" onClick={() => setSource("twitch")}>Manage Twitch channels</Button></div>
     </aside>}
 
     {(source === "all" || source === "youtube") && <aside className="mb-6 rounded-lg border border-border bg-elevated p-4" aria-label="YouTube live status">

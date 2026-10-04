@@ -956,7 +956,7 @@ export function AdultPanel({
             Continue archive
           </Button>
         </div>
-        <p className="mt-2 text-xs text-muted">Pull cap: {pullSettings.adultBatchVideos.toLocaleString()} entries · change pace and catalog target in Settings.</p>
+        <p className="mt-2 text-xs text-muted">Pull cap: {pullSettings.adultBatchVideos.toLocaleString()} new entries · unused capacity rolls to the next provider when a source is empty, unavailable, or mostly duplicates. Change pace and catalog target in Settings.</p>
         <details className="mt-3 rounded-md border border-border bg-bg/35 p-3">
           <summary className="cursor-pointer text-xs font-medium text-fg">Provider adapter platform · active and planned sources</summary>
           <p className="mt-2 text-xs leading-5 text-muted">Each adapter needs a documented public API, public feed, or permitted embed before it can enter the catalog. This keeps unsupported sites as safe link-outs until their source contract is implemented.</p>

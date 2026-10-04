@@ -1,0 +1,51 @@
+✔ actual sparse persistence batches restore in 256-row pages without reading full preferences or losing locks (528.163ms)
+✔ real store metadata actions return before catalog parsing, honor locks, save compact provider provenance, and hold during a viewer (130.8635ms)
+✔ real smart tags retain source/creator filters and manual locks without a catalog-sized click stack (1.1767ms)
+✔ manual and accepted inspection edits never enumerate the existing tag ledgers (1.0778ms)
+✔ removing a folder removes only its sparse enrichment records as well as its catalog metadata (0.5553ms)
+✔ cached YouTube repair replaces saturated provider tags, preserves manual locks and saves idempotent versioned rows (1.9353ms)
+✔ worker-free search yields, preserves metadata and exact tags, and cancels without an index (312.6489ms)
+✔ cancelled offscreen thumbnail requests leave no queued work or leaked slots (2.6919ms)
+✔ aborting an awakened waiter still lets the next visible image load (0.2624ms)
+✔ remote artwork does not grow the local frame-thumbnail cache (0.7761ms)
+✔ real frame captures release media on viewer pause, resume subscribed cards, and cancel unmounted work (28.8679ms)
+✔ binary thumbnails obey backing-byte limits and revoke evicted URLs (2.1174ms)
+✔ an evicted binary disk thumbnail reopens without file access or video decoding (28.5067ms)
+✔ worker batches preserve search metadata and replace stale generations (7.4418ms)
+✔ search client applies backpressure, rejects stale replies, and settles worker failures (39.21ms)
+✔ lowering the profile immediately releases artwork memory while preserving saved individual settings (10.6763ms)
+✔ a live budget change holds new requests until older requests finish and refills on an increase (1.0089ms)
+✔ a cross-tab profile change uses one storage signal to trim the current cache (4.301ms)
+✔ YouTube pull commits use sparse tag updates without enumerating the existing ledgers (113.3389ms)
+✔ viewer comments persist one current card without copying or notifying the 100k browse catalog (294.0492ms)
+✔ a delayed comment response after closing or switching a viewer cannot retain or write a transcript (92.5534ms)
+✔ focused pulls cap memory, metadata and disk together, preserving the rejected page resume point (231.9734ms)
+✔ bulk imports use one cap across creators and persist only admitted entries (157.4863ms)
+✔ routine checks refresh stored titles at a zero cap while excluding new rows from disk and metadata (214.3869ms)
+✔ settings changed while a provider is in flight apply before admission (109.0089ms)
+✔ Adult pulls apply a lowered in-flight cap before tags and append transactions (130.0477ms)
+✔ removed cached Reddit images and confirmed unavailable photos leave Adult shelves without deleting saves (1.8726ms)
+✔ a provider-wide cooldown stops the archive queue without marking unattempted creators failed (18.5184ms)
+✔ unresolved saved stubs do not prevent a real import from resolving them (39.1465ms)
+✔ Twitch status cannot replace the YouTube cooldown or archive result (2.4045ms)
+✔ manual completion returns its own counts even when another provider changes pull history (59.7577ms)
+✔ cooldown stops focused, import and live work while mixed checks still service Twitch (1.8814ms)
+✔ an import provider limit checkpoints the cooldown and leaves later batches unattempted (4.902ms)
+✔ automatic provider detection still permits a focused Twitch URL during a YouTube cooldown (0.8357ms)
+✔ a catalog-only cooldown allows live discovery on confirmed channel IDs (3.57ms)
+✔ scheduled archive growth checks four creators in small responses and persists new entries and cursors (268.4518ms)
+✔ manual force ignores the old timer, stops on a new rejection, and leaves automatic work waiting (32.4482ms)
+✔ healthy forced pulls resume the batch, keep entry caps, and clear obsolete restored deadlines (139.6208ms)
+✔ a recovered manual pull prevents untouched old creator failures restoring a global cooldown (45.7991ms)
+✔ a 70000-entry library admits 3000 new YouTube entries in six bounded creator commits (7019.9613ms)
+ℹ 70000 existing + 3000 added in six commits: 7011ms with mocked network/disk; no full catalog persistence.
+✔ real feedback publishes only its rating key; durable hydration refreshes mounted snapshots and keeps newer session edits (46.7365ms)
+✔ real startup rebases a catalog restore around a concurrent pull, unfollow, favorite, resume and navigation (1485.7504ms)
+ℹ tests 42
+ℹ suites 0
+ℹ pass 42
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9548.0465

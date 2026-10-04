@@ -2,7 +2,7 @@ export type MissionStatus = "planned" | "in-progress" | "blocked" | "complete";
 export type Mission = { id: string; title: string; detail: string; done: boolean; status?: MissionStatus };
 
 export const MISSION_PLAN_REVISION_KEY = "reelcase.mission-plan.revision";
-export const MISSION_PLAN_REVISION = 15;
+export const MISSION_PLAN_REVISION = 18;
 
 /** Apply newly verified defaults once, without resetting later manual status changes. */
 export function mergeMissionPlan(saved: Mission[] | null, defaults: Mission[], previousRevision: number): Mission[] {
@@ -21,6 +21,9 @@ export function mergeMissionPlan(saved: Mission[] | null, defaults: Mission[], p
   const migrateVirtualizationCompletion = previousRevision < 13;
   const migrateStartupCompletion = previousRevision < 14;
   const migrateSlowDeviceCompletion = previousRevision < 15;
+  const migrateRenderAuditCompletion = previousRevision < 16;
+  const migrateMobileBudgetCompletion = previousRevision < 17;
+  const migrateAccessibleBrowsingCompletion = previousRevision < 18;
   return [
     ...saved.map((item) => {
       const current = defaultsById.get(item.id);
@@ -36,7 +39,10 @@ export function mergeMissionPlan(saved: Mission[] | null, defaults: Mission[], p
         || (migrateEnrichmentCompletion && item.id === 'speed-06')
         || (migrateVirtualizationCompletion && item.id === 'smooth-02')
         || (migrateStartupCompletion && (item.id === 'speed-01' || item.id === 'recent-cold-home-readiness'))
-        || (migrateSlowDeviceCompletion && item.id === 'smooth-10'));
+        || (migrateSlowDeviceCompletion && item.id === 'smooth-10')
+        || (migrateRenderAuditCompletion && item.id === 'speed-03')
+        || (migrateMobileBudgetCompletion && item.id === 'speed-09')
+        || (migrateAccessibleBrowsingCompletion && item.id === 'smooth-11'));
       const done = Boolean(item.done || promoted);
       const savedStatus = item.status === "planned" || item.status === "in-progress" || item.status === "blocked"
         ? item.status : undefined;

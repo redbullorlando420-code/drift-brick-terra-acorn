@@ -44,8 +44,11 @@ export const idleEnrichment = createIdleQueue({
     };
   },
 });
-export function setEnrichmentViewerOpen(open: boolean) {
-  if (viewerOpen === open) return;
-  viewerOpen = open; wakeQueue?.(true);
+export function setEnrichmentViewerOpen(open: boolean, searching = false) {
+  // Changing the tag ledger during live search repeatedly discards its order
+  // and viewport. Optional repair resumes when the query is cleared.
+  const busy = open || searching;
+  if (viewerOpen === busy) return;
+  viewerOpen = busy; wakeQueue?.(true);
 }
 import.meta.hot?.dispose(() => idleEnrichment.dispose());

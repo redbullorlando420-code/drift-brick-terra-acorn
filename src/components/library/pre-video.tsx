@@ -9,12 +9,13 @@ import { warmVideoPlayer } from "./video-overlay-loader";
 import { youtubeEmbedUrl } from "@/lib/videos/youtube-embed";
 import { topicEvidence } from '@/lib/videos/topics';
 import { openTopic } from '@/lib/videos/topic-navigation';
-import { startTransition, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ExternalLink, Glasses, Heart, Play, Star, Tag, ThumbsUp, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLibrary } from "@/lib/videos/store";
-import { creatorIsFavorited, toggleCreatorFavorite, creatorIsLiked, getCreatorRating, getRating, recordWatchTime, setCreatorRating, setRating as saveRating, tagIsLiked, toggleCreatorLike, toggleTagLike } from "@/lib/media-feedback";
+import { creatorIsFavorited, toggleCreatorFavorite, creatorIsLiked, getCreatorRating, recordWatchTime, setCreatorRating, setRating as saveRating, tagIsLiked, toggleCreatorLike, toggleTagLike } from "@/lib/media-feedback";
+import { useMediaRating } from './use-media-rating';
 import { resolvePlayUrl } from "@/lib/videos/sources";
 import { twitchEmbedUrl } from "@/lib/videos/twitch-embed";
 import { isAdultImageKind, isAdultPullKind } from "@/lib/videos/adult-sites";
@@ -23,9 +24,11 @@ import { lookupVideo, lookupVideos } from "@/lib/videos/video-lookup";
 import { useVideoDetails } from './use-video-details';
 import { useRedditMedia } from './use-reddit-media';
 import { useBooruOriginal } from './use-booru-original';
+import { useViewerInitialFocus } from './viewer-dialog';
 
 const EMPTY_TAGS: string[] = [];
 export function PreVideo() {
+  const closeFocus = useViewerInitialFocus();
   useEffect(() => { const timer = window.setTimeout(warmVideoPlayer, 100); return () => window.clearTimeout(timer); }, []);
   const previewId = useLibrary((s) => s.previewId);
   const videos = useBrowseLibrary((s) => s.videos);
@@ -53,7 +56,7 @@ export function PreVideo() {
   const [tagText, setTagText] = useState("");
   const [categoryText, setCategoryText] = useState("");
   const [vrAvailable, setVrAvailable] = useState(false);
-  const [rating, setRating] = useState(0);
+  const rating = useMediaRating(previewId);
   const [ratingRevision, setRatingRevision] = useState(0);
   const [creatorRevision, setCreatorRevision] = useState(0);
   const [creatorLoading, setCreatorLoading] = useState(false);
@@ -116,7 +119,6 @@ export function PreVideo() {
   const creatorRating = creator ? getCreatorRating(creator) : 0;
   const creatorFavorite = creator ? creatorIsFavorited(creator) : false;
   const creatorLiked = creator ? creatorIsLiked(creator) : false;
-  useEffect(() => { if (!previewId) return; setRating(getRating(previewId)); }, [previewId]);
   useEffect(() => {
     const refresh = () => setRatingRevision((value) => value + 1);
     window.addEventListener("reelcase:rating-change", refresh);
@@ -195,7 +197,7 @@ export function PreVideo() {
     <div className="fixed inset-0 z-50 overflow-y-auto bg-bg/98 px-4 py-5 sm:px-8 sm:py-8">
       <div className={video.remote ? "w-full max-w-none" : "mx-auto max-w-6xl"}>
         <div className="flex items-center justify-between gap-3">
-          <Button variant="ghost" onClick={closePreview}>
+          <Button ref={closeFocus} variant="ghost" onClick={closePreview}>
             <ArrowLeft className="size-4" /> Browse
           </Button>
           <Button variant="ghost" size="icon" aria-label="Close preview" onClick={closePreview}>
@@ -384,7 +386,10 @@ export function PreVideo() {
                   <button
                     key={value}
                     type="button"
-                    onClick={() => { setRating(value); startTransition(() => saveRating(video.id, value)); }}
+                    aria-label={`Rate ${video.name} ${value} stars`}
+                    aria-pressed={rating === value}
+                    title={rating === value ? "Click again to clear your rating" : `Rate ${value} stars`}
+                    onClick={() => saveRating(video.id, rating === value ? 0 : value)}
                     className={`flex size-9 items-center justify-center rounded-sm text-sm shadow-border ${value <= rating ? "bg-accent text-accent-fg" : "bg-bg/50 text-accent"}`}
                   >
                     {value}

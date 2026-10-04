@@ -126,6 +126,7 @@ export type RemoteKind = FollowKind | "eporner" | "redtube" | "chaturbate" | "my
  */
 export type MetadataTagSource = "manual" | "local-name" | "companion-inspection" | "local-vision" | `provider:${RemoteKind}` | "legacy";
 export type VideoMetadataProvenance = {
+  youtubeTextTagVersion?: number;
   /** The latest known source for each normalized tag on the title. */
   tags: Record<string, MetadataTagSource>;
   /** A lock is set by the metadata editor and applies to the whole field. */
@@ -207,6 +208,12 @@ export type FollowedChannel = {
   catalogCursor?: string;
   catalogCheckedAt?: number;
   catalogExhaustedAt?: number;
+  /** Independent Twitch broadcast-shelf continuation for focused archive pulls. */
+  twitchArchiveCursor?: string;
+  twitchArchiveExhaustedAt?: number;
+  /** All-time clip shelf continuation used by repeated focused clip pulls. */
+  twitchClipCursor?: string;
+  twitchClipExhaustedAt?: number;
   lastResponseCount?: number;
   /** Server-session cache telemetry; this is diagnostic metadata, not a claim
    * that the provider was contacted during this refresh. */

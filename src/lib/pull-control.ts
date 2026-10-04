@@ -43,13 +43,13 @@ const gateChanged = () => { scheduler.wake(); for (const listener of gateListene
  * Sleeping periodic owners must wake on that final availability transition. */
 export const subscribePullAvailability = (listener: () => void) => { gateListeners.add(listener); return () => { gateListeners.delete(listener); }; };
 export function setPullViewerOpen(value: boolean) { viewing = value; setArtworkSuppressed(value); gateChanged(); }
-export function catalogPullAvailable(ignoreInteraction = false) {
-  return !pullsPaused() && !(getPullSettings().pauseWhileWatching && viewing)
+export function catalogPullAvailable(ignoreInteraction = false, ignorePause = false) {
+  return (ignorePause || !pullsPaused()) && !(getPullSettings().pauseWhileWatching && viewing)
     && (typeof document === 'undefined' || !document.hidden) && (ignoreInteraction || getInteractionPriorityDelay() === 0);
 }
-const scheduler = createPullScheduler(() => ({ concurrency: getPullSettings().concurrentRequests, gapMs: getPullSettings().requestGapMs }), catalogPullAvailable, 8, {
+const scheduler = createPullScheduler(() => ({ concurrency: getPullSettings().concurrentRequests, gapMs: getPullSettings().requestGapMs }), ignorePause => catalogPullAvailable(false, ignorePause), 8, {
   requestTimeoutMs: () => Math.max(90_000, getPullSettings().requestGapMs * 12 + 30_000, getPullSettings().youtubeRequestGapMs * 4 + 90_000),
-  availabilityDelay: () => !pullsPaused() && !(getPullSettings().pauseWhileWatching && viewing) && (typeof document === 'undefined' || !document.hidden) ? getInteractionPriorityDelay() : Infinity,
+  availabilityDelay: (ignorePause = false) => (ignorePause || !pullsPaused()) && !(getPullSettings().pauseWhileWatching && viewing) && (typeof document === 'undefined' || !document.hidden) ? getInteractionPriorityDelay() : Infinity,
 });
 const stopControl = control.subscribe(gateChanged);
 const stopSettings = subscribePullSettings(gateChanged);
@@ -83,6 +83,6 @@ export function waitForCatalogCommit(revision = scheduler.revision()): Promise<v
     gateListeners.add(check); check();
   });
 }
-export async function runPausablePull<T>(request: (signal: AbortSignal) => Promise<T>): Promise<T> {
-  return scheduler.run(request);
+export async function runPausablePull<T>(request: (signal: AbortSignal) => Promise<T>, options?: { ignorePause?: boolean }): Promise<T> {
+  return scheduler.run(request, options);
 }

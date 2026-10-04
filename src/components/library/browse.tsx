@@ -12,6 +12,7 @@ import { getFirstShelfTrace, markFirstShelf, markFirstShelfArtwork } from "@/lib
 import { watchShelfArtwork } from '@/lib/shelf-artwork';
 import { getYoutubeFirstClickTrace, markYoutubeArtworkReady, markYoutubeRailReady } from "@/lib/youtube-first-click-trace";
 import { railItems, railKeyboardTarget, railLimitForTarget, railWindowStartForTarget, windowBoundaryTarget } from "@/lib/virtual-rail";
+import { createShelfRelease } from '@/lib/viewer-accessibility';
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
 const RAIL_SIZES = [8, 16, 32, 48];
@@ -114,7 +115,11 @@ export function TitleRail({
     const card = rail.querySelector<HTMLElement>('[data-rail-index]');
     if (card) setCardStride(card.getBoundingClientRect().width + (parseFloat(getComputedStyle(rail).columnGap) || 0));
   }, []);
-  const leaveTimer = useRef<number | undefined>(undefined);
+  const release = useRef<ReturnType<typeof createShelfRelease> | null>(null);
+  if (!release.current) release.current = createShelfRelease((callback, delay) => {
+    const timer = window.setTimeout(callback, delay);
+    return () => window.clearTimeout(timer);
+  });
   const [nearViewport, setNearViewport] = useState(priority);
   const [collapsed, setCollapsed] = useState(false);
   const [shelfHeight, setShelfHeight] = useState<number>();
@@ -134,19 +139,17 @@ export function TitleRail({
     const observer = new IntersectionObserver(([entry]) => {
       const keep = entry.isIntersecting || shelf.contains(document.activeElement);
       if (keep) {
-        if (leaveTimer.current) window.clearTimeout(leaveTimer.current);
-        leaveTimer.current = undefined;
+        release.current!.cancel();
         setNearViewport(true);
         return;
       }
       // Debounce unmount so bounce-scroll does not thrash card remounts / image decode.
-      if (leaveTimer.current) window.clearTimeout(leaveTimer.current);
-      leaveTimer.current = window.setTimeout(() => setNearViewport(false), 900);
+      release.current!.defer(() => shelf.contains(document.activeElement), () => setNearViewport(false));
     }, { rootMargin: "240px 0px" });
     observer.observe(shelf);
     return () => {
       observer.disconnect();
-      if (leaveTimer.current) window.clearTimeout(leaveTimer.current);
+      release.current!.cancel();
     };
   }, [priority, Boolean(videos.length)]);
   useEffect(() => {
@@ -253,7 +256,16 @@ export function TitleRail({
     if (target !== null) focusRailIndex(target);
   };
   return (
-    <section ref={shelfRef} className="media-shelf mb-8 min-w-0" style={!nearViewport ? { minHeight: shelfHeight ?? (variant === "poster" ? 320 : 250) } : undefined}>
+    <section ref={shelfRef} className="media-shelf mb-8 min-w-0" style={!nearViewport ? { minHeight: shelfHeight ?? (variant === "poster" ? 320 : 250) } : undefined}
+      onFocusCapture={() => { release.current!.cancel(); setNearViewport(true); }}
+      onBlurCapture={event => {
+        if (priority || event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+        const shelf = event.currentTarget;
+        const box = shelf.getBoundingClientRect();
+        if (box.bottom < -240 || box.top > window.innerHeight + 240) {
+          release.current!.defer(() => shelf.contains(document.activeElement), () => setNearViewport(false));
+        }
+      }}>
       <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0 flex-1 basis-48">{onTitleClick ? <button type="button" onClick={onTitleClick} className="block min-w-0 truncate font-display text-xl text-fg hover:text-accent sm:text-2xl">{title} <span className="text-sm text-muted">Open source →</span></button> : <h2 className="min-w-0 truncate font-display text-xl text-fg sm:text-2xl">{title}</h2>}{reason && <p className="mt-1 truncate text-xs text-muted">{reason}</p>}</div>
         <div className="flex shrink-0 items-center gap-1">

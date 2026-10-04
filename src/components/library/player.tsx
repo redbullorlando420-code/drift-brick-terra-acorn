@@ -49,12 +49,15 @@ import { attachFrameCallback, probeHardwareDecode, type HwInfo } from "@/lib/vid
 import { measureInteraction } from "@/lib/interaction-budget";
 import { lookupVideo } from "@/lib/videos/video-lookup";
 import { useVideoDetails } from './use-video-details';
+import { useViewerInitialFocus } from './viewer-dialog';
+import { playerShortcutAllowed } from '@/lib/viewer-accessibility';
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 const EMPTY_TAGS: string[] = [];
 const TAG_PRESETS = ["watch-later", "favorite", "family", "4k", "short", "documentary", "how-to", "comfort"];
 
 export function Player({ playlist }: { playlist: string[] }) {
+  const closeFocus = useViewerInitialFocus();
   const activeId = useLibrary((s) => s.activeId);
   const card = useLibrary((s) => lookupVideo(s.videos, s.activeId));
   const video = useVideoDetails(card);
@@ -202,7 +205,11 @@ export function Player({ playlist }: { playlist: string[] }) {
     // document. Keep Back/Pause pulls reachable instead of hiding them forever.
     if (providerPlayback) return;
     hideTimer.current = window.setTimeout(() => {
-      // Local playback can reveal its controls from pointer/touch events.
+      const controls = wrapRef.current;
+      // Keyboard controls and portalled menus stay visible until focus leaves.
+      if (document.activeElement instanceof Element && controls?.contains(document.activeElement)
+        && document.activeElement.closest('[data-player-controls]')) return;
+      if (controls?.querySelector('[data-player-controls] [data-state="open"]')) return;
       setChrome(false);
     }, 2400);
   }, [providerPlayback]);
@@ -354,20 +361,17 @@ export function Player({ playlist }: { playlist: string[] }) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement | null)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (e.target as HTMLElement)?.isContentEditable) return;
-      // The official iframe owns playback keys and fullscreen controls.
-      if (embedRef.current && !["Escape", "n", "N", "p", "P"].includes(e.key)) return;
+      const interactive = e.target instanceof Element && Boolean(e.target.closest(
+        'button,a[href],input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role="button"],[role="slider"],[role="menu"],[role="menuitem"],[role="combobox"],[role="listbox"]',
+      ));
+      if (!playerShortcutAllowed({ key: e.key, interactive, modified: e.altKey || e.ctrlKey || e.metaKey,
+        prevented: e.defaultPrevented, provider: Boolean(embedRef.current) })) return;
       switch (e.key) {
         case " ":
         case "k":
         case "K":
           e.preventDefault();
           togglePlay();
-          break;
-        case "Escape":
-          if (document.fullscreenElement) void document.exitFullscreen();
-          else closePlayer();
           break;
         case "ArrowLeft":
           e.preventDefault();
@@ -456,6 +460,8 @@ export function Player({ playlist }: { playlist: string[] }) {
       className={cn("fixed inset-0 z-50 flex flex-col bg-bg", officialPlayer && "overflow-hidden", twitchSideMode && "p-4 sm:p-6")}
       onMouseMove={reveal}
       onTouchStart={reveal}
+      onFocusCapture={reveal}
+      onBlurCapture={reveal}
     >
       {adultImage ? (
         <AdultImageLightbox video={video} tags={tags} />
@@ -501,6 +507,9 @@ export function Player({ playlist }: { playlist: string[] }) {
             hardwareAccel && "hw-video",
           )}
           playsInline
+          tabIndex={0}
+          aria-label={`Playback surface: ${video.name}`}
+          onPointerDown={event => event.currentTarget.focus({ preventScroll: true })}
           autoPlay
           preload="auto"
           onCanPlay={(event) => {
@@ -523,13 +532,15 @@ export function Player({ playlist }: { playlist: string[] }) {
       />}
 
       <div
+        data-player-controls
+        inert={!officialPlayer && !chrome}
         className={cn(
           "relative z-10 flex items-center justify-between gap-3 px-4 py-3 transition-[opacity,transform] duration-200 ease-[var(--ease-smooth-out)] sm:px-6",
           officialPlayer ? "order-1 shrink-0 flex-wrap border-b border-border bg-surface" : chrome ? "opacity-100" : "pointer-events-none opacity-0 -translate-y-1",
         )}
       >
         <div className="flex min-w-0 items-center gap-2">
-          <Button variant="ghost" size="icon" aria-label="Back to library" onClick={closePlayer}>
+          <Button ref={closeFocus} variant="ghost" size="icon" aria-label="Back to library" onClick={closePlayer}>
             {fs ? <X className="size-5" /> : <ChevronLeft className="size-5" />}
           </Button>
           <div className="min-w-0">
@@ -650,7 +661,7 @@ export function Player({ playlist }: { playlist: string[] }) {
       )}
       {vrStatus && <p className="absolute z-20 right-4 bottom-4 max-w-sm rounded-md bg-surface/95 px-3 py-2 text-xs text-fg shadow-border sm:right-6">{vrStatus}</p>}
       {remote && supportsRemoteComments(remote.kind) && chrome && (
-        <div className={cn(officialPlayer ? "order-3 max-h-48 shrink-0 overflow-y-auto border-t border-border bg-surface px-4" : "absolute z-20 bottom-24 left-4 right-4 max-w-xl sm:left-6")}>
+        <div data-player-controls className={cn(officialPlayer ? "order-3 max-h-48 shrink-0 overflow-y-auto border-t border-border bg-surface px-4" : "absolute z-20 bottom-24 left-4 right-4 max-w-xl sm:left-6")}>
           <AdultComments key={video.id} video={video} />
         </div>
       )}
@@ -658,6 +669,8 @@ export function Player({ playlist }: { playlist: string[] }) {
 
       {(!remote || directAdultMedia) && (
         <div
+          data-player-controls
+          inert={!chrome}
           className={cn(
             "relative z-10 mt-auto px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] transition-[opacity,transform] duration-200 ease-[var(--ease-smooth-out)] sm:px-6",
             chrome ? "opacity-100" : "pointer-events-none opacity-0 translate-y-1",

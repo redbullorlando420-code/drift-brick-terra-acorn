@@ -53,6 +53,15 @@ test('partially admitted pages keep their old cursor and watermark; raising the 
   assert.equal(holdEntryLimitCursors([old], [fresh], resumed.skippedSources)[0].catalogCursor, 'page-after');
 });
 
+test('Twitch entry caps preserve the archive continuation for a retry after limits are raised', async () => {
+  const old = { id: 'tw:creator', kind: 'twitch', handle: 'creator', twitchArchiveCursor: '{"v":1,"stage":"ARCHIVE","after":"before"}' } as FollowedChannel;
+  const fresh = { ...old, twitchArchiveCursor: '{"v":1,"stage":"UPLOAD","after":"after"}', twitchArchiveExhaustedAt: undefined };
+  const result = await admitRemoteEntries([], [card('first', 'twitch'), card('second', 'twitch')].map(video => ({ ...video, folderId: old.id })), { ...DEFAULT_PULL_SETTINGS, twitchMaxEntries: 1 });
+  const held = holdEntryLimitCursors([old], [fresh], result.skippedSources)[0];
+  assert.equal(held.twitchArchiveCursor, old.twitchArchiveCursor);
+  assert.equal(held.twitchArchiveExhaustedAt, undefined);
+});
+
 test('large catalog counting shares concurrent work and yields to UI tasks', async () => {
   const videos = Array.from({ length: 60000 }, (_, i) => card(String(i), i % 2 ? 'youtube' : 'twitch'));
   let uiTurn = false;

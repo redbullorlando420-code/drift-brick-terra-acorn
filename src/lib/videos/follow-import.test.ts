@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseFollowImport, repairYoutubeImport, importedFollowStub, resolvedFollowQueries, reviewYoutubeImport, youtubeFollowHealth, bindYoutubeCorrection } from './follow-import.ts';
+import { selectTwitchRefreshBatch } from './twitch-refresh-selection.ts';
 test('creator names stay whole across CSV, quotes and newlines', () => {
   assert.deepEqual(parseFollowImport('Linus Tech Tips,"Regal Entertainment, Inc.",Go od\n歌舞伎町 ライブ', 'youtube').map(row => row.query), ['Linus Tech Tips','Regal Entertainment, Inc.','Go od','歌舞伎町 ライブ']);
 });
@@ -28,6 +29,29 @@ test('legacy word IDs are held even after resolving unrelated real channels, whi
 test('explicit handle/URL whitespace lists and Twitch lists remain supported', () => {
   assert.deepEqual(parseFollowImport('@One @Two https://youtube.com/@Three','youtube').map(row => row.query), ['@One','@Two','https://youtube.com/@Three']);
   assert.deepEqual(parseFollowImport('one two\\_three,One','twitch').map(row => row.query), ['one','two_three']);
+});
+test('failed Twitch imports remain retryable instead of counting as resolved follows', () => {
+  const failed = { id:'tw:pending', kind:'twitch' as const, handle:'newchannel', title:'newchannel', lastCheckedAt:10, lastProviderFailure:{kind:'network-offline' as const,message:'Temporary failure',at:10,recovery:'Retry later'} };
+  const healthy = { id:'tw:healthy', kind:'twitch' as const, handle:'healthy', title:'Healthy', channelId:'123', lastCheckedAt:10 };
+  const resolved = resolvedFollowQueries([failed, healthy], 'twitch');
+  assert(!resolved.has('newchannel'));
+  assert(resolved.has('healthy'));
+});
+test('Twitch rotating batches serve never-checked import stubs first and keep settled follows rotating', () => {
+  const channels = [
+    { id:'tw:old-a', kind:'twitch' as const, handle:'old-a', title:'Old A', channelId:'1', lastCheckedAt:100 },
+    { id:'tw:new-a', kind:'twitch' as const, handle:'new-a', title:'New A' },
+    { id:'tw:old-b', kind:'twitch' as const, handle:'old-b', title:'Old B', channelId:'2', lastCheckedAt:200 },
+    { id:'tw:new-b', kind:'twitch' as const, handle:'new-b', title:'New B' },
+  ];
+  const first = selectTwitchRefreshBatch(channels, 1, 0);
+  assert.deepEqual(first.channels.map(channel => channel.handle), ['new-a']);
+  const afterFirst = channels.map(channel => channel.id === first.channels[0].id ? { ...channel, channelId:'new-id', lastCheckedAt:300 } : channel);
+  const second = selectTwitchRefreshBatch(afterFirst, 1, first.nextCursor);
+  assert.deepEqual(second.channels.map(channel => channel.handle), ['new-b']);
+  const settledA = selectTwitchRefreshBatch(channels.filter(channel => channel.channelId), 1, 0);
+  const settledB = selectTwitchRefreshBatch(channels.filter(channel => channel.channelId), 1, settledA.nextCursor);
+  assert.deepEqual([settledA.channels[0].handle, settledB.channels[0].handle], ['old-a', 'old-b']);
 });
 test('legacy recovery replaces word fragments with intended names, retaining extra saved entries', () => {
   const result = repairYoutubeImport(['Go','od','Linus','Tech','Tips','@Extra'], 'Go od,Linus Tech Tips');

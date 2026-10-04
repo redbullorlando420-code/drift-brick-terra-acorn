@@ -4,6 +4,14 @@ import { enrichmentCursor, metadataEnrichmentStep } from './metadata-enrichment.
 import { restoreEnrichmentRow, type EnrichmentRow } from './enrichment-batch.ts';
 import type { Folder, LibraryVideo, VideoMetadataProvenance } from './types.ts';
 
+test('durable text-tag versions survive an older snapshot with identical tags and timestamps', () => {
+  const ledgers={tags:{one:['science']},metadataProvenance:{one:{tags:{science:'provider:youtube' as const},youtubeTextTagVersion:1,updatedAt:10}}};
+  restoreEnrichmentRow(ledgers,{id:'one',tags:['science'],provenance:{tags:{science:'provider:youtube'},youtubeTextTagVersion:2,updatedAt:10}});
+  assert.equal(ledgers.metadataProvenance.one.youtubeTextTagVersion,2);
+  restoreEnrichmentRow(ledgers,{id:'one',tags:['science'],provenance:{tags:{science:'provider:youtube'},youtubeTextTagVersion:1,updatedAt:10}});
+  assert.equal(ledgers.metadataProvenance.one.youtubeTextTagVersion,2,'older version cannot trigger another full repair');
+});
+
 function fixture(length: number) {
   let reads = 0, saves = 0, notifications = 0, turns = 0;
   const videos = new Proxy({ length } as LibraryVideo[], { get(target, key) {

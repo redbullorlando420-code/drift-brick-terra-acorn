@@ -21,11 +21,12 @@ import { Button } from "@/components/ui/button";
 import { DiscoveryDesk, RatingStreakCard } from "./discovery-desk";
 import { LiveCatalog } from "./live-catalog";
 import { SidebarNav } from "./sidebar";
+import { DesktopSidebar, desktopSidebar } from "./desktop-sidebar";
 import { LightHome } from "./light-home";
 import { FavoriteCollections } from "./favorite-collections";
 import { TopBar } from "./top-bar";
 import { useDesktopLayout } from "@/lib/use-desktop-layout";
-import { SIDEBAR_COLLAPSED_KEY, sidebarShortcut } from "@/lib/sidebar-state";
+import { sidebarShortcut } from "@/lib/sidebar-state";
 import { InviteStrip } from "./invite";
 import { VideoGrid } from "./video-grid";
 import { VideoCard } from "./video-card";
@@ -38,7 +39,7 @@ import { ADULT_SOURCE_FILTERS, countAdultBySource, videoMatchesAdultSource, vide
 import { useAdultBrowse } from "./use-adult-browse";
 import { warmVideoPreview } from "./video-overlay-loader";
 import { VideoOverlays } from "./video-overlays";
-import { pullsPaused, subscribePullControl } from "@/lib/pull-control";
+import { getPullCancellationRevision, pullsPaused, subscribePullControl, waitForCatalogCommit } from "@/lib/pull-control";
 import { buildAdultStatsSnapshot, exportAdultStats } from "@/lib/videos/adult-stats";
 import { useAdultPulls } from "./use-adult-pulls";
 import { ConnectPanel } from "./connect-panel";
@@ -200,7 +201,7 @@ function PullStatusBanner() {
       {running ? <LoaderCircle aria-hidden="true" className={`mt-0.5 size-4 shrink-0 text-accent ${paused ? "" : "animate-spin"}`} /> : latest?.status === "failed" ? <AlertCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-danger" /> : <CheckCircle2 aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-accent" />}
       <div className="min-w-0 flex-1"><p className="text-sm font-medium text-fg">{running ? `Pulling ${label} · ${item.action.toLocaleLowerCase()}` : `${label} pull ${cancelled ? "cancelled" : latest?.status === "failed" ? "failed" : latest?.status === "partial" ? "finished with issues" : "complete"}`}</p>
         <p className="mt-1 text-xs leading-5 text-muted">{running ? `${item.done.toLocaleString()} of ${item.total.toLocaleString()} targets checked · ${item.received.toLocaleString()} videos returned · ${item.added.toLocaleString()} new · ${item.failed.toLocaleString()} failed${item.targets[item.done] ? ` · Now: ${item.targets[item.done]}` : ""}` : `${latest?.done.toLocaleString() ?? 0} / ${latest?.total.toLocaleString() ?? 0} targets · ${latest?.received.toLocaleString() ?? 0} returned · ${latest?.added.toLocaleString() ?? 0} new · ${latest?.failed.toLocaleString() ?? 0} failed · ${latest ? new Date(latest.finishedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : ""}`}</p>
-        {paused && <p className="mt-2 text-xs text-accent">Pulls paused. New requests and catalog updates wait until you select Resume pulls. A request already sent may finish.</p>}
+        {paused && <p className="mt-2 text-xs text-accent">Automatic pulls and archive requests are paused. One-shot live checks you start manually can still run; select Resume pulls to continue queued work.</p>}
         {running && <div className="mt-2 h-1 overflow-hidden rounded-full bg-bg"><div className="h-full rounded-full bg-accent transition-[width] duration-300" style={{ width: `${percent}%` }} /></div>}
         {!running && latest?.errors?.length ? <details className="mt-2 text-xs text-muted"><summary className="cursor-pointer">{cancelled ? "Show cancellation details" : `Show ${latest.errors.length} failure detail${latest.errors.length === 1 ? "" : "s"}`}</summary><ul className="mt-2 space-y-1">{latest.errors.map((error, index) => <li key={`${index}:${error}`}>{error}</li>)}</ul></details> : null}
       </div>
@@ -321,25 +322,19 @@ export function LibraryApp() {
   const pendingAdult = useRef(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const desktopLayout = useDesktopLayout();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  useEffect(() => { try { setSidebarCollapsed(localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true"); } catch { /* session */ } }, []);
-  const toggleSidebar = useCallback(() => setSidebarCollapsed(current => {
-    const next = !current;
-    try { localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next)); } catch { /* session */ }
-    return next;
-  }), []);
   useEffect(() => {
     if (desktopLayout) setMenuOpen(false);
     const shortcut = (event: KeyboardEvent) => {
       const editing = event.target instanceof Element && Boolean(event.target.closest("input,textarea,select,[contenteditable]:not([contenteditable='false'])"));
+      if (useLibrary.getState().activeId || useLibrary.getState().previewId) return;
       if (!event.repeat && sidebarShortcut(event, editing)) {
         event.preventDefault();
-        if (desktopLayout) toggleSidebar(); else setMenuOpen(current => !current);
+        if (desktopLayout) desktopSidebar.toggle(); else setMenuOpen(current => !current);
       }
     };
     window.addEventListener("keydown", shortcut);
     return () => window.removeEventListener("keydown", shortcut);
-  }, [desktopLayout, toggleSidebar]);
+  }, [desktopLayout]);
   const [dragging, setDragging] = useState(false);
   const [movieShuffle, setMovieShuffle] = useState(() => Date.now());
   const [homePickShuffle, setHomePickShuffle] = useState(() => Date.now());
@@ -764,7 +759,8 @@ export function LibraryApp() {
     videos: catalogVideos, ids: searchResult.ids, query, sourceId, folders, hidden: hiddenVideos, unavailable,
     tags, favorites, likes, viewCounts, ratingOf: getRating, ratingPreference,
   }) : null, [catalogVideos, favorites, folders, hiddenVideos, likes, query, ratingRevision, searchDeskActive, searchMatchPending, searchResult, sourceId, tags, unavailable, viewCounts]);
-  const { result: searchInsights, pending: searchRankingPending, error: searchRankingError } = useSearchRanking(searchRankingInput);
+  const { result: searchInsights, pending: searchRankingPending, error: searchRankingError,
+    updated: searchRankingUpdated, refresh: refreshSearchRanking, revision: searchRankingRevision } = useSearchRanking(searchRankingInput);
   const searchPending = searchMatchPending || searchRankingPending || Boolean(query.trim() && sessionIdle);
   const trendingYoutube = useMemo(
     () => sourceId === "youtube" && youtubeExploreVisible ? mixYoutubeCreators(filteredYoutube, homePickShuffle, 48, "trending") : [],
@@ -978,7 +974,7 @@ export function LibraryApp() {
     return sortedTwitch.filter((video) => !video.remote?.live && !isTwitchClip(video)).map((video) => ({ video, score: popularity(video) })).sort((a, b) => b.score - a.score || b.video.addedAt - a.video.addedAt).map(({ video }) => video);
   }, [favorites, highlyRatedTags, likes, ratingRevision, sortedTwitch, sourceId, tags, viewCounts]);
   const twitchArchiveDepth = useMemo(() => {
-    if (sourceId !== "twitch") return { total: 0, sparse: 0, channels: [] as Array<{ id: string; name: string; count: number; oldest: number; newest: number; clips: number; lastCheckedAt?: number; lastResponseCount?: number; retryAt?: number; lastProviderFailure?: ProviderFailure }> };
+    if (sourceId !== "twitch") return { total: 0, sparse: 0, channels: [] as Array<{ id: string; name: string; count: number; oldest: number; newest: number; clips: number; lastCheckedAt?: number; lastResponseCount?: number; retryAt?: number; lastProviderFailure?: ProviderFailure; twitchArchiveCursor?: string; twitchArchiveExhaustedAt?: number }> };
     const rows = new Map<string, { count: number; oldest: number; newest: number; clips: number }>();
     for (const video of twitchVideos) {
       if (!isTwitchClip(video)) continue;
@@ -999,6 +995,8 @@ export function LibraryApp() {
       lastResponseCount: channel.lastResponseCount,
       retryAt: remoteRetryAt[channel.id],
       lastProviderFailure: channel.lastProviderFailure,
+      twitchArchiveCursor: channel.twitchArchiveCursor,
+      twitchArchiveExhaustedAt: channel.twitchArchiveExhaustedAt,
     })).sort((a, b) => a.count - b.count || a.name.localeCompare(b.name));
     return { total: twitchVodPicks.length, sparse: channels.filter((channel) => channel.count < 24).length, channels };
   }, [follows, remoteRetryAt, sourceId, twitchVodPicks, twitchVideos]);
@@ -1254,11 +1252,21 @@ export function LibraryApp() {
     setArchiveQueued(archiveQueueRef.current.map((item) => item.id));
     setChannelRefreshing(next.id);
     try {
-      // Focused pulls run one at a time so they cannot consume the rotating
-      // live-state budget. The provider merge remains additive on failure.
-      await followRemoteQuery(next.handle, "twitch");
+      // Continue bounded 2k batches from each persisted Twitch cursor. Pause
+      // and cancel controls are checked between batches, after accepted pages
+      // have already been committed to the library.
+      const cancellation = getPullCancellationRevision();
+      let cursor = useLibrary.getState().follows.find((channel) => channel.id === next.id)?.twitchArchiveCursor;
+      for (let batch = 0; batch < 500; batch += 1) {
+        await followRemoteQuery(next.handle, "twitch");
+        const saved = useLibrary.getState().follows.find((channel) => channel.id === next.id);
+        const nextCursor = saved?.twitchArchiveCursor;
+        if (!nextCursor || nextCursor === cursor) break;
+        cursor = nextCursor;
+        await waitForCatalogCommit(cancellation);
+      }
     } catch {
-      // The visible channel cooldown/result explains a failed public pull.
+      // Pause waits, cancellation, and provider failures all retain committed pages.
     } finally {
       setChannelRefreshing("");
       archiveQueueBusyRef.current = false;
@@ -1352,7 +1360,7 @@ export function LibraryApp() {
         const result = lane === 'youtube-archive' ? await refreshFollows('youtube', { catalog: true, scheduled: true })
           : lane === 'youtube-feed' ? await refreshFollows('youtube')
           : lane === 'youtube-live' ? await refreshFollows('youtube', { youtubeLiveOnly: true })
-          : await refreshFollows('twitch', { backgroundLive: true });
+          : await refreshFollows('twitch', { twitchRoutine: true });
         // Busy, paused and cooldown skips keep their place in the schedule.
         if (!result.pull) return;
         const finishedAt = Date.now();
@@ -1515,10 +1523,7 @@ export function LibraryApp() {
 
   return (
     <div className="flex min-h-dvh bg-bg text-fg">
-      {desktopLayout && <aside aria-label="Desktop sidebar" className={`sticky top-0 hidden h-dvh shrink-0 border-r border-border bg-surface/80 py-3 lg:block ${sidebarCollapsed ? "w-20 px-2" : "w-64 px-3"}`}>
-        <SidebarNav compact={sidebarCollapsed} onToggleCompact={toggleSidebar} onAddFolder={(adult) => onAddFolder(undefined, adult)} />
-      </aside>}
-
+      {desktopLayout && <DesktopSidebar onAddFolder={(adult) => onAddFolder(undefined, adult)} />}
       <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
         <SheetContent side="left" className="overflow-hidden bg-surface p-4">
           <SheetTitle className="sr-only">Library menu</SheetTitle>
@@ -1533,8 +1538,8 @@ export function LibraryApp() {
       </Sheet>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar menuOpen={menuOpen} sidebarCollapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar} onMenu={() => setMenuOpen(true)} onAddFolder={() => onAddFolder()} />
-        <main aria-busy={navigationPending} className="w-full max-w-none flex-1 px-4 py-6 sm:px-6 xl:px-8 2xl:px-10">
+        <TopBar menuOpen={menuOpen} onMenu={() => setMenuOpen(true)} onAddFolder={() => onAddFolder()} />
+        <main data-library-focus tabIndex={-1} aria-busy={navigationPending} className="w-full max-w-none flex-1 px-4 py-6 outline-none sm:px-6 xl:px-8 2xl:px-10">
           {navigationPending ? <section role="status" aria-live="polite" className="rounded-xl bg-elevated p-6 shadow-border sm:p-8">
             <h1 className="font-display text-3xl text-fg">{navigationSourceLabel(requestedSource, folders)}</h1>
             <p className="mt-3 text-sm text-muted">Preparing your library…</p>
@@ -1642,7 +1647,7 @@ export function LibraryApp() {
 
               {sourceId === "twitch" && browsing && (
                 <>
-                  <section className="mb-7 rounded-xl bg-elevated p-5 shadow-border sm:p-6"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Live desk</p><h1 className="mt-2 font-display text-4xl text-fg">Twitch, live first.</h1><p className="mt-2 max-w-2xl text-sm text-muted">Sort live streams and VODs by what matters right now. {follows.filter((channel) => channel.kind === "twitch").length} channel{follows.filter((channel) => channel.kind === "twitch").length === 1 ? "" : "s"} tracked locally. A different rotating batch checks every minute; a successful check removes stale live cards.</p><p className="mt-2 text-xs text-accent">{remoteCheckedAt ? `Live state checked ${new Date(remoteCheckedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Live state has not been checked yet."} · {sortedTwitch.filter((video) => video.remote?.live).length} live · {twitchVodPicks.length} VODs · {twitchClipTotal.toLocaleString()} clips{remoteRefreshStatus ? ` · last batch returned ${remoteRefreshStatus.twitch.toLocaleString()} VODs from ${remoteRefreshStatus.refreshed}/${remoteRefreshStatus.checked} checked channels${remoteRefreshStatus.failed ? ` (${remoteRefreshStatus.failed} unavailable)` : ""}` : ""}</p><div className="mt-4 flex flex-wrap gap-2">{(["live", "viewers", "name"] as const).map((sort) => <Button key={sort} size="sm" variant={twitchSort === sort ? "default" : "secondary"} onClick={() => setTwitchSort(sort)}>{sort === "live" ? "Live first" : sort === "viewers" ? "Most viewers" : "A–Z"}</Button>)}<Button size="sm" variant="secondary" onClick={() => void refreshFollows()}>Refresh next live batch</Button>{follows.filter((channel) => channel.kind === "twitch").slice(0, 12).map((channel) => <Button key={channel.id} size="sm" variant="ghost" disabled={channelRefreshing === channel.id} onClick={() => void (async () => { setChannelRefreshing(channel.id); try { await followRemoteQuery(channel.handle, "twitch"); } finally { setChannelRefreshing(""); } })()}>{channelRefreshing === channel.id ? "Checking…" : `Refresh ${channel.title}`}</Button>)}</div></section>
+                  <section className="mb-7 rounded-xl bg-elevated p-5 shadow-border sm:p-6"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Live desk</p><h1 className="mt-2 font-display text-4xl text-fg">Twitch, live first.</h1><p className="mt-2 max-w-2xl text-sm text-muted">Sort live streams and VODs by what matters right now. {follows.filter((channel) => channel.kind === "twitch").length} channel{follows.filter((channel) => channel.kind === "twitch").length === 1 ? "" : "s"} tracked locally. Scheduled refreshes rotate through 12 creators, adding recent VODs and clips; a separate live check removes stale live cards.</p><p className="mt-2 text-xs text-accent">{remoteCheckedAt ? `Live state checked ${new Date(remoteCheckedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Live state has not been checked yet."} · {sortedTwitch.filter((video) => video.remote?.live).length} live · {twitchVodPicks.length} VODs · {twitchClipTotal.toLocaleString()} clips{remoteRefreshStatus ? ` · ${remoteRefreshStatus.action === "Twitch live check" ? "last live check" : remoteRefreshStatus.action === "Scheduled Twitch content pull" ? "last scheduled pull" : "last archive refresh"} returned ${remoteRefreshStatus.twitch.toLocaleString()} ${remoteRefreshStatus.action === "Twitch live check" ? "live streams" : "VODs and clips"} from ${remoteRefreshStatus.refreshed}/${remoteRefreshStatus.checked} checked channels${remoteRefreshStatus.failed ? ` (${remoteRefreshStatus.failed} unavailable)` : ""}` : ""}</p><div className="mt-4 flex flex-wrap gap-2">{(["live", "viewers", "name"] as const).map((sort) => <Button key={sort} size="sm" variant={twitchSort === sort ? "default" : "secondary"} onClick={() => setTwitchSort(sort)}>{sort === "live" ? "Live first" : sort === "viewers" ? "Most viewers" : "A–Z"}</Button>)}<Button size="sm" variant="secondary" onClick={() => void refreshFollows("twitch", { twitchLiveOnly: true })}>Check next Twitch live batch</Button>{follows.filter((channel) => channel.kind === "twitch").slice(0, 12).map((channel) => <Button key={channel.id} size="sm" variant="ghost" disabled={channelRefreshing === channel.id} onClick={() => void (async () => { setChannelRefreshing(channel.id); try { await followRemoteQuery(channel.handle, "twitch"); } finally { setChannelRefreshing(""); } })()}>{channelRefreshing === channel.id ? "Checking…" : `Refresh ${channel.title}`}</Button>)}</div></section>
 
                   <FollowManager kind="twitch" />
                   <RankingGuide desk="Other" />
@@ -1717,7 +1722,7 @@ export function LibraryApp() {
                   <TitleRail title={`Clips to explore · ${twitchClipTotal.toLocaleString()} cached`} videos={twitchClips} variant="rail" />
                   {channelTagShelves.twitch.map((shelf) => <TitleRail key={`twitch-tag-${shelf.tag}`} title={`Twitch · ${shelf.tag}`} videos={shelf.videos} variant="rail" />)}
                   </>}
-                  <details className="mb-5 rounded-lg border border-border bg-surface p-4 shadow-border"><summary className="cursor-pointer list-none"><div className="flex items-center justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Archive coverage</p><p className="mt-1 text-sm text-muted">{twitchArchiveDepth.total.toLocaleString()} cached VODs across {twitchArchiveDepth.channels.length} channels · expand to review and queue deep pulls.</p></div><span className="text-xs text-accent">Expand</span></div></summary><div className="mt-4 flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Archive coverage</p><p className="mt-1 text-sm text-fg">{twitchArchiveDepth.total.toLocaleString()} cached VODs across {twitchArchiveDepth.channels.length} channels · {twitchArchiveDepth.sparse} sparse channel{twitchArchiveDepth.sparse === 1 ? "" : "s"} under 24 VODs.</p><p className="mt-1 text-xs text-muted">Background checks use a fast recent-VOD window. Focused pulls run serially through the queued creators, so live-state checks retain their budget. Partial responses preserve the existing archive.</p></div><div className="flex flex-wrap gap-2"><Button size="sm" variant="secondary" disabled={channelRefreshing === "twitch-archives"} onClick={() => void (async () => { setChannelRefreshing("twitch-archives"); try { await refreshFollows(); } finally { setChannelRefreshing(""); } })()}>{channelRefreshing === "twitch-archives" ? "Refreshing archives…" : "Refresh Twitch archives"}</Button><Button size="sm" variant="secondary" disabled={Boolean(channelRefreshing) || archiveQueued.length > 0} onClick={queueAllArchivePulls}>Queue all deep pulls</Button></div></div>{archiveQueued.length > 0 && <p className="mt-3 rounded-sm bg-bg/45 px-3 py-2 text-xs text-accent">Focused archive queue · {archiveQueued.length} waiting. Realhub continues creator-by-creator toward the oldest public VOD available; it retains every accepted page.</p>}<div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{twitchArchiveDepth.channels.map((channel) => <div key={channel.id} className="rounded-sm bg-bg/45 p-3"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-sm font-medium text-fg">{channel.name}</p><p className="mt-1 text-xs text-muted">{channel.count.toLocaleString()} cached VODs · {channel.clips} confirmed clip{channel.clips === 1 ? "" : "s"} · last result {channel.lastResponseCount ?? 0} rows</p><p className="mt-1 text-xs text-muted">{channel.oldest ? `${new Date(channel.oldest).toLocaleDateString()} – ${new Date(channel.newest).toLocaleDateString()}` : "No archive dates yet"} · public depth may be limited</p><p className="mt-1 text-xs text-muted">{channel.lastProviderFailure ? `${channel.lastProviderFailure.message} · ${channel.lastProviderFailure.recovery}` : channel.lastCheckedAt ? `Checked ${new Date(channel.lastCheckedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "Not checked yet"}</p>{channel.retryAt && channel.retryAt > Date.now() && <p className="mt-1 text-xs text-accent">Cooldown until {new Date(channel.retryAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}</p>}</div><Button size="sm" variant="secondary" disabled={channelRefreshing === channel.id || archiveQueued.includes(channel.id)} onClick={() => queueArchivePull(channel.id, channel.id.replace(/^tw:/, ""))}>{channelRefreshing === channel.id ? "Pulling…" : archiveQueued.includes(channel.id) ? "Queued" : "Queue deep pull"}</Button></div></div>)}</div></details>
+                  <details className="mb-5 rounded-lg border border-border bg-surface p-4 shadow-border"><summary className="cursor-pointer list-none"><div className="flex items-center justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Archive coverage</p><p className="mt-1 text-sm text-muted">{twitchArchiveDepth.total.toLocaleString()} cached VODs across {twitchArchiveDepth.channels.length} channels · expand to review and queue deep pulls.</p></div><span className="text-xs text-accent">Expand</span></div></summary><div className="mt-4 flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Archive coverage</p><p className="mt-1 text-sm text-fg">{twitchArchiveDepth.total.toLocaleString()} cached VODs across {twitchArchiveDepth.channels.length} channels · {twitchArchiveDepth.sparse} sparse channel{twitchArchiveDepth.sparse === 1 ? "" : "s"} under 24 VODs.</p><p className="mt-1 text-xs text-muted">Scheduled pulls add up to 100 recent VODs and 24 clips sampled across recent and older time ranges. Deep pulls continue through saved archive, highlight, and upload cursors in 2,000‑VOD batches, then move to the next creator. Pulls pause between batches and keep every accepted page.</p></div><div className="flex flex-wrap gap-2"><Button size="sm" variant="secondary" disabled={channelRefreshing === "twitch-archives"} onClick={() => void (async () => { setChannelRefreshing("twitch-archives"); try { await refreshFollows("twitch", { twitchRoutine: true }); } finally { setChannelRefreshing(""); } })()}>{channelRefreshing === "twitch-archives" ? "Pulling recent content…" : "Pull recent VODs + clips"}</Button><Button size="sm" variant="secondary" disabled={Boolean(channelRefreshing) || archiveQueued.length > 0} onClick={queueAllArchivePulls}>Queue all deep pulls</Button></div></div>{(channelRefreshing && channelRefreshing !== "twitch-archives" || archiveQueued.length > 0) && <p className="mt-3 rounded-sm bg-bg/45 px-3 py-2 text-xs text-accent">Focused archive queue · {channelRefreshing && channelRefreshing !== "twitch-archives" ? `pulling ${follows.find((item) => item.id === channelRefreshing)?.title ?? "creator"}` : "ready"} · {archiveQueued.length} waiting. Use Pause pulls to stop after the current batch.</p>}<div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{twitchArchiveDepth.channels.map((channel) => <div key={channel.id} className="rounded-sm bg-bg/45 p-3"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-sm font-medium text-fg">{channel.name}</p><p className="mt-1 text-xs text-muted">{channel.count.toLocaleString()} cached VODs · {channel.clips} confirmed clip{channel.clips === 1 ? "" : "s"} · last result {channel.lastResponseCount ?? 0} rows</p><p className="mt-1 text-xs text-muted">{channel.oldest ? `${new Date(channel.oldest).toLocaleDateString()} – ${new Date(channel.newest).toLocaleDateString()}` : "No archive dates yet"} · public depth may be limited</p><p className="mt-1 text-xs text-muted">{channel.twitchArchiveCursor ? "Archive continuation saved" : channel.twitchArchiveExhaustedAt ? "Available shelves exhausted" : "Deep archive not started"} · {channel.lastProviderFailure ? `${channel.lastProviderFailure.message} · ${channel.lastProviderFailure.recovery}` : channel.lastCheckedAt ? `Checked ${new Date(channel.lastCheckedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "Not checked yet"}</p>{channel.retryAt && channel.retryAt > Date.now() && <p className="mt-1 text-xs text-accent">Cooldown until {new Date(channel.retryAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}</p>}</div><Button size="sm" variant="secondary" disabled={channelRefreshing === channel.id || archiveQueued.includes(channel.id)} onClick={() => queueArchivePull(channel.id, channel.id.replace(/^tw:/, ""))}>{channelRefreshing === channel.id ? "Pulling…" : archiveQueued.includes(channel.id) ? "Queued" : channel.twitchArchiveExhaustedAt ? "Pull again" : "Queue deep pull"}</Button></div></div>)}</div></details>
                   <PosterGrid videos={sortedTwitch.filter((video) => (twitchFilter === "all" || (twitchFilter === "favorites" ? favorites[video.id] : likes[video.id])) && (twitchTagFilter === "all" || topicsForVideo(video, tags[video.id]).includes(twitchTagFilter)))} />
                   {!twitchVideos.length && (
                     <p className="text-sm text-muted">Add a channel from the follow manager below to fill this shelf.</p>
@@ -2073,15 +2078,40 @@ export function LibraryApp() {
                       </div>
                     )}
                   </div>
-                  {query && <section className="mb-5 rounded-lg border border-border bg-surface p-4 shadow-border" aria-label="Search ranking and matching tags"><div className="flex flex-wrap items-baseline justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Search ranking</p><p className="mt-1 text-sm text-muted">Exact title and creator matches lead, followed by matching tags and your saved reactions. Description and path matches remain available.</p></div><span className="text-xs text-accent">{searchPending ? "Searching…" : `${searchInsights.ranked.length.toLocaleString()} ranked result${searchInsights.ranked.length === 1 ? "" : "s"}`}</span></div>{searchInsights.tags.length > 0 && <div className="mt-3 flex flex-wrap gap-2"><span className="self-center text-xs text-muted">Top tags</span>{searchInsights.tags.map(({ tag, count }) => <Button key={tag} size="sm" variant="secondary" onClick={() => {
-                          if (sourceId === "adults" || sourceId === "adult-fetishes") {
-                            setQuery("");
-                            setSource("adults");
-                            window.dispatchEvent(new CustomEvent("reelcase:adult-tag", { detail: { tag } }));
-                            return;
-                          }
-                          setQuery(tag);
-                        }}>#{tag} · {count}</Button>)}</div>}{searchInsights.ranked.length > 0 && <div className="mt-3 grid gap-2 md:grid-cols-3">{searchInsights.ranked.slice(0, 3).map((video, index) => <button key={video.id} type="button" onClick={() => openVideo(video.id)} className="flex min-w-0 items-center gap-3 rounded-md bg-elevated px-3 py-3 text-left hover:bg-bg"><span className="shrink-0 rounded-full bg-accent/15 px-2 py-1 text-xs font-medium text-accent">#{index + 1}</span><span className="min-w-0"><span className="block truncate text-sm font-medium text-fg">{video.name}</span><span className="block truncate text-xs text-muted">{(video.remote?.channelName ?? topicsForVideo(video, tags[video.id]).slice(0, 2).join(" · ")) || "Library match"}</span></span></button>)}</div>}</section>}
+                  {query && <section className="mb-5 rounded-lg border border-border bg-surface p-4 shadow-border" aria-label="Search ranking and matching tags">
+                    <div className="flex flex-wrap items-baseline justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Search ranking</p>
+                        <p className="mt-1 text-sm text-muted">Exact title and creator matches lead, followed by matching tags and your saved reactions. Description and path matches remain available.</p>
+                      </div>
+                      <span className="text-xs text-accent">{searchPending ? "Searching…" : searchInsights.ranked.length.toLocaleString() + " ranked results"}</span>
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-border pt-3">
+                      <Button size="sm" variant="secondary" disabled={searchPending} onClick={refreshSearchRanking}>Refresh ranking</Button>
+                      <span role="status" aria-live="polite" data-search-ranking-updated={searchRankingUpdated} className="w-36 text-xs text-accent">{searchPending ? "Preparing order…" : searchRankingUpdated ? "New reactions ready" : "Ranking up to date"}</span>
+                      <p className="w-full text-xs text-muted">Order stays fixed while you browse. Refresh to apply new ratings, likes and watch counts.</p>
+                    </div>
+                    {searchInsights.tags.length > 0 && <div className="mt-3 flex flex-wrap gap-2">
+                      <span className="self-center text-xs text-muted">Top tags</span>
+                      {searchInsights.tags.map(({ tag, count }) => <Button key={tag} size="sm" variant="secondary" onClick={() => {
+                        if (sourceId === "adults" || sourceId === "adult-fetishes") {
+                          setQuery(""); setSource("adults");
+                          window.dispatchEvent(new CustomEvent("reelcase:adult-tag", { detail: { tag } }));
+                          return;
+                        }
+                        setQuery(tag);
+                      }}>#{tag} · {count}</Button>)}
+                    </div>}
+                    {searchInsights.ranked.length > 0 && <div className="mt-3 grid gap-2 md:grid-cols-3">
+                      {searchInsights.ranked.slice(0, 3).map((video, index) => <button key={video.id} type="button" onClick={() => openVideo(video.id)} className="flex min-w-0 items-center gap-3 rounded-md bg-elevated px-3 py-3 text-left hover:bg-bg">
+                        <span className="shrink-0 rounded-full bg-accent/15 px-2 py-1 text-xs font-medium text-accent">#{index + 1}</span>
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-medium text-fg">{video.name}</span>
+                          <span className="block truncate text-xs text-muted">{(video.remote?.channelName ?? topicsForVideo(video, tags[video.id]).slice(0, 2).join(" · ")) || "Library match"}</span>
+                        </span>
+                      </button>)}
+                    </div>}
+                  </section>}
                                     {(sourceId === "continue" || sourceId === "history") && !query && (adultContinue.length > 0 || adultHistoryTagged.length > 0) && (
                     <section className="mb-5 rounded-xl border border-border bg-surface p-5 shadow-border">
                       <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Adults activity</p>
@@ -2184,9 +2214,10 @@ export function LibraryApp() {
                   {query && searchPending ? (
                     <div role="status" aria-live="polite" className="rounded-lg bg-surface px-6 py-12 text-sm text-muted">Preparing search results… You can keep typing or switch pages.</div>
                   ) : query && searchRankingError ? (
-                    <div role="status" className="rounded-lg bg-surface px-6 py-12 text-sm text-muted">Search could not finish. Change the query to try again.</div>
+                    <div role="status" className="rounded-lg bg-surface px-6 py-12 text-sm text-muted">Search could not finish. <Button variant="secondary" size="sm" onClick={refreshSearchRanking}>Retry search</Button></div>
                   ) : sourceId === "history" || sourceId === "continue" || query ? (
                     <VideoGrid
+                      key={query ? `search:${searchRankingRevision}` : sourceId}
                       videos={query ? searchInsights.ranked : sourceId === "history" ? historyFilteredVideos : videos}
                       playedAt={sourceId === "history" ? playedAt : undefined}
                     />

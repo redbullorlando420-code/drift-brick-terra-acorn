@@ -37,6 +37,9 @@ export function recoveredEnrichmentRow(ledgers: EnrichmentLedgers, row: Enrichme
   if (existing?.updatedAt === row.provenance.updatedAt && ledgers.tags[row.id]
     && (ledgers.tags[row.id].length !== row.tags.length || ledgers.tags[row.id].some((tag, index) => tag !== row.tags[index]))) return;
   return { ...row, provenance: { ...row.provenance, ...existing,
+    ...((row.provenance.youtubeTextTagVersion || existing?.youtubeTextTagVersion) ? {
+      youtubeTextTagVersion: Math.max(row.provenance.youtubeTextTagVersion ?? 0, existing?.youtubeTextTagVersion ?? 0),
+    } : {}),
     tags: Object.fromEntries(row.tags.map(tag => [tag, existing?.tags[tag] ?? row.provenance.tags[tag]])),
     updatedAt: row.provenance.updatedAt } };
 }

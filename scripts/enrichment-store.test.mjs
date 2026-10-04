@@ -10,7 +10,8 @@ const idleModule = `import { createIdleQueue } from ${JSON.stringify(queueUrl)};
 const f = globalThis.__enrichmentStoreFixture;
 export const idleEnrichment = createIdleQueue({ allowed:()=>!f.viewer,
  turn:()=>new Promise(resolve=>setImmediate(resolve)), subscribe:wake=>{f.wake=wake;return()=>{f.wake=null;};} });
-export function setEnrichmentViewerOpen(open){f.viewer=open;f.wake?.(true);}`;
+f.queue=idleEnrichment;
+export function setEnrichmentViewerOpen(open,searching=false){f.viewer=open||searching;f.wake?.(true);}`;
 const names = [...readFileSync(new URL('../src/lib/videos/persist.ts', import.meta.url), 'utf8').matchAll(/export (?:async )?function (\w+)/g)].map(match => match[1]);
 const persistence = names.map(name => name === 'loadPrefs' ? 'export function loadPrefs(){return null;}'
   : name === 'saveEnrichmentRows' ? 'export async function saveEnrichmentRows(rows){globalThis.__enrichmentStoreFixture.saved.push(...structuredClone(rows));}'
@@ -44,6 +45,10 @@ test('real store metadata actions return before catalog parsing, honor locks, sa
   await new Promise(resolve=>setTimeout(resolve,10)); assert.equal(fixture.catalogReads,0);
   useLibrary.setState({previewId:null}); const resumed = await held;
   assert.equal(resumed.processed,48); assert.equal(fixture.saved.length,96); assert.equal(fixture.wake,null,'completed owners release subscriptions');
+  useLibrary.setState({query:'science'});fixture.catalogReads=0;
+  const searchHeld=useLibrary.getState().enrichMetadataTail();
+  await new Promise(resolve=>setTimeout(resolve,10));assert.equal(fixture.catalogReads,0,'search holds optional tag mutation');
+  useLibrary.setState({query:''});assert.equal((await searchHeld).processed,48);
 });
 test('real smart tags retain source/creator filters and manual locks without a catalog-sized click stack', async () => {
   fixture.saved=[];
@@ -69,4 +74,23 @@ test('removing a folder removes only its sparse enrichment records as well as it
   useLibrary.setState({videos:[{...card('doomed'),folderId:'doomed-folder'},{...card('kept'),folderId:'kept-folder'}],folders:[],tags:{doomed:['old'],kept:['keep']},metadataProvenance:{},activeId:null,previewId:null});
   await useLibrary.getState().removeFolder('doomed-folder');
   assert.deepEqual(fixture.removed,['doomed']);assert.deepEqual(useLibrary.getState().videos.map(video=>video.id),['kept']);assert.deepEqual(useLibrary.getState().tags,{kept:['keep']});
+});
+
+test('cached YouTube repair replaces saturated provider tags, preserves manual locks and saves idempotent versioned rows', async () => {
+  fixture.saved=[];
+  const stale=Array.from({length:30},(_,i)=>`obsolete${i}`);
+  const row={...card('upgrade'),name:'A practical lesson',description:'Machine learning with Python\n01:30 Training neural networks #NeuralNetworks'};
+  const current=['my-choice',...stale];
+  useLibrary.setState({videos:[row,{...row,id:'locked'}],tags:{upgrade:current,locked:['keep']},metadataProvenance:{
+    upgrade:{tags:{'my-choice':'manual',...Object.fromEntries(stale.map(tag=>[tag,'provider:youtube']))}},
+    locked:{tags:{keep:'manual'},lockedFields:['tags']}},previewId:null,activeId:null});
+  useLibrary.getState().repairCachedMetadata();
+  await new Promise((resolve,reject)=>{
+    const off=fixture.queue.subscribe(()=>{const snapshot=fixture.queue.getSnapshot();if(snapshot.error){off();reject(Error(snapshot.error));}else if(!snapshot.jobs.length){off();resolve();}});
+  });
+  const state=useLibrary.getState();assert.ok(state.tags.upgrade.includes('my-choice'));assert.ok(state.tags.upgrade.includes('machine-learning'));
+  assert.ok(state.tags.upgrade.includes('technology'));assert.ok(!state.tags.upgrade.includes('obsolete0'));
+  assert.deepEqual(state.tags.locked,['keep']);assert.equal(state.metadataProvenance.upgrade.tags['my-choice'],'manual');
+  assert.equal(state.metadataProvenance.upgrade.youtubeTextTagVersion,2);assert.equal(fixture.saved.length,1);
+  assert.equal(await useLibrary.getState().autoTagLibrary(),0);assert.equal(fixture.saved.length,1,'unchanged repair does not rewrite storage');
 });

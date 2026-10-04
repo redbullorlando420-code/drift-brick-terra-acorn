@@ -69,6 +69,10 @@ export function holdEntryLimitCursors(previous: FollowedChannel[], incoming: Fol
   return incoming.map(channel => skippedSources.has(channel.id) ? { ...channel,
     catalogCursor: saved.get(channel.id)?.catalogCursor,
     catalogExhaustedAt: saved.get(channel.id)?.catalogExhaustedAt,
+    twitchArchiveCursor: saved.get(channel.id)?.twitchArchiveCursor,
+    twitchArchiveExhaustedAt: saved.get(channel.id)?.twitchArchiveExhaustedAt,
+    twitchClipCursor: saved.get(channel.id)?.twitchClipCursor,
+    twitchClipExhaustedAt: saved.get(channel.id)?.twitchClipExhaustedAt,
     newestVideoId: saved.get(channel.id)?.newestVideoId,
   } : channel);
 }

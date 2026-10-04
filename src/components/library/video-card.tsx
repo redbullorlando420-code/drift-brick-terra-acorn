@@ -20,7 +20,8 @@ import { isAdultImageKind, isAdultPullKind } from "@/lib/videos/adult-sites";
 import { downloadAdultPhoto } from "@/lib/videos/adult-photo-download";
 import { useLibrary } from "@/lib/videos/store";
 import { toast } from "sonner";
-import { getRating, setRating as setMediaRating } from "@/lib/media-feedback";
+import { setRating as setMediaRating } from "@/lib/media-feedback";
+import { useMediaRating } from './use-media-rating';
 import { registerMountedCard } from "@/lib/render-budget";
 import { measureInteraction } from "@/lib/interaction-budget";
 import { acquireImageSlot, isArtworkSuppressed } from "@/lib/videos/image-load-budget";
@@ -113,7 +114,7 @@ export const VideoCard = memo(function VideoCard({
   const [paintedSrc, setPaintedSrc] = useState<string | undefined>();
   const [candidateReady, setCandidateReady] = useState(false);
   const [textFirst, setTextFirst] = useState(false);
-  const [rating, setRating] = useState(0);
+  const rating = useMediaRating(video.id);
   const imageSlotRelease = useRef<(() => void) | undefined>(undefined);
 
   const releaseImageSlot = () => {
@@ -244,7 +245,6 @@ export const VideoCard = memo(function VideoCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeThumb, artAllowed, artAwake, candidateReady, paintedSrc, showPreview, thumbIndex]);
 
-  useEffect(() => { setRating(getRating(video.id)); }, [video.id]);
   useEffect(() => { setTextFirst(document.documentElement.dataset.artworkMode === "text"); }, []);
   useEffect(() => registerMountedCard(), []);
   useEffect(() => {
@@ -259,10 +259,9 @@ export const VideoCard = memo(function VideoCard({
   }, [failed, repairArtworkSource, retry, video]);
   const rate = (value: number) => {
     measureInteraction("rating");
-    setRating(value);
-    // Keep the card responsive; the persisted feedback write is coalesced by
-    // media-feedback so a quick sequence of ratings does not stall the rail.
-    window.requestAnimationFrame(() => setMediaRating(video.id, value));
+    // All mounted copies of this title share the keyed rating snapshot. The
+    // durable write is coalesced away from the input frame.
+    window.requestAnimationFrame(() => setMediaRating(video.id, rating === value ? 0 : value));
   };
   const repairRemoteArtwork = () => {
     if (!video.remote || (video.remote.kind !== "youtube" && video.remote.kind !== "twitch") || remoteArtworkRepairRequested.has(video.folderId)) return;
@@ -409,6 +408,7 @@ export const VideoCard = memo(function VideoCard({
       <button
         ref={ref}
         data-video-card-open
+        data-video-card-id={video.id}
         type="button"
         onMouseEnter={() => { setHovered(true); warmVideoPreview(); }}
         onFocus={warmVideoPreview}
@@ -624,7 +624,7 @@ export const VideoCard = memo(function VideoCard({
         </div>
       )}
       {!live && <div className="absolute right-2 bottom-2 hidden items-center gap-0.5 rounded-sm bg-bg/75 p-1 text-accent backdrop-blur-sm group-hover:flex group-focus-within:flex">
-        {[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" aria-label={`Rate ${video.name} ${value} stars`} onClick={(event) => { event.stopPropagation(); rate(value); }} className={cn("p-0.5", value <= rating && "text-fg")}><Star className={cn("size-3", value <= rating && "fill-current")} /></button>)}
+        {[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" aria-label={`Rate ${video.name} ${value} stars`} aria-pressed={rating === value} title={rating === value ? "Click again to clear your rating" : `Rate ${value} stars`} onClick={(event) => { event.stopPropagation(); rate(value); }} className={cn("p-0.5", value <= rating && "text-fg")}><Star className={cn("size-3", value <= rating && "fill-current")} /></button>)}
       </div>}
     </div>
   );

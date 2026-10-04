@@ -32,6 +32,8 @@ test('browser enrichment owns one idle callback, cancels on real lifecycle/input
     page.hidden = false; page.visibilityState = 'visible'; page.dispatchEvent(new Event('visibilitychange')); assert.equal(idle.size, 1);
     setEnrichmentViewerOpen(true); await flush(); assert.equal(idle.size, 0);
     setEnrichmentViewerOpen(false); assert.equal(idle.size, 1);
+    setEnrichmentViewerOpen(false, true); await flush(); assert.equal(idle.size, 0, 'active search holds optional tag commits');
+    setEnrichmentViewerOpen(false, false); assert.equal(idle.size, 1);
     await fire(idle); surface.dispatchEvent(new Event('pointerdown')); await flush();
     assert.equal(idle.size, 0); assert.equal(timers.size, 1); assert.equal(commits, 0);
     now = 250; await fire(timers); await fire(idle); await fire(timers);

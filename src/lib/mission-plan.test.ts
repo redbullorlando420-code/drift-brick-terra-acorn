@@ -178,3 +178,36 @@ test('revision 14 completes the verified slow-device profile without resetting o
   assert.deepEqual(mergeMissionPlan(saved, current, 14).map(row => row.done), [true, false, false]);
   assert.equal(mergeMissionPlan(saved, current, 15)[0].status, 'in-progress');
 });
+
+test('revision 15 promotes only the verified render audit and preserves later manual status choices', () => {
+  const current: Mission[] = [
+    { id: 'speed-03', title: 'Render invalidation audit', detail: 'Verified stable search and keyed ratings', done: true },
+    { id: 'smooth-11', title: 'Accessibility performance audit', detail: 'Broader focus audit remains', done: false },
+    { id: 'recent-memory-soak', title: 'Memory soak', detail: 'Still open', done: false },
+  ];
+  const saved = current.map(row => ({ ...row, done: false, status: 'in-progress' as const }));
+  assert.deepEqual(mergeMissionPlan(saved, current, 15).map(row => row.done), [true, false, false]);
+  assert.equal(mergeMissionPlan(saved, current, 16)[0].status, 'in-progress');
+});
+
+test('revision 16 promotes mobile budgets without completing physical-device soak or resetting later choices', () => {
+  const current: Mission[] = [
+    {id:'speed-09',title:'Mobile memory budget',detail:'Verified phone budgets',done:true},
+    {id:'recent-memory-soak',title:'Memory soak',detail:'Still open',done:false},
+    {id:'smooth-11',title:'Accessibility performance audit',detail:'Still open',done:false},
+  ];
+  const saved=current.map(row=>({...row,done:false,status:'in-progress' as const}));
+  assert.deepEqual(mergeMissionPlan(saved,current,16).map(row=>row.done),[true,false,false]);
+  assert.equal(mergeMissionPlan(saved,current,17)[0].status,'in-progress');
+});
+
+test('revision 17 promotes verified keyboard browsing without changing soak or later manual choices', () => {
+  const current: Mission[] = [
+    {id:'smooth-11',title:'Accessibility performance audit',detail:'Verified deferred focus and viewer handoff',done:true},
+    {id:'recent-memory-soak',title:'Memory soak',detail:'Still open',done:false},
+    {id:'smooth-12',title:'Smoothness scorecard',detail:'Still open',done:false},
+  ];
+  const saved=current.map(row=>({...row,done:false,status:'in-progress' as const}));
+  assert.deepEqual(mergeMissionPlan(saved,current,17).map(row=>row.done),[true,false,false]);
+  assert.equal(mergeMissionPlan(saved,current,18)[0].status,'in-progress');
+});

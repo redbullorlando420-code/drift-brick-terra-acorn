@@ -1,4 +1,5 @@
 import { VideoCard } from "./video-card";
+import { memo } from 'react';
 import { VirtualVideoGrid } from "./virtual-video-grid";
 import { useLibrary } from "@/lib/videos/store";
 import type { LibraryVideo } from "@/lib/videos/types";
@@ -64,11 +65,11 @@ export function HistoryRail({
   );
 }
 
-export function VideoGrid({ videos, playedAt }: { videos: LibraryVideo[]; playedAt?: Record<string, number> }) {
+export const VideoGrid = memo(function VideoGrid({ videos, playedAt }: { videos: LibraryVideo[]; playedAt?: Record<string, number> }) {
   const view = useLibrary(s => s.view);
   if (!videos.length) return <div className="rounded-xl bg-surface px-6 py-16 text-center shadow-border">
     <p className="font-display text-2xl text-fg">No videos here</p>
     <p className="mx-auto mt-2 max-w-sm text-sm text-muted">Try another source, clear search, or add a folder from this computer.</p>
   </div>;
   return <VirtualVideoGrid videos={videos} playedAt={playedAt} variant={view === "list" ? "list" : "grid"} pageSize={PAGE} automatic />;
-}
+});

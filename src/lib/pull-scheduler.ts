@@ -1,18 +1,18 @@
 type Policy = { concurrency: number; gapMs: number };
 export type PullQueueSnapshot = { active: number; waiting: number; held: boolean; cancelled: number };
-type Job = { work: (signal: AbortSignal) => Promise<unknown>; resolve: (value: unknown) => void; reject: (error: Error) => void; generation: number; controller: AbortController };
+type Job = { work: (signal: AbortSignal) => Promise<unknown>; resolve: (value: unknown) => void; reject: (error: Error) => void; generation: number; controller: AbortController; ignorePause: boolean };
 const cancelledError = () => new Error('Pull cancelled; accepted catalog entries remain saved.');
 /** A bounded queue sleeps on pause/visibility changes. Each active slot retains
  * at most one response; cancellation aborts transport and releases that slot. */
-export function createPullScheduler(policy: () => Policy, available: () => boolean, maxWaiting = 8,
-  options: { availabilityDelay?: () => number; requestTimeoutMs?: number | (() => number) } = {}) {
+export function createPullScheduler(policy: () => Policy, available: (ignorePause?: boolean) => boolean, maxWaiting = 8,
+  options: { availabilityDelay?: (ignorePause?: boolean) => number; requestTimeoutMs?: number | (() => number) } = {}) {
   const queue: Job[] = [], running = new Set<Job>(), held = new Set<() => void>();
   const listeners = new Set<() => void>();
   let lastStarted = -Infinity, timer: ReturnType<typeof setTimeout> | undefined;
   let generation = 0, cancelled = 0;
   let snapshot: PullQueueSnapshot = { active: 0, waiting: 0, held: false, cancelled: 0 };
   const emit = () => {
-    const waiting = (queue.length > 0 || running.size > 0) && !available();
+    const waiting = (queue.length > 0 || running.size > 0) && !available(queue[0]?.ignorePause ?? false);
     if (snapshot.active === running.size && snapshot.waiting === queue.length && snapshot.held === waiting && snapshot.cancelled === cancelled) return;
     snapshot = { active: running.size, waiting: queue.length, held: waiting, cancelled };
     for (const listener of listeners) listener();
@@ -26,8 +26,9 @@ export function createPullScheduler(policy: () => Policy, available: () => boole
     if (timer !== undefined) clearTimeout(timer);
     timer = undefined;
     emit();
-    if (!available()) {
-      if (queue.length || held.size) schedule(options.availabilityDelay?.() ?? Infinity);
+    const ignorePause = queue[0]?.ignorePause ?? false;
+    if (!available(ignorePause)) {
+      if (queue.length || held.size) schedule(options.availabilityDelay?.(ignorePause) ?? Infinity);
       return;
     }
     for (const resume of [...held]) resume();
@@ -54,7 +55,7 @@ export function createPullScheduler(policy: () => Policy, available: () => boole
         emit();
         const result = await Promise.race([work, interruption]);
         clearTimeout(timeout);
-        while (!available() && job.generation === generation) {
+        while (!available(job.ignorePause) && job.generation === generation) {
           await new Promise<void>(resolve => {
             const resume = () => { held.delete(resume); job.controller.signal.removeEventListener('abort', resume); resolve(); };
             held.add(resume);
@@ -70,9 +71,13 @@ export function createPullScheduler(policy: () => Policy, available: () => boole
     if (queue.length && running.size < config.concurrency) schedule(config.gapMs);
   };
   return {
-    run<T>(work: (signal: AbortSignal) => Promise<T>): Promise<T> {
+    run<T>(work: (signal: AbortSignal) => Promise<T>, options: { ignorePause?: boolean } = {}): Promise<T> {
       if (queue.length >= maxWaiting) return Promise.reject(new Error('Pull queue is full. Let the current batch finish before adding more.'));
-      const result = new Promise<T>((resolve, reject) => queue.push({ work, resolve: value => resolve(value as T), reject, generation, controller: new AbortController() }));
+      const ignorePause = options.ignorePause === true;
+      const result = new Promise<T>((resolve, reject) => {
+        const job = { work, resolve: (value: unknown) => resolve(value as T), reject, generation, controller: new AbortController(), ignorePause };
+        if (ignorePause) queue.unshift(job); else queue.push(job);
+      });
       pump(); return result;
     },
     cancel() {

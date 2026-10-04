@@ -26,6 +26,20 @@ test('paused queue and held responses use gate wakeups and remain bounded', asyn
   available = true; scheduler.wake(); assert.equal(await first, 42); assert.equal(await second, 24);
 });
 
+test('an explicit live check can pass a paused archive queue without releasing it', async () => {
+  let paused = true;
+  const calls: string[] = [];
+  const scheduler = createPullScheduler(() => ({ concurrency: 1, gapMs: 0 }), (ignorePause = false) => ignorePause || !paused);
+  const archive = scheduler.run(async () => { calls.push('archive'); return 'archive'; });
+  const live = scheduler.run(async () => { calls.push('live'); return 'live'; }, { ignorePause: true });
+  assert.equal(await live, 'live');
+  assert.deepEqual(calls, ['live']);
+  assert.equal(scheduler.snapshot().waiting, 1);
+  paused = false; scheduler.wake();
+  assert.equal(await archive, 'archive');
+  assert.deepEqual(calls, ['live', 'archive']);
+});
+
 test('cancel releases a completed response held behind pause', async () => {
   let available = true;
   const scheduler = createPullScheduler(() => ({ concurrency: 1, gapMs: 0 }), () => available);

@@ -2,6 +2,7 @@ import { recordRatingForStreak } from "./rating-streaks";
 import { restoreDurableFeedback, saveDurableFeedback } from "./videos/persist";
 import { copyCatalogRecord, yieldCatalogTask } from './catalog-work';
 import { scheduleBackgroundWork } from './interaction-budget';
+import { createKeyedSignal } from './keyed-signal';
 
 export type RatingLedgerEntry = { rating: number; updatedAt: number };
 export type WatchTime = { preview: number; fullscreen: number; previewEstimated?: number; fullscreenEstimated?: number };
@@ -22,6 +23,8 @@ let cancelPersist: (() => void) | undefined;
 let lastRatingQueueMs = 0;
 let lastPersistMs = 0;
 let pendingWrites = 0;
+const ratingSignal = createKeyedSignal();
+export const subscribeRating = ratingSignal.subscribe;
 // Missing ratings are common in large libraries. Remember the legacy lookup
 // too, so recommendation passes never repeat synchronous storage reads.
 const legacyRatings = new Map<string, number>();
@@ -120,7 +123,7 @@ export async function hydrateDurableFeedback() {
     tagHeartHistory: { ...durable.tagHeartHistory, ...current.tagHeartHistory },
     watchTime: { ...durable.watchTime, ...current.watchTime },
   };
-  signalVersion++; snapshot = undefined; notifyChange();
+  signalVersion++; snapshot = undefined; ratingSignal.emitAll(); notifyChange();
 }
 function persist() {
   persistTimer = undefined;
@@ -215,6 +218,7 @@ export function setRating(id: string, rating: number) {
   legacyKeys().add(id);
   recordRatingForStreak(id, next.ratings[id]);
   write(next);
+  ratingSignal.emit(id);
   notifyChange();
   lastRatingQueueMs = Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - started);
 }

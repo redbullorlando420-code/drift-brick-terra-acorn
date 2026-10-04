@@ -1,5 +1,6 @@
 import { PullPauseButton } from './pull-pause-button';
-import { LayoutGrid, List, Menu, Upload, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
+import { LayoutGrid, List, Menu, Upload } from 'lucide-react';
+import { SidebarToggle } from './desktop-sidebar';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
@@ -25,14 +26,10 @@ export function TopBar({
   onMenu,
   onAddFolder,
   menuOpen,
-  sidebarCollapsed,
-  onToggleSidebar,
 }: {
   onMenu: () => void;
   onAddFolder: () => void;
   menuOpen: boolean;
-  sidebarCollapsed: boolean;
-  onToggleSidebar: () => void;
 }) {
   const sourceId = useLibrary(s => s.sourceId);
   const view = useLibrary(s => s.view);
@@ -47,8 +44,8 @@ export function TopBar({
   const sourceCount = sourceId === 'home' ? videoCount : folders.find(folder => folder.id === sourceId)?.videoCount;
 
   return (
-    <header className="grid gap-3 border-b border-border px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-6 2xl:grid-cols-[minmax(10rem,0.55fr)_minmax(12rem,1.4fr)_auto]">
-      <div className="flex min-w-0 items-center gap-2">
+    <header className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3 sm:px-6">
+      <div className="flex min-w-0 flex-1 items-center gap-2">
         <Button
           variant="ghost"
           size="icon-sm"
@@ -60,14 +57,11 @@ export function TopBar({
         >
           <Menu className="size-5" />
         </Button>
-        <Button variant="ghost" size="icon" className="hidden size-11 shrink-0 lg:flex" onClick={onToggleSidebar}
-          aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!sidebarCollapsed} aria-controls="desktop-sidebar-navigation" title="Toggle sidebar (Ctrl+B)">
-          {sidebarCollapsed ? <PanelLeftOpen className="size-5" /> : <PanelLeftClose className="size-5" />}
-        </Button>
+        <SidebarToggle />
         <div className="min-w-0"><p className="truncate font-display text-lg leading-none text-fg">{sourceLabel}</p><p className="mt-1 text-xs text-muted">{typeof sourceCount === "number" ? `${sourceCount.toLocaleString()} indexed` : "Control room"}</p></div>
       </div>
-      <GlobalSearch />
-      <div className="flex flex-wrap items-center gap-1.5 sm:col-start-2 sm:row-start-1 sm:justify-end 2xl:col-start-3">
+      <div className="flex max-w-full flex-wrap items-center gap-1.5 sm:justify-end">
+        <GlobalSearch />
         {scanning && (
           <span className="mr-2 hidden truncate text-xs text-muted sm:inline">
             Scanning {scanning.folderName} · {scanning.found}

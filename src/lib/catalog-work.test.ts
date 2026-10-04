@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { collectCatalogRows, forEachCatalogSlice, copyCatalogRecord } from './catalog-work.ts';
 import { createPreviewUrlCache } from './videos/preview-url-cache.ts';
-import { planAdultPull } from './videos/adult-pull-plan.ts';
+import { adultProviderPullBudget, planAdultPull } from './videos/adult-pull-plan.ts';
 
 test('catalog traversals yield and cancel before processing another slice', async () => {
   let visits = 0, turns = 0;
@@ -45,4 +45,14 @@ test('Adult sweep rotates untouched providers and skips cooldowns', () => {
   const cursors = { eporner: { page: 3, query: 'all', order: 'latest', updatedAt: 90 }, redtube: { page: 5, query: 'all', order: 'latest', updatedAt: 0, retryAt: 200 } };
   assert.deepEqual(planAdultPull(cursors, 100), ['chaturbate', 'myfreecams']);
   assert.equal(planAdultPull(cursors, 300, 1)[0], 'redtube');
+});
+test('Adult provider shares reallocate unused new-entry capacity while preserving the pull cap', () => {
+  const first = adultProviderPullBudget(101, 3, 0);
+  const afterFirst = 29; // only five new entries were admitted from the first 34-slot share
+  const second = adultProviderPullBudget(101, 3, 1, afterFirst);
+  const afterSecond = 13; // fifty new entries were admitted from the expanded 63-slot share
+  const third = adultProviderPullBudget(101, 3, 2, afterSecond);
+  assert.deepEqual([first, second, third], [34, 63, 46]);
+  assert.equal(5 + 50 + 46, 101);
+  assert.equal(adultProviderPullBudget(101, 3, 1, 10_000), 101);
 });

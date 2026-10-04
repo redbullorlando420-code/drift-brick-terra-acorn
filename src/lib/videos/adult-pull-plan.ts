@@ -10,6 +10,16 @@ export function planAdultPull(cursors: AdultArchiveCursorMap, now: number, limit
     .slice(0, Math.max(1, Math.min(ADULT_PULL_PROVIDERS.length, limit)));
 }
 
+/** Split a user pull fairly, then pass unused capacity from empty, duplicate,
+ * or failed providers to the next source in the same pull. */
+export function adultProviderPullBudget(total: number, providerCount: number, index: number, carry = 0) {
+  const target = Math.max(0, Math.floor(total));
+  const count = Math.max(1, Math.floor(providerCount));
+  const position = Math.max(0, Math.min(count - 1, Math.floor(index)));
+  const base = Math.floor(target / count) + (position < target % count ? 1 : 0);
+  return Math.min(target, base + Math.max(0, Math.floor(carry)));
+}
+
 export const REDDIT_SOURCE_STORAGE_KEY = 'reelcase.adult-reddit-sources.v1';
 export type RedditSourceSetting = { subreddit: string; priority: 1 | 2 | 3; hidden?: boolean; favorite?: boolean };
 export function readRedditSourceSettings(): RedditSourceSetting[] {

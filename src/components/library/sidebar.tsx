@@ -29,6 +29,8 @@ import {
   ChevronDown,
   PanelLeftClose,
   PanelLeftOpen,
+  Pin,
+  PinOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -100,11 +102,15 @@ export function SidebarNav({
   onNavigate,
   compact = false,
   onToggleCompact,
+  pinned,
+  onTogglePinned,
 }: {
   onAddFolder: (adult?: boolean) => void;
   onNavigate?: () => void;
   compact?: boolean;
   onToggleCompact?: () => void;
+  pinned?: boolean;
+  onTogglePinned?: () => void;
 }) {
   const folders = useBrowseLibrary((s) => s.folders);
   const videos = useBrowseLibrary((s) => s.videos);
@@ -199,6 +205,7 @@ export function SidebarNav({
         <div className={cn("flex shrink-0 items-center gap-2 border-b border-border pb-3", compact ? "flex-col" : "px-1")}>
           <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-fg shadow-border"><Clapperboard className="size-5" /></span>
           {!compact && <div className="min-w-0 flex-1"><p className="font-display text-xl tracking-tight text-fg">Realhub</p><p className="text-xs text-muted">Vault · networks · live</p></div>}
+          {!compact && onTogglePinned && <Button variant="ghost" size="icon" className="size-11 shrink-0" onClick={onTogglePinned} aria-label={pinned ? 'Unpin sidebar' : 'Keep sidebar open'} aria-pressed={pinned} title={pinned ? 'Unpin: retract automatically' : 'Keep sidebar open'}>{pinned ? <PinOff className="size-4" /> : <Pin className="size-4" />}</Button>}
           {onToggleCompact && <Button variant="ghost" size="icon" className="size-11 shrink-0" onClick={onToggleCompact}
             aria-label={compact ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!compact} aria-controls="desktop-sidebar-navigation" title="Toggle sidebar (Ctrl+B)">
             {compact ? <PanelLeftOpen className="size-5" /> : <PanelLeftClose className="size-5" />}
