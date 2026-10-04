@@ -1,0 +1,31 @@
+{
+  "reports": [
+    {
+      "entries": 100000,
+      "originalClickStackMs": 148.68,
+      "stagedClickStackMs": 0.2,
+      "originalCatalogReads": 100000,
+      "readsBeforeFirstTask": 0,
+      "stagedCatalogReads": 48,
+      "stagedTotalMs": 1.38,
+      "yields": 2,
+      "maxObservedTaskMs": 0.65,
+      "savedRows": 48,
+      "done": true
+    },
+    {
+      "entries": 1000000,
+      "originalClickStackMs": 2333.22,
+      "stagedClickStackMs": 0.06,
+      "originalCatalogReads": 1000000,
+      "readsBeforeFirstTask": 0,
+      "stagedCatalogReads": 48,
+      "stagedTotalMs": 0.85,
+      "yields": 2,
+      "maxObservedTaskMs": 0.39,
+      "savedRows": 48,
+      "done": true
+    }
+  ],
+  "note": "Synthetic Node workload with shared tag values and instrumented catalog rows; not browser latency or a heap soak. The staged batch uses shared sparse records and does not enumerate the base ledgers. Full exports and broad preference snapshots remain separate full-record operations."
+}

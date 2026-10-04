@@ -5,6 +5,7 @@
  */
 
 import { getInteractionPriorityDelay } from "../interaction-budget.ts";
+import { getPerformanceProfile, subscribePerformanceProfile } from '../performance-profile.ts';
 
 export type ImageSlotPriority = "high" | "low";
 
@@ -21,6 +22,9 @@ const MAX_CONCURRENT = 12;
 const HIGH_RESERVED = 4;
 
 function maxConcurrent() {
+  return Math.min(getPerformanceProfile().imageRequests, deviceConcurrent());
+}
+function deviceConcurrent() {
   const nav = typeof navigator !== "undefined"
     ? (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string; downlink?: number }; deviceMemory?: number; hardwareConcurrency?: number })
     : undefined;
@@ -121,12 +125,21 @@ export function clearLowPriorityImageQueue() {
 }
 
 let visibilityHooked = false;
+let stopVisibility: (() => void) | undefined;
 /** One shared visibility listener, instead of one listener per waiting card. */
 export function ensureImageBudgetVisibilityHook() {
   if (visibilityHooked || typeof document === "undefined") return;
   visibilityHooked = true;
-  document.addEventListener("visibilitychange", () => {
+  const stopProfile = subscribePerformanceProfile(pump);
+  const onVisibility = () => {
     if (document.visibilityState === "hidden") clearLowPriorityImageQueue();
     else pump();
-  });
+  };
+  document.addEventListener("visibilitychange", onVisibility);
+  stopVisibility = () => { document.removeEventListener('visibilitychange', onVisibility); stopProfile(); visibilityHooked = false; };
 }
+import.meta.hot?.dispose(() => {
+  stopVisibility?.();
+  if (interactionTimer !== undefined) clearTimeout(interactionTimer);
+  for (const waiter of [...waitingHigh.splice(0), ...waitingLow.splice(0)]) settle(waiter, null);
+});

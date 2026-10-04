@@ -1,0 +1,51 @@
+✔ actual sparse persistence batches restore in 256-row pages without reading full preferences or losing locks (1918.6698ms)
+✔ real store metadata actions return before catalog parsing, honor locks, save compact provider provenance, and hold during a viewer (306.1892ms)
+✔ real smart tags retain source/creator filters and manual locks without a catalog-sized click stack (1.3011ms)
+✔ manual and accepted inspection edits never enumerate the existing tag ledgers (1.2483ms)
+✔ removing a folder removes only its sparse enrichment records as well as its catalog metadata (0.5626ms)
+✔ worker-free search yields, preserves metadata and exact tags, and cancels without an index (271.5593ms)
+✔ cancelled offscreen thumbnail requests leave no queued work or leaked slots (4.3774ms)
+✔ aborting an awakened waiter still lets the next visible image load (0.3817ms)
+✔ remote artwork does not grow the local frame-thumbnail cache (0.8087ms)
+✔ real frame captures release media on viewer pause, resume subscribed cards, and cancel unmounted work (260.9602ms)
+✔ binary thumbnails obey backing-byte limits and revoke evicted URLs (106.5272ms)
+✔ an evicted binary disk thumbnail reopens without file access or video decoding (71.2273ms)
+✔ worker batches preserve search metadata and replace stale generations (31.4137ms)
+✔ search client applies backpressure, rejects stale replies, and settles worker failures (39.08ms)
+✔ YouTube pull commits use sparse tag updates without enumerating the existing ledgers (327.7175ms)
+✔ viewer comments persist one current card without copying or notifying the 100k browse catalog (411.3103ms)
+✔ a delayed comment response after closing or switching a viewer cannot retain or write a transcript (168.5893ms)
+✔ focused pulls cap memory, metadata and disk together, preserving the rejected page resume point (498.5023ms)
+✔ bulk imports use one cap across creators and persist only admitted entries (300.5764ms)
+✔ routine checks refresh stored titles at a zero cap while excluding new rows from disk and metadata (358.2581ms)
+✔ settings changed while a provider is in flight apply before admission (169.9827ms)
+✔ Adult pulls apply a lowered in-flight cap before tags and append transactions (290.5644ms)
+✔ removed cached Reddit images and confirmed unavailable photos leave Adult shelves without deleting saves (2.5621ms)
+✔ a provider-wide cooldown stops the archive queue without marking unattempted creators failed (134.857ms)
+✔ unresolved saved stubs do not prevent a real import from resolving them (65.7822ms)
+✔ Twitch status cannot replace the YouTube cooldown or archive result (1.6462ms)
+✔ manual completion returns its own counts even when another provider changes pull history (59.083ms)
+✔ cooldown stops focused, import and live work while mixed checks still service Twitch (4.1873ms)
+✔ an import provider limit checkpoints the cooldown and leaves later batches unattempted (4.2653ms)
+✔ automatic provider detection still permits a focused Twitch URL during a YouTube cooldown (0.8868ms)
+✔ a catalog-only cooldown allows live discovery on confirmed channel IDs (1.3116ms)
+✔ scheduled archive growth checks four creators in small responses and persists new entries and cursors (695.845ms)
+✔ manual force ignores the old timer, stops on a new rejection, and leaves automatic work waiting (115.7687ms)
+✔ healthy forced pulls resume the batch, keep entry caps, and clear obsolete restored deadlines (219.89ms)
+✔ a recovered manual pull prevents untouched old creator failures restoring a global cooldown (83.1087ms)
+✔ a 70000-entry library admits 3000 new YouTube entries in six bounded creator commits (7623.9856ms)
+ℹ 70000 existing + 3000 added in six commits: 7577ms with mocked network/disk; no full catalog persistence.
+✔ resolving a saved query removes its stub and preserves distinct channels sharing its name (5.8407ms)
+✔ saved coverage separates verified empty channels from unresolved names and held fragments (3.3044ms)
+✔ compact exact union counts match creator and playlist rows without retaining card indexes (0.7051ms)
+✔ 100k saved rows yield to input and simultaneous readers share the same compact index (5909.2297ms)
+✔ live health and folder counts do not invalidate a provider shelf; privacy edits do (135.6513ms)
+✔ small refreshes update dates, preserve equal-date metadata order and reuse shelves for Twitch-only changes (223.6697ms)
+ℹ tests 42
+ℹ suites 0
+ℹ pass 42
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13455.8126

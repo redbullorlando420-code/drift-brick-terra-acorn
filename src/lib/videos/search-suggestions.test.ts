@@ -52,3 +52,10 @@ test('cancelled suggestion scans stop before traversing the rest of the catalog'
   }), /replaced/);
   assert.equal(turns, 2);
 });
+
+test('removed or unavailable media never occupy a suggestion slot', async () => {
+  const videos = [video('unavailable', 100), video('available', 1)];
+  const input = { ...base, videos, unavailable: { unavailable: true as const } };
+  assert.deepEqual((await collectSearchSuggestions(input, async () => {})).map(row => row.id), ['available']);
+  assert.deepEqual((await collectSearchSuggestions({ ...input, ids: videos.map(row => row.id) }, async () => {})).map(row => row.id), ['available']);
+});

@@ -1,0 +1,14 @@
+✔ ranking preserves exact title, creator, tag and reaction weights; metadata-only matches survive (9.8274ms)
+✔ source scope, privacy, unavailable rows and hidden titles apply before scoring (20.2161ms)
+✔ top tags count each matching video once and omit transport tags (0.7447ms)
+✔ 100,000 broad matches retain every row and yield throughout scoring, sorting and resolution (638.7153ms)
+✔ superseding input cancels during scoring or the largest sort merge (58.0342ms)
+✔ a no-match response needs no catalog reads; equal ranked titles keep catalog order (1.9723ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 995.9214

@@ -1,0 +1,26 @@
+✔ catalog cache ignores UI changes, isolates scopes, and invalidates changed slices (4.9921ms)
+✔ expanded metadata is reused until a title receives an edited tag array (6.1412ms)
+✔ linear provider interleave preserves the prior ranking and does not drop titles (162.8922ms)
+✔ worker model respects type/source/tag filters and keeps the full catalog (225.2671ms)
+✔ worker keeps recovered personal shelves and ranks private local videos (89.622ms)
+✔ worker recommendations respond to feedback without changing catalog identity (77.4842ms)
+✔ recommendation bonuses preserve rating order and exclude explicitly disliked titles (92.2532ms)
+✔ Adult rails rotate through a broad preview-ready catalog instead of a fixed top slice (447.6536ms)
+✔ navigation persists only display settings and preserves full library metadata (390.3652ms)
+✔ Adult scores reuse feedback and tags, but a new signal snapshot invalidates prior scores (228.7414ms)
+✔ TURN configuration accepts bounded standard endpoints and relay-only policy (3.8823ms)
+✔ TURN configuration rejects unsafe or malformed inputs (1.4864ms)
+✔ resolving a saved query removes its stub and preserves distinct channels sharing its name (6.5829ms)
+✔ saved coverage separates verified empty channels from unresolved names and held fragments (4.7642ms)
+✔ compact exact union counts match creator and playlist rows without retaining card indexes (4.4697ms)
+✔ 100k saved rows yield to input and simultaneous readers share the same compact index (4717.7307ms)
+✔ live health and folder counts do not invalidate a provider shelf; privacy edits do (104.6575ms)
+✔ small refreshes update dates, preserve equal-date metadata order and reuse shelves for Twitch-only changes (135.1878ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6518.7216

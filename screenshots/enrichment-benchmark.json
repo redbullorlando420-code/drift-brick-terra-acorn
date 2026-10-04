@@ -1,0 +1,31 @@
+{
+  "reports": [
+    {
+      "entries": 100000,
+      "originalClickStackMs": 383.85,
+      "stagedClickStackMs": 0.26,
+      "originalCatalogReads": 100000,
+      "readsBeforeFirstTask": 0,
+      "stagedCatalogReads": 48,
+      "stagedTotalMs": 148.79,
+      "yields": 395,
+      "maxObservedTaskMs": 17.7,
+      "savedRows": 48,
+      "done": true
+    },
+    {
+      "entries": 1000000,
+      "originalClickStackMs": 3404.06,
+      "stagedClickStackMs": 0.05,
+      "originalCatalogReads": 1000000,
+      "readsBeforeFirstTask": 0,
+      "stagedCatalogReads": 48,
+      "stagedTotalMs": 1767.93,
+      "yields": 3914,
+      "maxObservedTaskMs": 281.66,
+      "savedRows": 48,
+      "done": true
+    }
+  ],
+  "note": "Synthetic Node workload with shared tag values and instrumented catalog rows; not browser latency or a heap soak. Native key enumeration and garbage collection can exceed the four-millisecond target."
+}

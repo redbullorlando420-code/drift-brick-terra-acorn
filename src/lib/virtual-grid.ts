@@ -49,15 +49,27 @@ export class GridRowMetrics {
 export type GridWindow = { start: number; end: number; lead: number; tail: number };
 export const GRID_MOUNT_CAP = 108;
 
+export function gridKeyboardTarget(key: string, current: number, length: number, columns: number): number | null {
+  if (current < 0 || current >= length) return null;
+  const target = key === 'ArrowDown' ? current + columns : key === 'ArrowUp' ? current - columns
+    : key === 'ArrowRight' ? current + 1 : key === 'ArrowLeft' ? current - 1
+    : key === 'Home' ? 0 : key === 'End' ? length - 1 : -1;
+  return target >= 0 && target < length && target !== current ? target : null;
+}
+
 /** Both directions use the same bounded window, including after a long scroll. */
-export function gridWindow(length: number, columns: number, top: number, viewport: number, metrics: GridRowMetrics): GridWindow {
+export function gridWindow(length: number, columns: number, top: number, viewport: number, metrics: GridRowMetrics,
+  mountCap = GRID_MOUNT_CAP, overscanRows = 2): GridWindow {
   columns = Math.max(1, Math.floor(columns));
   const rows = Math.ceil(length / columns);
   if (!rows) return { start: 0, end: 0, lead: 0, tail: 0 };
   const first = metrics.rowAt(Math.max(0, top), rows);
   const last = metrics.rowAt(Math.max(0, top + viewport), rows);
-  const capacity = Math.max(1, Math.floor(GRID_MOUNT_CAP / columns));
-  const startRow = Math.max(0, first - 2);
-  const endRow = Math.min(rows, startRow + capacity, Math.max(first + 1, last + 3));
+  const capacity = Math.max(1, Math.floor(mountCap / columns));
+  // Spend a constrained budget on visible rows before speculative rows above.
+  const visibleRows = Math.max(1, last - first + 1);
+  const before = Math.min(overscanRows, Math.max(0, capacity - visibleRows));
+  const startRow = Math.max(0, first - before);
+  const endRow = Math.min(rows, startRow + capacity, Math.max(first + 1, last + overscanRows + 1));
   return { start: startRow * columns, end: Math.min(length, endRow * columns), lead: metrics.offset(startRow), tail: metrics.offset(rows) - metrics.offset(endRow) };
 }

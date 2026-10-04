@@ -1,4 +1,5 @@
 import type { LibraryVideo } from "../videos/types";
+import { forEachCatalogSlice, yieldCatalogTask } from '../catalog-work.ts';
 
 function rank(id: string, seed: number) {
   let value = seed >>> 0;
@@ -15,26 +16,36 @@ export function youtubeCreatorKey(video: LibraryVideo) {
 type CreatorGroup = { rows: LibraryVideo[]; latest: LibraryVideo; trending: LibraryVideo };
 const indexes = new WeakMap<LibraryVideo[], Map<string, CreatorGroup>>();
 
+function appendCreator(groups: Map<string, CreatorGroup>, seen: Set<string>, video: LibraryVideo) {
+  if (video.remote?.kind !== "youtube" || video.remote.live || video.isSample || seen.has(video.id)) return;
+  seen.add(video.id);
+  const key = youtubeCreatorKey(video), group = groups.get(key);
+  if (!group) groups.set(key, { rows: [video], latest: video, trending: video });
+  else {
+    group.rows.push(video);
+    if (video.addedAt > group.latest.addedAt) group.latest = video;
+    if ((video.remote.views ?? 0) > (group.trending.remote?.views ?? 0)
+      || (video.remote.views ?? 0) === (group.trending.remote?.views ?? 0) && video.addedAt > group.trending.addedAt) group.trending = video;
+  }
+}
+
 function creatorIndex(videos: LibraryVideo[]) {
   const cached = indexes.get(videos);
   if (cached) return cached;
   const groups = new Map<string, CreatorGroup>();
   const seen = new Set<string>();
-  for (const video of videos) {
-    if (video.remote?.kind !== "youtube" || video.remote.live || video.isSample || seen.has(video.id)) continue;
-    seen.add(video.id);
-    const key = youtubeCreatorKey(video);
-    const group = groups.get(key);
-    if (!group) groups.set(key, { rows: [video], latest: video, trending: video });
-    else {
-      group.rows.push(video);
-      if (video.addedAt > group.latest.addedAt) group.latest = video;
-      if ((video.remote.views ?? 0) > (group.trending.remote?.views ?? 0)
-        || (video.remote.views ?? 0) === (group.trending.remote?.views ?? 0) && video.addedAt > group.trending.addedAt) group.trending = video;
-    }
-  }
+  for (const video of videos) appendCreator(groups, seen, video);
   indexes.set(videos, groups);
   return groups;
+}
+
+export async function prepareYoutubeCreatorIndex(videos: LibraryVideo[], signal?: AbortSignal, yieldTask = yieldCatalogTask) {
+  if (indexes.has(videos)) return;
+  const groups = new Map<string, CreatorGroup>(), seen = new Set<string>();
+  const turn = async () => { signal?.throwIfAborted(); await yieldTask(); signal?.throwIfAborted(); };
+  await forEachCatalogSlice(videos, video => appendCreator(groups, seen, video), turn, 4096);
+  signal?.throwIfAborted();
+  indexes.set(videos, groups);
 }
 
 /** Reuse the archive index; only scan the selected creators on each shuffle. */

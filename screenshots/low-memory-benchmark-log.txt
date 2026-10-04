@@ -1,0 +1,44 @@
+npm notice run benchmark:low-memory
+npm notice run node --max-old-space-size=384 --expose-gc --experimental-strip-types scripts/low-memory-benchmark.mjs
+{
+  "profile": {
+    "lowMemory": true,
+    "reason": "device",
+    "artworkBytes": 2097152,
+    "artworkEntries": 72,
+    "imageRequests": 4,
+    "thumbnailWorkers": 1,
+    "photoWorkers": 2,
+    "gridMountCap": 36,
+    "gridPageSize": 24,
+    "railOverscan": 0
+  },
+  "nodeHeapLimitMiB": 384,
+  "results": [
+    {
+      "entries": 100000,
+      "fixtureResidentMiB": 20.4,
+      "noChangeMs": 52.2,
+      "noChangeReads": 100001,
+      "unchangedArrayReused": true,
+      "fullArrayCopiesOnNoChange": 0,
+      "approximateReferenceBytesAvoided": 800000,
+      "railMax": 6,
+      "gridMax": 35,
+      "heapAfterRestoreMiB": 41.4
+    },
+    {
+      "entries": 1000000,
+      "fixtureResidentMiB": 135,
+      "noChangeMs": 378.6,
+      "noChangeReads": 1000001,
+      "unchangedArrayReused": true,
+      "fullArrayCopiesOnNoChange": 0,
+      "approximateReferenceBytesAvoided": 8000000,
+      "railMax": 6,
+      "gridMax": 35,
+      "heapAfterRestoreMiB": 257.9
+    }
+  ],
+  "limitations": "Run with a 384 MiB Node old-space limit. Two-core/two-GiB capability hints select production budgets; this does not emulate CPU speed or establish browser/physical-device memory soak. Fixture omits artwork, transcripts, browser/IndexedDB overhead. Reference bytes are an estimate, not measured browser heap savings."
+}

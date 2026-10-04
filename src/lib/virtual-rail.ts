@@ -16,6 +16,22 @@ export function railWindow(length: number, width: number, stride: number, reques
   return { start, end: Math.min(length, start + visibleSlots), visibleSlots };
 }
 
+/** Resolve only the mounted window. A logical End jump must never copy the
+ * prefix of a large catalog just to discard it immediately afterwards. */
+export function railItems<T>(items: readonly T[], limit: number, width: number, stride: number, requestedStart: number, overscan = 1) {
+  const loaded = Math.min(items.length, Math.max(0, limit));
+  const window = railWindow(loaded, width, stride, requestedStart, overscan);
+  return { ...window, loaded, items: items.slice(window.start, window.end) };
+}
+
+/** Tab entry from another surface lands inside the current window; Tab exit
+ * from a card walks the adjacent unmounted title, in either direction. */
+export function windowBoundaryTarget(side: 'previous' | 'next', start: number, end: number, length: number, fromCard: boolean) {
+  if (start === end && length > 0) return Math.min(length - 1, Math.max(0, start));
+  const target = side === 'previous' ? start - (fromCard ? 1 : 0) : end - (fromCard ? 0 : 1);
+  return target >= 0 && target < length ? target : null;
+}
+
 /** Pick a valid card target for the rail's explicit keyboard controls. */
 export function railKeyboardTarget(key: string, current: number, length: number): number | null {
   if (!length || current < 0 || current >= length) return null;

@@ -1,7 +1,7 @@
 import { repairLegacyYoutubeDate } from "../remote/youtube-page.ts";
 import { retainYoutubeSources, youtubeVideoKey } from "../remote/youtube-sources.ts";
 import type { LibraryVideo } from "./types";
-import { copyCatalogArray, forEachCatalogSlice, yieldCatalogTask } from '../catalog-work.ts';
+import { copyCatalogArray, forEachCatalogEntry, forEachCatalogSlice, yieldCatalogTask } from '../catalog-work.ts';
 
 function sameList(left?: readonly string[], right?: readonly string[]) {
   return left === right || (left?.length === right?.length && left?.every((value, index) => value === right?.[index]));
@@ -122,31 +122,80 @@ export function remoteVideoIndexAsync(videos: LibraryVideo[]): Promise<Map<strin
 }
 
 /** Focused/bulk imports scan once per batch; transient positions cover only incoming IDs. */
-export async function mergeRemoteCatalogAsync(existing: LibraryVideo[], incoming: LibraryVideo[]) {
+export async function mergeRemoteCatalogAsync(existing: LibraryVideo[], incoming: LibraryVideo[], options: {
+  preferExisting?: boolean;
+  turn?: () => Promise<void>;
+} = {}) {
   if (!incoming.length) return existing;
-  const wanted = new Set(incoming.flatMap(video => [video.id, youtubeVideoKey(video) ?? video.id]));
+  const turn = options.turn ?? yieldCatalogTask;
+  const wanted = new Set<string>();
   const positions = new Map<string, number>();
-  await forEachCatalogSlice(existing, (video, index) => {
-    const key = youtubeVideoKey(video);
-    if (wanted.has(video.id)) positions.set(video.id, index);
-    if (key && wanted.has(key) && !positions.has(key)) positions.set(key, index);
-  }, yieldCatalogTask);
-  const merged = await copyCatalogArray(existing, yieldCatalogTask);
-  let changed = false;
+  if (existing.length) {
+    await forEachCatalogSlice(incoming, video => {
+      wanted.add(video.id);
+      const key = youtubeVideoKey(video);
+      if (key) wanted.add(key);
+    }, turn);
+    await forEachCatalogSlice(existing, (video, index) => {
+      const key = youtubeVideoKey(video);
+      if (wanted.has(video.id)) positions.set(video.id, index);
+      if (key && wanted.has(key) && !positions.has(key)) positions.set(key, index);
+    }, turn);
+    wanted.clear();
+  }
+  // Stage only changed references. A repeated page must not allocate another
+  // million-entry array merely to discover that it is identical.
+  const replacements = new Map<number, LibraryVideo>();
+  const appended: LibraryVideo[] = [];
+  let merged: LibraryVideo[] | undefined;
+  const applyReplacements = async () => {
+    if (!replacements.size) return;
+    merged ??= await copyCatalogArray(existing, turn);
+    await forEachCatalogEntry(replacements, ([index, video]) => { merged![index] = video; }, turn);
+    replacements.clear();
+  };
+  const mergeTurn = async () => {
+    // A full metadata repair must not retain a catalog-sized change Map in
+    // addition to its result array. Only the first small change batch is staged.
+    if (replacements.size >= 512) await applyReplacements();
+    await turn();
+  };
   await forEachCatalogSlice(incoming, video => {
     const key = youtubeVideoKey(video);
     const index = positions.get(video.id) ?? (key ? positions.get(key) : undefined);
-    const previous = index === undefined ? undefined : merged[index];
-    let next = retainDurableRemoteFields(previous, video);
+    const previous = index === undefined ? undefined : replacements.get(index)
+      ?? (index < existing.length ? (merged ?? existing)[index] : appended[index - existing.length]);
+    // A disk restore may finish after a foreground pull or edit. Keep that
+    // newer card, carrying forward saved memberships and missing durable fields.
+    let next = options.preferExisting && previous
+      ? retainDurableRemoteFields(video, previous) : retainDurableRemoteFields(previous, video);
+    // Membership merging normally adopts its first argument's identity. In
+    // restore mode that argument is the old disk wrapper, so explicitly retain
+    // the current canonical ID/source that feedback and progress reference.
+    if (options.preferExisting && previous && (next.id !== previous.id || next.folderId !== previous.folderId)) {
+      next = { ...next, id: previous.id, folderId: previous.folderId };
+    }
     if (previous?.remote?.live && next.remote?.live && (next.remote.observedAt ?? 0) < (previous.remote.observedAt ?? 0)) next = previous;
     else if (previous && sameVideo(previous, next)) next = previous;
     if (index === undefined) {
-      positions.set(next.id, merged.length);
-      if (key) positions.set(key, merged.length);
-      merged.push(next); changed = true;
-    } else if (next !== previous) { merged[index] = next; changed = true; }
-  }, yieldCatalogTask);
-  return changed ? merged : existing;
+      const position = existing.length + appended.length;
+      positions.set(next.id, position);
+      if (key) positions.set(key, position);
+      appended.push(next);
+    } else if (next !== previous) {
+      if (index < existing.length) {
+        if (merged) merged[index] = next;
+        else replacements.set(index, next);
+      }
+      else appended[index - existing.length] = next;
+    }
+  }, mergeTurn);
+  if (!merged && !replacements.size && !appended.length) return existing;
+  if (!existing.length) return appended;
+  await applyReplacements();
+  merged ??= await copyCatalogArray(existing, turn);
+  await forEachCatalogSlice(appended, video => { merged!.push(video); }, turn);
+  return merged;
 }
 
 /** Additive archive merge using an index shared across a multi-creator sweep. */
@@ -225,13 +274,28 @@ export async function mergeRemoteRefreshAsync(existing: LibraryVideo[], incoming
   options?: { index?: Map<string, LibraryVideo>; staleLiveIds?: string[] }): Promise<LibraryVideo[]> {
   const index = options?.index ?? await remoteVideoIndexAsync(existing);
   const plan = remoteRefreshPlan(existing, incoming, refreshedIds, savedIds, { ...options, index });
-  const merged: LibraryVideo[] = [];
-  let unchanged = true;
-  await forEachCatalogSlice(existing, video => {
+  const changes = new Map<number, LibraryVideo | undefined>();
+  let merged: LibraryVideo[] | undefined, processed = 0;
+  const materializePrefix = async () => {
+    merged = [];
+    function* prefix() { for (let position = 0; position < processed; position++) yield position; }
+    await forEachCatalogEntry(prefix(), position => {
+      const next = changes.has(position) ? changes.get(position) : existing[position];
+      if (next) merged!.push(next);
+    });
+    changes.clear();
+  };
+  await forEachCatalogSlice(existing, (video, position) => {
     const next = plan.visit(video);
-    if (next !== video) unchanged = false;
-    if (next) merged.push(next);
-  }, yieldCatalogTask);
-  if (plan.fresh.size) { unchanged = false; merged.push(...plan.fresh.values()); }
-  return unchanged ? existing : merged;
+    if (merged) { if (next) merged.push(next); }
+    else if (next !== video) changes.set(position, next);
+    processed = position + 1;
+  }, async () => {
+    if (!merged && changes.size) await materializePrefix();
+    await yieldCatalogTask();
+  });
+  if (!merged && !changes.size && !plan.fresh.size) return existing;
+  if (!merged) await materializePrefix();
+  if (plan.fresh.size) await forEachCatalogEntry(plan.fresh.values(), video => { merged!.push(video); });
+  return merged!;
 }

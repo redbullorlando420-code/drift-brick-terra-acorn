@@ -6,45 +6,31 @@ import type { LibraryVideo } from "@/lib/videos/types";
 import { TitleRail } from "./browse";
 import { getRatingStreakSnapshot, RATING_GOALS, setRatingWeeklyGoal, type RatingStreakSnapshot } from "@/lib/rating-streaks";
 import { scheduleBackgroundWork } from "@/lib/interaction-budget";
+import { registerPeriodicTask } from '@/lib/periodic-work';
+import { useSessionPhase } from '@/lib/use-session-phase';
+import { discoveryPicks } from '@/lib/videos/discovery-picks';
 
 export function DiscoveryDesk({ videos }: { videos: LibraryVideo[] }) {
-  const [seed, setSeed] = useState(1);
+  const [seed, setSeed] = useState(() => (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0);
   const [picks, setPicks] = useState<LibraryVideo[]>([]);
   const open = useLibrary((s) => s.openVideo);
+  const viewerOpen = useLibrary(s => Boolean(s.activeId || s.previewId));
+  const phase = useSessionPhase();
   useEffect(() => {
     const rotate = () => setSeed((Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0);
-    rotate();
-    const timer = window.setInterval(rotate, 60_000);
-    return () => window.clearInterval(timer);
-  }, []);
+    if (!videos.length || viewerOpen || phase !== 'active') return;
+    return registerPeriodicTask({ name: 'Landing discoveries', everyMs: 60_000, work: rotate }).cancel;
+  }, [videos.length, viewerOpen, phase]);
   useEffect(() => {
+    if (viewerOpen || phase !== 'active') return;
     let cancelled = false;
     const compute = () => {
       if (cancelled) return;
-      // Time-based rotation ensures a fresh mix even when the catalog itself is
-      // unchanged. Demonstration media is excluded before scoring.
-      let state = seed >>> 0;
-      const random = () => { state ^= state << 13; state ^= state >>> 17; state ^= state << 5; return (state >>> 0) / 4294967296; };
-      // Cap the walk on huge catalogs: stride-sample so Home stays snappy.
-      const pool = videos.filter((video) => !video.remote?.live && !video.isSample);
-      const stride = pool.length > 2_400 ? Math.ceil(pool.length / 2_400) : 1;
-      const chosen: Array<{ video: LibraryVideo; score: number }> = [];
-      for (let i = 0; i < pool.length; i += stride) {
-        const video = pool[i]!;
-        const classicFallback = video.collection === "classics" || /classic|noir/i.test(`${video.name} ${video.remote?.channelName ?? ""}`);
-        const freshness = Math.max(1, Math.min(8, (video.addedAt - Date.now() + 31_536_000_000) / 3_942_000_000));
-        const weight = (video.remote ? 7 : 2) + freshness + (classicFallback ? -6 : 0);
-        const entry = { video, score: random() * Math.max(0.25, weight) };
-        if (chosen.length < 12) { chosen.push(entry); continue; }
-        let weakest = 0;
-        for (let index = 1; index < chosen.length; index += 1) if (chosen[index]!.score < chosen[weakest]!.score) weakest = index;
-        if (entry.score > chosen[weakest]!.score) chosen[weakest] = entry;
-      }
-      setPicks(chosen.map((entry) => entry.video));
+      setPicks(discoveryPicks(videos, seed));
     };
     const cancelSchedule = scheduleBackgroundWork(compute, { timeoutMs: 400 });
     return () => { cancelled = true; cancelSchedule(); };
-  }, [videos, seed]);
+  }, [videos, seed, viewerOpen, phase]);
   return <section className="mb-8 rounded-xl border border-border bg-surface p-5 sm:p-7">
     <div className="mb-6 flex flex-wrap items-end justify-between gap-5"><div><p className="mb-3 text-xs font-semibold uppercase tracking-widest text-accent">Your daily detour</p><h1 className="discovery-heading font-display">Something worth finding.</h1><p className="mt-3 text-sm text-muted">A fresh mix from your library. Follow your curiosity.</p></div><div className="flex flex-wrap gap-2"><Button disabled={!picks.length} onClick={() => open(picks[0].id)}><Play className="size-4"/>Surprise me</Button><Button variant="secondary" onClick={() => setSeed(Math.floor(Math.random() * 0xffffffff) || 1)}><Shuffle className="size-4"/>Shuffle picks</Button></div></div>
     {picks.length ? <TitleRail title="Random discoveries" videos={picks} variant="rail"/> : <p className="py-6 text-sm text-muted">Add videos or follow a channel to start discovering.</p>}

@@ -18,6 +18,9 @@ const lastStarted: Partial<Record<InteractionKind, number>> = {};
  */
 export const INTERACTION_PRIORITY_WINDOW_MS = 240;
 let interactionPriorityUntil = 0;
+export function prioritizeInteraction() {
+  if (typeof performance !== 'undefined') interactionPriorityUntil = Math.max(interactionPriorityUntil, performance.now() + INTERACTION_PRIORITY_WINDOW_MS);
+}
 
 /** Pure helper so the foreground lease can be verified without browser time. */
 export function interactionPriorityDelay(now: number, priorityUntil: number) {
@@ -109,7 +112,7 @@ export function scheduleBackgroundWork(work: () => void, options: BackgroundWork
 export function measureInteraction(kind: InteractionKind) {
   if (typeof window === "undefined" || typeof performance === "undefined") return;
   const now = performance.now();
-  interactionPriorityUntil = Math.max(interactionPriorityUntil, now + INTERACTION_PRIORITY_WINDOW_MS);
+  prioritizeInteraction();
   // A held key or repeated pointer event should not flood the diagnostic sample.
   if (now - (lastStarted[kind] ?? -Infinity) < 120) return;
   lastStarted[kind] = now;

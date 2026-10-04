@@ -1,0 +1,21 @@
+{
+  "kind": "Landing discovery CPU benchmark; excludes rendering/network",
+  "results": [
+    {
+      "entries": 100000,
+      "previousMedianMs": 5.69,
+      "currentMedianMs": 2.1,
+      "previousRowsChecked": 102400,
+      "currentRowsChecked": 2400,
+      "picks": 12
+    },
+    {
+      "entries": 1000000,
+      "previousMedianMs": 54.36,
+      "currentMedianMs": 4.22,
+      "previousRowsChecked": 1002400,
+      "currentRowsChecked": 2400,
+      "picks": 12
+    }
+  ]
+}

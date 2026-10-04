@@ -31,5 +31,6 @@ export function memoizeSelectorInputs<S, R>(compute: (state: S, adult: boolean) 
     const inputs = inputsFor(state);
     for (const [scope, cached] of scopes) if (inputs.length !== cached.inputs.length || inputs.some((value, index) => !Object.is(value, cached.inputs[index]))) scopes.delete(scope);
   };
-  return Object.assign(select, { peek, clear: () => scopes.clear(), evictStale });
+  const prime = (state: S, result: R, adult = false) => { scopes.set(adult, { inputs: inputsFor(state), result }); };
+  return Object.assign(select, { peek, prime, clear: () => scopes.clear(), evictStale });
 }

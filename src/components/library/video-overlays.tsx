@@ -7,6 +7,7 @@ import { previewCandidates } from '@/lib/videos/preview-candidates';
 import { peekYoutubeOwner } from '@/lib/remote/youtube-sources';
 import { playbackWindow } from '@/lib/videos/playback-queue';
 import type { LibraryVideo } from '@/lib/videos/types';
+import { viewerDetails } from '@/lib/videos/viewer-details';
 const Player = lazy(async () => ({ default: (await loadVideoPlayer()).Player }));
 const PreVideo = lazy(async () => ({ default: (await loadVideoPreview()).PreVideo }));
 const EMPTY_VIDEOS: LibraryVideo[] = [];
@@ -42,6 +43,7 @@ export const VideoOverlays = memo(function VideoOverlays() {
   }, [videos, activeId, sourceId, query, hidden, unavailable]);
   useEffect(() => {
     setPullViewerOpen(Boolean(activeId || previewId));
+    viewerDetails.releaseCommentsExcept(activeId ?? previewId);
     if (!activeId && !previewId) useLibrary.getState().releaseVideoComments();
     // Preview ↔ player switches should keep the background image gate closed;
     // the store already contains the next viewer state during effect cleanup.

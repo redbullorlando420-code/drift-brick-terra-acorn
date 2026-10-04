@@ -1,4 +1,5 @@
 import { youtubeEmbedUrl } from "@/lib/videos/youtube-embed";
+import { registerPeriodicTask } from '@/lib/periodic-work';
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import {
   ChevronLeft,
@@ -294,10 +295,10 @@ export function Player({ playlist }: { playlist: string[] }) {
       markProgress(video.id, Math.min(elapsed, durationHint * 0.94), durationHint);
       if (elapsed >= 8 && document.hasFocus()) recordWatchTime(video.id, "fullscreenEstimated", 5);
     };
-    const timer = window.setInterval(heartbeat, 10_000);
+    const task = registerPeriodicTask({ name: 'Player watch record', mode: 'visible', everyMs: 10_000, work: heartbeat });
     return () => {
       heartbeat();
-      window.clearInterval(timer);
+      task.cancel();
     };
   }, [markProgress, video?.id, video?.remote]);
 

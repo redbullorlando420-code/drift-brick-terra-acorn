@@ -1,0 +1,19 @@
+✔ a million-title grid remains bounded scrolling forward and all the way back (2.2696ms)
+✔ measured tall metadata rows preserve offsets and exact row boundaries (3.1356ms)
+✔ row measurements retain a bounded recent cache after a long session (4.4699ms)
+✔ empty and partial rows never invent cards or negative spacer heights (0.7296ms)
+✔ grid keyboard moves follow measured columns and stay inside loaded titles (0.4653ms)
+✔ virtual rail bounds its mounted card window (1.4697ms)
+✔ virtual rail keyboard targets stay inside the catalog (0.3058ms)
+✔ virtual rail expands and centers only the requested keyboard card (0.2613ms)
+✔ a million-entry End jump resolves only the visible card references (27.4245ms)
+✔ logical rail limits and changed inventories resolve bounded valid windows (0.2625ms)
+✔ Tab boundaries distinguish leaving cards from entering a virtual window (0.1165ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 213.181

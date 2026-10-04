@@ -1,0 +1,34 @@
+✔ actual sparse persistence batches restore in 256-row pages without reading full preferences or losing locks (549.4534ms)
+✔ real store metadata actions return before catalog parsing, honor locks, save compact provider provenance, and hold during a viewer (130.4143ms)
+✔ real smart tags retain source/creator filters and manual locks without a catalog-sized click stack (2.456ms)
+✔ manual and accepted inspection edits never enumerate the existing tag ledgers (3.6122ms)
+✔ removing a folder removes only its sparse enrichment records as well as its catalog metadata (0.8916ms)
+✔ revision 2 promotes only the newly verified hydration milestone (2.0002ms)
+✔ a later manual restore to planned remains saved (0.2257ms)
+✔ revision 3 promotes the YouTube trace without undoing manual restores (0.1762ms)
+✔ revision 4 promotes artwork priority while respecting older manual restores (0.9705ms)
+✔ pre-revision plans receive the original verified completions (0.1532ms)
+✔ revision 5 promotes only verified viewer milestones and preserves later manual choices (3.9301ms)
+✔ revision 6 completes the verified search budget without completing broader audits (0.1885ms)
+✔ revision 7 starts the timer audit without completing it or changing other manual choices (0.1742ms)
+✔ revision 8 completes verified timer consolidation and preserves unrelated/later manual statuses (0.1421ms)
+✔ revision 9 promotes only verified navigation and preserves later manual restores (1.54ms)
+✔ revision 10 starts enrichment work honestly without completing it or overriding blocked/later choices (0.2244ms)
+✔ revision 11 completes only verified enrichment and respects later manual restores (0.1293ms)
+✔ revision 12 completes verified virtualization without changing other or later manual choices (0.1009ms)
+✔ revision 13 completes only verified startup milestones and preserves later manual choices (0.0912ms)
+✔ revision 14 completes the verified slow-device profile without resetting other or later choices (0.0738ms)
+✔ a million-entry metadata action stops at 48 changes, saves before publication, and resumes the next batch (6.2014ms)
+✔ empty metadata scans are bounded, and catalog replacement restarts safely without retaining the old array (1.8881ms)
+✔ input cancellation releases partial scan/copy work and leaves the checkpoint unchanged (11.191ms)
+✔ manual edits and locks made during sparse preparation invalidate it before storage or publication (2.443ms)
+✔ a 48-title batch with million-entry base ledgers never enumerates or copies those ledgers (0.5187ms)
+✔ failed or interrupted writes never advance the cursor; successful disk rows survive an older snapshot (1.4132ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 801.4029

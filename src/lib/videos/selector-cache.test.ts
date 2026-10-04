@@ -1,6 +1,18 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { memoizeSelector } from "./selector-cache.ts";
+import { memoizeSelectorInputs } from './selector-cache.ts';
+
+test('cooperative priming applies only to the exact immutable inputs and respects cache eviction', () => {
+  let calls = 0;
+  const select = memoizeSelectorInputs((s: { rows: number[]; status: number }) => { calls++; return [...s.rows]; }, s => [s.rows]);
+  const state = { rows: [1, 2], status: 0 }, prepared = [2, 1];
+  select.prime(state, prepared);
+  assert.equal(select({ ...state, status: 1 }), prepared); assert.equal(calls, 0);
+  const latest = { rows: [3], status: 2 };
+  select.evictStale(latest); assert.equal(select.peek(state), undefined); assert.deepEqual(select(latest), [3]);
+  assert.equal(calls, 1); select.clear(); assert.equal(select.peek(latest), undefined);
+});
 
 test('inactive scopes release obsolete catalog generations without recomputing valid results', () => {
   let calls = 0;

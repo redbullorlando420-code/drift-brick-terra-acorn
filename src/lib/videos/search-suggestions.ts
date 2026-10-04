@@ -5,7 +5,7 @@ import type { Folder, LibraryVideo, SourceId } from './types';
 type Input = {
   videos: readonly LibraryVideo[]; folders: readonly Folder[];
   tags: Record<string, string[]>; categories: Record<string, string>;
-  sourceId: SourceId; adultsUnlocked: boolean; hidden: Record<string, true>; hideDemo: boolean;
+  sourceId: SourceId; adultsUnlocked: boolean; hidden: Record<string, true>; unavailable?: Record<string, true>; hideDemo: boolean;
   query: string; ids: readonly string[] | null;
 };
 const privateKinds = new Set<string>(ADULT_PULL_PROVIDERS);
@@ -22,7 +22,7 @@ export async function collectSearchSuggestions(input: Input, turn: () => Promise
   const best: LibraryVideo[] = [];
   await forEachCatalogSlice(input.videos, video => {
     if (matched && !matched.has(video.id)) return;
-    if (input.hidden[video.id] || input.hideDemo && video.isSample) return;
+    if (input.hidden[video.id] || input.unavailable?.[video.id] || input.hideDemo && video.isSample) return;
     if ((privateFolders.has(video.folderId) || privateKinds.has(video.remote?.kind ?? '')) && !canSeePrivate) return;
     if (input.sourceId === 'youtube' && video.remote?.kind !== 'youtube') return;
     if (input.sourceId === 'twitch' && video.remote?.kind !== 'twitch') return;

@@ -1,0 +1,40 @@
+✔ actual Adult automatic owner recovers a failed count, holds idle/pause gates and releases its schedule (280.2195ms)
+✔ worker-free search yields, preserves metadata and exact tags, and cancels without an index (1997.3662ms)
+✔ cancelled offscreen thumbnail requests leave no queued work or leaked slots (3.8555ms)
+✔ aborting an awakened waiter still lets the next visible image load (0.3028ms)
+✔ remote artwork does not grow the local frame-thumbnail cache (165.2331ms)
+✔ real frame captures release media on viewer pause, resume subscribed cards, and cancel unmounted work (791.3259ms)
+✔ binary thumbnails obey backing-byte limits and revoke evicted URLs (6.2794ms)
+✔ an evicted binary disk thumbnail reopens without file access or video decoding (178.7391ms)
+✔ worker batches preserve search metadata and replace stale generations (215.1353ms)
+✔ search client applies backpressure, rejects stale replies, and settles worker failures (400.0468ms)
+✔ viewer comments persist one current card without copying or notifying the 100k browse catalog (2089.1525ms)
+✔ a delayed comment response after closing or switching a viewer cannot retain or write a transcript (188.0654ms)
+✔ focused pulls cap memory, metadata and disk together, preserving the rejected page resume point (795.7086ms)
+✔ bulk imports use one cap across creators and persist only admitted entries (577.3305ms)
+✔ routine checks refresh stored titles at a zero cap while excluding new rows from disk and metadata (689.4251ms)
+✔ settings changed while a provider is in flight apply before admission (137.006ms)
+✔ Adult pulls apply a lowered in-flight cap before tags and append transactions (677.0741ms)
+✔ removed cached Reddit images and confirmed unavailable photos leave Adult shelves without deleting saves (11.6086ms)
+✔ a provider-wide cooldown stops the archive queue without marking unattempted creators failed (387.7128ms)
+✔ unresolved saved stubs do not prevent a real import from resolving them (248.3612ms)
+✔ Twitch status cannot replace the YouTube cooldown or archive result (3.2332ms)
+✔ manual completion returns its own counts even when another provider changes pull history (661.297ms)
+✔ cooldown stops focused, import and live work while mixed checks still service Twitch (13.716ms)
+✔ an import provider limit checkpoints the cooldown and leaves later batches unattempted (14.129ms)
+✔ automatic provider detection still permits a focused Twitch URL during a YouTube cooldown (2.2244ms)
+✔ a catalog-only cooldown allows live discovery on confirmed channel IDs (1.3502ms)
+✔ scheduled archive growth checks four creators in small responses and persists new entries and cursors (1997.3492ms)
+✔ manual force ignores the old timer, stops on a new rejection, and leaves automatic work waiting (100.6064ms)
+✔ healthy forced pulls resume the batch, keep entry caps, and clear obsolete restored deadlines (332.5851ms)
+✔ a recovered manual pull prevents untouched old creator failures restoring a global cooldown (206.6557ms)
+✔ a 70000-entry library admits 3000 new YouTube entries in six bounded creator commits (10991.706ms)
+ℹ 70000 existing + 3000 added in six commits: 10947ms with mocked network/disk; no full catalog persistence.
+ℹ tests 31
+ℹ suites 0
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 23926.7694

@@ -1,0 +1,51 @@
+{
+  "runs": [
+    {
+      "entries": 100000,
+      "immediate": {
+        "inputStackMs": 1080.21,
+        "beforePaintReads": 3958000,
+        "beforePaintSelectors": 5,
+        "afterPaintElapsedMs": 0.01,
+        "cooperativeYields": 0,
+        "maxObservedPreparationSliceMs": 0,
+        "totalSelectorRuns": 5,
+        "selected": 48
+      },
+      "staged": {
+        "inputStackMs": 0.1,
+        "beforePaintReads": 0,
+        "beforePaintSelectors": 0,
+        "afterPaintElapsedMs": 475.69,
+        "cooperativeYields": 195,
+        "maxObservedPreparationSliceMs": 4.76,
+        "totalSelectorRuns": 1,
+        "selected": 48
+      }
+    },
+    {
+      "entries": 1000000,
+      "immediate": {
+        "inputStackMs": 9342.13,
+        "beforePaintReads": 39958000,
+        "beforePaintSelectors": 5,
+        "afterPaintElapsedMs": 0.01,
+        "cooperativeYields": 0,
+        "maxObservedPreparationSliceMs": 0,
+        "totalSelectorRuns": 5,
+        "selected": 48
+      },
+      "staged": {
+        "inputStackMs": 0.04,
+        "beforePaintReads": 0,
+        "beforePaintSelectors": 0,
+        "afterPaintElapsedMs": 5754.99,
+        "cooperativeYields": 2276,
+        "maxObservedPreparationSliceMs": 38.76,
+        "totalSelectorRuns": 1,
+        "selected": 48
+      }
+    }
+  ],
+  "note": "Synthetic five-route burst using production catalog selection, browse preparation and creator mix. Getter instrumentation counts metadata reads. This measures event-stack work and discarded computations, not browser paint latency or total application memory; slices can include runtime garbage collection."
+}

@@ -9,6 +9,8 @@
  * rolls back and accepts, so pairs converge without wedging.
  */
 
+import { registerPeriodicTask } from '../periodic-work.ts';
+
 export type SignalKind = "offer" | "answer" | "ice";
 
 /**
@@ -104,7 +106,7 @@ export class P2PRoom {
   private readonly signalQueues = new Map<string, Promise<void>>();
   private cursor = 0;
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
-  private pingTimer: ReturnType<typeof setInterval> | null = null;
+  private stopPing: (() => void) | null = null;
   private closed = false;
   private everPolled = false;
   private lastPeersFingerprint = "";
@@ -151,17 +153,17 @@ export class P2PRoom {
     }
     if (this.closed) return;
     this.schedulePoll(this.anyPairConnecting() ? FAST_POLL_MS : IDLE_POLL_MS);
-    this.pingTimer = setInterval(() => {
+    this.stopPing = registerPeriodicTask({ name: 'Room transport health', mode: 'always', background: false, everyMs: PING_INTERVAL_MS, work: () => {
       this.pingAll();
       this.watchdog();
-    }, PING_INTERVAL_MS);
+    } }).cancel;
   }
 
   close(): void {
     this.closed = true;
     window.removeEventListener("pagehide", this.onPageHide);
     if (this.pollTimer) clearTimeout(this.pollTimer);
-    if (this.pingTimer) clearInterval(this.pingTimer);
+    this.stopPing?.(); this.stopPing = null;
     this.localRelay?.close();
     this.localRelay = null;
     for (const slot of this.peers.values()) slot.pc.close();

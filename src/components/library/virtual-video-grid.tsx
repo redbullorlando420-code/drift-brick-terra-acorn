@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { GRID_MOUNT_CAP, GridRowMetrics, gridWindow, type GridWindow } from "@/lib/virtual-grid";
+import { GridRowMetrics, gridWindow, gridKeyboardTarget, type GridWindow } from "@/lib/virtual-grid";
+import { windowBoundaryTarget } from '@/lib/virtual-rail';
 import type { LibraryVideo } from "@/lib/videos/types";
 import { VideoCard } from "./video-card";
 import { useLibrary } from "@/lib/videos/store";
+import { usePerformanceProfile } from './use-performance-profile';
 
 type Variant = "grid" | "poster" | "list";
 const layouts: Record<Variant, string> = {
@@ -17,6 +19,8 @@ const sameWindow = (a: GridWindow, b: GridWindow) => a.start === b.start && a.en
 export function VirtualVideoGrid({ videos, playedAt, variant, pageSize, automatic = false }: {
   videos: LibraryVideo[]; playedAt?: Record<string, number>; variant: Variant; pageSize: number; automatic?: boolean;
 }) {
+  const budget = usePerformanceProfile();
+  pageSize = budget.lowMemory ? Math.min(pageSize, budget.gridPageSize) : pageSize;
   const root = useRef<HTMLDivElement>(null);
   const probe = useRef<HTMLDivElement>(null);
   const sentinel = useRef<HTMLDivElement>(null);
@@ -28,15 +32,46 @@ export function VirtualVideoGrid({ videos, playedAt, variant, pageSize, automati
   const [geometry, setGeometry] = useState(() => new GridRowMetrics(variant === "list" ? 88 : 260));
   const calibrated = useRef(false);
   const [measurement, setMeasurement] = useState(0);
-  const [window, setWindow] = useState<GridWindow>({ start: 0, end: Math.min(108, pageSize), lead: 0, tail: 0 });
+  const [window, setWindow] = useState<GridWindow>({ start: 0, end: Math.min(budget.gridMountCap, pageSize), lead: 0, tail: 0 });
   const length = Math.min(limit, videos.length);
   const sourceKey = useLibrary(state => `${state.sourceId}:${state.query}:${state.sort}`);
+  const viewerOpen = useLibrary(state => Boolean(state.activeId || state.previewId));
+  const returnAnchor = useRef<{ catalog: LibraryVideo[]; source: string; index: number; id: string; top: number; focused: boolean } | undefined>(undefined);
+
+  useLayoutEffect(() => {
+    const el = root.current;
+    if (!el) return;
+    if (viewerOpen) {
+      if (returnAnchor.current) return;
+      const focused = el.querySelector<HTMLElement>('[data-video-grid-index]:focus-within');
+      const visible = focused ?? [...el.querySelectorAll<HTMLElement>('[data-video-grid-index]')].find(card => {
+        const box = card.getBoundingClientRect();
+        return box.bottom > 0 && box.top < globalThis.window.innerHeight;
+      });
+      if (!visible) return;
+      const index = Number(visible.dataset.videoGridIndex);
+      const video = videos[index];
+      if (video) returnAnchor.current = { catalog: videos, source: sourceKey, index, id: video.id, top: visible.getBoundingClientRect().top, focused: Boolean(focused) };
+      return;
+    }
+    const anchor = returnAnchor.current;
+    returnAnchor.current = undefined;
+    // Retain the visible title's position when shelves above it change after
+    // watching. Never search the full catalog or restore across navigation.
+    if (!anchor || anchor.catalog !== videos || anchor.source !== sourceKey) return;
+    const card = el.querySelector<HTMLElement>(`[data-video-grid-index="${anchor.index}"]`);
+    if (!card || videos[anchor.index]?.id !== anchor.id) return;
+    const delta = card.getBoundingClientRect().top - anchor.top;
+    if (Math.abs(delta) > 1) globalThis.window.scrollBy({ top: delta, behavior: 'instant' });
+    if (anchor.focused) card.querySelector<HTMLButtonElement>('[data-video-card-open]')?.focus({ preventScroll: true });
+  }, [sourceKey, videos, viewerOpen]);
 
   useEffect(() => {
     setLimit(pageSize);
     // Measurements describe row content, not the previous search/source.
     setGeometry(new GridRowMetrics(variant === "list" ? 88 : 260));
     calibrated.current = false;
+    focusedIndex.current = undefined;
   }, [sourceKey, variant, pageSize]);
 
   const refresh = useCallback(() => {
@@ -47,7 +82,7 @@ export function VirtualVideoGrid({ videos, playedAt, variant, pageSize, automati
     const total = geometry.offset(Math.ceil(length / layout.columns));
     let next = top + height < -320 ? { start: 0, end: 0, lead: 0, tail: total }
       : top > total + 320 ? { start: length, end: length, lead: total, tail: 0 }
-      : gridWindow(length, layout.columns, top, height, geometry);
+      : gridWindow(length, layout.columns, top, height, geometry, budget.gridMountCap, budget.lowMemory ? 1 : 2);
     // A focused row stays mounted during a small wheel movement. Far-away
     // rows are released rather than making a second unbounded focus window.
     const focused = el.querySelector<HTMLElement>("[data-video-grid-index]:focus-within");
@@ -55,14 +90,14 @@ export function VirtualVideoGrid({ videos, playedAt, variant, pageSize, automati
       const index = Number(focused.dataset.videoGridIndex);
       const focusedStart = Math.min(next.start, Math.floor(index / layout.columns) * layout.columns);
       const focusedEnd = Math.min(length, Math.max(next.end, (Math.floor(index / layout.columns) + 1) * layout.columns));
-      if (index >= next.start - layout.columns * 2 && index < next.end + layout.columns * 2 && focusedEnd - focusedStart <= GRID_MOUNT_CAP) {
+      if (index >= next.start - layout.columns * 2 && index < next.end + layout.columns * 2 && focusedEnd - focusedStart <= budget.gridMountCap) {
         next = { ...next, start: focusedStart, end: focusedEnd };
         next.lead = geometry.offset(next.start / layout.columns);
         next.tail = total - geometry.offset(Math.ceil(next.end / layout.columns));
       }
     }
     setWindow(old => sameWindow(old, next) ? old : next);
-  }, [geometry, layout.columns, length]);
+  }, [geometry, layout.columns, length, budget]);
 
   const scheduleRefresh = useCallback(() => {
     if (frame.current !== undefined) return;
@@ -149,40 +184,53 @@ export function VirtualVideoGrid({ videos, playedAt, variant, pageSize, automati
   const end = Math.min(length, window.end);
   const rows = [];
   for (let index = start; index < end; index += layout.columns) rows.push(index);
-  return <div ref={root} data-virtual-video-grid data-grid-columns={layout.columns} data-grid-loaded={length}
+  const focusIndex = (target: number) => {
+    const mounted = root.current?.querySelector<HTMLButtonElement>(`[data-video-grid-index="${target}"] [data-video-card-open]`);
+    if (mounted) {
+      focusedIndex.current = undefined;
+      mounted.focus({ preventScroll: true });
+      mounted.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+      refresh();
+      return;
+    }
+    focusedIndex.current = target;
+    const row = Math.floor(target / layout.columns);
+    const docTop = root.current!.getBoundingClientRect().top + globalThis.window.scrollY;
+    globalThis.window.scrollTo({ top: docTop + geometry.offset(row), behavior: 'instant' });
+    refresh();
+  };
+  return <div ref={root} data-virtual-video-grid data-grid-columns={layout.columns} data-grid-loaded={length} data-grid-mount-cap={budget.gridMountCap}
     style={{ overflowAnchor: "none" }} onKeyDown={event => {
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
       if (!(event.target as HTMLElement).matches("[data-video-card-open]")) return;
       const item = (event.target as HTMLElement).closest<HTMLElement>("[data-video-grid-index]");
       if (!item) return;
       const index = Number(item.dataset.videoGridIndex);
-      const target = event.key === "ArrowDown" ? index + layout.columns : event.key === "ArrowUp" ? index - layout.columns
-        : event.key === "ArrowRight" ? index + 1 : event.key === "ArrowLeft" ? index - 1
-        : event.key === "Home" ? 0 : event.key === "End" ? length - 1 : undefined;
-      if (target === undefined || target < 0 || target >= length) return;
+      if (!['ArrowDown', 'ArrowUp', 'ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(event.key)) return;
+      const target = gridKeyboardTarget(event.key, index, length, layout.columns);
       event.preventDefault();
-      const mounted = root.current?.querySelector<HTMLButtonElement>(`[data-video-grid-index="${target}"] [data-video-card-open]`);
-      if (mounted) {
-        focusedIndex.current = undefined;
-        mounted.focus({ preventScroll: true });
-        mounted.scrollIntoView({ block: "nearest", behavior: "instant" });
-        refresh();
-        return;
-      }
-      focusedIndex.current = target;
-      const row = Math.floor(target / layout.columns);
-      const docTop = root.current!.getBoundingClientRect().top + globalThis.window.scrollY;
-      globalThis.window.scrollTo({ top: docTop + geometry.offset(row), behavior: "instant" });
-      refresh();
+      if (target === null) return;
+      focusIndex(target);
     }}>
     <div ref={probe} className={layouts[variant]} aria-hidden="true" />
+    {start > 0 && <button type="button" className="sr-only focus:not-sr-only" onFocus={event => {
+      const target = windowBoundaryTarget('previous', start, end, length, event.relatedTarget instanceof Element && Boolean(event.relatedTarget.closest('[data-video-grid-index]')));
+      if (target !== null) focusIndex(target);
+    }}>Previous media title</button>}
+    <div role="list" aria-label={`Media catalog · ${videos.length.toLocaleString()} titles`}>
     {window.lead > 0 && <div aria-hidden="true" data-grid-spacer="lead" style={{ height: window.lead }} />}
-    {rows.map(index => <div key={`${layout.columns}:${index}`} data-video-grid-row={Math.floor(index / layout.columns)} className={layouts[variant]}
+    {rows.map(index => <div key={`${layout.columns}:${index}`} role="presentation" data-video-grid-row={Math.floor(index / layout.columns)} className={layouts[variant]}
       style={{ paddingBottom: index + layout.columns >= length ? 0 : variant === "list" ? 4 : 24 }}>
-      {videos.slice(index, Math.min(index + layout.columns, end)).map((video, offset) => <div key={video.id} data-video-grid-index={index + offset} className="min-w-0">
+      {videos.slice(index, Math.min(index + layout.columns, end)).map((video, offset) => <div key={video.id} role="listitem" aria-posinset={index + offset + 1} aria-setsize={videos.length} data-video-grid-index={index + offset} className="min-w-0">
         <VideoCard video={video} variant={variant} index={index + offset} playedAt={playedAt?.[video.id]} animate={false} className={variant === "poster" ? "w-full" : undefined} />
       </div>)}
     </div>)}
     {window.tail > 0 && <div aria-hidden="true" data-grid-spacer="tail" style={{ height: window.tail }} />}
+    </div>
+    {end < length && <button type="button" className="sr-only focus:not-sr-only" onFocus={event => {
+      const target = windowBoundaryTarget('next', start, end, length, event.relatedTarget instanceof Element && Boolean(event.relatedTarget.closest('[data-video-grid-index]')));
+      if (target !== null) focusIndex(target);
+    }}>Next media title</button>}
     {length < videos.length && <>
       {automatic && <div ref={sentinel} className="h-8" aria-hidden="true" />}
       <div className="mt-5 flex items-center justify-between gap-3">

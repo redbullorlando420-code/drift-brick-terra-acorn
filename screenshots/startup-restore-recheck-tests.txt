@@ -1,0 +1,19 @@
+✔ real startup rebases a catalog restore around a concurrent pull, unfollow, favorite, resume and navigation (1409.9691ms)
+✔ large restore yields before reading rows, keeps compact cards and joins resume aliases without changing inputs (677.0148ms)
+✔ restored duplicates keep foreground edits, shared memberships and missing durable metadata (81.4267ms)
+✔ resume preparation reuses unchanged records and restoration ignores unrelated navigation (14.3653ms)
+✔ source and combined caps apply together, including images, live and hidden retained entries (41.58ms)
+✔ zero and lowered limits hold additions but allow existing identities and YouTube aliases to refresh (96.531ms)
+✔ duplicate YouTube aliases in one provider batch occupy a single slot and canonical metadata identity (26.277ms)
+✔ partially admitted pages keep their old cursor and watermark; raising the limit admits their tail (75.8278ms)
+✔ large catalog counting shares concurrent work and yields to UI tasks (3453.2084ms)
+✔ legacy pull preferences migrate without resetting pacing; limits accept zero and clamp malformed values (0.5371ms)
+✔ YouTube page pacing can be disabled or slowed independently without changing job pacing (0.2481ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3981.2164

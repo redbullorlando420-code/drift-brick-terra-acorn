@@ -4,9 +4,13 @@ import { updateYoutubeShelf } from "./youtube-shelf";
 import { memoizeSelector, memoizeSelectorInputs } from "./selector-cache";
 import { waitForPulls, setPullViewerOpen, getPullCancellationRevision, pullsPaused, waitForCatalogCommit } from "@/lib/pull-control";
 import { getPullSettings } from '@/lib/pull-settings';
-import { forEachCatalogSlice, copyCatalogArray, copyCatalogRecord, yieldCatalogTask } from "@/lib/catalog-work";
+import { forEachCatalogSlice, copyCatalogArray, yieldCatalogTask } from "@/lib/catalog-work";
+import { youtubeCatalogSelection } from './youtube-catalog-selection';
 import { walkAdultPull } from './adult-pull-walk';
 import { catalogCard, withCatalogDetails } from './catalog-card';
+import { prepareCatalogRestore, reconcileRestoredResume, sameRestoreInputs } from './catalog-restore';
+import { beginStartupPhase, finishStartupPhase, markCatalogReady, beginFirstShelfRoute } from '../first-shelf-trace';
+import { viewerDetails } from './viewer-details';
 import { SliceWriter } from '../slice-writer';
 import { create } from "zustand";
 import { createShortLocalId } from "@/lib/local-id";
@@ -36,7 +40,10 @@ import { restoreYoutubeCooldown, saveYoutubeCooldown, clearYoutubeCooldown, yout
 import { lookupVideo, rememberVideo } from "./video-lookup";
 import { activityLookup, activityCandidates } from './activity-lookup';
 import { canonicalTopic, reconcileProviderTopicTags, topicsForVideo } from "./topics";
-import { applyCachedTagPatches, type CachedTagPatch } from "./tag-patches";
+import type { CachedTagPatch } from "./tag-patches";
+import { idleEnrichment, setEnrichmentViewerOpen } from '../idle-work';
+import { patchSparseRecord, sparseRecordBuilder } from '../sparse-record';
+import { enrichmentCursor, metadataEnrichmentStep, type MetadataTailResult } from './metadata-enrichment';
 import { youtubeVideoKey } from "../remote/youtube-sources";
 import { youtubeCoverageCounts, youtubeCoverageIndexAsync } from '../remote/youtube-coverage';
 import { measureInteraction, scheduleBackgroundWork } from "@/lib/interaction-budget";
@@ -75,6 +82,9 @@ import {
   restoreTagEdits,
   saveMetadataEdit,
   restoreMetadataEdits,
+  saveEnrichmentRows,
+  removeEnrichmentRows,
+  restoreEnrichmentRows,
   loadSourceHealth,
   saveDirHandle,
   saveActivitySnapshot,
@@ -120,12 +130,11 @@ import { LIBRARY_LIMITS } from "@/lib/library-limits";
 import { selectYoutubeLiveChannels, selectYoutubeSweepChannels } from "@/lib/remote/youtube-sweep";
 import { scheduledYoutubeSources } from '@/lib/remote/background-refresh';
 import { selectYoutubeFeedChannels } from '@/lib/remote/youtube-sweep';
-import { repairLegacyYoutubeDate } from "@/lib/remote/youtube-page";
 import { resolveCreatorCoverage } from "./creator-coverage";
 import { loadPullHistory, makePullId, savePullHistory, type PullActivity, type PullRecord } from "@/lib/remote/pull-ledger";
 import { beginYoutubeFirstClick, markYoutubeProviderFinish, markYoutubeProviderStart } from "@/lib/youtube-first-click-trace";
 import { clearLowPriorityImageQueue } from "./image-load-budget";
-import { planFollowRemoval, retainVideosAfterUnfollow, shouldRestoreRemoteVideo } from "./follow-removal";
+import { planFollowRemoval, retainVideosAfterUnfollow } from "./follow-removal";
 import type { AdultPullDiagnostic } from "@/lib/remote/api";
 import {
   followRemote,
@@ -155,12 +164,8 @@ const STARTER_FOLLOWS: FollowedChannel[] = [
 
 export type AddOpts = { adult?: boolean };
 
-export type MetadataTailResult = {
-  processed: number;
-  changed: number;
-  remaining: number;
-  sources: Array<{ source: string; processed: number; changed: number; remaining: number }>;
-};
+export type { MetadataTailResult } from './metadata-enrichment';
+const metadataTailCursor = enrichmentCursor();
 
 export type CreatorCoverageRepairResult = {
   processed: number;
@@ -234,9 +239,10 @@ export type LibraryState = {
   applyCompanionTags: (id: string, tags: string[]) => number;
   setVideoComments: (id: string, comments: NonNullable<LibraryVideo["remote"]>["comments"]) => void;
   releaseVideoComments: () => void;
-  autoTagLibrary: () => number;
+  autoTagLibrary: () => Promise<number>;
   /** Apply the next small cache-only metadata batch, retaining all manual locks. */
-  enrichMetadataTail: () => MetadataTailResult;
+  enrichMetadataTail: () => Promise<MetadataTailResult>;
+  repairCachedMetadata: () => void;
   /** Backfill a missing creator name only from an exact saved provider identifier. */
   repairCreatorCoverage: () => CreatorCoverageRepairResult;
   setVideoCategory: (id: string, category: string) => void;
@@ -590,20 +596,19 @@ function enrichRemoteTags(existing: Record<string, string[]>, existingProvenance
   return { tags, metadataProvenance };
 }
 
-/** Enrich only admitted cards, copying large ledgers in short browser tasks. */
+/** Enrich only admitted cards; immutable ledgers copy only touched branches. */
 async function prepareRemotePull(get: () => LibraryState, incoming: LibraryVideo[], known?: ReadonlyMap<string, unknown>, merge = false) {
   for (;;) {
     const base = get(), policy = getPullSettings();
     const admission = await admitRemoteEntries(base.videos, incoming, policy, known);
-    const tagPatch: Record<string, string[]> = {}, provenancePatch: Record<string, VideoMetadataProvenance> = {};
+    const tagPatch = sparseRecordBuilder(base.tags), provenancePatch = sparseRecordBuilder(base.metadataProvenance);
     await forEachCatalogSlice(admission.videos, video => {
       const currentTags = base.tags[video.id], currentProvenance = base.metadataProvenance[video.id];
       const enriched = enrichRemoteTags(currentTags ? { [video.id]: currentTags } : {}, currentProvenance ? { [video.id]: currentProvenance } : {}, [video]);
-      if (enriched.tags[video.id] !== currentTags && enriched.tags[video.id]) tagPatch[video.id] = enriched.tags[video.id];
-      if (enriched.metadataProvenance[video.id] !== currentProvenance && enriched.metadataProvenance[video.id]) provenancePatch[video.id] = enriched.metadataProvenance[video.id];
+      if (enriched.tags[video.id] !== currentTags && enriched.tags[video.id]) tagPatch.set(video.id, enriched.tags[video.id]);
+      if (enriched.metadataProvenance[video.id] !== currentProvenance && enriched.metadataProvenance[video.id]) provenancePatch.set(video.id, enriched.metadataProvenance[video.id]);
     }, yieldCatalogTask);
-    const tags = Object.keys(tagPatch).length ? Object.assign(await copyCatalogRecord(base.tags, yieldCatalogTask), tagPatch) : base.tags;
-    const metadataProvenance = Object.keys(provenancePatch).length ? Object.assign(await copyCatalogRecord(base.metadataProvenance, yieldCatalogTask), provenancePatch) : base.metadataProvenance;
+    const tags = tagPatch.finish(), metadataProvenance = provenancePatch.finish();
     const folderCounts = new Map<string, number>();
     const merged = merge ? await mergeRemoteCatalogAsync(base.videos, admission.videos.map(catalogCard)) : base.videos;
     if (merge) await forEachCatalogSlice(merged, video => { folderCounts.set(video.folderId, (folderCounts.get(video.folderId) ?? 0) + 1); }, yieldCatalogTask);
@@ -620,8 +625,27 @@ function metadataTagsForVideo(video: LibraryVideo, folders: Folder[]) {
     : [...(isAdultVideo(video, folders) ? ["adult"] : []), ...localNameTags(video)];
 }
 
-function metadataTailSource(video: LibraryVideo) {
-  return video.remote?.kind ?? "local";
+function enrichmentPatch(video: LibraryVideo, state: Pick<LibraryState, 'tags' | 'metadataProvenance' | 'folders'>,
+  mode: 'cached' | 'tail' | 'smart'): CachedTagPatch | undefined {
+  const beforeTags = state.tags[video.id], beforeProvenance = state.metadataProvenance[video.id];
+  if (tagsLocked(beforeProvenance) || (mode === 'cached' && !video.remote) || (mode === 'tail' && beforeTags?.length)) return;
+  const inferred = metadataTagsForVideo(video, state.folders);
+  const current = beforeTags ?? [];
+  const existing = mode === 'cached' ? reconcileProviderTopicTags(video, current, beforeProvenance) : current;
+  const compact = compactIngestedTags(existing, inferred), tagsChanged = !sameTags(current, compact);
+  const sources = beforeProvenance?.tags;
+  if (!tagsChanged && beforeProvenance?.updatedAt && sources && Object.keys(sources).length === compact.length
+    && compact.every(tag => sources[tag] !== undefined)) return;
+  if (!compact.length) return;
+  return { beforeTags, beforeProvenance, tags: tagsChanged ? compact : current,
+    provenance: mergeInferredTagProvenance(current, compact, beforeProvenance, inferred, video.remote ? `provider:${video.remote.kind}` : 'local-name') };
+}
+
+function queueMetadataRepair(get: () => LibraryState, publish: (next: Pick<LibraryState, 'tags' | 'metadataProvenance'>) => void) {
+  void idleEnrichment.enqueue('cached-tags', 'Cached provider tags', metadataEnrichmentStep({ get, publish,
+    save: saveEnrichmentRows, patch: (video, state) => enrichmentPatch(video, state, 'cached') })).catch(error => {
+      if (error?.name !== 'AbortError' && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('reelcase:save-error'));
+    });
 }
 
 /** Normalize provider enrichment once when it enters the catalog. Manual tags
@@ -765,18 +789,18 @@ function localNameTags(video: LibraryVideo) {
 }
 
 function addLocalNameTags(existing: Record<string, string[]>, existingProvenance: Record<string, VideoMetadataProvenance>, videos: LibraryVideo[]) {
-  const next = { ...existing };
-  const metadataProvenance = { ...existingProvenance };
+  const next = sparseRecordBuilder(existing);
+  const metadataProvenance = sparseRecordBuilder(existingProvenance);
   for (const video of videos) {
     if (tagsLocked(existingProvenance[video.id])) continue;
     const inferred = localNameTags(video);
     if (!inferred.length) continue;
-    const current = next[video.id] ?? [];
+    const current = next.get(video.id) ?? [];
     const compact = [...new Set([...current, ...inferred.map(normalizeTagValue).filter(Boolean)])].slice(0, 18);
-    next[video.id] = compact;
-    metadataProvenance[video.id] = mergeInferredTagProvenance(current, compact, existingProvenance[video.id], inferred, "local-name");
+    next.set(video.id, compact);
+    metadataProvenance.set(video.id, mergeInferredTagProvenance(current, compact, existingProvenance[video.id], inferred, "local-name"));
   }
-  return { tags: next, metadataProvenance };
+  return { tags: next.finish(), metadataProvenance: metadataProvenance.finish() };
 }
 
 function applyPrefs(partial: Partial<LibraryState>): Partial<LibraryState> {
@@ -974,6 +998,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     saveViewPrefs(get());
   },
   setSource: (sourceId) => {
+    if (sourceId !== get().sourceId) beginFirstShelfRoute(['landing', 'youtube', 'twitch', 'favorites', 'continue', 'history', 'movies'].includes(sourceId) ? sourceId : 'library');
     // Invalidate old near-view artwork before the next source mounts cards.
     if (sourceId !== get().sourceId) clearLowPriorityImageQueue();
     if (sourceId === "youtube" && get().sourceId !== "youtube") {
@@ -1011,35 +1036,28 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     persistNow(get);
   },
   setVideoComments: (id, comments) => {
-    set((s) => ({
-      videos: s.videos.map((video) => {
-        if (video.id !== id || !video.remote) return video.remote?.comments ? catalogCard(video) : video;
-        return { ...video, remote: { ...video.remote, comments } };
-      }),
-    }));
-    const updated = lookupVideo(get().videos, id);
-    if (updated?.remote) void cacheRemotes(get, [updated]).then(() => {
+    const state = get();
+    // A late response from a closed viewer must not retain a transcript.
+    if (state.activeId !== id && state.previewId !== id) return;
+    const video = lookupVideo(state.videos, id);
+    if (!video?.remote) return;
+    viewerDetails.setComments(id, comments);
+    const updated = { ...video, remote: { ...video.remote, comments } };
+    // This is already the current selected card. No full remote index or
+    // immutable catalog copy is needed to save one on-demand detail record.
+    void cacheRemotes(get, [updated], true).then(() => {
       if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('reelcase:video-details-changed', { detail: id }));
     });
   },
   releaseVideoComments: () => {
-    // Transcripts belong to the selected viewer and disk, not a growing set of
-    // previously opened cards. Avoid publishing a catalog update if none exist.
-    const videos = get().videos;
-    if (!videos.some(video => video.remote?.comments)) return;
-    set({ videos: videos.map(video => video.remote?.comments ? catalogCard(video) : video) });
+    viewerDetails.releaseComments();
   },
   setVideoTags: (id, tags) => {
     const manualTags = [...new Set(tags.map(normalizeTagValue).filter(Boolean))].slice(0, 18);
     set((s) => ({
-      tags: {
-        ...s.tags,
-        [id]: manualTags,
-      },
-      metadataProvenance: {
-        ...s.metadataProvenance,
-        [id]: { ...s.metadataProvenance[id], tags: Object.fromEntries(manualTags.map((tag) => [tag, "manual"] as const)), lockedFields: [...new Set([...(s.metadataProvenance[id]?.lockedFields ?? []), "tags"])] as Array<"tags" | "category">, updatedAt: Date.now() },
-      },
+      tags: patchSparseRecord(s.tags, [[id, manualTags]]),
+      metadataProvenance: patchSparseRecord(s.metadataProvenance, [[id,
+        { ...s.metadataProvenance[id], tags: Object.fromEntries(manualTags.map((tag) => [tag, "manual"] as const)), lockedFields: [...new Set([...(s.metadataProvenance[id]?.lockedFields ?? []), "tags"])] as Array<"tags" | "category">, updatedAt: Date.now() }]]),
     }));
     const state = get();
     saveTagEdit(id, state.tags[id] ?? []);
@@ -1059,11 +1077,9 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     if (sameTags(existing, merged)) return 0;
     const added = Math.max(0, merged.filter((tag) => !existing.includes(tag)).length);
     set((s) => ({
-      tags: { ...s.tags, [id]: merged },
-      metadataProvenance: {
-        ...s.metadataProvenance,
-        [id]: mergeInferredTagProvenance(existing, merged, s.metadataProvenance[id], inspected, source),
-      },
+      tags: patchSparseRecord(s.tags, [[id, merged]]),
+      metadataProvenance: patchSparseRecord(s.metadataProvenance, [[id,
+        mergeInferredTagProvenance(existing, merged, s.metadataProvenance[id], inspected, source)]]),
     }));
     const state = get();
     // The person explicitly confirmed this preview, so journal the accepted
@@ -1074,71 +1090,15 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     return added;
   },
   applyCompanionTags: (id, tags) => get().applyReviewedTags(id, tags, "companion-inspection"),
-  autoTagLibrary: () => {
-    let changed = 0;
-    set((s) => {
-      const tags = { ...s.tags };
-      const metadataProvenance = { ...s.metadataProvenance };
-      for (const video of s.videos) {
-        if (tagsLocked(s.metadataProvenance[video.id])) continue;
-        const inferred = metadataTagsForVideo(video, s.folders);
-        // Creator tags are structural filter data. Only legacy keyword wrappers
-        // are presentation noise; stripping creator- here made attribution
-        // disappear whenever the catalog was auto-tagged again.
-        const existing = (tags[video.id] ?? []).map((tag) => tag.replace(/^keyword-/i, ""));
-        const merged = compactIngestedTags(existing, inferred);
-        if (!sameTags(tags[video.id], merged)) changed += 1;
-        tags[video.id] = merged;
-        metadataProvenance[video.id] = mergeInferredTagProvenance(existing, merged, s.metadataProvenance[video.id], inferred, video.remote ? `provider:${video.remote.kind}` : "local-name");
-      }
-      return { tags, metadataProvenance };
-    });
-    // The search worker observes the committed tag map on demand.
-    persistNow(get);
-    return changed;
+  autoTagLibrary: async () => {
+    const result = await idleEnrichment.enqueue('smart-tags', 'Smart catalog tags', metadataEnrichmentStep({
+      get, publish: set, save: saveEnrichmentRows, patch: (video, state) => enrichmentPatch(video, state, 'smart') }));
+    return result.changed;
   },
-  enrichMetadataTail: () => {
-    const state = get();
-    const candidates = state.videos.flatMap((video) => {
-      if (tagsLocked(state.metadataProvenance[video.id]) || (state.tags[video.id] ?? []).length) return [];
-      const inferred = metadataTagsForVideo(video, state.folders);
-      return inferred.length ? [{ video, inferred, source: metadataTailSource(video) }] : [];
-    });
-    const batch = candidates.slice(0, LIBRARY_LIMITS.metadataTailBatchSize);
-    const bySource = new Map<string, { processed: number; changed: number; remaining: number }>();
-    for (const candidate of candidates) {
-      const row = bySource.get(candidate.source) ?? { processed: 0, changed: 0, remaining: 0 };
-      row.remaining += 1;
-      bySource.set(candidate.source, row);
-    }
-    if (!batch.length) return { processed: 0, changed: 0, remaining: 0, sources: [] };
-
-    const tags = { ...state.tags };
-    const metadataProvenance = { ...state.metadataProvenance };
-    let changed = 0;
-    for (const { video, inferred, source } of batch) {
-      const existing = tags[video.id] ?? [];
-      const compact = compactIngestedTags(existing, inferred);
-      const nextProvenance = mergeInferredTagProvenance(existing, compact, metadataProvenance[video.id], inferred, video.remote ? `provider:${video.remote.kind}` : "local-name");
-      if (!sameTags(existing, compact)) {
-        tags[video.id] = compact;
-        changed += 1;
-      }
-      metadataProvenance[video.id] = nextProvenance;
-      const row = bySource.get(source)!;
-      row.processed += 1;
-      row.remaining -= 1;
-      if (!sameTags(existing, compact)) row.changed += 1;
-    }
-    set({ tags, metadataProvenance });
-    persistNow(get);
-    return {
-      processed: batch.length,
-      changed,
-      remaining: Math.max(0, candidates.length - batch.length),
-      sources: [...bySource.entries()].map(([source, row]) => ({ source, ...row })).filter((row) => row.processed || row.remaining),
-    };
-  },
+  enrichMetadataTail: () => idleEnrichment.enqueue('metadata-tail', 'Metadata tail', metadataEnrichmentStep({
+    get, publish: set, save: saveEnrichmentRows, cursor: metadataTailCursor, maxChanges: LIBRARY_LIMITS.metadataTailBatchSize,
+    patch: (video, state) => enrichmentPatch(video, state, 'tail') })),
+  repairCachedMetadata: () => queueMetadataRepair(get, set),
   repairCreatorCoverage: () => {
     const state = get();
     const candidates = state.videos.flatMap((video) => {
@@ -1193,7 +1153,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   setVideoCategory: (id, category) => {
     set((s) => ({
       categories: { ...s.categories, [id]: category.trim().slice(0, 40) },
-      metadataProvenance: { ...s.metadataProvenance, [id]: { ...s.metadataProvenance[id], tags: s.metadataProvenance[id]?.tags ?? {}, category: "manual", lockedFields: [...new Set([...(s.metadataProvenance[id]?.lockedFields ?? []), "category"])] as Array<"tags" | "category">, updatedAt: Date.now() } },
+      metadataProvenance: patchSparseRecord(s.metadataProvenance, [[id, { ...s.metadataProvenance[id], tags: s.metadataProvenance[id]?.tags ?? {}, category: "manual", lockedFields: [...new Set([...(s.metadataProvenance[id]?.lockedFields ?? []), "category"])] as Array<"tags" | "category">, updatedAt: Date.now() }]]),
     }));
     const state = get();
     saveTagEdit(id, state.tags[id] ?? []);
@@ -1313,6 +1273,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         history: s.history.filter((h) => h.id !== id),
       };
     });
+    void removeEnrichmentRows([id]).catch(() => undefined);
     persistNow(get);
   },
   playRelative: (delta, playlist) => {
@@ -1446,8 +1407,8 @@ export const useLibrary = create<LibraryState>((set, get) => ({
               if (wanted.has(video.id)) positions.set(video.id, index);
               if ((ADULT_FOLDER_IDS as readonly string[]).includes(video.folderId)) counts.set(video.folderId, (counts.get(video.folderId) ?? 0) + 1);
             }, turn);
-            const nextTags = await copyCatalogRecord(base.tags, turn);
-            const nextMetadata = await copyCatalogRecord(base.metadataProvenance, turn);
+            const nextTags = sparseRecordBuilder(base.tags);
+            const nextMetadata = sparseRecordBuilder(base.metadataProvenance);
             const nextVideos = await copyCatalogArray(base.videos, turn);
             let batchAdded = 0;
             await forEachCatalogSlice(videos, video => {
@@ -1460,8 +1421,8 @@ export const useLibrary = create<LibraryState>((set, get) => ({
               if (tagsLocked(base.metadataProvenance[video.id])) return;
               const inferred = inferredTags.get(video.id) ?? [];
               const compact = compactIngestedTags(current, inferred);
-              nextTags[video.id] = compact;
-              nextMetadata[video.id] = mergeInferredTagProvenance(current, compact, base.metadataProvenance[video.id], inferred, `provider:${video.remote?.kind ?? 'eporner'}`);
+              nextTags.set(video.id, compact);
+              nextMetadata.set(video.id, mergeInferredTagProvenance(current, compact, base.metadataProvenance[video.id], inferred, `provider:${video.remote?.kind ?? 'eporner'}`));
             }, turn);
             await turn();
             const latest = get();
@@ -1481,7 +1442,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
             const nextFolder = { ...folder, videoCount: counts.get(folder.id) ?? 0, adult: true };
             set({ videos: nextVideos,
               folders: afterSave.folders.some(row => row.id === folder.id) ? afterSave.folders.map(row => row.id === folder.id ? nextFolder : row) : [...afterSave.folders, nextFolder],
-              tags: nextTags, metadataProvenance: nextMetadata, adultsUnlocked: true });
+              tags: nextTags.finish(), metadataProvenance: nextMetadata.finish(), adultsUnlocked: true });
             rememberEntryCounts(nextVideos, admission.counts);
             added += batchAdded; received += fetched.length;
             committed = true;
@@ -1681,12 +1642,13 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   restoreFolders: async () => {
     if (get().hydrated || restoring) return;
     restoring = true;
+    beginStartupPhase('preferences');
     set({ pullHistory: loadPullHistory() });
     await restoreDurablePrefs().catch(() => undefined);
     void hydrateDurableFeedback().catch(() => undefined);
     const dedicatedFollows = await restoreDurableFollows().catch(() => loadFollows() ?? []);
-    preferencesRestored = true;
     const prefsState = applyPrefs({});
+    Object.assign(prefsState, await restoreEnrichmentRows({ tags: prefsState.tags ?? {}, metadataProvenance: prefsState.metadataProvenance ?? {} }).catch(() => ({ tags: prefsState.tags ?? {}, metadataProvenance: prefsState.metadataProvenance ?? {} })));
     prefsState.tags = restoreTagEdits(prefsState.tags ?? {});
     prefsState.metadataProvenance = restoreMetadataEdits(prefsState.metadataProvenance ?? {});
     // Dedicated store is source of truth; prefs.follows is a legacy mirror for older builds.
@@ -1702,7 +1664,9 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     let savedHealth = new Map<string, Awaited<ReturnType<typeof loadSourceHealth>>[number]>();
     // Startup storage can resolve after a user has already chosen a section.
     // Restore preferences without replacing that newer navigation decision.
+    preferencesRestored = true;
     set((s) => ({ ...prefsState, ...(navigationChanged ? { sourceId: s.sourceId } : {}) }));
+    finishStartupPhase('preferences');
     // Keep the durable activity journal separate from broad preferences. It
     // merges after first paint, so a massive tag payload cannot wipe history
     // or block startup recovery.
@@ -1715,7 +1679,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       restoreDurableMarks(),
       restoreDurableShelves(),
       restoreDurableLinks(),
-    ]).then(([activity, journal, durableHistory, durableResume, durableMarks, durableShelves, durableLinks]) => {
+    ]).then(async ([activity, journal, durableHistory, durableResume, durableMarks, durableShelves, durableLinks]) => {
       const queuedResume = takeQueuedResumeReplay();
       const hasShelves = durableShelves.authoritative || durableShelves.favorites.length || durableShelves.likes.length;
       const hasAnything = activity || journal.length || durableHistory.length
@@ -1760,13 +1724,23 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         return {
           history: withUrls,
           resumeProgress,
-          progress: reconcileResumeForVideos(s.videos, { ...(activity?.progress ?? {}), ...durableResume.progress, ...s.progress }, resumeProgress),
+          progress: { ...(activity?.progress ?? {}), ...durableResume.progress, ...s.progress },
           viewCounts: { ...(activity?.viewCounts ?? {}), ...durableMarks.viewCounts, ...s.viewCounts },
           cameCounts: { ...(activity?.cameCounts ?? {}), ...durableMarks.cameCounts, ...s.cameCounts },
           favorites,
           likes,
         };
       });
+      // Activity can arrive after the catalog. Link aliases outside the store
+      // update and retry if playback or another restore changed those inputs.
+      for (;;) {
+        const base = get();
+        const progress = await reconcileRestoredResume(base.videos, base.progress, base.resumeProgress, newestResume);
+        const latest = get();
+        if (base.videos !== latest.videos || base.progress !== latest.progress || base.resumeProgress !== latest.resumeProgress) continue;
+        if (progress !== base.progress) set({ progress });
+        break;
+      }
     }).catch(() => undefined);
     // Let React paint the shell and saved preferences before opening and
     // merging a potentially very large remote catalog from IndexedDB.
@@ -1775,25 +1749,38 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       if (typeof window === "undefined") resolve();
       else window.setTimeout(resolve, 32);
     });
+    beginStartupPhase('remoteRead');
     try {
       const snapshot = await loadRemoteSnapshot();
+      finishStartupPhase('remoteRead', snapshot?.videos.length ?? 0);
+      beginStartupPhase('remotePrepare');
       if (snapshot) {
-        const ids = new Set(get().follows.map((channel) => channel.id));
-        const youtubeChannels = new Set(get().follows.filter(channel => channel.kind === "youtube" && !channel.id.startsWith("ytpl:") && channel.channelId).map(channel => channel.channelId!));
+        let base = get(), prepared = await prepareCatalogRestore(base, snapshot.videos, { remoteOnly: true, newestResume });
+        while (!sameRestoreInputs(base, get())) {
+          base = get(); prepared = await prepareCatalogRestore(base, snapshot.videos, { remoteOnly: true, newestResume });
+        }
+        const folderIds = new Set(snapshot.folders.map(folder => folder.id));
+        const currentFolders = new Map(get().folders.map(folder => [folder.id, folder]));
         set((s) => {
-          const restored = snapshot.videos.filter((video) => shouldRestoreRemoteVideo(video, ids, s.favorites, s.likes, youtubeChannels)).map(repairLegacyYoutubeDate);
-          const videos = mergeVideos(s.videos, restored);
           // Saved tags paint immediately; the idle repair below owns enrichment.
           // Parsing every remote title here stalls a large catalog's first view.
           return {
-            videos,
-            progress: reconcileResumeForVideos(videos, s.progress, s.resumeProgress),
-            folders: [...s.folders.filter((f) => !snapshot.folders.some((saved) => saved.id === f.id)), ...snapshot.folders.filter((f) => ids.has(f.id))],
-            remoteCheckedAt: snapshot.checkedAt,
+            videos: prepared.videos,
+            progress: prepared.progress,
+            folders: [...s.folders.filter((f) => !folderIds.has(f.id)), ...snapshot.folders.filter((f) => prepared.followIds.has(f.id)).map(folder => {
+              const current = currentFolders.get(folder.id);
+              return current && (current.lastCheckedAt ?? 0) > (folder.lastCheckedAt ?? snapshot.checkedAt) ? current : folder;
+            })],
+            remoteCheckedAt: Math.max(s.remoteCheckedAt ?? 0, snapshot.checkedAt),
           };
         });
       }
-    } catch { /* The catalog remains usable when storage is unavailable. */ }
+      finishStartupPhase('remotePrepare', get().videos.length);
+    } catch {
+      finishStartupPhase('remoteRead', undefined, true);
+      finishStartupPhase('remotePrepare', undefined, true);
+      /* The catalog remains usable when storage is unavailable. */
+    }
     void restoreDurablePhotos().then((photos) => {
       if (!photos.sources.length) return;
       set((s) => {
@@ -1826,66 +1813,6 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       });
     }).catch(() => undefined);
     restoring = false;
-    // Older catalogs may still carry hundreds of keyword tags per remote card.
-    // Compact them in tiny idle slices after first paint, rather than turning a
-    // restore or tab switch into one catalog-wide text-processing task.
-    if (typeof window !== "undefined") {
-      let index = 0;
-      let lastTagCommitAt = Date.now();
-      const pendingTags = new Map<string, CachedTagPatch>();
-      let tagRepairDisposed = false;
-      let tagRepairTimer: number | undefined;
-      let cancelTagRepair = () => {};
-      const schedule = (work: () => void) => {
-        if (!tagRepairDisposed) cancelTagRepair = scheduleBackgroundWork(work, { timeoutMs: 2_000, fallbackDelayMs: 80 });
-      };
-      import.meta.hot?.dispose(() => {
-        tagRepairDisposed = true;
-        cancelTagRepair();
-        window.clearTimeout(tagRepairTimer);
-        pendingTags.clear();
-      });
-      const compactCachedRemoteTags = () => {
-        if (tagRepairDisposed) return;
-        const snapshot = get();
-        if (snapshot.activeId || snapshot.previewId || snapshot.sourceId === "stats") {
-          tagRepairTimer = window.setTimeout(() => schedule(compactCachedRemoteTags), 1_000);
-          return;
-        }
-        const started = performance.now();
-        const end = Math.min(snapshot.videos.length, index + 96);
-        for (; index < end; index += 1) {
-          if (index % 8 === 0 && performance.now() - started >= 4) break;
-          const video = snapshot.videos[index];
-          if (!video?.remote) continue;
-          const previousProvenance = snapshot.metadataProvenance[video.id];
-          if (tagsLocked(previousProvenance)) continue;
-          const current = snapshot.tags[video.id] ?? [];
-          const inferred = remoteMetadataTags(video);
-          const compact = compactIngestedTags(reconcileProviderTopicTags(video, current, previousProvenance), inferred);
-          const tagsChanged = !sameTags(current, compact);
-          const sources = previousProvenance?.tags;
-          // Constructing provenance changes its timestamp. Compare content
-          // first, or every cached card rewrites two enormous maps on startup.
-          const provenanceComplete = !tagsChanged && previousProvenance?.updatedAt && sources
-            && Object.keys(sources).length === compact.length && compact.every(tag => sources[tag] !== undefined);
-          if (provenanceComplete) continue;
-          const provenance = mergeInferredTagProvenance(current, compact, previousProvenance, inferred, `provider:${video.remote.kind}`);
-          pendingTags.set(video.id, { beforeTags: snapshot.tags[video.id], beforeProvenance: previousProvenance, tags: tagsChanged ? compact : current, provenance });
-        }
-        // A tiny work slice must not clone two 90k-entry maps every 96 rows.
-        // Buffer sparse edits and publish them together at an idle boundary.
-        if (pendingTags.size && (pendingTags.size >= 2048 || index >= get().videos.length || Date.now() - lastTagCommitAt >= 5_000)) {
-          const current = get();
-          const next = applyCachedTagPatches(current.tags, current.metadataProvenance, pendingTags);
-          pendingTags.clear();
-          lastTagCommitAt = Date.now();
-          if (next.tags !== current.tags || next.metadataProvenance !== current.metadataProvenance) set(next);
-        }
-        if (index < get().videos.length) schedule(compactCachedRemoteTags);
-      };
-      tagRepairTimer = window.setTimeout(() => schedule(compactCachedRemoteTags), 600);
-    }
     // A pasted import list is a durable recovery queue. Resume every missing
     // entry—not only an entirely empty shelf—so partial Twitch imports keep
     // progressing across reloads without requiring “Load saved list now”.
@@ -1931,23 +1858,28 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     }
     // Saved follows hydrate synchronously from preferences. The app shell owns the
     // single background refresh, avoiding two competing refreshes and rail flicker.
+    beginStartupPhase('localRead');
     try {
       const [storedCatalog, healthRows] = await Promise.all([loadCatalogVideos(), loadSourceHealth()]);
-      const catalog = storedCatalog.map(repairLegacyYoutubeDate);
+      finishStartupPhase('localRead', storedCatalog.length);
+      beginStartupPhase('localPrepare');
       savedHealth = new Map(healthRows.map((entry) => [entry.id, entry]));
-      cachedFolderIds = new Set(catalog.map((video) => video.folderId));
-      if (catalog.length) {
-        const counts = new Map<string, number>();
-        for (const v of catalog) counts.set(v.folderId, (counts.get(v.folderId) ?? 0) + 1);
+      if (storedCatalog.length) {
+        let base = get(), prepared = await prepareCatalogRestore(base, storedCatalog, { newestResume });
+        while (!sameRestoreInputs(base, get())) {
+          base = get(); prepared = await prepareCatalogRestore(base, storedCatalog, { newestResume });
+        }
+        const counts = prepared.counts;
+        cachedFolderIds = new Set(counts.keys());
         set((s) => {
-          const videos = mergeVideos(s.videos, catalog);
+          const folderIds = new Set(s.folders.map(folder => folder.id));
           return {
-          videos,
-          progress: reconcileResumeForVideos(videos, s.progress, s.resumeProgress),
+          videos: prepared.videos,
+          progress: prepared.progress,
           folders: [
             ...s.folders,
             ...[...counts.entries()]
-              .filter(([id]) => !s.folders.some((f) => f.id === id))
+              .filter(([id]) => !folderIds.has(id))
               .map(([id, videoCount]) => ({
                 id,
                 name: id.split(":")[1] || id,
@@ -1963,9 +1895,16 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         };
         });
       }
+      finishStartupPhase('localPrepare', get().videos.length);
     } catch {
+      finishStartupPhase('localRead', undefined, true);
+      finishStartupPhase('localPrepare', undefined, true);
       // catalog optional
     }
+    markCatalogReady();
+    // Start after both saved catalogs are present; the idle owner handles
+    // input, visibility, playback, durable batches and cancellation.
+    queueMetadataRepair(get, set);
     let stored: Awaited<ReturnType<typeof loadDirHandles>> = [];
     try {
       stored = await loadDirHandles();
@@ -2205,6 +2144,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     });
     persistNow(get);
     try {
+      await removeEnrichmentRows(ids).catch(() => undefined);
       await deleteDirHandle(folderId);
     } catch {
       // ignore
@@ -3166,6 +3106,22 @@ export const selectVisible = memoizeSelector(computeSelectVisible, state => {
 export const selectYoutube = memoizeSelectorInputs(computeSelectYoutube, (state: LibraryState) =>
   [state.videos, adultIdSet(state.folders), state.unavailable, state.hiddenVideos, state.hideDemo]);
 
+/** Navigation prepares the exact selector result cooperatively, before any
+ * subscribed component can trigger a synchronous cold catalog filter/sort. */
+export async function prepareYoutubeSelection(state: LibraryState, signal: AbortSignal, yieldTask = yieldCatalogTask) {
+  const cached = selectYoutube.peek(state);
+  if (cached) return cached;
+  const privateFolders = adultIdSet(state.folders);
+  const result = await youtubeCatalogSelection({ videos: state.videos, privateFolders,
+    unavailable: state.unavailable, hiddenVideos: state.hiddenVideos, hideDemo: state.hideDemo }, signal, yieldTask);
+  signal.throwIfAborted();
+  selectYoutube.prime(state, result);
+  memoFor(state).youtube = result;
+  youtubeSelectorSnapshot = { videos: state.videos, privateFolders, unavailable: state.unavailable,
+    hiddenVideos: state.hiddenVideos, hideDemo: state.hideDemo, result };
+  return result;
+}
+
 export const selectTwitch = memoizeSelector(computeSelectTwitch, ["videos", "folders", "unavailable", "hiddenVideos", "hideDemo"]);
 
 export const selectLive = memoizeSelector(computeSelectLive, ["videos", "folders", "unavailable", "hiddenVideos", "hideDemo"]);
@@ -3186,3 +3142,9 @@ const stopSelectorEviction = useLibrary.subscribe((state, previous) => {
   for (const selector of catalogSelectors) selector.evictStale(state);
 });
 import.meta.hot?.dispose(stopSelectorEviction);
+
+const stopEnrichmentViewer = useLibrary.subscribe((state, previous) => {
+  if (state.activeId !== previous.activeId || state.previewId !== previous.previewId)
+    setEnrichmentViewerOpen(Boolean(state.activeId || state.previewId));
+});
+import.meta.hot?.dispose(stopEnrichmentViewer);

@@ -39,10 +39,13 @@ export function setPullsPaused(value: boolean) {
 let viewing = false;
 const gateListeners = new Set<() => void>();
 const gateChanged = () => { scheduler.wake(); for (const listener of gateListeners) listener(); };
+/** Includes the viewer gate, which changes after the store's open/close event.
+ * Sleeping periodic owners must wake on that final availability transition. */
+export const subscribePullAvailability = (listener: () => void) => { gateListeners.add(listener); return () => { gateListeners.delete(listener); }; };
 export function setPullViewerOpen(value: boolean) { viewing = value; setArtworkSuppressed(value); gateChanged(); }
-export function catalogPullAvailable() {
+export function catalogPullAvailable(ignoreInteraction = false) {
   return !pullsPaused() && !(getPullSettings().pauseWhileWatching && viewing)
-    && (typeof document === 'undefined' || !document.hidden) && getInteractionPriorityDelay() === 0;
+    && (typeof document === 'undefined' || !document.hidden) && (ignoreInteraction || getInteractionPriorityDelay() === 0);
 }
 const scheduler = createPullScheduler(() => ({ concurrency: getPullSettings().concurrentRequests, gapMs: getPullSettings().requestGapMs }), catalogPullAvailable, 8, {
   requestTimeoutMs: () => Math.max(90_000, getPullSettings().requestGapMs * 12 + 30_000, getPullSettings().youtubeRequestGapMs * 4 + 90_000),

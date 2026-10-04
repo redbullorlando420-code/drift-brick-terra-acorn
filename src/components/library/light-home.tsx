@@ -1,5 +1,7 @@
 import { ArrowRight, Heart, LayoutDashboard, Play, Settings2, Youtube } from "lucide-react";
 import { useLibrary } from "@/lib/videos/store";
+import { useLayoutEffect, useState } from 'react';
+import { markHomeReady } from '@/lib/first-shelf-trace';
 
 const destinations = [
   { id: "landing", title: "Landing page", detail: "The full discovery experience, recommendations, and shelves.", icon: LayoutDashboard },
@@ -12,7 +14,9 @@ const destinations = [
 /** Startup and recovery surface: no catalog scans, artwork, media, or recommendations. */
 export function LightHome() {
   const setSource = useLibrary(s => s.setSource);
-  return <section aria-label="Quick Home" className="mx-auto max-w-5xl py-6 sm:py-12">
+  const [ready, setReady] = useState(false);
+  useLayoutEffect(() => { markHomeReady(); setReady(true); }, []);
+  return <section aria-label="Quick Home" data-home-ready={ready} className="mx-auto max-w-5xl py-6 sm:py-12">
     <p className="text-xs font-medium uppercase tracking-wide text-accent">Realhub</p>
     <h1 className="mt-3 font-display text-4xl text-fg sm:text-5xl">Home</h1>
     <p className="mt-3 max-w-xl text-sm leading-6 text-muted">A quiet place to start. Open a workspace, or visit Landing page for the full experience.</p>

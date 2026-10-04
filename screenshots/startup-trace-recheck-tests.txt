@@ -1,0 +1,29 @@
+✔ startup uses navigation origin and records bounded independent stages and the latest destination (2.1219ms)
+✔ server rendering never publishes readiness shared with another visitor (0.187ms)
+✔ navigation controls update immediately while million-entry selectors wait outside the event (74.541ms)
+✔ cooperative preparation cancels on navigation and publishes only current catalog inputs (1.462ms)
+✔ preparation failure does not strand a page and unmount aborts work already running (0.4982ms)
+✔ a rapid route burst publishes only the final destination, even if canceled callbacks run (0.4038ms)
+✔ 10,000 pending updates retain the newest snapshot without postponing the route (1.9245ms)
+✔ Home and tools escape pending catalogs immediately; stale work cannot restore the old destination (0.27ms)
+✔ same-source filters and saves stay immediate once the destination is ready (0.3513ms)
+✔ viewer updates remain live, covered work sleeps, and close stages the latest navigation once (0.3623ms)
+✔ unmount cancels pending work and releases both upstream subscriptions and cached snapshots (0.1888ms)
+✔ opening a viewer cancels an already queued route and close resumes only the newest state (0.2722ms)
+✔ every catalog subscriber shares one frame boundary and receives the same immutable snapshot (0.1583ms)
+✔ route work crosses a painted frame, runs outside RAF, sleeps hidden and cancels cleanly (2.0062ms)
+✔ running preparation sleeps hidden without polling and releases visibility listeners on cancel/resume (3.1749ms)
+✔ artwork observers release image listeners on departure, window changes and success (3.3155ms)
+✔ cached first click records selector, text-first rail and later artwork separately (1.8371ms)
+✔ cooperative preparation timing belongs only to the current navigation (0.2377ms)
+✔ provider work is reported only for the part overlapping the route open (0.2402ms)
+✔ empty rails stay pending and a new click resets the trace (0.1297ms)
+✔ an empty startup selection cannot freeze the trace before the saved catalog arrives (0.1064ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 312.7984

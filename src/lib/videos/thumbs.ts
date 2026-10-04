@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { LIBRARY_LIMITS } from "@/lib/library-limits";
 import type { LibraryVideo } from "./types";
 import { resolvePlayUrl } from "./sources";
 import { bitmapFromVideo } from "./hw";
@@ -11,6 +10,7 @@ import { getInteractionPriorityDelay } from "../interaction-budget.ts";
 import { isArtworkSuppressed, subscribeArtworkSuppression } from './image-load-budget.ts';
 import { createThumbnailQueue } from './thumbnail-queue.ts';
 import { artworkBytes, artworkUrl, binaryArtwork, releaseArtwork } from './binary-artwork';
+import { getPerformanceProfile, subscribePerformanceProfile } from '../performance-profile.ts';
 export { companionCacheThumbUrl as mirrorRemotePosterToCompanion } from "@/lib/companion";
 
 type ThumbState = {
@@ -26,10 +26,8 @@ type ThumbState = {
 };
 
 const recalling = new Set<string>();
-const MAX_MEMORY_THUMBS = LIBRARY_LIMITS.memoryThumbEntries;
 const MAX_ARTWORK_ATTEMPTS = 3;
 const MAX_THUMB_QUEUE = 96;
-const MAX_THUMB_BYTES = 8 * 1024 * 1024;
 let artworkHits = 0;
 let artworkMisses = 0;
 let artworkEvictions = 0;
@@ -44,8 +42,8 @@ function maxThumbnailWorkers() {
   const adaptive = interacting || memory <= 2 ? 1 : Math.min(4, Math.max(2, Math.floor(cores / (memory <= 4 ? 3 : 2))));
   try {
     const saved = Number(localStorage.getItem("reelcase.thumbnail-workers") ?? "0");
-    return [1, 2, 3, 4].includes(saved) ? Math.min(saved, adaptive + 1) : adaptive;
-  } catch { return adaptive; }
+    return Math.min(getPerformanceProfile().thumbnailWorkers, [1, 2, 3, 4].includes(saved) ? Math.min(saved, adaptive + 1) : adaptive);
+  } catch { return Math.min(getPerformanceProfile().thumbnailWorkers, adaptive); }
 }
 
 let inputPriorityUntil = 0;
@@ -64,10 +62,11 @@ const thumbnailQueue = createThumbnailQueue({
     document.addEventListener('visibilitychange', wake);
     const stopViewer = subscribeArtworkSuppression(wake);
     const stopSession = subscribeSessionPhase(wake);
+    const stopProfile = subscribePerformanceProfile(wake);
     return () => {
       for (const event of events) window.removeEventListener(event, input);
       document.removeEventListener('visibilitychange', wake);
-      stopViewer(); stopSession();
+      stopViewer(); stopSession(); stopProfile();
     };
   },
 });
@@ -82,6 +81,7 @@ export function getThumbDiagnostics() {
   const queue = thumbnailQueue.snapshot();
   return { active: queue.active, queued: queue.queued, inflight: queue.jobs, recalling: recalling.size, entries: Object.keys(s.byId).length,
     bytes: Object.values(s.byId).reduce((sum, value) => sum + artworkBytes(value), 0),
+    byteLimit: getPerformanceProfile().artworkBytes, entryLimit: getPerformanceProfile().artworkEntries,
     failures: Object.keys(s.failed).length, hits: artworkHits, misses: artworkMisses, evictions: artworkEvictions };
 }
 
@@ -163,7 +163,9 @@ function capture(src: string, signal: AbortSignal): Promise<{ thumb: Blob | null
   });
 }
 
-function boundedThumbState(s: Pick<ThumbState, "byId" | "failed" | "durations" | "diagnostics">, count: number = MAX_MEMORY_THUMBS, bytes = MAX_THUMB_BYTES) {
+function boundedThumbState(s: Pick<ThumbState, "byId" | "failed" | "durations" | "diagnostics">, count = getPerformanceProfile().artworkEntries, bytes = getPerformanceProfile().artworkBytes) {
+  count = Math.min(count, getPerformanceProfile().artworkEntries);
+  bytes = Math.min(bytes, getPerformanceProfile().artworkBytes);
   // Disk hydration and companion recalls can finish after idle cleanup. Keep
   // their late results inside the resting budget instead of refilling it.
   if (!allowAutomaticRefresh()) { count = Math.min(count, 32); bytes = Math.min(bytes, 1024 * 1024); }
@@ -172,7 +174,8 @@ function boundedThumbState(s: Pick<ThumbState, "byId" | "failed" | "durations" |
     artworkEvictions++;
     releaseArtwork(url);
   }
-  return { byId, failed: boundedRecord(s.failed, MAX_MEMORY_THUMBS * 2), durations: boundedRecord(s.durations, MAX_MEMORY_THUMBS * 2), diagnostics: boundedRecord(s.diagnostics, MAX_MEMORY_THUMBS * 2) };
+  const auxiliaryLimit = getPerformanceProfile().artworkEntries * 2;
+  return { byId, failed: boundedRecord(s.failed, auxiliaryLimit), durations: boundedRecord(s.durations, auxiliaryLimit), diagnostics: boundedRecord(s.diagnostics, auxiliaryLimit) };
 }
 
 export const useThumbs = create<ThumbState>((set, get) => ({
@@ -243,7 +246,7 @@ export const useThumbs = create<ThumbState>((set, get) => ({
     try {
       // Keep startup cheap. Other disk entries are reopened only when their
       // cards enter the existing visibility/decode queue.
-      const rows = await loadThumbCache(32);
+      const rows = await loadThumbCache(32, getPerformanceProfile().artworkBytes);
       // Keep insertion order oldest-first so idle/LRU trimming retains the
       // newest disk artwork, followed by frames captured in this session.
       const restored: Record<string, string> = {};
@@ -262,7 +265,7 @@ export const useThumbs = create<ThumbState>((set, get) => ({
   /** Recall a companion-disk thumb when browser IndexedDB was pruned. */
   recallCompanion: async (id) => {
     if (!allowAutomaticRefresh() || isArtworkSuppressed()) return;
-    if (!id || get().byId[id] || recalling.has(id) || recalling.size >= 8) return;
+    if (!id || get().byId[id] || recalling.has(id) || recalling.size >= Math.min(8, getPerformanceProfile().imageRequests)) return;
     recalling.add(id);
     try {
       const dataUrl = await companionGetThumb(id);
@@ -278,3 +281,9 @@ export const useThumbs = create<ThumbState>((set, get) => ({
     set(s => boundedThumbState(s, 32, 1024 * 1024));
   },
 }));
+// Lowering the budget releases cached blob URLs immediately; durable artwork
+// remains on disk and late decoders also pass through the current ceiling.
+const stopProfileCache = typeof window === 'undefined' ? undefined : subscribePerformanceProfile(() => {
+  useThumbs.setState(s => boundedThumbState(s));
+});
+import.meta.hot?.dispose(() => stopProfileCache?.());

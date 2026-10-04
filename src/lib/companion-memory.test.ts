@@ -7,7 +7,7 @@ test("poster mirroring bounds stalled bursts, deduplicates frames, and backs off
   const previousWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const previousDocument = Object.getOwnPropertyDescriptor(globalThis, "document");
   const oldFetch = globalThis.fetch;
-  const surface = Object.assign(new EventTarget(), { setInterval: () => 1, clearInterval: () => {} });
+  const surface = Object.assign(new EventTarget(), { setTimeout: () => 1, clearTimeout: () => {} });
   Object.defineProperty(globalThis, "window", { configurable: true, value: surface });
   Object.defineProperty(globalThis, "document", { configurable: true, value: Object.assign(new EventTarget(), { hidden: false }) });
   const stop = trackSessionActivity(() => {});

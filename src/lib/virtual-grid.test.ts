@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { GRID_MOUNT_CAP, GridRowMetrics, gridWindow } from "./virtual-grid.ts";
+import { GRID_MOUNT_CAP, GridRowMetrics, gridWindow, gridKeyboardTarget } from "./virtual-grid.ts";
 
 test("a million-title grid remains bounded scrolling forward and all the way back", () => {
   for (const columns of [1, 2, 3, 4, 5, 7]) {
@@ -50,4 +50,16 @@ test("empty and partial rows never invent cards or negative spacer heights", () 
   assert.ok(last.lead >= 0);
   assert.equal(metrics.measure(0, 0), false);
   assert.equal(metrics.measure(0, Number.NaN), false);
+});
+
+test('grid keyboard moves follow measured columns and stay inside loaded titles', () => {
+  assert.equal(gridKeyboardTarget('ArrowDown', 7, 101, 5), 12);
+  assert.equal(gridKeyboardTarget('ArrowDown', 7, 101, 2), 9);
+  assert.equal(gridKeyboardTarget('ArrowUp', 3, 101, 5), null);
+  assert.equal(gridKeyboardTarget('ArrowRight', 99, 101, 5), 100);
+  assert.equal(gridKeyboardTarget('ArrowDown', 99, 101, 5), null);
+  assert.equal(gridKeyboardTarget('Home', 99, 101, 5), 0);
+  assert.equal(gridKeyboardTarget('End', 0, 101, 5), 100);
+  assert.equal(gridKeyboardTarget('End', 100, 101, 5), null);
+  assert.equal(gridKeyboardTarget('Enter', 5, 101, 5), null);
 });

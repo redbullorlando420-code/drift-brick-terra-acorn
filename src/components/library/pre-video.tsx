@@ -4,6 +4,7 @@ import { adultFolderIds as privateFolderIds } from "@/lib/videos/adult-providers
 import { confidenceAdjustedPreference } from '@/lib/videos/ranking-core';
 import { PullPauseButton } from "./pull-pause-button";
 import { allowAutomaticRefresh } from "@/lib/session-activity";
+import { registerPeriodicTask } from '@/lib/periodic-work';
 import { warmVideoPlayer } from "./video-overlay-loader";
 import { youtubeEmbedUrl } from "@/lib/videos/youtube-embed";
 import { topicEvidence } from '@/lib/videos/topics';
@@ -90,11 +91,11 @@ export function PreVideo() {
       const watched = (Date.now() - openedAt) / 1_000;
       if (watched >= 8) markProgress(video.id, Math.min(watched, durationHint * 0.94), durationHint);
     };
-    const timer = window.setInterval(() => {
+    const task = registerPeriodicTask({ name: 'Preview watch record', mode: 'visible', everyMs: 5_000, work: () => {
       savePreviewWatch();
       if ((Date.now() - openedAt) >= 8_000 && document.visibilityState === "visible" && document.hasFocus()) recordWatchTime(video.id, "previewEstimated", 5);
-    }, 5_000);
-    return () => { savePreviewWatch(); window.clearInterval(timer); };
+    } });
+    return () => { savePreviewWatch(); task.cancel(); };
   }, [markProgress, video?.id, video?.remote]);
   const creator = video?.remote?.channelName?.trim() ?? "";
   const creatorKeyword = creator.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -124,8 +125,8 @@ export function PreVideo() {
   useEffect(() => {
     // Rotate tie-breaks while a preview stays open. The taste signals remain
     // dominant, but a shelf does not become a permanently fixed six titles.
-    const timer = window.setInterval(() => { if (allowAutomaticRefresh()) setRecommendationSeed(Date.now() >>> 0); }, 60_000);
-    return () => window.clearInterval(timer);
+    return registerPeriodicTask({ name: 'Preview recommendations', everyMs: 60_000,
+      work: () => { if (allowAutomaticRefresh()) setRecommendationSeed(Date.now() >>> 0); } }).cancel;
   }, []);
   useEffect(() => {
     if (!video || video.remote || video.src) { setLocalPreviewSrc(null); setPreviewError(""); return; }

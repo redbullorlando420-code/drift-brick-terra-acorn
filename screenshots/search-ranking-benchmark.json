@@ -1,0 +1,9 @@
+{
+  "entries": 100000,
+  "returned": 100000,
+  "legacySingleBlockingTaskMs": 110.99,
+  "cooperativeTotalMs": 327.79,
+  "maxCooperativeWorkSliceMs": 12.26,
+  "yieldedTasks": 1225,
+  "note": "Synthetic warm-cache ranking workload; total throughput and measured slices are not browser input timings or whole-app heap measurements."
+}

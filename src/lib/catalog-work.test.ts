@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { forEachCatalogSlice, copyCatalogRecord } from './catalog-work.ts';
+import { collectCatalogRows, forEachCatalogSlice, copyCatalogRecord } from './catalog-work.ts';
 import { createPreviewUrlCache } from './videos/preview-url-cache.ts';
 import { planAdultPull } from './videos/adult-pull-plan.ts';
 
@@ -10,6 +10,17 @@ test('catalog traversals yield and cancel before processing another slice', asyn
     if (++turns === 3) throw new Error('cancelled');
   }), /cancelled/);
   assert.ok(visits <= 1024); assert.equal(turns, 3);
+});
+
+test('paged catalog iterators yield before reading and cancel without materializing the remaining million rows', async () => {
+  let visited = 0, turns = 0;
+  function* rows() { for (let index = 0; index < 1_000_000; index++) { visited++; yield {index}; } }
+  const work = collectCatalogRows(rows(), async () => { if (++turns === 3) throw new Error('cancelled'); });
+  assert.equal(visited, 0);
+  await assert.rejects(work, /cancelled/); assert.ok(visited <= 1024); assert.equal(turns, 3);
+  const first = { id: 1 }, second = { id: 2 };
+  const collected = await collectCatalogRows(new Set([first, second]), async () => {});
+  assert.deepEqual(collected, [first, second]); assert.equal(collected[0], first);
 });
 test('large record copies are immutable, preserve unusual ids, and yield repeatedly', async () => {
   const source = Object.fromEntries(Array.from({ length: 100_000 }, (_, index) => [`id:${index}`, index]));

@@ -615,9 +615,9 @@ export const VideoCard = memo(function VideoCard({
         <Download className="size-3.5" />
       </button>}
       {live && (
-        <div className="mt-2 flex items-center justify-between border-t border-border pt-2">
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2">
           <span className="text-[11px] text-muted">Save this stream</span>
-          <div className="flex items-center gap-1">
+          <div className="flex max-w-full min-w-0 flex-wrap items-center gap-1">
             <button type="button" aria-label={fav ? "Remove from favorites" : "Add to favorites"} onClick={(event) => { event.stopPropagation(); toggleFavorite(video.id); }} className={cn("flex min-h-8 items-center gap-1 rounded-sm px-2 text-xs transition-colors hover:bg-elevated", fav && "bg-accent/15 text-accent")}><Heart className={cn("size-3.5", fav && "fill-current")} />{fav ? "Saved" : "Save"}</button>
             <button type="button" aria-label={liked ? "Remove like" : "Like"} onClick={(event) => { event.stopPropagation(); toggleLike(video.id); }} className={cn("flex min-h-8 items-center gap-1 rounded-sm px-2 text-xs transition-colors hover:bg-elevated", liked && "bg-accent/15 text-accent")}><ThumbsUp className={cn("size-3.5", liked && "fill-current")} />{liked ? "Liked" : "Like"}</button>
           </div>

@@ -1,0 +1,1 @@
+✖ lowering the profile immediately releases artwork memory while preserving saved individual settings (44.9925ms)

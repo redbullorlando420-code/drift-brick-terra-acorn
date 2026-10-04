@@ -1,0 +1,28 @@
+{
+  "entries": 1000000,
+  "legacy20CommentCyclesMs": 3463.3,
+  "legacyMetadataReads": 40000020,
+  "isolated20CommentCyclesMs": 0.94,
+  "isolatedCatalogMetadataReads": 0,
+  "copiedCatalogArrays": 0,
+  "soakCycles": 5000,
+  "retainedAfterCycles": {
+    "entries": 11,
+    "estimatedBytes": 28358,
+    "maxEntries": 12,
+    "maxBytes": 512000,
+    "pending": 0,
+    "activeTranscripts": 0,
+    "subscribers": 0
+  },
+  "afterClear": {
+    "entries": 0,
+    "estimatedBytes": 0,
+    "maxEntries": 12,
+    "maxBytes": 512000,
+    "pending": 0,
+    "activeTranscripts": 0,
+    "subscribers": 0
+  },
+  "note": "Isolated Node cache lifecycle test; not a browser or provider idle soak."
+}

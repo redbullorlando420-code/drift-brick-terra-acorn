@@ -3,6 +3,8 @@ export type YoutubeFirstClickTrace = {
   selectorMs?: number;
   selectorReadyMs?: number;
   catalogRows?: number;
+  preparationMs?: number;
+  preparationYields?: number;
   railReadyMs?: number;
   railCards?: number;
   artworkWaitMs?: number;
@@ -38,10 +40,19 @@ export function beginYoutubeFirstClick(providerBusy = false, at = now()) {
 }
 
 export function markYoutubeSelectorReady(rows: number, workMs: number, at = now()) {
-  if (!current || current.selectorReadyMs !== undefined) return;
+  // Opening YouTube before disk restore initially selects zero rows. That
+  // empty shell is not the eventual cached catalog's readiness sample.
+  if (!current || rows <= 0 || current.selectorReadyMs !== undefined) return;
   current.catalogRows = rows;
   current.selectorMs = Math.max(0, Math.round(workMs));
   current.selectorReadyMs = Math.max(0, Math.round(at - current.startedAt));
+  notify();
+}
+
+export function markYoutubePreparationReady(startedAt: number, elapsedMs: number, yields: number) {
+  if (!current || current.startedAt !== startedAt || current.preparationMs !== undefined) return;
+  current.preparationMs = Math.max(0, Math.round(elapsedMs));
+  current.preparationYields = Math.max(0, Math.floor(yields));
   notify();
 }
 

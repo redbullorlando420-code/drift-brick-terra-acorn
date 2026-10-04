@@ -17,6 +17,9 @@ import { companionGetThumb, companionPutThumb } from "@/lib/companion";
 import { CoalescedWriter } from "../coalesced-writer.ts";
 import { catalogCard, withCatalogDetails } from './catalog-card';
 import { artworkBytes, artworkDataUrl } from './binary-artwork';
+import { collectCatalogRows, forEachCatalogSlice, yieldCatalogTask } from '../catalog-work';
+import { recoveredEnrichmentRow, type EnrichmentLedgers, type EnrichmentRow } from './enrichment-batch';
+import { decodeSparseRecord, encodeSparseRecord, patchSparseRecord, sparseRecordBuilder, type EncodedSparseRecord } from '../sparse-record';
 
 const DB_NAME = "reelcase";
 const STORE = "dirs";
@@ -35,16 +38,22 @@ let durablePrefs: Prefs | null = null;
 let durableFollows: FollowedChannel[] | null = null;
 let prefsWrites: Promise<void> = Promise.resolve();
 let followsWrites: Promise<void> = Promise.resolve();
+type StoredPrefs = Prefs & { sparseMetadataRecords?: { tags?: EncodedSparseRecord<string[]>;
+  metadataProvenance?: EncodedSparseRecord<VideoMetadataProvenance> } };
 
 export async function restoreDurablePrefs(): Promise<void> {
   const db = await openDb();
   try {
-    const saved = await new Promise<Prefs | undefined>((resolve, reject) => {
+    const saved = await new Promise<StoredPrefs | undefined>((resolve, reject) => {
       const req = db.transaction(ACTIVITY_STORE).objectStore(ACTIVITY_STORE).get("preferences");
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     });
-    if (saved) durablePrefs = saved;
+    if (saved) {
+      const { sparseMetadataRecords, ...prefs } = saved;
+      durablePrefs = { ...prefs, tags: decodeSparseRecord(sparseMetadataRecords?.tags ?? saved.tags),
+        metadataProvenance: decodeSparseRecord(sparseMetadataRecords?.metadataProvenance ?? saved.metadataProvenance) };
+    }
   } finally { db.close(); }
 }
 
@@ -651,7 +660,7 @@ export function saveTagEdit(id: string, tags: string[]) {
   try { localStorage.setItem(TAG_EDITS_KEY, JSON.stringify(edits)); } catch { /* IndexedDB still saves the full record. */ }
 }
 export function restoreTagEdits(tags: Record<string, string[]>) {
-  return { ...tags, ...readPending<Record<string, string[]>>(TAG_EDITS_KEY, {}) };
+  return patchSparseRecord(tags, Object.entries(readPending<Record<string, string[]>>(TAG_EDITS_KEY, {})));
 }
 
 /** Small synchronous mirror so a just-saved manual lock survives a tab close. */
@@ -662,7 +671,69 @@ export function saveMetadataEdit(id: string, metadata: VideoMetadataProvenance) 
 }
 
 export function restoreMetadataEdits(metadata: Record<string, VideoMetadataProvenance>) {
-  return { ...metadata, ...readPending<Record<string, VideoMetadataProvenance>>(TAG_PROVENANCE_EDITS_KEY, {}) };
+  return patchSparseRecord(metadata, Object.entries(readPending<Record<string, VideoMetadataProvenance>>(TAG_PROVENANCE_EDITS_KEY, {})));
+}
+
+const ENRICHMENT_PREFIX = 'metadata-enrichment:';
+/** Sparse durable rows avoid cloning the entire preference blob for every
+ * automatic batch. A transaction completes before a batch reports success. */
+export async function saveEnrichmentRows(rows: readonly EnrichmentRow[], turn = yieldCatalogTask) {
+  if (!rows.length) return;
+  const db = await openDb();
+  try {
+    for (let offset = 0; offset < rows.length; offset += 64) {
+    await turn();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(ACTIVITY_STORE, 'readwrite'), store = tx.objectStore(ACTIVITY_STORE);
+      for (let index = offset; index < Math.min(rows.length, offset + 64); index++) {
+        const row = rows[index]!; store.put(row, ENRICHMENT_PREFIX + row.id);
+      }
+      tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error);
+    });
+    }
+  } finally { db.close(); }
+}
+
+export async function removeEnrichmentRows(ids: readonly string[]) {
+  if (!ids.length) return;
+  const db = await openDb();
+  try {
+    for (let offset = 0; offset < ids.length; offset += 64) {
+    await yieldCatalogTask();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(ACTIVITY_STORE, 'readwrite'), store = tx.objectStore(ACTIVITY_STORE);
+      for (let index = offset; index < Math.min(ids.length, offset + 64); index++) store.delete(ENRICHMENT_PREFIX + ids[index]);
+      tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error);
+    });
+    }
+  } finally { db.close(); }
+}
+
+export async function restoreEnrichmentRows(base: EnrichmentLedgers): Promise<EnrichmentLedgers> {
+  const db = await openDb();
+  let ledgers = base, after: string | undefined;
+  try {
+    for (;;) {
+      const rows = await new Promise<EnrichmentRow[]>((resolve, reject) => {
+        const range = IDBKeyRange.bound(after ?? ENRICHMENT_PREFIX, ENRICHMENT_PREFIX + '\uffff', Boolean(after), true);
+        const request = db.transaction(ACTIVITY_STORE).objectStore(ACTIVITY_STORE).getAll(range, 256);
+        request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+      });
+      if (!rows.length) break;
+      const tags = sparseRecordBuilder(ledgers.tags), provenance = sparseRecordBuilder(ledgers.metadataProvenance);
+      await forEachCatalogSlice(rows, row => {
+        if (row && typeof row.id === 'string' && Array.isArray(row.tags) && row.tags.every(tag => typeof tag === 'string')
+          && row.provenance && row.provenance.tags && typeof row.provenance.tags === 'object') {
+          const restored = recoveredEnrichmentRow(ledgers, row);
+          if (restored) { tags.set(row.id, restored.tags); provenance.set(row.id, restored.provenance); }
+        }
+      }, yieldCatalogTask, 96);
+      ledgers = { tags: tags.finish(), metadataProvenance: provenance.finish() };
+      after = ENRICHMENT_PREFIX + rows[rows.length - 1]!.id;
+      if (rows.length < 256) break;
+    }
+    return ledgers;
+  } finally { db.close(); }
 }
 
 export type StoredDir = {
@@ -898,7 +969,7 @@ export async function loadCatalogVideos(): Promise<LibraryVideo[]> {
       for (const video of page.rows) if (!video.isSample) rows.push(catalogCard(video));
       if (page.keys.length < 512) break;
       after = page.keys.at(-1);
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await yieldCatalogTask();
     }
     return rows;
   } finally { db.close(); }
@@ -928,7 +999,7 @@ export async function loadCachedThumb(id: string): Promise<StoredThumb | undefin
     });
   } finally { db.close(); }
 }
-export async function loadThumbCache(limit = 120): Promise<StoredThumb[]> {
+export async function loadThumbCache(limit = 120, maxBytes = 8 * 1024 * 1024): Promise<StoredThumb[]> {
   const db = await openDb();
   try {
     return await new Promise<StoredThumb[]>((resolve, reject) => {
@@ -941,7 +1012,7 @@ export async function loadThumbCache(limit = 120): Promise<StoredThumb[]> {
         if (!cursor || rows.length >= Math.max(0, limit)) return;
         const row = cursor.value as StoredThumb;
         const size = row.thumb ? artworkBytes(row.thumb) : 0;
-        if (size <= 8 * 1024 * 1024 - bytes) { rows.push(row); bytes += size; }
+        if (size <= maxBytes - bytes) { rows.push(row); bytes += size; }
         cursor.continue();
       };
       tx.oncomplete = () => resolve(rows);
@@ -1036,19 +1107,20 @@ export async function loadRemoteSnapshot(): Promise<RemoteSnapshot | undefined> 
       for (const video of page.rows) if (video?.id) videos.set(video.id, catalogCard(video));
       if (page.keys.length < 512) break;
       afterKey = page.keys[page.keys.length - 1];
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await yieldCatalogTask();
     }
     // Migrate the old giant snapshot once so on-demand detail reads can use
     // individual records too. Never mark a legacy detail as disk-addressable
     // before its normalized record has actually been saved.
     if (legacy.current?.videos.length) {
-      const missing = legacy.current.videos.filter(video => !videos.has(video.id));
+      const missing: LibraryVideo[] = [];
+      await forEachCatalogSlice(legacy.current.videos, video => { if (!videos.has(video.id)) missing.push(video); }, yieldCatalogTask);
       let migrated = false;
       try { await saveRemoteSnapshot({ ...legacy.current, videos: missing }, true); migrated = true; } catch { /* Retain full legacy details in this session. */ }
-      for (const video of missing) videos.set(video.id, migrated ? catalogCard(video) : video);
+      await forEachCatalogSlice(missing, video => { videos.set(video.id, migrated ? catalogCard(video) : video); }, yieldCatalogTask);
     }
     const meta = legacy.meta ?? legacy.current;
-    return meta ? { videos: [...videos.values()], folders: meta.folders, checkedAt: meta.checkedAt } : undefined;
+    return meta ? { videos: await collectCatalogRows(videos.values()), folders: meta.folders, checkedAt: meta.checkedAt } : undefined;
   } finally { db.close(); }
 }
 export async function saveRemoteSnapshot(snapshot: RemoteSnapshot, complete = false): Promise<void> {
@@ -1215,13 +1287,12 @@ function normalize(raw: Record<string, unknown>): Prefs {
   // New libraries should surface fresh media rather than beginning with an
   // alphabetical wall. Existing explicit preferences remain untouched.
   const sort = (raw.sort as SortKey | undefined) ?? "added";
+  const sparse = raw.sparseMetadataRecords as StoredPrefs['sparseMetadataRecords'];
   return {
     favorites,
     likes: (raw.likes as string[] | undefined) ?? [],
-    tags: (raw.tags as Record<string, string[]> | undefined) ?? {},
-    metadataProvenance: raw.metadataProvenance && typeof raw.metadataProvenance === "object"
-      ? raw.metadataProvenance as Record<string, VideoMetadataProvenance>
-      : {},
+    tags: decodeSparseRecord<string[]>(sparse?.tags ?? raw.tags),
+    metadataProvenance: decodeSparseRecord<VideoMetadataProvenance>(sparse?.metadataProvenance ?? raw.metadataProvenance),
     categories: (raw.categories as Record<string, string> | undefined) ?? {},
     progress: (raw.progress as Prefs["progress"]) ?? {},
     resumeProgress: (raw.resumeProgress as Prefs["resumeProgress"]) ?? {},
@@ -1243,6 +1314,7 @@ function normalize(raw: Record<string, unknown>): Prefs {
     follows: Array.isArray(raw.follows) ? (raw.follows as FollowedChannel[]) : [],
     notices: Array.isArray(raw.notices) ? (raw.notices as AppNotice[]) : [],
     notifyPush: Boolean(raw.notifyPush),
+    unavailableVideoIds: Array.isArray(raw.unavailableVideoIds) ? raw.unavailableVideoIds.filter((id): id is string => typeof id === 'string') : [],
     hiddenVideoIds: Array.isArray(raw.hiddenVideoIds) ? raw.hiddenVideoIds.filter((id): id is string => typeof id === "string") : [],
   };
 }
@@ -1292,7 +1364,14 @@ export function savePrefs(prefs: Prefs) {
   durablePrefs = prefs;
   // Keep large metadata out of synchronous, quota-limited localStorage.
   // Ordered transactions prevent an older edit overwriting a newer one.
-  const pending = putActivityBlob("preferences", prefs);
+  const encodedTags = encodeSparseRecord(prefs.tags), encodedProvenance = prefs.metadataProvenance && encodeSparseRecord(prefs.metadataProvenance);
+  const tags = encodedTags !== prefs.tags ? encodedTags as EncodedSparseRecord<string[]> : undefined;
+  const metadataProvenance = encodedProvenance !== prefs.metadataProvenance ? encodedProvenance as EncodedSparseRecord<VideoMetadataProvenance> : undefined;
+  // Keep legacy fields as plain dictionaries. Old readers retain the baseline;
+  // new readers use this sidecar. Structured clone shares each baseline once.
+  const pending = putActivityBlob("preferences", { ...prefs, tags: tags?.snapshot.base ?? prefs.tags,
+    metadataProvenance: metadataProvenance?.snapshot.base ?? prefs.metadataProvenance,
+    sparseMetadataRecords: tags || metadataProvenance ? { tags, metadataProvenance } : undefined });
   if (prefsWrites !== pending) {
     prefsWrites = pending;
     void pending.catch(() => {

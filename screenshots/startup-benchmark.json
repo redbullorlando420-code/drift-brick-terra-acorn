@@ -1,0 +1,21 @@
+{
+  "results": [
+    {
+      "entries": 100000,
+      "initiatingStackMs": 0.574,
+      "totalMs": 234.271,
+      "turns": 983,
+      "worstMeasuredWorkTurnMs": 10.599,
+      "longestSchedulerGapMs": 4.383
+    },
+    {
+      "entries": 1000000,
+      "initiatingStackMs": 0.157,
+      "totalMs": 2401.284,
+      "turns": 9781,
+      "worstMeasuredWorkTurnMs": 55.306,
+      "longestSchedulerGapMs": 7.26
+    }
+  ],
+  "note": "Synthetic Node preparation with actual reference arrays and cooperative setImmediate turns. Not IndexedDB startup, browser paint/input latency, memory soak or a physical-device result. Work targets four ms; individual object access and garbage collection can exceed it."
+}

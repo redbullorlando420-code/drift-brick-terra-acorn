@@ -8,6 +8,7 @@ import {
   markYoutubeProviderStart,
   markYoutubeRailReady,
   markYoutubeSelectorReady,
+  markYoutubePreparationReady,
 } from "./youtube-first-click-trace.ts";
 
 test("cached first click records selector, text-first rail and later artwork separately", () => {
@@ -20,6 +21,19 @@ test("cached first click records selector, text-first rail and later artwork sep
     railReadyMs: 60, railCards: 4, artworkWaitMs: 85,
     artwork: "loaded", provider: "idle", providerOverlapMs: 0,
   });
+});
+
+test('cooperative preparation timing belongs only to the current navigation', () => {
+  beginYoutubeFirstClick(false, 500);
+  markYoutubePreparationReady(499, 150, 20);
+  assert.equal(getYoutubeFirstClickTrace()?.preparationMs, undefined);
+  markYoutubePreparationReady(500, 125.4, 38);
+  assert.equal(getYoutubeFirstClickTrace()?.preparationMs, 125);
+  assert.equal(getYoutubeFirstClickTrace()?.preparationYields, 38);
+  markYoutubePreparationReady(500, 900, 100);
+  assert.equal(getYoutubeFirstClickTrace()?.preparationMs, 125);
+  beginYoutubeFirstClick(false, 700);
+  assert.equal(getYoutubeFirstClickTrace()?.preparationMs, undefined);
 });
 
 test("provider work is reported only for the part overlapping the route open", () => {
@@ -39,4 +53,15 @@ test("empty rails stay pending and a new click resets the trace", () => {
   assert.equal(getYoutubeFirstClickTrace()?.railReadyMs, undefined);
   beginYoutubeFirstClick(false, 200);
   assert.equal(getYoutubeFirstClickTrace()?.catalogRows, undefined);
+});
+
+test('an empty startup selection cannot freeze the trace before the saved catalog arrives', () => {
+  beginYoutubeFirstClick(false, 100);
+  markYoutubeSelectorReady(0, 0, 105);
+  assert.equal(getYoutubeFirstClickTrace()?.selectorReadyMs, undefined);
+  markYoutubeSelectorReady(99_999, 12, 400);
+  assert.equal(getYoutubeFirstClickTrace()?.catalogRows, 99_999);
+  assert.equal(getYoutubeFirstClickTrace()?.selectorReadyMs, 300);
+  markYoutubeSelectorReady(100_000, 20, 500);
+  assert.equal(getYoutubeFirstClickTrace()?.catalogRows, 99_999);
 });

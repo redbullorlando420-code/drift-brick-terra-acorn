@@ -1,0 +1,30 @@
+✔ viewer comments persist one current card without copying or notifying the 100k browse catalog (416.7777ms)
+✔ a delayed comment response after closing or switching a viewer cannot retain or write a transcript (101.1473ms)
+✔ focused pulls cap memory, metadata and disk together, preserving the rejected page resume point (248.1627ms)
+✔ bulk imports use one cap across creators and persist only admitted entries (203.1761ms)
+✔ routine checks refresh stored titles at a zero cap while excluding new rows from disk and metadata (278.5914ms)
+✔ settings changed while a provider is in flight apply before admission (95.6001ms)
+✔ Adult pulls apply a lowered in-flight cap before tags and append transactions (167.4297ms)
+✔ removed cached Reddit images and confirmed unavailable photos leave Adult shelves without deleting saves (2.8776ms)
+✔ a provider-wide cooldown stops the archive queue without marking unattempted creators failed (50.1299ms)
+✔ unresolved saved stubs do not prevent a real import from resolving them (77.229ms)
+✔ Twitch status cannot replace the YouTube cooldown or archive result (3.7865ms)
+✔ manual completion returns its own counts even when another provider changes pull history (83.9388ms)
+✔ cooldown stops focused, import and live work while mixed checks still service Twitch (4.9729ms)
+✔ an import provider limit checkpoints the cooldown and leaves later batches unattempted (5.579ms)
+✔ automatic provider detection still permits a focused Twitch URL during a YouTube cooldown (0.6961ms)
+✔ a catalog-only cooldown allows live discovery on confirmed channel IDs (1.8206ms)
+✔ scheduled archive growth checks four creators in small responses and persists new entries and cursors (548.6279ms)
+✔ manual force ignores the old timer, stops on a new rejection, and leaves automatic work waiting (61.7919ms)
+✔ healthy forced pulls resume the batch, keep entry caps, and clear obsolete restored deadlines (249.5447ms)
+✔ a recovered manual pull prevents untouched old creator failures restoring a global cooldown (81.7922ms)
+✔ a 70000-entry library admits 3000 new YouTube entries in six bounded creator commits (8457.0797ms)
+ℹ 70000 existing + 3000 added in six commits: 8446ms with mocked network/disk; no full catalog persistence.
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11634.9861

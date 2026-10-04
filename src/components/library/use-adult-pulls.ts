@@ -4,9 +4,10 @@ import { ADULT_REDDIT_SUBS } from '@/lib/videos/adult-sites';
 import { ADULT_PULL_PROVIDERS } from '@/lib/videos/adult-providers';
 import { loadAdultArchiveCursors } from '@/lib/videos/adult-archive-cursors';
 import { adultRedditPullSources, planAdultPull } from '@/lib/videos/adult-pull-plan';
-import { getPullSettings, subscribePullSettings } from '@/lib/pull-settings';
-import { catalogPullAvailable, subscribePullControl } from '@/lib/pull-control';
-import { allowAutomaticRefresh, subscribeSessionPhase } from '@/lib/session-activity';
+import { getPullSettings } from '@/lib/pull-settings';
+import { catalogPullAvailable, subscribePullAvailability } from '@/lib/pull-control';
+import { allowAutomaticRefresh } from '@/lib/session-activity';
+import { registerPeriodicTask } from '@/lib/periodic-work';
 
 import { remoteEntryCounts, remainingEntrySlots } from '@/lib/videos/entry-limits';
 const LAST_ATTEMPT_KEY = 'reelcase.adult-sweep-at.v1';
@@ -34,20 +35,19 @@ export function useAdultPulls() {
       const providers = planAdultPull(loadAdultArchiveCursors('all', 'top-weekly'), now);
       if (!providers.length) return;
       busy = true;
-      const capacity = remainingEntrySlots(await remoteEntryCounts(state.videos), getPullSettings(), "adult");
-      if (!capacity || stopped || !catalogPullAvailable()) { busy = false; return; }
-      lastAttempt = now;
-      try { localStorage.setItem(LAST_ATTEMPT_KEY, String(now)); } catch { /* Session pacing remains. */ }
       try {
+        const capacity = remainingEntrySlots(await remoteEntryCounts(state.videos), getPullSettings(), "adult");
+        if (!capacity || stopped || !catalogPullAvailable() || !allowAutomaticRefresh()) return;
+        lastAttempt = Date.now();
+        try { localStorage.setItem(LAST_ATTEMPT_KEY, String(lastAttempt)); } catch { /* Session pacing remains. */ }
         await state.searchAdultFeed('all', 'top-weekly', { append: true, providers,
           maxVideos: Math.min(capacity, remaining, policy.adultBatchVideos), redditSources: adultRedditPullSources(ADULT_REDDIT_SUBS) });
       } catch { /* Pull ledger/cooldowns explain provider failures. */ }
       finally { busy = false; }
     };
-    const wake = () => { void tick(); };
-    const first = window.setTimeout(wake, 8_000), interval = window.setInterval(wake, 15_000);
-    const stopControl = subscribePullControl(wake), stopSettings = subscribePullSettings(wake), stopSession = subscribeSessionPhase(wake);
-    document.addEventListener('visibilitychange', wake); window.addEventListener('online', wake);
-    return () => { stopped = true; clearTimeout(first); clearInterval(interval); stopControl(); stopSettings(); stopSession(); document.removeEventListener('visibilitychange', wake); window.removeEventListener('online', wake); };
+    const task = registerPeriodicTask({ name: 'Adult pulls', everyMs: 15_000, firstMs: 8_000,
+      enabled: () => getPullSettings().automaticPulls && catalogPullAvailable(true) && navigator.onLine, work: tick });
+    const stopAvailability = subscribePullAvailability(task.wake);
+    return () => { stopped = true; task.cancel(); stopAvailability(); };
   }, [hydrated, sourceId, unlocked]);
 }

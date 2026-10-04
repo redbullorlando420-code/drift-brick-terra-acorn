@@ -1,0 +1,29 @@
+{
+  "reports": [
+    {
+      "entries": 100000,
+      "visits": 10000,
+      "previousPrefixReferences": 100000,
+      "previousPrefixCopyMs": 0.117,
+      "maxRailReferences": 8,
+      "maxGridCards": 45,
+      "retainedRowMeasurements": 512,
+      "windowMedianMs": 0.048,
+      "windowP95Ms": 0.114,
+      "windowWorstMs": 2.862
+    },
+    {
+      "entries": 1000000,
+      "visits": 10000,
+      "previousPrefixReferences": 1000000,
+      "previousPrefixCopyMs": 0.752,
+      "maxRailReferences": 8,
+      "maxGridCards": 45,
+      "retainedRowMeasurements": 512,
+      "windowMedianMs": 0.039,
+      "windowP95Ms": 0.073,
+      "windowWorstMs": 1.232
+    }
+  ],
+  "note": "Synthetic Node window/geometry benchmark with real reference arrays, not browser scroll latency, browser maximum scroll dimensions, or a heap soak."
+}

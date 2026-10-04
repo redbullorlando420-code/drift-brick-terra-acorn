@@ -1,0 +1,45 @@
+✔ actual sparse persistence batches restore in 256-row pages without reading full preferences or losing locks (573.9101ms)
+✔ real store metadata actions return before catalog parsing, honor locks, save compact provider provenance, and hold during a viewer (166.7505ms)
+✔ real smart tags retain source/creator filters and manual locks without a catalog-sized click stack (1.6519ms)
+✔ manual and accepted inspection edits never enumerate the existing tag ledgers (1.9098ms)
+✔ removing a folder removes only its sparse enrichment records as well as its catalog metadata (0.7289ms)
+✔ lowering the profile immediately releases artwork memory while preserving saved individual settings (29.1259ms)
+✔ a live budget change holds new requests until older requests finish and refills on an increase (2.5163ms)
+✔ a cross-tab profile change uses one storage signal to trim the current cache (10.2063ms)
+✔ revision 2 promotes only the newly verified hydration milestone (1.242ms)
+✔ a later manual restore to planned remains saved (0.1994ms)
+✔ revision 3 promotes the YouTube trace without undoing manual restores (7.4776ms)
+✔ revision 4 promotes artwork priority while respecting older manual restores (0.2164ms)
+✔ pre-revision plans receive the original verified completions (0.244ms)
+✔ revision 5 promotes only verified viewer milestones and preserves later manual choices (0.8131ms)
+✔ revision 6 completes the verified search budget without completing broader audits (1.011ms)
+✔ revision 7 starts the timer audit without completing it or changing other manual choices (0.2746ms)
+✔ revision 8 completes verified timer consolidation and preserves unrelated/later manual statuses (0.1932ms)
+✔ revision 9 promotes only verified navigation and preserves later manual restores (0.3738ms)
+✔ revision 10 starts enrichment work honestly without completing it or overriding blocked/later choices (0.3937ms)
+✔ revision 11 completes only verified enrichment and respects later manual restores (0.3768ms)
+✔ revision 12 completes verified virtualization without changing other or later manual choices (0.1498ms)
+✔ revision 13 completes only verified startup milestones and preserves later manual choices (0.3055ms)
+✔ revision 14 completes the verified slow-device profile without resetting other or later choices (0.1216ms)
+✔ large restore yields before reading rows, keeps compact cards and joins resume aliases without changing inputs (711.7587ms)
+✔ restored duplicates keep foreground edits, shared memberships and missing durable metadata (91.934ms)
+✔ resume preparation reuses unchanged records and restoration ignores unrelated navigation (1.9954ms)
+✔ unchanged resume recovery does not copy or read every saved progress entry (50.4703ms)
+✔ routine refreshes keep historical YouTube uploads that were not repeated by the provider (1.4584ms)
+✔ a successful live check reports stale broadcast cards while marking them offline (0.2212ms)
+✔ catalog sweeps reuse unchanged rows and append new uploads without dropping saved details (0.4861ms)
+✔ an archive row with an unknown date retains a known feed publication date (0.2383ms)
+✔ compact YouTube archive rows retain known views and duration while accepting explicit fresh values (0.1839ms)
+✔ unchanged million-entry pages visit the catalog once without copying it (964.0683ms)
+✔ staged changes preserve sequential duplicates, canonical identity and newer live observations (5.331ms)
+✔ async refreshes share unchanged arrays and preserve removals, live transitions and new rows (45.3502ms)
+✔ cancellation of staged catalog work leaves all original references intact (1.6573ms)
+✔ large change batches and late removals match sequential merge behavior without mutating the input (793.0805ms)
+ℹ tests 37
+ℹ suites 0
+ℹ pass 37
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2226.4237

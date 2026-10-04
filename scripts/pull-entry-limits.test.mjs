@@ -39,6 +39,50 @@ function reset(videos = []) {
 }
 const flush = () => new Promise(resolve => setTimeout(resolve, 80));
 
+test('YouTube pull commits use sparse tag updates without enumerating the existing ledgers', async () => {
+  reset([]);fixture.response={channel,videos:[card('new-sparse')],cache:{hits:0,misses:1,scope:'catalog'}};
+  const guarded = value => new Proxy(value,{ownKeys(){throw Error('provider copied the entire tag ledger');}});
+  useLibrary.setState({tags:guarded({unrelated:['keep']}),metadataProvenance:guarded({})});
+  await useLibrary.getState().followRemoteQuery('test','youtube');
+  await flush();
+  assert.deepEqual(useLibrary.getState().tags.unrelated,['keep']);assert.ok(useLibrary.getState().tags['new-sparse'].length);
+  assert.equal(fixture.writes.length,1);
+});
+
+test('viewer comments persist one current card without copying or notifying the 100k browse catalog', async () => {
+  const { viewerDetails } = await import('../src/lib/videos/viewer-details.ts');
+  const { lookupVideo } = await import('../src/lib/videos/video-lookup.ts');
+  let reads = 0;
+  const rows = Array.from({ length: 100_000 }, (_, i) => {
+    const row = card(`comments:${i}`), remote = row.remote;
+    Object.defineProperty(row, 'remote', { get() { reads++; return remote; } }); return row;
+  });
+  reset(rows); const selected = rows.at(-1);
+  useLibrary.setState({ previewId: selected.id }); lookupVideo(rows, selected.id); reads = 0;
+  let notifications = 0; const unsubscribe = useLibrary.subscribe(() => notifications++);
+  const comments = [{ id: 'one', body: 'Durable comment' }];
+  useLibrary.getState().setVideoComments(selected.id, comments); await flush();
+  assert.equal(useLibrary.getState().videos, rows);
+  assert.equal(notifications, 0, 'comments do not invalidate catalog subscribers');
+  assert.equal(viewerDetails.commentsFor(selected.id), comments);
+  assert.equal(fixture.writes.length, 1); assert.deepEqual(fixture.writes[0].remote.comments, comments);
+  assert.ok(reads < 10, 'saving selected comments does not build a full catalog metadata index');
+  useLibrary.getState().setVideoComments(selected.id, []); await flush();
+  assert.deepEqual(viewerDetails.commentsFor(selected.id), [], 'an accepted empty response clears the previous transcript');
+  assert.deepEqual(fixture.writes.at(-1).remote.comments, []);
+  const beforeRelease = reads; useLibrary.getState().releaseVideoComments();
+  assert.equal(reads, beforeRelease, 'closing comments does not scan any card');
+  assert.equal(viewerDetails.diagnostics().activeTranscripts, 0);
+  assert.equal(notifications, 0); unsubscribe();
+});
+test('a delayed comment response after closing or switching a viewer cannot retain or write a transcript', async () => {
+  const { viewerDetails } = await import('../src/lib/videos/viewer-details.ts');
+  reset([card('closed'), card('current')]);
+  useLibrary.setState({ previewId: 'current' });
+  useLibrary.getState().setVideoComments('closed', [{ id: 'late', body: 'Stale' }]); await flush();
+  assert.equal(fixture.writes.length, 0); assert.equal(viewerDetails.diagnostics().activeTranscripts, 0);
+});
+
 test('focused pulls cap memory, metadata and disk together, preserving the rejected page resume point', async () => {
   reset([card('old')]);
   fixture.response = { channel: { ...channel, catalogCursor: 'after' }, videos: [card('new'), card('blocked')] };

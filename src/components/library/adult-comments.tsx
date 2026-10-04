@@ -69,8 +69,9 @@ export function AdultComments({ video }: { video: LibraryVideo }) {
             ? `${result.note} Linked Redgifs media stays attached to this original Reddit thread.`
             : result.note,
         );
+        // An accepted empty response must replace older saved threads too.
+        setVideoComments(video.id, result.comments);
         if (result.comments.length) {
-          setVideoComments(video.id, result.comments);
           if (kind === "reddit") {
             const blob = result.comments.map((c) => c.body).join(" ");
             const mined = [

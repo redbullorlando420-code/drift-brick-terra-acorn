@@ -1,0 +1,46 @@
+✔ actual sparse persistence batches restore in 256-row pages without reading full preferences or losing locks (789.183ms)
+✔ real store metadata actions return before catalog parsing, honor locks, save compact provider provenance, and hold during a viewer (232.7195ms)
+✔ real smart tags retain source/creator filters and manual locks without a catalog-sized click stack (35.9924ms)
+✔ manual and accepted inspection edits never enumerate the existing tag ledgers (5.4767ms)
+✔ removing a folder removes only its sparse enrichment records as well as its catalog metadata (0.8923ms)
+✔ worker-free search yields, preserves metadata and exact tags, and cancels without an index (279.02ms)
+✔ cancelled offscreen thumbnail requests leave no queued work or leaked slots (3.2764ms)
+✔ aborting an awakened waiter still lets the next visible image load (0.476ms)
+✔ remote artwork does not grow the local frame-thumbnail cache (0.7587ms)
+✔ real frame captures release media on viewer pause, resume subscribed cards, and cancel unmounted work (107.6381ms)
+✔ binary thumbnails obey backing-byte limits and revoke evicted URLs (20.4276ms)
+✔ an evicted binary disk thumbnail reopens without file access or video decoding (89.4123ms)
+✔ worker batches preserve search metadata and replace stale generations (11.7569ms)
+✔ search client applies backpressure, rejects stale replies, and settles worker failures (138.637ms)
+✔ YouTube pull commits use sparse tag updates without enumerating the existing ledgers (215.5035ms)
+✔ viewer comments persist one current card without copying or notifying the 100k browse catalog (468.1714ms)
+✔ a delayed comment response after closing or switching a viewer cannot retain or write a transcript (102.308ms)
+✔ focused pulls cap memory, metadata and disk together, preserving the rejected page resume point (264.6023ms)
+✔ bulk imports use one cap across creators and persist only admitted entries (239.7564ms)
+✔ routine checks refresh stored titles at a zero cap while excluding new rows from disk and metadata (266.5252ms)
+✔ settings changed while a provider is in flight apply before admission (145.4212ms)
+✔ Adult pulls apply a lowered in-flight cap before tags and append transactions (386.4093ms)
+✔ removed cached Reddit images and confirmed unavailable photos leave Adult shelves without deleting saves (82.781ms)
+✔ a provider-wide cooldown stops the archive queue without marking unattempted creators failed (99.3554ms)
+✔ unresolved saved stubs do not prevent a real import from resolving them (81.2822ms)
+✔ Twitch status cannot replace the YouTube cooldown or archive result (2.048ms)
+✔ manual completion returns its own counts even when another provider changes pull history (58.0062ms)
+✔ cooldown stops focused, import and live work while mixed checks still service Twitch (1.9018ms)
+✔ an import provider limit checkpoints the cooldown and leaves later batches unattempted (5.8061ms)
+✔ automatic provider detection still permits a focused Twitch URL during a YouTube cooldown (1.0394ms)
+✔ a catalog-only cooldown allows live discovery on confirmed channel IDs (1.1624ms)
+✔ scheduled archive growth checks four creators in small responses and persists new entries and cursors (275.373ms)
+✔ manual force ignores the old timer, stops on a new rejection, and leaves automatic work waiting (162.5944ms)
+✔ healthy forced pulls resume the batch, keep entry caps, and clear obsolete restored deadlines (251.0848ms)
+✔ a recovered manual pull prevents untouched old creator failures restoring a global cooldown (129.1637ms)
+✔ a 70000-entry library admits 3000 new YouTube entries in six bounded creator commits (6798.5578ms)
+ℹ 70000 existing + 3000 added in six commits: 6737ms with mocked network/disk; no full catalog persistence.
+✔ real startup rebases a catalog restore around a concurrent pull, unfollow, favorite, resume and navigation (1996.9344ms)
+ℹ tests 37
+ℹ suites 0
+ℹ pass 37
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10688.6034

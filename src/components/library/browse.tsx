@@ -2,14 +2,16 @@ import { ChevronDown, ChevronRight, Heart, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { VideoCard } from "./video-card";
 import { VirtualVideoGrid } from "./virtual-video-grid";
+import { usePerformanceProfile } from './use-performance-profile';
 import { cn } from "@/lib/utils";
 import { titleOf, type LibraryVideo } from "@/lib/videos/types";
 import { useLibrary } from "@/lib/videos/store";
 import { useThumbs } from "@/lib/videos/thumbs";
 import { adultThumbCandidatesForVideo } from "@/lib/videos/adult-thumbs";
-import { markFirstShelf } from "@/lib/first-shelf-trace";
+import { getFirstShelfTrace, markFirstShelf, markFirstShelfArtwork } from "@/lib/first-shelf-trace";
+import { watchShelfArtwork } from '@/lib/shelf-artwork';
 import { getYoutubeFirstClickTrace, markYoutubeArtworkReady, markYoutubeRailReady } from "@/lib/youtube-first-click-trace";
-import { railKeyboardTarget, railLimitForTarget, railWindow, railWindowStartForTarget } from "@/lib/virtual-rail";
+import { railItems, railKeyboardTarget, railLimitForTarget, railWindowStartForTarget, windowBoundaryTarget } from "@/lib/virtual-rail";
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
 const RAIL_SIZES = [8, 16, 32, 48];
@@ -109,6 +111,8 @@ export function TitleRail({
     // not briefly render (or remain at) the four-card fallback window.
     const width = Math.max(320, Math.round(rail.clientWidth));
     setRailWidth((current) => current === width ? current : width);
+    const card = rail.querySelector<HTMLElement>('[data-rail-index]');
+    if (card) setCardStride(card.getBoundingClientRect().width + (parseFloat(getComputedStyle(rail).columnGap) || 0));
   }, []);
   const leaveTimer = useRef<number | undefined>(undefined);
   const [nearViewport, setNearViewport] = useState(priority);
@@ -117,9 +121,11 @@ export function TitleRail({
   const [railWidth, setRailWidth] = useState(0);
   const [windowStart, setWindowStart] = useState(0);
   const [focusRequest, setFocusRequest] = useState(0);
-  // Approximate card stride (width + gap). Used only for horizontal windowing.
-  const cardStride = variant === "poster" ? 148 : 236;
-  const overscan = 1;
+  const firstShelfOwner = useRef(false);
+  const firstArtworkEpoch = useRef(0);
+  // Use the rendered card width and gap: poster widths change at breakpoints.
+  const [cardStride, setCardStride] = useState(variant === "poster" ? 148 : 236);
+  const overscan = usePerformanceProfile().railOverscan;
   useEffect(() => {
     const shelf = shelfRef.current;
     if (!shelf || !videos.length) return;
@@ -153,7 +159,11 @@ export function TitleRail({
   useEffect(() => {
     const rail = railRef.current;
     if (!rail || !nearViewport) return;
-    const sync = () => setRailWidth(Math.max(320, Math.round(rail.clientWidth)));
+    const sync = () => {
+      setRailWidth(Math.max(320, Math.round(rail.clientWidth)));
+      const card = rail.querySelector<HTMLElement>('[data-rail-index]');
+      if (card) setCardStride(card.getBoundingClientRect().width + (parseFloat(getComputedStyle(rail).columnGap) || 0));
+    };
     sync();
     const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(sync) : undefined;
     observer?.observe(rail);
@@ -180,7 +190,21 @@ export function TitleRail({
     rail.scrollLeft = centeredLeft;
     trigger.focus({ preventScroll: true });
   }, [cardStride, focusRequest, limit, nearViewport, railWidth, windowStart]);
-  useEffect(() => { if (nearViewport && videos.length) markFirstShelf(title, Math.min(videos.length, limit)); }, [nearViewport, limit, title, videos.length]);
+  useEffect(() => {
+    const rail = railRef.current;
+    if (!nearViewport || !videos.length || !rail) return;
+    if (markFirstShelf(title, rail.querySelectorAll('[data-rail-index]').length)) firstShelfOwner.current = true;
+    if (firstShelfOwner.current && getFirstShelfTrace().artwork === 'pending') {
+      const epoch = ++firstArtworkEpoch.current;
+      const stop = watchShelfArtwork(rail, markFirstShelfArtwork);
+      return () => {
+        stop();
+        // Strict Mode can recreate this same owner before the microtask.
+        // Actual departure records deferment instead of leaving a pending trace.
+        queueMicrotask(() => { if (firstArtworkEpoch.current === epoch) markFirstShelfArtwork(false); });
+      };
+    }
+  }, [nearViewport, limit, title, videos.length]);
   useEffect(() => {
     if (!priority || title !== "Latest uploads" || !nearViewport || !videos.length) return;
     const rail = railRef.current;
@@ -190,37 +214,14 @@ export function TitleRail({
     // React Strict Mode replays effects after cleanup; keep the artwork watch
     // alive even when the first pass already recorded the text-first rail.
     if (getYoutubeFirstClickTrace()?.artwork !== "pending" || getYoutubeFirstClickTrace()?.railReadyMs === undefined) return;
-    let finished = false;
-    const seen = new WeakSet<HTMLImageElement>();
-    const finish = (loaded: boolean) => {
-      if (finished) return;
-      finished = true;
-      markYoutubeArtworkReady(loaded);
-      observer.disconnect();
-      window.clearTimeout(timeout);
-    };
-    const watchImages = () => {
-      for (const image of rail.querySelectorAll<HTMLImageElement>("img")) {
-        if (image.complete && image.naturalWidth > 0) { finish(true); return; }
-        if (seen.has(image)) continue;
-        seen.add(image);
-        image.addEventListener("load", () => finish(true), { once: true });
-      }
-    };
-    const observer = new MutationObserver(watchImages);
-    const timeout = window.setTimeout(() => finish(false), 5_000);
-    observer.observe(rail, { childList: true, subtree: true });
-    watchImages();
-    return () => { observer.disconnect(); window.clearTimeout(timeout); };
+    return watchShelfArtwork(rail, markYoutubeArtworkReady);
   }, [priority, title, nearViewport, Boolean(videos.length), limit]);
   if (!videos.length) return null;
-  const shown = videos.slice(0, limit);
-  const { start, end, visibleSlots } = railWindow(shown.length, railWidth || 320, cardStride, windowStart, overscan);
-  const windowed = shown.slice(start, end);
+  const { start, end, visibleSlots, loaded, items: windowed } = railItems(videos, limit, railWidth || 320, cardStride, windowStart, overscan);
   const leadPx = start * cardStride;
-  const trailCount = Math.max(0, shown.length - end);
+  const trailCount = Math.max(0, loaded - end);
   const trailPx = trailCount * cardStride;
-  const endCaps = Math.max(0, Math.min(6, Math.min(limit, 8) - shown.length));
+  const endCaps = Math.max(0, Math.min(6, Math.min(limit, 8) - loaded));
   const onRailScroll = (rail: HTMLDivElement) => {
     scrollLeft.current = rail.scrollLeft;
     const nextStart = Math.max(0, Math.floor(rail.scrollLeft / cardStride) - overscan);
@@ -238,7 +239,7 @@ export function TitleRail({
     pendingFocus.current = target;
     setFocusRequest((value) => value + 1);
     setLimit((value) => railLimitForTarget(value, target, videos.length));
-    setWindowStart(railWindowStartForTarget(target, Math.max(shown.length, target + 1), visibleSlots, overscan));
+    setWindowStart(railWindowStartForTarget(target, Math.max(loaded, target + 1), visibleSlots, overscan));
   };
   const onRailKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (event.altKey || event.ctrlKey || event.metaKey) return;
@@ -259,19 +260,23 @@ export function TitleRail({
           {variant === "rail" && videos.length > visibleSlots && <>
             <span className="hidden text-xs tabular-nums text-muted sm:inline">{Math.min(videos.length, limit).toLocaleString()} titles</span>
             <Button size="sm" variant="ghost" disabled={windowStart === 0} aria-label={`Previous ${title} videos`} onClick={() => pageRail(-1)}>Previous</Button>
-            <Button size="sm" variant="ghost" disabled={windowStart + visibleSlots >= shown.length} aria-label={`Next ${title} videos`} onClick={() => pageRail(1)}>Next</Button>
+            <Button size="sm" variant="ghost" disabled={windowStart + visibleSlots >= loaded} aria-label={`Next ${title} videos`} onClick={() => pageRail(1)}>Next</Button>
           </>}
           {videos.length > limit && !collapsed && <Button size="sm" variant="ghost" className="text-xs" onClick={() => setLimit((value) => Math.min(videos.length, value + 16))}>Show 16 more · {videos.length - limit}</Button>}
           <Button size="sm" variant="ghost" aria-expanded={!collapsed} aria-label={`${collapsed ? "Expand" : "Minimize"} ${title}`} onClick={() => setCollapsed((value) => !value)}>{collapsed ? <ChevronRight className="size-4"/> : <ChevronDown className="size-4"/>}{collapsed ? "Expand" : "Minimize"}</Button>
         </div>
       </div>
-      {nearViewport && !collapsed && <div ref={attachRail} onScroll={(event) => onRailScroll(event.currentTarget)} onKeyDown={onRailKeyDown} className="rail-scroll flex gap-3 overflow-x-auto pb-3 sm:gap-4">
+      {nearViewport && !collapsed && <div ref={attachRail} role="list" aria-label={`${title} · ${videos.length.toLocaleString()} titles`} onScroll={(event) => onRailScroll(event.currentTarget)} onKeyDown={onRailKeyDown} className="rail-scroll flex gap-3 overflow-x-auto pb-3 sm:gap-4">
         {leadPx > 0 && <div aria-hidden="true" className="shrink-0" style={{ width: leadPx, height: 1 }} />}
-        {start > 0 && <button type="button" className="sr-only focus:not-sr-only focus:rounded-sm focus:bg-elevated focus:px-3 focus:py-2 focus:text-sm focus:text-fg" onFocus={() => focusRailIndex(start - 1)}>Previous {title} title</button>}
+        {start > 0 && <button type="button" className="sr-only focus:not-sr-only focus:rounded-sm focus:bg-elevated focus:px-3 focus:py-2 focus:text-sm focus:text-fg" onFocus={event => {
+          const target = windowBoundaryTarget('previous', start, end, videos.length, event.relatedTarget instanceof Element && Boolean(event.relatedTarget.closest('[data-rail-index]')));
+          if (target !== null) focusRailIndex(target);
+        }}>Previous {title} title</button>}
         {windowed.map((video, i) => (
           <div
             key={video.id}
             data-rail-index={start + i}
+            role="listitem" aria-posinset={start + i + 1} aria-setsize={videos.length}
             className={cn(variant === "poster" && "w-32 shrink-0 sm:w-36 md:w-40", variant === "rail" && "shrink-0")}
           >
             <VideoCard
@@ -282,7 +287,10 @@ export function TitleRail({
             />
           </div>
         ))}
-        {end < videos.length && <button type="button" className="sr-only focus:not-sr-only focus:rounded-sm focus:bg-elevated focus:px-3 focus:py-2 focus:text-sm focus:text-fg" onFocus={() => focusRailIndex(end)}>Next {title} title</button>}
+        {end < videos.length && <button type="button" className="sr-only focus:not-sr-only focus:rounded-sm focus:bg-elevated focus:px-3 focus:py-2 focus:text-sm focus:text-fg" onFocus={event => {
+          const target = windowBoundaryTarget('next', start, end, videos.length, event.relatedTarget instanceof Element && Boolean(event.relatedTarget.closest('[data-rail-index]')));
+          if (target !== null) focusRailIndex(target);
+        }}>Next {title} title</button>}
         {trailPx > 0 && <div aria-hidden="true" className="shrink-0" style={{ width: trailPx, height: 1 }} />}
         {Array.from({ length: endCaps }, (_, index) => (
           <div key={`end-cap-${index}`} aria-hidden="true" className={cn("shrink-0 rounded-md border border-border/50 bg-elevated/35", variant === "poster" ? "aspect-poster w-32 sm:w-36 md:w-40" : "h-36 w-56")} />

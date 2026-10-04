@@ -1,0 +1,17 @@
+✔ worker-free search yields, preserves metadata and exact tags, and cancels without an index (423.7648ms)
+✔ cancelled offscreen thumbnail requests leave no queued work or leaked slots (8.363ms)
+✔ aborting an awakened waiter still lets the next visible image load (0.5895ms)
+✔ remote artwork does not grow the local frame-thumbnail cache (1.3674ms)
+✔ real frame captures release media on viewer pause, resume subscribed cards, and cancel unmounted work (157.977ms)
+✔ binary thumbnails obey backing-byte limits and revoke evicted URLs (2.3781ms)
+✔ an evicted binary disk thumbnail reopens without file access or video decoding (53.7566ms)
+✔ worker batches preserve search metadata and replace stale generations (37.5944ms)
+✔ search client applies backpressure, rejects stale replies, and settles worker failures (73.1684ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1528.0118
