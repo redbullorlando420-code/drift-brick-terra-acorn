@@ -1,0 +1,115 @@
+{
+  "ok": true,
+  "stableMetadata": true,
+  "fixture": "60,000 saved YouTube videos, 48,000 from one creator; saved manually locked science tags; real ranking worker; isolated browser storage; artwork/embeds stubbed",
+  "results": [
+    {
+      "viewport": "desktop",
+      "firstBatchMs": 1615,
+      "nextPageMs": 96,
+      "previewReturnRepackedRows": 0,
+      "releasedWorkerVerified": true,
+      "nextAfterReturnMs": 1218,
+      "coldMixVerified": true,
+      "ratingInvalidationVerified": true,
+      "scrollWorstFrameMs": 18,
+      "peakCards": 66,
+      "worstMainTaskMs": 56,
+      "overflow": false,
+      "rankingWorkers": [
+        {
+          "rows": 60000,
+          "packingMs": 1549,
+          "scoringMs": 153,
+          "completed": true
+        },
+        {
+          "rows": 60000,
+          "packingMs": 661,
+          "scoringMs": 386,
+          "completed": true
+        },
+        {
+          "rows": 60000,
+          "packingMs": 916,
+          "scoringMs": 149,
+          "completed": true
+        },
+        {
+          "rows": 0,
+          "packingMs": null,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 4000,
+          "packingMs": 269,
+          "scoringMs": 16,
+          "completed": true
+        },
+        {
+          "rows": 4000,
+          "packingMs": 210,
+          "scoringMs": 23,
+          "completed": true
+        }
+      ],
+      "errors": [],
+      "ok": true
+    },
+    {
+      "viewport": "mobile",
+      "firstBatchMs": 2267,
+      "nextPageMs": 127,
+      "previewReturnRepackedRows": 0,
+      "releasedWorkerVerified": true,
+      "nextAfterReturnMs": 589,
+      "coldMixVerified": true,
+      "ratingInvalidationVerified": true,
+      "scrollWorstFrameMs": 48,
+      "peakCards": 40,
+      "worstMainTaskMs": 0,
+      "overflow": false,
+      "rankingWorkers": [
+        {
+          "rows": 60000,
+          "packingMs": 1953,
+          "scoringMs": 321,
+          "completed": true
+        },
+        {
+          "rows": 60000,
+          "packingMs": 415,
+          "scoringMs": 129,
+          "completed": true
+        },
+        {
+          "rows": 60000,
+          "packingMs": 360,
+          "scoringMs": 148,
+          "completed": true
+        },
+        {
+          "rows": 0,
+          "packingMs": null,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 4000,
+          "packingMs": 92,
+          "scoringMs": 14,
+          "completed": true
+        },
+        {
+          "rows": 4000,
+          "packingMs": 242,
+          "scoringMs": 15,
+          "completed": true
+        }
+      ],
+      "errors": [],
+      "ok": true
+    }
+  ]
+}

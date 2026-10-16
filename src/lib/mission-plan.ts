@@ -2,7 +2,7 @@ export type MissionStatus = "planned" | "in-progress" | "blocked" | "complete";
 export type Mission = { id: string; title: string; detail: string; done: boolean; status?: MissionStatus };
 
 export const MISSION_PLAN_REVISION_KEY = "reelcase.mission-plan.revision";
-export const MISSION_PLAN_REVISION = 18;
+export const MISSION_PLAN_REVISION = 24;
 
 /** Apply newly verified defaults once, without resetting later manual status changes. */
 export function mergeMissionPlan(saved: Mission[] | null, defaults: Mission[], previousRevision: number): Mission[] {
@@ -24,6 +24,12 @@ export function mergeMissionPlan(saved: Mission[] | null, defaults: Mission[], p
   const migrateRenderAuditCompletion = previousRevision < 16;
   const migrateMobileBudgetCompletion = previousRevision < 17;
   const migrateAccessibleBrowsingCompletion = previousRevision < 18;
+  const migrateDiagnosticsCompletion = previousRevision < 19;
+  const migrateTwitchCheckpointCompletion = previousRevision < 20;
+  const migrateTwitchSearchCompletion = previousRevision < 21;
+  const migrateProviderBudgetCompletion = previousRevision < 22;
+  const migrateYoutubeMetadataCompletion = previousRevision < 23;
+  const migrateTwitchQueueCompletion = previousRevision < 24;
   return [
     ...saved.map((item) => {
       const current = defaultsById.get(item.id);
@@ -42,7 +48,13 @@ export function mergeMissionPlan(saved: Mission[] | null, defaults: Mission[], p
         || (migrateSlowDeviceCompletion && item.id === 'smooth-10')
         || (migrateRenderAuditCompletion && item.id === 'speed-03')
         || (migrateMobileBudgetCompletion && item.id === 'speed-09')
-        || (migrateAccessibleBrowsingCompletion && item.id === 'smooth-11'));
+        || (migrateAccessibleBrowsingCompletion && item.id === 'smooth-11')
+        || (migrateDiagnosticsCompletion && ['speed-08', 'speed-10', 'smooth-12'].includes(item.id))
+        || (migrateTwitchCheckpointCompletion && ['twitch-upgrade-01', 'twitch-upgrade-03', 'twitch-upgrade-09'].includes(item.id))
+        || (migrateTwitchSearchCompletion && ['twitch-upgrade-16', 'twitch-upgrade-17', 'twitch-upgrade-20'].includes(item.id))
+        || (migrateProviderBudgetCompletion && item.id === 'speed-02')
+        || (migrateYoutubeMetadataCompletion && ['youtube-upgrade-07', 'youtube-upgrade-08', 'youtube-upgrade-20'].includes(item.id))
+        || (migrateTwitchQueueCompletion && ['twitch-upgrade-02', 'twitch-upgrade-08', 'twitch-upgrade-10', 'twitch-upgrade-18'].includes(item.id)));
       const done = Boolean(item.done || promoted);
       const savedStatus = item.status === "planned" || item.status === "in-progress" || item.status === "blocked"
         ? item.status : undefined;

@@ -40,7 +40,7 @@ export function recoveredEnrichmentRow(ledgers: EnrichmentLedgers, row: Enrichme
     ...((row.provenance.youtubeTextTagVersion || existing?.youtubeTextTagVersion) ? {
       youtubeTextTagVersion: Math.max(row.provenance.youtubeTextTagVersion ?? 0, existing?.youtubeTextTagVersion ?? 0),
     } : {}),
-    tags: Object.fromEntries(row.tags.map(tag => [tag, existing?.tags[tag] ?? row.provenance.tags[tag]])),
+    tags: Object.fromEntries(row.tags.map(tag => [tag, existing?.tags[tag] ?? row.provenance.tags[tag] ?? 'legacy'])),
     updatedAt: row.provenance.updatedAt } };
 }
 /** Legacy small mutable scratch records, used by import/recovery callers. */

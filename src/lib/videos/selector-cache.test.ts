@@ -3,6 +3,20 @@ import assert from "node:assert/strict";
 import { memoizeSelector } from "./selector-cache.ts";
 import { memoizeSelectorInputs } from './selector-cache.ts';
 
+test('retiring one scope preserves the other exact result without computing or enumerating its rows', () => {
+  let calls = 0;
+  const rows = new Proxy([], { ownKeys() { throw Error('catalog enumeration'); } });
+  const state = { rows };
+  const select = memoizeSelector((s: typeof state) => { calls++; return s.rows; }, ['rows']);
+  select(state); select(state, true);
+  select.clear(true);
+  assert.equal(select.peek(state, true), undefined);
+  assert.equal(select(state), rows); assert.equal(calls, 2);
+  select.clear(false); assert.equal(select.peek(state), undefined);
+  select.prime(state, rows); select.prime(state, rows, true);
+  select.clear(); assert.equal(select.peek(state), undefined); assert.equal(select.peek(state, true), undefined);
+});
+
 test('cooperative priming applies only to the exact immutable inputs and respects cache eviction', () => {
   let calls = 0;
   const select = memoizeSelectorInputs((s: { rows: number[]; status: number }) => { calls++; return [...s.rows]; }, s => [s.rows]);

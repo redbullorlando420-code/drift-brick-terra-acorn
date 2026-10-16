@@ -16,3 +16,17 @@ export function clampRoomPosition(seconds: number, duration?: number): number {
     : 12 * 60 * 60;
   return Math.max(0, Math.min(ceiling, Number.isFinite(seconds) ? seconds : 0));
 }
+
+/** Guest adjustments are device-local seconds, bounded and snapped to 250 ms. */
+export function normalizeGuestOffset(seconds: number): number {
+  return Math.round(Math.max(-30, Math.min(30, Number.isFinite(seconds) ? seconds : 0)) * 4) / 4;
+}
+
+export function guestPlaybackPosition(hostPosition: number, offset: number, duration?: number): number {
+  return clampRoomPosition(hostPosition + normalizeGuestOffset(offset), duration);
+}
+
+/** Provider controls report the adjusted device clock; room requests must not. */
+export function hostPlaybackPosition(devicePosition: number, offset: number, duration?: number): number {
+  return clampRoomPosition(devicePosition - normalizeGuestOffset(offset), duration);
+}

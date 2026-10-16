@@ -1,0 +1,28 @@
+{
+  "ok": true,
+  "nodeHeapLimitMiB": 384,
+  "fixture": "100k and million-entry compact YouTube catalogs; five formats and all four prepared creator indexes",
+  "limitations": "Metadata is shared across fixture records. Network, artwork and transcripts are omitted. Node heap samples follow explicit GC and do not establish total browser RAM, provider throughput or long-session stability.",
+  "results": [
+    {
+      "entries": 100000,
+      "prepareMs": 61.4,
+      "cooperativeYields": 55,
+      "fourShelvesMs": 10.1,
+      "repeatPrepareMs": 0,
+      "sharedCardReferences": true,
+      "heapBeforeMiB": 24.7,
+      "heapAfterMiB": 28.1
+    },
+    {
+      "entries": 1000000,
+      "prepareMs": 697.3,
+      "cooperativeYields": 542,
+      "fourShelvesMs": 101.5,
+      "repeatPrepareMs": 0,
+      "sharedCardReferences": true,
+      "heapBeforeMiB": 187.3,
+      "heapAfterMiB": 198
+    }
+  ]
+}

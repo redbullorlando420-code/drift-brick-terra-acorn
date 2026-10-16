@@ -14,6 +14,8 @@ export function watchTimeScore(time: WatchTime): number { return Math.min(12, Ma
 const KEY = "reelcase.media-feedback.v1";
 let cached: Feedback | null = null;
 let signalVersion = 0;
+/** Includes ratings, hearts, durable imports and elapsed watch-time changes. */
+export function getFeedbackRevision() { read(); return signalVersion; }
 type RankingSnapshot = { ratings: Record<string, number>; heartedTags: string[]; historicTags: string[];
   creatorLikes: Record<string, true>; creatorFavorites: Record<string, true>; creatorRatings: Record<string, number>; watchScores: Record<string, number> };
 let snapshot: { version: number; pending: Promise<RankingSnapshot> } | undefined;
@@ -48,7 +50,7 @@ function legacyKeys() {
 
 /** Read old per-title ratings once, in small batches, rather than doing a
  * synchronous storage lookup for every unscored title during recommendation. */
-export async function rankingFeedbackSnapshot(): Promise<RankingSnapshot> {
+export async function warmLegacyRatings(): Promise<void> {
   if (typeof window !== "undefined") {
     legacyScan ??= (async () => {
       try {
@@ -68,6 +70,10 @@ export async function rankingFeedbackSnapshot(): Promise<RankingSnapshot> {
     })();
     await legacyScan;
   }
+}
+
+export async function rankingFeedbackSnapshot(): Promise<RankingSnapshot> {
+  await warmLegacyRatings();
   if (snapshot?.version === signalVersion) {
     const current = snapshot, result = await current.pending;
     return current.version === signalVersion ? result : rankingFeedbackSnapshot();
@@ -97,6 +103,22 @@ export async function rankingFeedbackSnapshot(): Promise<RankingSnapshot> {
 }
 
 let feedbackHydrated = false;
+let cleanupFeedback: Promise<void> | undefined;
+/** Cache cleanup verifies the backup even if startup's best-effort restore
+ * is still pending or could not read storage. Failed reads can be retried. */
+export async function verifyCleanupFeedback() {
+  if (typeof window === 'undefined') return;
+  cleanupFeedback ??= (async () => {
+    const durable = await restoreDurableFeedback(true);
+    if (!durable) return;
+    const current = read();
+    cached = { ...current, ratings: { ...durable.ratings, ...current.ratings }, notes: { ...durable.notes, ...current.notes } };
+    signalVersion++; snapshot = undefined; ratingSignal.emitAll(); notifyChange();
+  })();
+  const pending = cleanupFeedback;
+  try { await pending; }
+  catch (error) { if (cleanupFeedback === pending) cleanupFeedback = undefined; throw error; }
+}
 function read(): Feedback {
   if (cached) return cached;
   try {

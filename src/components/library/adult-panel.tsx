@@ -4,7 +4,6 @@ import { getPullCancellationRevision } from '@/lib/pull-control';
 import { useDeferredValue, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { ChevronDown, ChevronRight, ExternalLink, Flag, LoaderCircle, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
-import { useShallow } from "zustand/react/shallow";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LIBRARY_LIMITS } from "@/lib/library-limits";
@@ -124,7 +123,7 @@ export function AdultFetishExplorer({
   const searchAdultFeed = useLibrary((s) => s.searchAdultFeed);
   const remoteBusy = useLibrary((s) => s.remoteBusy);
   const setSource = useLibrary((s) => s.setSource);
-  const explorerAdultVideos = useLibrary(useShallow(selectAdultRemote));
+  const explorerAdultVideos = useLibrary(selectAdultRemote);
   const explorerTags = useLibrary((s) => s.tags);
   const explorerFavorites = useLibrary((s) => s.favorites);
   const explorerLikes = useLibrary((s) => s.likes);
@@ -412,7 +411,7 @@ export function AdultPanel({
   const adultPullStatus = useLibrary((s) => s.adultPullStatus);
   const setSource = useLibrary((s) => s.setSource);
   const tags = useLibrary((s) => s.tags);
-  const adultVideos = useLibrary(useShallow(selectAdultRemote));
+  const adultVideos = useLibrary(selectAdultRemote);
   const [query, setQuery] = useState("");
   const [order, setOrder] = useState("top-weekly");
   const [providers, setProviders] = useState<AdultPullProvider[] | "all">("all");

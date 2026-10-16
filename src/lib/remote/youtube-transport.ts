@@ -1,3 +1,6 @@
+import { PROVIDER_BUDGETS, ProviderBudgetError } from '../provider-budgets.ts';
+import { readProviderBody } from './provider-body.ts';
+
 export type YoutubeRequestScope = 'catalog' | 'page' | 'feed' | 'live' | 'details' | 'all';
 export type YoutubeManualRetry = { readonly revision: number };
 type YoutubeRequestInit = RequestInit & { timeoutMs?: number; manualRetry?: YoutubeManualRetry; scope?: YoutubeRequestScope };
@@ -26,7 +29,7 @@ export function createYoutubeTransport(options: {
   const sleep = options.sleep ?? (ms => new Promise(resolve => setTimeout(resolve, ms)));
   const cooldowns = new Map<YoutubeRequestScope, Cooldown>();
   let cooldownRevision = 0;
-  let tail: Promise<unknown> = Promise.resolve(), lastStarted = -Infinity;
+  let tail: Promise<unknown> = Promise.resolve(), lastStarted = -Infinity, queued = 0;
   const cooling = (scope: YoutubeRequestScope, at = now()) => {
     const candidates = [cooldowns.get('all'), cooldowns.get(scope)].filter((row): row is Cooldown => Boolean(row && row.retryAt > at));
     return candidates.sort((a, b) => b.retryAt - a.retryAt)[0];
@@ -66,8 +69,11 @@ export function createYoutubeTransport(options: {
     throw new YoutubeRequestError(`YouTube HTTP ${response.status}: public metadata request failed.`, response.status);
   };
   const request = (url: string, init?: YoutubeRequestInit) => {
+    if (init?.signal?.aborted) return Promise.reject(init.signal.reason);
+    if (queued >= PROVIDER_BUDGETS.queuedRequests) return Promise.reject(new ProviderBudgetError('queue', 'YouTube metadata queue is full; accepted pages and saved positions are preserved.'));
     const scope = init?.scope ?? youtubeRequestScope(url);
     const path = new URL(url).pathname;
+    queued++;
     const html = !path.startsWith('/youtubei/') && !path.startsWith('/feeds/') && path !== '/oembed';
     const checkReady = () => { ready(scope, now(), init?.manualRetry); if (html && scope !== 'page') ready('page', now(), init?.manualRetry); };
     const work = async () => {
@@ -83,12 +89,22 @@ export function createYoutubeTransport(options: {
       if (timeoutMs) requestInit.signal = AbortSignal.any([...(requestInit.signal ? [requestInit.signal] : []), AbortSignal.timeout(timeoutMs)]);
       const response = await (options.fetch ?? globalThis.fetch)(url, requestInit);
       // Finish the body before releasing the serial slot.
-      const body = await response.arrayBuffer();
+      let body: Uint8Array;
+      try {
+        body = await readProviderBody(response, { signal: requestInit.signal ?? undefined,
+          ...(!response.ok ? { maxBytes: PROVIDER_BUDGETS.errorPrefixBytes, prefix: true } : {}) });
+      } catch (error) {
+        // A stalled error body must not erase a genuine HTTP rate limit.
+        if (!response.ok) accept(response, now(), scope);
+        throw error;
+      }
       const blocked = response.status === 429 && /unusual traffic from your computer network/i.test(new TextDecoder().decode(body));
       accept(response, now(), blocked && html ? 'page' : scope, blocked);
-      return new Response(response.status === 204 || response.status === 205 ? null : body, { status: response.status, statusText: response.statusText, headers: response.headers });
+      const headers = new Headers(response.headers);
+      headers.delete('content-encoding'); headers.delete('content-length'); headers.delete('transfer-encoding');
+      return new Response([204, 205, 304].includes(response.status) ? null : body.buffer as ArrayBuffer, { status: response.status, statusText: response.statusText, headers });
     };
-    const pending = tail.then(work);
+    const pending = tail.then(work).finally(() => { queued--; });
     tail = pending.catch(() => undefined);
     return pending;
   };

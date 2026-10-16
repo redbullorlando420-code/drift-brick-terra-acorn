@@ -18,8 +18,8 @@ test("one creator fills a shelf without duplicate cards", () => {
  assert.equal(mixYoutubeCreators([...rows,...rows],123,48).length,48);
 });
 test("latest and trending include every creator and honor per-creator order", () => {
- const rows = Array.from({length: 13000}, (_,i) => ({...video(`a${i}`,"a"), addedAt:i, remote:{kind:"youtube" as const,channelId:"a",views:i}}));
- const rare = {...video("rare","b"),addedAt:1,remote:{kind:"youtube" as const,channelId:"b",views:2}};
+ const rows = Array.from({length: 13000}, (_,i) => ({...video(`a${i}`,"a"), addedAt:Date.UTC(2026,9,1)+i, remote:{kind:"youtube" as const,channelId:"a",views:i}}));
+ const rare = {...video("rare","b"),addedAt:Date.UTC(2026,9,1)+1,remote:{kind:"youtube" as const,channelId:"b",views:2}};
  for (const mode of ["latest","trending"] as const) {
   const mixed = mixYoutubeCreators([...rows,rare],123,12,mode);
   assert.equal(mixed[0].id,"a12999");

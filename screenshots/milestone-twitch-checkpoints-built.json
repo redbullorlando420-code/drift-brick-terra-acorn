@@ -1,0 +1,30 @@
+{
+  "ok": true,
+  "url": "http://127.0.0.1:8082/",
+  "fixture": "30,000 Twitch VODs, 240 creators, paused pulling, text-first artwork, isolated contexts; stale IDB and fresh localStorage checkpoint mirrors",
+  "limitation": "Provider challenges are fixtures. Real-provider throughput and device soak are separate checks.",
+  "results": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "coverageReadyMs": 456,
+      "checkpointRecoveryVerified": true,
+      "creatorPagingVerified": true,
+      "pullsRemainPaused": true,
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\milestone-twitch-checkpoints-built-desktop.png",
+      "overflowPixels": 0,
+      "ok": true
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "coverageReadyMs": 498,
+      "checkpointRecoveryVerified": true,
+      "creatorPagingVerified": true,
+      "pullsRemainPaused": true,
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\milestone-twitch-checkpoints-built-mobile.png",
+      "overflowPixels": 0,
+      "ok": true
+    }
+  ]
+}

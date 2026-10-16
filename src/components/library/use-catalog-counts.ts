@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { adultFolderIds } from "@/lib/videos/adult-providers";
 import { getInteractionPriorityDelay, scheduleBackgroundWork } from "@/lib/interaction-budget";
-import { countActivityMatches, emptyCatalogCounts, type CatalogCounts } from "@/lib/videos/catalog-counts";
+import { prepareActivityCounts, countActivityMatchesAsync, emptyCatalogCounts, type CatalogCounts } from "@/lib/videos/catalog-counts";
 import type { Folder, HistoryEntry, LibraryVideo } from "@/lib/videos/types";
 import { activityLookupAsync } from '@/lib/videos/activity-lookup';
 import { createCatalogCounter } from '@/lib/videos/catalog-count-cache';
@@ -35,9 +35,6 @@ export function useCatalogCounts(videos: LibraryVideo[], folders: Folder[], favo
   // counts just to update two sidebar numbers.
   useEffect(() => {
     let cancelled = false, cancel = () => {}, rejectTurn: ((reason: Error) => void) | undefined;
-    const saved = new Set([...Object.keys(favorites), ...Object.keys(likes)]);
-    const events = new Map<string, number>();
-    for (const entry of history) events.set(entry.id, (events.get(entry.id) ?? 0) + 1);
     const turn = async () => {
       await yieldCatalogTask();
       if (cancelled) throw new Error("Activity count replaced");
@@ -50,9 +47,11 @@ export function useCatalogCounts(videos: LibraryVideo[], folders: Folder[], favo
     };
     void (async () => {
       await turn();
-      const matches = await activityLookupAsync(videos, [...saved, ...events.keys()], turn);
+      const { saved, events, keys } = await prepareActivityCounts(favorites, likes, history, turn);
+      const matches = await activityLookupAsync(videos, keys, turn);
       if (cancelled) return;
-      const { favCount, historyCount } = countActivityMatches(matches, saved, events, adultIds, hidden, hideDemo);
+      const { favCount, historyCount } = await countActivityMatchesAsync(matches, saved, events, adultIds, hidden, hideDemo, turn);
+      if (cancelled) return;
       setActivity(previous => previous?.favCount === favCount && previous.historyCount === historyCount ? previous : { favCount, historyCount });
     })().catch(() => { /* Replaced/hidden work will restart on the next effect. */ });
     return () => { cancelled = true; cancel(); rejectTurn?.(new Error('Activity count replaced')); };

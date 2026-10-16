@@ -1,24 +1,14 @@
-6:04:44 PM [vite] (client) Re-optimizing dependencies because vite config has changed
 
-  VITE v8.2.2  ready in 3041 ms
+  VITE v8.2.2  ready in 2118 ms
 
   ➜  Local:   http://localhost:8080/
-  ➜  Network: http://10.5.0.2:8080/      NordLynx
   ➜  Network: http://192.168.1.68:8080/  Ethernet 2
   ➜  press h + enter to show help
-6:04:59 PM [vite] (ssr) connected.
-6:05:03 PM [vite] (client) dependencies optimized: @tanstack/router-core, @tanstack/router-core/isServer, @tanstack/router-core/ssr/client, seroval
-6:05:03 PM [vite] (client) optimized dependencies changed. reloading
-8:31:46 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/hub-sections.tsx, /src/components/library/pre-video.tsx, /src/components/library/adult-panel.tsx, /src/components/library/video-grid.tsx, /src/components/library/sidebar.tsx, /src/components/library/ai-guide.tsx, /src/components/library/connect-panel.tsx, /src/components/library/discovery-desk.tsx, /src/components/library/top-bar.tsx, /src/components/library/browse.tsx and 5 more
-8:31:46 PM [vite] (ssr) page reload src/lib/videos/persist.ts
-8:31:46 PM [vite] (ssr) program reload
-8:31:46 PM [vite] (client) hmr invalidate /src/components/library/adult-comments.tsx Could not Fast Refresh ("supportsRemoteComments" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
-8:31:46 PM [vite] (client) hmr update /src/components/library/pre-video.tsx, /src/components/library/player.tsx, /src/components/library/adult-image-lightbox.tsx
-8:31:48 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/sidebar.tsx, /src/components/library/ai-guide.tsx, /src/components/library/connect-panel.tsx, /src/components/library/discovery-desk.tsx, /src/components/library/top-bar.tsx, /src/components/library/browse.tsx, /src/components/library/pre-video.tsx, /src/components/library/adult-panel.tsx, /src/components/library/hub-sections.tsx and 5 more
-8:31:48 PM [vite] (ssr) page reload src/lib/videos/store.ts
-8:32:03 PM [vite] (client) hmr update /src/styles.css?direct
-8:32:03 PM [vite] (client) hmr update /src/styles.css?direct
-8:32:03 PM [vite] (client) hmr update /src/styles.css?direct
-8:32:03 PM [vite] (client) hmr update /src/styles.css?direct
-8:32:06 PM [vite] (client) hmr invalidate /src/components/library/adult-comments.tsx Could not Fast Refresh ("supportsRemoteComments" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
-8:32:06 PM [vite] (client) hmr update /src/components/library/pre-video.tsx, /src/components/library/player.tsx, /src/components/library/adult-image-lightbox.tsx
+7:42:33 PM [vite] (ssr) connected.
+7:49:26 PM [vite] (client) hmr update /src/styles.css?direct
+7:50:34 PM [vite] (client) hmr update /src/styles.css?direct
+7:51:30 PM [vite] (client) hmr update /src/styles.css?direct
+7:54:41 PM [vite] (client) hmr update /src/styles.css?direct
+7:55:28 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-queue-panel.tsx
+7:55:31 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-queue-panel.tsx
+7:55:35 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/hub-sections.tsx

@@ -211,3 +211,48 @@ test('revision 17 promotes verified keyboard browsing without changing soak or l
   assert.deepEqual(mergeMissionPlan(saved,current,17).map(row=>row.done),[true,false,false]);
   assert.equal(mergeMissionPlan(saved,current,18)[0].status,'in-progress');
 });
+
+test('revision 18 promotes verified diagnostics and release gate without completing soak or resetting later choices', () => {
+  const current: Mission[] = ['speed-08', 'speed-10', 'smooth-12', 'recent-memory-soak'].map(id => ({ id, title: id, detail: 'Current evidence', done: id !== 'recent-memory-soak' }));
+  const saved = current.map(row => ({ ...row, done: false, status: 'planned' as const }));
+  assert.deepEqual(mergeMissionPlan(saved, current, 18).map(row => row.done), [true, true, true, false]);
+  assert.equal(mergeMissionPlan(saved, current, 19)[0].status, 'planned');
+});
+
+test('revision 20 completes only verified Twitch checkpoint, diagnostics and merge milestones', () => {
+  const current: Mission[] = ['twitch-upgrade-01', 'twitch-upgrade-03', 'twitch-upgrade-09', 'twitch-upgrade-19', 'recent-provider-soak'].map(id => ({ id, title: id, detail: 'Current evidence', done: ['twitch-upgrade-01', 'twitch-upgrade-03', 'twitch-upgrade-09'].includes(id) }));
+  const saved = current.map(row => ({ ...row, done: false, status: 'planned' as const }));
+  assert.deepEqual(mergeMissionPlan(saved, current, 19).map(row => row.done), [true, true, true, false, false]);
+  assert(mergeMissionPlan(saved, current, 20).every(row => row.status === 'planned'));
+});
+
+test('revision 21 promotes Twitch search, mobile rail and benchmark without completing soak or resetting later choices', () => {
+  const verified = ['twitch-upgrade-16', 'twitch-upgrade-17', 'twitch-upgrade-20'];
+  const current: Mission[] = [...verified, 'twitch-upgrade-19', 'recent-provider-soak', 'recent-memory-soak'].map(id => ({ id, title: id, detail: 'Current evidence', done: verified.includes(id) }));
+  const saved = current.map(row => ({ ...row, done: false, status: 'planned' as const }));
+  assert.deepEqual(mergeMissionPlan(saved, current, 20).map(row => row.done), [true, true, true, false, false, false]);
+  assert(mergeMissionPlan(saved, current, 21).every(row => row.status === 'planned'));
+});
+
+test('revision 22 promotes only provider budgets while preserving soak and later manual choices', () => {
+  const current: Mission[] = ['speed-02', 'recent-provider-soak', 'recent-memory-soak'].map(id => ({ id, title: id, detail: 'Current evidence', done: id === 'speed-02' }));
+  const saved = current.map(row => ({ ...row, done: false, status: 'in-progress' as const }));
+  assert.deepEqual(mergeMissionPlan(saved, current, 21).map(row => row.done), [true, false, false]);
+  assert(mergeMissionPlan(saved, current, 22).every(row => row.status === 'in-progress'));
+});
+
+test('revision 23 promotes YouTube dates, formats and regressions without completing soak or resetting later choices', () => {
+  const verified = ['youtube-upgrade-07', 'youtube-upgrade-08', 'youtube-upgrade-20'];
+  const current: Mission[] = [...verified, 'youtube-upgrade-06', 'youtube-upgrade-18', 'recent-provider-soak', 'recent-memory-soak'].map(id => ({ id, title: id, detail: 'Current evidence', done: verified.includes(id) }));
+  const saved = current.map(row => ({ ...row, done: false, status: 'in-progress' as const }));
+  assert.deepEqual(mergeMissionPlan(saved, current, 22).map(row => row.done), [true, true, true, false, false, false, false]);
+  assert(mergeMissionPlan(saved, current, 23).every(row => row.status === 'in-progress'));
+});
+
+test('revision 24 promotes verified Twitch queue, retries, controls and failure recovery only once', () => {
+  const verified = ['twitch-upgrade-02', 'twitch-upgrade-08', 'twitch-upgrade-10', 'twitch-upgrade-18'];
+  const current: Mission[] = [...verified, 'twitch-upgrade-19', 'recent-provider-soak', 'recent-memory-soak'].map(id => ({ id, title: id, detail: 'Current evidence', done: verified.includes(id) }));
+  const saved = current.map(row => ({ ...row, done: false, status: 'in-progress' as const }));
+  assert.deepEqual(mergeMissionPlan(saved, current, 23).map(row => row.done), [true, true, true, true, false, false, false]);
+  assert(mergeMissionPlan(saved, current, 24).every(row => row.status === 'in-progress'));
+});

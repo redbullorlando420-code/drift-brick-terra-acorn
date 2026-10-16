@@ -2,6 +2,9 @@ import { repairLegacyYoutubeDate } from "../remote/youtube-page.ts";
 import { retainYoutubeSources, youtubeVideoKey } from "../remote/youtube-sources.ts";
 import type { LibraryVideo } from "./types";
 import { copyCatalogArray, forEachCatalogEntry, forEachCatalogSlice, yieldCatalogTask } from '../catalog-work.ts';
+import { retainYoutubeMetadata } from './youtube-metadata.ts';
+import { sparseRecordScan } from '../sparse-record.ts';
+import type { HistoryEntry } from './types';
 
 function sameList(left?: readonly string[], right?: readonly string[]) {
   return left === right || (left?.length === right?.length && left?.every((value, index) => value === right?.[index]));
@@ -16,6 +19,8 @@ function sameRemote(left: LibraryVideo["remote"], right: LibraryVideo["remote"])
     && left.channelId === right.channelId
     && left.channelName === right.channelName
     && left.live === right.live
+    && left.youtubeType === right.youtubeType
+    && left.publishedSource === right.publishedSource
     && left.viewers === right.viewers
     && left.observedAt === right.observedAt
     && left.views === right.views
@@ -62,19 +67,32 @@ function sameVideo(left: LibraryVideo, right: LibraryVideo) {
  */
 function retainDurableRemoteFields(previous: LibraryVideo | undefined, incoming: LibraryVideo) {
   incoming = retainYoutubeSources(previous, incoming);
+  incoming = retainYoutubeMetadata(previous, incoming);
   if (!previous?.remote || !incoming.remote) return incoming;
   const channelName = incoming.remote.channelName?.trim() || previous.remote.channelName?.trim();
   const comments = incoming.remote.comments?.length ? incoming.remote.comments : previous.remote.comments;
   const keepsName = Boolean(channelName && channelName !== incoming.remote.channelName);
   const keepsComments = Boolean(comments?.length && comments !== incoming.remote.comments);
-  const keepsPublished = incoming.remote.kind === "youtube" && incoming.addedAt === 0 && repairLegacyYoutubeDate(previous).addedAt > 0;
-  const keepsViews = incoming.remote.kind === 'youtube' && incoming.remote.views === undefined && previous.remote.views !== undefined;
-  const keepsDuration = incoming.remote.kind === 'youtube' && incoming.duration === undefined && previous.duration !== undefined;
-  if (!keepsName && !keepsComments && !keepsPublished && !keepsViews && !keepsDuration) return incoming;
+  const twitch = incoming.remote.kind === 'twitch';
+  const keepsPublished = incoming.remote.kind === "youtube" && incoming.addedAt === 0 && repairLegacyYoutubeDate(previous).addedAt > 0
+    || twitch && (!Number.isFinite(incoming.addedAt) || incoming.addedAt <= 0) && previous.addedAt > 0;
+  const keepsViews = (incoming.remote.kind === 'youtube' || twitch) && incoming.remote.views === undefined && previous.remote.views !== undefined;
+  const keepsDuration = (incoming.remote.kind === 'youtube' || twitch) && (!Number.isFinite(incoming.duration) || (incoming.duration ?? 0) <= 0) && (previous.duration ?? 0) > 0;
+  const keepsPoster = twitch && !incoming.poster && Boolean(previous.poster);
+  const keepsGenre = twitch && !incoming.genre && Boolean(previous.genre);
+  const keepsTagline = twitch && !incoming.tagline && Boolean(previous.tagline);
+  const keepsCollection = twitch && !incoming.collection && Boolean(previous.collection);
+  const keepsYear = twitch && incoming.year === undefined && previous.year !== undefined;
+  if (!keepsName && !keepsComments && !keepsPublished && !keepsViews && !keepsDuration && !keepsPoster && !keepsGenre && !keepsTagline && !keepsCollection && !keepsYear) return incoming;
   return {
     ...incoming,
     ...(keepsPublished ? { addedAt: previous.addedAt } : {}),
     ...(keepsDuration ? { duration: previous.duration } : {}),
+    ...(keepsPoster ? { poster: previous.poster } : {}),
+    ...(keepsGenre ? { genre: previous.genre } : {}),
+    ...(keepsTagline ? { tagline: previous.tagline } : {}),
+    ...(keepsCollection ? { collection: previous.collection } : {}),
+    ...(keepsYear ? { year: previous.year } : {}),
     remote: {
       ...incoming.remote,
       ...(keepsName ? { channelName } : {}),
@@ -222,6 +240,51 @@ export function mergeRemoteCatalog(existing: LibraryVideo[], incoming: LibraryVi
   return merged;
 }
 
+/** A sweep already owns an index. Stage its small delta, and copy changed
+ * catalogs outside the store publication stack. Cancellation never mutates
+ * the shared index or existing catalog; the caller commits the returned delta. */
+export async function prepareIndexedRemoteCatalog(existing: LibraryVideo[], incoming: LibraryVideo[], positions: ReadonlyMap<string, number>,
+  turn = yieldCatalogTask) {
+  const positionChanges = new Map<string, number>(), replacements = new Map<number, LibraryVideo>();
+  const appended: LibraryVideo[] = [], rows: LibraryVideo[] = [];
+  let videos: LibraryVideo[] | undefined;
+  const apply = async () => {
+    if (!replacements.size) return;
+    videos ??= await copyCatalogArray(existing, turn);
+    await forEachCatalogEntry(replacements, ([position, video]) => { videos![position] = video; }, turn);
+    replacements.clear();
+  };
+  await forEachCatalogSlice(incoming, video => {
+    const key = youtubeVideoKey(video);
+    const position = positionChanges.get(video.id) ?? positions.get(video.id)
+      ?? (key ? positionChanges.get(key) ?? positions.get(key) : undefined);
+    const previous = position === undefined ? undefined : position < existing.length
+      ? replacements.get(position) ?? (videos ?? existing)[position] : appended[position - existing.length];
+    let next = retainDurableRemoteFields(previous, video);
+    if (previous?.remote?.live && next.remote?.live && (next.remote.observedAt ?? 0) < (previous.remote.observedAt ?? 0)) next = previous;
+    else if (previous && sameVideo(previous, next)) next = previous;
+    if (position === undefined) {
+      const addedPosition = existing.length + appended.length;
+      positionChanges.set(next.id, addedPosition);
+      if (key) positionChanges.set(key, addedPosition);
+      appended.push(next);
+    } else if (next !== previous) {
+      if (position < existing.length) {
+        if (videos) videos[position] = next; else replacements.set(position, next);
+      } else appended[position - existing.length] = next;
+    }
+    rows.push(next);
+  }, async () => {
+    if (replacements.size >= 512) await apply();
+    await turn();
+  });
+  if (!videos && !replacements.size && !appended.length) return { videos: existing, rows, positionChanges };
+  await apply();
+  videos ??= await copyCatalogArray(existing, turn);
+  await forEachCatalogSlice(appended, video => { videos!.push(video); }, turn);
+  return { videos, rows, positionChanges };
+}
+
 /**
  * Merge a provider refresh without letting a shallow public response erase a
  * known remote archive. Twitch's public archive endpoint can legitimately
@@ -236,8 +299,19 @@ export function mergeRemoteCatalog(existing: LibraryVideo[], incoming: LibraryVi
  * when a response repeats its prior rows, while a single changed card keeps
  * its neighbours' artwork and focus identity intact.
  */
+type RefreshMergeOptions = { index?: Map<string, LibraryVideo>; staleLiveIds?: string[]; liveCheckedIds?: string[]; endedYoutubeRows?: LibraryVideo[]; endedTwitchRows?: LibraryVideo[]; turn?: () => Promise<void> };
+/** Saved ledgers may be much larger than a provider page. Walk their sparse
+ * records directly instead of exporting/sorting every key on the UI thread. */
+export async function prepareRefreshSavedIds(favorites: Record<string, true>, likes: Record<string, true>, history: readonly HistoryEntry[], turn = yieldCatalogTask) {
+  const ids = new Set<string>();
+  await forEachCatalogEntry(sparseRecordScan(favorites, false), row => { if (row) ids.add(row[0]); }, turn);
+  await forEachCatalogEntry(sparseRecordScan(likes, false), row => { if (row) ids.add(row[0]); }, turn);
+  await forEachCatalogSlice(history, entry => { ids.add(entry.id); }, turn);
+  return ids;
+}
 function remoteRefreshPlan(existing: LibraryVideo[], incoming: LibraryVideo[], refreshedIds: string[], savedIds: Set<string>,
-  options?: { index?: Map<string, LibraryVideo>; staleLiveIds?: string[] }) {
+  options?: RefreshMergeOptions) {
+  const liveChecked = new Set(options?.liveCheckedIds ?? refreshedIds);
   const refreshed = new Set(refreshedIds), existingById = options?.index ?? remoteVideoIndex(existing);
   const fresh = new Map<string, LibraryVideo>();
   for (const video of incoming) {
@@ -250,19 +324,25 @@ function remoteRefreshPlan(existing: LibraryVideo[], incoming: LibraryVideo[], r
   const visit = (video: LibraryVideo): LibraryVideo | undefined => {
     const next = fresh.get(video.id);
     if (next) { fresh.delete(video.id); return next; }
-    if (!video.remote || !refreshed.has(video.folderId)) return video;
-    if (video.remote.live) {
+    if (!video.remote) return video;
+    const observedChannel = liveChecked.has(video.folderId) || video.remote.kind === 'youtube' && Boolean(video.remote.channelId && liveChecked.has(`yt:${video.remote.channelId}`));
+    if (video.remote.live && observedChannel) {
       // A successful check without a live card records one offline transition.
       options?.staleLiveIds?.push(video.id);
-      return { ...video, tagline: 'Offline · saved channel', remote: { ...video.remote, live: false } };
+      const ended = { ...video, tagline: video.remote.kind === 'youtube' ? 'Completed YouTube stream' : 'Offline · saved channel', remote: { ...video.remote, live: false,
+        ...(video.remote.kind === 'youtube' ? { youtubeType: 'replay' as const } : {}) } };
+      if (video.remote.kind === 'youtube') options?.endedYoutubeRows?.push(ended);
+      if (video.remote.kind === 'twitch') options?.endedTwitchRows?.push(ended);
+      return ended;
     }
+    if (!refreshed.has(video.folderId)) return video;
     // Partial routine pages cannot erase historical archives or saved cards.
     if (savedIds.has(video.id) || video.remote.kind === 'twitch' || video.remote.kind === 'youtube' || video.folderId.startsWith('ytpl:')) return video;
   };
   return { fresh, visit };
 }
 export function mergeRemoteRefresh(existing: LibraryVideo[], incoming: LibraryVideo[], refreshedIds: string[], savedIds: Set<string>,
-  options?: { index?: Map<string, LibraryVideo>; staleLiveIds?: string[] }): LibraryVideo[] {
+  options?: RefreshMergeOptions): LibraryVideo[] {
   const plan = remoteRefreshPlan(existing, incoming, refreshedIds, savedIds, options);
   const merged: LibraryVideo[] = [];
   for (const video of existing) { const next = plan.visit(video); if (next) merged.push(next); }
@@ -271,8 +351,10 @@ export function mergeRemoteRefresh(existing: LibraryVideo[], incoming: LibraryVi
 }
 /** Routine refreshes share the same merge contract while yielding the catalog traversal. */
 export async function mergeRemoteRefreshAsync(existing: LibraryVideo[], incoming: LibraryVideo[], refreshedIds: string[], savedIds: Set<string>,
-  options?: { index?: Map<string, LibraryVideo>; staleLiveIds?: string[] }): Promise<LibraryVideo[]> {
+  options?: RefreshMergeOptions): Promise<LibraryVideo[]> {
+  const turn = options?.turn ?? yieldCatalogTask;
   const index = options?.index ?? await remoteVideoIndexAsync(existing);
+  await turn();
   const plan = remoteRefreshPlan(existing, incoming, refreshedIds, savedIds, { ...options, index });
   const changes = new Map<number, LibraryVideo | undefined>();
   let merged: LibraryVideo[] | undefined, processed = 0;
@@ -282,7 +364,7 @@ export async function mergeRemoteRefreshAsync(existing: LibraryVideo[], incoming
     await forEachCatalogEntry(prefix(), position => {
       const next = changes.has(position) ? changes.get(position) : existing[position];
       if (next) merged!.push(next);
-    });
+    }, turn);
     changes.clear();
   };
   await forEachCatalogSlice(existing, (video, position) => {
@@ -292,10 +374,10 @@ export async function mergeRemoteRefreshAsync(existing: LibraryVideo[], incoming
     processed = position + 1;
   }, async () => {
     if (!merged && changes.size) await materializePrefix();
-    await yieldCatalogTask();
+    await turn();
   });
   if (!merged && !changes.size && !plan.fresh.size) return existing;
   if (!merged) await materializePrefix();
-  if (plan.fresh.size) await forEachCatalogEntry(plan.fresh.values(), video => { merged!.push(video); });
+  if (plan.fresh.size) await forEachCatalogEntry(plan.fresh.values(), video => { merged!.push(video); }, turn);
   return merged!;
 }

@@ -112,7 +112,15 @@ try {
     // networkidle never settles and would burn the whole timeout.
     const resp = await page.goto(url, { waitUntil: "domcontentloaded", timeout: timeoutMs });
     const status = resp?.status() ?? 0;
+    if (resp?.headers()['content-type']?.includes('text/html') && (await resp.text()).includes('\0')) {
+      throw new Error('HTML contains literal null bytes that can truncate the client hydration script');
+    }
     await page.waitForTimeout(1000);
+    let hydrationVerified = null;
+    if (await page.locator('[data-home-ready]').count()) {
+      await page.locator('[data-home-ready="true"]').waitFor({ timeout: timeoutMs });
+      hydrationVerified = true;
+    }
 
     const title = await page.title();
     const hasCanvas = (await page.locator("canvas").count()) > 0;
@@ -133,6 +141,7 @@ try {
       status,
       title,
       hasCanvas,
+      hydrationVerified,
       bodyTextLen: normalizeBodyText(bodyText).length,
       bodyTextHash: normalizedBodyTextHash(bodyText),
       bodyTextPrefix: bodyTextPrefix(bodyText),

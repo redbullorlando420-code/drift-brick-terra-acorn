@@ -1,0 +1,89 @@
+{
+  "limitation": "Synthetic numeric title references; heap delta is sampled before explicit collection and is not process peak memory. Replacement snapshots intentionally publish even when their references have equal contents.",
+  "results": [
+    {
+      "size": 80000,
+      "action": "enter catalog",
+      "oldShallow": {
+        "equal": false,
+        "ms": 9.615099999999998,
+        "retainedHeapBytesBeforeCollection": 6822592
+      },
+      "referenceIdentity": {
+        "equal": false,
+        "ms": 0.08230000000000359,
+        "retainedHeapBytesBeforeCollection": 3896
+      }
+    },
+    {
+      "size": 80000,
+      "action": "publish replacement",
+      "oldShallow": {
+        "equal": true,
+        "ms": 21.635900000000007,
+        "retainedHeapBytesBeforeCollection": 17114664
+      },
+      "referenceIdentity": {
+        "equal": false,
+        "ms": 0.0033999999999991815,
+        "retainedHeapBytesBeforeCollection": 3648
+      }
+    },
+    {
+      "size": 80000,
+      "action": "leave catalog",
+      "oldShallow": {
+        "equal": false,
+        "ms": 5.16579999999999,
+        "retainedHeapBytesBeforeCollection": 5674952
+      },
+      "referenceIdentity": {
+        "equal": false,
+        "ms": 0.0033999999999991815,
+        "retainedHeapBytesBeforeCollection": 3728
+      }
+    },
+    {
+      "size": 1000000,
+      "action": "enter catalog",
+      "oldShallow": {
+        "equal": false,
+        "ms": 91.8409,
+        "retainedHeapBytesBeforeCollection": 67031728
+      },
+      "referenceIdentity": {
+        "equal": false,
+        "ms": 0.012299999999981992,
+        "retainedHeapBytesBeforeCollection": 512
+      }
+    },
+    {
+      "size": 1000000,
+      "action": "publish replacement",
+      "oldShallow": {
+        "equal": true,
+        "ms": 340.4335000000001,
+        "retainedHeapBytesBeforeCollection": 70074304
+      },
+      "referenceIdentity": {
+        "equal": false,
+        "ms": 0.03530000000000655,
+        "retainedHeapBytesBeforeCollection": 2072
+      }
+    },
+    {
+      "size": 1000000,
+      "action": "leave catalog",
+      "oldShallow": {
+        "equal": false,
+        "ms": 158.54999999999995,
+        "retainedHeapBytesBeforeCollection": 71749568
+      },
+      "referenceIdentity": {
+        "equal": false,
+        "ms": 0.0072000000000116415,
+        "retainedHeapBytesBeforeCollection": 528
+      }
+    }
+  ]
+}

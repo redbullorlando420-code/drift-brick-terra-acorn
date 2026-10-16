@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { collectCatalogRows, forEachCatalogSlice, copyCatalogRecord } from './catalog-work.ts';
 import { createPreviewUrlCache } from './videos/preview-url-cache.ts';
 import { adultProviderPullBudget, planAdultPull } from './videos/adult-pull-plan.ts';
+import { patchSparseRecord, removeSparseRecordKeys } from './sparse-record.ts';
 
 test('catalog traversals yield and cancel before processing another slice', async () => {
   let visits = 0, turns = 0;
@@ -40,6 +41,31 @@ test('URL cache bounds long sessions and skips unchanged successful previews', (
   assert.equal(cache.get('v99999')?.poster, 'https://example.com/99999.jpg');
   const restored = createPreviewUrlCache(2400); restored.hydrate(cache.serialize());
   assert.equal(restored.size(), 2400); assert.deepEqual(restored.get('v99999'), cache.get('v99999'));
+});
+
+test('copying sparse feedback avoids exporting its entire tree and preserves own values', async () => {
+  const base = Object.assign(Object.create({ inherited: 7 }), { kept: 1, removed: 2, ['__proto__']: 3 });
+  Object.defineProperty(base, '__proto__', { value: 3, enumerable: true });
+  const source = removeSparseRecordKeys(patchSparseRecord(base, Array.from({ length: 10_000 }, (_, i) => [`added:${i}`, i] as const)), ['removed']);
+  const sort = Array.prototype.sort;
+  Array.prototype.sort = function() { throw Error('full sparse export'); };
+  let copy: Record<string, number>;
+  try { copy = await copyCatalogRecord(source, async () => {}); }
+  finally { Array.prototype.sort = sort; }
+  assert.deepEqual(new Map(Object.entries(copy)), new Map(Object.entries(source)));
+  assert.equal(Object.getPrototypeOf(copy), Object.prototype);
+  assert.equal(Object.hasOwn(copy, 'inherited'), false); assert.equal(copy.__proto__, 3);
+  copy.kept = 99; assert.equal(source.kept, 1);
+});
+
+test('sparse copying cancels through deleted entries before reading unrelated remaining values', async () => {
+  let reads = 0;
+  const base = Object.fromEntries(Array.from({ length: 20_000 }, (_, i) => [`id:${i}`, i]));
+  Object.defineProperty(base, 'unrelated', { enumerable: true, get() { reads++; return 9; } });
+  const source = removeSparseRecordKeys(base, Object.keys(base).filter(key => key !== 'unrelated'));
+  let turns = 0;
+  await assert.rejects(copyCatalogRecord(source, async () => { if (++turns === 3) throw Error('cancelled'); }), /cancelled/);
+  assert.equal(turns, 3); assert.equal(reads, 0);
 });
 test('Adult sweep rotates untouched providers and skips cooldowns', () => {
   const cursors = { eporner: { page: 3, query: 'all', order: 'latest', updatedAt: 90 }, redtube: { page: 5, query: 'all', order: 'latest', updatedAt: 0, retryAt: 200 } };

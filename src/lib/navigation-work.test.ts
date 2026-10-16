@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { scheduleNavigationWork, yieldNavigationTask } from './navigation-work.ts';
+import { prioritizeInteraction } from './interaction-budget.ts';
 
 test('route work crosses a painted frame, runs outside RAF, sleeps hidden and cancels cleanly', () => {
   const savedWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
@@ -66,4 +67,15 @@ test('running preparation sleeps hidden without polling and releases visibility 
   } finally {
     if (savedDocument) Object.defineProperty(globalThis, 'document', savedDocument); else delete (globalThis as { document?: unknown }).document;
   }
+});
+
+test('foreground input postpones another catalog slice and cancellation releases the lease waiter', async () => {
+  const controller = new AbortController(); let completed = false;
+  prioritizeInteraction();
+  const job = yieldNavigationTask(controller.signal, async () => {}).then(() => { completed = true; });
+  await Promise.resolve();
+  assert.equal(completed, false);
+  controller.abort();
+  await assert.rejects(job, { name: 'AbortError' });
+  assert.equal(completed, false);
 });

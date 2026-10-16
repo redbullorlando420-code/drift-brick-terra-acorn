@@ -19,7 +19,7 @@ test('browser enrichment owns one idle callback, cancels on real lifecycle/input
   Object.defineProperty(globalThis, 'scheduler', { configurable: true, value: undefined });
   const flush = async () => { for (let i = 0; i < 16; i++) await Promise.resolve(); };
   const fire = async (callbacks: Map<number, () => void>) => { const [id, callback] = callbacks.entries().next().value!; callbacks.delete(id); callback(); await flush(); };
-  const { idleEnrichment, setEnrichmentViewerOpen } = await import('./idle-work.ts');
+  const { idleEnrichment, setEnrichmentViewerOpen, holdMetadataEnrichment } = await import('./idle-work.ts');
   try {
     let commits = 0;
     const job = () => idleEnrichment.enqueue('test', 'Test', async (signal, turn) => {
@@ -34,6 +34,10 @@ test('browser enrichment owns one idle callback, cancels on real lifecycle/input
     setEnrichmentViewerOpen(false); assert.equal(idle.size, 1);
     setEnrichmentViewerOpen(false, true); await flush(); assert.equal(idle.size, 0, 'active search holds optional tag commits');
     setEnrichmentViewerOpen(false, false); assert.equal(idle.size, 1);
+    const releaseRanking = holdMetadataEnrichment(), releaseNavigation = holdMetadataEnrichment();
+    await flush(); assert.equal(idle.size, 0); assert.equal(commits, 0);
+    releaseRanking(); releaseRanking(); await flush(); assert.equal(idle.size, 0);
+    releaseNavigation(); assert.equal(idle.size, 1, 'only the final owner resumes queued metadata');
     await fire(idle); surface.dispatchEvent(new Event('pointerdown')); await flush();
     assert.equal(idle.size, 0); assert.equal(timers.size, 1); assert.equal(commits, 0);
     now = 250; await fire(timers); await fire(idle); await fire(timers);

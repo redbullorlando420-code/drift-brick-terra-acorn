@@ -135,7 +135,12 @@ test('an evicted binary disk thumbnail reopens without file access or video deco
  try{
   useThumbs.setState({byId:{},failed:{},durations:{},diagnostics:{}});
   const cancel=useThumbs.getState().request({id:'disk-hit',folderId:'local',name:'Local',path:'missing-file',extension:'mp4',mime:'video/mp4',size:1,addedAt:0});
-  await new Promise(resolve=>setTimeout(resolve,20));
+  // Await the actual async disk publication. A fixed 20 ms sleep races the
+  // background task under parallel build/test work and proves no timing contract.
+  if(!useThumbs.getState().byId['disk-hit'])await new Promise((resolve,reject)=>{
+   const timeout=setTimeout(()=>{unsubscribe();reject(new Error('Disk thumbnail did not publish'));},2000);
+   const unsubscribe=useThumbs.subscribe(state=>{if(state.byId['disk-hit']){clearTimeout(timeout);unsubscribe();resolve();}});
+  });
   assert.deepEqual(reads,['disk-hit']);
   const url=useThumbs.getState().byId['disk-hit'];assert.ok(url?.startsWith('blob:'));
   assert.equal(await(await fetch(url)).text(),'stored JPEG');assert.deepEqual(useThumbs.getState().failed,{});
@@ -186,11 +191,12 @@ test('search client applies backpressure, rejects stale replies, and settles wor
  };
  try {
   const {searchWorkerIndex:index}=await import('../src/lib/videos/search-worker-index.ts');
-  const videos=Array.from({length:400},(_,i)=>({id:String(i),name:'sample',path:'sample'}));
+  const videos=Array.from({length:1200},(_,i)=>({id:String(i),name:'sample',path:'sample'}));
   index.sync(videos,{},{});
   await new Promise(r=>setTimeout(r,10));
   assert.equal(worker.messages.length,1);
-  assert.equal(worker.messages[0].batch.length,128);
+  assert.ok(worker.messages[0].batch.length>0&&worker.messages[0].batch.length<=512);
+  assert.equal(worker.messages[0].done,false,'the remaining catalog must wait for acknowledgement');
   const oldGeneration=worker.messages[0].generation;
   const result=index.search('current');
   index.sync(videos.slice(0,1),{},{});

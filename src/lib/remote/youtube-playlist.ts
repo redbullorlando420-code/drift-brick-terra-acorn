@@ -1,3 +1,5 @@
+import { youtubeRendererMetadata } from '../videos/youtube-metadata.ts';
+import { youtubeVideoRenderers } from './youtube-page-data.ts';
 export function youtubePlaylistId(input: string): string | null {
   try {
     const url = new URL(input.trim());
@@ -10,7 +12,7 @@ export function youtubePlaylistId(input: string): string | null {
 type TextRuns = { simpleText?: string; runs?: Array<{ text?: string }> };
 function text(value?: TextRuns) { return value?.simpleText ?? value?.runs?.map((run) => run.text ?? "").join("") ?? ""; }
 
-export type PublicPlaylistEntry = { id: string; title: string; channelName: string; channelId?: string; thumb?: string };
+export type PublicPlaylistEntry = { id: string; title: string; channelName: string; channelId?: string; thumb?: string; metadata?: ReturnType<typeof youtubeRendererMetadata> };
 export function publicPlaylistEntries(root: unknown, limit: number): PublicPlaylistEntry[] {
   const out: PublicPlaylistEntry[] = [];
   const seen = new Set<string>();
@@ -27,7 +29,7 @@ export function publicPlaylistEntries(root: unknown, limit: number): PublicPlayl
     } | undefined;
     if (renderer?.videoId && !seen.has(renderer.videoId)) {
       seen.add(renderer.videoId);
-      out.push({ id: renderer.videoId, title: text(renderer.title) || renderer.videoId, channelName: text(renderer.shortBylineText) || "YouTube", thumb: renderer.thumbnail?.thumbnails?.at(-1)?.url });
+      out.push({ id: renderer.videoId, title: text(renderer.title) || renderer.videoId, channelName: text(renderer.shortBylineText) || "YouTube", thumb: renderer.thumbnail?.thumbnails?.at(-1)?.url, metadata: youtubeRendererMetadata(renderer) });
     }
     const lockup = record.lockupViewModel as {
       contentId?: string; contentType?: string;
@@ -41,6 +43,7 @@ export function publicPlaylistEntries(root: unknown, limit: number): PublicPlayl
         title: lockup.metadata?.lockupMetadataViewModel?.title?.content || lockup.contentId,
         channelName: lockup.metadata?.lockupMetadataViewModel?.metadata?.contentMetadataViewModel?.metadataRows?.[0]?.metadataParts?.[0]?.text?.content || "YouTube",
         thumb: lockup.contentImage?.thumbnailViewModel?.image?.sources?.at(-1)?.url,
+        metadata: youtubeRendererMetadata(youtubeVideoRenderers({ lockupViewModel: lockup }, 1)[0] ?? {}),
       });
     }
     for (const value of Object.values(record).reverse()) if (value && typeof value === "object") stack.push(value);

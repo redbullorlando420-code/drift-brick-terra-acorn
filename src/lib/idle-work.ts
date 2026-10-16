@@ -1,8 +1,13 @@
 import { createIdleQueue } from './idle-queue.ts';
 import { getInteractionPriorityDelay, prioritizeInteraction, scheduleBackgroundWork } from './interaction-budget.ts';
+import { createWorkHold } from './work-hold.ts';
 
 let viewerOpen = false, pageSuspended = false;
 let wakeQueue: ((interrupt?: boolean) => void) | undefined;
+const foreground = createWorkHold(() => wakeQueue?.(true));
+/** Ranking/navigation owns the next catalog snapshot. Optional enrichment
+ * must not repeatedly invalidate that snapshot while it is being compiled. */
+export const holdMetadataEnrichment = () => foreground.acquire();
 function idleTurn(signal: AbortSignal) {
   return new Promise<void>((resolve, reject) => {
     const abort = () => { cancel(); signal.removeEventListener('abort', abort); reject(signal.reason); };
@@ -11,7 +16,7 @@ function idleTurn(signal: AbortSignal) {
   });
 }
 export const idleEnrichment = createIdleQueue({
-  allowed: () => typeof document !== 'undefined' && !document.hidden && !viewerOpen && !pageSuspended,
+  allowed: () => typeof document !== 'undefined' && !document.hidden && !viewerOpen && !pageSuspended && !foreground.held(),
   start: idleTurn,
   turn: signal => {
     signal.throwIfAborted();

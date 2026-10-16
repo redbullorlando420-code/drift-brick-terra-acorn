@@ -13,7 +13,7 @@ export const isTopicTag = (tag: string) => Boolean(canonicalTopic(tag));
 export type TopicEvidence = { topic: string; reason: string; saved: boolean };
 const cache = new WeakMap<LibraryVideo, { tags: readonly string[]; links: TopicEvidence[]; topics: string[] }>();
 const EMPTY: readonly string[] = [];
-function resolve(video: LibraryVideo, tags: readonly string[] = EMPTY) {
+function resolve(video: LibraryVideo, tags: readonly string[] = EMPTY, retain = true) {
   const previous = cache.get(video);
   if (previous?.tags === tags) return previous;
   const links = new Map<string, TopicEvidence>();
@@ -30,10 +30,13 @@ function resolve(video: LibraryVideo, tags: readonly string[] = EMPTY) {
     if (!links.has(link.topic)) links.set(link.topic, { ...link, saved: false });
   }
   const result = { tags, links: [...links.values()], topics: [...links.keys()] };
-  cache.set(video, result);
+  if (retain) cache.set(video, result);
   return result;
 }
 export const topicEvidence = (video: LibraryVideo, tags?: readonly string[]) => resolve(video, tags).links;
+/** Full-library aggregates reuse existing card evidence but never fill the
+ * resident per-card cache with an object/array bundle for every catalog title. */
+export const topicEvidenceForScan = (video: LibraryVideo, tags?: readonly string[]) => resolve(video, tags, false).links;
 export const topicsForVideo = (video: LibraryVideo, tags?: readonly string[]) => resolve(video, tags).topics;
 
 /** Refresh only explicitly provider-authored interests. Unknown legacy tags,

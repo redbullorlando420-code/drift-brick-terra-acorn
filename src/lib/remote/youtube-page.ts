@@ -1,4 +1,5 @@
 import type { LibraryVideo } from "../videos/types";
+import { exactYoutubePublished, repairYoutubePublication } from '../videos/youtube-metadata.ts';
 
 /** A continuation identifies a whole page. Consume it completely before
  * advancing, allowing at most one provider page beyond the requested budget. */
@@ -13,15 +14,13 @@ export function uniqueYoutubePage<T extends { videoId?: string }>(rows: T[], see
 }
 
 export function youtubePublishedTime(value: string) {
-  const parsed = Date.parse(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  const exact = exactYoutubePublished(value);
+  return exact ? Date.parse(exact) : 0;
 }
 
 
 /** This exact description was generated only for undated archive rows. */
 export function repairLegacyYoutubeDate(video: LibraryVideo): LibraryVideo {
-  if (video.remote?.kind !== "youtube" || !video.addedAt || !video.remote.channelName) return video;
-  if (video.description !== `${video.remote.channelName} public channel catalog item.`) return video;
-  return { ...video, addedAt: 0 };
+  return repairYoutubePublication(video);
 }
 

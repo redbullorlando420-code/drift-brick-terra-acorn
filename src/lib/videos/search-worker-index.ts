@@ -1,7 +1,9 @@
+import { yieldCatalogTask } from '../catalog-work';
 import type { LibraryVideo } from "./types";
 
 // Keep tokenization and topic inference off the UI thread. Transfer one small
 // batch at a time; the acknowledgement provides backpressure during imports.
+export type SearchMatches = { ids: string[]; positions: Uint32Array; videos: LibraryVideo[] };
 let worker: Worker | null = null;
 let sequence = 0;
 let generation = 0;
@@ -9,7 +11,7 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 let idleTimer: ReturnType<typeof setTimeout> | undefined;
 let source: { videos: LibraryVideo[]; tags: Record<string, string[]>; categories: Record<string, string> } | undefined;
 let offset = 0;
-const pending = new Map<number, { query: string; resolve: (ids: string[] | null) => void; cleanup: () => void }>();
+const pending = new Map<number, { query: string; resolve: (ids: SearchMatches | null) => void; cleanup: () => void }>();
 type SearchWorkerStatus = "idle" | "building" | "ready" | "failed";
 let status: SearchWorkerStatus = "idle";
 const listeners = new Set<(status: SearchWorkerStatus) => void>();
@@ -17,15 +19,16 @@ function setStatus(next: SearchWorkerStatus) { status = next; listeners.forEach(
 function fail() {
   clearTimeout(timer);
   clearTimeout(idleTimer);
+  idleTimer = undefined;
   worker?.terminate(); worker = null; source = undefined;
   setStatus("failed");
   for (const request of pending.values()) { request.cleanup(); request.resolve(null); }
   pending.clear();
 }
 function releaseWhenIdle() {
-  clearTimeout(idleTimer);
-  if (pending.size || status !== "ready") return;
+  if (pending.size || status !== "ready" || idleTimer !== undefined) return;
   idleTimer = setTimeout(() => {
+    idleTimer = undefined;
     if (pending.size || status !== "ready") return;
     worker?.terminate();
     worker = null;
@@ -36,6 +39,7 @@ function releaseWhenIdle() {
 function release() {
   clearTimeout(timer);
   clearTimeout(idleTimer);
+  idleTimer = undefined;
   worker?.terminate();
   worker = null;
   source = undefined;
@@ -45,16 +49,33 @@ function release() {
   setStatus("idle");
 }
 function watch() { clearTimeout(timer); timer = setTimeout(fail, 15_000); }
+function ready() {
+  clearTimeout(timer); setStatus('ready');
+  for (const [requestId, request] of pending) worker?.postMessage({ type: 'search', generation, requestId, query: request.query });
+  if (pending.size) watch(); else releaseWhenIdle();
+}
+function queueBatch() { const expected = generation; void yieldCatalogTask().then(() => { if (generation === expected && source && worker) sendBatch(); }); }
 function sendBatch() {
   if (!source || !worker) return;
   const { videos, tags, categories } = source;
-  const batch = videos.slice(offset, offset + 128).map((v) => ({
+  const batch = [], started = performance.now();
+  let characters = 0;
+  const reset = offset === 0;
+  // Backpressure still permits only one packet in flight. Dense metadata stops
+  // the packet early; compact catalogs avoid hundreds of needless round trips.
+  while (offset < videos.length && batch.length < 512) {
+    const v = videos[offset++]!, videoTags = tags[v.id] ?? [];
+    batch.push({
     video: { id: v.id, name: v.name, path: v.path, genre: v.genre, tagline: v.tagline, collection: v.collection, description: v.description,
       remote: v.remote && { channelName: v.remote.channelName, channelId: v.remote.channelId, kind: v.remote.kind } },
-    tags: tags[v.id] ?? [], category: categories[v.id],
-  }));
-  const reset = offset === 0;
-  offset += batch.length;
+    tags: videoTags, category: categories[v.id],
+    });
+    characters += v.id.length + v.name.length + v.path.length + (v.genre?.length ?? 0)
+      + (v.tagline?.length ?? 0) + (v.collection?.length ?? 0) + (v.description?.length ?? 0)
+      + (categories[v.id]?.length ?? 0) + (v.remote?.channelName?.length ?? 0) + (v.remote?.channelId?.length ?? 0);
+    for (const tag of videoTags) characters += tag.length;
+    if (characters >= 65_536 || performance.now() - started >= 2) break;
+  }
   watch();
   worker.postMessage({ type: "batch", generation, reset, done: offset >= videos.length, batch });
 }
@@ -65,16 +86,13 @@ function instance() {
     worker.onmessageerror = fail;
     worker.onmessage = ({ data }) => {
       if (data.generation !== generation) return;
-      if (data.type === "next") { clearTimeout(timer); timer = setTimeout(sendBatch, 0); return; }
+      if (data.type === "next") { clearTimeout(timer); queueBatch(); return; }
       if (data.type === "ready") {
-        clearTimeout(timer); setStatus("ready");
-        for (const [requestId, request] of pending) worker?.postMessage({ type: "search", generation, requestId, query: request.query });
-        if (pending.size) watch();
-        else releaseWhenIdle();
+        ready();
         return;
       }
       const request = pending.get(data.requestId);
-      request?.cleanup(); request?.resolve(data.ids);
+      request?.cleanup(); request?.resolve(source ? { ids: data.ids, positions: data.positions, videos: source.videos } : null);
       pending.delete(data.requestId);
       if (!pending.size) { clearTimeout(timer); releaseWhenIdle(); }
     };
@@ -83,39 +101,48 @@ function instance() {
 }
 export const searchWorkerIndex = {
   release,
+  retire() { if (!pending.size && status === 'building') release(); else releaseWhenIdle(); },
+  async search(query: string, signal?: AbortSignal): Promise<string[] | null> { return (await this.searchMatches(query, signal))?.ids ?? null; },
   sync(videos: LibraryVideo[], tags: Record<string, string[]>, categories: Record<string, string>) {
     clearTimeout(idleTimer);
+    idleTimer = undefined;
     if (source?.videos === videos && source.tags === tags && source.categories === categories) return;
     const previous = source;
-    const canReuseIndex = status === "ready"
+    const mayReuseIndex = status === "ready"
       && previous != null
       && tags === previous.tags
       && categories === previous.categories
-      && videos.length >= previous.videos.length
-      && previous.videos.every((video, index) => videos[index] === video);
-    if (canReuseIndex && videos.length === previous.videos.length) {
-      // Store updates sometimes copy the catalog array without changing any
-      // card. Its existing inverted index still describes the full contents.
-      source = { videos, tags, categories };
-      return;
-    }
-    if (canReuseIndex && videos.length > previous.videos.length) {
-      source = { videos, tags, categories };
-      offset = previous.videos.length;
-      generation++;
-      setStatus("building");
-      try {
-        instance().postMessage({ type: "continue", generation });
-        timer = setTimeout(sendBatch, 0);
-      } catch { fail(); }
-      return;
-    }
+      && videos.length >= previous.videos.length;
     source = { videos, tags, categories }; offset = 0; generation++;
     clearTimeout(timer); setStatus("building");
-    try { instance(); timer = setTimeout(sendBatch, 0); } catch { fail(); }
+    if (mayReuseIndex) {
+      const expected = generation;
+      void (async () => {
+        // Do not read a million references on a click/effect stack. A newer
+        // snapshot or release cancels this comparison before its next slice.
+        let checked = 0;
+        while (checked < previous.videos.length) {
+          await yieldCatalogTask();
+          if (generation !== expected || !worker) return;
+          const started = performance.now(), end = Math.min(previous.videos.length, checked + 2048);
+          while (checked < end) {
+            if (previous.videos[checked] !== videos[checked]) { queueBatch(); return; }
+            checked++;
+            if (performance.now() - started >= 2) break;
+          }
+        }
+        if (generation !== expected || !worker) return;
+        worker.postMessage({ type: 'continue', generation });
+        offset = previous.videos.length;
+        if (offset === videos.length) ready(); else queueBatch();
+      })().catch(() => { if (generation === expected) fail(); });
+      return;
+    }
+    try { instance(); queueBatch(); } catch { fail(); }
   },
-  search(query: string, signal?: AbortSignal): Promise<string[] | null> {
+  searchMatches(query: string, signal?: AbortSignal): Promise<SearchMatches | null> {
     clearTimeout(idleTimer);
+    idleTimer = undefined;
     if (signal?.aborted || status === "failed" || status === "idle") return Promise.resolve(null);
     return new Promise((resolve) => {
       const requestId = ++sequence;

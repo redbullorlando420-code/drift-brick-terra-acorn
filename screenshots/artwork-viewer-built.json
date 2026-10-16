@@ -1,0 +1,26 @@
+{
+  "ok": true,
+  "fixture": "60k YouTube entries, intentionally held CDN responses, paused pulling, isolated desktop/mobile contexts; synthetic embeds and offline Companion",
+  "results": [
+    {
+      "viewport": "desktop",
+      "ok": true,
+      "previewReadyMs": 399,
+      "starts": 10,
+      "cancelled": 0,
+      "fallbackStarts": 0,
+      "readyImages": 10,
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "ok": true,
+      "previewReadyMs": 398,
+      "starts": 12,
+      "cancelled": 0,
+      "fallbackStarts": 0,
+      "readyImages": 4,
+      "errors": []
+    }
+  ]
+}

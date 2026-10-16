@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8081/does-not-exist/nested",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Realhub",
+      "hasCanvas": false,
+      "bodyTextLen": 156,
+      "bodyTextHash": "490556fe1996382497a8a4f495aaf251106411c8038582864888e3e72172755d",
+      "bodyTextPrefix": "REALHUB That page is not here This library view may have moved. ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\landing-final-notfound.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Realhub",
+      "hasCanvas": false,
+      "bodyTextLen": 156,
+      "bodyTextHash": "490556fe1996382497a8a4f495aaf251106411c8038582864888e3e72172755d",
+      "bodyTextPrefix": "REALHUB That page is not here This library view may have moved. ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\landing-final-notfound-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\landing-final-notfound.json"
+}

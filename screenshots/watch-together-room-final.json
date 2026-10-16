@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/?room=RCE804F&theater=1",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Realhub",
+      "hasCanvas": false,
+      "bodyTextLen": 373,
+      "bodyTextHash": "b008d910e7810e25f8e3d004f421a5c9ff4b14d98209c55d4520b4f61f84fe50",
+      "bodyTextPrefix": "Realhub Vault · networks · live Library Home Landing page 0 Movi",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\watch-together-room-final.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Realhub",
+      "hasCanvas": false,
+      "bodyTextLen": 1057,
+      "bodyTextHash": "11ebb596830581c7ec8554484f95dcf23e0580989051fbbc5baf5754fbb7b498",
+      "bodyTextPrefix": "Watch Room Control room Search Date added Pause pulls CONNECTED ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\watch-together-room-final-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\watch-together-room-final.json"
+}

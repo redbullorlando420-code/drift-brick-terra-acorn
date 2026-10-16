@@ -1,0 +1,102 @@
+{
+  "ok": true,
+  "fixture": "60,000 saved YouTube videos, 48,000 from one creator; real ranking worker; isolated browser storage; artwork/embeds stubbed",
+  "results": [
+    {
+      "viewport": "desktop",
+      "firstBatchMs": 692,
+      "scrollWorstFrameMs": 60,
+      "peakCards": 66,
+      "worstMainTaskMs": 152,
+      "overflow": false,
+      "rankingWorkers": [
+        {
+          "rows": 60000,
+          "packingMs": 437,
+          "scoringMs": 137,
+          "completed": true
+        },
+        {
+          "rows": 60000,
+          "packingMs": 469,
+          "scoringMs": 122,
+          "completed": true
+        },
+        {
+          "rows": 60000,
+          "packingMs": 373,
+          "scoringMs": 129,
+          "completed": true
+        },
+        {
+          "rows": 60000,
+          "packingMs": 1698,
+          "scoringMs": 155,
+          "completed": true
+        },
+        {
+          "rows": 0,
+          "packingMs": null,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 4000,
+          "packingMs": 307,
+          "scoringMs": 14,
+          "completed": true
+        }
+      ],
+      "errors": [],
+      "ok": true
+    },
+    {
+      "viewport": "mobile",
+      "firstBatchMs": 1141,
+      "scrollWorstFrameMs": 56,
+      "peakCards": 40,
+      "worstMainTaskMs": 120,
+      "overflow": false,
+      "rankingWorkers": [
+        {
+          "rows": 60000,
+          "packingMs": 763,
+          "scoringMs": 255,
+          "completed": true
+        },
+        {
+          "rows": 60000,
+          "packingMs": 1022,
+          "scoringMs": 116,
+          "completed": true
+        },
+        {
+          "rows": 60000,
+          "packingMs": 355,
+          "scoringMs": 155,
+          "completed": true
+        },
+        {
+          "rows": 60000,
+          "packingMs": 1326,
+          "scoringMs": 154,
+          "completed": true
+        },
+        {
+          "rows": 0,
+          "packingMs": null,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 4000,
+          "packingMs": 251,
+          "scoringMs": 20,
+          "completed": true
+        }
+      ],
+      "errors": [],
+      "ok": true
+    }
+  ]
+}

@@ -1,0 +1,102 @@
+{
+  "ok": true,
+  "url": "http://127.0.0.1:8082/",
+  "fixture": "30,000 Twitch entries including clips and fresh/stale live states, 240 creators, paused pulling, fixture artwork/player, isolated contexts; stale IDB and fresh localStorage checkpoint mirrors",
+  "limitation": "Provider challenges, streams and artwork are fixtures. Real-provider throughput, native playback and device soak are separate checks.",
+  "results": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "storageBeforeBytes": 73728,
+      "storageAfterBytes": 14753792,
+      "storageGrowthBytes": 14680064,
+      "liveReadyMs": 434,
+      "initialArtworkRequests": 4,
+      "liveScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\milestone-twitch-controls-built-desktop-live.png",
+      "scrollSettleMs": 17,
+      "liveRailVerified": true,
+      "coverageReadyMs": 1022,
+      "queueScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\milestone-twitch-controls-built-desktop-queue.png",
+      "focusedQueueVerified": true,
+      "checkpointRecoveryVerified": true,
+      "creatorPagingVerified": true,
+      "pullsRemainPaused": true,
+      "archiveSearchVerified": true,
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\milestone-twitch-controls-built-desktop.png",
+      "overflowPixels": 0,
+      "archiveReleaseVerified": true,
+      "inputPaintMs": 56,
+      "slowestInputs": [
+        {
+          "ms": 55.69999998807907,
+          "action": "click"
+        },
+        {
+          "ms": 55.30000001192093,
+          "action": "Close preview"
+        },
+        {
+          "ms": 34.099999994039536,
+          "action": "26,972 cached VODs across 240 channels · expand to review and queue de"
+        },
+        {
+          "ms": 21.100000023841858,
+          "action": "Close archive search"
+        },
+        {
+          "ms": 19,
+          "action": "Search saved Twitch archive"
+        }
+      ],
+      "peakMountedCards": 42,
+      "ok": true
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "storageBeforeBytes": 73728,
+      "storageAfterBytes": 14753792,
+      "storageGrowthBytes": 14680064,
+      "liveReadyMs": 330,
+      "initialArtworkRequests": 2,
+      "liveScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\milestone-twitch-controls-built-mobile-live.png",
+      "scrollSettleMs": 17,
+      "liveRailVerified": true,
+      "coverageReadyMs": 803,
+      "queueScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\milestone-twitch-controls-built-mobile-queue.png",
+      "focusedQueueVerified": true,
+      "checkpointRecoveryVerified": true,
+      "creatorPagingVerified": true,
+      "pullsRemainPaused": true,
+      "archiveSearchVerified": true,
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\milestone-twitch-controls-built-mobile.png",
+      "overflowPixels": 0,
+      "archiveReleaseVerified": true,
+      "inputPaintMs": 45,
+      "slowestInputs": [
+        {
+          "ms": 44.900000005960464,
+          "action": "Close preview"
+        },
+        {
+          "ms": 41.29999998211861,
+          "action": "click"
+        },
+        {
+          "ms": 24.19999998807907,
+          "action": "26,972 cached VODs across 240 channels · expand to review and queue de"
+        },
+        {
+          "ms": 19.400000005960464,
+          "action": "Open menu"
+        },
+        {
+          "ms": 17.600000023841858,
+          "action": "Search saved Twitch archive"
+        }
+      ],
+      "peakMountedCards": 24,
+      "ok": true
+    }
+  ]
+}

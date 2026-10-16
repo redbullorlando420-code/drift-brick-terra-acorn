@@ -34,7 +34,7 @@ export function youtubePageChannelId(html: string): string | null {
     ?? null;
 }
 
-export type YoutubeRenderer = {
+export type YoutubeRenderer = Parameters<typeof import('../videos/youtube-metadata.ts').youtubeRendererMetadata>[0] & {
   videoId?: string;
   title?: { simpleText?: string; runs?: Array<{ text?: string }> };
   viewCountText?: { simpleText?: string; runs?: Array<{ text?: string }> };
@@ -55,7 +55,7 @@ export function youtubeVideoRenderers(items: unknown, maximum: number): YoutubeR
     const renderer = record.videoRenderer ?? record.gridVideoRenderer ?? record.playlistVideoRenderer ?? record.reelItemRenderer;
     const lockup = record.lockupViewModel;
     const short = record.shortsLockupViewModel;
-    const normalized: YoutubeRenderer | undefined = renderer ?? (lockup?.contentType === "LOCKUP_CONTENT_TYPE_VIDEO" ? {
+    const normalized: YoutubeRenderer | undefined = renderer ? (record.reelItemRenderer ? { ...renderer, youtubeType: 'short' } : renderer) : (lockup?.contentType === "LOCKUP_CONTENT_TYPE_VIDEO" ? {
       videoId: lockup.contentId,
       title: { simpleText: lockup.metadata?.lockupMetadataViewModel?.title?.content },
       thumbnail: { thumbnails: lockup.contentImage?.thumbnailViewModel?.image?.sources },
@@ -63,10 +63,15 @@ export function youtubeVideoRenderers(items: unknown, maximum: number): YoutubeR
       viewCountText: { simpleText: lockup.metadata?.lockupMetadataViewModel?.metadata?.contentMetadataViewModel?.metadataRows
         ?.flatMap((row: any) => row.metadataParts?.map((part: any) => part.text?.content) ?? [])
         .find((text: unknown) => typeof text === 'string' && /\bviews\b/i.test(text)) },
+      publishedTimeText: { simpleText: lockup.metadata?.lockupMetadataViewModel?.metadata?.contentMetadataViewModel?.metadataRows
+        ?.flatMap((row: any) => row.metadataParts?.map((part: any) => part.text?.content) ?? [])
+        .find((value: unknown) => typeof value === 'string' && /^Streamed\s|^\d{4}-\d{2}-\d{2}$/.test(value)) },
+      thumbnailOverlays: lockup.contentImage?.thumbnailViewModel?.overlays?.flatMap((overlay: any) => overlay.thumbnailBottomOverlayViewModel?.badges?.map((badge: any) => ({ thumbnailOverlayTimeStatusRenderer: { style: badge.thumbnailBadgeViewModel?.badgeStyle === 'THUMBNAIL_OVERLAY_BADGE_STYLE_LIVE' ? 'LIVE' : badge.thumbnailBadgeViewModel?.badgeStyle === 'THUMBNAIL_OVERLAY_BADGE_STYLE_UPCOMING' ? 'UPCOMING' : undefined } })) ?? []),
     } : short ? {
       videoId: short.onTap?.innertubeCommand?.reelWatchEndpoint?.videoId,
       title: { simpleText: short.overlayMetadata?.primaryText?.content ?? short.accessibilityText },
       thumbnail: { thumbnails: short.thumbnail?.sources },
+      youtubeType: 'short',
     } : undefined);
     if (normalized?.videoId && !seen.has(normalized.videoId)) { seen.add(normalized.videoId); found.push(normalized); }
     for (const value of Object.values(record).reverse()) if (value && typeof value === "object") stack.push(value);

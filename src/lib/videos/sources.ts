@@ -2,16 +2,29 @@ const files = new Map<string, File>();
 const fileHandles = new Map<string, FileSystemFileHandle>();
 const dirHandles = new Map<string, FileSystemDirectoryHandle>();
 const objectUrls = new Map<string, string>();
+const pinnedUrls = new Map<string, number>();
 const MAX_OBJECT_URLS = 48;
 
 /** Release transient media blobs after idle/background time, keeping the
  * open player/preview valid. File handles and saved metadata remain intact. */
 export function trimObjectUrls(keepIds: readonly string[] = []) {
   const keep = new Set(keepIds);
-  for (const [id, url] of objectUrls) if (!keep.has(id)) {
+  for (const [id, url] of objectUrls) if (!keep.has(id) && !pinnedUrls.has(id)) {
     URL.revokeObjectURL(url);
     objectUrls.delete(id);
   }
+}
+
+/** Watch rooms keep their selected file alive even when the main player is closed. */
+export function pinPlayUrl(id: string) {
+  pinnedUrls.set(id, (pinnedUrls.get(id) ?? 0) + 1);
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    const count = pinnedUrls.get(id) ?? 0;
+    if (count <= 1) pinnedUrls.delete(id); else pinnedUrls.set(id, count - 1);
+  };
 }
 
 export function getSourceMemorySnapshot() { return { objectUrls: objectUrls.size, fileHandles: fileHandles.size, files: files.size }; }
@@ -54,7 +67,7 @@ function rememberObjectUrl(id: string, url: string) {
     objectUrls.delete(id);
   }
   while (objectUrls.size >= MAX_OBJECT_URLS) {
-    const oldest = objectUrls.keys().next().value as string | undefined;
+    const oldest = [...objectUrls.keys()].find((key) => !pinnedUrls.has(key));
     if (!oldest) break;
     const prev = objectUrls.get(oldest);
     if (prev) URL.revokeObjectURL(prev);

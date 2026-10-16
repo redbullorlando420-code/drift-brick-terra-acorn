@@ -1,0 +1,170 @@
+{
+  "ok": true,
+  "url": "http://127.0.0.1:8080/",
+  "fixture": "80,000 compact entries, stable saved tags and 90% of Twitch archive from one creator, 60,000 saved titles and history entries, pulling paused, text-first artwork, isolated Chromium contexts; fake media and offline Companion responses stubbed",
+  "limitation": "Synthetic browser check; does not establish real-provider throughput, long-session memory stability, or physical-device performance.",
+  "budgets": {
+    "startupMs": 3000,
+    "navigationMs": 2000,
+    "scrollSettleMs": 500,
+    "inputMs": 200,
+    "mountedCards": 256,
+    "overflowPixels": 0
+  },
+  "results": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "startupMs": 710,
+      "catalogEntries": 80000,
+      "navigationMs": 1925.5,
+      "scrollSettleMs": 47.900000005960464,
+      "coldSearchMs": 1897,
+      "warmSearchMs": 349,
+      "reusedSearchIndex": true,
+      "searchScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-topics-dev-search-desktop.png",
+      "artworkIdleVerified": true,
+      "cardActionsLayoutVerified": true,
+      "cardControlsVerified": true,
+      "formatsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-topics-dev-formats-desktop.png",
+      "formatShelfScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-topics-dev-format-shelf-desktop.png",
+      "youtubeFormatsVerified": true,
+      "balancedTwitchVerified": true,
+      "twitchScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-topics-dev-twitch-desktop.png",
+      "fullTwitchMixVerified": true,
+      "twitchGridScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-topics-dev-twitch-grid-desktop.png",
+      "statsShellMs": 207,
+      "statsCompleteMs": 3080,
+      "statsWorkerFreed": true,
+      "statsExportVerified": true,
+      "statsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-topics-dev-stats-desktop.png",
+      "warmStatsMs": 103,
+      "reusedStatsSnapshot": true,
+      "topicsShellMs": 45,
+      "topicsReadyMs": 1043,
+      "topicsMountedCards": 40,
+      "topicsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-topics-dev-topics-desktop.png",
+      "topicsUiVerified": true,
+      "favoriteReadyMs": 82,
+      "posterActionsLayoutVerified": true,
+      "savedCatalogVerified": true,
+      "favoriteScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-topics-dev-favorites-desktop.png",
+      "sharedControlsVerified": true,
+      "providerBudgetsVerified": true,
+      "scorecardVerified": true,
+      "exportVerified": true,
+      "safeguardsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-topics-dev-safeguards-desktop.png",
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-topics-dev-desktop.png",
+      "inputMs": 180.09999999403954,
+      "mountedCards": 66,
+      "overflowPixels": 0,
+      "worstInput": {
+        "action": "Mix Twitch creators",
+        "ms": 180.09999999403954
+      },
+      "slowInputs": [
+        {
+          "action": "Mix Twitch creators",
+          "ms": 180.09999999403954
+        },
+        {
+          "action": "Next page · 48",
+          "ms": 103.2999999821186
+        },
+        {
+          "action": "Next page · 48",
+          "ms": 110.60000002384186
+        },
+        {
+          "action": "Next page · 48",
+          "ms": 115.89999997615814
+        },
+        {
+          "action": "Next page · 48",
+          "ms": 108.7000000178814
+        },
+        {
+          "action": "Likes · 30,000",
+          "ms": 107.09999999403954
+        },
+        {
+          "action": "All saved · 60,000",
+          "ms": 157.2000000178814
+        }
+      ],
+      "ok": true,
+      "failures": []
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "startupMs": 663.7000000178814,
+      "catalogEntries": 80000,
+      "navigationMs": 968.5999999940395,
+      "scrollSettleMs": 18.5,
+      "coldSearchMs": 1892,
+      "warmSearchMs": 329,
+      "reusedSearchIndex": true,
+      "searchScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-topics-dev-search-mobile.png",
+      "artworkIdleVerified": true,
+      "cardActionsLayoutVerified": true,
+      "cardControlsVerified": true,
+      "formatsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-topics-dev-formats-mobile.png",
+      "formatShelfScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-topics-dev-format-shelf-mobile.png",
+      "youtubeFormatsVerified": true,
+      "balancedTwitchVerified": true,
+      "twitchScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-topics-dev-twitch-mobile.png",
+      "fullTwitchMixVerified": true,
+      "twitchGridScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-topics-dev-twitch-grid-mobile.png",
+      "statsShellMs": 584,
+      "statsCompleteMs": 3468,
+      "statsWorkerFreed": true,
+      "statsExportVerified": true,
+      "statsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-topics-dev-stats-mobile.png",
+      "warmStatsMs": 181,
+      "reusedStatsSnapshot": true,
+      "topicsShellMs": 168,
+      "topicsReadyMs": 1226,
+      "topicsMountedCards": 18,
+      "topicsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-topics-dev-topics-mobile.png",
+      "topicsUiVerified": true,
+      "favoriteReadyMs": 143,
+      "posterActionsLayoutVerified": true,
+      "savedCatalogVerified": true,
+      "favoriteScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-topics-dev-favorites-mobile.png",
+      "sharedControlsVerified": true,
+      "providerBudgetsVerified": true,
+      "scorecardVerified": true,
+      "exportVerified": true,
+      "safeguardsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-topics-dev-safeguards-mobile.png",
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-topics-dev-mobile.png",
+      "inputMs": 160.59999999403954,
+      "mountedCards": 52,
+      "overflowPixels": 0,
+      "worstInput": {
+        "action": "Text-first modeYouTube7:00Gate archive 47876Gate creator 176Published Sep 8, 202",
+        "ms": 160.59999999403954
+      },
+      "slowInputs": [
+        {
+          "action": "Text-first modeYouTube7:00Gate archive 47876Gate creator 176Published Sep 8, 202",
+          "ms": 160.59999999403954
+        },
+        {
+          "action": "Mix Twitch creators",
+          "ms": 117.2000000178814
+        },
+        {
+          "action": "Open menu",
+          "ms": 100.39999997615814
+        },
+        {
+          "action": "Open menu",
+          "ms": 115.5
+        }
+      ],
+      "ok": true,
+      "failures": []
+    }
+  ]
+}

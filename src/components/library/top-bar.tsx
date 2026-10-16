@@ -1,4 +1,5 @@
 import { PullPauseButton } from './pull-pause-button';
+import { memo } from 'react';
 import { LayoutGrid, List, Menu, Upload } from 'lucide-react';
 import { SidebarToggle } from './desktop-sidebar';
 import { Button } from '@/components/ui/button';
@@ -22,7 +23,7 @@ const SORTS: { key: SortKey; label: string }[] = [
   { key: "path", label: "Full path" },
 ];
 
-export function TopBar({
+export const TopBar = memo(function TopBar({
   onMenu,
   onAddFolder,
   menuOpen,
@@ -118,4 +119,4 @@ export function TopBar({
       </div>
     </header>
   );
-}
+});

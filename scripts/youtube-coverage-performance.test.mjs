@@ -9,7 +9,8 @@ const { memoizeSelectorInputs } = await import('../src/lib/videos/selector-cache
 const { updateYoutubeShelf } = await import('../src/lib/videos/youtube-shelf.ts');
 const { mergeResolvedFollow } = await import('../src/lib/videos/follow-identity.ts');
 const channel = 'UC1234567890123456789012';
-const video = (i, folderId = 'legacy') => ({ id: `yt:${String(i).padStart(11, '0')}`, name: 'Upload', path: 'youtube', folderId, addedAt: i, mime: 'video/youtube', extension: 'yt', size: 0, remote: { kind: 'youtube', videoId: String(i).padStart(11, '0'), channelId: channel } });
+const publicationBase = Date.UTC(2026, 9, 1);
+const video = (i, folderId = 'legacy') => ({ id: `yt:${String(i).padStart(11, '0')}`, name: 'Upload', path: 'youtube', folderId, addedAt: publicationBase + i, mime: 'video/youtube', extension: 'yt', size: 0, remote: { kind: 'youtube', videoId: String(i).padStart(11, '0'), channelId: channel } });
 const follow = (id, extra = {}) => ({ id, kind: 'youtube', title: id, handle: id, ...extra });
 test('resolving a saved query removes its stub and preserves distinct channels sharing its name', () => {
   const resolved = follow('resolved', { channelId: channel, handle: '@Creator', importQuery: 'Display Name' });
@@ -67,13 +68,13 @@ test('live health and folder counts do not invalidate a provider shelf; privacy 
 test('small refreshes update dates, preserve equal-date metadata order and reuse shelves for Twitch-only changes', () => {
   const rows = Array.from({ length: 100_000 }, (_, i) => video(i));
   const ordered = [...rows].reverse(), next = [...rows];
-  next[30] = { ...next[30], addedAt: 100_001 }; next[50] = { ...next[50], name: 'Updated title' }; next.push(video(100_002));
+  next[30] = { ...next[30], addedAt: publicationBase + 100_001 }; next[50] = { ...next[50], name: 'Updated title' }; next.push(video(100_002));
   const expected = [...next].sort((a, b) => b.addedAt - a.addedAt);
   assert.deepEqual(updateYoutubeShelf(rows, next, ordered, () => true), expected);
   assert.equal(updateYoutubeShelf(rows, [...rows, { ...video(100_003), remote: { kind: 'twitch' } }], ordered, () => true), ordered);
   const twitch = Array.from({ length: 5000 }, (_, i) => ({ ...video(i + 100_003), remote: { kind: 'twitch' } }));
   assert.equal(updateYoutubeShelf(rows, [...rows, ...twitch], ordered, () => true), ordered);
-  const ties = [video(1), { ...video(2), addedAt: 1 }], tiedNext = [{ ...ties[0], name: 'New metadata' }, ties[1]];
+  const ties = [video(1), { ...video(2), addedAt: publicationBase + 1 }], tiedNext = [{ ...ties[0], name: 'New metadata' }, ties[1]];
   assert.deepEqual(updateYoutubeShelf(ties, tiedNext, ties, () => true), tiedNext);
   assert.equal(updateYoutubeShelf(rows, [...rows].reverse(), ordered, () => true), undefined);
 });

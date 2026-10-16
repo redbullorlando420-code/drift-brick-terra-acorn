@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { recoverSavedShelves, selectSavedCards } from "./saved-library.ts";
+import { recoverSavedShelves, recoverSavedShelfEdits, selectSavedCards } from "./saved-library.ts";
 import { addCountBatch, emptyCatalogCounts, type CountRow } from "./catalog-counts.ts";
 import type { LibraryVideo } from "./types";
 const card = (id: string, folderId = "public", isSample = false): LibraryVideo => ({ id, folderId, name: id, path: id, size: 0, mime: "video/mp4", extension: "mp4", addedAt: 1, isSample });
@@ -52,4 +52,18 @@ test("recovery keeps removals and empty shelves from the newest snapshot", () =>
   assert.deepEqual(recoverSavedShelves(next, old), { favorites: ["kept"], likes: [], authoritative: true });
   assert.deepEqual(recoverSavedShelves(next, { favorites: [], likes: [], savedAt: 30 }), { favorites: [], likes: [], authoritative: true });
   assert.deepEqual(recoverSavedShelves({ favorites: ["legacy"], likes: [] }, { favorites: ["other"], likes: [] }).favorites, ["legacy", "other"]);
+});
+
+test('sparse save recovery replays latest additions/removals across disk and emergency mirrors', () => {
+  const base = { favorites: ['remove', 'keep'], likes: ['like-remove'], savedAt: 10 };
+  const edit = (id: string, saved: boolean, at: number, shelf: 'favorites' | 'likes' = 'favorites') => ({ id, saved, at, shelf });
+  assert.deepEqual(recoverSavedShelfEdits(base, null, { favorites: ['outdated'], likes: [] }, [
+    edit('remove', false, 12), edit('add', true, 13), edit('add', false, 15), edit('add', true, 14),
+    edit('like-remove', false, 11, 'likes'), edit('liked', true, 14, 'likes'), edit('stale', true, 9),
+    { id: 'invalid', shelf: 'favorites', saved: 'true', at: 99 }, edit('invalid', true, NaN),
+  ]), { favorites: ['keep'], likes: ['liked'], authoritative: true });
+  assert.deepEqual(recoverSavedShelfEdits(base, { favorites: [], likes: [], savedAt: 100 }, null, [edit('add', true, 13)]),
+    { favorites: [], likes: [], authoritative: true });
+  assert.deepEqual(recoverSavedShelfEdits(null, null, { favorites: ['legacy', 'remove'], likes: ['legacy-like'] }, [edit('remove', false, 2), edit('add', true, 3)]),
+    { favorites: ['legacy', 'add'], likes: ['legacy-like'], authoritative: true });
 });

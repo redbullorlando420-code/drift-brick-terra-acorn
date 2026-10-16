@@ -9,7 +9,8 @@ import { catalogPullAvailable, subscribePullAvailability } from '@/lib/pull-cont
 import { allowAutomaticRefresh } from '@/lib/session-activity';
 import { registerPeriodicTask } from '@/lib/periodic-work';
 
-import { remoteEntryCounts, remainingEntrySlots } from '@/lib/videos/entry-limits';
+import { remoteEntryCounts } from '@/lib/videos/entry-limits';
+import { adultAdmissionPolicy, replacementRequestBudget } from '@/lib/videos/youtube-cleanup';
 const LAST_ATTEMPT_KEY = 'reelcase.adult-sweep-at.v1';
 let lastAttempt = 0;
 /** The only automatic Adult pull owner. Thin caches and archive continuation
@@ -31,17 +32,19 @@ export function useAdultPulls() {
       // traversal on every timer tick just to decide whether to request work.
       const count = state.folders.reduce((sum, folder) => sum + ((ADULT_PULL_PROVIDERS as readonly string[]).includes(folder.kind) ? folder.videoCount : 0), 0);
       const remaining = Math.min(policy.adultCatalogTarget - count, policy.adultMaxEntries - count, policy.remoteMaxEntries);
-      if (remaining <= 0) return;
+      if (remaining <= 0 && (!policy.adultAutoCleanup || policy.adultMaxEntries <= 0 || policy.remoteMaxEntries <= 0)) return;
       const providers = planAdultPull(loadAdultArchiveCursors('all', 'top-weekly'), now);
       if (!providers.length) return;
       busy = true;
       try {
-        const capacity = remainingEntrySlots(await remoteEntryCounts(state.videos), getPullSettings(), "adult");
-        if (!capacity || stopped || !catalogPullAvailable() || !allowAutomaticRefresh()) return;
+        const counts = await remoteEntryCounts(useLibrary.getState().videos);
+        const currentPolicy = adultAdmissionPolicy(getPullSettings(), true);
+        const capacity = replacementRequestBudget(counts, currentPolicy, 'adult');
+        if (!currentPolicy.automaticPulls || !capacity || stopped || !catalogPullAvailable() || !allowAutomaticRefresh()) return;
         lastAttempt = Date.now();
         try { localStorage.setItem(LAST_ATTEMPT_KEY, String(lastAttempt)); } catch { /* Session pacing remains. */ }
-        await state.searchAdultFeed('all', 'top-weekly', { append: true, providers,
-          maxVideos: Math.min(capacity, remaining, policy.adultBatchVideos), redditSources: adultRedditPullSources(ADULT_REDDIT_SUBS) });
+        await state.searchAdultFeed('all', 'top-weekly', { append: true, providers, automatic: true,
+          maxVideos: Math.min(capacity, currentPolicy.adultBatchVideos), redditSources: adultRedditPullSources(ADULT_REDDIT_SUBS) });
       } catch { /* Pull ledger/cooldowns explain provider failures. */ }
       finally { busy = false; }
     };

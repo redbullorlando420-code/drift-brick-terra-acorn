@@ -1,0 +1,33 @@
+{
+  "ok": true,
+  "url": "http://127.0.0.1:8080/",
+  "fixture": "Isolated 80-entry catalog; fake provider RPC responses; actual app controls and IndexedDB transactions; no user-library access.",
+  "results": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-cleanup-dev-desktop.png",
+      "rollbackVerified": true,
+      "historyAndProtectionVerified": true,
+      "manualAndAutomaticVerified": true,
+      "cursorAndSuppressionVerified": true,
+      "reloadVerified": true,
+      "requests": 4,
+      "overflowPixels": 0,
+      "ok": true
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-cleanup-dev-mobile.png",
+      "rollbackVerified": true,
+      "historyAndProtectionVerified": true,
+      "manualAndAutomaticVerified": true,
+      "cursorAndSuppressionVerified": true,
+      "reloadVerified": true,
+      "requests": 4,
+      "overflowPixels": 0,
+      "ok": true
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { useShallow } from 'zustand/react/shallow';
+import { memoizeFields } from '@/lib/field-selector';
 import { cardVisibility, type CardVisibility } from '@/lib/card-visibility';
 import { folderIsPrivate } from '@/lib/videos/folder-privacy';
 import { warmVideoPreview } from "./video-overlay-loader";
@@ -18,13 +18,16 @@ import {
 } from "@/lib/videos/adult-thumb-session";
 import { isAdultImageKind, isAdultPullKind } from "@/lib/videos/adult-sites";
 import { downloadAdultPhoto } from "@/lib/videos/adult-photo-download";
-import { useLibrary } from "@/lib/videos/store";
+import { useLibrary, type LibraryState } from "@/lib/videos/store";
 import { toast } from "sonner";
 import { setRating as setMediaRating } from "@/lib/media-feedback";
 import { useMediaRating } from './use-media-rating';
+import { useTextFirstArtwork } from './use-artwork-mode';
 import { registerMountedCard } from "@/lib/render-budget";
 import { measureInteraction } from "@/lib/interaction-budget";
-import { acquireImageSlot, isArtworkSuppressed } from "@/lib/videos/image-load-budget";
+import { watchImageSlot, isArtworkSuppressed } from "@/lib/videos/image-load-budget";
+import { pullsPaused } from '@/lib/pull-control';
+import { youtubeContentKind, youtubeDateSource, youtubePublicationTime } from '@/lib/videos/youtube-metadata';
 
 const publishedDateFormat = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" });
 
@@ -35,6 +38,87 @@ const EMPTY_TAGS: string[] = [];
 const artworkRepairRequested = new Set<string>();
 const remoteArtworkRepairRequested = new Set<string>();
 
+const CardDetails = memo(function CardDetails({ video, variant, playedAt, fav, rating, viewCount, cameCount, adult, category, tags, playable }: {
+  video: LibraryVideo; variant: Variant; playedAt?: number; fav: boolean; rating: number; viewCount: number;
+  cameCount: number; adult: boolean; category: string; tags: string[]; playable: boolean;
+}) {
+  const live = Boolean(video.remote?.live);
+  return (
+        <div data-video-card-details className={cn("min-w-0", variant === "list" ? "flex-1" : "mt-2.5")}>
+          <div className="flex items-start gap-2">
+            <h3 className="min-w-0 flex-1 truncate text-sm font-medium text-fg">
+              {titleOf(video)}
+            </h3>
+            {fav && variant !== "list" && (
+              <Heart className="mt-0.5 size-3.5 shrink-0 fill-accent text-accent" />
+            )}
+          </div>
+          <p className="mt-0.5 truncate text-xs text-muted" title={video.remote?.kind === 'youtube' ? `YouTube ${youtubeContentKind(video)} · Publication source: ${youtubeDateSource(video)}` : undefined}>
+            {playedAt ? (
+              <>{formatAgo(playedAt)}</>
+            ) : live ? (
+              <>
+                {video.remote?.channelName ?? "Twitch"}
+                {hasFreshViewerCount(video.remote) ? (
+                  <>
+                    <span className="text-subtle"> · </span>
+                    {video.remote?.viewers?.toLocaleString()} watching
+                  </>
+                ) : null}
+              </>
+            ) : video.remote ? (
+              <>{video.remote.channelName ?? video.remote.kind}{video.remote.kind === 'youtube' && youtubeContentKind(video) !== 'upload' ? ` · ${youtubeContentKind(video) === 'short' ? 'Short' : youtubeContentKind(video) === 'replay' ? 'Completed stream' : youtubeContentKind(video) === 'upcoming' ? 'Upcoming' : 'Live observation'}` : null}{video.remote.views ? <><span className="text-subtle"> · </span>{video.remote.views.toLocaleString()} views</> : null}{video.remote.kind === "twitch" && !live ? <><span className="text-subtle"> · </span>{video.addedAt > Date.UTC(2000, 0, 1) ? `Published ${publishedDateFormat.format(video.addedAt)}` : "Older catalog item"}</> : null}</>
+            ) : video.year || video.genre ? (
+              <>
+                {video.year ?? video.extension.toUpperCase()}
+                {video.genre && (
+                  <>
+                    <span className="text-subtle"> · </span>
+                    {video.genre}
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                {video.extension.toUpperCase()}
+                <span className="text-subtle"> · </span>
+                {formatBytes(video.size)}
+                {!playable && (
+                  <>
+                    <span className="text-subtle"> · </span>
+                    <span>May not play</span>
+                  </>
+                )}
+              </>
+            )}
+          </p>
+          {video.remote?.kind === 'youtube' && !playedAt && !live && <p className="mt-0.5 text-xs text-muted" title={`Publication source: ${youtubeDateSource(video)}`}>
+            {youtubePublicationTime(video) ? `${youtubeDateSource(video) === 'legacy' ? 'Saved date' : 'Published'} ${publishedDateFormat.format(youtubePublicationTime(video))}` : 'Publication date unknown'}
+          </p>}
+          {rating > 0 && <p className="mt-1 flex items-center gap-1 text-xs text-accent"><Star className="size-3 fill-current" /> Your rating {rating}/5</p>}
+          {viewCount > 0 && <p className="mt-1 text-xs text-subtle">Watched {viewCount} time{viewCount === 1 ? "" : "s"}</p>}
+          {adult && cameCount > 0 && <p className="mt-1 text-xs text-accent">I cummed to it · {cameCount}×</p>}
+          {(category || tags.length > 0) && variant !== "list" && variant !== "rail" && (
+            <p className="mt-1 flex items-center gap-1 truncate text-xs text-subtle">
+              <Tag className="size-3 shrink-0" />
+              {[category, ...tags.slice(0, 6)].filter(Boolean).join(" · ")}
+            </p>
+          )}
+        </div>
+  );
+});
+
+const CardRatingControls = memo(function CardRatingControls({ id, title, rating, variant }: {
+  id: string; title: string; rating: number; variant: Variant;
+}) {
+  const rate = (value: number) => {
+    measureInteraction('rating');
+    window.requestAnimationFrame(() => setMediaRating(id, rating === value ? 0 : value));
+  };
+  return <div className={cn("absolute right-2 bottom-2 hidden items-center gap-0.5 rounded-sm bg-bg/75 p-1 text-accent backdrop-blur-sm group-hover:flex group-focus-within:flex", variant === "list" && "static")}>
+    {[1, 2, 3, 4, 5].map(value => <button key={value} type="button" aria-label={`Rate ${title} ${value} stars`} aria-pressed={rating === value} title={rating === value ? "Click again to clear your rating" : `Rate ${value} stars`} onClick={event => { event.stopPropagation(); rate(value); }} className={cn("p-0.5", value <= rating && "text-fg")}><Star className={cn("size-3", value <= rating && "fill-current")} /></button>)}
+  </div>;
+});
 export const VideoCard = memo(function VideoCard({
   video,
   variant = "grid",
@@ -51,21 +135,32 @@ export const VideoCard = memo(function VideoCard({
   animate?: boolean;
 }) {
   const ref = useRef<HTMLButtonElement>(null);
-  // One subscription per store, scoped to this card's values. Unrelated
-  // progress/thumbnail writes do not allocate dozens of hook snapshots.
-  const { thumb, failed, capturedDur, request, retry, recallCompanion, artworkDiagnostic } = useThumbs(useShallow(s => ({
-    thumb: s.byId[video.id], failed: s.failed[video.id], capturedDur: s.durations[video.id],
-    request: s.request, retry: s.retry, recallCompanion: s.recallCompanion, artworkDiagnostic: s.diagnostics[video.id],
-  })));
+  // Keep selectors for the mounted card's identity. A provider status update or
+  // another card's thumbnail/progress must allocate no comparison snapshot.
+  const thumbSelector = useMemo(() => {
+    const id = video.id;
+    return memoizeFields<ReturnType<typeof useThumbs.getState>>()({
+      thumb: s => s.byId[id], failed: s => s.failed[id], capturedDur: s => s.durations[id],
+      request: s => s.request, retry: s => s.retry, recallCompanion: s => s.recallCompanion,
+      artworkDiagnostic: s => s.diagnostics[id],
+    });
+  }, [video.id]);
+  const librarySelector = useMemo(() => {
+    const id = video.id, folderId = video.folderId;
+    return memoizeFields<LibraryState>()({
+      repairArtworkSource: s => s.repairArtworkSource, followRemoteQuery: s => s.followRemoteQuery,
+      progress: s => s.progress[id], fav: s => Boolean(s.favorites[id]), liked: s => Boolean(s.likes[id]),
+      tags: s => s.tags[id] ?? EMPTY_TAGS, category: s => s.categories[id] ?? '',
+      viewCount: s => s.viewCounts[id] ?? 0, cameCount: s => s.cameCounts[id] ?? 0,
+      adultFolder: s => folderIsPrivate(s.folders, folderId), markCame: s => s.markCame,
+      toggleLike: s => s.toggleLike, openPreview: s => s.openPreview, toggleFavorite: s => s.toggleFavorite,
+      hideVideo: s => s.hideVideo, setVideoTags: s => s.setVideoTags, setQuery: s => s.setQuery,
+      setSource: s => s.setSource, sourceId: s => s.sourceId,
+    });
+  }, [video.id, video.folderId]);
+  const { thumb, failed, capturedDur, request, retry, recallCompanion, artworkDiagnostic } = useThumbs(thumbSelector);
   const { repairArtworkSource, followRemoteQuery, progress, fav, liked, tags, category, viewCount, cameCount,
-    adultFolder, markCame, toggleLike, openPreview, toggleFavorite, hideVideo, setVideoTags, setQuery, setSource, sourceId } = useLibrary(useShallow(s => ({
-    repairArtworkSource: s.repairArtworkSource, followRemoteQuery: s.followRemoteQuery, progress: s.progress[video.id],
-    fav: Boolean(s.favorites[video.id]), liked: Boolean(s.likes[video.id]), tags: s.tags[video.id] ?? EMPTY_TAGS,
-    category: s.categories[video.id] ?? '', viewCount: s.viewCounts[video.id] ?? 0, cameCount: s.cameCounts[video.id] ?? 0,
-    adultFolder: folderIsPrivate(s.folders, video.folderId), markCame: s.markCame, toggleLike: s.toggleLike,
-    openPreview: s.openPreview, toggleFavorite: s.toggleFavorite, hideVideo: s.hideVideo,
-    setVideoTags: s.setVideoTags, setQuery: s.setQuery, setSource: s.setSource, sourceId: s.sourceId,
-  })));
+    adultFolder, markCame, toggleLike, openPreview, toggleFavorite, hideVideo, setVideoTags, setQuery, setSource, sourceId } = useLibrary(librarySelector);
   const adult = adultFolder || isAdultPullKind(video.remote?.kind);
   const adultPhoto = Boolean(adult && isAdultImageKind(video.remote?.kind, video.mime, video.extension));
   const hiddenAdult = adult && tags.includes("hidden");
@@ -113,7 +208,7 @@ export const VideoCard = memo(function VideoCard({
   const [artAllowed, setArtAllowed] = useState(false);
   const [paintedSrc, setPaintedSrc] = useState<string | undefined>();
   const [candidateReady, setCandidateReady] = useState(false);
-  const [textFirst, setTextFirst] = useState(false);
+  const textFirst = useTextFirstArtwork();
   const rating = useMediaRating(video.id);
   const imageSlotRelease = useRef<(() => void) | undefined>(undefined);
 
@@ -171,23 +266,29 @@ export const VideoCard = memo(function VideoCard({
   }, [video.id, video.poster, video.remote?.previewUrl]);
 
   useEffect(() => {
+    // Text-first cards have no artwork to admit or prioritize. Observing them
+    // caused two full card renders per mount with no visible change.
+    if (textFirst) {
+      setArtVisibility(previous => previous.near || previous.visible ? { near: false, visible: false } : previous);
+      return;
+    }
     const el = ref.current;
     if (!el) return;
     return cardVisibility.observe(el, value => setArtVisibility(previous =>
       previous.near === value.near && previous.visible === value.visible ? previous : value));
-  }, [video.id]);
+  }, [video.id, textFirst]);
 
   useEffect(() => {
-    if (!artAwake || isArtworkSuppressed() || !video.remote) return;
+    if (textFirst || !artAwake || isArtworkSuppressed() || !video.remote) return;
     void recallCompanion(video.id);
-  }, [artAwake, recallCompanion, video.id, video.remote]);
+  }, [textFirst, artAwake, recallCompanion, video.id, video.remote]);
 
   useEffect(() => {
-    if (sessionPhase !== 'active' || !artVisible || video.remote || thumb) return;
+    if (textFirst || sessionPhase !== 'active' || !artVisible || video.remote || thumb) return;
     // Keep the subscription through viewer pauses; the queue resumes it on
     // close and cancels the capture when this card leaves the nearby window.
     return request(video, { priority: artPriority });
-  }, [artVisible, artPriority, request, sessionPhase, thumb, video]);
+  }, [textFirst, artVisible, artPriority, request, sessionPhase, thumb, video]);
 
   // On-screen cards use the high lane; near-view cards use a cancellable low
   // lane. A slot lasts only while the current candidate loads, and the last
@@ -195,31 +296,18 @@ export const VideoCard = memo(function VideoCard({
   useEffect(() => {
     // Queue ownership handles viewer pauses. Skipping the request here could
     // strand a newly mounted card after close, because no card state changes.
-    if (!artAwake || thumbsExhausted || candidateReady || paintedSrc === activeThumb) {
+    if (textFirst || !artAwake || thumbsExhausted || candidateReady || paintedSrc === activeThumb) {
       setArtAllowed(false);
       return;
     }
-    let release: (() => void) | undefined;
-    let cancelled = false;
-    const controller = new AbortController();
-    void acquireImageSlot({ priority: artPriority, signal: controller.signal }).then((done) => {
-      if (!done) return;
-      if (cancelled) {
-        done();
-        return;
-      }
-      release = done;
-      imageSlotRelease.current = done;
-      setArtAllowed(true);
-    });
+    const release = watchImageSlot({ priority: artPriority }, setArtAllowed);
+    imageSlotRelease.current = release;
     return () => {
-      cancelled = true;
-      controller.abort();
       if (imageSlotRelease.current === release) imageSlotRelease.current = undefined;
-      release?.();
+      release();
       setArtAllowed(false);
     };
-  }, [activeThumb, artPriority, artAwake, candidateReady, paintedSrc, thumbsExhausted, video.id]);
+  }, [textFirst, activeThumb, artPriority, artAwake, candidateReady, paintedSrc, thumbsExhausted, video.id]);
 
   useEffect(() => {
     setCandidateReady(false);
@@ -233,7 +321,9 @@ export const VideoCard = memo(function VideoCard({
 
   // Stuck CDN loads: advance fallback instead of sitting on a blank forever.
   useEffect(() => {
-    if (!artAwake || !artAllowed || !activeThumb || showPreview || candidateReady) return;
+    // Text-first intentionally has no image to load. A load deadline here
+    // would exhaust healthy URLs and start an unnecessary creator pull.
+    if (textFirst || !artAwake || !artAllowed || !activeThumb || showPreview || candidateReady) return;
     if (paintedSrc === activeThumb) return;
     const timer = window.setTimeout(() => {
       markAdultThumbFailed(activeThumb, adult ? video.id : undefined);
@@ -243,12 +333,11 @@ export const VideoCard = memo(function VideoCard({
     return () => window.clearTimeout(timer);
     // advanceThumb closes over thumbCandidates; thumbIndex drives activeThumb.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeThumb, artAllowed, artAwake, candidateReady, paintedSrc, showPreview, thumbIndex]);
+  }, [textFirst, activeThumb, artAllowed, artAwake, candidateReady, paintedSrc, showPreview, thumbIndex]);
 
-  useEffect(() => { setTextFirst(document.documentElement.dataset.artworkMode === "text"); }, []);
   useEffect(() => registerMountedCard(), []);
   useEffect(() => {
-    if (!failed || video.remote || artworkRepairRequested.has(video.folderId)) return;
+    if (textFirst || !failed || video.remote || artworkRepairRequested.has(video.folderId)) return;
     artworkRepairRequested.add(video.folderId);
     // A stale local file handle is a common cause of missing artwork. If the
     // source remains approved, refresh its index once in the background and
@@ -256,15 +345,9 @@ export const VideoCard = memo(function VideoCard({
     void repairArtworkSource(video.folderId).then((rescanned) => {
       if (rescanned) retry(video);
     });
-  }, [failed, repairArtworkSource, retry, video]);
-  const rate = (value: number) => {
-    measureInteraction("rating");
-    // All mounted copies of this title share the keyed rating snapshot. The
-    // durable write is coalesced away from the input frame.
-    window.requestAnimationFrame(() => setMediaRating(video.id, rating === value ? 0 : value));
-  };
+  }, [textFirst, failed, repairArtworkSource, retry, video]);
   const repairRemoteArtwork = () => {
-    if (!video.remote || (video.remote.kind !== "youtube" && video.remote.kind !== "twitch") || remoteArtworkRepairRequested.has(video.folderId)) return;
+    if (textFirst || pullsPaused() || !video.remote || (video.remote.kind !== "youtube" && video.remote.kind !== "twitch") || remoteArtworkRepairRequested.has(video.folderId)) return;
     remoteArtworkRepairRequested.add(video.folderId);
     // A signed/expired provider thumbnail is repaired by refreshing only this
     // creator. The catalog merge is additive, so healthy sibling cards keep
@@ -277,10 +360,11 @@ export const VideoCard = memo(function VideoCard({
   // source/store repair after commit, never from the thumbnail-index updater.
   useEffect(() => {
     if (thumbsExhausted && thumbIndex > 0) repairRemoteArtwork();
-  }, [thumbsExhausted, thumbIndex, followRemoteQuery, video.folderId, video.remote?.kind, video.remote?.channelId]);
+  }, [textFirst, thumbsExhausted, thumbIndex, followRemoteQuery, video.folderId, video.remote?.kind, video.remote?.channelId]);
 
   const poster = (
     <div
+      data-video-card-artwork
       className={cn(
         "relative overflow-hidden bg-elevated",
         variant === "list" && "h-16 w-28 shrink-0 rounded-sm",
@@ -289,8 +373,8 @@ export const VideoCard = memo(function VideoCard({
       )}
     >
       <div aria-hidden="true" className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-surface text-muted">
-        {failed || thumbsExhausted ? <ImageOff className="size-8" strokeWidth={1.5} /> : <LoaderCircle className="size-7 animate-spin text-accent" strokeWidth={1.75} />}
-        <span className="text-xs">{failed || thumbsExhausted ? "Artwork unavailable" : "Loading preview"}</span>
+        {textFirst || !artAwake ? <Play className="size-7" strokeWidth={1.5} /> : failed || thumbsExhausted ? <ImageOff className="size-8" strokeWidth={1.5} /> : <LoaderCircle className="size-7 animate-spin text-accent" strokeWidth={1.75} />}
+        <span className="text-xs">{textFirst ? "Text-first mode" : !artAwake ? "Preview deferred" : failed || thumbsExhausted ? "Artwork unavailable" : "Loading preview"}</span>
       </div>
       {/* Hold last good paint under the candidate so fallbacks never flash blank. */}
       {paintedSrc && artAwake && !textFirst && (paintedSrc !== activeThumb || showPreview) && (
@@ -380,12 +464,12 @@ export const VideoCard = memo(function VideoCard({
         </span>
       )}
       {duration && !isPoster && !live ? (
-        <span className="absolute right-2 bottom-2 rounded-xs bg-bg/75 px-1.5 py-0.5 font-mono text-xs tabular-nums text-fg">
+        <span className={cn("absolute right-2 bottom-2 rounded-xs bg-bg/75 px-1.5 py-0.5 font-mono text-xs tabular-nums text-fg", variant !== "list" && "transition-opacity group-hover:opacity-0 group-focus-within:opacity-0")}>
           {formatTime(duration)}
         </span>
       ) : null}
       {isPoster && video.year ? (
-        <span className="absolute bottom-2 left-2 font-mono text-xs tabular-nums text-fg/90">
+        <span className="absolute bottom-2 left-2 font-mono text-xs tabular-nums text-fg/90 transition-opacity group-hover:opacity-0 group-focus-within:opacity-0">
           {video.year}
         </span>
       ) : null}
@@ -424,64 +508,7 @@ export const VideoCard = memo(function VideoCard({
         )}
       >
         {poster}
-        <div className={cn("min-w-0", variant === "list" ? "flex-1" : "mt-2.5")}>
-          <div className="flex items-start gap-2">
-            <h3 className="min-w-0 flex-1 truncate text-sm font-medium text-fg">
-              {titleOf(video)}
-            </h3>
-            {fav && variant !== "list" && (
-              <Heart className="mt-0.5 size-3.5 shrink-0 fill-accent text-accent" />
-            )}
-          </div>
-          <p className="mt-0.5 truncate text-xs text-muted">
-            {playedAt ? (
-              <>{formatAgo(playedAt)}</>
-            ) : live ? (
-              <>
-                {video.remote?.channelName ?? "Twitch"}
-                {hasFreshViewerCount(video.remote) ? (
-                  <>
-                    <span className="text-subtle"> · </span>
-                    {video.remote?.viewers?.toLocaleString()} watching
-                  </>
-                ) : null}
-              </>
-            ) : video.remote ? (
-              <>{video.remote.channelName ?? video.remote.kind}{video.remote.views ? <><span className="text-subtle"> · </span>{video.remote.views.toLocaleString()} views</> : null}{(video.remote.kind === "youtube" || (video.remote.kind === "twitch" && !live)) ? <><span className="text-subtle"> · </span>{video.addedAt > Date.UTC(2000, 0, 1) ? `Published ${publishedDateFormat.format(video.addedAt)}` : "Older catalog item"}</> : null}</>
-            ) : video.year || video.genre ? (
-              <>
-                {video.year ?? video.extension.toUpperCase()}
-                {video.genre && (
-                  <>
-                    <span className="text-subtle"> · </span>
-                    {video.genre}
-                  </>
-                )}
-              </>
-            ) : (
-              <>
-                {video.extension.toUpperCase()}
-                <span className="text-subtle"> · </span>
-                {formatBytes(video.size)}
-                {!playable && (
-                  <>
-                    <span className="text-subtle"> · </span>
-                    <span>May not play</span>
-                  </>
-                )}
-              </>
-            )}
-          </p>
-          {rating > 0 && <p className="mt-1 flex items-center gap-1 text-xs text-accent"><Star className="size-3 fill-current" /> Your rating {rating}/5</p>}
-          {viewCount > 0 && <p className="mt-1 text-xs text-subtle">Watched {viewCount} time{viewCount === 1 ? "" : "s"}</p>}
-          {adult && cameCount > 0 && <p className="mt-1 text-xs text-accent">I cummed to it · {cameCount}×</p>}
-          {(category || tags.length > 0) && variant !== "list" && variant !== "rail" && (
-            <p className="mt-1 flex items-center gap-1 truncate text-xs text-subtle">
-              <Tag className="size-3 shrink-0" />
-              {[category, ...tags.slice(0, 6)].filter(Boolean).join(" · ")}
-            </p>
-          )}
-        </div>
+        <CardDetails video={video} variant={variant} playedAt={playedAt} fav={fav} rating={rating} viewCount={viewCount} cameCount={cameCount} adult={adult} category={category} tags={tags} playable={playable} />
         {variant === "list" && (
           <span className="hidden max-w-xs truncate text-xs text-subtle sm:block">
             {video.path}
@@ -532,6 +559,12 @@ export const VideoCard = memo(function VideoCard({
         <Heart className={cn("size-3.5", fav && "fill-accent text-accent")} />
       </button>}
       <button type="button" aria-label={`Hide ${video.name} from your library`} title="Hide this title everywhere until restored in Settings" onClick={(event) => { event.stopPropagation(); hideVideo(video.id); toast.message("Title hidden. Restore it from Settings → Hidden titles."); }} className="absolute top-2 left-2 flex size-9 items-center justify-center rounded-sm bg-bg/75 text-fg opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 focus-visible:opacity-100"><EyeOff className="size-3.5" /></button>
+      <div data-video-card-quick-actions className={cn(
+        "pointer-events-none [&_button]:pointer-events-auto",
+        variant === "list" ? "relative mt-2 flex items-center justify-between gap-2" : "absolute inset-x-0 top-0 overflow-hidden",
+        variant !== "list" && (isPoster ? "aspect-poster" : "aspect-video"),
+        live && variant !== "list" && "inset-x-2 top-2",
+      )}>
       <button
         type="button"
         aria-label={`Watch ${video.name} together`}
@@ -542,11 +575,14 @@ export const VideoCard = memo(function VideoCard({
         }}
         className={cn(
           "absolute bottom-2 left-2 flex min-h-9 items-center gap-1 rounded-sm bg-bg/75 px-2 text-xs text-fg opacity-0 backdrop-blur-sm transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100",
-          variant === "list" && "bottom-3 left-auto right-3",
+          variant === "list" && "static",
+          isPoster && "top-20 bottom-auto",
         )}
       >
-        <Users className="size-3.5" /> Together
+        <Users className="size-3.5" />{!isPoster && " Together"}
       </button>
+      {!live && <CardRatingControls id={video.id} title={video.name} rating={rating} variant={variant} />}
+      </div>
       {!live && <button
         type="button"
         aria-label={liked ? "Remove like" : "Like"}
@@ -623,9 +659,6 @@ export const VideoCard = memo(function VideoCard({
           </div>
         </div>
       )}
-      {!live && <div className="absolute right-2 bottom-2 hidden items-center gap-0.5 rounded-sm bg-bg/75 p-1 text-accent backdrop-blur-sm group-hover:flex group-focus-within:flex">
-        {[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" aria-label={`Rate ${video.name} ${value} stars`} aria-pressed={rating === value} title={rating === value ? "Click again to clear your rating" : `Rate ${value} stars`} onClick={(event) => { event.stopPropagation(); rate(value); }} className={cn("p-0.5", value <= rating && "text-fg")}><Star className={cn("size-3", value <= rating && "fill-current")} /></button>)}
-      </div>}
     </div>
   );
 });

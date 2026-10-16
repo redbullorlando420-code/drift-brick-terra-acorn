@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 @theme {
+  --aspect-poster: 2 / 3;
   --font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Figtree", ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;

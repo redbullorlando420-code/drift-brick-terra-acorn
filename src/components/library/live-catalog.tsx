@@ -10,8 +10,8 @@ import { registerPeriodicTask } from '@/lib/periodic-work';
 
 /** Expiring a live label only repaints the live surface, never the large
  * library root. Its clock stops when that surface is empty, idle or covered. */
-export const LiveCatalog = memo(function LiveCatalog({ videos, rail = false, adultLiveVideos }: {
-  videos: LibraryVideo[]; rail?: boolean; adultLiveVideos?: LibraryVideo[];
+export const LiveCatalog = memo(function LiveCatalog({ videos, rail = false, priority = false, adultLiveVideos }: {
+  videos: LibraryVideo[]; rail?: boolean; priority?: boolean; adultLiveVideos?: LibraryVideo[];
 }) {
   const phase = useSessionPhase();
   const viewerOpen = useLibrary(s => Boolean(s.activeId || s.previewId));
@@ -32,6 +32,6 @@ export const LiveCatalog = memo(function LiveCatalog({ videos, rail = false, adu
     }
     return { current, staleYoutube, staleTwitch };
   }, [videos, clock]);
-  return rail ? <TitleRail title="Live now" reason="Channels confirmed live in the latest check." videos={snapshot.current} variant="rail" />
+  return rail ? <TitleRail title="Live now" reason={`${snapshot.current.length.toLocaleString()} channels confirmed in a recent live check.`} videos={snapshot.current} variant="rail" priority={priority} />
     : <LiveDesk videos={snapshot.current} staleYoutubeVideos={snapshot.staleYoutube} staleTwitchCount={snapshot.staleTwitch} staleYoutubeCount={snapshot.staleYoutube.length} adultLiveVideos={adultLiveVideos} />;
 });

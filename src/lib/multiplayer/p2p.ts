@@ -55,6 +55,9 @@ export interface P2PRoomOptions {
   onMessage?: (from: string, data: unknown, channel: "state" | "reliable") => void;
   /** Fires once, on the first successful signaling poll (registration). */
   onConnected?: () => void;
+  /** Local-player media travels as RTC tracks, never as buffered file bytes. */
+  onMediaStream?: (from: string, stream: MediaStream) => void;
+  onPeerReady?: (from: string) => void;
   onDebug?: (event: string) => void;
 }
 
@@ -108,6 +111,7 @@ export class P2PRoom {
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
   private stopPing: (() => void) | null = null;
   private closed = false;
+  private mediaStream: MediaStream | null = null;
   private everPolled = false;
   private lastPeersFingerprint = "";
   private lastRosterCount = -1;
@@ -168,6 +172,7 @@ export class P2PRoom {
     this.localRelay = null;
     for (const slot of this.peers.values()) slot.pc.close();
     this.peers.clear();
+    this.mediaStream = null;
     // Leaving the roster is the teardown broadcast: everyone's next poll
     // drops this peer and closes their side of the pair.
     void fetch("/api/rtc", {
@@ -202,6 +207,31 @@ export class P2PRoom {
 
   peerList(): PeerInfo[] {
     return [...this.peers.values()].map((s) => ({ ...s.info }));
+  }
+
+  /** Replace the local-player stream for existing and subsequently joined peers. */
+  setMediaStream(stream: MediaStream | null): void {
+    if (this.closed) return;
+    this.mediaStream = stream;
+    for (const slot of this.peers.values()) this.attachMedia(slot);
+  }
+
+  private attachMedia(slot: PeerSlot): void {
+    const tracks = this.mediaStream?.getTracks().filter((track) => track.readyState === "live") ?? [];
+    for (const sender of slot.pc.getSenders()) {
+      if (sender.track && !tracks.includes(sender.track)) slot.pc.removeTrack(sender);
+    }
+    for (const track of tracks) {
+      if (slot.pc.getSenders().some((sender) => sender.track === track)) continue;
+      const sender = slot.pc.addTrack(track, this.mediaStream!);
+      // Keep each viewer's encoder budget bounded; RTC also adapts to bandwidth.
+      if (track.kind === "video") {
+        const parameters = sender.getParameters();
+        parameters.encodings = parameters.encodings?.length ? parameters.encodings : [{}];
+        parameters.encodings[0].maxBitrate = 2_500_000;
+        void sender.setParameters(parameters).catch(() => {});
+      }
+    }
   }
 
   // ── signaling loop ─────────────────────────────────────────────────────────
@@ -343,6 +373,11 @@ export class P2PRoom {
       }
     };
     pc.ondatachannel = (e) => this.attachChannel(slot, e.channel);
+    pc.ontrack = (event) => {
+      const stream = event.streams[0];
+      if (stream) this.opts.onMediaStream?.(peerId, stream);
+    };
+    this.attachMedia(slot);
 
     if (initiator) {
       this.debug(`Negotiating peer channel with ${name || "guest"}`);
@@ -362,6 +397,7 @@ export class P2PRoom {
     channel.onopen = () => {
       slot.lastProgressAt = Date.now();
       this.debug(`Peer ${channel.label} channel open with ${slot.info.name || "guest"}`);
+      if (channel.label === "reliable") this.opts.onPeerReady?.(slot.info.id);
     };
     channel.onmessage = (e) => {
       let msg: { t: string; d?: unknown };

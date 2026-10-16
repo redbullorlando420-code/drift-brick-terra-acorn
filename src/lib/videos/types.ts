@@ -138,7 +138,7 @@ export type VideoMetadataProvenance = {
 
 /** A local, user-facing explanation of a failed public provider refresh. */
 export type ProviderFailure = {
-  kind: "unavailable" | "rate-limited" | "malformed" | "network-offline" | "integrity-challenge" | "public-page-limit";
+  kind: "unavailable" | "rate-limited" | "malformed" | "network-offline" | "integrity-challenge" | "public-page-limit" | "response-budget";
   message: string;
   recovery: string;
   at: number;
@@ -156,6 +156,10 @@ export type RemoteRef = {
   channelId?: string;
   channelName?: string;
   live?: boolean;
+  /** YouTube catalog evidence; omitted by feeds that expose no format. */
+  youtubeType?: import('./youtube-metadata').YoutubeContentKind;
+  /** addedAt is the publication timestamp for YouTube; no duplicate epoch. */
+  publishedSource?: import('./youtube-metadata').YoutubePublishedSource;
   viewers?: number;
   /** Epoch time of the provider response that supplied live metadata. */
   observedAt?: number;
@@ -185,6 +189,14 @@ export function hasFreshViewerCount(remote?: RemoteRef, now = Date.now()) {
   );
 }
 
+export type TwitchPullDiagnostics = {
+  at: number; pages: number; received: number; accepted: number; duplicates: number;
+  resumed: boolean; stage?: 'ARCHIVE' | 'HIGHLIGHT' | 'UPLOAD'; lastVideoId?: string;
+  stopReason: 'page-budget' | 'entry-budget' | 'exhausted' | 'stalled' | 'incomplete-page' | 'challenge' | 'provider-error' | 'entry-limit';
+  error?: string;
+};
+
+export type TwitchRetryState = { attempts: number; retryAt: number };
 export type FollowedChannel = {
   id: string;
   kind: FollowKind;
@@ -211,6 +223,10 @@ export type FollowedChannel = {
   /** Independent Twitch broadcast-shelf continuation for focused archive pulls. */
   twitchArchiveCursor?: string;
   twitchArchiveExhaustedAt?: number;
+  twitchArchiveLastVideoId?: string;
+  twitchArchiveDiagnostics?: TwitchPullDiagnostics;
+  twitchArchiveRetry?: TwitchRetryState;
+  twitchLiveRetry?: TwitchRetryState;
   /** All-time clip shelf continuation used by repeated focused clip pulls. */
   twitchClipCursor?: string;
   twitchClipExhaustedAt?: number;
@@ -222,6 +238,8 @@ export type FollowedChannel = {
     hits: number;
     misses: number;
     scope: "feed" | "catalog" | "uncached";
+    entries?: number;
+    estimatedBytes?: number;
   };
   /** Last failed public refresh. Successful checks explicitly clear this. */
   lastProviderFailure?: ProviderFailure;

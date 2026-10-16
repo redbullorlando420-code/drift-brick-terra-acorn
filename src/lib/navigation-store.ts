@@ -79,7 +79,11 @@ export function createNavigationStore<S>(source: ReadableStore<S>, options: {
         getState();
         disconnect = source.subscribe(next => {
           if (options.held?.(next)) { clearPending(); return; }
-          if (options.key(next) === options.key(snapshot!) || !options.defer(next)) {
+          // A pull can replace the catalog without changing the route. Warm
+          // that replacement before publishing, just as on first navigation.
+          const sameRoute = options.key(next) === options.key(snapshot!);
+          const prepared = !options.prepare || !options.prepared || options.prepared(snapshot!, next);
+          if ((sameRoute && prepared) || !options.defer(next)) {
             clearPending();
             publish(next);
             return;

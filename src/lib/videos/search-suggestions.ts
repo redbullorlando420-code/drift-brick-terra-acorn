@@ -1,3 +1,4 @@
+import { visitSearchCandidates } from './search-candidates.ts';
 import { forEachCatalogSlice } from '../catalog-work.ts';
 import { adultFolderIds, ADULT_PULL_PROVIDERS } from './adult-providers.ts';
 import type { Folder, LibraryVideo, SourceId } from './types';
@@ -6,7 +7,7 @@ type Input = {
   videos: readonly LibraryVideo[]; folders: readonly Folder[];
   tags: Record<string, string[]>; categories: Record<string, string>;
   sourceId: SourceId; adultsUnlocked: boolean; hidden: Record<string, true>; unavailable?: Record<string, true>; hideDemo: boolean;
-  query: string; ids: readonly string[] | null;
+  query: string; positions?: Uint32Array; ids: readonly string[] | null;
 };
 const privateKinds = new Set<string>(ADULT_PULL_PROVIDERS);
 
@@ -20,7 +21,7 @@ export async function collectSearchSuggestions(input: Input, turn: () => Promise
   const privateFolders = adultFolderIds(input.folders);
   const canSeePrivate = input.adultsUnlocked && (input.sourceId === 'adults' || input.sourceId === 'adult-fetishes');
   const best: LibraryVideo[] = [];
-  await forEachCatalogSlice(input.videos, video => {
+  const visit = (video: LibraryVideo) => {
     if (matched && !matched.has(video.id)) return;
     if (input.hidden[video.id] || input.unavailable?.[video.id] || input.hideDemo && video.isSample) return;
     if ((privateFolders.has(video.folderId) || privateKinds.has(video.remote?.kind ?? '')) && !canSeePrivate) return;
@@ -33,6 +34,8 @@ export async function collectSearchSuggestions(input: Input, turn: () => Promise
     while (index < best.length && best[index]!.addedAt >= video.addedAt) index++;
     best.splice(index, 0, video);
     if (best.length > 6) best.pop();
-  }, turn);
+  };
+  if (matched) await visitSearchCandidates(input.videos, matched, input.positions, visit, turn);
+  else await forEachCatalogSlice(input.videos, visit, turn);
   return best;
 }

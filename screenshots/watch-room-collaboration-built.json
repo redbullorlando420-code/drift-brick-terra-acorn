@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "origin": "http://127.0.0.1:8096/",
+  "room": "RCKMVO7",
+  "decodedQr": "http://192.168.1.68:8080/?room=RCKMVO7&theater=1",
+  "decodedFrames": 11,
+  "checks": [
+    "QR image decodes to the exact phone-reachable room invitation, not loopback",
+    "simultaneous guest additions retain both titles and guest reorder reaches all clients",
+    "guest-origin Twitch clips and VODs play on a host with no saved channel or title",
+    "guest removal does not overwrite another guest’s addition",
+    "YouTube completion advances the canonical shared queue",
+    "Twitch VOD completion advances the shared queue",
+    "blocked local autoplay returns the host to usable Play controls",
+    "local bytes stream over RTC without a guest file, guest controls reach host, and reload rejoins",
+    "guest libraries and follows remain empty; host file paths and blob URLs stay private"
+  ],
+  "errors": [],
+  "limitation": "Three isolated Chromium clients and real RTC local-media decoding; provider embeds and network-address discovery are fixtures. Physical phone scanning, provider availability and cross-network TURN remain separate checks."
+}

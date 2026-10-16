@@ -1,0 +1,50 @@
+{
+  "ok": true,
+  "url": "http://127.0.0.1:8082/",
+  "fixture": "80,000 compact entries, pulling paused, text-first artwork, isolated Chromium contexts; fake media and offline Companion responses stubbed",
+  "limitation": "Synthetic browser check; does not establish real-provider throughput, long-session memory stability, or physical-device performance.",
+  "budgets": {
+    "startupMs": 3000,
+    "navigationMs": 2000,
+    "scrollSettleMs": 500,
+    "inputMs": 200,
+    "mountedCards": 256,
+    "overflowPixels": 0
+  },
+  "results": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "startupMs": 191.30000001192093,
+      "catalogEntries": 80000,
+      "navigationMs": 237.09999999403954,
+      "scrollSettleMs": 45.599999994039536,
+      "artworkIdleVerified": true,
+      "scorecardVerified": true,
+      "exportVerified": true,
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\milestone-twitch-checkpoints-performance-built-desktop.png",
+      "inputMs": 35.79999998211861,
+      "mountedCards": 12,
+      "overflowPixels": 0,
+      "ok": true,
+      "failures": []
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "startupMs": 153.7999999821186,
+      "catalogEntries": 80000,
+      "navigationMs": 230.59999999403954,
+      "scrollSettleMs": 13.400000005960464,
+      "artworkIdleVerified": true,
+      "scorecardVerified": true,
+      "exportVerified": true,
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\milestone-twitch-checkpoints-performance-built-mobile.png",
+      "inputMs": 38.29999998211861,
+      "mountedCards": 8,
+      "overflowPixels": 0,
+      "ok": true,
+      "failures": []
+    }
+  ]
+}

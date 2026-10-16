@@ -1,0 +1,140 @@
+{
+  "ok": false,
+  "url": "http://127.0.0.1:8080/",
+  "fixture": "80,000 compact entries, 60,000 saved progress/resume/play-count/interaction-count records, stable saved tags and 90% of Twitch archive from one creator, 60,000 saved titles and history entries, pulling paused, text-first artwork, isolated Chromium contexts; fake media and offline Companion responses stubbed",
+  "limitation": "Synthetic browser check; does not establish real-provider throughput, long-session memory stability, or physical-device performance.",
+  "budgets": {
+    "startupMs": 3000,
+    "navigationMs": 2000,
+    "scrollSettleMs": 500,
+    "inputMs": 200,
+    "mountedCards": 256,
+    "overflowPixels": 0
+  },
+  "results": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "startupMs": 509.09999999403954,
+      "catalogEntries": 80000,
+      "navigationMs": 1482.5999999940395,
+      "scrollSettleMs": 49.900000005960464,
+      "playerReadyMs": 346,
+      "denseActivityVerified": true,
+      "coldSearchMs": 2008,
+      "warmSearchMs": 312,
+      "reusedSearchIndex": true,
+      "searchScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-snappy-profile-search-desktop.png",
+      "artworkIdleVerified": true,
+      "deferredPlayFlushVerified": true,
+      "formatsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-snappy-profile-formats-desktop.png",
+      "formatShelfScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-snappy-profile-format-shelf-desktop.png",
+      "youtubeFormatsVerified": true,
+      "balancedTwitchVerified": true,
+      "twitchScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-snappy-profile-twitch-desktop.png",
+      "fullTwitchMixVerified": true,
+      "twitchGridScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-snappy-profile-twitch-grid-desktop.png",
+      "statsShellMs": 154,
+      "statsCompleteMs": 2045,
+      "statsWorkerFreed": true,
+      "statsExportVerified": true,
+      "statsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-snappy-profile-stats-desktop.png",
+      "warmStatsMs": 123,
+      "reusedStatsSnapshot": true,
+      "favoriteReadyMs": 48,
+      "savedCatalogVerified": true,
+      "favoriteScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-snappy-profile-favorites-desktop.png",
+      "sharedControlsVerified": true,
+      "providerBudgetsVerified": true,
+      "scorecardVerified": true,
+      "exportVerified": true,
+      "safeguardsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-snappy-profile-safeguards-desktop.png",
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-snappy-profile-desktop.png",
+      "inputMs": 617.2999999970198,
+      "mountedCards": 66,
+      "overflowPixels": 0,
+      "slowInputs": [
+        {
+          "action": "Mix Twitch creators",
+          "ms": 116.20000000298023
+        },
+        {
+          "action": "Hearts · 30,000",
+          "ms": 599.8000000119209
+        },
+        {
+          "action": "Likes · 30,000",
+          "ms": 617.2999999970198
+        },
+        {
+          "action": "All saved · 60,000",
+          "ms": 526.3999999910593
+        }
+      ],
+      "ok": false,
+      "failures": [
+        "inputMs: 617.2999999970198 exceeds 200"
+      ]
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "startupMs": 563.7999999970198,
+      "catalogEntries": 80000,
+      "navigationMs": 906,
+      "scrollSettleMs": 14.800000011920929,
+      "playerReadyMs": 344,
+      "denseActivityVerified": true,
+      "coldSearchMs": 1388,
+      "warmSearchMs": 337,
+      "reusedSearchIndex": true,
+      "searchScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-snappy-profile-search-mobile.png",
+      "artworkIdleVerified": true,
+      "deferredPlayFlushVerified": true,
+      "formatsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-snappy-profile-formats-mobile.png",
+      "formatShelfScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-snappy-profile-format-shelf-mobile.png",
+      "youtubeFormatsVerified": true,
+      "balancedTwitchVerified": true,
+      "twitchScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-snappy-profile-twitch-mobile.png",
+      "fullTwitchMixVerified": true,
+      "twitchGridScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-snappy-profile-twitch-grid-mobile.png",
+      "statsShellMs": 554,
+      "statsCompleteMs": 2926,
+      "statsWorkerFreed": true,
+      "statsExportVerified": true,
+      "statsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-snappy-profile-stats-mobile.png",
+      "warmStatsMs": 98,
+      "reusedStatsSnapshot": true,
+      "favoriteReadyMs": 80,
+      "savedCatalogVerified": true,
+      "favoriteScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-snappy-profile-favorites-mobile.png",
+      "sharedControlsVerified": true,
+      "providerBudgetsVerified": true,
+      "scorecardVerified": true,
+      "exportVerified": true,
+      "safeguardsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-snappy-profile-safeguards-mobile.png",
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-snappy-profile-mobile.png",
+      "inputMs": 727,
+      "mountedCards": 52,
+      "overflowPixels": 0,
+      "slowInputs": [
+        {
+          "action": "Hearts · 30,000",
+          "ms": 727
+        },
+        {
+          "action": "Likes · 30,000",
+          "ms": 584.5999999940395
+        },
+        {
+          "action": "All saved · 60,000",
+          "ms": 690.6000000089407
+        }
+      ],
+      "ok": false,
+      "failures": [
+        "inputMs: 727 exceeds 200"
+      ]
+    }
+  ]
+}

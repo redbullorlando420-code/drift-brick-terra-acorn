@@ -1,0 +1,90 @@
+{
+  "ok": true,
+  "fixture": "60,000 saved YouTube videos, 48,000 from one creator; real ranking worker; isolated browser storage; artwork/embeds stubbed",
+  "results": [
+    {
+      "viewport": "desktop",
+      "firstBatchMs": 727,
+      "scrollWorstFrameMs": 50,
+      "peakCards": 66,
+      "worstMainTaskMs": 52,
+      "overflow": false,
+      "rankingWorkers": [
+        {
+          "rows": 60000,
+          "packingMs": 621,
+          "scoringMs": 148,
+          "completed": true
+        },
+        {
+          "rows": 60000,
+          "packingMs": 882,
+          "scoringMs": 123,
+          "completed": true
+        },
+        {
+          "rows": 60000,
+          "packingMs": 1114,
+          "scoringMs": 181,
+          "completed": true
+        },
+        {
+          "rows": 0,
+          "packingMs": null,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 4000,
+          "packingMs": 126,
+          "scoringMs": 13,
+          "completed": true
+        }
+      ],
+      "errors": [],
+      "ok": true
+    },
+    {
+      "viewport": "mobile",
+      "firstBatchMs": 702,
+      "scrollWorstFrameMs": 22,
+      "peakCards": 44,
+      "worstMainTaskMs": 0,
+      "overflow": false,
+      "rankingWorkers": [
+        {
+          "rows": 60000,
+          "packingMs": 587,
+          "scoringMs": 123,
+          "completed": true
+        },
+        {
+          "rows": 60000,
+          "packingMs": 522,
+          "scoringMs": 113,
+          "completed": true
+        },
+        {
+          "rows": 60000,
+          "packingMs": 1023,
+          "scoringMs": 144,
+          "completed": true
+        },
+        {
+          "rows": 0,
+          "packingMs": null,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 4000,
+          "packingMs": 88,
+          "scoringMs": 16,
+          "completed": true
+        }
+      ],
+      "errors": [],
+      "ok": true
+    }
+  ]
+}

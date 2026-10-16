@@ -1,0 +1,62 @@
+{
+  "ok": true,
+  "url": "http://127.0.0.1:8083/",
+  "fixture": "80,000 compact entries, pulling paused, text-first artwork, isolated Chromium contexts; fake media and offline Companion responses stubbed",
+  "limitation": "Synthetic browser check; does not establish real-provider throughput, long-session memory stability, or physical-device performance.",
+  "budgets": {
+    "startupMs": 3000,
+    "navigationMs": 2000,
+    "scrollSettleMs": 500,
+    "inputMs": 200,
+    "mountedCards": 256,
+    "overflowPixels": 0
+  },
+  "results": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "startupMs": 235.40000000596046,
+      "catalogEntries": 80000,
+      "navigationMs": 861.8999999910593,
+      "scrollSettleMs": 21.599999994039536,
+      "artworkIdleVerified": true,
+      "formatsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-lag-coalesced-app-built-formats-desktop.png",
+      "formatShelfScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-lag-coalesced-app-built-format-shelf-desktop.png",
+      "youtubeFormatsVerified": true,
+      "providerBudgetsVerified": true,
+      "scorecardVerified": true,
+      "exportVerified": true,
+      "safeguardsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-lag-coalesced-app-built-safeguards-desktop.png",
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-lag-coalesced-app-built-desktop.png",
+      "inputMs": 28.200000002980232,
+      "mountedCards": 16,
+      "overflowPixels": 0,
+      "slowInputs": [],
+      "ok": true,
+      "failures": []
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "startupMs": 176.09999999403954,
+      "catalogEntries": 80000,
+      "navigationMs": 913.5,
+      "scrollSettleMs": 15.399999991059303,
+      "artworkIdleVerified": true,
+      "formatsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-lag-coalesced-app-built-formats-mobile.png",
+      "formatShelfScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-lag-coalesced-app-built-format-shelf-mobile.png",
+      "youtubeFormatsVerified": true,
+      "providerBudgetsVerified": true,
+      "scorecardVerified": true,
+      "exportVerified": true,
+      "safeguardsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-lag-coalesced-app-built-safeguards-mobile.png",
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-lag-coalesced-app-built-mobile.png",
+      "inputMs": 22.899999991059303,
+      "mountedCards": 12,
+      "overflowPixels": 0,
+      "slowInputs": [],
+      "ok": true,
+      "failures": []
+    }
+  ]
+}

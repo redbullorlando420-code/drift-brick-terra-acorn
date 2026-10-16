@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { clampRoomPosition, estimatedProviderPosition } from "./room-clock.ts";
+import { clampRoomPosition, estimatedProviderPosition, normalizeGuestOffset, guestPlaybackPosition, hostPlaybackPosition } from "./room-clock.ts";
 
 test("repeated provider pause events hold the captured position", () => {
   const now = 1_790_563_453_121;
@@ -22,4 +22,25 @@ test("provider clock advances from its anchor once and respects a known player p
   const startedAt = now - 120_000;
   assert.equal(estimatedProviderPosition(120, 120, startedAt, now + 5000), 125);
   assert.equal(estimatedProviderPosition(127, 120, startedAt, now + 5000), 127);
+});
+
+test("guest timing is bounded, quarter-second precise and handles invalid saved settings", () => {
+  assert.equal(normalizeGuestOffset(0.3),0.25);
+  assert.equal(normalizeGuestOffset(-0.8),-0.75);
+  assert.equal(normalizeGuestOffset(100),30);
+  assert.equal(normalizeGuestOffset(-100),-30);
+  assert.equal(normalizeGuestOffset(NaN),0);
+  assert.equal(normalizeGuestOffset(Infinity),0);
+});
+
+test("device playback advances or delays without changing the canonical room clock", () => {
+  const host=120;
+  assert.equal(guestPlaybackPosition(host,2.5,300),122.5);
+  assert.equal(guestPlaybackPosition(host,-2.5,300),117.5);
+  assert.equal(hostPlaybackPosition(122.5,2.5,300),host);
+  assert.equal(hostPlaybackPosition(117.5,-2.5,300),host);
+  assert.equal(guestPlaybackPosition(1,-2.5,30),0);
+  assert.equal(guestPlaybackPosition(29,2.5,30),30);
+  assert.equal(hostPlaybackPosition(1,2.5,30),0);
+  assert.equal(host,120);
 });

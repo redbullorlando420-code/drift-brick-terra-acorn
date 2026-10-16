@@ -1,0 +1,41 @@
+{
+  "ok": true,
+  "url": "http://127.0.0.1:8081/",
+  "fixture": "Isolated 80-entry catalog; fake provider RPC responses; actual app controls and IndexedDB transactions; no user-library access.",
+  "results": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "ratingReadProtectionVerified": true,
+      "shelfReadProtectionVerified": true,
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\remote-replacement-built-desktop.png",
+      "settingsAndEntryPointVerified": true,
+      "crossProviderReplacementVerified": true,
+      "rollbackVerified": true,
+      "historyAndProtectionVerified": true,
+      "manualAndAutomaticVerified": true,
+      "cursorAndSuppressionVerified": true,
+      "reloadVerified": true,
+      "requests": 6,
+      "overflowPixels": 0,
+      "ok": true
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "ratingReadProtectionVerified": true,
+      "shelfReadProtectionVerified": true,
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\remote-replacement-built-mobile.png",
+      "settingsAndEntryPointVerified": true,
+      "crossProviderReplacementVerified": true,
+      "rollbackVerified": true,
+      "historyAndProtectionVerified": true,
+      "manualAndAutomaticVerified": true,
+      "cursorAndSuppressionVerified": true,
+      "reloadVerified": true,
+      "requests": 6,
+      "overflowPixels": 0,
+      "ok": true
+    }
+  ]
+}

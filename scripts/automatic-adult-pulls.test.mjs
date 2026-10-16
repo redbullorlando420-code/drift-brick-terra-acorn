@@ -20,7 +20,7 @@ const mocks = {
   '@/lib/pull-control': 'export const catalogPullAvailable = () => !f.paused; export const subscribePullAvailability = fn => { f.controls.add(fn); return () => f.controls.delete(fn); };',
   '@/lib/session-activity': 'export const allowAutomaticRefresh = () => f.phase === "active";',
   '@/lib/periodic-work': 'export const registerPeriodicTask = task => f.scheduler.register(task);',
-  '@/lib/videos/entry-limits': 'export async function remoteEntryCounts() { f.countCalls++; if (f.countFailure) { f.countFailure = false; throw new Error("count unavailable"); } if (f.countGate) await f.countGate; return {}; } export const remainingEntrySlots = () => 500;',
+  '@/lib/videos/entry-limits': 'export async function remoteEntryCounts() { f.countCalls++; if (f.countFailure) { f.countFailure = false; throw new Error("count unavailable"); } if (f.countGate) await f.countGate; return f.counts ?? { total:0,youtube:0,twitch:0,adult:0,other:0 }; } export const remainingEntrySlots = () => 500;',
 };
 registerHooks({ resolve(specifier, context, next) {
   if (specifier in mocks) return { url: moduleUrl(mocks[specifier]), shortCircuit: true };
@@ -64,6 +64,14 @@ test('actual Adult automatic owner recovers a failed count, holds idle/pause gat
     assert.equal(timers.size, 0);
     fixture.phase = 'active'; fixture.scheduler.wake(); await advance(15_000);
     assert.equal(fixture.pulls.length, 3);
+    fixture.policy = { ...fixture.policy, adultAutoCleanup:true,adultCatalogTarget:1000,adultMaxEntries:2000,adultCleanupBatch:2,adultCleanupMinAgeDays:30,youtubeAutoCleanup:false,twitchAutoCleanup:false,youtubeMaxEntries:100000,twitchMaxEntries:10000,youtubeCleanupBatch:2,twitchCleanupBatch:2,sharedCapCleanup:true };
+    fixture.counts = { total:1000,adult:1000,youtube:0,twitch:0,other:0 };
+    fixture.state.folders = [{id:'eporner:discover',kind:'eporner',videoCount:1000}];
+    await advance(15_000);assert.equal(fixture.pulls.length,4,'the automatic owner keeps rotating at its catalog target');
+    assert.equal(fixture.pulls.at(-1)[2].automatic,true);assert.equal(fixture.pulls.at(-1)[2].maxVideos,2);
+    fixture.countGate=new Promise(resolve=>{releaseCount=resolve;});await advance(15_000);
+    fixture.policy={...fixture.policy,automaticPulls:false};releaseCount();await drain();fixture.countGate=null;
+    assert.equal(fixture.pulls.length,4,'disabling automatic pulls during counting stops the pending request');
     fixture.cleanup(); assert.equal(timers.size, 0); assert.equal(fixture.controls.size, 0); assert.equal(fixture.settings.size, 0);
     assert.equal(fixture.scheduler.snapshot().tasks, 0);
   } finally {

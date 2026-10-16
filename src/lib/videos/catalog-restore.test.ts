@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { prepareCatalogRestore, reconcileRestoredResume, sameRestoreInputs, type CatalogRestoreState } from './catalog-restore.ts';
 import type { LibraryVideo, ProgressMark } from './types';
+import { patchSparseRecord, encodeSparseRecord, type EncodedSparseRecord } from '../sparse-record.ts';
 
 const card = (id: string, folderId = 'yt:test'): LibraryVideo => ({ id, folderId, name: id, path: id, extension: 'yt', mime: 'video/youtube', size: 0, addedAt: 1,
   detailsOnDisk: true, remote: { kind: 'youtube', videoId: id, channelName: 'Test', watchUrl: `https://youtube.com/watch?v=${id}` } });
@@ -53,4 +54,17 @@ test('unchanged resume recovery does not copy or read every saved progress entry
   const progress = new Proxy(stored, { get(target, key, receiver) { if (typeof key === 'string' && /^\d+$/.test(key)) reads++; return Reflect.get(target, key, receiver); } });
   assert.equal(await reconcileRestoredResume([card('511')], progress, { 'id:511': mark }, newestResume, async () => {}), progress);
   assert.equal(reads, 1, 'only watched candidates are read; the no-change ledger is not cloned');
+});
+
+test('a recovered resume patches a dense ledger without copying other saved entries', async () => {
+  const mark = { t: 12, d: 80, at: 10 }, fresh = { t: 24, d: 80, at: 20 };
+  let reads = 0;
+  const base = new Proxy(Object.fromEntries(Array.from({ length: 100_000 }, (_, i) => [`saved:${i}`, mark])), {
+    get(target, key, receiver) { if (typeof key === 'string' && key.startsWith('saved:')) reads++; return Reflect.get(target, key, receiver); },
+  });
+  const progress = patchSparseRecord(base, [['511', mark]]);
+  const recovered = await reconcileRestoredResume([card('511')], progress, { 'id:511': fresh }, newestResume, async () => {});
+  assert.ok(reads < 2, 'unrelated saved marks are not cloned');
+  assert.equal(recovered['511'], fresh); assert.equal(progress['511'], mark);
+  assert.equal((encodeSparseRecord(recovered) as EncodedSparseRecord<ProgressMark>).snapshot.base, base);
 });

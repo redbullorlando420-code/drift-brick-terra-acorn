@@ -114,6 +114,8 @@ export function PreVideo() {
   const visibleTags = allVisibleTags.slice(0, 80);
   const tagsLocked = Boolean(metadataProvenance?.lockedFields?.includes("tags"));
   const tagSourceSummary = [...new Set(Object.values(metadataProvenance?.tags ?? {}))]
+    // Older/imported saved tags may have no provenance entry yet.
+    .filter(source => typeof source === 'string' && Boolean(source.trim()))
     .map((source) => source === "manual" ? "your edit" : source === "local-name" ? "local filename" : source === "companion-inspection" ? "Companion inspection" : source === "local-vision" ? "local vision" : source === "legacy" ? "saved library" : source.replace(/^provider:/, "provider · "))
     .join(", ");
   const creatorRating = creator ? getCreatorRating(creator) : 0;

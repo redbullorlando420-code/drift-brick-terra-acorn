@@ -8,6 +8,13 @@ const video = (id: string, addedAt: number): LibraryVideo => ({ id, addedAt, fol
 const base = { folders: [], tags: {}, categories: {}, hidden: {}, hideDemo: true, sourceId: 'home' as const,
   adultsUnlocked: false, query: 'search', ids: null };
 
+test('indexed suggestions visit matching positions rather than the full library', async () => {
+  const videos = Array.from({ length: 100_000 }, (_, i) => video(String(i), i));
+  let turns = 0;
+  const result = await collectSearchSuggestions({ ...base, videos, ids: ['123','99999'], positions: new Uint32Array([123,99999]) }, async () => { turns++; });
+  assert.deepEqual(result.map(row => row.id), ['99999','123']); assert.ok(turns < 5);
+});
+
 test('100,000 matched titles yield between slices and keep only the six newest suggestions', async () => {
   const videos = Array.from({ length: 100_000 }, (_, index) => video(String(index), index));
   let turns = 0, folderReads = 0;

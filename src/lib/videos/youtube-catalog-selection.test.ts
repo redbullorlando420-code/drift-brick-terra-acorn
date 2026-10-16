@@ -6,7 +6,7 @@ import { mixYoutubeCreators } from '../remote/youtube-mix.ts';
 import type { LibraryVideo } from './types';
 
 const video = (id: number, patch: Partial<LibraryVideo> = {}): LibraryVideo => ({ id: String(id), name: `Upload ${id}`,
-  folderId: 'public', path: String(id), size: 0, addedAt: id % 9, extension: 'yt', mime: 'video/youtube',
+  folderId: 'public', path: String(id), size: 0, addedAt: Date.UTC(2026, 9, 1) + id % 9, extension: 'yt', mime: 'video/youtube',
   remote: { kind: 'youtube', channelId: `channel:${id % 50}`, channelName: `Creator ${id % 50}` }, ...patch });
 
 test('cooperative YouTube selection preserves full visibility boundaries and stable date ordering', async () => {

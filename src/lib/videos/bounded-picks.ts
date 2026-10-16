@@ -1,11 +1,11 @@
 /** Return the best few rows without retaining or sorting a huge candidate list.
  * `compare(a, b) < 0` means a should appear before b. */
-export function takeBestMapped<T, R>(items: Iterable<T>, limit: number, project: (item: T) => R | null, compare: (a: R, b: R) => number): R[] {
-  if (limit <= 0) return [];
+export function createBoundedPicks<R>(limit: number, compare: (a: R, b: R) => number) {
   const heap: R[] = [];
-  for (const item of items) {
-    const row = project(item);
-    if (row == null) continue;
+  let finished = false;
+  const add = (row: R) => {
+    if (finished) throw new TypeError('Bounded selection already finished');
+    if (limit <= 0) return;
     if (heap.length < limit) {
       heap.push(row);
       let child = heap.length - 1;
@@ -15,9 +15,9 @@ export function takeBestMapped<T, R>(items: Iterable<T>, limit: number, project:
         [heap[parent], heap[child]] = [heap[child], heap[parent]];
         child = parent;
       }
-      continue;
+      return;
     }
-    if (compare(row, heap[0]) >= 0) continue;
+    if (compare(row, heap[0]) >= 0) return;
     heap[0] = row;
     let parent = 0;
     while (true) {
@@ -29,8 +29,18 @@ export function takeBestMapped<T, R>(items: Iterable<T>, limit: number, project:
       [heap[parent], heap[worse]] = [heap[worse], heap[parent]];
       parent = worse;
     }
+  };
+  return { add, finish: () => { finished = true; return heap.sort(compare); } };
+}
+
+export function takeBestMapped<T, R>(items: Iterable<T>, limit: number, project: (item: T) => R | null, compare: (a: R, b: R) => number): R[] {
+  if (limit <= 0) return [];
+  const picks = createBoundedPicks(limit, compare);
+  for (const item of items) {
+    const row = project(item);
+    if (row != null) picks.add(row);
   }
-  return heap.sort(compare);
+  return picks.finish();
 }
 
 export function* concatIterables<T>(...sources: Iterable<T>[]): Iterable<T> {

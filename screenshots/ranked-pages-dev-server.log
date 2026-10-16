@@ -1,0 +1,161 @@
+
+  VITE v8.2.2  ready in 2304 ms
+
+  ➜  Local:   http://localhost:8080/
+  ➜  Network: http://10.5.0.2:8080/      NordLynx
+  ➜  Network: http://192.168.1.68:8080/  Ethernet 2
+  ➜  press h + enter to show help
+9:42:30 AM [vite] (ssr) connected.
+9:55:04 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/twitch-archive-creators.tsx, /src/components/library/video-overlays.tsx, /src/components/library/connect-panel.tsx, /src/components/library/follow-manager.tsx, /src/components/library/light-home.tsx, /src/components/library/video-grid.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx and 22 more
+9:55:04 AM [vite] (ssr) page reload src/lib/videos/image-load-budget.ts
+9:55:04 AM [vite] (ssr) program reload
+9:55:44 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/twitch-archive-creators.tsx, /src/components/library/video-overlays.tsx, /src/components/library/connect-panel.tsx, /src/components/library/follow-manager.tsx, /src/components/library/light-home.tsx, /src/components/library/video-grid.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx and 22 more
+9:55:44 AM [vite] (ssr) page reload src/lib/videos/image-load-budget.ts
+9:55:45 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/video-card.tsx
+9:55:45 AM [vite] (ssr) page reload src/components/library/video-card.tsx
+9:57:47 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/twitch-archive-creators.tsx, /src/components/library/video-overlays.tsx, /src/components/library/connect-panel.tsx, /src/components/library/follow-manager.tsx, /src/components/library/light-home.tsx, /src/components/library/video-grid.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx and 22 more
+9:57:47 AM [vite] (ssr) page reload src/lib/videos/image-load-budget.ts
+9:57:47 AM [vite] (client) hmr update /src/styles.css?direct
+10:00:47 AM [vite] (client) hmr update /src/styles.css?direct
+10:34:31 AM [vite] (client) hmr update /src/styles.css?direct
+10:36:32 AM [vite] (client) hmr update /src/styles.css?direct
+11:05:34 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/twitch-archive-creators.tsx, /src/components/library/video-overlays.tsx, /src/components/library/connect-panel.tsx, /src/components/library/follow-manager.tsx, /src/components/library/light-home.tsx, /src/components/library/video-grid.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx and 22 more
+11:05:34 AM [vite] (ssr) page reload src/lib/videos/image-load-budget.ts
+11:05:34 AM [vite] (ssr) program reload
+11:05:34 AM [vite] (client) hmr update /src/styles.css?direct
+11:06:44 AM [vite] (client) hmr update /src/styles.css?direct
+12:15:33 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+12:15:33 PM [vite] (ssr) page reload src/components/library/use-youtube-ranking.ts
+12:15:33 PM [vite] (ssr) program reload
+12:17:22 PM [vite] (client) hmr update /src/styles.css?direct
+12:18:07 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+12:18:07 PM [vite] (ssr) page reload src/components/library/use-youtube-ranking.ts
+12:18:07 PM [vite] (ssr) program reload
+12:18:08 PM [vite] (client) hmr update /src/styles.css?direct
+12:19:28 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+12:19:28 PM [vite] (ssr) page reload src/components/library/use-youtube-ranking.ts
+12:19:28 PM [vite] (ssr) program reload
+12:19:28 PM [vite] (client) hmr update /src/styles.css?direct
+12:19:50 PM [vite] (client) hmr update /src/styles.css?direct
+12:23:06 PM [vite] (client) hmr update /src/styles.css?direct
+12:24:10 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+12:24:10 PM [vite] (ssr) page reload src/components/library/use-youtube-ranking.ts
+12:24:10 PM [vite] (ssr) program reload
+12:24:29 PM [vite] (client) hmr update /src/styles.css?direct
+12:27:02 PM [vite] (client) hmr update /src/styles.css?direct
+12:27:32 PM [vite] (client) hmr update /src/styles.css?direct
+3:30:53 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/hub-sections.tsx
+3:32:16 PM [vite] (client) page reload src/lib/videos/search.worker.ts
+3:32:16 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/global-search.tsx
+3:32:16 PM [vite] (ssr) page reload src/lib/videos/search-worker-index.ts
+3:32:16 PM [vite] (ssr) program reload
+3:32:16 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+3:32:16 PM [vite] (ssr) page reload src/lib/videos/search-ranking.ts
+3:32:16 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/global-search.tsx
+3:32:16 PM [vite] (ssr) page reload src/lib/videos/search-suggestions.ts
+3:32:16 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+3:32:16 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+3:32:16 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/global-search.tsx
+3:32:16 PM [vite] (ssr) page reload src/lib/videos/search-suggestions.ts
+3:32:16 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/light-home.tsx, /src/components/library/video-grid.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/youtube-format-controls.tsx, /src/components/library/twitch-archive-creators.tsx and 22 more
+3:32:16 PM [vite] (ssr) page reload src/lib/videos/store.ts
+3:32:16 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+3:32:16 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+3:32:16 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/global-search.tsx
+3:32:16 PM [vite] (ssr) page reload src/components/library/global-search.tsx
+3:33:06 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-overlays.tsx, /src/components/library/light-home.tsx, /src/components/library/video-grid.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/pre-video.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/youtube-format-controls.tsx and 22 more
+3:33:06 PM [vite] (ssr) page reload src/lib/catalog-work.ts
+3:33:06 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/global-search.tsx
+3:33:06 PM [vite] (ssr) page reload src/lib/videos/search-worker-index.ts
+3:33:41 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+3:33:41 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+3:35:25 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/global-search.tsx
+3:35:25 PM [vite] (ssr) page reload src/components/library/global-search.tsx
+3:35:25 PM [vite] (client) page reload src/lib/videos/search.worker.ts
+3:35:25 PM [vite] (client) hmr update /src/styles.css?direct
+3:35:25 PM [vite] (client) hmr update /src/styles.css?direct
+3:37:24 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/global-search.tsx
+3:37:24 PM [vite] (ssr) page reload src/lib/videos/search-worker-index.ts
+3:38:52 PM [vite] (client) hmr update /src/styles.css?direct
+3:40:33 PM [vite] (client) hmr update /src/styles.css?direct
+3:40:33 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/hub-sections.tsx
+3:40:33 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/ranking-panel.tsx
+3:40:33 PM [vite] (ssr) page reload src/components/library/ranking-panel.tsx
+3:40:33 PM [vite] (ssr) program reload
+3:40:34 PM [vite] (client) hmr update /src/styles.css?direct
+3:40:34 PM [vite] (client) hmr update /src/styles.css?direct
+3:40:34 PM [vite] (client) hmr update /src/styles.css?direct
+3:58:31 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/hub-sections.tsx, /src/components/library/follow-manager.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/light-home.tsx, /src/components/library/video-grid.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx and 21 more
+3:58:31 PM [vite] (ssr) page reload src/lib/media-feedback.ts
+3:58:31 PM [vite] (ssr) program reload
+3:58:31 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/hub-sections.tsx
+3:58:32 PM [vite] (client) page reload src/lib/videos/search.worker.ts
+3:59:46 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+3:59:46 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+4:01:12 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+4:01:12 PM [vite] (ssr) page reload src/lib/videos/twitch-mix.ts
+4:01:12 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+4:01:12 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+4:02:23 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+4:02:23 PM [vite] (ssr) page reload src/lib/videos/twitch-mix.ts
+4:02:23 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+4:02:23 PM [vite] (ssr) page reload src/components/library/use-twitch-mix.ts
+4:02:24 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+4:02:24 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+4:03:47 PM [vite] (client) hmr update /src/styles.css?direct
+4:04:07 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+4:04:07 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+4:04:40 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+4:04:40 PM [vite] (ssr) page reload src/components/library/use-twitch-mix.ts
+4:04:40 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+4:04:40 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+4:05:47 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+4:05:47 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+4:05:48 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+4:05:48 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+4:05:48 PM [vite] (client) hmr update /src/styles.css?direct
+4:08:04 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+4:08:04 PM [vite] (ssr) page reload src/lib/videos/twitch-catalog-order.ts
+4:08:04 PM [vite] (ssr) program reload
+4:08:04 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+4:08:04 PM [vite] (ssr) page reload src/lib/videos/twitch-vod-ranking.ts
+4:08:04 PM [vite] (client) hmr update /src/styles.css?direct
+4:08:04 PM [vite] (client) hmr update /src/styles.css?direct
+4:08:04 PM [vite] (client) hmr update /src/styles.css?direct
+4:08:05 PM [vite] (client) hmr update /src/styles.css?direct
+4:08:05 PM [vite] (client) hmr update /src/styles.css?direct
+4:08:05 PM [vite] (client) page reload src/lib/videos/search-token-query.ts
+4:08:05 PM [vite] (client) hmr update /src/styles.css?direct
+4:08:05 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/hub-sections.tsx
+4:08:05 PM [vite] (client) hmr update /src/styles.css?direct
+4:08:05 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+4:08:05 PM [vite] (ssr) page reload src/lib/videos/twitch-catalog-order.ts
+4:08:05 PM [vite] (client) hmr update /src/styles.css?direct
+4:08:05 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+4:08:05 PM [vite] (ssr) page reload src/lib/videos/twitch-vod-ranking.ts
+4:08:05 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+4:08:05 PM [vite] (ssr) page reload src/components/library/use-twitch-catalog-order.ts
+4:08:05 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+4:08:05 PM [vite] (ssr) page reload src/components/library/use-twitch-vod-ranking.ts
+4:08:05 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+4:08:05 PM [vite] (ssr) page reload src/components/library/use-twitch-mix.ts
+4:08:05 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+4:08:05 PM [vite] (ssr) page reload src/lib/videos/twitch-mix.ts
+4:08:05 PM [vite] (client) hmr update /src/styles.css?direct
+4:11:58 PM [vite] (client) page reload src/lib/videos/search.worker.ts
+4:11:58 PM [vite] (client) page reload src/lib/videos/search.worker.ts
+4:11:58 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/hub-sections.tsx
+4:20:37 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/hub-sections.tsx
+4:21:12 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/hub-sections.tsx
+4:22:00 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/hub-sections.tsx
+4:22:43 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/hub-sections.tsx
+4:23:53 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/hub-sections.tsx
+4:24:15 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/hub-sections.tsx
+4:24:52 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/hub-sections.tsx
+4:24:52 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/hub-sections.tsx
+4:24:52 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/hub-sections.tsx
+4:25:20 PM [vite] (client) hmr update /src/styles.css?direct
+4:25:20 PM [vite] (client) hmr update /src/styles.css?direct
+4:25:34 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/hub-sections.tsx
+5:14:37 PM [vite] (client) page reload src/lib/videos/search.worker.ts
+5:14:37 PM [vite] (client) hmr update /src/styles.css?direct

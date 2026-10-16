@@ -100,6 +100,22 @@ test('same-source filters and saves stay immediate once the destination is ready
   assert.equal(f.browse.getState().revision, 9); assert.equal(seen.length, 2); assert.equal(f.jobs.length, 0); off();
 });
 
+test('same-route pulls prepare a replacement before subscribers see it; progress coalesces without restarting', async () => {
+  const gates: Array<{ signal: AbortSignal; resolve: () => void }> = [];
+  const f = fixture({ prepare: (_, signal) => new Promise<void>(resolve => gates.push({ signal, resolve })), prepared: (a, b) => a.catalog === b.catalog });
+  const seen: State[] = [], off = f.browse.subscribe(next => seen.push(next));
+  f.update({ source: 'youtube' }); f.flush(); gates[0].resolve(); await Promise.resolve();
+  const first = f.browse.getState();
+  f.update({ catalog: [1, 2, 3] });
+  assert.equal(f.browse.getState(), first, 'a pull must not run cold selectors in its commit event');
+  f.flush(); f.update({ revision: 4 });
+  assert.equal(gates.length, 2); assert.equal(gates[1].signal.aborted, false);
+  gates[1].resolve(); await Promise.resolve();
+  assert.deepEqual(f.browse.getState().catalog, [1, 2, 3]); assert.equal(f.browse.getState().revision, 4);
+  f.update({ revision: 5 }); assert.equal(f.browse.getState().revision, 5, 'non-catalog controls remain immediate');
+  off();
+});
+
 test('viewer updates remain live, covered work sleeps, and close stages the latest navigation once', () => {
   const f = fixture(), seen: State[] = [];
   const off = f.browse.subscribe(next => seen.push(next));

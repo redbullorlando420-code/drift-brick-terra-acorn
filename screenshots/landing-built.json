@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8081/landing",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Realhub",
+      "hasCanvas": false,
+      "bodyTextLen": 21,
+      "bodyTextHash": "90ae7df6d0e811d1b144de5daac35b18bfb774ebf407c44ba0113a4833f92719",
+      "bodyTextPrefix": "Opening Landing page…",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\landing-built.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Realhub",
+      "hasCanvas": false,
+      "bodyTextLen": 21,
+      "bodyTextHash": "90ae7df6d0e811d1b144de5daac35b18bfb774ebf407c44ba0113a4833f92719",
+      "bodyTextPrefix": "Opening Landing page…",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\landing-built-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\landing-built.json"
+}

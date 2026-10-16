@@ -1,0 +1,300 @@
+{
+  "ok": true,
+  "fixture": "60,000 saved YouTube videos, 48,000 from one creator; real ranking worker; isolated browser storage; artwork/embeds stubbed",
+  "results": [
+    {
+      "viewport": "desktop",
+      "firstBatchMs": 827,
+      "scrollWorstFrameMs": 33,
+      "peakCards": 66,
+      "worstMainTaskMs": 0,
+      "overflow": false,
+      "rankingWorkers": [
+        {
+          "rows": 60000,
+          "packingMs": 631,
+          "scoringMs": 142,
+          "completed": true
+        },
+        {
+          "rows": 0,
+          "packingMs": null,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 425,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 198,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 201,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 220,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 187,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 183,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 216,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 201,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 205,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 189,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 227,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 206,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 0,
+          "packingMs": null,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 392,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 243,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 244,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 272,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 245,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 262,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 265,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 252,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 252,
+          "scoringMs": 130,
+          "completed": true
+        },
+        {
+          "rows": 0,
+          "packingMs": null,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 4000,
+          "packingMs": 178,
+          "scoringMs": 22,
+          "completed": true
+        }
+      ],
+      "errors": [],
+      "ok": true
+    },
+    {
+      "viewport": "mobile",
+      "firstBatchMs": 664,
+      "scrollWorstFrameMs": 22,
+      "peakCards": 44,
+      "worstMainTaskMs": 0,
+      "overflow": false,
+      "rankingWorkers": [
+        {
+          "rows": 60000,
+          "packingMs": 547,
+          "scoringMs": 126,
+          "completed": true
+        },
+        {
+          "rows": 0,
+          "packingMs": null,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 273,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 180,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 182,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 194,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 192,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 194,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 182,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 193,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 201,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 178,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 195,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 216,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 773,
+          "scoringMs": 169,
+          "completed": true
+        },
+        {
+          "rows": 0,
+          "packingMs": null,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 0,
+          "packingMs": null,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 4000,
+          "packingMs": 178,
+          "scoringMs": 17,
+          "completed": true
+        },
+        {
+          "rows": 0,
+          "packingMs": null,
+          "scoringMs": null,
+          "completed": false
+        }
+      ],
+      "errors": [],
+      "ok": true
+    }
+  ]
+}

@@ -8,9 +8,11 @@ test('actual upstream transfers serialize and honor the gap across different app
   const transport = createYoutubeTransport({ now: () => now, sleep: async ms => { now += ms; }, gapMs: () => 1500,
     fetch: async () => {
       starts.push(now); peak = Math.max(peak, ++active);
-      const response = new Response('metadata');
-      response.arrayBuffer = async () => { await Promise.resolve(); now += 200; active--; return new TextEncoder().encode('metadata').buffer; };
-      return response;
+      let pulled = false;
+      return new Response(new ReadableStream({ async pull(controller) {
+        if (pulled) return; pulled = true; await Promise.resolve(); now += 200; active--;
+        controller.enqueue(new TextEncoder().encode('metadata')); controller.close();
+      } }));
     },
   });
   const responses = await Promise.all(['/feeds/videos.xml', '/channel/UCtest/videos', '/youtubei/v1/browse'].map(path => transport.request(`https://www.youtube.com${path}`)));

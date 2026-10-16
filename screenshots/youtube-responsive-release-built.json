@@ -1,0 +1,62 @@
+{
+  "ok": true,
+  "url": "http://127.0.0.1:8083/",
+  "fixture": "80,000 compact entries, pulling paused, text-first artwork, isolated Chromium contexts; fake media and offline Companion responses stubbed",
+  "limitation": "Synthetic browser check; does not establish real-provider throughput, long-session memory stability, or physical-device performance.",
+  "budgets": {
+    "startupMs": 3000,
+    "navigationMs": 2000,
+    "scrollSettleMs": 500,
+    "inputMs": 200,
+    "mountedCards": 256,
+    "overflowPixels": 0
+  },
+  "results": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "startupMs": 260.6000000089407,
+      "catalogEntries": 80000,
+      "navigationMs": 866.8999999910593,
+      "scrollSettleMs": 17.600000008940697,
+      "artworkIdleVerified": true,
+      "formatsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-responsive-release-built-formats-desktop.png",
+      "formatShelfScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-responsive-release-built-format-shelf-desktop.png",
+      "youtubeFormatsVerified": true,
+      "providerBudgetsVerified": true,
+      "scorecardVerified": true,
+      "exportVerified": true,
+      "safeguardsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-responsive-release-built-safeguards-desktop.png",
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-responsive-release-built-desktop.png",
+      "inputMs": 38.69999998807907,
+      "mountedCards": 16,
+      "overflowPixels": 0,
+      "slowInputs": [],
+      "ok": true,
+      "failures": []
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "startupMs": 169.79999999701977,
+      "catalogEntries": 80000,
+      "navigationMs": 894.3999999910593,
+      "scrollSettleMs": 14.400000005960464,
+      "artworkIdleVerified": true,
+      "formatsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-responsive-release-built-formats-mobile.png",
+      "formatShelfScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-responsive-release-built-format-shelf-mobile.png",
+      "youtubeFormatsVerified": true,
+      "providerBudgetsVerified": true,
+      "scorecardVerified": true,
+      "exportVerified": true,
+      "safeguardsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-responsive-release-built-safeguards-mobile.png",
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-responsive-release-built-mobile.png",
+      "inputMs": 22.400000005960464,
+      "mountedCards": 12,
+      "overflowPixels": 0,
+      "slowInputs": [],
+      "ok": true,
+      "failures": []
+    }
+  ]
+}

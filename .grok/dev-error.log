@@ -1,55 +1,23 @@
 npm notice run dev
 npm notice run node scripts/with-app-env.mjs vite dev --host 0.0.0.0 --port 8080
-Error: Invalid server function ID: eyJmaWxlIjoiL3NyYy9saWIvcmVtb3RlL2Z1bmN0aW9ucy50cz90c3Mtc2VydmVyZm4tc3BsaXQiLCJleHBvcnQiOiJyZWZyZXNoUmVtb3Rlc19jcmVhdGVTZXJ2ZXJGbl9oYW5kbGVyIn0
-    at LoadPluginContext._formatLog (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:31147:39)
-    ... 3 lines matching cause stack trace ...
-    at async loadAndTransform (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:20624:21) {
-  cause: Error: Invalid server function ID: eyJmaWxlIjoiL3NyYy9saWIvcmVtb3RlL2Z1bmN0aW9ucy50cz90c3Mtc2VydmVyZm4tc3BsaXQiLCJleHBvcnQiOiJyZWZyZXNoUmVtb3Rlc19jcmVhdGVTZXJ2ZXJGbl9oYW5kbGVyIn0
-      at LoadPluginContext._formatLog (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:31147:39)
-      at LoadPluginContext.error (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:31144:14)
-      at LoadPluginContext.handler (file:///E:/codex/drift-brick-terra-acorn/node_modules/@tanstack/start-plugin-core/dist/esm/vite/start-compiler-plugin/plugin.js:297:11)
-      at async EnvironmentPluginContainer.load (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:30890:19)
-      at async loadAndTransform (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:20624:21) {
-    plugin: 'tanstack-start-core:validate-server-fn-id',
-    runnerError: Error: RunnerError
-        at reviveInvokeError (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/module-runner.js:557:64)
-        at Object.invoke (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/module-runner.js:630:11)
-        at async ModuleRunner.getModuleInformation (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/module-runner.js:1213:7)
-        at async request (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/module-runner.js:1230:83)
-        at async getServerFnById (E:\codex\drift-brick-terra-acorn\#tanstack-start-server-fn-resolver:4:3)
-        at async handleServerAction (E:\codex\drift-brick-terra-acorn\node_modules\@tanstack\start-server-core\src\server-functions-handler.ts:49:18)
-  },
-  status: 500,
-  statusText: undefined,
-  headers: undefined,
-  data: undefined,
-  body: undefined,
-  unhandled: true
-}
-Warning: A notFoundError was encountered on the route with ID "__root__", but a notFoundComponent option was not configured, nor was a router level defaultNotFoundComponent configured. Consider configuring at least one of these to avoid TanStack Router's overly generic defaultNotFoundComponent (<p>Not Found</p>)
-Warning: A notFoundError was encountered on the route with ID "__root__", but a notFoundComponent option was not configured, nor was a router level defaultNotFoundComponent configured. Consider configuring at least one of these to avoid TanStack Router's overly generic defaultNotFoundComponent (<p>Not Found</p>)
-Warning: A notFoundError was encountered on the route with ID "__root__", but a notFoundComponent option was not configured, nor was a router level defaultNotFoundComponent configured. Consider configuring at least one of these to avoid TanStack Router's overly generic defaultNotFoundComponent (<p>Not Found</p>)
-Warning: A notFoundError was encountered on the route with ID "__root__", but a notFoundComponent option was not configured, nor was a router level defaultNotFoundComponent configured. Consider configuring at least one of these to avoid TanStack Router's overly generic defaultNotFoundComponent (<p>Not Found</p>)
-node:internal/fs/watchers:323
-    const error = new UVException({
-                  ^
+TanStack Start server functions are not protected by the CSRF middleware.
 
-Error: EBUSY: resource busy or locked, watch 'E:\codex\drift-brick-terra-acorn\.vercel\output\static\samples\empty-house.mp4'
-    at FSWatcher.<computed> (node:internal/fs/watchers:323:19)
-    at Object.watch (node:fs:2608:36)
-    at createFsWatchInstance (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:9429:16)
-    at setFsWatchListener (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:9471:14)
-    at NodeFsHandler._watchWithNodeFs (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:9586:20)
-    at NodeFsHandler._handleFile (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:9630:24)
-    at NodeFsHandler._addToNodeFs (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:9804:26)
-Emitted 'error' event on FSWatcher instance at:
-    at FSWatcher._handleError (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:10606:146)
-    at NodeFsHandler._addToNodeFs (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:9809:18) {
-  errno: -4082,
-  syscall: 'watch',
-  code: 'EBUSY',
-  path: 'E:\\codex\\drift-brick-terra-acorn\\.vercel\\output\\static\\samples\\empty-house.mp4',
-  filename: 'E:\\codex\\drift-brick-terra-acorn\\.vercel\\output\\static\\samples\\empty-house.mp4'
-}
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
 
-Node.js v24.21.0
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })

@@ -1,0 +1,45 @@
+✔ focused partial Twitch pulls preserve saved VODs, local feedback and unrequested clip checkpoints (392.2078ms)
+✔ empty Twitch routine and live checks preserve VOD history, feedback and focused checkpoints (45.4467ms)
+✔ Twitch entry caps and first-page failures hold checkpoints and explain the stop (170.8004ms)
+✔ YouTube pull commits use sparse tag updates without enumerating the existing ledgers (171.6038ms)
+✔ viewer comments persist one current card without copying or notifying the 100k browse catalog (263.8783ms)
+✔ a delayed comment response after closing or switching a viewer cannot retain or write a transcript (92.3469ms)
+✔ focused pulls cap memory, metadata and disk together, preserving the rejected page resume point (267.1542ms)
+✔ bulk imports use one cap across creators and persist only admitted entries (171.9153ms)
+✔ routine checks refresh stored titles at a zero cap while excluding new rows from disk and metadata (217.6135ms)
+✔ settings changed while a provider is in flight apply before admission (108.0352ms)
+✔ Adult pulls apply a lowered in-flight cap before tags and append transactions (178.3054ms)
+✔ removed cached Reddit images and confirmed unavailable photos leave Adult shelves without deleting saves (1.279ms)
+✔ a provider-wide cooldown stops the archive queue without marking unattempted creators failed (43.6214ms)
+✔ unresolved saved stubs do not prevent a real import from resolving them (72.3361ms)
+✔ Twitch status cannot replace the YouTube cooldown or archive result (0.776ms)
+✔ manual completion returns its own counts even when another provider changes pull history (92.6803ms)
+✔ cooldown stops focused, import and live work while mixed checks still service Twitch (1.2473ms)
+✔ an import provider limit checkpoints the cooldown and leaves later batches unattempted (2.6955ms)
+✔ automatic provider detection still permits a focused Twitch URL during a YouTube cooldown (0.6065ms)
+✔ a catalog-only cooldown allows live discovery on confirmed channel IDs (0.9201ms)
+✔ scheduled archive growth checks four creators in small responses and persists new entries and cursors (320.1536ms)
+✔ manual force ignores the old timer, stops on a new rejection, and leaves automatic work waiting (31.0478ms)
+✔ healthy forced pulls resume the batch, keep entry caps, and clear obsolete restored deadlines (184.8256ms)
+✔ a recovered manual pull prevents untouched old creator failures restoring a global cooldown (94.7822ms)
+✔ YouTube feed success preserves live cards and actual offline checks persist completed streams without deleting saved media (92.4346ms)
+✔ a 70000-entry library admits 3000 new YouTube entries in six bounded creator commits (6953.4496ms)
+ℹ 70000 existing + 3000 added in six commits: 6947ms with mocked network/disk; no full catalog persistence.
+✔ full YouTube archive replaces at most its cleanup budget and holds partially admitted page cursors (547.6501ms)
+✔ failed and duplicate-only YouTube requests never remove cached videos (201.5326ms)
+✔ focused pulls and subscription imports can make room at the cap without exceeding the per-import budget (639.1383ms)
+✔ manual cleanup rolls back failed disk commits without changing saved signals or clearing rating/history (153.5852ms)
+✔ retired identities stay suppressed and can be restored when later liked or positively rated (327.0369ms)
+✔ a rating or like received while cleanup planning yields is protected by the final commit check (3298.1385ms)
+✔ focused Twitch rotation respects combined caps, protects saves and holds partial clip/VOD checkpoints (359.164ms)
+✔ routine Twitch and mixed refreshes share per-source budgets and do not clean on live-only checks (326.4203ms)
+✔ Adult pulls rotate at full capacity across providers, retain protected entries and stop at the whole-pull budget (966.985ms)
+✔ Twitch imports use one replacement budget and zero caps hold all providers even with cleanup enabled (277.9319ms)
+ℹ tests 36
+ℹ suites 0
+ℹ pass 36
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 17394.4958

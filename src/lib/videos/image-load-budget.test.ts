@@ -5,7 +5,9 @@ import {
   clearLowPriorityImageQueue,
   getImageLoadBudgetSnapshot,
   setArtworkSuppressed,
+  watchImageSlot,
 } from "./image-load-budget.ts";
+import { prioritizeInteraction } from '../interaction-budget.ts';
 
 test("source changes cancel queued near-view artwork without consuming a slot", { timeout: 2_000 }, async () => {
   const releases: Array<() => void> = [];
@@ -136,5 +138,78 @@ test("closing a viewer refills every available visible-artwork slot", { timeout:
     controllers.forEach(controller => controller.abort());
     setArtworkSuppressed(false);
     releases.forEach(release => release());
+  }
+});
+
+test('unfinished card leases revoke on preview open and refill together without marking loads failed', () => {
+  const count = getImageLoadBudgetSnapshot().max, events: boolean[][] = [], cancel: Array<() => void> = [];
+  try {
+    for (let index = 0; index < count; index++) {
+      events.push([]); cancel.push(watchImageSlot({ priority: 'high' }, allowed => events[index].push(allowed)));
+    }
+    assert.equal(getImageLoadBudgetSnapshot().active, count);
+    setArtworkSuppressed(true);
+    assert.equal(getImageLoadBudgetSnapshot().active, 0);
+    assert.equal(getImageLoadBudgetSnapshot().queuedHigh, count);
+    assert.ok(events.every(row => String(row) === 'true,false'));
+    setArtworkSuppressed(false);
+    assert.equal(getImageLoadBudgetSnapshot().active, count);
+    assert.equal(getImageLoadBudgetSnapshot().queuedHigh, 0);
+    assert.ok(events.every(row => String(row) === 'true,false,true'));
+  } finally { cancel.forEach(stop => stop()); setArtworkSuppressed(false); }
+  assert.equal(getImageLoadBudgetSnapshot().active, 0);
+});
+
+test('unmount, abort and completion cannot resume cancelled card leases or retain callbacks', () => {
+  const controller = new AbortController(), events: boolean[] = [];
+  const stop = watchImageSlot({ priority: 'high', signal: controller.signal }, allowed => events.push(allowed));
+  setArtworkSuppressed(true);
+  controller.abort(); stop(); stop();
+  setArtworkSuppressed(false);
+  assert.deepEqual(events, [true, false]);
+  assert.equal(getImageLoadBudgetSnapshot().queuedHigh, 0);
+  assert.equal(getImageLoadBudgetSnapshot().active, 0);
+  const completed: boolean[] = [], complete = watchImageSlot({ priority: 'high' }, allowed => completed.push(allowed));
+  complete(); setArtworkSuppressed(true); setArtworkSuppressed(false);
+  assert.deepEqual(completed, [true, false]);
+});
+
+test('even visible images yield behind foreground input without cancelling healthy URLs', { timeout: 2_000 }, async () => {
+  const events: boolean[] = [];
+  prioritizeInteraction();
+  const stop = watchImageSlot({ priority: 'high' }, allowed => events.push(allowed));
+  try {
+    assert.deepEqual(events, []);
+    assert.equal(getImageLoadBudgetSnapshot().active, 0);
+    await new Promise(resolve => setTimeout(resolve, 300));
+    assert.deepEqual(events, [true]);
+  } finally { stop(); }
+});
+
+test('hidden and page-hidden cards release active admission and resume only when both gates allow it', async () => {
+  const originalDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
+  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  const surface = Object.assign(new EventTarget(), { visibilityState: 'visible' }), frame = new EventTarget();
+  Object.defineProperty(globalThis, 'document', { configurable: true, value: surface });
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: frame });
+  // A fresh module has its own browser lifecycle owner, unlike the earlier
+  // legacy visibility test's intentionally short-lived document fixture.
+  const budget = await import(new URL('./image-load-budget.ts?lifecycle', import.meta.url).href);
+  const events: boolean[] = [], stop = budget.watchImageSlot({ priority: 'high' }, (allowed: boolean) => events.push(allowed));
+  const nearby: boolean[] = [], stopNearby = budget.watchImageSlot({ priority: 'low' }, (allowed: boolean) => nearby.push(allowed));
+  try {
+    surface.visibilityState = 'hidden'; surface.dispatchEvent(new Event('visibilitychange'));
+    assert.equal(budget.getImageLoadBudgetSnapshot().active, 0);
+    frame.dispatchEvent(new Event('pagehide'));
+    surface.visibilityState = 'visible'; surface.dispatchEvent(new Event('visibilitychange'));
+    assert.equal(budget.getImageLoadBudgetSnapshot().active, 0);
+    frame.dispatchEvent(new Event('pageshow'));
+    assert.deepEqual(events, [true, false, true]);
+    assert.deepEqual(nearby, [true, false, true], 'a nearby card must resume without needing a new visibility observation');
+    stop(); stopNearby(); assert.equal(budget.getImageLoadBudgetSnapshot().queued, 0);
+  } finally {
+    stop(); stopNearby();
+    if (originalDocument) Object.defineProperty(globalThis, 'document', originalDocument); else Reflect.deleteProperty(globalThis, 'document');
+    if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow); else Reflect.deleteProperty(globalThis, 'window');
   }
 });

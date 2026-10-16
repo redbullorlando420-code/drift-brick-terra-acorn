@@ -1,4 +1,8 @@
-import { recoverSavedShelves } from "./saved-library";
+import { normalizeProviderCache } from '../provider-cache-metrics.ts';
+import { cleanupKey, normalizeYoutubeCleanup, retiredYoutubeKeys, type YoutubeCleanupJournal } from './youtube-cleanup.ts';
+import { mergeFollowRecovery, normalizeFollowCheckpoints } from './follow-checkpoints.ts';
+import { recoverSavedShelves, recoverSavedShelfEdits, isSavedShelfEdit, savedShelfEditKey, type SavedShelfEdit } from "./saved-library";
+import { cacheMetrics } from '../cache-metrics.ts';
 import type {
   AppNotice,
   FollowedChannel,
@@ -20,6 +24,9 @@ import { artworkBytes, artworkDataUrl } from './binary-artwork';
 import { collectCatalogRows, forEachCatalogSlice, yieldCatalogTask } from '../catalog-work';
 import { recoveredEnrichmentRow, type EnrichmentLedgers, type EnrichmentRow } from './enrichment-batch';
 import { decodeSparseRecord, encodeSparseRecord, patchSparseRecord, sparseRecordBuilder, type EncodedSparseRecord } from '../sparse-record';
+import { decodeActivityRecords, encodeActivityRecords, mergeResumeRecords, recentActivityRecord, type StoredActivity } from './activity-records';
+import { createRecoveryLinkWriter, type SavedVideoLink } from './recovery-links';
+export type { SavedVideoLink } from './recovery-links';
 
 const DB_NAME = "reelcase";
 const STORE = "dirs";
@@ -38,7 +45,8 @@ let durablePrefs: Prefs | null = null;
 let durableFollows: FollowedChannel[] | null = null;
 let prefsWrites: Promise<void> = Promise.resolve();
 let followsWrites: Promise<void> = Promise.resolve();
-type StoredPrefs = Prefs & { sparseMetadataRecords?: { tags?: EncodedSparseRecord<string[]>;
+const normalizedCountWrites = new WeakMap<object, Record<string, number>>();
+type StoredPrefs = StoredActivity<Prefs> & { sparseMetadataRecords?: { tags?: EncodedSparseRecord<string[]>;
   metadataProvenance?: EncodedSparseRecord<VideoMetadataProvenance> } };
 
 export async function restoreDurablePrefs(): Promise<void> {
@@ -50,7 +58,7 @@ export async function restoreDurablePrefs(): Promise<void> {
       req.onerror = () => reject(req.error);
     });
     if (saved) {
-      const { sparseMetadataRecords, ...prefs } = saved;
+      const { sparseMetadataRecords, ...prefs } = decodeActivityRecords(saved);
       durablePrefs = { ...prefs, tags: decodeSparseRecord(sparseMetadataRecords?.tags ?? saved.tags),
         metadataProvenance: decodeSparseRecord(sparseMetadataRecords?.metadataProvenance ?? saved.metadataProvenance) };
     }
@@ -71,14 +79,7 @@ function normalizeFollowChannels(raw: unknown): FollowedChannel[] {
     const handle = typeof rec.handle === "string" ? rec.handle.trim() : "";
     const id = typeof rec.id === "string" ? rec.id.trim() : "";
     const title = typeof rec.title === "string" ? rec.title.trim() : handle;
-    const cacheRaw = rec.cache && typeof rec.cache === "object" ? rec.cache as Record<string, unknown> : null;
-    const cache = cacheRaw
-      && typeof cacheRaw.at === "number" && Number.isFinite(cacheRaw.at)
-      && typeof cacheRaw.hits === "number" && Number.isFinite(cacheRaw.hits)
-      && typeof cacheRaw.misses === "number" && Number.isFinite(cacheRaw.misses)
-      && (cacheRaw.scope === "feed" || cacheRaw.scope === "catalog" || cacheRaw.scope === "uncached")
-      ? { at: cacheRaw.at, hits: Math.max(0, Math.floor(cacheRaw.hits)), misses: Math.max(0, Math.floor(cacheRaw.misses)), scope: cacheRaw.scope as NonNullable<FollowedChannel["cache"]>["scope"] }
-      : undefined;
+    const cache = normalizeProviderCache(rec.cache);
     if (!kind || (!handle && !id)) continue;
     out.push({
       id: id || `${kind === "twitch" ? "tw" : "yt"}:${handle}`,
@@ -94,9 +95,7 @@ function normalizeFollowChannels(raw: unknown): FollowedChannel[] {
       ...(typeof rec.liveCheckedAt === "number" && Number.isFinite(rec.liveCheckedAt) ? { liveCheckedAt: rec.liveCheckedAt } : {}),
       ...(typeof rec.newestPublishedAt === "number" ? { newestPublishedAt: rec.newestPublishedAt } : {}),
       ...(typeof rec.newestVideoId === "string" && rec.newestVideoId ? { newestVideoId: rec.newestVideoId } : {}),
-      ...(typeof rec.catalogCursor === "string" && rec.catalogCursor.length > 0 && rec.catalogCursor.length <= 16_384 ? { catalogCursor: rec.catalogCursor } : {}),
-      ...(typeof rec.catalogCheckedAt === "number" && Number.isFinite(rec.catalogCheckedAt) ? { catalogCheckedAt: rec.catalogCheckedAt } : {}),
-      ...(typeof rec.catalogExhaustedAt === "number" && Number.isFinite(rec.catalogExhaustedAt) ? { catalogExhaustedAt: rec.catalogExhaustedAt } : {}),
+      ...normalizeFollowCheckpoints(rec),
       ...(typeof rec.lastResponseCount === "number" ? { lastResponseCount: rec.lastResponseCount } : {}),
       ...(cache ? { cache } : {}),
       ...(rec.lastProviderFailure && typeof rec.lastProviderFailure === "object" ? { lastProviderFailure: rec.lastProviderFailure as FollowedChannel["lastProviderFailure"] } : {}),
@@ -106,16 +105,17 @@ function normalizeFollowChannels(raw: unknown): FollowedChannel[] {
   return out;
 }
 
-function readFollowsLocal(): FollowedChannel[] | null {
+function readFollowsLocalPayload(): DurableFollows | null {
   try {
     const raw = JSON.parse(localStorage.getItem(FOLLOWS_LS_KEY) ?? "null") as DurableFollows | FollowedChannel[] | null;
-    if (Array.isArray(raw)) return normalizeFollowChannels(raw);
+    if (Array.isArray(raw)) return { channels: normalizeFollowChannels(raw), savedAt: 0 };
     if (raw && typeof raw === "object" && Array.isArray((raw as DurableFollows).channels)) {
-      return normalizeFollowChannels((raw as DurableFollows).channels);
+      return { channels: normalizeFollowChannels((raw as DurableFollows).channels), savedAt: Number.isFinite(raw.savedAt) ? raw.savedAt : 0 };
     }
   } catch { /* ignore malformed mirror */ }
   return null;
 }
+function readFollowsLocal(): FollowedChannel[] | null { return readFollowsLocalPayload()?.channels ?? null; }
 
 /** Sync mirror + IndexedDB. Intentionally tiny so QuotaExceeded on the prefs blob cannot erase follows. */
 export function saveFollows(channels: FollowedChannel[]) {
@@ -140,6 +140,7 @@ export function loadFollows(): FollowedChannel[] | null {
 export async function restoreDurableFollows(): Promise<FollowedChannel[]> {
   if (typeof window === "undefined") return [];
   let fromIdb: FollowedChannel[] = [];
+  let idbSavedAt = 0;
   try {
     const db = await openDb();
     try {
@@ -149,21 +150,11 @@ export async function restoreDurableFollows(): Promise<FollowedChannel[]> {
         req.onerror = () => reject(req.error);
       });
       if (Array.isArray(saved)) fromIdb = normalizeFollowChannels(saved);
-      else if (saved && typeof saved === "object") fromIdb = normalizeFollowChannels(saved.channels);
+      else if (saved && typeof saved === "object") { fromIdb = normalizeFollowChannels(saved.channels); idbSavedAt = Number.isFinite(saved.savedAt) ? saved.savedAt : 0; }
     } finally { db.close(); }
   } catch { /* fall through to localStorage / prefs migration */ }
-  const fromLs = readFollowsLocal() ?? [];
-  // Prefer the longer non-empty list when both exist (partial write / mid-import).
-  const primary = fromIdb.length >= fromLs.length ? fromIdb : fromLs;
-  const secondary = primary === fromIdb ? fromLs : fromIdb;
-  const seen = new Set(primary.map((row) => `${row.kind}:${row.handle.toLowerCase()}`));
-  const merged = [...primary];
-  for (const row of secondary) {
-    const key = `${row.kind}:${row.handle.toLowerCase()}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    merged.push(row);
-  }
+  const fromLs = readFollowsLocalPayload() ?? { channels: [], savedAt: 0 };
+  const merged = mergeFollowRecovery({ channels: fromIdb, savedAt: idbSavedAt }, fromLs);
   durableFollows = merged;
   return merged;
 }
@@ -190,16 +181,6 @@ const DURABLE_PHOTOS_IDB_KEY = "photos";
 const DURABLE_PHOTOS_LS_KEY = "reelcase.photos.v1";
 /** Legacy Photos metadata key — migrated into the durable photos blob. */
 export const PHOTO_META_LS_KEY = "reelcase.photo-meta.v1";
-
-export type SavedVideoLink = {
-  id: string;
-  url: string;
-  title?: string;
-  poster?: string;
-  kind?: string;
-  savedAt: number;
-  source: "history" | "bookmark" | "continue";
-};
 
 export type DurableHistory = { entries: HistoryEntry[]; savedAt: number };
 export type DurableResume = { progress: Prefs["progress"]; resumeProgress: NonNullable<Prefs["resumeProgress"]>; savedAt: number };
@@ -262,6 +243,13 @@ const activityWriter = new CoalescedWriter<string, unknown>(async rows => {
         tx.onerror = () => reject(tx.error);
         tx.onabort = () => reject(tx.error);
       });
+      let changed = false;
+      for (const [key, payload] of rows) if (key.startsWith(SHELF_EDIT_PREFIX) && isSavedShelfEdit(payload)) {
+        const edits = pendingShelfEdits();
+        const id = savedShelfEditKey(payload);
+        if (edits.get(id)?.at === payload.at) { edits.delete(id); changed = true; }
+      }
+      if (changed) mirrorShelfEdits();
     } finally { db.close(); }
 });
 
@@ -417,34 +405,38 @@ export async function restoreDurableHistory(): Promise<HistoryEntry[]> {
 export function saveDurableResume(progress: Prefs["progress"], resumeProgress: NonNullable<Prefs["resumeProgress"]>) {
   if (typeof window === "undefined") return;
   const payload: DurableResume = { progress, resumeProgress, savedAt: Date.now() };
-  const resumeKeys = Object.keys(resumeProgress);
-  const slimResume: Record<string, { t: number; d: number; at: number }> = {};
-  for (const key of resumeKeys.slice(-200)) slimResume[key] = resumeProgress[key]!;
+  const slimResume = recentActivityRecord(resumeProgress);
   writeJsonLocal(DURABLE_RESUME_LS_KEY, { progress: {}, resumeProgress: slimResume, savedAt: payload.savedAt });
-  void putActivityBlob(DURABLE_RESUME_IDB_KEY, payload).catch(() => undefined);
+  void putActivityBlob(DURABLE_RESUME_IDB_KEY, encodeActivityRecords(payload)).catch(() => undefined);
 }
 
 export async function restoreDurableResume(): Promise<{ progress: Prefs["progress"]; resumeProgress: NonNullable<Prefs["resumeProgress"]> }> {
   if (typeof window === "undefined") return { progress: {}, resumeProgress: {} };
   let fromIdb: DurableResume | undefined;
-  try { fromIdb = await getActivityBlob<DurableResume>(DURABLE_RESUME_IDB_KEY); } catch { /* ignore */ }
+  try { const saved = await getActivityBlob<StoredActivity<DurableResume>>(DURABLE_RESUME_IDB_KEY); if (saved) fromIdb = decodeActivityRecords(saved); } catch { /* ignore */ }
   const fromLs = readJsonLocal<DurableResume>(DURABLE_RESUME_LS_KEY);
-  const progress = { ...normalizeProgressMap(fromLs?.progress), ...normalizeProgressMap(fromIdb?.progress) };
-  const resumeProgress = { ...normalizeProgressMap(fromLs?.resumeProgress), ...normalizeProgressMap(fromIdb?.resumeProgress) };
+  const progress = mergeResumeRecords(normalizeProgressMap(fromIdb?.progress), normalizeProgressMap(fromLs?.progress));
+  const resumeProgress = mergeResumeRecords(normalizeProgressMap(fromIdb?.resumeProgress), normalizeProgressMap(fromLs?.resumeProgress));
   return { progress, resumeProgress };
 }
 
 export function saveDurableMarks(viewCounts: Record<string, number>, cameCounts: Record<string, number>) {
   if (typeof window === "undefined") return;
-  const payload: DurableMarks = { viewCounts: asCountMap(viewCounts), cameCounts: asCountMap(cameCounts), savedAt: Date.now() };
-  writeJsonLocal(DURABLE_MARKS_LS_KEY, payload);
-  void putActivityBlob(DURABLE_MARKS_IDB_KEY, payload).catch(() => undefined);
+  const clean = (record: Record<string, number>) => {
+    if (encodeSparseRecord(record) !== record) return record;
+    let normalized = normalizedCountWrites.get(record);
+    if (!normalized) { normalized = asCountMap(record); normalizedCountWrites.set(record, normalized); }
+    return normalized;
+  };
+  const payload: DurableMarks = { viewCounts: clean(viewCounts), cameCounts: clean(cameCounts), savedAt: Date.now() };
+  writeJsonLocal(DURABLE_MARKS_LS_KEY, { viewCounts: recentActivityRecord(viewCounts), cameCounts: recentActivityRecord(cameCounts), savedAt: payload.savedAt });
+  void putActivityBlob(DURABLE_MARKS_IDB_KEY, encodeActivityRecords(payload)).catch(() => undefined);
 }
 
 export async function restoreDurableMarks(): Promise<{ viewCounts: Record<string, number>; cameCounts: Record<string, number> }> {
   if (typeof window === "undefined") return { viewCounts: {}, cameCounts: {} };
   let fromIdb: DurableMarks | undefined;
-  try { fromIdb = await getActivityBlob<DurableMarks>(DURABLE_MARKS_IDB_KEY); } catch { /* ignore */ }
+  try { const saved = await getActivityBlob<StoredActivity<DurableMarks>>(DURABLE_MARKS_IDB_KEY); if (saved) fromIdb = decodeActivityRecords(saved); } catch { /* ignore */ }
   const fromLs = readJsonLocal<DurableMarks>(DURABLE_MARKS_LS_KEY);
   const mergeCounts = (a: Record<string, number> = {}, b: Record<string, number> = {}) => {
     const out = { ...a };
@@ -459,24 +451,103 @@ export async function restoreDurableMarks(): Promise<{ viewCounts: Record<string
 
 export function saveDurableShelves(favorites: string[], likes: string[]) {
   if (typeof window === "undefined") return;
-  const payload: DurableShelves = { favorites: normalizeStringList(favorites), likes: normalizeStringList(likes), savedAt: Date.now() };
+  const payload: DurableShelves = { favorites: normalizeStringList(favorites), likes: normalizeStringList(likes), savedAt: nextShelfTime() };
   writeJsonLocal(DURABLE_SHELVES_LS_KEY, payload);
-  void putActivityBlob(DURABLE_SHELVES_IDB_KEY, payload).catch(() => undefined);
+  void putActivityBlob(DURABLE_SHELVES_IDB_KEY, payload).then(() => walkShelfEdits((row, key, store) => {
+    if (isSavedShelfEdit(row) && row.at < payload.savedAt) store.delete(key);
+  }, true)).catch(() => undefined);
 }
 
-export async function restoreDurableShelves(): Promise<{ favorites: string[]; likes: string[]; authoritative: boolean }> {
+const SHELF_EDIT_PREFIX = 'saved-edit:';
+const SHELF_EDITS_LS_KEY = 'reelcase.saved-edits.v1';
+let shelfTime = 0;
+let shelfEdits: Map<string, SavedShelfEdit> | undefined;
+function nextShelfTime() { return shelfTime = Math.max(Date.now(), shelfTime + 1); }
+function pendingShelfEdits() {
+  if (!shelfEdits) {
+    shelfEdits = new Map();
+    const rows = readJsonLocal<unknown>(SHELF_EDITS_LS_KEY);
+    if (Array.isArray(rows)) for (const row of rows) if (isSavedShelfEdit(row)) {
+      const key = savedShelfEditKey(row), previous = shelfEdits.get(key);
+      if (!previous || previous.at <= row.at) shelfEdits.set(key, row);
+      shelfTime = Math.max(shelfTime, row.at);
+    }
+  }
+  return shelfEdits;
+}
+function mirrorShelfEdits() {
+  const edits = pendingShelfEdits();
+  if (edits.size) writeJsonLocal(SHELF_EDITS_LS_KEY, [...edits.values()]);
+  else try { localStorage.removeItem(SHELF_EDITS_LS_KEY); } catch { /* old replay is idempotent */ }
+}
+function enqueueShelfEdit(row: SavedShelfEdit) {
+  void putActivityBlob(SHELF_EDIT_PREFIX + savedShelfEditKey(row), row).catch(() => undefined);
+}
+/** A click writes one tiny replay record, never enumerating/serializing its full shelf. */
+export function saveSavedShelfEdit(id: string, shelf: SavedShelfEdit['shelf'], saved: boolean) {
+  if (typeof window === 'undefined' || !id.trim()) return;
+  const edits = pendingShelfEdits(), row: SavedShelfEdit = { id, shelf, saved, at: nextShelfTime() };
+  edits.set(savedShelfEditKey(row), row);
+  mirrorShelfEdits();
+  enqueueShelfEdit(row);
+}
+/** Complete disk replay/compaction in bounded transactions. Newer edits survive
+ * a checkpoint racing with a queued write; old snapshots cannot resurrect removals. */
+async function walkShelfEdits(visit: (row: unknown, key: IDBValidKey, store: IDBObjectStore) => void, writing = false) {
+  const db = await openDb();
+  let after: IDBValidKey = SHELF_EDIT_PREFIX;
+  try {
+    for (;;) {
+      await yieldCatalogTask();
+      const page = await new Promise<{ rows: unknown[]; keys: IDBValidKey[] }>((resolve, reject) => {
+        const tx = db.transaction(ACTIVITY_STORE, writing ? 'readwrite' : 'readonly'), store = tx.objectStore(ACTIVITY_STORE);
+        const range = IDBKeyRange.bound(after, 'saved-edit;', after !== SHELF_EDIT_PREFIX, true);
+        const rows = store.getAll(range, 256), keys = store.getAllKeys(range, 256);
+        let visited = false;
+        const read = () => {
+          if (visited || rows.readyState !== 'done' || keys.readyState !== 'done') return;
+          visited = true;
+          for (let i = 0; i < rows.result.length; i++) visit(rows.result[i], keys.result[i]!, store);
+        };
+        rows.onsuccess = read; keys.onsuccess = read;
+        tx.oncomplete = () => resolve({ rows: rows.result, keys: keys.result });
+        tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error);
+      });
+      if (page.keys.length < 256) break;
+      after = page.keys[page.keys.length - 1]!;
+    }
+  } finally { db.close(); }
+}
+
+export async function restoreDurableShelves(strict = false): Promise<{ favorites: string[]; likes: string[]; authoritative: boolean }> {
   if (typeof window === "undefined") return { favorites: [], likes: [], authoritative: false };
   let fromIdb: DurableShelves | undefined;
-  try { fromIdb = await getActivityBlob<DurableShelves>(DURABLE_SHELVES_IDB_KEY); } catch { /* ignore */ }
+  try { fromIdb = await getActivityBlob<DurableShelves>(DURABLE_SHELVES_IDB_KEY); }
+  catch (error) { if (strict) throw new Error('Saved likes and favorites could not be verified. Cache cleanup was stopped.', { cause: error }); }
   const fromLs = readJsonLocal<DurableShelves>(DURABLE_SHELVES_LS_KEY);
-  return recoverSavedShelves(fromIdb, fromLs);
+  shelfTime = Math.max(shelfTime, Number.isFinite(fromIdb?.savedAt) ? fromIdb!.savedAt : 0, Number.isFinite(fromLs?.savedAt) ? fromLs!.savedAt : 0);
+  const edits: SavedShelfEdit[] = [];
+  try { await walkShelfEdits(row => { if (isSavedShelfEdit(row)) { edits.push(row); shelfTime = Math.max(shelfTime, row.at); } }); }
+  catch (error) { if (strict) throw new Error('Saved likes and favorites could not be verified. Cache cleanup was stopped.', { cause: error }); }
+  const pending = [...pendingShelfEdits().values()];
+  const result = recoverSavedShelfEdits(fromIdb, fromLs, loadPrefs(), [...edits, ...pending]);
+  for (const row of pending) enqueueShelfEdit(row);
+  return result;
 }
 
-export function saveDurableLinks(links: SavedVideoLink[]) {
-  if (typeof window === "undefined") return;
-  const payload: DurableLinks = { links: normalizeLinks(links), savedAt: Date.now() };
+const recoveryLinkWriter = createRecoveryLinkWriter(async links => {
+  const payload: DurableLinks = { links, savedAt: Date.now() };
   writeJsonLocal(DURABLE_LINKS_LS_KEY, { links: payload.links.slice(0, 200), savedAt: payload.savedAt });
-  void putActivityBlob(DURABLE_LINKS_IDB_KEY, payload).catch(() => undefined);
+  await putActivityBlob(DURABLE_LINKS_IDB_KEY, payload);
+});
+export function saveDurableLinks(links: SavedVideoLink[]): Promise<void> {
+  if (typeof window === 'undefined') return Promise.resolve();
+  return recoveryLinkWriter.write({ links }).catch(() => undefined);
+}
+/** Derive recovery URLs after the action paints; retain the complete disk list. */
+export function saveRecoveryLinks(history: HistoryEntry[], resumeProgress: Record<string, ResumeMark>): Promise<void> {
+  if (typeof window === 'undefined') return Promise.resolve();
+  return recoveryLinkWriter.write({ history, resumeProgress }).catch(() => undefined);
 }
 
 export async function restoreDurableLinks(): Promise<SavedVideoLink[]> {
@@ -498,10 +569,11 @@ export function saveDurableFeedback(feedback: Omit<DurableFeedback, "savedAt">) 
   void putActivityBlob(DURABLE_FEEDBACK_IDB_KEY, payload).catch(() => undefined);
 }
 
-export async function restoreDurableFeedback(): Promise<Omit<DurableFeedback, "savedAt"> | null> {
+export async function restoreDurableFeedback(strict = false): Promise<Omit<DurableFeedback, "savedAt"> | null> {
   if (typeof window === "undefined") return null;
   let fromIdb: DurableFeedback | undefined;
-  try { fromIdb = await getActivityBlob<DurableFeedback>(DURABLE_FEEDBACK_IDB_KEY); } catch { /* ignore */ }
+  try { fromIdb = await getActivityBlob<DurableFeedback>(DURABLE_FEEDBACK_IDB_KEY); }
+  catch (error) { if (strict) throw new Error('Saved ratings could not be verified. Cache cleanup was stopped.', { cause: error }); }
   const fromLs = readJsonLocal<Partial<DurableFeedback>>(DURABLE_FEEDBACK_LS_KEY);
   if (!fromIdb && !fromLs) return null;
   const pick = <T extends Record<string, unknown>>(a?: T, b?: T): T => ({ ...(b ?? {}), ...(a ?? {}) }) as T;
@@ -882,20 +954,25 @@ async function putVideosChunked(db: IDBDatabase, videos: LibraryVideo[]): Promis
   for (let i = 0; i < videos.length; i += IDB_WRITE_CHUNK) {
     const slice = videos.slice(i, i + IDB_WRITE_CHUNK);
     await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(VIDEO_STORE, "readwrite");
+      const tx = db.transaction([VIDEO_STORE, 'remote-cache'], "readwrite");
       const store = tx.objectStore(VIDEO_STORE);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
       tx.onabort = () => reject(tx.error ?? new Error("Catalog save was interrupted. Please retry."));
       try {
+        const cleanup = tx.objectStore('remote-cache').get(YOUTUBE_CLEANUP_KEY);
+        cleanup.onsuccess = () => {
+        const retired = retiredYoutubeKeys(normalizeYoutubeCleanup(cleanup.result));
         for (const video of slice) {
           if (video.isSample) continue;
+          if (video.remote && retired.has(cleanupKey(video))) continue;
           const previous = store.get(video.id);
           previous.onsuccess = () => {
             try { store.put(withCatalogDetails(video, previous.result as LibraryVideo | undefined)); }
             catch (error) { tx.abort(); reject(error); }
           };
         }
+        };
       } catch (error) {
         tx.abort();
         reject(error);
@@ -912,11 +989,14 @@ export async function saveFolderVideos(folderId: string, videos: LibraryVideo[])
   const db = await openDb();
   try {
     await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(VIDEO_STORE, "readwrite");
+      const tx = db.transaction([VIDEO_STORE, 'remote-cache'], "readwrite");
       const store = tx.objectStore(VIDEO_STORE);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
       tx.onabort = () => reject(tx.error ?? new Error("Catalog save was interrupted. Your previous catalog is preserved."));
+      const cleanup = tx.objectStore('remote-cache').get(YOUTUBE_CLEANUP_KEY);
+      cleanup.onsuccess = () => {
+      const retired = retiredYoutubeKeys(normalizeYoutubeCleanup(cleanup.result));
       const request = store.index("folderId").openCursor(IDBKeyRange.only(folderId));
       request.onsuccess = () => {
         try {
@@ -927,12 +1007,13 @@ export async function saveFolderVideos(folderId: string, videos: LibraryVideo[])
             return;
           }
           for (const video of videos) {
-            if (!video.isSample) store.put(video);
+            if (!video.isSample && !(video.remote && retired.has(cleanupKey(video)))) store.put(video);
           }
         } catch (error) {
           tx.abort();
           reject(error);
         }
+      };
       };
     });
   } finally { db.close(); }
@@ -956,6 +1037,11 @@ export async function loadCatalogVideos(): Promise<LibraryVideo[]> {
   const db = await openDb();
   try {
     const rows: LibraryVideo[] = [];
+    const journal = await new Promise<YoutubeCleanupJournal>((resolve, reject) => {
+      const req = db.transaction('remote-cache', 'readonly').objectStore('remote-cache').get(YOUTUBE_CLEANUP_KEY);
+      req.onsuccess = () => resolve(normalizeYoutubeCleanup(req.result)); req.onerror = () => reject(req.error);
+    });
+    const retired = retiredYoutubeKeys(journal);
     let after: IDBValidKey | undefined;
     while (true) {
       const page = await new Promise<{ keys: IDBValidKey[]; rows: LibraryVideo[] }>((resolve, reject) => {
@@ -966,7 +1052,7 @@ export async function loadCatalogVideos(): Promise<LibraryVideo[]> {
         tx.oncomplete = () => resolve({ keys: keys.result, rows: values.result });
         tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error);
       });
-      for (const video of page.rows) if (!video.isSample) rows.push(catalogCard(video));
+      for (const video of page.rows) if (!video.isSample && !(video.remote && retired.has(cleanupKey(video)))) rows.push(catalogCard(video));
       if (page.keys.length < 512) break;
       after = page.keys.at(-1);
       await yieldCatalogTask();
@@ -990,13 +1076,18 @@ export async function loadCatalogVideo(id: string): Promise<LibraryVideo | undef
 
 export type StoredThumb = { id: string; thumb: string | Blob; at: number };
 export async function loadCachedThumb(id: string): Promise<StoredThumb | undefined> {
-  const db = await openDb();
+  const db = await openDb().catch(error => { cacheMetrics.record('thumbnail-disk', 'error'); throw error; });
   try {
     return await new Promise((resolve, reject) => {
       const request = db.transaction(THUMB_STORE, 'readonly').objectStore(THUMB_STORE).get(id);
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => {
+        const row = request.result as StoredThumb | undefined;
+        cacheMetrics.record('thumbnail-disk', row?.thumb ? 'hit' : 'miss', Date.now(), row?.thumb ? { bytes: artworkBytes(row.thumb), at: row.at } : undefined);
+        resolve(row);
+      };
       request.onerror = () => reject(request.error);
     });
+  } catch (error) { cacheMetrics.record('thumbnail-disk', 'error'); throw error;
   } finally { db.close(); }
 }
 export async function loadThumbCache(limit = 120, maxBytes = 8 * 1024 * 1024): Promise<StoredThumb[]> {
@@ -1077,19 +1168,22 @@ export function getPersistenceMemorySnapshot() {
   return { activity: activityWriter.snapshot(), artwork: thumbWriter.snapshot(), artworkMirror: thumbMirrorWriter.snapshot() };
 }
 
-export type RemoteSnapshot = { videos: LibraryVideo[]; folders: Folder[]; checkedAt: number };
+const YOUTUBE_CLEANUP_KEY = 'youtube-cleanup';
+export type RemoteSnapshot = { videos: LibraryVideo[]; folders: Folder[]; checkedAt: number; youtubeCleanup?: YoutubeCleanupJournal };
 export async function loadRemoteSnapshot(): Promise<RemoteSnapshot | undefined> {
   const db = await openDb();
   try {
-    const legacy = await new Promise<{ current?: RemoteSnapshot; meta?: Pick<RemoteSnapshot, "folders" | "checkedAt"> }>((resolve, reject) => {
+    const legacy = await new Promise<{ current?: RemoteSnapshot; meta?: Pick<RemoteSnapshot, "folders" | "checkedAt">; youtubeCleanup: YoutubeCleanupJournal }>((resolve, reject) => {
       const tx = db.transaction("remote-cache", "readonly");
       const store = tx.objectStore("remote-cache");
       const currentReq = store.get("snapshot");
       const metaReq = store.get("meta");
-      tx.oncomplete = () => resolve({ current: currentReq.result as RemoteSnapshot | undefined, meta: metaReq.result as Pick<RemoteSnapshot, "folders" | "checkedAt"> | undefined });
+      const cleanupReq = store.get(YOUTUBE_CLEANUP_KEY);
+      tx.oncomplete = () => resolve({ current: currentReq.result as RemoteSnapshot | undefined, meta: metaReq.result as Pick<RemoteSnapshot, "folders" | "checkedAt"> | undefined, youtubeCleanup: normalizeYoutubeCleanup(cleanupReq.result) });
       tx.onerror = () => reject(tx.error);
     });
     const videos = new Map<string, LibraryVideo>();
+    const retired = retiredYoutubeKeys(legacy.youtubeCleanup);
     let afterKey: IDBValidKey | undefined;
     // One cursor callback per title made a 50–100k catalog spend seconds in
     // IndexedDB event dispatch. Bounded getAll pages keep clone allocations
@@ -1104,7 +1198,7 @@ export async function loadRemoteSnapshot(): Promise<RemoteSnapshot | undefined> 
         tx.oncomplete = () => resolve({ keys: keysReq.result, rows: rowsReq.result as LibraryVideo[] });
         tx.onerror = () => reject(tx.error);
       });
-      for (const video of page.rows) if (video?.id) videos.set(video.id, catalogCard(video));
+      for (const video of page.rows) if (video?.id && !(video.remote && retired.has(cleanupKey(video)))) videos.set(video.id, catalogCard(video));
       if (page.keys.length < 512) break;
       afterKey = page.keys[page.keys.length - 1];
       await yieldCatalogTask();
@@ -1114,13 +1208,13 @@ export async function loadRemoteSnapshot(): Promise<RemoteSnapshot | undefined> 
     // before its normalized record has actually been saved.
     if (legacy.current?.videos.length) {
       const missing: LibraryVideo[] = [];
-      await forEachCatalogSlice(legacy.current.videos, video => { if (!videos.has(video.id)) missing.push(video); }, yieldCatalogTask);
+      await forEachCatalogSlice(legacy.current.videos, video => { if (!videos.has(video.id) && !(video.remote && retired.has(cleanupKey(video)))) missing.push(video); }, yieldCatalogTask);
       let migrated = false;
       try { await saveRemoteSnapshot({ ...legacy.current, videos: missing }, true); migrated = true; } catch { /* Retain full legacy details in this session. */ }
       await forEachCatalogSlice(missing, video => { videos.set(video.id, migrated ? catalogCard(video) : video); }, yieldCatalogTask);
     }
-    const meta = legacy.meta ?? legacy.current;
-    return meta ? { videos: await collectCatalogRows(videos.values()), folders: meta.folders, checkedAt: meta.checkedAt } : undefined;
+    const meta = legacy.meta ?? legacy.current ?? (legacy.youtubeCleanup.removedCount || legacy.youtubeCleanup.recentKeys.length ? { folders: [], checkedAt: 0 } : undefined);
+    return meta ? { videos: await collectCatalogRows(videos.values()), folders: meta.folders, checkedAt: meta.checkedAt, youtubeCleanup: legacy.youtubeCleanup } : undefined;
   } finally { db.close(); }
 }
 export async function saveRemoteSnapshot(snapshot: RemoteSnapshot, complete = false): Promise<void> {
@@ -1137,13 +1231,20 @@ export async function saveRemoteSnapshot(snapshot: RemoteSnapshot, complete = fa
       await new Promise<void>((resolve, reject) => {
         const tx = db.transaction("remote-cache", "readwrite");
         const store = tx.objectStore("remote-cache");
-        for (const video of snapshot.videos.slice(i, i + IDB_WRITE_CHUNK)) {
+        const rows = snapshot.videos.slice(i, i + IDB_WRITE_CHUNK);
+        const cleanupReq = store.get(YOUTUBE_CLEANUP_KEY);
+        cleanupReq.onsuccess = () => {
+        const retired = retiredYoutubeKeys(normalizeYoutubeCleanup(cleanupReq.result));
+        for (const video of rows) {
+          // A delayed write from an earlier pull cannot resurrect cleanup rows.
+          if (video.remote && retired.has(cleanupKey(video))) continue;
           const key = `video:${video.id}`, previous = store.get(key);
           previous.onsuccess = () => {
             try { store.put(withCatalogDetails(video, previous.result as LibraryVideo | undefined), key); }
             catch (error) { tx.abort(); reject(error); }
           };
         }
+        };
         tx.oncomplete = () => resolve(); tx.onerror = tx.onabort = () => reject(tx.error);
       });
     }
@@ -1153,6 +1254,19 @@ export async function saveRemoteSnapshot(snapshot: RemoteSnapshot, complete = fa
       tx.oncomplete = () => resolve(); tx.onerror = tx.onabort = () => reject(tx.error);
     });
   } finally { db.close(); }
+}
+
+/** One bounded transaction retires cards and automatic metadata together.
+ * Watch history, favorites, likes, ratings and follow cursors are untouched. */
+export async function saveYoutubeCleanup(removed: readonly LibraryVideo[], journal: YoutubeCleanupJournal): Promise<void> {
+  const db = await openDb();
+  try { await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(['remote-cache', VIDEO_STORE, ACTIVITY_STORE], 'readwrite');
+    const remote = tx.objectStore('remote-cache'), activity = tx.objectStore(ACTIVITY_STORE);
+    for (const video of removed) { remote.delete(`video:${video.id}`); tx.objectStore(VIDEO_STORE).delete(video.id); activity.delete(ENRICHMENT_PREFIX + video.id); }
+    remote.put(journal, YOUTUBE_CLEANUP_KEY);
+    tx.oncomplete = () => resolve(); tx.onerror = tx.onabort = () => reject(tx.error ?? new Error('Cache cleanup was not saved'));
+  }); } finally { db.close(); }
 }
 
 export async function removeRemoteSnapshotVideos(ids: string[]): Promise<void> {
@@ -1176,7 +1290,7 @@ export async function loadActivitySnapshot(): Promise<ActivitySnapshot | undefin
   try {
     return await new Promise((resolve, reject) => {
       const req = db.transaction(ACTIVITY_STORE, "readonly").objectStore(ACTIVITY_STORE).get("primary");
-      req.onsuccess = () => resolve(req.result as ActivitySnapshot | undefined);
+      req.onsuccess = () => resolve(req.result ? decodeActivityRecords(req.result as StoredActivity<ActivitySnapshot>) : undefined);
       req.onerror = () => reject(req.error);
     });
   } finally { db.close(); }
@@ -1186,7 +1300,7 @@ export async function saveActivitySnapshot(snapshot: ActivitySnapshot): Promise<
   try {
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(ACTIVITY_STORE, "readwrite");
-      tx.objectStore(ACTIVITY_STORE).put(snapshot, "primary");
+      tx.objectStore(ACTIVITY_STORE).put(encodeActivityRecords(snapshot), "primary");
       tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
     });
   } finally { db.close(); }
@@ -1282,6 +1396,7 @@ function asCountMap(raw: unknown): Record<string, number> {
 }
 
 function normalize(raw: Record<string, unknown>): Prefs {
+  raw = decodeActivityRecords(raw as StoredActivity<Prefs>) as unknown as Record<string, unknown>;
   const starred = (raw.starred as string[] | undefined) ?? [];
   const favorites = (raw.favorites as string[] | undefined) ?? starred;
   // New libraries should surface fresh media rather than beginning with an
@@ -1369,9 +1484,9 @@ export function savePrefs(prefs: Prefs) {
   const metadataProvenance = encodedProvenance !== prefs.metadataProvenance ? encodedProvenance as EncodedSparseRecord<VideoMetadataProvenance> : undefined;
   // Keep legacy fields as plain dictionaries. Old readers retain the baseline;
   // new readers use this sidecar. Structured clone shares each baseline once.
-  const pending = putActivityBlob("preferences", { ...prefs, tags: tags?.snapshot.base ?? prefs.tags,
+  const pending = putActivityBlob("preferences", encodeActivityRecords({ ...prefs, tags: tags?.snapshot.base ?? prefs.tags,
     metadataProvenance: metadataProvenance?.snapshot.base ?? prefs.metadataProvenance,
-    sparseMetadataRecords: tags || metadataProvenance ? { tags, metadataProvenance } : undefined });
+    sparseMetadataRecords: tags || metadataProvenance ? { tags, metadataProvenance } : undefined }));
   if (prefsWrites !== pending) {
     prefsWrites = pending;
     void pending.catch(() => {

@@ -1,8 +1,9 @@
-import { copyCatalogRecord, forEachCatalogEntry, forEachCatalogSlice, yieldCatalogTask } from '../catalog-work.ts';
+import { forEachCatalogEntry, forEachCatalogSlice, yieldCatalogTask } from '../catalog-work.ts';
 import { catalogCard } from './catalog-card.ts';
 import { shouldRestoreRemoteVideo } from './follow-removal.ts';
 import { mergeRemoteCatalogAsync } from './remote-merge.ts';
 import type { FollowedChannel, LibraryVideo, ProgressMark, ResumeMark } from './types';
+import { sparseRecordScan, sparseRecordBuilder } from '../sparse-record.ts';
 
 export type CatalogRestoreState = {
   videos: LibraryVideo[];
@@ -39,8 +40,18 @@ export async function prepareCatalogRestore(base: CatalogRestoreState, rows: Lib
 export async function reconcileRestoredResume(videos: LibraryVideo[], progress: Record<string, ProgressMark>,
   resume: Record<string, ResumeMark>, newestResume: (...marks: Array<ProgressMark | undefined>) => ProgressMark | undefined,
   turn = yieldCatalogTask) {
-  const hasRecords = (record: object) => { for (const key in record) if (Object.hasOwn(record, key)) return true; return false; };
-  if (!hasRecords(progress) && !hasRecords(resume)) return progress;
+  const hasRecords = async (record: Record<string, unknown>) => {
+    let visited = 0, started = performance.now();
+    await turn();
+    for (const row of sparseRecordScan(record, false)) {
+      if (row) return true;
+      if (++visited >= 512 || performance.now() - started >= 4) {
+        await turn(); visited = 0; started = performance.now();
+      }
+    }
+    return false;
+  };
+  if (!await hasRecords(progress) && !await hasRecords(resume)) return progress;
   const recovered = new Map<string, ProgressMark>();
   await forEachCatalogSlice(videos, video => {
     const previous = progress[video.id];
@@ -53,11 +64,11 @@ export async function reconcileRestoredResume(videos: LibraryVideo[], progress: 
     }
   }, turn);
   if (!recovered.size) return progress;
-  const next = await copyCatalogRecord(progress, turn);
+  const next = sparseRecordBuilder(progress);
   await forEachCatalogEntry(recovered, ([id, mark]) => {
-    Object.defineProperty(next, id, { value: mark, writable: true, enumerable: true, configurable: true });
+    next.set(id, mark);
   }, turn);
-  return next;
+  return next.finish();
 }
 
 /** Rebase if a pull, resume update, favorite or unfollow changed any inputs

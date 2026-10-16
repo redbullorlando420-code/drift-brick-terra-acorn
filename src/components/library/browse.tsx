@@ -13,7 +13,7 @@ import { watchShelfArtwork } from '@/lib/shelf-artwork';
 import { getYoutubeFirstClickTrace, markYoutubeArtworkReady, markYoutubeRailReady } from "@/lib/youtube-first-click-trace";
 import { railItems, railKeyboardTarget, railLimitForTarget, railWindowStartForTarget, windowBoundaryTarget } from "@/lib/virtual-rail";
 import { createShelfRelease } from '@/lib/viewer-accessibility';
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { memo, useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
 const RAIL_SIZES = [8, 16, 32, 48];
 const GRID_SIZES = [24, 48, 96, 144];
@@ -81,7 +81,9 @@ export function Billboard({ video }: { video: LibraryVideo }) {
   );
 }
 
-export function TitleRail({
+// Page controls often change while shelf inputs remain identical. Keep their
+// card windows and layout work out of those unrelated parent renders.
+export const TitleRail = memo(function TitleRail({
   title,
   videos,
   variant = "poster",
@@ -125,6 +127,7 @@ export function TitleRail({
   const [shelfHeight, setShelfHeight] = useState<number>();
   const [railWidth, setRailWidth] = useState(0);
   const [windowStart, setWindowStart] = useState(0);
+  const [railAtStart, setRailAtStart] = useState(true);
   const [focusRequest, setFocusRequest] = useState(0);
   const firstShelfOwner = useRef(false);
   const firstArtworkEpoch = useRef(0);
@@ -164,6 +167,7 @@ export function TitleRail({
     if (!rail || !nearViewport) return;
     const sync = () => {
       setRailWidth(Math.max(320, Math.round(rail.clientWidth)));
+      setRailAtStart(rail.scrollLeft <= 1);
       const card = rail.querySelector<HTMLElement>('[data-rail-index]');
       if (card) setCardStride(card.getBoundingClientRect().width + (parseFloat(getComputedStyle(rail).columnGap) || 0));
     };
@@ -227,6 +231,9 @@ export function TitleRail({
   const endCaps = Math.max(0, Math.min(6, Math.min(limit, 8) - loaded));
   const onRailScroll = (rail: HTMLDivElement) => {
     scrollLeft.current = rail.scrollLeft;
+    // Overscan can keep the mounted window at zero after a phone-width
+    // page move. Navigation follows the actual scroll position instead.
+    setRailAtStart(rail.scrollLeft <= 1);
     const nextStart = Math.max(0, Math.floor(rail.scrollLeft / cardStride) - overscan);
     setWindowStart((current) => (current === nextStart ? current : nextStart));
     if (rail.scrollLeft + rail.clientWidth >= rail.scrollWidth - 160) {
@@ -268,10 +275,10 @@ export function TitleRail({
       }}>
       <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0 flex-1 basis-48">{onTitleClick ? <button type="button" onClick={onTitleClick} className="block min-w-0 truncate font-display text-xl text-fg hover:text-accent sm:text-2xl">{title} <span className="text-sm text-muted">Open source →</span></button> : <h2 className="min-w-0 truncate font-display text-xl text-fg sm:text-2xl">{title}</h2>}{reason && <p className="mt-1 truncate text-xs text-muted">{reason}</p>}</div>
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1">
           {variant === "rail" && videos.length > visibleSlots && <>
             <span className="hidden text-xs tabular-nums text-muted sm:inline">{Math.min(videos.length, limit).toLocaleString()} titles</span>
-            <Button size="sm" variant="ghost" disabled={windowStart === 0} aria-label={`Previous ${title} videos`} onClick={() => pageRail(-1)}>Previous</Button>
+            <Button size="sm" variant="ghost" disabled={railAtStart} aria-label={`Previous ${title} videos`} onClick={() => pageRail(-1)}>Previous</Button>
             <Button size="sm" variant="ghost" disabled={windowStart + visibleSlots >= loaded} aria-label={`Next ${title} videos`} onClick={() => pageRail(1)}>Next</Button>
           </>}
           {videos.length > limit && !collapsed && <Button size="sm" variant="ghost" className="text-xs" onClick={() => setLimit((value) => Math.min(videos.length, value + 16))}>Show 16 more · {videos.length - limit}</Button>}
@@ -310,9 +317,9 @@ export function TitleRail({
       </div>}
     </section>
   );
-}
+});
 
-export function PosterGrid({ videos }: { videos: LibraryVideo[] }) {
+export const PosterGrid = memo(function PosterGrid({ videos }: { videos: LibraryVideo[] }) {
   const [pageSize, setPageSize] = useState(() => savedRenderBudget("reelcase.grid-page-size", GRID_SIZES, 24));
   useEffect(() => {
     const sync = () => setPageSize(savedRenderBudget("reelcase.grid-page-size", GRID_SIZES, 24));
@@ -321,4 +328,4 @@ export function PosterGrid({ videos }: { videos: LibraryVideo[] }) {
   }, []);
   if (!videos.length) return null;
   return <VirtualVideoGrid videos={videos} variant="poster" pageSize={pageSize} />;
-}
+});

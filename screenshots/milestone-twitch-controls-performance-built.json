@@ -1,0 +1,62 @@
+{
+  "ok": true,
+  "url": "http://127.0.0.1:8082/",
+  "fixture": "80,000 compact entries, pulling paused, text-first artwork, isolated Chromium contexts; fake media and offline Companion responses stubbed",
+  "limitation": "Synthetic browser check; does not establish real-provider throughput, long-session memory stability, or physical-device performance.",
+  "budgets": {
+    "startupMs": 3000,
+    "navigationMs": 2000,
+    "scrollSettleMs": 500,
+    "inputMs": 200,
+    "mountedCards": 256,
+    "overflowPixels": 0
+  },
+  "results": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "startupMs": 141.80000001192093,
+      "catalogEntries": 80000,
+      "navigationMs": 234.40000000596046,
+      "scrollSettleMs": 12.699999988079071,
+      "artworkIdleVerified": true,
+      "formatsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\milestone-twitch-controls-performance-built-formats-desktop.png",
+      "formatShelfScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\milestone-twitch-controls-performance-built-format-shelf-desktop.png",
+      "youtubeFormatsVerified": true,
+      "providerBudgetsVerified": true,
+      "scorecardVerified": true,
+      "exportVerified": true,
+      "safeguardsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\milestone-twitch-controls-performance-built-safeguards-desktop.png",
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\milestone-twitch-controls-performance-built-desktop.png",
+      "inputMs": 34.099999994039536,
+      "mountedCards": 16,
+      "overflowPixels": 0,
+      "slowInputs": [],
+      "ok": true,
+      "failures": []
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "startupMs": 133.19999998807907,
+      "catalogEntries": 80000,
+      "navigationMs": 279.30000001192093,
+      "scrollSettleMs": 15.099999994039536,
+      "artworkIdleVerified": true,
+      "formatsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\milestone-twitch-controls-performance-built-formats-mobile.png",
+      "formatShelfScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\milestone-twitch-controls-performance-built-format-shelf-mobile.png",
+      "youtubeFormatsVerified": true,
+      "providerBudgetsVerified": true,
+      "scorecardVerified": true,
+      "exportVerified": true,
+      "safeguardsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\milestone-twitch-controls-performance-built-safeguards-mobile.png",
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\milestone-twitch-controls-performance-built-mobile.png",
+      "inputMs": 31.700000017881393,
+      "mountedCards": 12,
+      "overflowPixels": 0,
+      "slowInputs": [],
+      "ok": true,
+      "failures": []
+    }
+  ]
+}

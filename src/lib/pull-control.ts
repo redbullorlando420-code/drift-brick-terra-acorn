@@ -69,18 +69,18 @@ export const cancelQueuedPulls = () => { scheduler.cancel(); gateChanged(); };
 export const getPullCancellationRevision = scheduler.revision;
 /** Yield preparation/commits behind input, watching, pause, and visibility.
  * Cancellation wakes this wait even when the tab never becomes visible. */
-export function waitForCatalogCommit(revision = scheduler.revision()): Promise<void> {
+export function waitForCatalogCommit(revision = scheduler.revision(), signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const cleanup = () => { clearTimeout(timer); gateListeners.delete(check); };
+    const cleanup = () => { clearTimeout(timer); gateListeners.delete(check); signal?.removeEventListener('abort', check); };
     const check = () => {
       clearTimeout(timer);
-      if (revision !== scheduler.revision()) { cleanup(); reject(new Error('Pull cancelled; accepted catalog entries remain saved.')); return; }
+      if (signal?.aborted || revision !== scheduler.revision()) { cleanup(); reject(new Error('Pull cancelled; accepted catalog entries remain saved.')); return; }
       if (catalogPullAvailable()) { cleanup(); resolve(); return; }
       const delay = getInteractionPriorityDelay();
       if (delay > 0 && !pullsPaused() && !(getPullSettings().pauseWhileWatching && viewing) && (typeof document === 'undefined' || !document.hidden)) timer = setTimeout(check, delay);
     };
-    gateListeners.add(check); check();
+    gateListeners.add(check); signal?.addEventListener('abort', check, { once: true }); check();
   });
 }
 export async function runPausablePull<T>(request: (signal: AbortSignal) => Promise<T>, options?: { ignorePause?: boolean }): Promise<T> {

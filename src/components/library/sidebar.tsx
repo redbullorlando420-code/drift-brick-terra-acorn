@@ -35,11 +35,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { selectContinue, useLibrary } from "@/lib/videos/store";
+import { useLibrary } from "@/lib/videos/store";
 import type { Folder, SourceId } from "@/lib/videos/types";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DEFAULT_SIDEBAR_GROUPS, SIDEBAR_GROUPS_KEY, restoreSidebarGroups, type SidebarGroup } from "@/lib/sidebar-state";
-import { scheduleBackgroundWork } from "@/lib/interaction-budget";
+import { useContinueCount } from './use-continue-count';
 import { useCatalogCounts } from "./use-catalog-counts";
 import { useBrowseLibrary } from "./use-browse-library";
 
@@ -123,24 +123,9 @@ export function SidebarNav({
   const unfollow = useLibrary((s) => s.unfollow);
   const favorites = useBrowseLibrary((s) => s.favorites);
   const likes = useBrowseLibrary((s) => s.likes);
-  const progress = useBrowseLibrary((s) => s.progress);
-  const resumeProgress = useBrowseLibrary((s) => s.resumeProgress);
   const hiddenVideos = useBrowseLibrary((s) => s.hiddenVideos);
   const history = useBrowseLibrary((s) => s.history);
-  // Continue is a large derived selector. The library page computes it when
-  // opened; running the same full-catalog pass in the sidebar on every route
-  // change needlessly delays Home and the other desks.
-  const activeContinueCount = useBrowseLibrary(s => s.sourceId === "continue" ? selectContinue(s, false).length : null);
-  const [lastContinueCount, setLastContinueCount] = useState<number | null>(null);
-  useEffect(() => { if (activeContinueCount !== null) setLastContinueCount(activeContinueCount); }, [activeContinueCount]);
-  useEffect(() => {
-    if (activeContinueCount !== null || sourceId === "home") return;
-    return scheduleBackgroundWork(
-      () => { const state = useLibrary.getState(); if (!state.activeId && !state.previewId) setLastContinueCount(selectContinue(state, false).length); },
-      { timeoutMs: 2_000, fallbackDelayMs: 350 },
-    );
-  }, [sourceId, activeContinueCount, folders, hideDemo, hiddenVideos, history, progress, resumeProgress, videos]);
-  const continueCount = activeContinueCount ?? lastContinueCount;
+  const continueCount = useContinueCount();
   const counts = useCatalogCounts(videos, folders, favorites, likes, history, hiddenVideos, hideDemo);
   const [followingOpen, setFollowingOpen] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
@@ -184,7 +169,7 @@ export function SidebarNav({
   const youtubeFollowing = networkFolders.filter((folder) => folder.kind === "youtube");
   const twitchFollowing = networkFolders.filter((folder) => folder.kind === "twitch");
 
-  const badges: Record<string, number | undefined> = { ...counts, ...(continueCount === null ? {} : { continueCount }) };
+  const badges: Record<string, number | undefined> = { ...counts, continueCount };
   const folderRows = (items: Folder[], limit: number) => {
     const selected = items.find(folder => folder.id === sourceId);
     const shown = items.slice(0, limit);

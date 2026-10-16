@@ -1,0 +1,31 @@
+{
+  "limitation": "Synthetic seven-field thumbnail subscriptions at 108 mounted cards; timings cover selector evaluation only, not React rendering, whole-app memory or provider throughput.",
+  "results": [
+    {
+      "action": "unrelated status writes",
+      "cards": 108,
+      "updates": 2000,
+      "oldShallow": {
+        "ms": 98.59360000000001,
+        "publishedSnapshots": 0
+      },
+      "stableFields": {
+        "ms": 23.685900000000004,
+        "publishedSnapshots": 0
+      }
+    },
+    {
+      "action": "changing artwork rows",
+      "cards": 108,
+      "updates": 2000,
+      "oldShallow": {
+        "ms": 124.0925,
+        "publishedSnapshots": 3999
+      },
+      "stableFields": {
+        "ms": 43.94400000000002,
+        "publishedSnapshots": 3999
+      }
+    }
+  ]
+}

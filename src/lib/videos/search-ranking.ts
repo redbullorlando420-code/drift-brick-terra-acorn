@@ -1,10 +1,11 @@
+import { visitSearchCandidates } from './search-candidates.ts';
 import { forEachCatalogSlice, sortCatalogRows, yieldCatalogTask } from '../catalog-work.ts';
 import { adultFolderIds, ADULT_PULL_PROVIDERS } from './adult-providers.ts';
 import { topicsForVideo } from './topics.ts';
 import type { Folder, LibraryVideo, SourceId } from './types';
 
 export type SearchRankingInput = {
-  videos: readonly LibraryVideo[]; ids: ReadonlySet<string>; query: string; sourceId: SourceId;
+  videos: readonly LibraryVideo[]; positions?: Uint32Array; ids: ReadonlySet<string>; query: string; sourceId: SourceId;
   folders: readonly Folder[]; hidden: Record<string, true>; unavailable: Record<string, true>;
   tags: Record<string, string[]>; favorites: Record<string, true>; likes: Record<string, true>;
   viewCounts: Record<string, number>; ratingOf: (id: string) => number; ratingPreference: (rating: number) => number;
@@ -26,7 +27,7 @@ export async function rankSearchResults(input: SearchRankingInput, signal?: Abor
   const privateFolders = adultFolderIds(input.folders);
   const inAdults = input.sourceId === 'adults' || input.sourceId === 'adult-fetishes';
   const rows: Array<{ video: LibraryVideo; score: number }> = [];
-  await forEachCatalogSlice(input.videos, video => {
+  await visitSearchCandidates(input.videos, input.ids, input.positions, video => {
     if (!input.ids.has(video.id) || video.isSample || input.hidden[video.id] || input.unavailable[video.id]) return;
     const isPrivate = privateFolders.has(video.folderId) || privateKinds.has(video.remote?.kind ?? '');
     if (inAdults !== isPrivate) return;

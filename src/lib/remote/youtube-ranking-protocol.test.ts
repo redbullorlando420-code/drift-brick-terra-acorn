@@ -33,3 +33,34 @@ test('worker results retain catalog offsets so the UI resolves cards without a c
   process(reset); process({ type: 'append', rows: [title] }); process({ type: 'candidates', ids: ['located'] }); process({ type: 'ready' });
   assert.deepEqual(result, { ids: ['located'], offsets: [60000] });
 });
+
+test('deep pages reuse scoring, interleave a skewed catalog and retain stable, duplicate-free prefixes', () => {
+  const packets: Array<{ ids: string[]; total: number; offset: number; kind: string }> = [];
+  const process = createYoutubeRankingProcessor((ids, _offsets, detail) => packets.push({ ids, ...detail }));
+  const rows = Array.from({ length: 1000 }, (_, index) => row(`large-${index}`, 'large'));
+  rows.push({ ...row('preferred', 'favored'), favorite: true }, row('rare', 'rare'), { ...row('disliked', 'rare'), rating: 1 });
+  process(reset); process({ type: 'append', rows }); process({ type: 'candidates', ids: rows.map(row => row.video.id) });
+  process({ type: 'mix', seed: 42 }); process({ type: 'page', offset: 0, limit: 96 }); process({ type: 'ready' });
+  const first = packets.find(packet => packet.kind === 'page')!;
+  assert.equal(first.total, 1002); assert.equal(first.ids.length, 96);
+  assert.equal(first.ids[0], 'preferred'); assert.ok(first.ids.slice(0, 3).includes('rare'));
+  process({ type: 'page', offset: 96, limit: 96 });
+  const second = packets.at(-1)!;
+  assert.equal(second.offset, 96);
+  assert.equal(new Set([...first.ids, ...second.ids]).size, 192);
+  process({ type: 'page', offset: 0, limit: 192 });
+  assert.deepEqual(packets.at(-1)!.ids, [...first.ids, ...second.ids]);
+  process({ type: 'page', offset: 1000, limit: 96 }); assert.equal(packets.at(-1)!.ids.length, 2);
+  assert.ok(packets.every(packet => !packet.ids.includes('disliked')));
+  process({ type: 'page', offset: Infinity, limit: 96 }); assert.equal(packets.at(-1)!.ids.length, 2);
+});
+
+test('pages remain inside the chosen format/topic candidates while learning from the full catalog', () => {
+  let page: string[] = [];
+  const process = createYoutubeRankingProcessor((ids, _offsets, detail) => { if (detail.kind === 'page') page = ids; });
+  process(reset);
+  process({ type: 'append', rows: [row('watched', 'a'), row('older', 'a'), row('other', 'b')] });
+  process({ type: 'history', entries: [{ id: 'watched', at: Date.now() }] });
+  process({ type: 'candidates', ids: ['older', 'other'] }); process({ type: 'ready' }); process({ type: 'page', offset: 0, limit: 96 });
+  assert.deepEqual(page, ['older', 'other']);
+});

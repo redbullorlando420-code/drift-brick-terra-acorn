@@ -1,4 +1,9 @@
 import { uniqueYoutubePage, youtubePublishedTime } from "./youtube-page";
+import { youtubeRendererMetadata } from '../videos/youtube-metadata';
+import { PROVIDER_BUDGETS, ProviderBudgetError } from '../provider-budgets';
+import { fetchProviderMetadata } from './provider-body';
+import { createProviderMetadataCache } from './provider-metadata-cache';
+import { estimateProviderPayload, type ProviderCacheSample } from '../provider-cache-metrics';
 import { archivePageWindow } from './archive-page';
 import { youtubeLivePage } from "./youtube-live";
 import type { FollowedChannel, FollowKind, LibraryVideo, ProviderFailure } from "@/lib/videos/types";
@@ -31,10 +36,12 @@ import { exactYoutubeChannel } from './youtube-channel-search';
 import { youtubeUploadsArchive, youtubeBrowseArchive, youtubePlaylistBrowseId } from './youtube-browse';
 import { resolveYoutubeCreator } from './youtube-resolve';
 import { browseYoutubeLives } from './youtube-live-browse';
-import { advanceTwitchArchiveCursor, decodeTwitchArchiveCursor, encodeTwitchArchiveCursor, type TwitchArchiveCursor } from '@/lib/videos/twitch-archive-cursor';
+import { walkTwitchArchive } from './twitch-archive-walk';
+import { classifyTwitchFailure, twitchRetryPatch } from '../videos/twitch-retry';
+import type { TwitchPullDiagnostics } from '@/lib/videos/types';
 import { advanceTwitchClipCursor, decodeTwitchClipCursor, encodeTwitchClipCursor } from '@/lib/videos/twitch-clip-cursor';
 
-type FollowInput = { query: string; kind: "auto" | FollowKind; clipLimit?: number; catalogCursor?: string; twitchArchiveCursor?: string; twitchClipCursor?: string };
+type FollowInput = { query: string; kind: "auto" | FollowKind; clipLimit?: number; twitchVodLimit?: number; catalogCursor?: string; twitchArchiveCursor?: string; twitchClipCursor?: string };
 type RefreshInput = { channels: FollowedChannel[]; youtubeCatalog: boolean; youtubeBackground: boolean; youtubeLiveOnly: boolean; twitchLiveOnly: boolean; twitchRoutine: boolean; forceYoutube?: boolean; youtubeVideoLimit?: number };
 
 export type FollowResult = {
@@ -46,6 +53,8 @@ export type RefreshResult = {
   videos: LibraryVideo[];
   channels: FollowedChannel[];
   refreshedIds: string[];
+  /** Only successful live observations can retire earlier broadcast cards. */
+  liveCheckedIds?: string[];
   /** Exact next eligible time for a provider/channel cooling down after failures. */
   retryAt: Record<string, number>;
   providerRetryAt?: number;
@@ -68,10 +77,14 @@ function retryAtFor(provider: ProviderName, handle: string) {
  * This never changes cached cards: the refresh merge is intentionally additive
  * when a channel does not reach a healthy response. */
 export function classifyProviderFailure(provider: ProviderName, error: unknown): ProviderFailure {
+  if (provider === 'twitch') return classifyTwitchFailure(error);
   const raw = error instanceof Error ? error.message : String(error || "Unknown provider failure");
   const message = raw.replace(/\s+/g, " ").trim().slice(0, 240) || "Unknown provider failure";
   const lower = message.toLowerCase();
   const common = { message, at: Date.now(), ...(error instanceof YoutubeRequestError && error.retryAt ? { retryAt: error.retryAt, cooldownScope: error.cooldownScope } : {}) };
+  if (error instanceof ProviderBudgetError || /metadata.*(?:budget|queue)|response budget/.test(lower)) {
+    return { ...common, kind: 'response-budget', recovery: 'This metadata response exceeded a memory or queue budget. Accepted pages and saved positions are preserved; retry later. This does not reduce your archive target.' };
+  }
   if (/\b429\b|rate.?limit|too many requests|retrying after/.test(lower)) {
     return { ...common, kind: "rate-limited", recovery: `${provider === 'youtube' ? 'Automatic YouTube pulls wait for the recommended cooldown. You can force a fresh pull from the YouTube page.' : 'Twitch pulls wait for the provider cooldown before retrying.'} Cached cards and archive positions are preserved.` };
   }
@@ -95,15 +108,18 @@ async function providerRequest<T>(provider: ProviderName, handle: string, focuse
   const key = providerKey(provider, handle);
   const failureKey = providerKey(provider, failureHandle);
   const cooling = providerFailures.get(failureKey);
-  if (!focused && cooling && cooling.retryAt > Date.now()) {
+  if (provider === 'youtube' && !focused && cooling && cooling.retryAt > Date.now()) {
     throw new Error(`${provider} is retrying after ${new Date(cooling.retryAt).toLocaleTimeString()}`);
   }
   const existing = providerInflight.get(key) as Promise<T> | undefined;
   if (existing) return existing;
   const pending = work().then((result) => {
-    providerFailures.delete(failureKey);
+    if (provider === 'youtube') providerFailures.delete(failureKey);
     return result;
   }).catch((error) => {
+    // Twitch retries are durable and scope-specific on FollowedChannel, so
+    // reloads and a healthy live check cannot erase an archive cooldown.
+    if (provider === 'twitch') throw error;
     const previous = providerFailures.get(failureKey);
     const attempts = Math.min(8, (previous?.attempts ?? 0) + 1);
     // 15s → 30s → … → 5m keeps a failing provider from pinning six workers.
@@ -130,13 +146,14 @@ function parseFollow(data: unknown): FollowInput {
   if (!query) throw new Error("Enter a channel or URL");
   const kind = rec.kind === "youtube" || rec.kind === "twitch" ? rec.kind : "auto";
   const rawClips = typeof rec.clipLimit === "number" ? rec.clipLimit : Number(rec.clipLimit);
-  const clipLimit = Number.isFinite(rawClips) && rawClips > 0
+  const clipLimit = Number.isFinite(rawClips) && rawClips >= 0
     ? Math.min(LIBRARY_LIMITS.twitchFocusedClipsPerChannel, Math.floor(rawClips))
     : undefined;
   const catalogCursor = typeof rec.catalogCursor === "string" && rec.catalogCursor.length <= 16_384 ? rec.catalogCursor : undefined;
   const twitchArchiveCursor = typeof rec.twitchArchiveCursor === "string" && rec.twitchArchiveCursor.length <= 16_384 ? rec.twitchArchiveCursor : undefined;
   const twitchClipCursor = typeof rec.twitchClipCursor === "string" && rec.twitchClipCursor.length <= 8_192 ? rec.twitchClipCursor : undefined;
-  return { query, kind, ...(clipLimit ? { clipLimit } : {}), ...(catalogCursor ? { catalogCursor } : {}), ...(twitchArchiveCursor ? { twitchArchiveCursor } : {}), ...(twitchClipCursor ? { twitchClipCursor } : {}) };
+  const twitchVodLimit = typeof rec.twitchVodLimit === 'number' && Number.isFinite(rec.twitchVodLimit) ? Math.max(100, Math.min(TWITCH_FOCUSED_VOD_LIMIT, Math.floor(rec.twitchVodLimit))) : undefined;
+  return { query, kind, ...(clipLimit !== undefined ? { clipLimit } : {}), ...(twitchVodLimit ? { twitchVodLimit } : {}), ...(catalogCursor ? { catalogCursor } : {}), ...(twitchArchiveCursor ? { twitchArchiveCursor } : {}), ...(twitchClipCursor ? { twitchClipCursor } : {}) };
 }
 
 function parseRefresh(data: unknown): RefreshInput {
@@ -241,7 +258,7 @@ async function fetchText(url: string, manualRetry?: YoutubeManualRetry): Promise
     "user-agent": "Mozilla/5.0 (compatible; Realhub/1.0; +https://grok.x.ai) AppleWebKit/537.36",
     accept: "text/html,application/xhtml+xml,application/xml,application/json",
   };
-  const res = await (youtube ? fetchYoutubeResponse(url, { timeoutMs: 12000, headers, manualRetry }) : fetch(url, {
+  const res = await (youtube ? fetchYoutubeResponse(url, { timeoutMs: 12000, headers, manualRetry }) : fetchProviderMetadata(url, {
     signal: AbortSignal.timeout(12000),
     headers,
   }));
@@ -264,8 +281,11 @@ function ytVideo(entry: {
   live?: boolean;
   duration?: number;
   views?: number;
+  metadata?: ReturnType<typeof youtubeRendererMetadata>;
 }): LibraryVideo {
-  const published = youtubePublishedTime(entry.published);
+  const rssDate = youtubePublishedTime(entry.published);
+  const published = rssDate || youtubePublishedTime(entry.metadata?.published ?? '');
+  const live = entry.live ?? (entry.metadata?.youtubeType === 'live' ? true : entry.metadata?.youtubeType ? false : undefined);
   return {
     id: `yt:${entry.id}`,
     folderId: `yt:${entry.channelId}`,
@@ -288,8 +308,10 @@ function ytVideo(entry: {
       videoId: entry.id,
       channelId: entry.channelId,
       channelName: entry.channelName,
-      live: entry.live,
-      ...(entry.live ? { observedAt: Date.now() } : {}),
+      live,
+      publishedSource: published ? rssDate ? 'rss' : 'provider' : 'unknown',
+      ...(entry.metadata?.youtubeType ? { youtubeType: entry.metadata.youtubeType } : live ? { youtubeType: 'live' } : {}),
+      ...(live ? { observedAt: Date.now() } : {}),
       views: entry.views,
       embedUrl: `https://www.youtube.com/embed/${entry.id}`,
       watchUrl: `https://www.youtube.com/watch?v=${entry.id}`,
@@ -305,7 +327,7 @@ const YOUTUBE_CHANNEL_CACHE_TTL_MS = 4 * 60_000;
 const YOUTUBE_CHANNEL_CACHE_LIMIT = 12;
 // Keep only shallow/provider-page results in server memory; durable history
 // lives in the browser cache, not in a second 12-channel archive graph.
-const YOUTUBE_DEEP_CACHE_MAX_VIDEOS = 250;
+const YOUTUBE_DEEP_CACHE_MAX_VIDEOS = PROVIDER_BUDGETS.warmCacheRows;
 type YoutubeCacheEntry = {
   at: number;
   result: FollowResult;
@@ -313,8 +335,9 @@ type YoutubeCacheEntry = {
   hits: number;
   misses: number;
   scope: "feed" | "catalog";
+  estimatedBytes: number;
 };
-const youtubeChannelCache = new Map<string, YoutubeCacheEntry>();
+const youtubeChannelCache = createProviderMetadataCache<YoutubeCacheEntry>({ maxEntries: YOUTUBE_CHANNEL_CACHE_LIMIT, maxBytes: PROVIDER_BUDGETS.youtubeCacheBytes, maxEntryBytes: PROVIDER_BUDGETS.warmCacheEntryBytes, ttlMs: YOUTUBE_CHANNEL_CACHE_TTL_MS });
 
 function rendererText(value: YoutubeRenderer["title"] | YoutubeRenderer["viewCountText"]) {
   return value?.simpleText ?? value?.runs?.map((run) => run.text ?? "").join("") ?? "";
@@ -398,7 +421,7 @@ async function youtubeContinuationBackfill(html: string, knownIds: Set<string>, 
       const id = renderer.videoId;
       if (!id) continue;
       const thumb = renderer.thumbnail?.thumbnails?.at(-1)?.url;
-      videos.push(ytVideo({ id, title: rendererText(renderer.title) || `${channelName} video`, published: "1970-01-01T00:00:00.000Z", thumb: thumb || `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, desc: rendererText(renderer.descriptionSnippet) || `${channelName} public channel catalog item.`, channelId, channelName, views: parsePublicViewCount(rendererText(renderer.viewCountText)) }));
+      videos.push(ytVideo({ id, title: rendererText(renderer.title) || `${channelName} video`, published: '', metadata: youtubeRendererMetadata(renderer), thumb: thumb || `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, desc: rendererText(renderer.descriptionSnippet) || `${channelName} public channel catalog item.`, channelId, channelName, views: parsePublicViewCount(rendererText(renderer.viewCountText)) }));
     }
   };
   let continuation: string | null = resumeCursor ?? config.continuation;
@@ -476,6 +499,7 @@ async function youtubeChannelBackfill(channelId: string, channelName: string, kn
         // RSS remains the authoritative published-date source. Backfilled
         // cards are deliberately old until a provider supplies an exact date.
         published: "1970-01-01T00:00:00.000Z",
+        metadata: youtubeRendererMetadata(renderer),
         thumb: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
         // Channel pages expose a short public description snippet for many
         // cards. Keep it so the local tagger can derive real topic words
@@ -491,7 +515,7 @@ async function youtubeChannelBackfill(channelId: string, channelName: string, kn
   } catch { return []; }
 }
 
-async function youtubeFromVideo(id: string): Promise<FollowResult> {
+async function youtubeFromVideo(id: string, short = false): Promise<FollowResult> {
   const oembed = await fetchYoutubeResponse(
     `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${id}`)}&format=json`,
     { timeoutMs: 12000 },
@@ -517,7 +541,8 @@ async function youtubeFromVideo(id: string): Promise<FollowResult> {
   const video = ytVideo({
     id,
     title: meta.title ?? "YouTube video",
-    published: new Date().toISOString(),
+    published: '',
+    metadata: short ? { youtubeType: 'short' } : undefined,
     thumb: meta.thumbnail_url ?? `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
     desc: "",
     channelId: channelId || "inbox",
@@ -556,7 +581,7 @@ async function youtubeLiveFromChannel(channelId: string, channelName: string): P
   }
   return observations.map(observed => {
   const id = observed.id;
-  const video = ytVideo({ id, title: observed.title || `${channelName} live`, published: new Date().toISOString(), thumb: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, desc: `${channelName} is live on YouTube.`, channelId, channelName, live: true, views: observed.viewers });
+  const video = ytVideo({ id, title: observed.title || `${channelName} live`, published: '', thumb: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, desc: `${channelName} is live on YouTube.`, channelId, channelName, live: true, views: observed.viewers });
   if (video.remote) video.remote.viewers = video.remote.views;
   video.tagline = `${channelName} is live now`;
   return video;
@@ -604,7 +629,7 @@ function withYoutubeCacheTelemetry(result: FollowResult, entry: YoutubeCacheEntr
     channel: {
       ...result.channel,
       cache: entry
-        ? { at: entry.at, hits: entry.hits, misses: entry.misses, scope: entry.scope }
+        ? { at: entry.at, hits: entry.hits, misses: entry.misses, scope: entry.scope, entries: entry.result.videos.length, estimatedBytes: entry.estimatedBytes }
         : { at: Date.now(), hits: 0, misses: 1, scope: "uncached" as const },
     },
   };
@@ -663,7 +688,7 @@ async function youtubeFromChannelUncoalesced(query: string, limit: number = LIBR
         const id = row.videoId!; seen.add(id);
         const entry = feedById.get(id) ?? '';
         return ytVideo({ id, title: rendererText(row.title) || tag(entry, 'title') || id,
-          published: tag(entry, 'published'), thumb: row.thumbnail?.thumbnails?.at(-1)?.url || `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+          published: tag(entry, 'published'), metadata: youtubeRendererMetadata(row), thumb: row.thumbnail?.thumbnails?.at(-1)?.url || `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
           desc: tag(entry, 'media:description') || rendererText(row.descriptionSnippet) || `${author} public channel catalog item.`,
           channelId, channelName: author, views: Number(entry.match(/<media:statistics[^>]*views="(\d+)"/)?.[1]) || parsePublicViewCount(rendererText(row.viewCountText)), duration: Number(entry.match(/<yt:duration[^>]*seconds="(\d+)"/)?.[1]) || undefined });
       });
@@ -725,7 +750,7 @@ async function youtubeFromChannelUncoalesced(query: string, limit: number = LIBR
       const id = renderer.videoId;
       if (!id || seen.has(id)) continue;
       seen.add(id);
-      rows.push(ytVideo({ id, title: rendererText(renderer.title) || `${author} video`, published: "1970-01-01T00:00:00.000Z", thumb: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, desc: rendererText(renderer.descriptionSnippet) || `${author} public channel catalog item.`, channelId, channelName: author, views: parsePublicViewCount(rendererText(renderer.viewCountText)) }));
+      rows.push(ytVideo({ id, title: rendererText(renderer.title) || `${author} video`, published: '', metadata: youtubeRendererMetadata(renderer), thumb: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, desc: rendererText(renderer.descriptionSnippet) || `${author} public channel catalog item.`, channelId, channelName: author, views: parsePublicViewCount(rendererText(renderer.viewCountText)) }));
       // Finish the visible provider page before persisting its next token.
     }
     // RSS can fail independently of the public page. A routine refresh can
@@ -768,12 +793,11 @@ async function youtubeFromChannelUncoalesced(query: string, limit: number = LIBR
   // small explicit creator pull can still make its next shallow refresh cheap.
   const cacheable = !resumingArchive && videos.length <= YOUTUBE_DEEP_CACHE_MAX_VIDEOS;
   const cacheScope: YoutubeCacheEntry["scope"] = videos.length > feedVideos.length ? "catalog" : "feed";
-  const cacheEntry: YoutubeCacheEntry | null = cacheable
-    ? { at: Date.now(), result, feedVideos, hits: 0, misses: 1, scope: cacheScope }
+  let cacheEntry: YoutubeCacheEntry | null = cacheable
+    ? { at: Date.now(), result, feedVideos, hits: 0, misses: 1, scope: cacheScope, estimatedBytes: estimateProviderPayload(videos) }
     : null;
   if (cacheEntry) {
-    youtubeChannelCache.set(channelId, cacheEntry);
-    while (youtubeChannelCache.size > YOUTUBE_CHANNEL_CACHE_LIMIT) youtubeChannelCache.delete(youtubeChannelCache.keys().next().value!);
+    if (!youtubeChannelCache.set(channelId, cacheEntry, cacheEntry.estimatedBytes)) cacheEntry = null;
   }
   return youtubeResultForRequest(withYoutubeCacheTelemetry(result, cacheEntry), deepCatalog ? videos.length : boundedLimit, deepCatalog, newestKnownVideoId);
 }
@@ -801,7 +825,7 @@ async function youtubeFromPlaylist(input: string, focused = true, resumeCursor?:
     if (direct) {
       const folderId = `ytpl:${playlistId}`;
       const videos = direct.rows.map(entry => {
-        const video = ytVideo({ id: entry.videoId!, title: rendererText(entry.title) || entry.videoId!, published: '',
+        const video = ytVideo({ id: entry.videoId!, title: rendererText(entry.title) || entry.videoId!, published: '', metadata: youtubeRendererMetadata(entry),
           thumb: entry.thumbnail?.thumbnails?.at(-1)?.url || `https://i.ytimg.com/vi/${entry.videoId}/hqdefault.jpg`,
           desc: 'Public YouTube playlist', channelId: 'playlist', channelName: rendererText(entry.shortBylineText) || 'YouTube' });
         video.id = `${folderId}:${entry.videoId}`; video.folderId = folderId; return video;
@@ -856,7 +880,7 @@ async function youtubeFromPlaylist(input: string, focused = true, resumeCursor?:
     const title = publicPlaylistTitle(browseRoot) || publicPlaylistTitle(root) || html.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']+)/i)?.[1] || `YouTube playlist ${playlistId.slice(0, 8)}`;
     const folderId = `ytpl:${playlistId}`;
     const videos = found.map((entry) => {
-      const video = ytVideo({ id: entry.id, title: entry.title, published: "1970-01-02T00:00:00.000Z", thumb: entry.thumb?.startsWith("//") ? `https:${entry.thumb}` : entry.thumb || `https://i.ytimg.com/vi/${entry.id}/hqdefault.jpg`, desc: `${title} · public playlist`, channelId: "playlist", channelName: entry.channelName });
+      const video = ytVideo({ id: entry.id, title: entry.title, published: '', metadata: entry.metadata, thumb: entry.thumb?.startsWith("//") ? `https:${entry.thumb}` : entry.thumb || `https://i.ytimg.com/vi/${entry.id}/hqdefault.jpg`, desc: `${title} · public playlist`, channelId: "playlist", channelName: entry.channelName });
       video.id = `${folderId}:${entry.id}`;
       video.folderId = folderId;
       return video;
@@ -881,7 +905,10 @@ const TWITCH_CLIENT_ID = "kd1unb4b3q4t58fwlpcbzcbnm76a8fp";
 const TWITCH_CHANNEL_CACHE_TTL_MS = 3 * 60_000;
 const TWITCH_CHANNEL_CACHE_LIMIT = 16;
 const TWITCH_PAGE_GAP_MS = 180;
-const twitchChannelCache = new Map<string, { at: number; result: FollowResult }>();
+const twitchChannelCache = createProviderMetadataCache<{ at: number; result: FollowResult; telemetry: ProviderCacheSample }>({ maxEntries: TWITCH_CHANNEL_CACHE_LIMIT, maxBytes: PROVIDER_BUDGETS.twitchCacheBytes, maxEntryBytes: PROVIDER_BUDGETS.warmCacheEntryBytes, ttlMs: TWITCH_CHANNEL_CACHE_TTL_MS });
+function twitchCacheResult(entry: { result: FollowResult; telemetry: ProviderCacheSample }): FollowResult {
+  return { ...entry.result, channel: { ...entry.result.channel, cache: { ...entry.telemetry } } };
+}
 
 function twitchPageGap() {
   return new Promise<void>((resolve) => setTimeout(resolve, TWITCH_PAGE_GAP_MS));
@@ -918,7 +945,7 @@ type GqlUser = {
     game?: { name?: string };
   } | null;
   videos?: {
-    providerError?: boolean;
+    providerError?: string | boolean;
     pageInfo?: {
       hasNextPage?: boolean;
       endCursor?: string | null;
@@ -930,6 +957,7 @@ type GqlUser = {
   };
   twitchArchiveCursor?: string;
   twitchArchiveExhaustedAt?: number;
+  twitchArchiveDiagnostics?: TwitchPullDiagnostics;
 };
 
 type TwitchBroadcastType = "ARCHIVE" | "HIGHLIGHT" | "UPLOAD";
@@ -939,7 +967,7 @@ function twitchClampFirst(n: number) {
 }
 
 async function twitchGqlJson(query: string, variables: Record<string, unknown>) {
-  const res = await fetch("https://gql.twitch.tv/gql", {
+  const res = await fetchProviderMetadata("https://gql.twitch.tv/gql", {
     signal: AbortSignal.timeout(12000),
     method: "POST",
     headers: {
@@ -948,7 +976,7 @@ async function twitchGqlJson(query: string, variables: Record<string, unknown>) 
     },
     body: JSON.stringify({ query, variables }),
   });
-  if (!res.ok) return null;
+  if (!res.ok) throw new Error(`Twitch request failed: HTTP ${res.status}`);
   return (await res.json()) as {
     data?: { user?: GqlUser | null };
     errors?: Array<{ message?: string }>;
@@ -968,10 +996,9 @@ async function twitchUser(
   );
   if (!json) return null;
   const user = json.data?.user ?? null;
-  // A GraphQL field error on `videos` still returns the user shell. Treat that
-  // as an empty page so callers can retry with a smaller `first`.
-  if (user && json.errors?.some((error) => /videos|first/i.test(error.message ?? ""))) {
-    return { ...user, videos: { providerError: true, pageInfo: { hasNextPage: false, endCursor: null }, edges: [] } };
+  // Never treat a challenged field as an exhausted public shelf.
+  if (user && json.errors?.length) {
+    return { ...user, videos: { providerError: json.errors.map(error => error.message ?? 'Provider error').join('; ').slice(0, 240), edges: [] } };
   }
   return user;
 }
@@ -986,10 +1013,10 @@ async function twitchLiveForFollow(channel: FollowedChannel): Promise<FollowResu
     { login },
   );
   const user = json?.data?.user;
-  if (!user?.id) throw new Error(`Twitch could not check live status for ${login}`);
-  const streamFailure = json?.errors?.find(error => /stream|user/i.test(error.message ?? ""));
-  if (streamFailure) throw new Error(`Twitch live check failed for ${login}: ${(streamFailure.message ?? "provider error").slice(0, 180)}`);
-  if (user.stream === undefined) throw new Error(`Twitch returned no live status for ${login}`);
+  const streamFailure = json?.errors?.[0];
+  if (streamFailure) throw new Error(`Twitch live check failed for ${login}: ${(streamFailure.message ?? 'provider error').slice(0, 180)}`);
+  if (!user?.id) throw new Error(`Twitch could not resolve ${login} for live status`);
+  if (user.stream === undefined) throw new Error(`Twitch returned a malformed live status for ${login}`);
   const now = Date.now();
   const videos = user.stream ? twitchVideos(login, { ...user, videos: { edges: [] } }, 0) : [];
   return {
@@ -1017,53 +1044,21 @@ async function twitchLiveForFollow(channel: FollowedChannel): Promise<FollowResu
  * pages). Focused pulls also merge HIGHLIGHT + UPLOAD shelves.
  */
 async function twitchArchive(login: string, limit: number, savedCursor?: string): Promise<GqlUser | null> {
-  let cursor: TwitchArchiveCursor | null = decodeTwitchArchiveCursor(savedCursor);
-  let first: GqlUser | null = null;
-  const edges: NonNullable<NonNullable<GqlUser["videos"]>["edges"]> = [];
-  const seen = new Set<string>();
   const maxPages = Math.max(1, Math.min(TWITCH_ARCHIVE_MAX_PAGES, Math.ceil(limit / Math.max(1, TWITCH_ARCHIVE_PAGE_SIZE)) + 1));
-
-  const takePage = async (pageSize: number, cursor: string | null | undefined, type: TwitchBroadcastType) => {
-    let page = await twitchUser(login, cursor, pageSize, type);
-    // Backup: if the capped page came back empty, retry once at 30 (still valid).
-    if (page?.id && !(page.videos?.edges?.length) && pageSize > 30 && !cursor && type === "ARCHIVE") {
-      page = await twitchUser(login, null, 30, type);
-    }
-    if (page?.videos?.providerError) throw new Error(`Twitch rejected the ${type.toLowerCase()} catalog page for ${login}; the saved archive cursor was preserved.`);
-    return page;
-  };
-
-  for (let pageIndex = 0; pageIndex < maxPages && edges.length < limit && cursor; pageIndex += 1) {
-    if (pageIndex > 0) await twitchPageGap();
-    const page = await takePage(Math.min(TWITCH_ARCHIVE_PAGE_SIZE, limit - edges.length), cursor.after, cursor.stage);
-    if (!page) {
-      if (!first) return null;
-      break;
-    }
-    if (!first) first = page;
-    const before = edges.length;
-    for (const edge of page.videos?.edges ?? []) {
-      const id = edge.node?.id;
-      if (!id || seen.has(id)) continue;
-      seen.add(id);
-      edges.push(edge);
-      if (edges.length >= limit) break;
-    }
-    const pageInfo = page.videos?.pageInfo;
-    const endCursor = pageInfo?.endCursor ?? page.videos?.edges?.at(-1)?.cursor ?? null;
-    const next = advanceTwitchArchiveCursor(cursor, pageInfo?.hasNextPage === true, endCursor);
-    // An empty advancing page is not useful and can indicate a provider
-    // integrity response. Keep the last accepted position for a safe retry.
-    if (edges.length === before && next?.stage === cursor.stage && next.after === cursor.after) break;
-    cursor = next;
-  }
-
-  if (!first) return null;
+  const result = await walkTwitchArchive({ limit, maxPages, pageSize: TWITCH_ARCHIVE_PAGE_SIZE, savedCursor, gap: twitchPageGap,
+    read: async (cursor, size) => {
+      let page = await twitchUser(login, cursor.after, size, cursor.stage);
+      if (page?.id && !page.videos?.providerError && !page.videos?.edges?.length && size > 30 && !cursor.after && cursor.stage === 'ARCHIVE') page = await twitchUser(login, null, 30, cursor.stage);
+      return page;
+    },
+  });
+  if (!result.first) return null;
   return {
-    ...first,
-    videos: { edges },
-    twitchArchiveCursor: encodeTwitchArchiveCursor(cursor),
-    twitchArchiveExhaustedAt: cursor ? undefined : Date.now(),
+    ...result.first,
+    videos: { edges: result.edges },
+    twitchArchiveCursor: result.cursor,
+    twitchArchiveExhaustedAt: result.exhaustedAt,
+    twitchArchiveDiagnostics: result.diagnostics,
   };
 }
 
@@ -1074,12 +1069,14 @@ type TwitchClipsConnection = {
   edges?: Array<{ cursor?: string | null; node?: TwitchClipNode }>;
 };
 
-async function twitchClips(login: string, limit: number, savedCursor?: string, variety = false): Promise<{ clips: TwitchClipNode[]; cursor?: string; exhaustedAt?: number }> {
+async function twitchClips(login: string, limit: number, savedCursor?: string, variety = false): Promise<{ clips: TwitchClipNode[]; cursor?: string; exhaustedAt?: number; error?: string }> {
   if (limit <= 0) return { clips: [] };
   const out: TwitchClipNode[] = [];
   const seen = new Set<string>();
   const maxPages = Math.max(1, Math.min(TWITCH_CLIP_MAX_PAGES, Math.ceil(limit / 100) + 1));
   let allTimeCursor = decodeTwitchClipCursor(savedCursor);
+  let exhausted = false;
+  let error: string | undefined;
 
   // Routine refreshes split a small budget across time periods. Focused pulls
   // page through ALL_TIME and persist their continuation for the next click.
@@ -1091,43 +1088,48 @@ async function twitchClips(login: string, limit: number, savedCursor?: string, v
     const periodsLeft = periods.length - periodIndex;
     const periodTarget = variety ? Math.ceil((limit - out.length) / periodsLeft) : limit;
     let periodReceived = 0;
-    let lastPageInfo: TwitchClipsConnection["pageInfo"];
     for (let pageIndex = 0; pageIndex < maxPages && out.length < limit && periodReceived < periodTarget; pageIndex += 1) {
       if (pageIndex > 0) await twitchPageGap();
       const first = twitchClampFirst(Math.min(100, variety ? periodTarget - periodReceived : limit - out.length));
       const field = period
         ? `clips(first:$first, after:$after, criteria:{period:${period}}){pageInfo{hasNextPage endCursor} edges{cursor node{id slug title viewCount durationSeconds createdAt thumbnailURL}}}`
         : `clips(first:$first, after:$after){pageInfo{hasNextPage endCursor} edges{cursor node{id slug title viewCount durationSeconds createdAt thumbnailURL}}}`;
-      const json = await twitchGqlJson(
-        `query($login:String!,$first:Int!,$after:Cursor){user(login:$login){${field}}}`,
-        { login, first, after: after ?? null },
-      );
+      let json: Awaited<ReturnType<typeof twitchGqlJson>>;
+      try {
+        json = await twitchGqlJson(`query($login:String!,$first:Int!,$after:Cursor){user(login:$login){${field}}}`, { login, first, after: after ?? null });
+        if (json?.errors?.length) throw new Error(json.errors.map(row => row.message ?? 'Provider error').join('; '));
+      } catch (failure) {
+        error = (failure instanceof Error ? failure.message : String(failure)).slice(0, 240);
+        break;
+      }
       const clipUser = json?.data?.user as (GqlUser & { clips?: TwitchClipsConnection }) | null | undefined;
       const connection = clipUser?.clips;
       const edges = connection?.edges ?? [];
-      if (json?.errors?.some(error => /clips|user/i.test(error.message ?? ""))) throw new Error(`Twitch rejected the ${period ?? "default"} clip page for ${login}.`);
-      if (!connection && !json?.data?.user) throw new Error(`Twitch could not read clips for ${login}.`);
-      lastPageInfo = connection?.pageInfo;
-      const before = out.length;
+      if (!connection || typeof connection.pageInfo?.hasNextPage !== 'boolean' || !Array.isArray(connection.edges)) { error = `Twitch returned a malformed clip page for ${login}.`; break; }
+      let skipped = false;
       for (const edge of edges) {
         const node = edge.node;
         const key = node?.slug || node?.id;
-        if (!key || seen.has(key)) continue;
+        if (!key) { skipped = true; continue; }
+        if (seen.has(key)) continue;
+        if (out.length >= limit || periodReceived >= periodTarget) { skipped = true; continue; }
         seen.add(key);
         out.push(node!);
         periodReceived++;
-        if (out.length >= limit) break;
       }
+      if (skipped) { error = 'Twitch returned an incomplete clip page; the previous clip position was preserved.'; break; }
       const nextCursor = connection?.pageInfo?.endCursor ?? edges.at(-1)?.cursor ?? null;
-      if (out.length === before || !connection?.pageInfo?.hasNextPage || !nextCursor || nextCursor === after) break;
+      if (!connection.pageInfo.hasNextPage) {
+        if (!variety) { allTimeCursor = undefined; exhausted = true; }
+        break;
+      }
+      if (!edges.length || !nextCursor || nextCursor === after) { error = 'Twitch public clip page stopped advancing; the previous clip position was preserved.'; break; }
+      if (!variety) allTimeCursor = advanceTwitchClipCursor(true, nextCursor, allTimeCursor);
       after = nextCursor;
     }
-    if (!variety && period === "ALL_TIME") {
-      const next = advanceTwitchClipCursor(lastPageInfo?.hasNextPage === true, lastPageInfo?.endCursor ?? null, allTimeCursor);
-      allTimeCursor = next;
-    }
+    if (error) break;
   }
-  return { clips: out, ...(!variety ? { cursor: encodeTwitchClipCursor(allTimeCursor), exhaustedAt: allTimeCursor ? undefined : Date.now() } : {}) };
+  return { clips: out, ...(error ? { error } : {}), ...(!variety ? { cursor: encodeTwitchClipCursor(allTimeCursor), exhaustedAt: exhausted ? Date.now() : undefined } : {}) };
 }
 
 function twitchVideos(
@@ -1247,14 +1249,14 @@ function twitchVideos(
   return out;
 }
 
-async function followTwitchUncoalesced(query: string, compact = false, clipLimit?: number, archiveCursor?: string, clipCursor?: string): Promise<FollowResult> {
+async function followTwitchUncoalesced(query: string, compact = false, clipLimit?: number, archiveCursor?: string, clipCursor?: string, focusedVodLimit?: number): Promise<FollowResult> {
   const login = twitchLogin(query);
   if (!login) throw new Error("Enter a Twitch channel.");
-  const vodLimit = compact ? TWITCH_REFRESH_VOD_LIMIT : TWITCH_FOCUSED_VOD_LIMIT;
+  const vodLimit = compact ? TWITCH_REFRESH_VOD_LIMIT : focusedVodLimit ?? TWITCH_FOCUSED_VOD_LIMIT;
   const clipsWanted = clipLimit ?? (compact ? TWITCH_REFRESH_CLIP_LIMIT : archiveCursor ? 0 : TWITCH_FOCUSED_CLIP_LIMIT);
   const cacheKey = `${login}:${compact ? "r" : "f"}:${vodLimit}:${clipsWanted}:${archiveCursor ?? "start"}:${clipCursor ?? "clip-start"}`;
   const cached = twitchChannelCache.get(cacheKey);
-  if (cached && Date.now() - cached.at < TWITCH_CHANNEL_CACHE_TTL_MS) return cached.result;
+  if (cached && Date.now() - cached.at < TWITCH_CHANNEL_CACHE_TTL_MS) { cached.telemetry.hits++; return twitchCacheResult(cached); }
 
   const user = await twitchArchive(login, vodLimit, compact ? undefined : archiveCursor);
   if (!user?.id) throw new Error(`Twitch could not resolve ${login}`);
@@ -1272,29 +1274,30 @@ async function followTwitchUncoalesced(query: string, compact = false, clipLimit
     lastCheckedAt: Date.now(),
     newestPublishedAt: Math.max(0, ...videos.filter((video) => !video.remote?.live).map((video) => video.addedAt)),
     lastResponseCount: videos.length,
-    ...(!compact ? { twitchArchiveCursor: user.twitchArchiveCursor, twitchArchiveExhaustedAt: user.twitchArchiveExhaustedAt } : {}),
+    ...(!compact ? { twitchArchiveCursor: user.twitchArchiveCursor, twitchArchiveExhaustedAt: user.twitchArchiveExhaustedAt,
+      twitchArchiveDiagnostics: user.twitchArchiveDiagnostics, twitchArchiveLastVideoId: user.twitchArchiveDiagnostics?.lastVideoId } : {}),
     ...(!compact && clipsWanted > 0 ? { twitchClipCursor: clipResult.cursor, twitchClipExhaustedAt: clipResult.exhaustedAt } : {}),
+    lastProviderFailure: user.twitchArchiveDiagnostics?.error || clipResult.error ? classifyProviderFailure('twitch', user.twitchArchiveDiagnostics?.error ?? clipResult.error) : undefined,
   };
   const result = { channel, videos };
-  twitchChannelCache.set(cacheKey, { at: Date.now(), result });
-  while (twitchChannelCache.size > TWITCH_CHANNEL_CACHE_LIMIT) {
-    twitchChannelCache.delete(twitchChannelCache.keys().next().value!);
-  }
-  return result;
+  const entry = { at: Date.now(), result, telemetry: { at: Date.now(), hits: 0, misses: 1, scope: 'catalog' as ProviderCacheSample['scope'], entries: videos.length, estimatedBytes: estimateProviderPayload(videos) } };
+  // A focused retry should reach the provider after a partial page failure.
+  if (channel.lastProviderFailure || videos.length > PROVIDER_BUDGETS.warmCacheRows || !twitchChannelCache.set(cacheKey, entry, entry.telemetry.estimatedBytes)) entry.telemetry.scope = 'uncached';
+  return twitchCacheResult(entry);
 }
 
-function followTwitch(query: string, compact = false, clipLimit?: number, archiveCursor?: string, clipCursor?: string): Promise<FollowResult> {
-  return providerRequest("twitch", `${query}:${compact ? "routine" : "focused"}:${clipLimit ?? "default"}:${archiveCursor ?? "start"}:${clipCursor ?? "clip-start"}`, !compact, () => followTwitchUncoalesced(query, compact, clipLimit, archiveCursor, clipCursor), query);
+function followTwitch(query: string, compact = false, clipLimit?: number, archiveCursor?: string, clipCursor?: string, focusedVodLimit?: number): Promise<FollowResult> {
+  return providerRequest("twitch", `${query}:${compact ? "routine" : "focused"}:${focusedVodLimit ?? 'default'}:${clipLimit ?? "default"}:${archiveCursor ?? "start"}:${clipCursor ?? "clip-start"}`, !compact, () => followTwitchUncoalesced(query, compact, clipLimit, archiveCursor, clipCursor, focusedVodLimit), query);
 }
 
 export async function runFollowRemote(dataRaw: unknown): Promise<FollowResult> {
     applyYoutubePullPacing(dataRaw);
     const data = parseFollow(dataRaw);
     const kind = data.kind === "auto" ? guessKind(data.query) : data.kind;
-    if (kind === "twitch") return followTwitch(data.query, false, data.clipLimit, data.twitchArchiveCursor, data.twitchClipCursor);
+    if (kind === "twitch") return followTwitch(data.query, false, data.clipLimit, data.twitchArchiveCursor, data.twitchClipCursor, data.twitchVodLimit);
     if (youtubePlaylistId(data.query)) return youtubeFromPlaylist(data.query, true, data.catalogCursor, LIBRARY_LIMITS.youtubeManualRefreshVideosPerChannel);
     const videoId = ytVideoId(data.query);
-    if (videoId) return youtubeFromVideo(videoId);
+    if (videoId) return youtubeFromVideo(videoId, /^https?:\/\/(?:www\.|m\.)?youtube\.com\/shorts\//i.test(data.query.trim()));
     // A new follow should paint promptly; the timed cursor sweep fills its
     // older archive rather than trying to return 100k cards in one response.
     return youtubeFromChannel(data.query, LIBRARY_LIMITS.youtubeManualRefreshVideosPerChannel, true, true, undefined, data.catalogCursor);
@@ -1307,24 +1310,30 @@ export async function runRefreshRemotes(dataRaw: unknown): Promise<RefreshResult
     const videos: LibraryVideo[] = [];
     const channels: FollowedChannel[] = [];
     const refreshedIds: string[] = [];
-    await mapPool(data.channels, data.youtubeCatalog ? 1 : data.youtubeLiveOnly || data.twitchLiveOnly || data.twitchRoutine ? 2 : 3, async (ch) => {
+    const liveCheckedIds: string[] = [];
+    await mapPool(data.channels, data.youtubeCatalog ? PROVIDER_BUDGETS.archiveWorkers : data.youtubeLiveOnly || data.twitchLiveOnly || data.twitchRoutine ? PROVIDER_BUDGETS.liveWorkers : PROVIDER_BUDGETS.refreshWorkers, async (ch) => {
       try {
         if (ch.kind === "twitch") {
+          const scope = data.twitchLiveOnly ? 'live' : 'archive';
+          if ((ch[scope === 'live' ? 'twitchLiveRetry' : 'twitchArchiveRetry']?.retryAt ?? 0) > Date.now()) { channels.push(ch); return; }
           if (data.twitchLiveOnly) {
             const next = await providerRequest("twitch", `live:${ch.handle}`, true, () => twitchLiveForFollow(ch), ch.handle);
-            channels.push({ ...ch, ...next.channel, id: ch.id, lastLiveFailure: undefined });
+            channels.push({ ...ch, ...next.channel, id: ch.id, ...twitchRetryPatch(ch, 'live') });
             videos.push(...next.videos.map((video) => ({ ...video, folderId: ch.id })));
             refreshedIds.push(ch.id);
+            liveCheckedIds.push(ch.id);
             return;
           }
           // Scheduled Twitch work collects recent VODs and a varied clip sample
           // in addition to stream state. Keep it shallow; focused archive and
           // clip pulls carry their own resumable cursors for deeper history.
           const next = await followTwitch(ch.handle, true);
-          channels.push({ ...ch, ...next.channel, id: ch.id, lastProviderFailure: undefined });
+          liveCheckedIds.push(ch.id);
+          channels.push({ ...ch, ...next.channel, id: ch.id, ...twitchRetryPatch(ch, 'archive', next.channel.lastProviderFailure), ...twitchRetryPatch(ch, 'live') });
           videos.push(...next.videos.map((video) => ({ ...video, folderId: ch.id })));
         } else if (data.youtubeLiveOnly) {
           const next = await youtubeLiveForFollow(ch);
+          liveCheckedIds.push(ch.id);
           channels.push({ ...ch, ...next.channel, id: ch.id });
           videos.push(...next.videos.map((video) => ({ ...video, folderId: ch.id })));
         } else {
@@ -1344,6 +1353,11 @@ export async function runRefreshRemotes(dataRaw: unknown): Promise<RefreshResult
         }
         refreshedIds.push(ch.id);
       } catch (error) {
+        if (ch.kind === 'twitch') {
+          channels.push({ ...ch, ...(data.twitchLiveOnly ? { liveCheckedAt: Date.now() } : { lastCheckedAt: Date.now() }),
+            ...twitchRetryPatch(ch, data.twitchLiveOnly ? 'live' : 'archive', classifyTwitchFailure(error)) });
+          return;
+        }
         // A failed archive attempt still consumes this creator's turn. Moving
         // its cursor timestamp prevents one offline channel from pinning every
         // later scheduled sweep while preserving its continuation and cache.
@@ -1352,16 +1366,15 @@ export async function runRefreshRemotes(dataRaw: unknown): Promise<RefreshResult
           lastCheckedAt: Date.now(),
           ...(ch.kind === "youtube" && data.youtubeCatalog ? { catalogCheckedAt: Date.now() } : {}),
           ...(ch.kind === "youtube" && data.youtubeLiveOnly ? { liveCheckedAt: Date.now(), lastLiveFailure: classifyProviderFailure(ch.kind, error) } : {}),
-          ...(ch.kind === "twitch" && (data.twitchLiveOnly || data.twitchRoutine) ? { liveCheckedAt: Date.now(), lastLiveFailure: classifyProviderFailure(ch.kind, error) } : {}),
           lastProviderFailure: classifyProviderFailure(ch.kind, error),
         });
       }
     });
     const retryAt = Object.fromEntries(data.channels.flatMap((channel) => {
-      const retry = channel.kind === "youtube" ? youtubeRetryAt(Date.now(), data.youtubeLiveOnly ? 'live' : data.youtubeCatalog ? 'catalog' : 'feed') ?? channels.find(row => row.id === channel.id)?.lastProviderFailure?.retryAt ?? retryAtFor(channel.kind, channel.handle) : retryAtFor(channel.kind, channel.handle);
+      const retry = channel.kind === "youtube" ? youtubeRetryAt(Date.now(), data.youtubeLiveOnly ? 'live' : data.youtubeCatalog ? 'catalog' : 'feed') ?? channels.find(row => row.id === channel.id)?.lastProviderFailure?.retryAt ?? retryAtFor(channel.kind, channel.handle) : channels.find(row => row.id === channel.id)?.[data.twitchLiveOnly ? 'twitchLiveRetry' : 'twitchArchiveRetry']?.retryAt;
       return retry ? [[channel.id, retry]] : [];
     }));
-    return { videos, channels, refreshedIds, retryAt, ...(data.channels.some(channel => channel.kind === "youtube") && youtubeRetryAt() ? { providerRetryAt: youtubeRetryAt(), providerCooldownScope: youtubeCooldownScope() } : {}) };
+    return { videos, channels, refreshedIds, liveCheckedIds, retryAt, ...(data.channels.some(channel => channel.kind === "youtube") && youtubeRetryAt() ? { providerRetryAt: youtubeRetryAt(), providerCooldownScope: youtubeCooldownScope() } : {}) };
 }
 
 type ImportItemIn = { query: string; kind: "youtube" | "twitch" };
@@ -1416,8 +1429,8 @@ export async function runImportChannels(dataRaw: unknown): Promise<ImportBatchRe
     const compact = data.items.length > 1 || data.items.some(item => item.kind === 'youtube');
     const failureReasons = new Map<string, string>();
     const failureDetails = new Map<string, ProviderFailure>();
-    const rows = await mapPool(data.items, 6, async (item) => {
-      for (let attempt = 0; attempt < 2; attempt += 1) {
+    const rows = await mapPool(data.items, PROVIDER_BUDGETS.importWorkers, async (item) => {
+      for (let attempt = 0; attempt < PROVIDER_BUDGETS.importAttempts; attempt += 1) {
         try {
           if (item.kind === "twitch") return await followTwitch(item.query, compact);
           // Bulk imports used to request only eight entries per creator, which
@@ -1442,6 +1455,7 @@ export async function runImportChannels(dataRaw: unknown): Promise<ImportBatchRe
           // request 350ms later, or by trying the next imported handle.
           if (item.kind === 'youtube' && youtubeRetryAt()) break;
           if (item.kind === 'youtube' && failure.message.includes('unique exact')) break;
+          if (failure.kind === 'response-budget') break;
           if (!attempt) await new Promise((resolve) => setTimeout(resolve, 350));
         }
       }
@@ -1472,7 +1486,7 @@ function parseTwitchUser(data: unknown): { login: string } {
 }
 
 async function twitchGql(query: string, variables: Record<string, string>) {
-  const res = await fetch("https://gql.twitch.tv/gql", {
+  const res = await fetchProviderMetadata("https://gql.twitch.tv/gql", {
     signal: AbortSignal.timeout(12000),
     method: "POST",
     headers: {
@@ -3010,7 +3024,7 @@ let redgifsAuth: { token: string; expiresAt: number } | null = null;
 async function getRedgifsAccessToken(): Promise<string> {
   const now = Date.now();
   if (redgifsAuth && redgifsAuth.expiresAt > now + 60_000) return redgifsAuth.token;
-  const res = await fetch("https://api.redgifs.com/v2/auth/temporary", {
+  const res = await fetchProviderMetadata("https://api.redgifs.com/v2/auth/temporary", {
     headers: { accept: "application/json", "user-agent": "Realhub/1.0" },
     signal: AbortSignal.timeout(12_000),
   });
@@ -3727,7 +3741,7 @@ async function fetchTwitchVodComments(videoId: string, limit: number): Promise<{
       const variables = cursor
         ? { videoID: id, cursor }
         : { videoID: id, contentOffsetSeconds: offset };
-      const res = await fetch("https://gql.twitch.tv/gql", {
+      const res = await fetchProviderMetadata("https://gql.twitch.tv/gql", {
         method: "POST",
         headers: { "client-id": TWITCH_CLIENT_ID, "content-type": "application/json" },
         body: JSON.stringify([{

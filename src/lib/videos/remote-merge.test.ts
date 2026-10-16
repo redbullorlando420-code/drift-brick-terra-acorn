@@ -1,7 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { LibraryVideo } from "./types.ts";
-import { mergeRemoteCatalog, mergeRemoteCatalogAsync, mergeRemoteRefresh, mergeRemoteRefreshAsync } from "./remote-merge.ts";
+import { mergeRemoteCatalog, mergeRemoteCatalogAsync, prepareIndexedRemoteCatalog, prepareRefreshSavedIds, mergeRemoteRefresh, mergeRemoteRefreshAsync } from "./remote-merge.ts";
+import { patchSparseRecord, removeSparseRecordKeys } from '../sparse-record.ts';
+import { youtubeVideoKey } from '../remote/youtube-sources.ts';
 
 function archivedYoutubeVideo(): LibraryVideo {
   return {
@@ -35,7 +37,8 @@ test("a successful live check reports stale broadcast cards while marking them o
   const merged = mergeRemoteRefresh([live], [], [live.folderId], new Set(), { staleLiveIds });
   assert.deepEqual(staleLiveIds, [live.id]);
   assert.equal(merged[0].remote?.live, false);
-  assert.equal(merged[0].tagline, "Offline · saved channel");
+  assert.equal(merged[0].tagline, "Completed YouTube stream");
+  assert.equal(merged[0].remote?.youtubeType, 'replay');
 });
 
 test("catalog sweeps reuse unchanged rows and append new uploads without dropping saved details", () => {
@@ -122,4 +125,73 @@ test('large change batches and late removals match sequential merge behavior wit
   const catalog = [...rows, provider];
   assert.deepEqual(await mergeRemoteRefreshAsync(catalog, [], ['adult'], new Set()), rows);
   assert.deepEqual(await mergeRemoteRefreshAsync(Array.from({ length: 5000 }, (_, i) => ({ ...provider, id: `adult-${i}` })), [], ['adult'], new Set()), []);
+});
+
+test('indexed sweep preparation yields before reads, never scans its index, and reuses unchanged catalogs', async () => {
+  const rows = Array.from({ length: 100_000 }, (_, i) => ({ ...archivedYoutubeVideo(), id: `v${i}`, remote: undefined }));
+  let turns = 0, reads = 0;
+  const existing = new Proxy(rows, { get(target, key, receiver) {
+    if (/^\d+$/.test(String(key))) { assert.ok(turns > 0); reads++; }
+    if (key === 'slice') throw Error('Synchronous catalog copy');
+    return Reflect.get(target, key, receiver);
+  } });
+  const index = new Map([[rows[99999].id, 99999]]);
+  index.entries = () => { throw Error('Entire index exported'); };
+  const work = prepareIndexedRemoteCatalog(existing, [{ ...rows[99999] }], index, async () => { turns++; });
+  assert.equal(reads, 0);
+  const plan = await work;
+  assert.equal(plan.videos, existing); assert.equal(plan.rows[0], rows[99999]);
+  assert.equal(plan.positionChanges.size, 0); assert.equal(reads, 1);
+});
+
+test('indexed sweep staging matches sequential merges, canonical aliases and duplicate page rows', async () => {
+  const original = archivedYoutubeVideo(), live = { ...original, id: 'live', remote: { ...original.remote!, videoId: 'live', live: true, observedAt: 20 } };
+  const existing = [original, live];
+  const positions = new Map<string, number>();
+  existing.forEach((v,i)=>{positions.set(v.id,i);positions.set(youtubeVideoKey(v)!,i);});
+  const added = { ...original, id: 'new', remote: { ...original.remote!, videoId: 'new', sourceIds: ['yt:first'] } };
+  const incoming = [{ ...original, name: 'Updated' }, added, { ...added, id: 'wrapper', folderId: 'ytpl:list', name: 'Latest', remote: { ...added.remote, sourceIds: ['ytpl:list'] } }, { ...live, name: 'Old live', remote: { ...live.remote, observedAt: 10 } }];
+  const expectedPositions = new Map(positions), expectedRows: LibraryVideo[] = [];
+  const expected = mergeRemoteCatalog(existing, incoming, expectedPositions, expectedRows);
+  const plan = await prepareIndexedRemoteCatalog(existing, incoming, positions, async () => {});
+  assert.deepEqual(plan.videos, expected); assert.deepEqual(plan.rows, expectedRows);
+  assert.equal(positions.size, 4, 'shared index is untouched until publication');
+  for (const [key,value] of plan.positionChanges) positions.set(key,value);
+  assert.deepEqual(positions, expectedPositions);
+  assert.equal(plan.videos[1], live); assert.equal(existing[0], original);
+});
+
+test('cancelled indexed copies leave the original catalog and every index position intact', async () => {
+  const existing = Array.from({ length: 100_000 }, (_,i)=>({ ...archivedYoutubeVideo(), id: String(i), remote: undefined }));
+  const positions = new Map([['0',0]]); let turns = 0;
+  await assert.rejects(prepareIndexedRemoteCatalog(existing, [{ ...existing[0], name: 'Changed' }, { ...existing[0], id: 'added' }], positions, async () => {
+    if (++turns === 5) throw Error('cancel');
+  }), /cancel/);
+  assert.equal(existing[0].name, 'Older upload'); assert.equal(existing.length, 100_000);
+  assert.deepEqual([...positions], [['0',0]]);
+});
+
+test('saved refresh preparation handles dense sparse ledgers without sorting/exporting their patch keys', async () => {
+  let likes = patchSparseRecord<true>({}, Array.from({length:100_000},(_,i)=>[`saved-${i}`,true] as const));
+  likes = removeSparseRecordKeys(likes, ['saved-1']);
+  const favorites = Object.create({ inherited: true }) as Record<string,true>;
+  Object.defineProperty(favorites,'__proto__',{value:true,enumerable:true});
+  favorites.favorite = true;
+  let turns = 0; const sort = Array.prototype.sort;
+  Array.prototype.sort = function(compare) { assert.ok(this.length < 1000, 'Sparse patch keys exported'); return sort.call(this,compare); };
+  try {
+    const ids = await prepareRefreshSavedIds(favorites, likes, [{id:'history-only',at:1},{id:'favorite',at:2}], async()=>{turns++;});
+    assert.equal(ids.size,100_002); assert.ok(turns>100);
+    assert.equal(ids.has('saved-1'),false); assert.equal(ids.has('inherited'),false);
+    assert.equal(ids.has('__proto__'),true); assert.equal(ids.has('history-only'),true);
+  } finally { Array.prototype.sort=sort; }
+});
+
+test('routine refresh cancellation reaches prefix materialization and preserves all existing cards', async () => {
+  const existing = Array.from({length:5000},(_,i)=>({ ...archivedYoutubeVideo(),id:String(i),remote:undefined }));
+  const positions = new Map(existing.map(v=>[v.id,v])); let turns = 0;
+  await assert.rejects(mergeRemoteRefreshAsync(existing,[{...existing[0],name:'Changed'}],[],new Set(),{index:positions,turn:async()=>{
+    if(++turns===4)throw Error('cancel prefix');
+  }}),/cancel prefix/);
+  assert.equal(existing[0].name,'Older upload');
 });

@@ -115,9 +115,12 @@ function main(argv) {
   // `.cmd` shims, which Node cannot execute directly. Invoke cmd.exe directly
   // so it resolves the shim without enabling Node's shell mode.
   const windows = process.platform === "win32";
+  // Native executables support direct spawning, including paths with spaces.
+  // Sending node.exe and JavaScript arguments through cmd loses that quoting.
+  const shim = windows && !/\.(exe|com)$/i.test(command);
   const child = spawn(
-    windows ? process.env.ComSpec || "cmd.exe" : command,
-    windows ? ["/d", "/s", "/c", command, ...args] : args,
+    shim ? process.env.ComSpec || "cmd.exe" : command,
+    shim ? ["/d", "/s", "/c", command, ...args] : args,
     {
       stdio: "inherit",
       env,

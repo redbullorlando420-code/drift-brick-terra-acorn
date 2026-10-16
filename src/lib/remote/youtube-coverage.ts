@@ -2,6 +2,7 @@ import type { FollowedChannel, LibraryVideo } from '../videos/types.ts';
 import { verifiedYoutubeSource } from '../videos/follow-import.ts';
 import { forEachCatalogSlice, yieldCatalogTask } from '../catalog-work.ts';
 import { youtubeVideoKey } from './youtube-sources.ts';
+import { youtubeContentKind, youtubePublicationTime } from '../videos/youtube-metadata.ts';
 
 /** Coverage needs counters, not another graph retaining every video card.
  * Bounded numeric positions also keep creator preview picks available. */
@@ -27,11 +28,11 @@ function builder() {
     const key = youtubeVideoKey(video) ?? video.id;
     if (seen.has(key)) { index.duplicateRows++; duplicates.add(key); return; }
     seen.add(key);
-    if (video.remote.live) return;
+    if (youtubeContentKind(video) === 'live' || youtubeContentKind(video) === 'upcoming') return;
     const channel = video.remote.channelId;
     if (channel) {
       increment(index.byChannel, channel);
-      index.newestByChannel.set(channel, Math.max(index.newestByChannel.get(channel) ?? 0, video.addedAt));
+      index.newestByChannel.set(channel, Math.max(index.newestByChannel.get(channel) ?? 0, youtubePublicationTime(video)));
       let samples = index.ownerSamples.get(channel);
       if (!samples) index.ownerSamples.set(channel, samples = []);
       const count = index.byChannel.get(channel)!;
@@ -45,7 +46,7 @@ function builder() {
     }
     const addSource = (source: string) => {
       increment(index.bySource, source);
-      index.newestBySource.set(source, Math.max(index.newestBySource.get(source) ?? 0, video.addedAt));
+      index.newestBySource.set(source, Math.max(index.newestBySource.get(source) ?? 0, youtubePublicationTime(video)));
       if (!channel) return;
       let channels = index.overlap.get(source);
       if (!channels) index.overlap.set(source, channels = new Map());

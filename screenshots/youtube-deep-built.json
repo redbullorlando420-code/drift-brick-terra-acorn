@@ -1,0 +1,26 @@
+{
+  "ok": true,
+  "fixture": "60,000 saved YouTube videos, 48,000 from one creator; real ranking worker; isolated browser storage; artwork/embeds stubbed",
+  "results": [
+    {
+      "viewport": "desktop",
+      "firstBatchMs": 631,
+      "scrollWorstFrameMs": 55,
+      "peakCards": 60,
+      "worstMainTaskMs": 117,
+      "overflow": false,
+      "errors": [],
+      "ok": true
+    },
+    {
+      "viewport": "mobile",
+      "firstBatchMs": 8393,
+      "scrollWorstFrameMs": 28,
+      "peakCards": 44,
+      "worstMainTaskMs": 77,
+      "overflow": false,
+      "errors": [],
+      "ok": true
+    }
+  ]
+}

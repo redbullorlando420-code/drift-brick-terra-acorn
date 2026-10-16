@@ -1,5 +1,6 @@
 import type { FollowedChannel, LibraryVideo } from "../videos/types";
 import { peekYoutubeCoverageOwner, youtubeCoverageCounts, youtubeCoverageIndex } from './youtube-coverage.ts';
+import { youtubeContentKind } from '../videos/youtube-metadata.ts';
 
 /** Provider IDs are case-sensitive. Titles and thumbnail URLs are never identity. */
 export function youtubeVideoKey(video: LibraryVideo): string | undefined {
@@ -46,7 +47,8 @@ export function youtubeSourceIndex(videos: LibraryVideo[]): Index {
     if (seen.has(key)) { duplicateRows++; duplicates.add(key); continue; }
     seen.add(key);
     // Live checks do not count as upload coverage.
-    if (video.remote.live) continue;
+    const format = youtubeContentKind(video);
+    if (format === 'live' || format === 'upcoming') continue;
     for (const source of new Set([video.folderId, ...(video.remote.sourceIds ?? [])])) add(bySource, source, video);
     if (video.remote.channelId) add(byChannel, video.remote.channelId, video);
   }

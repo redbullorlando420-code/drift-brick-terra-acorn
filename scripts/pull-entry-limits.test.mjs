@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { registerHooks } from 'node:module';
 
 // Exercise the real store actions with deterministic provider and disk boundaries.
-const fixture = { writes: [], requests: 0, response: null, beforeResponse: null, inputs: [], responseForRequest: null };
+const fixture = { writes: [], removed: [], cleanupWrites: [], failCleanup: false, requests: 0, response: null, beforeResponse: null, inputs: [], responseForRequest: null };
 globalThis.__entryLimitFixture = fixture;
 const persistence = readFileSync(new URL('../src/lib/videos/persist.ts', import.meta.url), 'utf8');
 const names = [...persistence.matchAll(/export (?:async )?function (\w+)/g)].map(match => match[1]);
@@ -13,6 +13,8 @@ const mockPersist = names.map(name => {
   if (name === 'loadFollows') return 'export function loadFollows() { return []; }';
   if (name === 'saveRemoteSnapshot') return 'export async function saveRemoteSnapshot(value) { globalThis.__entryLimitFixture.writes.push(...value.videos); }';
   if (name === 'appendCatalogVideos') return 'export async function appendCatalogVideos(rows) { globalThis.__entryLimitFixture.writes.push(...rows); }';
+  if (name === 'removeRemoteSnapshotVideos') return 'export async function removeRemoteSnapshotVideos(ids) { globalThis.__entryLimitFixture.removed.push(...ids); }';
+  if (name === 'saveYoutubeCleanup') return 'export async function saveYoutubeCleanup(rows, journal) { const f=globalThis.__entryLimitFixture; if(f.failCleanup) throw Error("Synthetic storage failure"); f.removed.push(...rows.map(row=>row.id)); f.cleanupWrites.push(structuredClone(journal)); }';
   return `export async function ${name}() { return []; }`;
 }).join('\n') + '\nexport const PHOTO_META_LS_KEY = "test-photos";';
 const mockRemote = ['followRemote', 'importChannels', 'refreshRemotes', 'searchAdultVideos'].map(name => `export async function ${name}(...args) {
@@ -33,11 +35,64 @@ const { updatePullSettings, DEFAULT_PULL_SETTINGS } = await import('../src/lib/p
 const channel = { id: 'yt:test', kind: 'youtube', handle: 'Test', title: 'Test', catalogCursor: 'before' };
 const card = (id, kind = 'youtube', folderId = channel.id) => ({ id, folderId, name: 'Space documentary', path: id, extension: 'yt', mime: 'video/youtube', size: 0, addedAt: 1, remote: { kind, videoId: id, channelId: 'test' } });
 function reset(videos = []) {
-  fixture.writes = []; fixture.requests = 0; fixture.beforeResponse = null; fixture.inputs = []; fixture.responseForRequest = null;
-  updatePullSettings({ ...DEFAULT_PULL_SETTINGS, youtubeMaxEntries: 2 });
-  useLibrary.setState({ videos, tags: {}, metadataProvenance: {}, folders: [], follows: [channel], remoteBusy: false, refreshing: false, remoteRefreshStatus: null, youtubeRefreshStatus: null, activeId: null, previewId: null, favorites: {}, likes: {}, history: [] });
+  fixture.writes = []; fixture.removed = []; fixture.cleanupWrites=[]; fixture.failCleanup=false; fixture.requests = 0; fixture.beforeResponse = null; fixture.inputs = []; fixture.responseForRequest = null;
+  // Existing admission fixtures exercise hard caps independently of rotation.
+  updatePullSettings({ ...DEFAULT_PULL_SETTINGS, youtubeMaxEntries: 2, youtubeAutoCleanup: false, twitchAutoCleanup: false, adultAutoCleanup: false });
+  useLibrary.setState({ videos, tags: {}, metadataProvenance: {}, categories: {}, progress: {}, resumeProgress: {}, folders: [], follows: [channel], remoteBusy: false, refreshing: false, remoteRefreshStatus: null, youtubeRefreshStatus: null, activeId: null, previewId: null, favorites: {}, likes: {}, history: [], youtubeCleanup: { recentKeys: [], removedCount: 0, lastRemoved: 0, lastAt: 0 }, youtubeCleanupNote: '', cleanupNotes: {} });
 }
 const flush = () => new Promise(resolve => setTimeout(resolve, 80));
+
+test('focused partial Twitch pulls preserve saved VODs, local feedback and unrequested clip checkpoints', async () => {
+  const { setRating, getRating } = await import('../src/lib/media-feedback.ts');
+  const tw = { id: 'tw:test', kind: 'twitch', handle: 'test', title: 'Test', twitchArchiveCursor: 'before', twitchClipCursor: 'clip-before', twitchArchiveLastVideoId: 'old-id' };
+  const old = { ...card('tw:v:old', 'twitch', tw.id), extension: 'vod', duration: 3600, genre: 'Local category', poster: 'saved-poster', tagline: 'Saved note', year: 2024, remote: { kind: 'twitch', videoId: 'old', channelName: 'Test' } };
+  reset([old]); const favorites = { [old.id]: true }, likes = { [old.id]: true }, history = [{ id: old.id, at: 1, source: 'open' }], progress = { [old.id]: { t: 120, d: 3600, at: 1 } };
+  useLibrary.setState({ follows: [tw], favorites, likes, history, progress }); setRating(old.id, 5);
+  fixture.response = { channel: { ...tw, twitchClipCursor: undefined, twitchArchiveCursor: 'after', twitchArchiveDiagnostics: { at: 1000, pages: 1, received: 1, accepted: 1, duplicates: 0, resumed: true, stopReason: 'challenge', error: 'integrity challenge' }, lastProviderFailure: { message: 'integrity challenge' } }, videos: [{ ...old, addedAt: 0, duration: undefined, genre: undefined, poster: undefined, tagline: undefined, year: undefined }] };
+  delete fixture.response.channel.twitchClipCursor;
+  await useLibrary.getState().followRemoteQuery('test', 'twitch'); await flush();
+  const state = useLibrary.getState();
+  assert.equal(state.videos.length, 1); assert.equal(state.videos[0].duration, 3600); assert.equal(state.videos[0].poster, 'saved-poster'); assert.equal(state.videos[0].genre, 'Local category'); assert.equal(state.videos[0].tagline, 'Saved note'); assert.equal(state.videos[0].year, 2024); assert.equal(state.videos[0].addedAt, old.addedAt);
+  assert.equal(state.favorites, favorites); assert.equal(state.likes, likes); assert.equal(state.history, history); assert.equal(state.progress, progress); assert.equal(getRating(old.id), 5);
+  assert.equal(state.follows[0].twitchArchiveCursor, 'after'); assert.equal(state.follows[0].twitchClipCursor, 'clip-before'); assert.equal(state.follows[0].twitchArchiveLastVideoId, 'old-id'); assert.equal(state.pullHistory[0].status, 'partial');
+  assert.equal(state.follows[0].twitchArchiveRetry.attempts, 1);
+  assert(state.follows[0].twitchArchiveRetry.retryAt > Date.now());
+  await useLibrary.getState().followRemoteQuery('test', 'twitch', { clipLimit: 0, twitchVodLimit: 500 });
+  assert.equal(useLibrary.getState().follows[0].twitchArchiveRetry.attempts, 2);
+  assert.equal(fixture.inputs.at(-1).clipLimit, 0); assert.equal(fixture.inputs.at(-1).twitchVodLimit, 500);
+  fixture.response = { channel: { ...tw, twitchArchiveCursor: undefined, twitchArchiveExhaustedAt: 2000 }, videos: [] };
+  await useLibrary.getState().followRemoteQuery('test', 'twitch'); await flush();
+  assert.equal(useLibrary.getState().videos.length, 1); assert.equal(useLibrary.getState().follows[0].twitchArchiveCursor, undefined); assert.equal(getRating(old.id), 5);
+  assert.equal(useLibrary.getState().follows[0].twitchArchiveRetry, undefined); assert.equal(useLibrary.getState().follows[0].lastProviderFailure, undefined);
+});
+
+test('empty Twitch routine and live checks preserve VOD history, feedback and focused checkpoints', async () => {
+  const tw = { id: 'tw:empty', kind: 'twitch', handle: 'empty', title: 'Empty', twitchArchiveCursor: 'saved', twitchClipCursor: 'clip-saved' };
+  const old = { ...card('tw:v:saved', 'twitch', tw.id), extension: 'vod', duration: 500 };
+  reset([old]); const favorites = { [old.id]: true }, history = [{ id: old.id, at: 1, source: 'open' }]; useLibrary.setState({ follows: [tw], favorites, history });
+  fixture.response = { channels: [{ ...tw, live: false }], videos: [], refreshedIds: [tw.id], retryAt: {} };
+  await useLibrary.getState().refreshFollows('twitch'); await useLibrary.getState().refreshFollows('twitch', { twitchLiveOnly: true });
+  const state = useLibrary.getState(); assert.equal(state.videos[0].id, old.id); assert.equal(state.videos[0].duration, 500); assert.equal(state.favorites, favorites); assert.equal(state.history, history); assert.equal(state.follows[0].twitchArchiveCursor, 'saved'); assert.equal(state.follows[0].twitchClipCursor, 'clip-saved');
+});
+
+test('Twitch entry caps and first-page failures hold checkpoints and explain the stop', async () => {
+  reset([]); updatePullSettings({ twitchMaxEntries: 1 });
+  const tw = { id: 'tw:cap', kind: 'twitch', handle: 'cap', title: 'Cap', twitchArchiveCursor: 'old', twitchClipCursor: 'clip-old', twitchArchiveLastVideoId: 'last-old' };
+  useLibrary.setState({ follows: [tw] });
+  fixture.response = { channel: { ...tw, twitchArchiveCursor: 'next', twitchArchiveLastVideoId: 'new', twitchArchiveDiagnostics: { at: 1000, pages: 1, received: 2, accepted: 2, duplicates: 0, resumed: true, stopReason: 'entry-budget' } }, videos: [card('one', 'twitch', tw.id), card('two', 'twitch', tw.id)] };
+  await useLibrary.getState().followRemoteQuery('cap','twitch');
+  assert.equal(useLibrary.getState().follows[0].twitchArchiveCursor,'old'); assert.equal(useLibrary.getState().follows[0].twitchArchiveLastVideoId,'last-old'); assert.equal(useLibrary.getState().follows[0].twitchArchiveDiagnostics.stopReason,'entry-limit');
+  updatePullSettings({ twitchMaxEntries: 100 }); fixture.responseForRequest = () => { throw Error('failed integrity check'); };
+  await assert.rejects(useLibrary.getState().followRemoteQuery('cap','twitch'), /integrity/);
+  assert.equal(useLibrary.getState().videos.length, 1); assert.equal(useLibrary.getState().follows[0].twitchArchiveCursor,'old'); assert.equal(useLibrary.getState().follows[0].twitchArchiveDiagnostics.pages,0); assert.equal(useLibrary.getState().follows[0].twitchArchiveDiagnostics.stopReason,'challenge');
+  assert.equal(useLibrary.getState().follows[0].lastProviderFailure.kind, 'integrity-challenge'); assert.equal(useLibrary.getState().follows[0].twitchArchiveRetry.attempts, 1);
+  const beforeCancel = useLibrary.getState().follows[0];
+  fixture.responseForRequest = () => { throw Error('Pull cancelled; accepted catalog entries remain saved.'); };
+  await assert.rejects(useLibrary.getState().followRemoteQuery('cap', 'twitch'), /cancelled/);
+  assert.equal(useLibrary.getState().follows[0], beforeCancel, 'intentional cancellation cannot increment backoff or replace provider diagnostics');
+  assert.equal(useLibrary.getState().pullHistory[0].status, 'partial'); assert.equal(useLibrary.getState().pullHistory[0].failed, 0);
+  await flush();
+});
 
 test('YouTube pull commits use sparse tag updates without enumerating the existing ledgers', async () => {
   reset([]);fixture.response={channel,videos:[card('new-sparse')],cache:{hits:0,misses:1,scope:'catalog'}};
@@ -322,6 +377,21 @@ test('a recovered manual pull prevents untouched old creator failures restoring 
   assert.equal(restoreYoutubeCooldown(useLibrary.getState().follows), null, 'reload cannot reapply the recovered deadline');
 });
 
+test('YouTube feed success preserves live cards and actual offline checks persist completed streams without deleting saved media', async () => {
+  const date=Date.UTC(2026,8,1),old={...card('yt:stream'),addedAt:date,remote:{kind:'youtube',videoId:'stream',channelId:'test',live:true,youtubeType:'live',publishedSource:'rss',observedAt:Date.now()}};
+  const liveChannel={...channel,channelId:'UC1234567890123456789012'};
+  reset([old]);useLibrary.setState({ follows:[liveChannel],favorites: { [old.id]: true }, likes: { [old.id]: true }, progress: { [old.id]: {t:42,d:420,at:1} } });
+  fixture.response = { channels: [liveChannel], videos: [], refreshedIds: [channel.id], liveCheckedIds: [], retryAt: {} };
+  await useLibrary.getState().refreshFollows('youtube');
+  assert.equal(useLibrary.getState().videos[0],old);assert.equal(fixture.removed.length,0);
+  fixture.response = { ...fixture.response, liveCheckedIds: [channel.id] };
+  await useLibrary.getState().refreshFollows('youtube', { youtubeLiveOnly: true });
+  const state=useLibrary.getState();assert.equal(state.videos[0].remote.live,false);assert.equal(state.videos[0].remote.youtubeType,'replay');
+  assert.equal(state.videos[0].addedAt,date);assert.equal(state.videos[0].remote.publishedSource,'rss');
+  assert.equal(state.favorites[old.id],true);assert.equal(state.likes[old.id],true);assert.equal(state.progress[old.id].t,42);
+  assert.equal(fixture.writes.length,1);assert.equal(fixture.writes[0].remote.youtubeType,'replay');assert.deepEqual(fixture.removed,[]);
+});
+
 test('a 70000-entry library admits 3000 new YouTube entries in six bounded creator commits', async t => {
   reset(Array.from({ length: 70000 }, (_, i) => card(`existing-${i}`)));
   updatePullSettings({ youtubeMaxEntries: 80000, youtubeBatchVideos: 500, youtubeSourcesPerSweep: 6 });
@@ -341,4 +411,291 @@ test('a 70000-entry library admits 3000 new YouTube entries in six bounded creat
   assert.equal(new Set(fixture.writes.map(video => video.id)).size, 3000);
   assert.equal(useLibrary.getState().follows.filter(source => source.catalogCursor === 'next-page').length, 6);
   t.diagnostic(`70000 existing + 3000 added in six commits: ${Math.round(performance.now() - started)}ms with mocked network/disk; no full catalog persistence.`);
+});
+
+const cleanupCard = (id, index) => ({ ...card(id), addedAt: Date.now() - (500 - index) * 86400000, remote: { ...card(id).remote, publishedSource: 'provider' } });
+
+test('full YouTube archive replaces at most its cleanup budget and holds partially admitted page cursors', async () => {
+  const old = Array.from({ length: 8 }, (_, i) => cleanupCard(`cleanup-archive-${i}`, i));
+  reset(old); updatePullSettings({ youtubeAutoCleanup: true, youtubeMaxEntries: 8, youtubeCleanupBatch: 2 });
+  const history = [{ id: old[0].id, at: 1, source: 'open', title: old[0].name, url: 'https://www.youtube.com/watch?v=cleanup-archive-0' }];
+  useLibrary.setState({ history, likes: { [old[0].id]: true }, favorites: { [old[1].id]: true } });
+  const { setRating } = await import('../src/lib/media-feedback.ts'); setRating(old[2].id, 4);
+  fixture.response = { channels: [{ ...channel, catalogCursor: 'after' }], videos: Array.from({ length: 3 }, (_, i) => cleanupCard(`cleanup-archive-new-${i}`, 450+i)), refreshedIds: [channel.id], retryAt: {} };
+  const first = await useLibrary.getState().refreshFollows('youtube', { catalog: true });
+  assert.equal(first.pull.added, 2); assert.equal(useLibrary.getState().videos.length, 8);
+  assert.deepEqual(fixture.removed, [old[3].id, old[4].id]); assert.equal(useLibrary.getState().history, history);
+  for(const v of old.slice(0,3)) assert.ok(useLibrary.getState().videos.some(row=>row.id===v.id));
+  assert.equal(useLibrary.getState().follows[0].catalogCursor, 'before');
+  const second = await useLibrary.getState().refreshFollows('youtube', { catalog: true });
+  assert.equal(second.pull.added, 1); assert.equal(useLibrary.getState().videos.length, 8);
+  assert.equal(useLibrary.getState().follows[0].catalogCursor, 'after');
+  assert.equal(useLibrary.getState().youtubeCleanup.removedCount, 3);
+});
+
+test('failed and duplicate-only YouTube requests never remove cached videos', async () => {
+  const old = Array.from({ length: 5 }, (_, i) => cleanupCard(`cleanup-noop-${i}`, i));
+  reset(old); updatePullSettings({ youtubeAutoCleanup: true, youtubeMaxEntries: 5 });
+  fixture.responseForRequest = () => { throw Error('Synthetic provider failure'); };
+  await useLibrary.getState().refreshFollows('youtube', { catalog: true });
+  assert.equal(useLibrary.getState().videos, old); assert.deepEqual(fixture.removed, []);
+  fixture.responseForRequest = null;
+  fixture.response = { channels: [channel], videos: old, refreshedIds: [channel.id], retryAt: {} };
+  await useLibrary.getState().refreshFollows('youtube', { catalog: true });
+  assert.deepEqual(fixture.removed, []); assert.equal(useLibrary.getState().youtubeCleanup.removedCount, 0);
+});
+
+test('focused pulls and subscription imports can make room at the cap without exceeding the per-import budget', async () => {
+  const old = Array.from({ length: 6 }, (_, i) => cleanupCard(`cleanup-focused-${i}`, i));
+  reset(old); updatePullSettings({ youtubeAutoCleanup: true, youtubeMaxEntries: 6, youtubeCleanupBatch: 1 });
+  fixture.response = { channel, videos: [cleanupCard('cleanup-focused-new', 490)] };
+  await useLibrary.getState().followRemoteQuery('Test','youtube'); await flush();
+  assert.equal(useLibrary.getState().videos.length,6); assert.equal(fixture.removed.length,1);
+  reset(old); updatePullSettings({ youtubeAutoCleanup: true, youtubeMaxEntries: 6, youtubeCleanupBatch: 1 });
+  fixture.responseForRequest = data => ({ ok: data.items.map(item => ({ channel: { ...channel, id: `yt:${item.query}`, handle: item.query }, videos: [cleanupCard(`cleanup-import-${item.query}`,490)] })), failed: [] });
+  await useLibrary.getState().importBatch([{query:'First',kind:'youtube'},{query:'Second',kind:'youtube'}]);
+  assert.equal(fixture.removed.length,1); assert.equal(useLibrary.getState().videos.length,6); assert.equal(fixture.requests,1);
+});
+
+test('manual cleanup rolls back failed disk commits without changing saved signals or clearing rating/history', async () => {
+  const old = Array.from({ length: 6 }, (_, i) => cleanupCard(`cleanup-rollback-${i}`,i));
+  reset(old);updatePullSettings({youtubeCleanupBatch:2});fixture.failCleanup=true;
+  const history=[{id:old[0].id,at:1,source:'open'}],progress={[old[0].id]:{t:20,d:300,at:1}},tags={[old[0].id]:['science']};
+  useLibrary.setState({history,progress,tags});
+  await assert.rejects(useLibrary.getState().cleanupYoutubeCache(),/Synthetic storage failure/);
+  assert.deepEqual(new Set(useLibrary.getState().videos.map(v=>v.id)),new Set(old.map(v=>v.id)));
+  assert.equal(useLibrary.getState().history,history);assert.equal(useLibrary.getState().progress,progress);assert.equal(useLibrary.getState().tags,tags);
+  assert.equal(useLibrary.getState().youtubeCleanup.removedCount,0);assert.equal(useLibrary.getState().remoteBusy,false);
+});
+
+test('retired identities stay suppressed and can be restored when later liked or positively rated', async () => {
+  const old=Array.from({length:6},(_,i)=>cleanupCard(`cleanup-retired-${i}`,i));
+  reset(old);updatePullSettings({youtubeAutoCleanup:true,youtubeMaxEntries:6,youtubeCleanupBatch:1});
+  await useLibrary.getState().cleanupYoutubeCache();
+  assert.deepEqual(fixture.removed,[old[0].id]);
+  fixture.response={channels:[channel],videos:[old[0]],refreshedIds:[channel.id],retryAt:{}};
+  const suppressed=await useLibrary.getState().refreshFollows('youtube',{catalog:true});
+  assert.equal(suppressed.pull.added,0);assert.equal(useLibrary.getState().videos.length,5);
+  useLibrary.setState({likes:{[old[0].id]:true}});
+  const revived=await useLibrary.getState().refreshFollows('youtube',{catalog:true});
+  assert.equal(revived.pull.added,1);assert.ok(useLibrary.getState().videos.some(v=>v.id===old[0].id));
+  assert.equal(useLibrary.getState().youtubeCleanup.recentKeys.includes(`yt:${old[0].id}`),false);
+});
+
+test('a rating or like received while cleanup planning yields is protected by the final commit check', async () => {
+  const old=Array.from({length:12000},(_,i)=>cleanupCard(`cleanup-race-${i}`,i%400));
+  reset(old);updatePullSettings({youtubeCleanupBatch:2});
+  const work=useLibrary.getState().cleanupYoutubeCache();
+  setTimeout(()=>useLibrary.setState({likes:{[old[0].id]:true}}),0);
+  await work;
+  assert.ok(useLibrary.getState().videos.some(v=>v.id===old[0].id));assert.equal(fixture.removed.includes(old[0].id),false);
+});
+
+test('focused Twitch rotation respects combined caps, protects saves and holds partial clip/VOD checkpoints', async () => {
+  const tw = {id:'tw:rotation',kind:'twitch',handle:'rotation',title:'Rotation',twitchArchiveCursor:'before',twitchClipCursor:'clip-before'};
+  const old = Array.from({length:8},(_,i)=>({...card(`tw:rotation:${i}`,'twitch',tw.id),extension:i%2?'clip':'vod',addedAt:Date.now()-(500-i)*86400000}));
+  const youtube = cleanupCard('unrelated-youtube',1);
+  reset([...old,youtube]); useLibrary.setState({follows:[tw],likes:{[old[0].id]:true},favorites:{[old[1].id]:true}});
+  updatePullSettings({twitchAutoCleanup:true,twitchMaxEntries:8,remoteMaxEntries:9,twitchCleanupBatch:2});
+  fixture.response={channel:{...tw,twitchArchiveCursor:'after',twitchClipCursor:'clip-after'},videos:[0,1,2].map(i=>({...card(`tw:new-rotation:${i}`,'twitch',tw.id),extension:'vod',addedAt:Date.now()}))};
+  await useLibrary.getState().followRemoteQuery('rotation','twitch');
+  assert.deepEqual(fixture.removed,[old[2].id,old[3].id]); assert.equal(useLibrary.getState().videos.length,9);
+  assert.ok(useLibrary.getState().videos.includes(youtube)); assert.equal(useLibrary.getState().follows[0].twitchArchiveCursor,'before'); assert.equal(useLibrary.getState().follows[0].twitchClipCursor,'clip-before');
+  const removed=fixture.removed.length;
+  fixture.response={channel:tw,videos:[old[2],old[3]]}; await useLibrary.getState().followRemoteQuery('rotation','twitch');
+  assert.equal(fixture.removed.length,removed); assert.equal(useLibrary.getState().videos.length,9,'retired-only responses do not replace or reimport entries');
+  fixture.responseForRequest=()=>{throw Error('Synthetic provider failure');};
+  await assert.rejects(useLibrary.getState().followRemoteQuery('rotation','twitch'),/Synthetic/); assert.equal(fixture.removed.length,removed);
+});
+
+test('routine Twitch and mixed refreshes share per-source budgets and do not clean on live-only checks', async () => {
+  const tw={id:'tw:routine-rotation',kind:'twitch',handle:'routine',title:'Routine'};
+  const old=Array.from({length:6},(_,i)=>({...card(`tw:routine:${i}`,'twitch',tw.id),extension:'vod',addedAt:Date.now()-(500-i)*86400000}));
+  reset(old);useLibrary.setState({follows:[tw]});updatePullSettings({twitchMaxEntries:6,remoteMaxEntries:6,twitchAutoCleanup:true,twitchCleanupBatch:2});
+  fixture.response={channels:[tw],videos:[0,1,2].map(i=>({...card(`tw:routine-new:${i}`,'twitch',tw.id),extension:'vod',addedAt:Date.now()})),refreshedIds:[tw.id],retryAt:{}};
+  await useLibrary.getState().refreshFollows(undefined);
+  assert.equal(fixture.removed.length,2);assert.equal(useLibrary.getState().videos.length,6);
+  await useLibrary.getState().refreshFollows('twitch',{twitchLiveOnly:true});assert.equal(fixture.removed.length,2);
+});
+
+test('Adult pulls rotate at full capacity across providers, retain protected entries and stop at the whole-pull budget', async () => {
+  const make=(provider,i)=>({...card(`${provider}:rotation:${i}`,provider,`${provider}:discover`),extension:'mp4',mime:'video/mp4',addedAt:Date.now()-(500-i)*86400000,remote:{kind:provider,videoId:String(i)}});
+  const old=[...Array.from({length:5},(_,i)=>make('eporner',i)),...Array.from({length:5},(_,i)=>make('redtube',i))];
+  reset(old);useLibrary.setState({likes:{[old[0].id]:true},favorites:{[old[1].id]:true}});
+  updatePullSettings({adultAutoCleanup:true,adultMaxEntries:10,remoteMaxEntries:10,adultCleanupBatch:2});
+  fixture.responseForRequest=data=>{const provider=data.providers[0];return {videos:[{...make(provider,100+fixture.requests),addedAt:Date.now()}],providerNextPages:{[provider]:null},providerNextOffsets:{[provider]:0},providerDiagnostics:[{provider,status:'ok',titles:1,detail:'fixture'}]};};
+  await useLibrary.getState().searchAdultFeed('all','top-weekly',{providers:['eporner','redtube'],maxVideos:10});
+  assert.equal(fixture.requests,2);assert.equal(fixture.removed.length,2);assert.equal(useLibrary.getState().videos.length,10);
+  assert.ok(useLibrary.getState().videos.some(v=>v.id===old[0].id));assert.ok(useLibrary.getState().videos.some(v=>v.id===old[1].id));assert.equal(fixture.writes.length,2);
+  fixture.responseForRequest=()=>({videos:[old[2]],providerNextPages:{eporner:null},providerNextOffsets:{eporner:0},providerDiagnostics:[]});
+  await useLibrary.getState().searchAdultFeed('retired-test','top-weekly',{providers:['eporner'],maxVideos:1});
+  assert.equal(fixture.removed.length,2);assert.equal(useLibrary.getState().videos.length,10);
+});
+
+test('Twitch imports use one replacement budget and zero caps hold all providers even with cleanup enabled', async () => {
+  const tw={id:'tw:import-rotation',kind:'twitch',handle:'importrotation',title:'Import'};
+  const old=Array.from({length:6},(_,i)=>({...card(`tw:import-rotation:${i}`,'twitch',tw.id),addedAt:Date.now()-(500-i)*86400000}));
+  reset(old);useLibrary.setState({follows:[tw]});updatePullSettings({twitchAutoCleanup:true,twitchMaxEntries:6,twitchCleanupBatch:2});
+  fixture.response={ok:[{channel:tw,videos:[0,1,2].map(i=>({...card(`tw:new-import:${i}`,'twitch',tw.id),addedAt:Date.now()}))}],failed:0,failedQueries:[],failedReasons:{}};
+  await useLibrary.getState().importBatch([{query:'importrotation',kind:'twitch'}]);assert.equal(fixture.removed.length,2);assert.equal(useLibrary.getState().videos.length,6);
+  updatePullSettings({twitchMaxEntries:0,adultMaxEntries:0,adultAutoCleanup:true});
+  const before=fixture.requests;
+  await assert.rejects(useLibrary.getState().followRemoteQuery('importrotation','twitch'),/entry limit/);
+  await assert.rejects(useLibrary.getState().searchAdultFeed('all','top-weekly',{providers:['eporner']}),/entry limit/);
+  assert.equal(fixture.requests,before);assert.equal(fixture.removed.length,2);
+});
+
+test('an empty Twitch cache borrows combined-cap slots from enabled YouTube cleanup without touching protected videos', async () => {
+  const {setRating}=await import('../src/lib/media-feedback.ts');
+  const old=Array.from({length:8},(_,i)=>cleanupCard(`shared-donor-${i}`,i));
+  const tw={id:'tw:shared-room',kind:'twitch',handle:'sharedroom',title:'Shared room',twitchArchiveCursor:'before'};
+  reset(old);useLibrary.setState({follows:[channel,tw],likes:{[old[0].id]:true},favorites:{[old[1].id]:true}});setRating(old[2].id,5);
+  updatePullSettings({youtubeMaxEntries:8,twitchMaxEntries:8,remoteMaxEntries:8,youtubeAutoCleanup:true,twitchAutoCleanup:true,youtubeCleanupBatch:2,twitchCleanupBatch:2,sharedCapCleanup:true});
+  fixture.response={channel:{...tw,twitchArchiveCursor:'after'},videos:[0,1,2].map(i=>({...card(`tw:shared-new:${i}`,'twitch',tw.id),extension:'vod',addedAt:Date.now()}))};
+  await useLibrary.getState().followRemoteQuery('sharedroom','twitch');
+  await flush();
+  const state=useLibrary.getState();assert.equal(state.videos.length,8);assert.equal(state.videos.filter(v=>v.remote.kind==='twitch').length,2);
+  assert.deepEqual(fixture.removed,[old[3].id,old[4].id]);assert.equal(state.follows.find(c=>c.id===tw.id).twitchArchiveCursor,'before');
+  assert.equal(state.youtubeCleanup.groups.youtube.removedCount,2);assert.equal(state.youtubeCleanup.groups.twitch,undefined);assert.match(state.cleanupNotes.twitch,/other enabled caches/);
+  for(const row of old.slice(0,3))assert.ok(state.videos.some(v=>v.id===row.id));
+});
+
+test('shared replacement respects opt-out, disabled donors, incoming source caps and duplicate-only responses', async () => {
+  const old=Array.from({length:6},(_,i)=>cleanupCard(`shared-off-${i}`,i)),tw={id:'tw:shared-off',kind:'twitch',handle:'sharedoff',title:'Off'};
+  for(const patch of [{sharedCapCleanup:false},{youtubeAutoCleanup:false}]) {
+    reset(old);useLibrary.setState({follows:[tw]});updatePullSettings({youtubeMaxEntries:6,twitchMaxEntries:6,remoteMaxEntries:6,youtubeAutoCleanup:true,twitchAutoCleanup:true,...patch});
+    fixture.response={channel:tw,videos:[{...card('tw:off-new','twitch',tw.id),addedAt:Date.now()}]};
+    await useLibrary.getState().followRemoteQuery('sharedoff','twitch');await flush();assert.equal(fixture.removed.length,0);assert.equal(useLibrary.getState().videos.length,6);
+  }
+  reset(old);updatePullSettings({youtubeAutoCleanup:true,twitchAutoCleanup:true,youtubeMaxEntries:6,twitchMaxEntries:0,remoteMaxEntries:6});
+  await assert.rejects(useLibrary.getState().followRemoteQuery('sharedoff','twitch'),/entry limit/);assert.equal(fixture.requests,0);assert.equal(fixture.removed.length,0);
+  const existing=[0,1].map(i=>({...card(`tw:shared-existing:${i}`,'twitch',tw.id),addedAt:Date.now()-500*86400000}));
+  reset([...old,...existing]);useLibrary.setState({follows:[tw]});updatePullSettings({youtubeAutoCleanup:true,twitchAutoCleanup:true,youtubeMaxEntries:6,twitchMaxEntries:6,remoteMaxEntries:8});
+  fixture.response={channel:tw,videos:existing};await useLibrary.getState().followRemoteQuery('sharedoff','twitch');await flush();assert.equal(fixture.removed.length,0);assert.equal(useLibrary.getState().videos.length,8);
+});
+
+test('mixed pulls reserve donated slots for the emptier source instead of spending them twice on the dense provider', async () => {
+  const old=Array.from({length:6},(_,i)=>cleanupCard(`mixed-reserved-${i}`,i));
+  const tw={id:'tw:mixed-reserved',kind:'twitch',handle:'reserved',title:'Reserved',twitchArchiveCursor:'before'};
+  reset(old);useLibrary.setState({follows:[channel,tw]});updatePullSettings({youtubeAutoCleanup:true,twitchAutoCleanup:true,youtubeMaxEntries:6,twitchMaxEntries:6,remoteMaxEntries:6,youtubeCleanupBatch:2,twitchCleanupBatch:2});
+  fixture.response={channels:[{...channel,catalogCursor:'after'},{...tw,twitchArchiveCursor:'after'}],videos:[...Array.from({length:2},(_,i)=>cleanupCard(`mixed-yt-new-${i}`,400)),...Array.from({length:2},(_,i)=>({...card(`tw:mixed-new-${i}`,'twitch',tw.id),extension:'vod',addedAt:Date.now()}))],refreshedIds:[channel.id,tw.id],liveCheckedIds:[],retryAt:{}};
+  await useLibrary.getState().refreshFollows(undefined);
+  const state=useLibrary.getState();assert.equal(fixture.removed.length,2);assert.equal(state.videos.length,6);assert.equal(state.videos.filter(v=>v.remote.kind==='twitch').length,2);
+  assert.equal(state.follows.find(c=>c.id===channel.id).catalogCursor,'before');assert.equal(state.follows.find(c=>c.id===tw.id).twitchArchiveCursor,'after');
+  assert.equal(fixture.writes.filter(v=>v.id.startsWith('mixed-yt-new')).length,0);
+});
+
+test('lowered caps recover through bounded successful pulls and retain the rejected page until room exists', async () => {
+  const old=Array.from({length:10},(_,i)=>cleanupCard(`lowered-recovery-${i}`,i));
+  reset(old);updatePullSettings({youtubeAutoCleanup:true,youtubeMaxEntries:6,remoteMaxEntries:20,youtubeCleanupBatch:2,sharedCapCleanup:false});
+  fixture.response={channel:{...channel,catalogCursor:'after'},videos:Array.from({length:3},(_,i)=>cleanupCard(`lowered-new-${i}`,400))};
+  for(const expected of [8,6,6]) {await useLibrary.getState().followRemoteQuery('test','youtube');await flush();assert.equal(useLibrary.getState().videos.length,expected);assert.equal(useLibrary.getState().follows[0].catalogCursor,'before');}
+  assert.equal(fixture.removed.length,6);assert.equal(fixture.writes.length,2);
+  await useLibrary.getState().followRemoteQuery('test','youtube');await flush();assert.equal(fixture.removed.length,7);assert.equal(useLibrary.getState().videos.length,6);assert.equal(useLibrary.getState().follows[0].catalogCursor,'after');
+});
+
+test('automatic Adult replacement stays at its catalog target while manual pulls can use the larger source cap', async () => {
+  const old=Array.from({length:1000},(_,i)=>({...card(`eporner:auto-target:${i}`,'eporner','eporner:discover'),addedAt:Date.now()-(2000-i)*86400000}));
+  reset(old);updatePullSettings({adultAutoCleanup:true,adultCatalogTarget:1000,adultMaxEntries:2000,remoteMaxEntries:3000,adultCleanupBatch:2});
+  fixture.response={videos:[0,1,2].map(i=>({...card(`eporner:auto-new:${i}`,'eporner','eporner:discover'),addedAt:Date.now()})),providerNextPages:{eporner:null},providerNextOffsets:{eporner:0},providerDiagnostics:[]};
+  await useLibrary.getState().searchAdultFeed('all','top-weekly',{automatic:true,providers:['eporner'],maxVideos:5});
+  assert.equal(useLibrary.getState().videos.length,1000);assert.equal(fixture.removed.length,2);assert.equal(fixture.writes.length,2);
+  await useLibrary.getState().searchAdultFeed('all','top-weekly',{providers:['eporner'],maxVideos:5});
+  assert.equal(useLibrary.getState().videos.length,1001);assert.equal(fixture.removed.length,2);
+});
+
+test('lowering a cleanup batch during a sweep respects already spent replacements rather than resetting per page', async () => {
+  const old=Array.from({length:6},(_,i)=>cleanupCard(`budget-change-${i}`,i));
+  reset(old);useLibrary.setState({follows:[channel,{...channel,id:'yt:budget-second',handle:'Second'}]});
+  updatePullSettings({youtubeAutoCleanup:true,youtubeMaxEntries:6,youtubeSourcesPerSweep:100,youtubeCleanupBatch:2,sharedCapCleanup:false});
+  fixture.beforeResponse=()=>updatePullSettings({youtubeCleanupBatch:1});
+  fixture.responseForRequest=data=>({channels:data.channels.map(source=>({...source,catalogCursor:'after'})),videos:data.channels.map(source=>({...cleanupCard(`budget-change-new-${source.id}`,400),folderId:source.id})),refreshedIds:data.channels.map(source=>source.id),retryAt:{}});
+  await useLibrary.getState().refreshFollows('youtube',{catalog:true});
+  assert.equal(fixture.requests,1);assert.equal(fixture.removed.length,1);assert.equal(useLibrary.getState().videos.length,6);
+  assert.equal(useLibrary.getState().follows.find(source=>source.id==='yt:budget-second').catalogCursor,'before');
+});
+
+test('unlocked manually authored tags and category provenance protect cached videos during cleanup', async()=>{
+  const old=Array.from({length:6},(_,i)=>cleanupCard(`manual-unlocked-${i}`,i));reset(old);updatePullSettings({youtubeCleanupBatch:2});
+  const tags={[old[0].id]:['my-topic']},metadataProvenance={[old[0].id]:{tags:{'my-topic':'manual'}},[old[1].id]:{tags:{},category:'manual'}};
+  useLibrary.setState({tags,metadataProvenance});await useLibrary.getState().cleanupRemoteCache('youtube');
+  assert.deepEqual(fixture.removed,[old[2].id,old[3].id]);assert.ok(useLibrary.getState().videos.includes(old[0]));assert.ok(useLibrary.getState().videos.includes(old[1]));
+  assert.equal(useLibrary.getState().tags[old[0].id],tags[old[0].id]);assert.equal(useLibrary.getState().metadataProvenance[old[0].id],metadataProvenance[old[0].id]);
+});
+
+test('an unallocated disabled source cannot take the slots freed for an enabled source in a mixed response', async()=>{
+  const old=Array.from({length:6},(_,i)=>cleanupCard(`disabled-reservation-${i}`,i)),tw={id:'tw:disabled-reservation',kind:'twitch',handle:'disabled',title:'Disabled',twitchArchiveCursor:'before'};
+  reset(old);useLibrary.setState({follows:[channel,tw]});updatePullSettings({youtubeAutoCleanup:true,twitchAutoCleanup:false,youtubeMaxEntries:6,twitchMaxEntries:6,remoteMaxEntries:6,youtubeCleanupBatch:2});
+  fixture.response={channels:[{...channel,catalogCursor:'after'},{...tw,twitchArchiveCursor:'after'}],videos:[...Array.from({length:2},(_,i)=>card(`tw:disabled-new-${i}`,'twitch',tw.id)),...Array.from({length:2},(_,i)=>cleanupCard(`enabled-new-${i}`,400))],refreshedIds:[channel.id,tw.id],liveCheckedIds:[],retryAt:{}};
+  await useLibrary.getState().refreshFollows(undefined);const state=useLibrary.getState();
+  assert.equal(fixture.removed.length,2);assert.equal(state.videos.length,6);assert.equal(state.videos.filter(v=>v.remote.kind==='twitch').length,0);
+  assert.equal(state.follows.find(c=>c.id===channel.id).catalogCursor,'after');assert.equal(state.follows.find(c=>c.id===tw.id).twitchArchiveCursor,'before');
+});
+
+test('offline Twitch transitions preserve the cached record on disk as well as memory instead of silently deleting saved data', async()=>{
+  const tw={id:'tw:live-capacity',kind:'twitch',handle:'capacity',title:'Capacity'};
+  const old={...card('tw:capacity-live','twitch',tw.id),extension:'live',remote:{kind:'twitch',videoId:'capacity-live',live:true,observedAt:Date.now()}};
+  reset([old]);useLibrary.setState({follows:[tw]});updatePullSettings({twitchMaxEntries:1,remoteMaxEntries:1});
+  fixture.response={channels:[{...tw,live:false}],videos:[],refreshedIds:[tw.id],liveCheckedIds:[tw.id],retryAt:{}};
+  await useLibrary.getState().refreshFollows('twitch',{twitchLiveOnly:true});assert.equal(useLibrary.getState().videos.length,1);assert.equal(useLibrary.getState().videos[0].remote.live,false);
+  assert.ok(fixture.writes.some(row=>row.id===old.id&&row.remote.live===false));assert.equal(fixture.removed.includes(old.id),false);assert.equal(useLibrary.getState().youtubeCleanup.removedCount,0);
+});
+
+test('a one-entry channel cache can replace its unrated representative with a new video from the same source', async()=>{
+  const old=cleanupCard('sole-representative',0);reset([old]);updatePullSettings({youtubeAutoCleanup:true,youtubeMaxEntries:1,remoteMaxEntries:1,youtubeCleanupBatch:1,sharedCapCleanup:false});
+  fixture.response={channel:{...channel,catalogCursor:'after'},videos:[cleanupCard('sole-replacement',400)]};
+  await useLibrary.getState().followRemoteQuery('test','youtube');await flush();
+  assert.deepEqual(fixture.removed,[old.id]);assert.deepEqual(useLibrary.getState().videos.map(row=>row.id),['sole-replacement']);assert.equal(useLibrary.getState().follows[0].catalogCursor,'after');
+});
+
+test('sole representatives remain when a partial mixed-creator page cannot guarantee replacement of every source membership', async()=>{
+  const old={...cleanupCard('sole-playlist',0),remote:{kind:'youtube',videoId:'sole-playlist',publishedSource:'provider',sourceIds:['playlist:keep']}};
+  reset([old]);updatePullSettings({youtubeAutoCleanup:true,youtubeMaxEntries:1,remoteMaxEntries:1,youtubeCleanupBatch:1});
+  fixture.response={channel:{...channel,catalogCursor:'after'},videos:[cleanupCard('without-playlist',400)]};
+  await useLibrary.getState().followRemoteQuery('test','youtube');await flush();assert.equal(fixture.removed.length,0);assert.equal(useLibrary.getState().videos[0].id,old.id);assert.equal(useLibrary.getState().follows[0].catalogCursor,'before');
+});
+
+test('archive publication patches only incoming resume marks without enumerating or copying dense saved progress', async()=>{
+  const old=card('resume-page');reset([old]);updatePullSettings({youtubeMaxEntries:100});
+  const progress=new Proxy({kept:{t:10,d:100,at:1},'resume-page':{t:20,d:100,at:1}},{ownKeys(){throw Error('Entire playback ledger exported');}});
+  const resumeProgress=new Proxy({'id:resume-page':{t:40,d:100,at:2}},{ownKeys(){throw Error('Entire resume ledger exported');}});
+  useLibrary.setState({progress,resumeProgress});
+  fixture.response={channels:[{...channel,catalogCursor:'after'}],videos:[old],refreshedIds:[channel.id],retryAt:{}};
+  await useLibrary.getState().refreshFollows('youtube',{catalog:true});
+  const first=useLibrary.getState().progress;
+  assert.equal(first['resume-page'].t,40);assert.equal(first.kept,progress.kept);assert.equal(progress['resume-page'].t,20);
+  const {recentActivityRecord}=await import('../src/lib/videos/activity-records.ts');
+  assert.deepEqual(Object.keys(recentActivityRecord(first)),['resume-page'],'pull-derived patches keep a bounded emergency mirror without exporting the old ledger');
+  await useLibrary.getState().refreshFollows('youtube',{catalog:true});
+  assert.equal(useLibrary.getState().progress,first,'unchanged pages do not create a new progress snapshot');
+  useLibrary.setState({progress:{},resumeProgress:{}});
+});
+
+test('refresh preparation rebases onto a foreground catalog edit without requesting the provider page again', async()=>{
+  const old=Array.from({length:2000},(_,i)=>card(`rebase-${i}`));reset(old);updatePullSettings({youtubeMaxEntries:3000});
+  fixture.response={channels:[{...channel,catalogCursor:'after'}],videos:[card('page-new')],refreshedIds:[channel.id],retryAt:{}};
+  let response=false,turns=0,edited=false;fixture.beforeResponse=()=>{response=true;};
+  const originalScheduler=globalThis.scheduler;
+  globalThis.scheduler={postTask:async work=>{
+    await new Promise(resolve=>setImmediate(resolve));
+    if(response&&++turns===2){edited=true;useLibrary.setState(s=>({videos:[...s.videos,card('foreground-new')],likes:{'page-new':true}}));}
+    return work();
+  }};
+  try{
+    await useLibrary.getState().refreshFollows('youtube',{catalog:true});
+    assert.equal(edited,true);assert.equal(fixture.requests,1);assert.equal(useLibrary.getState().videos.length,2002);
+    assert.equal(useLibrary.getState().videos.filter(v=>v.id==='page-new').length,1);
+    assert.equal(useLibrary.getState().videos.filter(v=>v.id==='foreground-new').length,1);
+    assert.equal(useLibrary.getState().likes['page-new'],true);assert.equal(useLibrary.getState().follows[0].catalogCursor,'after');
+  }finally{globalThis.scheduler=originalScheduler;}
+});
+
+test('explicit Twitch live reconciliation still completes while archive pulling is paused',async()=>{
+  const {setPullsPaused}=await import('../src/lib/pull-control.ts');
+  const tw={id:'tw:paused-check',kind:'twitch',handle:'paused-check',title:'Paused live check'};
+  const live={...card('tw:paused-live','twitch',tw.id),remote:{kind:'twitch',videoId:'paused-live',live:true,observedAt:Date.now()}};
+  reset([live]);useLibrary.setState({follows:[tw]});fixture.response={channels:[tw],videos:[],refreshedIds:[tw.id],liveCheckedIds:[tw.id],retryAt:{}};
+  setPullsPaused(true);
+  try{await useLibrary.getState().refreshFollows('twitch',{twitchLiveOnly:true});assert.equal(useLibrary.getState().videos[0].remote.live,false);assert.equal(fixture.requests,1);}
+  finally{setPullsPaused(false);}
 });

@@ -1,0 +1,92 @@
+{
+  "ok": true,
+  "fixture": "60,000 saved YouTube videos, 48,000 from one creator; real ranking worker; isolated browser storage; artwork/embeds stubbed",
+  "results": [
+    {
+      "viewport": "desktop",
+      "firstBatchMs": 595,
+      "nextPageMs": 121,
+      "scrollWorstFrameMs": 37,
+      "peakCards": 66,
+      "worstMainTaskMs": 0,
+      "overflow": false,
+      "rankingWorkers": [
+        {
+          "rows": 60000,
+          "packingMs": 597,
+          "scoringMs": 92,
+          "completed": true
+        },
+        {
+          "rows": 60000,
+          "packingMs": 854,
+          "scoringMs": 76,
+          "completed": true
+        },
+        {
+          "rows": 60000,
+          "packingMs": 1410,
+          "scoringMs": 146,
+          "completed": true
+        },
+        {
+          "rows": 0,
+          "packingMs": null,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 4000,
+          "packingMs": 130,
+          "scoringMs": 14,
+          "completed": true
+        }
+      ],
+      "errors": [],
+      "ok": true
+    },
+    {
+      "viewport": "mobile",
+      "firstBatchMs": 1106,
+      "nextPageMs": 73,
+      "scrollWorstFrameMs": 28,
+      "peakCards": 44,
+      "worstMainTaskMs": 0,
+      "overflow": false,
+      "rankingWorkers": [
+        {
+          "rows": 60000,
+          "packingMs": 1057,
+          "scoringMs": 100,
+          "completed": true
+        },
+        {
+          "rows": 60000,
+          "packingMs": 486,
+          "scoringMs": 108,
+          "completed": true
+        },
+        {
+          "rows": 60000,
+          "packingMs": 831,
+          "scoringMs": 178,
+          "completed": true
+        },
+        {
+          "rows": 0,
+          "packingMs": null,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 4000,
+          "packingMs": 100,
+          "scoringMs": 14,
+          "completed": true
+        }
+      ],
+      "errors": [],
+      "ok": true
+    }
+  ]
+}

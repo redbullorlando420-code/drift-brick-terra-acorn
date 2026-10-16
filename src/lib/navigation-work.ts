@@ -1,4 +1,5 @@
 import { yieldCatalogTask } from './catalog-work.ts';
+import { getInteractionPriorityDelay } from './interaction-budget.ts';
 
 /** A hidden destination pauses its one preparation task without timer polling.
  * Navigation/unmount cancellation releases the visibility waiter immediately. */
@@ -6,6 +7,17 @@ export async function yieldNavigationTask(signal: AbortSignal, yieldTask = yield
   signal.throwIfAborted();
   await yieldTask();
   signal.throwIfAborted();
+  // Yielding once is not enough during a burst of clicks or typing. Keep
+  // subsequent catalog slices behind the short foreground input lease.
+  while (getInteractionPriorityDelay() > 0) {
+    await new Promise<void>((resolve, reject) => {
+      const abort = () => { clearTimeout(timer); reject(signal.reason); };
+      const timer = setTimeout(() => { signal.removeEventListener('abort', abort); resolve(); }, getInteractionPriorityDelay());
+      signal.addEventListener('abort', abort, { once: true });
+      if (signal.aborted) { signal.removeEventListener('abort', abort); abort(); }
+    });
+    signal.throwIfAborted();
+  }
   if (typeof document === 'undefined' || document.visibilityState !== 'hidden') return;
   await new Promise<void>((resolve, reject) => {
     const cleanup = () => { document.removeEventListener('visibilitychange', visible); signal.removeEventListener('abort', abort); };

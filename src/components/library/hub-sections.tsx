@@ -1,5 +1,8 @@
+import { useLibraryStats } from './use-library-stats';
 import { useSettingsAudit } from "./use-settings-audit";
 import { usePerformanceProfile } from './use-performance-profile';
+import { useTextFirstArtwork } from './use-artwork-mode';
+import { setTextFirstArtwork } from '@/lib/artwork-mode';
 import { getPerformanceMode, getPerformanceProfile, setPerformanceMode, type PerformanceMode } from '@/lib/performance-profile';
 import { EnrichmentStatus } from './enrichment-status';
 import { RankingPanel } from './ranking-panel';
@@ -10,7 +13,6 @@ import { openTopic } from '@/lib/videos/topic-navigation';
 import { createLocalId } from "@/lib/local-id";
 import { mergeMissionPlan, MISSION_PLAN_REVISION, MISSION_PLAN_REVISION_KEY, type Mission, type MissionStatus } from "@/lib/mission-plan";
 import { isTopicTag, canonicalTopic, topicsForVideo } from '@/lib/videos/topics';
-import { youtubeSourceIndex, youtubeSourceCounts } from '@/lib/remote/youtube-sources';
 import { type ReactNode, lazy, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   Bot,
@@ -63,7 +65,7 @@ import { fetchCompanionIcons, iconsFromFolderFiles, loadGameIconCache, saveGameI
 import { Input } from "@/components/ui/input";
 import { isAdultVideo, resumeForVideo, useLibrary } from "@/lib/videos/store";
 import { resolveCreatorCoverage } from "@/lib/videos/creator-coverage";
-import { buildAdultStatsSnapshot, exportAdultStats } from "@/lib/videos/adult-stats";
+import { exportAdultStats } from "@/lib/videos/adult-stats";
 import { buildLibraryPackFiles, downloadLibraryPackZip, importLibraryPackZip, applyLibraryPackFiles, type LibraryPackMode } from "@/lib/videos/library-pack";
 import {
   companionExportLibraryPack,
@@ -74,38 +76,44 @@ import {
   companionSavePrint,
   companionSetAutostart,
   companionHealth,
-  getCompanionMemorySnapshot,
   companionAckJobs,
   companionInspectMedia,
   type CompanionMediaInspection,
 } from "@/lib/companion";
-import { linksFromHistoryAndResume, saveDurablePhotos, restoreDurablePhotos, loadDurablePhotosSync, getPersistenceMemorySnapshot, type DurablePhotoMeta } from "@/lib/videos/persist";
-import { getSourceMemorySnapshot } from "@/lib/videos/sources";
-import { allowAutomaticRefresh } from "@/lib/session-activity";
-import { registerPeriodicTask, getPeriodicWorkSnapshot } from '@/lib/periodic-work';
-import { rankAdultTags } from "@/lib/videos/adult-rank";
+import { linksFromHistoryAndResume, saveDurablePhotos, restoreDurablePhotos, loadDurablePhotosSync, type DurablePhotoMeta } from "@/lib/videos/persist";
+import { registerPeriodicTask } from '@/lib/periodic-work';
 import { twitchEmbedUrl } from "@/lib/videos/twitch-embed";
-import { countAdultBySource, countAdultBooruHosts } from "@/lib/videos/adult-filter";
 import { isAdultImageKind, isAdultPullKind } from "@/lib/videos/adult-sites";
-import { getThumbDiagnostics, useThumbs } from "@/lib/videos/thumbs";
-import { viewerDetails } from "@/lib/videos/viewer-details";
+import { useThumbs } from "@/lib/videos/thumbs";
 import { useSourceAssets } from "@/lib/source-assets";
 import { useP2PRoom } from "@/lib/multiplayer";
-import { clampRoomPosition, estimatedProviderPosition } from "@/lib/multiplayer/room-clock";
-import { shareableRoomInvite } from "@/lib/multiplayer/room-invite";
+import { clampRoomPosition, estimatedProviderPosition, normalizeGuestOffset, guestPlaybackPosition, hostPlaybackPosition } from "@/lib/multiplayer/room-clock";
+import { describeRoomMedia, resolveRoomMedia, resolveRoomRequest, mergeRoomMedia, normalizeRoomVideo, parseRoomLinks, roomMediaKey, type RoomMediaDescriptor } from "@/lib/multiplayer/room-media";
+import { ROOM_QUEUE_LIMIT, normalizeRoomQueue, distinctRoomQueue, applyRoomQueueAction, parseRoomQueueAction, shuffleRoomQueue, type RoomQueueAction } from '@/lib/multiplayer/room-queue';
+import { RoomInvitation, useRoomInvitation } from './room-invitation';
+import { RoomQueuePanel } from './room-queue-panel';
+import { RoomRecommendations } from './room-recommendations';
+import { useRoomQueueDelivery } from './use-room-queue-delivery';
+import { lookupVideo, lookupVideos } from "@/lib/videos/video-lookup";
+import { resolvePlayUrl, pinPlayUrl } from "@/lib/videos/sources";
+import { useRoomLocalStream } from "./use-room-local-stream";
+import { RoomStreamPlayer } from "./room-stream-player";
+import { RoomGuestTiming } from "./room-guest-timing";
 import { RoomRelaySettings } from "./room-relay-settings";
 import type { RoomRelayConfig } from "@/lib/multiplayer/relay-config";
-import { exportFeedback, getFeedbackDiagnostics, getRating, getWatchTimeLedger, ratingPreference, tagIsLiked, watchTimeScore, setRating as saveRating } from "@/lib/media-feedback";
+import { exportFeedback, getRating, ratingPreference, tagIsLiked, setRating as saveRating } from "@/lib/media-feedback";
 import { getAdultPreviewHealth } from "@/lib/videos/adult-thumb-session";
-import { getRenderBudgetSnapshot, setRenderBudgetMonitoring } from "@/lib/render-budget";
-import { getInteractionBudgetSnapshot, measureInteraction } from "@/lib/interaction-budget";
-import { StartupStatus } from './startup-status';
+import { PerformanceScorecard } from "./performance-scorecard";
+import { measureInteraction } from "@/lib/interaction-budget";
+import { catalogTurn } from "@/lib/catalog-turn";
+import { prepareRoomCandidates, searchRoomCandidates } from "@/lib/multiplayer/room-candidates";
 import { getYoutubeFirstClickTrace, getYoutubeTraceRevision, subscribeYoutubeTrace } from "@/lib/youtube-first-click-trace";
 import { benchmarkVisionModelsLocally, classifyImagesLocally, VISION_MODELS, type VisionBenchmark, type VisionLabel, type VisionModelId } from "@/lib/local-vision";
 import { LOCAL_UPSCALER, upscaleImageLocally } from "@/lib/local-upscaler";
 import { getNetworkDeviceId, listNetworkDevices, type NetworkDevice } from "@/lib/network-presence";
-import type { LibraryVideo } from "@/lib/videos/types";
-import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { NATIVE_PLAYABLE, type LibraryVideo } from "@/lib/videos/types";
+import { ViewportChart } from "./viewport-chart";
+import { Bar, BarChart, Cell, Pie, PieChart, Tooltip, XAxis, YAxis } from "recharts";
 
 import { XTimeline } from "./x-timeline";
 import { X_ADULT_SEED_HANDLES } from "@/lib/videos/x-adult-seed-accounts";
@@ -274,6 +282,10 @@ function watchRoomPoster(video: LibraryVideo) {
   return video.poster;
 }
 
+function canStageRoomVideo(video: LibraryVideo) {
+  return video.remote ? Boolean(describeRoomMedia(video)) : Boolean(video.src || NATIVE_PLAYABLE.has(video.extension.toLowerCase()));
+}
+
 function roomShuffleRank(id: string, seed: number) {
   let value = seed >>> 0;
   for (let index = 0; index < id.length; index += 1) value = Math.imul(value ^ id.charCodeAt(index), 0x45d9f3b);
@@ -297,17 +309,6 @@ type RoomHealth = {
   staleDropped: number;
   resyncRequests: number;
 };
-const ROOM_QUEUE_LIMIT = 48;
-function normalizeRoomQueue(value: unknown) {
-  if (!Array.isArray(value)) return [];
-  const seen = new Set<string>();
-  return value.flatMap((item) => {
-    const id = typeof item === "string" ? item.trim() : "";
-    if (!id || seen.has(id)) return [];
-    seen.add(id);
-    return [id];
-  }).slice(0, ROOM_QUEUE_LIMIT);
-}
 function normalizeLocalRoomQueue(value: unknown) {
   if (!Array.isArray(value)) return [] as LocalRoomShare[];
   const seen = new Set<string>();
@@ -551,191 +552,11 @@ export function StatsSection() {
   }, []);
   useEffect(() => { const refresh = () => setPreviewHealthRevision((value) => value + 1); window.addEventListener("reelcase:preview-health", refresh); return () => window.removeEventListener("reelcase:preview-health", refresh); }, []);
   const observedPreviewHealth = useMemo(() => getAdultPreviewHealth(), [previewHealthRevision]);
-  const watchScores = useMemo(() => {
-    const ledger = getWatchTimeLedger();
-    const byId = new Map(videos.map((video) => [video.id, video]));
-    const rows = Object.entries(ledger).flatMap(([id, time]) => {
-      const video = byId.get(id);
-      return video && (time.preview || time.fullscreen || time.previewEstimated || time.fullscreenEstimated) ? [{ video, ...time, score: watchTimeScore(time) }] : [];
-    }).sort((a, b) => b.score - a.score || b.fullscreen - a.fullscreen);
-    const tagTotals = new Map<string, { preview: number; fullscreen: number; previewEstimated: number; fullscreenEstimated: number }>();
-    for (const row of rows) for (const tag of (tags[row.video.id] ?? []).slice(0, 20)) {
-      const current = tagTotals.get(tag) ?? { preview: 0, fullscreen: 0, previewEstimated: 0, fullscreenEstimated: 0 };
-      current.preview += row.preview; current.fullscreen += row.fullscreen; current.previewEstimated += row.previewEstimated ?? 0; current.fullscreenEstimated += row.fullscreenEstimated ?? 0; tagTotals.set(tag, current);
-    }
-    return { videos: rows.slice(0, 8), tags: [...tagTotals].map(([tag, time]) => ({ tag, ...time, score: watchTimeScore(time) })).sort((a, b) => b.score - a.score).slice(0, 8) };
-  }, [favoriteRevision, tags, videos]);
-  const summary = useMemo(() => {
-    const byFolder = new Map<string, { videos: number; bytes: number }>();
-    const byGenre = new Map<string, number>();
-    const byTag = new Map<string, number>();
-    const topicRatings = new Map<string, { total: number; rated: number; newest: number }>();
-    let totalBytes = 0;
-    let localTitles = 0;
-    let remoteTitles = 0;
-    let untaggedTitles = 0;
-    let publicTopicTitles = 0;
-    let savedTopicTitles = 0;
-    let freshRemoteTitles = 0;
-    let thumbReady = 0;
-    let youtubeTitles = 0;
-    let twitchTitles = 0;
-    let liveTitles = 0;
-    let knownDuration = 0;
-    let durationTitles = 0;
-    let resumedTitles = 0;
-    let totalViews = 0;
-    let metadataTaggedTitles = 0;
-    let creatorTaggedTitles = 0;
-    let descriptionTaggedTitles = 0;
-    let multiTopicTitles = 0;
-    let operationalTagAssignments = 0;
-    const topicSources = new Map<string, Set<string>>();
-    const adultFolders = new Set(folders.filter(folder => folder.adult).map(folder => folder.id));
-    for (const video of videos) {
-      totalBytes += video.size;
-      if (video.remote) remoteTitles += 1; else localTitles += 1;
-      if (video.poster) thumbReady += 1;
-      if (video.remote?.kind === "youtube") youtubeTitles += 1;
-      if (video.remote?.kind === "twitch") twitchTitles += 1;
-      if (video.remote?.live) liveTitles += 1;
-      if ((video.duration ?? 0) > 0) { knownDuration += video.duration ?? 0; durationTitles += 1; }
-      if (resumeForVideo({ progress, resumeProgress }, video)?.t) resumedTitles += 1;
-      totalViews += viewCounts[video.id] ?? 0;
-      const videoTags = tags[video.id] ?? [];
-      // Adult tags have their own scored taxonomy above. Do not let generic
-      // provider keywords (for example "music") displace library topics.
-      const adultRemote = adultFolders.has(video.folderId) || ["eporner", "redtube", "chaturbate", "myfreecams", "reddit", "booru", "redgifs"].includes(video.remote?.kind ?? "");
-      const usefulTopics = adultRemote ? new Set<string>() : new Set(topicsForVideo(video, videoTags));
-      if (!adultRemote) {
-        publicTopicTitles++;
-        if (videoTags.some(isTopicTag)) savedTopicTitles++;
-      }
-      if (videoTags.length) metadataTaggedTitles += 1;
-      if (video.remote?.channelName?.trim()) creatorTaggedTitles += 1;
-      if (video.description?.trim()) descriptionTaggedTitles += 1;
-      if (!adultRemote && !usefulTopics.size) untaggedTitles += 1;
-      for (const topic of usefulTopics) {
-        byTag.set(topic, (byTag.get(topic) ?? 0) + 1);
-        const rating = topicRatings.get(topic) ?? { total: 0, rated: 0, newest: 0 };
-        const stars = getRating(video.id);
-        const feedback = stars === 1 ? -3 : Math.max(ratingPreference(stars), favorites[video.id] ? 3 : likes[video.id] ? 1 : 0);
-        rating.total += feedback; if (stars > 0 || feedback !== 0) rating.rated++; rating.newest = Math.max(rating.newest, video.addedAt);
-        topicRatings.set(topic, rating);
-        const sources = topicSources.get(topic) ?? new Set<string>();
-        sources.add(video.remote?.kind ?? 'local');
-        topicSources.set(topic, sources);
-      }
-      if (usefulTopics.size >= 2) multiTopicTitles += 1;
-      if (video.remote && Date.now() - video.addedAt < 7 * 24 * 60 * 60_000) freshRemoteTitles += 1;
-      const folder = byFolder.get(video.folderId) ?? { videos: 0, bytes: 0 };
-      folder.videos += 1;
-      folder.bytes += video.size;
-      byFolder.set(video.folderId, folder);
-      if (video.genre?.trim()) byGenre.set(video.genre, (byGenre.get(video.genre) ?? 0) + 1);
-      for (const tag of videoTags) {
-        const clean = tag.trim().toLowerCase();
-        if (/^(?:year-|month-|day-|type-|provider-|format-|source-|keyword-|creator-|https?$)/.test(clean)) operationalTagAssignments += 1;
-
-      }
-    }
-    const tagAssignments = [...byTag.values()].reduce((sum, count) => sum + count, 0);
-    const bridgeTopics = [...topicSources.values()].filter((sources) => sources.size >= 2).length;
-    const topicRows = [...byTag.entries()].filter(([, count]) => count >= 2).sort((a, b) => {
-      const aRating = topicPreferenceScore(topicRatings.get(a[0])?.total ?? 0, topicRatings.get(a[0])?.rated ?? 0, tagIsLiked(a[0]));
-      const bRating = topicPreferenceScore(topicRatings.get(b[0])?.total ?? 0, topicRatings.get(b[0])?.rated ?? 0, tagIsLiked(b[0]));
-      return bRating - aRating || (topicRatings.get(b[0])?.newest ?? 0) - (topicRatings.get(a[0])?.newest ?? 0) || b[1] - a[1] || a[0].localeCompare(b[0]);
-    });
-    // “Most useful” is driven by saved reactions. An unrated topic may still
-    // be useful for browsing, but it must not displace a topic with evidence.
-    const ratedTopicRows = topicRows.filter(([topic]) => tagIsLiked(topic) || (topicRatings.get(topic)?.total ?? 0) > 0);
-    return { publicTopicTitles, savedTopicTitles, totalBytes, byFolder, localTitles, remoteTitles, untaggedTitles, metadataTaggedTitles, creatorTaggedTitles, descriptionTaggedTitles, multiTopicTitles, operationalTagAssignments, bridgeTopics, freshRemoteTitles, thumbReady, youtubeTitles, twitchTitles, liveTitles, knownDuration, durationTitles, resumedTitles, totalViews, genreRows: [...byGenre.entries()].filter(([, count]) => count >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])), topicRows, topicRatings, topTags: ratedTopicRows.slice(0, 24), tagAssignments, tagDensity: tagAssignments / Math.max(publicTopicTitles, 1), remoteShare: remoteTitles / Math.max(videos.length, 1) };
-  }, [favoriteRevision, favorites, likes, folders, progress, resumeProgress, tags, videos, viewCounts]);
-  const youtubeHealth = useMemo(() => youtubeSourceIndex(videos), [videos]);
-  const youtubeMappedCounts = useMemo(() => youtubeSourceCounts(videos, folders.filter(folder => folder.kind === "youtube")), [folders, videos]);
-  const folderRows = useMemo(() => folders.filter((folder) => folder.kind !== "demo").map((folder) => {
-    const primary = summary.byFolder.get(folder.id) ?? { videos: 0, bytes: 0 };
-    return {folder,...primary,videos:folder.kind === "youtube" ? youtubeMappedCounts.get(folder.id) ?? primary.videos : primary.videos};
-  }).sort((a, b) => b.bytes - a.bytes || b.videos - a.videos || a.folder.name.localeCompare(b.folder.name)), [folders, summary.byFolder, youtubeMappedCounts]);
-  const topicReviewQueue = useMemo(() => {
-    const adultIds = new Set(folders.filter(folder => folder.adult).map(folder => folder.id));
-    const queue: LibraryVideo[] = [];
-    for (const video of videos) {
-      if (!adultIds.has(video.folderId) && !isAdultPullKind(video.remote?.kind) && !topicsForVideo(video, tags[video.id]).length) queue.push(video);
-      if (queue.length >= 500) break;
-    }
-    return queue;
-  }, [folders,tags,videos]);
-  const adultTagStats = useMemo(() => {
-    const adultFolderIds = new Set(folders.filter((folder) => folder.adult).map((folder) => folder.id));
-    const adultVideos = videos.filter((video) => adultFolderIds.has(video.folderId) || Boolean(video.remote && ["eporner", "redtube", "chaturbate", "myfreecams", "reddit", "booru", "redgifs"].includes(video.remote.kind)));
-    const ranked = rankAdultTags(adultVideos, { tags, favorites, likes, cameCounts, viewCounts, ratingOf: getRating }, 80);
-    const fetish = ranked.filter((row) => !row.tag.startsWith("source-") && !row.tag.startsWith("provider-") && !row.tag.startsWith("format-"));
-    const sources = ranked.filter((row) => row.tag.startsWith("source-") || row.tag.startsWith("provider-") || row.tag.startsWith("sub-"));
-    const bySource = countAdultBySource(adultVideos);
-    const snapshot = buildAdultStatsSnapshot(videos, folders, tags, { favorites, likes, cameCounts, viewCounts, ratingOf: getRating });
-    const kindCounts = { videos: 0, live: 0, photos: 0 };
-    let adultViews = 0;
-    let adultWatchSeconds = 0;
-    let adultRated = 0;
-    for (const video of adultVideos) {
-      if (video.remote?.live || video.remote?.kind === "chaturbate" || video.remote?.kind === "myfreecams") kindCounts.live += 1;
-      else if (isAdultImageKind(video.remote?.kind, video.mime, video.extension)) kindCounts.photos += 1;
-      else kindCounts.videos += 1;
-      adultViews += viewCounts[video.id] ?? 0;
-      adultWatchSeconds += progress[video.id]?.t ?? resumeProgress[video.id]?.t ?? 0;
-      if (getRating(video.id) > 0) adultRated += 1;
-    }
-    const booruHosts = countAdultBooruHosts(adultVideos);
-    const adultVideoIds = new Set(adultVideos.map(video => video.id));
-    const historyAdult = history.filter((entry) => adultVideoIds.has(entry.id)).length;
-    return {
-      adultTitles: adultVideos.length,
-      sourceMix: Object.entries(bySource).filter(([, count]) => count > 0).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
-      topFetish: fetish.slice(0, 24).map((row) => [row.tag, row.count] as const),
-      topSources: sources.slice(0, 16).map((row) => [row.tag, row.count] as const),
-      rankedPreview: ranked.slice(0, 12),
-      providerMix: snapshot.providerMix,
-      genres: snapshot.genres.slice(0, 12),
-      metaTags: snapshot.metaTags.slice(0, 12),
-      adultTagCoverage: snapshot.adultTagCoverage,
-      previewCoverage: snapshot.previewCoverage,
-      creatorCoverage: snapshot.creatorCoverage,
-      tagQuality: snapshot.tagQuality,
-      dedupe: snapshot.dedupe,
-      redditTags: snapshot.redditTags.slice(0, 12),
-      tagConnections: snapshot.tagConnections.slice(0, 12),
-      noisyTagAssignments: snapshot.noisyTagAssignments,
-      kindCounts,
-      booruHosts,
-      adultViews,
-      adultWatchHours: adultWatchSeconds / 3600,
-      adultRated,
-      historyAdult,
-      sparseTags: ranked.filter((row) => row.count === 1).length,
-    };
-  }, [cameCounts, favorites, folders, history, likes, progress, resumeProgress, tags, videos, viewCounts]);
-    const favoriteHealth = useMemo(() => {
-    const videoIds = new Set(videos.map((video) => video.id));
-    const saved = Object.keys(favorites);
-    return { saved: saved.length, resolved: saved.filter((id) => videoIds.has(id)).length, missing: saved.filter((id) => !videoIds.has(id)).length };
-  }, [favorites, videos]);
-  const sourceHealth = useMemo(() => {
-    const names = new Map<string, number>();
-    for (const { folder } of folderRows) names.set(folder.name.trim().toLowerCase(), (names.get(folder.name.trim().toLowerCase()) ?? 0) + 1);
-    const duplicateNames = [...names.entries()].filter(([, count]) => count > 1).map(([name, count]) => ({ name, count }));
-    const largest = folderRows[0];
-    return { duplicateNames, largest, concentration: largest ? Math.round(largest.bytes / Math.max(summary.totalBytes, 1) * 100) : 0 };
-  }, [folderRows, summary.totalBytes]);
-  const pullTotals = useMemo(() => ({
-    runs: pullHistory.length,
-    successful: pullHistory.filter((run) => run.status === "success").length,
-    partial: pullHistory.filter((run) => run.status === "partial").length,
-    failed: pullHistory.filter((run) => run.status === "failed").length,
-    checked: pullHistory.reduce((sum, run) => sum + run.done, 0),
-    returned: pullHistory.reduce((sum, run) => sum + run.received, 0),
-    added: pullHistory.reduce((sum, run) => sum + run.added, 0),
-  }), [pullHistory]);
+  const statsInput = useMemo(() => ({ videos, folders, tags, favorites, likes, unavailable, history, cameCounts, progress, resumeProgress, viewCounts, pullHistory }), [videos, folders, tags, favorites, likes, unavailable, history, cameCounts, progress, resumeProgress, viewCounts, pullHistory]);
+  const stats = useLibraryStats(statsInput, favoriteRevision);
+  const [showTopicLinks, setShowTopicLinks] = useState(false);
+  if (!stats.data) return <HubShell eyebrow="Library intelligence" icon={<BarChart3 className="size-4"/>} title="Know what your library needs next." copy="Counts are calculated locally while the rest of the app stays responsive."><p role="status" className="mt-6 text-sm text-muted">{stats.error ? 'Statistics could not be calculated.' : 'Calculating library statistics…'}</p>{stats.error && <Button onClick={() => setFavoriteRevision(value => value + 1)}>Retry statistics</Button>}</HubShell>;
+  const { watchScores, summary, youtubeHealth, youtubeMappedCounts, folderRows, topicReviewQueue, adultTagStats, favoriteHealth, sourceHealth, pullTotals, unavailableCount = 0, adultSnapshot, markedTitles, totalMarks, markedRows } = stats.data;
   const exportStats = () => {
     const stamp = new Date().toISOString().slice(0, 10);
     const feedback = exportFeedback();
@@ -744,10 +565,10 @@ export function StatsSection() {
       ["catalog_titles", videos.length], ["topic_tags_per_title", summary.tagDensity.toFixed(3)], ["remote_catalog_percent", Math.round(summary.remoteShare * 100)], ["local_storage_bytes_per_local_title", Math.round(summary.totalBytes / Math.max(summary.localTitles, 1))],
       ["local_storage_bytes", summary.totalBytes],
       ["topic_tag_assignments", summary.tagAssignments],
-      ["favorites", Object.keys(favorites).length],
+      ["favorites", favoriteHealth.saved],
       ["pull_runs_retained", pullTotals.runs], ["pull_successful_runs", pullTotals.successful], ["pull_partial_runs", pullTotals.partial], ["pull_failed_runs", pullTotals.failed], ["pull_creators_checked", pullTotals.checked], ["pull_videos_returned", pullTotals.returned], ["pull_new_videos", pullTotals.added],
       ["local_titles", summary.localTitles], ["remote_titles", summary.remoteTitles], ["untagged_titles", summary.untaggedTitles], ["fresh_remote_titles_7d", summary.freshRemoteTitles],
-      ["youtube_titles", summary.youtubeTitles], ["twitch_titles", summary.twitchTitles], ["live_titles", summary.liveTitles], ["poster_ready_titles", summary.thumbReady], ["unavailable_titles", Object.keys(unavailable).length], ["history_events", history.length],
+      ["youtube_titles", summary.youtubeTitles], ["twitch_titles", summary.twitchTitles], ["live_titles", summary.liveTitles], ["poster_ready_titles", summary.thumbReady], ["unavailable_titles", unavailableCount], ["history_events", history.length],
       ["topic_tag_coverage_percent", Math.round(((summary.publicTopicTitles - summary.untaggedTitles) / Math.max(summary.publicTopicTitles, 1)) * 100)], ["public_topic_titles", summary.publicTopicTitles], ["saved_topic_titles", summary.savedTopicTitles], ["derived_only_topic_titles", summary.publicTopicTitles - summary.untaggedTitles - summary.savedTopicTitles], ["youtube_distinct_video_ids", youtubeHealth.distinctVideos], ["youtube_duplicate_cached_rows", youtubeHealth.duplicateRows], ["largest_source_percent", sourceHealth.concentration], ["duplicate_source_names", sourceHealth.duplicateNames.length],
       ["metadata_tagged_titles", summary.metadataTaggedTitles], ["metadata_tag_coverage_percent", Math.round(summary.metadataTaggedTitles / Math.max(videos.length, 1) * 100)], ["creator_tagged_titles", summary.creatorTaggedTitles], ["titles_with_description", summary.descriptionTaggedTitles],
       ["multi_topic_titles", summary.multiTopicTitles], ["cross_source_bridge_topics", summary.bridgeTopics], ["operational_tag_assignments", summary.operationalTagAssignments], ["useful_topic_share_percent", Math.round(((summary.publicTopicTitles - summary.untaggedTitles) / Math.max(summary.publicTopicTitles, 1)) * 100)],
@@ -798,6 +619,7 @@ export function StatsSection() {
     input.click();
   };
   return <HubShell eyebrow="Library intelligence" icon={<BarChart3 className="size-4"/>} title="Know what your library needs next." copy="These local-only counts help identify coverage gaps, oversized source folders, and the tags that are driving discovery.">
+    {stats.pending && <p role="status" className="mt-3 text-xs text-muted">Updating statistics…</p>}{stats.error && <p role="status" className="mt-3 text-xs text-muted">Statistics could not update. Showing the last completed snapshot.</p>}
     <RankingPanel />
     <section className="mt-2 rounded-xl border border-border bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">How your ratings work</p><h2 className="mt-2 font-display text-2xl text-fg">Your choices steer discovery</h2><p className="mt-2 text-sm leading-6 text-muted">1 star lowers a video and its related topics. 2 stars is neutral. 3 to 5 stars raise recommendations progressively. Favorites and likes add separate positive signals. Watch time is a smaller secondary score: preview and full player time count separately, while seeking adds nothing. Local playback is measured directly; visible YouTube and Twitch embeds contribute a lower-weight estimate.</p><div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2"><div className="min-w-0 rounded-lg bg-bg/50 p-3"><p className="text-sm font-medium text-fg">Most watched videos</p>{watchScores.videos.length ? watchScores.videos.map((row) => <p key={row.video.id} className="mt-2 truncate text-xs text-muted" title={row.video.name}>{row.video.name} · preview {Math.floor(row.preview / 60)}m · player {Math.floor(row.fullscreen / 60)}m{row.previewEstimated || row.fullscreenEstimated ? ` · embed estimate ${Math.floor(((row.previewEstimated ?? 0) + (row.fullscreenEstimated ?? 0)) / 60)}m` : ""} · +{row.score}</p>) : <p className="mt-2 text-xs text-muted">Watch time will appear after playback.</p>}</div><div className="min-w-0 rounded-lg bg-bg/50 p-3"><p className="text-sm font-medium text-fg">Most watched tags</p>{watchScores.tags.length ? watchScores.tags.map((row) => <p key={row.tag} className="mt-2 truncate text-xs text-muted">#{row.tag} · preview {Math.floor(row.preview / 60)}m · player {Math.floor(row.fullscreen / 60)}m{row.previewEstimated || row.fullscreenEstimated ? ` · embed estimate ${Math.floor((row.previewEstimated + row.fullscreenEstimated) / 60)}m` : ""} · +{row.score}</p>) : <p className="mt-2 text-xs text-muted">Tags inherit watch time from videos you play.</p>}</div></div></section>
     <section className="mt-5 rounded-xl border border-border bg-surface p-5 shadow-border" aria-label="Pull success statistics"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Pull success</p><h2 className="mt-2 font-display text-2xl text-fg">Know what updated—and what didn’t.</h2><p className="mt-1 max-w-2xl text-sm text-muted">Recent refresh, archive, import, and creator-pull results are saved locally. A returned count can include already-cached videos; “new” counts only additions.</p></div><span className="rounded-full bg-bg/55 px-3 py-1 text-xs text-muted">{pullTotals.runs} recent runs retained</span></div><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-6"><div className="rounded-md bg-elevated p-3"><p className="text-xs text-muted">Clean-run rate</p><p className="mt-1 font-display text-2xl tabular-nums text-fg">{pullTotals.runs ? `${Math.round(pullTotals.successful / pullTotals.runs * 100)}%` : "—"}</p></div><div className="rounded-md bg-elevated p-3"><p className="text-xs text-muted">Successful</p><p className="mt-1 font-display text-2xl tabular-nums text-fg">{pullTotals.successful.toLocaleString()}</p></div><div className="rounded-md bg-elevated p-3"><p className="text-xs text-muted">Partial</p><p className="mt-1 font-display text-2xl tabular-nums text-fg">{pullTotals.partial.toLocaleString()}</p></div><div className="rounded-md bg-elevated p-3"><p className="text-xs text-muted">Failed</p><p className="mt-1 font-display text-2xl tabular-nums text-fg">{pullTotals.failed.toLocaleString()}</p></div><div className="rounded-md bg-elevated p-3"><p className="text-xs text-muted">Targets checked</p><p className="mt-1 font-display text-2xl tabular-nums text-fg">{pullTotals.checked.toLocaleString()}</p></div><div className="rounded-md bg-elevated p-3"><p className="text-xs text-muted">Videos returned · new</p><p className="mt-1 font-display text-2xl tabular-nums text-fg">{pullTotals.returned.toLocaleString()} <span className="text-sm text-muted">· {pullTotals.added.toLocaleString()}</span></p></div></div><div className="mt-4 divide-y divide-border rounded-md bg-bg/35">{pullHistory.slice(0, 12).map((run) => <details key={run.id} className="px-3 py-3"><summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 text-sm"><span className="min-w-24 font-medium text-fg">{run.provider === "youtube" ? "YouTube" : run.provider === "twitch" ? "Twitch" : run.provider === "adult" ? "Adult sources" : run.provider === "photos" ? "Photos" : "Multiple sources"}</span><span className="text-muted">{run.action}</span><span className="ml-auto text-xs text-muted">{run.done}/{run.total} targets · {run.received} returned · {run.added} new · {run.failed} failed</span><span className={`rounded-full px-2 py-0.5 text-xs ${run.status === "success" ? "bg-accent/15 text-accent" : run.status === "partial" ? "bg-bg text-fg" : "bg-danger/15 text-danger"}`}>{run.status}</span></summary><p className="mt-2 text-xs text-muted">{new Date(run.finishedAt).toLocaleString()} · {run.targets.slice(0, 8).join(", ")}{run.targets.length > 8 ? ` + ${run.targets.length - 8} more` : ""}</p>{run.errors?.length ? <ul className="mt-2 space-y-1 text-xs text-danger">{run.errors.map((error, index) => <li key={`${run.id}:${index}`}>{error}</li>)}</ul> : null}</details>)}{!pullHistory.length && <p className="px-3 py-4 text-sm text-muted">Pull results will appear here after your next refresh or creator pull.</p>}</div></section>
@@ -809,16 +631,16 @@ export function StatsSection() {
           <p className="mt-1 max-w-3xl text-sm text-muted">Pinned at the top of Stats so Adult coverage is obvious. Counts stay on this device; pull the Adults catalog if this panel is empty.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="secondary" onClick={() => exportAdultStats(buildAdultStatsSnapshot(videos, folders, tags, { favorites, likes, cameCounts, viewCounts, ratingOf: getRating }), "csv")}><Download className="size-4"/>Adult CSV</Button>
-          <Button size="sm" variant="secondary" onClick={() => exportAdultStats(buildAdultStatsSnapshot(videos, folders, tags, { favorites, likes, cameCounts, viewCounts, ratingOf: getRating }), "json")}><Download className="size-4"/>Adult JSON</Button>
+          <Button size="sm" variant="secondary" onClick={() => exportAdultStats(adultSnapshot, "csv")}><Download className="size-4"/>Adult CSV</Button>
+          <Button size="sm" variant="secondary" onClick={() => exportAdultStats(adultSnapshot, "json")}><Download className="size-4"/>Adult JSON</Button>
           <Button size="sm" onClick={() => useLibrary.getState().setSource("adults")}>Open Adults</Button>
         </div>
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-md bg-bg/45 p-3"><p className="text-xs text-muted">Adult titles</p><p className="mt-1 text-lg font-medium text-fg">{adultTagStats.adultTitles.toLocaleString()}</p></div>
         <div className="rounded-md bg-bg/45 p-3"><p className="text-xs text-muted">Adult tag coverage</p><p className="mt-1 text-lg font-medium text-fg">{Math.round(adultTagStats.adultTagCoverage.share * 100)}%</p><p className="text-xs text-muted">{adultTagStats.adultTagCoverage.tagged.toLocaleString()} tagged</p></div>
-        <div className="rounded-md bg-bg/45 p-3"><p className="text-xs text-muted">Marked (I cummed)</p><p className="mt-1 text-lg font-medium text-fg">{Object.values(cameCounts).filter((n) => n > 0).length.toLocaleString()}</p></div>
-        <div className="rounded-md bg-bg/45 p-3"><p className="text-xs text-muted">Total marks</p><p className="mt-1 text-lg font-medium text-fg">{Object.values(cameCounts).reduce((sum, n) => sum + n, 0).toLocaleString()}</p></div>
+        <div className="rounded-md bg-bg/45 p-3"><p className="text-xs text-muted">Marked (I cummed)</p><p className="mt-1 text-lg font-medium text-fg">{markedTitles.toLocaleString()}</p></div>
+        <div className="rounded-md bg-bg/45 p-3"><p className="text-xs text-muted">Total marks</p><p className="mt-1 text-lg font-medium text-fg">{totalMarks.toLocaleString()}</p></div>
       </div>
       <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-md bg-bg/45 p-3"><p className="text-xs text-muted">Preview URLs supplied</p><p className="mt-1 text-lg font-medium text-fg">{Math.round(adultTagStats.previewCoverage.share * 100)}%</p><p className="text-xs text-muted">{adultTagStats.previewCoverage.ready.toLocaleString()} cards declare artwork; loading is measured separately</p></div>
@@ -838,24 +660,24 @@ export function StatsSection() {
         <div className="h-72 rounded-lg bg-bg/45 p-4">
           <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Artwork availability by source</p>
           <p className="mt-1 text-xs text-muted">Declared artwork URLs by provider. Actual image loading is measured above from cards opened this session.</p>
-          <ResponsiveContainer width="100%" height="78%"><BarChart data={adultTagStats.providerMix.filter((row) => row.titles > 0).map((row) => ({ name: row.label, ready: Math.round(row.previewCoverage.share * 100), backup: Math.round(row.backupPreviewCoverage.share * 100) }))}><XAxis dataKey="name" stroke="currentColor" fontSize={10} interval={0} angle={-20} textAnchor="end" height={54}/><YAxis domain={[0, 100]} stroke="currentColor" fontSize={12}/><Tooltip/><Bar dataKey="ready" name="Artwork URLs supplied %" fill="var(--color-accent)" radius={4}/><Bar dataKey="backup" name="Backup paths %" fill="var(--color-muted)" radius={4}/></BarChart></ResponsiveContainer>
+          <ViewportChart height="78%"><BarChart data={adultTagStats.providerMix.filter((row) => row.titles > 0).map((row) => ({ name: row.label, ready: Math.round(row.previewCoverage.share * 100), backup: Math.round(row.backupPreviewCoverage.share * 100) }))}><XAxis dataKey="name" stroke="currentColor" fontSize={10} interval={0} angle={-20} textAnchor="end" height={54}/><YAxis domain={[0, 100]} stroke="currentColor" fontSize={12}/><Tooltip/><Bar isAnimationActive={false} dataKey="ready" name="Artwork URLs supplied %" fill="var(--color-accent)" radius={4}/><Bar isAnimationActive={false} dataKey="backup" name="Backup paths %" fill="var(--color-muted)" radius={4}/></BarChart></ViewportChart>
         </div>
         <div className="h-72 rounded-lg bg-bg/45 p-4">
           <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Most applied Adult interests</p>
           <p className="mt-1 text-xs text-muted">Only recurring interest labels are shown; provider, creator, and parser labels are excluded.</p>
-          <ResponsiveContainer width="100%" height="78%"><BarChart layout="vertical" margin={{ left: 16 }} data={adultTagStats.topFetish.slice(0, 8).map(([tag, count]) => ({ name: tag.replace(/^fetish-/, ""), titles: count }))}><XAxis type="number" stroke="currentColor" fontSize={12}/><YAxis type="category" dataKey="name" width={122} stroke="currentColor" fontSize={10}/><Tooltip/><Bar dataKey="titles" fill="var(--color-accent)" radius={4}/></BarChart></ResponsiveContainer>
+          <ViewportChart height="78%"><BarChart layout="vertical" margin={{ left: 16 }} data={adultTagStats.topFetish.slice(0, 8).map(([tag, count]) => ({ name: tag.replace(/^fetish-/, ""), titles: count }))}><XAxis type="number" stroke="currentColor" fontSize={12}/><YAxis type="category" dataKey="name" width={122} stroke="currentColor" fontSize={10}/><Tooltip/><Bar isAnimationActive={false} dataKey="titles" fill="var(--color-accent)" radius={4}/></BarChart></ViewportChart>
         </div>
       </section>
       <section className="mt-5 grid gap-5 xl:grid-cols-3">
         <div className="h-72 rounded-lg bg-bg/45 p-4">
           <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Adult media mix</p>
           <p className="mt-1 text-xs text-muted">Videos, live rooms, and photos currently in the Adult catalog.</p>
-          <ResponsiveContainer width="100%" height="78%"><PieChart><Pie dataKey="value" nameKey="name" data={[{ name: "Videos", value: adultTagStats.kindCounts.videos }, { name: "Live", value: adultTagStats.kindCounts.live }, { name: "Photos", value: adultTagStats.kindCounts.photos }].filter((row) => row.value > 0)} innerRadius={42} outerRadius={72} paddingAngle={2}>{["var(--color-accent)", "var(--color-muted)", "#7c6cff"].map((color, index) => <Cell key={color} fill={color} />)}</Pie><Tooltip/></PieChart></ResponsiveContainer>
+          <ViewportChart height="78%"><PieChart><Pie isAnimationActive={false} dataKey="value" nameKey="name" data={[{ name: "Videos", value: adultTagStats.kindCounts.videos }, { name: "Live", value: adultTagStats.kindCounts.live }, { name: "Photos", value: adultTagStats.kindCounts.photos }].filter((row) => row.value > 0)} innerRadius={42} outerRadius={72} paddingAngle={2}>{["var(--color-accent)", "var(--color-muted)", "#7c6cff"].map((color, index) => <Cell key={color} fill={color} />)}</Pie><Tooltip/></PieChart></ViewportChart>
         </div>
         <div className="h-72 rounded-lg bg-bg/45 p-4">
           <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Booru host mix</p>
           <p className="mt-1 text-xs text-muted">Rule34 is listed first so its filter chip stays accountable.</p>
-          <ResponsiveContainer width="100%" height="78%"><BarChart data={adultTagStats.booruHosts.slice(0, 8).map((row) => ({ name: row.host, titles: row.count }))}><XAxis dataKey="name" stroke="currentColor" fontSize={10} interval={0} angle={-20} textAnchor="end" height={54}/><YAxis stroke="currentColor" fontSize={12}/><Tooltip/><Bar dataKey="titles" fill="var(--color-accent)" radius={4}/></BarChart></ResponsiveContainer>
+          <ViewportChart height="78%"><BarChart data={adultTagStats.booruHosts.slice(0, 8).map((row) => ({ name: row.host, titles: row.count }))}><XAxis dataKey="name" stroke="currentColor" fontSize={10} interval={0} angle={-20} textAnchor="end" height={54}/><YAxis stroke="currentColor" fontSize={12}/><Tooltip/><Bar isAnimationActive={false} dataKey="titles" fill="var(--color-accent)" radius={4}/></BarChart></ViewportChart>
         </div>
         <div className="rounded-lg bg-bg/45 p-4">
           <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Adult engagement table</p>
@@ -884,23 +706,22 @@ export function StatsSection() {
           <p className="mt-2 text-sm text-muted">No adult tags yet. Open Adults and pull the catalog — source/fetish tags appear here automatically.</p>
         )}
       </div>
-      {Object.values(cameCounts).some((n) => n > 0) && (
+      {markedTitles > 0 && (
         <div className="mt-4 space-y-2">
           <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">I cummed to it</p>
-          {Object.entries(cameCounts).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([id, n]) => {
-            const video = videos.find((item) => item.id === id);
-            return <button key={id} type="button" className="block w-full rounded-sm bg-bg/45 px-3 py-2 text-left text-sm text-fg" onClick={() => video && useLibrary.getState().openPreview(video.id)}>{video?.name ?? id}<span className="ml-2 text-xs text-accent">· {n}×</span></button>;
+          {markedRows.map(({ id, n, name }) => {
+            return <button key={id} type="button" className="block w-full rounded-sm bg-bg/45 px-3 py-2 text-left text-sm text-fg" onClick={() => useLibrary.getState().openPreview(id)}>{name}<span className="ml-2 text-xs text-accent">· {n}×</span></button>;
           })}
         </div>
       )}
     </section>
-    <TopicLinks />
+    <section className="mt-6"><Button variant="secondary" onClick={() => setShowTopicLinks(value => !value)} aria-expanded={showTopicLinks}>{showTopicLinks ? "Close connected topics" : "Explore connected topics"}</Button>{showTopicLinks && <TopicLinks />}</section>
     <div className="mt-5 flex flex-wrap gap-2"><Button size="sm" variant="secondary" onClick={exportStats}><Download className="size-4"/>Download insight CSV</Button><Button size="sm" variant="secondary" onClick={exportSources}><Download className="size-4"/>Download source-map CSV</Button><Button size="sm" variant="secondary" onClick={exportRemediation}><Download className="size-4"/>Download remediation CSV</Button><span className="self-center text-xs text-muted">Exports only local catalog metadata, useful for improving sorting and discovery rules.</span></div>
     <section className="mt-5 rounded-lg border border-border bg-elevated p-4 shadow-border" aria-label="Stats recovery import"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Recovery import</p><h2 className="mt-1 text-lg font-medium text-fg">Bring back your exported signals.</h2><p className="mt-1 max-w-2xl text-xs leading-5 text-muted">Import a Realhub library pack to merge exported history, resume marks, favorites, follows, ratings, Adult marks, and saved links. Insight CSV files stay read-only reports; use the pack for recovery.</p></div><Button size="sm" variant="secondary" onClick={importRecoveryPack}><Upload className="size-4"/>Import recovery pack</Button></div>{recoveryNote && <p className="mt-3 text-xs text-accent" role="status">{recoveryNote}</p>}</section>
-    <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Stat label="Catalog titles" value={videos.length.toLocaleString()}/><Stat label="Local storage mapped" value={bytes(summary.totalBytes)}/><Stat label="Saved topic assignments" value={summary.tagAssignments.toLocaleString()}/><Stat label="Favorites" value={Object.keys(favorites).length.toLocaleString()}/></div>
-    <section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Stat label="Local / remote" value={`${summary.localTitles.toLocaleString()} / ${summary.remoteTitles.toLocaleString()}`}/><Stat label="Remote catalog share" value={`${Math.round(summary.remoteShare * 100)}%`}/><Stat label="New provider items · 7d" value={summary.freshRemoteTitles.toLocaleString()}/><Stat label="Needs useful topic" value={`${summary.untaggedTitles.toLocaleString()} titles`}/><Stat label="Connected topic coverage" value={`${Math.round((summary.publicTopicTitles - summary.untaggedTitles) / Math.max(summary.publicTopicTitles, 1) * 100)}%`}/><Stat label="Saved topic coverage" value={`${Math.round(summary.savedTopicTitles / Math.max(summary.publicTopicTitles, 1) * 100)}%`}/><Stat label="YouTube duplicate rows" value={youtubeHealth.duplicateRows.toLocaleString()}/><Stat label="Topic tags per title" value={summary.tagDensity.toFixed(2)}/><Stat label="Cross-source topic bridges" value={summary.bridgeTopics.toLocaleString()}/><Stat label="Multi-topic titles" value={summary.multiTopicTitles.toLocaleString()}/><Stat label="Operational labels" value={summary.operationalTagAssignments.toLocaleString()}/><Stat label="Any metadata coverage" value={`${Math.round(summary.metadataTaggedTitles / Math.max(videos.length, 1) * 100)}%`}/><Stat label="Creator / description coverage" value={`${summary.creatorTaggedTitles.toLocaleString()} / ${summary.descriptionTaggedTitles.toLocaleString()}`}/><Stat label="YouTube / Twitch" value={`${summary.youtubeTitles.toLocaleString()} / ${summary.twitchTitles.toLocaleString()}`}/><Stat label="Known runtime" value={`${Math.round(summary.knownDuration / 3600).toLocaleString()} hours`}/><Stat label="Resume marks" value={summary.resumedTitles.toLocaleString()}/><Stat label="Local view events" value={summary.totalViews.toLocaleString()}/><Stat label="Saved live entries" value={summary.liveTitles.toLocaleString()}/><Stat label="Artwork coverage" value={`${Math.round(summary.thumbReady / Math.max(videos.length, 1) * 100)}%`}/><Stat label="History events" value={history.length.toLocaleString()}/><Stat label="Unavailable cards" value={Object.keys(unavailable).length.toLocaleString()}/></section>
+    <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Stat label="Catalog titles" value={videos.length.toLocaleString()}/><Stat label="Local storage mapped" value={bytes(summary.totalBytes)}/><Stat label="Saved topic assignments" value={summary.tagAssignments.toLocaleString()}/><Stat label="Favorites" value={favoriteHealth.saved.toLocaleString()}/></div>
+    <section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Stat label="Local / remote" value={`${summary.localTitles.toLocaleString()} / ${summary.remoteTitles.toLocaleString()}`}/><Stat label="Remote catalog share" value={`${Math.round(summary.remoteShare * 100)}%`}/><Stat label="New provider items · 7d" value={summary.freshRemoteTitles.toLocaleString()}/><Stat label="Needs useful topic" value={`${summary.untaggedTitles.toLocaleString()} titles`}/><Stat label="Connected topic coverage" value={`${Math.round((summary.publicTopicTitles - summary.untaggedTitles) / Math.max(summary.publicTopicTitles, 1) * 100)}%`}/><Stat label="Saved topic coverage" value={`${Math.round(summary.savedTopicTitles / Math.max(summary.publicTopicTitles, 1) * 100)}%`}/><Stat label="YouTube duplicate rows" value={youtubeHealth.duplicateRows.toLocaleString()}/><Stat label="Topic tags per title" value={summary.tagDensity.toFixed(2)}/><Stat label="Cross-source topic bridges" value={summary.bridgeTopics.toLocaleString()}/><Stat label="Multi-topic titles" value={summary.multiTopicTitles.toLocaleString()}/><Stat label="Operational labels" value={summary.operationalTagAssignments.toLocaleString()}/><Stat label="Any metadata coverage" value={`${Math.round(summary.metadataTaggedTitles / Math.max(videos.length, 1) * 100)}%`}/><Stat label="Creator / description coverage" value={`${summary.creatorTaggedTitles.toLocaleString()} / ${summary.descriptionTaggedTitles.toLocaleString()}`}/><Stat label="YouTube / Twitch" value={`${summary.youtubeTitles.toLocaleString()} / ${summary.twitchTitles.toLocaleString()}`}/><Stat label="Known runtime" value={`${Math.round(summary.knownDuration / 3600).toLocaleString()} hours`}/><Stat label="Resume marks" value={summary.resumedTitles.toLocaleString()}/><Stat label="Local view events" value={summary.totalViews.toLocaleString()}/><Stat label="Saved live entries" value={summary.liveTitles.toLocaleString()}/><Stat label="Artwork coverage" value={`${Math.round(summary.thumbReady / Math.max(videos.length, 1) * 100)}%`}/><Stat label="History events" value={history.length.toLocaleString()}/><Stat label="Unavailable cards" value={unavailableCount.toLocaleString()}/></section>
     <section className="mt-5 rounded-lg border border-border bg-surface p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Fast paths from your library</p><h2 className="mt-2 font-display text-2xl text-fg">Use the small, useful slice first.</h2><p className="mt-1 max-w-3xl text-sm leading-6 text-muted">Topic, Continue, and source views now reuse saved metadata and mount cards progressively. Favorite topics lead every topic list so the first results match what you actually want to browse.</p><div className="mt-4 grid gap-3 md:grid-cols-3"><div className="rounded-md bg-elevated p-3"><p className="text-xs text-muted">Favorite topics</p><p className="mt-1 text-lg font-medium text-fg">{summary.topicRows.filter(([topic]) => tagIsLiked(topic)).length}</p><p className="mt-1 text-xs text-muted">Pinned ahead of large catalog scans.</p></div><div className="rounded-md bg-elevated p-3"><p className="text-xs text-muted">Ready to resume</p><p className="mt-1 text-lg font-medium text-fg">{summary.resumedTitles.toLocaleString()}</p><p className="mt-1 text-xs text-muted">Stable resume records survive catalog refreshes.</p><Button className="mt-3" size="sm" variant="secondary" onClick={() => useLibrary.getState().setSource("continue")}>Open Continue</Button></div><div className="rounded-md bg-elevated p-3"><p className="text-xs text-muted">Metadata-first catalog</p><p className="mt-1 text-lg font-medium text-fg">{Math.round(summary.metadataTaggedTitles / Math.max(videos.length, 1) * 100)}%</p><p className="mt-1 text-xs text-muted">Existing metadata is used before slower title-only inference.</p><Button className="mt-3" size="sm" variant="secondary" onClick={() => useLibrary.getState().setSource("genres")}>Open Topics</Button></div></div>{summary.topicRows.filter(([topic]) => tagIsLiked(topic)).length > 0 && <div className="mt-4 flex flex-wrap gap-2">{summary.topicRows.filter(([topic]) => tagIsLiked(topic)).slice(0, 12).map(([topic, count]) => <Button key={topic} size="sm" variant="secondary" onClick={() => openTopic(topic)}>★ #{topic} · {count.toLocaleString()}</Button>)}</div>}</section>
-    <section className="mt-5 grid gap-5 xl:grid-cols-2"><div className="h-[42rem] min-w-0 rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Provider mix</h2><p className="mt-1 text-xs text-muted">Includes local, public video providers, and the active Adult catalog sources.</p><ResponsiveContainer width="100%" height="88%"><BarChart data={[{ name: "Local", titles: summary.localTitles }, { name: "YouTube", titles: summary.youtubeTitles }, { name: "Twitch", titles: summary.twitchTitles }, ...adultTagStats.providerMix.filter((row) => row.titles > 0).map((row) => ({ name: row.label, titles: row.titles }))]}><XAxis dataKey="name" stroke="currentColor" fontSize={10} interval={0} angle={-24} textAnchor="end" height={50}/><YAxis stroke="currentColor" fontSize={12}/><Tooltip/><Bar dataKey="titles" fill="var(--color-accent)" radius={4}/></BarChart></ResponsiveContainer></div><div className="h-[42rem] min-w-0 rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Most useful topics</h2><p className="mt-1 text-xs text-muted">Preference points use feedback ÷ (feedback count + 3), times 10; a heart adds 12. Titles without feedback add no votes. Up to 20 topics.</p>{!summary.topTags.length && <p className="mt-8 text-sm text-muted">Heart, like, or rate a tagged video to build your topic ranking.</p>}<ResponsiveContainer width="100%" height="88%"><BarChart layout="vertical" margin={{ left: 16 }} data={summary.topTags.map(([name, titles]) => ({ name, titles, score: Number(topicPreferenceScore(summary.topicRatings.get(name)?.total ?? 0, summary.topicRatings.get(name)?.rated ?? 0, tagIsLiked(name)).toFixed(2)) })).filter((topic) => topic.score > 0).slice(0, 20)}><XAxis type="number" stroke="currentColor" fontSize={12}/><YAxis type="category" dataKey="name" width={150} stroke="currentColor" fontSize={10}/><Tooltip/><Bar dataKey="score" fill="var(--color-accent)" radius={4}/></BarChart></ResponsiveContainer></div></section>
+    <section className="mt-5 grid gap-5 xl:grid-cols-2"><div className="h-[42rem] min-w-0 rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Provider mix</h2><p className="mt-1 text-xs text-muted">Includes local, public video providers, and the active Adult catalog sources.</p><ViewportChart height="88%"><BarChart data={[{ name: "Local", titles: summary.localTitles }, { name: "YouTube", titles: summary.youtubeTitles }, { name: "Twitch", titles: summary.twitchTitles }, ...adultTagStats.providerMix.filter((row) => row.titles > 0).map((row) => ({ name: row.label, titles: row.titles }))]}><XAxis dataKey="name" stroke="currentColor" fontSize={10} interval={0} angle={-24} textAnchor="end" height={50}/><YAxis stroke="currentColor" fontSize={12}/><Tooltip/><Bar isAnimationActive={false} dataKey="titles" fill="var(--color-accent)" radius={4}/></BarChart></ViewportChart></div><div className="h-[42rem] min-w-0 rounded-lg bg-elevated p-5 shadow-border"><h2 className="font-display text-2xl text-fg">Most useful topics</h2><p className="mt-1 text-xs text-muted">Preference points use feedback ÷ (feedback count + 3), times 10; a heart adds 12. Titles without feedback add no votes. Up to 20 topics.</p>{!summary.topTags.length && <p className="mt-8 text-sm text-muted">Heart, like, or rate a tagged video to build your topic ranking.</p>}<ViewportChart height="88%"><BarChart layout="vertical" margin={{ left: 16 }} data={summary.topTags.map(([name, titles]) => ({ name, titles, score: Number(topicPreferenceScore(summary.topicRatings.get(name)?.total ?? 0, summary.topicRatings.get(name)?.rated ?? 0, tagIsLiked(name)).toFixed(2)) })).filter((topic) => topic.score > 0).slice(0, 20)}><XAxis type="number" stroke="currentColor" fontSize={12}/><YAxis type="category" dataKey="name" width={150} stroke="currentColor" fontSize={10}/><Tooltip/><Bar isAnimationActive={false} dataKey="score" fill="var(--color-accent)" radius={4}/></BarChart></ViewportChart></div></section>
     <section className="mt-5 grid gap-3 lg:grid-cols-4"><div className="rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Tagging backlog</p><p className="mt-2 font-display text-3xl text-fg">{summary.untaggedTitles.toLocaleString()}</p><p className="mt-1 text-sm text-muted">titles still need a useful topic tag. Prioritize these before adding more discovery rules.</p><Button className="mt-3" size="sm" variant="secondary" onClick={() => setRemediationView(remediationView === "topics" ? "" : "topics")}>Review safe queue</Button></div><div className="rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Storage concentration</p><p className="mt-2 font-display text-3xl text-fg">{sourceHealth.concentration}%</p><p className="mt-1 text-sm text-muted">of mapped local bytes sit in {sourceHealth.largest?.folder.name ?? "the largest source"}.</p><Button className="mt-3" size="sm" variant="secondary" onClick={() => setRemediationView(remediationView === "sources" ? "" : "sources")}>Review source queue</Button></div><div className="rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Source hygiene</p><p className="mt-2 font-display text-3xl text-fg">{sourceHealth.duplicateNames.length}</p><p className="mt-1 text-sm text-muted">duplicate source labels can make refresh results harder to interpret.</p><Button className="mt-3" size="sm" variant="secondary" onClick={() => setRemediationView(remediationView === "sources" ? "" : "sources")}>Review duplicates</Button></div><div className="rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Heart recovery</p><p className="mt-2 font-display text-3xl text-fg">{favoriteHealth.resolved} / {favoriteHealth.saved}</p><p className="mt-1 text-sm text-muted">{favoriteHealth.missing ? `${favoriteHealth.missing} saved favorites are waiting for their source to return.` : "Every saved favorite resolves in the current catalog."}</p></div></section>
     {remediationView === "topics" && <section className="mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Safe tag review queue</p><p className="mt-1 text-sm text-muted">These are review candidates only—nothing is tagged or deleted by opening this queue.</p></div><Button size="sm" variant="secondary" onClick={() => useLibrary.getState().setSource("settings")}>Open smart-tag tools</Button></div><div className="mt-3 space-y-2">{topicReviewQueue.slice(0, 12).map((video) => <button key={video.id} type="button" className="block w-full rounded-sm bg-bg/45 px-3 py-2 text-left text-sm text-fg" onClick={() => useLibrary.getState().openPreview(video.id)}>{video.name}<span className="ml-2 text-xs text-muted">· no useful topic yet</span></button>)}</div></section>}
     {remediationView === "sources" && <section className="mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Safe source review queue</p><p className="mt-1 text-sm text-muted">Review signals only. Realhub will not rename, reconnect, or remove a folder from this page.</p><div className="mt-3 space-y-2">{sourceHealth.largest && <button type="button" className="block w-full rounded-sm bg-bg/45 px-3 py-2 text-left text-sm text-fg" onClick={() => useLibrary.getState().setSource(sourceHealth.largest!.folder.id)}>Largest source · {sourceHealth.largest.folder.name} · {bytes(sourceHealth.largest.bytes)}</button>}{sourceHealth.duplicateNames.map(({ name, count }) => <p key={name} className="rounded-sm bg-bg/45 px-3 py-2 text-sm text-fg">Duplicate label · {name} · {count} sources</p>)}</div></section>}
@@ -1077,7 +898,7 @@ export function SettingsSection() {
   const [adultRailLimit, setAdultRailLimit] = useState(48);
   const [gridPageSize, setGridPageSize] = useState(24);
   const [thumbnailWorkers, setThumbnailWorkers] = useState(0);
-  const [textFirstArtwork, setTextFirstArtwork] = useState(false);
+  const textFirstArtwork = useTextFirstArtwork();
   const [photoWorkers, setPhotoWorkers] = useState(0);
   const [defaultVolume, setDefaultVolume] = useState(85);
   const [startMuted, setStartMuted] = useState(false);
@@ -1099,8 +920,6 @@ export function SettingsSection() {
   const [debugEnabled, setDebugEnabled] = useState(false);
   const [theme, setTheme] = useState<"night" | "day">("night");
   const [debugReport, setDebugReport] = useState("");
-  const [, refreshMemoryReadout] = useState(0);
-  const [, refreshDebug] = useState(0);
   const refreshFollows = useLibrary((s) => s.refreshFollows);
   const folders = useLibrary((s) => s.folders);
   const videos = useLibrary((s) => s.videos);
@@ -1175,7 +994,6 @@ export function SettingsSection() {
   }, []);
   useEffect(() => { const saved = Number(localStorage.getItem("reelcase.grid-page-size") ?? "24"); setGridPageSize([24, 48, 96, 144].includes(saved) ? saved : 24); }, []);
   useEffect(() => { const saved = Number(localStorage.getItem("reelcase.thumbnail-workers") ?? "0"); setThumbnailWorkers([1, 2, 3, 4].includes(saved) ? saved : 0); }, []);
-  useEffect(() => { const textFirst = localStorage.getItem("reelcase.artwork-mode") === "text"; setTextFirstArtwork(textFirst); document.documentElement.dataset.artworkMode = textFirst ? "text" : "images"; }, []);
   useEffect(() => { const saved = Number(localStorage.getItem("reelcase.photo-scan-workers") ?? "0"); setPhotoWorkers([2, 4, 6, 8, 12].includes(saved) ? saved : 0); }, []);
   useEffect(() => { const saved = Number(localStorage.getItem("reelcase.player-volume") ?? "85"); setDefaultVolume([25, 50, 70, 85, 100].includes(saved) ? saved : 85); setStartMuted(localStorage.getItem("reelcase.player-start-muted") === "true"); }, []);
   useEffect(() => { const saved = Number(localStorage.getItem("reelcase.twitch-refresh-seconds") ?? "30"); setTwitchRefreshSeconds([15, 30, 60, 120, 300].includes(saved) ? saved : 30); }, []);
@@ -1184,16 +1002,6 @@ export function SettingsSection() {
     [],
   );
   useEffect(() => { try { setDebugEnabled(localStorage.getItem("reelcase.debug-panel") === "true"); } catch { /* unavailable */ } }, []);
-  useEffect(() => {
-    setRenderBudgetMonitoring(debugEnabled);
-    return () => setRenderBudgetMonitoring(false);
-  }, [debugEnabled]);
-  useEffect(() => {
-    if (!debugEnabled) return;
-    return registerPeriodicTask({ name: 'Performance readout', everyMs: 1_000,
-      enabled: () => !useLibrary.getState().activeId && !useLibrary.getState().previewId,
-      work: () => refreshDebug(value => value + 1) }).cancel;
-  }, [debugEnabled]);
   useEffect(() => { try { const saved = localStorage.getItem("reelcase.theme") === "day" ? "day" : "night"; setTheme(saved); document.documentElement.dataset.theme = saved; } catch { /* unavailable */ } }, []);
   useEffect(() => setLiveDensity([3, 4, 6].includes(Number(localStorage.getItem("reelcase.live-columns") ?? "4")) ? Number(localStorage.getItem("reelcase.live-columns")) : 4), []);
   const setGlobalZoom = (value: number) => {
@@ -1584,12 +1392,11 @@ export function SettingsSection() {
           <p className="mt-2 text-sm leading-6 text-muted">Keep a local, opt-in status panel for source, cache, and companion troubleshooting. It is off by default and sends nothing away.</p>
           <ol className="mt-3 space-y-1 text-xs leading-5 text-muted"><li><span className="text-accent">1.</span> In the main Realhub folder, double-click <strong className="text-fg">Start-Realhub-Companion.cmd</strong>.</li><li><span className="text-accent">2.</span> Leave the small Companion window open until it says it is listening.</li><li><span className="text-accent">3.</span> Enable diagnostics, select Check companion, then open Games to load approved shortcuts.</li></ol>
           <p className="mt-2 text-xs leading-5 text-subtle">The companion is optional. It only runs on this computer and is needed for desktop shortcut launching, source checks, and TV discovery—not for browsing your media library.</p>
-          <Button size="sm" variant={debugEnabled ? "default" : "secondary"} className="mt-4" onClick={() => { const next = !debugEnabled; setDebugEnabled(next); localStorage.setItem("reelcase.debug-panel", String(next)); if (!next) setDebugReport(""); }}>
+          <Button size="sm" variant={debugEnabled ? "default" : "secondary"} className="mt-4" onClick={() => { const next = !debugEnabled; setDebugEnabled(next); localStorage.setItem("reelcase.debug-panel", String(next)); window.dispatchEvent(new Event("reelcase:diagnostics-settings")); if (!next) setDebugReport(""); }}>
             {debugEnabled ? "Disable diagnostics" : "Enable diagnostics"}
           </Button>
-          {debugEnabled && <div className="mt-3 rounded-sm bg-bg/45 p-3 text-xs leading-5 text-muted"><p>{useLibrary.getState().videos.length} catalog entries · {useLibrary.getState().folders.length} sources · {navigator.onLine ? "browser online" : "browser offline"}</p><p>{useLibrary.getState().folders.filter((folder) => folder.health === "healthy").length} healthy · {useLibrary.getState().folders.filter((folder) => folder.health === "cached").length} cache-first · {useLibrary.getState().folders.filter((folder) => folder.health === "permission-needed" || folder.health === "unavailable").length} need attention</p><p>{(() => { const budget = getRenderBudgetSnapshot(); const feedback = getFeedbackDiagnostics(); const thumbs = useThumbs.getState(); const artwork = getThumbDiagnostics(); return `${budget.mountedCards} mounted cards · ${Object.keys(thumbs.byId).length} artwork cache entries · ${artwork.active} decoding / ${artwork.queued} queued · artwork ${artwork.hits} hit / ${artwork.misses} miss${artwork.evictions ? ` / ${artwork.evictions} evicted` : ""} · ${budget.lastFrameMs}ms last frame${budget.longFrames ? ` · ${budget.longFrames} long frames (worst ${budget.worstFrameMs}ms)` : ""} · rating queue ${feedback.lastRatingQueueMs}ms / disk ${feedback.lastPersistMs}ms${feedback.pendingWrites ? " pending" : ""}`; })()}</p><p>{(() => { const artwork = getThumbDiagnostics(); const writes = getPersistenceMemorySnapshot(); const sources = getSourceMemorySnapshot(); const companion = getCompanionMemorySnapshot(); return `Session memory · artwork ${(artwork.bytes / 1048576).toFixed(1)} MiB / ${(artwork.byteLimit / 1048576).toFixed(0)} MiB · ${sources.objectUrls} temporary media URLs · ${writes.artwork.pending} artwork saves queued (${(writes.artwork.pendingWeight / 1048576).toFixed(1)} MiB) · ${writes.activity.pending} latest activity snapshots · ${companion.posters.pending} poster mirrors queued · automatic refresh ${allowAutomaticRefresh() ? "active" : "paused while idle or hidden"}`; })()}</p><p aria-label="Viewer detail memory">Viewer details · {viewerDetails.diagnostics().entries} / 12 cached records · {Math.round(viewerDetails.diagnostics().estimatedBytes / 1024)} / 500 KiB estimated · {viewerDetails.diagnostics().pending} pending disk reads · {viewerDetails.diagnostics().activeTranscripts} active transcript</p><Button size="sm" variant="ghost" onClick={() => refreshMemoryReadout(value => value + 1)}>Refresh memory readout</Button><StartupStatus /><p>{(() => { const interaction = getInteractionBudgetSnapshot(); return `Input to next paint · navigation ${interaction.navigation.lastMs}ms (worst ${interaction.navigation.worstMs}ms) · search ${interaction.search.lastMs}ms · rating ${interaction.rating.lastMs}ms`; })()}</p><Button size="sm" variant="ghost" className="mt-2" onClick={() => void (async () => { try { const data = await companionHealth(true); if (!data?.ok) throw new Error("offline"); setDebugReport(`Companion v${data.version ?? "?"} · ${data.roots ?? 0} approved roots · Desktop ${data.desktopEnabled ? "ready" : "not available"}`); } catch { setDebugReport("Companion is not running or is unavailable to this browser."); } })()}>Check companion</Button>{debugReport && <p className="mt-2 text-accent">{debugReport}</p>}</div>}
+          {debugEnabled && <><PerformanceScorecard /><div className="mt-3 text-xs"><Button size="sm" variant="ghost" className="mt-2" onClick={() => void (async () => { try { const data = await companionHealth(true); if (!data?.ok) throw new Error("offline"); setDebugReport(`Companion v${data.version ?? "?"} · ${data.roots ?? 0} approved roots · Desktop ${data.desktopEnabled ? "ready" : "not available"}`); } catch { setDebugReport("Companion is not running or is unavailable to this browser."); } })()}>Check companion</Button>{debugReport && <p className="mt-2 text-accent">{debugReport}</p>}</div></>}
           {debugEnabled && <YoutubeFirstClickDiagnostic />}
-          {debugEnabled && (() => { const work = getPeriodicWorkSnapshot(); return <p className="mt-3 text-xs leading-5 text-muted" aria-label="Recurring work">Recurring work · {work.tasks} tasks · {work.timerCount} shared timer · {work.running} running · {work.paused} paused</p>; })()}
         </div>
         <div className="rounded-lg bg-elevated p-5 shadow-border">
           <span className="text-accent">
@@ -1679,7 +1486,7 @@ export function SettingsSection() {
           <p className="mt-2 text-xs leading-5 text-muted">{performanceBudget.lowMemory ? 'Grids load 24 titles at a time, rails keep visible cards, and new photo scans use up to 2 workers. These ceilings apply over the individual settings below. ' : ''}Artwork evicted from RAM can reopen from disk. Your video catalog and saved worker choices stay intact. Running requests finish within their previous budget.</p>
         </div>
         <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><PackageSearch className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Grid memory budget</h2><p className="mt-2 text-sm leading-6 text-muted">Sets the poster grid page size. Only a window of those cards stays mounted. Low memory caps pages at 24; your selection returns when standard budgets are active.</p><div className="mt-4 flex flex-wrap gap-2">{[24, 48, 96, 144].map((value) => <Button key={value} size="sm" variant={gridPageSize === value ? "default" : "secondary"} onClick={() => { setGridPageSize(value); localStorage.setItem("reelcase.grid-page-size", String(value)); window.dispatchEvent(new Event("reelcase:render-settings")); }}>{value} cards</Button>)}</div></div>
-        <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><PackageSearch className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Artwork worker budget</h2><p className="mt-2 text-sm leading-6 text-muted">Controls concurrent local thumbnail extraction. Adaptive uses device cores, available memory, and foreground input pressure.</p><div className="mt-4 flex flex-wrap gap-2">{[[0, "Adaptive"], [1, "Text-first · 1"], [2, "Gentle · 2"], [3, "Balanced · 3"], [4, "Fast · 4"]].map(([value, label]) => <Button key={value} size="sm" variant={thumbnailWorkers === value ? "default" : "secondary"} onClick={() => { setThumbnailWorkers(value as number); localStorage.setItem("reelcase.thumbnail-workers", String(value)); }}>{label}</Button>)}</div><Button size="sm" variant={textFirstArtwork ? "default" : "secondary"} className="mt-4" onClick={() => { const next = !textFirstArtwork; setTextFirstArtwork(next); localStorage.setItem("reelcase.artwork-mode", next ? "text" : "images"); document.documentElement.dataset.artworkMode = next ? "text" : "images"; }}> {textFirstArtwork ? "Text-first provider rows on" : "Use text-first provider rows"}</Button></div>
+        <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><PackageSearch className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Artwork worker budget</h2><p className="mt-2 text-sm leading-6 text-muted">Controls concurrent local thumbnail extraction. Adaptive uses device cores, available memory, and foreground input pressure.</p><div className="mt-4 flex flex-wrap gap-2">{[[0, "Adaptive"], [1, "Text-first · 1"], [2, "Gentle · 2"], [3, "Balanced · 3"], [4, "Fast · 4"]].map(([value, label]) => <Button key={value} size="sm" variant={thumbnailWorkers === value ? "default" : "secondary"} onClick={() => { setThumbnailWorkers(value as number); localStorage.setItem("reelcase.thumbnail-workers", String(value)); }}>{label}</Button>)}</div><Button size="sm" variant={textFirstArtwork ? "default" : "secondary"} className="mt-4" onClick={() => setTextFirstArtwork(!textFirstArtwork)}> {textFirstArtwork ? "Text-first provider rows on" : "Use text-first provider rows"}</Button></div>
         <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><PackageSearch className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Photo scan workers</h2><p className="mt-2 text-sm leading-6 text-muted">Sets background folder workers for cached photo metadata. Adaptive protects browsing; use Fast when you want a newly added photo source ready sooner.</p><div className="mt-4 flex flex-wrap gap-2">{[[0, "Adaptive"], [2, "Gentle · 2"], [4, "Balanced · 4"], [6, "Fast · 6"], [8, "Max · 8"], [12, "Turbo · 12"]].map(([value, label]) => <Button key={value} size="sm" variant={photoWorkers === value ? "default" : "secondary"} onClick={() => { setPhotoWorkers(value as number); localStorage.setItem("reelcase.photo-scan-workers", String(value)); }}>{label}</Button>)}</div></div>
         <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><Settings2 className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Player sound</h2><p className="mt-2 text-sm leading-6 text-muted">Sets the starting volume for local video and whether a newly opened player starts muted. Provider embeds keep their own service-level audio controls.</p><div className="mt-4 flex flex-wrap gap-2">{[25, 50, 70, 85, 100].map((value) => <Button key={value} size="sm" variant={defaultVolume === value ? "default" : "secondary"} onClick={() => { setDefaultVolume(value); localStorage.setItem("reelcase.player-volume", String(value)); }}>{value}%</Button>)}</div><Button className="mt-3" size="sm" variant={startMuted ? "default" : "secondary"} onClick={() => { const next = !startMuted; setStartMuted(next); localStorage.setItem("reelcase.player-start-muted", String(next)); }}>{startMuted ? "Start muted" : "Start with sound"}</Button></div>
         <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><Radio className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Twitch live & archive refresh</h2><p className="mt-2 text-sm leading-6 text-muted">Checks 12 rotating channels while this tab is visible, adding up to 100 recent VODs and 24 clips sampled across recent and older time ranges. Focused pulls continue through deeper VOD and clip history with saved cursors. Earlier items stay saved if a provider response is partial. Thirty seconds is the default.</p><div className="mt-4 flex flex-wrap gap-2">{[[15, "15 sec"], [30, "30 sec"], [60, "1 min"], [120, "2 min"], [300, "5 min"]].map(([value, label]) => <Button key={value} size="sm" variant={twitchRefreshSeconds === value ? "default" : "secondary"} onClick={() => { setTwitchRefreshSeconds(value as number); localStorage.setItem("reelcase.twitch-refresh-seconds", String(value)); window.dispatchEvent(new Event("reelcase:refresh-settings")); }}>{label}</Button>)}</div></div>
@@ -3140,8 +2947,8 @@ const ROADMAP_EXPANSION: Mission[] = [
     ["youtube-upgrade-04", "Rail windowing", "Done · long YouTube rails mount a measured card window with accessible deferred-card counts, keyboard arrows/Home/End, and focus bridges. The 80,000-video desktop/mobile check passes."],
     ["youtube-upgrade-05", "Artwork priority", "Done · on-screen cards take the high-priority image lane, near-view cards use a cancellable low-priority lane, and non-primary offscreen rails defer mounting. Source changes invalidate queued speculative images; titles and actions remain usable while artwork loads or fails."],
     ["youtube-upgrade-06", "Creator ambiguity review", "Flag channels whose handle, display name, and channel ID disagree; show a review choice rather than silently merging one creator into another."],
-    ["youtube-upgrade-07", "Published-date repair", "Prefer RSS published timestamps, retain the provider-provided date source, and label archive rows with unknown dates instead of sorting them as new uploads."],
-    ["youtube-upgrade-08", "Live/VOD split", "Separate current live cards, completed streams, Shorts, and ordinary uploads in selectors so a live event cannot displace historical VODs or recommendations."],
+    ["youtube-upgrade-07", "Published-date repair", "Done · exact RSS dates win over provider dates and survive shallow/live refreshes, compact cards and disk recovery. Unknown dates stay last without freshness boosts; legacy dates are labeled Saved date. Imports and live observations never invent publication dates."],
+    ["youtube-upgrade-08", "Live/VOD split", "Done · saved-format controls separate uploads, Shorts and completed streams; current live and upcoming events have their own rows. Cooperative cached groups share cards. Only a successful live check ends a stream, and completed links remain saved with local feedback."],
     ["youtube-upgrade-09", "Deep-pull checkpoint", "Done · each creator keeps its catalog continuation and last-check state across reloads. Bounded page/item budgets resume older uploads, detect terminal pages, and stop when continuation data cannot advance."],
     ["youtube-upgrade-10", "Provider error taxonomy", "Classify YouTube failures as unavailable, rate-limited, malformed, or network/offline; show the next retry time and keep cached cards untouched."],
     ["youtube-upgrade-11", "Subscription import staging", "Validate, deduplicate, and preview a pasted subscription list before network work begins; report accepted, duplicate, and unresolved handles separately."],
@@ -3153,42 +2960,42 @@ const ROADMAP_EXPANSION: Mission[] = [
     ["youtube-upgrade-17", "Offline cache audit", "Report cached channel and artwork coverage, oldest cache age, and recoverable saved links; never call a stale cache a successful provider refresh."],
     ["youtube-upgrade-18", "Mobile rail gesture", "Validate horizontal rail scrolling, focus visibility, and card action targets on a phone viewport without accidental page scroll or gesture conflicts."],
     ["youtube-upgrade-19", "Refresh result diff", "Apply and display only changed channel/video rows after a refresh, preserving card identity, scroll position, ratings, and healthy artwork."],
-    ["youtube-upgrade-20", "YouTube regression suite", "Add repeatable checks for first-click load, shallow refresh, deep pull, duplicate handling, cached recovery, and mobile rail rendering."],
-  ].map(([id, title, detail]) => ({ id, title, detail, done: ["youtube-upgrade-01", "youtube-upgrade-02", "youtube-upgrade-03", "youtube-upgrade-04", "youtube-upgrade-05", "youtube-upgrade-09", "youtube-upgrade-10", "youtube-upgrade-11", "youtube-upgrade-12", "youtube-upgrade-13", "youtube-upgrade-14", "youtube-upgrade-15", "youtube-upgrade-16", "youtube-upgrade-19"].includes(id) })),
+    ["youtube-upgrade-20", "YouTube regression suite", "Done · actual-provider-path fixtures cover feeds, deep pages, cursors, duplicates, metadata recovery and live transitions. The 80,000-entry desktop/mobile gate checks dates, formats, previews, focus and input budgets on dev and production; a million-entry benchmark verifies cooperative shared indexes. Real-provider soaking remains separate."],
+  ].map(([id, title, detail]) => ({ id, title, detail, done: ["youtube-upgrade-01", "youtube-upgrade-02", "youtube-upgrade-03", "youtube-upgrade-04", "youtube-upgrade-05", "youtube-upgrade-07", "youtube-upgrade-08", "youtube-upgrade-09", "youtube-upgrade-10", "youtube-upgrade-11", "youtube-upgrade-12", "youtube-upgrade-13", "youtube-upgrade-14", "youtube-upgrade-15", "youtube-upgrade-16", "youtube-upgrade-19", "youtube-upgrade-20"].includes(id) })),
   ...[
-    ["twitch-upgrade-01", "Archive page checkpoint", "Persist the last accepted archive cursor and VOD ID for each creator; resume a focused historical pull only when Twitch returns a forward-moving public page."],
-    ["twitch-upgrade-02", "Focused pull queue", "Let users queue a small number of explicit archive pulls, run them serially within a visible budget, and never let them starve live-state refreshes."],
-    ["twitch-upgrade-03", "VOD cursor diagnostics", "Show page count, accepted cursor, duplicate count, provider challenge state, and stop reason for each historical VOD pull."],
+    ["twitch-upgrade-01", "Archive page checkpoint", "Done · reloads and library packs retain archive/clip positions and the last accepted VOD. Fresh mirrors beat stale disk lists; unreadable or non-advancing pages hold their safe checkpoint."],
+    ["twitch-upgrade-02", "Focused pull queue", "Verified · the focused queue holds at most eight explicit creators, runs one selected 500/2,000-VOD and 0/50/250/500-clip batch per creator, and gives shallow live checks a turn before each batch. Duplicate jobs, paused queue cancellation, in-flight stop and global cancellation are covered. Waiting work lives outside the library root and releases on exit; accepted rows and saved positions remain durable."],
+    ["twitch-upgrade-03", "VOD cursor diagnostics", "Done · Archive coverage shows accepted pages, distinct VODs, repeats, saved position, last VOD and stop reason, including first-page failures. Creator diagnostics load 30 at a time with Show 100 more controls."],
     ["twitch-upgrade-04", "Clip separation audit", "Identify clip-length media independently from full VODs using duration and provider shape; correct mislabeled cards without deleting user saves."],
     ["twitch-upgrade-05", "Live-state clock", "Record the exact successful live-state observation time, expire stale live labels, and distinguish a live estimate from a confirmed current stream."],
     ["twitch-upgrade-06", "Provider integrity fallback", "When Twitch requires an integrity challenge for deeper pages, retain accepted archive data, report the limit plainly, and avoid retry loops that waste provider budget."],
     ["twitch-upgrade-07", "Archive coverage report", "Show cached VOD count, oldest/newest known dates, sparse creators, completed historical pulls, and public-provider limits for every followed channel."],
-    ["twitch-upgrade-08", "Channel retry budget", "Apply per-channel exponential backoff to failed public pulls while preserving a focused user retry that does not reset healthy channels."],
-    ["twitch-upgrade-09", "VOD merge proof", "Test that a partial or empty refresh can never erase older VODs, favorites, ratings, history, or valid local archive metadata."],
-    ["twitch-upgrade-10", "Creator archive controls", "Provide per-creator archive actions with clear depth, last result, and cooldown information instead of one opaque global refresh."],
+    ["twitch-upgrade-08", "Channel retry budget", "Verified · archive and live failure budgets persist independently per creator, back off 15 seconds to five minutes, and survive reload/backup import. Partial page/clip failures also receive cooldowns; healthy live checks cannot erase archive failures. Background rotation skips only the cooling scope. Explicit creator retries remain available and reset only the successful scope."],
+    ["twitch-upgrade-09", "VOD merge proof", "Done · provider and real-store regression tests preserve accepted pages, older VODs, favorites, ratings, history, progress and valid duration/artwork metadata through partial, empty and failed pulls."],
+    ["twitch-upgrade-10", "Creator archive controls", "Verified · creator coverage shows the last accepted depth, result, exact saved position, actionable archive/live failures and recommended retry time. Choose VOD/clip budgets, queue up to eight sparse eligible creators, retry an individual creator, open its public channel, remove waiting jobs or stop after the current batch. Budgets are captured per job. Desktop/390px mobile controls and creator paging are verified."],
     ["twitch-upgrade-11", "Stream title delta", "Update a live card’s stream title and category only when the provider reports a newer observation, preventing stale title flashes."],
     ["twitch-upgrade-12", "Viewer freshness", "Show viewer counts with an observation timestamp and remove them from ranking once they become stale."],
     ["twitch-upgrade-13", "Local cache compaction", "Compact duplicate VOD rows by stable provider video ID while retaining the newest metadata and all local feedback references."],
     ["twitch-upgrade-14", "Guest-ready embeds", "Verify Twitch Watch Room embeds receive the correct parent host, preserve the selected VOD, and surface a direct-link fallback when the player is blocked."],
     ["twitch-upgrade-15", "VOD duration repair", "Recover missing or impossible duration values from accepted provider metadata and never infer a full VOD from a short clip duration."],
-    ["twitch-upgrade-16", "Historical search filter", "Add a source-scoped historical VOD search that can target creator, date range, title, and clip/VOD state without scanning every shelf."],
-    ["twitch-upgrade-17", "Mobile live rail", "Validate live-first ordering and archive controls at phone width, with compact cards and no accidental load of every archived thumbnail."],
-    ["twitch-upgrade-18", "Provider error taxonomy", "Classify Twitch failures—including public-page limit, integrity challenge, unavailable creator, and network delay—and show the safest recovery action."],
+    ["twitch-upgrade-16", "Historical search filter", "Done · saved archive search filters title, exact creator, inclusive dates and VOD/clip type. Cancellable scans yield between slices and retain 24 results plus one lookahead; keyset pages avoid whole-catalog sorting and preserve preview return focus."],
+    ["twitch-upgrade-17", "Mobile live rail", "Done · fresh live streams lead the first phone viewport; quick creator refresh is collapsible. Rail navigation follows actual scroll position, including within overscan. Coverage adds 100 creators in small painted batches and releases cards when closed. Desktop/390px production checks cover stale-live exclusion, artwork bounds, filters, paging and preview return."],
+    ["twitch-upgrade-18", "Provider error taxonomy", "Verified · integrity challenges, public page limits, unavailable creators, unreadable responses, rate limits, network delays and response budgets have bounded diagnoses and recovery actions. First-page failures and partial results preserve saved videos and positions. Global live-query errors are rejected before cached streams can be retired. Deterministic actual API/store regressions and desktop/mobile creator controls pass."],
     ["twitch-upgrade-19", "Twitch device regression", "Exercise live, VOD, clip, blocked-embed, and Watch Room handoff behavior across supported browser/device paths before release."],
-    ["twitch-upgrade-20", "Twitch archive benchmark", "Measure a large archive’s cursor work, merge time, storage growth, first paint, and scrolling before increasing any default depth budget."],
-  ].map(([id, title, detail]) => ({ id, title, detail, done: ["twitch-upgrade-02", "twitch-upgrade-04", "twitch-upgrade-05", "twitch-upgrade-06", "twitch-upgrade-07", "twitch-upgrade-08", "twitch-upgrade-10", "twitch-upgrade-11", "twitch-upgrade-12", "twitch-upgrade-13", "twitch-upgrade-14", "twitch-upgrade-15", "twitch-upgrade-18"].includes(id) })),
+    ["twitch-upgrade-20", "Twitch archive benchmark", "Done · the reproducible 384 MiB Node benchmark measures 20-page cursor walks, additive/repeat merges, serialized growth and bounded search on 100k/million-entry compact archives. The 30k Twitch desktop/phone gate measures browser storage growth, live first paint, scroll settle, input paint and mounted cards. Network throughput, transcripts, physical devices and long-session heap soak remain separate checks; default pull depth is unchanged."],
+  ].map(([id, title, detail]) => ({ id, title, detail, done: ["twitch-upgrade-01", "twitch-upgrade-03", "twitch-upgrade-09", "twitch-upgrade-16", "twitch-upgrade-17", "twitch-upgrade-20", "twitch-upgrade-02", "twitch-upgrade-04", "twitch-upgrade-05", "twitch-upgrade-06", "twitch-upgrade-07", "twitch-upgrade-08", "twitch-upgrade-10", "twitch-upgrade-11", "twitch-upgrade-12", "twitch-upgrade-13", "twitch-upgrade-14", "twitch-upgrade-15", "twitch-upgrade-18"].includes(id) })),
   ...[
     ["speed-01", "First interaction budget", "Verified · local diagnostics use navigation time origin and separate first contentful paint, Home controls, preferences, provider/local disk reads, cooperative preparation, catalog readiness, first mounted shelf and its artwork. YouTube selector work and provider overlap retain their own trace. Startup filtering, indexing, merging and resume linking yield after 512 records or about four milliseconds, and rebase around foreground edits. Large saved-library desktop/phone launches, early navigation, synthetic million-entry preparation, listener cleanup and production rendering checked. Catalog restoration still takes seconds; physical-device and memory soak budgets remain open."],
-    ["speed-02", "Provider payload budget", "Set explicit row, byte, concurrency, and retry budgets for routine provider work; reserve historical pulls for visible user actions."],
+    ["speed-02", "Provider payload budget", "Verified · YouTube, Twitch and Adult metadata reads count decompressed stream bytes, reject incomplete pages above 8 MiB and cancel stalled bodies after 15 seconds. Shared lanes retain bounded waiting work and release cancelled transfers. Warm YouTube/Twitch caches retain at most 250 rows per result, 1 MiB per entry and 4 MiB per provider; larger focused results are delivered whole without a second cached graph. Adult warm responses retain at most 12 MiB. Routine refresh, live, archive and import workers retain explicit concurrency and retry budgets; deep pull targets, pacing settings and manual force retries stay available. Settings diagnostics disclose these safeguards and export numeric limits. Oversize, cancellation, cooldown, accepted-page recovery, focused history, desktop/phone and production checks pass. Real-provider and long-session memory soaking remain open."],
     ["speed-03", "Render invalidation audit", "Verified · card reactions subscribe to their own title, including shared preview ratings; unmounted cards release their listeners. Unchanged search grids skip parent updates and retain one published order across watch, like and rating changes. Refresh ranking applies the latest feedback on demand; query, source, hidden, unavailable, privacy and tag changes invalidate old results immediately. Transient work cancels during viewers and on navigation/idle release, and covered grids stop automatic paging. Sidebar counts and covered shelves reuse playback snapshots; comments, clocks and live expiry update only their own surfaces. A million-row result survives 10,000 feedback changes without a scan or rerank. Populated desktop/phone search pagination, preview return, keyboard focus and provider navigation checked. Long-session and physical-device memory soak remain separate milestones."],
     ["speed-04", "Visible artwork priority", "Prioritize visible and near-view images, pause offscreen decoding during input, and resume through a bounded queue once the main thread is idle."],
     ["speed-05", "Input latency monitor", "Measure interaction-to-paint time for rating, search, queue, play/pause, and source navigation on a large local and provider catalog."],
     ["speed-06", "Idle enrichment queue", "Verified · cached repair, metadata-tail batches and smart tags share one cancelable queue. Input, scrolling, hidden tabs and viewers interrupt unfinished work. Sparse immutable tag updates share unchanged entries instead of enumerating or copying full ledgers; manual edits and provider pulls use the same indexed records. Completed rows save in 64-record transactions and recover in 256-row pages, preserving manual tags and categories. Pause/resume, million-entry no-copy tests, desktop/mobile controls, saved recovery and production rendering checked. Full exports, broad preference writes and memory soak remain separate budgets."],
     ["speed-07", "Route warmup policy", "Done · one likely Hub module warms after paint and idle time, with Home recommendations given priority. Pending warmup is canceled on navigation or a hidden tab; Save-Data, slow networks, low memory, and active input defer it."],
-    ["speed-08", "Cache hit dashboard", "Report catalog, provider, artwork, and thumbnail-cache hit/miss counts with age and size, while retaining metadata only and no media bytes."],
+    ["speed-08", "Cache hit dashboard", "Verified · opt-in Settings snapshots report immutable catalog-selector reuse, bounded artwork memory, thumbnail disk recall, viewer-detail retention, and saved YouTube/Twitch provider samples. Ages and payload estimates are labeled by observation scope; missing sizes remain unknown. No media, keys, channel names or URLs enter the export. Captures run on demand instead of rerendering Settings every second; provider metadata survives follow and library-pack recovery. Desktop/phone 80,000-entry and production checks pass."],
     ["speed-09", "Mobile memory budget", "Verified · a populated 172,070-entry library with 99,999 YouTube videos runs phone navigation, bounded search, paging, preview, ratings and return under Low memory. The grid starts at 24 titles, retains a 36-card mount ceiling and mounted 12 cards after paging to 48; covered grids hold paging, artwork defers during input and focus returns to the opened title. The compact editor and mobile drawer dismiss correctly without horizontal overflow. Tag inference caps text, words and its 512-card cache; sparse repairs yield to input and wait during active searches/viewers. A 384 MiB Node benchmark covers 100k/million-entry metadata and bounded viewport windows. Desktop/phone development and production checks pass. Capability hints do not emulate CPU speed; physical-device and long-session browser heap soak remain open."],
-    ["speed-10", "Performance release gate", "Require repeatable startup, scroll-settle, mounted-card, input-latency, and console-error checks before a shelf or provider feature is marked complete."],
-  ].map(([id, title, detail]) => ({ id, title, detail, done: ["speed-01", "speed-03", "speed-04", "speed-05", "speed-06", "speed-07", "speed-09"].includes(id) })),
+    ["speed-10", "Performance release gate", "Verified · npm run check:performance creates isolated desktop/phone profiles with 80,000 compact entries, paused pulling and Text-first artwork. It gates Home readiness, source navigation, scroll settle, input-to-paint latency, mounted-card count, overflow, console errors, scorecard refresh and private export. Missing measurements fail. Synthetic media and offline Companion responses are explicit fixtures; real-provider throughput, long-session memory and physical devices remain separate checks. Development and production runs pass."],
+  ].map(([id, title, detail]) => ({ id, title, detail, done: ["speed-01", "speed-02", "speed-03", "speed-04", "speed-05", "speed-06", "speed-07", "speed-08", "speed-09", "speed-10"].includes(id) })),
   ...[
     ["smooth-01", "Navigation transition budget", "Verified · source controls and a destination loading shell paint before catalog subscribers run. Rapid switches retain one latest destination; Home and tools can interrupt it immediately. YouTube filtering, stable date sorting, demo exclusion and creator indexing prepare in cancelable slices targeting four milliseconds and reuse exact immutable caches. Hidden preparation sleeps; viewers and unmount cancel it. Desktop/mobile navigation, preview/player return and million-entry cancellation tests checked. Broader render and slow-device audits remain separate."],
     ["smooth-02", "Long-list virtualization proof", "Verified · rails resolve only their visible card references, including End jumps; rendered card widths and gaps drive responsive windows. Grids retain bounded measured rows and mounted cards. Arrow/Home/End and bidirectional Tab entry reach unmounted titles; accessible item positions retain catalog totals. Preview return restores a stable grid's visible anchor and keyboard focus. Desktop/phone checks on a 100,000-video YouTube archive, million-entry window tests, 10,000-visit geometry benchmarks and production rendering checked. Physical-device memory soak and browser maximum scroll dimensions remain separate limits."],
@@ -3201,8 +3008,8 @@ const ROADMAP_EXPANSION: Mission[] = [
     ["smooth-09", "Timer consolidation", "Verified · recurring pulls, presence, clocks, discovery, diagnostics, photo status/slideshows and Watch Room updates share one lifecycle scheduler. Hidden/idle cosmetic work sleeps; visible idle YouTube archives and background room synchronization retain their policies. Slow requests never overlap or replay missed ticks. One idle deadline replaces activity polling; transport retries and input debounces keep their own deadlines. Desktop/mobile controls and production rendering checked."],
     ["smooth-10", "Slow-device profile", "Verified · Adaptive selects smaller budgets for limited device capabilities or Save Data; Low memory can be selected on any device. Artwork retains at most 72 records / 2 MiB, thumbnail work uses one worker, remote images use four slots, new photo scans use two workers, grids load 24 titles with a 36-card mount ceiling, and rails omit extra overscan. Individual settings are retained. Budget changes release cached blob URLs and wake held requests without restarting running network work. Repeated catalog pages and unchanged resume ledgers avoid full copies; large change batches stage only a small scratch map. A reproducible 384 MiB Node benchmark with two-core/two-GiB hints checks 100k/million-entry metadata and viewport windows; populated desktop/phone settings, search and preview paths checked. Capability hints do not emulate CPU speed, and physical-device/browser memory soak remains open."],
     ["smooth-11", "Accessibility performance audit", "Verified · deferred shelves mount immediately on keyboard focus and canceled release timers cannot unmount a focused card. Virtual grid and rail Home/End jumps stay bounded and preserve logical positions; page additions have a polite count announcement and keyboard instructions. One modal covers loading, preview and playback, with immediate cancel focus, contained Tab navigation, accessible titles, nested menu Escape handling and return to the opened card. Player shortcuts yield to controls and provider playback keys; local controls stay visible during keyboard focus. A populated saved catalog and 390px phone YouTube grid/preview/player handoffs pass, including artwork still deferred. Development and production desktop/phone render checks pass. Native local playback automation and physical screen-reader/device testing remain limited; long-session memory soak is tracked separately."],
-    ["smooth-12", "Smoothness scorecard", "Publish a local diagnostics scorecard with first interaction, frame pressure, cache health, visible-card count, and the next safest remediation."],
-  ].map(([id, title, detail]) => ({ id, title, detail, done: ["smooth-01", "smooth-02", "smooth-03", "smooth-04", "smooth-05", "smooth-06", "smooth-07", "smooth-08", "smooth-09", "smooth-10", "smooth-11"].includes(id) })),
+    ["smooth-12", "Smoothness scorecard", "Verified · Settings diagnoses Home readiness, latest input paint, recent frame pressure, mounted cards and bounded cache use, with a practical next step that respects paused pulling. Missing/stale samples are shown explicitly. Opt-in frame monitoring follows browsing, stores at most 240 durations, ignores hidden time and releases its loop when shelves unmount or diagnostics turn off. Text-first restores at startup and skips image slots, decoding, Companion recall and timeout-driven creator repair. Automatic artwork repair honors Pause pulls. Tests plus populated desktop/phone and production checks pass."],
+  ].map(([id, title, detail]) => ({ id, title, detail, done: ["smooth-01", "smooth-02", "smooth-03", "smooth-04", "smooth-05", "smooth-06", "smooth-07", "smooth-08", "smooth-09", "smooth-10", "smooth-11", "smooth-12"].includes(id) })),
   { id: "recent-remote-cache-pages", title: "Paged remote catalog recovery", detail: "Done · saved provider cards restore in bounded 512-row IndexedDB pages instead of one cursor callback per card. Legacy snapshot rows remain readable; an 80,000-video desktop/mobile restore passes.", done: true },
   { id: "recent-tag-enrichment", title: "Low-allocation tag recovery", detail: "Verified · YouTube titles, substantive descriptions, hashtags, entities and chapters add keyword tags and explainable topic connections. Promotional lines, links and catalog placeholders are excluded. Text/token/tag and 512-card inference-cache limits keep work bounded. Provider-authored keywords upgrade in idle batches, preserve manual/unknown tags and locks, and save a durable repair version so reloads skip completed work. New pulls use the same inference. Search and viewers hold optional ledger updates; Settings offers Improve YouTube tags and queue controls.", done: true },
   { id: "recent-resume-reconcile", title: "Sparse Continue recovery", detail: "Done · empty resume maps skip the catalog walk and watched cards resolve stable ID, provider URL, source URL, and path aliases without per-card Set allocations.", done: true },
@@ -3991,13 +3798,20 @@ export function WatchRoomSection() {
   );
   const [roomInput, setRoomInput] = useState("");
   const [recentLocalRoom, setRecentLocalRoom] = useState(() => localStorage.getItem("reelcase.watch-room.last-host") ?? "");
-  const [name, setName] = useState(() => localStorage.getItem("reelcase.profile-name") || "Host");
+  const [name, setName] = useState(() => localStorage.getItem("reelcase.profile-name") || (new URLSearchParams(window.location.search).get('theater')==='1'?'Guest':'Host'));
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
   const [joinedAsGuest, setJoinedAsGuest] = useState(false);
   const [guestAccess, setGuestAccess] = useState(false);
   const [localVideo, setLocalVideo] = useState<File | null>(null);
   const [localShare, setLocalShare] = useState<LocalRoomShare | null>(null);
+  const [pickedLocalVideo, setPickedLocalVideo] = useState<File | null>(null);
+  const localFiles = useRef(new Map<string, File>());
   const [pendingLocalShare, setPendingLocalShare] = useState<LocalRoomShare | null>(null);
+  const [sharedRoomVideos, setSharedRoomVideos] = useState<Record<string, LibraryVideo>>({});
+  const sharedRoomVideosRef = useRef(sharedRoomVideos);
+  sharedRoomVideosRef.current = sharedRoomVideos;
+  const [sharedLocalMedia, setSharedLocalMedia] = useState<RoomMediaDescriptor | null>(null);
+  const [mediaHostId, setMediaHostId] = useState("");
   const [localQueue, setLocalQueue] = useState<LocalRoomShare[]>([]);
   const [localShareMatches, setLocalShareMatches] = useState<Record<string, { name: string; fingerprint: string; at: number }>>({});
   const [rokuAddress, setRokuAddress] = useState("");
@@ -4005,16 +3819,29 @@ export function WatchRoomSection() {
   const [rokuDevices, setRokuDevices] = useState<{ address: string; location: string }[]>([]);
   const [rokuNotice, setRokuNotice] = useState("");
   const [queue, setQueue] = useState<string[]>([]);
+  const queueRef = useRef<string[]>([]);
+  const [queueNotice, setQueueNotice] = useState('');
+  const [autoAdvance,setAutoAdvance]=useState(()=>localStorage.getItem('reelcase.watch-room.auto-advance')!=='false');
+  const lastEndedTitle=useRef('');
   const [roomHealth, setRoomHealth] = useState<RoomHealth>({ lastPublishedAt: 0, lastHostStateAt: 0, lastQueueAt: 0, lastDriftSeconds: 0, queueRevision: 0, queueRequests: 0, queueAccepted: 0, staleDropped: 0, resyncRequests: 0 });
   const [roomLedger, setRoomLedger] = useState<RoomLedgerEvent[]>([]);
   const [ledgerRoom, setLedgerRoom] = useState("");
   const [stageSize, setStageSize] = useState<"compact" | "theater" | "cinema">("theater");
   const [playback, setPlayback] = useState({ playing: false, position: 0 });
+  const [guestOffset, setGuestOffset] = useState(() => {
+    try { return normalizeGuestOffset(Number(localStorage.getItem("reelcase.watch-room.guest-offset.v1") ?? 0)); }
+    catch { return 0; }
+  });
+  const guestPlayerOffset = useRef(0);
   const [timelineEvidence, setTimelineEvidence] = useState<{ source: "local" | "remote" | "estimated"; at: number }>({ source: "local", at: Date.now() });
   const [chat, setChat] = useState<string[]>([]);
   const [message, setMessage] = useState("");
-  const [roomSearch, setRoomSearch] = useState("");
-  const deferredRoomSearch = useDeferredValue(roomSearch);
+  const [deferredRoomSearch, setDeferredRoomSearch] = useState("");
+  const [roomCandidates, setRoomCandidates] = useState<LibraryVideo[]>([]);
+  const [roomCandidatesPending, setRoomCandidatesPending] = useState(false);
+  const [roomSearchResults, setRoomSearchResults] = useState<LibraryVideo[]>([]);
+  const [roomSearchPending, setRoomSearchPending] = useState(false);
+  const [roomLocalToolsOpen, setRoomLocalToolsOpen] = useState(false);
   const [roomRatingRevision, setRoomRatingRevision] = useState(0);
   const [partyPrompt, setPartyPrompt] = useState("Pick the next vibe");
   const [partyVotes, setPartyVotes] = useState<Record<string, number>>({ Comedy: 0, Action: 0, Surprise: 0 });
@@ -4031,15 +3858,36 @@ export function WatchRoomSection() {
   const toggleFavorite = useLibrary((s) => s.toggleFavorite);
   const history = useLibrary((s) => s.history);
   const recordPlay = useLibrary((s) => s.recordPlay);
+  const unavailable = useLibrary((s) => s.unavailable);
   useEffect(() => { localStorage.setItem("reelcase.profile-name", name.trim() || "Host"); }, [name]);
-  const [sharedVideoId, setSharedVideoId] = useState(
+  const [sharedVideoId, setSharedVideoIdState] = useState(
     () => {
+      if(new URLSearchParams(window.location.search).get('theater')==='1') return '';
       const pending = localStorage.getItem("reelcase.watch-room.pending-video");
-      const requested = pending ? videos.find((video) => video.id === pending && Boolean(video.src || video.remote?.embedUrl)) : undefined;
-      return requested?.id ?? videos.find((video) => Boolean(video.src || video.remote?.embedUrl))?.id ?? "";
+      const requested = pending ? videos.find((video) => video.id === pending && canStageRoomVideo(video)) : undefined;
+      return requested?.id ?? videos.find(canStageRoomVideo)?.id ?? "";
     },
   );
-  const sharedVideo = videos.find((video) => video.id === sharedVideoId);
+  const currentVideoIdRef = useRef(sharedVideoId);
+  const setSharedVideoId = (id: string) => {
+    currentVideoIdRef.current = id;
+    setSharedVideoIdState(id);
+  };
+  const adoptRoomMedia = useCallback((values: unknown[], ids: string[]) => {
+    const next = mergeRoomMedia(sharedRoomVideosRef.current, values, ids);
+    sharedRoomVideosRef.current = next;
+    setSharedRoomVideos(next);
+  }, []);
+  const sharedVideo = useMemo(() => {
+    const video = joinedAsGuest ? sharedRoomVideos[sharedVideoId] ?? lookupVideo(videos,sharedVideoId) : lookupVideo(videos,sharedVideoId) ?? sharedRoomVideos[sharedVideoId];
+    return video ? normalizeRoomVideo(video) : undefined;
+  },[videos,sharedRoomVideos,sharedVideoId,joinedAsGuest]);
+  const roomVideoForId = (id: string) => joinedAsGuest ? sharedRoomVideosRef.current[id] ?? lookupVideo(videos,id) : lookupVideo(videos, id) ?? sharedRoomVideosRef.current[id];
+  const pickedLocalShare = pickedLocalVideo ? { name: pickedLocalVideo.name, fingerprint: localRoomFingerprint(pickedLocalVideo), size: pickedLocalVideo.size, modified: pickedLocalVideo.lastModified } : null;
+  useEffect(() => {
+    const retained = new Set([sharedVideoId, ...queue]);
+    for (const id of localFiles.current.keys()) if (!retained.has(id)) localFiles.current.delete(id);
+  }, [sharedVideoId, queue]);
   const roomRating = useMemo(() => sharedVideoId ? getRating(sharedVideoId) : 0, [roomRatingRevision, sharedVideoId]);
   const twitchClip = sharedVideo?.remote?.kind === "twitch" && (sharedVideo.extension === "clip" || sharedVideo.remote.embedUrl?.includes("clips.twitch.tv"));
   // Providers occasionally surface corrupt/millisecond clocks. Never let an
@@ -4073,7 +3921,7 @@ export function WatchRoomSection() {
   const twitchPlayerRef = useRef<TwitchRoomPlayer | null>(null);
   const twitchPlayingRef = useRef(false);
   const [twitchActuallyPlaying, setTwitchActuallyPlaying] = useState(false);
-  const [remoteFrameReady, setRemoteFrameReady] = useState(0);
+  const [remoteFrameReady, setRemoteFrameReady] = useState<{id:string;at:number}|null>(null);
   const [remoteSeekNonce, setRemoteSeekNonce] = useState(0);
   const lastYoutubeSeekNonce = useRef(0);
   const lastTwitchSeekNonce = useRef(0);
@@ -4083,9 +3931,10 @@ export function WatchRoomSection() {
   const [twitchPlayerReady, setTwitchPlayerReady] = useState(0);
   const [candidateSeed, setCandidateSeed] = useState(() => Date.now());
   const [roomPickLimit, setRoomPickLimit] = useState(18);
-  const [youtubePickLimit, setYoutubePickLimit] = useState(24);
   const youtubePlaybackStartedAt = useRef<number | null>(null);
-  const [localVideoUrl, setLocalVideoUrl] = useState("");
+  const [localVideoSource, setLocalVideoSource] = useState<{file:File;url:string}|null>(null);
+  const localVideoUrl = localVideoSource?.file === localVideo ? localVideoSource.url : "";
+  const [resolvedRoomSource, setResolvedRoomSource] = useState<{ id: string; url: string } | null>(null);
   const lastRoomTick = useRef(0);
   const lastRoomHistoryId = useRef("");
   const lastRoomPosition = useRef(0);
@@ -4097,9 +3946,63 @@ export function WatchRoomSection() {
   const room = activeRoom ?? "";
   const [relayConfig, setRelayConfig] = useState<RoomRelayConfig>();
   const p2p = useP2PRoom(room, name.trim() || "Guest", relayConfig);
-  const roomInvite = shareableRoomInvite(window.location.origin, window.location.pathname, activeRoom ?? roomCode);
+  const { request: requestQueueChange, replay: replayQueueReceipt, confirm: confirmQueueChange, accept: acceptQueueReceipt, pending: pendingQueueChanges } = useRoomQueueDelivery(room, joinedAsGuest, mediaHostId, p2p.send, setQueueNotice);
+  const matchingLocalSource = localShare && sharedVideoId === `local:${localShare.fingerprint}` ? localVideoUrl : "";
+  const libraryLocalSource = !joinedAsGuest ? resolvedRoomSource?.id === sharedVideoId ? resolvedRoomSource.url : !sharedVideo?.remote ? sharedVideo?.src ?? "" : "" : "";
+  const hostLocalSource = !joinedAsGuest ? matchingLocalSource || libraryLocalSource : "";
   useEffect(() => {
+    if (joinedAsGuest || !sharedVideo || sharedVideo.remote || !room || sharedVideo.id.startsWith("local:")) return;
+    let cancelled = false;
+    const release = pinPlayUrl(sharedVideo.id);
+    void resolvePlayUrl(sharedVideo).then((url) => {
+      if (!cancelled) setResolvedRoomSource({ id: sharedVideo.id, url });
+    }).catch((error) => { if (!cancelled) setInviteNotice(error instanceof Error ? error.message : "The host could not open this local file."); });
+    return () => { cancelled = true; release(); };
+  }, [joinedAsGuest, sharedVideo, room]);
+  const localStream = useRoomLocalStream(roomVideoRef, hostLocalSource, Boolean(room) && !joinedAsGuest, p2p.setMediaStream);
+  const roomMedia = useMemo(() => {
+    const descriptor = describeRoomMedia(sharedVideo, sharedVideoId === `local:${localShare?.fingerprint}` ? localShare : null);
+    const seconds = measuredDuration?.videoId === sharedVideoId ? measuredDuration.seconds : descriptor?.duration;
+    return descriptor?.kind === "local" ? { ...descriptor, duration:typeof seconds === "number" && Number.isFinite(seconds) && seconds>0 ? Math.min(seconds,12*60*60) : undefined, streamId: localStream.streamId || undefined } : descriptor;
+  }, [sharedVideo, sharedVideoId, localShare, localStream.streamId, measuredDuration]);
+  const roomQueueMedia = useMemo(() => queue.map(id => {
+    const file = localFiles.current.get(id);
+    const share = file ? { name: file.name, fingerprint: localRoomFingerprint(file), size: file.size, modified: file.lastModified } : undefined;
+    return describeRoomMedia(lookupVideo(videos,id) ?? sharedRoomVideos[id], share);
+  }).filter(Boolean), [videos, queue, sharedRoomVideos]);
+  const incomingStream = p2p.mediaStreams[mediaHostId];
+  const guestLocalStream = joinedAsGuest && !matchingLocalSource && sharedLocalMedia?.id === sharedVideoId && sharedLocalMedia.streamId === incomingStream?.id ? incomingStream : undefined;
+  const timingAdjustsPlayback = Boolean(sharedVideo?.remote
+    ? !sharedVideo.remote.live && !twitchClip && ["youtube", "twitch"].includes(sharedVideo.remote.kind)
+    : matchingLocalSource && localShareIsMatched && !guestLocalStream);
+  guestPlayerOffset.current = joinedAsGuest && timingAdjustsPlayback ? guestOffset : 0;
+  const devicePlaybackPosition = guestPlaybackPosition(playback.position, guestPlayerOffset.current, roomDuration());
+  const adjustedTimerPosition = guestPlaybackPosition(playback.position, joinedAsGuest ? guestOffset : 0, roomDuration());
+  const changeGuestOffset = (seconds: number) => {
+    const value = normalizeGuestOffset(seconds);
+    applyingRemotePlaybackUntil.current = Date.now() + 1200;
+    suppressRemotePlayerEchoUntil.current = Date.now() + 1200;
+    setGuestOffset(value);
+    try { localStorage.setItem("reelcase.watch-room.guest-offset.v1", String(value)); } catch { /* Session adjustment still works. */ }
+  };
+  const acceptRoomMedia = useCallback((from: string, value: unknown, id?: string) => {
+    const resolved = resolveRoomMedia(value);
+    if (!resolved || resolved.descriptor.id !== id) return;
+    setMediaHostId(from);
+    setSharedLocalMedia(resolved.descriptor.kind === "local" ? resolved.descriptor : null);
+    if (resolved.video) adoptRoomMedia([value], [resolved.descriptor.id, ...queueRef.current]);
+    if (resolved.descriptor.local) setPendingLocalShare(resolved.descriptor.local);
+  }, [adoptRoomMedia]);
+  const invitation = useRoomInvitation(activeRoom ?? roomCode);
+  const roomInvite = invitation.url;
+  useEffect(() => {
+    setSharedRoomVideos({});
+    setSharedLocalMedia(null);
+    setMediaHostId("");
     queueRevisionRef.current = 0;
+    queueRef.current = queue;
+    if(joinedAsGuest) {queueRef.current=[];setQueue([]);setSharedVideoId('');}
+    setQueueNotice('');
     lastAcceptedQueueRevision.current = 0;
     lastAcceptedTimelineAt.current = 0;
     lastAcceptedRoomStateAt.current = 0;
@@ -4124,49 +4027,76 @@ export function WatchRoomSection() {
     noteRoom("session", `Opened as ${joinedAsGuest ? "guest" : "host"}; room commands require a fresh host state.`);
   }, [joinedAsGuest, ledgerRoom, noteRoom, room]);
   useEffect(() => {
-    if (!localVideo) { setLocalVideoUrl(""); return; }
+    if (!localVideo) { setLocalVideoSource(null); return; }
     const url = URL.createObjectURL(localVideo);
-    setLocalVideoUrl(url);
+    setLocalVideoSource({file:localVideo,url});
     return () => URL.revokeObjectURL(url);
   }, [localVideo]);
   useEffect(() => {
     localStorage.removeItem("reelcase.watch-room.pending-video");
   }, []);
-  // A room must not advertise catalog-only local records as playable. Browser
-  // File handles need an explicit resolved source first, so show only videos
-  // that already have a usable embedded or direct media URL here.
-  const roomCandidates = useMemo(() => {
-    const played = new Set(history.map((entry) => entry.id));
-    return videos
-      .filter((video) => !video.isSample && !/\b(blender|big buck bunny|cosmos laundromat|tears of steel|elephants dream|sintel|night rain|empty house|golden coast|tungsten reel)\b/i.test(`${video.name} ${video.remote?.channelName ?? ""} ${video.tagline ?? ""}`) && !useLibrary.getState().unavailable[video.id] && !hiddenVideos[video.id] && Boolean(video.remote?.embedUrl || video.src))
-      // Room starters intentionally favor exposure over a fixed "top picks"
-      // list: a saved title gets a light lift, while something already played
-      // yields space to an unplayed playable title.
-      .map((video) => {
-        const random = roomShuffleRank(`${video.id}:${candidateSeed}`, candidateSeed) / 0xffffffff;
-        // Taste signals nudge the order, but the timestamped shuffle remains
-        // dominant so a Watch Room exposes genuinely different candidates.
-        return { video, rank: random + (favorites[video.id] ? 0.18 : 0) - (played.has(video.id) ? 0.32 : 0) };
-      })
-      .sort((a, b) => b.rank - a.rank)
-      .map(({ video }) => video);
-  }, [candidateSeed, favorites, hiddenVideos, history, videos]);
-  const roomSearchResults = useMemo(() => {
-    const needle = deferredRoomSearch.trim().toLowerCase();
-    return (needle ? roomCandidates.filter((video) => `${video.name} ${video.remote?.channelName ?? ""}`.toLowerCase().includes(needle)) : roomCandidates).slice(0, needle ? 20 : 12);
-  }, [deferredRoomSearch, roomCandidates]);
+  // Open local file sources only when selected; allocating URLs for the whole
+  // catalog would waste memory. Guests receive provider metadata or RTC media.
+  useEffect(() => {
+    if (!activeRoom) {
+      setRoomCandidates([]);
+      setRoomCandidatesPending(false);
+      setRoomSearchResults([]);
+      return;
+    }
+    const controller = new AbortController();
+    setRoomCandidates([]);
+    setRoomCandidatesPending(true);
+    const turn = catalogTurn(controller.signal);
+    void prepareRoomCandidates({
+      videos, shared: sharedRoomVideos, guest: joinedAsGuest, favorites, hidden: hiddenVideos,
+      unavailable, history, seed: candidateSeed, canStage: canStageRoomVideo, rank: roomShuffleRank,
+    }, turn).then((rows) => {
+      if (controller.signal.aborted) return;
+      setRoomCandidates(rows);
+      setRoomCandidatesPending(false);
+    }).catch(() => {
+      if (!controller.signal.aborted) {
+        setRoomCandidates([]);
+        setRoomCandidatesPending(false);
+        setInviteNotice("Room recommendations could not be prepared. Try reopening the room.");
+      }
+    });
+    return () => controller.abort();
+  }, [activeRoom, candidateSeed, favorites, hiddenVideos, history, videos, joinedAsGuest, sharedRoomVideos, unavailable]);
+  useEffect(() => {
+    if (!activeRoom || roomCandidatesPending) { setRoomSearchPending(false); return; }
+    const controller = new AbortController();
+    setRoomSearchPending(true);
+    void searchRoomCandidates(roomCandidates, deferredRoomSearch, deferredRoomSearch.trim() ? 20 : 12, catalogTurn(controller.signal))
+      .then(rows => { if (!controller.signal.aborted) { setRoomSearchResults(rows); setRoomSearchPending(false); } })
+      .catch(() => { if (!controller.signal.aborted) setRoomSearchPending(false); });
+    return () => controller.abort();
+  }, [activeRoom, deferredRoomSearch, roomCandidates, roomCandidatesPending]);
   useEffect(() => { const refresh = () => setRoomRatingRevision((value) => value + 1); window.addEventListener("reelcase:rating-change", refresh); return () => window.removeEventListener("reelcase:rating-change", refresh); }, []);
   const localQueueCandidates = useMemo(
-    () => roomCandidates.filter((video) => !video.remote && video.id !== sharedVideoId && !queue.includes(video.id)).slice(0, 18),
-    [queue, roomCandidates, sharedVideoId],
+    () => {
+      if (!roomLocalToolsOpen) return [];
+      const result: LibraryVideo[] = [];
+      for (const video of roomCandidates) {
+        if (video.remote || video.id === sharedVideoId || queue.includes(video.id)) continue;
+        result.push(video);
+        if (result.length === 18) break;
+      }
+      return result;
+    },
+    [queue, roomCandidates, roomLocalToolsOpen, sharedVideoId],
   );
   const youtubeRoomCandidates = useMemo(() => roomCandidates.filter((video) => video.remote?.kind === "youtube"), [roomCandidates]);
   const queueRecommendations = useMemo(() => {
     const alreadyShown = new Set(roomCandidates.slice(0, roomPickLimit).map((video) => video.id));
     const queued = new Set(queue);
-    const unseen = roomCandidates
-      .filter((video) => video.id !== sharedVideoId && !queued.has(video.id) && !alreadyShown.has(video.id))
-      .sort((a, b) => roomShuffleRank(`${a.id}:queue`, candidateSeed + 17) - roomShuffleRank(`${b.id}:queue`, candidateSeed + 17));
+    const unseen: LibraryVideo[] = [];
+    for (const video of roomCandidates) {
+      if (video.id === sharedVideoId || queued.has(video.id) || alreadyShown.has(video.id)) continue;
+      unseen.push(video);
+      if (unseen.length === 12) break;
+    }
     // Small libraries may not have a second pool yet; keep the control useful.
     return (unseen.length ? unseen : roomCandidates.filter((video) => video.id !== sharedVideoId && !queued.has(video.id))).slice(0, 12);
   }, [candidateSeed, queue, roomCandidates, roomPickLimit, sharedVideoId]);
@@ -4198,13 +4128,15 @@ export function WatchRoomSection() {
       playing: playback.playing,
       position: playback.position,
       videoId: sharedVideoId,
+      media: roomMedia,
       queue,
+      queueMedia: roomQueueMedia,
       localQueue,
       queueRevision: queueRevisionRef.current,
       sentAt,
     });
     setRoomHealth((health) => ({ ...health, lastPublishedAt: sentAt, queueRevision: queueRevisionRef.current }));
-  }, [joinedAsGuest, localQueue, p2p.peers.length, playback.playing, playback.position, queue, sharedVideoId]);
+  }, [joinedAsGuest, localQueue, p2p.readyRevision, p2p.peers.length, playback.playing, playback.position, queue, roomMedia, roomQueueMedia, sharedVideoId]);
   useEffect(() => {
     // Registration can finish before the host has installed its listener or a
     // peer channel has opened. Retry until a fresh state actually arrives.
@@ -4219,7 +4151,7 @@ export function WatchRoomSection() {
     const task = registerPeriodicTask({ name: 'Room initial sync', mode: 'always', background: false,
       firstMs: 0, everyMs: 1_500, work: request });
     return task.cancel;
-  }, [joinedAsGuest, noteRoom, p2p.joined, p2p.send, room]);
+  }, [joinedAsGuest, noteRoom, p2p.joined, p2p.readyRevision, p2p.send, room]);
   useEffect(
     () =>
       p2p.onMessage((from, raw, channel) => {
@@ -4232,13 +4164,20 @@ export function WatchRoomSection() {
           sentAt?: number;
           seek?: boolean;
           videoId?: string;
+          media?: RoomMediaDescriptor;
           queue?: string[];
+          queueMedia?: unknown[];
           queueRevision?: number;
           localQueue?: LocalRoomShare[];
           fingerprint?: string;
           size?: number;
           modified?: number;
           action?: "play" | "stage";
+          operation?: unknown;
+          requestId?: string;
+          skipped?: number;
+          duplicates?: number;
+          truncated?: boolean;
         };
         if (data.type === "chat" && data.text)
           setChat((rows) => [...rows, `${data.name ?? from}: ${data.text}`].slice(-50));
@@ -4247,7 +4186,7 @@ export function WatchRoomSection() {
         if (data.type === "share-ready" && data.name && data.fingerprint) {
           const share = { name: data.name, fingerprint: data.fingerprint, size: Number(data.size) || 0, modified: Number(data.modified) || 0 };
           setPendingLocalShare(share);
-          setInviteNotice(`${data.name} is waiting for a permitted local match. Select the same file on this device; Realhub compares name, size, and modified time without sending file contents.`);
+          setInviteNotice(`${data.name} is shared by the host. Playback streams to this device; choosing a matching local copy is optional.`);
         }
         if (data.type === "share-matched" && data.name && data.fingerprint) {
           setLocalShareMatches((matches) => ({ ...matches, [from]: { name: data.name!, fingerprint: data.fingerprint!, at: Date.now() } }));
@@ -4264,7 +4203,7 @@ export function WatchRoomSection() {
               noteRoom("dropped", "Ignored a playback request for a different video.");
             } else {
               const requested = typeof data.position === "number" && Number.isFinite(data.position) ? data.position : playback.position;
-              sync({ playing: Boolean(data.playing), position: clampRoomClock(requested) }, Boolean(data.seek));
+              sync({ playing: Boolean(data.playing), position: clampRoomClock(requested) }, Boolean(data.seek), true);
             }
           }
         }
@@ -4281,7 +4220,7 @@ export function WatchRoomSection() {
           // A late provider event from the title that was just replaced must
           // never rewind the current room. Sync packets now carry their title
           // identity, while legacy packets retain the conservative clock guard.
-          if (data.videoId && sharedVideoId && data.videoId !== sharedVideoId) return;
+          if (data.videoId && currentVideoIdRef.current && data.videoId !== currentVideoIdRef.current) return;
           const position = Number(data.position) || 0;
           const elapsed = data.playing ? Math.max(0, (Date.now() - sentAt) / 1000) : 0;
           const nextPosition = position + elapsed;
@@ -4294,6 +4233,7 @@ export function WatchRoomSection() {
           const drift = Math.abs(safePosition - playback.position);
           lastAcceptedTimelineAt.current = sentAt;
           lastRoomPosition.current = safePosition;
+          youtubePlaybackStartedAt.current = data.playing ? Date.now() - safePosition * 1000 : null;
           applyingRemotePlaybackUntil.current = Date.now() + 900;
           setTimelineEvidence({ source: "remote", at: Date.now() });
           if (data.seek || drift > 0.75) setRemoteSeekNonce((value) => value + 1);
@@ -4301,33 +4241,84 @@ export function WatchRoomSection() {
           setRoomHealth((health) => ({ ...health, lastDriftSeconds: drift, lastHostStateAt: Date.now() }));
           if (drift >= 1) noteRoom("timeline", `Reconciled ${drift.toFixed(1)}s of playback drift over ${channel}.`);
         }
-        if (data.type === "video" && data.videoId && joinedAsGuest) setSharedVideoId(data.videoId);
-        if (data.type === "video-request" && data.videoId && !joinedAsGuest) {
-          const requested = videos.find((video) => video.id === data.videoId && Boolean(video.src || video.remote?.embedUrl));
-          if (requested) { noteRoom("request", "Accepted a guest video request."); chooseVideo(requested); }
+        if (data.type === "video" && data.videoId && joinedAsGuest) {
+          setSharedVideoId(data.videoId);
+          acceptRoomMedia(from, data.media, data.videoId);
         }
+        if (data.type === "video-request" && data.videoId && !joinedAsGuest) {
+          const requested = resolveGuestRoomVideo(data.videoId,data.media);
+          if (requested) { noteRoom("request", "Accepted a guest video request."); chooseVideo(requested,data.action==='play'); }
+          else p2p.send({type:"video-rejected",text:"The host cannot open that file. Ask the host to choose and queue it; public YouTube and Twitch links can be shared directly."},from);
+        }
+        if (data.type === "video-rejected" && joinedAsGuest) setInviteNotice(data.text?.slice(0,300) || "The host could not play that title.");
+        if (data.type === "next-request" && !joinedAsGuest && data.videoId === currentVideoIdRef.current) playNext();
+        if (data.type === "queue-shuffle" && !joinedAsGuest && typeof data.requestId === "string" && data.requestId.length <= 160) {
+          if (replayQueueReceipt(from, data.requestId)) return;
+          shuffleQueue();
+          confirmQueueChange(from, data.requestId, "Queue shuffle confirmed by the host.");
+        }
+        if (data.type === 'queue-action' && !joinedAsGuest) {
+          let operation = parseRoomQueueAction(data.operation);
+          if (!operation || typeof data.requestId !== 'string' || data.requestId.length>160) return;
+          if (replayQueueReceipt(from, data.requestId)) return;
+          const addsTitle = operation.kind === 'add' || operation.kind === 'next';
+          const requested = addsTitle ? resolveGuestRoomVideo(operation.id,data.media) : undefined;
+          if (addsTitle && !requested) {
+            confirmQueueChange(from,data.requestId,'This title is unavailable on the host. YouTube and Twitch links can be shared; local files must be opened by the host.');
+            return;
+          }
+          if (requested) operation = { ...operation, id: requested.id };
+          if (operation.id === currentVideoIdRef.current || operation.kind === 'add' && queueRef.current.includes(operation.id)) {
+            confirmQueueChange(from,data.requestId,'That video is already playing or queued.');
+            return;
+          }
+          if (addsTitle && !queueRef.current.includes(operation.id) && queueRef.current.length >= ROOM_QUEUE_LIMIT) {
+            confirmQueueChange(from,data.requestId,'The queue is full. Remove a title before adding another.');
+            return;
+          }
+          publishQueue(applyRoomQueueAction(queueRef.current,operation));
+          confirmQueueChange(from,data.requestId,'Queue change confirmed by the host.');
+          noteRoom('queue',`Applied a guest ${operation.kind} action to the latest queue.`);
+        }
+        if (data.type === "queue-batch" && !joinedAsGuest && Array.isArray(data.queueMedia) && typeof data.requestId === "string" && data.requestId.length <= 160) {
+          if (replayQueueReceipt(from, data.requestId)) return;
+          const result=queueLinkBatch(data.queueMedia);
+          const skipped=result.invalid+Math.min(48,Math.max(0,Number(data.skipped)||0));
+          const duplicates=result.duplicates+Math.min(48,Math.max(0,Number(data.duplicates)||0));
+          confirmQueueChange(from,data.requestId,batchQueueNotice({...result,invalid:skipped,duplicates},Boolean(data.truncated)));
+        }
+        if (data.type === "queue-result" && joinedAsGuest && typeof data.requestId === "string") acceptQueueReceipt(from, data.requestId, data.text || "");
+        if (data.type === "queue-batch-result" && joinedAsGuest) setQueueNotice(data.text?.slice(0,300)||"The host checked your queue links.");
+        if (data.type === 'queue-rejected' && joinedAsGuest) setQueueNotice(data.text?.slice(0,300) || 'The host could not apply this queue change.');
         if (data.type === "queue-request" && Array.isArray(data.queue) && !joinedAsGuest) {
+          if (data.queueRevision !== queueRevisionRef.current) {
+            p2p.send({type:'queue',queue:queueRef.current,queueMedia:roomQueueMedia,queueRevision:queueRevisionRef.current,sentAt:Date.now()},from);
+            return;
+          }
           // A guest can only propose titles the host can actually stage. This
           // prevents an out-of-date catalog or arbitrary packet from adding a
           // permanent “Unavailable title” entry to the canonical queue.
-          const requested = normalizeRoomQueue(data.queue).filter((id) => id !== sharedVideoId && videos.some((video) => video.id === id && Boolean(video.src || video.remote?.embedUrl)));
+          const requested = normalizeRoomQueue(data.queue).filter((id) => id !== sharedVideoId && Boolean(lookupVideo(videos, id) && canStageRoomVideo(lookupVideo(videos, id)!)));
           const revision = Math.max(queueRevisionRef.current, lastAcceptedQueueRevision.current) + 1;
           queueRevisionRef.current = revision;
           lastAcceptedQueueRevision.current = revision;
+          queueRef.current = requested;
           setQueue(requested);
-          p2p.send({ type: "queue", queue: requested, queueRevision: revision, sentAt: Date.now() });
+          p2p.send({ type: "queue", queue: requested, queueMedia: requested.map((id) => describeRoomMedia(videos.find((video) => video.id === id))), queueRevision: revision, sentAt: Date.now() });
           setRoomHealth((health) => ({ ...health, queueAccepted: health.queueAccepted + 1, queueRevision: revision, lastQueueAt: Date.now() }));
           noteRoom("queue", `Accepted a guest queue proposal as revision ${revision}.`);
         }
         if (data.type === "queue" && Array.isArray(data.queue) && joinedAsGuest) {
           const revision = Number.isInteger(data.queueRevision) && Number(data.queueRevision) >= 0 ? Number(data.queueRevision) : 0;
-          if (revision && revision < lastAcceptedQueueRevision.current) {
+          if (revision < lastAcceptedQueueRevision.current) {
             setRoomHealth((health) => ({ ...health, staleDropped: health.staleDropped + 1 }));
             noteRoom("dropped", `Ignored stale queue revision ${revision}.`);
           } else {
             const accepted = normalizeRoomQueue(data.queue);
             if (revision) lastAcceptedQueueRevision.current = revision;
+            queueRef.current = accepted;
             setQueue(accepted);
+            if (Array.isArray(data.queueMedia)) adoptRoomMedia(data.queueMedia, [currentVideoIdRef.current, ...accepted]);
             setRoomHealth((health) => ({ ...health, queueRevision: revision || health.queueRevision, lastQueueAt: Date.now() }));
           }
         }
@@ -4351,13 +4342,16 @@ export function WatchRoomSection() {
             noteRoom("dropped", "Ignored an expired or out-of-order host state.");
             return;
           }
-          const videoChanged = Boolean(data.videoId && data.videoId !== sharedVideoId);
+          const videoChanged = Boolean(data.videoId && data.videoId !== currentVideoIdRef.current);
           if (data.videoId) setSharedVideoId(data.videoId);
+          acceptRoomMedia(from, data.media, data.videoId);
           if (Array.isArray(data.queue)) {
             const revision = Number.isInteger(data.queueRevision) && Number(data.queueRevision) >= 0 ? Number(data.queueRevision) : 0;
-            if (!revision || revision >= lastAcceptedQueueRevision.current) {
+            if (revision >= lastAcceptedQueueRevision.current) {
               if (revision) lastAcceptedQueueRevision.current = revision;
-              setQueue(normalizeRoomQueue(data.queue));
+              queueRef.current = normalizeRoomQueue(data.queue);
+              setQueue(queueRef.current);
+              if (Array.isArray(data.queueMedia)) adoptRoomMedia(data.queueMedia, [currentVideoIdRef.current, ...queueRef.current]);
               setRoomHealth((health) => ({ ...health, queueRevision: revision || health.queueRevision, lastQueueAt: Date.now() }));
             } else {
               setRoomHealth((health) => ({ ...health, staleDropped: health.staleDropped + 1 }));
@@ -4373,6 +4367,7 @@ export function WatchRoomSection() {
           lastAcceptedRoomStateAt.current = sentAt;
           lastAcceptedTimelineAt.current = Math.max(lastAcceptedTimelineAt.current, sentAt);
           lastRoomPosition.current = safePosition;
+          youtubePlaybackStartedAt.current = data.playing ? Date.now() - safePosition * 1000 : null;
           applyingRemotePlaybackUntil.current = Date.now() + 900;
           setTimelineEvidence({ source: "remote", at: Date.now() });
           if (videoChanged || drift > 0.75) setRemoteSeekNonce((value) => value + 1);
@@ -4383,15 +4378,15 @@ export function WatchRoomSection() {
         if (data.type === "resync-request" && !joinedAsGuest) {
           const position = currentHostClock();
           const sentAt = Date.now();
-          p2p.send({ type: "room-state", playing: playback.playing, position, videoId: sharedVideoId, queue, localQueue, queueRevision: queueRevisionRef.current, sentAt }, from);
+          p2p.send({ type: "room-state", playing: playback.playing, position, videoId: sharedVideoId, media: roomMedia, queue, queueMedia: roomQueueMedia, localQueue, queueRevision: queueRevisionRef.current, sentAt }, from);
           setRoomHealth((health) => ({ ...health, lastPublishedAt: sentAt }));
           noteRoom("state", "Sent a targeted state reconciliation to a guest.");
         }
       }),
-    [joinedAsGuest, localQueue, noteRoom, p2p.onMessage, p2p.send, playback.playing, playback.position, queue, sharedVideoId, videos, measuredDuration],
+    [joinedAsGuest, localQueue, noteRoom, p2p.onMessage, p2p.send, playback.playing, playback.position, queue, sharedVideoId, videos, sharedRoomVideos, measuredDuration, acceptRoomMedia, roomMedia, roomQueueMedia, replayQueueReceipt, confirmQueueChange, acceptQueueReceipt],
   );
-  const sync = (next: { playing: boolean; position: number }, seek = false) => {
-    if (!seek && Date.now() < applyingRemotePlaybackUntil.current) return;
+  const sync = (next: { playing: boolean; position: number }, seek = false, explicit = false) => {
+    if (!seek && !explicit && Date.now() < applyingRemotePlaybackUntil.current) return;
     if (joinedAsGuest) {
       p2p.send({ type: "sync-request", ...next, videoId: sharedVideoId, seek, sentAt: Date.now() });
       setInviteNotice("Playback change sent to the host. Your theater will reconcile when it is confirmed.");
@@ -4412,7 +4407,7 @@ export function WatchRoomSection() {
     // A provider pause is a time capture, not a seek. Its callback can be
     // late (or transiently zero), so freeze the furthest trusted local clock.
     const providerClock = estimatedProviderPosition(lastRoomPosition.current, playback.position, playback.playing ? youtubePlaybackStartedAt.current : null, Date.now());
-    const position = seek ? next.position : (isYoutube || isTwitch) && !next.playing
+    const position = !seek && !sharedVideo?.remote && roomVideoRef.current ? roomVideoRef.current.currentTime : seek ? next.position : (isYoutube || isTwitch) && !next.playing
       ? Math.max(providerClock, next.position)
       : isTwitch
         ? hasTwitchPosition
@@ -4435,6 +4430,17 @@ export function WatchRoomSection() {
     p2p.send({ type: "sync", ...resolved, videoId: sharedVideoId, seek, sentAt });
     setRoomHealth((health) => ({ ...health, lastPublishedAt: sentAt }));
   };
+  const syncDevicePlayback = (next: { playing: boolean; position: number }, seek = false) => {
+    // Programmatic device alignment must not become a room-wide seek or echo.
+    if (joinedAsGuest && Date.now() < applyingRemotePlaybackUntil.current) return;
+    sync({ ...next, position: hostPlaybackPosition(next.position, guestPlayerOffset.current, roomDuration()) }, seek);
+  };
+  useEffect(() => {
+    if (!joinedAsGuest) return;
+    applyingRemotePlaybackUntil.current = Date.now() + 1200;
+    suppressRemotePlayerEchoUntil.current = Date.now() + 1200;
+    setRemoteSeekNonce(value => value + 1);
+  }, [guestOffset, joinedAsGuest]);
   useEffect(() => {
     // Iframe providers do not continuously expose a readable clock. Maintain
     // a conservative room estimate between controls and have only the host
@@ -4443,7 +4449,7 @@ export function WatchRoomSection() {
     if (!provider || !playback.playing || !youtubePlaybackStartedAt.current) return;
     const task = registerPeriodicTask({ name: 'Room playback clock', mode: 'always', background: false, everyMs: 1_000, work: () => {
       const twitchTime = provider === "twitch" ? twitchPlayerRef.current?.getCurrentTime() : undefined;
-      const actual = typeof twitchTime === "number" && twitchTime > 0.25 ? twitchTime : undefined;
+      const actual = typeof twitchTime === "number" && twitchTime > 0.25 ? hostPlaybackPosition(twitchTime, guestPlayerOffset.current, roomDuration()) : undefined;
       const estimated = clampRoomClock(actual ?? estimatedProviderPosition(lastRoomPosition.current, playback.position, youtubePlaybackStartedAt.current, Date.now()));
       if (provider === "twitch" && !twitchPlayingRef.current) return;
       if (estimated <= lastRoomPosition.current + 0.2) return;
@@ -4468,40 +4474,35 @@ export function WatchRoomSection() {
     youtubePlaybackStartedAt.current = playing ? Date.now() - position * 1000 : null;
     setPlayback({ playing, position });
     const sentAt = Date.now();
-    p2p.send({ type: "room-state", playing, position, videoId: sharedVideoId, queue, localQueue, queueRevision: queueRevisionRef.current, sentAt });
+    p2p.send({ type: "room-state", playing, position, videoId: sharedVideoId, media: roomMedia, queue, queueMedia: roomQueueMedia, localQueue, queueRevision: queueRevisionRef.current, sentAt });
     setRoomHealth((health) => ({ ...health, lastPublishedAt: sentAt }));
     noteRoom("state", "Published an explicit room reconciliation.");
     setInviteNotice("Sent the current video and timeline to every guest.");
   };
-  const copyInvite = async () => {
-    const link = shareableRoomInvite(window.location.origin, window.location.pathname, roomCode);
-    if (!link) {
-      setInviteNotice("localhost works only on this computer. Open Realhub from its home-network address, then copy the room invitation.");
-      return;
-    }
-    try {
-      const response = await fetch(window.location.pathname, { method: "HEAD", cache: "no-store", signal: AbortSignal.timeout(5000) });
-      if (!response.ok) throw new Error("app unavailable");
-      await navigator.clipboard.writeText(link);
-      setInviteNotice("Theater invitation link copied.");
-    } catch {
-      setInviteNotice("Realhub is not responding at this address. Reopen the app from its home-network address before copying the invitation.");
-    }
-  };
   useEffect(() => {
     const media = roomVideoRef.current;
     if (!media || sharedVideo?.remote) return;
+    let cancelled = false;
     const driftLimit = playback.playing ? 0.65 : 0.1;
-    if (Math.abs(media.currentTime - playback.position) > driftLimit)
-      media.currentTime = playback.position;
-    if (playback.playing && media.paused) void media.play().catch(() => {});
+    if (Math.abs(media.currentTime - devicePlaybackPosition) > driftLimit) {
+      if (joinedAsGuest) applyingRemotePlaybackUntil.current = Date.now() + 900;
+      media.currentTime = devicePlaybackPosition;
+    }
+    if (playback.playing && media.paused) void media.play().catch((error: unknown) => {
+      if (cancelled || roomVideoRef.current !== media) return;
+      if (error instanceof DOMException && error.name === "NotAllowedError") {
+        setInviteNotice("This browser needs a Play press to start the local video.");
+        if (!joinedAsGuest) sync({ playing: false, position: media.currentTime });
+      }
+    });
     if (!playback.playing && !media.paused) media.pause();
-  }, [playback, sharedVideo]);
+    return () => { cancelled = true; };
+  }, [playback, sharedVideo, libraryLocalSource, matchingLocalSource, joinedAsGuest, devicePlaybackPosition]);
   useEffect(() => {
     // YouTube's iframe API accepts command messages once enablejsapi=1 is in
     // the URL. This keeps the in-room controls meaningful instead of merely
     // changing a label beside an uncontrolled embed.
-    if (sharedVideo?.remote?.kind !== "youtube" || !remoteFrameReady) return;
+    if (sharedVideo?.remote?.kind !== "youtube" || remoteFrameReady?.id !== sharedVideo.id) return;
     const frame = remoteFrameRef.current?.contentWindow;
     if (!frame) return;
     const target = new URL(watchRoomEmbed(sharedVideo)).origin;
@@ -4509,10 +4510,13 @@ export function WatchRoomSection() {
     // +/- seek (or a newly selected video), never as a side effect of Pause.
     if (remoteSeekNonce !== lastYoutubeSeekNonce.current) {
       lastYoutubeSeekNonce.current = remoteSeekNonce;
-      if (remoteSeekNonce) frame.postMessage(JSON.stringify({ event: "command", func: "seekTo", args: [playback.position, true] }), target);
+      if (remoteSeekNonce && !sharedVideo.remote.live) {
+        suppressRemotePlayerEchoUntil.current = Date.now() + 1000;
+        frame.postMessage(JSON.stringify({ event: "command", func: "seekTo", args: [devicePlaybackPosition, true] }), target);
+      }
     }
     frame.postMessage(JSON.stringify({ event: "command", func: playback.playing ? "playVideo" : "pauseVideo", args: [] }), target);
-  }, [playback.playing, remoteFrameReady, remoteSeekNonce, sharedVideo?.id]);
+  }, [playback.playing, remoteFrameReady, remoteSeekNonce, sharedVideo?.id, guestOffset]);
   useEffect(() => {
     if (sharedVideo?.remote?.kind !== "twitch" || twitchClip) { twitchPlayerRef.current = null; return; }
     const host = twitchPlayerHostRef.current;
@@ -4523,6 +4527,8 @@ export function WatchRoomSection() {
     host.replaceChildren();
     twitchPlayingRef.current = false;
     setTwitchActuallyPlaying(false);
+    setTwitchPlayerReady(0);
+    lastTwitchSeekNonce.current = -1;
     setTwitchPlayerStatus("Loading Twitch interactive player…");
     void loadTwitchEmbed().then((api) => {
       if (cancelled) return;
@@ -4535,17 +4541,18 @@ export function WatchRoomSection() {
       });
       twitchPlayerRef.current = player;
       lastTwitchPlaybackCommand.current = null;
-      const events = player.constructor as { READY?: string; PLAY?: string; PAUSE?: string; SEEK?: string; PLAYING?: string; PLAYBACK_BLOCKED?: string };
+      const events = player.constructor as { READY?: string; PLAY?: string; PAUSE?: string; SEEK?: string; PLAYING?: string; PLAYBACK_BLOCKED?: string; ENDED?:string };
       player.addEventListener(events.READY ?? "ready", () => { if (!cancelled) {
         const duration = player.getDuration?.();
         if (!live && typeof duration === "number" && Number.isFinite(duration) && duration > 0) setMeasuredDuration({ videoId: sharedVideo.id, seconds: duration });
         setTwitchPlayerStatus("Twitch player ready. Use room controls to start."); setTwitchPlayerReady(Date.now());
       } });
-      player.addEventListener(events.PLAY ?? "play", () => { const position = player.getCurrentTime(); if (!cancelled && Date.now() > suppressRemotePlayerEchoUntil.current) sync({ playing: true, position: position > 0.25 ? position : playback.position }); });
-      player.addEventListener(events.PAUSE ?? "pause", () => { twitchPlayingRef.current = false; setTwitchActuallyPlaying(false); const position = player.getCurrentTime(); if (!cancelled && Date.now() > suppressRemotePlayerEchoUntil.current) sync({ playing: false, position: position > 0.25 ? position : playback.position }); });
-      player.addEventListener(events.SEEK ?? "seek", () => { if (!cancelled && !live && Date.now() > suppressRemotePlayerEchoUntil.current) sync({ playing: true, position: player.getCurrentTime() }, true); });
+      player.addEventListener(events.PLAY ?? "play", () => { const position = player.getCurrentTime(); if (!cancelled && Date.now() > suppressRemotePlayerEchoUntil.current) syncDevicePlayback({ playing: true, position: position > 0.25 ? position : guestPlaybackPosition(playback.position, guestPlayerOffset.current) }); });
+      player.addEventListener(events.PAUSE ?? "pause", () => { twitchPlayingRef.current = false; setTwitchActuallyPlaying(false); const position = player.getCurrentTime(); if (!cancelled && Date.now() > suppressRemotePlayerEchoUntil.current) syncDevicePlayback({ playing: false, position: position > 0.25 ? position : guestPlaybackPosition(playback.position, guestPlayerOffset.current) }); });
+      player.addEventListener(events.SEEK ?? "seek", () => { if (!cancelled && !live && Date.now() > suppressRemotePlayerEchoUntil.current) syncDevicePlayback({ playing: true, position: player.getCurrentTime() }, true); });
       player.addEventListener(events.PLAYING ?? "playing", () => { if (!cancelled) { twitchPlayingRef.current = true; setTwitchActuallyPlaying(true); setTwitchPlayerStatus("Twitch playback started."); } });
       player.addEventListener(events.PLAYBACK_BLOCKED ?? "playback-blocked", () => { if (!cancelled) { twitchPlayingRef.current = false; setTwitchActuallyPlaying(false); setTwitchPlayerStatus("Twitch blocked playback. Press Play in its player."); } });
+      player.addEventListener(events.ENDED ?? 'ended',()=>{if(!cancelled) finishLatestRoomTitle.current();});
     }).catch(() => { if (!cancelled) setTwitchPlayerStatus("Twitch interactive player could not load. Open Twitch directly below."); });
     return () => { cancelled = true; twitchPlayerRef.current = null; lastTwitchPlaybackCommand.current = null; host.replaceChildren(); };
   // The player belongs to the selected card, not to every timeline tick.
@@ -4554,12 +4561,12 @@ export function WatchRoomSection() {
   useEffect(() => {
     if (sharedVideo?.remote?.kind !== "twitch" || twitchClip) return;
     const player = twitchPlayerRef.current;
-    if (!player) return;
+    if (!player || !twitchPlayerReady) return;
     if (remoteSeekNonce !== lastTwitchSeekNonce.current) {
       lastTwitchSeekNonce.current = remoteSeekNonce;
       if (remoteSeekNonce && !sharedVideo.remote.live) {
         suppressRemotePlayerEchoUntil.current = Date.now() + 1_000;
-        player.seek(clampRoomClock(playback.position));
+        player.seek(devicePlaybackPosition);
       }
     }
     // A clock heartbeat is not a playback command. Calling play each second
@@ -4569,7 +4576,7 @@ export function WatchRoomSection() {
       suppressRemotePlayerEchoUntil.current = Date.now() + 750;
       if (playback.playing) player.play(); else player.pause();
     }
-  }, [playback.playing, playback.position, remoteSeekNonce, sharedVideo?.id, twitchPlayerReady]);
+  }, [playback.playing, playback.position, remoteSeekNonce, sharedVideo?.id, twitchPlayerReady, guestOffset]);
   const toggleRoomPlayback = () => {
     const playing = !playback.playing;
     const player = twitchPlayerRef.current;
@@ -4592,44 +4599,128 @@ export function WatchRoomSection() {
         window.setTimeout(() => { if (!twitchPlayingRef.current) setTwitchPlayerStatus("Twitch is waiting for a Play press inside its player."); }, 1800);
       } else player.pause();
     }
-    sync({ ...playback, playing });
+    sync({ ...playback, playing }, false, true);
   };
-  const chooseVideo = (video: LibraryVideo) => {
+  const chooseVideo = (video: LibraryVideo, startPlayback = false) => {
     if (joinedAsGuest) {
-      p2p.send({ type: "video-request", videoId: video.id, sentAt: Date.now() });
+      p2p.send({ type: "video-request", videoId: video.id, media: describeRoomMedia(video), action:startPlayback?'play':'stage', sentAt: Date.now() });
       setInviteNotice(`Requested ${video.name} from the host. The room changes only after host confirmation.`);
       noteRoom("request", "Requested a host video change.");
       return;
     }
-    setLocalVideo(null);
-    setLocalShare(null);
+    const file = localFiles.current.get(video.id);
+    if (!video.remote && video.id.startsWith("local:") && !file) {
+      setInviteNotice(`Choose ${video.name} on the host before playing it.`);
+      return;
+    }
+    const share = file ? { name: file.name, fingerprint: localRoomFingerprint(file), size: file.size, modified: file.lastModified } : null;
+    setLocalVideo(file ?? null);
+    setLocalShare(share);
     setLocalShareMatches({});
     setSharedVideoId(video.id);
-    setPlayback({ playing: false, position: 0 });
+    const selectedKey = roomMediaKey(video);
+    const remaining = queueRef.current.filter(id => {
+      const queued = roomVideoForId(id);
+      return queued && roomMediaKey(queued) !== selectedKey;
+    });
+    if (remaining.length !== queueRef.current.length) publishQueue(remaining, video.id);
+    setPlayback({ playing: startPlayback, position: 0 });
+    youtubePlaybackStartedAt.current=startPlayback?Date.now():null;
     lastRoomPosition.current = 0;
     lastRoomHistoryId.current = "";
     recordPlay(video.id, "watch-room");
-    p2p.send({ type: "video", videoId: video.id, sentAt: Date.now() });
-    p2p.send({ type: "sync", playing: false, position: 0, videoId: video.id, seek: true, sentAt: Date.now() });
+    p2p.send({ type: "video", videoId: video.id, media: describeRoomMedia(video, share), sentAt: Date.now() });
+    p2p.send({ type: "sync", playing: startPlayback, position: 0, videoId: video.id, seek: true, sentAt: Date.now() });
     noteRoom("state", "Host selected a new room video.");
   };
-  const updateQueue = (next: string[]) => {
+  const resolveGuestRoomVideo = (id: string, media: unknown) => {
+    const requested = resolveRoomRequest(id, media, roomVideoForId, [currentVideoIdRef.current, ...queueRef.current]);
+    if (!requested || !canStageRoomVideo(requested)) return undefined;
+    if (!requested.remote && requested.id.startsWith("local:") && !localFiles.current.has(requested.id)) return undefined;
+    if (requested.remote) adoptRoomMedia([describeRoomMedia(requested)], [currentVideoIdRef.current, ...queueRef.current, requested.id]);
+    return requested;
+  };
+  const publishQueue = (next: string[], currentId = currentVideoIdRef.current) => {
     measureInteraction("queue");
-    const bounded = normalizeRoomQueue(next).filter((id) => id !== sharedVideoId && videos.some((video) => video.id === id && Boolean(video.src || video.remote?.embedUrl)));
-    if (joinedAsGuest) {
-      p2p.send({ type: "queue-request", queue: bounded, sentAt: Date.now() });
-      setRoomHealth((health) => ({ ...health, queueRequests: health.queueRequests + 1 }));
-      noteRoom("request", "Sent a queue proposal to the host.");
-      setInviteNotice("Queue proposal sent to the host. It appears here once the host confirms it.");
-      return;
-    }
+    const current = roomVideoForId(currentId);
+    const bounded = distinctRoomQueue(next, id => {
+      const video = roomVideoForId(id);
+      return video && canStageRoomVideo(video) ? roomMediaKey(video) : undefined;
+    }, current ? roomMediaKey(current) : undefined);
     const revision = Math.max(queueRevisionRef.current, lastAcceptedQueueRevision.current) + 1;
     queueRevisionRef.current = revision;
     lastAcceptedQueueRevision.current = revision;
+    queueRef.current = bounded;
     setQueue(bounded);
-    p2p.send({ type: "queue", queue: bounded, queueRevision: revision, sentAt: Date.now() });
+    p2p.send({ type: "queue", queue: bounded, queueMedia: bounded.map(id=>{
+      const file=localFiles.current.get(id);
+      const share=file?{name:file.name,fingerprint:localRoomFingerprint(file),size:file.size,modified:file.lastModified}:undefined;
+      return describeRoomMedia(roomVideoForId(id),share);
+    }), queueRevision: revision, sentAt: Date.now() });
     setRoomHealth((health) => ({ ...health, queueAccepted: health.queueAccepted + 1, queueRevision: revision, lastQueueAt: Date.now() }));
     noteRoom("queue", `Published queue revision ${revision} with ${bounded.length} title${bounded.length === 1 ? "" : "s"}.`);
+  };
+  const changeQueue = (operation: RoomQueueAction, video?: LibraryVideo) => {
+    if (joinedAsGuest) {
+      requestQueueChange({type:'queue-action',operation,media:describeRoomMedia(video ?? roomVideoForId(operation.id)),queueRevision:lastAcceptedQueueRevision.current},'Queue change sent · waiting for host confirmation.');
+      setRoomHealth(health=>({...health,queueRequests:health.queueRequests+1}));
+      return;
+    }
+    if ((operation.kind==='add'||operation.kind==='next') && !queueRef.current.includes(operation.id) && queueRef.current.length>=ROOM_QUEUE_LIMIT) {setQueueNotice('The queue holds 48 titles. Remove one before adding another.');return;}
+    publishQueue(applyRoomQueueAction(queueRef.current,operation));
+  };
+  const shuffleQueue = () => {
+    if (joinedAsGuest) {
+      requestQueueChange({type:"queue-shuffle"},"Shuffle requested · waiting for host confirmation.");
+      return;
+    }
+    if (queueRef.current.length < 2) return;
+    publishQueue(shuffleRoomQueue(queueRef.current));
+    setQueueNotice("Queue shuffled. The current video keeps playing.");
+  };
+  const queueLinkBatch = (values: unknown[]) => {
+    const next=[...queueRef.current], media:RoomMediaDescriptor[]=[];
+    const staged = new Map<string, LibraryVideo>();
+    const seen=new Set([currentVideoIdRef.current,...next].flatMap(id=>{const video=roomVideoForId(id);return video?[roomMediaKey(video)]:[];}));
+    const result={added:0,duplicates:0,invalid:0,full:0};
+    for (const value of values.slice(0,ROOM_QUEUE_LIMIT)) {
+      const resolved=resolveRoomMedia(value);
+      if (!resolved?.video?.remote) {result.invalid++;continue;}
+      const key=roomMediaKey(resolved.video);
+      if (seen.has(key)) {result.duplicates++;continue;}
+      if (next.length>=ROOM_QUEUE_LIMIT) {result.full++;continue;}
+      const requested=resolveRoomRequest(resolved.video.id,value,id=>staged.get(id)??roomVideoForId(id),[currentVideoIdRef.current,...next]);
+      if (!requested) {result.invalid++;continue;}
+      staged.set(requested.id,requested);
+      next.push(requested.id);seen.add(key);media.push(describeRoomMedia(requested)!);result.added++;
+    }
+    if (result.added) {adoptRoomMedia(media,[currentVideoIdRef.current,...next]);publishQueue(next);}
+    return result;
+  };
+  const batchQueueNotice = (result:{added:number;duplicates:number;invalid:number;full:number},truncated=false) => [
+    `${result.added} queued`,result.duplicates?`${result.duplicates} already playing/queued`:"",result.invalid?`${result.invalid} invalid or unavailable`:"",result.full?`${result.full} skipped · queue full`:"",truncated?"Only the first 48 links were checked":"",
+  ].filter(Boolean).join(" · ");
+  const queuePublicLinks = (value:string) => {
+    const parsed=parseRoomLinks(value);
+    if (!parsed.videos.length) {setQueueNotice("Enter public YouTube or Twitch links, one per line.");return false;}
+    if (joinedAsGuest) {
+      return requestQueueChange({type:"queue-batch",queueMedia:parsed.videos.map(video=>describeRoomMedia(video)),skipped:parsed.invalid,duplicates:parsed.duplicates,truncated:parsed.truncated},`${parsed.videos.length} links sent · waiting for host confirmation.`);
+    } else {
+      const result=queueLinkBatch(parsed.videos.map(video=>describeRoomMedia(video)));
+      setQueueNotice(batchQueueNotice({...result,invalid:result.invalid+parsed.invalid,duplicates:result.duplicates+parsed.duplicates},parsed.truncated));
+    }
+    return true;
+  };
+  const updateQueue = (next: string[]) => {
+    if (!joinedAsGuest) { publishQueue(next); return; }
+    // Older queue surfaces use a proposed array; translate changes into
+    // intentions instead of allowing that stale array to replace host state.
+    for (const id of queueRef.current) if (!next.includes(id)) changeQueue({kind:'remove',id});
+    for (let index=next.length-1;index>=0;index--) {
+      const id=next[index]!;
+      if (!queueRef.current.includes(id)) changeQueue({kind:'add',id,before:next[index+1]});
+      else if (next.indexOf(id)!==queueRef.current.indexOf(id) && next.length===queueRef.current.length) changeQueue({kind:'move',id,before:next[index+1]});
+    }
   };
   const updateLocalQueue = (next: LocalRoomShare[]) => {
     const bounded = normalizeLocalRoomQueue(next);
@@ -4652,15 +4743,17 @@ export function WatchRoomSection() {
     }
     if (!localShare || localShare.fingerprint !== share.fingerprint || !localVideo) {
       setPendingLocalShare(share);
-      setInviteNotice(`Choose ${share.name} on this device before staging it. File contents are never transferred.`);
+      setInviteNotice(`Choose ${share.name} on the host before staging its playback stream.`);
       return;
     }
+    if (!guestAccess) { setInviteNotice("Confirm guest viewing access in Local sharing before staging this file."); return; }
     setSharedVideoId(`local:${share.fingerprint}`);
     setPlayback({ playing: false, position: 0 });
     lastRoomPosition.current = 0;
-    p2p.send({ type: "video", videoId: `local:${share.fingerprint}` });
+    p2p.send({ type: "share-ready", ...share });
+    p2p.send({ type: "video", videoId: `local:${share.fingerprint}`, media: describeRoomMedia(undefined, share) });
     p2p.send({ type: "sync", playing: false, position: 0, videoId: `local:${share.fingerprint}`, seek: true, sentAt: Date.now() });
-    setInviteNotice(`${share.name} is staged. Guests with a verified local match can play it in sync.`);
+    setInviteNotice(`${share.name} is staged. Press Play to stream it to every connected guest.`);
   };
   const selectLocalVideo = (file: File | null) => {
     if (!file) return;
@@ -4673,6 +4766,11 @@ export function WatchRoomSection() {
       setInviteNotice(`That file does not match ${pendingLocalShare.name}. Select the same permitted copy (name, size, and modified time must agree).`);
       return;
     }
+    if (!joinedAsGuest) {
+      setPickedLocalVideo(file);
+      setInviteNotice("File selected. Queue it or share it when ready; the current video keeps playing.");
+      return;
+    }
     setLocalVideo(file);
     setLocalShare(share);
     if (joinedAsGuest && pendingLocalShare) {
@@ -4682,34 +4780,117 @@ export function WatchRoomSection() {
       setInviteNotice(`${share.name} matched locally. Waiting for the host to stage or play it.`);
       return;
     }
-    setLocalShareMatches({});
-    setPlayback({ playing: false, position: 0 });
-    lastRoomPosition.current = 0;
-    setInviteNotice("Local video selected on this device. Confirm guest access, then send a sharing request; no file bytes leave this computer.");
+  };
+  const preparePickedLocal = (keepCurrent = true) => {
+    if (joinedAsGuest || !pickedLocalVideo || !pickedLocalShare || !guestAccess) return undefined;
+    const media = describeRoomMedia(undefined, pickedLocalShare);
+    const video = resolveRoomMedia(media)?.video;
+    if (!media || !video) return undefined;
+    localFiles.current.set(video.id, pickedLocalVideo);
+    adoptRoomMedia([media], keepCurrent ? [currentVideoIdRef.current, ...queueRef.current, video.id] : [video.id, ...queueRef.current]);
+    return video;
+  };
+  const queuePickedLocal = () => {
+    if (queueRef.current.length >= ROOM_QUEUE_LIMIT) {setQueueNotice("The queue is full. Remove a title first.");return;}
+    const video = preparePickedLocal();
+    if (!video) return;
+    if (video.id === currentVideoIdRef.current || queueRef.current.includes(video.id)) {setQueueNotice("That file is already playing or queued.");return;}
+    changeQueue({kind:"add",id:video.id},video);
+    setQueueNotice(`${video.name} queued. Guests receive the host stream when it plays.`);
+  };
+  const sharePickedLocal = () => {
+    const video = preparePickedLocal(false);
+    if (!video || !pickedLocalShare) return;
+    chooseVideo(video);
+    p2p.send({type:"share-ready",...pickedLocalShare});
+    setInviteNotice("Local playback shared. Press Play to stream it to the room; guests do not need a local copy.");
   };
   const queueVideo = (video: LibraryVideo) => {
-    if (video.id !== sharedVideoId && !queue.includes(video.id)) updateQueue([...queue, video.id]);
+    if (video.id !== sharedVideoId && !queue.includes(video.id)) changeQueue({kind:'add',id:video.id},video);
   };
   const queueImmediately = (video: LibraryVideo) => {
     if (video.id === sharedVideoId) return;
-    updateQueue([video.id, ...queue.filter((id) => id !== video.id)]);
+    changeQueue({kind:'next',id:video.id},video);
     if (!joinedAsGuest) setInviteNotice(`${video.name} will play next for everyone in the room.`);
   };
   const playNext = () => {
-    if (joinedAsGuest) { setInviteNotice("Only the host advances the shared player. You can still propose a different queue order."); return; }
-    const nextId = queue[0];
+    if (joinedAsGuest) {p2p.send({type:"next-request",videoId:currentVideoIdRef.current,sentAt:Date.now()});setQueueNotice("Requested the next queued title from the host.");return;}
+    const nextId = queueRef.current[0];
     if (!nextId) return;
-    const next = videos.find((video) => video.id === nextId);
-    updateQueue(queue.slice(1));
-    if (next) chooseVideo(next);
+    const next = roomVideoForId(nextId);
+    if (next) chooseVideo(next,true);
+    else publishQueue(queueRef.current.slice(1));
   };
+  const queuePanelActions = useRef({
+    search: (_value: string) => {}, autoAdvance: (_value: boolean) => {}, select: (_video: LibraryVideo) => {},
+    add: (_video: LibraryVideo) => {}, change: (_action: RoomQueueAction) => {}, clear: () => {},
+    next: () => {}, shuffle: () => {}, link: (_value: string): boolean => false,
+  });
+  queuePanelActions.current = {
+    search: setDeferredRoomSearch,
+    autoAdvance: setAutoAdvance,
+    select: video => chooseVideo(video, true),
+    add: queueVideo,
+    change: changeQueue,
+    clear: () => updateQueue([]),
+    next: playNext,
+    shuffle: shuffleQueue,
+    link: queuePublicLinks,
+  };
+  const onQueueSearch = useCallback((value: string) => queuePanelActions.current.search(value), []);
+  const onQueueAutoAdvance = useCallback((value: boolean) => queuePanelActions.current.autoAdvance(value), []);
+  const onQueueSelect = useCallback((video: LibraryVideo) => queuePanelActions.current.select(video), []);
+  const onQueueAdd = useCallback((video: LibraryVideo) => queuePanelActions.current.add(video), []);
+  const onQueueChange = useCallback((action: RoomQueueAction) => queuePanelActions.current.change(action), []);
+  const onQueueClear = useCallback(() => queuePanelActions.current.clear(), []);
+  const onQueueNext = useCallback(() => queuePanelActions.current.next(), []);
+  const onQueueShuffle = useCallback(() => queuePanelActions.current.shuffle(), []);
+  const onQueueLink = useCallback((value: string) => queuePanelActions.current.link(value), []);
+  const recommendationSelectRef = useRef<(video: LibraryVideo) => void>(() => {});
+  recommendationSelectRef.current = video => chooseVideo(video);
+  const onRecommendationSelect = useCallback((video: LibraryVideo) => recommendationSelectRef.current(video), []);
+  const onMixRecommendations = useCallback(() => { setCandidateSeed(Date.now()); setRoomPickLimit(18); }, []);
+  const onLoadRecommendations = useCallback(() => setRoomPickLimit(limit => Math.min(roomCandidates.length, limit + 18)), [roomCandidates.length]);
+  const queuePanelRows = useMemo(() => queue.map(id => ({
+    id,
+    video: joinedAsGuest ? sharedRoomVideos[id] ?? lookupVideo(videos, id) : lookupVideo(videos, id) ?? sharedRoomVideos[id],
+  })), [joinedAsGuest, queue, sharedRoomVideos, videos]);
   const playQueuedNow = (id: string) => {
-    if (joinedAsGuest) { setInviteNotice("Only the host can start a queued title. Propose a new order instead."); return; }
-    const video = videos.find((item) => item.id === id);
+    const video = roomVideoForId(id);
     if (!video) return;
-    updateQueue(queue.filter((item) => item !== id));
-    chooseVideo(video);
+    if(joinedAsGuest) {chooseVideo(video,true);return;}
+    chooseVideo(video,true);
   };
+  const finishRoomTitle = () => {
+    if (joinedAsGuest || !autoAdvance || !queueRef.current.length || lastEndedTitle.current===sharedVideoId) return;
+    lastEndedTitle.current=sharedVideoId;
+    playNext();
+  };
+  const finishLatestRoomTitle=useRef(finishRoomTitle);
+  finishLatestRoomTitle.current=finishRoomTitle;
+  useEffect(()=>{lastEndedTitle.current='';},[sharedVideoId]);
+  useEffect(()=> {
+    try {localStorage.setItem('reelcase.watch-room.auto-advance',String(autoAdvance));}catch{/* Session preference. */}
+  },[autoAdvance]);
+  useEffect(()=> {
+    if (sharedVideo?.remote?.kind!=='youtube') return;
+    const listener=(event:MessageEvent)=> {
+      if (event.source!==remoteFrameRef.current?.contentWindow || event.origin!==new URL(watchRoomEmbed(sharedVideo)).origin) return;
+      let data: {event?:string;info?:number|{playerState?:number;duration?:number}};
+      try {data=typeof event.data==='string'?JSON.parse(event.data):event.data;}catch{return;}
+      if (!data) return;
+      if (data.event==='onStateChange' && data.info===0 || data.event==='infoDelivery' && typeof data.info==='object' && data.info?.playerState===0) finishRoomTitle();
+    };
+    window.addEventListener('message',listener);
+    return ()=>window.removeEventListener('message',listener);
+  },[sharedVideo?.id,joinedAsGuest,autoAdvance,queue]);
+  useEffect(()=> {
+    if(sharedVideo?.remote?.kind!=='youtube'||remoteFrameReady?.id!==sharedVideo.id)return;
+    const target=new URL(watchRoomEmbed(sharedVideo)).origin;
+    const frame=remoteFrameRef.current?.contentWindow;
+    frame?.postMessage(JSON.stringify({event:'listening',id:'room-youtube'}),target);
+    frame?.postMessage(JSON.stringify({event:'command',func:'addEventListener',args:['onStateChange']}),target);
+  },[sharedVideo?.id,remoteFrameReady]);
   const send = () => {
     const text = message.trim();
     if (!text) return;
@@ -4734,9 +4915,7 @@ export function WatchRoomSection() {
             <p className="mt-2 text-sm text-muted">
               Share this code only with people you want in your watch room.
             </p>
-            <Button variant="secondary" className="mt-3 w-full" onClick={() => void copyInvite()}>
-              <Copy className="size-4" /> Copy theater invitation link
-            </Button>
+            <RoomInvitation invitation={invitation} started={false} onNotice={setInviteNotice}/>
             {!roomInvite && <p className="mt-2 text-xs leading-5 text-muted">This localhost address opens only on this computer. Use the home-network address in the Connection guide before sharing with another device. <button type="button" className="text-accent underline" onClick={() => useLibrary.getState().setSource("connection")}>Open Connection guide</button></p>}
             {inviteNotice && <p className="mt-2 break-all text-xs text-accent">{inviteNotice}</p>}
             <Button
@@ -4844,6 +5023,7 @@ export function WatchRoomSection() {
             Timeline {Math.floor(playback.position / 60)}:
             {String(Math.floor(playback.position % 60)).padStart(2, "0")} · {timelineEvidence.source === "remote" ? "host-confirmed" : timelineEvidence.source === "local" ? "local player" : "provider estimate"} · checked {new Date(timelineEvidence.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}.
           </p>
+          {joinedAsGuest && <RoomGuestTiming offset={guestOffset} position={adjustedTimerPosition} adjustsPlayback={timingAdjustsPlayback} onChange={changeGuestOffset}/>}
           <details className="mt-4 rounded-md border border-border bg-bg/45 p-3" aria-label="Room reliability"><summary className="cursor-pointer text-xs font-medium text-fg">Room reliability · r{roomHealth.queueRevision} · {roomHealth.staleDropped} stale commands dropped</summary>
             <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Room reliability</p><p className="mt-1 text-xs text-muted">{joinedAsGuest ? "Guest commands are requests; the host publishes the canonical state." : "This device is the host and publishes the canonical state."}</p></div><span className="rounded-full bg-accent/15 px-2 py-1 text-xs text-accent">{p2p.peers.some((peer) => peer.connectionState === "connected" && peer.candidateType === "relay") ? "TURN relay connected" : p2p.peers.some((peer) => peer.connectionState === "connected" && ["host", "srflx", "prflx"].includes(peer.candidateType ?? "")) ? "direct path connected" : p2p.peers.some((peer) => peer.connectionState === "connected") ? "connected · path pending" : p2p.joined ? "signaling online · peer pending" : "connecting"}</span></div>
             <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2 xl:grid-cols-4"><div className="rounded-sm bg-elevated p-2"><span className="block text-muted">{joinedAsGuest ? "Last host state" : "Last publish"}</span><strong className="mt-1 block text-fg">{roomTimeLabel(joinedAsGuest ? roomHealth.lastHostStateAt : roomHealth.lastPublishedAt)}</strong></div><div className="rounded-sm bg-elevated p-2"><span className="block text-muted">Queue revision</span><strong className="mt-1 block text-fg">r{roomHealth.queueRevision} · {queue.length} title{queue.length === 1 ? "" : "s"}</strong></div><div className="rounded-sm bg-elevated p-2"><span className="block text-muted">Last correction</span><strong className="mt-1 block text-fg">{roomHealth.lastDriftSeconds ? `${roomHealth.lastDriftSeconds.toFixed(1)}s` : "none needed"}</strong></div><div className="rounded-sm bg-elevated p-2"><span className="block text-muted">Safety checks</span><strong className="mt-1 block text-fg">{roomHealth.staleDropped} stale dropped · {roomHealth.resyncRequests} resync</strong></div></div>
@@ -4869,8 +5049,8 @@ export function WatchRoomSection() {
             <Button variant="secondary" onClick={resync}>
               <Wifi className="size-4" /> {joinedAsGuest ? "Request resync" : "Resync guests"}
             </Button>
-            <Button variant="ghost" size="sm" disabled={!queue.length || joinedAsGuest} onClick={playNext}>
-              Play next {queue.length ? `(${queue.length})` : ""}
+            <Button variant="ghost" size="sm" disabled={!queue.length} onClick={playNext}>
+              {joinedAsGuest ? "Request next" : "Play next"} {queue.length ? `(${queue.length})` : ""}
             </Button>
           </div>
           {inviteNotice && <p className="mt-3 text-xs text-accent">{inviteNotice}</p>}
@@ -4890,17 +5070,25 @@ export function WatchRoomSection() {
           <div
             className={`mt-3 mx-auto w-full max-w-full overflow-hidden rounded-md bg-bg shadow-border ${stageSize === "compact" ? "lg:max-w-3xl" : ""}`}
           >
-            {localVideoUrl && localShareIsMatched ? (
+            {guestLocalStream ? <RoomStreamPlayer stream={guestLocalStream} title={sharedVideo?.name ?? sharedLocalMedia?.name ?? "Host video"} playing={playback.playing} position={playback.position} duration={roomDuration()} onPlayback={playing=>sync({...playback,playing},false,true)} onSeek={position=>sync({...playback,position},true,true)} onResync={resync}/> : matchingLocalSource && localShareIsMatched ? (
               <video
+                key={sharedVideoId}
                 ref={roomVideoRef}
                 className="aspect-video w-full bg-bg"
-                src={localVideoUrl}
+                src={matchingLocalSource}
                 controls
+                playsInline
                 onLoadedMetadata={() => { const seconds = roomVideoRef.current?.duration; if (typeof seconds === "number" && Number.isFinite(seconds)) setMeasuredDuration({ videoId: sharedVideoId, seconds }); }}
-                onEnded={playNext}
-                onPlay={() => sync({ playing: true, position: roomVideoRef.current?.currentTime ?? 0 })}
-                onPause={() => sync({ playing: false, position: roomVideoRef.current?.currentTime ?? 0 })}
-                onSeeked={() => sync({ playing: roomVideoRef.current ? !roomVideoRef.current.paused : false, position: roomVideoRef.current?.currentTime ?? 0 })}
+                onEnded={finishRoomTitle}
+                onPlay={() => syncDevicePlayback({ playing: true, position: roomVideoRef.current?.currentTime ?? 0 })}
+                onPause={() => syncDevicePlayback({ playing: false, position: roomVideoRef.current?.currentTime ?? 0 })}
+                onSeeked={() => syncDevicePlayback({ playing: roomVideoRef.current ? !roomVideoRef.current.paused : false, position: roomVideoRef.current?.currentTime ?? 0 }, true)}
+                onTimeUpdate={() => {
+                  const media = roomVideoRef.current;
+                  if (joinedAsGuest || !media || media.paused || Date.now() - lastRoomTick.current < 900) return;
+                  lastRoomTick.current = Date.now();
+                  sync({ playing: true, position: media.currentTime });
+                }}
               />
             ) : sharedVideo?.remote?.kind === "twitch" && !twitchClip ? (
               <div className="relative aspect-video w-full bg-bg">
@@ -4910,36 +5098,39 @@ export function WatchRoomSection() {
             ) : sharedVideo?.remote?.embedUrl ? (
               <iframe
                 ref={remoteFrameRef}
+                key={sharedVideo.id}
                 title={sharedVideo.name}
                 src={watchRoomEmbed(sharedVideo)}
                 className="aspect-video w-full border-0"
                 allow="autoplay; encrypted-media; picture-in-picture"
                 allowFullScreen
-                onLoad={() => setRemoteFrameReady(Date.now())}
+                onLoad={() => {lastYoutubeSeekNonce.current=-1;setRemoteFrameReady({id:sharedVideo.id,at:Date.now()});}}
               />
-            ) : sharedVideo?.src ? (
+            ) : libraryLocalSource ? (
               <video
+                key={sharedVideoId}
                 ref={roomVideoRef}
                 className="aspect-video w-full bg-bg"
-                src={sharedVideo.src}
+                src={libraryLocalSource}
                 controls
+                playsInline
                 onLoadedMetadata={() => { const seconds = roomVideoRef.current?.duration; if (typeof seconds === "number" && Number.isFinite(seconds)) setMeasuredDuration({ videoId: sharedVideoId, seconds }); }}
-                onEnded={playNext}
+                onEnded={finishRoomTitle}
                 onPlay={() =>
-                  sync({ playing: true, position: roomVideoRef.current?.currentTime ?? 0 })
+                  syncDevicePlayback({ playing: true, position: roomVideoRef.current?.currentTime ?? 0 })
                 }
                 onPause={() =>
-                  sync({ playing: false, position: roomVideoRef.current?.currentTime ?? 0 })
+                  syncDevicePlayback({ playing: false, position: roomVideoRef.current?.currentTime ?? 0 })
                 }
                 onSeeked={() =>
-                  sync({
+                  syncDevicePlayback({
                     playing: roomVideoRef.current ? !roomVideoRef.current.paused : false,
                     position: roomVideoRef.current?.currentTime ?? 0,
-                  })
+                  }, true)
                 }
                 onTimeUpdate={() => {
                   const media = roomVideoRef.current;
-                  if (!media || media.paused || Date.now() - lastRoomTick.current < 900) return;
+                  if (joinedAsGuest || !media || media.paused || Date.now() - lastRoomTick.current < 900) return;
                   lastRoomTick.current = Date.now();
                   sync({ playing: true, position: media.currentTime });
                 }}
@@ -4947,10 +5138,12 @@ export function WatchRoomSection() {
             ) : (
               <div className="flex aspect-video flex-col items-center justify-center px-6 text-center text-sm text-muted">
                 <img src="/art/realhub-projector.webp" alt="" loading="lazy" className="mb-2 h-28 w-36 object-contain" />
-                {sharedVideoId.startsWith("local:") ? "This local handoff is waiting for a matching permitted file on this device." : "Choose a starter movie or an online video to show it to the room."}
+                {sharedLocalMedia?.id === sharedVideoId ? `Waiting for the host to play ${sharedLocalMedia.name}. Local video streams directly to this device once playback starts.` : sharedVideoId.startsWith("local:") ? "Waiting for the host’s local video stream or a matching file on this device." : "Choose a starter movie or an online video to show it to the room."}
               </div>
             )}
           </div>
+          {localStream.status && <p className="mt-2 text-xs text-muted">{localStream.status}</p>}
+          {guestLocalStream && <p className="mt-2 text-xs text-muted">Watching the host’s local video. Use the room controls to pause or seek for everyone.</p>}
           {sharedVideo?.remote?.kind === "youtube" ? (
             <p className="mt-2 text-xs text-subtle">
               YouTube room controls retain the last trusted clock on pause, then resume from that same point. Use the room controls so every guest receives the same command.
@@ -4962,28 +5155,7 @@ export function WatchRoomSection() {
           ) : null}
           {sharedVideo && <div className="mt-4 flex flex-wrap items-center gap-2 rounded-md border border-border bg-bg/45 p-3"><span className="mr-auto min-w-0 truncate text-sm font-medium text-fg">{sharedVideo.name}</span><Button size="sm" variant={favorites[sharedVideo.id] ? "default" : "secondary"} onClick={() => toggleFavorite(sharedVideo.id)}><Heart className={`size-4 ${favorites[sharedVideo.id] ? "fill-current" : ""}`} />{favorites[sharedVideo.id] ? "Favorited" : "Favorite"}</Button><div className="flex items-center gap-1" aria-label="Rate current room video">{[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" className="flex size-9 items-center justify-center rounded-md text-accent hover:bg-elevated" aria-label={`Rate ${sharedVideo.name} ${value} stars`} aria-pressed={roomRating === value} onClick={() => { saveRating(sharedVideo.id, roomRating === value ? 0 : value); setRoomRatingRevision((revision) => revision + 1); }}><Star className={`size-4 ${value <= roomRating ? "fill-current" : ""}`} /></button>)}</div></div>}
           <details className="mt-5 rounded-md border border-border bg-bg/35 p-3"><summary className="cursor-pointer text-sm font-medium text-fg">Explore more videos and advanced queue controls</summary><p className="mt-3 text-xs text-muted">Recommended from your playable library — saved titles get a small lift while unplayed playable videos rotate to the front. Ready local files can be added to the queue below without taking over the stage.</p>
-          <div className="mt-2 flex flex-wrap gap-2"><Button size="sm" variant="ghost" onClick={() => { setCandidateSeed(Date.now()); setRoomPickLimit(18); setYoutubePickLimit(24); }}><Shuffle className="size-3.5" /> Mix playable picks</Button>{roomCandidates.length > roomPickLimit && <Button size="sm" variant="ghost" onClick={() => setRoomPickLimit((limit) => Math.min(roomCandidates.length, limit + 18))}>Load 18 more playable videos</Button>}</div>
-          <div className="mt-3 flex gap-2 overflow-x-auto pb-2">
-            {roomCandidates
-              .slice(0, roomPickLimit)
-              .map((video) => (
-                <button
-                  key={video.id}
-                  type="button"
-                  onClick={() => chooseVideo(video)}
-                  className={`w-36 shrink-0 overflow-hidden rounded-sm text-left shadow-border ${video.id === sharedVideoId ? "bg-accent text-accent-fg" : "bg-bg/45 text-fg"}`}
-                >
-                  {watchRoomPoster(video) ? (
-                    <img src={watchRoomPoster(video)} alt="" className="aspect-video w-full object-cover" onError={(event) => { const fallback = video.remote?.kind === "youtube" && video.remote.videoId ? `https://i.ytimg.com/vi/${video.remote.videoId}/mqdefault.jpg` : ""; if (fallback && event.currentTarget.src !== fallback) event.currentTarget.src = fallback; else event.currentTarget.style.display = "none"; }} />
-                  ) : null}
-                  <span className="block truncate px-2 py-2 text-xs">{video.name}</span>
-                </button>
-              ))}
-          </div>
-          {youtubeRoomCandidates.length > 0 && <section className="mt-4" aria-label="YouTube recommendations">
-            <div className="flex flex-wrap items-center justify-between gap-2"><div><h3 className="text-sm font-semibold text-fg">More from YouTube</h3><p className="text-xs text-muted">{youtubeRoomCandidates.length} playable titles in your library</p></div>{youtubeRoomCandidates.length > youtubePickLimit && <Button size="sm" variant="secondary" onClick={() => setYoutubePickLimit((limit) => Math.min(youtubeRoomCandidates.length, limit + 24))}>Show 24 more YouTube videos</Button>}</div>
-            <div className="mt-2 flex gap-2 overflow-x-auto pb-2">{youtubeRoomCandidates.slice(0, youtubePickLimit).map((video) => <button key={video.id} type="button" onClick={() => chooseVideo(video)} className={`w-36 shrink-0 overflow-hidden rounded-sm text-left shadow-border ${video.id === sharedVideoId ? "bg-accent text-accent-fg" : "bg-bg/45 text-fg"}`}><img src={watchRoomPoster(video) || `https://i.ytimg.com/vi/${video.remote?.videoId}/mqdefault.jpg`} alt="" loading="lazy" className="aspect-video w-full object-cover" onError={(event) => { const fallback = `https://i.ytimg.com/vi/${video.remote?.videoId}/mqdefault.jpg`; if (event.currentTarget.src !== fallback) event.currentTarget.src = fallback; else event.currentTarget.style.display = "none"; }}/><span className="block truncate px-2 py-2 text-xs">{video.name}</span></button>)}</div>
-          </section>}
+          <RoomRecommendations videos={roomCandidates} youtubeVideos={youtubeRoomCandidates} currentId={sharedVideoId} visibleCount={roomPickLimit} pending={roomCandidatesPending} onSelect={onRecommendationSelect} onMix={onMixRecommendations} onLoadMore={onLoadRecommendations}/>
           <div className="mt-3 rounded-md bg-bg/45 p-3 shadow-border">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-medium text-fg">Up next queue</p>
@@ -4992,7 +5164,7 @@ export function WatchRoomSection() {
             {queue.length ? (
               <div className="mt-2 space-y-2">
                 {queue.map((id, index) => {
-                  const video = videos.find((item) => item.id === id);
+                  const video = videos.find((item) => item.id === id) ?? sharedRoomVideos[id];
                   return (
                     <div key={id} className="flex items-center justify-between gap-3 rounded-sm bg-elevated p-2">
                       <div className="flex min-w-0 items-center gap-3"><span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent/15 text-xs font-semibold text-accent">{index + 1}</span>{video && watchRoomPoster(video) ? <img src={watchRoomPoster(video)} alt="" className="aspect-video w-16 shrink-0 rounded-sm object-cover" /> : <div className="flex aspect-video w-16 shrink-0 items-center justify-center rounded-sm bg-bg/60 text-xs text-muted"><Play className="size-3" /></div>}<span className="min-w-0"><span className="block truncate text-sm text-fg">{video?.name ?? "Unavailable title"}</span><span className="block truncate text-xs text-muted">{video?.remote?.channelName ?? (video?.remote ? "Remote video" : "Local file")}</span></span></div>
@@ -5000,15 +5172,14 @@ export function WatchRoomSection() {
                         <Button
                           size="sm"
                           variant="secondary"
-                          disabled={joinedAsGuest}
                           onClick={() => playQueuedNow(id)}
                         >
-                          Play now
+                          {joinedAsGuest?'Request play':'Play now'}
                         </Button>
                         <Button
                           size="sm"
                           variant="ghost"
-                          disabled={joinedAsGuest || index === 0}
+                          disabled={index === 0}
                           onClick={() => {
                             const next = [...queue];
                             [next[index - 1], next[index]] = [next[index], next[index - 1]];
@@ -5020,7 +5191,6 @@ export function WatchRoomSection() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          disabled={joinedAsGuest}
                           onClick={() => updateQueue(queue.filter((item) => item !== id))}
                         >
                           Remove
@@ -5068,15 +5238,15 @@ export function WatchRoomSection() {
               <div className="mt-2 space-y-2">{localQueue.map((share) => <div key={share.fingerprint} className="flex flex-wrap items-center justify-between gap-2 rounded-sm bg-elevated px-3 py-2"><span className="min-w-0 truncate text-xs text-fg">{share.name} · {bytes(share.size)}</span><div className="flex gap-1"><Button size="sm" variant="secondary" onClick={() => stageLocalShare(share)}>Stage</Button><Button size="sm" variant="ghost" onClick={() => updateLocalQueue(localQueue.filter((item) => item.fingerprint !== share.fingerprint))}>Remove</Button></div></div>)}</div>
             </div>}
           </div></details>
-          <details className="mt-4 rounded-md border border-border bg-bg/35 p-3"><summary className="cursor-pointer text-sm font-medium text-fg">Local sharing, games & TV</summary>
+          <details className="mt-4 rounded-md border border-border bg-bg/35 p-3" onToggle={event => setRoomLocalToolsOpen(event.currentTarget.open)}><summary className="cursor-pointer text-sm font-medium text-fg">Local sharing, games & TV</summary>
           <div className="mt-5 rounded-md bg-bg/45 p-4 shadow-border">
             <div className="flex items-center gap-2">
               <MonitorPlay className="size-4 text-accent" />
               <p className="text-sm font-medium text-fg">Share local video</p>
             </div>
             <p className="mt-1 text-xs text-muted">
-              Choose a file only when every guest has permission to view it. Guests confirm access
-              before you start sharing.
+              Choose a file you may share with your guests. Playback streams from the host;
+              phones do not need a copy of the file. Keep this player open while watching.
             </p>
             <label className="mt-3 block">
               <input
@@ -5089,12 +5259,12 @@ export function WatchRoomSection() {
                 }}
               />
               <span className="inline-flex min-h-10 items-center rounded-sm bg-elevated px-3 text-sm text-fg shadow-border">
-                {localVideo ? localVideo.name : "Choose local video"}
+                {joinedAsGuest ? localVideo?.name ?? "Choose matching local video" : pickedLocalVideo?.name ?? "Choose local video"}
               </span>
             </label>
-            {localShare && <p className="mt-2 text-xs text-subtle">Fingerprint match: name + {bytes(localShare.size)} + modified {new Date(localShare.modified).toLocaleDateString()}. This is shared as metadata only.</p>}
-            {localShare && <p className="mt-1 text-xs text-muted">Compatibility matrix · {Object.values(localShareMatches).filter((match) => match.fingerprint === localShare.fingerprint).length}/{p2p.peers.length} guests matched this exact file{p2p.peers.length ? ". Stage or play only when the expected guests are ready." : ". Connect a guest to verify the handoff."}</p>}
-            {pendingLocalShare && <p className="mt-2 text-xs text-accent">Guest match requested: {pendingLocalShare.name} · {bytes(pendingLocalShare.size)}. Choose the matching permitted copy above.</p>}
+            {(pickedLocalShare ?? localShare) && <p className="mt-2 text-xs text-subtle">Selected file · {bytes((pickedLocalShare ?? localShare)!.size)}. Only title and match metadata are shared; file bytes stream during playback.</p>}
+            {localShare && <p className="mt-1 text-xs text-muted">Optional local copies · {Object.values(localShareMatches).filter((match) => match.fingerprint === localShare.fingerprint).length}/{p2p.peers.length} guests matched this file. Other guests receive the host’s playback stream.</p>}
+            {pendingLocalShare && <p className="mt-2 text-xs text-accent">Optional local copy: {pendingLocalShare.name} · {bytes(pendingLocalShare.size)}. You may choose a matching copy above instead of receiving the stream.</p>}
             <label className="mt-3 flex items-start gap-2 text-xs text-muted">
               <input
                 type="checkbox"
@@ -5108,12 +5278,13 @@ export function WatchRoomSection() {
             <Button
               size="sm"
               className="mt-3"
-              disabled={!localVideo || !guestAccess || !p2p.peers.length}
-              onClick={() => { if (!localShare) return; setSharedVideoId(`local:${localShare.fingerprint}`); setLocalShareMatches({}); p2p.send({ type: "share-ready", ...localShare }); p2p.send({ type: "video", videoId: `local:${localShare.fingerprint}` }); setInviteNotice("Local-share request sent with a match fingerprint. Guests must choose their permitted local copy before playback can align."); }}
+              disabled={joinedAsGuest || !pickedLocalVideo || !guestAccess || !p2p.peers.length}
+              onClick={sharePickedLocal}
             >
               Send sharing request
             </Button>
-            <Button size="sm" variant="secondary" className="mt-3 ml-2" disabled={!localShare} onClick={() => { if (!localShare) return; if (!localQueue.some((item) => item.fingerprint === localShare.fingerprint)) updateLocalQueue([...localQueue, localShare]); setInviteNotice("Added this local file to the shared handoff queue. Guests see only its match metadata."); }}>Add to local queue</Button>
+            {!joinedAsGuest && <Button size="sm" variant="secondary" className="mt-3 ml-2 min-h-11" disabled={!pickedLocalVideo || !guestAccess || queue.length >= ROOM_QUEUE_LIMIT} onClick={queuePickedLocal}>Queue selected local file</Button>}
+            <Button size="sm" variant="ghost" className="mt-3 min-h-11" disabled={!(pickedLocalShare ?? localShare)} onClick={() => { const share=pickedLocalShare??localShare; if (!share) return; if (!localQueue.some((item) => item.fingerprint === share.fingerprint)) updateLocalQueue([...localQueue, share]); setInviteNotice("Added file match metadata to the handoff list. Queue selected local file above for automatic playback."); }}>Add to matching-file list</Button>
           </div>
           <div className="mt-4 rounded-md bg-bg/45 p-4 shadow-border">
             <p className="text-sm font-medium text-fg">Watch-party mini games</p>
@@ -5232,7 +5403,8 @@ export function WatchRoomSection() {
             </Button>
           </div>
         </section>
-        <section className="rounded-lg border border-border bg-elevated p-4 shadow-border" aria-label="Room query and queue"><div className="flex items-center justify-between gap-2"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Find & queue</p><h3 className="mt-1 font-display text-xl text-fg">Choose what plays next</h3></div><span className="rounded-full bg-accent/15 px-2 py-1 text-xs text-accent">{queue.length} queued</span></div><Input className="mt-3" value={roomSearch} onChange={(event) => setRoomSearch(event.target.value)} placeholder="Search playable titles or creators" aria-label="Search room videos"/><div className="mt-3 max-h-72 space-y-2 overflow-y-auto">{roomSearchResults.map((video) => <div key={video.id} className="flex min-w-0 items-center gap-2 rounded-md bg-bg/50 p-2">{watchRoomPoster(video) && <img src={watchRoomPoster(video)} alt="" loading="lazy" className="aspect-video w-14 shrink-0 rounded-sm object-cover"/>}<button type="button" className="min-w-0 flex-1 truncate text-left text-xs text-fg hover:text-accent" title={video.name} onClick={() => chooseVideo(video)}>{video.name}</button><Button size="sm" variant="secondary" disabled={queue.includes(video.id) || video.id === sharedVideoId} onClick={() => queueVideo(video)}>Queue</Button></div>)}{!roomSearchResults.length && <p className="text-xs text-muted">No playable videos match this search.</p>}</div><div className="mt-4 border-t border-border pt-3"><p className="text-xs font-medium text-fg">Up next · {joinedAsGuest ? "host confirms changes" : "shared order"}</p><div className="mt-2 max-h-52 space-y-1 overflow-y-auto">{queue.length ? queue.map((id, index) => { const video = videos.find((item) => item.id === id); return <div key={id} className="flex items-center gap-2 rounded-md bg-bg/45 px-2 py-1.5 text-xs"><span className="text-accent">{index + 1}</span><span className="min-w-0 flex-1 truncate text-fg">{video?.name ?? "Unavailable title"}</span><button type="button" className="text-accent" onClick={() => playQueuedNow(id)} disabled={joinedAsGuest}>Play</button><button type="button" className="text-muted hover:text-fg" onClick={() => updateQueue(queue.filter((item) => item !== id))}>×</button></div>; }) : <p className="text-xs text-muted">Search above and add a title to the queue.</p>}</div></div></section>
+        {joinedAsGuest?<details className="rounded-lg border border-border bg-surface p-4"><summary className="cursor-pointer text-sm text-fg">Invite another guest</summary><RoomInvitation invitation={invitation} started onNotice={setInviteNotice}/></details>:<RoomInvitation invitation={invitation} started onNotice={setInviteNotice}/>}
+        <RoomQueuePanel key={room} onSearch={onQueueSearch} results={roomSearchResults} queue={queuePanelRows} currentId={sharedVideoId} currentMediaKey={sharedVideo?roomMediaKey(sharedVideo):undefined} guest={joinedAsGuest} notice={queueNotice} pending={pendingQueueChanges} autoAdvance={autoAdvance} onAutoAdvance={onQueueAutoAdvance} onSelect={onQueueSelect} onAdd={onQueueAdd} onChange={onQueueChange} onClear={onQueueClear} onNext={onQueueNext} onShuffle={onQueueShuffle} onLink={onQueueLink} catalogPending={roomCandidatesPending} searching={roomSearchPending}/>
         {sharedVideo?.remote?.kind === "youtube" && <section className="rounded-lg bg-elevated p-2 shadow-border"><AdultComments video={sharedVideo}/></section>}
         </div>
       </div>
@@ -5267,6 +5439,15 @@ export function WatchRoomSection() {
             size="sm"
             onClick={() => {
               setActiveRoom(null);
+              queueRef.current = [];
+              setQueue([]);
+              localFiles.current.clear();
+              setLocalVideo(null);
+              setLocalShare(null);
+              setPickedLocalVideo(null);
+              setPendingLocalShare(null);
+              setPlayback({playing:false,position:0});
+              setSharedVideoId("");
               setRoomCode(`RC${Math.random().toString(36).slice(2, 7).toUpperCase()}`);
             }}
           >

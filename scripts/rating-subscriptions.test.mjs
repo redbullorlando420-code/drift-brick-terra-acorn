@@ -2,11 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
 
-const fixture = { restore: null, saved: [], streaks: [] };
+const fixture = { restore: null, saved: [], streaks: [], failStrict: false, strictReads: 0 };
 globalThis.__ratingSubscriptionFixture = fixture;
 const moduleUrl = source => `data:text/javascript,${encodeURIComponent(source)}`;
 registerHooks({ resolve(specifier, context, next) {
-  if (context.parentURL?.endsWith('/media-feedback.ts') && specifier === './videos/persist') return { shortCircuit: true, url: moduleUrl(`const f=globalThis.__ratingSubscriptionFixture; export const restoreDurableFeedback=()=>f.restore; export const saveDurableFeedback=data=>f.saved.push(data);`) };
+  if (context.parentURL?.endsWith('/media-feedback.ts') && specifier === './videos/persist') return { shortCircuit: true, url: moduleUrl(`const f=globalThis.__ratingSubscriptionFixture; export const restoreDurableFeedback=(strict)=>{if(strict){f.strictReads++;if(f.failStrict)throw Error('rating backup unavailable');}return f.restore;}; export const saveDurableFeedback=data=>f.saved.push(data);`) };
   if (context.parentURL?.endsWith('/media-feedback.ts') && specifier === './rating-streaks') return { shortCircuit: true, url: moduleUrl(`export const recordRatingForStreak=(id,rating)=>globalThis.__ratingSubscriptionFixture.streaks.push({id,rating});`) };
   try { return next(specifier, context); } catch (error) {
     if (specifier.startsWith('.') && !/\.[a-z]+$/i.test(specifier)) return next(specifier + '.ts', context);
@@ -42,6 +42,27 @@ test('real feedback publishes only its rating key; durable hydration refreshes m
     assert.equal(events.length, 0, 'aggregate ranking event is deferred');
   } finally {
     stops.forEach(stop => stop());
+    for (const key of ['window', 'localStorage']) { if (saved[key]) Object.defineProperty(globalThis, key, saved[key]); else Reflect.deleteProperty(globalThis, key); }
+  }
+});
+
+test('cleanup verification shares its rating-backup read, rejects failures and preserves foreground ratings on retry', async () => {
+  const saved = Object.getOwnPropertyDescriptors(globalThis);
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: { setTimeout: () => 1, clearTimeout() {}, dispatchEvent() {} } });
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: { length: 0, getItem: () => null, key: () => null } });
+  try {
+    fixture.failStrict = true;
+    await assert.rejects(feedback.verifyCleanupFeedback(), /rating backup unavailable/);
+    fixture.failStrict = false;
+    let finish; fixture.restore = new Promise(resolve => { finish = resolve; });
+    const first = feedback.verifyCleanupFeedback(), second = feedback.verifyCleanupFeedback();
+    assert.equal(fixture.strictReads, 2, 'one failed read and one shared retry');
+    feedback.setRating('cleanup-session', 5);
+    finish({ ratings: { 'cleanup-session': 1, 'cleanup-disk': 4 }, notes: { 'cleanup-disk': 'Saved note' } });
+    await Promise.all([first, second]);
+    assert.equal(feedback.getRating('cleanup-session'), 5); assert.equal(feedback.getRating('cleanup-disk'), 4);
+    await feedback.verifyCleanupFeedback(); assert.equal(fixture.strictReads, 2, 'verified protection is reused');
+  } finally {
     for (const key of ['window', 'localStorage']) { if (saved[key]) Object.defineProperty(globalThis, key, saved[key]); else Reflect.deleteProperty(globalThis, key); }
   }
 });

@@ -163,7 +163,19 @@ export default defineConfig(({ command, isPreview }) => ({
   // The local vision desk is lazy-loaded. Pre-bundle Transformers during Vite
   // startup so an HMR dependency re-optimization cannot invalidate the module
   // URL while a benchmark or a one-photo tag run is preparing its model.
-  optimizeDeps: { include: ["@huggingface/transformers", "three"] },
+  // Pre-bundle router runtime modules used by the generated client entry. If
+  // Vite discovers these on the first navigation, it invalidates the client
+  // graph mid-request and browsers can see aborted (ECONNRESET) responses.
+  optimizeDeps: {
+    include: [
+      "@huggingface/transformers",
+      "three",
+      "@tanstack/router-core",
+      "@tanstack/router-core/isServer",
+      "@tanstack/router-core/ssr/client",
+      "seroval",
+    ],
+  },
   resolve: { tsconfigPaths: true },
   plugins: [
     pgliteBootstrapPlugin(),

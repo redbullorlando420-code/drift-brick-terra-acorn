@@ -5,7 +5,6 @@ import { HUB_SOURCES, navigationSourceLabel, searchResultSource } from './librar
 test('explicit searches from tools navigate to a desk that can render results', () => {
   for (const source of HUB_SOURCES) assert.equal(searchResultSource(source), 'home', source);
 });
-
 test('navigation shells and headers identify tools, providers and saved folders consistently', () => {
   const folders = [{ id: 'my-local-folder', name: 'Travel films' }];
   assert.equal(navigationSourceLabel('my-local-folder', folders), 'Travel films');

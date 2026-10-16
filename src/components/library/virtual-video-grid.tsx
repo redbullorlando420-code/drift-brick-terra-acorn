@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import type { ReactNode } from 'react';
 import { Button } from "@/components/ui/button";
 import { GridRowMetrics, gridWindow, gridKeyboardTarget, type GridWindow } from "@/lib/virtual-grid";
 import { windowBoundaryTarget } from '@/lib/virtual-rail';
@@ -6,6 +7,8 @@ import type { LibraryVideo } from "@/lib/videos/types";
 import { VideoCard } from "./video-card";
 import { useLibrary } from "@/lib/videos/store";
 import { usePerformanceProfile } from './use-performance-profile';
+import { useGridAdmission } from './use-grid-admission';
+import { measureInteraction } from '@/lib/interaction-budget';
 
 type Variant = "grid" | "poster" | "list";
 const layouts: Record<Variant, string> = {
@@ -15,9 +18,25 @@ const layouts: Record<Variant, string> = {
 };
 const sameWindow = (a: GridWindow, b: GridWindow) => a.start === b.start && a.end === b.end && a.lead === b.lead && a.tail === b.tail;
 
+const GridRow = memo(function GridRow({ videos, start, end, columns, variant, last, playedAt, caption }: {
+  videos: LibraryVideo[]; start: number; end: number; columns: number; variant: Variant; last: boolean;
+  playedAt?: Record<string, number>; caption?: (video: LibraryVideo) => ReactNode;
+}) {
+  return <div role="presentation" data-video-grid-row={Math.floor(start / columns)} className={layouts[variant]}
+    style={{ paddingBottom: last ? 0 : variant === 'list' ? 4 : 24 }}>
+    {videos.slice(start, end).map((video, offset) => <div key={video.id} role="listitem" aria-posinset={start + offset + 1}
+      aria-setsize={videos.length} data-video-grid-index={start + offset} className="min-w-0">
+      <VideoCard video={video} variant={variant} index={start + offset} playedAt={playedAt?.[video.id]}
+        animate={false} className={variant === 'poster' ? 'w-full' : undefined} />
+      {caption?.(video)}
+    </div>)}
+  </div>;
+});
+
 /** One viewport window and one row observer, however far the catalog is paged. */
-export function VirtualVideoGrid({ videos, playedAt, variant, pageSize, automatic = false }: {
+export function VirtualVideoGrid({ videos, playedAt, variant, pageSize, automatic = false, caption }: {
   videos: LibraryVideo[]; playedAt?: Record<string, number>; variant: Variant; pageSize: number; automatic?: boolean;
+  caption?: (video: LibraryVideo) => ReactNode;
 }) {
   const budget = usePerformanceProfile();
   const keyboardHint = useId();
@@ -28,15 +47,21 @@ export function VirtualVideoGrid({ videos, playedAt, variant, pageSize, automati
   const frame = useRef<number | undefined>(undefined);
   const anchorAdjustment = useRef(0);
   const focusedIndex = useRef<number | undefined>(undefined);
-  const [limit, setLimit] = useState(pageSize);
   const [layout, setLayout] = useState({ columns: variant === "list" ? 1 : variant === "poster" ? 3 : 2, width: 0 });
   const [geometry, setGeometry] = useState(() => new GridRowMetrics(variant === "list" ? 88 : 260));
   const calibrated = useRef(false);
   const [measurement, setMeasurement] = useState(0);
-  const [window, setWindow] = useState<GridWindow>({ start: 0, end: Math.min(budget.gridMountCap, pageSize), lead: 0, tail: 0 });
-  const length = Math.min(limit, videos.length);
+  // Measure the actual responsive columns before mounting cards. A guessed
+  // initial window creates and discards dozens of cards on each filter change,
+  // including when the grid is entirely below the viewport.
+  const [window, setWindow] = useState<GridWindow>({ start: 0, end: 0, lead: 0, tail: 0 });
   const sourceKey = useLibrary(state => `${state.sourceId}:${state.query}:${state.sort}`);
   const viewerOpen = useLibrary(state => Boolean(state.activeId || state.previewId));
+  const admission = useGridAdmission(pageSize, videos.length, sourceKey, variant, viewerOpen);
+  const length = Math.min(admission.loaded, videos.length);
+  const lengthRef = useRef(length);
+  lengthRef.current = length;
+  const rowObserver = useRef<{ observer: ResizeObserver; nodes: Set<Element> } | undefined>(undefined);
   const returnAnchor = useRef<{ catalog: LibraryVideo[]; source: string; index: number; id: string; top: number; focused: boolean } | undefined>(undefined);
 
   useLayoutEffect(() => {
@@ -68,7 +93,6 @@ export function VirtualVideoGrid({ videos, playedAt, variant, pageSize, automati
   }, [sourceKey, videos, viewerOpen]);
 
   useEffect(() => {
-    setLimit(pageSize);
     // Measurements describe row content, not the previous search/source.
     setGeometry(new GridRowMetrics(variant === "list" ? 88 : 260));
     calibrated.current = false;
@@ -77,7 +101,7 @@ export function VirtualVideoGrid({ videos, playedAt, variant, pageSize, automati
 
   const refresh = useCallback(() => {
     const el = root.current;
-    if (!el) return;
+    if (!el || !layout.width) return;
     const top = -el.getBoundingClientRect().top;
     const height = globalThis.window.innerHeight;
     const total = geometry.offset(Math.ceil(length / layout.columns));
@@ -98,7 +122,7 @@ export function VirtualVideoGrid({ videos, playedAt, variant, pageSize, automati
       }
     }
     setWindow(old => sameWindow(old, next) ? old : next);
-  }, [geometry, layout.columns, length, budget]);
+  }, [geometry, layout.columns, layout.width, length, budget]);
 
   const scheduleRefresh = useCallback(() => {
     if (frame.current !== undefined) return;
@@ -116,7 +140,17 @@ export function VirtualVideoGrid({ videos, playedAt, variant, pageSize, automati
   useEffect(() => {
     globalThis.window.addEventListener("scroll", scheduleRefresh, { passive: true });
     globalThis.window.addEventListener("resize", scheduleRefresh, { passive: true });
+    // Shelves above a grid can finish loading without a wheel/resize event.
+    // Recalculate its position when the page grows, rather than keeping the
+    // old offscreen row window until the next user scroll.
+    const observer = new ResizeObserver(scheduleRefresh);
+    if (root.current) {
+      observer.observe(root.current);
+      const page = root.current.closest('main');
+      if (page) observer.observe(page);
+    }
     return () => {
+      observer.disconnect();
       globalThis.window.removeEventListener("scroll", scheduleRefresh);
       globalThis.window.removeEventListener("resize", scheduleRefresh);
       if (frame.current !== undefined) globalThis.window.cancelAnimationFrame(frame.current);
@@ -147,36 +181,61 @@ export function VirtualVideoGrid({ videos, playedAt, variant, pageSize, automati
     const el = root.current;
     if (!el) return;
     const observer = new ResizeObserver(entries => {
+      const current = rowObserver.current;
+      if (current?.observer !== observer) return;
+      entries = entries.filter(entry => current.nodes.has(entry.target));
+      if (!entries.length) return;
       const top = -el.getBoundingClientRect().top;
-      const anchor = geometry.rowAt(Math.max(0, top), Math.ceil(length / layout.columns));
+      const anchor = geometry.rowAt(Math.max(0, top), Math.ceil(lengthRef.current / layout.columns));
       const before = geometry.offset(anchor);
+      const height = (entry: ResizeObserverEntry) => entry.borderBoxSize?.[0]?.blockSize ?? entry.target.getBoundingClientRect().height;
       if (!calibrated.current && entries.length) {
         // New geometry has no cached deltas yet. Calibrate from real rows
         // before reserving the rest of the loaded catalog's scroll space.
-        geometry.estimate = Math.max(1, entries.reduce((sum, entry) => sum + entry.target.getBoundingClientRect().height, 0) / entries.length);
+        geometry.estimate = Math.max(1, entries.reduce((sum, entry) => sum + height(entry), 0) / entries.length);
         calibrated.current = true;
       }
       let changed = false;
-      for (const entry of entries) changed = geometry.measure(Number((entry.target as HTMLElement).dataset.videoGridRow), entry.target.getBoundingClientRect().height) || changed;
+      for (const entry of entries) changed = geometry.measure(Number((entry.target as HTMLElement).dataset.videoGridRow), height(entry)) || changed;
       if (!changed) return;
       if (top > 0) anchorAdjustment.current += geometry.offset(anchor) - before;
       setMeasurement(value => value + 1);
     });
-    el.querySelectorAll("[data-video-grid-row]").forEach(row => observer.observe(row));
-    return () => observer.disconnect();
+    const registration = { observer, nodes: new Set<Element>() };
+    rowObserver.current = registration;
+    return () => {
+      observer.disconnect(); registration.nodes.clear();
+      if (rowObserver.current === registration) rowObserver.current = undefined;
+    };
+  }, [geometry, layout.columns]);
+
+  useLayoutEffect(() => {
+    const registration = rowObserver.current, el = root.current;
+    if (!registration || !el) return;
+    const current = new Set(el.querySelectorAll('[data-video-grid-row]'));
+    for (const node of registration.nodes) if (!current.has(node)) {
+      registration.observer.unobserve(node); registration.nodes.delete(node);
+    }
+    for (const node of current) if (!registration.nodes.has(node)) {
+      registration.nodes.add(node); registration.observer.observe(node);
+    }
   }, [geometry, layout.columns, length, window.start, window.end, videos]);
 
-  const loadMore = useCallback(() => setLimit(value => Math.min(videos.length, value + pageSize)), [pageSize, videos.length]);
+  const loadMore = useCallback(() => {
+    if (admission.pending) return;
+    measureInteraction('navigation');
+    admission.request(pageSize);
+  }, [admission.pending, admission.request, pageSize]);
   useEffect(() => {
     const el = sentinel.current;
-    if (!automatic || viewerOpen || !el || length >= videos.length) return;
+    if (!automatic || admission.pending || viewerOpen || !el || length >= videos.length) return;
     const observer = new IntersectionObserver(entries => {
       const state = useLibrary.getState();
       if (!state.activeId && !state.previewId && entries.some(entry => entry.isIntersecting)) loadMore();
     }, { rootMargin: "400px 0px" });
     observer.observe(el);
     return () => observer.disconnect();
-  }, [automatic, length, loadMore, videos.length, viewerOpen]);
+  }, [automatic, admission.pending, length, loadMore, videos.length, viewerOpen]);
 
   useLayoutEffect(() => {
     if (focusedIndex.current === undefined) return;
@@ -203,7 +262,7 @@ export function VirtualVideoGrid({ videos, playedAt, variant, pageSize, automati
     globalThis.window.scrollTo({ top: docTop + geometry.offset(row), behavior: 'instant' });
     refresh();
   };
-  return <div ref={root} data-virtual-video-grid data-grid-columns={layout.columns} data-grid-loaded={length} data-grid-mount-cap={budget.gridMountCap}
+  return <div ref={root} data-virtual-video-grid data-grid-columns={layout.columns} data-grid-loaded={length} data-grid-target={Math.min(admission.target, videos.length)} data-grid-pending={admission.pending} data-grid-mount-cap={budget.gridMountCap}
     style={{ overflowAnchor: "none" }} onKeyDown={event => {
       if (event.altKey || event.ctrlKey || event.metaKey) return;
       if (!(event.target as HTMLElement).matches("[data-video-card-open]")) return;
@@ -225,12 +284,9 @@ export function VirtualVideoGrid({ videos, playedAt, variant, pageSize, automati
     <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">{length.toLocaleString()} of {videos.length.toLocaleString()} titles available on this page.</p>
     <div role="list" aria-label={`Media catalog · ${videos.length.toLocaleString()} titles`} aria-describedby={keyboardHint}>
     {window.lead > 0 && <div aria-hidden="true" data-grid-spacer="lead" style={{ height: window.lead }} />}
-    {rows.map(index => <div key={`${layout.columns}:${index}`} role="presentation" data-video-grid-row={Math.floor(index / layout.columns)} className={layouts[variant]}
-      style={{ paddingBottom: index + layout.columns >= length ? 0 : variant === "list" ? 4 : 24 }}>
-      {videos.slice(index, Math.min(index + layout.columns, end)).map((video, offset) => <div key={video.id} role="listitem" aria-posinset={index + offset + 1} aria-setsize={videos.length} data-video-grid-index={index + offset} className="min-w-0">
-        <VideoCard video={video} variant={variant} index={index + offset} playedAt={playedAt?.[video.id]} animate={false} className={variant === "poster" ? "w-full" : undefined} />
-      </div>)}
-    </div>)}
+    {rows.map(index => <GridRow key={`${layout.columns}:${index}`} videos={videos} start={index}
+      end={Math.min(index + layout.columns, end)} columns={layout.columns} last={index + layout.columns >= length}
+      variant={variant} playedAt={playedAt} caption={caption} />)}
     {window.tail > 0 && <div aria-hidden="true" data-grid-spacer="tail" style={{ height: window.tail }} />}
     </div>
     {end < length && <button type="button" className="sr-only focus:not-sr-only" onFocus={event => {
@@ -239,12 +295,13 @@ export function VirtualVideoGrid({ videos, playedAt, variant, pageSize, automati
     }}>Next media title</button>}
     {length < videos.length && <>
       {automatic && <div ref={sentinel} className="h-8" aria-hidden="true" />}
-      <div className="mt-5 flex items-center justify-between gap-3">
+      <div className="mt-5 flex items-center justify-between gap-3" aria-busy={admission.pending}>
         {!automatic && <p className="text-xs text-muted">Page {Math.ceil(length / pageSize)} · showing {length.toLocaleString()} of {videos.length.toLocaleString()} titles</p>}
-        <Button variant="secondary" className={automatic ? "w-full" : undefined} onClick={loadMore}>
+        <Button variant="secondary" disabled={admission.pending} className={automatic ? "w-full" : undefined} onClick={loadMore}>
           {automatic ? `Show more · ${videos.length - length} remaining` : `Next page · ${pageSize}`}
         </Button>
       </div>
     </>}
+    {admission.pending && <p role="status" className="mt-2 text-xs text-muted">Adding titles… {length.toLocaleString()} of {Math.min(admission.target, videos.length).toLocaleString()} ready</p>}
   </div>;
 }

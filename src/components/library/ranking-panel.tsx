@@ -77,7 +77,7 @@ const pages = {
     ],
     [
       "Twitch",
-      "Live first, viewer count or A–Z follows the selected control. Personal shelves separately use feedback and useful topics.",
+      "The mix rotates videos across creators; Mix Twitch creators changes its seed. Popular VODs uses personal feedback within each creator, then creators take turns. Live first, viewer count and A–Z still control the full catalog.",
     ],
     [
       "Favorites / History / Continue",

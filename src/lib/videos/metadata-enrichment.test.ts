@@ -4,6 +4,14 @@ import { enrichmentCursor, metadataEnrichmentStep } from './metadata-enrichment.
 import { restoreEnrichmentRow, type EnrichmentRow } from './enrichment-batch.ts';
 import type { Folder, LibraryVideo, VideoMetadataProvenance } from './types.ts';
 
+test('saved tags with missing source metadata recover an honest legacy label instead of undefined', () => {
+  const ledgers = { tags: {} as Record<string, string[]>, metadataProvenance: {} as Record<string, VideoMetadataProvenance> };
+  restoreEnrichmentRow(ledgers, { id: 'partial', tags: ['science', 'technology'],
+    provenance: { tags: { science: 'manual' }, updatedAt: 10 } });
+  assert.deepEqual(ledgers.tags.partial, ['science', 'technology']);
+  assert.deepEqual(ledgers.metadataProvenance.partial.tags, { science: 'manual', technology: 'legacy' });
+});
+
 test('durable text-tag versions survive an older snapshot with identical tags and timestamps', () => {
   const ledgers={tags:{one:['science']},metadataProvenance:{one:{tags:{science:'provider:youtube' as const},youtubeTextTagVersion:1,updatedAt:10}}};
   restoreEnrichmentRow(ledgers,{id:'one',tags:['science'],provenance:{tags:{science:'provider:youtube'},youtubeTextTagVersion:2,updatedAt:10}});

@@ -1,0 +1,29 @@
+{
+  "ok": true,
+  "entries": 1000000,
+  "initialMs": 62,
+  "nextPageMs": 0.004,
+  "hashReadsForFirstTwoPages": 1000000,
+  "memoryBefore": {
+    "rss": 253706240,
+    "heapTotal": 269250560,
+    "heapUsed": 133708344,
+    "external": 8813406,
+    "arrayBuffers": 137471
+  },
+  "memoryFirst": {
+    "rss": 263102464,
+    "heapTotal": 269512704,
+    "heapUsed": 133940480,
+    "external": 16900730,
+    "arrayBuffers": 8137471
+  },
+  "memoryAfter": {
+    "rss": 300646400,
+    "heapTotal": 270036992,
+    "heapUsed": 133956480,
+    "external": 16900730,
+    "arrayBuffers": 8137471
+  },
+  "limitation": "Pure compact paging fixture; excludes browser hydration, metadata, feedback compilation and real playback."
+}

@@ -1,0 +1,67 @@
+{
+  "ok": false,
+  "url": "http://127.0.0.1:8080/",
+  "fixture": "80,000 compact entries, 60,000 saved titles and history entries, pulling paused, text-first artwork, isolated Chromium contexts; fake media and offline Companion responses stubbed",
+  "limitation": "Synthetic browser check; does not establish real-provider throughput, long-session memory stability, or physical-device performance.",
+  "budgets": {
+    "startupMs": 3000,
+    "navigationMs": 2000,
+    "scrollSettleMs": 500,
+    "inputMs": 200,
+    "mountedCards": 256,
+    "overflowPixels": 0
+  },
+  "results": [
+    {
+      "viewport": "desktop",
+      "errors": [
+        "locator.click: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: /^Next page ·/ })\u001b[22m\n"
+      ],
+      "startupMs": 741,
+      "catalogEntries": 80000,
+      "navigationMs": 2017.699999988079,
+      "scrollSettleMs": 65.19999998807907,
+      "artworkIdleVerified": true,
+      "formatsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-first-formats-desktop.png",
+      "formatShelfScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-first-format-shelf-desktop.png",
+      "youtubeFormatsVerified": true,
+      "favoriteReadyMs": 91,
+      "savedCatalogVerified": true,
+      "ok": false,
+      "failures": [
+        "navigationMs: 2017.699999988079 exceeds 2000",
+        "inputMs: missing or invalid measurement",
+        "mountedCards: missing or invalid measurement",
+        "overflowPixels: missing or invalid measurement",
+        "1 console/page errors",
+        "scorecard or private export was not verified",
+        "Provider safeguards and their numeric export were not verified"
+      ]
+    },
+    {
+      "viewport": "mobile",
+      "errors": [
+        "locator.click: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: /^Next page ·/ })\u001b[22m\n"
+      ],
+      "startupMs": 544.6999999880791,
+      "catalogEntries": 80000,
+      "navigationMs": 1125.9000000059605,
+      "scrollSettleMs": 10.299999982118607,
+      "artworkIdleVerified": true,
+      "formatsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-first-formats-mobile.png",
+      "formatShelfScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-first-format-shelf-mobile.png",
+      "youtubeFormatsVerified": true,
+      "favoriteReadyMs": 147,
+      "savedCatalogVerified": true,
+      "ok": false,
+      "failures": [
+        "inputMs: missing or invalid measurement",
+        "mountedCards: missing or invalid measurement",
+        "overflowPixels: missing or invalid measurement",
+        "1 console/page errors",
+        "scorecard or private export was not verified",
+        "Provider safeguards and their numeric export were not verified"
+      ]
+    }
+  ]
+}

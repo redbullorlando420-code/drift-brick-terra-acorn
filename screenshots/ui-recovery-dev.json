@@ -1,0 +1,95 @@
+{
+  "ok": true,
+  "url": "http://127.0.0.1:8080/",
+  "fixture": "80,000 compact entries, 60,000 saved titles and history entries, pulling paused, text-first artwork, isolated Chromium contexts; fake media and offline Companion responses stubbed",
+  "limitation": "Synthetic browser check; does not establish real-provider throughput, long-session memory stability, or physical-device performance.",
+  "budgets": {
+    "startupMs": 3000,
+    "navigationMs": 2000,
+    "scrollSettleMs": 500,
+    "inputMs": 200,
+    "mountedCards": 256,
+    "overflowPixels": 0
+  },
+  "results": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "startupMs": 572,
+      "catalogEntries": 80000,
+      "navigationMs": 1448.0999999940395,
+      "scrollSettleMs": 41.099999994039536,
+      "artworkIdleVerified": true,
+      "formatsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-dev-formats-desktop.png",
+      "formatShelfScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-dev-format-shelf-desktop.png",
+      "youtubeFormatsVerified": true,
+      "favoriteReadyMs": 66,
+      "savedCatalogVerified": true,
+      "continueScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-dev-continue-desktop.png",
+      "historyScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-dev-history-desktop.png",
+      "recoveredHistoryPlaybackVerified": true,
+      "recoveryUiVerified": true,
+      "favoriteScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-dev-favorites-desktop.png",
+      "sharedControlsVerified": true,
+      "providerBudgetsVerified": true,
+      "scorecardVerified": true,
+      "exportVerified": true,
+      "safeguardsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-dev-safeguards-desktop.png",
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-dev-desktop.png",
+      "inputMs": 93.59999999403954,
+      "mountedCards": 48,
+      "overflowPixels": 0,
+      "worstInput": {
+        "action": "Text-first modeYouTube7:00Gate archive 89Gate creator 89 · ShortPublication date",
+        "ms": 93.59999999403954
+      },
+      "slowInputs": [],
+      "ok": true,
+      "failures": []
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "startupMs": 698.0999999940395,
+      "catalogEntries": 80000,
+      "navigationMs": 947.7000000178814,
+      "scrollSettleMs": 29.30000001192093,
+      "artworkIdleVerified": true,
+      "formatsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-dev-formats-mobile.png",
+      "formatShelfScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-dev-format-shelf-mobile.png",
+      "youtubeFormatsVerified": true,
+      "favoriteReadyMs": 112,
+      "savedCatalogVerified": true,
+      "continueScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-dev-continue-mobile.png",
+      "historyScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-dev-history-mobile.png",
+      "recoveredHistoryPlaybackVerified": true,
+      "recoveryUiVerified": true,
+      "favoriteScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-dev-favorites-mobile.png",
+      "sharedControlsVerified": true,
+      "providerBudgetsVerified": true,
+      "scorecardVerified": true,
+      "exportVerified": true,
+      "safeguardsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-dev-safeguards-mobile.png",
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-dev-mobile.png",
+      "inputMs": 130.59999999403954,
+      "mountedCards": 40,
+      "overflowPixels": 0,
+      "worstInput": {
+        "action": "Text-first modeYouTube7:00Gate archive 28225Gate creator 145Published Sep 21, 20",
+        "ms": 130.59999999403954
+      },
+      "slowInputs": [
+        {
+          "action": "Text-first modeYouTube7:00Gate archive 28225Gate creator 145Published Sep 21, 20",
+          "ms": 130.59999999403954
+        },
+        {
+          "action": "Settings",
+          "ms": 119.19999998807907
+        }
+      ],
+      "ok": true,
+      "failures": []
+    }
+  ]
+}

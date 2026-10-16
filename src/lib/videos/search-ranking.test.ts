@@ -8,6 +8,19 @@ const input = (videos: LibraryVideo[]): SearchRankingInput => ({ videos, ids: ne
   sourceId: 'home', folders: [], hidden: {}, unavailable: {}, tags: {}, favorites: {}, likes: {}, viewCounts: {},
   ratingOf: () => 0, ratingPreference: n => n === 1 ? -3 : n >= 3 ? n - 2 : 0 });
 
+test('worker positions resolve a sparse search without rescanning 100,000 catalog rows', async () => {
+  const videos = Array.from({ length: 100_000 }, (_, i) => video(String(i), 'Needle', i));
+  let turns = 0, scored = 0;
+  const result = await rankSearchResults({ ...input(videos), ids: new Set(['90001', '99999']), positions: new Uint32Array([90001, 99999]), ratingOf: () => { scored++; return 0; } }, undefined, async () => { turns++; });
+  assert.deepEqual(result.ranked.map(row => row.id), ['99999','90001']);
+  assert.equal(scored, 2); assert.ok(turns < 10);
+});
+
+test('stale worker offsets cannot resolve a different video', async () => {
+  const result = await rankSearchResults({ ...input([video('new')]), ids: new Set(['old']), positions: new Uint32Array([0, 200]) }, undefined, async () => {});
+  assert.deepEqual(result.ranked, []);
+});
+
 test('ranking preserves exact title, creator, tag and reaction weights; metadata-only matches survive', async () => {
   const videos = [video('metadata', 'Other'), video('title'), { ...video('creator', 'Other'), remote: { kind: 'youtube' as const, channelName: 'Needle' } }, video('tag', 'Other'), video('favorite')];
   const result = await rankSearchResults({ ...input(videos), tags: { tag: ['needle'] }, favorites: { favorite: true }, likes: { favorite: true }, viewCounts: { favorite: 99 }, ratingOf: id => id === 'favorite' ? 5 : 0 }, undefined, async () => {});

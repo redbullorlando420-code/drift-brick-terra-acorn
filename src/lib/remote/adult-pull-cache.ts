@@ -1,3 +1,6 @@
+import { fetchProviderMetadata } from './provider-body.ts';
+import { PROVIDER_BUDGETS } from '../provider-budgets.ts';
+
 /**
  * In-process TTL cache for Adult provider HTTP responses.
  * Keeps warm server isolates from re-hitting Eporner/RedTube/Reddit/Booru/etc.
@@ -14,7 +17,7 @@ type CacheEntry = {
 const STORE = new Map<string, CacheEntry>();
 const DEFAULT_TTL_MS = 10 * 60_000;
 const MAX_ENTRIES = 240;
-const MAX_BYTES = 12 * 1024 * 1024;
+const MAX_BYTES = PROVIDER_BUDGETS.adultCacheBytes;
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
 let cachedBytes = 0;
 function remove(key: string) {
@@ -56,7 +59,7 @@ export async function cachedAdultFetch(
       });
     }
   }
-  const res = await fetch(url, { ...fetchInit, signal: fetchInit.signal ?? AbortSignal.timeout(20000) });
+  const res = await fetchProviderMetadata(url, { ...fetchInit, signal: fetchInit.signal ?? AbortSignal.timeout(20000) });
   const contentType = res.headers.get("content-type") ?? "application/octet-stream";
   // Only cache successful readable bodies (JSON/XML/text).
   if (res.ok && method === "GET" && /json|xml|text|atom|rss/i.test(contentType)) {

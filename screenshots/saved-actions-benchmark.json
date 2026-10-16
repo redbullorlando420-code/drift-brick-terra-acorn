@@ -1,0 +1,41 @@
+{
+  "results": [
+    {
+      "entries": 10000,
+      "toggles": 6,
+      "copied": {
+        "ms": 23.272199999999998,
+        "extraHeapBytes": 389048
+      },
+      "sparse": {
+        "ms": 0.8342999999999847,
+        "extraHeapBytes": 15056
+      }
+    },
+    {
+      "entries": 100000,
+      "toggles": 6,
+      "copied": {
+        "ms": 555.7698999999999,
+        "extraHeapBytes": 6291600
+      },
+      "sparse": {
+        "ms": 0.3787999999999556,
+        "extraHeapBytes": 12336
+      }
+    },
+    {
+      "entries": 1000000,
+      "toggles": 6,
+      "copied": {
+        "ms": 7730.6530999999995,
+        "extraHeapBytes": 50332456
+      },
+      "sparse": {
+        "ms": 0.13079999999899883,
+        "extraHeapBytes": 10904
+      }
+    }
+  ],
+  "limitation": "Synthetic in-memory record updates only; excludes selectors, rendering, persistence and browser memory."
+}

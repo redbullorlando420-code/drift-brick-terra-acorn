@@ -1,0 +1,145 @@
+{
+  "ok": true,
+  "stableMetadata": false,
+  "fixture": "60,000 saved YouTube videos, 48,000 from one creator; automatic tag enrichment; real ranking worker; isolated browser storage; artwork/embeds stubbed",
+  "results": [
+    {
+      "viewport": "desktop",
+      "firstBatchMs": 716,
+      "nextPageMs": 128,
+      "previewReturnRepackedRows": 60000,
+      "releasedWorkerVerified": false,
+      "nextAfterReturnMs": 126,
+      "coldMixVerified": true,
+      "ratingInvalidationVerified": true,
+      "scrollWorstFrameMs": 77,
+      "peakCards": 66,
+      "worstMainTaskMs": 107,
+      "overflow": false,
+      "rankingWorkers": [
+        {
+          "rows": 60000,
+          "packingMs": 629,
+          "scoringMs": 98,
+          "completed": true
+        },
+        {
+          "rows": 60000,
+          "packingMs": 432,
+          "scoringMs": 105,
+          "completed": true
+        },
+        {
+          "rows": 60000,
+          "packingMs": 231,
+          "scoringMs": 105,
+          "completed": true
+        },
+        {
+          "rows": 0,
+          "packingMs": null,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 997,
+          "scoringMs": 114,
+          "completed": true
+        },
+        {
+          "rows": 0,
+          "packingMs": null,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 4000,
+          "packingMs": 217,
+          "scoringMs": 13,
+          "completed": true
+        },
+        {
+          "rows": 4000,
+          "packingMs": 152,
+          "scoringMs": 12,
+          "completed": true
+        }
+      ],
+      "errors": [],
+      "ok": true
+    },
+    {
+      "viewport": "mobile",
+      "firstBatchMs": 735,
+      "nextPageMs": 203,
+      "previewReturnRepackedRows": 60000,
+      "releasedWorkerVerified": false,
+      "nextAfterReturnMs": 181,
+      "coldMixVerified": true,
+      "ratingInvalidationVerified": true,
+      "scrollWorstFrameMs": 36,
+      "peakCards": 48,
+      "worstMainTaskMs": 58,
+      "overflow": false,
+      "rankingWorkers": [
+        {
+          "rows": 60000,
+          "packingMs": 633,
+          "scoringMs": 118,
+          "completed": true
+        },
+        {
+          "rows": 60000,
+          "packingMs": 496,
+          "scoringMs": 123,
+          "completed": true
+        },
+        {
+          "rows": 60000,
+          "packingMs": 206,
+          "scoringMs": 121,
+          "completed": true
+        },
+        {
+          "rows": 0,
+          "packingMs": null,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 60000,
+          "packingMs": 819,
+          "scoringMs": 127,
+          "completed": true
+        },
+        {
+          "rows": 0,
+          "packingMs": null,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 0,
+          "packingMs": null,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 4000,
+          "packingMs": 72,
+          "scoringMs": 15,
+          "completed": true
+        },
+        {
+          "rows": 4000,
+          "packingMs": 219,
+          "scoringMs": 15,
+          "completed": true
+        }
+      ],
+      "errors": [],
+      "ok": true
+    }
+  ]
+}

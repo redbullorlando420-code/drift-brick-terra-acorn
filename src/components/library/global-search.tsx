@@ -41,6 +41,12 @@ export const GlobalSearch = memo(function GlobalSearch() {
   const [expanded, setExpanded] = useState(false);
   const editorActive = useRef(false);
   const panelOpen = expanded && !viewerOpen && sessionPhase === 'active';
+  useEffect(() => {
+    if (!panelOpen) return;
+    const state = useLibrary.getState();
+    searchWorkerIndex.sync(state.videos, state.tags, state.categories);
+    return () => searchWorkerIndex.retire();
+  }, [panelOpen]);
   const onAdultDesk = sourceId === 'adults' || sourceId === 'adult-fetishes';
   const needle = lookup.trim().toLowerCase();
   const lookupActive = panelOpen && Boolean(needle) && lookup === draft;
@@ -126,10 +132,11 @@ export const GlobalSearch = memo(function GlobalSearch() {
     void (async () => {
       await turn();
       // Suggestions never build another index; the Search desk owns it.
-      const ids = indexStatus === 'ready' ? await searchWorkerIndex.search(needle, controller.signal) : null;
+      const matches = indexStatus === 'ready' ? await searchWorkerIndex.searchMatches(needle, controller.signal) : null;
+      const ids = matches?.videos === videos ? matches.ids : null;
       controller.signal.throwIfAborted();
       const result = await collectSearchSuggestions({ videos, folders, tags, categories, hidden, unavailable,
-        hideDemo, sourceId, adultsUnlocked, query: needle, ids }, turn);
+        hideDemo, sourceId, adultsUnlocked, query: needle, ids, positions: matches?.videos === videos ? matches.positions : undefined }, turn);
       if (!controller.signal.aborted) setPacket({ query: needle, videos, hits: result });
     })().catch(() => {
       if (!controller.signal.aborted) setPacket({ query: needle, videos, hits: [] });

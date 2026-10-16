@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decodeSparseRecord, encodeSparseRecord, patchSparseRecord, sparseRecordBuilder, type EncodedSparseRecord } from './sparse-record.ts';
+import { decodeSparseRecord, encodeSparseRecord, patchSparseRecord, removeSparseRecordKeys, sparseRecordBuilder, sparseRecordEntries, sparseRecordScan, type EncodedSparseRecord } from './sparse-record.ts';
+import { forEachCatalogEntry } from './catalog-work.ts';
 
 test('sparse snapshots preserve reads, own properties, key order, special IDs and JSON/spread exports', () => {
   const symbol = Symbol('sidecar'), base = { a: ['old'], '12': ['twelve'], [symbol]: 'keep' } as Record<string | symbol, unknown>;
@@ -55,4 +56,90 @@ test('hash collisions and all branch positions survive persistence and later upd
   assert.equal(decoded.costarring, 13_000); assert.equal(decoded.liquid, 12_000);
   assert.equal(Object.keys(decoded).length, 10_002);
   const plain = { legacy: ['untouched'] }; assert.equal(decodeSparseRecord(plain), plain); assert.equal(encodeSparseRecord(plain), plain);
+});
+
+test('sparse removals preserve old snapshots, erase keys from exports and restore insertion order on re-add', () => {
+  const base = { a: 1, b: 2, c: 3, '12': 12, ['__proto__']: 4 };
+  const updated = patchSparseRecord(base, [['added', 5], ['present-undefined', undefined]]);
+  const removed = removeSparseRecordKeys(updated, ['a', 'added', '__proto__', '12', 'missing']);
+  assert.equal(removed.a, undefined); assert.equal('a' in removed, false); assert.equal(Object.hasOwn(removed, 'a'), false);
+  assert.equal(Object.hasOwn(removed, 'present-undefined'), true);
+  assert.deepEqual(Object.keys(removed), ['b', 'c', 'present-undefined']);
+  assert.deepEqual(JSON.parse(JSON.stringify(removed)), { b: 2, c: 3 });
+  assert.equal(updated.a, 1); assert.equal(updated.added, 5); assert.equal(base.a, 1);
+  assert.equal(removeSparseRecordKeys(removed, ['a', 'missing']), removed);
+  const again = patchSparseRecord(removed, [['a', 8], ['12', 20], ['added', 9]]);
+  assert.deepEqual(Object.keys(again), ['12', 'b', 'c', 'present-undefined', 'a', 'added']);
+  const restored = decodeSparseRecord(structuredClone(encodeSparseRecord(again)));
+  assert.deepEqual({ ...restored }, { ...again });
+  assert.equal(restored.__proto__, undefined);
+});
+
+test('removing keys never enumerates the baseline; repeated toggles retain one current tree', () => {
+  const base = new Proxy({ saved: true }, { ownKeys() { throw Error('Whole shelf enumerated'); } });
+  let current: Record<string, boolean> = base;
+  for (let i = 0; i < 1000; i++) {
+    current = removeSparseRecordKeys(current, ['saved']); assert.equal(current.saved, undefined);
+    current = patchSparseRecord(current, [['saved', true]]); assert.equal(current.saved, true);
+  }
+  const encoded = encodeSparseRecord(current) as EncodedSparseRecord<boolean>;
+  assert.equal(encoded.snapshot.base, base); assert.ok(JSON.stringify(encoded.snapshot.root).length < 150);
+  const builder = sparseRecordBuilder(current); builder.remove('saved'); builder.finish();
+  assert.throws(() => builder.remove('saved'), /finished/);
+});
+
+test('temporary additions release their tree nodes on removal, including collisions and nested branches', () => {
+  const entries: Array<readonly [string, number]> = Array.from({ length: 10000 }, (_, i) => [`temporary:${i}`, i] as const);
+  entries.push(['costarring', 1], ['liquid', 2]);
+  const before = patchSparseRecord({}, entries);
+  const half = removeSparseRecordKeys(before, entries.filter((_, i) => i % 2 === 0).map(([key]) => key));
+  for (let i = 0; i < entries.length; i++) assert.equal(half[entries[i]![0]], i % 2 ? entries[i]![1] : undefined);
+  const empty = removeSparseRecordKeys(half, entries.map(([key]) => key));
+  assert.deepEqual(Object.keys(empty), []); assert.equal((encodeSparseRecord(empty) as EncodedSparseRecord<number>).snapshot.root, undefined);
+  assert.equal(before.liquid, 2); assert.equal(before.costarring, 1);
+  let current: Record<string, number> = {};
+  for (let i = 0; i < 5000; i++) current = removeSparseRecordKeys(patchSparseRecord(current, [[`temp:${i}`, i]]), [`temp:${i}`]);
+  assert.equal((encodeSparseRecord(current) as EncodedSparseRecord<number>).snapshot.root, undefined);
+});
+
+test('incremental scans match enumerable values across removals, re-additions, collisions and special keys', () => {
+  const base = Object.assign(Object.create({ inherited: 42 }), { a: 1, b: 2, '12': 12, ['__proto__']: 4 });
+  Object.defineProperty(base, 'hidden', { value: 9, enumerable: false });
+  const patched = patchSparseRecord<number | undefined>(base, [['a', 8], ['added', 5], ['present-undefined', undefined], ['hidden', 10], ['costarring', 11], ['liquid', 12]]);
+  const removed = removeSparseRecordKeys(patched, ['a', 'b', '__proto__', 'costarring']);
+  const restored = patchSparseRecord(removed, [['a', 20], ['__proto__', 25]]);
+  for (const record of [base, patched, removed, restored, decodeSparseRecord(structuredClone(encodeSparseRecord(restored)))]) {
+    const entries = [...sparseRecordEntries(record)];
+    assert.equal(new Set(entries.map(([key]) => key)).size, entries.length);
+    assert.deepEqual(new Map(entries), new Map(Object.entries(record)));
+    assert.ok(!entries.some(([key]) => key === 'inherited'));
+  }
+  assert.equal(patched.a, 8); assert.equal(restored.a, 20);
+});
+
+test('a large sparse scan visits only the requested prefix before cancellation', () => {
+  const record = patchSparseRecord({}, Array.from({ length: 100_000 }, (_, i) => [`video:${i}`, i] as const));
+  // Throw on the export/sort trap: background iteration must use the tree.
+  const arraySort = Array.prototype.sort;
+  Array.prototype.sort = function() { throw Error('whole-record sort'); };
+  try {
+    const iterator = sparseRecordEntries(record);
+    for (let i = 0; i < 256; i++) assert.equal(iterator.next().done, false);
+    iterator.return(undefined);
+    assert.equal(iterator.next().done, true);
+  } finally { Array.prototype.sort = arraySort; }
+  assert.equal([...sparseRecordEntries(record)].length, 100_000);
+});
+
+test('cooperative scans yield and cancel through deleted base entries', async () => {
+  const base = Object.fromEntries(Array.from({ length: 20_000 }, (_, i) => [`id:${i}`, i]));
+  const removed = removeSparseRecordKeys(base, Object.keys(base));
+  let steps = 0, turns = 0, returned = 0;
+  function* scan() { for (const row of sparseRecordScan(removed)) { steps++; yield row; } }
+  const work = forEachCatalogEntry(scan(), row => { if (row) returned++; }, async () => {
+    if (++turns === 3) throw Error('cancelled');
+  });
+  assert.equal(steps, 0);
+  await assert.rejects(work, /cancelled/);
+  assert.ok(steps > 0 && steps <= 1024); assert.equal(returned, 0);
 });

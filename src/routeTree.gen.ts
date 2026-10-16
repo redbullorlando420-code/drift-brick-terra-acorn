@@ -10,6 +10,8 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SplatRouteImport } from './routes/$'
+import { Route as LandingRouteImport } from './routes/landing'
 import { Route as ApiLanOriginRouteImport } from './routes/api/lan-origin'
 import { Route as ApiNetworkPresenceRouteImport } from './routes/api/network-presence'
 import { Route as ApiQuickTunnelRouteImport } from './routes/api/quick-tunnel'
@@ -18,6 +20,16 @@ import { Route as ApiRtcRouteImport } from './routes/api/rtc'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SplatRoute = SplatRouteImport.update({
+  id: '/$',
+  path: '/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LandingRoute = LandingRouteImport.update({
+  id: '/landing',
+  path: '/landing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiLanOriginRoute = ApiLanOriginRouteImport.update({
@@ -43,6 +55,8 @@ const ApiRtcRoute = ApiRtcRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/$': typeof SplatRoute
+  '/landing': typeof LandingRoute
   '/api/lan-origin': typeof ApiLanOriginRoute
   '/api/network-presence': typeof ApiNetworkPresenceRoute
   '/api/quick-tunnel': typeof ApiQuickTunnelRoute
@@ -50,6 +64,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/$': typeof SplatRoute
+  '/landing': typeof LandingRoute
   '/api/lan-origin': typeof ApiLanOriginRoute
   '/api/network-presence': typeof ApiNetworkPresenceRoute
   '/api/quick-tunnel': typeof ApiQuickTunnelRoute
@@ -58,6 +74,8 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/$': typeof SplatRoute
+  '/landing': typeof LandingRoute
   '/api/lan-origin': typeof ApiLanOriginRoute
   '/api/network-presence': typeof ApiNetworkPresenceRoute
   '/api/quick-tunnel': typeof ApiQuickTunnelRoute
@@ -67,6 +85,8 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/$'
+    | '/landing'
     | '/api/lan-origin'
     | '/api/network-presence'
     | '/api/quick-tunnel'
@@ -74,6 +94,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/$'
+    | '/landing'
     | '/api/lan-origin'
     | '/api/network-presence'
     | '/api/quick-tunnel'
@@ -81,6 +103,8 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/$'
+    | '/landing'
     | '/api/lan-origin'
     | '/api/network-presence'
     | '/api/quick-tunnel'
@@ -89,6 +113,8 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  SplatRoute: typeof SplatRoute
+  LandingRoute: typeof LandingRoute
   ApiLanOriginRoute: typeof ApiLanOriginRoute
   ApiNetworkPresenceRoute: typeof ApiNetworkPresenceRoute
   ApiQuickTunnelRoute: typeof ApiQuickTunnelRoute
@@ -102,6 +128,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$': {
+      id: '/$'
+      path: '/$'
+      fullPath: '/$'
+      preLoaderRoute: typeof SplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/landing': {
+      id: '/landing'
+      path: '/landing'
+      fullPath: '/landing'
+      preLoaderRoute: typeof LandingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/lan-origin': {
@@ -137,6 +177,8 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  SplatRoute: SplatRoute,
+  LandingRoute: LandingRoute,
   ApiLanOriginRoute: ApiLanOriginRoute,
   ApiNetworkPresenceRoute: ApiNetworkPresenceRoute,
   ApiQuickTunnelRoute: ApiQuickTunnelRoute,
@@ -147,10 +189,11 @@ export const routeTree = rootRouteImport
   ._addFileTypes<FileRouteTypes>()
 
 import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
+import type { startInstance } from './start.ts'
 declare module '@tanstack/react-start' {
   interface Register {
     ssr: true
     router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
   }
 }

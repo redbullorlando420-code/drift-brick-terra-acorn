@@ -62,12 +62,12 @@ try {
   await host.locator('input[type="file"][accept="video/*"]').first().setInputFiles(localFile);
   assert.equal(await host.getByRole("button", { name: "Send sharing request" }).isDisabled(), true);
   await guest.waitForTimeout(500);
-  assert.equal(await guest.getByText(/Guest match requested:/).count(), 0);
+  assert.equal(await guest.getByText(/Optional local copy:/).count(), 0);
   await host.getByRole("checkbox", { name: /I confirm guests have access/ }).check();
   await host.getByRole("button", { name: "Send sharing request" }).click();
-  await guest.getByText(/Guest match requested: tungsten-reel.mp4/).waitFor({ timeout: 10000 });
+  await guest.getByText(/Optional local copy: tungsten-reel.mp4/).waitFor({ timeout: 10000 });
   await guest.locator('input[type="file"][accept="video/*"]').first().setInputFiles(localFile);
-  await host.getByText(/Compatibility matrix · 1\/1 guests matched/).waitFor({ timeout: 10000 });
+  await host.getByText(/Optional local copies · 1\/1 guests matched/).waitFor({ timeout: 10000 });
   await host.getByRole("button", { name: "Add to local queue" }).click();
   await guest.getByText("Explore more videos and advanced queue controls").click();
   await guest.getByText("Approved local handoffs").waitFor({ timeout: 10000 });

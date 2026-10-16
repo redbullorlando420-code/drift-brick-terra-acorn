@@ -1,0 +1,112 @@
+{
+  "ok": true,
+  "url": "http://127.0.0.1:8080/",
+  "fixture": "80,000 compact entries, 60,000 saved titles and history entries, pulling paused, text-first artwork, isolated Chromium contexts; fake media and offline Companion responses stubbed",
+  "limitation": "Synthetic browser check; does not establish real-provider throughput, long-session memory stability, or physical-device performance.",
+  "budgets": {
+    "startupMs": 3000,
+    "navigationMs": 2000,
+    "scrollSettleMs": 500,
+    "inputMs": 200,
+    "mountedCards": 256,
+    "overflowPixels": 0
+  },
+  "results": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "startupMs": 615.5999999940395,
+      "catalogEntries": 80000,
+      "navigationMs": 1927.300000011921,
+      "scrollSettleMs": 29.400000005960464,
+      "artworkIdleVerified": true,
+      "formatsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-profile-formats-desktop.png",
+      "formatShelfScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-profile-format-shelf-desktop.png",
+      "youtubeFormatsVerified": true,
+      "favoriteReadyMs": 110,
+      "savedCatalogVerified": true,
+      "continueScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-profile-continue-desktop.png",
+      "historyScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-profile-history-desktop.png",
+      "recoveredHistoryPlaybackVerified": true,
+      "recoveryUiVerified": true,
+      "favoriteScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-profile-favorites-desktop.png",
+      "sharedControlsVerified": true,
+      "providerBudgetsVerified": true,
+      "scorecardVerified": true,
+      "exportVerified": true,
+      "safeguardsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-profile-safeguards-desktop.png",
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-profile-desktop.png",
+      "inputMs": 162.59999999403954,
+      "mountedCards": 48,
+      "overflowPixels": 0,
+      "worstInput": {
+        "action": "All saved · 60,000",
+        "ms": 162.59999999403954
+      },
+      "slowInputs": [
+        {
+          "action": "Hearts · 30,000",
+          "ms": 126.59999999403954
+        },
+        {
+          "action": "Likes · 30,000",
+          "ms": 124.80000001192093
+        },
+        {
+          "action": "All saved · 60,000",
+          "ms": 162.59999999403954
+        }
+      ],
+      "ok": true,
+      "failures": []
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "startupMs": 663.5,
+      "catalogEntries": 80000,
+      "navigationMs": 993.0999999940395,
+      "scrollSettleMs": 16.900000005960464,
+      "artworkIdleVerified": true,
+      "formatsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-profile-formats-mobile.png",
+      "formatShelfScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-profile-format-shelf-mobile.png",
+      "youtubeFormatsVerified": true,
+      "favoriteReadyMs": 140,
+      "savedCatalogVerified": true,
+      "continueScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-profile-continue-mobile.png",
+      "historyScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-profile-history-mobile.png",
+      "recoveredHistoryPlaybackVerified": true,
+      "recoveryUiVerified": true,
+      "favoriteScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-profile-favorites-mobile.png",
+      "sharedControlsVerified": true,
+      "providerBudgetsVerified": true,
+      "scorecardVerified": true,
+      "exportVerified": true,
+      "safeguardsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-profile-safeguards-mobile.png",
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\ui-recovery-profile-mobile.png",
+      "inputMs": 126.90000000596046,
+      "mountedCards": 40,
+      "overflowPixels": 0,
+      "worstInput": {
+        "action": "Hearts · 30,000",
+        "ms": 126.90000000596046
+      },
+      "slowInputs": [
+        {
+          "action": "Hearts · 30,000",
+          "ms": 126.90000000596046
+        },
+        {
+          "action": "History",
+          "ms": 122.2999999821186
+        },
+        {
+          "action": "Everything",
+          "ms": 110.10000002384186
+        }
+      ],
+      "ok": true,
+      "failures": []
+    }
+  ]
+}

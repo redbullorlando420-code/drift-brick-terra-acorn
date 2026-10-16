@@ -1,3 +1,5 @@
+import { normalizeProviderCache } from '../provider-cache-metrics.ts';
+import { mergeFollowRecovery, normalizeFollowCheckpoints } from './follow-checkpoints.ts';
 /**
  * Folder-oriented local export/import pack for follows, history, links, marks,
  * ratings/hearts, and Adult stats. Browsers download a zip that mirrors the
@@ -101,14 +103,7 @@ function normalizeFollowRow(row: Record<string, unknown>): FollowedChannel | nul
   const handle = String(row.handle ?? row.channel ?? row.title ?? "").trim().replace(/^@/, "");
   const id = String(row.id ?? "").trim() || (kind && handle ? `${kind === "twitch" ? "tw" : "yt"}:${handle}` : "");
   const title = String(row.title ?? row.channel ?? handle).trim() || handle;
-  const cacheRaw = row.cache && typeof row.cache === "object" ? row.cache as Record<string, unknown> : null;
-  const cache = cacheRaw
-    && typeof cacheRaw.at === "number" && Number.isFinite(cacheRaw.at)
-    && typeof cacheRaw.hits === "number" && Number.isFinite(cacheRaw.hits)
-    && typeof cacheRaw.misses === "number" && Number.isFinite(cacheRaw.misses)
-    && (cacheRaw.scope === "feed" || cacheRaw.scope === "catalog" || cacheRaw.scope === "uncached")
-    ? { at: cacheRaw.at, hits: Math.max(0, Math.floor(cacheRaw.hits)), misses: Math.max(0, Math.floor(cacheRaw.misses)), scope: cacheRaw.scope as NonNullable<FollowedChannel["cache"]>["scope"] }
-    : undefined;
+  const cache = normalizeProviderCache(row.cache);
   if (!kind || !handle) return null;
   return {
     id,
@@ -122,6 +117,7 @@ function normalizeFollowRow(row: Record<string, unknown>): FollowedChannel | nul
     ...(typeof row.newestVideoId === "string" && row.newestVideoId ? { newestVideoId: row.newestVideoId } : {}),
     ...(typeof row.lastResponseCount === "number" && Number.isFinite(row.lastResponseCount) ? { lastResponseCount: row.lastResponseCount } : {}),
     ...(cache ? { cache } : {}),
+    ...normalizeFollowCheckpoints(row),
   };
 }
 
@@ -538,7 +534,7 @@ export function applyLibraryPackFiles(
   let followsAdded = 0;
   if (incomingFollows.length) {
     const current = hooks.getFollows();
-    const next = mode === "replace-follows" ? dedupeFollows(incomingFollows) : dedupeFollows([...incomingFollows, ...current]);
+    const next = mode === "replace-follows" ? dedupeFollows(incomingFollows) : dedupeFollows(mergeFollowRecovery({ channels: incomingFollows, savedAt: 0 }, { channels: current, savedAt: 0 }));
     followsAdded = Math.max(0, next.length - current.length);
     hooks.setFollows(next);
     saveFollows(next);
@@ -574,7 +570,7 @@ export function applyLibraryPackFiles(
     const merged = [...byUrl.values()];
     linksMerged = Math.max(0, merged.length - hooks.getLinks().length);
     hooks.setLinks(merged);
-    saveDurableLinks(merged);
+    void saveDurableLinks(merged);
   }
 
   let marksMerged = 0;
