@@ -1,0 +1,28 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "checks": [
+        "Check due refreshes exactly 16 overdue creators, skipping 30 fresh observations and eight retry waits",
+        "successful observations and failed-creator backoff survive reload; the bounded failure list shows names, errors and official creator links",
+        "provider live cooldown restores from durable follows and prevents automatic network retries after reload",
+        "automatic checks resume after the deadline, recover failed creators and clear their diagnostics without a full fresh-creator rescan"
+      ],
+      "requests": 4
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "checks": [
+        "Check due refreshes exactly 16 overdue creators, skipping 30 fresh observations and eight retry waits",
+        "successful observations and failed-creator backoff survive reload; the bounded failure list shows names, errors and official creator links",
+        "provider live cooldown restores from durable follows and prevents automatic network retries after reload",
+        "automatic checks resume after the deadline, recover failed creators and clear their diagnostics without a full fresh-creator rescan"
+      ],
+      "requests": 4
+    }
+  ],
+  "limitation": "Isolated desktop/mobile Chrome with real UI/store/persistence and deterministic public-metadata fixtures. Virtual time tests retry deadlines; upstream requests are tested separately."
+}

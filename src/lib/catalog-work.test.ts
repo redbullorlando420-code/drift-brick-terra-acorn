@@ -1,9 +1,39 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { collectCatalogRows, forEachCatalogSlice, copyCatalogRecord } from './catalog-work.ts';
+import { collectCatalogRows, forEachCatalogSlice, copyCatalogRecord, sortCatalogRows } from './catalog-work.ts';
 import { createPreviewUrlCache } from './videos/preview-url-cache.ts';
 import { adultProviderPullBudget, planAdultPull } from './videos/adult-pull-plan.ts';
 import { patchSparseRecord, removeSparseRecordKeys } from './sparse-record.ts';
+
+test('sorting keeps stable ties across native runs and bounds every non-interruptible native sort', async () => {
+  const rows = Array.from({ length: 20_003 }, (_, index) => ({ index, rank: Math.imul(index, 2654435761) % 31 }));
+  const expected = rows.slice().sort((a, b) => a.rank - b.rank);
+  const native = Array.prototype.sort; let largest = 0, turns = 0;
+  Array.prototype.sort = function(compare) { largest = Math.max(largest, this.length); assert.ok(this.length <= 256); return native.call(this, compare); };
+  try { assert.deepEqual(await sortCatalogRows(rows.slice(), (a,b) => a.rank - b.rank, async () => { turns++; }), expected); }
+  finally { Array.prototype.sort = native; }
+  assert.equal(largest, 256); assert.ok(turns > 20);
+  assert.deepEqual(await sortCatalogRows(rows.slice(0, 71), (a,b) => a.rank - b.rank, async()=>{}, 32), expected.filter(row=>row.index < 71));
+});
+
+test('already ordered million-entry catalogs use linear comparisons and sorting yields before reading', async () => {
+  const rows = Array.from({ length: 1_000_000 }, (_, index) => ({ index }));
+  let comparisons = 0, turns = 0;
+  const pending = sortCatalogRows(rows, (a,b) => { comparisons++; return a.index - b.index; }, async () => { turns++; });
+  assert.equal(comparisons, 0, 'the initiating input stack does not compare entries');
+  const result = await pending;
+  assert.equal(result.length, rows.length); assert.equal(result[0]?.index, 0); assert.equal(result.at(-1)?.index, 999_999);
+  assert.ok(comparisons <= rows.length + 1, 'ordered runs avoid full-array merge passes'); assert.ok(turns >= 400);
+});
+
+test('sorting cancellation stops before the first comparison and inside a large merge', async () => {
+  let comparisons = 0;
+  await assert.rejects(sortCatalogRows([3, 2, 1], (a,b)=>{ comparisons++; return a-b; }, async()=>{throw Error('cancelled')}), /cancelled/);
+  assert.equal(comparisons, 0);
+  let turns = 0;
+  await assert.rejects(sortCatalogRows(Array.from({length:50_000},(_,i)=>50_000-i), (a,b)=>a-b, async()=>{if(++turns === 40)throw Error('cancelled')}), /cancelled/);
+  assert.equal(turns, 40);
+});
 
 test('catalog traversals yield and cancel before processing another slice', async () => {
   let visits = 0, turns = 0;

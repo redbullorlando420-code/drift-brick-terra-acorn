@@ -22,8 +22,10 @@ export async function rankTwitchVods(
         !video.remote.live &&
         !isTwitchClip(video) &&
         !isOfflineTwitchCatalogCard(video)
-      )
-        rows.push({ video, score: score(video) });
+      ) {
+        const value = score(video);
+        if (Number.isFinite(value)) rows.push({ video, score: value });
+      }
     },
     turn,
   );

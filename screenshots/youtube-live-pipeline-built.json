@@ -1,0 +1,28 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "40 healthy creators finish and update visible coverage before a stalled eight-creator batch, through a bounded three-request pipeline",
+        "cancel releases the held request, ignores its late response and preserves healthy observations without marking cancellations as creator failures",
+        "saved partial coverage survives reload and due-only retry checks the remaining eight creators"
+      ],
+      "errors": [],
+      "requests": 7,
+      "peakRequests": 2
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "40 healthy creators finish and update visible coverage before a stalled eight-creator batch, through a bounded three-request pipeline",
+        "cancel releases the held request, ignores its late response and preserves healthy observations without marking cancellations as creator failures",
+        "saved partial coverage survives reload and due-only retry checks the remaining eight creators"
+      ],
+      "errors": [],
+      "requests": 7,
+      "peakRequests": 2
+    }
+  ],
+  "limitation": "Isolated desktop/mobile Chrome using real client scheduler, UI and persistence with controlled provider responses; upstream reads are checked separately."
+}

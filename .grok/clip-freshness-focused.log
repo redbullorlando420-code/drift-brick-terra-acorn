@@ -1,0 +1,34 @@
+✔ sparse shelves record requested versus returned counts and real public exhaustion (5.4076ms)
+✔ duplicate-heavy continuations consume the fixed page allowance without false exhaustion (3.1198ms)
+✔ filled per-window quotas differ from page limits and preserve older continuation (0.4341ms)
+✔ partial window failures and provider holds produce different bounded explanations (0.5687ms)
+✔ legacy snapshots retain uncertainty while new evidence survives reload without unbounded fields (1.3969ms)
+✔ focused recovery honors separate recent/older waits and completed positions (69.7628ms)
+✔ actual clip API labels a warm cache without advancing the original provider observation (1184.792ms)
+✔ a warm retry advances only its attempt and retains original successful observation through reload (4.1701ms)
+✔ cached and held responses cannot clear a newer failure, rewind health or move older cursors (0.2798ms)
+✔ new successful observations clear only their own wait and real failures keep the prior check (0.235ms)
+✔ unrelated copied follow responses preserve newer clip health without blocking live metadata (0.3604ms)
+✔ every catalog admission path retains fresher clip metadata and array identity on stale-only input (5.8195ms)
+✔ fresh clip API invalidates only its exact creator, mode, count and cursor cache entry (2244.7373ms)
+✔ a fresh clip read waits for the older same-key request, coalesces fresh callers and warms the final result (779.7938ms)
+✔ overlapping windows walk distinct pages until the unique quota is filled (14.3841ms)
+✔ one failed recent window retains accepted clips and permits other windows; rate holds stop new windows (6.4871ms)
+✔ partial archive pages preserve accepted rows and the last complete continuation (4.1468ms)
+✔ malformed rows do not advance an archive position or declare exhaustion (0.6131ms)
+✔ cursor cycles and duplicate-only pages terminate without false exhaustion (2.7957ms)
+✔ one global eight-page budget covers all windows and reserves discovery for later windows (2.5881ms)
+✔ complete archive clears its cursor while exact limits retain a confirmed next position (0.3492ms)
+✔ 100-creator batches rotate all 600 creators after reload, including failed attempts (115.8198ms)
+✔ recent and older retry scopes survive recovery independently and honor advertised deadlines (31.2021ms)
+✔ clip diagnostic normalization bounds messages and rejects malformed snapshots (4.3195ms)
+✔ actual clip API returns game metadata, preserves unknown dates and keeps recent success separate from older clock (1138.0314ms)
+✔ empty later windows donate unused quota back to a healthy earlier continuation (9.7419ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3701.9812

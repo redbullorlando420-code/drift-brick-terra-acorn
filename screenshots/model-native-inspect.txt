@@ -1,0 +1,37 @@
+{
+  "ok": true,
+  "repo": "Comfy-Org/Qwen-Image-2.1",
+  "revision": "a8342359c61979b06a8dafb1a47991fe1f30e994",
+  "files": 15,
+  "models": [
+    {
+      "name": "v1-5-pruned-emaonly-fp16.safetensors",
+      "role": "checkpoints",
+      "engine": "a1111"
+    },
+    {
+      "name": "qwen_image_2.1_turbo_int8_convrot.safetensors",
+      "role": "diffusion_models",
+      "engine": "comfy"
+    },
+    {
+      "name": "qwen3vl_8b_w4a8.safetensors",
+      "role": "text_encoders",
+      "engine": "comfy"
+    },
+    {
+      "name": "qwen_image_2.1_vae_bf16.safetensors",
+      "role": "vae",
+      "engine": "comfy"
+    }
+  ],
+  "duplicateBundlePreserved": true,
+  "job": {
+    "id": "4100fcf9-6581-4ce7-9968-a2bee0a5d8e0",
+    "label": "Qwen-Image 2.1 Turbo bundle",
+    "state": "done",
+    "received": 14244402881,
+    "total": 14244402881,
+    "note": "Model installed. Refresh the engine to discover it."
+  }
+}

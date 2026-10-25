@@ -47,11 +47,16 @@ test('top tags count each matching video once and omit transport tags', async ()
 
 test('100,000 broad matches retain every row and yield throughout scoring, sorting and resolution', async () => {
   const videos = Array.from({ length: 100_000 }, (_, i) => video(String(i), 'Needle', i));
-  let turns = 0;
-  const result = await rankSearchResults(input(videos), undefined, async () => { turns++; });
+  let turns = 0, nativeSorts = 0;
+  const native = Array.prototype.sort;
+  Array.prototype.sort = function(compare) { nativeSorts++; assert.ok(this.length <= 256, 'sorting never hands the full search result to a blocking native sort'); return native.call(this, compare); };
+  let result;
+  try { result = await rankSearchResults(input(videos), undefined, async () => { turns++; }); }
+  finally { Array.prototype.sort = native; }
   assert.equal(result.ranked.length, videos.length);
   assert.equal(result.ranked[0]?.id, '99999'); assert.equal(result.ranked.at(-1)?.id, '0');
-  assert.ok(turns > 1000, 'sorting also yields instead of blocking in one native sort');
+  assert.ok(turns >= 2 * Math.ceil(videos.length / 512), 'scoring and resolution both yield in bounded scans');
+  assert.ok(nativeSorts > 1, 'sorting uses bounded runs');
   assert.equal(new Set(result.ranked).size, videos.length);
 });
 

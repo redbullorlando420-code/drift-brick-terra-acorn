@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "entries": 120000,
+  "creators": 10000,
+  "referenceCandidates": 120000,
+  "optimizedCandidates": 1152,
+  "referenceMedianMs": 36.28790000000001,
+  "optimizedMedianMs": 26.622199999999992,
+  "coldIndexMs": 23.744500000000016,
+  "warmIndexMs": 0.009900000000016007,
+  "reusedIndex": true,
+  "identicalMix": true,
+  "limitation": "Synthetic metadata without artwork or network; candidate counts measure retained sampler objects, not complete app process memory."
+}

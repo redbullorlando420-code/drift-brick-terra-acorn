@@ -1,6 +1,6 @@
 import { LIBRARY_LIMITS } from '../library-limits.ts';
 
-export type RemoteRefreshLane = 'youtube-archive' | 'youtube-feed' | 'youtube-live' | 'twitch';
+export type RemoteRefreshLane = 'youtube-archive' | 'youtube-feed' | 'youtube-live' | 'twitch-live' | 'twitch';
 export type RemoteRefreshTurn = {
   lane: RemoteRefreshLane;
   lastAttemptAt: number;

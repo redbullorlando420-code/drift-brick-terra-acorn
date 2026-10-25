@@ -8,6 +8,7 @@ export function createProviderMetadataCache<T>(options: {
   const remove = (key: string) => { const row = rows.get(key); if (row) bytes -= row.bytes; rows.delete(key); };
   const prune = () => { const at = now(); for (const [key,row] of rows) if (at - row.at >= options.ttlMs) remove(key); };
   return {
+    delete: remove,
     get: (key: string): T | undefined => {
       prune(); const row = rows.get(key); if (!row) return;
       rows.delete(key); rows.set(key, row); return row.value;

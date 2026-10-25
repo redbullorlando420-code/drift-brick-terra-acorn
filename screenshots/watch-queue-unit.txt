@@ -1,0 +1,47 @@
+npm notice run test:watch-room
+npm notice run node --experimental-strip-types --test src/lib/multiplayer/room-clock.test.ts src/lib/multiplayer/room-invite.test.ts src/lib/multiplayer/room-queue.test.ts src/lib/multiplayer/room-delivery.test.ts src/lib/multiplayer/room-media.test.ts src/lib/videos/sources.test.ts
+✔ repeated provider pause events hold the captured position (0.9229ms)
+✔ seeks accept zero and stop at the exact video duration (0.1496ms)
+✔ provider clock advances from its anchor once and respects a known player position (0.1323ms)
+✔ guest timing is bounded, quarter-second precise and handles invalid saved settings (0.2041ms)
+✔ device playback advances or delays without changing the canonical room clock (0.2805ms)
+✔ lost queue requests retry with the same payload and expire without endless work (1.1123ms)
+✔ confirmation retires only its request and duplicate confirmations are ignored (0.1718ms)
+✔ host replays receipts per peer without rerunning the action; busy cache preserves retry protection (0.4999ms)
+✔ pending work is bounded and room cleanup releases packets and receipts (0.217ms)
+✔ a localhost room invite cannot be copied as a cross-device link (1.1595ms)
+✔ a network room invite preserves the reachable app origin (0.9268ms)
+✔ QR invitations retain the selected room, clear old parameters and reject local or unsafe addresses (0.3078ms)
+✔ room media descriptor reconstructs a provider video without guest catalog data (1.2214ms)
+✔ room media descriptors reject arbitrary iframe hosts (0.109ms)
+✔ local room media carries only explicit match metadata and never a file URL (0.0988ms)
+✔ Twitch's actual player host and thumbnails survive a guest handoff (0.5323ms)
+✔ local catalog metadata identifies a stream without exposing a host blob URL or path (0.1123ms)
+✔ guest room metadata remains bounded across many selections and queue snapshots (5.7737ms)
+✔ timeline heartbeats keep the room metadata snapshot stable (0.1345ms)
+✔ incomplete provider cards reconstruct a playable route from IDs and watch URLs (0.5651ms)
+✔ watch pages become embed routes and the receiving device supplies its own parent/origin (0.1449ms)
+✔ an empty guest can propose a public link with bounded provider metadata (0.3717ms)
+✔ provider identity ignores device catalog IDs and distinguishes Twitch live, clips and VODs (0.2272ms)
+✔ multi-link pastes preserve order, deduplicate aliases and bound invalid or oversized input (1.0802ms)
+✔ guest catalog ID collisions preserve both provider titles and reuse the active identity (0.2625ms)
+✔ local requests need matching host file metadata, never only a colliding storage ID (0.1278ms)
+✔ room discovery preserves colliding personal titles without duplicating their shared aliases (0.1542ms)
+✔ room candidate preparation preserves its rating, history and shuffle order while yielding (6.2515ms)
+✔ room catalog preparation can be cancelled before publishing stale candidates (1.6261ms)
+✔ concurrent guest intentions preserve unrelated titles and duplicate retries are idempotent (0.9553ms)
+✔ canonical queues exclude the playing title and duplicate device IDs without losing order (0.1556ms)
+✔ queue actions remain bounded and tolerate an anchor removed by another guest (0.1702ms)
+✔ play next uses the latest head and can move an existing title in a full queue (0.188ms)
+✔ relative moves use the latest order after another guest removes or inserts a neighbor (0.1231ms)
+✔ shuffle preserves bounded membership and changes the order even on an identity draw (1.1724ms)
+✔ idle cleanup revokes temporary blobs while keeping the current player and file access (16.2205ms)
+✔ watch room source stays playable across idle trimming until it is released (3.0853ms)
+ℹ tests 37
+ℹ suites 0
+ℹ pass 37
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 167.1403

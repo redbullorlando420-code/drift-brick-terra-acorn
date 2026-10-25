@@ -1,0 +1,14 @@
+✔ private shelves group full scoped lists once and preserve stable organization and newest-24 ties (165.341ms)
+✔ all private sort modes exactly match existing native stable ordering without mutating membership (70.3335ms)
+✔ rank resolution reuses the index and cannot introduce missing or out-of-scope rows (1.2152ms)
+✔ indexing, sorting, rank resolution and tag filtering yield before metadata reads and accept cancellation (0.6751ms)
+✔ photo sources restoring before video folders retain saved private classification (0.5798ms)
+✔ photo metadata arriving after video restore preserves current privacy and folder order (0.1399ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 476.0752

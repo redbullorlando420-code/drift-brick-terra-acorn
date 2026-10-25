@@ -1,0 +1,32 @@
+✔ studio requests survive navigation, keep the submitted settings and retain a prior image on failure (1.7441ms)
+✔ studio session storage is bounded and isolates each account (0.1565ms)
+✔ duplicate interrupts are coalesced and a returned partial image is labeled honestly (0.241ms)
+✔ portable recipes round-trip only approved settings and reject unsupported files (1.0457ms)
+✔ recipe restoration is bounded and keeps valid entries when another is damaged (0.3372ms)
+✔ engine response limit cancels chunked and declared oversized bodies before buffering all data (13.2849ms)
+✔ publication comes from the matching video, never a pull time, relative label or recommended date (1.3142ms)
+✔ generation sends a bounded allow-list and rejects missing/oversized prompts and bad numbers (0.2743ms)
+✔ studio restores valid settings, migrates the legacy prompt and uses actual random seeds (0.1988ms)
+✔ cancelling an approval is token/origin-bound and cannot cancel a newer request (2.8297ms)
+✔ an authenticated API failure is visible and never starts a duplicate engine (4.3501ms)
+✔ remote approval is expiring, one-use, peer/origin-bound and never supplies a password (2.0471ms)
+✔ local image API stays on the fixed loopback target and refuses non-image output (0.3857ms)
+✔ engine lifecycle launches only the installed Python with loopback and isolated caches (6.82ms)
+✔ generation is single-flight and interrupt only applies to a request owned by the bridge (0.3456ms)
+✔ Hugging Face links allow only credential-free public model/file pages (1.2449ms)
+✔ safetensors rejects webpage/pickle/pointer, tensor overflow and non-checkpoint components (7.9854ms)
+✔ remote downloads pin revisions, check digests, preserve existing weights and retain bounded jobs (14.4738ms)
+✔ wrong remote checksum never enables a file and cleans its temporary data (22.6237ms)
+✔ an incompatible large model is refused after its small header, before downloading weights (15.6032ms)
+✔ local binary upload streams a checkpoint and refuses overwrites or traversal (151.2273ms)
+✔ Qwen graph uses built-in fixed nodes, model family settings and no caller workflow (0.4496ms)
+✔ Qwen generation checks the native queue, returns PNG and frees owned history/model memory (1012.3562ms)
+✔ Qwen lifecycle is loopback-only with custom/cloud nodes and pinned memory disabled (4.6167ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1328.766

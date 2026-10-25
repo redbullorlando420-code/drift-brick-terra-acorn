@@ -1,0 +1,276 @@
+npm notice run build
+npm notice run node scripts/check-three-dep.mjs && node scripts/with-app-env.mjs vite build && npm run db:migrate && node scripts/copy-pglite-preview-assets.mjs
+[check-three] ok — three@0.186.0 (package.json: ^0.186.0)
+[nitro:vercel] i Using nodejs24.x runtime.
+[nitro:vercel] i Using web entry format.
+vite v8.2.2 building client environment for production...
+transforming...
+✓ 2829 modules transformed.
+rendering chunks...
+computing gzip size...
+.vercel/output/static/assets/preview-ranking.worker-LiD7ns3a.js              4.50 kB
+.vercel/output/static/assets/youtube-ranking.worker-BDER20My.js              8.09 kB
+.vercel/output/static/assets/search.worker-DUGMh0ib.js                      11.69 kB
+.vercel/output/static/assets/adult-browse.worker-BdnBPUtT.js                70.05 kB
+.vercel/output/static/assets/library-stats.worker-CIW_8qDL.js               87.06 kB
+.vercel/output/static/assets/ort-wasm-simd-threaded.jsep-B0T3yYHD.wasm  21,596.01 kB │ gzip: 5,168.67 kB
+.vercel/output/static/assets/styles-DPuz9CcA.css                            70.78 kB │ gzip:    12.60 kB
+.vercel/output/static/assets/_-DiwTFGxw.js                                   0.07 kB │ gzip:     0.08 kB
+.vercel/output/static/assets/prints-blobs-BM5f6Mrv.js                        0.07 kB │ gzip:     0.08 kB
+.vercel/output/static/assets/chevron-left-D8Bu1ugE.js                        0.11 kB │ gzip:     0.13 kB
+.vercel/output/static/assets/routes-A3TAsn4s.js                              0.15 kB │ gzip:     0.14 kB
+.vercel/output/static/assets/pause-DYjq1CSf.js                               0.20 kB │ gzip:     0.15 kB
+.vercel/output/static/assets/copy-BfZ8Jy_R.js                                0.22 kB │ gzip:     0.20 kB
+.vercel/output/static/assets/eye-B29OTzZJ.js                                 0.24 kB │ gzip:     0.19 kB
+.vercel/output/static/assets/download-D5f7H-ro.js                            0.25 kB │ gzip:     0.21 kB
+.vercel/output/static/assets/maximize-2-isxdUqMr.js                          0.28 kB │ gzip:     0.20 kB
+.vercel/output/static/assets/play-Cxmyu4XH.js                                0.31 kB │ gzip:     0.25 kB
+.vercel/output/static/assets/bot-2wqcl-VG.js                                 0.31 kB │ gzip:     0.22 kB
+.vercel/output/static/assets/landing-DXqxgFzA.js                             0.36 kB │ gzip:     0.27 kB
+.vercel/output/static/assets/settled-input-BJgjEKnP.js                       0.41 kB │ gzip:     0.28 kB
+.vercel/output/static/assets/eye-off-ClhMY1pP.js                             0.41 kB │ gzip:     0.26 kB
+.vercel/output/static/assets/rocket-DWgtM2rV.js                              0.44 kB │ gzip:     0.30 kB
+.vercel/output/static/assets/package-search-BuGt48WT.js                      0.47 kB │ gzip:     0.31 kB
+.vercel/output/static/assets/local-id-C-7DUDRa.js                            0.50 kB │ gzip:     0.32 kB
+.vercel/output/static/assets/genre-section-CghwlCEA.js                       0.51 kB │ gzip:     0.35 kB
+.vercel/output/static/assets/volume-x-UZMXmTjN.js                            0.94 kB │ gzip:     0.40 kB
+.vercel/output/static/assets/find-phone-section-KxfmAxNA.js                  1.56 kB │ gzip:     0.64 kB
+.vercel/output/static/assets/source-assets-CEB01s33.js                       1.76 kB │ gzip:     0.88 kB
+.vercel/output/static/assets/button-CAC3mSoj.js                              1.86 kB │ gzip:     0.93 kB
+.vercel/output/static/assets/adult-photo-download-Bn_itZZc.js                1.88 kB │ gzip:     1.07 kB
+.vercel/output/static/assets/private-web-shortcuts-section-DRMdqQD9.js       2.32 kB │ gzip:     1.12 kB
+.vercel/output/static/assets/dist-C4_2hTDO.js                                2.88 kB │ gzip:     1.27 kB
+.vercel/output/static/assets/STLLoader-Dy1L2bkl.js                           2.92 kB │ gzip:     1.40 kB
+.vercel/output/static/assets/streaming-section-BufEDZCf.js                   2.98 kB │ gzip:     1.32 kB
+.vercel/output/static/assets/hub-shared-CL1IZXcp.js                          3.20 kB │ gzip:     1.28 kB
+.vercel/output/static/assets/spotify-section-B2LOoMbV.js                     3.23 kB │ gzip:     1.30 kB
+.vercel/output/static/assets/use-video-details-C1NR62Jw.js                   3.25 kB │ gzip:     1.63 kB
+.vercel/output/static/assets/local-vision-d6yQsqyh.js                        3.41 kB │ gzip:     1.77 kB
+.vercel/output/static/assets/react-dom-BCJCoj6o.js                           3.55 kB │ gzip:     1.34 kB
+.vercel/output/static/assets/BufferGeometryUtils-rEeF_agD.js                 4.78 kB │ gzip:     1.40 kB
+.vercel/output/static/assets/shop-section-BAS70-Jo.js                        4.91 kB │ gzip:     1.91 kB
+.vercel/output/static/assets/twitch-embed-DAZmP_ra.js                        5.59 kB │ gzip:     2.34 kB
+.vercel/output/static/assets/companion-BXniDPB0.js                           5.80 kB │ gzip:     2.20 kB
+.vercel/output/static/assets/twitch-archive-search-BeNt2Fmf.js               8.04 kB │ gzip:     3.08 kB
+.vercel/output/static/assets/ai-guide-C-aM1a8n.js                            8.14 kB │ gzip:     3.20 kB
+.vercel/output/static/assets/OBJLoader-B-qmqCYZ.js                           8.74 kB │ gzip:     2.89 kB
+.vercel/output/static/assets/prints-section-BW6eErLA.js                      8.79 kB │ gzip:     3.71 kB
+.vercel/output/static/assets/jsx-runtime-CfuWmoMz.js                         8.94 kB │ gzip:     3.44 kB
+.vercel/output/static/assets/social-section-B90MEOFB.js                     10.06 kB │ gzip:     4.10 kB
+.vercel/output/static/assets/anime-section--b3hYwt8.js                      10.15 kB │ gzip:     3.80 kB
+.vercel/output/static/assets/lan-connection-section-CebAlmJZ.js             10.67 kB │ gzip:     3.49 kB
+.vercel/output/static/assets/topic-links-BTa2zOuN.js                        10.69 kB │ gzip:     4.00 kB
+.vercel/output/static/assets/games-section-DKvTWyER.js                      13.56 kB │ gzip:     5.03 kB
+.vercel/output/static/assets/dist-cVNIwlkS.js                               13.58 kB │ gzip:     4.74 kB
+.vercel/output/static/assets/print-model-viewer-Bt_7NzyM.js                 16.15 kB │ gzip:     5.99 kB
+.vercel/output/static/assets/OrbitControls-Dh36RsEH.js                      19.91 kB │ gzip:     4.43 kB
+.vercel/output/static/assets/pre-video-DZm-zepC.js                          20.98 kB │ gzip:     7.35 kB
+.vercel/output/static/assets/3MFLoader-BhGxkZfr.js                          21.27 kB │ gzip:     7.95 kB
+.vercel/output/static/assets/player-C9md69vr.js                             38.74 kB │ gzip:    13.72 kB
+.vercel/output/static/assets/GLTFLoader-dohstKu4.js                         45.06 kB │ gzip:    13.36 kB
+.vercel/output/static/assets/adult-panel-CIV5mFBH.js                        45.73 kB │ gzip:    11.60 kB
+.vercel/output/static/assets/photos-section-KXKnDRdj.js                     48.33 kB │ gzip:    13.85 kB
+.vercel/output/static/assets/mission-plan-section-aDnb6_iT.js               68.56 kB │ gzip:    22.82 kB
+.vercel/output/static/assets/settings-section-CU5bLPe4.js                   95.67 kB │ gzip:    27.01 kB
+.vercel/output/static/assets/watch-room-section-CrB6cSQS.js                134.54 kB │ gzip:    40.57 kB
+.vercel/output/static/assets/store-DeKvJI1J.js                             298.45 kB │ gzip:    89.67 kB
+.vercel/output/static/assets/stats-section-C9RxgwDE.js                     435.30 kB │ gzip:   112.24 kB
+.vercel/output/static/assets/index-BlKrIsX5.js                             455.00 kB │ gzip:   144.00 kB
+.vercel/output/static/assets/library-app-ZEJZ4_Ae.js                       498.71 kB │ gzip:   152.08 kB
+.vercel/output/static/assets/three.module-4gI5Z-_B.js                      736.58 kB │ gzip:   186.86 kB
+.vercel/output/static/assets/transformers.web-Cdz0NrCc.js                  847.08 kB │ gzip:   216.25 kB
+
+[INEFFECTIVE_DYNAMIC_IMPORT] src/lib/prints-blobs.ts is dynamically imported by src/components/library/prints-section.tsx but also statically imported by src/components/library/print-model-viewer.tsx, src/components/library/prints-section.tsx, dynamic import will not move module into another chunk.
+
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 2.72s
+vite v8.2.2 building ssr environment for production...
+transforming...
+✓ 389 modules transformed.
+rendering chunks...
+computing gzip size...
+node_modules/.nitro/vite/services/ssr/assets/preview-ranking.worker-LiD7ns3a.js           4.50 kB
+node_modules/.nitro/vite/services/ssr/assets/youtube-ranking.worker-BDER20My.js           8.09 kB
+node_modules/.nitro/vite/services/ssr/assets/search.worker-DUGMh0ib.js                   11.69 kB
+node_modules/.nitro/vite/services/ssr/assets/adult-browse.worker-BdnBPUtT.js             70.05 kB
+node_modules/.nitro/vite/services/ssr/assets/library-stats.worker-CIW_8qDL.js            87.06 kB
+node_modules/.nitro/vite/services/ssr/assets/styles-DPuz9CcA.css                         70.78 kB │ gzip:  12.60 kB
+node_modules/.nitro/vite/services/ssr/assets/prints-blobs-CFUSJV2l.js                     0.09 kB │ gzip:   0.09 kB
+node_modules/.nitro/vite/services/ssr/assets/_-Dl8pgiTs.js                                0.19 kB │ gzip:   0.15 kB
+node_modules/.nitro/vite/services/ssr/assets/empty-plugin-adapters-D9UWiqvJ.js            0.22 kB │ gzip:   0.16 kB
+node_modules/.nitro/vite/services/ssr/assets/routes-CkUgnTe-.js                           0.26 kB │ gzip:   0.21 kB
+node_modules/.nitro/vite/services/ssr/assets/use-session-phase-Cpy3SP46.js                0.34 kB │ gzip:   0.21 kB
+node_modules/.nitro/vite/services/ssr/assets/input-CsNnvVAV.js                            0.61 kB │ gzip:   0.40 kB
+node_modules/.nitro/vite/services/ssr/assets/landing-BKOumbGS.js                          0.64 kB │ gzip:   0.36 kB
+node_modules/.nitro/vite/services/ssr/assets/genre-section-CXgpQN6L.js                    0.69 kB │ gzip:   0.42 kB
+node_modules/.nitro/vite/services/ssr/assets/provider-budgets-BBlQ03if.js                 0.85 kB │ gzip:   0.50 kB
+node_modules/.nitro/vite/services/ssr/assets/local-id-CsDq4efR.js                         1.05 kB │ gzip:   0.58 kB
+node_modules/.nitro/vite/services/ssr/assets/_tanstack-start-manifest_v-C50yicsd.js       1.18 kB │ gzip:   0.51 kB
+node_modules/.nitro/vite/services/ssr/assets/settled-input-BOp2EcId.js                    1.19 kB │ gzip:   0.55 kB
+node_modules/.nitro/vite/services/ssr/assets/utils-Cq6DDHIb.js                            1.46 kB │ gzip:   0.70 kB
+node_modules/.nitro/vite/services/ssr/assets/button-BBe1bZ7q.js                           1.58 kB │ gzip:   0.76 kB
+node_modules/.nitro/vite/services/ssr/assets/find-phone-section-DWIczw_m.js               2.07 kB │ gzip:   0.74 kB
+node_modules/.nitro/vite/services/ssr/assets/source-assets-4lR6sQzr.js                    2.14 kB │ gzip:   0.92 kB
+node_modules/.nitro/vite/services/ssr/assets/start-jxSE7Jul.js                            2.62 kB │ gzip:   1.15 kB
+node_modules/.nitro/vite/services/ssr/assets/reddit-media-status-BnDo-Tg-.js              2.82 kB │ gzip:   1.22 kB
+node_modules/.nitro/vite/services/ssr/assets/navigation-work-BJu-3U3R.js                  2.94 kB │ gzip:   0.99 kB
+node_modules/.nitro/vite/services/ssr/assets/private-web-shortcuts-section-BSJlEmXt.js    3.59 kB │ gzip:   1.39 kB
+node_modules/.nitro/vite/services/ssr/assets/streaming-section-CDryCqiP.js                4.23 kB │ gzip:   1.53 kB
+node_modules/.nitro/vite/services/ssr/assets/hub-shared-ZOqUfBNk.js                       4.44 kB │ gzip:   1.57 kB
+node_modules/.nitro/vite/services/ssr/assets/spotify-section-CjIFkD4Z.js                  4.66 kB │ gzip:   1.57 kB
+node_modules/.nitro/vite/services/ssr/assets/local-vision-DyOHjYy5.js                     5.54 kB │ gzip:   2.25 kB
+node_modules/.nitro/vite/services/ssr/assets/use-video-details-Dptlqfoq.js                6.12 kB │ gzip:   2.36 kB
+node_modules/.nitro/vite/services/ssr/assets/shop-section-B_UNWWcs.js                     7.51 kB │ gzip:   2.33 kB
+node_modules/.nitro/vite/services/ssr/assets/twitch-embed-BaY6vVjN.js                     9.65 kB │ gzip:   3.21 kB
+node_modules/.nitro/vite/services/ssr/assets/companion-DCUo6Tbe.js                       11.57 kB │ gzip:   3.64 kB
+node_modules/.nitro/vite/services/ssr/assets/adult-rank-BAGoOBGg.js                      12.15 kB │ gzip:   3.68 kB
+node_modules/.nitro/vite/services/ssr/assets/prints-section-p1_aY13U.js                  12.84 kB │ gzip:   4.27 kB
+node_modules/.nitro/vite/services/ssr/assets/ai-guide-CvocTx9C.js                        13.53 kB │ gzip:   4.29 kB
+node_modules/.nitro/vite/services/ssr/assets/twitch-archive-search-CX4occMl.js           14.06 kB │ gzip:   4.18 kB
+node_modules/.nitro/vite/services/ssr/assets/social-section-losFPnOY.js                  14.89 kB │ gzip:   4.93 kB
+node_modules/.nitro/vite/services/ssr/assets/lan-connection-section-DYQyHoNW.js          15.44 kB │ gzip:   4.05 kB
+node_modules/.nitro/vite/services/ssr/assets/anime-section-DrBV_jot.js                   18.34 kB │ gzip:   5.29 kB
+node_modules/.nitro/vite/services/ssr/assets/topic-links-R_76rITT.js                     19.44 kB │ gzip:   5.48 kB
+node_modules/.nitro/vite/services/ssr/assets/games-section-BHAIMFcx.js                   22.21 kB │ gzip:   6.40 kB
+node_modules/.nitro/vite/services/ssr/assets/print-model-viewer-BJLhQgm5.js              23.77 kB │ gzip:   6.74 kB
+node_modules/.nitro/vite/services/ssr/assets/router-DD6fMHVM.js                          34.27 kB │ gzip:  11.12 kB
+node_modules/.nitro/vite/services/ssr/assets/pre-video-BsGBQ7AQ.js                       37.72 kB │ gzip:   9.63 kB
+node_modules/.nitro/vite/services/ssr/assets/player-DHN107x5.js                          45.72 kB │ gzip:  12.52 kB
+node_modules/.nitro/vite/services/ssr/index.js                                           70.80 kB │ gzip:  18.18 kB
+node_modules/.nitro/vite/services/ssr/assets/adult-panel-ZMKmo4Gj.js                     76.27 kB │ gzip:  15.76 kB
+node_modules/.nitro/vite/services/ssr/assets/stats-section-T60GaRy-.js                   78.71 kB │ gzip:  15.22 kB
+node_modules/.nitro/vite/services/ssr/assets/mission-plan-section-_wLLu-9Q.js            82.43 kB │ gzip:  24.44 kB
+node_modules/.nitro/vite/services/ssr/assets/photos-section-Ey5hRgd6.js                  85.08 kB │ gzip:  18.45 kB
+node_modules/.nitro/vite/services/ssr/assets/adult-reddit-tags-DvmR8YRa.js              117.33 kB │ gzip:  28.64 kB
+node_modules/.nitro/vite/services/ssr/assets/settings-section-C2HrBmj3.js               146.80 kB │ gzip:  33.69 kB
+node_modules/.nitro/vite/services/ssr/assets/functions-B9Dw6VaV.js                      198.27 kB │ gzip:  49.74 kB
+node_modules/.nitro/vite/services/ssr/assets/watch-room-section-BKKLtLt_.js             200.70 kB │ gzip:  46.37 kB
+node_modules/.nitro/vite/services/ssr/assets/store-CkiCd0Zv.js                          441.62 kB │ gzip: 113.10 kB
+node_modules/.nitro/vite/services/ssr/assets/library-app-BG519kfk.js                    680.23 kB │ gzip: 161.13 kB
+
+[INEFFECTIVE_DYNAMIC_IMPORT] src/lib/prints-blobs.ts is dynamically imported by src/components/library/prints-section.tsx but also statically imported by src/components/library/print-model-viewer.tsx, src/components/library/prints-section.tsx, dynamic import will not move module into another chunk.
+
+✓ built in 1.36s
+
+[nitro] o Building [Nitro] (preset: vercel, compatibility: 2026-10-10)
+[nitro] √ Generated public .vercel/output/static
+vite v8.2.2 building nitro environment for production...
+transforming...
+✓ 2655 modules transformed.
+i Tracing dependencies:
+- tslib (2.8.1)
+- onnxruntime-node (1.21.0)
+- sharp (0.34.5)
+- onnxruntime-common (1.21.0)
+- @img/sharp-win32-x64 (0.34.5)
+- semver (7.8.5)
+- @img/colour (1.1.0)
+- detect-libc (2.1.2)
+√ Traced 8 dependencies (89 files) in 628ms.
+i Ensure your production environment matches the builder OS and architecture (win32-x64) to avoid native module issues.
+rendering chunks...
+computing gzip size...
+.vercel/output/functions/__server.func/_ssr/prints-blobs-CFUSJV2l.mjs                       0.09 kB │ gzip:   0.09 kB
+.vercel/output/functions/__server.func/_-Dl8pgiTs.mjs                                       0.22 kB │ gzip:   0.17 kB
+.vercel/output/functions/__server.func/_ssr/empty-plugin-adapters-D9UWiqvJ.mjs              0.23 kB │ gzip:   0.16 kB
+.vercel/output/functions/__server.func/_libs/radix-ui__number.mjs                           0.32 kB │ gzip:   0.24 kB
+.vercel/output/functions/__server.func/_ssr/routes-CkUgnTe-.mjs                             0.40 kB │ gzip:   0.28 kB
+.vercel/output/functions/__server.func/_libs/radix-ui__react-direction.mjs                  0.76 kB │ gzip:   0.40 kB
+.vercel/output/functions/__server.func/_ssr/provider-budgets-BBlQ03if.mjs                   0.90 kB │ gzip:   0.53 kB
+.vercel/output/functions/__server.func/_ssr/genre-section-CXgpQN6L.mjs                      0.91 kB │ gzip:   0.50 kB
+.vercel/output/functions/__server.func/_ssr/landing-BKOumbGS.mjs                            0.94 kB │ gzip:   0.47 kB
+.vercel/output/functions/__server.func/_chunks/ssr-renderer.mjs                             0.96 kB │ gzip:   0.49 kB
+.vercel/output/functions/__server.func/_tanstack-start-manifest_v-C50yicsd.mjs              1.24 kB │ gzip:   0.54 kB
+.vercel/output/functions/__server.func/_libs/radix-ui__react-separator.mjs                  1.51 kB │ gzip:   0.65 kB
+.vercel/output/functions/__server.func/_ssr/utils-Cq6DDHIb.mjs                              1.57 kB │ gzip:   0.78 kB
+.vercel/output/functions/__server.func/_libs/react-is.mjs                                   1.67 kB │ gzip:   0.65 kB
+.vercel/output/functions/__server.func/_libs/radix-ui__primitive.mjs                        1.83 kB │ gzip:   0.72 kB
+.vercel/output/functions/__server.func/_libs/zustand.mjs                                    1.92 kB │ gzip:   0.72 kB
+.vercel/output/functions/__server.func/_runtime.mjs                                         1.92 kB │ gzip:   0.87 kB
+.vercel/output/functions/__server.func/_libs/prop-types.mjs                                 2.27 kB │ gzip:   0.84 kB
+.vercel/output/functions/__server.func/_ssr/find-phone-section-DWIczw_m.mjs                 2.47 kB │ gzip:   0.82 kB
+.vercel/output/functions/__server.func/_ssr/start-jxSE7Jul.mjs                              2.53 kB │ gzip:   1.13 kB
+.vercel/output/functions/__server.func/_ssr/reddit-media-status-BnDo-Tg-.mjs                2.86 kB │ gzip:   1.25 kB
+.vercel/output/functions/__server.func/_libs/class-variance-authority+clsx.mjs              3.17 kB │ gzip:   1.24 kB
+.vercel/output/functions/__server.func/_libs/d3-path.mjs                                    3.25 kB │ gzip:   1.16 kB
+.vercel/output/functions/__server.func/_ssr/private-web-shortcuts-section-BSJlEmXt.mjs      4.25 kB │ gzip:   1.50 kB
+.vercel/output/functions/__server.func/_ssr/streaming-section-CDryCqiP.mjs                  4.84 kB │ gzip:   1.68 kB
+.vercel/output/functions/__server.func/_ssr/hub-shared-ZOqUfBNk.mjs                         4.96 kB │ gzip:   1.66 kB
+.vercel/output/functions/__server.func/_libs/d3-interpolate.mjs                             5.03 kB │ gzip:   1.61 kB
+.vercel/output/functions/__server.func/_ssr/spotify-section-CjIFkD4Z.mjs                    5.46 kB │ gzip:   1.70 kB
+.vercel/output/functions/__server.func/_ssr/local-vision-DyOHjYy5.mjs                       5.62 kB │ gzip:   2.31 kB
+.vercel/output/functions/__server.func/_ssr/use-video-details-Dptlqfoq.mjs                  6.17 kB │ gzip:   2.41 kB
+.vercel/output/functions/__server.func/_libs/d3-array.mjs                                   8.06 kB │ gzip:   2.25 kB
+.vercel/output/functions/__server.func/_libs/eventemitter3.mjs                              8.31 kB │ gzip:   2.05 kB
+.vercel/output/functions/__server.func/_ssr/shop-section-B_UNWWcs.mjs                       8.72 kB │ gzip:   2.47 kB
+.vercel/output/functions/__server.func/_libs/radix-ui__react-popover.mjs                    9.71 kB │ gzip:   2.38 kB
+.vercel/output/functions/__server.func/_libs/h3-v2+rou3.mjs                                 9.83 kB │ gzip:   3.05 kB
+.vercel/output/functions/__server.func/_libs/d3-color.mjs                                  10.38 kB │ gzip:   3.57 kB
+.vercel/output/functions/__server.func/_ssr/twitch-embed-BaY6vVjN.mjs                      10.52 kB │ gzip:   3.34 kB
+.vercel/output/functions/__server.func/_libs/d3-format.mjs                                 10.56 kB │ gzip:   3.02 kB
+.vercel/output/functions/__server.func/_libs/tanstack__history.mjs                         12.05 kB │ gzip:   3.46 kB
+.vercel/output/functions/__server.func/_ssr/prints-section-p1_aY13U.mjs                    13.82 kB │ gzip:   4.38 kB
+.vercel/output/functions/__server.func/_libs/fast-equals.mjs                               14.37 kB │ gzip:   3.62 kB
+.vercel/output/functions/__server.func/_ssr/ai-guide-CvocTx9C.mjs                          14.87 kB │ gzip:   4.37 kB
+.vercel/output/functions/__server.func/_ssr/twitch-archive-search-CX4occMl.mjs             15.18 kB │ gzip:   4.26 kB
+.vercel/output/functions/__server.func/_ssr/social-section-losFPnOY.mjs                    16.30 kB │ gzip:   5.05 kB
+.vercel/output/functions/__server.func/_ssr/lan-connection-section-DYQyHoNW.mjs            17.76 kB │ gzip:   4.21 kB
+.vercel/output/functions/__server.func/_libs/@radix-ui/react-tooltip+[...].mjs             19.60 kB │ gzip:   4.55 kB
+.vercel/output/functions/__server.func/_ssr/anime-section-DrBV_jot.mjs                     19.79 kB │ gzip:   5.37 kB
+.vercel/output/functions/__server.func/_ssr/topic-links-R_76rITT.mjs                       20.83 kB │ gzip:   5.55 kB
+.vercel/output/functions/__server.func/_libs/h3+rou3+srvx.mjs                              22.57 kB │ gzip:   6.12 kB
+.vercel/output/functions/__server.func/_libs/@radix-ui/react-slider+[...].mjs              22.85 kB │ gzip:   5.51 kB
+.vercel/output/functions/__server.func/_libs/decimal.js-light.mjs                          23.31 kB │ gzip:   6.89 kB
+.vercel/output/functions/__server.func/_ssr/games-section-BHAIMFcx.mjs                     23.70 kB │ gzip:   6.51 kB
+.vercel/output/functions/__server.func/_libs/fflate.mjs                                    23.96 kB │ gzip:   8.52 kB
+.vercel/output/functions/__server.func/_libs/d3-shape.mjs                                  24.60 kB │ gzip:   5.02 kB
+.vercel/output/functions/__server.func/_libs/@floating-ui/dom+[...].mjs                    25.39 kB │ gzip:   6.57 kB
+.vercel/output/functions/__server.func/_ssr/print-model-viewer-BJLhQgm5.mjs                25.51 kB │ gzip:   6.88 kB
+.vercel/output/functions/__server.func/_libs/@floating-ui/core+[...].mjs                   25.56 kB │ gzip:   6.32 kB
+.vercel/output/functions/__server.func/_libs/@radix-ui/react-collection+[...].mjs          28.53 kB │ gzip:   6.48 kB
+.vercel/output/functions/__server.func/_libs/@floating-ui/react-dom+[...].mjs              31.24 kB │ gzip:   7.96 kB
+.vercel/output/functions/__server.func/index.mjs                                           32.01 kB │ gzip:   9.93 kB
+.vercel/output/functions/__server.func/_ssr/router-DD6fMHVM.mjs                            34.23 kB │ gzip:  11.13 kB
+.vercel/output/functions/__server.func/_libs/react-smooth.mjs                              37.85 kB │ gzip:   8.15 kB
+.vercel/output/functions/__server.func/_ssr/pre-video-BsGBQ7AQ.mjs                         40.51 kB │ gzip:   9.77 kB
+.vercel/output/functions/__server.func/_libs/qrcode-generator.mjs                          43.93 kB │ gzip:   9.82 kB
+.vercel/output/functions/__server.func/_libs/@radix-ui/react-dropdown-menu+[...].mjs       45.81 kB │ gzip:  10.04 kB
+.vercel/output/functions/__server.func/_libs/lucide-react.mjs                              49.95 kB │ gzip:   9.67 kB
+.vercel/output/functions/__server.func/_ssr/player-DHN107x5.mjs                            50.12 kB │ gzip:  12.73 kB
+.vercel/output/functions/__server.func/_libs/sonner.mjs                                    53.63 kB │ gzip:  12.11 kB
+.vercel/output/functions/__server.func/_libs/d3-scale+[...].mjs                            58.23 kB │ gzip:  12.12 kB
+.vercel/output/functions/__server.func/_ssr/ssr.mjs                                        69.12 kB │ gzip:  18.14 kB
+.vercel/output/functions/__server.func/_libs/@radix-ui/react-dialog+[...].mjs              73.59 kB │ gzip:  17.24 kB
+.vercel/output/functions/__server.func/_ssr/adult-panel-ZMKmo4Gj.mjs                       83.96 kB │ gzip:  16.17 kB
+.vercel/output/functions/__server.func/_ssr/mission-plan-section-_wLLu-9Q.mjs              84.71 kB │ gzip:  24.61 kB
+.vercel/output/functions/__server.func/_ssr/stats-section-T60GaRy-.mjs                     87.73 kB │ gzip:  15.41 kB
+.vercel/output/functions/__server.func/_libs/tailwind-merge.mjs                            88.13 kB │ gzip:  15.66 kB
+.vercel/output/functions/__server.func/_ssr/photos-section-Ey5hRgd6.mjs                    92.29 kB │ gzip:  18.70 kB
+.vercel/output/functions/__server.func/_ssr/adult-reddit-tags-DvmR8YRa.mjs                116.39 kB │ gzip:  28.49 kB
+.vercel/output/functions/__server.func/_libs/@tanstack/router-core+[...].mjs              122.94 kB │ gzip:  25.89 kB
+.vercel/output/functions/__server.func/_libs/pg.mjs                                       148.63 kB │ gzip:  34.39 kB
+.vercel/output/functions/__server.func/_ssr/settings-section-C2HrBmj3.mjs                 158.78 kB │ gzip:  34.09 kB
+.vercel/output/functions/__server.func/_libs/zod.mjs                                      162.45 kB │ gzip:  35.46 kB
+.vercel/output/functions/__server.func/_libs/lodash.mjs                                   163.89 kB │ gzip:  29.67 kB
+.vercel/output/functions/__server.func/_ssr/functions-B9Dw6VaV.mjs                        197.16 kB │ gzip:  49.52 kB
+.vercel/output/functions/__server.func/_ssr/watch-room-section-BKKLtLt_.mjs               212.63 kB │ gzip:  46.82 kB
+.vercel/output/functions/__server.func/_libs/recharts+[...].mjs                           530.78 kB │ gzip:  98.57 kB
+.vercel/output/functions/__server.func/_libs/@tanstack/react-router+[...].mjs             653.22 kB │ gzip: 137.05 kB
+.vercel/output/functions/__server.func/_libs/electric-sql__pglite.mjs                     751.95 kB │ gzip: 153.28 kB
+.vercel/output/functions/__server.func/_ssr/library-app-BG519kfk.mjs                    1,183.61 kB │ gzip: 279.70 kB
+.vercel/output/functions/__server.func/_libs/@huggingface/transformers+[...].mjs        1,401.98 kB │ gzip: 252.31 kB
+.vercel/output/functions/__server.func/_libs/three.mjs                                  2,114.38 kB │ gzip: 419.31 kB
+
+✓ built in 1.69s
+i Generated .vercel/output/nitro.json
+
+[nitro] √ You can preview this build using npx vite preview
+[nitro] √ You can deploy this build using npx nitro deploy --prebuilt
+npm notice run db:migrate
+npm notice run node scripts/migrate.mjs
+[migrate] DATABASE_URL not set — skipping (the PGLite fallback migrates itself).
+[pglite-preview-assets] copied pglite.data, pglite.wasm, initdb.wasm.

@@ -1,0 +1,21 @@
+✔ exactly 100 distinct planned milestones cover ten workstreams with executable contracts (234.6446ms)
+✔ all prerequisite references exist, are acyclic and precede dependent work (0.3585ms)
+✔ revision 26 appends new briefs once without resetting prior manual choices or custom ideas (2.3675ms)
+✔ known brief updates retain saved status while adopting the current implementation contract (0.1178ms)
+✔ copied briefs include concrete scope, dependency status, acceptance and safe execution boundaries (1.9374ms)
+✔ checked-in roadmap is reproducible and exports all 100 full briefs without completing work (11.413ms)
+✔ shared names or handles flag distinct confirmed channels without guessing from ordinary display names (16.8247ms)
+✔ contradictory exact imported or handle IDs require review; corrected stable source IDs are allowed (3.2479ms)
+✔ review survives reordering and refresh clocks, but changed identity evidence reopens it (0.8034ms)
+✔ automatic alias resolution preserves an ambiguous pending creator rather than silently merging it (0.8091ms)
+✔ offline audit distinguishes saved references from bytes, provider observations from storage dates, and public recovery links (2.4221ms)
+✔ offline audit is bounded, cooperative and cancellable without mutating the catalog or evidence (7.3329ms)
+✔ legacy follows whose confirmed channel IDs live only in source keys never collapse by a shared alias (1.0588ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 918.1738

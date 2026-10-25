@@ -1,0 +1,16 @@
+✔ the real browser live lane starts beside an occupied archive lane and both obey one cancellation action (20.7329ms)
+✔ the independent YouTube live owner runs beside archives, respects pause/activity/settings and releases its timer (9.814ms)
+✔ Streams endpoints eliminate repeated Home requests, validate each channel, and never cache live answers (1.5707ms)
+✔ unrecognized or expired endpoints recover through Home; missing identity cannot confirm offline (0.2363ms)
+✔ endpoint fallback cannot bypass a rate hold and duplicate checks share only in-flight work (0.4862ms)
+✔ four live bodies overlap beside a stalled archive while archive bodies remain serial (18.228ms)
+✔ an older parallel success cannot release a new live cooldown or start queued checks (12.2675ms)
+✔ 2,000-channel discovery rotates completely without repeating fresh offline checks or starving known live (9.8566ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 199.6681

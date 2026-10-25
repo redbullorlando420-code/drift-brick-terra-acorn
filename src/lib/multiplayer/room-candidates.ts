@@ -36,7 +36,7 @@ export async function prepareRoomCandidates(options: RoomCandidateOptions, turn 
   const ranks: number[] = [];
   const order: number[] = [];
   await forEachCatalogSlice(catalog, video => {
-    if (video.isSample || DEMO_TITLE.test(`${video.name} ${video.remote?.channelName ?? ""} ${video.tagline ?? ""}`) ||
+    if (video.isSample || !video.remote && DEMO_TITLE.test(`${video.name} ${video.tagline ?? ""}`) ||
       options.unavailable[video.id] || options.hidden[video.id] || !options.canStage(video)) return;
     const index = videos.length;
     videos.push(video);

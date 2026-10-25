@@ -1,0 +1,11 @@
+{
+  "shortcut": "C:/Users/icecr/Desktop/Realhub.lnk",
+  "launcher": "scripts/start-desktop.ps1",
+  "startupTests": 5,
+  "build": "passed",
+  "typecheck": "passed",
+  "browser": "desktop and mobile passed, console clean, no overflow",
+  "actualShortcut": "services reused and default browser opened",
+  "isolatedCompanion": "started on loopback 43124 and stopped only the test-owned child",
+  "limitations": "Full app-server cold restart was simulated in startup tests to preserve the running user session."
+}

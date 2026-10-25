@@ -1,0 +1,26 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "existing pasted Twitch draft and submitted list are recovered and migrated into the existing IndexedDB activity store",
+        "exact pasted text and inspected profile survive navigation and reload even when every import localStorage write throws QuotaExceededError",
+        "submitted batch and single-follow input are remembered before provider calls; a provider outage does not clear them; the saved list restores into the editor without starting another import"
+      ],
+      "errors": [],
+      "providerCalls": 1
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "existing pasted Twitch draft and submitted list are recovered and migrated into the existing IndexedDB activity store",
+        "exact pasted text and inspected profile survive navigation and reload even when every import localStorage write throws QuotaExceededError",
+        "submitted batch and single-follow input are remembered before provider calls; a provider outage does not clear them; the saved list restores into the editor without starting another import"
+      ],
+      "errors": [],
+      "providerCalls": 1
+    }
+  ],
+  "limitation": "Provider failures and localStorage quota are deterministic fixtures; IndexedDB persistence and app navigation are real."
+}

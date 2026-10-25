@@ -1,0 +1,1 @@
+{"cases":10,"yields":30,"visibilityAndMergeParity":true,"cancellation":true}

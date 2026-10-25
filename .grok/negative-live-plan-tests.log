@@ -1,0 +1,37 @@
+✔ exactly 100 distinct milestones with only evidenced completions cover ten workstreams with executable contracts (89.8405ms)
+✔ all prerequisite references exist, are acyclic and precede dependent work (0.3908ms)
+✔ roadmap migration appends briefs once without resetting prior manual choices or custom ideas (2.1807ms)
+✔ known brief updates retain saved status while adopting the current implementation contract (0.1694ms)
+✔ copied briefs include concrete scope, dependency status, acceptance and safe execution boundaries (0.382ms)
+✖ checked-in roadmap is reproducible and exports all 100 full briefs without completing work (10.5524ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 5
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 402.68
+
+✖ failing tests:
+
+test at scripts\mission-next-level.test.mjs:40:1
+✖ checked-in roadmap is reproducible and exports all 100 full briefs without completing work (10.5524ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  3 !== 2
+  
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/mission-next-level.test.mjs:42:159)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 3,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

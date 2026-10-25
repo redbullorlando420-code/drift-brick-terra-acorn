@@ -1,0 +1,33 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "opening Live directly pulls both Adult directories while archive pulling is paused; a source failure stays visible without hiding healthy results",
+        "MyFreeCams displays the full official room in a sandboxed frame, reloads it and offers the external room link",
+        "current Twitch/YouTube and unconfirmed-result grids page beyond the 24-card limit and keep only 24 cards mounted per grid",
+        "Adult Next reaches the provider tail; Previous reuses small pages, obsolete requests cancel on source changes, and a failed Next preserves the previous page and can retry",
+        "a newly discovered room opens preview and an explicit favorite stores its descriptor in the existing isolated Adult library",
+        "Twitch uses 100-channel metadata batches; YouTube publishes its first eight checks then continues bounded batches, with accurate separate progress"
+      ],
+      "errors": [],
+      "roomRequests": 11,
+      "liveRequests": 8
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "opening Live directly pulls both Adult directories while archive pulling is paused; a source failure stays visible without hiding healthy results",
+        "MyFreeCams displays the full official room in a sandboxed frame, reloads it and offers the external room link",
+        "current Twitch/YouTube and unconfirmed-result grids page beyond the 24-card limit and keep only 24 cards mounted per grid",
+        "Adult Next reaches the provider tail; Previous reuses small pages, obsolete requests cancel on source changes, and a failed Next preserves the previous page and can retry",
+        "a newly discovered room opens preview and an explicit favorite stores its descriptor in the existing isolated Adult library",
+        "Twitch uses 100-channel metadata batches; YouTube publishes its first eight checks then continues bounded batches, with accurate separate progress"
+      ],
+      "errors": [],
+      "roomRequests": 11,
+      "liveRequests": 8
+    }
+  ]
+}

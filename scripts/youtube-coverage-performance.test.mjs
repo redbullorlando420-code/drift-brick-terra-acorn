@@ -10,7 +10,7 @@ const { updateYoutubeShelf } = await import('../src/lib/videos/youtube-shelf.ts'
 const { mergeResolvedFollow } = await import('../src/lib/videos/follow-identity.ts');
 const channel = 'UC1234567890123456789012';
 const publicationBase = Date.UTC(2026, 9, 1);
-const video = (i, folderId = 'legacy') => ({ id: `yt:${String(i).padStart(11, '0')}`, name: 'Upload', path: 'youtube', folderId, addedAt: publicationBase + i, mime: 'video/youtube', extension: 'yt', size: 0, remote: { kind: 'youtube', videoId: String(i).padStart(11, '0'), channelId: channel } });
+const video = (i, folderId = 'legacy') => ({ id: `yt:${String(i).padStart(11, '0')}`, name: 'Upload', path: 'youtube', folderId, addedAt: publicationBase + i, mime: 'video/youtube', extension: 'yt', size: 0, remote: { kind: 'youtube', videoId: String(i).padStart(11, '0'), channelId: channel, publishedSource: 'provider' } });
 const follow = (id, extra = {}) => ({ id, kind: 'youtube', title: id, handle: id, ...extra });
 test('resolving a saved query removes its stub and preserves distinct channels sharing its name', () => {
   const resolved = follow('resolved', { channelId: channel, handle: '@Creator', importQuery: 'Display Name' });

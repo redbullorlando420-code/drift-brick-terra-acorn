@@ -1,0 +1,12 @@
+✔ a missing YouTube broadcast remains eligible for minute-by-minute rechecks for ten minutes and positive evidence clears the hold (0.7727ms)
+✔ a pending stream stays in the live grid, survives serialization and ends only after repeated negative evidence spans ten minutes (1.2397ms)
+✔ viewer sorting ranks current concurrent counts, including zero, before unavailable or old counts (6.3106ms)
+✔ MyFreeCams handoff constructs a specific official room and rejects arbitrary or malformed URLs (0.364ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 149.4083

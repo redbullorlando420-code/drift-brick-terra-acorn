@@ -1,0 +1,33 @@
+{"query":"query($login:String!,$after:Cursor,$first:Int!){user(login:$login){id displayName profileImageURL(width:70) stream{title viewersCount previewImageURL(width:640,height:360) game{name}} videos(first:$first,type:ARCHIVE,after:$after){pageInfo{hasNextPage endCursor} edges{cursor node{id title description lengthSeconds viewCount publishedAt previewThumbnailURL(width:640,height:360) game{name}}}}}}","variables":{"login":"notyoda","after":null,"first":100},"status":200,"user":"26221000","rows":1}
+{"query":"query($login:String!,$after:Cursor,$first:Int!){user(login:$login){id displayName profileImageURL(width:70) stream{title viewersCount previewImageURL(width:640,height:360) game{name}} videos(first:$first,type:HIGHLIGHT,after:$after){pageInfo{hasNextPage endCursor} edges{cursor node{id title description lengthSeconds viewCount publishedAt previewThumbnailURL(width:640,height:360) game{name}}}}}}","variables":{"login":"notyoda","after":null,"first":99},"status":200,"user":"26221000","rows":5}
+{"query":"query($login:String!,$first:Int!,$after:Cursor){user(login:$login){clips(first:$first, after:$after){pageInfo{hasNextPage endCursor} edges{cursor node{id slug title viewCount durationSeconds createdAt thumbnailURL}}}}}","variables":{"login":"notyoda","first":6,"after":null},"status":200}
+{"query":"query($login:String!,$first:Int!,$after:Cursor){user(login:$login){clips(first:$first, after:$after, criteria:{period:LAST_WEEK}){pageInfo{hasNextPage endCursor} edges{cursor node{id slug title viewCount durationSeconds createdAt thumbnailURL}}}}}","variables":{"login":"notyoda","first":6,"after":null},"status":200}
+{"query":"query($login:String!,$first:Int!,$after:Cursor){user(login:$login){clips(first:$first, after:$after, criteria:{period:LAST_MONTH}){pageInfo{hasNextPage endCursor} edges{cursor node{id slug title viewCount durationSeconds createdAt thumbnailURL}}}}}","variables":{"login":"notyoda","first":9,"after":null},"status":200}
+{"query":"query($login:String!,$first:Int!,$after:Cursor){user(login:$login){clips(first:$first, after:$after, criteria:{period:ALL_TIME}){pageInfo{hasNextPage endCursor} edges{cursor node{id slug title viewCount durationSeconds createdAt thumbnailURL}}}}}","variables":{"login":"notyoda","first":18,"after":null},"status":200}
+[
+  {
+    "provider": "youtube",
+    "elapsedMs": 318,
+    "received": 15,
+    "refreshed": true,
+    "recent": {
+      "attemptedAt": 1792854232232,
+      "checkedAt": 1792854232232,
+      "failures": 0,
+      "newestVideoId": "mND4T0lzg_g"
+    },
+    "archivePreserved": true
+  },
+  {
+    "provider": "twitch",
+    "elapsedMs": 1478,
+    "received": 17,
+    "refreshed": true,
+    "recent": {
+      "attemptedAt": 1792854233710,
+      "checkedAt": 1792854233710,
+      "failures": 0
+    },
+    "archivePreserved": true
+  }
+]

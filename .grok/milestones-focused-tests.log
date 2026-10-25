@@ -1,0 +1,15 @@
+✔ shared names or handles flag distinct confirmed channels without guessing from ordinary display names (5.0598ms)
+✔ contradictory exact imported or handle IDs require review; corrected stable source IDs are allowed (0.6902ms)
+✔ review survives reordering and refresh clocks, but changed identity evidence reopens it (0.3965ms)
+✔ automatic alias resolution preserves an ambiguous pending creator rather than silently merging it (0.7269ms)
+✔ offline audit distinguishes saved references from bytes, provider observations from storage dates, and public recovery links (2.0578ms)
+✔ offline audit is bounded, cooperative and cancellable without mutating the catalog or evidence (4.2832ms)
+✔ legacy follows whose confirmed channel IDs live only in source keys never collapse by a shared alias (0.326ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 293.3837

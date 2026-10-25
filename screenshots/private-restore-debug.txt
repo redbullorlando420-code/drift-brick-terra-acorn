@@ -1,0 +1,10 @@
+before {
+  folders: [ { id: 'files:QA', adult: true } ],
+  prefsPrivate: [ 'files:QA' ],
+  hidden: [ 'q0' ]
+}
+after {
+  folders: [ { id: 'files:QA', adult: undefined } ],
+  prefsPrivate: [ 'files:QA' ],
+  hidden: [ 'q0' ]
+}

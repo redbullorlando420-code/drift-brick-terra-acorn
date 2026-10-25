@@ -1,0 +1,60 @@
+{
+  "ok": true,
+  "url": "http://127.0.0.1:8082/",
+  "fixture": "Real app navigation, saved Twitch cards and Watch Room handoff with deterministic official-SDK event and clip restriction fixtures, isolated desktop and touch-phone Chrome/Edge contexts.",
+  "limitation": "Provider media, ads, physical phone autoplay, and cross-network TURN are not simulated by this matrix; those milestones stay open.",
+  "results": [
+    {
+      "browser": "chrome",
+      "mobile": false,
+      "errors": [],
+      "liveHandoff": true,
+      "vodSeek": true,
+      "blockedRecovery": true,
+      "reload": true,
+      "clipFallback": true,
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\twitch-mobile-embed-matrix-built-chrome-desktop.png",
+      "overflowPixels": 0,
+      "ok": true
+    },
+    {
+      "browser": "chrome",
+      "mobile": true,
+      "errors": [],
+      "liveHandoff": true,
+      "vodSeek": true,
+      "blockedRecovery": true,
+      "reload": true,
+      "clipFallback": true,
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\twitch-mobile-embed-matrix-built-chrome-mobile.png",
+      "overflowPixels": 0,
+      "ok": true
+    },
+    {
+      "browser": "msedge",
+      "mobile": false,
+      "errors": [],
+      "liveHandoff": true,
+      "vodSeek": true,
+      "blockedRecovery": true,
+      "reload": true,
+      "clipFallback": true,
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\twitch-mobile-embed-matrix-built-msedge-desktop.png",
+      "overflowPixels": 0,
+      "ok": true
+    },
+    {
+      "browser": "msedge",
+      "mobile": true,
+      "errors": [],
+      "liveHandoff": true,
+      "vodSeek": true,
+      "blockedRecovery": true,
+      "reload": true,
+      "clipFallback": true,
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\twitch-mobile-embed-matrix-built-msedge-mobile.png",
+      "overflowPixels": 0,
+      "ok": true
+    }
+  ]
+}

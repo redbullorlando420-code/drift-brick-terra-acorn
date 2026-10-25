@@ -1,0 +1,40 @@
+{
+  "responses": [
+    {
+      "url": "https://app.myfreecams.com/",
+      "status": 200,
+      "xFrameOptions": null,
+      "frameAncestors": null
+    }
+  ],
+  "frameNavigations": [
+    {
+      "main": true,
+      "url": "http://127.0.0.1:8080/"
+    },
+    {
+      "main": true,
+      "url": "http://127.0.0.1:8080/"
+    },
+    {
+      "main": false,
+      "url": "https://app.myfreecams.com/"
+    },
+    {
+      "main": false,
+      "url": "https://app.myfreecams.com/"
+    },
+    {
+      "main": false,
+      "url": "https://app.myfreecams.com/"
+    }
+  ],
+  "errors": [],
+  "frame": {
+    "url": "https://app.myfreecams.com/",
+    "title": "Home - MyFreeCams App",
+    "elements": 453
+  },
+  "ok": true,
+  "limitation": "Official page tested from app origin in an isolated browser. Images, media and fonts blocked deliberately; no playback, account login or age confirmation tested."
+}

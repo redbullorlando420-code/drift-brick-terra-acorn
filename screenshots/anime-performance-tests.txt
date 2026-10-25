@@ -1,0 +1,26 @@
+✔ Anime catalog preserves evidence, stable date/format order and original finder order (11.2802ms)
+✔ private providers/folders, unavailable, hidden and disabled samples stay out of both searches (0.6712ms)
+✔ Continue resolves once per title and preserves resume floors, completion boundary and stable ties (1.5887ms)
+✔ large catalog stages yield and obsolete preparation, sorts and rare searches can be cancelled (156.5496ms)
+ℹ 80,000 titles prepared in 102 ms across 980 task boundaries (in-process fixture)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 357.5556
+✔ single-topic scans match complete evidence without replacing the card cache (11.3706ms)
+✔ complete-catalog scans preserve evidence without filling or replacing the resident card cache (1.2068ms)
+✔ ASMR and known game categories create explainable topic links (0.481ms)
+✔ promotional descriptions and creator names do not invent topic links (0.2443ms)
+✔ unsupported provider topics are repaired while manual, unknown, and locked choices survive (0.42ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 189.873

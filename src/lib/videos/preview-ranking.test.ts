@@ -104,3 +104,26 @@ test('prepared preview tags are reused between target switches and new chunks in
   rankPreviewCatalog(catalog, 'a', 3);
   assert.ok(catalog.prepared.get('b')!.tastes > 0);
 });
+
+test('YouTube shelves deduplicate provider identities and exclude live, upcoming and other providers',()=>{
+ const target={...row('target'),identity:'youtube:same',creatorId:'youtube:owner'};
+ const rows=[target,{...row('copy'),identity:'youtube:same'}, {...row('live'),live:true},{...row('soon'),format:'upcoming'},{...row('twitch'),kind:'twitch'},...Array.from({length:30},(_,i)=>({...row('pick-'+i,'creator-'+i),identity:'youtube:'+i,creatorId:'youtube:'+i}))];
+ const result=rankPreview(rows,'target',9,[]);
+ assert.equal(result.related.length,8);assert.equal(result.recommended.length,6);
+ assert.ok([...result.related,...result.recommended].every(id=>id.startsWith('pick-')));
+ assert.equal(new Set([...result.related,...result.recommended]).size,14);
+});
+test('try-next fills after related exclusions and gives other creators a fair place',()=>{
+ const rows=[row('target'),...Array.from({length:100},(_,i)=>({...row('dominant-'+i,'dominant'),rating:5})),...Array.from({length:12},(_,i)=>row('other-'+i,'creator-'+i))];
+ const result=rankPreview(rows,'target',7,[]);
+ assert.equal(result.recommended.length,6);
+ assert.ok(result.recommended.filter(id=>id.startsWith('dominant')).length<=2);
+ assert.ok(result.recommended.every(id=>!result.related.includes(id)));
+ const small=rankPreview([row('t'),...Array.from({length:12},(_,i)=>row('s'+i))],'t',1,[]);
+ assert.equal(small.recommended.length,4,'all remaining candidates stay available in a small catalog');
+});
+test('meaningful title terms find related YouTube videos when provider tags are absent',()=>{
+ const plain=(id:string)=>({...row(id,id),folderId:id,genre:undefined,tags:[],titleTokens:id==='target'?['iracing','arcade']:id==='match'?['iracing','setup']:['cooking']});
+ const result=rankPreview([plain('target'),plain('match'),plain('unrelated')],'target',1,[]);
+ assert.deepEqual(result.related,['match']);
+});

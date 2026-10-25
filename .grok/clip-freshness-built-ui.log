@@ -1,0 +1,27 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "Sparse, duplicate-heavy, rate-limited and legacy snapshots show distinct accurate reasons with zero provider reads or follow writes; only four shelf rows can mount",
+        "Focused older recovery checks only the selected creator, honors the independent recent wait, resumes the saved cursor, and makes no VOD/live requests",
+        "A real adapter cache hit is labeled warm, performs zero upstream reads and preserves the original provider observation",
+        "Fresh button requests this exact creator/window, updates successful observation, then ordinary retry reuses that cache; UI exposes separate attempt/success clocks",
+        "Evidence, retry waits and observation clocks survive reload; existing live/VOD state stays intact with no overflow or console errors"
+      ],
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "Sparse, duplicate-heavy, rate-limited and legacy snapshots show distinct accurate reasons with zero provider reads or follow writes; only four shelf rows can mount",
+        "Focused older recovery checks only the selected creator, honors the independent recent wait, resumes the saved cursor, and makes no VOD/live requests",
+        "A real adapter cache hit is labeled warm, performs zero upstream reads and preserves the original provider observation",
+        "Fresh button requests this exact creator/window, updates successful observation, then ordinary retry reuses that cache; UI exposes separate attempt/success clocks",
+        "Evidence, retry waits and observation clocks survive reload; existing live/VOD state stays intact with no overflow or console errors"
+      ],
+      "errors": []
+    }
+  ]
+}

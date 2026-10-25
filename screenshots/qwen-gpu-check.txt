@@ -1,0 +1,1 @@
+{"torch": "2.14.1+cu130", "cuda": "13.0", "gpu": "NVIDIA GeForce RTX 5070 Ti", "vram": 17066033152, "bfloat16_matmul": 64.0}

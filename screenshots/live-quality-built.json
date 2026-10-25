@@ -1,0 +1,32 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "four-minute-old YouTube live observations stay in the live grid rather than the unconfirmed group",
+        "concurrent-viewer sorting puts known counts and zero ahead of missing counts",
+        "the combined refresh checks all 600 Twitch follows through six 100-channel requests independently of YouTube",
+        "a first missing-live response retains the stream and its hold survives reload",
+        "repeated negative evidence retains the stream at nine minutes and ends it only after ten minutes",
+        "positive live evidence restores the stream and clears the previous offline hold"
+      ],
+      "errors": [],
+      "requests": 11
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "four-minute-old YouTube live observations stay in the live grid rather than the unconfirmed group",
+        "concurrent-viewer sorting puts known counts and zero ahead of missing counts",
+        "the combined refresh checks all 600 Twitch follows through six 100-channel requests independently of YouTube",
+        "a first missing-live response retains the stream and its hold survives reload",
+        "repeated negative evidence retains the stream at nine minutes and ends it only after ten minutes",
+        "positive live evidence restores the stream and clears the previous offline hold"
+      ],
+      "errors": [],
+      "requests": 11
+    }
+  ],
+  "limitation": "Isolated desktop/mobile Chrome, real persistence/store/UI and simulated server observations. Virtual clock advances the ten-minute hold; native YouTube counts are checked separately."
+}

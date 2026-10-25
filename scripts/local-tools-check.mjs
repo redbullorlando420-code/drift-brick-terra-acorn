@@ -1,0 +1,103 @@
+import assert from 'node:assert/strict';
+import { chromium } from 'playwright';
+import { writeFileSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { checkedUrl, checkedOutputPath } from './browser-guard.mjs';
+const url = checkedUrl(process.argv[2] ?? 'http://127.0.0.1:8080/'), output = checkedOutputPath(process.argv[3] ?? resolve('screenshots/local-tools-dev.json'), [resolve('screenshots')]);
+const browser = await chromium.launch({ headless: true, ...(process.platform === 'win32' ? { channel: 'chrome' } : {}) });
+const results = [], png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jD5sAAAAASUVORK5CYII=';
+try {
+ for (const viewport of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'mobile', width: 390, height: 844 }]) {
+  const context = await browser.newContext({ viewport, acceptDownloads: true });
+  await context.addInitScript(() => { localStorage.setItem('reelcase.pulls-paused.v1','true'); localStorage.setItem('reelcase.sidebar.groups.v1', JSON.stringify({library:true,workspace:true,tools:true})); });
+  let generation = 0, launches = 0, locks = 0, reads = 0, connected = false, failGeneration = false, failLaunch = false, shortApproval = false, revocations = 0, finishGeneration;
+  await context.route('http://127.0.0.1:43123/**', async route => {
+    const request = route.request(), path = new URL(request.url()).pathname, headers = { 'access-control-allow-origin':'*','access-control-allow-methods':'GET,POST,OPTIONS','access-control-allow-headers':'content-type' };
+    if (request.method() === 'OPTIONS') return route.fulfill({ status:204,headers });
+    let body = {ok:true};
+    if (path === '/studio/models') body = {ok:true,models:[],job:null};
+    if (path === '/studio/status') { reads++; body = {ok:true, connected,ready:connected,models:connected?['Test-only checkpoint']:[]}; }
+    if (path === '/studio/generate') {
+      generation++; if(failGeneration)return route.fulfill({status:400,headers,contentType:'application/json',body:JSON.stringify({ok:false,error:'Test engine failure; previous image kept.'})});
+      assert.equal(request.postDataJSON().prompt,'A quiet forest at sunrise'); assert.equal(request.postDataJSON().negativePrompt,'blurry');
+      await new Promise(resolve=>{finishGeneration=resolve}); body = {ok:true,image:png,info:'{"seed":12345,"sd_model_name":"Test checkpoint"}'};
+    }
+    if (path === '/remote/status') { reads++; body={ok:true,installed:true,launcherRunning:false,audit:[]}; }
+    if (path === '/remote/arm') body={ok:true,token:'test-once',expires:Date.now()+(shortApproval?1200:30000)};
+    if (path === '/remote/revoke') {revocations++;assert.equal(request.postDataJSON().token,'test-once')}
+    if (path === '/remote/connect') { assert.equal(request.postDataJSON().confirmation,'CONNECT 123456789'); if(failLaunch)return route.fulfill({status:400,headers,contentType:'application/json',body:JSON.stringify({ok:false,error:'Approval expired; prepare a new request.'})}); launches++; body={ok:true,note:'Test-only native handoff. No remote connection was made.'}; }
+    if (path === '/remote/lock') { locks++; body={ok:true,note:'Launch controls locked.'}; }
+    await route.fulfill({status:200,headers,contentType:'application/json',body:JSON.stringify(body)});
+  });
+  await context.route('https://www.youtube.com/embed/**',route=>route.fulfill({status:200,contentType:'text/html',body:'<p>Provider fixture</p>'}));
+  const page=await context.newPage(),errors=[],result={viewport:viewport.name,errors}; page.setDefaultTimeout(20000);
+  let expectedHttpErrors=0;
+  page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error'&&!/favicon|net::ERR_/.test(m.text())){if((failGeneration||failLaunch)&&m.text()==='Failed to load resource: the server responded with a status of 400 (Bad Request)')expectedHttpErrors++;else errors.push(m.text())}});
+  const nav=async name=>{if(viewport.name==='mobile')await page.getByRole('button',{name:'Open menu',exact:true}).click();await page.getByRole('navigation',{name:'Library navigation'}).getByRole('button',{name:new RegExp(`^${name}(?:\\s+\\d+)?$`)}).click()};
+  try {
+   await page.goto(url,{waitUntil:'domcontentloaded'});await page.locator('[data-home-ready="true"]').waitFor();
+   console.log(`${viewport.name}: studio`);await nav('Stable Diffusion');await page.getByRole('heading',{name:'Stable Diffusion',exact:true}).waitFor();
+   const before=reads;await page.waitForTimeout(2200);assert.equal(reads,before,'tools never poll on mount');
+   assert.equal(await page.getByRole('button',{name:'Generate image',exact:true}).isEnabled(),false);
+   await page.getByRole('button',{name:'Check local engine',exact:true}).click();await page.getByText('Not connected',{exact:true}).waitFor();
+   connected=true;await page.getByRole('button',{name:'Check local engine',exact:true}).click();await page.getByText('Connected · checkpoint ready',{exact:true}).waitFor();
+   await page.getByLabel('Image prompt',{exact:true}).fill('A quiet forest at sunrise');await page.getByLabel('Negative prompt',{exact:true}).fill('blurry');
+   await page.getByLabel('Generation seed',{exact:true}).fill('1.5');assert.equal(await page.getByRole('button',{name:'Generate image',exact:true}).isEnabled(),false);await page.getByRole('alert').filter({hasText:'Seed must be'}).waitFor();
+   await page.getByLabel('Generation seed',{exact:true}).fill('-1');await page.getByRole('button',{name:'Generate image',exact:true}).click();await page.getByLabel('Image prompt',{exact:true}).fill('An edited prompt while generating');
+   await nav('Mission plan');await page.getByRole('heading',{name:'Open-source credits',exact:true}).waitFor();assert.equal(generation,1);finishGeneration();await nav('Stable Diffusion');
+   await page.getByRole('heading',{name:'Generated image',exact:true}).waitFor();assert.equal(generation,1);assert.equal(await page.getByRole('img',{name:'A quiet forest at sunrise',exact:true}).count(),1);
+   await page.getByRole('button',{name:'Reuse image settings',exact:true}).click();assert.equal(await page.getByLabel('Image prompt',{exact:true}).inputValue(),'A quiet forest at sunrise');assert.equal(await page.getByLabel('Generation seed',{exact:true}).inputValue(),'12345');
+   await page.getByRole('button',{name:'Check local engine',exact:true}).click();await page.getByText('Connected · checkpoint ready',{exact:true}).waitFor();
+   failGeneration=true;const previousImage=await page.getByRole('img',{name:'A quiet forest at sunrise',exact:true}).getAttribute('src');await page.getByRole('button',{name:'Generate image',exact:true}).click();await page.getByRole('alert').filter({hasText:'Test engine failure'}).waitFor();assert.equal(await page.getByRole('img',{name:'A quiet forest at sunrise',exact:true}).getAttribute('src'),previousImage);failGeneration=false;
+   const download=page.waitForEvent('download');await page.getByRole('link',{name:'Download PNG',exact:true}).click();assert.equal((await download).suggestedFilename(),'realhub-stable-diffusion.png');
+   console.log(`${viewport.name}: recipes`);
+   await page.getByLabel('Recipe name',{exact:true}).fill('Forest study');await page.getByRole('button',{name:'Save image recipe',exact:true}).click();await page.getByRole('heading',{name:'Forest study',exact:true}).waitFor();
+   await page.getByRole('button',{name:'Rename recipe Forest study',exact:true}).click();await page.getByLabel('New recipe name',{exact:true}).fill('   ');await page.getByRole('button',{name:'Save recipe name',exact:true}).click();await page.getByRole('alert').filter({hasText:'Enter a name for this recipe'}).waitFor();await page.getByLabel('New recipe name',{exact:true}).fill('Morning forest');await page.getByLabel('New recipe name',{exact:true}).press('Enter');await page.getByRole('heading',{name:'Morning forest',exact:true}).waitFor();
+   await page.getByRole('button',{name:'Rename recipe Morning forest',exact:true}).click();await page.getByLabel('New recipe name',{exact:true}).fill('Forest study');await page.getByRole('button',{name:'Save recipe name',exact:true}).click();
+   const exportedWait=page.waitForEvent('download');await page.getByRole('button',{name:'Export recipe Forest study',exact:true}).click();const exported=await exportedWait;assert.equal(exported.suggestedFilename(),'realhub-image-recipe.json');const recipeBytes=readFileSync(await exported.path());const document=JSON.parse(recipeBytes.toString());assert.equal(document.settings.seed,12345);assert.equal(document.checkpoint,'Test checkpoint');assert.equal(document.settings.prompt,'A quiet forest at sunrise');
+   await page.getByLabel('Image prompt',{exact:true}).fill('Changed form');await page.getByRole('button',{name:'Use recipe Forest study',exact:true}).click();assert.equal(await page.getByLabel('Image prompt',{exact:true}).inputValue(),'A quiet forest at sunrise');
+   await page.getByRole('button',{name:'Remove recipe Forest study',exact:true}).click();assert.equal(await page.getByRole('heading',{name:'Forest study',exact:true}).count(),0);await page.getByRole('button',{name:'Undo removal',exact:true}).click();await page.getByRole('heading',{name:'Forest study',exact:true}).waitFor();
+   await page.getByLabel('Import image recipe file',{exact:true}).setInputFiles({name:'invalid.json',mimeType:'application/json',buffer:Buffer.from('{}')});await page.getByRole('alert').filter({hasText:'not a supported Realhub'}).waitFor();
+   await page.getByRole('button',{name:'Remove recipe Forest study',exact:true}).click();await page.getByLabel('Import image recipe file',{exact:true}).setInputFiles({name:'forest.json',mimeType:'application/json',buffer:recipeBytes});await page.getByRole('heading',{name:'Forest study',exact:true}).waitFor();
+   result.recipes=output.replace(/\.json$/,`-recipes-${viewport.name}.png`);await page.getByRole('heading',{name:'Saved image recipes',exact:true}).scrollIntoViewIfNeeded();await page.screenshot({path:result.recipes});
+   result.studio=output.replace(/\.json$/,`-studio-${viewport.name}.png`);await page.getByRole('heading',{name:'Stable Diffusion',exact:true}).scrollIntoViewIfNeeded();await page.screenshot({path:result.studio});
+   console.log(`${viewport.name}: remote`);await nav('Remote desktop');await page.getByRole('button',{name:'Check RustDesk',exact:true}).click();await page.getByText('RustDesk portable client detected',{exact:true}).waitFor();
+   const prepare=page.getByRole('button',{name:'Prepare connection',exact:true});assert.equal(await prepare.isEnabled(),false);
+   await page.getByLabel('RustDesk peer ID',{exact:true}).fill('123 456-789');assert.equal(await page.getByLabel('RustDesk peer ID',{exact:true}).inputValue(),'123456789');await page.getByRole('checkbox',{name:'I own this device or have permission to connect',exact:true}).check();
+   shortApproval=true;await prepare.click();await page.getByRole('status').filter({hasText:'Connection approval expired'}).waitFor();shortApproval=false;
+   await prepare.click();await page.getByLabel('Connection confirmation',{exact:true}).waitFor();await page.evaluate(()=>{Object.defineProperty(document,'visibilityState',{configurable:true,get:()=> 'hidden'});document.dispatchEvent(new Event('visibilitychange'))});await page.getByRole('status').filter({hasText:'approval cancelled when this tab was hidden'}).waitFor();assert.equal(await page.getByLabel('Connection confirmation',{exact:true}).count(),0);await page.evaluate(()=>{Object.defineProperty(document,'visibilityState',{configurable:true,get:()=> 'visible'});document.dispatchEvent(new Event('visibilitychange'))});
+   await prepare.click();await page.getByRole('button',{name:'Cancel approval',exact:true}).click();await prepare.waitFor();assert.equal(await page.getByLabel('Connection confirmation',{exact:true}).count(),0);
+   await prepare.click();await page.getByLabel('RustDesk peer ID',{exact:true}).fill('987654321');await prepare.waitFor();assert.equal(await prepare.isEnabled(),false);await page.getByLabel('RustDesk peer ID',{exact:true}).fill('123456789');await page.getByRole('checkbox',{name:'I own this device or have permission to connect',exact:true}).check();await prepare.click();
+   const launch=page.getByRole('button',{name:'Launch RustDesk connection',exact:true});assert.equal(await launch.isEnabled(),false);await page.getByLabel('Connection confirmation',{exact:true}).fill('CONNECT 123456789');failLaunch=true;await launch.click();await page.getByRole('alert').filter({hasText:'Approval expired; prepare'}).waitFor();await prepare.waitFor();assert.equal(await page.getByLabel('Connection confirmation',{exact:true}).count(),0);failLaunch=false;
+   await prepare.click();await page.getByLabel('Connection confirmation',{exact:true}).fill('CONNECT 123456789');await launch.click();await page.getByRole('status').filter({hasText:'Test-only native handoff'}).waitFor();assert.equal(launches,1);assert.ok(revocations>=2);
+   await page.getByRole('button',{name:'Lock launch controls',exact:true}).click();await page.getByRole('status').filter({hasText:'Launch controls locked.'}).waitFor();assert.ok(locks>0);
+   result.remote=output.replace(/\.json$/,`-remote-${viewport.name}.png`);await page.getByRole('heading',{name:'Remote desktop',exact:true}).scrollIntoViewIfNeeded();await page.screenshot({path:result.remote});
+   await nav('Stable Diffusion');assert.equal(await page.getByLabel('Image prompt',{exact:true}).inputValue(),'A quiet forest at sunrise');assert.equal(await page.getByLabel('Negative prompt',{exact:true}).inputValue(),'blurry');assert.equal(await page.getByLabel('Generation seed',{exact:true}).inputValue(),'12345');await page.getByRole('heading',{name:'Generated image',exact:true}).waitFor();assert.ok((await page.getByRole('img',{name:'A quiet forest at sunrise',exact:true}).getAttribute('src')).startsWith('blob:'));await page.getByRole('button',{name:'Clear image',exact:true}).click();await page.getByRole('heading',{name:'Your next image',exact:true}).waitFor();await page.getByRole('heading',{name:'Forest study',exact:true}).waitFor();
+   await page.reload();await page.locator('[data-home-ready="true"]').waitFor();await nav('Stable Diffusion');assert.equal(await page.getByLabel('Negative prompt',{exact:true}).inputValue(),'blurry');assert.equal(await page.getByLabel('Generation seed',{exact:true}).inputValue(),'12345');await page.getByRole('heading',{name:'Forest study',exact:true}).waitFor();
+   await nav('Mission plan');await page.getByRole('heading',{name:'Open-source credits',exact:true}).waitFor();for(const href of ['https://github.com/AUTOMATIC1111/stable-diffusion-webui','https://github.com/rustdesk/rustdesk','https://github.com/shadcn-ui/ui','https://github.com/ytdl-org/youtube-dl'])assert.equal(await page.locator(`a[href="${href}"]`).count(),1);
+   result.credits=output.replace(/\.json$/,`-credits-${viewport.name}.png`);await page.getByRole('heading',{name:'Open-source credits',exact:true}).scrollIntoViewIfNeeded();await page.screenshot({path:result.credits});
+   console.log(`${viewport.name}: actual YouTube date`);
+   await page.evaluate(async()=>{const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('reelcase');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});await new Promise((resolve,reject)=>{const tx=db.transaction('remote-cache','readwrite'),s=tx.objectStore('remote-cache');s.put({folders:[],checkedAt:Date.now()},'meta');s.put({id:'yt:jNQXAC9IVRw',folderId:'yt:date-test',name:'Me at the zoo',path:'youtube/jNQXAC9IVRw',extension:'yt',mime:'video/youtube',size:0,addedAt:Date.now(),remote:{kind:'youtube',videoId:'jNQXAC9IVRw',watchUrl:'https://www.youtube.com/watch?v=jNQXAC9IVRw',embedUrl:'https://www.youtube.com/embed/jNQXAC9IVRw'}},'video:yt:jNQXAC9IVRw');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()});
+   await page.evaluate(() => localStorage.setItem('reelcase.follows.v1',JSON.stringify({channels:[{id:'yt:date-test',kind:'youtube',handle:'date-test',title:'Date check'}],savedAt:Date.now()})));
+   await page.evaluate(async()=>{const db=await new Promise(resolve=>{const request=indexedDB.open('reelcase');request.onsuccess=()=>resolve(request.result)});await new Promise((resolve,reject)=>{const tx=db.transaction('remote-cache','readwrite');tx.objectStore('remote-cache').put({id:'yt:M7lc1UVf-VE',folderId:'yt:date-test',name:'Second date fixture',path:'youtube/M7lc1UVf-VE',extension:'yt',mime:'video/youtube',size:0,addedAt:0,remote:{kind:'youtube',videoId:'M7lc1UVf-VE',watchUrl:'https://www.youtube.com/watch?v=M7lc1UVf-VE',embedUrl:'https://www.youtube.com/embed/M7lc1UVf-VE'}},'video:yt:M7lc1UVf-VE');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()});
+   await page.reload();await page.locator('[data-home-ready="true"]').waitFor();await nav('YouTube');
+   const explore=page.getByRole('button',{name:'Explore recommendations and full catalog',exact:true});if(await explore.isVisible())await explore.click();
+   const card=page.locator('[data-video-card]').filter({has:page.getByRole('heading',{name:'Me at the zoo',exact:true})}).first();await card.getByText('Publication date unknown',{exact:true}).waitFor();await card.locator('[data-video-card-open]').click();
+   await page.getByRole('button',{name:'Verify publication date',exact:true}).click();
+   await page.getByText('Published 2005-04-23 · verified on YouTube',{exact:true}).waitFor({timeout:60000});
+   await page.getByRole('list',{name:'Publication date results',exact:true}).getByRole('link',{name:'Me at the zoo',exact:true}).waitFor();await page.getByText('Verified 2005-04-23',{exact:true}).waitFor();
+   result.dates=output.replace(/\.json$/,`-dates-${viewport.name}.png`);await page.getByRole('list',{name:'Publication date results',exact:true}).scrollIntoViewIfNeeded();await page.screenshot({path:result.dates});
+   console.log(`${viewport.name}: late date response`);
+   let releaseDate, responseHeld;const held=new Promise(resolve=>responseHeld=resolve);
+   const holdDate=async route=>{if(route.request().method()==='POST'&&route.request().postData()?.includes('jNQXAC9IVRw')){const response=await route.fetch();await new Promise(resolve=>{releaseDate=resolve;responseHeld()});await route.fulfill({response})}else await route.fallback()};
+   await page.route('**/_serverFn/**',holdDate);await page.getByRole('button',{name:'Verify publication date',exact:true}).click();await Promise.race([held,new Promise((_,reject)=>setTimeout(()=>reject(Error('Date response was not intercepted')),20000))]);
+   await page.getByRole('button',{name:'Second date fixture',exact:true}).click();await page.getByRole('heading',{name:'Second date fixture',exact:true}).waitFor();const dateResponse=page.waitForResponse(response=>response.request().method()==='POST'&&response.request().postData()?.includes('jNQXAC9IVRw'));releaseDate();await dateResponse;
+   await page.waitForTimeout(250);assert.equal(await page.getByRole('list',{name:'Publication date results',exact:true}).count(),0);assert.equal(await page.getByText('Published 2005-04-23 · verified on YouTube',{exact:true}).count(),0);assert.equal(await page.getByRole('button',{name:'Verify publication date',exact:true}).isEnabled(),true);await page.unroute('**/_serverFn/**',holdDate);
+   await page.reload();await page.locator('[data-home-ready="true"]').waitFor();
+   const saved=await page.evaluate(async()=>{const db=await new Promise(resolve=>{const r=indexedDB.open('reelcase');r.onsuccess=()=>resolve(r.result)});const value=await new Promise(resolve=>{const r=db.transaction('remote-cache').objectStore('remote-cache').get('video:yt:jNQXAC9IVRw');r.onsuccess=()=>resolve(r.result)});db.close();return{date:value.remote.publishedDate,source:value.remote.publishedSource}});assert.deepEqual(saved,{date:'2005-04-23',source:'watch'});
+   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);assert.deepEqual(errors,[]);assert.equal(expectedHttpErrors,2);Object.assign(result,{generation,launches,revocations,expectedHttpErrors,actualYoutubeDate:saved.date,ok:true});
+  }catch(error){result.ok=false;result.error=error.stack;await page.screenshot({path:output.replace(/\.json$/,`-failure-${viewport.name}.png`)}).catch(()=>{})}
+  results.push(result);await context.close();
+ }
+}finally{await browser.close()}
+writeFileSync(output,JSON.stringify(results,null,2));console.log(JSON.stringify(results,null,2));if(results.some(row=>!row.ok))process.exitCode=1;

@@ -1,0 +1,25 @@
+✔ recent upload rotation covers 2,000 creators independently of live and archive clocks and survives reload (232.2239ms)
+✔ cached success cannot rewind a watermark or clear a newer failed check (0.2971ms)
+✔ per-creator retry is bounded, honors Retry-After and does not block healthy creators (0.3795ms)
+✔ saved recent state validates and bounds external messages (0.2152ms)
+✔ upstream starts honor the shared gap across independent feed and archive lanes (27.4717ms)
+✔ an endpoint live limit does not freeze catalog or feed requests (19.2148ms)
+✔ a confirmed Google network block holds queued requests and backs off between probes (2.508ms)
+✔ Retry-After is respected without conflating feeds and catalogs (0.5637ms)
+✔ on-demand details use the paced queue without freezing archive on a details-only limit (0.8491ms)
+✔ an aborted queued request never starts an upstream transfer (1.0799ms)
+✔ request timeout starts after queue and pacing waits (53.7106ms)
+✔ a manual retry makes a paced fresh request without releasing cooled automatic jobs (1.0042ms)
+✔ a fresh rejection stops the manual operation until another explicit retry (0.766ms)
+✔ an HTML network challenge holds page and live HTML reads without blocking healthy browse or RSS (1.1909ms)
+✔ a new endpoint limit cannot hide behind an older longer global cooldown (0.4481ms)
+✔ archive request pacing supports earlier 80ms throughput and an explicit zero wait (48.4779ms)
+✔ two feed bodies complete while a slow archive remains in flight; extra feeds stay bounded (4.119ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 398.2875

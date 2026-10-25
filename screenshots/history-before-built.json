@@ -1,0 +1,122 @@
+[
+  {
+    "viewport": "desktop",
+    "errors": [],
+    "navigation": {
+      "elapsedMs": 2422,
+      "maxFrameMs": 44.5,
+      "inputs": [
+        {
+          "action": "History",
+          "ms": 7.5
+        }
+      ]
+    },
+    "sourceFilter": {
+      "elapsedMs": 44,
+      "maxFrameMs": 11.100000000000364,
+      "inputs": [
+        {
+          "action": "Everything",
+          "ms": 13.600000001490116
+        }
+      ]
+    },
+    "exportAll": {
+      "elapsedMs": 248,
+      "maxFrameMs": 205.5999999999999,
+      "inputs": [
+        {
+          "action": "Export visible",
+          "ms": 207.69999999925494
+        }
+      ]
+    },
+    "exportAllRows": 60000,
+    "timeFilter": {
+      "elapsedMs": 41,
+      "maxFrameMs": 5.600000000000364,
+      "inputs": [
+        {
+          "action": "24 hours",
+          "ms": 8.899999998509884
+        }
+      ]
+    },
+    "exportFiltered": {
+      "elapsedMs": 43,
+      "maxFrameMs": 11.099999999999454,
+      "inputs": [
+        {
+          "action": "Export visible",
+          "ms": 12.100000001490116
+        }
+      ]
+    },
+    "exportFilteredRows": 2000,
+    "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\history-before-built-desktop.png",
+    "overflow": false
+  },
+  {
+    "viewport": "mobile",
+    "errors": [],
+    "navigation": {
+      "elapsedMs": 1415,
+      "maxFrameMs": 44.399999999999636,
+      "inputs": [
+        {
+          "action": "",
+          "ms": 19.5
+        },
+        {
+          "action": "History",
+          "ms": 10.800000000745058
+        }
+      ]
+    },
+    "sourceFilter": {
+      "elapsedMs": 53,
+      "maxFrameMs": 16.700000000000273,
+      "inputs": [
+        {
+          "action": "Everything",
+          "ms": 17.099999997764826
+        }
+      ]
+    },
+    "exportAll": {
+      "elapsedMs": 237,
+      "maxFrameMs": 200.20000000000027,
+      "inputs": [
+        {
+          "action": "Export visible",
+          "ms": 202.09999999776483
+        }
+      ]
+    },
+    "exportAllRows": 60000,
+    "timeFilter": {
+      "elapsedMs": 35,
+      "maxFrameMs": 5.600000000000364,
+      "inputs": [
+        {
+          "action": "24 hours",
+          "ms": 9
+        }
+      ]
+    },
+    "exportFiltered": {
+      "elapsedMs": 43,
+      "maxFrameMs": 5.700000000000273,
+      "inputs": [
+        {
+          "action": "Export visible",
+          "ms": 10.900000002235174
+        }
+      ]
+    },
+    "exportFilteredRows": 2000,
+    "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\history-before-built-mobile.png",
+    "overflow": false
+  }
+]

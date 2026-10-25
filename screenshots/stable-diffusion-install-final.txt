@@ -1,0 +1,22 @@
+From https://github.com/AUTOMATIC1111/stable-diffusion-webui
+ * branch            dev        -> FETCH_HEAD
+HEAD is now at 1937682 Merge pull request #17313 from WhizZest/fix-setuptools-version
+Requirement already satisfied: pip in .\venv\lib\site-packages (26.2.1)
+Looking in indexes: https://pypi.org/simple, https://download.pytorch.org/whl/cu128
+Processing E:\codex\drift-brick-terra-acorn\companion\tools\wheels\torch-2.7.1+cu128-cp310-cp310-win_amd64.whl
+Requirement already satisfied: torchvision==0.22.1+cu128 in .\venv\lib\site-packages (0.22.1+cu128)
+Requirement already satisfied: filelock in .\venv\lib\site-packages (from torch==2.7.1+cu128) (4.1.0)
+Requirement already satisfied: typing-extensions>=4.10.0 in .\venv\lib\site-packages (from torch==2.7.1+cu128) (4.16.0)
+Requirement already satisfied: sympy>=1.13.3 in .\venv\lib\site-packages (from torch==2.7.1+cu128) (1.14.0)
+Requirement already satisfied: networkx in .\venv\lib\site-packages (from torch==2.7.1+cu128) (3.4.2)
+Requirement already satisfied: jinja2 in .\venv\lib\site-packages (from torch==2.7.1+cu128) (3.1.6)
+Requirement already satisfied: fsspec in .\venv\lib\site-packages (from torch==2.7.1+cu128) (2026.9.0)
+Requirement already satisfied: numpy in .\venv\lib\site-packages (from torchvision==0.22.1+cu128) (2.2.6)
+Requirement already satisfied: pillow!=8.3.*,>=5.3.0 in .\venv\lib\site-packages (from torchvision==0.22.1+cu128) (12.3.0)
+Requirement already satisfied: mpmath<1.4,>=1.1.0 in .\venv\lib\site-packages (from sympy>=1.13.3->torch==2.7.1+cu128) (1.3.0)
+Requirement already satisfied: MarkupSafe>=2.0 in .\venv\lib\site-packages (from jinja2->torch==2.7.1+cu128) (3.0.4)
+torch is already installed with the same version as the provided wheel. Use --force-reinstall to force an installation of the wheel.
+CUDA: True PyTorch: 2.7.1+cu128
+NVIDIA GeForce RTX 5070 Ti
+-2.556025981903076
+Python, CUDA PyTorch and SD 1.5 checkpoint ready. Start-Stable-Diffusion.cmd installs remaining WebUI dependencies and starts only on loopback.

@@ -1,3 +1,4 @@
+import { createStudioModels } from './studio-models.mjs';
 /**
  * Realhub Companion — opt-in, loopback-only native bridge.
  * It never accepts arbitrary network connections and only launches files below
@@ -10,7 +11,17 @@ import { resolve, sep, dirname, basename, join } from "node:path";
 import { networkInterfaces } from "node:os";
 import dgram from "node:dgram";
 import { createArtworkAudit } from "./artwork-audit.mjs";
+import { fileURLToPath } from 'node:url';
+import { randomUUID } from 'node:crypto';
+import { createDownloadManager, youtubeWatchUrl, youtubeBrowserAuth } from './download-manager.mjs';
+import { serveDownloadMedia } from './download-media.mjs';
+import { createCreativeTools } from './creative-tools.mjs';
 const artworkAudit = createArtworkAudit();
+const companionDir = fileURLToPath(new URL('.', import.meta.url));
+const studioModels = createStudioModels({ dir: companionDir });
+const creativeTools = createCreativeTools({ dir: companionDir, models: studioModels });
+let youtubeConfig = {};
+try { youtubeConfig = JSON.parse(readFileSync(join(companionDir, '.local-youtube-dl.json'), 'utf8')); } catch { /* Optional operator-run setup. */ }
 
 const port = Number(process.env.REELCASE_COMPANION_PORT || 43123);
 // The companion remains loopback-only. These extra origins only let the same
@@ -38,15 +49,15 @@ const desktopRoots = process.platform === "win32" && process.env.USERPROFILE
       ...(process.env.OneDriveConsumer ? [resolve(process.env.OneDriveConsumer, "Desktop")] : []),
     ]
   : [];
-const allowedRoots = [...new Set([...configuredRoots, ...desktopRoots])]
+const allowedRoots = [...new Set([...configuredRoots, ...desktopRoots, ...(typeof youtubeConfig.downloadRoot === 'string' ? [youtubeConfig.downloadRoot] : [])])]
   .filter((value) => existsSync(value))
   .flatMap((value) => { try { return [realpathSync(value)]; } catch { return []; } });
 const allowedExt = new Set([".exe", ".lnk", ".url", ".appref-ms"]);
 const changes = [];
 const launches = [];
 // This deliberately stays small.  The companion is a hint/index worker, not
-// a second media server: it never sends media bytes or file paths back to the
-// browser.  A bounded walk gives the web app a fast, privacy-preserving view
+// a general media server: only completed downloader jobs have a media route.
+// A bounded walk gives the web app a fast, privacy-preserving view
 // of photo/video deltas while the browser retains file-handle authority.
 const photoExt = new Set([".avif", ".bmp", ".gif", ".heic", ".jpeg", ".jpg", ".png", ".webp"]);
 const videoExt = new Set([".avi", ".m4v", ".mkv", ".mov", ".mp4", ".mpeg", ".mpg", ".webm"]);
@@ -99,8 +110,8 @@ function cors(req, res) {
   const origin = req.headers.origin;
   if (!origin || !allowedOrigins.has(origin)) return false;
   res.setHeader("access-control-allow-origin", origin);
-  res.setHeader("access-control-allow-methods", "GET, POST, OPTIONS");
-  res.setHeader("access-control-allow-headers", "content-type");
+  res.setHeader("access-control-allow-methods", "GET, HEAD, POST, OPTIONS");
+  res.setHeader("access-control-allow-headers", "content-type, range");
   return true;
 }
 function allowedFile(rawPath) {
@@ -146,9 +157,22 @@ function resolveYtDlpBinary() {
       if (existsSync(resolved)) return realpathSync(resolved);
     } catch { /* ignore bad YT_DLP_PATH */ }
   }
+  const bundled = join(companionDir, 'tools', process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp');
+  if (existsSync(bundled)) return realpathSync(bundled);
   return whichBinary(process.platform === "win32" ? "yt-dlp.exe" : "yt-dlp")
     || (process.platform === "win32" ? whichBinary("yt-dlp") : null);
 }
+
+function resolveYoutubeDlBinary() {
+  const configured = process.env.YOUTUBE_DL_PATH?.trim();
+  for (const path of [configured, join(companionDir, 'tools', process.platform === 'win32' ? 'youtube-dl.exe' : 'youtube-dl')]) {
+    try { if (path && existsSync(path)) return realpathSync(path); } catch { /* Try the next operator-configured location. */ }
+  }
+  return whichBinary(process.platform === 'win32' ? 'youtube-dl.exe' : 'youtube-dl');
+}
+const youtubeDlBinary = resolveYoutubeDlBinary();
+let youtubeDlVersion = null;
+if (youtubeDlBinary) try { youtubeDlVersion = execFileSync(youtubeDlBinary, ['--ignore-config', '--version'], { encoding: 'utf8', windowsHide: true, timeout: 5000 }).trim().slice(0, 80); } catch { /* Shown as unconfigured when the binary cannot run. */ }
 
 function underAllowedRoot(candidate) {
   try {
@@ -161,7 +185,7 @@ function underAllowedRoot(candidate) {
 
 function resolveDownloadRoot() {
   if (!allowedRoots.length) return null;
-  const configured = typeof process.env.REELCASE_DOWNLOAD_DIR === "string" ? process.env.REELCASE_DOWNLOAD_DIR.trim() : "";
+  const configured = typeof process.env.REELCASE_DOWNLOAD_DIR === "string" ? process.env.REELCASE_DOWNLOAD_DIR.trim() : (typeof youtubeConfig.downloadRoot === 'string' ? youtubeConfig.downloadRoot : "");
   if (configured) {
     const candidate = resolve(configured);
     // Allow creating a new folder only when an ancestor already sits under an approved root.
@@ -192,6 +216,8 @@ function resolveDownloadRoot() {
 }
 
 const ytDlpBinary = resolveYtDlpBinary();
+let ytDlpVersion = null;
+if (ytDlpBinary) try { ytDlpVersion = execFileSync(ytDlpBinary, ['--ignore-config', '--version'], { encoding: 'utf8', windowsHide: true, timeout: 5000 }).trim().slice(0, 80); } catch { /* Shown as unconfigured. */ }
 const downloadRoot = resolveDownloadRoot();
 
 function embeddedMediaText(value) {
@@ -761,12 +787,51 @@ function rememberJob(job) {
   }
 }
 
+const downloads = createDownloadManager({ root: downloadRoot, approveRoot: underAllowedRoot, onSettled: rememberJob });
+for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, async () => { studioModels.shutdown(); downloads.shutdown(); server.close(); await Promise.race([creativeTools.shutdown(),new Promise(resolve=>setTimeout(resolve,5500))]); process.exit(0); });
+function youtubeDownloadState() {
+  const folderReady = Boolean(downloadRoot && underAllowedRoot(downloadRoot));
+  return { ok: true, configured: Boolean((ytDlpVersion || youtubeDlVersion) && folderReady),
+    engine: ytDlpVersion ? 'yt-dlp' : 'youtube-dl', version: ytDlpVersion || youtubeDlVersion,
+    browserAuth: Boolean(ytDlpVersion && folderReady), localPlayback: true,
+    path: downloadRoot, jobs: downloads.list().filter(job => job.source === 'youtube'),
+    needs: [!ytDlpVersion && 'Run Setup-YouTube-Downloads.cmd and restart Companion to enable yt-dlp browser sign-in.', !downloadRoot && 'Choose an approved download folder in Companion.'].filter(Boolean) };
+}
 
 const server = createServer(async (req, res) => {
   if (req.method === "OPTIONS") { cors(req, res); res.writeHead(204); res.end(); return; }
   if (!cors(req, res)) { reply(res, 403, { ok: false, error: "Untrusted origin" }); return; }
+  if (req.method === 'POST' && req.url?.startsWith('/studio/models/upload?')) { await studioModels.upload(req, res); return; }
+  if (req.url?.startsWith('/studio/') || req.url?.startsWith('/remote/')) {
+    try {
+      let text = ''; if (req.method === 'POST') req.setEncoding('utf8'); if (req.method === 'POST') for await (const chunk of req) { text += chunk; if (text.length > 12000) throw new Error('Request too large.'); }
+      const result = await creativeTools(req.url, req.method, text ? JSON.parse(text) : {}, req.headers.origin);
+      reply(res, result ? 200 : 404, result || { ok: false, error: 'Action not found.' });
+    } catch (cause) { reply(res, 400, { ok: false, error: cause.message || 'Local service failed.' }); }
+    return;
+  }
   if (req.method === "GET" && req.url === "/health") {
-    reply(res, 200, { ok: true, service: "reelcase-companion", version: 10, roots: allowedRoots.length, desktopEnabled: desktopRoots.some((root) => { try { return allowedRoots.includes(realpathSync(root)); } catch { return false; } }), ytDlp: Boolean(ytDlpBinary), downloadRoot: downloadRoot || null, libraryPackRoot: resolveLibraryPackRoot(), thumbCacheRoot: resolveThumbCacheRoot(), printsRoot: resolvePrintsRoot(), trayBadge, capabilities: ["launch", "shortcut-catalog", "shortcut-icons", "file-health", "batch-verify", "folder-watch", "watch-status", "cache-status", "cache-warmup", "media-inspection", "roku-ssdp-discovery", "offline-save", "steam-epic-catalog", "library-pack-disk", "thumb-disk-cache", "thumb-cache-url", "prints-bridge", "tray-autostart", "job-badge"] });
+    reply(res, 200, { ok: true, service: "reelcase-companion", version: 12, roots: allowedRoots.length, desktopEnabled: desktopRoots.some((root) => { try { return allowedRoots.includes(realpathSync(root)); } catch { return false; } }), youtubeDl: Boolean(youtubeDlVersion), ytDlp: Boolean(ytDlpBinary), downloadRoot: downloadRoot || null, libraryPackRoot: resolveLibraryPackRoot(), thumbCacheRoot: resolveThumbCacheRoot(), printsRoot: resolvePrintsRoot(), trayBadge, capabilities: ["studio-models", "qwen-image-2.1", "launch", "shortcut-catalog", "shortcut-icons", "file-health", "batch-verify", "folder-watch", "watch-status", "cache-status", "cache-warmup", "media-inspection", "roku-ssdp-discovery", "offline-save", "youtube-downloads", "steam-epic-catalog", "library-pack-disk", "thumb-disk-cache", "thumb-cache-url", "prints-bridge", "tray-autostart", "job-badge"] });
+    return;
+  }
+  if (req.method === 'GET' && req.url === '/youtube/downloads') { reply(res, 200, youtubeDownloadState()); return; }
+  if ((req.method === 'GET' || req.method === 'HEAD') && /^\/youtube\/downloads\/[\w-]+\/media$/.test(req.url ?? '')) {
+    serveDownloadMedia(req, res, downloads.media(req.url.split('/')[3])); return;
+  }
+  if (req.method === 'POST' && req.url?.startsWith('/youtube/downloads')) {
+    try {
+      const cancel = req.url.match(/^\/youtube\/downloads\/([\w-]+)\/cancel$/);
+      if (cancel) { reply(res, 200, { ok: true, job: downloads.cancel(cancel[1]) }); return; }
+      if (req.url !== '/youtube/downloads') { reply(res, 404, { ok: false, error: 'Download action not found.' }); return; }
+      let textBody = '';
+      for await (const chunk of req) { textBody += chunk; if (textBody.length > 8192) { reply(res, 413, { ok: false, error: 'Download request is too large.' }); return; } }
+      const body = JSON.parse(textBody), url = youtubeWatchUrl(body.videoId);
+      const browser = youtubeBrowserAuth(body), state = youtubeDownloadState();
+      if (!state.configured || browser !== 'none' && !state.browserAuth) { reply(res, 503, { ...state, ok: false, error: browser !== 'none' ? 'Browser sign-in needs yt-dlp and an approved download folder. Run Setup-YouTube-Downloads.cmd, then restart Companion.' : 'A YouTube downloader is not configured on this computer.' }); return; }
+      const job = downloads.enqueue({ key: body.videoId, url, title: body.title,
+        binary: ytDlpVersion ? ytDlpBinary : youtubeDlBinary, engine: state.engine, browser });
+      reply(res, 202, { ok: true, job });
+    } catch (error) { reply(res, 400, { ok: false, error: error.message || 'Invalid download request.' }); }
     return;
   }
   if (req.method === "GET" && req.url === "/source-health") {
@@ -897,19 +962,8 @@ const server = createServer(async (req, res) => {
       return;
     }
     try {
-      // Detached spawn: Companion acknowledges quickly; yt-dlp writes into the approved folder only.
-      const outputTemplate = `${outDir}${sep}%(title).200B [%(id)s].%(ext)s`;
-      const child = spawn(binary, ["--no-playlist", "--no-mtime", "--restrict-filenames", "-o", outputTemplate, url], {
-        detached: true,
-        stdio: "ignore",
-        windowsHide: true,
-        cwd: outDir,
-      });
-      child.unref();
-      const job = { id: `job-${Date.now()}`, status: "started", detail: `Download started into ${outDir}`, path: outDir, url };
+      const job = downloads.enqueue({ key: randomUUID(), url, title: 'Offline video', binary, source: 'offline', engine: 'yt-dlp' });
       rememberJob(job);
-      // Detached yt-dlp has no completion hook without wrapping — mark done shortly for tray badge UX.
-      setTimeout(() => rememberJob({ ...job, status: "done", detail: `Offline save finished (check ${outDir})` }), 8_000);
       reply(res, 202, {
         ok: true,
         detail: job.detail,

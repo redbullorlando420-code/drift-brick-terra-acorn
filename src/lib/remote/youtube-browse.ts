@@ -1,3 +1,4 @@
+import { validateYoutubeItems } from './youtube-contract';
 import { LIBRARY_LIMITS } from '../library-limits';
 import { youtubeCatalogContinuation, youtubeCatalogItems } from './youtube-catalog';
 import { youtubeVideoRenderers, type YoutubeRenderer } from './youtube-page-data';
@@ -12,7 +13,7 @@ export async function youtubePublicRequest(endpoint: string, target: object, man
   const response = await fetchYoutubeResponse(`https://www.youtube.com/youtubei/v1/${endpoint}?prettyPrint=false&alt=json`, {
     method: 'POST', headers: { 'content-type': 'application/json', 'x-youtube-client-name': '1', 'x-youtube-client-version': YOUTUBE_WEB_VERSION },
     body: JSON.stringify({ context: { client: { clientName: 'WEB', clientVersion: YOUTUBE_WEB_VERSION, hl: 'en', gl: 'US' } }, ...target }),
-    timeoutMs: 15_000, manualRetry, ...(live ? { scope: 'live' as const } : {}),
+    timeoutMs: live ? 8_000 : 15_000, manualRetry, ...(live ? { scope: 'live' as const } : {}),
   });
   return response.json();
 }
@@ -42,6 +43,7 @@ export async function youtubeBrowseArchive(playlistId: string, limit: number, re
         if (!rows.length) return null; // Unrecognized layouts retain HTML recovery.
         throw new Error('YouTube returned an unreadable catalog page; the archive position was preserved.');
       }
+      validateYoutubeItems(items);
       const pageRows = youtubeVideoRenderers(items, 500);
       for (const row of pageRows) if (row.videoId && !seen.has(row.videoId)) { seen.add(row.videoId); rows.push(row); }
       if (!author) {

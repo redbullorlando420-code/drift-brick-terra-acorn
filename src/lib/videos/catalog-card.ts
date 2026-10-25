@@ -19,6 +19,9 @@ export function withCatalogDetails(card: LibraryVideo, saved?: LibraryVideo): Li
     description: card.description ?? saved.description,
     tagline: card.detailsOnDisk ? saved.tagline ?? card.tagline : card.tagline ?? saved.tagline,
     remote: card.remote ? { ...saved.remote, ...card.remote,
+      ...(!card.remote.youtubeTagsCheckedAt && saved.remote?.youtubeTagsCheckedAt ? {
+        youtubeKeywords: saved.remote.youtubeKeywords, youtubeTagsCheckedAt: saved.remote.youtubeTagsCheckedAt, youtubeTagSummary: saved.remote.youtubeTagSummary,
+      } : {}),
       comments: card.remote.comments ?? saved.remote?.comments,
       thumbFallbacks: card.detailsOnDisk ? saved.remote?.thumbFallbacks ?? card.remote.thumbFallbacks : card.remote.thumbFallbacks ?? saved.remote?.thumbFallbacks,
     } : saved.remote };

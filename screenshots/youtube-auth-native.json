@@ -1,0 +1,36 @@
+{
+  "configured": true,
+  "engine": "yt-dlp",
+  "version": "2026.08.19",
+  "browserAuth": true,
+  "localPlayback": true,
+  "checks": [
+    {
+      "name": "untrusted-origin",
+      "status": 403,
+      "ok": true
+    },
+    {
+      "name": "no-origin-media",
+      "status": 403,
+      "ok": true
+    },
+    {
+      "name": "unknown-completed-job",
+      "status": 404,
+      "ok": true
+    },
+    {
+      "name": "reject-profile-path",
+      "status": 400,
+      "ok": true
+    },
+    {
+      "name": "require-explicit-opt-in",
+      "status": 400,
+      "ok": true
+    }
+  ],
+  "noDownloadsStarted": true,
+  "realBrowserSessionAccessed": false
+}

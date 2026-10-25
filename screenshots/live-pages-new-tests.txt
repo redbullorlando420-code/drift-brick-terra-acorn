@@ -1,0 +1,13 @@
+✔ live pages reach every result and keep mounted rows bounded, including filter shrink (3.0746ms)
+✔ Twitch lightweight discovery rotates 2,000 follows fairly, skipping fresh observations and independent live cooldowns (17.7386ms)
+✔ room page inputs cannot request arbitrary sources or unbounded pages (0.5064ms)
+✔ Chaturbate v2 pages use real offsets and counts, coalesce duplicate requests and reject malformed empty success (40.9606ms)
+✔ MFC public roster supports Next pages without profile requests and never accepts an error page as offline (6.8054ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 362.4991

@@ -1,0 +1,54 @@
+desktop: seed and pull
+desktop: stop and bounded batch
+mobile: seed and pull
+mobile: stop and bounded batch
+[
+  {
+    "viewport": "desktop",
+    "errors": [],
+    "failedUrls": [],
+    "suggestions": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-tags-dev-suggestions-desktop.png",
+    "batch": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-tags-dev-batch-desktop.png",
+    "publicServerFunction": {
+      "status": 200,
+      "id": "jNQXAC9IVRw",
+      "descriptionCharacters": 264,
+      "creatorTags": 3,
+      "date": "2005-04-23T20:31:52-07:00",
+      "accountCookiesUsed": false
+    },
+    "ok": true,
+    "metadataPull": true,
+    "sourceLabels": true,
+    "manualEditsProtected": true,
+    "lateResponsesIgnored": true,
+    "stopPreventsNextRequest": true,
+    "fiveVideoBatch": true,
+    "liveSkipped": true,
+    "persistence": true,
+    "providerErrorAndRetry": true,
+    "noPolling": true,
+    "providerResponses": "fixtures",
+    "requests": 11
+  },
+  {
+    "viewport": "mobile",
+    "errors": [],
+    "failedUrls": [],
+    "suggestions": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-tags-dev-suggestions-mobile.png",
+    "batch": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-tags-dev-batch-mobile.png",
+    "ok": true,
+    "metadataPull": true,
+    "sourceLabels": true,
+    "manualEditsProtected": true,
+    "lateResponsesIgnored": true,
+    "stopPreventsNextRequest": true,
+    "fiveVideoBatch": true,
+    "liveSkipped": true,
+    "persistence": true,
+    "providerErrorAndRetry": true,
+    "noPolling": true,
+    "providerResponses": "fixtures",
+    "requests": 11
+  }
+]

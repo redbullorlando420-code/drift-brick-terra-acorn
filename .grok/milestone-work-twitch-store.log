@@ -1,0 +1,44 @@
+✔ focused partial Twitch pulls preserve saved VODs, local feedback and unrequested clip checkpoints (412.4156ms)
+✔ empty Twitch routine and live checks preserve VOD history, feedback and focused checkpoints (30.6442ms)
+✔ Twitch entry caps and first-page failures hold checkpoints and explain the stop (155.5866ms)
+✔ Twitch status cannot replace the YouTube cooldown or archive result (6.4482ms)
+✔ cooldown stops focused, import and live work while mixed checks still service Twitch (25.5629ms)
+✔ automatic provider detection still permits a focused Twitch URL during a YouTube cooldown (2.3406ms)
+✔ focused Twitch rotation respects combined caps, protects saves and holds partial clip/VOD checkpoints (323.8125ms)
+✔ routine Twitch and mixed refreshes share per-source budgets and do not clean on live-only checks (386.4025ms)
+✔ Twitch imports use one replacement budget and zero caps hold all providers even with cleanup enabled (282.5243ms)
+✔ an empty Twitch cache borrows combined-cap slots from enabled YouTube cleanup without touching protected videos (462.9402ms)
+✔ offline Twitch transitions preserve the cached record on disk as well as memory instead of silently deleting saved data (125.2105ms)
+✔ explicit Twitch live reconciliation still completes while archive pulling is paused (124.3864ms)
+✖ lightweight Twitch checks retain an 80k catalog identity across 2,000 follows and use only bounded live batches (2809.6264ms)
+✔ explicit Twitch content pulls queue 100 creators in small archive responses; scheduled turns stay bounded (78.4905ms)
+✔ older Twitch pulls skip exhausted and cooled creators and pass each saved continuation without clipping the follow list (1124.4904ms)
+✔ cooperative YouTube preparation reuses 80k saved rows and prepared browse groups through unrelated Twitch refreshes (542.6866ms)
+✔ Twitch live completion pipeline publishes healthy viewer counts while the first 12 creators are stalled (17.578ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 16
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13555.3623
+
+✖ failing tests:
+
+test at scripts\pull-entry-limits.test.mjs:773:1
+✖ lightweight Twitch checks retain an 80k catalog identity across 2,000 follows and use only bounded live batches (2809.6264ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  167 !== 20
+  
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/pull-entry-limits.test.mjs:776:183)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 167,
+    expected: 20,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

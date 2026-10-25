@@ -1,0 +1,48 @@
+{
+  "at": "2026-10-22T04:42:47.885Z",
+  "checked": 4,
+  "total": 4,
+  "broadcasts": [
+    {
+      "provider": "twitch",
+      "creator": "GamesDoneQuick",
+      "title": "Siren - True Ending speedrun ft. @casualspeedrun - !fromthecrypt !schedule",
+      "live": true
+    },
+    {
+      "provider": "youtube",
+      "creator": "NASA",
+      "title": "Live High-Definition Views from the International Space Station (Official NASA Stream)",
+      "live": true
+    },
+    {
+      "provider": "youtube",
+      "creator": "NASA",
+      "title": "Live Video from the International Space Station (Official NASA Stream)",
+      "live": true
+    }
+  ],
+  "channels": [
+    {
+      "provider": "twitch",
+      "handle": "notyoda",
+      "live": false
+    },
+    {
+      "provider": "twitch",
+      "handle": "lirik",
+      "live": false
+    },
+    {
+      "provider": "twitch",
+      "handle": "gamesdonequick",
+      "live": true
+    },
+    {
+      "provider": "youtube",
+      "handle": "@NASA",
+      "live": true
+    }
+  ],
+  "limitation": "One current read of public sample channels, not a full personal-follow audit or a promise of provider uptime."
+}

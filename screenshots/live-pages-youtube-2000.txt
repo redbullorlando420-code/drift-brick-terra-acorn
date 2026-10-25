@@ -1,0 +1,27 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "checks": [
+        "one manual action checks every one of 2,000 verified creators in 84 bounded requests while archives are paused, with visible incremental progress",
+        "ten discovered broadcasts appear immediately, one failed creator keeps its previous broadcast, and a confirmed offline broadcast leaves the live grid",
+        "the real live browser lane advances beside a blocked archive request; independent progress remains visible and archive ownership is preserved",
+        "2,000 follow checkpoints and live/offline reconciliation survive reload without automatic rechecks"
+      ],
+      "requests": 168
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "checks": [
+        "one manual action checks every one of 2,000 verified creators in 84 bounded requests while archives are paused, with visible incremental progress",
+        "ten discovered broadcasts appear immediately, one failed creator keeps its previous broadcast, and a confirmed offline broadcast leaves the live grid",
+        "the real live browser lane advances beside a blocked archive request; independent progress remains visible and archive ownership is preserved",
+        "2,000 follow checkpoints and live/offline reconciliation survive reload without automatic rechecks"
+      ],
+      "requests": 168
+    }
+  ]
+}

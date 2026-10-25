@@ -1,0 +1,28 @@
+✔ new Twitch observations survive refresh between clock ticks while stale/unknown state is excluded (3.6101ms)
+✔ live sources deduplicate, exclude offline cards, and search the full adult catalog before paging (4.0636ms)
+✔ a manual live selection covers all eligible follows beyond 80 and ignores archive cooldown (1.9742ms)
+✔ automatic live selection balances known broadcasts with discovery in durable timestamp order (11.6943ms)
+✔ YouTube live eligibility excludes playlists, ambiguous imports and live cooldowns only (1.5659ms)
+✔ live browse combines home and Streams evidence without losing simultaneous broadcasts or archive health (92.0709ms)
+✔ Movies requires duration over ten minutes and actual film evidence (2.0347ms)
+✔ Anime requires content evidence and rejects topic mentions, games and commentary (1.0608ms)
+✔ Guide searches the full catalog tail by title and saved tags with explicit evidence (50.5628ms)
+✔ Guide isolates private, hidden, unavailable and Adult titles and supports racing topics (0.6349ms)
+✔ Guide live questions honor provider, freshness and cancellation (0.9865ms)
+✔ Topic Explorer combines text, selected topic, evidence, provider and stable sort (5.9376ms)
+✔ Twitch live batches make at most twelve aliases per request and isolate field failures (0.8379ms)
+✔ older offline responses cannot retire a newer live observation (0.4168ms)
+✔ Streams endpoints eliminate repeated Home requests, validate each channel, and never cache live answers (4.4683ms)
+✔ unrecognized or expired endpoints recover through Home; missing identity cannot confirm offline (1.2054ms)
+✔ endpoint fallback cannot bypass a rate hold and duplicate checks share only in-flight work (1.421ms)
+✔ four live bodies overlap beside a stalled archive while archive bodies remain serial (50.3992ms)
+✔ an older parallel success cannot release a new live cooldown or start queued checks (35.3074ms)
+✔ 2,000-channel discovery rotates completely without repeating fresh offline checks or starving known live (18.7856ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 522.0568

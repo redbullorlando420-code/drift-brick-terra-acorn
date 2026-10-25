@@ -1,0 +1,11 @@
+{
+  "ok": false,
+  "checks": [
+    "late YouTube API readiness retries successfully; blocked mobile autoplay resolves with a device-only tap, catches up to the playing host, and does not send room pause/play requests even with 90 seconds of clock skew",
+    "normal playback avoids seek storms, substantial decoder drift is corrected, and buffering freezes the shared clock and resumes the guest automatically",
+    "returning to the phone page requests fresh clock and host state without altering shared playback",
+    "shared pause/resume remains stable while provider telemetry is arriving, and stale player notifications do not undo the room control"
+  ],
+  "errors": [],
+  "error": "locator.evaluate: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('iframe[src*=\"youtube.com/embed/\"]').contentFrame().locator('body')\u001b[22m\n\n    at E:\\codex\\drift-brick-terra-acorn\\scripts\\watch-room-phone-check.mjs:86:121"
+}

@@ -18,7 +18,8 @@ export type YoutubeCoverageIndex = {
   duplicateGroups: number;
 };
 const completed = new WeakMap<LibraryVideo[], YoutubeCoverageIndex>();
-const pending = new WeakMap<LibraryVideo[], Promise<YoutubeCoverageIndex>>();
+type CoverageJob = { promise: Promise<YoutubeCoverageIndex>; controller: AbortController; readers: number; durable: boolean };
+const pending = new WeakMap<LibraryVideo[], CoverageJob>();
 function builder() {
   const index: YoutubeCoverageIndex = { bySource: new Map(), byChannel: new Map(), overlap: new Map(), newestBySource: new Map(), newestByChannel: new Map(), ownerSamples: new Map(), distinctVideos: 0, duplicateRows: 0, duplicateGroups: 0 };
   const seen = new Set<string>(), duplicates = new Set<string>();
@@ -69,16 +70,41 @@ export function youtubeCoverageIndex(videos: LibraryVideo[]) {
   const index = work.finish(); completed.set(videos, index); return index;
 }
 /** Disk-sized catalogs yield between short tasks; concurrent readers share work. */
-export function youtubeCoverageIndexAsync(videos: LibraryVideo[]): Promise<YoutubeCoverageIndex> {
+export function youtubeCoverageIndexAsync(videos: LibraryVideo[], signal?: AbortSignal): Promise<YoutubeCoverageIndex> {
+  if (signal?.aborted) return Promise.reject(signal.reason);
   const cached = completed.get(videos);
   if (cached) return Promise.resolve(cached);
-  const running = pending.get(videos);
-  if (running) return running;
-  const work = builder();
-  const result = forEachCatalogSlice(videos, work.visit, yieldCatalogTask).then(() => {
-    const index = work.finish(); completed.set(videos, index); return index;
-  }).finally(() => pending.delete(videos));
-  pending.set(videos, result); return result;
+  let job = pending.get(videos);
+  if (!job) {
+    const work = builder(), controller = new AbortController();
+    const created: CoverageJob = { controller, readers: 0, durable: false, promise: undefined! };
+    const turn = async () => { controller.signal.throwIfAborted(); await yieldCatalogTask(); controller.signal.throwIfAborted(); };
+    created.promise = forEachCatalogSlice(videos, work.visit, turn).then(() => {
+      controller.signal.throwIfAborted();
+      const index = work.finish(); completed.set(videos, index); return index;
+    }).finally(() => { if (pending.get(videos) === created) pending.delete(videos); });
+    pending.set(videos, created); job = created;
+  }
+  // Durable archive scheduling can share a UI reader's scan. A canceled view
+  // releases only its own lease; the last UI reader cancels obsolete work.
+  if (!signal) { job.durable = true; return job.promise; }
+  const owner = job; owner.readers++;
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (aborted: boolean, value?: YoutubeCoverageIndex, error?: unknown) => {
+      if (settled) return; settled = true;
+      signal.removeEventListener('abort', abort); owner.readers--;
+      if (aborted && !owner.readers && !owner.durable) {
+        owner.controller.abort();
+        if (pending.get(videos) === owner) pending.delete(videos);
+      }
+      if (aborted || error !== undefined) reject(aborted ? signal.reason : error); else resolve(value!);
+    };
+    const abort = () => finish(true);
+    signal.addEventListener('abort', abort, { once: true });
+    owner.promise.then(value => finish(false, value), error => finish(false, undefined, error));
+    if (signal.aborted) abort();
+  });
 }
 /** Exact union cardinality, including legacy source aliases and playlist edges. */
 export function youtubeCoverageCounts(index: YoutubeCoverageIndex, sources: Array<Pick<FollowedChannel, 'id' | 'channelId'>>) {

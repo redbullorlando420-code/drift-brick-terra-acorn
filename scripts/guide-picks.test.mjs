@@ -21,9 +21,9 @@ test('guide preserves favorite/like/tag scores, watched exclusions, stable ties 
     const actual = await prepareGuide({ videos, favorites, likes, tags, history }, seed, now, async () => { turns++; });
     const favored = new Set(videos.filter(v => favorites[v.id] || likes[v.id]).flatMap(v => tags[v.id] ?? []));
     const watched = new Set(history.map(v => v.id));
-    const expected = videos.filter(v => !watched.has(v.id)).map(video => ({ video, score: (favorites[video.id] ? 3 : 0) + (likes[video.id] ? 2 : 0) + tags[video.id].filter(t => favored.has(t)).length, random: rank(video.id, seed) })).sort((a, b) => b.score - a.score || a.random - b.random).slice(0, 12).map(r => r.video);
+    const expected = videos.filter(v => !watched.has(v.id)&&!v.remote?.live).map(video => ({ video, score: (favorites[video.id] ? 3 : 0) + (likes[video.id] ? 2 : 0) + tags[video.id].filter(t => favored.has(t)).length, random: rank(video.id, seed) })).sort((a, b) => b.score - a.score || a.random - b.random).slice(0, 12).map(r => r.video);
     assert.deepEqual(actual.picks, expected);
-    assert.deepEqual(actual.live, videos.filter(v => v.remote?.kind === 'twitch' && v.remote.live).sort((a, b) => (hasFreshViewerCount(b.remote, now) ? b.remote.viewers : 0) - (hasFreshViewerCount(a.remote, now) ? a.remote.viewers : 0)));
+    assert.deepEqual(actual.live, videos.filter(v => v.remote?.kind === 'twitch' && v.remote.live&&now-v.remote.observedAt<=120000).sort((a, b) => (hasFreshViewerCount(b.remote, now) ? b.remote.viewers : 0) - (hasFreshViewerCount(a.remote, now) ? a.remote.viewers : 0)));
     assert.equal(actual.favoriteCount, 3); assert.equal(actual.historyCount, history.length);
     assert.equal(actual.tagCount, Object.values(tags).flat().length); assert.ok(turns > 12);
   }

@@ -12,9 +12,11 @@ export function useYoutubeCoverage(enabled: boolean) {
   const [snapshot, setSnapshot] = useState<{ videos: LibraryVideo[]; index: YoutubeCoverageIndex }>({ videos: EMPTY, index: EMPTY_INDEX });
   useEffect(() => {
     if (!enabled) { setSnapshot({ videos: EMPTY, index: EMPTY_INDEX }); return; }
-    let current = true;
-    void youtubeCoverageIndexAsync(videos).then(index => { if (current) setSnapshot({ videos, index }); });
-    return () => { current = false; };
+    const controller = new AbortController();
+    void youtubeCoverageIndexAsync(videos, controller.signal).then(index => {
+      if (!controller.signal.aborted) setSnapshot({ videos, index });
+    }).catch(() => { /* A replaced catalog or closed desk releases its scan. */ });
+    return () => controller.abort();
   }, [enabled, videos]);
   return { index: snapshot.index, updating: enabled && snapshot.videos !== videos };
 }

@@ -1,0 +1,13 @@
+✔ rapid catalog replacement cancels 80 obsolete scans before they read rows; newest scan completes (310.488ms)
+✔ one canceled reader cannot cancel another reader or durable archive scheduling (5.201ms)
+✔ last-reader cancellation permits immediate retry and old finalization cannot delete the replacement (1.4964ms)
+✔ hidden third-party pages use one cancelable deadline and release once without auto-resuming (2.4947ms)
+✔ pagehide releases immediately; unmount cancels every listener and pending hidden timer (0.571ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 629.7566

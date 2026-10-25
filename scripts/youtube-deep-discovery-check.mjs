@@ -117,7 +117,7 @@ try {
       await grid.scrollIntoViewIfNeeded();
       await page.waitForTimeout(750);
       const beforeReturn = await page.evaluate(() => ({ workers: window.__deepPerf.rankingWorkers.length, rows: window.__deepPerf.rankingWorkers.reduce((sum, worker) => sum + worker.rows, 0) }));
-      await grid.locator('[data-video-card-open]').first().click();
+      await grid.locator('[data-video-card-open]').first().locator('[data-video-card-details]').click();
       await page.getByRole('button', { name: 'Close preview', exact: true }).click();
       await page.waitForFunction(() => document.activeElement?.hasAttribute('data-video-card-open'));
       await page.waitForFunction(stable => {
@@ -151,7 +151,7 @@ try {
       await grid.scrollIntoViewIfNeeded();
       // Return once more so this mix starts without a worker. A reshuffle must
       // rebuild on demand, return a fresh first batch and retain explicit taste.
-      await grid.locator('[data-video-card-open]').first().click();
+      await grid.locator('[data-video-card-open]').first().locator('[data-video-card-details]').click();
       await page.getByRole('button', { name: 'Close preview', exact: true }).click();
       await page.getByRole('button', { name: 'Mix it up', exact: true }).click();
       await page.waitForFunction(() => document.querySelector('[aria-label="YouTube deep discovery"]')?.getAttribute('data-discovery-ranked') === '96');
@@ -167,7 +167,7 @@ try {
       await grid.locator('[data-video-card-open]').first().waitFor();
       assert.ok((await ids()).every(id => { const index = +id.split('-').at(-1); return index >= 48000 && index % 3 === 0; }));
       const ratedId = (await ids())[0], ratedIndex = +ratedId.split('-').at(-1);
-      await grid.locator('[data-video-card-open]').first().click();
+      await grid.locator('[data-video-card-open]').first().locator('[data-video-card-details]').click();
       await page.getByRole('button', { name: `Rate Science archive ${ratedIndex} 1 stars`, exact: true }).click();
       await page.getByRole('button', { name: 'Close preview', exact: true }).click();
       await page.waitForFunction(() => /3,999 eligible/.test(document.querySelector('[aria-label="YouTube deep discovery"]')?.textContent));

@@ -1,0 +1,15 @@
+✔ short VODs and unknown legacy items are never clips by duration or title; long clips keep their identity (2.5424ms)
+✔ only a matching canonical identity, shelf and bounded observation can author a subtype (0.3247ms)
+✔ archive walk records each accepted page shelf without mutating provider edges or cursor budgets (1.1987ms)
+✔ actual Twitch API maps mixed archive shelves and a long clip to separate provider-backed types (516.1521ms)
+✔ all merge paths retain source proof through sparse observations, reject unrelated proof and admit exact upgrades (1.5761ms)
+✔ type filters combine with saved selections and bounded archive pages without changing catalog order (1.4611ms)
+✔ explicit type report retains provider evidence and uncertainty through CSV serialization (2.0702ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 776.2448

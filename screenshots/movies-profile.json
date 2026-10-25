@@ -1,0 +1,88 @@
+[
+  {
+    "viewport": "desktop",
+    "errors": [],
+    "navigation": {
+      "elapsedMs": 948,
+      "maxFrameMs": 83.5,
+      "inputs": [
+        {
+          "action": "Movies",
+          "ms": 19.30000001192093
+        }
+      ]
+    },
+    "shuffle": {
+      "elapsedMs": 1388,
+      "maxFrameMs": 989.2999999999997,
+      "inputs": [
+        {
+          "action": "Random pick",
+          "ms": 10.899999976158142
+        }
+      ]
+    },
+    "shuffleChanged": true,
+    "returnNavigation": {
+      "elapsedMs": 939,
+      "maxFrameMs": 72.5,
+      "inputs": [
+        {
+          "action": "Movies",
+          "ms": 13.699999988079071
+        }
+      ]
+    },
+    "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\movies-profile-desktop.png",
+    "overflow": false,
+    "cards": 32,
+    "classicsPersisted": true
+  },
+  {
+    "viewport": "mobile",
+    "errors": [],
+    "navigation": {
+      "elapsedMs": 947,
+      "maxFrameMs": 50.100000000000136,
+      "inputs": [
+        {
+          "action": "",
+          "ms": 35.69999998807907
+        },
+        {
+          "action": "Movies",
+          "ms": 24.19999998807907
+        }
+      ]
+    },
+    "shuffle": {
+      "elapsedMs": 1373,
+      "maxFrameMs": 967,
+      "inputs": [
+        {
+          "action": "Random pick",
+          "ms": 11.399999976158142
+        }
+      ]
+    },
+    "shuffleChanged": true,
+    "returnNavigation": {
+      "elapsedMs": 950,
+      "maxFrameMs": 44.400000000000546,
+      "inputs": [
+        {
+          "action": "",
+          "ms": 34.200000047683716
+        },
+        {
+          "action": "Movies",
+          "ms": 20.099999964237213
+        }
+      ]
+    },
+    "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\movies-profile-mobile.png",
+    "overflow": false,
+    "cards": 25,
+    "classicsPersisted": true
+  }
+]

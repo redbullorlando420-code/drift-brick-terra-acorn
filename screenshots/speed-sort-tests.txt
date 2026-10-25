@@ -1,0 +1,26 @@
+✔ sorting keeps stable ties across native runs and bounds every non-interruptible native sort (21.979ms)
+✔ already ordered million-entry catalogs use linear comparisons and sorting yields before reading (148.7414ms)
+✔ sorting cancellation stops before the first comparison and inside a large merge (7.3278ms)
+✔ catalog traversals yield and cancel before processing another slice (2.8733ms)
+✔ paged catalog iterators yield before reading and cancel without materializing the remaining million rows (0.9455ms)
+✔ large record copies are immutable, preserve unusual ids, and yield repeatedly (132.4905ms)
+✔ URL cache bounds long sessions and skips unchanged successful previews (119.4076ms)
+✔ copying sparse feedback avoids exporting its entire tree and preserves own values (50.0676ms)
+✔ sparse copying cancels through deleted entries before reading unrelated remaining values (24.0505ms)
+✔ Adult sweep rotates untouched providers and skips cooldowns (0.5012ms)
+✔ Adult provider shares reallocate unused new-entry capacity while preserving the pull cap (0.2223ms)
+✔ a complete 100,000-video grid rotates creators and retains every entry through the long tail (315.5039ms)
+✔ explicit orders and offline placeholders keep their previous behavior (11.8148ms)
+✔ VOD ranking computes each score once, yields and keeps full results without live or clips (4.0707ms)
+✔ cooperative YouTube selection preserves full visibility boundaries and stable date ordering (14.8127ms)
+✔ navigation preparation is cancellable during filtering and sorting (89.5104ms)
+✔ prepared browse catalogs and creator indexes preserve fair mixed/latest/trending shelves without a cold rescan (43.2857ms)
+✔ cancelled browse preparation never exposes a partial catalog (4.8038ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 713.7242

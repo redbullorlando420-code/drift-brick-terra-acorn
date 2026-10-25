@@ -11,6 +11,7 @@ export type CompanionHealth = {
   roots?: number;
   desktopEnabled?: boolean;
   ytDlp?: boolean;
+  youtubeDl?: boolean;
   downloadRoot?: string | null;
   libraryPackRoot?: string | null;
   thumbCacheRoot?: string | null;

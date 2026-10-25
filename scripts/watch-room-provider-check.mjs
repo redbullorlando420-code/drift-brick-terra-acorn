@@ -26,7 +26,7 @@ try {
   await page.goto("http://127.0.0.1:8080/", { waitUntil: "domcontentloaded" });
   await page.waitForTimeout(1_000);
   const seedProviders = async () => page.evaluate(async () => {
-    const source = await (await fetch("/src/components/library/hub-sections.tsx")).text();
+    const source = await (await fetch("/src/components/library/watch-room-section.tsx")).text();
     const moduleUrl = source.match(/from "(\/src\/lib\/videos\/store\.ts(?:\?t=\d+)?)"/)?.[1];
     if (!moduleUrl) throw new Error("Could not find the active library store module");
     const { useLibrary } = await import(/* @vite-ignore */ moduleUrl);
@@ -35,7 +35,9 @@ try {
     const clip = { id: "qa-twitch-clip", folderId: "qa", name: "QA Twitch Clip", path: "", extension: "clip", mime: "video/mp4", size: 0, duration: 20, addedAt: Date.now(), remote: { kind: "twitch", videoId: "ClipSlug", embedUrl: "https://clips.twitch.tv/embed?clip=ClipSlug", watchUrl: "https://www.twitch.tv/example/clip/ClipSlug" } };
     useLibrary.setState({ videos: [twitch, clip, ...youtube] });
   });
-  await page.getByRole("button", { name: "Watch room" }).click();
+  const workspace = page.getByRole("button", { name: "Workspace", exact: true });
+  if (await workspace.getAttribute("aria-expanded") === "false") await workspace.click();
+  await page.getByRole("button", { name: "Watch room", exact: true }).click();
   await page.getByRole("button", { name: "Start room" }).click();
   await seedProviders();
   await page.getByText("Explore more videos and advanced queue controls").click();
@@ -52,10 +54,15 @@ try {
   await page.getByRole("textbox", { name: "Search room videos" }).fill("QA YouTube 34");
   await page.getByRole("button", { name: "Queue", exact: true }).first().click();
   await page.getByText("QA YouTube 34").first().waitFor();
-  await page.getByText(/Twitch player ready/).waitFor({ timeout: 10000 }).catch(async (error) => { console.log((await page.locator("body").innerText()).slice(0, 4500)); console.log(errors); throw error; });
+  // Confirming Play now already starts the provider. Establish a paused
+  // baseline rather than waiting for its earlier, transient ready message.
+  await page.waitForFunction(() => Boolean(window.__twitchPlayer));
+  const pause = page.getByRole("button", { name: "Pause", exact: true });
+  if (await pause.count()) await pause.click();
+  const playCallsBefore = await page.evaluate(() => window.__twitchCalls.play);
   await page.getByRole("button", { name: "Play", exact: true }).first().click();
   await page.waitForTimeout(2_300);
-  assert.equal(await page.evaluate(() => window.__twitchCalls.play), 1, "heartbeat must not call Twitch play again");
+  assert.equal(await page.evaluate(() => window.__twitchCalls.play), playCallsBefore + 1, "heartbeat must not call Twitch play again");
   await page.evaluate(() => window.__twitchPlayer.emit("playback-blocked"));
   await page.getByRole("heading", { name: "Twitch waiting for playback" }).waitFor();
   await page.evaluate(() => window.__twitchPlayer.emit("playing"));

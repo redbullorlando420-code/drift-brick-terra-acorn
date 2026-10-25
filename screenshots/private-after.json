@@ -1,0 +1,154 @@
+[
+  {
+    "viewport": "desktop",
+    "errors": [],
+    "openShelves": {
+      "elapsedMs": 1224,
+      "maxFrameMs": 83.40000000000009,
+      "inputs": [
+        {
+          "action": "Load milestones and private shelves",
+          "ms": 49.80000000074506
+        }
+      ]
+    },
+    "name": {
+      "elapsedMs": 960,
+      "maxFrameMs": 22.299999999999727,
+      "inputs": [
+        {
+          "action": "name",
+          "ms": 26.900000002235174
+        }
+      ]
+    },
+    "recent": {
+      "elapsedMs": 439,
+      "maxFrameMs": 22.299999999999727,
+      "inputs": [
+        {
+          "action": "recent",
+          "ms": 28.600000001490116
+        }
+      ]
+    },
+    "Most tagged": {
+      "elapsedMs": 413,
+      "maxFrameMs": 22.300000000000182,
+      "inputs": [
+        {
+          "action": "Most tagged",
+          "ms": 27.400000002235174
+        }
+      ]
+    },
+    "Last played": {
+      "elapsedMs": 408,
+      "maxFrameMs": 22.299999999999272,
+      "inputs": [
+        {
+          "action": "Last played",
+          "ms": 26.900000002235174
+        }
+      ]
+    },
+    "favorites": {
+      "elapsedMs": 414,
+      "maxFrameMs": 27.800000000000182,
+      "inputs": [
+        {
+          "action": "favorites",
+          "ms": 47.099999997764826
+        }
+      ]
+    },
+    "membershipVerified": true,
+    "deferredDirectoriesVerified": true,
+    "fullCatalogKeyboardVerified": true,
+    "latestSortVerified": true,
+    "tagFilterVerified": true,
+    "navigationCancellationVerified": true,
+    "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\private-after-desktop.png",
+    "overflow": false,
+    "cards": 40,
+    "hiddenTitleVerified": true,
+    "persistenceVerified": true,
+    "hiddenTitlePersisted": true
+  },
+  {
+    "viewport": "mobile",
+    "errors": [],
+    "openShelves": {
+      "elapsedMs": 1046,
+      "maxFrameMs": 66.69999999999982,
+      "inputs": [
+        {
+          "action": "Load milestones and private shelves",
+          "ms": 27.800000000745058
+        }
+      ]
+    },
+    "name": {
+      "elapsedMs": 404,
+      "maxFrameMs": 27.800000000000182,
+      "inputs": [
+        {
+          "action": "name",
+          "ms": 48
+        }
+      ]
+    },
+    "recent": {
+      "elapsedMs": 373,
+      "maxFrameMs": 16.59999999999991,
+      "inputs": [
+        {
+          "action": "recent",
+          "ms": 9.300000000745058
+        }
+      ]
+    },
+    "Most tagged": {
+      "elapsedMs": 397,
+      "maxFrameMs": 27.799999999999727,
+      "inputs": [
+        {
+          "action": "Most tagged",
+          "ms": 46.900000002235174
+        }
+      ]
+    },
+    "Last played": {
+      "elapsedMs": 409,
+      "maxFrameMs": 27.700000000000273,
+      "inputs": [
+        {
+          "action": "Last played",
+          "ms": 50.19999999925494
+        }
+      ]
+    },
+    "favorites": {
+      "elapsedMs": 398,
+      "maxFrameMs": 22.199999999999818,
+      "inputs": [
+        {
+          "action": "favorites",
+          "ms": 28.100000001490116
+        }
+      ]
+    },
+    "membershipVerified": true,
+    "deferredDirectoriesVerified": true,
+    "fullCatalogKeyboardVerified": true,
+    "latestSortVerified": true,
+    "tagFilterVerified": true,
+    "navigationCancellationVerified": true,
+    "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\private-after-mobile.png",
+    "overflow": false,
+    "cards": 21,
+    "hiddenTitleVerified": true,
+    "persistenceVerified": true,
+    "hiddenTitlePersisted": true
+  }
+]

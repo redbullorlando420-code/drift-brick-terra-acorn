@@ -8,6 +8,10 @@ try {
   const hostContext = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   await hostContext.addInitScript(() => localStorage.setItem("reelcase.sidebar.groups.v1", JSON.stringify({ library: true, workspace: true, tools: false })));
   const guestContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  for(const context of [hostContext,guestContext])await context.addInitScript(()=>{
+    window.__seekPackets=[];const send=RTCDataChannel.prototype.send;
+    RTCDataChannel.prototype.send=function(value){try{const packet=JSON.parse(value);if(['sync-request','sync'].includes(packet.d?.type)){window.__seekPackets.push(packet.d);if(window.__seekPackets.length>16)window.__seekPackets.shift();}}catch{}return send.call(this,value);};
+  });
   const host = await hostContext.newPage();
   const guest = await guestContext.newPage();
   for (const page of [host, guest]) page.on("pageerror", (error) => errors.push(error.message));
@@ -31,6 +35,16 @@ try {
   const decodedFrames = await incoming.evaluate((video) => video.getVideoPlaybackQuality().totalVideoFrames);
   await guest.getByRole("button", { name: "Pause", exact: true }).first().click();
   await host.waitForFunction(() => document.querySelector("video")?.paused);
+  for(const seconds of [2,0]){
+    await guest.getByRole('spinbutton',{name:'My timing offset in seconds',exact:true}).fill(String(seconds));
+    await guest.getByRole('button',{name:'Apply timing',exact:true}).click();
+    await guest.locator(`[data-guest-offset="${seconds}"]`).waitFor();
+  }
+  const slider=guest.getByRole('slider',{name:'Seek shared video',exact:true});
+  await slider.press('Home');await host.waitForFunction(()=>document.querySelector('video')?.currentTime<0.1);
+  await slider.press('ArrowRight');
+  try{await host.waitForFunction(()=>document.querySelector('video')?.currentTime>=0.2,null,{timeout:6000});}
+  catch(error){for(const page of [host,guest])console.log(JSON.stringify(await page.evaluate(()=>({packets:window.__seekPackets,slider:document.querySelector('input[type="range"]')?.value,focused:document.activeElement?.outerHTML,video:document.querySelector('video')?.currentTime}))));throw error;}
   await guest.getByRole("button", { name: "Play", exact: true }).first().click();
   await host.waitForFunction(() => document.querySelector("video")?.paused === false);
   await host.screenshot({ path: "screenshots/watch-room-built-host.png", fullPage: true });
@@ -40,5 +54,5 @@ try {
   await guest.getByRole("button", { name: "Leave room", exact: true }).click();
   assert.equal(await guest.locator("video[data-room-stream]").count(), 0);
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ production: true, decodedFrames, guestSelectedFiles: 0, checks: ["consent gate", "local playback reaches empty phone without file copy", "guest pause and resume", "mobile no overflow", "leave releases stream player"], errors }, null, 2));
+  console.log(JSON.stringify({ production: true, decodedFrames, guestSelectedFiles: 0, checks: ["consent gate", "local playback reaches empty phone without file copy", "guest pause and resume", "keyboard range seeks reach the host", "mobile no overflow", "leave releases stream player"], errors }, null, 2));
 } finally { await browser.close(); }

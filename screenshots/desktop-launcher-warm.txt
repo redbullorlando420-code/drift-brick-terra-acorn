@@ -1,0 +1,2 @@
+Realhub — local server and Companion. Leave this window open. Ctrl+C stops services started here.
+Realhub is ready. Existing services were reused.

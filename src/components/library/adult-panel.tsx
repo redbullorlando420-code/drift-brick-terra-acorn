@@ -1,7 +1,7 @@
 import { REDDIT_SOURCE_STORAGE_KEY, readRedditSourceSettings, type RedditSourceSetting } from "@/lib/videos/adult-pull-plan";
 import { DEFAULT_PULL_SETTINGS, getPullSettings, subscribePullSettings } from '@/lib/pull-settings';
 import { getPullCancellationRevision } from '@/lib/pull-control';
-import { useDeferredValue, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { memo, useDeferredValue, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { ChevronDown, ChevronRight, ExternalLink, Flag, LoaderCircle, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -391,7 +391,7 @@ function SiteCard({
   );
 }
 
-export function AdultPanel({
+export const AdultPanel = memo(function AdultPanel({
   showMilestones = false,
   sourceFilter = "all",
   tagFilter: tagFilterProp,
@@ -660,14 +660,17 @@ export function AdultPanel({
   // Automatic archive pacing is owned by LibraryApp's fair provider queue.
   // The panel keeps manual pulls and source preferences without a second timer.
 
-  const milestoneLinks = ADULT_MILESTONE_LINKS.filter((site) => site.href !== ADULT_CATEGORY_HUB.href);
+  const [openMilestones, setOpenMilestones] = useState<Record<string, boolean>>({});
+  const milestoneLinks = useMemo(() => ADULT_MILESTONE_LINKS.filter(site => site.href !== ADULT_CATEGORY_HUB.href), []);
+  const toggleMilestone = (key: string, open: boolean) => setOpenMilestones(previous => previous[key] === open ? previous : { ...previous, [key]: open });
 
   return (
     <div className="mb-6 flex flex-col gap-5">
       {showMilestones && (
         <>
-      <details className="rounded-xl bg-elevated shadow-border">
+      <details data-milestone-section="hub" onToggle={event => toggleMilestone("hub", event.currentTarget.open)} className="rounded-xl bg-elevated shadow-border">
         <summary className="cursor-pointer list-none p-5 [&::-webkit-details-marker]:hidden"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Category hub</p><h2 className="mt-2 font-display text-2xl text-fg sm:text-3xl">ThePornDude directory</h2><p className="mt-2 text-xs text-muted">Collapse this section to keep the Adult catalog compact.</p></summary>
+        {openMilestones.hub && (
         <div className="px-5 pb-5">
         <p className="mt-2 max-w-2xl text-sm text-muted">
           Use ThePornDude as the main adult category map (tubes, cams, anime, games, niche lists).
@@ -678,10 +681,12 @@ export function AdultPanel({
           <SiteCard {...ADULT_CATEGORY_HUB} badge="Hub" />
         </div>
         </div>
+        )}
       </details>
 
-      <details className="rounded-xl bg-elevated shadow-border">
+      <details data-milestone-section="sources" onToggle={event => toggleMilestone("sources", event.currentTarget.open)} className="rounded-xl bg-elevated shadow-border">
         <summary className="cursor-pointer list-none p-5 [&::-webkit-details-marker]:hidden"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Adult sites</p><h2 className="mt-2 font-display text-2xl text-fg sm:text-3xl">Embed-ready pull sources</h2><p className="mt-2 text-xs text-muted">Collapse this section to focus on the catalog.</p></summary>
+        {openMilestones.sources && (
         <div className="px-5 pb-5">
         <p className="mt-2 max-w-2xl text-sm text-muted">
           Official public APIs: Eporner, RedTube, Chaturbate embeds, the MyFreeCams online list,
@@ -693,17 +698,21 @@ export function AdultPanel({
           ))}
         </div>
         </div>
+        )}
       </details>
 
-      <details className="rounded-xl bg-elevated shadow-border">
+      <details data-milestone-section="coverage" onToggle={event => toggleMilestone("coverage", event.currentTarget.open)} className="rounded-xl bg-elevated shadow-border">
         <summary className="cursor-pointer list-none p-5 [&::-webkit-details-marker]:hidden"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Catalog milestones</p><h2 className="mt-2 font-display text-2xl text-fg">Current reliability coverage</h2><p className="mt-2 text-xs text-muted">Expand for the active work grouped by catalog area.</p></summary>
+        {openMilestones.coverage && (
         <div className="grid gap-3 border-t border-border px-5 pb-5 pt-4 sm:grid-cols-2 lg:grid-cols-3">
           {[['Reddit media', 'Saved community list, priority/favorite and hide controls, Atom pulls, Redgifs dual-source cards, and image recovery.'], ['Live rooms', 'Chaturbate and MyFreeCams public room lists with live-only placement and provider diagnostics.'], ['Photos & tags', 'Booru response-shape recovery, creator attribution, stable tag scoring, and permanent heart history.'], ['Catalog feedback', 'Pull health explains loaded, empty, and failed providers; ratings rebuild the weekly streak from durable feedback.']].map(([title, copy]) => <div key={title} className="rounded-md bg-surface p-3 shadow-border"><p className="text-sm font-medium text-fg">{title}</p><p className="mt-1 text-xs leading-5 text-muted">{copy}</p></div>)}
         </div>
+        )}
       </details>
 
-      <details className="order-last rounded-xl bg-elevated shadow-border">
+      <details data-milestone-section="links" onToggle={event => toggleMilestone("links", event.currentTarget.open)} className="order-last rounded-xl bg-elevated shadow-border">
         <summary className="cursor-pointer list-none p-4 [&::-webkit-details-marker]:hidden"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Link-out destinations</p><p className="mt-1 text-sm text-muted">Optional directories grouped below the catalog · {milestoneLinks.length} sites.</p></summary>
+        {openMilestones.links && (
         <div className="border-t border-border px-4 pb-4 pt-3">
         <div className="flex items-start gap-3">
           <span className="mt-1 flex size-9 items-center justify-center rounded-lg bg-surface text-accent shadow-border">
@@ -775,6 +784,7 @@ export function AdultPanel({
           })}
         </div>
         </div>
+        )}
       </details>
         </>
       )}
@@ -1136,4 +1146,4 @@ export function AdultPanel({
       </section>
     </div>
   );
-}
+});

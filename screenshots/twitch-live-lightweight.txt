@@ -1,0 +1,8 @@
+{
+  "channels": 2000,
+  "upstreamRequests": 167,
+  "maxChannelsPerRequest": 12,
+  "peakTransfers": 2,
+  "elapsedMs": 1304,
+  "limitation": "Injected public-metadata boundary; no real Twitch requests. Demonstrates bounded batching and parallelism, not production network speed. The real-store 2,000-follow test separately verifies 43 client jobs and zero video rewrites for offline results."
+}

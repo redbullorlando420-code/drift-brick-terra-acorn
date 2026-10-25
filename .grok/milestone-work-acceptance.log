@@ -1,0 +1,22 @@
+✔ exactly 100 distinct planned milestones cover ten workstreams with executable contracts (512.2201ms)
+✔ all prerequisite references exist, are acyclic and precede dependent work (0.8757ms)
+✔ revision 26 appends new briefs once without resetting prior manual choices or custom ideas (6.0817ms)
+✔ known brief updates retain saved status while adopting the current implementation contract (0.5333ms)
+✔ copied briefs include concrete scope, dependency status, acceptance and safe execution boundaries (0.5969ms)
+✔ checked-in roadmap is reproducible and exports all 100 full briefs without completing work (130.7893ms)
+✔ 21 small redacted YouTube contract fixtures recognize supported shapes and reject unreadable replacements (10.4167ms)
+✔ Twitch live contract rejects malformed stream identities and viewer values, but accepts real zero-viewer and offline observations (2.8334ms)
+✔ Twitch aliased optional failures preserve verified state while critical and bubbled negatives stay unknown (2.4229ms)
+✔ Twitch whole-request failures stay within their 12-user chunk and later chunks finish (1.2806ms)
+✔ actual 100-target Twitch refresh commits healthy siblings and retries only six bad observations (290.1019ms)
+✔ actual valid empty RSS feed succeeds without a channel or live fallback; malformed RSS retains checkpoints (118.9953ms)
+✔ a renamed live renderer or incomplete Streams container cannot confirm an offline observation (9.6114ms)
+✔ a partial malformed archive page retains the previous complete page and its next token (173.9361ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2220.589

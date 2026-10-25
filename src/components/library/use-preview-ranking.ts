@@ -10,6 +10,7 @@ import { peekYoutubeOwner } from '@/lib/remote/youtube-sources';
 import { useLibrary } from '@/lib/videos/store';
 import { isRemovedRedditVideo } from '@/lib/videos/reddit-removed';
 import { rememberVideo } from '@/lib/videos/video-lookup';
+import { youtubeContentKind, youtubePublicationTime } from '@/lib/videos/youtube-metadata';
 
 const EMPTY: PreviewRanking = { related: [], recommended: [], tagScores: {} };
 const EMPTY_TAGS: string[] = [];
@@ -110,6 +111,11 @@ function prepare(session: Session, inputs: Inputs) {
         let taste = creators.get(creator);
         if (!taste) { taste = { rating: feedback.creatorRatings[creator] ?? 0, liked: Boolean(feedback.creatorLikes[creator]), favorite: Boolean(feedback.creatorFavorites[creator]) }; creators.set(creator, taste); }
         rows.push({ id: item.id, folderId: item.folderId, genre: item.genre, kind: item.remote?.kind, creator,
+          creatorId: item.remote?.channelId ? `${item.remote.kind}:${item.remote.channelId}` : undefined,
+          identity: item.remote?.videoId ? `${item.remote.kind}:${item.remote.videoId}` : item.id,
+          titleTokens: [...new Set(item.name.toLowerCase().match(/[\p{L}\p{N}]{3,}/gu) ?? [])].filter(word => !/^(?:the|and|with|for|this|that|from|video|youtube|official|full|part|episode)$/.test(word)).slice(0,16),
+          format: item.remote?.kind === 'youtube' ? youtubeContentKind(item) : undefined,
+          publishedAt: item.remote?.kind === 'youtube' ? youtubePublicationTime(item) : undefined,
           tags: (inputs.tags[item.id] ?? EMPTY_TAGS).slice(0, 32), rating: feedback.ratings[item.id] ?? 0, creatorRating: taste.rating, creatorLiked: taste.liked, creatorFavorite: taste.favorite, favorite: Boolean(inputs.favorites[item.id]), liked: Boolean(inputs.likes[item.id]),
           marks: inputs.cameCounts[item.id] ?? 0, plays: inputs.viewCounts[item.id] ?? 0, watch: feedback.watchScores[item.id] ?? 0,
           adult: isAdultPullKind(item.remote?.kind) || inputs.adultFolders.has(item.folderId), live: Boolean(item.remote?.live),

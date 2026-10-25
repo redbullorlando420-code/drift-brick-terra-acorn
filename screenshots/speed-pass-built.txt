@@ -1,0 +1,154 @@
+{"viewport":"desktop","stage":"seed"}
+{"viewport":"desktop","stage":"reload"}
+{"viewport":"desktop","stage":"browse"}
+{"viewport":"desktop","stage":"preview and search"}
+{"viewport":"desktop","stage":"YouTube formats"}
+{"viewport":"desktop","stage":"balanced Twitch and background Stats"}
+{"viewport":"desktop","stage":"complete Twitch saved/topic filters"}
+{"viewport":"desktop","stage":"dense saved shelves and shared controls"}
+{"viewport":"desktop","stage":"scorecard"}
+{"viewport":"mobile","stage":"seed"}
+{"viewport":"mobile","stage":"reload"}
+{"viewport":"mobile","stage":"browse"}
+{"viewport":"mobile","stage":"preview and search"}
+{"viewport":"mobile","stage":"YouTube formats"}
+{"viewport":"mobile","stage":"balanced Twitch and background Stats"}
+{"viewport":"mobile","stage":"complete Twitch saved/topic filters"}
+{"viewport":"mobile","stage":"dense saved shelves and shared controls"}
+{"viewport":"mobile","stage":"scorecard"}
+{
+  "ok": true,
+  "url": "http://127.0.0.1:8082/",
+  "fixture": "80,000 compact entries, stable saved tags and 90% of Twitch archive from one creator, 60,000 saved titles and history entries, pulling paused, text-first artwork, isolated Chromium contexts; fake media and offline Companion responses stubbed",
+  "limitation": "Synthetic browser check; does not establish real-provider throughput, long-session memory stability, or physical-device performance.",
+  "budgets": {
+    "startupMs": 3000,
+    "navigationMs": 2000,
+    "scrollSettleMs": 500,
+    "inputMs": 200,
+    "mountedCards": 256,
+    "overflowPixels": 0
+  },
+  "results": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "startupMs": 135.30000001192093,
+      "catalogEntries": 80000,
+      "navigationMs": 1369.300000011921,
+      "scrollSettleMs": 13.700000047683716,
+      "coldSearchMs": 842,
+      "warmSearchMs": 314,
+      "reusedSearchIndex": true,
+      "searchTransfer": {
+        "rows": 80000,
+        "batches": 157,
+        "maximumBatch": 512
+      },
+      "searchScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\speed-pass-built-search-desktop.png",
+      "artworkIdleVerified": true,
+      "formatsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\speed-pass-built-formats-desktop.png",
+      "formatShelfScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\speed-pass-built-format-shelf-desktop.png",
+      "youtubeFormatsVerified": true,
+      "balancedTwitchVerified": true,
+      "twitchScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\speed-pass-built-twitch-desktop.png",
+      "fullTwitchMixVerified": true,
+      "twitchGridScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\speed-pass-built-twitch-grid-desktop.png",
+      "twitchFilteredMountedCards": 48,
+      "twitchActivityUpdatesVerified": true,
+      "twitchShelfContinuityVerified": true,
+      "twitchSavedFiltersVerified": true,
+      "twitchFiltersScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\speed-pass-built-twitch-filters-desktop.png",
+      "statsShellMs": 399,
+      "statsCompleteMs": 2247,
+      "statsChartScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\speed-pass-built-stats-chart-desktop.png",
+      "statsHiddenChartsVerified": true,
+      "statsChartVisibilityVerified": true,
+      "statsWorkerFreed": true,
+      "statsExportVerified": true,
+      "statsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\speed-pass-built-stats-desktop.png",
+      "warmStatsMs": 35,
+      "reusedStatsSnapshot": true,
+      "favoriteReadyMs": 25,
+      "sharedSavedFilterCancellationVerified": true,
+      "savedCatalogVerified": true,
+      "favoriteScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\speed-pass-built-favorites-desktop.png",
+      "sharedControlsVerified": true,
+      "providerBudgetsVerified": true,
+      "scorecardVerified": true,
+      "exportVerified": true,
+      "safeguardsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\speed-pass-built-safeguards-desktop.png",
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\speed-pass-built-desktop.png",
+      "inputMs": 28.399999976158142,
+      "mountedCards": 66,
+      "overflowPixels": 0,
+      "worstInput": {
+        "action": "Text-first modeYouTube7:00Gate archive 72Gate creator 72 · ShortPublication date",
+        "ms": 28.399999976158142
+      },
+      "slowInputs": [],
+      "ok": true,
+      "failures": []
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "startupMs": 136.10000002384186,
+      "catalogEntries": 80000,
+      "navigationMs": 890.6999999880791,
+      "scrollSettleMs": 13.300000011920929,
+      "coldSearchMs": 841,
+      "warmSearchMs": 216,
+      "reusedSearchIndex": true,
+      "searchTransfer": {
+        "rows": 80000,
+        "batches": 157,
+        "maximumBatch": 512
+      },
+      "searchScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\speed-pass-built-search-mobile.png",
+      "artworkIdleVerified": true,
+      "formatsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\speed-pass-built-formats-mobile.png",
+      "formatShelfScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\speed-pass-built-format-shelf-mobile.png",
+      "youtubeFormatsVerified": true,
+      "balancedTwitchVerified": true,
+      "twitchScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\speed-pass-built-twitch-mobile.png",
+      "fullTwitchMixVerified": true,
+      "twitchGridScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\speed-pass-built-twitch-grid-mobile.png",
+      "twitchFilteredMountedCards": 24,
+      "twitchActivityUpdatesVerified": true,
+      "twitchShelfContinuityVerified": true,
+      "twitchSavedFiltersVerified": true,
+      "twitchFiltersScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\speed-pass-built-twitch-filters-mobile.png",
+      "statsShellMs": 388,
+      "statsCompleteMs": 2230,
+      "statsChartScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\speed-pass-built-stats-chart-mobile.png",
+      "statsHiddenChartsVerified": true,
+      "statsChartVisibilityVerified": true,
+      "statsWorkerFreed": true,
+      "statsExportVerified": true,
+      "statsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\speed-pass-built-stats-mobile.png",
+      "warmStatsMs": 66,
+      "reusedStatsSnapshot": true,
+      "favoriteReadyMs": 81,
+      "sharedSavedFilterCancellationVerified": true,
+      "savedCatalogVerified": true,
+      "favoriteScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\speed-pass-built-favorites-mobile.png",
+      "sharedControlsVerified": true,
+      "providerBudgetsVerified": true,
+      "scorecardVerified": true,
+      "exportVerified": true,
+      "safeguardsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\speed-pass-built-safeguards-mobile.png",
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\speed-pass-built-mobile.png",
+      "inputMs": 34.30000001192093,
+      "mountedCards": 40,
+      "overflowPixels": 0,
+      "worstInput": {
+        "action": "Open menu",
+        "ms": 34.30000001192093
+      },
+      "slowInputs": [],
+      "ok": true,
+      "failures": []
+    }
+  ]
+}

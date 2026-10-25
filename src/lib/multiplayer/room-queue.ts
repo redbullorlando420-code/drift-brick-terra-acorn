@@ -1,5 +1,21 @@
 export const ROOM_QUEUE_LIMIT = 48;
 export type RoomQueueAction = { kind: "add" | "remove" | "move" | "next" | "up" | "down"; id: string; before?: string };
+export type RoomQueueEdit = { kind: 'remove' | 'next' | 'end'; ids: string[] };
+/** A batch is an intention against the latest host order, never a replacement
+ * snapshot. Missing selections cannot resurrect titles consumed meanwhile. */
+export function parseRoomQueueEdit(value: unknown): RoomQueueEdit | null {
+  if (!value || typeof value !== 'object') return null;
+  const edit = value as Partial<RoomQueueEdit>;
+  if (!['remove', 'next', 'end'].includes(edit.kind ?? '') || !Array.isArray(edit.ids) || !edit.ids.length || edit.ids.length > ROOM_QUEUE_LIMIT) return null;
+  if (edit.ids.some(id => typeof id !== 'string' || !id.trim() || id.length > 600)) return null;
+  return { kind: edit.kind!, ids: normalizeRoomQueue(edit.ids) };
+}
+export function applyRoomQueueEdit(current: readonly string[], edit: RoomQueueEdit): string[] {
+  const rows = normalizeRoomQueue(current), selected = new Set(edit.ids.slice(0, ROOM_QUEUE_LIMIT));
+  const kept = rows.filter(id => !selected.has(id));
+  const moved = rows.filter(id => selected.has(id));
+  return edit.kind === 'remove' ? kept : edit.kind === 'next' ? [...moved, ...kept] : [...kept, ...moved];
+}
 export function normalizeRoomQueue(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return [

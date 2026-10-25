@@ -1,0 +1,185 @@
+{
+  "results": [
+    {
+      "size": 100000,
+      "shape": "ordered",
+      "before": {
+        "elapsedMs": 16.96,
+        "initiatingMs": 0.327,
+        "comparisons": 877968,
+        "yields": 830,
+        "worstWorkMs": 0.33
+      },
+      "after": {
+        "elapsedMs": 2.08,
+        "initiatingMs": 0.021,
+        "comparisons": 99999,
+        "yields": 49,
+        "worstWorkMs": 0.05
+      }
+    },
+    {
+      "size": 100000,
+      "shape": "nearly-ordered",
+      "before": {
+        "elapsedMs": 12.46,
+        "initiatingMs": 0.145,
+        "comparisons": 877992,
+        "yields": 830,
+        "worstWorkMs": 0.14
+      },
+      "after": {
+        "elapsedMs": 12.31,
+        "initiatingMs": 0.041,
+        "comparisons": 378941,
+        "yields": 489,
+        "worstWorkMs": 0.2
+      }
+    },
+    {
+      "size": 100000,
+      "shape": "reverse",
+      "before": {
+        "elapsedMs": 12.28,
+        "initiatingMs": 0.14,
+        "comparisons": 815024,
+        "yields": 830,
+        "worstWorkMs": 0.14
+      },
+      "after": {
+        "elapsedMs": 9.88,
+        "initiatingMs": 0.002,
+        "comparisons": 515493,
+        "yields": 489,
+        "worstWorkMs": 0.15
+      }
+    },
+    {
+      "size": 100000,
+      "shape": "mixed",
+      "before": {
+        "elapsedMs": 20.5,
+        "initiatingMs": 0.152,
+        "comparisons": 1589207,
+        "yields": 830,
+        "worstWorkMs": 0.22
+      },
+      "after": {
+        "elapsedMs": 18.59,
+        "initiatingMs": 0.002,
+        "comparisons": 1566503,
+        "yields": 489,
+        "worstWorkMs": 0.26
+      }
+    },
+    {
+      "size": 100000,
+      "shape": "ties",
+      "before": {
+        "elapsedMs": 16.97,
+        "initiatingMs": 0.134,
+        "comparisons": 1483496,
+        "yields": 830,
+        "worstWorkMs": 0.16
+      },
+      "after": {
+        "elapsedMs": 17.02,
+        "initiatingMs": 0.002,
+        "comparisons": 1482314,
+        "yields": 489,
+        "worstWorkMs": 0.35
+      }
+    },
+    {
+      "size": 1000000,
+      "shape": "ordered",
+      "before": {
+        "elapsedMs": 170.06,
+        "initiatingMs": 1.281,
+        "comparisons": 10095552,
+        "yields": 9765,
+        "worstWorkMs": 1.28
+      },
+      "after": {
+        "elapsedMs": 13.14,
+        "initiatingMs": 0.003,
+        "comparisons": 999999,
+        "yields": 489,
+        "worstWorkMs": 0.14
+      }
+    },
+    {
+      "size": 1000000,
+      "shape": "nearly-ordered",
+      "before": {
+        "elapsedMs": 203.58,
+        "initiatingMs": 1.444,
+        "comparisons": 10095796,
+        "yields": 9765,
+        "worstWorkMs": 1.44
+      },
+      "after": {
+        "elapsedMs": 101.06,
+        "initiatingMs": 0.003,
+        "comparisons": 5100149,
+        "yields": 6348,
+        "worstWorkMs": 1.48
+      }
+    },
+    {
+      "size": 1000000,
+      "shape": "reverse",
+      "before": {
+        "elapsedMs": 199.59,
+        "initiatingMs": 1.336,
+        "comparisons": 9884992,
+        "yields": 9765,
+        "worstWorkMs": 1.33
+      },
+      "after": {
+        "elapsedMs": 108.96,
+        "initiatingMs": 0.004,
+        "comparisons": 6888961,
+        "yields": 6348,
+        "worstWorkMs": 1.34
+      }
+    },
+    {
+      "size": 1000000,
+      "shape": "mixed",
+      "before": {
+        "elapsedMs": 742.58,
+        "initiatingMs": 1.397,
+        "comparisons": 18942833,
+        "yields": 9765,
+        "worstWorkMs": 1.4
+      },
+      "after": {
+        "elapsedMs": 678.54,
+        "initiatingMs": 0.005,
+        "comparisons": 18716388,
+        "yields": 6348,
+        "worstWorkMs": 1.59
+      }
+    },
+    {
+      "size": 1000000,
+      "shape": "ties",
+      "before": {
+        "elapsedMs": 319.58,
+        "initiatingMs": 1.32,
+        "comparisons": 17810263,
+        "yields": 9765,
+        "worstWorkMs": 1.31
+      },
+      "after": {
+        "elapsedMs": 278.57,
+        "initiatingMs": 0.004,
+        "comparisons": 17798725,
+        "yields": 6348,
+        "worstWorkMs": 1.35
+      }
+    }
+  ],
+  "note": "Synthetic Node A/B with the previous production helper, identical reference arrays and cooperative setImmediate yields. Each metric is the median of three runs with alternating algorithm order. Stable full outputs are compared. Elapsed times include scheduling and runtime GC; these are not browser paint timings."
+}

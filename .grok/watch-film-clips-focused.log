@@ -1,0 +1,25 @@
+✔ Anime catalog preserves evidence, stable date/format order and original finder order (13.2364ms)
+✔ private providers/folders, unavailable, hidden and disabled samples stay out of both searches (0.7656ms)
+✔ Continue resolves once per title and preserves resume floors, completion boundary and stable ties (1.0069ms)
+✔ large catalog stages yield and obsolete preparation, sorts and rare searches can be cancelled (454.1365ms)
+ℹ 80,000 titles prepared in 401 ms across 708 task boundaries (in-process fixture)
+✔ anime scene notation preserves season/episode numbers and ignores release years and quality codes (2.8793ms)
+✔ anime shelf excludes commentary/music/merch/games and description-only mentions while accepting numbered series and manual choices (2.6905ms)
+✔ anime films, OVAs and numbered series have separate filters and natural episode order (13.774ms)
+✔ movie-specific filters retain strict film membership, real runtimes and unknown release years (6.6134ms)
+✔ movie membership trusts manual choices but not automatically inferred generic film tags (0.6749ms)
+✔ movie and anime selection yield and cancel instead of publishing obsolete filter results (92.7297ms)
+✔ host-owned readiness and votes are one per transport identity, bounded, and pruned after departures or title consumption (0.9469ms)
+✔ guest playback and seek permissions are independent and cannot smuggle another action (0.2729ms)
+✔ clip refresh rotates across the full follow list with independent clocks, retries and exhaustion (3.0243ms)
+✔ newest/most-viewed clip windows stay bounded and never boost missing/future creation dates (15.7486ms)
+✔ actual clip-only recent requests skip VOD/live fields, ignore old cursors, deduplicate periods and retain original cache observation (229.2179ms)
+✔ actual older clip partial failure retains accepted clips and its safe cursor, with a clip-specific failure (203.1147ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 918.5229

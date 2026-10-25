@@ -1,6 +1,6 @@
 import type { FollowedChannel, ProviderFailure, TwitchRetryState } from './types';
 
-export type TwitchRetryScope = 'archive' | 'live';
+export type TwitchRetryScope = 'archive' | 'live' | 'clips' | 'clips-recent';
 export function normalizeTwitchRetry(raw: unknown): TwitchRetryState | undefined {
   if (!raw || typeof raw !== 'object') return;
   const row = raw as Record<string, unknown>;
@@ -11,11 +11,11 @@ export function normalizeTwitchRetry(raw: unknown): TwitchRetryState | undefined
 
 /** Durable, independent budgets. An explicit retry only changes its own scope. */
 export function twitchRetryPatch(channel: Partial<FollowedChannel>, scope: TwitchRetryScope, failure?: ProviderFailure, now = Date.now()): Partial<FollowedChannel> {
-  const key = scope === 'live' ? 'twitchLiveRetry' : 'twitchArchiveRetry';
-  const failureKey = scope === 'live' ? 'lastLiveFailure' : 'lastProviderFailure';
+  const key = scope === 'clips-recent' ? 'twitchClipRecentRetry' : scope === 'clips' ? 'twitchClipRetry' : scope === 'live' ? 'twitchLiveRetry' : 'twitchArchiveRetry';
+  const failureKey = scope === 'clips' || scope === 'clips-recent' ? 'lastClipFailure' : scope === 'live' ? 'lastLiveFailure' : 'lastProviderFailure';
   if (!failure) return { [key]: undefined, [failureKey]: undefined };
   const attempts = Math.min(8, (normalizeTwitchRetry(channel[key])?.attempts ?? 0) + 1);
-  const retryAt = now + Math.min(300_000, 15_000 * 2 ** (attempts - 1));
+  const retryAt = Math.max(failure.retryAt ?? 0, now + Math.min(300_000, 15_000 * 2 ** (attempts - 1)));
   return { [key]: { attempts, retryAt }, [failureKey]: { ...failure, retryAt } };
 }
 

@@ -1,0 +1,25 @@
+{
+  "ok": true,
+  "url": "http://127.0.0.1:8080/",
+  "note": "Isolated browser profiles; platform handoffs intercepted, no social posts sent. Local disk failure simulated. Live chat, live detection and game adapter remain unconnected.",
+  "results": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "png": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\stream-signal-dev-story-desktop.png",
+      "announcementScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\stream-signal-dev-announcements-desktop.png",
+      "labScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\stream-signal-dev-lab-desktop.png",
+      "overflow": 0,
+      "ok": true
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "png": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\stream-signal-dev-story-mobile.png",
+      "announcementScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\stream-signal-dev-announcements-mobile.png",
+      "labScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\stream-signal-dev-lab-mobile.png",
+      "overflow": 0,
+      "ok": true
+    }
+  ]
+}

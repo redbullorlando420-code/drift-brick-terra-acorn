@@ -1,6 +1,41 @@
 # Realhub Companion (v10)
 
+## YouTube browser sign-in and saved playback
+
+Run `Setup-YouTube-Downloads.cmd` to install/update the official checksum-verified
+yt-dlp binary, then start Companion. Existing youtube-dl installations remain a
+fallback for ordinary downloads. The setup script never reads a browser session.
+
+When a YouTube embed asks for age verification or sign-in, choose **Use browser
+sign-in** in the player. In the download panel, explicitly enable **Use my
+signed-in browser for this download**, choose Chrome, Edge or Firefox, and start
+the download. Your account must already be able to watch the video on YouTube.
+This option resets when the panel closes. No cookies are exported to the app,
+localStorage, the download manifest or a cookie file. A browser database may be
+locked, and Chromium encryption can prevent extraction; the panel explains
+retrying with a signed-in Firefox session. YouTube may still reject access.
+
+After completion, **Watch saved video** plays the local copy with native controls
+and seeking. The companion serves only completed YouTube job files, by job ID,
+under the approved download root. Range/HEAD requests retain the loopback and
+trusted-Origin checks. Arbitrary paths, incomplete jobs and cookie files are not
+served. The web player cannot inspect the age-restriction text inside YouTube's
+cross-origin iframe; the sign-in fallback stays visible while viewing YouTube.
+**Open on YouTube** remains available. No automatic authentication or polling is
+added to cards or playback; the existing open-dialog job poll stops on close.
+
+References: [yt-dlp cookies FAQ](https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp),
+[JavaScript runtime setup](https://github.com/yt-dlp/yt-dlp/wiki/EJS).
+
 ## Start it on Windows
+
+The **Realhub** desktop shortcut now starts both the app server and Companion,
+waits for readiness and opens the library. It reuses an already-running Companion.
+`Start-Realhub.cmd` in the main app folder provides the same combined startup.
+The combined launcher keeps services in the background; closing the browser
+does not stop them. Its startup logs are in the main app's `.grok/desktop-*.log`.
+
+For a standalone Companion console:
 
 1. Close any older Companion window.
 2. In the main Realhub folder, double-click `Start-Realhub-Companion.cmd`.
@@ -58,3 +93,6 @@ yt-dlp is **not** bundled — install it yourself. No torrent / *arr stack.
 - Raises a Windows tray balloon shortly after start so finished offline jobs are noticeable.
 
 `GET /health` reports `ytDlp`, `downloadRoot`, pack/thumb/prints roots, `trayBadge`, and capabilities.
+
+
+For streamed Hugging Face model imports and the isolated Qwen-Image 2.1 engine, see [STUDIO_MODELS.md](../STUDIO_MODELS.md).

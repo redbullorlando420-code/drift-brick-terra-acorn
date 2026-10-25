@@ -1,0 +1,96 @@
+[
+  {
+    "viewport": "desktop",
+    "errors": [],
+    "navigation": {
+      "elapsedMs": 479,
+      "maxFrameMs": 38.799999999999955,
+      "inputs": [
+        {
+          "action": "Movies",
+          "ms": 8.5
+        }
+      ]
+    },
+    "shuffle": {
+      "elapsedMs": 371,
+      "maxFrameMs": 11.100000000000136,
+      "inputs": [
+        {
+          "action": "Random pick",
+          "ms": 6.199999988079071
+        }
+      ]
+    },
+    "shuffleChanged": true,
+    "returnNavigation": {
+      "elapsedMs": 446,
+      "maxFrameMs": 11,
+      "inputs": [
+        {
+          "action": "Movies",
+          "ms": 7.300000011920929
+        }
+      ]
+    },
+    "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\movies-built-desktop.png",
+    "overflow": false,
+    "cards": 32,
+    "fullCatalogKeyboardVerified": true,
+    "previewVerified": true,
+    "unavailableMovieRemoved": true,
+    "hiddenMovieRemoved": true,
+    "classicsPersisted": true
+  },
+  {
+    "viewport": "mobile",
+    "errors": [],
+    "navigation": {
+      "elapsedMs": 516,
+      "maxFrameMs": 11.299999999999955,
+      "inputs": [
+        {
+          "action": "",
+          "ms": 16.69999998807907
+        },
+        {
+          "action": "Movies",
+          "ms": 10.899999976158142
+        }
+      ]
+    },
+    "shuffle": {
+      "elapsedMs": 396,
+      "maxFrameMs": 11.100000000000136,
+      "inputs": [
+        {
+          "action": "Random pick",
+          "ms": 7
+        }
+      ]
+    },
+    "shuffleChanged": true,
+    "returnNavigation": {
+      "elapsedMs": 613,
+      "maxFrameMs": 33.30000000000018,
+      "inputs": [
+        {
+          "action": "",
+          "ms": 13.800000011920929
+        },
+        {
+          "action": "Movies",
+          "ms": 11.100000023841858
+        }
+      ]
+    },
+    "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\movies-built-mobile.png",
+    "overflow": false,
+    "cards": 25,
+    "fullCatalogKeyboardVerified": true,
+    "previewVerified": true,
+    "unavailableMovieRemoved": true,
+    "hiddenMovieRemoved": true,
+    "classicsPersisted": true
+  }
+]

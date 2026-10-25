@@ -59,7 +59,7 @@ test("catalog sweeps reuse unchanged rows and append new uploads without droppin
 });
 
 test("an archive row with an unknown date retains a known feed publication date", () => {
- const previous = {...archivedYoutubeVideo(),addedAt:1800000000000};
+ const previous = {...archivedYoutubeVideo(),addedAt:1800000000000,remote:{...archivedYoutubeVideo().remote!,publishedSource:'rss' as const}};
  const incoming = {...previous,addedAt:0};
  const merged = mergeRemoteCatalog([previous],[incoming],new Map([[previous.id,0]]),[]);
  assert.equal(merged[0].addedAt,previous.addedAt);

@@ -1,0 +1,55 @@
+[
+  {
+    "url": "https://app.myfreecams.com/",
+    "status": 200,
+    "frameOptions": null,
+    "contentSecurityPolicy": "default-src 'self' *.myfreecams.com;worker-src 'self' *.myfreecams.com blob:;style-src 'self' 'unsafe-inline' accounts.google.com;img-src 'self' share-thumbs.myfreecams.com www.myfreecams.com archives.myfreecams.com share-media.myfreecams.com snap.mfcimg.com img.mfcimg.com newassets.mfcimg.com assets.mfcimg.com www.google.com google.com *.google.com *.g.doubleclick.net www.googleadservices.com pagead2.googlesyndication.com www.googletagmanager.com *.google-analytics.com google-analytics.com data:;font-src 'self' data:;media-src 'self' edgevideo.myfreecams.com *.myfreecams.com blob:;connect-src 'self' img.mfcimg.com *.myfreecams.com ws://*.myfreecams.com wss://*.myfreecams.com assets.mfcimg.com www.google.com google.com *.google.com accounts.google.com *.google-analytics.com google-analytics.com analytics.google.com *.analytics.google.com www.googletagmanager.com *.googletagmanager.com *.g.doubleclick.net www.googleadservices.com pagead2.googlesyndication.com ad.doubleclick.net;script-src 'self' 'nonce-ZDJhZGMzYTUtZTYwYS00N2VlLWE4ZDItNjlkMzZmZDE2ZmVi'  accounts.google.com www.googletagmanager.com www.googleadservices.com www.google.com pagead2.googlesyndication.com googleads.g.doubleclick.net;frame-src 'self' *.myfreecams.com accounts.google.com *.segpay.com *.netbilling.com *.rocketgate.com *.ccbill.com www.googletagmanager.com td.doubleclick.net;",
+    "cookiePolicies": [
+      {
+        "name": "user_lv",
+        "attributes": [
+          "Domain=.myfreecams.com",
+          "Path=/",
+          ""
+        ]
+      },
+      {
+        "name": "user_id",
+        "attributes": [
+          "Domain=.myfreecams.com",
+          "Path=/",
+          ""
+        ]
+      }
+    ]
+  },
+  {
+    "url": "https://share.myfreecams.com/",
+    "status": 200,
+    "frameOptions": "SAMEORIGIN",
+    "contentSecurityPolicy": "connect-src 'self' https: blob: ws: wss:",
+    "cookiePolicies": [
+      {
+        "name": "_mfcs_perm",
+        "attributes": [
+          "domain=myfreecams.com",
+          "path=/",
+          "expires=Mon, 22 Oct 2046 19:40:38 GMT",
+          "samesite=lax",
+          "secure"
+        ]
+      },
+      {
+        "name": "_mfcs_session_v2",
+        "attributes": [
+          "domain=.share.myfreecams.com",
+          "path=/",
+          "expires=Thu, 22 Apr 2027 19:40:38 GMT",
+          "secure",
+          "httponly",
+          "samesite=lax"
+        ]
+      }
+    ]
+  }
+]

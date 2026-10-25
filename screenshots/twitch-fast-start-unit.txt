@@ -1,0 +1,20 @@
+✔ a complete 100,000-video grid rotates creators and retains every entry through the long tail (365.015ms)
+✔ explicit orders and offline placeholders keep their previous behavior (11.8677ms)
+✔ VOD ranking computes each score once, yields and keeps full results without live or clips (4.0983ms)
+✔ catalog-only coverage includes all VODs and clips, excludes offline/non-Twitch cards, and preserves follow health (13.8463ms)
+✔ indexed clip sampling matches the original exact seeded window and reads only clip offsets (77.4221ms)
+✔ creator shelves preserve average taste ranking and bounded per-creator order with exact full counts without retaining undisplayed rails (162.5113ms)
+✔ clip sampling retains the exact first window with more creators than displayed slots (251.1491ms)
+✔ every catalog phase cancels at its supplied boundary instead of publishing partial results (7.0515ms)
+✔ a 99,000-video creator cannot dominate the first creator rotation (117.7618ms)
+✔ ranked VODs retain taste order within each creator and exclude live rows (0.3474ms)
+✔ superseded mixes cancel before scanning the remaining archive (2.1663ms)
+✔ new-to-you ranking finds unseen entries inside every creator, including huge archives (4.8473ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 735.301

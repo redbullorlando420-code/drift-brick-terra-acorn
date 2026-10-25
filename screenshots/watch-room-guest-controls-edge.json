@@ -1,0 +1,15 @@
+{
+  "ok": true,
+  "channel": "msedge",
+  "checks": [
+    "readiness changes are host-confirmed and shared across desktop and touch-phone clients",
+    "next-video votes are one per connected participant; only the host explicitly moves the winner next",
+    "ready checks and voting remain available while guest queue edits are locked",
+    "play/pause and seeking permissions are independent, visible on guests, and enforced against direct transport requests",
+    "a seek-only guest can move the host timeline without changing its paused state",
+    "guest reload restores the host access policy and starts a fresh session participation identity",
+    "departing guests lose their readiness entry and vote; no media or queue entry is removed"
+  ],
+  "errors": [],
+  "limitation": "Two isolated desktop/touch-phone clients use real WebRTC. Provider playback is a fixture; physical phone media policies and cross-network TURN remain external."
+}

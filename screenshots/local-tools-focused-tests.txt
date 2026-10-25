@@ -1,0 +1,22 @@
+✔ publication comes from the matching video, never a pull time, relative label or recommended date (9.4955ms)
+✔ generation sends a bounded allow-list and rejects missing/oversized prompts and bad numbers (1.1502ms)
+✔ remote approval is expiring, one-use, peer/origin-bound and never supplies a password (12.1649ms)
+✔ local image API stays on the fixed loopback target and refuses non-image output (1.2415ms)
+✔ cleanup removes a bounded oldest unrated batch and preserves every positive signal and the source representative (6.5201ms)
+✔ age, unknown dates, live/upcoming, incoming rows, custom metadata and other providers cannot be cleaned (0.3816ms)
+✔ shared playlists keep representatives and a liked or rated alias protects every duplicate identity (0.3387ms)
+✔ 100k cleanup yields, uses bounded sorting and cancels before reading the rest (936.6797ms)
+✔ rotation honors disabled and zero caps, combined pressure and a per-pull replacement budget (0.5303ms)
+✔ retirement memory is bounded, survives serialization and retains cumulative cleanup counts (23.5451ms)
+✔ Twitch and Adult plans preserve ratings, source representatives, local files, live and unknown ages (2.2266ms)
+✔ canonical aliases retire atomically without exceeding the actual row budget (0.3923ms)
+✔ retirement buckets keep other sources history bounded during heavy pulls and preserve legacy counters (38.194ms)
+✔ zero minimum age can rotate recent known entries while ratings, unknown dates and source representatives stay (0.8482ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1549.8462

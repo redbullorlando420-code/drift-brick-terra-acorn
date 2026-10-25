@@ -16,10 +16,10 @@ function twitchVodEmbedId(value: string): string {
  */
 export function twitchEmbedUrl(
   remote: Pick<RemoteRef, "embedUrl" | "watchUrl" | "videoId">,
-  parentHost: string,
+  parentHost: string | readonly string[],
 ): string | null {
-  const parent = parentHost.trim().toLowerCase();
-  if (!parent) return null;
+  const parents = [...new Set((typeof parentHost === 'string' ? [parentHost] : parentHost).map(normalizeTwitchParent).filter((host): host is string => Boolean(host)))];
+  if (!parents.length) return null;
   const candidates = [remote.embedUrl, remote.watchUrl].filter((value): value is string => Boolean(value?.trim()));
   let url: URL | undefined;
 
@@ -35,7 +35,7 @@ export function twitchEmbedUrl(
         }
         break;
       }
-      if (!host.endsWith("twitch.tv")) continue;
+      if (host !== "twitch.tv") continue;
       const videoId = parsed.pathname.match(/\/videos\/([0-9]+)/i)?.[1];
       const clip = parsed.pathname.match(/\/clip\/([^/?#]+)/i)?.[1];
       const channel = parsed.pathname.split("/").filter(Boolean)[0];
@@ -55,8 +55,29 @@ export function twitchEmbedUrl(
       : new URL(`https://clips.twitch.tv/embed?clip=${encodeURIComponent(remote.videoId)}`);
   }
   if (!url) return null;
+  url.protocol = "https:"; url.port = ""; url.username = ""; url.password = "";
   url.searchParams.delete("parent");
-  url.searchParams.set("parent", parent);
+  for (const parent of parents) url.searchParams.append("parent", parent);
   url.searchParams.set("autoplay", "true");
   return url.toString();
+}
+
+/** A parent is the actual embedding hostname, never a room host supplied by a peer. */
+export function normalizeTwitchParent(value: string): string | undefined {
+  if (!value || /[\s/\\?#@]/.test(value)) return;
+  try { const url = new URL('https://' + value); if (url.port || url.hostname !== url.host) return; return url.hostname.toLowerCase(); } catch { return; }
+}
+export function twitchEmbedContext(protocol: string, hostname: string, ancestorOrigins: readonly string[] = []) {
+  const own = normalizeTwitchParent(hostname), parents = own ? [own] : [];
+  for (const origin of ancestorOrigins.slice(0, 12)) {
+    try { const url = new URL(origin); if (!['http:', 'https:'].includes(url.protocol)) continue; const host = normalizeTwitchParent(url.hostname); if (host && !parents.includes(host)) parents.push(host); } catch { /* Invalid ancestor metadata is ignored. */ }
+  }
+  const loopback = Boolean(own && /^(?:localhost|.*\.localhost|127(?:\.\d{1,3}){3}|\[::1\])$/i.test(own));
+  return { parents, blocked: !own ? 'parent' as const : protocol !== 'https:' && !(protocol === 'http:' && loopback) ? 'https' as const : undefined };
+}
+export function currentTwitchEmbedContext() {
+  if (typeof window === 'undefined') return twitchEmbedContext('', '');
+  const ancestors = Array.from(window.location.ancestorOrigins ?? []);
+  if (!ancestors.length && window.self !== window.top && document.referrer) { try { ancestors.push(new URL(document.referrer).origin); } catch { /* No usable referrer. */ } }
+  return twitchEmbedContext(window.location.protocol, window.location.hostname, ancestors);
 }

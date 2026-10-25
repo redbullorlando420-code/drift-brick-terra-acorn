@@ -1,0 +1,27 @@
+✔ real live action retains successful timestamps, bounds failed requests, backs off, recovers and reports a live-only cooldown (39.7329ms)
+✔ timeouts, server failures, network errors and body budgets never fan out into Home and HTML retries (2.6268ms)
+✔ changed Streams params recover from the same validated page; missing tabs stay one request on later checks (0.4656ms)
+✔ an incomplete selected tab cannot confirm that an existing stream is offline (0.1739ms)
+✔ cancelled waiting YouTube reads reject immediately and free bounded capacity behind a stalled body (28.9333ms)
+✔ durable per-creator live retry increases, caps, preserves provider deadlines and resets after recovery (0.2559ms)
+✔ coverage separates successful observations, latest failures, retry waits and due-only IDs (7.689ms)
+✔ live provider cooldown restores from durable follows without confusing individual or archive retry holds (0.3181ms)
+✔ Streams endpoints eliminate repeated Home requests, validate each channel, and never cache live answers (1.8214ms)
+✔ unrecognized or expired endpoints recover through Home; missing identity cannot confirm offline (0.2799ms)
+✔ endpoint fallback cannot bypass a rate hold and duplicate checks share only in-flight work (0.3967ms)
+✔ eight live bodies overlap beside a stalled archive while archive bodies remain serial (34.7218ms)
+✔ an older parallel success cannot release a new live cooldown or start queued checks (19.9137ms)
+✔ 2,000-channel discovery rotates completely without repeating fresh offline checks or starving known live (15.1795ms)
+✔ 1,588 creators with 52 overdue broadcasts reserve three quarters of each batch for discovery (1.3957ms)
+✔ display names resolve through exact search, never guessed @handles; ambiguous names stay pending (21.0377ms)
+✔ an exact real channel remains verified when its public uploads are unavailable (4.7023ms)
+✔ explicit handles require a channel endpoint and preserve channel ID case (1.1115ms)
+✔ live checks follow actual Streams params and retain multiple simultaneous broadcasts, excluding upcoming/recorded (3.4166ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 342.5875

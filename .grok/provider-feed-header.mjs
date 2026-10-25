@@ -1,0 +1,1 @@
+const xml=await(await fetch('https://www.youtube.com/feeds/videos.xml?channel_id=UCX6OQ3DkcsbYNE6H8uQQuVA')).text();console.log(JSON.stringify({header:xml.split('<entry>')[0].slice(0,1800),owners:[...new Set([...xml.matchAll(/<yt:channelId>([^<]+)<\/yt:channelId>/g)].map(m=>m[1]))]}));

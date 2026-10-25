@@ -1,0 +1,136 @@
+{
+  "ok": true,
+  "checks": [
+    {
+      "name": "rss-upload",
+      "surface": "feed",
+      "expected": "pass",
+      "ok": true
+    },
+    {
+      "name": "rss-empty",
+      "surface": "feed",
+      "expected": "pass",
+      "ok": true
+    },
+    {
+      "name": "rss-attributes",
+      "surface": "feed",
+      "expected": "pass",
+      "ok": true
+    },
+    {
+      "name": "rss-consent",
+      "surface": "feed",
+      "expected": "reject",
+      "ok": true,
+      "reason": "missing-feed-root"
+    },
+    {
+      "name": "rss-missing-id",
+      "surface": "feed",
+      "expected": "reject",
+      "ok": true,
+      "reason": "missing-video-identity"
+    },
+    {
+      "name": "rss-truncated",
+      "surface": "feed",
+      "expected": "reject",
+      "ok": true,
+      "reason": "incomplete-entry"
+    },
+    {
+      "name": "rss-other-creator",
+      "surface": "feed",
+      "expected": "reject",
+      "ok": true,
+      "reason": "creator-mismatch"
+    },
+    {
+      "name": "catalog-grid",
+      "surface": "catalog",
+      "expected": "pass",
+      "ok": true
+    },
+    {
+      "name": "catalog-lockup",
+      "surface": "catalog",
+      "expected": "pass",
+      "ok": true
+    },
+    {
+      "name": "catalog-empty",
+      "surface": "catalog",
+      "expected": "pass",
+      "ok": true
+    },
+    {
+      "name": "catalog-incomplete",
+      "surface": "catalog",
+      "expected": "reject",
+      "ok": true,
+      "reason": "missing-video-identity"
+    },
+    {
+      "name": "catalog-token-change",
+      "surface": "catalog",
+      "expected": "reject",
+      "ok": true,
+      "reason": "unreadable-continuation"
+    },
+    {
+      "name": "catalog-new-renderer",
+      "surface": "catalog",
+      "expected": "reject",
+      "ok": true,
+      "reason": "unknown-renderer-shape"
+    },
+    {
+      "name": "catalog-mixed-unknown",
+      "surface": "catalog",
+      "expected": "reject",
+      "ok": true,
+      "reason": "unknown-renderer-shape"
+    },
+    {
+      "name": "streams-grid-live",
+      "surface": "live",
+      "expected": "pass",
+      "ok": true
+    },
+    {
+      "name": "streams-empty-grid",
+      "surface": "live",
+      "expected": "pass",
+      "ok": true
+    },
+    {
+      "name": "streams-empty-section",
+      "surface": "live",
+      "expected": "pass",
+      "ok": true
+    },
+    {
+      "name": "streams-missing-items",
+      "surface": "live",
+      "expected": "reject",
+      "ok": true,
+      "reason": "incomplete-richGridRenderer"
+    },
+    {
+      "name": "streams-navigation-shell",
+      "surface": "live",
+      "expected": "reject",
+      "ok": true,
+      "reason": "unknown-content-boundary"
+    },
+    {
+      "name": "streams-new-renderer",
+      "surface": "live",
+      "expected": "reject",
+      "ok": true,
+      "reason": "unknown-renderer-shape"
+    }
+  ]
+}

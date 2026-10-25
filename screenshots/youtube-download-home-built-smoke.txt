@@ -1,0 +1,40 @@
+{
+  "url": "http://127.0.0.1:8082/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Realhub",
+      "hasCanvas": false,
+      "hydrationVerified": true,
+      "bodyTextLen": 632,
+      "bodyTextHash": "4cc325ce55b0f0dad93503aba7c6da5fe61655dc8fb6c89e78dfc747c8f5fbe5",
+      "bodyTextPrefix": "Realhub Vault · networks · live Library Home Landing page 0 Movi",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-download-home-built.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Realhub",
+      "hasCanvas": false,
+      "hydrationVerified": true,
+      "bodyTextLen": 412,
+      "bodyTextHash": "0c3a78671c6d29e34e93316611379c7532890f5faf365368b83465eba8c92e3e",
+      "bodyTextPrefix": "Home 0 indexed Search Date added Pause pulls REALHUB Home A quie",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-download-home-built-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-download-home-built.json",
+  "divergesFromBaseline": false,
+  "baselineReasons": []
+}

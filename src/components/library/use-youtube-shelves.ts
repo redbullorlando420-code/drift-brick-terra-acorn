@@ -1,6 +1,6 @@
 import { startTransition, useEffect, useMemo, useRef, useState } from 'react';
 import { scheduleBackgroundWork } from '@/lib/interaction-budget';
-import { yieldNavigationTask } from '@/lib/navigation-work';
+import { scheduleNavigationWork, yieldNavigationTask } from '@/lib/navigation-work';
 import { useLibrary } from '@/lib/videos/store';
 import { prepareYoutubeTopics, releaseYoutubeTopics } from '@/lib/remote/youtube-discovery';
 import { prepareYoutubeExploreShelves, prepareYoutubePrimaryShelves, prepareYoutubeWatchedCreators, type YoutubeShelfInputs } from '@/lib/remote/youtube-shelves';
@@ -8,7 +8,7 @@ import type { LibraryVideo } from '@/lib/videos/types';
 
 /** Build off the render path. At most one cancellable job and one result are
  * retained per shelf group; stale filter/pull results never reach the screen. */
-function usePrepared<T, R>(enabled: boolean, input: T, prepare: (input: T, signal: AbortSignal, turn: () => Promise<void>) => Promise<R>) {
+function usePrepared<T, R>(enabled: boolean, input: T, prepare: (input: T, signal: AbortSignal, turn: () => Promise<void>) => Promise<R>, foreground = false) {
   const viewer = useLibrary(state => Boolean(state.activeId || state.previewId));
   const [packet, setPacket] = useState<{ input: T; value: R }>();
   const [failed, setFailed] = useState<T>();
@@ -17,13 +17,17 @@ function usePrepared<T, R>(enabled: boolean, input: T, prepare: (input: T, signa
     if (viewer || packet?.input === input) return;
     const controller = new AbortController();
     const turn = () => yieldNavigationTask(controller.signal);
-    const cancel = scheduleBackgroundWork(() => {
+    const start = () => {
       void prepare(input, controller.signal, turn).then(value => {
         if (!controller.signal.aborted) startTransition(() => { setPacket({ input, value }); setFailed(undefined); });
       }).catch(() => { if (!controller.signal.aborted) setFailed(input); });
-    });
+    };
+    // The first visible shelves are requested navigation work. Waiting for a
+    // spare browser idle period can postpone them behind unrelated enrichment.
+    // Both paths still yield to input, hidden tabs, viewers and cancellation.
+    const cancel = foreground ? scheduleNavigationWork(start) : scheduleBackgroundWork(start);
     return () => { controller.abort(); cancel(); };
-  }, [enabled, input, prepare, viewer, packet?.input]);
+  }, [enabled, input, prepare, viewer, packet?.input, foreground]);
   return { value: enabled && packet?.input === input ? packet.value : undefined, pending: enabled && packet?.input !== input && failed !== input, failed: enabled && failed === input };
 }
 
@@ -46,6 +50,6 @@ export function useYoutubeTopics(enabled: boolean, input: Parameters<typeof topi
   useEffect(() => { if (enabled) return () => releaseYoutubeTopics(input.videos, input.tags); }, [enabled, input]);
   return usePrepared(enabled, input, topics);
 }
-export function useYoutubePrimaryShelves(enabled: boolean, input: YoutubeShelfInputs) { return usePrepared(enabled, useShelfInputs(input, true), prepareYoutubePrimaryShelves); }
+export function useYoutubePrimaryShelves(enabled: boolean, input: YoutubeShelfInputs) { return usePrepared(enabled, useShelfInputs(input, true), prepareYoutubePrimaryShelves, true); }
 export function useYoutubeExploreShelves(enabled: boolean, input: YoutubeShelfInputs) { return usePrepared(enabled, useShelfInputs(input, false), prepareYoutubeExploreShelves); }
 export function useYoutubeWatchedCreators(enabled: boolean, input: Parameters<typeof prepareYoutubeWatchedCreators>[0]) { return usePrepared(enabled, input, prepareYoutubeWatchedCreators); }

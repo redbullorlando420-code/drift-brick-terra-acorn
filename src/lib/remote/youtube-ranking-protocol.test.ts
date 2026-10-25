@@ -3,6 +3,16 @@ import assert from 'node:assert/strict';
 import { createYoutubeRankingProcessor, type YoutubeRankingRow } from './youtube-ranking-protocol.ts';
 const row = (id: string, creator: string): YoutubeRankingRow => ({ video: { id, folderId: creator, name: '', path: '', size: 0, addedAt: 1, extension: 'yt', mime: 'video/youtube', remote: { kind: 'youtube', channelName: creator } }, tags: ['technology'], rating: 0, favorite: false, liked: false, marks: 0, watch: 0, plays: 0 });
 const reset = { type: 'reset' as const, creatorLikes: {}, creatorFavorites: {}, creatorRatings: {}, heartedTags: [], historicTags: [] };
+test('worker preserves source strength when ranking tag evidence', () => {
+  const watched = { ...row('watched', 'a'), rating: 5 }, strong = row('strong', 'b'), weak = row('weak', 'c');
+  for (const item of [watched, strong, weak]) item.video.remote!.youtubeTagSummary = {
+    version: 3, sources: { technology: item === weak ? 'description' : 'video-tag' }, topics: [] };
+  let ids: string[] = [];
+  const process = createYoutubeRankingProcessor(result => { ids = result; });
+  process(reset); process({ type: 'append', rows: [weak, strong, watched] });
+  process({ type: 'candidates', ids: ['weak', 'strong'] }); process({ type: 'ready' });
+  assert.deepEqual(ids, ['strong', 'weak']);
+});
 test('worker waits for all batches, preserves likes and favorites, and mixes reuse compiled scores', () => {
   const packets: string[][] = [], process = createYoutubeRankingProcessor(ids => packets.push(ids));
   process(reset);

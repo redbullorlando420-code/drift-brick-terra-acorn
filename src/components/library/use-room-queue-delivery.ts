@@ -7,8 +7,16 @@ export function useRoomQueueDelivery(room: string, guest: boolean, host: string,
   const delivery = useRef(new RoomQueueDelivery());
   const [pending, setPending] = useState(0);
   const hostRef = useRef(host);
+  const previousHost = useRef(host);
   hostRef.current = host;
   useEffect(() => { delivery.current.clear(); setPending(0); }, [room, guest]);
+  useEffect(() => {
+    if (guest && previousHost.current && host && host !== previousHost.current && delivery.current.size) {
+      delivery.current.clear(); setPending(0);
+      notice('The host reconnected. Pending requests were stopped; check the confirmed queue before trying again.');
+    }
+    previousHost.current = host;
+  }, [guest, host, notice]);
   useEffect(() => {
     if (!guest || !pending || !room) return;
     const timer = window.setInterval(() => {

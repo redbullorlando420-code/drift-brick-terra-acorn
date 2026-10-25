@@ -77,3 +77,8 @@ test("new-to-you ranking finds unseen entries inside every creator, including hu
   assert.equal(result.find((row) => row.folderId === "Huge")?.id, "tw:v:3999");
   assert.equal(new Set(result.slice(0, 11).map((row) => row.folderId)).size, 11);
 });
+test('large follow lists retain only the creators that can reach the visible mix',async()=>{
+ const rows=Array.from({length:50000},(_,i)=>video(i,`Creator ${i%5000}`));let stats:{creators:number;peakRetained:number;selectedCreators:number}|undefined;
+ const result=await buildTwitchMix(rows,17,undefined,false,96,async()=>{},undefined,value=>{stats=value;});
+ assert.equal(result.length,96);assert.equal(new Set(result.map(row=>row.folderId)).size,96);assert.ok(stats);assert.equal(stats.creators,5000);assert.equal(stats.selectedCreators,96);assert.ok(stats.peakRetained<=96*12);
+});

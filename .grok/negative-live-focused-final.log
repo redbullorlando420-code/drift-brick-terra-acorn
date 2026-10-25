@@ -1,0 +1,28 @@
+✔ a missing YouTube broadcast remains eligible for minute-by-minute rechecks for ten minutes and positive evidence clears the hold (1.4726ms)
+✔ a pending stream stays in the live grid, survives serialization and ends only after repeated negative evidence spans ten minutes (1.6799ms)
+✔ viewer sorting ranks current concurrent counts, including zero, before unavailable or old counts (22.0796ms)
+✔ MyFreeCams handoff constructs a specific official room and rejects arbitrary or malformed URLs (2.6591ms)
+✔ 23 small redacted YouTube contract fixtures recognize supported shapes and reject unreadable replacements (9.7685ms)
+✔ Twitch live contract rejects malformed stream identities and viewer values, but accepts real zero-viewer and offline observations (1.3513ms)
+✔ Twitch aliased optional failures preserve verified state while critical and bubbled negatives stay unknown (4.4747ms)
+✔ Twitch whole-request failures stay within their 12-user chunk and later chunks finish (12.7712ms)
+✔ actual 100-target Twitch refresh commits healthy siblings and retries only six bad observations (132.4257ms)
+✔ actual valid empty RSS feed succeeds without a channel or live fallback; malformed RSS retains checkpoints (92.8999ms)
+✔ a renamed live renderer or incomplete Streams container cannot confirm an offline observation (3.1947ms)
+✔ a partial malformed archive page retains the previous complete page and its next token (184.3049ms)
+✔ only complete creator-owned Streams catalogs supply negative evidence; Home and continuations remain unknown (6.3043ms)
+✔ fast endpoint navigation preserves evidence completeness on initial and cached checks (1.3896ms)
+✔ only exact playable known broadcasts with explicit ended metadata confirm absence (1.3447ms)
+✔ supplemental checks stay bounded and cannot turn failed or unowned watch pages into negative evidence (1.9178ms)
+✔ actual API preserves live clock and archive state for Home, partial, consent and malformed replies (752.1517ms)
+✔ complete absence ages through the hold, uncertainty never starts it, and positive evidence clears it immediately (1.0502ms)
+✔ durable evidence accepts bounded valid metadata and rejects fabricated negative sources or malformed timestamps (0.2623ms)
+✔ legacy saved broadcasts join the bounded identity ledger and uncovered watch negatives cannot start a hold (2.6838ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1963.0656

@@ -1,0 +1,34 @@
+✔ a missing YouTube broadcast remains eligible for minute-by-minute rechecks for ten minutes and positive evidence clears the hold (0.9308ms)
+✔ a pending stream stays in the live grid, survives serialization and ends only after repeated negative evidence spans ten minutes (4.4168ms)
+✔ viewer sorting ranks current concurrent counts, including zero, before unavailable or old counts (15.5219ms)
+✔ MyFreeCams handoff constructs a specific official room and rejects arbitrary or malformed URLs (0.6941ms)
+✔ 23 small redacted YouTube contract fixtures recognize supported shapes and reject unreadable replacements (7.1516ms)
+✔ Twitch live contract rejects malformed stream identities and viewer values, but accepts real zero-viewer and offline observations (0.4168ms)
+✔ Twitch aliased optional failures preserve verified state while critical and bubbled negatives stay unknown (0.7074ms)
+✔ Twitch whole-request failures stay within their 12-user chunk and later chunks finish (0.9751ms)
+✔ actual 100-target Twitch refresh commits healthy siblings and retries only six bad observations (53.1344ms)
+✔ actual valid empty RSS feed succeeds without a channel or live fallback; malformed RSS retains checkpoints (86.4854ms)
+✔ a renamed live renderer or incomplete Streams container cannot confirm an offline observation (1.6647ms)
+✔ a partial malformed archive page retains the previous complete page and its next token (189.716ms)
+✔ timeouts, server failures, network errors and body budgets never fan out into Home and HTML retries (4.1991ms)
+✔ changed Streams params recover from the same validated page; missing tabs stay one request on later checks (0.665ms)
+✔ an incomplete selected tab cannot confirm that an existing stream is offline (0.3132ms)
+✔ cancelled waiting YouTube reads reject immediately and free bounded capacity behind a stalled body (53.2526ms)
+✔ durable per-creator live retry increases, caps, preserves provider deadlines and resets after recovery (0.3663ms)
+✔ coverage separates successful observations, latest failures, retry waits and due-only IDs (19.3524ms)
+✔ live provider cooldown restores from durable follows without confusing individual or archive retry holds (0.3906ms)
+✔ only complete creator-owned Streams catalogs supply negative evidence; Home and continuations remain unknown (3.237ms)
+✔ fast endpoint navigation preserves evidence completeness on initial and cached checks (0.6757ms)
+✔ only exact playable known broadcasts with explicit ended metadata confirm absence (0.7069ms)
+✔ supplemental checks stay bounded and cannot turn failed or unowned watch pages into negative evidence (1.5397ms)
+✔ actual API preserves live clock and archive state for Home, partial, consent and malformed replies (742.215ms)
+✔ complete absence ages through the hold, uncertainty never starts it, and positive evidence clears it immediately (1.0358ms)
+✔ durable evidence accepts bounded valid metadata and rejects fabricated negative sources or malformed timestamps (0.4179ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1282.5162

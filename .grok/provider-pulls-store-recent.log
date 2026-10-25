@@ -1,0 +1,14 @@
+✔ clip-only recent updates preserve live and VOD observations, older clip positions, feedback and known creation dates (122.4553ms)
+✔ recent upload batches publish fast creators before a held batch, keep two requests in flight and retain archive checkpoints (5.8367ms)
+✔ empty recent checks preserve a 80k-entry catalog and tag references without catalog writes (4882.8274ms)
+✔ recent transport failure retains saved archive progress and consumes only affected creators turn (2.0578ms)
+✔ late live response cannot erase newer recent health or archive checkpoint (1.926ms)
+✔ unfollowing during a recent response cannot resurrect the creator or its videos (1.784ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5780.2526

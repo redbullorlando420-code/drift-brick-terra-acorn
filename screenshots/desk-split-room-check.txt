@@ -1,0 +1,7 @@
+{
+  "youtubeRecommendations": 35,
+  "twitchPlayCallsAfterHeartbeat": 1,
+  "twitchSeekClampedAtSeconds": 40,
+  "twitchClipUsesClipEmbed": true,
+  "errors": []
+}

@@ -1,0 +1,36 @@
+✔ Movies requires duration over ten minutes and actual film evidence (1.6121ms)
+✔ Anime requires content evidence and rejects topic mentions, games and commentary (0.8733ms)
+✔ Guide searches the full catalog tail by title and saved tags with explicit evidence (30.5038ms)
+✔ Guide isolates private, hidden, unavailable and Adult titles and supports racing topics (0.321ms)
+✔ Guide live questions honor provider, freshness and cancellation (0.5751ms)
+✔ Topic Explorer combines text, selected topic, evidence, provider and stable sort (2.76ms)
+✔ Twitch live batches make at most twelve aliases per request and isolate field failures (0.4968ms)
+✔ older offline responses cannot retire a newer live observation (0.2841ms)
+✔ YouTube runtime labels survive legacy/modern imports, watch metadata and sparse refreshes (1.5191ms)
+✔ movie shelves recover connected folder/year evidence and observed runtimes while separating unknowns and exclusions (2.1345ms)
+✔ unknown movie previews stay bounded while all eligible candidates are counted (14.5914ms)
+✔ Twitch recommendations learn creator/game/title taste, prefer unwatched related VODs and reject one-star or live placeholders (4.2033ms)
+✔ ranked creator rotation retains the best matching creators even with thousands of followed archives (8.1615ms)
+✔ Twitch coverage uses provider identities rather than renamed or colliding display names (0.7183ms)
+✔ Twitch archive priority survives reload and ignores a frequently refreshed live clock (0.4143ms)
+✔ actual Twitch continuation requests resume older pages, skip clips, retain checkpoints on failure and cap first at 100 (100.3489ms)
+✔ publication evidence accepts exact dates and rejects relative, scheduled-era and calendar overflow values (2.2057ms)
+✔ RSS provenance prevents synthetic-description repair from erasing a real date and survives compact/disk details (0.2291ms)
+✔ shallow refreshes retain RSS dates, formats and current live evidence; exact RSS corrections win (155.8428ms)
+✔ format and date-source repairs are published even when title and epoch stay equal (108.9962ms)
+✔ format evidence comes from provider fields, never video duration or title words (0.706ms)
+✔ old and modern Shorts/lockup renderers retain format, live and upcoming evidence (1.0904ms)
+✔ cooperative groups isolate live/upcoming cards, share stable records, preserve order and cancel cleanly (7.6783ms)
+✔ unknown publication dates sort last and never become creator freshness or cached-upload coverage (3.4628ms)
+✔ RSS/archive success preserves live state; a successful live check records a durable completed stream (221.7817ms)
+✔ actual RSS and archive paths retain publication provenance and format evidence with no fake current dates (20.7224ms)
+✔ actual live checks supply a separate observation signal and no publication timestamp (90.5571ms)
+✔ direct oEmbed imports keep publication unknown and explicit Shorts URLs retain their format (1.3581ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 28
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 926.4293

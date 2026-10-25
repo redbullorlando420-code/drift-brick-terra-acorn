@@ -1,0 +1,12 @@
+✔ clip-only recent updates preserve live and VOD observations, older clip positions, feedback and known creation dates (105.4987ms)
+✔ clip-only transport failures set their own durable retry without resetting archive diagnostics or live state (2.3956ms)
+✔ empty clip-only updates preserve 80k video and metadata references and avoid catalog writes (2360.6345ms)
+✔ clip-only partial errors persist safe positions and leave the other clip retry lane intact (77.6442ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3618.628

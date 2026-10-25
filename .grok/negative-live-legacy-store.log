@@ -1,0 +1,9 @@
+✔ legacy live cards outside a watch-only proof stay live and join the follow ledger before the next bounded check (198.6976ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1604.0004

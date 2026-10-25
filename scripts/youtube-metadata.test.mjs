@@ -17,7 +17,7 @@ const { runRefreshRemotes, runFollowRemote } = await import('../src/lib/remote/a
 const { setYoutubeRequestGap } = await import('../src/lib/remote/youtube-transport.ts');
 setYoutubeRequestGap(0);
 const published=Date.parse('2026-09-01T12:00:00Z');
-const card=(id='one',remote={})=>({id:`yt:${id}`,folderId:'yt:creator',name:`Upload ${id}`,path:id,size:0,mime:'video/youtube',extension:'yt',addedAt:published,remote:{kind:'youtube',videoId:id,channelName:'Creator',...remote}});
+const card=(id='one',remote={})=>({id:`yt:${id}`,folderId:'yt:creator',name:`Upload ${id}`,path:id,size:0,mime:'video/youtube',extension:'yt',addedAt:published,remote:{kind:'youtube',videoId:id,channelName:'Creator',publishedSource:'provider',...remote}});
 
 test('publication evidence accepts exact dates and rejects relative, scheduled-era and calendar overflow values',()=>{
   for(const value of ['2026-09-01','2026-09-01T12:00:00Z','2026-09-01T12:00:00-04:00'])assert.equal(exactYoutubePublished(value),value);

@@ -3,6 +3,7 @@ import qrcode from "qrcode-generator";
 import { Copy, QrCode } from "lucide-react";
 import { shareableRoomInvite } from "@/lib/multiplayer/room-invite";
 import { Button } from "@/components/ui/button";
+import { RoomHttpsInvitation } from './room-https-invitation';
 import { Input } from "@/components/ui/input";
 export function useRoomInvitation(room: string) {
   const current = window.location.origin;
@@ -107,6 +108,8 @@ export const RoomInvitation = memo(function RoomInvitation({
           ))}
         </select>
       )}
+      {url?.startsWith('http:') && <p className="mt-3 text-xs leading-5 text-muted">This phone link uses HTTP. Twitch requires an HTTPS app address for embedded viewing; the room’s chat and queue can still work over this link.</p>}
+      {window.location.protocol !== 'https:' && /^(?:localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname) && window.location.port === '8080' && <RoomHttpsInvitation onOrigin={chooseOrigin}/>}
       <details className="mt-3 text-xs text-muted">
         <summary className="cursor-pointer">
           Phone address{checking ? " · checking home network…" : ""}

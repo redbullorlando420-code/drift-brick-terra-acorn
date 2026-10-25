@@ -1,0 +1,4 @@
+Engine startup check 1
+Engine startup check 2
+Generated image rendered; downloading PNG
+{"ok":true,"actualLocalGeneration":true,"width":512,"height":512,"bytes":468046,"errors":[]}

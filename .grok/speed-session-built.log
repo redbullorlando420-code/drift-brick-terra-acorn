@@ -1,0 +1,106 @@
+{"viewport":"desktop","stage":"seed"}
+{"viewport":"desktop","stage":"reload"}
+{"viewport":"desktop","stage":"browse"}
+{"viewport":"desktop","stage":"preview and search"}
+{"viewport":"desktop","stage":"YouTube formats"}
+{"viewport":"desktop","stage":"idle cleanup and wake"}
+{"viewport":"desktop","stage":"scorecard"}
+{"viewport":"mobile","stage":"seed"}
+{"viewport":"mobile","stage":"reload"}
+{"viewport":"mobile","stage":"browse"}
+{"viewport":"mobile","stage":"preview and search"}
+{"viewport":"mobile","stage":"YouTube formats"}
+{"viewport":"mobile","stage":"idle cleanup and wake"}
+{"viewport":"mobile","stage":"scorecard"}
+{
+  "ok": true,
+  "url": "http://127.0.0.1:8082/",
+  "fixture": "80,000 compact entries, pulling paused, text-first artwork, isolated Chromium contexts; fake media and offline Companion responses stubbed",
+  "limitation": "Synthetic browser check; does not establish real-provider throughput, long-session memory stability, or physical-device performance.",
+  "budgets": {
+    "startupMs": 3000,
+    "navigationMs": 2000,
+    "scrollSettleMs": 500,
+    "inputMs": 200,
+    "mountedCards": 256,
+    "overflowPixels": 0
+  },
+  "results": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "startupMs": 223.09999999403954,
+      "catalogEntries": 80000,
+      "navigationMs": 858.1999999880791,
+      "scrollSettleMs": 14.699999988079071,
+      "artworkIdleVerified": true,
+      "formatsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\speed-session-built-formats-desktop.png",
+      "formatShelfScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\speed-session-built-format-shelf-desktop.png",
+      "youtubeFormatsVerified": true,
+      "idleCleanupMs": [
+        0.5,
+        0.4000000059604645,
+        0.3999999761581421
+      ],
+      "idleWakeMs": [
+        208,
+        41,
+        42
+      ],
+      "idleRecoveryVerified": true,
+      "providerBudgetsVerified": true,
+      "scorecardVerified": true,
+      "exportVerified": true,
+      "safeguardsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\speed-session-built-safeguards-desktop.png",
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\speed-session-built-desktop.png",
+      "inputMs": 35.5,
+      "mountedCards": 16,
+      "overflowPixels": 0,
+      "worstInput": {
+        "action": "Text-first modeLiveGate archive 0Gate creator 0 · Viewer count unavailable",
+        "ms": 35.5
+      },
+      "slowInputs": [],
+      "ok": true,
+      "failures": []
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "startupMs": 176.69999998807907,
+      "catalogEntries": 80000,
+      "navigationMs": 925.2000000178814,
+      "scrollSettleMs": 11.400000005960464,
+      "artworkIdleVerified": true,
+      "formatsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\speed-session-built-formats-mobile.png",
+      "formatShelfScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\speed-session-built-format-shelf-mobile.png",
+      "youtubeFormatsVerified": true,
+      "idleCleanupMs": [
+        0.7000000178813934,
+        0.5,
+        0.4000000059604645
+      ],
+      "idleWakeMs": [
+        207,
+        97,
+        45
+      ],
+      "idleRecoveryVerified": true,
+      "providerBudgetsVerified": true,
+      "scorecardVerified": true,
+      "exportVerified": true,
+      "safeguardsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\speed-session-built-safeguards-mobile.png",
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\speed-session-built-mobile.png",
+      "inputMs": 26.200000017881393,
+      "mountedCards": 12,
+      "overflowPixels": 0,
+      "worstInput": {
+        "action": "Text-first modeYouTube7:00Gate archive 79Gate creator 79 · ShortPublication date",
+        "ms": 26.200000017881393
+      },
+      "slowInputs": [],
+      "ok": true,
+      "failures": []
+    }
+  ]
+}

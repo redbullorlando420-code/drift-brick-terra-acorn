@@ -1,0 +1,21 @@
+{
+  "limitation": "One scan per root in one process; cache and filesystem state affect timings. File counts establish the scope difference, not whole-app startup speed.",
+  "results": [
+    {
+      "directory": ".",
+      "ms": 8197.035300000001,
+      "files": 1902,
+      "candidates": 22874,
+      "generatedBuildFiles": 0,
+      "qaFiles": 1053
+    },
+    {
+      "directory": "src",
+      "ms": 123.6182000000008,
+      "files": 526,
+      "candidates": 12634,
+      "generatedBuildFiles": 0,
+      "qaFiles": 0
+    }
+  ]
+}

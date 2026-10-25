@@ -1,0 +1,89 @@
+{
+  "at": "2026-10-24T16:49:23.863Z",
+  "report": [
+    {
+      "name": "YouTube recent",
+      "elapsedMs": 417,
+      "received": 15,
+      "successful": 1,
+      "observations": [
+        {
+          "provider": "youtube",
+          "viewers": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "name": "YouTube live",
+      "elapsedMs": 896,
+      "received": 23,
+      "successful": 1,
+      "observations": [
+        {
+          "provider": "youtube",
+          "live": true,
+          "viewers": [
+            1400,
+            154,
+            119,
+            199,
+            282,
+            38,
+            38,
+            105,
+            50,
+            60,
+            177,
+            1300,
+            1100,
+            485,
+            108,
+            288,
+            101,
+            459,
+            186,
+            10000,
+            706,
+            398,
+            3300
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Twitch live siblings",
+      "elapsedMs": 362,
+      "received": 0,
+      "successful": 2,
+      "observations": [
+        {
+          "provider": "twitch",
+          "live": false,
+          "viewers": []
+        },
+        {
+          "provider": "twitch",
+          "live": false,
+          "viewers": []
+        }
+      ]
+    }
+  ],
+  "limitation": "Small read-only public smoke probe; no account data, saved follows or soak claim."
+}

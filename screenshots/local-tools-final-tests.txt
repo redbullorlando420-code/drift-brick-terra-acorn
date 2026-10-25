@@ -1,0 +1,21 @@
+✔ publication comes from the matching video, never a pull time, relative label or recommended date (2.0877ms)
+✔ generation sends a bounded allow-list and rejects missing/oversized prompts and bad numbers (0.3442ms)
+✔ remote approval is expiring, one-use, peer/origin-bound and never supplies a password (3.5261ms)
+✔ local image API stays on the fixed loopback target and refuses non-image output (0.696ms)
+✔ engine lifecycle launches only the installed Python with loopback and isolated caches (6.4059ms)
+✔ generation is single-flight and interrupt only applies to a request owned by the bridge (0.4559ms)
+Test: downloading 0.00 GB with SHA-256 verification.
+Test: 0.00 / 0.00 GB
+Test: SHA-256 verified.
+Test: downloading 0.00 GB with SHA-256 verification.
+Test: 0.00 / 0.00 GB
+Test: downloading 0.00 GB with SHA-256 verification.
+✔ verified artifact transfer validates range, bytes and digest before enabling the file (27.5234ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 120.5877

@@ -63,9 +63,9 @@ export function saveAdultArchiveCursors(
     const next = pages[provider];
     const key = slotKey(provider, query, order);
     if (next == null || next < 1) {
-      // Keep the last successful resume point. Empty/live windows are revisited
-      // after a cooldown instead of restarting every automatic tick.
-      raw[key] = { ...(raw[key] ?? { page: 1, query, order }), retryAt: now + 30 * 60_000, updatedAt: now };
+      // Exhausted archives restart at their newest page after cooldown, so new
+      // uploads can be found. Retrying an error keeps the accepted cursor below.
+      raw[key] = { page: 1, offset: 0, query, order, retryAt: now + 30 * 60_000, updatedAt: now };
       continue;
     }
     raw[key] = { page: next, offset: offsets[provider] ?? 0, query: query.trim().toLowerCase() || "all", order, updatedAt: now };

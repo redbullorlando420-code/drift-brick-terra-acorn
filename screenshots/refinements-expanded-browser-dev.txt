@@ -1,0 +1,34 @@
+desktop: studio
+desktop: remote
+desktop: actual YouTube date
+mobile: studio
+mobile: remote
+mobile: actual YouTube date
+[
+  {
+    "viewport": "desktop",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+    ],
+    "studio": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\refinements-expanded-dev-studio-desktop.png",
+    "remote": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\refinements-expanded-dev-remote-desktop.png",
+    "credits": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\refinements-expanded-dev-credits-desktop.png",
+    "dates": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\refinements-expanded-dev-dates-desktop.png",
+    "ok": false,
+    "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n+ [\n+   'Failed to load resource: the server responded with a status of 400 (Bad Request)',\n+   'Failed to load resource: the server responded with a status of 400 (Bad Request)'\n+ ]\n- []\n\n    at file:///E:/codex/drift-brick-terra-acorn/scripts/local-tools-check.mjs:75:104"
+  },
+  {
+    "viewport": "mobile",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+    ],
+    "studio": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\refinements-expanded-dev-studio-mobile.png",
+    "remote": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\refinements-expanded-dev-remote-mobile.png",
+    "credits": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\refinements-expanded-dev-credits-mobile.png",
+    "dates": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\refinements-expanded-dev-dates-mobile.png",
+    "ok": false,
+    "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n+ actual - expected\n\n+ [\n+   'Failed to load resource: the server responded with a status of 400 (Bad Request)',\n+   'Failed to load resource: the server responded with a status of 400 (Bad Request)'\n+ ]\n- []\n\n    at file:///E:/codex/drift-brick-terra-acorn/scripts/local-tools-check.mjs:75:104"
+  }
+]

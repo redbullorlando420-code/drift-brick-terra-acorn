@@ -1,0 +1,96 @@
+[
+  {
+    "viewport": "desktop",
+    "errors": [],
+    "navigation": {
+      "elapsedMs": 525,
+      "maxFrameMs": 44.399999999999864,
+      "inputs": [
+        {
+          "action": "Movies",
+          "ms": 7.300000011920929
+        }
+      ]
+    },
+    "shuffle": {
+      "elapsedMs": 367,
+      "maxFrameMs": 5.800000000000182,
+      "inputs": [
+        {
+          "action": "Random pick",
+          "ms": 7.0999999940395355
+        }
+      ]
+    },
+    "shuffleChanged": true,
+    "returnNavigation": {
+      "elapsedMs": 470,
+      "maxFrameMs": 11.199999999999818,
+      "inputs": [
+        {
+          "action": "Movies",
+          "ms": 7.899999976158142
+        }
+      ]
+    },
+    "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\refine-desks-movies-80k-desktop.png",
+    "overflow": false,
+    "cards": 32,
+    "fullCatalogKeyboardVerified": true,
+    "previewVerified": true,
+    "unavailableMovieRemoved": true,
+    "hiddenMovieRemoved": true,
+    "classicsPersisted": true
+  },
+  {
+    "viewport": "mobile",
+    "errors": [],
+    "navigation": {
+      "elapsedMs": 569,
+      "maxFrameMs": 16.59999999999991,
+      "inputs": [
+        {
+          "action": "",
+          "ms": 17.899999976158142
+        },
+        {
+          "action": "Movies",
+          "ms": 8.900000005960464
+        }
+      ]
+    },
+    "shuffle": {
+      "elapsedMs": 365,
+      "maxFrameMs": 5.899999999999864,
+      "inputs": [
+        {
+          "action": "Random pick",
+          "ms": 6.799999982118607
+        }
+      ]
+    },
+    "shuffleChanged": true,
+    "returnNavigation": {
+      "elapsedMs": 492,
+      "maxFrameMs": 5.899999999999636,
+      "inputs": [
+        {
+          "action": "",
+          "ms": 10.799999982118607
+        },
+        {
+          "action": "Movies",
+          "ms": 7.800000011920929
+        }
+      ]
+    },
+    "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\refine-desks-movies-80k-mobile.png",
+    "overflow": false,
+    "cards": 20,
+    "fullCatalogKeyboardVerified": true,
+    "previewVerified": true,
+    "unavailableMovieRemoved": true,
+    "hiddenMovieRemoved": true,
+    "classicsPersisted": true
+  }
+]

@@ -1,0 +1,1 @@
+const response=await fetch('https://gql.twitch.tv/gql',{method:'POST',headers:{'client-id':'kd1unb4b3q4t58fwlpcbzcbnm76a8fp','content-type':'application/json'},body:JSON.stringify({query:'query{user(login:"northernlion"){videos(first:1,type:ARCHIVE){edges{node{id viewCount}}}}}'})});console.log(JSON.stringify(await response.json()));

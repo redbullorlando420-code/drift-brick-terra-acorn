@@ -1,0 +1,62 @@
+{
+  "ok": true,
+  "fixture": "100,000 saved YouTube videos, 20% unknown publication dates interleaved with descending known dates; 20,000 Twitch rows; deterministic metadata only",
+  "coldSelection": {
+    "beforeMedianMs": 35.35509999999999,
+    "afterMedianMs": 21.533399999999972,
+    "speedup": 1.641872625781346,
+    "samples": [
+      {
+        "name": "previous",
+        "ms": 33.821500000000015
+      },
+      {
+        "name": "improved",
+        "ms": 21.088000000000022
+      },
+      {
+        "name": "improved",
+        "ms": 21.533399999999972
+      },
+      {
+        "name": "previous",
+        "ms": 35.2715
+      },
+      {
+        "name": "previous",
+        "ms": 42.015900000000045
+      },
+      {
+        "name": "improved",
+        "ms": 23.13810000000001
+      },
+      {
+        "name": "improved",
+        "ms": 19.38680000000005
+      },
+      {
+        "name": "previous",
+        "ms": 36.705100000000016
+      },
+      {
+        "name": "previous",
+        "ms": 35.35509999999999
+      },
+      {
+        "name": "improved",
+        "ms": 22.33209999999997
+      }
+    ]
+  },
+  "unrelatedTwitchRefresh": {
+    "ms": 6.612300000000005,
+    "turns": 8,
+    "selectionIdentityRetained": true
+  },
+  "latestShelf": {
+    "ms": 0.8030999999999722,
+    "turns": 1,
+    "count": 48
+  },
+  "limitation": "CPU benchmark with immediate cooperative boundaries; browser responsiveness and provider latency require separate checks."
+}

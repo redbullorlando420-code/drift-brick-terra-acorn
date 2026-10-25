@@ -1,0 +1,9 @@
+{
+  "ok": true,
+  "checks": [
+    "trusted player errors show recovery without skipping",
+    "device-only reload and queue shortcut preserve the shared queue",
+    "host and guest retry failed Twitch script loads with a fresh bounded attempt"
+  ],
+  "errors": []
+}

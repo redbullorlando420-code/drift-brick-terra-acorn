@@ -6,7 +6,7 @@ export type RefreshFollowsResult = {
   wentLive: FollowedChannel[];
   newVideos: LibraryVideo[];
   pull?: PullRecord;
-  skipped?: 'cooldown' | 'busy' | 'empty';
+  skipped?: 'cooldown' | 'busy' | 'empty' | 'paused';
   retryAt?: number;
 };
 // v1 inferred a provider-wide block from any live/RSS failure. Do not restore

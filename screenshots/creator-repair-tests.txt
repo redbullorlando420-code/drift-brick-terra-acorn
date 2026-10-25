@@ -1,0 +1,19 @@
+✔ real store metadata actions return before catalog parsing, honor locks, save compact provider provenance, and hold during a viewer (112.922ms)
+✔ real smart tags retain source/creator filters and manual locks without a catalog-sized click stack (0.8277ms)
+✔ manual and accepted inspection edits never enumerate the existing tag ledgers (1.1983ms)
+✔ removing a folder removes only its sparse enrichment records as well as its catalog metadata (0.3684ms)
+✔ cached YouTube repair replaces saturated provider tags, preserves manual locks and saves idempotent versioned rows (1.9137ms)
+✔ real creator repair returns before scans, patches only 48 names/tags, honors locks and writes only changed rows (131.62ms)
+✔ creator repair waits behind a viewer, recovers from failed storage, and rebases a concurrent manual lock (19.5603ms)
+✔ removing exact follow evidence while repair is saving prevents stale publication (0.9789ms)
+✔ settings audit preserves local, metadata, hidden and exact creator diagnostics (10.1665ms)
+✔ 80,000 missing names use one follow index and hidden export/cancel boundaries remain cooperative (176.2818ms)
+ℹ 80,000 nameless titles / 4,000 follows audited in 128ms with 4000 follow reads (in-process fixture)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 632.2135

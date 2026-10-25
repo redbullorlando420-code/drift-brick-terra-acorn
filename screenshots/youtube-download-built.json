@@ -1,0 +1,38 @@
+[
+  {
+    "viewport": "desktop",
+    "errors": [],
+    "readyScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-download-built-ready-desktop.png",
+    "completeScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-download-built-complete-desktop.png",
+    "playerScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-download-built-player-desktop.png",
+    "setupScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-download-built-setup-desktop.png",
+    "starts": 3,
+    "cancels": 1,
+    "reads": 14,
+    "cardsDoNotPoll": true,
+    "closeStopsPolling": true,
+    "reloadRestoresStatus": true,
+    "previewAndPlayer": true,
+    "setupAndErrors": true,
+    "liveExcluded": true,
+    "ok": true
+  },
+  {
+    "viewport": "mobile",
+    "errors": [],
+    "readyScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-download-built-ready-mobile.png",
+    "completeScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-download-built-complete-mobile.png",
+    "playerScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-download-built-player-mobile.png",
+    "setupScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-download-built-setup-mobile.png",
+    "starts": 3,
+    "cancels": 1,
+    "reads": 14,
+    "cardsDoNotPoll": true,
+    "closeStopsPolling": true,
+    "reloadRestoresStatus": true,
+    "previewAndPlayer": true,
+    "setupAndErrors": true,
+    "liveExcluded": true,
+    "ok": true
+  }
+]

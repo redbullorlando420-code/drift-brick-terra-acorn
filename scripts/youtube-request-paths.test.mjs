@@ -10,14 +10,14 @@ const channel = { id:`yt:${id}`, channelId:id, handle:'Creator', title:'Creator'
 const feed = `<feed><title>Creator</title><author><name>Creator</name></author><entry><yt:videoId>healthy0001</yt:videoId><title>New upload</title><published>2026-10-01T12:00:00Z</published></entry></feed>`;
 const oldFetch = globalThis.fetch;
 
-test('a healthy routine refresh reads RSS once and clears a stale creator failure', async () => {
+test('a healthy routine refresh reads RSS once and clears only its recent-pull failure', async () => {
   const requests = [];
   globalThis.fetch = async url => { requests.push(String(url)); assert(String(url).includes('/feeds/')); return new Response(feed); };
   try {
-    const result = await runRefreshRemotes({ channels:[{...channel, lastProviderFailure:{kind:'rate-limited',message:'old failure',at:1}}] });
+    const oldFailure={kind:'rate-limited',message:'old failure',at:1};const result = await runRefreshRemotes({ channels:[{...channel, lastProviderFailure:oldFailure,recentPull:{attemptedAt:1,failures:1,failure:{kind:'network-offline',message:'Old feed failure',at:1,recovery:'Retry'}}}] });
     assert.equal(requests.length,1);
     assert.equal(result.videos.length,1);
-    assert.equal(result.channels[0].lastProviderFailure,undefined);
+    assert.equal(result.channels[0].recentPull.failure,undefined);assert(result.channels[0].recentPull.checkedAt>1);assert.equal(result.channels[0].lastProviderFailure,oldFailure);
     assert.equal(result.channels[0].liveCheckedAt,undefined,'a feed read cannot claim a live observation');
   } finally { globalThis.fetch = oldFetch; }
 });
@@ -36,9 +36,10 @@ test('a live-only HTTP 429 does not stop a healthy creator archive', async () =>
   };
   try {
     const live = await runRefreshRemotes({channels:[channel],youtubeLiveOnly:true});
-    assert.equal(live.channels[0].lastProviderFailure.cooldownScope,'live');
+    assert.equal(live.channels[0].lastProviderFailure,undefined,'live failure stays independent of archive health');
     assert.equal(live.channels[0].lastLiveFailure.cooldownScope,'live');
-    assert.equal(live.providerRetryAt,undefined,'live-only failure cannot set the archive cooldown');
+    assert(live.providerRetryAt>Date.now(),'live owner must receive its own cooldown');
+    assert.equal(live.providerCooldownScope,'live','live-only failure cannot set the archive cooldown');
     const catalog = await runRefreshRemotes({channels:[live.channels[0]],youtubeCatalog:true,youtubeVideoLimit:30});
     assert.equal(catalog.videos.length,30);
     assert.equal(catalog.refreshedIds.length,1);

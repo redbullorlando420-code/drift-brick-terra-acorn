@@ -1,0 +1,149 @@
+{
+  "results": [
+    {
+      "size": 100000,
+      "shape": "ordered",
+      "before": {
+        "elapsedMs": 22.87,
+        "initiatingMs": 0.421,
+        "comparisons": 877968,
+        "yields": 830,
+        "worstWorkMs": 0.39
+      },
+      "after": {
+        "elapsedMs": 16.51,
+        "initiatingMs": 0.395,
+        "comparisons": 877968,
+        "yields": 830,
+        "worstWorkMs": 0.4
+      }
+    },
+    {
+      "size": 100000,
+      "shape": "reverse",
+      "before": {
+        "elapsedMs": 21.72,
+        "initiatingMs": 0.498,
+        "comparisons": 815024,
+        "yields": 830,
+        "worstWorkMs": 0.49
+      },
+      "after": {
+        "elapsedMs": 19.53,
+        "initiatingMs": 0.284,
+        "comparisons": 815024,
+        "yields": 830,
+        "worstWorkMs": 0.28
+      }
+    },
+    {
+      "size": 100000,
+      "shape": "mixed",
+      "before": {
+        "elapsedMs": 24.99,
+        "initiatingMs": 0.299,
+        "comparisons": 1589207,
+        "yields": 830,
+        "worstWorkMs": 0.29
+      },
+      "after": {
+        "elapsedMs": 35.96,
+        "initiatingMs": 0.412,
+        "comparisons": 1589207,
+        "yields": 830,
+        "worstWorkMs": 0.41
+      }
+    },
+    {
+      "size": 100000,
+      "shape": "ties",
+      "before": {
+        "elapsedMs": 24.67,
+        "initiatingMs": 0.147,
+        "comparisons": 1483496,
+        "yields": 830,
+        "worstWorkMs": 0.14
+      },
+      "after": {
+        "elapsedMs": 17.06,
+        "initiatingMs": 0.144,
+        "comparisons": 1483496,
+        "yields": 830,
+        "worstWorkMs": 0.14
+      }
+    },
+    {
+      "size": 1000000,
+      "shape": "ordered",
+      "before": {
+        "elapsedMs": 177.99,
+        "initiatingMs": 1.249,
+        "comparisons": 10095552,
+        "yields": 9765,
+        "worstWorkMs": 1.24
+      },
+      "after": {
+        "elapsedMs": 163.88,
+        "initiatingMs": 1.261,
+        "comparisons": 10095552,
+        "yields": 9765,
+        "worstWorkMs": 1.26
+      }
+    },
+    {
+      "size": 1000000,
+      "shape": "reverse",
+      "before": {
+        "elapsedMs": 189.44,
+        "initiatingMs": 1.183,
+        "comparisons": 9884992,
+        "yields": 9765,
+        "worstWorkMs": 1.18
+      },
+      "after": {
+        "elapsedMs": 184.74,
+        "initiatingMs": 1.134,
+        "comparisons": 9884992,
+        "yields": 9765,
+        "worstWorkMs": 1.13
+      }
+    },
+    {
+      "size": 1000000,
+      "shape": "mixed",
+      "before": {
+        "elapsedMs": 709.56,
+        "initiatingMs": 1.199,
+        "comparisons": 18942833,
+        "yields": 9765,
+        "worstWorkMs": 1.2
+      },
+      "after": {
+        "elapsedMs": 680.46,
+        "initiatingMs": 1.302,
+        "comparisons": 18942833,
+        "yields": 9765,
+        "worstWorkMs": 1.3
+      }
+    },
+    {
+      "size": 1000000,
+      "shape": "ties",
+      "before": {
+        "elapsedMs": 466.2,
+        "initiatingMs": 1.219,
+        "comparisons": 17810263,
+        "yields": 9765,
+        "worstWorkMs": 1.22
+      },
+      "after": {
+        "elapsedMs": 448.67,
+        "initiatingMs": 1.114,
+        "comparisons": 17810263,
+        "yields": 9765,
+        "worstWorkMs": 1.11
+      }
+    }
+  ],
+  "note": "Synthetic Node A/B with the previous production helper, identical reference arrays and cooperative setImmediate yields. Stable full outputs are compared. Elapsed times include scheduling and runtime GC; these are not browser paint timings."
+}

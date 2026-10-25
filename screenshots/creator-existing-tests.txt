@@ -1,0 +1,13 @@
+✔ real store metadata actions return before catalog parsing, honor locks, save compact provider provenance, and hold during a viewer (109.4013ms)
+✔ real smart tags retain source/creator filters and manual locks without a catalog-sized click stack (1.4102ms)
+✔ manual and accepted inspection edits never enumerate the existing tag ledgers (1.0946ms)
+✔ removing a folder removes only its sparse enrichment records as well as its catalog metadata (0.5153ms)
+✔ cached YouTube repair replaces saturated provider tags, preserves manual locks and saves idempotent versioned rows (1.8074ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 415.9644

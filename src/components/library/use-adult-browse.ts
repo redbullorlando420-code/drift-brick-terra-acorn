@@ -138,5 +138,6 @@ export function useAdultBrowse(enabled: boolean, inputs: AdultBrowseInputs, para
   // may keep the last completed mix visible while its new order is calculated.
   const result = enabled && packet?.params.source === params.source && packet.params.tag === params.tag && packet.params.view === params.view ? packet.result : undefined;
   const facets = enabled && packet?.params.source === params.source ? packet.result : undefined;
-  return { result, facets, failed, pending: enabled && (!result || packet?.inputs !== inputs), retry: () => setAttempt(value => value + 1) };
+  const deepRankedIds = enabled && packet?.inputs.deepVideos === inputs.deepVideos ? packet.result.deepRankedIds : undefined;
+  return { result, facets, deepRankedIds, failed, pending: enabled && (!result || packet?.inputs !== inputs), retry: () => setAttempt(value => value + 1) };
 }

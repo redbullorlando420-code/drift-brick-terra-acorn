@@ -1,3 +1,4 @@
+import type { TwitchContentFilter } from '@/lib/videos/twitch-content';
 import { startTransition, useEffect, useMemo, useState } from 'react';
 import { catalogTurn } from '@/lib/catalog-turn';
 import { getRating, ratingPreference, getWatchTime, watchTimeScore, tagIsLiked } from '@/lib/media-feedback';
@@ -53,18 +54,18 @@ export function useTwitchSavedCatalog(active: boolean, videos: LibraryVideo[], f
 
 /** Ignore irrelevant records so all/all, tag changes and likes cannot restart unrelated work. */
 export function useCatalogSelection(active: boolean, videos: LibraryVideo[], filter: TwitchSavedFilter, topic: string,
-  favorites: Record<string, true>, likes: Record<string, true>, tags: Record<string, string[]>) {
+  favorites: Record<string, true>, likes: Record<string, true>, tags: Record<string, string[]>, content:TwitchContentFilter='all') {
   const phase = useSessionPhase(), viewer = useLibrary(state => Boolean(state.activeId || state.previewId));
   const saved = filter === 'favorites' ? favorites : filter === 'likes' ? likes : undefined;
   const topicTags = topic === 'all' ? EMPTY_TAGS : tags;
-  const scope = useMemo(() => ({ videos, saved, topic, tags: topicTags }), [videos, saved, topic, topicTags]);
+  const scope = useMemo(() => ({ videos, saved, topic, tags: topicTags, content }), [videos, saved, topic, topicTags, content]);
   const [packet, setPacket] = useState<{ scope: typeof scope; rows: LibraryVideo[] }>();
-  const unfiltered = !saved && topic === 'all';
+  const unfiltered = !saved && topic === 'all' && content === 'all';
   useEffect(() => {
     if (!active || unfiltered) { setPacket(undefined); return; }
     if (phase !== 'active' || viewer || packet?.scope === scope) return;
     const controller = new AbortController();
-    void filterCatalogSelection(videos, saved, topic, topicTags, catalogTurn(controller.signal)).then(rows => {
+    void filterCatalogSelection(videos, saved, topic, topicTags, catalogTurn(controller.signal), content).then(rows => {
       if (!controller.signal.aborted) startTransition(() => setPacket({ scope, rows }));
     }).catch(() => {});
     return () => controller.abort();

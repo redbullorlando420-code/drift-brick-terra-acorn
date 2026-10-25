@@ -12,6 +12,7 @@ export function useP2PRoom(room: string, name: string, relay?: RoomRelayConfig) 
   const [readyRevision, setReadyRevision] = useState(0);
   const outboundMedia = useRef<MediaStream | null>(null);
   const ref = useRef<P2PRoom | null>(null);
+  const nameRef = useRef(name); nameRef.current = name;
   const listeners = useRef(new Set<(from: string, data: unknown, channel: "state" | "reliable") => void>());
   useEffect(() => {
     setMediaStreams({});
@@ -25,7 +26,7 @@ export function useP2PRoom(room: string, name: string, relay?: RoomRelayConfig) 
     setEvents(["Preparing room connection…"]);
     setJoined(false);
     setPeers([]);
-    const p2p = new P2PRoom({ room, selfId, name, iceServers: relay ? [...defaultIceServers(), ...relay.iceServers] : undefined, iceTransportPolicy: relay?.iceTransportPolicy,
+    const p2p = new P2PRoom({ room, selfId, name: nameRef.current.slice(0, 64), iceServers: relay ? [...defaultIceServers(), ...relay.iceServers] : undefined, iceTransportPolicy: relay?.iceTransportPolicy,
       onPeersChanged: (next) => {
         setPeers(next);
         setMediaStreams((current) => Object.fromEntries(Object.entries(current).filter(([id]) => next.some((peer) => peer.id === id))));
@@ -36,7 +37,10 @@ export function useP2PRoom(room: string, name: string, relay?: RoomRelayConfig) 
     p2p.setMediaStream(outboundMedia.current);
     ref.current = p2p; void p2p.join();
     return () => { ref.current = null; p2p.close(); };
-  }, [room, selfId, name, relay]);
+  }, [room, selfId, relay]);
+  // Presence names ride the next existing signaling poll. Typing a new name
+  // must not destroy every peer channel and active local-video stream.
+  useEffect(() => { ref.current?.setName(name); }, [name]);
   const send = useCallback((data: unknown, peer?: string) => ref.current?.send(data, peer), []);
   const setMediaStream = useCallback((stream: MediaStream | null) => {
     outboundMedia.current = stream;

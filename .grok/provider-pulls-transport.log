@@ -1,0 +1,63 @@
+✖ actual upstream transfers serialize and honor the gap across different app jobs (23.5413ms)
+✔ an endpoint live limit does not freeze catalog or feed requests (19.2141ms)
+✖ a confirmed Google network block holds queued requests and backs off between probes (1.2006ms)
+✔ Retry-After is respected without conflating feeds and catalogs (0.4443ms)
+✔ on-demand details use the paced queue without freezing archive on a details-only limit (0.5327ms)
+✔ an aborted queued request never starts an upstream transfer (0.5655ms)
+✔ request timeout starts after queue and pacing waits (49.0243ms)
+✔ a manual retry makes a paced fresh request without releasing cooled automatic jobs (2.5274ms)
+✔ a fresh rejection stops the manual operation until another explicit retry (1.1516ms)
+✔ an HTML network challenge holds page and live HTML reads without blocking healthy browse or RSS (1.2286ms)
+✔ a new endpoint limit cannot hide behind an older longer global cooldown (0.8675ms)
+✔ archive request pacing supports earlier 80ms throughput and an explicit zero wait (42.2742ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 10
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 329.2814
+
+✖ failing tests:
+
+test at scripts\youtube-transport.test.mjs:5:1
+✖ actual upstream transfers serialize and honor the gap across different app jobs (23.5413ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      0,
+  +   1700,
+  +   3200
+  -   1500,
+  -   3000
+    ]
+  
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/youtube-transport.test.mjs:19:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 0, 1700, 3200 ],
+    expected: [ 0, 1500, 3000 ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at scripts\youtube-transport.test.mjs:39:1
+✖ a confirmed Google network block holds queued requests and backs off between probes (1.2006ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  901500 !== 901000
+  
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/youtube-transport.test.mjs:48:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 901500,
+    expected: 901000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

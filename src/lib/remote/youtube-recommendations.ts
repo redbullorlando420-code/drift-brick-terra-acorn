@@ -1,6 +1,7 @@
 import { createCreatorRankedPages, type CreatorRankedRow } from './creator-ranked-pages.ts';
 import type { LibraryVideo } from "@/lib/videos/types";
 import { youtubeContentKind, youtubePublicationTime } from '../videos/youtube-metadata.ts';
+import { youtubeTagWeight } from '../videos/youtube-text-tags.ts';
 import { applyInterestMultipliers, rankingTags, confidenceAdjustedPreference, normalizeRating, ratingAdjustedScore, ratingPreference, RATING_STAR_WEIGHTS } from '../videos/ranking-core.ts';
 
 export type YoutubeTaste = {
@@ -73,8 +74,9 @@ export function createYoutubeRecommendationRanker(videos: LibraryVideo[], taste:
       if (!tag || tag.length < 3) continue;
       if (rating > 0 || evidence) {
         const row = tagEvidence.get(tag) ?? { total: 0, count: 0 };
-        row.total += evidence;
-        row.count += 1;
+        const weight = youtubeTagWeight(video, tag);
+        row.total += evidence * weight;
+        row.count += weight;
         tagEvidence.set(tag, row);
       }
     }
@@ -105,7 +107,7 @@ export function createYoutubeRecommendationRanker(videos: LibraryVideo[], taste:
         explicit: taste.tagIsLiked(tag) ? 12 : taste.tagHasHeartHistory(tag) ? -5 : 0 });
     }
     const tagScore = tags.reduce((sum, tag) => {
-      return sum + (tagScores.get(tag)?.inferred ?? 0);
+      return sum + (tagScores.get(tag)?.inferred ?? 0) * youtubeTagWeight(video, tag);
     }, 0) / Math.max(tags.length, 1);
     const explicitTagScore = Math.max(-15, Math.min(24, tags.reduce((sum, tag) => sum + (tagScores.get(tag)?.explicit ?? 0), 0)));
     const creatorWatch = activeCreatorWatch.get(creator) ?? 0;

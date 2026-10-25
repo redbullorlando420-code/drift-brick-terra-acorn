@@ -1,0 +1,22 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "opening Live directly pulls both Adult directories while archive pulling is paused; a source failure stays visible without hiding healthy results",
+        "production pager screenshot: second directory page, previous/next buttons and mobile wrapping"
+      ],
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "opening Live directly pulls both Adult directories while archive pulling is paused; a source failure stays visible without hiding healthy results",
+        "production pager screenshot: second directory page, previous/next buttons and mobile wrapping"
+      ],
+      "errors": []
+    }
+  ],
+  "limitation": "Isolated desktop/mobile Chromium; real app selectors, queue and IndexedDB with deterministic provider/room metadata and abstract artwork. Native provider pages are checked separately."
+}

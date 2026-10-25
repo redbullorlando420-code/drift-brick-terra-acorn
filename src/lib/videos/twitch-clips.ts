@@ -1,8 +1,10 @@
+import { twitchContentKind } from './twitch-content.ts';
+import { createBoundedPicks } from './bounded-picks.ts';
 import { collectCatalogRows, forEachCatalogSlice, sortCatalogRows } from '../catalog-work.ts';
 import type { LibraryVideo } from "./types";
 
 export function isTwitchClip(video: LibraryVideo): boolean {
-  return video.remote?.kind === "twitch" && !video.remote.live && (video.extension === "clip" || video.id.startsWith("tw:c:") || ((video.duration ?? 0) > 0 && (video.duration ?? 0) <= 120));
+  return video.remote?.kind === 'twitch' && twitchContentKind(video) === 'clip';
 }
 
 function rank(id: string, seed: number): number {
@@ -93,4 +95,14 @@ export async function sampleTwitchClipsAsync(videos: readonly LibraryVideo[], of
   }
   await turn();
   return result;
+}
+
+/** Rank only clip offsets and keep one visible window in memory. Missing or
+ * future creation dates cannot masquerade as a fresh clip download. */
+export async function rankTwitchClipsAsync(videos: readonly LibraryVideo[], offsets: Uint32Array, creator: string, order: 'newest'|'views', turn: () => Promise<void>, limit=48, now=Date.now()) {
+  const at=(video:LibraryVideo)=>Number.isFinite(video.addedAt)&&video.addedAt>0&&video.addedAt<=now?video.addedAt:0;
+  const views=(video:LibraryVideo)=>Number.isFinite(video.remote?.views)&&video.remote!.views!>=0?video.remote!.views!:0;
+  const picks=createBoundedPicks<LibraryVideo>(Math.max(0,Math.min(96,Math.floor(limit))), (a,b)=>(order==='views'?views(b)-views(a):0)||at(b)-at(a)||a.id.localeCompare(b.id));
+  await forEachCatalogSlice(offsets,offset=>{const video=videos[offset];if(!video||!isTwitchClip(video))return;if(creator!=='all'&&video.remote?.channelName!==creator)return;picks.add(video);},turn);
+  await turn();return picks.finish();
 }

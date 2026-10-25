@@ -1,0 +1,26 @@
+- navigation "Library navigation":
+  - button "Library" [expanded]
+  - button "Home"
+  - button "Landing page 0"
+  - button "Movies"
+  - button "Anime"
+  - button "Topics"
+  - button "YouTube 0"
+  - button "Twitch 0"
+  - button "Live 0"
+  - button "Favorites 0"
+  - button "Continue 0"
+  - button "History 0"
+  - button "Adults 0"
+  - button "Fetish Explorer"
+  - button "Workspace"
+  - button "Tools" [expanded]
+  - button "Connection guide"
+  - button "Find my phone"
+  - button "AI guide"
+  - button "Mission plan"
+  - button "Settings"
+  - button "Stats"
+null
+<button type="button" aria-expanded="true" aria-controls="nav-desktop-library" class="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-xs font-medium text-muted hover:bg-elevated hover:text-fg"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down size-3.5 transition-transform duration-150 motion-reduce:transition-none" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg><span class="flex-1 text-left">Library</span></button>
+HOME CLICK WORKED

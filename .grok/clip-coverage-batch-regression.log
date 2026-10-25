@@ -1,0 +1,27 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "Stop saves the current creator and prevents later requests in a 25-creator batch",
+        "25-creator recent batch skips the just-checked creator, keeps partial clips, shows duplicates/pages/errors and continues healthy creators",
+        "Older discovery remains available during a recent retry and resumes old → next → last without touching VOD/live state",
+        "Clip health, independent retry, diagnostic counts and older cursor persist after reload; no overflow or console errors"
+      ],
+      "errors": [],
+      "requests": 28
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "Stop saves the current creator and prevents later requests in a 25-creator batch",
+        "25-creator recent batch skips the just-checked creator, keeps partial clips, shows duplicates/pages/errors and continues healthy creators",
+        "Older discovery remains available during a recent retry and resumes old → next → last without touching VOD/live state",
+        "Clip health, independent retry, diagnostic counts and older cursor persist after reload; no overflow or console errors"
+      ],
+      "errors": [],
+      "requests": 28
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "paused archive pulling does not block a manual combined live scan; every eligible one of 54 follows is checked in small batches, with progress, and the one cooling down is preserved",
+        "a failed live observation keeps the earlier stream while successful channels reconcile independently",
+        "YouTube preview shelves render 8 related and 6 distinct next picks with creator variety and metadata; refresh and switching to a suggested video work",
+        "Adult archive discovery passes over already-saved page-one entries, adds ten new titles from page two and checkpoints exhaustion for a later newest-page refresh"
+      ],
+      "errors": [],
+      "liveRequests": 10,
+      "adultRequests": 8
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "paused archive pulling does not block a manual combined live scan; every eligible one of 54 follows is checked in small batches, with progress, and the one cooling down is preserved",
+        "a failed live observation keeps the earlier stream while successful channels reconcile independently",
+        "YouTube preview shelves render 8 related and 6 distinct next picks with creator variety and metadata; refresh and switching to a suggested video work",
+        "Adult archive discovery passes over already-saved page-one entries, adds ten new titles from page two and checkpoints exhaustion for a later newest-page refresh"
+      ],
+      "errors": [],
+      "liveRequests": 10,
+      "adultRequests": 8
+    }
+  ],
+  "limitation": "Desktop/mobile isolated Chrome with fixture provider metadata and players; real app workers, persistence, live reconciliation and provider queues."
+}

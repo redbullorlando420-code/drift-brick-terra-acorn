@@ -1,0 +1,19 @@
+✔ rapid catalog replacement cancels 80 obsolete scans before they read rows; newest scan completes (132.6302ms)
+✔ one canceled reader cannot cancel another reader or durable archive scheduling (1.9163ms)
+✔ last-reader cancellation permits immediate retry and old finalization cannot delete the replacement (0.9501ms)
+✔ hidden third-party pages use one cancelable deadline and release once without auto-resuming (0.5135ms)
+✔ pagehide releases immediately; unmount cancels every listener and pending hidden timer (0.1335ms)
+✔ resolving a saved query removes its stub and preserves distinct channels sharing its name (1.8771ms)
+✔ saved coverage separates verified empty channels from unresolved names and held fragments (1.1258ms)
+✔ compact exact union counts match creator and playlist rows without retaining card indexes (0.8446ms)
+✔ 100k saved rows yield to input and simultaneous readers share the same compact index (2830.1879ms)
+✔ live health and folder counts do not invalidate a provider shelf; privacy edits do (27.1291ms)
+✔ small refreshes update dates, preserve equal-date metadata order and reuse shelves for Twitch-only changes (53.8072ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3079.1209

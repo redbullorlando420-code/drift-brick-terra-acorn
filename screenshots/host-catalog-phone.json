@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "checks": [
+    "late YouTube API readiness retries successfully; blocked mobile autoplay resolves with a device-only tap, catches up to the playing host, and does not send room pause/play requests even with 90 seconds of clock skew",
+    "normal playback avoids seek storms, substantial decoder drift is corrected, and buffering freezes the shared clock and resumes the guest automatically",
+    "returning to the phone page requests fresh clock and host state without altering shared playback",
+    "shared pause/resume remains stable while provider telemetry is arriving, and stale player notifications do not undo the room control",
+    "YouTube live links and watch URLs detected by host telemetry survive independent viewer clocks, three host buffering cycles, guest buffering, explicit resync and player reload without repeated play/pause/seek; deliberate room pause/resume still works once per action",
+    "live detection is scoped to its title: switching back to a YouTube VOD restores seek controls and guest clock alignment",
+    "Twitch VOD first-start taps catch up locally without sending an old PLAY timestamp to the room; subsequent decoder drift is bounded and corrected"
+  ],
+  "errors": [],
+  "limitation": "Isolated desktop/mobile Chrome clients use real WebRTC and deterministic provider fixtures. Physical iOS/Android autoplay policy and provider ads/live latency are not emulated."
+}

@@ -1,6 +1,8 @@
 import { decodeTwitchArchiveCursor, encodeTwitchArchiveCursor } from './twitch-archive-cursor';
 import { decodeTwitchClipCursor, encodeTwitchClipCursor } from './twitch-clip-cursor';
 import type { FollowedChannel, TwitchPullDiagnostics } from './types';
+import { normalizeTwitchClipDiagnostics } from './twitch-clip-coverage';
+import { normalizeRecentPull } from './recent-pull';
 import { normalizeTwitchRetry } from './twitch-retry';
 
 const reasons = ['page-budget', 'entry-budget', 'exhausted', 'stalled', 'incomplete-page', 'challenge', 'provider-error', 'entry-limit'] as const;
@@ -20,10 +22,13 @@ export function normalizeTwitchPullDiagnostics(raw: unknown): TwitchPullDiagnost
 /** The same compact checkpoint contract is used by reloads and backup imports. */
 export function normalizeFollowCheckpoints(row: Record<string, unknown>): Partial<FollowedChannel> {
   const out: Partial<FollowedChannel> = {};
-  for (const field of ['twitchArchiveRetry', 'twitchLiveRetry'] as const) {
+  const clip = normalizeTwitchClipDiagnostics(row.twitchClipDiagnostics);
+  if (clip) out.twitchClipDiagnostics = clip;
+  const recentPull = normalizeRecentPull(row.recentPull); if (recentPull) out.recentPull = recentPull;
+  for (const field of ['twitchArchiveRetry', 'twitchLiveRetry', 'twitchClipRetry', 'twitchClipRecentRetry'] as const) {
     const retry = normalizeTwitchRetry(row[field]); if (retry) out[field] = retry;
   }
-  for (const field of ['catalogCheckedAt', 'catalogExhaustedAt', 'twitchArchiveExhaustedAt', 'twitchClipExhaustedAt'] as const) {
+  for (const field of ['twitchClipRecentAttemptedAt', 'twitchClipArchiveAttemptedAt', 'twitchArchiveCheckedAt', 'catalogCheckedAt', 'catalogExhaustedAt', 'twitchArchiveExhaustedAt', 'twitchClipExhaustedAt', 'twitchClipCheckedAt', 'twitchClipRecentCheckedAt'] as const) {
     const value = row[field]; if (typeof value === 'number' && Number.isFinite(value) && value > 0) out[field] = value;
   }
   if (typeof row.catalogCursor === 'string' && row.catalogCursor.length > 0 && row.catalogCursor.length <= 16_384) out.catalogCursor = row.catalogCursor;
@@ -37,6 +42,7 @@ export function normalizeFollowCheckpoints(row: Record<string, unknown>): Partia
   if (typeof row.twitchArchiveLastVideoId === 'string' && row.twitchArchiveLastVideoId.length <= 128) out.twitchArchiveLastVideoId = row.twitchArchiveLastVideoId;
   const diagnostics = normalizeTwitchPullDiagnostics(row.twitchArchiveDiagnostics);
   if (diagnostics) out.twitchArchiveDiagnostics = diagnostics;
+  if (row.lastClipFailure && typeof row.lastClipFailure === 'object' && typeof (row.lastClipFailure as Record<string,unknown>).message === 'string') out.lastClipFailure = row.lastClipFailure as FollowedChannel['lastClipFailure'];
   return out;
 }
 

@@ -1,0 +1,3 @@
+Target: C:\Program Files\nodejs\node.exe
+Arguments: "E:\codex\drift-brick-terra-acorn\scripts\start-desktop.mjs"
+Window style: 1

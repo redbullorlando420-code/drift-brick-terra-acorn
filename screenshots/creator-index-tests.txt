@@ -1,0 +1,15 @@
+✔ creator coverage resolves an exact public channel id (1.3014ms)
+✔ creator coverage resolves the exact saved source id when channel id is absent (0.1883ms)
+✔ creator coverage keeps conflicting exact evidence visible for review (6.1726ms)
+✔ creator coverage never guesses from a similar follow title (0.1432ms)
+✔ indexed evidence preserves follow-order precedence, whitespace grouping and provider isolation (1.1825ms)
+✔ large indexed resolution reads each follow once, reuses completed snapshots and discards aborted builds (96.2284ms)
+✔ playlist aliases collapse equivalent creator evidence while preserving earlier source precedence (6.0691ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 226.8166

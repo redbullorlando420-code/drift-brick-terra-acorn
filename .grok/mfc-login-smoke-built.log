@@ -1,0 +1,40 @@
+{
+  "url": "http://127.0.0.1:8082/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Realhub",
+      "hasCanvas": false,
+      "hydrationVerified": true,
+      "bodyTextLen": 777,
+      "bodyTextHash": "d54e67e2c75be3a8eb2a258ad7ca9eaf801d9419fdfca2b69406534d69f5ddf6",
+      "bodyTextPrefix": "Realhub Vault · networks · live Library Home Landing page 0 Movi",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\mfc-login-smoke-built.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Realhub",
+      "hasCanvas": false,
+      "hydrationVerified": true,
+      "bodyTextLen": 556,
+      "bodyTextHash": "086a19f11c55c6d77e785059fb476c8c845354abcd436464dbba595e9e49a496",
+      "bodyTextPrefix": "Home 0 indexed Search Date added Pause pulls REALHUB · YOUR WORK",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\mfc-login-smoke-built-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\mfc-login-smoke-built.json",
+  "divergesFromBaseline": false,
+  "baselineReasons": []
+}

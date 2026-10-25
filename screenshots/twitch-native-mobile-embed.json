@@ -1,0 +1,28 @@
+{
+  "ready": true,
+  "status": "Official Twitch player READY",
+  "errors": [],
+  "frames": [
+    {
+      "url": "https://player.twitch.tv/",
+      "text": "notyoda is offline.\nLearn more about them on their channel!\nVisit notyoda"
+    },
+    {
+      "url": "https://s.amazon-adsystem.com/iui3",
+      "text": ""
+    },
+    {
+      "url": "https://k.twitchcdn.net/149e9513-01fa-4fb0-aad4-566afd725d1b/2d206a39-8ed7-437e-a3be-862e0f06eea3/fp",
+      "text": ""
+    },
+    {
+      "url": "",
+      "text": ""
+    },
+    {
+      "url": "",
+      "text": ""
+    }
+  ],
+  "limitation": "Real official Twitch SDK and iframe in isolated mobile Chrome at a locally routed HTTPS origin. No public tunnel, account or physical phone used."
+}

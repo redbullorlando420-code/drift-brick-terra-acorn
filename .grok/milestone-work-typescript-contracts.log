@@ -1,0 +1,28 @@
+✔ current uploads playlists retain lockup rows and continuationItemViewModel tokens (1.6805ms)
+✔ channel archive uses the selected Videos grid continuation (0.1361ms)
+✔ continuation responses read appended video items (0.0836ms)
+✔ continuation responses read reload items used by refreshed Videos tabs (0.0864ms)
+✔ a populated Videos grid is recognized when YouTube omits the selected flag (0.667ms)
+✔ a unique populated grid is retained even without tab metadata (0.154ms)
+✔ continuation tokens nested in a migrated row still resume the archive (0.1044ms)
+✔ unrecognized renderer-shaped rows are never declared a completed archive (0.5462ms)
+✔ live detection is independent of field order and description length (2.5321ms)
+✔ concurrent audiences parse exact and compact counts without accepting total views or waiting rooms (0.6613ms)
+✔ classic live cards, modern lockups and primary watch info expose their own concurrent count (2.3416ms)
+✔ upcoming, recorded and unrelated broadcasts cannot become current live cards (0.2265ms)
+✔ unreadable/blocked live responses report failure instead of marking a creator offline (0.434ms)
+✔ channel live badges belong to a specific current renderer (0.4081ms)
+✔ modern channel lockups distinguish current live and scheduled thumbnails (0.3764ms)
+✔ initial data permits script suffixes and quoted braces (1.4443ms)
+✔ page owner wins over recommended channel IDs (0.3828ms)
+✔ uploads playlists preserve their exact catalog continuation (0.5834ms)
+✔ Shorts renderers and migrated lockups normalize without playlist recommendations (0.3077ms)
+✔ playlist continuation contents keep page tokens (0.8688ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 254.2694

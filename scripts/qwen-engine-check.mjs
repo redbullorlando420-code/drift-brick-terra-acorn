@@ -1,0 +1,3 @@
+import {writeFile} from 'node:fs/promises';
+const base='http://127.0.0.1:43123',headers={Origin:'http://127.0.0.1:8080','Content-Type':'application/json'};async function api(path,body){const r=await fetch(base+path,{method:body?'POST':'GET',headers,body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(10000)});const j=await r.json();if(!j.ok)throw Error(j.error);return j;}
+console.log(await api('/studio/qwen/start',{}));for(let i=0;i<90;i++){const status=await api('/studio/qwen/status');if(status.connected){console.log(status);await writeFile('screenshots/qwen-engine-ready.json',JSON.stringify(status,null,2));break;}if(i===89)throw Error('Qwen did not become ready; inspect engine log.');await new Promise(r=>setTimeout(r,1000));}

@@ -10,6 +10,8 @@ export type TopicCatalogInput = {
 };
 export type TopicTaste = { score: (id: string) => number; liked: (topic: string) => boolean };
 export type TopicCount = { count: number; providers: Set<string>; ratingTotal: number; saved: number };
+export type TopicFilters={text?:string;sort?:'catalog'|'newest'|'title'|'taste';evidence?:'all'|'saved'|'inferred'};
+const normalize=(text:string)=>text.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[-_#]+/g,' ');
 
 function publicTitle(input: TopicCatalogInput) {
   const privateFolders = new Set(input.folders.filter(folder => folder.adult).map(folder => folder.id));
@@ -60,14 +62,18 @@ export type TopicSummary = Awaited<ReturnType<typeof summarizeTopicCatalog>>;
 
 /** Preserve catalog order and complete results; only the visible grid mounts cards. */
 export async function selectTopicCatalog(input: TopicCatalogInput, selected: string | undefined,
-  genre: string | undefined, provider: string, taste: TopicTaste, turn: () => Promise<void>) {
+  genre: string | undefined, provider: string, taste: TopicTaste, turn: () => Promise<void>, filters:TopicFilters={}) {
   const allowed = publicTitle(input), videos: LibraryVideo[] = [];
+  const terms=normalize((filters.text??'').trim().slice(0,200)).split(/\s+/).filter(Boolean).slice(0,12);
   const related = new Map<string, { shared: number; ratingTotal: number }>();
   await forEachCatalogSlice(input.videos, video => {
     if (!allowed(video) || (genre && video.genre !== genre)
       || (provider !== 'all' && (video.remote?.kind ?? 'local') !== provider)) return;
-    const links = selected ? topicEvidenceForScan(video, input.tags[video.id]) : [];
+    const links = selected || filters.evidence && filters.evidence!=='all' ? topicEvidenceForScan(video, input.tags[video.id]) : [];
     if (selected && !links.some(link => link.topic === selected)) return;
+    const relevant=selected?links.filter(link=>link.topic===selected):links;
+    if(filters.evidence==='saved'&&!relevant.some(link=>link.saved)||filters.evidence==='inferred'&&(!relevant.length||relevant.some(link=>link.saved)))return;
+    if(terms.length){const text=normalize(`${video.name.slice(0,1000)} ${video.genre??''} ${video.remote?.channelName??''} ${(input.tags[video.id]??[]).slice(0,80).join(' ')}`);if(!terms.every(term=>text.includes(term)))return;}
     videos.push(video);
     if (!selected) return;
     const score = taste.score(video.id);
@@ -77,7 +83,8 @@ export async function selectTopicCatalog(input: TopicCatalogInput, selected: str
     }
   }, turn, 256);
   await turn();
-  return { videos, related: [...related].sort((a, b) => b[1].ratingTotal / b[1].shared - a[1].ratingTotal / a[1].shared
+  const ordered=filters.sort&&filters.sort!=='catalog'?await sortCatalogRows(videos,(a,b)=>filters.sort==='title'?a.name.localeCompare(b.name):filters.sort==='taste'?taste.score(b.id)-taste.score(a.id)||b.addedAt-a.addedAt:b.addedAt-a.addedAt,turn):videos;
+  return { videos:ordered, related: [...related].sort((a, b) => b[1].ratingTotal / b[1].shared - a[1].ratingTotal / a[1].shared
     || b[1].shared - a[1].shared || a[0].localeCompare(b[0])).slice(0, 12) };
 }
 export type TopicSelection = Awaited<ReturnType<typeof selectTopicCatalog>>;

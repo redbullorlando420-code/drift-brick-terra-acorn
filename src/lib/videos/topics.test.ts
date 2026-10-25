@@ -1,8 +1,23 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { topicsForVideo, topicEvidence, topicEvidenceForScan, reconcileProviderTopicTags } from "./topics.ts";
+import { TOPICS, topicsForVideo, hasTopicForScan, topicEvidence, topicEvidenceForScan, reconcileProviderTopicTags } from "./topics.ts";
 import type { LibraryVideo } from "./types.ts";
 const video = (name: string, genre?: string): LibraryVideo => ({id:name,folderId:"yt:creator",name,genre,path:"youtube/creator",mime:"video/youtube",extension:"yt",size:0,addedAt:0});
+
+test('single-topic scans match complete evidence without replacing the card cache', () => {
+  const fixtures = [video('Physics coding anime movie'), video('A quiet day', 'Manga'),
+    { ...video('Today'), remote: { kind: 'youtube' as const }, description: 'Subscribe for anime\n00:20 A manga drawing tutorial\nhttps://example.com/gaming' },
+    { ...video('A'.repeat(501) + ' anime'), remote: { kind: 'twitch' as const, channelName: 'anime' }, description: 'Anime music' },
+    { ...video('Unrelated'), remote: { kind: 'youtube' as const }, description: 'Subscribe to my anime channel' }];
+  for (const row of fixtures) for (const tags of [[], ['#Anime', 'coding', 'tech'], ['science', 'not-a-topic']]) {
+    const expected = topicEvidenceForScan(row, tags).map(link => link.topic);
+    for (const topic of [...TOPICS, 'unknown']) assert.equal(hasTopicForScan(row, topic, tags), expected.includes(topic), `${row.name.slice(0, 30)}: ${topic}`);
+  }
+  const row = video('anime'), saved = ['music'], resident = topicEvidence(row, saved);
+  assert.equal(hasTopicForScan(row, 'anime', ['anime']), true);
+  assert.equal(topicEvidence(row, saved), resident);
+  assert.equal(hasTopicForScan(row, 'music', saved), true);
+});
 test('complete-catalog scans preserve evidence without filling or replacing the resident card cache', () => {
   const row = video('Physics coding'), tags = ['science'];
   const first = topicEvidenceForScan(row, tags), second = topicEvidenceForScan(row, tags);

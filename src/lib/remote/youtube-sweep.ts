@@ -1,7 +1,9 @@
+import { recentPullReady } from '../videos/recent-pull.ts';
 type SweepChannel = {
   id: string;
   kind: string;
   catalogCheckedAt?: number;
+  recentPull?: import('../videos/types').RecentPullState;
   catalogExhaustedAt?: number;
   lastProviderFailure?: { at: number; kind?: string; retryAt?: number; cooldownScope?: string };
   channelId?: string;
@@ -14,7 +16,9 @@ function sourceReady(channel: SweepChannel, now: number) {
   // Provider-wide rate limits already have an exact retry deadline. Applying
   // an additional one-hour missing-source hold prevents recovery after it.
   if (failure.kind === 'rate-limited') return now >= (failure.retryAt ?? failure.at + 5 * 60_000);
-  return now - failure.at >= 60 * 60_000;
+  if (failure.retryAt) return now >= failure.retryAt;
+  const wait = failure.kind === 'network-offline' ? 30_000 : failure.kind === 'response-budget' ? 60_000 : failure.kind === 'malformed' ? 2 * 60_000 : failure.kind === 'integrity-challenge' ? 5 * 60_000 : 60 * 60_000;
+  return now - failure.at >= wait;
 }
 
 /** Feed checks rotate durably across confirmed creators. A catalog-only rate
@@ -23,8 +27,8 @@ function sourceReady(channel: SweepChannel, now: number) {
 export function selectYoutubeFeedChannels<T extends SweepChannel & { lastCheckedAt?: number }>(channels: T[], counts: ReadonlyMap<string, number>, now: number, limit: number): T[] {
   const eligible = channels.filter(channel => channel.kind === 'youtube' && !channel.importNeedsReview && !channel.id.startsWith('ytpl:')
     && (channel.channelId || /^yt:UC[\w-]{20,}$/.test(channel.id))
-    && (channel.lastProviderFailure?.kind === 'rate-limited' && channel.lastProviderFailure.cooldownScope === 'catalog' || sourceReady(channel, now)))
-    .sort((a, b) => (a.lastCheckedAt ?? 0) - (b.lastCheckedAt ?? 0) || a.id.localeCompare(b.id));
+    && recentPullReady(channel, now))
+    .sort((a, b) => (a.recentPull?.attemptedAt ?? 0) - (b.recentPull?.attemptedAt ?? 0) || a.id.localeCompare(b.id));
   const empty = eligible.filter(channel => !(counts.get(channel.id) ?? 0)).slice(0, Math.ceil(limit / 2));
   const selected = new Set(empty.map(channel => channel.id));
   return [...empty, ...eligible.filter(channel => !selected.has(channel.id)).slice(0, Math.max(0, limit - empty.length))];

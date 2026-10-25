@@ -1,0 +1,15 @@
+✔ a warm retry advances only its attempt and retains original successful observation through reload (3.8492ms)
+✔ cached and held responses cannot clear a newer failure, rewind health or move older cursors (0.3278ms)
+✔ new successful observations clear only their own wait and real failures keep the prior check (0.3413ms)
+✔ unrelated copied follow responses preserve newer clip health without blocking live metadata (0.4627ms)
+✔ every catalog admission path retains fresher clip metadata and array identity on stale-only input (4.7658ms)
+✔ fresh clip API invalidates only its exact creator, mode, count and cursor cache entry (2161.3561ms)
+✔ a fresh clip read waits for the older same-key request, coalesces fresh callers and warms the final result (808.2719ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3566.0946

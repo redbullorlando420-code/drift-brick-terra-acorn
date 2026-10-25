@@ -11,7 +11,8 @@ test('single-provider writes preserve other resume points and failures preserve 
   assert.equal(loadAdultArchiveCursors('all', 'latest').redtube?.page, 101);
   saveAdultArchiveCursors('all', 'latest', { eporner: null });
   const cursor = loadAdultArchiveCursors('all', 'latest').eporner!;
-  assert.equal(cursor.page, 8); assert.equal(cursor.offset, 320); assert.ok(cursor.retryAt! > Date.now());
+  assert.equal(cursor.page, 1); assert.equal(cursor.offset, 0); assert.ok(cursor.retryAt! > Date.now());
+  saveAdultArchiveCursors('all', 'latest', {eporner:8},{eporner:320});
   recordAdultArchiveFailure('all', 'latest', 'eporner');
   const failed = loadAdultArchiveCursors('all', 'latest').eporner!;
   assert.equal(failed.page, 8); assert.equal(failed.offset, 320);

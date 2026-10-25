@@ -14,6 +14,15 @@ const base = {
   creatorRating: () => 0, now: 1_800_000_000_000,
 };
 
+test('description-only words teach less than creator tags while explicit hearts keep their full effect', () => {
+  const seen = video('seen', 'watched', '', 0), strong = video('strong', 'creator-a', '', 0), weak = video('weak', 'creator-b', '', 0);
+  const summary = (source: 'video-tag' | 'description') => ({ version: 3, sources: { python: source }, topics: [] });
+  seen.remote!.youtubeTagSummary = summary('video-tag'); strong.remote!.youtubeTagSummary = summary('video-tag'); weak.remote!.youtubeTagSummary = summary('description');
+  const taste = { ...base, tags: { seen: ['python'], strong: ['python'], weak: ['python'] }, ratingOf: (id: string) => id === 'seen' ? 5 : 0 };
+  assert.equal(rankYoutubeRecommendations([weak, strong, seen], taste, [weak, strong])[0]!.id, 'strong');
+  assert.equal(rankYoutubeRecommendations([weak, strong], { ...base, tags: { weak: ['python'] }, tagIsLiked: tag => tag === 'python' })[0]!.id, 'weak');
+});
+
 test("recent creator viewing raises unseen older uploads from that creator", () => {
   const recent = video("viewed", "maker", "science", 1_799_000_000_000);
   const old = video("older", "maker", "science", 1_700_000_000_000);

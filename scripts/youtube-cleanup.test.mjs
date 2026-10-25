@@ -28,7 +28,7 @@ test('age, unknown dates, live/upcoming, incoming rows, custom metadata and othe
 });
 
 test('shared playlists keep representatives and a liked or rated alias protects every duplicate identity', async () => {
-  const videos = [card(0, { remote: { kind: 'youtube', videoId: 'shared', sourceIds: ['playlist'] } }), card(1), card(2, { id: 'alias', remote: { kind: 'youtube', videoId: 'shared' } }),
+  const videos = [card(0, { remote: { kind: 'youtube', videoId: 'shared', publishedSource: 'provider', sourceIds: ['playlist'] } }), card(1), card(2, { id: 'alias', remote: { kind: 'youtube', videoId: 'shared', publishedSource: 'provider' } }),
     card(3, { folderId: 'playlist' }), card(4)];
   const result = await planYoutubeCleanup(videos, signals({ likes: { alias: true } }), { limit: 10, minAgeDays: 30, now }, async () => {});
   assert.deepEqual(result.removed.map(v => v.id), ['yt:1']);

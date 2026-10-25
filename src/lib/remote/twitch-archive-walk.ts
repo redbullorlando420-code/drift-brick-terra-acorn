@@ -1,7 +1,7 @@
 import { advanceTwitchArchiveCursor, decodeTwitchArchiveCursor, encodeTwitchArchiveCursor, type TwitchArchiveCursor } from '../videos/twitch-archive-cursor';
 import type { TwitchPullDiagnostics } from '../videos/types';
 
-type Edge = { cursor?: string | null; node?: { id?: string } };
+type Edge = { broadcastType?: TwitchArchiveCursor['stage']; observedAt?: number; cursor?: string | null; node?: { id?: string } };
 type Page = { id?: string; videos?: { providerError?: string | boolean; pageInfo?: { hasNextPage?: boolean; endCursor?: string | null }; edges?: Edge[] } };
 
 /** Keep only accepted pages. A later challenge must not discard earlier data or
@@ -35,6 +35,7 @@ export async function walkTwitchArchive<T extends Page>(options: {
     first ??= page;
     diagnostics.pages++;
     const rows = page.videos!.edges!;
+    const observedAt = Date.now();
     diagnostics.received += rows.length;
     let lastAccepted: string | undefined;
     let skipped = false;
@@ -43,7 +44,7 @@ export async function walkTwitchArchive<T extends Page>(options: {
       if (!id) { skipped = true; continue; }
       if (seen.has(id)) { diagnostics.duplicates++; continue; }
       if (edges.length >= options.limit) { skipped = true; continue; }
-      seen.add(id); edges.push(edge); lastAccepted = id;
+      seen.add(id); edges.push({...edge,broadcastType:cursor.stage,observedAt}); lastAccepted = id;
     }
     diagnostics.accepted = edges.length;
     if (lastAccepted) diagnostics.lastVideoId = lastAccepted;

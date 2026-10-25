@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {writeFileSync} from 'node:fs';
+import {buildTwitchMix} from '../src/lib/videos/twitch-mix.ts';
+import {twitchCreatorKey} from '../src/lib/videos/twitch-catalog-order.ts';
+import {prepareTwitchDeskIndex} from '../src/lib/videos/twitch-desk-catalog.ts';
+const hash=(id,seed)=>{let value=seed^2166136261;for(let i=0;i<id.length;i++)value=Math.imul(value^id.charCodeAt(i),16777619);return value>>>0;};
+function original(videos,seed){const groups=new Map();for(const video of videos){const key=twitchCreatorKey(video),rows=groups.get(key)??[],order=hash(video.id,seed);if(rows.length<12)rows.push({video,order});else{let worst=0;for(let i=1;i<rows.length;i++)if(rows[i].order>rows[worst].order)worst=i;if(order<rows[worst].order)rows[worst]={video,order};}groups.set(key,rows);}const peak=[...groups.values()].reduce((sum,rows)=>sum+rows.length,0),ordered=[...groups].sort(([a],[b])=>hash(a,seed)-hash(b,seed)||a.localeCompare(b)).map(([,rows])=>rows.sort((a,b)=>a.order-b.order));const result=[];for(let depth=0;depth<12&&result.length<96;depth++)for(const rows of ordered){if(rows[depth])result.push(rows[depth].video);if(result.length===96)break;}return {result,peak};}
+const videos=Array.from({length:120000},(_,i)=>({id:`tw:v:${i}`,name:`VOD ${i}`,folderId:`tw:${i%10000}`,path:'',extension:'vod',mime:'video/twitch',size:0,addedAt:i+1,remote:{kind:'twitch',channelName:`Creator ${i%10000}`}}));
+const samples=[];let referencePeak=0,newPeak=0;
+for(let round=0;round<3;round++){global.gc?.();const start=performance.now(),reference=original(videos,71),referenceMs=performance.now()-start;const began=performance.now();const result=await buildTwitchMix(videos,71,undefined,false,96,async()=>{},undefined,stats=>{newPeak=stats.peakRetained;});const optimizedMs=performance.now()-began;assert.deepEqual(result.map(v=>v.id),reference.result.map(v=>v.id));referencePeak=reference.peak;samples.push({referenceMs,optimizedMs});}
+const at=performance.now(),index=await prepareTwitchDeskIndex(videos,async()=>{}),coldIndexMs=performance.now()-at;const warmAt=performance.now(),warm=await prepareTwitchDeskIndex(videos,async()=>{}),warmIndexMs=performance.now()-warmAt;assert.equal(index,warm);assert.equal(index.total,120000);assert.ok(newPeak<=1152);
+const median=key=>samples.map(row=>row[key]).sort((a,b)=>a-b)[1];
+const report={ok:true,entries:videos.length,creators:10000,referenceCandidates:referencePeak,optimizedCandidates:newPeak,referenceMedianMs:median('referenceMs'),optimizedMedianMs:median('optimizedMs'),coldIndexMs,warmIndexMs,reusedIndex:index===warm,identicalMix:true,limitation:'Synthetic metadata without artwork or network; candidate counts measure retained sampler objects, not complete app process memory.'};
+writeFileSync(new URL('../screenshots/twitch-mix-memory.json',import.meta.url),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));

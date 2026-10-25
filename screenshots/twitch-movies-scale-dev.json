@@ -1,0 +1,96 @@
+[
+  {
+    "viewport": "desktop",
+    "errors": [],
+    "navigation": {
+      "elapsedMs": 643,
+      "maxFrameMs": 83.29999999999995,
+      "inputs": [
+        {
+          "action": "Movies",
+          "ms": 15.299999982118607
+        }
+      ]
+    },
+    "shuffle": {
+      "elapsedMs": 383,
+      "maxFrameMs": 5.700000000000273,
+      "inputs": [
+        {
+          "action": "Random pick",
+          "ms": 10.799999982118607
+        }
+      ]
+    },
+    "shuffleChanged": true,
+    "returnNavigation": {
+      "elapsedMs": 543,
+      "maxFrameMs": 66.79999999999973,
+      "inputs": [
+        {
+          "action": "Movies",
+          "ms": 15.400000005960464
+        }
+      ]
+    },
+    "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\twitch-movies-scale-dev-desktop.png",
+    "overflow": false,
+    "cards": 32,
+    "fullCatalogKeyboardVerified": true,
+    "previewVerified": true,
+    "unavailableMovieRemoved": true,
+    "hiddenMovieRemoved": true,
+    "classicsPersisted": true
+  },
+  {
+    "viewport": "mobile",
+    "errors": [],
+    "navigation": {
+      "elapsedMs": 574,
+      "maxFrameMs": 33.40000000000009,
+      "inputs": [
+        {
+          "action": "",
+          "ms": 35.79999998211861
+        },
+        {
+          "action": "Movies",
+          "ms": 23.900000005960464
+        }
+      ]
+    },
+    "shuffle": {
+      "elapsedMs": 395,
+      "maxFrameMs": 5.700000000000273,
+      "inputs": [
+        {
+          "action": "Random pick",
+          "ms": 10.200000017881393
+        }
+      ]
+    },
+    "shuffleChanged": true,
+    "returnNavigation": {
+      "elapsedMs": 519,
+      "maxFrameMs": 22.199999999999818,
+      "inputs": [
+        {
+          "action": "",
+          "ms": 29.5
+        },
+        {
+          "action": "Movies",
+          "ms": 17.80000001192093
+        }
+      ]
+    },
+    "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\twitch-movies-scale-dev-mobile.png",
+    "overflow": false,
+    "cards": 20,
+    "fullCatalogKeyboardVerified": true,
+    "previewVerified": true,
+    "unavailableMovieRemoved": true,
+    "hiddenMovieRemoved": true,
+    "classicsPersisted": true
+  }
+]

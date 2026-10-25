@@ -16,6 +16,8 @@ export const LIBRARY_LIMITS = {
   // whole library's worth of cards. Each selected creator gets a deeper window.
   remoteRefreshChannelBatch: 24,
   twitchChannelsReservedPerRefresh: 12,
+  twitchArchiveChannelsPerSweep: 100,
+  twitchArchiveSourcesPerRequest: 4,
   // Keep pace with the Adult catalog without making the first channel paint
   // wait on every archive continuation. Focused pulls retain a deep history;
   // routine and bulk refreshes fill it in wider batches below.
@@ -42,7 +44,7 @@ export const LIBRARY_LIMITS = {
   /** Independently poll a fair rotating batch for current YouTube broadcasts. */
   youtubeLiveRefreshIntervalMs: 60_000,
   youtubeLiveRefreshChannels: 12,
-  youtubeLiveStateFreshnessMs: 3 * 60_000,
+  youtubeLiveStateFreshnessMs: 10 * 60_000,
   youtubeManualRefreshChannels: 10_000,
   /** Each HTTP response and merge stays small even when a sweep visits every source. */
   youtubeCatalogSourcesPerRequest: 1,

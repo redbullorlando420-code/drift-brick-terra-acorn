@@ -1,0 +1,23 @@
+✔ 22 small redacted YouTube contract fixtures recognize supported shapes and reject unreadable replacements (9.1633ms)
+✔ Twitch live contract rejects malformed stream identities and viewer values, but accepts real zero-viewer and offline observations (0.6864ms)
+✔ Twitch aliased optional failures preserve verified state while critical and bubbled negatives stay unknown (7.5279ms)
+✔ Twitch whole-request failures stay within their 12-user chunk and later chunks finish (1.8674ms)
+✔ actual 100-target Twitch refresh commits healthy siblings and retries only six bad observations (90.2982ms)
+✔ actual valid empty RSS feed succeeds without a channel or live fallback; malformed RSS retains checkpoints (105.78ms)
+✔ a renamed live renderer or incomplete Streams container cannot confirm an offline observation (2.4581ms)
+✔ a partial malformed archive page retains the previous complete page and its next token (180.3692ms)
+✔ timeouts, server failures, network errors and body budgets never fan out into Home and HTML retries (7.0279ms)
+✔ changed Streams params recover from the same validated page; missing tabs stay one request on later checks (1.8451ms)
+✔ an incomplete selected tab cannot confirm that an existing stream is offline (0.3808ms)
+✔ cancelled waiting YouTube reads reject immediately and free bounded capacity behind a stalled body (89.0593ms)
+✔ durable per-creator live retry increases, caps, preserves provider deadlines and resets after recovery (1.6232ms)
+✔ coverage separates successful observations, latest failures, retry waits and due-only IDs (15.0403ms)
+✔ live provider cooldown restores from durable follows without confusing individual or archive retry holds (0.5084ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1316.4266

@@ -42,7 +42,7 @@ test('routine RSS failures remain independent and never trigger a channel HTML o
     assert.equal(result.videos.length, 1);
     assert.equal(result.providerRetryAt, undefined);
     assert.equal(requests.length, 2);
-    assert(result.channels.find(channel => channel.lastProviderFailure)?.lastCheckedAt > 0);
+    assert(result.channels.find(channel => channel.recentPull?.failure)?.recentPull.attemptedAt > 0);
   } finally { globalThis.fetch = original; }
 });
 

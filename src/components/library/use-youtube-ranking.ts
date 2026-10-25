@@ -75,7 +75,8 @@ export function useYoutubeRanking(enabled: boolean, inputs: YoutubeRankingInputs
       const turn = async () => { await yieldNavigationTask(controller.signal); if (!active) throw new Error('Obsolete ranking'); };
       await forEachCatalogSlice(inputs.videos, (item, index) => {
         const video: YoutubeRankingRow['video'] = { catalogOffset: index, id: item.id, folderId: item.folderId, addedAt: youtubePublicationTime(item), name: '', path: '', size: 0, extension: 'yt', mime: 'video/youtube',
-          remote: item.remote ? { kind: item.remote.kind, live: item.remote.live, youtubeType: item.remote.youtubeType, channelId: item.remote.channelId, channelName: item.remote.channelName } : undefined };
+          remote: item.remote ? { kind: item.remote.kind, live: item.remote.live, youtubeType: item.remote.youtubeType, channelId: item.remote.channelId, channelName: item.remote.channelName,
+            ...(item.remote.youtubeTagSummary ? { youtubeTagSummary: { version: item.remote.youtubeTagSummary.version, sources: item.remote.youtubeTagSummary.sources, topics: [] } } : {}) } : undefined };
         chunk.push({ video, tags: inputs.tags[item.id] ?? EMPTY_TAGS, rating: feedback.ratings[item.id] ?? 0, favorite: Boolean(inputs.favorites[item.id]), liked: Boolean(inputs.likes[item.id]), marks: inputs.cameCounts[item.id] ?? 0, watch: feedback.watchScores[item.id] ?? 0, plays: inputs.viewCounts[item.id] ?? 0 });
         if (chunk.length === 512) { send({ type: 'append', rows: chunk }); chunk = []; }
       }, turn, 4096);

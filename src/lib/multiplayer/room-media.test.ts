@@ -39,6 +39,14 @@ test("room media descriptor reconstructs a provider video without guest catalog 
   assert.equal(resolved?.video?.remote?.videoId, "video-1");
   assert.equal(resolved?.video?.remote?.embedUrl, youtube.remote?.embedUrl);
 });
+test('YouTube live URLs retain live status through normalized room descriptors', () => {
+  const video = roomVideoFromUrl('https://www.youtube.com/live/liveRoute01?si=share');
+  assert.ok(video);
+  assert.equal(video.remote?.live, true);
+  assert.equal(resolveRoomMedia(describeRoomMedia(video))?.video?.remote?.live, true);
+  assert.equal(roomVideoFromUrl('https://www.youtube.com/watch?v=normalVod01')?.remote?.live, false);
+  assert.equal(describeRoomMedia({...youtube,remote:{...youtube.remote!,live:true}})?.live, true);
+});
 
 test("room media descriptors reject arbitrary iframe hosts", () => {
   const resolved = resolveRoomMedia({

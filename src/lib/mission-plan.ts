@@ -1,8 +1,11 @@
 export type MissionStatus = "planned" | "in-progress" | "blocked" | "complete";
-export type Mission = { id: string; title: string; detail: string; done: boolean; status?: MissionStatus };
+export type MissionBrief = { track: string; priority: 'P0'|'P1'|'P2'; dependsOn: string[]; files: string[]; steps: string[]; acceptance: string[]; external?: string };
+export type Mission = { id: string; title: string; detail: string; done: boolean; status?: MissionStatus; brief?: MissionBrief };
 
 export const MISSION_PLAN_REVISION_KEY = "reelcase.mission-plan.revision";
-export const MISSION_PLAN_REVISION = 24;
+export const MISSION_PLAN_REVISION = 32;
+
+export const NEXT_LEVEL_COMPLETED_IDS = ['next-022','next-038','next-024','next-023','next-031','next-032','next-039'] as const;
 
 /** Apply newly verified defaults once, without resetting later manual status changes. */
 export function mergeMissionPlan(saved: Mission[] | null, defaults: Mission[], previousRevision: number): Mission[] {
@@ -30,11 +33,12 @@ export function mergeMissionPlan(saved: Mission[] | null, defaults: Mission[], p
   const migrateProviderBudgetCompletion = previousRevision < 22;
   const migrateYoutubeMetadataCompletion = previousRevision < 23;
   const migrateTwitchQueueCompletion = previousRevision < 24;
+  const migrateCreatorOfflineDeviceCompletion = previousRevision < 25;
   return [
     ...saved.map((item) => {
       const current = defaultsById.get(item.id);
       if (!current) return item;
-      const promoted = current.done && (migrateOriginalCompletions
+      const promoted = current.done && ((previousRevision < 27 && ['next-022','next-038'].includes(item.id)) || (previousRevision < 28 && item.id === 'next-024') || (previousRevision < 29 && item.id === 'next-023') || (previousRevision < 30 && item.id === 'next-031') || (previousRevision < 31 && item.id === 'next-032') || (previousRevision < 32 && item.id === 'next-039') || migrateOriginalCompletions
         || (migrateHydrationCompletion && item.id === "recent-saved-library-hydration")
         || (migrateYoutubeTraceCompletion && item.id === "youtube-upgrade-03")
         || (migrateYoutubeArtworkCompletion && item.id === "youtube-upgrade-05")
@@ -54,13 +58,14 @@ export function mergeMissionPlan(saved: Mission[] | null, defaults: Mission[], p
         || (migrateTwitchSearchCompletion && ['twitch-upgrade-16', 'twitch-upgrade-17', 'twitch-upgrade-20'].includes(item.id))
         || (migrateProviderBudgetCompletion && item.id === 'speed-02')
         || (migrateYoutubeMetadataCompletion && ['youtube-upgrade-07', 'youtube-upgrade-08', 'youtube-upgrade-20'].includes(item.id))
-        || (migrateTwitchQueueCompletion && ['twitch-upgrade-02', 'twitch-upgrade-08', 'twitch-upgrade-10', 'twitch-upgrade-18'].includes(item.id)));
+        || (migrateTwitchQueueCompletion && ['twitch-upgrade-02', 'twitch-upgrade-08', 'twitch-upgrade-10', 'twitch-upgrade-18'].includes(item.id))
+        || (migrateCreatorOfflineDeviceCompletion && ['youtube-upgrade-06', 'youtube-upgrade-17', 'youtube-upgrade-18', 'twitch-upgrade-19'].includes(item.id)));
       const done = Boolean(item.done || promoted);
       const savedStatus = item.status === "planned" || item.status === "in-progress" || item.status === "blocked"
         ? item.status : undefined;
       const startedTimerAudit = previousRevision < 8 && item.id === "smooth-09" && savedStatus !== "blocked";
       const startedEnrichmentAudit = previousRevision < 11 && item.id === 'speed-06' && savedStatus !== 'blocked';
-      return { ...current, ...item, title: current.title, detail: current.detail, done,
+      return { ...current, ...item, title: current.title, detail: current.detail, ...(current.brief ? {brief:current.brief} : {}), done,
         status: done ? "complete" as const : startedTimerAudit || startedEnrichmentAudit ? "in-progress" as const : savedStatus ?? current.status ?? "planned" as const };
     }),
     ...defaults.filter((mission) => !savedIds.has(mission.id)),

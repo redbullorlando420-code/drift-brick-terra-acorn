@@ -1,0 +1,20 @@
+{
+  "at": "2026-10-24T21:32:40.392Z",
+  "received": 23,
+  "successful": 1,
+  "completeChecks": 0,
+  "observations": [
+    {
+      "live": true,
+      "evidence": {
+        "at": 1792877560364,
+        "state": "live",
+        "source": "streams",
+        "complete": false,
+        "reason": "partial-streams"
+      },
+      "knownBroadcasts": 23
+    }
+  ],
+  "limitation": "One read-only public creator snapshot, no saved follows or account data and no provider soak."
+}

@@ -79,7 +79,8 @@ test("continuation tokens nested in a migrated row still resume the archive", ()
 
 test("unrecognized renderer-shaped rows are never declared a completed archive", () => {
   const unsupported = { unrelatedShelf: [{ videoRenderer: { videoId: "still-more" } }] };
-  const finalPage = { onResponseReceivedActions: [{ appendContinuationItemsAction: { continuationItems: [{ videoRenderer: { videoId: "last-video" } }] } }] };
+  const finalPage = { onResponseReceivedActions: [{ appendContinuationItemsAction: { continuationItems: [{ videoRenderer: { videoId: "abcdefghijk" } }] } }] };
   assert.equal(youtubeCatalogHasTerminalPage(unsupported), false);
   assert.equal(youtubeCatalogHasTerminalPage(finalPage), true);
+  assert.throws(() => youtubeCatalogHasTerminalPage({ onResponseReceivedActions: [{ appendContinuationItemsAction: { continuationItems: [{ videoRenderer: { videoId: "broken-id" } }] } }] }), /missing-video-identity/);
 });

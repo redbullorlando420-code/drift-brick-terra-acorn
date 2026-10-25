@@ -6,7 +6,7 @@ const browser = await chromium.launch({ channel: "chrome", headless: true, args:
 const errors = [];
 async function store(page, seed = false) {
   return page.evaluate(async (seed) => {
-    const source = await (await fetch("/src/components/library/hub-sections.tsx")).text();
+    const source = await (await fetch("/src/components/library/watch-room-section.tsx")).text();
     const url = source.match(/from "(\/src\/lib\/videos\/store\.ts(?:\?t=\d+)?)"/)?.[1];
     if (!url) throw Error("Active store module unavailable");
     const { useLibrary } = await import(/* @vite-ignore */ url);

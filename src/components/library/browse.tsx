@@ -85,7 +85,7 @@ export function Billboard({ video }: { video: LibraryVideo }) {
 // card windows and layout work out of those unrelated parent renders.
 export const TitleRail = memo(function TitleRail({
   title,
-  videos,
+  videos: source,
   variant = "poster",
   playedAt,
   onTitleClick,
@@ -93,7 +93,10 @@ export const TitleRail = memo(function TitleRail({
   priority = false,
 }: {
   title: string;
-  videos: LibraryVideo[];
+  /** A stable reader keeps React's development prop diagnostics from walking
+   * an entire large catalog when a shelf changes order. Both forms retain the
+   * full list; virtualization still decides which cards mount. */
+  videos: LibraryVideo[] | (() => LibraryVideo[]);
   variant?: "poster" | "rail";
   playedAt?: Record<string, number>;
   onTitleClick?: () => void;
@@ -102,6 +105,7 @@ export const TitleRail = memo(function TitleRail({
   /** A primary rail can mount its small card window before it enters the viewport. */
   priority?: boolean;
 }) {
+  const videos = typeof source === 'function' ? source() : source;
   const shelfRef = useRef<HTMLElement>(null);
   const railRef = useRef<HTMLDivElement | null>(null);
   const scrollLeft = useRef(0);

@@ -1,0 +1,26 @@
+[
+  {
+    "viewport": "desktop",
+    "errors": [],
+    "studio": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\local-tools-built-studio-desktop.png",
+    "remote": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\local-tools-built-remote-desktop.png",
+    "credits": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\local-tools-built-credits-desktop.png",
+    "dates": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\local-tools-built-dates-desktop.png",
+    "generation": 1,
+    "launches": 1,
+    "actualYoutubeDate": "2005-04-23",
+    "ok": true
+  },
+  {
+    "viewport": "mobile",
+    "errors": [],
+    "studio": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\local-tools-built-studio-mobile.png",
+    "remote": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\local-tools-built-remote-mobile.png",
+    "credits": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\local-tools-built-credits-mobile.png",
+    "dates": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\local-tools-built-dates-mobile.png",
+    "generation": 1,
+    "launches": 1,
+    "actualYoutubeDate": "2005-04-23",
+    "ok": true
+  }
+]

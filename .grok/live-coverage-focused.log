@@ -1,0 +1,28 @@
+✔ real live action retains successful timestamps, bounds failed requests, backs off, recovers and reports a live-only cooldown (175.0335ms)
+✔ a mixed 2k-creator ledger reports distinct freshness, due, unavailable and retry counts without counting failures as fresh success (33.8901ms)
+✔ legacy failed timestamps remain unverified and an older retry cannot hold a later successful observation (0.4386ms)
+✔ throughput is based on distinct completed creators, ignores invalid IDs, and keeps only a bounded sample window (1.8621ms)
+✔ warming, stalled, stopped and provider-wait states never expose a stale ETA (0.3686ms)
+✔ failures cannot inflate throughput or produce an ETA from an overwhelmingly unsuccessful stream of attempts (0.2011ms)
+✔ timeouts, server failures, network errors and body budgets never fan out into Home and HTML retries (9.9036ms)
+✔ changed Streams params recover from the same validated page; missing tabs stay one request on later checks (0.9825ms)
+✔ an incomplete selected tab cannot confirm that an existing stream is offline (0.4994ms)
+✔ cancelled waiting YouTube reads reject immediately and free bounded capacity behind a stalled body (83.5286ms)
+✔ durable per-creator live retry increases, caps, preserves provider deadlines and resets after recovery (0.3511ms)
+✔ coverage separates successful observations, latest failures, retry waits and due-only IDs (17.4644ms)
+✔ live provider cooldown restores from durable follows without confusing individual or archive retry holds (1.5207ms)
+✔ Streams endpoints eliminate repeated Home requests, validate each channel, and never cache live answers (5.7924ms)
+✔ unrecognized or expired endpoints recover through Home; missing identity cannot confirm offline (0.6959ms)
+✔ endpoint fallback cannot bypass a rate hold and duplicate checks share only in-flight work (1.1783ms)
+✔ eight live bodies overlap beside a stalled archive while archive bodies remain serial (40.9893ms)
+✔ an older parallel success cannot release a new live cooldown or start queued checks (31.1681ms)
+✔ 2,000-channel discovery rotates completely without repeating fresh offline checks or starving known live (31.3258ms)
+✔ 1,588 creators with 52 overdue broadcasts reserve three quarters of each batch for discovery (3.5891ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 726.7591

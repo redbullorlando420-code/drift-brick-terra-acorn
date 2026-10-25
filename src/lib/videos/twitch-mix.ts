@@ -17,13 +17,22 @@ export async function buildTwitchMix(
   limit = 96,
   yieldTask = yieldCatalogTask,
   priority?: (video: LibraryVideo) => number,
+  onStats?: (stats: { creators: number; peakRetained: number; selectedCreators: number }) => void,
 ) {
+  if(!Number.isFinite(limit)||limit<1)return [];
+  limit=Math.floor(limit);
   const turn = async () => {
     signal?.throwIfAborted();
     await yieldTask();
     signal?.throwIfAborted();
   };
   const groups = new Map<string, Array<{ video: LibraryVideo; order: number }>>();
+  // Only the first `limit` creators in seed order can reach a `limit`-card
+  // rotation. Retain metadata for the rest, never 12 video objects per follow.
+  const creators=new Map<string,{rank:number;selected:boolean}>();
+  let worstKey:string|undefined,retained=0,peakRetained=0;
+  const compare=(a:string,b:string)=>creators.get(a)!.rank-creators.get(b)!.rank||a.localeCompare(b);
+  const findWorst=()=>{worstKey=undefined;for(const key of groups.keys())if(worstKey===undefined||compare(key,worstKey)>0)worstKey=key;};
   const cap = Math.min(limit, 12);
   await forEachCatalogSlice(
     videos,
@@ -35,15 +44,26 @@ export async function buildTwitchMix(
         video.extension === "channel"
       )
         return;
-      const key = twitchCreatorKey(video);
-      const rows = groups.get(key) ?? [];
       const weight = priority?.(video) ?? 0;
+      if (weight === Infinity) return;
+      const key = twitchCreatorKey(video);
+      let creator=creators.get(key);
+      if(!creator){
+        creator={rank:ranked ? index : hash(key,seed),selected:false};creators.set(key,creator);
+        if(groups.size<limit)creator.selected=true;
+        else if(worstKey!==undefined&&compare(key,worstKey)<0){
+          retained-=groups.get(worstKey)!.length;groups.delete(worstKey);creators.get(worstKey)!.selected=false;creator.selected=true;
+        }
+        if(creator.selected){groups.set(key,[]);findWorst();}
+      }
+      if(!creator.selected)return;
+      const rows = groups.get(key) ?? [];
       const order = ranked
         ? index
         : Math.min(1_000_000, Math.max(0, Number.isFinite(weight) ? Math.floor(weight) : 0)) *
             0x100000000 +
           hash(video.id, seed);
-      if (rows.length < cap) rows.push({ video, order });
+      if (rows.length < cap) {rows.push({ video, order });retained++;peakRetained=Math.max(peakRetained,retained);}
       else if (!ranked) {
         let worst = 0;
         for (let i = 1; i < rows.length; i++) if (rows[i]!.order > rows[worst]!.order) worst = i;
@@ -54,7 +74,7 @@ export async function buildTwitchMix(
     turn,
   );
   const ordered = [...groups]
-    .sort(([a], [b]) => hash(a, seed) - hash(b, seed) || a.localeCompare(b))
+    .sort(([a], [b]) => compare(a,b))
     .map(([, rows]) => rows.sort((a, b) => a.order - b.order));
   const out: LibraryVideo[] = [];
   for (let depth = 0; depth < cap && out.length < limit; depth++)
@@ -63,5 +83,6 @@ export async function buildTwitchMix(
       if (out.length >= limit) break;
     }
   signal?.throwIfAborted();
+  onStats?.({creators:creators.size,peakRetained,selectedCreators:groups.size});
   return out;
 }

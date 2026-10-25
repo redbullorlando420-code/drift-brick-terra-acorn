@@ -191,6 +191,11 @@ export class P2PRoom {
     }
   }
 
+  /** Update presence on the existing poll without reconnecting the room. */
+  setName(name: string): void {
+    this.opts.name = name.trim().slice(0, 64);
+  }
+
   /** Send reliably (ordered) to one peer, or to all when peerId is omitted. */
   send(data: unknown, peerId?: string): void {
     const wire = JSON.stringify({ t: "d", d: data });

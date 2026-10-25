@@ -1,0 +1,13 @@
+{
+  "app": 200,
+  "companion": 12,
+  "qwen": {
+    "connected": true,
+    "ready": true,
+    "busy": false,
+    "owned": true,
+    "models": [
+      "qwen_image_2.1_turbo_int8_convrot.safetensors"
+    ]
+  }
+}

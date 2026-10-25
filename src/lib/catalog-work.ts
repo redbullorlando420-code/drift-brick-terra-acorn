@@ -55,16 +55,35 @@ export function yieldCatalogTask(): Promise<void> {
   return scheduler ? scheduler.postTask(() => {}, { priority: 'background' }) : new Promise(resolve => setTimeout(resolve, 0));
 }
 
-/** Stable sorting must yield inside the final large merge as well as between
- * passes. Callers supply a cancellation-aware task boundary. */
+/** Sort small stable native runs, then merge cooperatively. Already ordered
+ * catalogs finish after the run pass instead of log(N) full-array passes.
+ * Native sorts never receive a catalog-sized array. The input is scratch
+ * storage, as in the previous merge implementation. */
 export async function sortCatalogRows<T>(rows: T[], compare: (a: T, b: T) => number, turn: () => Promise<void>, maxRowsPerSlice = 2048) {
-  let source = rows, target = new Array<T>(rows.length), visited = 0, started = performance.now();
-  for (let width = 1; width < rows.length; width *= 2) {
+  if (rows.length < 2) return rows;
+  // Yield before reading/sorting so a cancelled navigation does no discarded work.
+  await turn();
+  const runSize = Math.max(1, Math.min(256, maxRowsPerSlice));
+  let visited = 0, started = performance.now(), ordered = true;
+  for (let offset = 0; offset < rows.length; offset += runSize) {
+    const run = rows.slice(offset, Math.min(rows.length, offset + runSize));
+    run.sort(compare);
+    if (offset && compare(rows[offset - 1]!, run[0]!) > 0) ordered = false;
+    for (let index = 0; index < run.length; index++) rows[offset + index] = run[index]!;
+    visited += run.length;
+    if (visited >= maxRowsPerSlice || performance.now() - started >= 4) {
+      await turn(); visited = 0; started = performance.now();
+    }
+  }
+  if (ordered) return rows;
+  let source = rows, target = new Array<T>(rows.length);
+  for (let width = runSize; width < rows.length; width *= 2) {
     for (let left = 0; left < rows.length; left += width * 2) {
       const middle = Math.min(left + width, rows.length), right = Math.min(left + width * 2, rows.length);
       let a = left, b = middle;
+      const orderedRun = middle === right || compare(source[middle - 1]!, source[middle]!) <= 0;
       for (let out = left; out < right; out++) {
-        target[out] = a < middle && (b >= right || compare(source[a]!, source[b]!) <= 0) ? source[a++]! : source[b++]!;
+        target[out] = orderedRun ? source[out]! : a < middle && (b >= right || compare(source[a]!, source[b]!) <= 0) ? source[a++]! : source[b++]!;
         if (++visited >= maxRowsPerSlice || (visited % 64 === 0 && performance.now() - started >= 4)) {
           await turn(); visited = 0; started = performance.now();
         }

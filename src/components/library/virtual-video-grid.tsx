@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from 'react';
 import { Button } from "@/components/ui/button";
 import { GridRowMetrics, gridWindow, gridKeyboardTarget, type GridWindow } from "@/lib/virtual-grid";
@@ -11,6 +11,8 @@ import { useGridAdmission } from './use-grid-admission';
 import { measureInteraction } from '@/lib/interaction-budget';
 
 type Variant = "grid" | "poster" | "list";
+export type VideoCatalog = LibraryVideo[] | (() => LibraryVideo[]);
+export type PlayedAtCatalog = Record<string, number> | (() => Record<string, number>);
 const layouts: Record<Variant, string> = {
   grid: "grid grid-cols-2 gap-x-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5",
   poster: "grid grid-cols-3 gap-x-3 sm:grid-cols-4 sm:gap-x-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7",
@@ -18,10 +20,11 @@ const layouts: Record<Variant, string> = {
 };
 const sameWindow = (a: GridWindow, b: GridWindow) => a.start === b.start && a.end === b.end && a.lead === b.lead && a.tail === b.tail;
 
-const GridRow = memo(function GridRow({ videos, start, end, columns, variant, last, playedAt, caption }: {
-  videos: LibraryVideo[]; start: number; end: number; columns: number; variant: Variant; last: boolean;
-  playedAt?: Record<string, number>; caption?: (video: LibraryVideo) => ReactNode;
+const GridRow = memo(function GridRow({ readVideos, start, end, columns, variant, last, readPlayedAt, caption }: {
+  readVideos: () => LibraryVideo[]; start: number; end: number; columns: number; variant: Variant; last: boolean;
+  readPlayedAt: () => Record<string, number> | undefined; caption?: (video: LibraryVideo) => ReactNode;
 }) {
+  const videos = readVideos(), playedAt = readPlayedAt();
   return <div role="presentation" data-video-grid-row={Math.floor(start / columns)} className={layouts[variant]}
     style={{ paddingBottom: last ? 0 : variant === 'list' ? 4 : 24 }}>
     {videos.slice(start, end).map((video, offset) => <div key={video.id} role="listitem" aria-posinset={start + offset + 1}
@@ -34,10 +37,16 @@ const GridRow = memo(function GridRow({ videos, start, end, columns, variant, la
 });
 
 /** One viewport window and one row observer, however far the catalog is paged. */
-export function VirtualVideoGrid({ videos, playedAt, variant, pageSize, automatic = false, caption }: {
-  videos: LibraryVideo[]; playedAt?: Record<string, number>; variant: Variant; pageSize: number; automatic?: boolean;
+export function VirtualVideoGrid({ videos: source, playedAt: timeSource, variant, pageSize, automatic = false, caption }: {
+  videos: VideoCatalog; playedAt?: PlayedAtCatalog; variant: Variant; pageSize: number; automatic?: boolean;
   caption?: (video: LibraryVideo) => ReactNode;
 }) {
+  const videos = typeof source === 'function' ? source() : source;
+  const playedAt = typeof timeSource === 'function' ? timeSource() : timeSource;
+  // Every row gets a stable snapshot reader, not another catalog-sized prop
+  // graph for development diagnostics to enumerate on each window update.
+  const readVideos = useMemo(() => () => videos, [videos]);
+  const readPlayedAt = useMemo(() => () => playedAt, [playedAt]);
   const budget = usePerformanceProfile();
   const keyboardHint = useId();
   pageSize = budget.lowMemory ? Math.min(pageSize, budget.gridPageSize) : pageSize;
@@ -284,9 +293,9 @@ export function VirtualVideoGrid({ videos, playedAt, variant, pageSize, automati
     <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">{length.toLocaleString()} of {videos.length.toLocaleString()} titles available on this page.</p>
     <div role="list" aria-label={`Media catalog · ${videos.length.toLocaleString()} titles`} aria-describedby={keyboardHint}>
     {window.lead > 0 && <div aria-hidden="true" data-grid-spacer="lead" style={{ height: window.lead }} />}
-    {rows.map(index => <GridRow key={`${layout.columns}:${index}`} videos={videos} start={index}
+    {rows.map(index => <GridRow key={`${layout.columns}:${index}`} readVideos={readVideos} start={index}
       end={Math.min(index + layout.columns, end)} columns={layout.columns} last={index + layout.columns >= length}
-      variant={variant} playedAt={playedAt} caption={caption} />)}
+      variant={variant} readPlayedAt={readPlayedAt} caption={caption} />)}
     {window.tail > 0 && <div aria-hidden="true" data-grid-spacer="tail" style={{ height: window.tail }} />}
     </div>
     {end < length && <button type="button" className="sr-only focus:not-sr-only" onFocus={event => {

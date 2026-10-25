@@ -1,0 +1,27 @@
+✔ single-provider writes preserve other resume points and failures preserve partial offsets (1.212ms)
+✔ a 10,000-entry pull walks 100-entry pages with bounded requests (5.0239ms)
+✔ partial pages retain offsets, dedupe ids and stop at exhaustion (0.5674ms)
+✔ errors retain accepted windows, cancellation prevents later requests, stuck cursors stop (0.5396ms)
+✔ million-entry reference copies yield and preserve immutable order (135.3505ms)
+✔ original image cache shares requests and retries missing originals (0.2681ms)
+✔ archive catch-up skips saved windows and spends the target on distinct new titles (0.1776ms)
+✔ duplicate-only archives and cycling continuations remain bounded and resumable (0.1244ms)
+✔ preview rankings preserve creator/taste evidence and bounded distinct shelves (70.007ms)
+✔ cached preview catalogs retain full taste evidence while separating adult candidates (0.4443ms)
+✔ preview worker waits for a complete catalog and serves only the latest pending target (0.4429ms)
+✔ preview packets carry only the target's displayed tag scores while retaining global evidence (0.1885ms)
+✔ duplicate tag aliases count one rating and unrated catalog volume cannot dilute preference (6.1109ms)
+✔ disliked titles are excluded and missing metadata is not a related match (0.2971ms)
+✔ preview taste uses saved likes, favorites, creator favorites, time and marks (0.3259ms)
+✔ prepared preview tags are reused between target switches and new chunks invalidate taste (0.1106ms)
+✔ YouTube shelves deduplicate provider identities and exclude live, upcoming and other providers (0.3319ms)
+✔ try-next fills after related exclusions and gives other creators a fair place (0.8847ms)
+✔ meaningful title terms find related YouTube videos when provider tags are absent (0.4577ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 309.2799

@@ -1,6 +1,7 @@
 // Specific content evidence. Description use must first exclude promotional
 // lines and links; creator names and paths never infer viewer interests.
 export const TOPIC_RULES: Array<[string, RegExp]> = [
+  ['racing', /\b(iracing|sim racing|racing simulator|assetto corsa|automobilista|gran turismo|forza motorsport|forza horizon|formula (one|1)|f1|nascar|motogp)\b/i],
   ['gaming', /\b(gaming|gameplay|playthrough|speedrun|walkthrough|minecraft|fortnite|valorant|counter.strike|grand theft auto|gta [v56]|call of duty|cod zombies|elden ring|roblox|league of legends|world of warcraft|warcraft iii|dota|overwatch|apex legends|baldur.s gate|resident evil|silent hill|dark souls|rust|runescape|stardew valley|pokemon|pokémon|rainbow six|rocket league|marvel rivals|deadlock|mario kart|super smash bros|street fighter|mortal kombat|dark and darker|path of exile|pubg|streamer games|nba 2k\d*|cozy games|arc raiders)\b/i],
   ['technology', /\b(software|programming|coding|artificial intelligence|machine learning|linux|javascript)\b/i],
   ['hardware', /\b(pc build|graphics card|gpu|cpu|keyboard|smartphone|iphone|computer hardware)\b/i],

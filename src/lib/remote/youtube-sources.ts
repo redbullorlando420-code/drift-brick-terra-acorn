@@ -1,6 +1,7 @@
 import type { FollowedChannel, LibraryVideo } from "../videos/types";
 import { peekYoutubeCoverageOwner, youtubeCoverageCounts, youtubeCoverageIndex } from './youtube-coverage.ts';
 import { youtubeContentKind } from '../videos/youtube-metadata.ts';
+import { lookupVideo } from '../videos/video-lookup.ts';
 
 /** Provider IDs are case-sensitive. Titles and thumbnail URLs are never identity. */
 export function youtubeVideoKey(video: LibraryVideo): string | undefined {
@@ -26,7 +27,8 @@ export function peekYoutubeOwner(videos: LibraryVideo[], video: LibraryVideo): L
   if (video.remote?.kind !== 'youtube') return [];
   if (!index) return peekYoutubeCoverageOwner(videos, video);
   const rows = index.byChannel.get(video.remote.channelId ?? '') ?? index.bySource.get(video.folderId) ?? [];
-  return rows.some(row => row === video) ? rows : peekYoutubeCoverageOwner(videos, video);
+  const anchor = rows.find(row => row.id === video.id);
+  return anchor && lookupVideo(videos, video.id) === anchor ? rows : peekYoutubeCoverageOwner(videos, video);
 }
 
 /** Shared by coverage, creator panels, scheduling and diagnostics. A repeated

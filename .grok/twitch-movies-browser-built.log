@@ -1,0 +1,31 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "checks": [
+        "Movies includes a local release-year filename and a full-length YouTube film while keeping two unknown runtimes visible as unverified candidates",
+        "bounded runtime repair promotes the verified YouTube movie and clearly explains a disconnected local file without inventing its length",
+        "repaired YouTube runtime persists across reload without another metadata request",
+        "saved creator/game taste promotes an unwatched matching VOD; New to you excludes the opened seed",
+        "older pulls resume A then B, retain new VODs, persist C and skip exhausted/cooled creators"
+      ],
+      "pulls": 2,
+      "metadata": 1
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "checks": [
+        "Movies includes a local release-year filename and a full-length YouTube film while keeping two unknown runtimes visible as unverified candidates",
+        "bounded runtime repair promotes the verified YouTube movie and clearly explains a disconnected local file without inventing its length",
+        "repaired YouTube runtime persists across reload without another metadata request",
+        "saved creator/game taste promotes an unwatched matching VOD; New to you excludes the opened seed",
+        "older pulls resume A then B, retain new VODs, persist C and skip exhausted/cooled creators"
+      ],
+      "pulls": 2,
+      "metadata": 1
+    }
+  ]
+}

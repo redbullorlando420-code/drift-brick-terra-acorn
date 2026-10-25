@@ -6,11 +6,15 @@ import type { FollowedChannel, LibraryVideo } from './types';
 type Coverage = { count: number; oldest: number; newest: number; clips: number };
 const emptyCoverage = (): Coverage => ({ count: 0, oldest: 0, newest: 0, clips: 0 });
 const creatorName = (video: LibraryVideo) => video.remote?.channelName?.trim() || 'Unknown creator';
+const completedIndexes=new WeakMap<readonly LibraryVideo[],TwitchDeskIndex>();
+export const cachedTwitchDeskIndex=(videos:readonly LibraryVideo[])=>completedIndexes.get(videos);
 
 /** Coverage is catalog-only: saves, ratings, sort modes and shuffle seeds must
  * never rescan it. Clip offsets take four bytes each, without cloned videos. */
 export async function prepareTwitchDeskIndex(videos: readonly LibraryVideo[], turn: () => Promise<void>) {
+  const cached=completedIndexes.get(videos);if(cached){await turn();return cached;}
   const coverage = new Map<string, Coverage>(), liveRows: LibraryVideo[] = [], offsets: number[] = [];
+  const sources = new Map<string, Coverage>(), legacyCoverage = new Map<string, Coverage>();
   let total = 0;
   await forEachCatalogSlice(videos, (video, offset) => {
     if (video.remote?.kind !== 'twitch') return;
@@ -25,21 +29,31 @@ export async function prepareTwitchDeskIndex(videos: readonly LibraryVideo[], tu
       row.newest = Math.max(row.newest, video.addedAt);
     }
     coverage.set(name, row);
+    const keys = new Set([`source:${video.folderId}`, ...(video.remote.sourceIds ?? []).map(id => `source:${id}`), ...(video.remote.channelId ? [`channel:${video.remote.channelId.toLowerCase()}`] : [])]);
+    for (const key of keys) {
+      const entry = sources.get(key) ?? emptyCoverage();
+      if (clip) entry.clips++;
+      else { entry.count++; entry.oldest = entry.count === 1 ? video.addedAt : Math.min(entry.oldest, video.addedAt); entry.newest = Math.max(entry.newest, video.addedAt); }
+      sources.set(key, entry);
+    }
+    if (!video.remote.channelId && !video.folderId.startsWith('tw:')) legacyCoverage.set(name.toLowerCase(), row);
   }, turn);
   const clips = new Uint32Array(offsets.length);
   await forEachCatalogSlice(offsets, (offset, i) => { clips[i] = offset; }, turn);
   const live = await sortCatalogRows(liveRows, (a, b) => (b.remote?.viewers ?? 0) - (a.remote?.viewers ?? 0), turn);
   await turn();
-  return { coverage, clips, live, total };
+  const result={ coverage, sources, legacyCoverage, clips, live, total };completedIndexes.set(videos,result);return result;
 }
-export type TwitchDeskIndex = Awaited<ReturnType<typeof prepareTwitchDeskIndex>>;
+export type TwitchDeskIndex = {coverage:Map<string,Coverage>;sources?:Map<string,Coverage>;legacyCoverage?:Map<string,Coverage>;clips:Uint32Array;live:LibraryVideo[];total:number};
 
 export async function prepareTwitchCoverage(index: TwitchDeskIndex, follows: readonly FollowedChannel[], turn: () => Promise<void>) {
   const rows = [] as Array<FollowedChannel & Coverage & { name: string; retryAt?: number }>;
   let sparse = 0;
   await forEachCatalogSlice(follows, channel => {
     if (channel.kind !== 'twitch') return;
-    const coverage = index.coverage.get(channel.title) ?? emptyCoverage();
+    const coverage = (channel.channelId ? index.sources?.get(`channel:${channel.channelId.toLowerCase()}`) : undefined)
+      ?? index.sources?.get(`source:${channel.id}`) ?? index.legacyCoverage?.get(channel.title.toLowerCase())
+      ?? (!index.sources ? index.coverage.get(channel.title) : undefined) ?? emptyCoverage();
     if (coverage.count < 24) sparse++;
     rows.push({ ...channel, ...coverage, name: channel.title, retryAt: channel.twitchArchiveRetry?.retryAt });
   }, turn);
@@ -67,7 +81,7 @@ function creatorRank(id: string, seed: number) {
   return value >>> 0;
 }
 
-/** Retain complete rails only for the displayed 12 creators and 8 live
+/** Retain bounded 48-card previews only for the displayed 12 creators and 8 live
  * creators. Every other VOD remains available in the full catalog grid. */
 export async function prepareTwitchCreatorShelves(vods: readonly LibraryVideo[], scores: TwitchCreatorScores,
   ordered: readonly LibraryVideo[], seed: number, turn: () => Promise<void>) {
@@ -87,8 +101,8 @@ export async function prepareTwitchCreatorShelves(vods: readonly LibraryVideo[],
   }, turn);
   await forEachCatalogSlice(vods, video => {
     const creator = creatorName(video);
-    selected.get(creator)?.vods.push(video);
-    live.get(creator.toLowerCase())?.vods.push(video);
+    const shelf = selected.get(creator); if (shelf && shelf.vods.length < 48) shelf.vods.push(video);
+    const liveShelf = live.get(creator.toLowerCase()); if (liveShelf && liveShelf.vods.length < 48) liveShelf.vods.push(video);
   }, turn);
   await turn();
   return { channels, live: await collectCatalogRows(live.values(), turn) };

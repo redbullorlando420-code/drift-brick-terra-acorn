@@ -1,9 +1,6 @@
 /**
- * A small, deterministic look-ahead for the shared Hub code boundary.
- *
- * Hub desks currently ship in one lazy module. Keeping the destination name
- * here makes the scheduling decision explainable and leaves room for later
- * per-desk splitting without changing the caller's interaction contract.
+ * A small, deterministic look-ahead for individual Hub desk boundaries.
+ * Only the adjacent destination is warmed; unrelated desks remain unloaded.
  */
 const NEXT_LIKELY_HUB: Readonly<Record<string, string>> = {
   landing: "anime",

@@ -1,0 +1,39 @@
+✔ historical search excludes live, offline, demonstration and non-Twitch rows (3.9087ms)
+✔ creator matching uses stable identities through renames without merging same-name creators (0.2614ms)
+✔ title queries normalize Unicode, match all words and do not scan descriptions (0.2676ms)
+✔ inclusive calendar ranges handle local day boundaries and reject invalid dates (0.5364ms)
+✔ unknown dates stay last for both orders and keyset pages do not repeat tied dates (0.9969ms)
+✔ a 100k archive keeps only a page of references while yielding and supports deep keyset paging (64.6393ms)
+✔ cancelled and already-obsolete jobs cannot visit the rest of a catalog or publish a result (5.1843ms)
+✔ archive checkpoints advance only after whole accepted pages, with bounded duplicates and last VOD (2.1301ms)
+✔ a later integrity challenge keeps accepted VODs and the safe retry cursor (0.2614ms)
+✔ missing connections and first-page failures never masquerade as exhausted archives (0.535ms)
+✔ repeated or empty advancing pages stop immediately without losing the prior position (0.2278ms)
+✔ overflowing or invalid rows hold the page checkpoint while retaining usable VODs (0.1555ms)
+✔ valid terminal shelves exhaust only after archive, highlight and upload are checked (0.1678ms)
+✔ duplicate-only forward pages may advance but the page budget stays bounded (0.1524ms)
+✔ checkpoint recovery bounds malformed data and retains exhausted timestamps (0.7578ms)
+✔ a newer local mirror wins over a longer stale disk list, including a completed cursor (0.3246ms)
+✔ actual reload normalization and library-pack import retain YouTube and Twitch positions (131.9297ms)
+✔ real provider path returns partial pages, diagnoses challenges and bypasses partial-result caching (469.2236ms)
+✔ clip-page failure preserves the accepted VODs and clip continuation (560.6816ms)
+✔ overlapping windows walk distinct pages until the unique quota is filled (3.7486ms)
+✔ one failed recent window retains accepted clips and permits other windows; rate holds stop new windows (0.5945ms)
+✔ partial archive pages preserve accepted rows and the last complete continuation (0.3107ms)
+✔ malformed rows do not advance an archive position or declare exhaustion (0.1896ms)
+✔ cursor cycles and duplicate-only pages terminate without false exhaustion (0.2188ms)
+✔ one global eight-page budget covers all windows and reserves discovery for later windows (0.2258ms)
+✔ complete archive clears its cursor while exact limits retain a confirmed next position (0.17ms)
+✔ 100-creator batches rotate all 600 creators after reload, including failed attempts (12.7825ms)
+✔ recent and older retry scopes survive recovery independently and honor advertised deadlines (1.2617ms)
+✔ clip diagnostic normalization bounds messages and rejects malformed snapshots (1.3358ms)
+✔ actual clip API returns game metadata, preserves unknown dates and keeps recent success separate from older clock (532.6332ms)
+✔ empty later windows donate unused quota back to a healthy earlier continuation (0.2654ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1363.5948

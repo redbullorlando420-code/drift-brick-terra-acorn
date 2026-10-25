@@ -1,0 +1,26 @@
+[
+  {
+    "viewport": "desktop",
+    "errors": [],
+    "models": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\model-library-built-desktop.png",
+    "ok": true,
+    "dragLink": true,
+    "streamedUploadBytes": 1024,
+    "generations": 2,
+    "cancelled": 1,
+    "persistence": true,
+    "idlePolling": false
+  },
+  {
+    "viewport": "mobile",
+    "errors": [],
+    "models": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\model-library-built-mobile.png",
+    "ok": true,
+    "dragLink": true,
+    "streamedUploadBytes": 1024,
+    "generations": 2,
+    "cancelled": 1,
+    "persistence": true,
+    "idlePolling": false
+  }
+]

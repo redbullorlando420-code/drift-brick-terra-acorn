@@ -1,0 +1,18 @@
+{
+  "ok": true,
+  "checks": [
+    "normal room startup creates no public tunnel and does not poll tunnel status",
+    "explicit temporary-HTTPS setup updates the current invitation/QR without recreating the host player or room",
+    "a different-origin HTTPS phone joins through real WebRTC and builds Twitch with its own parent hostname",
+    "the phone keeps a 400×300 minimum player in a local scrolling viewport without status overlays or document overflow",
+    "an HTTP phone gets HTTPS setup and an external fallback without loading an unsupported Twitch embed",
+    "clip guests also receive the current viewer parent and official minimum dimensions"
+  ],
+  "dimensions": {
+    "width": 400,
+    "height": 300,
+    "scrollWidth": 400,
+    "visible": 294,
+    "statusOverlays": 0
+  }
+}

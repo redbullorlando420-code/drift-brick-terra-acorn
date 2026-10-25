@@ -1,0 +1,15 @@
+✔ only complete creator-owned Streams catalogs supply negative evidence; Home and continuations remain unknown (2.3961ms)
+✔ fast endpoint navigation preserves evidence completeness on initial and cached checks (1.0453ms)
+✔ only exact playable known broadcasts with explicit ended metadata confirm absence (0.7491ms)
+✔ supplemental checks stay bounded and cannot turn failed or unowned watch pages into negative evidence (0.5564ms)
+✔ actual API preserves live clock and archive state for Home, partial, consent and malformed replies (746.8102ms)
+✔ complete absence ages through the hold, uncertainty never starts it, and positive evidence clears it immediately (0.6318ms)
+✔ durable evidence accepts bounded valid metadata and rejects fabricated negative sources or malformed timestamps (0.1623ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1055.087

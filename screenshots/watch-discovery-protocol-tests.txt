@@ -1,0 +1,38 @@
+✔ room search pages beyond twenty results without mounting the whole catalog (3.6911ms)
+✔ a cancelled rare search stops before publishing stale results (5.7241ms)
+✔ watch history survives serialization, includes current title and deduplicates provider aliases (3.9015ms)
+✔ history is bounded and rejects corrupt, oversized, future and unsafe media (4.5759ms)
+✔ public YouTube search reads only video results and the primary continuation (2.0142ms)
+✔ search continuation parses independently and malformed input cannot choose an upstream URL (0.5735ms)
+✔ saved watch lists persist canonical public titles without catalog IDs, local files, tracking or unknown fields (5.3952ms)
+✔ named lists bound queue length, list count, IDs, names and encoded storage size (6.7432ms)
+✔ corrupt and unsupported saved data cannot silently replace existing lists (0.4058ms)
+✔ duplicate list identities or case-insensitive names are rejected while empty and local-only lists stay unsaved (0.8603ms)
+✔ live playback follows room intent independently of host buffering while VOD retains clock gating (0.8145ms)
+✔ iframe live evidence must identify the current video and use an actual boolean (0.1763ms)
+✔ provider clocks advance only while playing and reject stale or replaced observations (0.1551ms)
+✔ provider correction ignores normal jitter and enforces a cooldown for large drift (0.1001ms)
+✔ clock handshakes remove device wall-clock skew with a bounded monotonic round trip (0.7643ms)
+✔ unsampled packet transit never turns clock skew into minutes of phantom video (0.1912ms)
+✔ room history is recent-first, canonical, bounded, and excludes local or unsupported data (4.168ms)
+✔ provider errors explain embedding restrictions without treating failures as queue completion (0.3928ms)
+✔ keyboard seeks are explicit quarter-second intentions with duration bounds and normal navigation keys left alone (0.3015ms)
+✔ queue link exports round trip provider types and strip local metadata, duplicate identities and URL tracking (2.3655ms)
+✔ queue recovery keeps bounded canonical public media and excludes local/private or unknown fields (1.8548ms)
+✔ damaged, oversized, local-only and unsupported drafts never become an empty replacement (0.2367ms)
+✔ selection revisions reject stale titles, malformed values and conflicting equal revisions while accepting legacy initial state (0.1738ms)
+✔ advancement skips unavailable heads in one bounded pass and never loops on an exhausted queue (0.3879ms)
+✔ TURN configuration accepts bounded standard endpoints and relay-only policy (1.181ms)
+✔ TURN configuration rejects unsafe or malformed inputs (0.3173ms)
+✔ review revisions reject stale, malformed and legacy snapshots after modern state is accepted (0.7342ms)
+✔ review deduplicates canonical identities across devices, retries and live queue entries (1.3534ms)
+✔ review limits each guest to eight and the room to twenty-four without affecting the input queue (3.994ms)
+✔ review snapshots reject malformed/local media, strip private fields and bound names and arrays (0.8428ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 30
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 318.8713

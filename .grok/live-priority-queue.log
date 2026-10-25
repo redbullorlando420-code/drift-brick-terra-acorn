@@ -1,0 +1,26 @@
+✔ Streams endpoints eliminate repeated Home requests, validate each channel, and never cache live answers (2.1223ms)
+✔ unrecognized or expired endpoints recover through Home; missing identity cannot confirm offline (0.258ms)
+✔ endpoint fallback cannot bypass a rate hold and duplicate checks share only in-flight work (0.5587ms)
+✔ eight live bodies overlap beside a stalled archive while archive bodies remain serial (21.6466ms)
+✔ an older parallel success cannot release a new live cooldown or start queued checks (13.5402ms)
+✔ 2,000-channel discovery rotates completely without repeating fresh offline checks or starving known live (9.9453ms)
+✔ 1,588 creators with 52 overdue broadcasts reserve three quarters of each batch for discovery (0.9479ms)
+✔ paused requests and their responses wait without polling until resumed (3.7812ms)
+✔ repausing before resumed jobs continue still holds them (0.2827ms)
+✔ a sleeping periodic pull wakes when the final viewer gate opens (0.8393ms)
+✔ Live holds automatic archives, explicit requests pass, and navigating wakes the matching provider (517.5919ms)
+✔ cancel aborts active transport and frees its slot even if transport never settles (5.3209ms)
+✔ paused queue and held responses use gate wakeups and remain bounded (0.9679ms)
+✔ an explicit live check can pass a paused archive queue without releasing it (1.1375ms)
+✔ cancel releases a completed response held behind pause (0.9208ms)
+✔ request deadline releases stalled slot and permits a retry (24.1677ms)
+✔ concurrency and request gap apply across independent providers (139.1885ms)
+✔ page priority sleeps blocked automatic work, admits explicit work and never holds an accepted response (29.6485ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 684.9126

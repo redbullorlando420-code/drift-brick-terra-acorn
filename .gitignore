@@ -4,3 +4,7 @@ node_modules/
 .env
 .env.*
 .local-https/
+companion/tools/
+companion/.local-youtube-dl.json
+downloads/
+.grok/desktop-*.log

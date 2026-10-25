@@ -1,0 +1,21 @@
+✔ resolving a saved query removes its stub and preserves distinct channels sharing its name (2.3067ms)
+✔ saved coverage separates verified empty channels from unresolved names and held fragments (0.9346ms)
+✔ compact exact union counts match creator and playlist rows without retaining card indexes (0.5985ms)
+✔ 100k saved rows yield to input and simultaneous readers share the same compact index (2868.3679ms)
+✔ live health and folder counts do not invalidate a provider shelf; privacy edits do (29.5063ms)
+✔ small refreshes update dates, preserve equal-date metadata order and reuse shelves for Twitch-only changes (55.274ms)
+✔ cold selection preserves exact provenance, stable ties and the unknown-date tail (25.9009ms)
+✔ small status/metadata updates and appended uploads match a full rebuild across mixed dates and ties (75.6087ms)
+✔ Twitch-only refresh retains the exact YouTube array without rereading or sorting unchanged metadata (121.6841ms)
+✔ shrinks, reorders, changed dates, interior admissions and large replacements request a full stable rebuild (5.5495ms)
+✔ refresh comparison and publication cancel between slices without changing either catalog (34.7433ms)
+✔ unique latest/trending winners avoid archive scans but equal-date/view ties keep seeded results (94.4392ms)
+✔ winner shortcuts preserve shuffled results, quotas and invalid-view fallback (12.4514ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3168.0518

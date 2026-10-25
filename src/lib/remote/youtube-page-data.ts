@@ -66,7 +66,7 @@ export function youtubeVideoRenderers(items: unknown, maximum: number): YoutubeR
       publishedTimeText: { simpleText: lockup.metadata?.lockupMetadataViewModel?.metadata?.contentMetadataViewModel?.metadataRows
         ?.flatMap((row: any) => row.metadataParts?.map((part: any) => part.text?.content) ?? [])
         .find((value: unknown) => typeof value === 'string' && /^Streamed\s|^\d{4}-\d{2}-\d{2}$/.test(value)) },
-      thumbnailOverlays: lockup.contentImage?.thumbnailViewModel?.overlays?.flatMap((overlay: any) => overlay.thumbnailBottomOverlayViewModel?.badges?.map((badge: any) => ({ thumbnailOverlayTimeStatusRenderer: { style: badge.thumbnailBadgeViewModel?.badgeStyle === 'THUMBNAIL_OVERLAY_BADGE_STYLE_LIVE' ? 'LIVE' : badge.thumbnailBadgeViewModel?.badgeStyle === 'THUMBNAIL_OVERLAY_BADGE_STYLE_UPCOMING' ? 'UPCOMING' : undefined } })) ?? []),
+      thumbnailOverlays: lockup.contentImage?.thumbnailViewModel?.overlays?.flatMap((overlay: any) => overlay.thumbnailBottomOverlayViewModel?.badges?.map((badge: any) => ({ thumbnailOverlayTimeStatusRenderer: { text: { simpleText: badge.thumbnailBadgeViewModel?.text }, style: badge.thumbnailBadgeViewModel?.badgeStyle === 'THUMBNAIL_OVERLAY_BADGE_STYLE_LIVE' ? 'LIVE' : badge.thumbnailBadgeViewModel?.badgeStyle === 'THUMBNAIL_OVERLAY_BADGE_STYLE_UPCOMING' ? 'UPCOMING' : undefined } })) ?? []),
     } : short ? {
       videoId: short.onTap?.innertubeCommand?.reelWatchEndpoint?.videoId,
       title: { simpleText: short.overlayMetadata?.primaryText?.content ?? short.accessibilityText },

@@ -1,0 +1,25 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "Actual creator pull preserves ARCHIVE/HIGHLIGHT/UPLOAD/CLIPS evidence; short broadcasts, long clips and legacy unknowns filter separately without extra provider reads",
+        "Type evidence appears in preview and the content filter composes with saved favorites",
+        "CSV exports only the selected saved/type intersection with canonical identity, type and evidence time",
+        "Archive type search and real IndexedDB reload preserve classification and saved signals with no overflow or console errors"
+      ],
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "Actual creator pull preserves ARCHIVE/HIGHLIGHT/UPLOAD/CLIPS evidence; short broadcasts, long clips and legacy unknowns filter separately without extra provider reads",
+        "Type evidence appears in preview and the content filter composes with saved favorites",
+        "CSV exports only the selected saved/type intersection with canonical identity, type and evidence time",
+        "Archive type search and real IndexedDB reload preserve classification and saved signals with no overflow or console errors"
+      ],
+      "errors": []
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{"check":"late YouTube API readiness retries successfully; blocked mobile autoplay resolves with a device-only tap, catches up to the playing host, and does not send room pause/play requests even with 90 seconds of clock skew"}
+{"check":"normal playback avoids seek storms, substantial decoder drift is corrected, and buffering freezes the shared clock and resumes the guest automatically"}
+{"check":"returning to the phone page requests fresh clock and host state without altering shared playback"}
+{"check":"shared pause/resume remains stable while provider telemetry is arriving, and stale player notifications do not undo the room control"}
+{"check":"YouTube live links and watch URLs detected by host telemetry survive independent viewer clocks, three host buffering cycles, guest buffering, explicit resync and player reload without repeated play/pause/seek; deliberate room pause/resume still works once per action"}
+{"check":"live detection is scoped to its title: switching back to a YouTube VOD restores seek controls and guest clock alignment"}
+{"check":"Twitch VOD first-start taps catch up locally without sending an old PLAY timestamp to the room; subsequent decoder drift is bounded and corrected"}

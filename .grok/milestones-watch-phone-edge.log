@@ -1,0 +1,212 @@
+{"check":"late YouTube API readiness retries successfully; blocked mobile autoplay resolves with a device-only tap, catches up to the playing host, and does not send room pause/play requests even with 90 seconds of clock skew"}
+{"check":"normal playback avoids seek storms, substantial decoder drift is corrected, and buffering freezes the shared clock and resumes the guest automatically"}
+{"check":"returning to the phone page requests fresh clock and host state without altering shared playback"}
+{"check":"shared pause/resume remains stable while provider telemetry is arriving, and stale player notifications do not undo the room control"}
+{"index":0,"diagnostic":{"packets":[{"type":"host-catalog-status","enabled":true,"localTitles":false},{"type":"host-catalog-result","requestId":"catalog-e82e3a46-0eb3-4566-9a49-c48f404409e3","media":[{"id":"room:youtube:liveWatch01","name":"YouTube · liveWatch01","kind":"youtube","videoId":"liveWatch01","embedUrl":"https://www.youtube.com/embed/liveWatch01","watchUrl":"https://www.youtube.com/watch?v=liveWatch01","live":false}],"nextOffset":1,"hasMore":false},{"type":"sync","playing":true,"position":1.057,"clockRunning":true,"observed":false,"videoId":"room:youtube:liveWatch01","selectionRevision":3,"seek":false,"sentAt":1792712483357},{"type":"room-state","playing":true,"live":true,"observed":true,"clockRunning":false,"position":0,"videoId":"room:youtube:liveWatch01","media":{"id":"room:youtube:liveWatch01","name":"YouTube · liveWatch01","kind":"youtube","videoId":"liveWatch01","embedUrl":"https://www.youtube.com/embed/liveWatch01","watchUrl":"https://www.youtube.com/watch?v=liveWatch01","live":true},"queue":[],"queueMedia":[],"recentMedia":[{"id":"room:youtube:liveRoute01","name":"YouTube · liveRoute01","kind":"youtube","videoId":"liveRoute01","embedUrl":"https://www.youtube.com/embed/liveRoute01","watchUrl":"https://www.youtube.com/watch?v=liveRoute01","live":true},{"id":"room:youtube:dQw4w9WgXcQ","name":"YouTube · dQw4w9WgXcQ","kind":"youtube","videoId":"dQw4w9WgXcQ","embedUrl":"https://www.youtube.com/embed/dQw4w9WgXcQ","watchUrl":"https://www.youtube.com/watch?v=dQw4w9WgXcQ","live":false}],"localQueue":[],"queueRevision":6,"selectionRevision":3,"guestQueueEnabled":true,"reviewQueue":false,"suggestions":[],"reviewRevision":0,"sentAt":1792712483995},{"type":"clock-result","requestId":"clock-c399ea4b-f68c-4da2-9ad3-975829ca71c8","hostTime":1792712484333},{"type":"room-state","playing":true,"live":true,"observed":true,"clockRunning":true,"position":0.3367000000178814,"videoId":"room:youtube:liveWatch01","media":{"id":"room:youtube:liveWatch01","name":"YouTube · liveWatch01","kind":"youtube","videoId":"liveWatch01","embedUrl":"https://www.youtube.com/embed/liveWatch01","watchUrl":"https://www.youtube.com/watch?v=liveWatch01","live":true},"queue":[],"queueMedia":[],"recentMedia":[{"id":"room:youtube:liveRoute01","name":"YouTube · liveRoute01","kind":"youtube","videoId":"liveRoute01","embedUrl":"https://www.youtube.com/embed/liveRoute01","watchUrl":"https://www.youtube.com/watch?v=liveRoute01","live":true},{"id":"room:youtube:dQw4w9WgXcQ","name":"YouTube · dQw4w9WgXcQ","kind":"youtube","videoId":"dQw4w9WgXcQ","embedUrl":"https://www.youtube.com/embed/dQw4w9WgXcQ","watchUrl":"https://www.youtube.com/watch?v=dQw4w9WgXcQ","live":false}],"localQueue":[],"queueRevision":6,"selectionRevision":3,"guestQueueEnabled":true,"reviewQueue":false,"suggestions":[],"reviewRevision":0,"sentAt":1792712484333},{"type":"sync","playing":true,"position":0.36590000000596046,"live":true,"clockRunning":true,"observed":true,"videoId":"room:youtube:liveWatch01","selectionRevision":3,"seek":false,"sentAt":1792712484362},{"type":"room-state","playing":true,"live":true,"observed":true,"clockRunning":true,"position":0.4537000000178814,"videoId":"room:youtube:liveWatch01","media":{"id":"room:youtube:liveWatch01","name":"YouTube · liveWatch01","kind":"youtube","videoId":"liveWatch01","embedUrl":"https://www.youtube.com/embed/liveWatch01","watchUrl":"https://www.youtube.com/watch?v=liveWatch01","live":true},"queue":[],"queueMedia":[],"recentMedia":[{"id":"room:youtube:liveRoute01","name":"YouTube · liveRoute01","kind":"youtube","videoId":"liveRoute01","embedUrl":"https://www.youtube.com/embed/liveRoute01","watchUrl":"https://www.youtube.com/watch?v=liveRoute01","live":true},{"id":"room:youtube:dQw4w9WgXcQ","name":"YouTube · dQw4w9WgXcQ","kind":"youtube","videoId":"dQw4w9WgXcQ","embedUrl":"https://www.youtube.com/embed/dQw4w9WgXcQ","watchUrl":"https://www.youtube.com/watch?v=dQw4w9WgXcQ","live":false}],"localQueue":[],"queueRevision":6,"selectionRevision":3,"guestQueueEnabled":true,"reviewQueue":false,"suggestions":[],"reviewRevision":0,"sentAt":1792712484459},{"type":"sync","playing":true,"position":1.3770000000298024,"live":true,"clockRunning":true,"observed":true,"videoId":"room:youtube:liveWatch01","selectionRevision":3,"seek":false,"sentAt":1792712485373},{"type":"sync","playing":true,"position":9500.0215,"live":true,"clockRunning":false,"observed":true,"videoId":"room:youtube:liveWatch01","selectionRevision":3,"seek":false,"sentAt":1792712486385},{"type":"sync","playing":true,"position":9500.0215,"live":true,"clockRunning":false,"observed":true,"videoId":"room:youtube:liveWatch01","selectionRevision":3,"seek":false,"sentAt":1792712487397},{"type":"sync","playing":true,"position":9550.948400000007,"live":true,"clockRunning":true,"observed":true,"videoId":"room:youtube:liveWatch01","selectionRevision":3,"seek":false,"sentAt":1792712488400}]}}
+Realhub
+
+Vault · networks · live
+
+Library
+Home
+Landing page
+0
+Movies
+Anime
+Topics
+YouTube
+0
+Twitch
+0
+Live
+0
+Favorites
+0
+Continue
+0
+History
+0
+Adults
+0
+Fetish Explorer
+Workspace
+Stable Diffusion
+Remote desktop
+Photos
+Spotify
+3D prints
+Games
+Shop
+Streaming
+Stream Signal
+Watch room
+X accounts
+Tools
+Local sources
+0
+Add folder
+
+Home
+
+0 indexed
+
+Search
+Date added
+7:41 PM
+Resume pulls
+Folder
+REALHUB · YOUR WORKSPACE
+Make yourself at Home.
+
+Pick up a video, find a live stream, or open a workspace. Everything has a place below.
+
+Continue watching
+Live now
+Watch together
+Landing page
+Explore your spaces
+Expand a section
+Watch & discover
+Channels, films, and something new.
+Your library
+Return to the things you saved.
+Create & play
+Images, games, and projects.
+Share & listen
+Watch rooms and creator tools.
+Manage & connect
+Devices, guidance, and app controls.
+Private areas
+Open your private workspace.
+{"index":1,"diagnostic":{"clock":"0","packets":[{"type":"resync-request","sentAt":1792712545086},{"type":"resync-request","sentAt":1792712545152},{"type":"host-catalog-search","requestId":"catalog-784eb6c9-ba60-4161-b44a-5a312731bda1","query":"","offset":0},{"type":"host-catalog-search","requestId":"catalog-6cd8049c-d1d9-4605-9fc9-162fef290511","query":"","offset":0},{"type":"clock-request","requestId":"clock-4bf37be3-731b-4b24-9df6-ef54548e0e65"},{"type":"resync-request","sentAt":1792712552782},{"type":"resync-request","sentAt":1792712552892},{"type":"resync-request","sentAt":1792712570402},{"type":"host-catalog-search","requestId":"catalog-e82e3a46-0eb3-4566-9a49-c48f404409e3","query":"","offset":0},{"type":"clock-request","requestId":"clock-c399ea4b-f68c-4da2-9ad3-975829ca71c8"},{"type":"resync-request","sentAt":1792712574332},{"type":"resync-request","sentAt":1792712574459}]}}
+ Ahead of the host? Move behind. Saved on this device; other viewers keep their timing.
+
+Offset in seconds
+Apply timing
+Behind 0.25s
+Ahead 0.25s
+Reset timing
+
+Your timer 0:00
+
+Timer correction only for host streams, live feeds and clips. Streamed frames cannot be seeked independently; a matching local copy supports video adjustment.
+
+Room reliability · r0 · 0 stale commands dropped
+Play
+−15 sec
++15 sec
+Request resync
+Request next
+Stage size
+compact
+theater
+cinema
+Choose a starter movie or an online video to show it to the room.
+Explore more videos and advanced queue controls
+Local sharing, games & TV
+
+WATCH QUEUE
+
+Up next for everyone
+0 / 48 queued
+
+On the stage
+
+Choose a video to start watching
+
+Your queue is ready for links or library videos.
+
+Waiting for the host connection. The last confirmed queue stays visible.
+
+Up next · host confirms changes
+
+Select titles
+Request next
+Shuffle
+
+Queue changes go to the host; everyone sees the confirmed order.
+
+Add links below or search your library. YouTube and Twitch entries carry their own playback details.
+
+Saved watch lists · 0
+Add videos from links or your library
+Add link to queue
+
+Paste up to 48 links in one batch, even with an empty library. Local files play from the host. Your pasted links stay here until you clear them.
+
+Find videos
+Host library
+My library
+YouTube search
+
+Find videos in the host’s library even when your own library is empty. Only this result page is sent to your device. Queue a title for everyone; the host confirms the order.
+
+Host browsing is unavailable. Wait for the host to connect or enable library browsing.
+Retry host search
+Previous results
+More results
+
+Room chat
+
+Send
+Invite another guest
+Your watch history
+3 saved
+
+Your last 80 public videos watched in Watch Together, including the current video. Saved on this browser across rooms and reloads. Local files stay private and are excluded.
+
+YouTube · liveWatch01
+
+YouTube
+
+Watched 10/22/2026, 7:42:52 PM
+
+Watch again
+Queue
+LIVE
+
+YouTube · liveRoute01
+
+YouTube
+
+Watched 10/22/2026, 7:42:30 PM
+
+Watch again
+Queue
+
+YouTube · dQw4w9WgXcQ
+
+YouTube
+
+Watched 10/22/2026, 7:42:10 PM
+
+Watch again
+Queue
+Clear my room history
+Recently played
+
+Return to a skipped video or add it back without changing what’s playing. Up to 12 public videos from this room session; local files are excluded.
+
+Public videos appear here when the host switches to another title.
+
+Guests & connection status
+
+You · ready
+Waiting for guests to join with the room code.
+Leave room
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+locator.evaluate: Timeout 20000ms exceeded.
+Call log:
+[2m  - waiting for locator('iframe[src*="youtube.com/embed/"]').contentFrame().locator('body')[22m
+
+    at E:\codex\drift-brick-terra-acorn\scripts\watch-room-phone-check.mjs:86:121 {
+  log: [
+    `  - waiting for locator('iframe[src*="youtube.com/embed/"]').contentFrame().locator('body')`
+  ],
+  name: 'TimeoutError'
+}
+
+Node.js v24.22.0

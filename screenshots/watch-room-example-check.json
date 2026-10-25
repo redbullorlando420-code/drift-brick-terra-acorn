@@ -1,0 +1,58 @@
+{
+  "at": "2026-10-22T20:18:57.500Z",
+  "id": "VV8mzTZ_Hgk",
+  "reports": [
+    {
+      "url": "https://www.youtube.com/watch?v=VV8mzTZ_Hgk",
+      "status": 200,
+      "title": "[Oct. 13th, 2026] ⭐ SPOOKTOBER CONTINUES 👻 DECISIONS 😱 TRADING COMPETITION + UNTIL DAWN 👻 (alt)",
+      "playability": {
+        "status": "OK",
+        "playableInEmbed": true,
+        "miniplayer": {
+          "miniplayerRenderer": {
+            "playbackMode": "PLAYBACK_MODE_ALLOW"
+          }
+        },
+        "contextParams": "Q0FFU0FnZ0M="
+      },
+      "embedAllowed": "https://www.youtube.com/embed/VV8mzTZ_Hgk",
+      "isFamilySafe": true,
+      "parsed": true,
+      "bodyBytes": 1479271
+    },
+    {
+      "url": "https://www.youtube.com/embed/VV8mzTZ_Hgk?enablejsapi=1&origin=http%3A%2F%2F127.0.0.1%3A8080",
+      "status": 200,
+      "parsed": true,
+      "bodyBytes": 147032
+    },
+    {
+      "url": "https://www.youtube-nocookie.com/embed/VV8mzTZ_Hgk?enablejsapi=1&origin=http%3A%2F%2F127.0.0.1%3A8080",
+      "status": 200,
+      "parsed": true,
+      "bodyBytes": 146673
+    },
+    {
+      "url": "https://www.youtube.com/oembed?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DVV8mzTZ_Hgk&format=json",
+      "status": 200,
+      "metadata": {
+        "title": "[Oct. 13th, 2026] ⭐ SPOOKTOBER CONTINUES 👻 DECISIONS 😱 TRADING COMPETITION + UNTIL DAWN 👻 (alt)",
+        "author_name": "itsKatchii VODs OFFICIAL",
+        "author_url": "https://www.youtube.com/@katchiitwitchvods",
+        "type": "video",
+        "height": 113,
+        "width": 200,
+        "version": "1.0",
+        "provider_name": "YouTube",
+        "provider_url": "https://www.youtube.com/",
+        "thumbnail_height": 360,
+        "thumbnail_width": 480,
+        "thumbnail_url": "https://i.ytimg.com/vi/VV8mzTZ_Hgk/hqdefault.jpg",
+        "html": "<iframe width=\"200\" height=\"113\" src=\"https://www.youtube.com/embed/VV8mzTZ_Hgk?feature=oembed\" frameborder=\"0\" allow=\"accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share\" referrerpolicy=\"strict-origin-when-cross-origin\" allowfullscreen title=\"[Oct. 13th, 2026] ⭐ SPOOKTOBER CONTINUES 👻 DECISIONS 😱 TRADING COMPETITION + UNTIL DAWN 👻 (alt)\"></iframe>"
+      },
+      "parsed": false,
+      "bodyBytes": 1016
+    }
+  ]
+}

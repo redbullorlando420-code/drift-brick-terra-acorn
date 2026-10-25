@@ -1,0 +1,137 @@
+npm notice run dev
+npm notice run node scripts/with-app-env.mjs vite dev --host 0.0.0.0 --port 8080
+
+  VITE v8.2.2  ready in 2795 ms
+
+  ➜  Local:   http://localhost:8080/
+  ➜  Network: http://10.5.0.2:8080/      NordLynx
+  ➜  Network: http://192.168.1.68:8080/  Ethernet 2
+8:49:48 PM [vite] (ssr) connected.
+8:52:22 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+8:54:31 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+8:58:14 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })
+11:01:26 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/invite.tsx, /src/components/library/library-app.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/browse.tsx, /src/components/library/video-card.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/light-home.tsx, /src/components/library/video-grid.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/youtube-publication-control.tsx and 20 more
+11:01:26 PM [vite] (ssr) page reload src/lib/videos/types.ts
+11:01:26 PM [vite] (ssr) program reload
+11:01:27 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx, /src/components/library/room-suggestions-panel.tsx, /src/components/library/room-queue-panel.tsx, /src/components/library/room-playlists-panel.tsx, /src/components/library/room-recent-panel.tsx
+11:01:27 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:01:27 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+11:01:27 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:01:27 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx
+11:01:27 PM [vite] (client) hmr invalidate /src/components/library/adult-comments.tsx Could not Fast Refresh ("supportsRemoteComments" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:01:27 PM [vite] (client) hmr update /src/components/library/watch-room-section.tsx
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })
+11:04:24 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-queue-panel.tsx
+11:04:25 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+11:04:25 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-queue-panel.tsx
+11:04:25 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+11:05:03 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+11:05:04 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-video-search.tsx
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })
+11:07:19 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+11:07:19 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })
+node:internal/fs/watchers:323
+    const error = new UVException({
+                  ^
+
+Error: EBUSY: resource busy or locked, watch 'E:\codex\drift-brick-terra-acorn\.grok\watch-discovery-output-backup\static\samples\golden-coast.mp4'
+    at FSWatcher.<computed> (node:internal/fs/watchers:323:19)
+    at Object.watch (node:fs:2608:36)
+    at createFsWatchInstance (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:9429:16)
+    at setFsWatchListener (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:9471:14)
+    at NodeFsHandler._watchWithNodeFs (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:9586:20)
+    at NodeFsHandler._handleFile (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:9630:24)
+    at NodeFsHandler._addToNodeFs (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:9804:26)
+Emitted 'error' event on FSWatcher instance at:
+    at FSWatcher._handleError (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:10606:146)
+    at NodeFsHandler._addToNodeFs (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:9809:18) {
+  errno: -4082,
+  syscall: 'watch',
+  code: 'EBUSY',
+  path: 'E:\\codex\\drift-brick-terra-acorn\\.grok\\watch-discovery-output-backup\\static\\samples\\golden-coast.mp4',
+  filename: 'E:\\codex\\drift-brick-terra-acorn\\.grok\\watch-discovery-output-backup\\static\\samples\\golden-coast.mp4'
+}
+
+Node.js v24.22.0

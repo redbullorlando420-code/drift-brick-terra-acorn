@@ -1,0 +1,13 @@
+{
+  "native": true,
+  "errors": [],
+  "seconds": 53.752,
+  "ok": true,
+  "pngBytes": 692827,
+  "width": 512,
+  "height": 512,
+  "seed": 42,
+  "steps": 8,
+  "downloaded": true,
+  "memoryRelease": true
+}

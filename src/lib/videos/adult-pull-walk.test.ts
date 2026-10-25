@@ -50,3 +50,18 @@ test('original image cache shares requests and retries missing originals', async
   await cachedBooruOriginal('test', '2', async () => null);
   assert.equal(await cachedBooruOriginal('test', '2', resolve), 'https://cdn.test/original.png'); assert.equal(calls, 2);
 });
+
+test('archive catch-up skips saved windows and spends the target on distinct new titles',async()=>{
+ const pages:number[][]=[];const result=await walkAdultPull(3,1,0,async(page,offset,limit)=>{pages.push([page,offset,limit]);return {videos:page===1?[{id:'saved-1'},{id:'saved-2'}]:page===2?[{id:'saved-2'},{id:'new-1'}]:[{id:'new-1'},{id:'new-2'},{id:'new-3'}],nextPage:page+1,nextOffset:0};},async()=>{},{known:new Set(['saved-1','saved-2'])});
+ assert.deepEqual(result.videos.map(v=>v.id),['new-1','new-2','new-3']);assert.equal(result.requests,3);assert.equal(result.duplicates,4);assert.equal(result.latest?.nextPage,4);assert.equal(pages[1][2],3);
+});
+test('duplicate-only archives and cycling continuations remain bounded and resumable',async()=>{
+ let calls=0;const result=await walkAdultPull(1000,1,0,async(page)=>{calls++;return {videos:[{id:'saved'}],nextPage:page+1,nextOffset:0};},async()=>{},{known:new Set(['saved']),maxRequests:4});
+ assert.equal(calls,4);assert.equal(result.videos.length,0);assert.equal(result.latest?.nextPage,5);
+ calls=0;await walkAdultPull(10,1,0,async(page)=>{calls++;return {videos:[],nextPage:page===1?2:1,nextOffset:0};},async()=>{});assert.equal(calls,2);
+});
+
+test('bounded existing-title refresh does not consume the new-entry target',async()=>{
+ const result=await walkAdultPull(2,1,0,async(page)=>({videos:page===1?[{id:'old-1'},{id:'old-2'},{id:'old-3'}]:[{id:'new-1'},{id:'new-2'}],nextPage:page+1,nextOffset:0}),async()=>{},{known:new Set(['old-1','old-2','old-3']),refreshLimit:2});
+ assert.equal(result.newCount,2);assert.equal(result.refreshedCount,2);assert.deepEqual(result.videos.map(v=>v.id),['new-1','new-2','old-1','old-2']);assert.equal(result.requests,2);
+});

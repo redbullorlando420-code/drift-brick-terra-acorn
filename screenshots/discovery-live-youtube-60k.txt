@@ -1,0 +1,121 @@
+desktop: seed 60,000 videos (80% from one creator)
+desktop: open recommendations
+desktop: rank discovery
+mobile: seed 60,000 videos (80% from one creator)
+mobile: open recommendations
+mobile: rank discovery
+{
+  "ok": true,
+  "stableMetadata": true,
+  "fixture": "60,000 saved YouTube videos, 48,000 from one creator; saved manually locked science tags; real ranking worker; isolated browser storage; artwork/embeds stubbed",
+  "results": [
+    {
+      "viewport": "desktop",
+      "firstBatchMs": 1539,
+      "nextPageMs": 104,
+      "previewReturnRepackedRows": 0,
+      "releasedWorkerVerified": true,
+      "nextAfterReturnMs": 766,
+      "coldMixVerified": true,
+      "ratingInvalidationVerified": true,
+      "scrollWorstFrameMs": 46,
+      "peakCards": 60,
+      "worstMainTaskMs": 54,
+      "overflow": false,
+      "rankingWorkers": [
+        {
+          "rows": 60000,
+          "packingMs": 1423,
+          "scoringMs": 247,
+          "completed": true
+        },
+        {
+          "rows": 60000,
+          "packingMs": 501,
+          "scoringMs": 179,
+          "completed": true
+        },
+        {
+          "rows": 60000,
+          "packingMs": 428,
+          "scoringMs": 274,
+          "completed": true
+        },
+        {
+          "rows": 0,
+          "packingMs": null,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 4000,
+          "packingMs": 139,
+          "scoringMs": 20,
+          "completed": true
+        },
+        {
+          "rows": 4000,
+          "packingMs": 190,
+          "scoringMs": 70,
+          "completed": true
+        }
+      ],
+      "errors": [],
+      "ok": true
+    },
+    {
+      "viewport": "mobile",
+      "firstBatchMs": 1160,
+      "nextPageMs": 56,
+      "previewReturnRepackedRows": 0,
+      "releasedWorkerVerified": true,
+      "nextAfterReturnMs": 712,
+      "coldMixVerified": true,
+      "ratingInvalidationVerified": true,
+      "scrollWorstFrameMs": 22,
+      "peakCards": 40,
+      "worstMainTaskMs": 68,
+      "overflow": false,
+      "rankingWorkers": [
+        {
+          "rows": 60000,
+          "packingMs": 1090,
+          "scoringMs": 151,
+          "completed": true
+        },
+        {
+          "rows": 60000,
+          "packingMs": 461,
+          "scoringMs": 198,
+          "completed": true
+        },
+        {
+          "rows": 60000,
+          "packingMs": 388,
+          "scoringMs": 177,
+          "completed": true
+        },
+        {
+          "rows": 0,
+          "packingMs": null,
+          "scoringMs": null,
+          "completed": false
+        },
+        {
+          "rows": 4000,
+          "packingMs": 67,
+          "scoringMs": 16,
+          "completed": true
+        },
+        {
+          "rows": 4000,
+          "packingMs": 244,
+          "scoringMs": 16,
+          "completed": true
+        }
+      ],
+      "errors": [],
+      "ok": true
+    }
+  ]
+}

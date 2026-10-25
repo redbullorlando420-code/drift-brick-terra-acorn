@@ -1,0 +1,100 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "29 Home destinations in six accessible dropdown groups; keyboard expansion, Settings navigation and expansion recovery across navigation/reload; private group closed by default and no media mounts",
+        "24 rapid YouTube/Home cycles with 40,000 persisted entries: collected main-frame heap and DOM growth stay bounded; no workers, frames or media remain on Home",
+        "24-hour virtual idle advance leaves Home responsive with no background media; this is accelerated lifecycle testing, not a physical-day soak",
+        "MFC direct Share/profile link, storage-access sandbox token, manual pause/resume, hidden expiry, explicit resume and remembered Direct website mode all work; reload creates no hidden frame in Direct mode"
+      ],
+      "errors": [],
+      "memory": {
+        "catalog": 40000,
+        "cycles": 24,
+        "samples": [
+          {
+            "usedBytes": 55037476,
+            "nodes": 1379,
+            "workers": 0,
+            "frames": 1
+          },
+          {
+            "usedBytes": 60744152,
+            "nodes": 1379,
+            "workers": 0,
+            "frames": 1
+          },
+          {
+            "usedBytes": 62739592,
+            "nodes": 1379,
+            "workers": 0,
+            "frames": 1
+          },
+          {
+            "usedBytes": 62010472,
+            "nodes": 1379,
+            "workers": 0,
+            "frames": 1
+          },
+          {
+            "usedBytes": 62037736,
+            "nodes": 1379,
+            "workers": 0,
+            "frames": 1
+          }
+        ],
+        "growthBytes": 7000260
+      }
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "29 Home destinations in six accessible dropdown groups; keyboard expansion, Settings navigation and expansion recovery across navigation/reload; private group closed by default and no media mounts",
+        "24 rapid YouTube/Home cycles with 40,000 persisted entries: collected main-frame heap and DOM growth stay bounded; no workers, frames or media remain on Home",
+        "24-hour virtual idle advance leaves Home responsive with no background media; this is accelerated lifecycle testing, not a physical-day soak",
+        "MFC direct Share/profile link, storage-access sandbox token, manual pause/resume, hidden expiry, explicit resume and remembered Direct website mode all work; reload creates no hidden frame in Direct mode"
+      ],
+      "errors": [],
+      "memory": {
+        "catalog": 40000,
+        "cycles": 24,
+        "samples": [
+          {
+            "usedBytes": 54187104,
+            "nodes": 780,
+            "workers": 0,
+            "frames": 1
+          },
+          {
+            "usedBytes": 60493160,
+            "nodes": 780,
+            "workers": 0,
+            "frames": 1
+          },
+          {
+            "usedBytes": 62717672,
+            "nodes": 780,
+            "workers": 0,
+            "frames": 1
+          },
+          {
+            "usedBytes": 62360740,
+            "nodes": 780,
+            "workers": 0,
+            "frames": 1
+          },
+          {
+            "usedBytes": 62545344,
+            "nodes": 780,
+            "workers": 0,
+            "frames": 1
+          }
+        ],
+        "growthBytes": 8358240
+      }
+    }
+  ],
+  "limitation": "Isolated Chrome desktop/mobile; 40k metadata fixture, controlled provider responses and abstract artwork. Heap samples cover the main frame. MFC cookie acceptance/authentication and actual streaming remain provider/browser controlled. Accelerated idle is not an overnight physical-device soak."
+}

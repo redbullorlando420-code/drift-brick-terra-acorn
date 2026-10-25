@@ -1,0 +1,167 @@
+{
+  "ok": true,
+  "initialBytes": 1298354,
+  "desks": [
+    {
+      "desk": "anime-section",
+      "additionalBytes": 10733,
+      "additionalGzipBytes": 3960,
+      "chunks": [
+        "anime-section-B8fKqYCz.js",
+        "hub-shared-CjXyB_VV.js"
+      ]
+    },
+    {
+      "desk": "find-phone-section",
+      "additionalBytes": 4773,
+      "additionalGzipBytes": 1929,
+      "chunks": [
+        "find-phone-section-DcoINMgl.js",
+        "hub-shared-CjXyB_VV.js"
+      ]
+    },
+    {
+      "desk": "games-section",
+      "additionalBytes": 17218,
+      "additionalGzipBytes": 6594,
+      "chunks": [
+        "games-section-zmVPr_QM.js",
+        "rocket-Cc2iYUhJ.js",
+        "hub-shared-CjXyB_VV.js"
+      ]
+    },
+    {
+      "desk": "genre-section",
+      "additionalBytes": 14415,
+      "additionalGzipBytes": 5616,
+      "chunks": [
+        "genre-section-DaIlPRC4.js",
+        "hub-shared-CjXyB_VV.js",
+        "topic-links-CftcetTN.js"
+      ]
+    },
+    {
+      "desk": "lan-connection-section",
+      "additionalBytes": 14143,
+      "additionalGzipBytes": 4971,
+      "chunks": [
+        "lan-connection-section-C1wugzaQ.js",
+        "copy-DAX0LCHb.js",
+        "hub-shared-CjXyB_VV.js"
+      ]
+    },
+    {
+      "desk": "mission-plan-section",
+      "additionalBytes": 72535,
+      "additionalGzipBytes": 24491,
+      "chunks": [
+        "mission-plan-section-DhibePpj.js",
+        "bot-YbjlyLNT.js",
+        "rocket-Cc2iYUhJ.js",
+        "hub-shared-CjXyB_VV.js"
+      ]
+    },
+    {
+      "desk": "photos-section",
+      "additionalBytes": 55436,
+      "additionalGzipBytes": 17203,
+      "chunks": [
+        "photos-section-PWwy0cTw.js",
+        "chevron-left-BowGxs2z.js",
+        "maximize-2-B9SMxzPY.js",
+        "hub-shared-CjXyB_VV.js",
+        "local-vision-BiGhpH3M.js"
+      ]
+    },
+    {
+      "desk": "prints-section",
+      "additionalBytes": 12853,
+      "additionalGzipBytes": 5494,
+      "chunks": [
+        "prints-section-D_0JLFQ6.js",
+        "package-search-Cq6nGZD8.js",
+        "hub-shared-CjXyB_VV.js"
+      ]
+    },
+    {
+      "desk": "private-web-shortcuts-section",
+      "additionalBytes": 2772,
+      "additionalGzipBytes": 1418,
+      "chunks": [
+        "private-web-shortcuts-section-BeHAhfkx.js",
+        "rocket-Cc2iYUhJ.js"
+      ]
+    },
+    {
+      "desk": "settings-section",
+      "additionalBytes": 103156,
+      "additionalGzipBytes": 30478,
+      "chunks": [
+        "settings-section-wXQHbsTd.js",
+        "bot-YbjlyLNT.js",
+        "package-search-Cq6nGZD8.js",
+        "hub-shared-CjXyB_VV.js",
+        "local-vision-BiGhpH3M.js"
+      ]
+    },
+    {
+      "desk": "shop-section",
+      "additionalBytes": 8595,
+      "additionalGzipBytes": 3504,
+      "chunks": [
+        "shop-section-DWEliLiw.js",
+        "package-search-Cq6nGZD8.js",
+        "hub-shared-CjXyB_VV.js"
+      ]
+    },
+    {
+      "desk": "social-section",
+      "additionalBytes": 13303,
+      "additionalGzipBytes": 5392,
+      "chunks": [
+        "social-section-DqRuJAtR.js",
+        "hub-shared-CjXyB_VV.js"
+      ]
+    },
+    {
+      "desk": "spotify-section",
+      "additionalBytes": 6435,
+      "additionalGzipBytes": 2582,
+      "chunks": [
+        "spotify-section-C-tXnUOI.js",
+        "hub-shared-CjXyB_VV.js"
+      ]
+    },
+    {
+      "desk": "stats-section",
+      "additionalBytes": 449294,
+      "additionalGzipBytes": 116760,
+      "chunks": [
+        "stats-section-D-JRhH-N.js",
+        "hub-shared-CjXyB_VV.js",
+        "topic-links-CftcetTN.js"
+      ]
+    },
+    {
+      "desk": "streaming-section",
+      "additionalBytes": 6184,
+      "additionalGzipBytes": 2607,
+      "chunks": [
+        "streaming-section-Db60HG6u.js",
+        "hub-shared-CjXyB_VV.js"
+      ]
+    },
+    {
+      "desk": "watch-room-section",
+      "additionalBytes": 144616,
+      "additionalGzipBytes": 44590,
+      "chunks": [
+        "watch-room-section-CtB9EkhQ.js",
+        "copy-DAX0LCHb.js",
+        "volume-x-BsJimDAu.js",
+        "twitch-embed-CLGdLnA-.js",
+        "hub-shared-CjXyB_VV.js"
+      ]
+    }
+  ]
+}

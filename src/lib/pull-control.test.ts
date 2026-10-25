@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { setImmediate } from "node:timers/promises";
-import { createPullControl, runPausablePull, setPullsPaused, setPullViewerOpen, subscribePullAvailability, catalogPullAvailable } from "./pull-control.ts";
+import { createPullControl, runPausablePull, setPullsPaused, setPullViewerOpen, subscribePullAvailability, catalogPullAvailable, setActivePullPage, automaticPullAvailable } from "./pull-control.ts";
 import { createPeriodicScheduler } from './periodic-scheduler.ts';
 test("paused requests and their responses wait without polling until resumed", async () => {
   setPullsPaused(true);
@@ -45,4 +45,20 @@ test('a sleeping periodic pull wakes when the final viewer gate opens', () => {
     setPullsPaused(false); assert.ok(timer);
   } finally { task.cancel(); stopAvailability(); setPullViewerOpen(false); setPullsPaused(false); }
   assert.equal(timer, null);
+});
+
+test('Live holds automatic archives, explicit requests pass, and navigating wakes the matching provider', async () => {
+  const { updatePullSettings } = await import('./pull-settings.ts');
+  updatePullSettings({ requestGapMs: 0 });
+  setPullsPaused(false); setActivePullPage('live');
+  try {
+    assert.equal(automaticPullAvailable('youtube'), false);
+    let started = false;
+    await assert.rejects(runPausablePull(async () => { started = true; return 'archive'; }, { automatic: true, provider: 'youtube' }), /deferred to the active page/);
+    assert.equal(await runPausablePull(async () => 'manual'), 'manual'); assert.equal(started, false);
+    assert.equal(await runPausablePull(async () => 'live', { live: true, provider: 'twitch' }), 'live');
+    setActivePullPage('twitch'); assert.equal(started, false);
+    setActivePullPage('youtube'); assert.equal(await runPausablePull(async () => 'archive', { automatic: true, provider: 'youtube' }), 'archive');
+    assert.equal(automaticPullAvailable('twitch'), false);
+  } finally { setActivePullPage(''); }
 });

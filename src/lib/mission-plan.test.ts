@@ -256,3 +256,53 @@ test('revision 24 promotes verified Twitch queue, retries, controls and failure 
   assert.deepEqual(mergeMissionPlan(saved, current, 23).map(row => row.done), [true, true, true, true, false, false, false]);
   assert(mergeMissionPlan(saved, current, 24).every(row => row.status === 'in-progress'));
 });
+
+test('revision 25 promotes only verified creator review, offline audit and browser matrix, preserving physical/provider work and custom ideas', () => {
+  const verified = ['youtube-upgrade-06', 'youtube-upgrade-17', 'youtube-upgrade-18', 'twitch-upgrade-19'];
+  const current: Mission[] = [...verified, 'watch', 'watch-room-cross-device', 'sprint-19', 'recent-provider-soak', 'speed-01'].map(id => ({id,title:id,detail:'Current evidence',done:verified.includes(id) || id==='speed-01'}));
+  const saved: Mission[] = [...current.map(row=>({...row,done:false,status:'planned' as const})),{id:'my-milestone',title:'My milestone',detail:'Keep my idea',done:false,status:'blocked'}];
+  const migrated=mergeMissionPlan(saved,current,24);
+  assert.deepEqual(migrated.map(row=>row.done),[true,true,true,true,false,false,false,false,false,false]);
+  assert.equal(migrated.at(-1)?.detail,'Keep my idea');
+  assert(mergeMissionPlan(saved,current,25).slice(0,-1).every(row=>row.status==='planned'));
+});
+
+test('revision 27 promotes only the verified response-contract and Twitch isolation milestones',()=>{
+ const current:Mission[]=['next-022','next-038','next-024','next-001'].map(id=>({id,title:id,detail:'Current proof',done:id==='next-022'||id==='next-038',status:id==='next-022'||id==='next-038'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(row=>({...row,done:false,status:'planned' as const})),{id:'custom-provider-idea',title:'My idea',detail:'Keep exact words',done:false,status:'blocked'}];
+ const migrated=mergeMissionPlan(saved,current,26);assert.deepEqual(migrated.map(m=>m.done),[true,true,false,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep exact words');
+ const later=mergeMissionPlan(saved,current,27);assert(later.every(m=>!m.done));assert.equal(later.at(-1)?.status,'blocked');
+});
+
+
+test('revision 28 completes verified YouTube negative evidence without resetting prior or later manual reopens',()=>{
+ const current:Mission[]=['next-022','next-038','next-024','next-023'].map(id=>({id,title:id,detail:'Current proof',done:id!=='next-023',status:id!=='next-023'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(row=>({...row,done:false,status:'in-progress' as const})),{id:'custom-live-idea',title:'My idea',detail:'Keep exact words',done:false,status:'blocked'}];
+ const migrated=mergeMissionPlan(saved,current,27);assert.deepEqual(migrated.map(m=>m.done),[false,false,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep exact words');
+ assert(mergeMissionPlan(saved,current,28).every(m=>!m.done));
+});
+
+
+test('revision 29 promotes verified live coverage without resetting earlier or later manual choices',()=>{
+ const current:Mission[]=['next-022','next-038','next-024','next-023','next-025'].map(id=>({id,title:id,detail:'Verified defaults',done:id!=='next-025',status:id!=='next-025'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(row=>({...row,done:false,status:'blocked' as const})),{id:'custom-live-plan',title:'My plan',detail:'Keep my words',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,28);assert.deepEqual(migrated.map(m=>m.done),[false,false,false,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep my words');assert(mergeMissionPlan(saved,current,29).every(m=>!m.done));
+});
+
+test('revision 30 promotes verified clip coverage without resetting earlier reopens or unrelated work',()=>{
+ const current:Mission[]=['next-022','next-038','next-024','next-023','next-031','next-032'].map(id=>({id,title:id,detail:'Verified defaults',done:id!=='next-032',status:id!=='next-032'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(row=>({...row,done:false,status:'blocked' as const})),{id:'custom-clip-plan',title:'My plan',detail:'Keep my exact words',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,29);assert.deepEqual(migrated.map(m=>m.done),[false,false,false,false,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep my exact words');assert(mergeMissionPlan(saved,current,30).every(m=>!m.done));
+});
+
+test('revision 31 completes clip freshness once and preserves prior/manual reopens and custom work',()=>{
+ const current:Mission[]=['next-023','next-031','next-032','next-033'].map(id=>({id,title:id,detail:'Verified current defaults',done:id!=='next-033',status:id!=='next-033'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(row=>({...row,done:false,status:'blocked' as const})),{id:'custom-freshness',title:'My task',detail:'Preserve exact words',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,30);assert.deepEqual(migrated.map(m=>m.done),[false,false,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Preserve exact words');assert(mergeMissionPlan(saved,current,31).every(m=>!m.done));
+});
+
+test('revision 32 promotes verified Twitch content types without resetting manual reopens or custom work',()=>{
+ const current:Mission[]=['next-031','next-032','next-039','next-040'].map(id=>({id,title:id,detail:'Verified current defaults',done:id!=='next-040',status:id!=='next-040'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(row=>({...row,done:false,status:'blocked' as const})),{id:'custom-types',title:'My idea',detail:'Keep exact custom words',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,31);assert.deepEqual(migrated.map(m=>m.done),[false,false,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep exact custom words');assert(mergeMissionPlan(saved,current,32).every(m=>!m.done));
+});

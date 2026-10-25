@@ -1,0 +1,29 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "checks": [
+        "Partial Streams plus an ineligible watch response preserves the old live clock, starts no offline hold and exposes evidence and retry deadline",
+        "Evidence, known broadcast identity, archive checkpoint and prior live observation survive reload",
+        "Focused recheck reads one creator; genuine complete absence starts the ten-minute hold",
+        "A later Home-only reply cannot expire an existing hold or mark a retained stream offline",
+        "Fresh positive evidence immediately clears the offline hold and failure state",
+        "Two complete negative checks spanning the hold confirm offline without deleting saved archive state; clean console and mobile layout"
+      ]
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "checks": [
+        "Partial Streams plus an ineligible watch response preserves the old live clock, starts no offline hold and exposes evidence and retry deadline",
+        "Evidence, known broadcast identity, archive checkpoint and prior live observation survive reload",
+        "Focused recheck reads one creator; genuine complete absence starts the ten-minute hold",
+        "A later Home-only reply cannot expire an existing hold or mark a retained stream offline",
+        "Fresh positive evidence immediately clears the offline hold and failure state",
+        "Two complete negative checks spanning the hold confirm offline without deleting saved archive state; clean console and mobile layout"
+      ]
+    }
+  ]
+}

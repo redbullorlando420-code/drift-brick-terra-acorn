@@ -1,0 +1,38 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "typing searches all 90 saved videos; 24-result paging reaches additional titles and returns correctly; thumbnail, creator, exact publication date, views and duration are visible",
+        "Cinema is wider than Theater on desktop; Compact is smaller; changing stage size never reloads the playing iframe; queue cards show artwork, readable metadata and numbered positions",
+        "current public video is saved to history; reload/new-room recovery and Watch again work without duplicate history entries or autoplay on reload",
+        "public YouTube search is explicit, shows rich metadata, pages forward/back, queues a result, reports errors and cancels stale searches without overwriting the latest query"
+      ],
+      "errors": [],
+      "sizes": {
+        "theater": 648,
+        "cinema": 1016,
+        "compact": 448
+      },
+      "searchRequests": 6
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "typing searches all 90 saved videos; 24-result paging reaches additional titles and returns correctly; thumbnail, creator, exact publication date, views and duration are visible",
+        "Cinema is wider than Theater on desktop; Compact is smaller; changing stage size never reloads the playing iframe; queue cards show artwork, readable metadata and numbered positions",
+        "current public video is saved to history; reload/new-room recovery and Watch again work without duplicate history entries or autoplay on reload",
+        "public YouTube search is explicit, shows rich metadata, pages forward/back, queues a result, reports errors and cancels stale searches without overwriting the latest query"
+      ],
+      "errors": [],
+      "sizes": {
+        "theater": 294,
+        "cinema": 294,
+        "compact": 294
+      },
+      "searchRequests": 6
+    }
+  ],
+  "limitation": "Isolated Chrome contexts with deterministic provider fixtures; upstream search availability is checked separately."
+}

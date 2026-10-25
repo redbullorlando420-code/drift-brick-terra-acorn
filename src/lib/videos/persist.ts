@@ -1,3 +1,4 @@
+import { normalizeYoutubeLiveEvidence } from '../remote/youtube-live-evidence';
 import { normalizeProviderCache } from '../provider-cache-metrics.ts';
 import { cleanupKey, normalizeYoutubeCleanup, retiredYoutubeKeys, type YoutubeCleanupJournal } from './youtube-cleanup.ts';
 import { mergeFollowRecovery, normalizeFollowCheckpoints } from './follow-checkpoints.ts';
@@ -23,6 +24,7 @@ import { catalogCard, withCatalogDetails } from './catalog-card';
 import { artworkBytes, artworkDataUrl } from './binary-artwork';
 import { collectCatalogRows, forEachCatalogSlice, yieldCatalogTask } from '../catalog-work';
 import { recoveredEnrichmentRow, type EnrichmentLedgers, type EnrichmentRow } from './enrichment-batch';
+import type { CreatorCoverageRow } from './creator-coverage-repair';
 import { decodeSparseRecord, encodeSparseRecord, patchSparseRecord, sparseRecordBuilder, type EncodedSparseRecord } from '../sparse-record';
 import { decodeActivityRecords, encodeActivityRecords, mergeResumeRecords, recentActivityRecord, type StoredActivity } from './activity-records';
 import { createRecoveryLinkWriter, type SavedVideoLink } from './recovery-links';
@@ -89,8 +91,16 @@ function normalizeFollowChannels(raw: unknown): FollowedChannel[] {
       ...(typeof rec.channelId === "string" ? { channelId: rec.channelId } : {}),
       ...(typeof rec.importQuery === 'string' && rec.importQuery.length <= 2048 ? { importQuery: rec.importQuery } : {}),
       ...(rec.importNeedsReview === true ? { importNeedsReview: true } : {}),
+      ...(rec.identityReview && typeof rec.identityReview === "object" && /^v1:[a-f0-9]{1,8}:\d+$/.test(String((rec.identityReview as Record<string, unknown>).fingerprint)) && typeof (rec.identityReview as Record<string, unknown>).at === "number" && Number.isFinite((rec.identityReview as Record<string, unknown>).at) ? { identityReview: rec.identityReview as FollowedChannel["identityReview"] } : {}),
       ...(typeof rec.thumb === "string" ? { thumb: rec.thumb } : {}),
       ...(typeof rec.live === "boolean" ? { live: rec.live } : {}),
+      ...(kind === "youtube" ? {
+        ...(rec.youtubeLiveKnownOverflow === true ? {youtubeLiveKnownOverflow:true}:{}),
+        ...(normalizeYoutubeLiveEvidence(rec.youtubeLiveEvidence) ? {youtubeLiveEvidence:normalizeYoutubeLiveEvidence(rec.youtubeLiveEvidence)}:{}),
+        ...(Array.isArray(rec.youtubeLiveVideoIds) ? {youtubeLiveVideoIds:[...new Set(rec.youtubeLiveVideoIds.filter((id):id is string=>typeof id === "string" && /^[A-Za-z0-9_-]{11}$/.test(id)))].slice(0,64)}:{})
+      }:{}),
+      ...(typeof rec.liveOfflineSince === "number" && Number.isFinite(rec.liveOfflineSince) && rec.liveOfflineSince > 0 ? { liveOfflineSince: rec.liveOfflineSince } : {}),
+      ...(rec.lastLiveWarning && typeof rec.lastLiveWarning === "object" && Number.isFinite((rec.lastLiveWarning as any).at) && (rec.lastLiveWarning as any).at > 0 && typeof (rec.lastLiveWarning as any).message === "string" ? {lastLiveWarning:{at:(rec.lastLiveWarning as any).at,message:(rec.lastLiveWarning as any).message.slice(0,240)}} : {}),
       ...(typeof rec.lastCheckedAt === "number" ? { lastCheckedAt: rec.lastCheckedAt } : {}),
       ...(typeof rec.liveCheckedAt === "number" && Number.isFinite(rec.liveCheckedAt) ? { liveCheckedAt: rec.liveCheckedAt } : {}),
       ...(typeof rec.newestPublishedAt === "number" ? { newestPublishedAt: rec.newestPublishedAt } : {}),
@@ -747,6 +757,38 @@ export function restoreMetadataEdits(metadata: Record<string, VideoMetadataProve
 }
 
 const ENRICHMENT_PREFIX = 'metadata-enrichment:';
+/** Save one small creator repair atomically with its optional unlocked tags.
+ * A foreground edit aborts the pending transaction, so obsolete preparation
+ * cannot overwrite disk after an unfollow, manual edit or catalog refresh. */
+export async function saveCreatorCoverageRows(rows: readonly CreatorCoverageRow[], turn: () => Promise<void>,
+  valid: () => boolean, subscribe?: (changed: () => void) => () => void) {
+  if (!rows.length) return;
+  const db = await openDb();
+  try {
+    await turn();
+    if (!valid()) throw new DOMException('Creator repair inputs changed', 'AbortError');
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(['remote-cache', ACTIVITY_STORE], 'readwrite');
+      let stale = false;
+      const invalidate = () => { if (!valid()) { stale = true; try { tx.abort(); } catch { /* already completed */ } } };
+      const stop = subscribe?.(invalidate) ?? (() => {});
+      tx.oncomplete = () => { stop(); resolve(); };
+      tx.onerror = tx.onabort = () => { stop(); reject(stale ? new DOMException('Creator repair inputs changed', 'AbortError') : tx.error ?? new Error('Creator repair was not saved')); };
+      const remote = tx.objectStore('remote-cache'), activity = tx.objectStore(ACTIVITY_STORE);
+      for (const row of rows) {
+        const previous = remote.get(`video:${row.video.id}`);
+        previous.onsuccess = () => {
+          invalidate(); if (stale) return;
+          try {
+            remote.put(withCatalogDetails(row.video, previous.result as LibraryVideo | undefined), `video:${row.video.id}`);
+            if (row.enrichment) activity.put(row.enrichment, ENRICHMENT_PREFIX + row.video.id);
+          } catch (error) { try { tx.abort(); } finally { reject(error); } }
+        };
+      }
+    });
+  } finally { db.close(); }
+}
+
 /** Sparse durable rows avoid cloning the entire preference blob for every
  * automatic batch. A transaction completes before a batch reports success. */
 export async function saveEnrichmentRows(rows: readonly EnrichmentRow[], turn = yieldCatalogTask) {
@@ -885,6 +927,37 @@ function openDb(): Promise<IDBDatabase> {
     };
     req.onerror = () => reject(req.error);
   });
+}
+
+/** Small tool documents share the existing activity store. The caller supplies
+ * the current-user namespace; these reads never walk the media catalog. */
+export async function readWorkspaceDocument(key: string): Promise<unknown> {
+  const db = await openDb();
+  try { return await new Promise((resolve, reject) => {
+    const request = db.transaction(ACTIVITY_STORE).objectStore(ACTIVITY_STORE).get(key);
+    request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+  }); } finally { db.close(); }
+}
+export async function listWorkspaceDocuments(prefix: string, before?: string, limit = 9): Promise<Array<{ key: string; value: unknown }>> {
+  const db = await openDb();
+  try { return await new Promise((resolve, reject) => {
+    const result: Array<{ key: string; value: unknown }> = [];
+    const range = IDBKeyRange.bound(prefix, before ?? prefix + '\uffff', false, !!before);
+    const request = db.transaction(ACTIVITY_STORE).objectStore(ACTIVITY_STORE).openCursor(range, 'prev');
+    request.onsuccess = () => { const cursor = request.result;
+      if (!cursor || result.length >= Math.max(1, Math.min(50, limit))) { resolve(result); return; }
+      result.push({ key: String(cursor.key), value: cursor.value }); cursor.continue();
+    }; request.onerror = () => reject(request.error);
+  }); } finally { db.close(); }
+}
+export async function saveWorkspaceDocuments(rows: ReadonlyArray<{ key: string; value: unknown }>): Promise<void> {
+  if (!rows.length) return;
+  const db = await openDb();
+  try { await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(ACTIVITY_STORE, 'readwrite');
+    tx.oncomplete = () => resolve(); tx.onerror = tx.onabort = () => reject(tx.error ?? Error('Could not save tool documents.'));
+    for (const row of rows) tx.objectStore(ACTIVITY_STORE).put(row.value, row.key);
+  }); } finally { db.close(); }
 }
 
 export async function saveDirHandle(entry: StoredDir): Promise<void> {
@@ -1494,4 +1567,42 @@ export function savePrefs(prefs: Prefs) {
       catch { window.dispatchEvent(new CustomEvent("reelcase:save-error")); }
     });
   }
+}
+
+/** Read artwork in small pages, retaining only actual stored image byte counts.
+ * A remote URL in this store is a reference, not proof of offline availability. */
+export async function readOfflineAuditStorage(signal: AbortSignal): Promise<import('./offline-cache-audit').OfflineStorage> {
+  signal.throwIfAborted();
+  const db = await openDb();
+  const artwork = new Map<string, { at: number; bytes: number }>();
+  try {
+    let after: IDBValidKey | undefined;
+    while (true) {
+      signal.throwIfAborted();
+      const rows = await new Promise<StoredThumb[]>((resolve, reject) => {
+        const tx = db.transaction(THUMB_STORE, 'readonly');
+        const request = tx.objectStore(THUMB_STORE).getAll(after === undefined ? undefined : IDBKeyRange.lowerBound(after, true), 32);
+        tx.oncomplete = () => resolve(request.result); tx.onerror = tx.onabort = () => reject(tx.error ?? new Error('Artwork audit could not read storage.'));
+      });
+      for (const row of rows) if (row.thumb instanceof Blob || typeof row.thumb === 'string' && row.thumb.startsWith('data:image/')) artwork.set(row.id, { at: row.at, bytes: artworkBytes(row.thumb) });
+      if (rows.length < 32) break;
+      after = rows[rows.length - 1].id;
+      await yieldCatalogTask();
+    }
+    signal.throwIfAborted();
+    const saved = await new Promise<{ meta?: { checkedAt?: number }; links?: DurableLinks }>((resolve, reject) => {
+      const tx = db.transaction(['remote-cache', ACTIVITY_STORE], 'readonly');
+      const meta = tx.objectStore('remote-cache').get('meta'), links = tx.objectStore(ACTIVITY_STORE).get(DURABLE_LINKS_IDB_KEY);
+      tx.oncomplete = () => resolve({ meta: meta.result, links: links.result }); tx.onerror = tx.onabort = () => reject(tx.error ?? new Error('Recovery audit could not read storage.'));
+    });
+    signal.throwIfAborted();
+    // The disk ledger is authoritative; the bounded local mirror recovers an
+    // interrupted write. De-duplication happens cooperatively in the audit.
+    const mirror = readJsonLocal<DurableLinks>(DURABLE_LINKS_LS_KEY);
+    const links: SavedVideoLink[] = [];
+    for (const source of [saved.links?.links, mirror?.links]) if (Array.isArray(source)) await forEachCatalogSlice(source, row => {
+      if (row && typeof row.url === 'string' && typeof row.id === 'string') links.push(row);
+    }, async () => { signal.throwIfAborted(); await yieldCatalogTask(); });
+    return { artwork, links, savedAt: saved.meta?.checkedAt };
+  } finally { db.close(); }
 }

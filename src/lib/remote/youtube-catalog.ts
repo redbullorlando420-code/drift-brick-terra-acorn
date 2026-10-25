@@ -1,3 +1,4 @@
+import { validateYoutubeItems } from './youtube-contract.ts';
 /** The active Videos grid is the only safe source of archive continuations.
  * Channel headers, descriptions and sort chips carry unrelated tokens. */
 export function youtubeCatalogItems(root: unknown): unknown[] | null {
@@ -87,5 +88,8 @@ export function youtubeCatalogContinuation(root: unknown): string | null {
 
 /** Only call an archive exhausted when a recognized Videos grid is terminal. */
 export function youtubeCatalogHasTerminalPage(root: unknown): boolean {
-  return youtubeCatalogItems(root) !== null && youtubeCatalogContinuation(root) === null;
+  const items=youtubeCatalogItems(root);
+  if(items===null)return false;
+  validateYoutubeItems(items);
+  return youtubeCatalogContinuation(root) === null;
 }

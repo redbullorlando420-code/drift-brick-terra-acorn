@@ -1,0 +1,23 @@
+✔ studio requests survive navigation, keep the submitted settings and retain a prior image on failure (1.4419ms)
+✔ studio session storage is bounded and isolates each account (0.1213ms)
+✔ duplicate interrupts are coalesced and a returned partial image is labeled honestly (0.1998ms)
+✔ portable recipes round-trip only approved settings and reject unsupported files (0.7315ms)
+✔ recipe restoration is bounded and keeps valid entries when another is damaged (0.3033ms)
+✔ engine response limit cancels chunked and declared oversized bodies before buffering all data (14.2834ms)
+✔ publication comes from the matching video, never a pull time, relative label or recommended date (1.3945ms)
+✔ generation sends a bounded allow-list and rejects missing/oversized prompts and bad numbers (0.272ms)
+✔ studio restores valid settings, migrates the legacy prompt and uses actual random seeds (0.1818ms)
+✔ cancelling an approval is token/origin-bound and cannot cancel a newer request (3.0836ms)
+✔ an authenticated API failure is visible and never starts a duplicate engine (5.4527ms)
+✔ remote approval is expiring, one-use, peer/origin-bound and never supplies a password (2.4305ms)
+✔ local image API stays on the fixed loopback target and refuses non-image output (0.5182ms)
+✔ engine lifecycle launches only the installed Python with loopback and isolated caches (7.2799ms)
+✔ generation is single-flight and interrupt only applies to a request owned by the bridge (0.436ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 157.4905

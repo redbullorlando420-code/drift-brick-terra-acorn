@@ -1,4 +1,6 @@
+import { twitchContentLabel } from '@/lib/videos/twitch-content';
 import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { YoutubeDownloadButton } from './youtube-download-button';
 import { memoizeFields } from '@/lib/field-selector';
 import { cardVisibility, type CardVisibility } from '@/lib/card-visibility';
 import { folderIsPrivate } from '@/lib/videos/folder-privacy';
@@ -30,6 +32,7 @@ import { pullsPaused } from '@/lib/pull-control';
 import { youtubeContentKind, youtubeDateSource, youtubePublicationTime } from '@/lib/videos/youtube-metadata';
 
 const publishedDateFormat = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" });
+const calendarDateFormat = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 
 const THUMB_LOAD_TIMEOUT_MS = 4500;
 
@@ -62,12 +65,12 @@ const CardDetails = memo(function CardDetails({ video, variant, playedAt, fav, r
                 {hasFreshViewerCount(video.remote) ? (
                   <>
                     <span className="text-subtle"> · </span>
-                    {video.remote?.viewers?.toLocaleString()} watching
+                    {video.remote?.viewers?.toLocaleString()} {video.remote?.liveUnconfirmed ? 'at last check' : 'watching'}
                   </>
-                ) : null}
+                ) : video.remote?.kind === 'youtube' ? <><span className="text-subtle"> · </span>Viewer count unavailable</> : null}
               </>
             ) : video.remote ? (
-              <>{video.remote.channelName ?? video.remote.kind}{video.remote.kind === 'youtube' && youtubeContentKind(video) !== 'upload' ? ` · ${youtubeContentKind(video) === 'short' ? 'Short' : youtubeContentKind(video) === 'replay' ? 'Completed stream' : youtubeContentKind(video) === 'upcoming' ? 'Upcoming' : 'Live observation'}` : null}{video.remote.views ? <><span className="text-subtle"> · </span>{video.remote.views.toLocaleString()} views</> : null}{video.remote.kind === "twitch" && !live ? <><span className="text-subtle"> · </span>{video.addedAt > Date.UTC(2000, 0, 1) ? `Published ${publishedDateFormat.format(video.addedAt)}` : "Older catalog item"}</> : null}</>
+              <>{video.remote.channelName ?? video.remote.kind}{video.remote.kind === 'youtube' && youtubeContentKind(video) !== 'upload' ? ` · ${youtubeContentKind(video) === 'short' ? 'Short' : youtubeContentKind(video) === 'replay' ? 'Completed stream' : youtubeContentKind(video) === 'upcoming' ? 'Upcoming' : 'Live observation'}` : null}{video.remote.views ? <><span className="text-subtle"> · </span>{video.remote.views.toLocaleString()} views</> : null}{video.remote.kind === "twitch" && !live ? <><span className="text-subtle"> · </span>{twitchContentLabel(video)}<span className="text-subtle"> · </span>{video.addedAt > Date.UTC(2000, 0, 1) ? `Published ${publishedDateFormat.format(video.addedAt)}` : "Older catalog item"}</> : null}</>
             ) : video.year || video.genre ? (
               <>
                 {video.year ?? video.extension.toUpperCase()}
@@ -93,7 +96,7 @@ const CardDetails = memo(function CardDetails({ video, variant, playedAt, fav, r
             )}
           </p>
           {video.remote?.kind === 'youtube' && !playedAt && !live && <p className="mt-0.5 text-xs text-muted" title={`Publication source: ${youtubeDateSource(video)}`}>
-            {youtubePublicationTime(video) ? `${youtubeDateSource(video) === 'legacy' ? 'Saved date' : 'Published'} ${publishedDateFormat.format(youtubePublicationTime(video))}` : 'Publication date unknown'}
+            {youtubePublicationTime(video) ? `Published ${video.remote.publishedDate ? calendarDateFormat.format(Date.parse(video.remote.publishedDate)) : publishedDateFormat.format(youtubePublicationTime(video))}` : 'Publication date unknown'}
           </p>}
           {rating > 0 && <p className="mt-1 flex items-center gap-1 text-xs text-accent"><Star className="size-3 fill-current" /> Your rating {rating}/5</p>}
           {viewCount > 0 && <p className="mt-1 text-xs text-subtle">Watched {viewCount} time{viewCount === 1 ? "" : "s"}</p>}
@@ -442,12 +445,13 @@ export const VideoCard = memo(function VideoCard({
           <Play className="ml-0.5 size-4 fill-current" />
         </span>
       </div>
-      {live && (
+      {live && !video.remote?.liveUnconfirmed && (
         <span className="absolute top-2 left-2 flex items-center gap-1.5 rounded-full border border-danger/40 bg-danger px-2.5 py-1 text-[11px] font-bold tracking-[0.12em] text-white uppercase shadow-lift">
           <span className="live-dot size-1.5 rounded-full bg-white shadow-[0_0_0_3px_rgb(255_255_255_/_0.2)]" />
           Live
         </span>
       )}
+      {video.remote?.liveUnconfirmed && <span className="absolute top-2 left-2 rounded-md border border-border bg-surface px-2 py-1 text-xs text-fg">{video.remote.liveOfflineSince ? 'Rechecking · 10-minute hold' : 'Needs live check'}</span>}
       {video.remote?.kind === "youtube" && !live && (
         <span className="absolute top-2 left-2 rounded-xs bg-bg/75 px-1.5 py-0.5 text-xs text-muted">
           YouTube
@@ -487,6 +491,7 @@ export const VideoCard = memo(function VideoCard({
   return (
     <div
       data-video-card
+      data-public-touch-card={video.remote?.kind === "youtube" || video.remote?.kind === "twitch" ? "true" : undefined}
       className={cn("group relative", animate && "card-appear", isPoster && "poster-hit", live && "rounded-lg border border-border bg-surface p-2 shadow-border", className)}
     >
       <button
@@ -500,7 +505,7 @@ export const VideoCard = memo(function VideoCard({
         onMouseLeave={() => setHovered(false)}
         onClick={() => openPreview(video.id, video)}
         className={cn(
-          "w-full text-left outline-none",
+          "w-full text-left outline-none focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2",
           variant === "list" && "flex items-center gap-3 rounded-lg p-2 hover:bg-elevated",
           variant === "grid" && "block",
           variant === "rail" && "block w-56 shrink-0",
@@ -542,6 +547,7 @@ export const VideoCard = memo(function VideoCard({
           ))}
         </div>
       )}
+      <YoutubeDownloadButton video={video} compact />
       {failed && <button type="button" aria-label={`Retry artwork for ${video.name}`} onClick={(event) => { event.stopPropagation(); retry(video); }} className="absolute bottom-2 right-2 flex size-8 items-center justify-center rounded-sm bg-bg/75 text-fg opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"><RefreshCw className="size-3.5" /></button>}
       {!live && <button
         type="button"
@@ -650,8 +656,13 @@ export const VideoCard = memo(function VideoCard({
       >
         <Download className="size-3.5" />
       </button>}
+      {(video.remote?.kind === 'youtube' || video.remote?.kind === 'twitch') && <div data-touch-card-actions className="mt-2 hidden flex-wrap items-center gap-1" aria-label={'Actions for ' + video.name}>
+        <button type="button" className={cn("flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-md bg-elevated px-2 text-xs text-fg", fav && "text-accent")} aria-label={fav ? 'Remove from favorites' : 'Add to favorites'} aria-pressed={fav} onClick={() => toggleFavorite(video.id)}><Heart className={cn("size-4", fav && "fill-current")} />Save</button>
+        <button type="button" className={cn("flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-md bg-elevated px-2 text-xs text-fg", liked && "text-accent")} aria-label={liked ? 'Remove like' : 'Like'} aria-pressed={liked} onClick={() => toggleLike(video.id)}><ThumbsUp className={cn("size-4", liked && "fill-current")} />Like</button>
+        <button type="button" className="flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-md bg-elevated px-2 text-xs text-fg" aria-label={'Watch ' + video.name + ' together'} onClick={() => { localStorage.setItem('reelcase.watch-room.pending-video', video.id); setSource('watch-room'); }}><Users className="size-4" />Together</button>
+      </div>}
       {live && (
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2">
+        <div data-video-card-live-actions className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2">
           <span className="text-[11px] text-muted">Save this stream</span>
           <div className="flex max-w-full min-w-0 flex-wrap items-center gap-1">
             <button type="button" aria-label={fav ? "Remove from favorites" : "Add to favorites"} onClick={(event) => { event.stopPropagation(); toggleFavorite(video.id); }} className={cn("flex min-h-8 items-center gap-1 rounded-sm px-2 text-xs transition-colors hover:bg-elevated", fav && "bg-accent/15 text-accent")}><Heart className={cn("size-3.5", fav && "fill-current")} />{fav ? "Saved" : "Save"}</button>

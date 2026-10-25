@@ -153,7 +153,10 @@ export default defineConfig(({ command, isPreview }) => ({
     allowedHosts: [".trycloudflare.com"],
     // A concurrent production build replaces .vercel/output. Watching its
     // generated media on Windows can throw EBUSY and kill the live dev server.
-    watch: { ignored: ["**/.vercel/**", "**/screenshots/**"] },
+    watch: { ignored: ["**/.vercel/**", "**/screenshots/**", "**/companion/tools/**", "**/downloads/**"] },
+    // Native model caches, prompts and local operator configuration must never
+    // become static files exposed by the LAN-capable development app.
+    fs: { deny: [".env", ".env.*", "*.{crt,pem}", "**/.git/**", "**/companion/tools/**", "**/companion/.local-*.json", "**/downloads/**"] },
   },
   preview: {
     host: "127.0.0.1",

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createYoutubeTransport, youtubeRequestScope } from '../src/lib/remote/youtube-transport.ts';
 
-test('actual upstream transfers serialize and honor the gap across different app jobs', async () => {
+test('upstream starts honor the shared gap across independent feed and archive lanes', async () => {
   let now = 0, active = 0, peak = 0;
   const starts = [];
   const transport = createYoutubeTransport({ now: () => now, sleep: async ms => { now += ms; }, gapMs: () => 1500,
@@ -16,7 +16,7 @@ test('actual upstream transfers serialize and honor the gap across different app
     },
   });
   const responses = await Promise.all(['/feeds/videos.xml', '/channel/UCtest/videos', '/youtubei/v1/browse'].map(path => transport.request(`https://www.youtube.com${path}`)));
-  assert.deepEqual(starts, [0, 1500, 3000]);
+  assert.equal(starts.length, 3); assert(starts.every((at,i)=>i===0 || at-starts[i-1]>=1500), 'independent slots retain shared request pacing');
   assert.equal(peak, 1, 'body transfers, not just fetch promises, are serialized');
   assert.deepEqual(await Promise.all(responses.map(response => response.text())), ['metadata', 'metadata', 'metadata']);
 });
@@ -45,7 +45,7 @@ test('a confirmed Google network block holds queued requests and backs off betwe
   assert(results.every(row => row.status === 'rejected'));
   assert.equal(requests, 1);
   assert.equal(transport.cooldownScope(), 'all');
-  assert.equal(transport.retryAt('catalog'), 1000 + 15 * 60_000);
+  assert.equal(transport.retryAt('catalog'), now + 15 * 60_000);
   now = transport.retryAt() + 1;
   await assert.rejects(transport.request('https://www.youtube.com/youtubei/v1/browse'), /unusual traffic/);
   assert.equal(transport.retryAt() - now, 30 * 60_000);
@@ -177,4 +177,20 @@ test('archive request pacing supports earlier 80ms throughput and an explicit ze
     assert.equal(requests, 100);
     assert.equal(starts.at(-1), gapMs * 99, 'no hidden 1.5-second delay is applied inside the archive');
   }
+});
+
+test('two feed bodies complete while a slow archive remains in flight; extra feeds stay bounded', async()=>{
+ let releaseArchive, releaseFeed; const heldArchive=new Promise(r=>releaseArchive=r),heldFeed=new Promise(r=>releaseFeed=r);
+ let feedActive=0,peak=0,started=0,archiveDone=false;
+ const transport=createYoutubeTransport({gapMs:()=>0,liveGapMs:()=>0,fetch:async url=>{
+  const feed=url.includes('/feeds/');if(feed){started++;peak=Math.max(peak,++feedActive);}
+  return new Response(new ReadableStream({async start(controller){
+   if(!feed)await heldArchive;else if(url.endsWith('hold'))await heldFeed;
+   controller.enqueue(new TextEncoder().encode('ok'));controller.close();if(feed)feedActive--;else archiveDone=true;
+  }}));
+ }});
+ const archive=transport.request('https://www.youtube.com/channel/test/videos');
+ const feeds=['hold','fast','third','fourth'].map(id=>transport.request('https://www.youtube.com/feeds/videos.xml?'+id));
+ try{await feeds[1];await feeds[2];await feeds[3];assert.equal(archiveDone,false);assert.equal(started,4);assert.equal(peak,2);}
+ finally{releaseFeed();releaseArchive();await Promise.all([archive,...feeds]);}
 });

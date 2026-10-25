@@ -1,0 +1,19 @@
+✔ exactly 100 distinct milestones with only evidenced completions cover ten workstreams with executable contracts (65.4024ms)
+✔ all prerequisite references exist, are acyclic and precede dependent work (0.3899ms)
+✔ roadmap migration appends briefs once without resetting prior manual choices or custom ideas (2.8832ms)
+✔ known brief updates retain saved status while adopting the current implementation contract (0.1484ms)
+✔ copied briefs include concrete scope, dependency status, acceptance and safe execution boundaries (0.8488ms)
+✔ checked-in roadmap is reproducible and exports all 100 full briefs without completing work (5.6619ms)
+✔ a mixed 2k-creator ledger reports distinct freshness, due, unavailable and retry counts without counting failures as fresh success (19.2886ms)
+✔ legacy failed timestamps remain unverified and an older retry cannot hold a later successful observation (0.6546ms)
+✔ throughput is based on distinct completed creators, ignores invalid IDs, and keeps only a bounded sample window (1.5513ms)
+✔ warming, stalled, stopped and provider-wait states never expose a stale ETA (0.2186ms)
+✔ failures cannot inflate throughput or produce an ETA from an overwhelmingly unsuccessful stream of attempts (0.1786ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 316.1939

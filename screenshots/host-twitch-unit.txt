@@ -1,0 +1,25 @@
+✔ normalized import history preserves raw drafts and isolates service lists (2.0222ms)
+✔ IndexedDB backup restores exact edited lists when local storage writes fail (14.5732ms)
+✔ new edits win over asynchronous older restores and total storage failure is reported (5.9643ms)
+✔ host catalog requests and result pages reject malformed, oversized or duplicate identities (3.4225ms)
+✔ host searches exclude local titles by default and page only eligible matches (1.5497ms)
+✔ large Unicode metadata stays below the reliable-message budget without losing the next offset (0.3436ms)
+✔ catalog-only coverage includes all VODs and clips, excludes offline/non-Twitch cards, and preserves follow health (9.8313ms)
+✔ indexed clip sampling matches the original exact seeded window and reads only clip offsets (46.6576ms)
+✔ creator shelves preserve average taste ranking and bounded per-creator order with exact full counts without retaining undisplayed rails (130.8418ms)
+✔ clip sampling retains the exact first window with more creators than displayed slots (216.4132ms)
+✔ every catalog phase cancels at its supplied boundary instead of publishing partial results (9.7573ms)
+✔ returning to an unchanged desk reuses its compact index while a new catalog is rebuilt (4.8917ms)
+✔ a 99,000-video creator cannot dominate the first creator rotation (87.7119ms)
+✔ ranked VODs retain taste order within each creator and exclude live rows (0.2982ms)
+✔ superseded mixes cancel before scanning the remaining archive (2.2499ms)
+✔ new-to-you ranking finds unseen entries inside every creator, including huge archives (3.5536ms)
+✔ large follow lists retain only the creators that can reach the visible mix (20.8445ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 617.2344

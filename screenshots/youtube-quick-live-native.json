@@ -1,0 +1,80 @@
+{
+  "at": "2026-10-22T15:39:36.181Z",
+  "results": [
+    {
+      "channel": "UCLA_DiR1FfKNvjuUpBHmylQ",
+      "requests": 2,
+      "elapsedMs": 1026,
+      "broadcasts": [
+        {
+          "id": "ROboUHfPUrU",
+          "title": "Live High-Definition Views from the International Space Station (Official NASA Stream)",
+          "viewers": 194
+        },
+        {
+          "id": "M3HKLzjvKPc",
+          "title": "Live Video from the International Space Station (Official NASA Stream)",
+          "viewers": 200
+        }
+      ]
+    },
+    {
+      "channel": "UCSUu1lih2RifWkKtDOJdsBA",
+      "requests": 1,
+      "elapsedMs": 341,
+      "broadcasts": [
+        {
+          "id": "mhJRzQsLZGg",
+          "title": "Starbase Live: 24/7 Starship & Super Heavy Development From SpaceX's Boca Chica Facility",
+          "viewers": 1600
+        },
+        {
+          "id": "cOmmvhDQ2HM",
+          "title": "McGregor Live: 24/7 SpaceX Engine Testing & Development for Starship and Falcon 9 Rockets",
+          "viewers": 39
+        },
+        {
+          "id": "Jm8wRjD3xVA",
+          "title": "Space Coast Live: 24/7 Views of NASA, SpaceX Falcon 9 Operations, and Starship Pad Construction",
+          "viewers": 282
+        }
+      ]
+    },
+    {
+      "channel": "UCLA_DiR1FfKNvjuUpBHmylQ",
+      "warm": true,
+      "requests": 1,
+      "broadcasts": [
+        {
+          "id": "M3HKLzjvKPc",
+          "title": "Live Video from the International Space Station (Official NASA Stream)",
+          "viewers": 203
+        },
+        {
+          "id": "ROboUHfPUrU",
+          "title": "Live High-Definition Views from the International Space Station (Official NASA Stream)",
+          "viewers": 194
+        }
+      ]
+    }
+  ],
+  "targets": [
+    {
+      "channel": "UCLA_DiR1FfKNvjuUpBHmylQ",
+      "streams": false
+    },
+    {
+      "channel": "UCLA_DiR1FfKNvjuUpBHmylQ",
+      "streams": true
+    },
+    {
+      "channel": "UCSUu1lih2RifWkKtDOJdsBA",
+      "streams": true
+    },
+    {
+      "channel": "UCLA_DiR1FfKNvjuUpBHmylQ",
+      "streams": true
+    }
+  ],
+  "limitation": "Three point-in-time checks of two public channels; no personal follow list was read. Provider availability can change."
+}

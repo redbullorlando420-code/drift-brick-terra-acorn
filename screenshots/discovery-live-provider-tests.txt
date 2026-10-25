@@ -1,0 +1,12 @@
+✔ a manual live selection covers all eligible follows beyond 80 and ignores archive cooldown (0.6787ms)
+✔ automatic live selection balances known broadcasts with discovery in durable timestamp order (5.0143ms)
+✔ YouTube live eligibility excludes playlists, ambiguous imports and live cooldowns only (0.6638ms)
+✔ live browse combines home and Streams evidence without losing simultaneous broadcasts or archive health (96.6507ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 298.9662

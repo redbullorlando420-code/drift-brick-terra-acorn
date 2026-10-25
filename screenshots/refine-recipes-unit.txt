@@ -1,0 +1,20 @@
+✔ portable recipes round-trip only approved settings and reject unsupported files (1.5882ms)
+✔ recipe restoration is bounded and keeps valid entries when another is damaged (0.2946ms)
+✔ engine response limit cancels chunked and declared oversized bodies before buffering all data (14.8593ms)
+✔ publication comes from the matching video, never a pull time, relative label or recommended date (1.4835ms)
+✔ generation sends a bounded allow-list and rejects missing/oversized prompts and bad numbers (0.2967ms)
+✔ studio restores valid settings, migrates the legacy prompt and uses actual random seeds (0.1959ms)
+✔ cancelling an approval is token/origin-bound and cannot cancel a newer request (3.6893ms)
+✔ an authenticated API failure is visible and never starts a duplicate engine (5.9985ms)
+✔ remote approval is expiring, one-use, peer/origin-bound and never supplies a password (2.1421ms)
+✔ local image API stays on the fixed loopback target and refuses non-image output (0.4957ms)
+✔ engine lifecycle launches only the installed Python with loopback and isolated caches (6.7304ms)
+✔ generation is single-flight and interrupt only applies to a request owned by the bridge (0.4768ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 153.3122

@@ -1,0 +1,25 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "checks": [
+        "Real batch API keeps two healthy siblings, isolates the malformed creator, retains its old live observation and shows optional metadata as a warning",
+        "Valid empty RSS completes in at most one read (warm cache allowed) and keeps archive/live state without an HTML/catalog fallback",
+        "Unknown Streams renderers remain a failed check rather than an offline result; diagnostic reason is visible and prior live state survives",
+        "Provider warnings/failures survive reload without console errors or horizontal overflow"
+      ]
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "checks": [
+        "Real batch API keeps two healthy siblings, isolates the malformed creator, retains its old live observation and shows optional metadata as a warning",
+        "Valid empty RSS completes in at most one read (warm cache allowed) and keeps archive/live state without an HTML/catalog fallback",
+        "Unknown Streams renderers remain a failed check rather than an offline result; diagnostic reason is visible and prior live state survives",
+        "Provider warnings/failures survive reload without console errors or horizontal overflow"
+      ]
+    }
+  ]
+}

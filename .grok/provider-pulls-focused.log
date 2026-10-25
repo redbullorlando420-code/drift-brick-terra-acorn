@@ -1,0 +1,33 @@
+✔ one background owner gives archive, Twitch, feeds and live checks their initial turns (12.0592ms)
+✔ cooling YouTube does not stop Twitch and archive gets the recovery probe ahead of stale live checks (1.4313ms)
+✔ skips retain their due turn and slower archive jobs cannot starve every other lane (1.0478ms)
+✔ scheduled creator batches respect source caps and slow pacing while allowing gradual growth (1.0581ms)
+✔ visible idle pages retain archives and recent feeds while live/Twitch checks rest (4.2648ms)
+✔ focused queue is bounded, deduplicated and removable while paused (28.3139ms)
+✔ each queued creator runs exactly once, serially, with live priority and captured budgets (55.8878ms)
+✔ removing the last paused job releases its owner before accepting a new job (20.6863ms)
+✔ stop preserves the in-flight batch and prevents later creators; a fresh queue still works (25.2792ms)
+✔ global cancellation clears all remaining creators instead of restarting with a fresh revision (4.7224ms)
+✔ failed creator is not retried automatically or allowed to pin healthy waiting creators (4.9397ms)
+✔ retry budgets are exponential, bounded and independently reset by scope (1.9125ms)
+✔ fair rotation skips only the failing scope and resumes eligible creators after reload (1.0985ms)
+✔ Twitch failure taxonomy provides actionable recovery with bounded messages (1.3035ms)
+✔ actual live API respects durable cooldown and retains independent archive failures on success (126.2332ms)
+✔ actual live API rejects a global integrity error instead of retiring cached live cards (2.349ms)
+✔ actual focused API applies finite VOD budget, legal page sizes and explicit skip-clips (799.1862ms)
+✔ actual routine API saves partial clip failure in recent scope while archive and live scopes stay healthy (3.1891ms)
+✔ archive pages finish, expired tokens recover, and rate limits preserve accepted rows (2953.4237ms)
+✔ display-name resolution requires a unique exact channel, without importing a recommendation (6.0678ms)
+✔ a healthy routine refresh reads RSS once and clears only its recent-pull failure (170.1118ms)
+✔ a live-only HTTP 429 does not stop a healthy creator archive (391.5458ms)
+✔ manual force crosses server guards, recovers from RSS 404, and continues the catalog (1047.2675ms)
+✔ a newly rejected forced catalog does not re-probe RSS and every following creator (523.1917ms)
+✔ a forced playlist retry resumes older public pages during the old cooldown (259.9725ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4635.7238

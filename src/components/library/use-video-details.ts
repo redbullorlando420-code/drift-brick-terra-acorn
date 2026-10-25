@@ -16,7 +16,7 @@ export function useVideoDetails(card: LibraryVideo | undefined) {
       setLoaded(video);
     }).catch(() => undefined);
     return () => { cancelled = true; };
-  }, [card?.id, card?.detailsOnDisk]);
+  }, [card]);
   return useMemo(() => {
     const video = card && loaded?.id === card.id ? withCatalogDetails(card, loaded) : card;
     return video?.remote && comments !== undefined ? { ...video, remote: { ...video.remote, comments } } : video;

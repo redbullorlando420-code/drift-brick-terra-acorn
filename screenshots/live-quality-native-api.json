@@ -1,0 +1,17 @@
+{
+  "at": "2026-10-22T15:49:39.462Z",
+  "checked": 1,
+  "broadcasts": [
+    {
+      "id": "ROboUHfPUrU",
+      "viewers": 188,
+      "observedAt": 1792684179462
+    },
+    {
+      "id": "M3HKLzjvKPc",
+      "viewers": 201,
+      "observedAt": 1792684179462
+    }
+  ],
+  "limitation": "Point-in-time public channel metadata, not a personal follow audit."
+}

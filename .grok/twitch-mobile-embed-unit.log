@@ -1,0 +1,11 @@
+✔ Twitch guest setup uses the viewer hostname, requires HTTPS on LAN and retains loopback development (1.2458ms)
+✔ nested Twitch parents are exact deduplicated page ancestors without ports or peer-provided hostnames (0.9203ms)
+✔ Twitch embeds replace stale parents with all current viewer parents and preserve VOD/clip identities (0.7695ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 152.347

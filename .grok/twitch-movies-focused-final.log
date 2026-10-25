@@ -1,0 +1,17 @@
+✔ YouTube runtime labels survive legacy/modern imports, watch metadata and sparse refreshes (1.3438ms)
+✔ movie shelves recover connected folder/year evidence and observed runtimes while separating unknowns and exclusions (1.9392ms)
+✔ unknown movie previews stay bounded while all eligible candidates are counted (14.0694ms)
+✔ Twitch recommendations learn creator/game/title taste, prefer unwatched related VODs and reject one-star or live placeholders (4.7333ms)
+✔ ranked creator rotation retains the best matching creators even with thousands of followed archives (8.1906ms)
+✔ Twitch coverage uses provider identities rather than renamed or colliding display names (0.5075ms)
+✔ Twitch archive priority survives reload and ignores a frequently refreshed live clock (0.2346ms)
+✔ actual Twitch continuation requests resume older pages, skip clips, retain checkpoints on failure and cap first at 100 (90.8246ms)
+✔ local metadata-only runtime probe releases the element on success and abort without playing media (2.9319ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 264.4104

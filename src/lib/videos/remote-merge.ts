@@ -1,3 +1,4 @@
+import { retainTwitchContent } from './twitch-content.ts';
 import { repairLegacyYoutubeDate } from "../remote/youtube-page.ts";
 import { retainYoutubeSources, youtubeVideoKey } from "../remote/youtube-sources.ts";
 import type { LibraryVideo } from "./types";
@@ -19,10 +20,19 @@ function sameRemote(left: LibraryVideo["remote"], right: LibraryVideo["remote"])
     && left.channelId === right.channelId
     && left.channelName === right.channelName
     && left.live === right.live
+    && left.twitchContent?.kind === right.twitchContent?.kind
+    && left.twitchContent?.source === right.twitchContent?.source
+    && left.twitchContent?.videoId === right.twitchContent?.videoId
+    && left.twitchContent?.at === right.twitchContent?.at
     && left.youtubeType === right.youtubeType
+    && left.youtubeTagsCheckedAt === right.youtubeTagsCheckedAt
+    && left.youtubeTagSummary === right.youtubeTagSummary
+    && sameList(left.youtubeKeywords, right.youtubeKeywords)
     && left.publishedSource === right.publishedSource
+    && left.publishedDate === right.publishedDate
     && left.viewers === right.viewers
     && left.observedAt === right.observedAt
+    && left.liveOfflineSince === right.liveOfflineSince
     && left.views === right.views
     && left.embedUrl === right.embedUrl
     && left.watchUrl === right.watchUrl
@@ -68,6 +78,7 @@ function sameVideo(left: LibraryVideo, right: LibraryVideo) {
 function retainDurableRemoteFields(previous: LibraryVideo | undefined, incoming: LibraryVideo) {
   incoming = retainYoutubeSources(previous, incoming);
   incoming = retainYoutubeMetadata(previous, incoming);
+  incoming = retainTwitchContent(previous, incoming);
   if (!previous?.remote || !incoming.remote) return incoming;
   const channelName = incoming.remote.channelName?.trim() || previous.remote.channelName?.trim();
   const comments = incoming.remote.comments?.length ? incoming.remote.comments : previous.remote.comments;
@@ -100,6 +111,16 @@ function retainDurableRemoteFields(previous: LibraryVideo | undefined, incoming:
       ...(keepsViews ? { views: previous.remote.views } : {}),
     },
   };
+}
+
+/** An older cached/held clip page cannot replace newer provider metadata.
+ * Unknown legacy clocks lose to a known observation; unrelated titles are untouched. */
+function olderRemoteObservation(previous: LibraryVideo | undefined, incoming: LibraryVideo): previous is LibraryVideo {
+  if (!previous?.remote || !incoming.remote) return false;
+  const timed = previous.remote.live && incoming.remote.live
+    || previous.remote.kind === 'twitch' && incoming.remote.kind === 'twitch'
+       && previous.extension === 'clip' && incoming.extension === 'clip';
+  return Boolean(timed && (incoming.remote.observedAt ?? 0) < (previous.remote.observedAt ?? 0));
 }
 
 function sameOrder(left: LibraryVideo[], right: LibraryVideo[]) {
@@ -193,7 +214,7 @@ export async function mergeRemoteCatalogAsync(existing: LibraryVideo[], incoming
     if (options.preferExisting && previous && (next.id !== previous.id || next.folderId !== previous.folderId)) {
       next = { ...next, id: previous.id, folderId: previous.folderId };
     }
-    if (previous?.remote?.live && next.remote?.live && (next.remote.observedAt ?? 0) < (previous.remote.observedAt ?? 0)) next = previous;
+    if (olderRemoteObservation(previous, next)) next = previous;
     else if (previous && sameVideo(previous, next)) next = previous;
     if (index === undefined) {
       const position = existing.length + appended.length;
@@ -224,7 +245,7 @@ export function mergeRemoteCatalog(existing: LibraryVideo[], incoming: LibraryVi
     const index = positions.get(video.id) ?? (key ? positions.get(key) : undefined);
     const previous = index === undefined ? undefined : merged[index];
     let next = retainDurableRemoteFields(previous, video);
-    if (previous?.remote?.live && next.remote?.live && (next.remote.observedAt ?? 0) < (previous.remote.observedAt ?? 0)) next = previous;
+    if (olderRemoteObservation(previous, next)) next = previous;
     else if (previous && sameVideo(previous, next)) next = previous;
     if (index === undefined) {
       if (merged === existing) merged = existing.slice();
@@ -261,7 +282,7 @@ export async function prepareIndexedRemoteCatalog(existing: LibraryVideo[], inco
     const previous = position === undefined ? undefined : position < existing.length
       ? replacements.get(position) ?? (videos ?? existing)[position] : appended[position - existing.length];
     let next = retainDurableRemoteFields(previous, video);
-    if (previous?.remote?.live && next.remote?.live && (next.remote.observedAt ?? 0) < (previous.remote.observedAt ?? 0)) next = previous;
+    if (olderRemoteObservation(previous, next)) next = previous;
     else if (previous && sameVideo(previous, next)) next = previous;
     if (position === undefined) {
       const addedPosition = existing.length + appended.length;
@@ -299,7 +320,7 @@ export async function prepareIndexedRemoteCatalog(existing: LibraryVideo[], inco
  * when a response repeats its prior rows, while a single changed card keeps
  * its neighbours' artwork and focus identity intact.
  */
-type RefreshMergeOptions = { index?: Map<string, LibraryVideo>; staleLiveIds?: string[]; liveCheckedIds?: string[]; endedYoutubeRows?: LibraryVideo[]; endedTwitchRows?: LibraryVideo[]; turn?: () => Promise<void> };
+type RefreshMergeOptions = { index?: Map<string, LibraryVideo>; staleLiveIds?: string[]; liveCheckedIds?: string[]; liveCheckedAt?:Record<string,number>; youtubeOfflineGraceMs?: number; endedYoutubeRows?: LibraryVideo[]; pendingYoutubeRows?: LibraryVideo[]; endedTwitchRows?: LibraryVideo[]; turn?: () => Promise<void> };
 /** Saved ledgers may be much larger than a provider page. Walk their sparse
  * records directly instead of exporting/sorting every key on the UI thread. */
 export async function prepareRefreshSavedIds(favorites: Record<string, true>, likes: Record<string, true>, history: readonly HistoryEntry[], turn = yieldCatalogTask) {
@@ -317,7 +338,7 @@ function remoteRefreshPlan(existing: LibraryVideo[], incoming: LibraryVideo[], r
   for (const video of incoming) {
     const previous = existingById.get(video.id) ?? existingById.get(youtubeVideoKey(video) ?? video.id);
     let next = retainDurableRemoteFields(previous, video);
-    if (previous?.remote?.live && next.remote?.live && (next.remote.observedAt ?? 0) < (previous.remote.observedAt ?? 0)) next = previous;
+    if (olderRemoteObservation(previous, next)) next = previous;
     else if (previous && sameVideo(previous, next)) next = previous;
     fresh.set(next.id, next);
   }
@@ -326,7 +347,17 @@ function remoteRefreshPlan(existing: LibraryVideo[], incoming: LibraryVideo[], r
     if (next) { fresh.delete(video.id); return next; }
     if (!video.remote) return video;
     const observedChannel = liveChecked.has(video.folderId) || video.remote.kind === 'youtube' && Boolean(video.remote.channelId && liveChecked.has(`yt:${video.remote.channelId}`));
-    if (video.remote.live && observedChannel) {
+    const checkAt=options?.liveCheckedAt?.[video.folderId]??(video.remote.channelId?options?.liveCheckedAt?.[`yt:${video.remote.channelId}`]:undefined);
+    if (video.remote.live && observedChannel && (checkAt===undefined||checkAt>=(video.remote.observedAt??0))) {
+      if (video.remote.kind === 'youtube' && options?.youtubeOfflineGraceMs && checkAt) {
+        const since = video.remote.liveOfflineSince && video.remote.liveOfflineSince <= checkAt ? video.remote.liveOfflineSince : checkAt;
+        if (checkAt - since < options.youtubeOfflineGraceMs) {
+          if (video.remote.liveOfflineSince === since) return video;
+          const pending = { ...video, tagline: 'Rechecking live status · retained for 10 minutes after the first missing broadcast', remote: { ...video.remote, liveOfflineSince: since } };
+          options.pendingYoutubeRows?.push(pending);
+          return pending;
+        }
+      }
       // A successful check without a live card records one offline transition.
       options?.staleLiveIds?.push(video.id);
       const ended = { ...video, tagline: video.remote.kind === 'youtube' ? 'Completed YouTube stream' : 'Offline · saved channel', remote: { ...video.remote, live: false,

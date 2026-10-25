@@ -1,10 +1,12 @@
 import type { LibraryVideo, RemoteRef } from './types.ts';
 
 export type YoutubeContentKind = 'upload' | 'short' | 'replay' | 'live' | 'upcoming';
-export type YoutubePublishedSource = 'rss' | 'provider' | 'unknown' | 'legacy';
+export type YoutubePublishedSource = 'rss' | 'provider' | 'watch' | 'unknown' | 'legacy';
 const minimumDate = Date.UTC(2000, 0, 1);
 export function youtubePublicationTime(video: LibraryVideo) {
-  return video.remote?.publishedSource === 'unknown' || !Number.isFinite(video.addedAt) || video.addedAt <= minimumDate ? 0 : video.addedAt;
+  const remote = video.remote;
+  if (remote?.kind === 'youtube' && remote.publishedSource !== 'rss' && remote.publishedSource !== 'provider' && remote.publishedSource !== 'watch') return 0;
+  return remote?.publishedSource === 'unknown' || !Number.isFinite(video.addedAt) || video.addedAt <= minimumDate ? 0 : video.addedAt;
 }
 export function youtubeContentKind(video: LibraryVideo): YoutubeContentKind {
   if (video.remote?.live) return 'live';
@@ -14,7 +16,7 @@ export function youtubeContentKind(video: LibraryVideo): YoutubeContentKind {
 export function youtubeDateSource(video: LibraryVideo): YoutubePublishedSource {
   if (!youtubePublicationTime(video)) return 'unknown';
   const source = video.remote?.publishedSource;
-  return source === 'rss' || source === 'provider' ? source : 'legacy';
+  return source === 'rss' || source === 'provider' || source === 'watch' ? source : 'legacy';
 }
 /** Old generated archive dates are recognized narrowly. Explicit provenance
  * prevents this compatibility repair from erasing a real RSS/provider date. */
@@ -25,7 +27,7 @@ export function repairYoutubePublication(video: LibraryVideo): LibraryVideo {
   if ((!synthetic && youtubePublicationTime(video)) || video.addedAt === 0) return video;
   return { ...video, addedAt: 0, remote: { ...video.remote, publishedSource: 'unknown' } };
 }
-const priority: Record<YoutubePublishedSource, number> = { unknown: 0, legacy: 1, provider: 2, rss: 3 };
+const priority: Record<YoutubePublishedSource, number> = { unknown: 0, legacy: 1, provider: 2, rss: 3, watch: 4 };
 /** Preserve the strongest date evidence across shallow/live/playlist refreshes.
  * A feed has no live-state or format evidence and cannot erase either. */
 export function retainYoutubeMetadata(previous: LibraryVideo | undefined, incoming: LibraryVideo): LibraryVideo {
@@ -38,11 +40,15 @@ export function retainYoutubeMetadata(previous: LibraryVideo | undefined, incomi
   const old = previous.remote!, next = incoming.remote!;
   const keepKind = !next.youtubeType && Boolean(old.youtubeType);
   const keepLive = next.live === undefined && old.live !== undefined;
-  if (!keepDate && !keepKind && !keepLive) return incoming;
-  return { ...incoming, ...(keepDate ? { addedAt: previous.addedAt } : {}), remote: { ...next,
+  const keepTags = !next.youtubeTagsCheckedAt && Boolean(old.youtubeTagsCheckedAt);
+  const keepDuration = !(Number.isFinite(incoming.duration) && incoming.duration! > 0) && Number.isFinite(previous.duration) && previous.duration! > 0;
+  if (!keepDate && !keepKind && !keepLive && !keepTags && !keepDuration) return incoming;
+  return { ...incoming, ...(keepDuration ? { duration: previous.duration } : {}), ...(keepDate ? { addedAt: previous.addedAt } : {}), remote: { ...next,
     ...(keepDate ? { publishedSource: oldSource } : {}),
+    ...(keepDate && old.publishedDate ? { publishedDate: old.publishedDate } : {}),
     ...(keepKind ? { youtubeType: old.youtubeType } : {}),
     ...(keepLive ? { live: old.live, observedAt: old.observedAt, viewers: old.viewers } : {}),
+    ...(keepTags ? { youtubeKeywords: old.youtubeKeywords, youtubeTagsCheckedAt: old.youtubeTagsCheckedAt, youtubeTagSummary: old.youtubeTagSummary } : {}),
   } };
 }
 /** Exact dates only. Relative labels and scheduled start times are not upload
@@ -58,13 +64,21 @@ export function exactYoutubePublished(value: unknown): string | undefined {
 }
 type Text = { simpleText?: string; runs?: Array<{ text?: string }> };
 const text = (value?: Text) => value?.simpleText ?? value?.runs?.map(row => row.text ?? '').join('') ?? '';
+export function youtubeRuntime(value: unknown): number | undefined {
+  if (typeof value === 'number') return Number.isFinite(value) && value > 0 && value <= 31_536_000 ? value : undefined;
+  if (typeof value !== 'string' || !/^\d{1,4}:\d{2}(?::\d{2})?$/.test(value.trim())) return;
+  const parts = value.trim().split(':').map(Number);
+  if (parts.slice(1).some(part => part > 59)) return;
+  return youtubeRuntime(parts.reduce((total, part) => total * 60 + part, 0));
+}
 export function youtubeRendererMetadata(renderer: {
   youtubeType?: YoutubeContentKind; publishedAt?: string; publishDate?: string; uploadDate?: string;
   publishedTimeText?: Text; upcomingEventData?: unknown; isLive?: boolean; isLiveContent?: boolean;
-  thumbnailOverlays?: Array<{ thumbnailOverlayTimeStatusRenderer?: { style?: string } }>;
+  lengthText?: Text;
+  thumbnailOverlays?: Array<{ thumbnailOverlayTimeStatusRenderer?: { style?: string; text?: Text } }>;
   badges?: Array<{ metadataBadgeRenderer?: { style?: string } }>;
   navigationEndpoint?: { reelWatchEndpoint?: unknown; commandMetadata?: { webCommandMetadata?: { url?: string } } };
-}): Pick<RemoteRef, 'youtubeType'> & { published?: string } {
+}): Pick<RemoteRef, 'youtubeType'> & { published?: string; duration?: number } {
   const live = renderer.isLive === true || renderer.thumbnailOverlays?.some(row => row.thumbnailOverlayTimeStatusRenderer?.style === 'LIVE')
     || renderer.badges?.some(row => row.metadataBadgeRenderer?.style === 'BADGE_STYLE_TYPE_LIVE_NOW');
   const label = text(renderer.publishedTimeText);
@@ -76,5 +90,7 @@ export function youtubeRendererMetadata(renderer: {
         : renderer.thumbnailOverlays?.some(row => row.thumbnailOverlayTimeStatusRenderer?.style === 'DEFAULT') ? 'upload' : undefined);
   const published = exactYoutubePublished(renderer.publishedAt) ?? exactYoutubePublished(renderer.publishDate)
     ?? exactYoutubePublished(renderer.uploadDate) ?? exactYoutubePublished(label);
-  return { ...(type ? { youtubeType: type } : {}), ...(published ? { published } : {}) };
+  const duration = type === 'live' || type === 'upcoming' ? undefined : youtubeRuntime(text(renderer.lengthText))
+    ?? renderer.thumbnailOverlays?.map(row => youtubeRuntime(text(row.thumbnailOverlayTimeStatusRenderer?.text))).find(Boolean);
+  return { ...(type ? { youtubeType: type } : {}), ...(published ? { published } : {}), ...(duration ? { duration } : {}) };
 }

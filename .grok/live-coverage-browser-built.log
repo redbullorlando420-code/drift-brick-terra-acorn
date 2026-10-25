@@ -1,0 +1,45 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "phase": "queue",
+      "checks": [
+        "Mixed 2,000-creator ledger excludes latest failures from successful freshness, partitions ready/retry waits, and mounts only 20 queue rows; opening/paging starts no requests",
+        "Search/filter finds a creator, waiting rows cannot bypass retry, and a focused check sends exactly one creator through the real API/store",
+        "A successful focused observation survives reload and updates distinct coverage"
+      ],
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "phase": "queue",
+      "checks": [
+        "Mixed 2,000-creator ledger excludes latest failures from successful freshness, partitions ready/retry waits, and mounts only 20 queue rows; opening/paging starts no requests",
+        "Search/filter finds a creator, waiting rows cannot bypass retry, and a focused check sends exactly one creator through the real API/store",
+        "A successful focused observation survives reload and updates distinct coverage"
+      ],
+      "errors": []
+    },
+    {
+      "viewport": "desktop",
+      "phase": "rate",
+      "checks": [
+        "Two real completed successful batches over one second produce a bounded ready-queue range while other batches are held",
+        "When successful results stall, the displayed estimate disappears instead of counting down",
+        "A real adapter 429 cooldown replaces the ETA with a provider wait; no console errors or mobile overflow"
+      ],
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "phase": "rate",
+      "checks": [
+        "Two real completed successful batches over one second produce a bounded ready-queue range while other batches are held",
+        "When successful results stall, the displayed estimate disappears instead of counting down",
+        "A real adapter 429 cooldown replaces the ETA with a provider wait; no console errors or mobile overflow"
+      ],
+      "errors": []
+    }
+  ]
+}

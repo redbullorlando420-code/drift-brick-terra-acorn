@@ -10,7 +10,7 @@ try {
   await page.goto("http://127.0.0.1:8080/", { waitUntil: "domcontentloaded" });
   await page.waitForTimeout(1_000);
   await page.evaluate(async () => {
-    const source = await (await fetch("/src/components/library/hub-sections.tsx")).text();
+    const source = await (await fetch("/src/components/library/settings-section.tsx")).text();
     const moduleUrl = source.match(/from "(\/src\/lib\/videos\/store\.ts(?:\?t=\d+)?)"/)?.[1];
     if (!moduleUrl) throw new Error("Could not find the active library store module");
     const { useLibrary } = await import(/* @vite-ignore */ moduleUrl);
@@ -22,7 +22,7 @@ try {
   await hide.click({ force: true });
   await hide.waitFor({ state: "detached" });
   assert.equal(await page.evaluate(async () => {
-    const source = await (await fetch("/src/components/library/hub-sections.tsx")).text();
+    const source = await (await fetch("/src/components/library/settings-section.tsx")).text();
     const moduleUrl = source.match(/from "(\/src\/lib\/videos\/store\.ts(?:\?t=\d+)?)"/)?.[1];
     const { useLibrary, selectYoutube } = await import(/* @vite-ignore */ moduleUrl);
     return Boolean(useLibrary.getState().hiddenVideos["qa-hidden-title"]) && !selectYoutube(useLibrary.getState()).some((video) => video.id === "qa-hidden-title");

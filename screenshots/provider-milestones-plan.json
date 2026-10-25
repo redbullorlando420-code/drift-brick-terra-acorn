@@ -1,0 +1,28 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "Exactly 100 additions, including two verified completions, merge into the existing plan without resetting manual states/custom ideas; only 20 active cards mount per page",
+        "Workstream/priority/search filters find exact work; copied briefs include dependencies, code paths, steps and evidence requirements",
+        "Clipboard denial exposes the complete selectable brief without losing any instructions",
+        "Markdown exports all 100 full briefs with current status; CSV includes IDs, dependencies, implementation and acceptance columns",
+        "Start/block/resume and prior manual choices survive reload with no duplicate additions, console errors or mobile overflow"
+      ],
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "Exactly 100 additions, including two verified completions, merge into the existing plan without resetting manual states/custom ideas; only 20 active cards mount per page",
+        "Workstream/priority/search filters find exact work; copied briefs include dependencies, code paths, steps and evidence requirements",
+        "Clipboard denial exposes the complete selectable brief without losing any instructions",
+        "Markdown exports all 100 full briefs with current status; CSV includes IDs, dependencies, implementation and acceptance columns",
+        "Start/block/resume and prior manual choices survive reload with no duplicate additions, console errors or mobile overflow"
+      ],
+      "errors": []
+    }
+  ],
+  "limitation": "Isolated browser-local plan fixtures; actual user statuses and library were not modified."
+}

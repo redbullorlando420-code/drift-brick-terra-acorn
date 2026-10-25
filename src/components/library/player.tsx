@@ -1,3 +1,4 @@
+import { OfficialRoomPlayer } from './official-room-player';
 import { youtubeEmbedUrl } from "@/lib/videos/youtube-embed";
 import { registerPeriodicTask } from '@/lib/periodic-work';
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
@@ -38,6 +39,8 @@ import { PullPauseButton } from "./pull-pause-button";
 import { AdultImageLightbox } from "@/components/library/adult-image-lightbox";
 import { adultRemoteLabel, isAdultImageKind, isAdultPullKind } from "@/lib/videos/adult-sites";
 import { requestAdultOfflineSave } from "@/lib/videos/adult-offline-save";
+import { YoutubeDownloadButton } from './youtube-download-button';
+import { openYoutubeDownload, youtubeDownloadTarget } from '@/lib/youtube-download';
 import { toast } from "sonner";
 import { useLibrary } from "@/lib/videos/store";
 import { adultFolderIds } from "@/lib/videos/adult-providers";
@@ -437,9 +440,7 @@ export function Player({ playlist }: { playlist: string[] }) {
         : remote.kind === "youtube"
           ? youtubeEmbedUrl(remote.embedUrl ?? video.src ?? remote.watchUrl ?? "", remote.videoId, typeof window === "undefined" ? undefined : window.location.origin)
           : isAdultPullKind(remote.kind)
-            // MyFreeCams does not offer a permitted iframe player. Its public
-            // roster still supplies live cards, and the player gives each card
-            // an immediate official-room link instead of a dead framed page.
+            // MyFreeCams rooms use the configured official-room handoff.
             ? remote.kind === "myfreecams" || directAdultMedia ? null : remote.embedUrl ?? video.src ?? null
             : remote.embedUrl
               ? `${remote.embedUrl}${remote.embedUrl.includes("?") ? "&" : "?"}autoplay=1&rel=0&modestbranding=1`
@@ -466,6 +467,7 @@ export function Player({ playlist }: { playlist: string[] }) {
       {adultImage ? (
         <AdultImageLightbox video={video} tags={tags} />
       ) : embedSrc ? (
+        <>
         <iframe
           ref={embedRef}
           key={`embed:${video.id}`}
@@ -476,12 +478,20 @@ export function Player({ playlist }: { playlist: string[] }) {
           allowFullScreen
           referrerPolicy="strict-origin-when-cross-origin"
         />
-      ) : remote?.kind === "youtube" || remote?.kind === "myfreecams" ? (
+        {remote?.kind === 'youtube' && <section aria-label="YouTube playback help" className="order-3 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-surface px-4 py-3 text-sm sm:px-6">
+          <p className="min-w-0 flex-1 text-xs leading-5 text-muted">YouTube asking you to sign in or verify your age? Use your eligible browser session to download, then watch the saved copy here.</p>
+          <Button size="sm" variant="secondary" className="min-h-11" onClick={() => openYoutubeDownload(video)}>Use browser sign-in</Button>
+          {youtubeDownloadTarget(video) && <a className="inline-flex min-h-11 items-center gap-1 text-xs text-accent hover:text-fg" href={`https://www.youtube.com/watch?v=${youtubeDownloadTarget(video)!.videoId}`} target="_blank" rel="noreferrer">Open on YouTube<ExternalLink className="size-3" /></a>}
+        </section>}
+        </>
+      ) : remote?.kind === "myfreecams" ? (
+        <div className="min-h-0 flex-1 overflow-auto"><OfficialRoomPlayer video={video} /></div>
+      ) : remote?.kind === "youtube" ? (
         <div className="absolute inset-0 flex items-center justify-center bg-bg px-6 text-center">
           <div>
-            <p className="font-display text-3xl text-fg">{remote.kind === "myfreecams" ? "This room plays on MyFreeCams" : "This title plays on YouTube"}</p>
+            <p className="font-display text-3xl text-fg">{"This title plays on YouTube"}</p>
             <p className="mx-auto mt-3 max-w-md text-sm text-muted">
-              {remote.kind === "myfreecams" ? "MyFreeCams does not provide an embeddable public player. Open the confirmed live room directly." : "The embedded player could not be built for this title. Open it on YouTube instead."}
+              {"The embedded player could not be built for this title. Open it on YouTube instead."}
             </p>
             {remote.watchUrl && (
               <a
@@ -490,7 +500,7 @@ export function Player({ playlist }: { playlist: string[] }) {
                 rel="noreferrer"
                 className="mt-5 inline-flex min-h-10 items-center rounded-sm bg-accent px-4 text-sm font-medium text-accent-fg"
               >
-                Open {remote.kind === "myfreecams" ? "MyFreeCams" : "YouTube"} <ExternalLink className="ml-2 size-4" />
+                Open YouTube <ExternalLink className="ml-2 size-4" />
               </a>
             )}
           </div>
@@ -568,7 +578,7 @@ export function Player({ playlist }: { playlist: string[] }) {
             </p>
           </div>
         </div>
-        <div className="flex max-w-full items-center gap-1 overflow-x-auto">
+        <div className={cn("flex max-w-full items-center gap-1", officialPlayer ? "flex-wrap" : "overflow-x-auto")}>
           {!officialPlayer && <span className="mr-1 hidden items-center gap-1 rounded-full bg-elevated px-2 py-1 text-xs text-muted shadow-border sm:inline-flex">
             <Cpu className="size-3" />
             {hwLabel}
@@ -621,6 +631,7 @@ export function Player({ playlist }: { playlist: string[] }) {
             </DropdownMenuContent>
           </DropdownMenu>
           <PullPauseButton />
+          <YoutubeDownloadButton video={video} />
           <Button variant="ghost" size="icon" aria-label="Close" onClick={closePlayer}>
             <X className="size-5" />
           </Button>

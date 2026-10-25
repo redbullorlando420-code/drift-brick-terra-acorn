@@ -1,0 +1,18 @@
+✔ local media byte ranges handle seeking, suffixes and malformed/out-of-bounds requests (0.8662ms)
+✔ completed local media serves bounded ranges and HEAD, with truthful missing/invalid responses (44.0906ms)
+✔ YouTube accepts canonical IDs and rejects URLs, arguments, traversal and playlists (1.3091ms)
+✔ 100% progress is not completion: successful exit and a nonempty video file are required (8.5503ms)
+✔ errors and empty successful exits never report completion; stderr is bounded (9.5983ms)
+✔ queue deduplicates active videos, is bounded, and cancellation waits for process exit (17.7462ms)
+✔ process launch errors, revoked roots and restarts remain truthful (8.0009ms)
+✔ browser session authentication is opt-in, enum-only, per job and yt-dlp-only (7.5533ms)
+✔ cookie and authorization header values never become UI status or persisted diagnostics (5.0023ms)
+✔ local playback resolves only completed nonempty media from the exact approved job directory (9.859ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 184.8768

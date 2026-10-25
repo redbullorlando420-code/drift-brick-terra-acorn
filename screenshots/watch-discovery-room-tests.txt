@@ -1,0 +1,51 @@
+npm notice run test:watch-room
+npm notice run node --experimental-strip-types --test src/lib/multiplayer/room-clock.test.ts src/lib/multiplayer/room-invite.test.ts src/lib/multiplayer/room-queue.test.ts src/lib/multiplayer/room-delivery.test.ts src/lib/multiplayer/room-media.test.ts src/lib/videos/sources.test.ts
+✔ repeated provider pause events hold the captured position (0.9227ms)
+✔ seeks accept zero and stop at the exact video duration (0.1671ms)
+✔ provider clock advances from its anchor once and respects a known player position (0.1017ms)
+✔ guest timing is bounded, quarter-second precise and handles invalid saved settings (0.113ms)
+✔ device playback advances or delays without changing the canonical room clock (0.1294ms)
+✔ play-next and selection retries replay acknowledgements without reapplying an intention (1.5029ms)
+✔ lost queue requests retry with the same payload and expire without endless work (0.8847ms)
+✔ confirmation retires only its request and duplicate confirmations are ignored (0.2009ms)
+✔ host replays receipts per peer without rerunning the action; busy cache preserves retry protection (0.3462ms)
+✔ pending work is bounded and room cleanup releases packets and receipts (0.9563ms)
+✔ a localhost room invite cannot be copied as a cross-device link (1.5818ms)
+✔ a network room invite preserves the reachable app origin (0.5081ms)
+✔ QR invitations retain the selected room, clear old parameters and reject local or unsafe addresses (0.3708ms)
+✔ room media descriptor reconstructs a provider video without guest catalog data (2.0775ms)
+✔ YouTube live URLs retain live status through normalized room descriptors (0.7718ms)
+✔ room media descriptors reject arbitrary iframe hosts (0.1592ms)
+✔ local room media carries only explicit match metadata and never a file URL (0.1577ms)
+✔ Twitch's actual player host and thumbnails survive a guest handoff (0.5685ms)
+✔ local catalog metadata identifies a stream without exposing a host blob URL or path (0.1071ms)
+✔ guest room metadata remains bounded across many selections and queue snapshots (13.2275ms)
+✔ timeline heartbeats keep the room metadata snapshot stable (0.2911ms)
+✔ incomplete provider cards reconstruct a playable route from IDs and watch URLs (1.0218ms)
+✔ watch pages become embed routes and the receiving device supplies its own parent/origin (0.2365ms)
+✔ an empty guest can propose a public link with bounded provider metadata (0.2622ms)
+✔ provider identity ignores device catalog IDs and distinguishes Twitch live, clips and VODs (0.3411ms)
+✔ multi-link pastes preserve order, deduplicate aliases and bound invalid or oversized input (1.7521ms)
+✔ guest catalog ID collisions preserve both provider titles and reuse the active identity (0.2754ms)
+✔ local requests need matching host file metadata, never only a colliding storage ID (0.1791ms)
+✔ room discovery preserves colliding personal titles without duplicating their shared aliases (0.2357ms)
+✔ room candidate preparation preserves its rating, history and shuffle order while yielding (12.5187ms)
+✔ room catalog preparation can be cancelled before publishing stale candidates (2.6694ms)
+✔ selected-title edits preserve latest host order and unrelated concurrent additions (1.9143ms)
+✔ batch edit packets reject malformed or oversized selections and normalize duplicate IDs (0.3492ms)
+✔ concurrent guest intentions preserve unrelated titles and duplicate retries are idempotent (1.1424ms)
+✔ canonical queues exclude the playing title and duplicate device IDs without losing order (0.2137ms)
+✔ queue actions remain bounded and tolerate an anchor removed by another guest (0.2763ms)
+✔ play next uses the latest head and can move an existing title in a full queue (0.238ms)
+✔ relative moves use the latest order after another guest removes or inserts a neighbor (1.2619ms)
+✔ shuffle preserves bounded membership and changes the order even on an identity draw (0.6643ms)
+✔ idle cleanup revokes temporary blobs while keeping the current player and file access (29.8071ms)
+✔ watch room source stays playable across idle trimming until it is released (6.3551ms)
+ℹ tests 41
+ℹ suites 0
+ℹ pass 41
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 310.583

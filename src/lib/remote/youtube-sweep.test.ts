@@ -9,11 +9,11 @@ test('RSS rotation skips unresolved and failing sources but continues during a c
     { id: 'yt:unknown', kind: 'youtube', lastCheckedAt: 0 },
     { id: 'yt:cooling', kind: 'youtube', channelId: 'UCknown', lastCheckedAt: 1, lastProviderFailure: { kind: 'rate-limited', at: now, retryAt: now + 100_000, cooldownScope: 'catalog' } },
     { id: 'yt:feed-blocked', kind: 'youtube', channelId: 'UCknown', lastCheckedAt: 0, lastProviderFailure: { kind: 'rate-limited', at: now, retryAt: now + 100_000, cooldownScope: 'feed' } },
-    { id: 'yt:missing', kind: 'youtube', channelId: 'UCknown', lastCheckedAt: 0, lastProviderFailure: { kind: 'unavailable', at: now } },
+    { id: 'yt:missing', kind: 'youtube', channelId: 'UCknown', lastCheckedAt: 0, recentPull: { attemptedAt: now, failures: 1, retryAt: now + 30_000 } },
     { id: 'yt:healthy', kind: 'youtube', channelId: 'UCknown', lastCheckedAt: 10 },
   ];
   assert.deepEqual(selectYoutubeFeedChannels(channels, new Map(), now, 4).map(row => row.id), ['yt:cooling', 'yt:healthy']);
-  channels[1].lastCheckedAt = now;
+  Object.assign(channels[1], { recentPull: { attemptedAt: now, failures: 0 } });
   assert.equal(selectYoutubeFeedChannels(channels, new Map(), now, 1)[0].id, 'yt:healthy', 'failed checks and healthy checks both consume a durable turn');
 });
 

@@ -1,0 +1,201 @@
+{
+  "ok": true,
+  "initialBytes": 1309567,
+  "desks": [
+    {
+      "desk": "anime-section",
+      "additionalBytes": 14332,
+      "additionalGzipBytes": 5330,
+      "chunks": [
+        "anime-section-BgKFJjlF.js",
+        "hub-shared-Dj1eSMWD.js"
+      ]
+    },
+    {
+      "desk": "find-phone-section",
+      "additionalBytes": 5715,
+      "additionalGzipBytes": 2175,
+      "chunks": [
+        "find-phone-section-B0Z0KGY5.js",
+        "hub-shared-Dj1eSMWD.js"
+      ]
+    },
+    {
+      "desk": "games-section",
+      "additionalBytes": 18161,
+      "additionalGzipBytes": 6845,
+      "chunks": [
+        "games-section-BoVbq7Md.js",
+        "rocket-C_oYUmqJ.js",
+        "hub-shared-Dj1eSMWD.js"
+      ]
+    },
+    {
+      "desk": "genre-section",
+      "additionalBytes": 15388,
+      "additionalGzipBytes": 5878,
+      "chunks": [
+        "genre-section-DlK_Wp-5.js",
+        "hub-shared-Dj1eSMWD.js",
+        "topic-links-DrhWcNTj.js"
+      ]
+    },
+    {
+      "desk": "lan-connection-section",
+      "additionalBytes": 15048,
+      "additionalGzipBytes": 5204,
+      "chunks": [
+        "lan-connection-section-DWquzvTC.js",
+        "copy-Dz5YJYmd.js",
+        "hub-shared-Dj1eSMWD.js"
+      ]
+    },
+    {
+      "desk": "mission-plan-section",
+      "additionalBytes": 76344,
+      "additionalGzipBytes": 25728,
+      "chunks": [
+        "mission-plan-section-DShGRZjq.js",
+        "bot-Bkxw6Zzh.js",
+        "rocket-C_oYUmqJ.js",
+        "hub-shared-Dj1eSMWD.js"
+      ]
+    },
+    {
+      "desk": "photos-section",
+      "additionalBytes": 56347,
+      "additionalGzipBytes": 17446,
+      "chunks": [
+        "photos-section-D1MTeIAX.js",
+        "chevron-left-BBMVUev3.js",
+        "maximize-2-CYcyWeox.js",
+        "hub-shared-Dj1eSMWD.js",
+        "local-vision-BT1qbFHY.js"
+      ]
+    },
+    {
+      "desk": "prints-section",
+      "additionalBytes": 13573,
+      "additionalGzipBytes": 5622,
+      "chunks": [
+        "prints-section-EQ-cnIfM.js",
+        "package-search-D9nWrRPG.js",
+        "hub-shared-Dj1eSMWD.js"
+      ]
+    },
+    {
+      "desk": "private-web-shortcuts-section",
+      "additionalBytes": 2772,
+      "additionalGzipBytes": 1422,
+      "chunks": [
+        "private-web-shortcuts-section-DO8lmdTU.js",
+        "rocket-C_oYUmqJ.js"
+      ]
+    },
+    {
+      "desk": "remote-desktop-section",
+      "additionalBytes": 40148,
+      "additionalGzipBytes": 15499,
+      "chunks": [
+        "remote-desktop-section-DWbHRHH4.js",
+        "hub-shared-Dj1eSMWD.js",
+        "local-tools-jy9_M6o5.js",
+        "use-current-user-DUN4PvOA.js"
+      ]
+    },
+    {
+      "desk": "settings-section",
+      "additionalBytes": 104634,
+      "additionalGzipBytes": 30897,
+      "chunks": [
+        "settings-section-BOa-SwZ0.js",
+        "bot-Bkxw6Zzh.js",
+        "package-search-D9nWrRPG.js",
+        "hub-shared-Dj1eSMWD.js",
+        "local-vision-BT1qbFHY.js"
+      ]
+    },
+    {
+      "desk": "shop-section",
+      "additionalBytes": 9539,
+      "additionalGzipBytes": 3751,
+      "chunks": [
+        "shop-section-VQ_Jsy6G.js",
+        "package-search-D9nWrRPG.js",
+        "hub-shared-Dj1eSMWD.js"
+      ]
+    },
+    {
+      "desk": "social-section",
+      "additionalBytes": 14209,
+      "additionalGzipBytes": 5623,
+      "chunks": [
+        "social-section-wZsik0Lb.js",
+        "hub-shared-Dj1eSMWD.js"
+      ]
+    },
+    {
+      "desk": "spotify-section",
+      "additionalBytes": 7378,
+      "additionalGzipBytes": 2829,
+      "chunks": [
+        "spotify-section-Bqy1u73m.js",
+        "hub-shared-Dj1eSMWD.js"
+      ]
+    },
+    {
+      "desk": "stable-diffusion-section",
+      "additionalBytes": 41052,
+      "additionalGzipBytes": 15786,
+      "chunks": [
+        "stable-diffusion-section-B6u7xCMW.js",
+        "hub-shared-Dj1eSMWD.js",
+        "local-tools-jy9_M6o5.js",
+        "use-current-user-DUN4PvOA.js"
+      ]
+    },
+    {
+      "desk": "stats-section",
+      "additionalBytes": 450216,
+      "additionalGzipBytes": 116991,
+      "chunks": [
+        "stats-section-B-7glesi.js",
+        "hub-shared-Dj1eSMWD.js",
+        "topic-links-DrhWcNTj.js"
+      ]
+    },
+    {
+      "desk": "stream-signal-section",
+      "additionalBytes": 76189,
+      "additionalGzipBytes": 26947,
+      "chunks": [
+        "stream-signal-section-4b8dSuBh.js",
+        "copy-Dz5YJYmd.js",
+        "rotate-ccw-C86vaU6w.js",
+        "hub-shared-Dj1eSMWD.js",
+        "use-current-user-DUN4PvOA.js"
+      ]
+    },
+    {
+      "desk": "streaming-section",
+      "additionalBytes": 7127,
+      "additionalGzipBytes": 2855,
+      "chunks": [
+        "streaming-section-CEa3JZDo.js",
+        "hub-shared-Dj1eSMWD.js"
+      ]
+    },
+    {
+      "desk": "watch-room-section",
+      "additionalBytes": 145545,
+      "additionalGzipBytes": 44833,
+      "chunks": [
+        "watch-room-section-Dt1WXNMb.js",
+        "copy-Dz5YJYmd.js",
+        "volume-x-ebBU2YoU.js",
+        "twitch-embed-BnXx_EOb.js",
+        "hub-shared-Dj1eSMWD.js"
+      ]
+    }
+  ]
+}

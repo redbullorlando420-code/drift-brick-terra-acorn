@@ -1,6 +1,24 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { applyRoomQueueAction, normalizeRoomQueue, parseRoomQueueAction, distinctRoomQueue, shuffleRoomQueue } from "./room-queue.ts";
+import { applyRoomQueueAction, normalizeRoomQueue, parseRoomQueueAction, distinctRoomQueue, shuffleRoomQueue, applyRoomQueueEdit, parseRoomQueueEdit } from "./room-queue.ts";
+
+test('selected-title edits preserve latest host order and unrelated concurrent additions', () => {
+  const current = ['new', 'c', 'a', 'b', 'later'];
+  assert.deepEqual(applyRoomQueueEdit(current, { kind: 'next', ids: ['a', 'c', 'gone'] }), ['c', 'a', 'new', 'b', 'later']);
+  assert.deepEqual(applyRoomQueueEdit(current, { kind: 'end', ids: ['a', 'c'] }), ['new', 'b', 'later', 'c', 'a']);
+  assert.deepEqual(applyRoomQueueEdit(current, { kind: 'remove', ids: ['c', 'a', 'gone'] }), ['new', 'b', 'later']);
+  for (const kind of ['next', 'end', 'remove'] as const) {
+    const edit = { kind, ids: ['a', 'c', 'gone'] };
+    const once = applyRoomQueueEdit(current, edit);
+    assert.deepEqual(applyRoomQueueEdit(once, edit), once);
+    assert.deepEqual(applyRoomQueueEdit([], edit), []);
+  }
+});
+test('batch edit packets reject malformed or oversized selections and normalize duplicate IDs', () => {
+  assert.deepEqual(parseRoomQueueEdit({ kind: 'remove', ids: [' a ', 'a', 'b'] }), { kind: 'remove', ids: ['a', 'b'] });
+  for (const value of [null, {kind:'replace', ids:['a']}, {kind:'next',ids:[]}, {kind:'end',ids:['']}, {kind:'remove',ids:[1]}, {kind:'remove',ids:['x'.repeat(601)]}, {kind:'remove',ids:Array(49).fill('a')}]) assert.equal(parseRoomQueueEdit(value), null);
+  assert.equal(applyRoomQueueEdit(Array.from({length:100},(_,i)=>String(i)), {kind:'next',ids:['99']}).length,48);
+});
 test("concurrent guest intentions preserve unrelated titles and duplicate retries are idempotent", () => {
   let rows = ["a", "b"];
   rows = applyRoomQueueAction(rows, { kind: "add", id: "c" });

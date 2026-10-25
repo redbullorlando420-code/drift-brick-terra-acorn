@@ -1,0 +1,12 @@
+{
+  "ok": true,
+  "checks": [
+    "named public lists save, preview, rename and remove with undo; duplicate names are rejected and isolated clients retain separate personal lists",
+    "host list batches are duplicate-safe and undoable; guest direct additions require acknowledgement, review mode holds suggestions separately, and host locks still allow personal list management",
+    "replacing a saved list is explicit, partial additions report capacity without losing saved titles, and Undo restores the entire host batch",
+    "storage quota failures and unreadable data preserve saved lists and the live queue; storage events merge changes from another tab and playback does not write named lists",
+    "named lists survive host and guest reloads without auto-queuing, preserve updated public titles, remain private to each browser, and fit desktop and phone layouts"
+  ],
+  "errors": [],
+  "limitation": "Three isolated browser clients use real WebRTC; provider embeds are fixtures. Physical devices and cross-network TURN are separate checks."
+}

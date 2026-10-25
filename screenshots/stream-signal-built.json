@@ -1,0 +1,31 @@
+{
+  "ok": true,
+  "url": "http://127.0.0.1:8082/",
+  "note": "Isolated browser profiles; platform handoffs intercepted, no social posts sent. Local disk failure simulated. Live chat, live detection and game adapter remain unconnected.",
+  "results": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "png": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\stream-signal-built-story-desktop.png",
+      "setupScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\stream-signal-built-setup-desktop.png",
+      "blueprintScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\stream-signal-built-blueprint-desktop.png",
+      "announcementScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\stream-signal-built-announcements-desktop.png",
+      "draftsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\stream-signal-built-drafts-desktop.png",
+      "labScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\stream-signal-built-lab-desktop.png",
+      "overflow": 0,
+      "ok": true
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "png": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\stream-signal-built-story-mobile.png",
+      "setupScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\stream-signal-built-setup-mobile.png",
+      "blueprintScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\stream-signal-built-blueprint-mobile.png",
+      "announcementScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\stream-signal-built-announcements-mobile.png",
+      "draftsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\stream-signal-built-drafts-mobile.png",
+      "labScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\stream-signal-built-lab-mobile.png",
+      "overflow": 0,
+      "ok": true
+    }
+  ]
+}

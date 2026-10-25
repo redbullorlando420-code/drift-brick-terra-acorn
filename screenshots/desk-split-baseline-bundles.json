@@ -1,0 +1,11 @@
+{
+  "initialBytes": 1289973,
+  "hubBytes": 869164,
+  "hubGzipBytes": 239149,
+  "hubChunks": [
+    ".vercel/output/static/assets/hub-sections-BwTRhIz9.js",
+    ".vercel/output/static/assets/bot-D-UpAFk1.js",
+    ".vercel/output/static/assets/volume-x-B5L5TtSS.js",
+    ".vercel/output/static/assets/adult-comments-BoWNb7p2.js"
+  ]
+}

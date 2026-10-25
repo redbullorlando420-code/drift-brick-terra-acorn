@@ -1,0 +1,32 @@
+[
+  {
+    "viewport": "desktop",
+    "errors": [],
+    "recipes": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\refine-recipes-built-recipes-desktop.png",
+    "studio": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\refine-recipes-built-studio-desktop.png",
+    "remote": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\refine-recipes-built-remote-desktop.png",
+    "credits": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\refine-recipes-built-credits-desktop.png",
+    "dates": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\refine-recipes-built-dates-desktop.png",
+    "generation": 2,
+    "launches": 1,
+    "revocations": 3,
+    "expectedHttpErrors": 2,
+    "actualYoutubeDate": "2005-04-23",
+    "ok": true
+  },
+  {
+    "viewport": "mobile",
+    "errors": [],
+    "recipes": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\refine-recipes-built-recipes-mobile.png",
+    "studio": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\refine-recipes-built-studio-mobile.png",
+    "remote": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\refine-recipes-built-remote-mobile.png",
+    "credits": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\refine-recipes-built-credits-mobile.png",
+    "dates": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\refine-recipes-built-dates-mobile.png",
+    "generation": 2,
+    "launches": 1,
+    "revocations": 3,
+    "expectedHttpErrors": 2,
+    "actualYoutubeDate": "2005-04-23",
+    "ok": true
+  }
+]

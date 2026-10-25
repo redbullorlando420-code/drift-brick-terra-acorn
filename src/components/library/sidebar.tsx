@@ -51,8 +51,9 @@ const NAV_GROUPS = [
     ["adults", "Adults", Flame, "adultCount"], ["adult-fetishes", "Fetish Explorer", Sparkles],
   ] },
   { id: "workspace", label: "Workspace", items: [
+    ['stable-diffusion', 'Stable Diffusion', Sparkles], ['remote-desktop', 'Remote desktop', MonitorPlay],
     ["photos", "Photos", Images], ["spotify", "Spotify", Music2], ["prints", "3D prints", Box], ["games", "Games", Gamepad2],
-    ["shop", "Shop", ShoppingBag], ["streaming", "Streaming", MonitorPlay], ["watch-room", "Watch room", Users], ["social", "X accounts", XIcon],
+    ["shop", "Shop", ShoppingBag], ["streaming", "Streaming", MonitorPlay], ["stream-signal", "Stream Signal", Radio], ["watch-room", "Watch room", Users], ["social", "X accounts", XIcon],
   ] },
   { id: "tools", label: "Tools", items: [
     ["connection", "Connection guide", Wifi], ["find-phone", "Find my phone", Smartphone], ["assistant", "AI guide", Sparkles],

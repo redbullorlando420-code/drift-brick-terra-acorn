@@ -49,7 +49,7 @@ test('indexed clip sampling matches the original exact seeded window and reads o
   }
 });
 
-test('creator shelves preserve average taste ranking and complete per-creator order without retaining undisplayed rails', async () => {
+test('creator shelves preserve average taste ranking and bounded per-creator order with exact full counts without retaining undisplayed rails', async () => {
   const rows = Array.from({ length: 100_000 }, (_, i) => video(i));
   const score = (row: LibraryVideo) => row.remote!.channelName === 'Creator 31' ? 100 : Number(row.id.split(':').at(-1)) % 3;
   let scored = 0, yields = 0;
@@ -63,10 +63,11 @@ test('creator shelves preserve average taste ranking and complete per-creator or
   assert.equal(first.channels.length, 12); assert.equal(first.live.length, 8);
   assert.equal(first.channels[0]!.creator, 'Creator 31');
   for (const channel of first.channels) {
-    assert.deepEqual(channel.vods, rows.filter(row => row.remote?.channelName === channel.creator));
-    assert.equal(channel.vods.length, channel.count);
+    assert.deepEqual(channel.vods, rows.filter(row => row.remote?.channelName === channel.creator).slice(0,48));
+    assert.equal(channel.vods.length, 48);
+    assert.equal(channel.count, rows.filter(row => row.remote?.channelName === channel.creator).length);
   }
-  assert.deepEqual(first.live[0]!.vods, rows.filter(row => row.remote?.channelName === 'Creator 0'));
+  assert.deepEqual(first.live[0]!.vods, rows.filter(row => row.remote?.channelName === 'Creator 0').slice(0,48));
   assert.ok(first.channels.reduce((sum, row) => sum + row.vods.length, 0) < rows.length / 2);
   const originalScores = scores.slice();
   await prepareTwitchCreatorShelves(rows, scores, ordered, 43, turn);
@@ -94,6 +95,12 @@ test('every catalog phase cancels at its supplied boundary instead of publishing
     () => prepareTwitchCreatorShelves(vods, scores, rows, 1, fail),
     () => sampleTwitchClipsAsync(rows, index.clips, 1, 'all', fail)]) await assert.rejects(work, /Superseded job/);
   let turns = 0;
-  await assert.rejects(prepareTwitchDeskIndex(rows, async () => { if (++turns === 4) throw Error('Late cancellation'); }), /Late cancellation/);
+  await assert.rejects(prepareTwitchDeskIndex([...rows], async () => { if (++turns === 4) throw Error('Late cancellation'); }), /Late cancellation/);
   assert.equal(turns, 4);
+});
+test('returning to an unchanged desk reuses its compact index while a new catalog is rebuilt',async()=>{
+ const rows=Array.from({length:10000},(_,i)=>video(i));let turns=0;
+ const first=await prepareTwitchDeskIndex(rows,async()=>{turns++;});const cold=turns;turns=0;
+ assert.equal(await prepareTwitchDeskIndex(rows,async()=>{turns++;}),first);assert.equal(turns,1);assert.ok(cold>10);
+ const changed=[...rows,video(10001)];const next=await prepareTwitchDeskIndex(changed,turn);assert.notEqual(next,first);assert.equal(next.total,10001);
 });

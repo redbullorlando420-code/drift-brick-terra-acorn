@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Play, Pause, Volume2, VolumeX, Maximize, RefreshCw } from "lucide-react";
+import { roomSeekKey } from '@/lib/multiplayer/room-player-recovery';
 
 /** Incoming RTC media stays in the browser's bounded decoder, never a file Blob. */
 export function RoomStreamPlayer({ stream, title, playing, position, duration, onPlayback, onSeek, onResync }: {
@@ -14,20 +15,21 @@ export function RoomStreamPlayer({ stream, title, playing, position, duration, o
   const [waiting, setWaiting] = useState(false);
   const [notice, setNotice] = useState("");
   const [draft, setDraft] = useState<number|null>(null);
+  const [reload, setReload] = useState(0);
   useEffect(() => {
     const video = ref.current;
     if (!video) return;
     video.srcObject = stream;
     setWaiting(false);setNotice("");setNeedsPlay(false);setDraft(null);
     return () => { video.pause(); video.srcObject = null; };
-  }, [stream]);
+  }, [stream, reload]);
   useEffect(()=>{
     const video=ref.current;if(!video)return;
     let active=true;
     if(playing) void video.play().catch(()=>{if(active)setNeedsPlay(true);});
     else {video.pause();setNeedsPlay(false);}
     return()=>{active=false;};
-  },[stream,playing]);
+  },[stream,playing,reload]);
   const clock=(seconds:number)=>{const time=Math.floor(Math.max(0,Number.isFinite(seconds)?seconds:0));return `${Math.floor(time/60)}:${String(time%60).padStart(2,"0")}`;};
   const seconds=typeof duration==="number"&&Number.isFinite(duration)&&duration>0?duration:undefined;
   const seek=(value:number)=>{setDraft(null);onSeek(Math.max(0,Math.min(seconds??12*60*60,value)));};
@@ -45,8 +47,9 @@ export function RoomStreamPlayer({ stream, title, playing, position, duration, o
         <Button variant="ghost" size="icon" className="min-h-11 min-w-11" aria-label={muted?"Unmute this device":"Mute this device"} onClick={()=>{const video=ref.current;if(video)video.muted=!muted;}}>{muted?<VolumeX className="size-4"/>:<Volume2 className="size-4"/>}</Button>
         <Button variant="ghost" size="icon" className="min-h-11 min-w-11" aria-label="Fullscreen shared video" onClick={()=>{if(stage.current?.requestFullscreen)void stage.current.requestFullscreen().catch(()=>setNotice("Fullscreen is unavailable on this device."));else setNotice("Fullscreen is unavailable on this device.");}}><Maximize className="size-4"/></Button>
         <Button variant="ghost" size="sm" className="min-h-11" onClick={onResync}><RefreshCw className="size-3"/>Resync video</Button>
+        <Button variant="ghost" size="sm" className="min-h-11" onClick={() => setReload(value => value + 1)}><RefreshCw className="size-3" />Reload this player</Button>
       </div>
-      {seconds&&<input type="range" min={0} max={seconds} step={0.25} value={Math.min(seconds,draft??position)} aria-label="Seek shared video" aria-valuetext={clock(draft??position)} className="min-h-11 w-full accent-accent" onChange={event=>setDraft(event.currentTarget.valueAsNumber)} onPointerUp={event=>seek(event.currentTarget.valueAsNumber)} onPointerCancel={()=>setDraft(null)} onKeyUp={event=>{if(["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Home","End","PageUp","PageDown"].includes(event.key))seek(event.currentTarget.valueAsNumber);}} onBlur={event=>{if(draft!==null)seek(event.currentTarget.valueAsNumber);}}/>}
+      {seconds&&<input type="range" min={0} max={seconds} step={0.25} value={Math.min(seconds,draft??position)} aria-label="Seek shared video" aria-valuetext={clock(draft??position)} className="min-h-11 w-full accent-accent" onChange={event=>setDraft(event.currentTarget.valueAsNumber)} onPointerUp={event=>seek(event.currentTarget.valueAsNumber)} onPointerCancel={()=>setDraft(null)} onKeyDown={event=>{const next=roomSeekKey(event.key,event.currentTarget.valueAsNumber,seconds);if(next!==undefined){event.preventDefault();seek(next);}}} onBlur={event=>{if(draft!==null)seek(event.currentTarget.valueAsNumber);}}/>}
       <p className="text-xs leading-5 text-muted">Play, pause and seek affect the room. Sound and fullscreen affect only this device.</p>
       {(notice||waiting&&playing)&&<p role="status" className="text-xs text-accent">{notice||"Waiting for the host’s video frames…"}</p>}
     </div>

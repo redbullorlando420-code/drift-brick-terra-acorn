@@ -20,7 +20,7 @@ const mockPersist = names.map(name => {
 const mockRemote = ['followRemote', 'importChannels', 'refreshRemotes', 'searchAdultVideos'].map(name => `export async function ${name}(...args) {
   const fixture = globalThis.__entryLimitFixture; fixture.requests++;
   fixture.inputs.push(args[0]?.data); fixture.beforeResponse?.();
-  return structuredClone(fixture.responseForRequest ? fixture.responseForRequest(args[0]?.data) : fixture.response);
+  return structuredClone(await (fixture.responseForRequest ? fixture.responseForRequest(args[0]?.data, args[0]?.signal) : fixture.response));
 }`).join('\n');
 const asModule = source => `data:text/javascript,${encodeURIComponent(source)}`;
 registerHooks({ resolve(specifier, context, next) {
@@ -38,9 +38,43 @@ function reset(videos = []) {
   fixture.writes = []; fixture.removed = []; fixture.cleanupWrites=[]; fixture.failCleanup=false; fixture.requests = 0; fixture.beforeResponse = null; fixture.inputs = []; fixture.responseForRequest = null;
   // Existing admission fixtures exercise hard caps independently of rotation.
   updatePullSettings({ ...DEFAULT_PULL_SETTINGS, youtubeMaxEntries: 2, youtubeAutoCleanup: false, twitchAutoCleanup: false, adultAutoCleanup: false });
-  useLibrary.setState({ videos, tags: {}, metadataProvenance: {}, categories: {}, progress: {}, resumeProgress: {}, folders: [], follows: [channel], remoteBusy: false, refreshing: false, remoteRefreshStatus: null, youtubeRefreshStatus: null, activeId: null, previewId: null, favorites: {}, likes: {}, history: [], youtubeCleanup: { recentKeys: [], removedCount: 0, lastRemoved: 0, lastAt: 0 }, youtubeCleanupNote: '', cleanupNotes: {} });
+  useLibrary.setState({ videos, tags: {}, metadataProvenance: {}, categories: {}, progress: {}, resumeProgress: {}, folders: [], follows: [channel], remoteBusy: false, refreshing: false, remoteRefreshStatus: null, youtubeRefreshStatus: null, youtubeLiveProgress: null, twitchLiveProgress: null, adultsUnlocked: true, activeId: null, previewId: null, favorites: {}, likes: {}, history: [], youtubeCleanup: { recentKeys: [], removedCount: 0, lastRemoved: 0, lastAt: 0 }, youtubeCleanupNote: '', cleanupNotes: {} });
 }
 const flush = () => new Promise(resolve => setTimeout(resolve, 80));
+
+test('1,588-creator automatic rotation updates existing broadcasts across a 215,452-entry catalog without rewriting tags',async()=>{
+ reset([]);const realNow=Date.now;let now=1_000_000;Date.now=()=>now;
+ try{
+  updatePullSettings({youtubeMaxEntries:300000,remoteMaxEntries:300000,youtubeRequestGapMs:1500});
+  const follows=Array.from({length:1588},(_,i)=>({id:'yt:UC'+String(i).padStart(22,'0'),channelId:'UC'+String(i).padStart(22,'0'),kind:'youtube',handle:'creator'+i,title:'Creator '+i,live:i<52,liveCheckedAt:1}));
+  const liveRows=follows.slice(0,52).map((c,i)=>({...card('yt:v:l'+String(i).padStart(10,'0'),'youtube',c.id),name:c.title+' live',remote:{kind:'youtube',sourceIds:[c.id],channelId:c.channelId,videoId:'l'+String(i).padStart(10,'0'),channelName:c.title,live:true,observedAt:1,viewers:10,comments:[{id:'saved',text:'Saved on-demand comment'}]}}));
+  const unrelated=Array.from({length:215452-liveRows.length},(_,i)=>card('old'+i));
+  const tags=Object.fromEntries(liveRows.map(v=>[v.id,['user-saved-tag']])),metadataProvenance={};
+  useLibrary.setState({videos:[...liveRows,...unrelated],follows,tags,metadataProvenance});
+  fixture.responseForRequest=data=>{if(fixture.requests%3===1)now+=3000;return {channels:data.channels.map(c=>({...c,liveCheckedAt:now})),videos:data.channels.filter(c=>c.live).map(c=>{const i=Number(c.handle.slice(7)),old=liveRows[i];return {...old,description:c.title+' is live on YouTube.',remote:{...old.remote,sourceIds:undefined,comments:undefined,viewers:1234,observedAt:now}};}),refreshedIds:data.channels.map(c=>c.id),liveCheckedIds:data.channels.map(c=>c.id),retryAt:{}};};
+  for(let turn=0;turn<100&&useLibrary.getState().follows.some(c=>c.liveCheckedAt===1);turn++)await useLibrary.getState().refreshFollows('youtube',{youtubeLiveOnly:true,liveSweep:true,scheduled:true,liveDemand:true});
+  const state=useLibrary.getState();assert(state.follows.every(c=>c.liveCheckedAt>1));assert.equal(state.tags,tags);assert.equal(state.metadataProvenance,metadataProvenance);assert.equal(state.videos.length,215452);assert.equal(state.videos.at(-1),unrelated.at(-1));
+  for(const row of state.videos.slice(0,52)){assert.equal(row.remote.viewers,1234);assert.equal(row.remote.comments[0].id,'saved');}
+  assert(now-1_000_000<5*60000,'controlled three-second responses cover all creators within five minutes');
+  assert.equal(new Set(fixture.inputs.flatMap(input=>input.channels.map(c=>c.id))).size,1588);
+ }finally{Date.now=realNow;}
+});
+
+test('YouTube live cooldown survives reload through the follow ledger and leaves unrelated creators untouched',async()=>{
+ reset([]);const now=Date.now(),id='UCabcdefghijklmnopqrstuv';
+ const follows=Array.from({length:32},(_,i)=>({id:'yt:UC'+String(i).padStart(22,'0'),channelId:'UC'+String(i).padStart(22,'0'),kind:'youtube',title:'Creator '+i,handle:'creator'+i}));
+ follows[0]={...follows[0],live:true,liveCheckedAt:now-90000,lastLiveFailure:{kind:'rate-limited',at:now,attempts:1,message:'Wait',recovery:'Wait',retryAt:now+300000,cooldownScope:'live'}};
+ useLibrary.setState({follows,youtubeLiveProgress:null});
+ const result=await useLibrary.getState().refreshFollows('youtube',{youtubeLiveOnly:true,liveSweep:true});
+ assert.equal(result.skipped,'cooldown');assert.equal(fixture.requests,0);assert.equal(useLibrary.getState().follows[0].liveCheckedAt,follows[0].liveCheckedAt);assert.equal(useLibrary.getState().follows[31].lastLiveFailure,undefined);
+});
+
+test('a late archive response cannot erase a newer failed live attempt with the same successful timestamp',async()=>{
+ reset([]);const id='UCabcdefghijklmnopqrstuv',now=Date.now(),follow={id:'yt:'+id,channelId:id,kind:'youtube',title:'Creator',handle:'creator',live:true,liveCheckedAt:now-60000};useLibrary.setState({follows:[follow]});
+ fixture.beforeResponse=()=>useLibrary.setState({follows:[{...follow,lastLiveFailure:{kind:'network-offline',at:now,retryAt:now+30000,attempts:1,message:'Latest live check failed',recovery:'Retry'}}]});
+ fixture.response={channels:[follow],videos:[],refreshedIds:[follow.id],retryAt:{}};
+ await useLibrary.getState().refreshFollows('youtube');assert.equal(useLibrary.getState().follows[0].lastLiveFailure.message,'Latest live check failed');
+});
 
 test('focused partial Twitch pulls preserve saved VODs, local feedback and unrequested clip checkpoints', async () => {
   const { setRating, getRating } = await import('../src/lib/media-feedback.ts');
@@ -378,13 +412,13 @@ test('a recovered manual pull prevents untouched old creator failures restoring 
 });
 
 test('YouTube feed success preserves live cards and actual offline checks persist completed streams without deleting saved media', async () => {
-  const date=Date.UTC(2026,8,1),old={...card('yt:stream'),addedAt:date,remote:{kind:'youtube',videoId:'stream',channelId:'test',live:true,youtubeType:'live',publishedSource:'rss',observedAt:Date.now()}};
-  const liveChannel={...channel,channelId:'UC1234567890123456789012'};
+  const date=Date.UTC(2026,8,1),old={...card('yt:stream'),addedAt:date,remote:{kind:'youtube',videoId:'stream',channelId:'test',live:true,liveOfflineSince:Date.now()-600_001,youtubeType:'live',publishedSource:'rss',observedAt:Date.now()-600_001}};
+  const liveChannel={...channel,live:false,liveCheckedAt:Date.now(),channelId:'UC1234567890123456789012'};
   reset([old]);useLibrary.setState({ follows:[liveChannel],favorites: { [old.id]: true }, likes: { [old.id]: true }, progress: { [old.id]: {t:42,d:420,at:1} } });
   fixture.response = { channels: [liveChannel], videos: [], refreshedIds: [channel.id], liveCheckedIds: [], retryAt: {} };
   await useLibrary.getState().refreshFollows('youtube');
   assert.equal(useLibrary.getState().videos[0],old);assert.equal(fixture.removed.length,0);
-  fixture.response = { ...fixture.response, liveCheckedIds: [channel.id] };
+  fixture.response = { ...fixture.response, liveCheckedIds: [channel.id], channels:[{...liveChannel,liveCheckedAt:Date.now()}] };
   await useLibrary.getState().refreshFollows('youtube', { youtubeLiveOnly: true });
   const state=useLibrary.getState();assert.equal(state.videos[0].remote.live,false);assert.equal(state.videos[0].remote.youtubeType,'replay');
   assert.equal(state.videos[0].addedAt,date);assert.equal(state.videos[0].remote.publishedSource,'rss');
@@ -581,7 +615,7 @@ test('mixed pulls reserve donated slots for the emptier source instead of spendi
   fixture.response={channels:[{...channel,catalogCursor:'after'},{...tw,twitchArchiveCursor:'after'}],videos:[...Array.from({length:2},(_,i)=>cleanupCard(`mixed-yt-new-${i}`,400)),...Array.from({length:2},(_,i)=>({...card(`tw:mixed-new-${i}`,'twitch',tw.id),extension:'vod',addedAt:Date.now()}))],refreshedIds:[channel.id,tw.id],liveCheckedIds:[],retryAt:{}};
   await useLibrary.getState().refreshFollows(undefined);
   const state=useLibrary.getState();assert.equal(fixture.removed.length,2);assert.equal(state.videos.length,6);assert.equal(state.videos.filter(v=>v.remote.kind==='twitch').length,2);
-  assert.equal(state.follows.find(c=>c.id===channel.id).catalogCursor,'before');assert.equal(state.follows.find(c=>c.id===tw.id).twitchArchiveCursor,'after');
+  assert.equal(state.follows.find(c=>c.id===channel.id).catalogCursor,'before');assert.equal(state.follows.find(c=>c.id===tw.id).twitchArchiveCursor,'before');
   assert.equal(fixture.writes.filter(v=>v.id.startsWith('mixed-yt-new')).length,0);
 });
 
@@ -629,7 +663,7 @@ test('an unallocated disabled source cannot take the slots freed for an enabled 
   fixture.response={channels:[{...channel,catalogCursor:'after'},{...tw,twitchArchiveCursor:'after'}],videos:[...Array.from({length:2},(_,i)=>card(`tw:disabled-new-${i}`,'twitch',tw.id)),...Array.from({length:2},(_,i)=>cleanupCard(`enabled-new-${i}`,400))],refreshedIds:[channel.id,tw.id],liveCheckedIds:[],retryAt:{}};
   await useLibrary.getState().refreshFollows(undefined);const state=useLibrary.getState();
   assert.equal(fixture.removed.length,2);assert.equal(state.videos.length,6);assert.equal(state.videos.filter(v=>v.remote.kind==='twitch').length,0);
-  assert.equal(state.follows.find(c=>c.id===channel.id).catalogCursor,'after');assert.equal(state.follows.find(c=>c.id===tw.id).twitchArchiveCursor,'before');
+  assert.equal(state.follows.find(c=>c.id===channel.id).catalogCursor,'before');assert.equal(state.follows.find(c=>c.id===tw.id).twitchArchiveCursor,'before');
 });
 
 test('offline Twitch transitions preserve the cached record on disk as well as memory instead of silently deleting saved data', async()=>{
@@ -698,4 +732,298 @@ test('explicit Twitch live reconciliation still completes while archive pulling 
   setPullsPaused(true);
   try{await useLibrary.getState().refreshFollows('twitch',{twitchLiveOnly:true});assert.equal(useLibrary.getState().videos[0].remote.live,false);assert.equal(fixture.requests,1);}
   finally{setPullsPaused(false);}
+});
+
+test('Adult multi-window pulls save accepted rows before a later failure and retain the latest resume page',async()=>{
+ reset([]);updatePullSettings({adultBatchVideos:1200,adultMaxEntries:5000,remoteMaxEntries:10000});
+ const pages=[];fixture.responseForRequest=data=>{const page=data.providerPages.eporner;pages.push(page);if(page===2){assert.equal(fixture.writes.length,400,'first window is durable before the next provider request');throw Error('Synthetic later failure');}return {videos:Array.from({length:data.maxVideos},(_,i)=>({...card('eporner:'+i,'eporner','eporner:discover'),mime:'video/mp4',extension:'mp4'})),providerNextPages:{eporner:2},providerNextOffsets:{eporner:0},providerDiagnostics:[{provider:'eporner',status:'loaded',titles:data.maxVideos,detail:'accepted'}]};};
+ await useLibrary.getState().searchAdultFeed('checkpoint','latest',{providers:['eporner'],maxVideos:1200});
+ assert.deepEqual(pages,[1,2]);assert.equal(useLibrary.getState().videos.length,400);assert.equal(useLibrary.getState().pullHistory[0].status,'partial');assert.equal(fixture.writes.length,400);
+});
+test('a live check during an Adult pull preserves that pull owner and newer state wins a delayed reply',async()=>{
+ const tw={id:'tw:concurrent',kind:'twitch',handle:'concurrent',title:'Concurrent',channelId:'provider',live:true,liveCheckedAt:5000};
+ const live={...card('tw:concurrent:live','twitch',tw.id),extension:'live',remote:{kind:'twitch',live:true,videoId:'concurrent',observedAt:5000}};
+ reset([live]);const owner={id:'adult-owner',provider:'adult',action:'Catalog pull',status:'running',total:1,done:0};useLibrary.setState({remoteBusy:true,pullActivity:owner,follows:[tw]});
+ fixture.response={channels:[{...tw,live:false,liveCheckedAt:4000}],videos:[],refreshedIds:[tw.id],liveCheckedIds:[tw.id],retryAt:{}};
+ const result=await useLibrary.getState().refreshFollows('twitch',{twitchLiveOnly:true,channelIds:[tw.id]});
+ assert.ok(result.pull);assert.equal(useLibrary.getState().remoteBusy,true);assert.equal(useLibrary.getState().pullActivity,owner);assert.equal(useLibrary.getState().follows[0].live,true);assert.equal(useLibrary.getState().videos[0].remote.live,true);
+ useLibrary.setState({remoteBusy:false,pullActivity:null});
+});
+
+
+test('2,000 offline YouTube checks preserve an 80k catalog identity and archive ownership with bounded progress commits',async()=>{
+ const catalog=Array.from({length:80000},(_,i)=>card('quick-live-old-'+i));reset(catalog);
+ const follows=Array.from({length:2000},(_,i)=>({id:'yt:UC'+String(i).padStart(22,'0'),channelId:'UC'+String(i).padStart(22,'0'),kind:'youtube',handle:'creator'+i,title:'Creator '+i}));
+ const archiveStatus={action:'Archive owner',at:1,checked:1,refreshed:1,failed:0,youtube:1,twitch:0},tags={saved:['science']};
+ useLibrary.setState({follows,remoteBusy:true,refreshing:true,remoteRefreshStatus:archiveStatus,tags});
+ fixture.responseForRequest=data=>({channels:data.channels.map(channel=>({...channel,live:false,liveCheckedAt:Date.now()})),videos:[],refreshedIds:data.channels.map(channel=>channel.id),liveCheckedIds:data.channels.map(channel=>channel.id),retryAt:{}});
+ const started=performance.now(),result=await useLibrary.getState().refreshFollows('youtube',{youtubeLiveOnly:true,liveSweep:true});
+ const state=useLibrary.getState();assert.equal(result.pull.done,2000);assert.equal(result.pull.failed,0);assert.equal(fixture.requests,250);assert(fixture.inputs.every(data=>data.channels.length<=8));
+ assert.equal(state.videos,catalog);assert.equal(state.tags,tags);assert.equal(fixture.writes.length,0);assert.equal(state.remoteRefreshStatus,archiveStatus);assert.equal(state.refreshing,true);assert.equal(state.remoteBusy,true);assert.equal(state.youtubeLiveProgress.status,'complete');assert.equal(state.youtubeLiveProgress.checked,2000);assert(state.follows.every(channel=>channel.liveCheckedAt));
+ console.log('2,000 checks with 80,000 saved titles: '+Math.round(performance.now()-started)+'ms mocked provider/disk, catalog identity retained');
+});
+
+test('a quick live provider hold stops after the attempted batch without failing untouched creators or freezing archives',async()=>{
+ reset([]);const follows=Array.from({length:2000},(_,i)=>({id:'yt:UC'+String(i).padStart(22,'0'),channelId:'UC'+String(i).padStart(22,'0'),kind:'youtube',handle:'creator'+i,title:'Creator '+i}));useLibrary.setState({follows});
+ const retryAt=Date.now()+300000;fixture.responseForRequest=data=>({channels:data.channels.map(channel=>({...channel,liveCheckedAt:Date.now(),lastLiveFailure:{at:Date.now(),kind:'rate-limited',message:'Live HTTP 429',retryAt,cooldownScope:'live'}})),videos:[],refreshedIds:[],liveCheckedIds:[],retryAt:{},providerRetryAt:retryAt,providerCooldownScope:'live'});
+ const result=await useLibrary.getState().refreshFollows('youtube',{youtubeLiveOnly:true,liveSweep:true});const state=useLibrary.getState();assert.equal(fixture.requests,3);assert.equal(result.pull.done,24);assert.equal(result.pull.total,2000);assert.equal(state.follows.filter(channel=>channel.lastLiveFailure).length,24);assert.equal(state.follows.filter(channel=>!channel.liveCheckedAt).length,1976);assert.equal(state.youtubeRefreshStatus,null);assert.equal(state.youtubeLiveProgress.status,'partial');
+});
+
+
+test('lightweight Twitch checks retain an 80k catalog identity across 2,000 follows and use only bounded live batches',async()=>{
+ const catalog=Array.from({length:80000},(_,i)=>card('twitch-live-old-'+i));reset(catalog);const follows=Array.from({length:2000},(_,i)=>({id:'tw:creator'+i,kind:'twitch',handle:'creator'+i,title:'Creator '+i}));
+ useLibrary.setState({follows,remoteBusy:true,refreshing:true});fixture.responseForRequest=data=>({channels:data.channels.map(c=>({...c,live:false,liveCheckedAt:Date.now()})),videos:[],refreshedIds:data.channels.map(c=>c.id),liveCheckedIds:data.channels.map(c=>c.id),retryAt:{}});
+ const result=await useLibrary.getState().refreshFollows('twitch',{twitchLiveOnly:true,liveSweep:true});assert.equal(result.pull.done,2000);assert.equal(result.pull.failed,0);assert.equal(fixture.requests,Math.ceil(2000/12));assert.equal(fixture.inputs[0].channels.length,12);assert(fixture.inputs.every(data=>data.twitchLiveOnly&&!data.youtubeCatalog&&data.channels.length<=12));assert.equal(useLibrary.getState().videos,catalog);assert.equal(fixture.writes.length,0);assert.equal(useLibrary.getState().twitchLiveProgress.checked,2000);assert.equal(useLibrary.getState().twitchLiveProgress.broadcasts,0);
+});
+
+test('mixed live checks report provider-specific progress and first-result YouTube batches retain all targets',async()=>{
+ reset([]);const channels=[{id:'tw:mixed-live',kind:'twitch',handle:'mixed_live',title:'Twitch'},...Array.from({length:3},(_,i)=>({id:'yt:UC'+String(i).padStart(22,'0'),channelId:'UC'+String(i).padStart(22,'0'),kind:'youtube',handle:'creator'+i,title:'Creator '+i}))];useLibrary.setState({follows:channels});fixture.responseForRequest=data=>({channels:data.channels.map(c=>({...c,live:false,liveCheckedAt:Date.now()})),videos:[],refreshedIds:data.channels.map(c=>c.id),liveCheckedIds:data.channels.map(c=>c.id),retryAt:{}});
+ await useLibrary.getState().refreshFollows(undefined,{youtubeLiveOnly:true,twitchLiveOnly:true,liveSweep:true});assert.equal(useLibrary.getState().youtubeLiveProgress.total,3);assert.equal(useLibrary.getState().youtubeLiveProgress.checked,3);assert.equal(useLibrary.getState().twitchLiveProgress.total,1);assert.equal(useLibrary.getState().twitchLiveProgress.checked,1);
+});
+
+test('explicitly saved live rooms persist one descriptor with Adult isolation, without copying unrelated saved records',async()=>{
+ reset([]);const room={...card('chaturbate:retained_room','chaturbate','chaturbate:discover'),name:'Public room',remote:{kind:'chaturbate',videoId:'retained_room',channelName:'retained_room',live:true,observedAt:Date.now(),watchUrl:'https://chaturbate.com/retained_room/'}};useLibrary.getState().toggleFavorite(room.id);assert.equal(await useLibrary.getState().retainLiveRoom(room),true);assert.equal(useLibrary.getState().videos.length,1);assert(useLibrary.getState().tags[room.id].includes('adult'));assert(useLibrary.getState().folders.some(folder=>folder.id===room.folderId&&folder.adult));assert.equal(fixture.writes.length,1);assert.equal(await useLibrary.getState().retainLiveRoom(room),true);assert.equal(fixture.writes.length,1);useLibrary.setState({adultsUnlocked:false});assert.equal(await useLibrary.getState().retainLiveRoom({...room,id:'chaturbate:locked'}),false);
+});
+
+
+test('automatic live batches re-evaluate creators becoming due during responses and yield without false partial failures',async()=>{
+ reset([]);let now=1_000_000;const realNow=Date.now;Date.now=()=>now;
+ const {setPullsPaused}=await import('../src/lib/pull-control.ts');setPullsPaused(true);
+ try {
+  const follows=Array.from({length:2000},(_,i)=>({id:'yt:UC'+String(i).padStart(22,'0'),channelId:'UC'+String(i).padStart(22,'0'),kind:'youtube',handle:'creator'+i,title:'Creator '+i,live:i<52,liveCheckedAt:i<52?now-55_000:undefined}));
+  useLibrary.setState({follows});
+  fixture.responseForRequest=data=>{if(fixture.requests%3===1)now+=6_000;return {channels:data.channels.map(c=>({...c,liveCheckedAt:now})),videos:[],refreshedIds:data.channels.map(c=>c.id),liveCheckedIds:data.channels.map(c=>c.id),retryAt:{}};};
+  const result=await useLibrary.getState().refreshFollows('youtube',{youtubeLiveOnly:true,liveSweep:true,scheduled:true,liveDemand:true});
+  assert(fixture.inputs[0].channels.every(c=>!c.live),'initially only discovery is due');
+  assert(fixture.inputs.slice(3).some(data=>data.channels.some(c=>c.live)),'a live creator becoming due must enter a refill outside the original selected sweep');
+  assert(fixture.inputs.every(data=>data.channels.length<=24 && data.liveDemand));
+  assert(fixture.requests>=6&&fixture.requests<=12);assert.equal(result.pull.status,'success');assert.equal(fixture.inputs[0].channels.length,8);assert.equal(result.pull.total,fixture.requests*8);assert.equal(useLibrary.getState().youtubeLiveProgress.status,'complete');
+  assert(useLibrary.getState().follows.some(c=>!c.liveCheckedAt),'untouched creators remain eligible for the next turn');
+ } finally {Date.now=realNow;setPullsPaused(false);}
+});
+
+test('failed live transport batches retain observations and back off without pinning the discovery prefix',async()=>{
+ reset([]);const now=Date.now();const follows=Array.from({length:24},(_,i)=>({id:'yt:UC'+String(i).padStart(22,'0'),channelId:'UC'+String(i).padStart(22,'0'),kind:'youtube',handle:'creator'+i,title:'Creator '+i,live:i===0,liveCheckedAt:i===0?now-65_000:undefined}));useLibrary.setState({follows});
+ fixture.responseForRequest=()=>{throw Error('Synthetic live transport timeout');};
+ await useLibrary.getState().refreshFollows('youtube',{youtubeLiveOnly:true,liveSweep:true,scheduled:true});
+ const failed=useLibrary.getState().follows[0];assert(failed.lastLiveFailure.retryAt>Date.now());assert.equal(failed.live,true);assert.equal(failed.liveCheckedAt,follows[0].liveCheckedAt);
+ const before=fixture.requests;await useLibrary.getState().refreshFollows('youtube',{youtubeLiveOnly:true,liveSweep:true,scheduled:true});assert.equal(fixture.requests,before,'retry backoff must apply to transport failures too');
+});
+
+
+test('pausing during an automatic live response saves that observation, releases ownership, and allows the Live page to continue',async()=>{
+ reset([]);const {setPullsPaused}=await import('../src/lib/pull-control.ts');const follows=Array.from({length:100},(_,i)=>({id:'yt:UC'+String(i).padStart(22,'0'),channelId:'UC'+String(i).padStart(22,'0'),kind:'youtube',handle:'creator'+i,title:'Creator '+i}));useLibrary.setState({follows});
+ fixture.responseForRequest=data=>{setPullsPaused(true);return {channels:data.channels.map(c=>({...c,live:false,liveCheckedAt:Date.now()})),videos:[],refreshedIds:data.channels.map(c=>c.id),liveCheckedIds:data.channels.map(c=>c.id),retryAt:{}};};
+ try {
+  const first=await useLibrary.getState().refreshFollows('youtube',{youtubeLiveOnly:true,liveSweep:true,scheduled:true});assert.equal(fixture.requests,3);assert.equal(first.pull.status,'success');assert.equal(useLibrary.getState().refreshing,false);assert.equal(useLibrary.getState().youtubeLiveProgress.checked,24);
+  const paused=await useLibrary.getState().refreshFollows('youtube',{youtubeLiveOnly:true,liveSweep:true,scheduled:true});assert.equal(paused.skipped,'paused');
+  await useLibrary.getState().refreshFollows('youtube',{youtubeLiveOnly:true,liveSweep:true,scheduled:true,liveDemand:true});assert.equal(useLibrary.getState().follows.filter(c=>c.liveCheckedAt).length,100);
+ }finally{setPullsPaused(false);}
+});
+
+
+test('explicit Twitch content pulls queue 100 creators in small archive responses; scheduled turns stay bounded',async()=>{
+ reset([]);const follows=Array.from({length:600},(_,i)=>({id:'tw:queue'+i,kind:'twitch',handle:'queue'+i,title:'Queue '+i}));useLibrary.setState({follows});fixture.responseForRequest=data=>({channels:data.channels,videos:[],refreshedIds:data.channels.map(c=>c.id),retryAt:{}});
+ const manual=await useLibrary.getState().refreshFollows('twitch',{twitchRoutine:true});assert.equal(manual.pull.total,100);assert.equal(manual.pull.done,100);assert.equal(fixture.requests,50);assert(fixture.inputs.every(d=>d.channels.length<=2));
+ const scheduled=await useLibrary.getState().refreshFollows('twitch',{twitchRoutine:true,scheduled:true});assert.equal(scheduled.pull.total,12);assert.equal(scheduled.pull.done,12);
+});
+
+test('YouTube negative checks persist a ten-minute hold through reload and positive recovery clears it',async()=>{
+ reset([]);const actual=Date.now;let now=1_000_000;Date.now=()=>now;
+ const follow={id:'yt:UC1234567890123456789012',channelId:'UC1234567890123456789012',kind:'youtube',handle:'creator',title:'Creator',live:true,liveCheckedAt:now};
+ const video={...card('yt:v:abcdefghijk','youtube',follow.id),remote:{kind:'youtube',videoId:'abcdefghijk',channelId:follow.channelId,live:true,observedAt:now,viewers:123}};useLibrary.setState({videos:[video],follows:[follow]});
+ fixture.responseForRequest=data=>({channels:data.channels.map(c=>({...c,live:false,liveCheckedAt:now})),videos:[],refreshedIds:[follow.id],liveCheckedIds:[follow.id],retryAt:{}});
+ try{await useLibrary.getState().refreshFollows('youtube',{youtubeLiveOnly:true});let state=useLibrary.getState();assert.equal(state.follows[0].live,true);assert.equal(state.videos[0].remote.liveOfflineSince,now);assert(fixture.writes.some(v=>v.remote.liveOfflineSince===now));
+ useLibrary.setState({videos:JSON.parse(JSON.stringify(state.videos)),follows:JSON.parse(JSON.stringify(state.follows))});now+=599999;await useLibrary.getState().refreshFollows('youtube',{youtubeLiveOnly:true});assert.equal(useLibrary.getState().videos[0].remote.live,true);
+ now++;await useLibrary.getState().refreshFollows('youtube',{youtubeLiveOnly:true});assert.equal(useLibrary.getState().videos[0].remote.live,false);assert.equal(useLibrary.getState().follows[0].live,false);
+ fixture.responseForRequest=data=>({channels:data.channels.map(c=>({...c,live:true,liveCheckedAt:++now})),videos:[{...video,remote:{...video.remote,observedAt:now,liveOfflineSince:undefined}}],refreshedIds:[follow.id],liveCheckedIds:[follow.id],retryAt:{}});await useLibrary.getState().refreshFollows('youtube',{youtubeLiveOnly:true});state=useLibrary.getState();assert.equal(state.videos[0].remote.live,true);assert.equal(state.videos[0].remote.liveOfflineSince,undefined);assert.equal(state.follows[0].liveOfflineSince,undefined);
+ }finally{Date.now=actual;}
+});
+
+
+test('live observations and failure health publish before a 215k-entry catalog finishes reconciliation',async()=>{
+ reset([]);updatePullSettings({youtubeMaxEntries:300000,remoteMaxEntries:300000,youtubeRequestGapMs:1500});
+ const now=Date.now(),follows=Array.from({length:2},(_,i)=>({id:'yt:UC'+String(i).padStart(22,'0'),channelId:'UC'+String(i).padStart(22,'0'),kind:'youtube',handle:'early'+i,title:'Early '+i,live:true,liveCheckedAt:now-60000}));
+ const videos=Array.from({length:215452},(_,i)=>card('early-old'+i));useLibrary.setState({videos,follows});
+ fixture.response={channels:[{...follows[0],liveCheckedAt:now,lastLiveFailure:undefined},{...follows[1],lastLiveFailure:{kind:'unavailable',at:now,message:'Unreadable live catalog',retryAt:now+30000,recovery:''}}],videos:[{...card('yt:v:early000001','youtube',follows[0].id),remote:{kind:'youtube',channelId:follows[0].channelId,videoId:'early000001',live:true,observedAt:now,viewers:17}}],refreshedIds:[follows[0].id],liveCheckedIds:[follows[0].id],retryAt:{}};
+ let observedBeforeMerge=false;const stop=useLibrary.subscribe(state=>{if(state.youtubeLiveProgress?.checked===2&&state.videos===videos){observedBeforeMerge=true;assert.equal(state.follows.find(c=>c.id===follows[0].id).liveCheckedAt,now);assert.equal(state.follows.find(c=>c.id===follows[1].id).liveCheckedAt,now-60000);assert.equal(state.youtubeLiveProgress.failed,1);assert.equal(state.youtubeLiveProgress.broadcasts,1);}});
+ try{await useLibrary.getState().refreshFollows('youtube',{youtubeLiveOnly:true,liveSweep:true});assert(observedBeforeMerge,'completed network observations must appear before full catalog preparation');assert.equal(useLibrary.getState().youtubeLiveProgress.broadcasts,1,'broadcast counters do not double after reconciliation');assert(useLibrary.getState().videos.some(v=>v.id==='yt:v:early000001'));}finally{stop();}
+});
+
+
+test('YouTube pipeline commits healthy creators and reaches the tail while its first batch is stalled',async()=>{
+ reset([]);const now=Date.now(),follows=Array.from({length:48},(_,i)=>({id:'yt:UC'+String(i).padStart(22,'0'),channelId:'UC'+String(i).padStart(22,'0'),kind:'youtube',handle:'pipeline'+i,title:'Pipeline '+i,live:i===0,liveCheckedAt:i===0?now-90000:undefined}));useLibrary.setState({follows});
+ let release;const gate=new Promise(resolve=>release=resolve);let active=0,peak=0;
+ fixture.responseForRequest=async data=>{peak=Math.max(peak,++active);try{if(data.channels.some(c=>c.handle==='pipeline0')){await gate;throw Error('Synthetic slow creator timeout');}return{channels:data.channels.map(c=>({...c,liveCheckedAt:Date.now()})),videos:[],refreshedIds:data.channels.map(c=>c.id),liveCheckedIds:data.channels.map(c=>c.id),retryAt:{}};}finally{active--;}};
+ const job=useLibrary.getState().refreshFollows('youtube',{youtubeLiveOnly:true,liveSweep:true});
+ try{for(let i=0;i<500&&!useLibrary.getState().follows.find(c=>c.handle==='pipeline47').liveCheckedAt;i++)await new Promise(resolve=>setTimeout(resolve,5));const partial=useLibrary.getState();assert(partial.follows.find(c=>c.handle==='pipeline47').liveCheckedAt,'tail discovery must not wait for the first slow batch');assert.equal(partial.youtubeLiveProgress.checked,40);assert.equal(partial.follows.find(c=>c.handle==='pipeline0').liveCheckedAt,now-90000);assert(peak<=3);assert(fixture.inputs.every(input=>input.channels.length<=8));}finally{release();await job;}
+ const state=useLibrary.getState();assert.equal(state.youtubeLiveProgress.checked,48);assert.equal(state.youtubeLiveProgress.failed,8);assert.equal(state.follows.find(c=>c.handle==='pipeline0').live,true);assert.equal(state.follows.filter(c=>!c.lastLiveFailure).length,40);assert.equal(state.refreshing,false);
+});
+
+
+test('movie runtime repair persists one local row while preserving source records and manual feedback',async()=>{
+ const film={...card('local-movie'),remote:undefined,path:'Movies/Classic.1954.mkv',extension:'mkv',name:'Classic.1954.mkv'},other=card('other');reset([film,other]);const tags={['local-movie']:['movie','saved-choice']};useLibrary.setState({tags});await useLibrary.getState().setLocalVideoDuration(film.id,6700);const state=useLibrary.getState();assert.equal(state.videos[0].duration,6700);assert.equal(state.videos[1],other);assert.equal(state.tags,tags);assert.equal(fixture.writes.length,1);assert.equal(fixture.writes[0].id,film.id);await assert.rejects(state.setLocalVideoDuration(film.id,Infinity),/valid runtime/);
+});
+test('older Twitch pulls skip exhausted and cooled creators and pass each saved continuation without clipping the follow list',async()=>{
+ reset([]);const follows=Array.from({length:110},(_,i)=>({id:'tw:older'+i,kind:'twitch',handle:'older'+i,title:'Older '+i,channelId:String(i),twitchArchiveCursor:'saved-'+i,...(i<5?{twitchArchiveExhaustedAt:1}:i<10?{twitchArchiveRetry:{attempts:1,retryAt:Date.now()+60000}}:{})}));useLibrary.setState({follows});fixture.responseForRequest=data=>({channels:data.channels.map(c=>({...c,twitchArchiveCursor:c.twitchArchiveCursor+'-next',twitchArchiveCheckedAt:Date.now()})),videos:[],refreshedIds:data.channels.map(c=>c.id),liveCheckedIds:[],retryAt:{}});const result=await useLibrary.getState().refreshFollows('twitch',{twitchRoutine:true,twitchContinueArchive:true});assert.equal(result.pull.done,100);assert(fixture.inputs.every(input=>input.twitchContinueArchive&&input.channels.length<=4));assert.equal(new Set(fixture.inputs.flatMap(input=>input.channels.map(c=>c.id))).size,100);assert(fixture.inputs.every(input=>input.channels.every(c=>Number(c.handle.slice(5))>=10)));assert.equal(useLibrary.getState().follows.length,110);
+});
+
+
+test('cooperative YouTube preparation reuses 80k saved rows and prepared browse groups through unrelated Twitch refreshes',async()=>{
+ const {prepareYoutubeSelection}=await import('../src/lib/videos/store.ts');const {prepareYoutubeBrowse}=await import('../src/lib/videos/youtube-browse.ts');
+ let reads=0;const base=Date.UTC(2026,9,1),youtube=Array.from({length:80000},(_,i)=>{const remote={kind:'youtube',channelId:'owner'+i%180,publishedSource:'provider'};return {...card('saved'+i),addedAt:base-i*1000,get remote(){reads++;return remote;}};});
+ const twitch=Array.from({length:20000},(_,i)=>card('twitch'+i,'twitch'));reset([...youtube,...twitch]);
+ const initial=await prepareYoutubeSelection(useLibrary.getState(),new AbortController().signal,async()=>{});const browse=await prepareYoutubeBrowse(initial,undefined,async()=>{});
+ const next=[...useLibrary.getState().videos];for(let i=80000;i<80100;i++)next[i]={...next[i],name:'Updated Twitch VOD'};
+ useLibrary.setState({videos:next});reads=0;const selected=await prepareYoutubeSelection(useLibrary.getState(),new AbortController().signal,async()=>{});assert.equal(selected,initial);assert.equal(reads,0);
+ let turns=0;assert.equal(await prepareYoutubeBrowse(selected,undefined,async()=>{turns++;}),browse);assert.equal(turns,0,'unchanged selection reuses format and creator indexes too');
+});
+test('real cooperative YouTube preparation updates live cards while date corrections and privacy edits keep stable full ordering',async()=>{
+ const {prepareYoutubeSelection}=await import('../src/lib/videos/store.ts');const {youtubePublicationTime}=await import('../src/lib/videos/youtube-metadata.ts');
+ const base=Date.UTC(2026,9,1),rows=Array.from({length:10000},(_,i)=>({...card('stable'+i),addedAt:base-(i%127)*1000,remote:{kind:'youtube',channelId:'owner',publishedSource:i%3?'provider':'unknown'}}));reset(rows);
+ const initial=await prepareYoutubeSelection(useLibrary.getState(),new AbortController().signal,async()=>{}),next=[...rows];next[0]={...rows[0],name:'Updated live title',remote:{...rows[0].remote,live:true,viewers:123}};useLibrary.setState({videos:next});
+ const updated=await prepareYoutubeSelection(useLibrary.getState(),new AbortController().signal,async()=>{});assert.notEqual(updated,initial);assert.equal(updated.find(v=>v.id==='stable0'),next[0]);assert.equal(updated.find(v=>v.id==='stable1'),rows[1]);
+ const corrected=[...next];corrected[0]={...next[0],addedAt:base+1000,remote:{...next[0].remote,publishedSource:'watch'}};useLibrary.setState({videos:corrected});
+ assert.deepEqual(await prepareYoutubeSelection(useLibrary.getState(),new AbortController().signal,async()=>{}),[...corrected].sort((a,b)=>youtubePublicationTime(b)-youtubePublicationTime(a)));
+ useLibrary.setState({hiddenVideos:{stable0:true}});assert(!(await prepareYoutubeSelection(useLibrary.getState(),new AbortController().signal,async()=>{})).some(v=>v.id==='stable0'));
+ useLibrary.setState({folders:[{id:channel.id,name:'Private source',adult:true,kind:'youtube'}]});assert.equal((await prepareYoutubeSelection(useLibrary.getState(),new AbortController().signal,async()=>{})).length,0);
+});
+
+
+test('clip-only recent updates preserve live and VOD observations, older clip positions, feedback and known creation dates',async()=>{
+ const follow={id:'tw:cliptest',kind:'twitch',handle:'cliptest',title:'Clip creator',live:true,liveCheckedAt:500,twitchArchiveCheckedAt:400,twitchArchiveCursor:'archive-before',twitchClipCursor:JSON.stringify({v:1,after:'older-before'}),lastProviderFailure:{kind:'integrity-challenge',message:'Archive challenge',at:300,recovery:'Retry archive'}};
+ const live={...card('tw:cliptest:live','twitch',follow.id),remote:{kind:'twitch',live:true,viewers:42,observedAt:500}},vod={...card('tw:v:kept','twitch',follow.id),duration:5400,extension:'vod'},clip={...card('tw:c:kept','twitch',follow.id),extension:'clip',duration:30,addedAt:1000,remote:{kind:'twitch',videoId:'kept',views:5}};
+ reset([live,vod,clip]);updatePullSettings({twitchMaxEntries:100,remoteMaxEntries:100});const favorites={[clip.id]:true},progress={[clip.id]:{t:10,d:30,at:100}};useLibrary.setState({follows:[follow],favorites,progress});
+ fixture.response={channel:{id:follow.id,kind:'twitch',handle:follow.handle,title:follow.title,twitchClipRecentCheckedAt:600,twitchClipCheckedAt:600,lastResponseCount:1,lastClipFailure:undefined},videos:[{...clip,addedAt:0,remote:{...clip.remote,views:99}}]};
+ await useLibrary.getState().followRemoteQuery('cliptest','twitch',{twitchClipMode:'recent',clipLimit:50});const state=useLibrary.getState(),saved=state.follows[0];assert.equal(fixture.inputs[0].twitchClipMode,'recent');assert.equal(saved.live,true);assert.equal(saved.liveCheckedAt,500);assert.equal(saved.twitchArchiveCursor,'archive-before');assert.equal(saved.twitchArchiveCheckedAt,400);assert.equal(saved.twitchClipCursor,follow.twitchClipCursor);assert.equal(saved.lastProviderFailure.message,'Archive challenge');assert.equal(state.videos.find(v=>v.id===clip.id).remote.views,99);assert.equal(state.videos.find(v=>v.id===clip.id).addedAt,1000);assert.equal(state.videos.find(v=>v.id===live.id),live);assert.equal(state.videos.find(v=>v.id===vod.id),vod);assert.equal(state.favorites,favorites);assert.equal(state.progress,progress);
+});
+test('clip-only transport failures set their own durable retry without resetting archive diagnostics or live state',async()=>{
+ const follow={id:'tw:clipfail',kind:'twitch',handle:'clipfail',title:'Clip creator',live:true,liveCheckedAt:500,twitchArchiveCheckedAt:400,twitchArchiveCursor:'archive-before',twitchArchiveDiagnostics:{at:400,pages:1,received:2,accepted:2,duplicates:0,resumed:false,stopReason:'page-budget'},twitchClipCursor:JSON.stringify({v:1,after:'older-before'})};reset([]);useLibrary.setState({follows:[follow]});fixture.responseForRequest=()=>{throw Error('HTTP 503 clip provider');};
+ await assert.rejects(useLibrary.getState().followRemoteQuery('clipfail','twitch',{twitchClipMode:'recent',clipLimit:50}),/503/);const saved=useLibrary.getState().follows[0];assert(saved.twitchClipRecentRetry);assert.equal(saved.twitchClipRetry,undefined);assert(saved.twitchClipRecentAttemptedAt>0);assert(saved.lastClipFailure);assert.equal(saved.twitchArchiveCheckedAt,400);assert.equal(saved.twitchArchiveCursor,'archive-before');assert.equal(saved.twitchArchiveDiagnostics,follow.twitchArchiveDiagnostics);assert.equal(saved.live,true);assert.equal(saved.lastProviderFailure,undefined);
+});
+
+test('recent upload batches publish fast creators before a held batch, keep two requests in flight and retain archive checkpoints',async()=>{
+ reset([]);updatePullSettings({youtubeMaxEntries:100,remoteMaxEntries:100});
+ const follows=Array.from({length:8},(_,i)=>({id:'yt:UC'+String(i).padStart(22,'0'),channelId:'UC'+String(i).padStart(22,'0'),kind:'youtube',title:'Recent '+i,handle:'recent'+i,catalogCursor:'keep-'+i,catalogCheckedAt:1,lastProviderFailure:{kind:'unavailable',at:1,message:'Archive failed',recovery:''}}));
+ useLibrary.setState({follows});let release,active=0,peak=0;const held=new Promise(r=>release=r);let fastSeen;const fast=new Promise(r=>fastSeen=r);
+ fixture.responseForRequest=async data=>{peak=Math.max(peak,++active);try{if(data.channels[0].id===follows[0].id)await held;return{channels:data.channels.map(c=>({...c,catalogCursor:'incorrect',catalogCheckedAt:Date.now(),lastProviderFailure:undefined,lastCheckedAt:Date.now()})),videos:[],refreshedIds:data.channels.map(c=>c.id),retryAt:{}};}finally{active--;}};
+ const stop=useLibrary.subscribe(s=>{if(s.follows.find(c=>c.id===follows[2].id)?.recentPull?.checkedAt)fastSeen();});
+ const job=useLibrary.getState().refreshFollows('youtube',{channelIds:follows.map(c=>c.id)});
+ try{await Promise.race([fast,new Promise((_,reject)=>setTimeout(()=>reject(Error('Fast batch blocked behind held creator')),5000))]);assert.equal(useLibrary.getState().follows.find(c=>c.id===follows[0].id).recentPull,undefined);assert.equal(peak,2);}
+ finally{release();stop();await job;}
+ const state=useLibrary.getState();assert.equal(fixture.requests,4);assert(fixture.inputs.every(x=>x.channels.length<=2));assert.equal(new Set(fixture.inputs.flatMap(x=>x.channels.map(c=>c.id))).size,8);
+ for(let i=0;i<8;i++){const c=state.follows.find(c=>c.id===follows[i].id);assert(c.recentPull.checkedAt);assert.equal(c.catalogCursor,'keep-'+i);assert.equal(c.catalogCheckedAt,1);assert.equal(c.lastProviderFailure.message,'Archive failed');}
+});
+
+test('empty recent checks preserve a 80k-entry catalog and tag references without catalog writes',async()=>{
+ await flush();const videos=Array.from({length:80000},(_,i)=>card('recent-old'+i));reset(videos);
+ const tags={saved:['personal']},metadataProvenance={},follow={...channel,channelId:'UCabcdefghijklmnopqrstuv'};
+ useLibrary.setState({follows:[follow],tags,metadataProvenance});fixture.response={channels:[{...follow,lastCheckedAt:Date.now()}],videos:[],refreshedIds:[follow.id],retryAt:{}};
+ await useLibrary.getState().refreshFollows('youtube');await flush();const state=useLibrary.getState();
+ assert.equal(state.videos,videos);assert.equal(state.tags,tags);assert.equal(state.metadataProvenance,metadataProvenance);assert.equal(fixture.writes.length,0);assert(state.follows[0].recentPull.checkedAt);
+});
+
+test('recent transport failure retains saved archive progress and consumes only affected creators turn',async()=>{
+ reset([]);const follow={...channel,channelId:'UCabcdefghijklmnopqrstuv',lastProviderFailure:{kind:'unavailable',at:1,message:'Archive issue',recovery:''}};useLibrary.setState({follows:[follow]});
+ fixture.responseForRequest=()=>{throw Error('network offline');};await useLibrary.getState().refreshFollows('youtube');
+ const next=useLibrary.getState().follows[0];assert.equal(next.catalogCursor,'before');assert.equal(next.lastProviderFailure.message,'Archive issue');assert(next.recentPull.retryAt>Date.now());assert.equal(next.recentPull.failures,1);
+});
+
+test('late live response cannot erase newer recent health or archive checkpoint',async()=>{
+ reset([]);const old={...channel,channelId:'UCabcdefghijklmnopqrstuv',recentPull:{attemptedAt:1,checkedAt:1,failures:0}},recentPull={attemptedAt:100,checkedAt:100,failures:0,newestVideoId:'latest'};
+ useLibrary.setState({follows:[old]});fixture.beforeResponse=()=>useLibrary.setState({follows:[{...old,recentPull,catalogCursor:'newer-archive'}]});
+ fixture.response={channels:[{...old,live:false,liveCheckedAt:Date.now()}],videos:[],refreshedIds:[old.id],liveCheckedIds:[old.id],retryAt:{}};
+ await useLibrary.getState().refreshFollows('youtube',{youtubeLiveOnly:true});
+ const next=useLibrary.getState().follows[0];assert.equal(next.recentPull,recentPull);assert.equal(next.catalogCursor,'newer-archive');
+});
+test('unfollowing during a recent response cannot resurrect the creator or its videos',async()=>{
+ reset([]);const follow={...channel,channelId:'UCabcdefghijklmnopqrstuv'};useLibrary.setState({follows:[follow]});fixture.beforeResponse=()=>useLibrary.setState({follows:[]});
+ fixture.response={channels:[follow],videos:[card('unfollow-late')],refreshedIds:[follow.id],retryAt:{}};
+ await useLibrary.getState().refreshFollows('youtube');assert.equal(useLibrary.getState().follows.length,0);assert.equal(useLibrary.getState().videos.length,0);
+});
+
+test('empty clip-only updates preserve 80k video and metadata references and avoid catalog writes',async()=>{
+ await flush();const videos=Array.from({length:80000},(_,i)=>card('clip-empty-old'+i));reset(videos);
+ const follow={id:'tw:empty-clips',kind:'twitch',handle:'empty-clips',title:'Empty clips',twitchClipCursor:JSON.stringify({v:1,after:'safe'}),twitchArchiveCursor:'keep-vods'},tags={saved:['personal']},metadataProvenance={};
+ useLibrary.setState({follows:[follow],tags,metadataProvenance});fixture.response={channel:{...follow,twitchClipRecentCheckedAt:Date.now(),lastResponseCount:0},videos:[]};
+ await useLibrary.getState().followRemoteQuery('empty-clips','twitch',{twitchClipMode:'recent'});await flush();
+ const state=useLibrary.getState();assert.equal(state.videos,videos);assert.equal(state.tags,tags);assert.equal(state.metadataProvenance,metadataProvenance);assert.equal(fixture.writes.length,0);assert.equal(state.remoteBusy,false);assert(state.follows[0].twitchClipRecentAttemptedAt);assert.equal(state.follows[0].twitchClipCursor,follow.twitchClipCursor);
+});
+test('clip-only partial errors persist safe positions and leave the other clip retry lane intact',async()=>{
+ reset([]);const follow={id:'tw:partial-clips',kind:'twitch',handle:'partial-clips',title:'Partial clips',twitchClipCursor:JSON.stringify({v:1,after:'old'}),twitchClipRecentRetry:{attempts:1,retryAt:Date.now()+60000}};
+ useLibrary.setState({follows:[follow]});fixture.response={channel:{id:follow.id,kind:'twitch',handle:follow.handle,title:follow.title,twitchClipCursor:JSON.stringify({v:1,after:'safe'}),lastClipFailure:{kind:'network-offline',at:Date.now(),message:'Page failed',recovery:''},lastResponseCount:1},videos:[{...card('tw:c:partial','twitch',follow.id),extension:'clip'}]};
+ await useLibrary.getState().followRemoteQuery('partial-clips','twitch',{twitchClipMode:'archive'});
+ const c=useLibrary.getState().follows[0];assert(c.twitchClipRetry);assert.equal(c.twitchClipRecentRetry,follow.twitchClipRecentRetry);assert.equal(JSON.parse(c.twitchClipCursor).after,'safe');assert(c.twitchClipArchiveAttemptedAt);assert.equal(useLibrary.getState().videos.length,1);
+});
+
+test('Twitch live completion pipeline publishes healthy viewer counts while the first 12 creators are stalled',async()=>{
+ reset([]);const now=Date.now(),follows=Array.from({length:48},(_,i)=>({id:'tw:early'+i,kind:'twitch',handle:'early'+i,title:'Early '+i,live:true,liveCheckedAt:1}));
+ const videos=follows.map(c=>({...card(c.id+':live','twitch',c.id),name:c.title,extension:'live',remote:{kind:'twitch',channelId:c.handle,channelName:c.title,live:true,viewers:15,observedAt:1}}));useLibrary.setState({follows,videos});
+ let release,active=0,peak=0,seen;const held=new Promise(r=>release=r),published=new Promise(r=>seen=r);
+ fixture.responseForRequest=async data=>{peak=Math.max(peak,++active);try{if(data.channels[0].id==='tw:early0')await held;return{channels:data.channels.map(c=>({...c,liveCheckedAt:now,lastLiveFailure:undefined})),videos:data.channels.map(c=>{const old=videos.find(v=>v.folderId===c.id);return{...old,remote:{...old.remote,viewers:888,observedAt:now}};}),refreshedIds:data.channels.map(c=>c.id),liveCheckedIds:data.channels.map(c=>c.id),retryAt:{}};}finally{active--;}};
+ const stop=useLibrary.subscribe(s=>{if(s.videos.find(v=>v.folderId==='tw:early12')?.remote.viewers===888)seen();});
+ const job=useLibrary.getState().refreshFollows('twitch',{twitchLiveOnly:true,channelIds:follows.map(c=>c.id)});
+ try{await Promise.race([published,new Promise((_,reject)=>setTimeout(()=>reject(Error('Healthy Twitch viewer counts waited for stalled first chunk')),5000))]);assert.equal(useLibrary.getState().follows.find(c=>c.id==='tw:early0').liveCheckedAt,1);assert.equal(peak,2);}
+ finally{release();stop();await job;}
+ assert.equal(fixture.requests,4);assert(fixture.inputs.every(d=>d.channels.length<=12&&d.twitchLiveOnly));assert.equal(useLibrary.getState().twitchLiveProgress.checked,48);assert.equal(useLibrary.getState().twitchLiveProgress.broadcasts,48);assert(useLibrary.getState().videos.every(v=>v.remote.viewers===888));
+});
+
+
+test('legacy live cards outside a watch-only proof stay live and join the follow ledger before the next bounded check',async()=>{
+ reset([]);const now=Date.now(),source={id:'yt:UC0000000000000000000000',channelId:'UC0000000000000000000000',kind:'youtube',handle:'legacy',title:'Legacy',live:true,liveCheckedAt:now-60000,youtubeLiveVideoIds:['video000001']};
+ const rows=['video000001','video000002'].map((id,i)=>({...card('yt:v:'+id,'youtube','yt:other-folder'),remote:{kind:'youtube',videoId:id,channelId:source.channelId,live:true,observedAt:now-60000}}));useLibrary.setState({videos:rows,follows:[source]});
+ fixture.responseForRequest=data=>({channels:data.channels.map(c=>({...c,live:false,liveCheckedAt:Date.now(),youtubeLiveVideoIds:[],lastLiveFailure:undefined,youtubeLiveEvidence:{at:Date.now(),state:'absent',source:'watch',complete:true,reason:'known-broadcasts'}})),videos:[],refreshedIds:[source.id],liveCheckedIds:[source.id],retryAt:{}});
+ await useLibrary.getState().refreshFollows('youtube',{youtubeLiveOnly:true,liveSweep:true});let state=useLibrary.getState();assert(state.follows[0].live);assert.equal(state.follows[0].youtubeLiveEvidence.state,'unknown');assert.equal(state.follows[0].liveOfflineSince,undefined);assert.deepEqual(new Set(state.follows[0].youtubeLiveVideoIds),new Set(['video000001','video000002']));assert(state.videos.every(v=>v.remote.live&&!v.remote.liveOfflineSince));
+ useLibrary.setState({follows:state.follows.map(c=>({...c,lastLiveFailure:{...c.lastLiveFailure,retryAt:Date.now()-1}}))});
+ await useLibrary.getState().refreshFollows('youtube',{youtubeLiveOnly:true,liveSweep:true});state=useLibrary.getState();assert.equal(fixture.inputs.at(-1).channels[0].youtubeLiveVideoIds.length,2);assert(state.follows[0].liveOfflineSince);assert(state.videos.every(v=>v.remote.live&&v.remote.liveOfflineSince));
+});
+
+
+test('YouTube throughput records only distinct successful observations and never persists a second catalog or telemetry on follows',async()=>{
+ reset([]);const realNow=Date.now;let now=1000000;Date.now=()=>now;
+ try{const follows=Array.from({length:24},(_,i)=>({id:'yt:UC'+String(i).padStart(22,'0'),channelId:'UC'+String(i).padStart(22,'0'),kind:'youtube',handle:'telemetry'+i,title:'Telemetry '+i,live:false,liveCheckedAt:1}));useLibrary.setState({follows});
+ fixture.responseForRequest=data=>{now+=1500;const good=data.channels.filter(c=>Number(c.handle.slice(9))<16),ok=new Set(good.map(c=>c.id));return {channels:data.channels.map(c=>ok.has(c.id)?{...c,liveCheckedAt:now,lastLiveFailure:undefined}:{...c,lastLiveFailure:{at:now,retryAt:now+30000,kind:'unavailable',message:'Fixture failed',recovery:''}}),videos:[],refreshedIds:good.map(c=>c.id),liveCheckedIds:good.map(c=>c.id),retryAt:{}};};
+ const original=useLibrary.getState().videos;await useLibrary.getState().refreshFollows('youtube',{youtubeLiveOnly:true,liveSweep:true});const state=useLibrary.getState(),sample=state.youtubeLiveProgress.throughput.samples.at(-1);assert.equal(sample.attempted,24);assert.equal(sample.successful,16);assert.equal(state.youtubeLiveProgress.refreshed,16);assert.equal(state.youtubeLiveProgress.failed,8);assert(state.youtubeLiveProgress.throughput.samples.length<=33);assert.equal(state.videos,original);assert.equal(fixture.writes.length,0);assert(state.follows.every(c=>!('throughput' in c)));
+ }finally{Date.now=realNow;}
+});
+
+
+test('clip freshness warm retries advance attempts without rewriting cached cards; fresh actions respect waits',async()=>{
+ reset([]);const realNow=Date.now;let now=3000;Date.now=()=>now;
+ try{
+  const c={id:'tw:fresh_store',kind:'twitch',handle:'fresh_store',title:'Fresh creator',twitchClipRecentCheckedAt:1000,twitchClipRecentAttemptedAt:1000};
+  const v={...card('tw:c:fresh','twitch',c.id),extension:'clip',detailsOnDisk:true,addedAt:100,duration:30,remote:{kind:'twitch',videoId:'fresh',views:50,observedAt:1000}};
+  const videos=[v];useLibrary.setState({follows:[c],videos});
+  fixture.response={channel:{...c,twitchClipDiagnostics:{at:1000,servedAt:3000,cacheHit:true,mode:'recent',pages:1,received:1,accepted:1,duplicates:0,windows:[]}},videos:[v]};
+  await useLibrary.getState().followRemoteQuery(c.handle,'twitch',{twitchClipMode:'recent',clipLimit:50});await flush();let s=useLibrary.getState();assert.equal(s.follows[0].twitchClipRecentAttemptedAt,3000);assert.equal(s.follows[0].twitchClipRecentCheckedAt,1000);assert.equal(s.videos,videos);assert.equal(fixture.writes.length,0);
+  const retry={attempts:1,retryAt:9000};useLibrary.setState({follows:[{...s.follows[0],twitchClipRecentRetry:retry}]});const reads=fixture.requests;
+  await assert.rejects(useLibrary.getState().followRemoteQuery(c.handle,'twitch',{twitchClipMode:'recent',freshTwitchClips:true}),/retry available/);assert.equal(fixture.requests,reads);assert.equal(useLibrary.getState().follows[0].twitchClipRecentRetry,retry);
+  now=10000;fixture.response={channel:{...c,twitchClipRecentCheckedAt:10000,twitchClipDiagnostics:{at:10000,cacheHit:false,mode:'recent',pages:1,received:1,accepted:1,duplicates:0,windows:[]}},videos:[{...v,remote:{...v.remote,observedAt:10000,views:60}}]};
+  await useLibrary.getState().followRemoteQuery(c.handle,'twitch',{twitchClipMode:'recent',freshTwitchClips:true});await flush();s=useLibrary.getState();assert.equal(fixture.inputs.at(-1).freshTwitchClips,true);assert.equal(s.follows[0].twitchClipRecentCheckedAt,10000);assert.equal(s.follows[0].twitchClipRecentRetry,undefined);assert.equal(s.videos[0].remote.views,60);assert.equal(fixture.writes.at(-1).remote.views,60);
+ }finally{Date.now=realNow;}
+});
+test('a held older clip response cannot rewind newer cards or clear a newer scoped retry at the real store boundary',async()=>{
+ reset([]);const realNow=Date.now;let now=3000;Date.now=()=>now;
+ try{
+  const c={id:'tw:held_clip',kind:'twitch',handle:'held_clip',title:'Held creator',twitchClipRecentCheckedAt:1000,twitchClipRecentAttemptedAt:1000};
+  const v={...card('tw:c:held','twitch',c.id),extension:'clip',detailsOnDisk:true,name:'Newest title',addedAt:200,duration:30,poster:'new.jpg',remote:{kind:'twitch',videoId:'held',views:500,observedAt:4000}};
+  const latest={...c,twitchClipRecentAttemptedAt:4500,twitchClipRecentCheckedAt:4000,twitchClipRecentRetry:{attempts:2,retryAt:9000},lastClipFailure:{at:4500,kind:'network-offline',message:'Newer failure',recovery:'Wait'}};
+  useLibrary.setState({follows:[c],videos:[v],favorites:{[v.id]:true},history:[{id:v.id,at:1,source:'open'}]});const videos=useLibrary.getState().videos;
+  fixture.beforeResponse=()=>{now=5000;useLibrary.setState({follows:[latest]});};
+  fixture.response={channel:{...c,twitchClipDiagnostics:{at:1000,cacheHit:true,mode:'recent',pages:1,received:1,accepted:1,duplicates:0,windows:[]}},videos:[{...v,name:'Old title',addedAt:1,poster:'old.jpg',remote:{...v.remote,views:1,observedAt:1000}}]};
+  await useLibrary.getState().followRemoteQuery(c.handle,'twitch',{twitchClipMode:'recent'});await flush();const s=useLibrary.getState();assert.equal(s.videos,videos);assert.equal(s.videos[0],v);assert.equal(s.follows[0].twitchClipRecentRetry,latest.twitchClipRecentRetry);assert.equal(s.follows[0].twitchClipRecentCheckedAt,4000);assert.equal(s.follows[0].twitchClipRecentAttemptedAt,4500);assert.equal(s.follows[0].lastClipFailure,latest.lastClipFailure);assert.equal(fixture.writes.length,0);assert.equal(s.favorites[v.id],true);assert.equal(s.history[0].id,v.id);
+ }finally{Date.now=realNow;}
+});
+
+
+test('Twitch type provenance upgrades exact legacy videos and persists through sparse pulls without losing personal signals',async()=>{
+ reset([]);const {twitchContentEvidence,twitchContentKind}=await import('../src/lib/videos/twitch-content.ts');
+ const c={id:'tw:typed_store',kind:'twitch',handle:'typed_store',title:'Typed creator'};
+ const old={...card('tw:v:typed','twitch',c.id),extension:'vod',detailsOnDisk:true,duration:10,remote:{kind:'twitch',videoId:'typed'}};
+ const favorites={[old.id]:true},likes={[old.id]:true},history=[{id:old.id,at:1,source:'open'}],tags={[old.id]:['my-tag']},metadataProvenance={[old.id]:{tags:{'my-tag':'manual'},lockedFields:['tags'],updatedAt:1}};
+ useLibrary.setState({follows:[c],videos:[old],favorites,likes,history,tags,metadataProvenance});
+ const typed={...old,remote:{...old.remote,observedAt:2000,twitchContent:twitchContentEvidence('HIGHLIGHT','typed',2000)}};fixture.response={channel:c,videos:[typed]};
+ await useLibrary.getState().followRemoteQuery(c.handle,'twitch',{clipLimit:0});await flush();assert.equal(twitchContentKind(useLibrary.getState().videos[0]),'highlight');assert.equal(fixture.writes.at(-1).remote.twitchContent.source,'HIGHLIGHT');
+ fixture.response={channel:c,videos:[{...old,remote:{...old.remote,observedAt:3000}}]};await useLibrary.getState().followRemoteQuery(c.handle,'twitch',{clipLimit:0});await flush();
+ const s=useLibrary.getState();assert.equal(twitchContentKind(s.videos[0]),'highlight');assert.equal(fixture.writes.at(-1).remote.twitchContent.videoId,'typed');assert.equal(s.favorites,favorites);assert.equal(s.likes,likes);assert.equal(s.history,history);assert.deepEqual(s.tags[old.id],['my-tag']);assert.equal(s.metadataProvenance[old.id],metadataProvenance[old.id]);
 });

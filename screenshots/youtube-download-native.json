@@ -1,0 +1,22 @@
+{
+  "originGate": true,
+  "invalidInputsRejected": true,
+  "actualCompletedDownload": {
+    "id": "2de1fff7-9d60-46b0-a9ff-e5d7fad00c6a",
+    "key": "jNQXAC9IVRw",
+    "source": "youtube",
+    "engine": "youtube-dl",
+    "url": "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+    "title": "Me at the zoo — public 19-second integration check",
+    "status": "done",
+    "detail": "Saved to your computer.",
+    "progress": 100,
+    "createdAt": 1792343009157,
+    "updatedAt": 1792343013031,
+    "path": "E:\\codex\\drift-brick-terra-acorn\\downloads\\YouTube\\jNQXAC9IVRw",
+    "file": "Me_at_the_zoo [jNQXAC9IVRw].mp4"
+  },
+  "legacyMissingEngineReported": true,
+  "version": 11,
+  "defaultCacheRootPreserved": true
+}

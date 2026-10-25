@@ -1,0 +1,28 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "automatic Twitch confirmation and discovery finish while the first YouTube response is deliberately blocked and bulk archives remain paused",
+        "automatic scans refresh all 42 Twitch and 52 YouTube stale streams and discover a live creator at the tail of 2,000 follows",
+        "all follow observations, including the newly discovered tail stream, are persisted in the dedicated follow checkpoint",
+        "live checks restart after six minutes without user input using the real browser session timer"
+      ],
+      "errors": [],
+      "requests": 264
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "automatic Twitch confirmation and discovery finish while the first YouTube response is deliberately blocked and bulk archives remain paused",
+        "automatic scans refresh all 42 Twitch and 52 YouTube stale streams and discover a live creator at the tail of 2,000 follows",
+        "all follow observations, including the newly discovered tail stream, are persisted in the dedicated follow checkpoint",
+        "live checks restart after six minutes without user input using the real browser session timer"
+      ],
+      "errors": [],
+      "requests": 264
+    }
+  ],
+  "limitation": "Isolated desktop/mobile Chrome; real scheduler, store, persistence and UI, with controlled provider responses including a stalled YouTube response."
+}

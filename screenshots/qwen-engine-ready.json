@@ -1,0 +1,12 @@
+{
+  "ok": true,
+  "connected": true,
+  "ready": true,
+  "models": [
+    "qwen_image_2.1_turbo_int8_convrot.safetensors"
+  ],
+  "busy": false,
+  "canStart": true,
+  "ownedEngine": true,
+  "note": "Qwen-Image 2.1 · local ComfyUI · one image at a time."
+}

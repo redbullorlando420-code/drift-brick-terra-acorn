@@ -55,7 +55,7 @@ export async function cachedAdultFetch(
     if (hit && now - hit.at <= ttl) {
       return new Response(hit.body, {
         status: hit.status,
-        headers: { "content-type": hit.contentType || "application/json", "x-reelcase-cache": "HIT" },
+        headers: { "content-type": hit.contentType || "application/json", "x-reelcase-cache": "HIT", "x-reelcase-observed-at": String(hit.at) },
       });
     }
   }
@@ -72,7 +72,7 @@ export async function cachedAdultFetch(
     prune(now);
     return new Response(body, {
       status: res.status,
-      headers: { "content-type": contentType, "x-reelcase-cache": "MISS" },
+      headers: { "content-type": contentType, "x-reelcase-cache": "MISS", "x-reelcase-observed-at": String(now) },
     });
   }
   return res;

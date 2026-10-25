@@ -1,0 +1,1162 @@
+npm notice run dev
+npm notice run node scripts/with-app-env.mjs vite dev --host 0.0.0.0 --port 8080
+
+  VITE v8.2.2  ready in 4229 ms
+
+  ➜  Local:   http://localhost:8080/
+  ➜  Network: http://10.5.0.2:8080/      NordLynx
+  ➜  Network: http://192.168.1.68:8080/  Ethernet 2
+7:34:48 PM [vite] (ssr) connected.
+7:35:25 PM [vite] (client) hmr update /src/styles.css?direct
+7:35:51 PM [vite] (client) hmr update /src/styles.css?direct
+7:37:40 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+7:37:40 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+7:37:40 PM [vite] (ssr) program reload
+7:39:34 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/youtube-offline-audit.tsx
+7:39:34 PM [vite] (ssr) page reload src/components/library/youtube-offline-audit.tsx
+7:39:34 PM [vite] (ssr) program reload
+7:41:28 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-overlays.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 29 more
+7:41:28 PM [vite] (ssr) page reload src/lib/videos/follow-identity.ts
+7:41:28 PM [vite] (ssr) program reload
+7:41:28 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/follow-manager.tsx, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx and 29 more
+7:41:28 PM [vite] (ssr) page reload src/lib/videos/youtube-identity-review.ts
+7:41:28 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+7:41:28 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+7:41:28 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+7:41:28 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx
+7:41:28 PM [vite] (client) hmr invalidate /src/components/library/adult-comments.tsx Could not Fast Refresh ("supportsRemoteComments" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+7:41:28 PM [vite] (client) hmr update /src/components/library/pre-video.tsx, /src/components/library/watch-room-section.tsx
+7:41:44 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-overlays.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 29 more
+7:41:44 PM [vite] (ssr) page reload src/lib/videos/follow-identity.ts
+7:41:45 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+7:41:45 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+7:41:45 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+7:41:45 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx
+7:41:45 PM [vite] (client) hmr invalidate /src/components/library/adult-comments.tsx Could not Fast Refresh ("supportsRemoteComments" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+7:41:45 PM [vite] (client) hmr update /src/components/library/pre-video.tsx, /src/components/library/watch-room-section.tsx
+7:43:07 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })
+7:47:03 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+7:47:03 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/follow-manager.tsx
+7:47:03 PM [vite] (ssr) page reload src/components/library/follow-manager.tsx
+7:47:03 PM [vite] (ssr) program reload
+8:57:25 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 29 more
+8:57:25 PM [vite] (ssr) page reload src/lib/videos/content-classification.ts
+8:57:25 PM [vite] (ssr) program reload
+8:57:26 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+8:57:26 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+8:57:26 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+8:57:26 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx
+8:58:37 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 29 more
+8:58:37 PM [vite] (client) hmr update /src/styles.css?direct
+8:58:37 PM [vite] (client) hmr update /src/styles.css?direct
+8:58:37 PM [vite] (client) hmr update /src/styles.css?direct
+8:58:38 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+8:58:38 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+8:58:38 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+8:58:38 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx
+9:00:29 PM [vite] (client) hmr update /src/styles.css?direct
+9:00:29 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+9:00:29 PM [vite] (ssr) page reload src/lib/videos/movie-catalog.ts
+9:00:29 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+9:00:29 PM [vite] (ssr) page reload src/components/library/use-movie-catalog.ts
+9:00:29 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+9:00:29 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+9:02:14 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/invite.tsx, /src/components/library/library-app.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/live-catalog.tsx, /src/components/library/live-desk.tsx, /src/components/library/browse.tsx, /src/components/library/video-card.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx and 30 more
+9:02:14 PM [vite] (ssr) page reload src/lib/videos/types.ts
+9:02:14 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/settings-section.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx and 30 more
+9:02:14 PM [vite] (ssr) page reload src/lib/videos/follow-checkpoints.ts
+9:02:14 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/settings-section.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx and 30 more
+9:02:14 PM [vite] (ssr) page reload src/lib/videos/twitch-retry.ts
+9:02:14 PM [vite] (client) hmr update /src/styles.css?direct
+9:02:14 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+9:02:14 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 30 more
+9:02:14 PM [vite] (ssr) page reload src/lib/videos/store.ts
+9:02:14 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+9:02:14 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+9:02:14 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+9:02:14 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+9:02:14 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx
+9:03:51 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+9:03:51 PM [vite] (ssr) page reload src/lib/videos/twitch-clips.ts
+9:03:51 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+9:03:51 PM [vite] (ssr) page reload src/components/library/use-twitch-desk-catalog.ts
+9:03:51 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+9:03:51 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+9:04:12 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+9:04:12 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+9:04:12 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/movie-desk.tsx
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })
+AbortError: This operation was aborted
+    at new DOMException (node:internal/per_context/domexception:76:18)
+    ... 8 lines matching cause stack trace ...
+    at TCP.<anonymous> (node:net:362:12) {
+  cause: DOMException [AbortError]: This operation was aborted
+      at new DOMException (node:internal/per_context/domexception:76:18)
+      at AbortController.abort (node:internal/abort_controller:579:18)
+      at abort (file:///E:/codex/drift-brick-terra-acorn/node_modules/srvx/dist/adapters/node.mjs:316:51)
+      at ServerResponse.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/node_modules/srvx/dist/adapters/node.mjs:320:35)
+      at ServerResponse.wrapper (node:events:639:12)
+      at ServerResponse.emit (node:events:514:28)
+      at emitCloseNT (node:_http_server:1156:10)
+      at Socket.onServerResponseClose (node:_http_server:292:5)
+      at Socket.emit (node:events:526:24)
+      at TCP.<anonymous> (node:net:362:12),
+  status: 500,
+  statusText: undefined,
+  headers: undefined,
+  data: undefined,
+  body: undefined,
+  unhandled: true
+}
+AbortError: This operation was aborted
+    at new DOMException (node:internal/per_context/domexception:76:18)
+    ... 8 lines matching cause stack trace ...
+    at TCP.<anonymous> (node:net:362:12) {
+  cause: DOMException [AbortError]: This operation was aborted
+      at new DOMException (node:internal/per_context/domexception:76:18)
+      at AbortController.abort (node:internal/abort_controller:579:18)
+      at abort (file:///E:/codex/drift-brick-terra-acorn/node_modules/srvx/dist/adapters/node.mjs:316:51)
+      at ServerResponse.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/node_modules/srvx/dist/adapters/node.mjs:320:35)
+      at ServerResponse.wrapper (node:events:639:12)
+      at ServerResponse.emit (node:events:514:28)
+      at emitCloseNT (node:_http_server:1156:10)
+      at Socket.onServerResponseClose (node:_http_server:292:5)
+      at Socket.emit (node:events:526:24)
+      at TCP.<anonymous> (node:net:362:12),
+  status: 500,
+  statusText: undefined,
+  headers: undefined,
+  data: undefined,
+  body: undefined,
+  unhandled: true
+}
+AbortError: This operation was aborted
+    at new DOMException (node:internal/per_context/domexception:76:18)
+    ... 8 lines matching cause stack trace ...
+    at TCP.<anonymous> (node:net:362:12) {
+  cause: DOMException [AbortError]: This operation was aborted
+      at new DOMException (node:internal/per_context/domexception:76:18)
+      at AbortController.abort (node:internal/abort_controller:579:18)
+      at abort (file:///E:/codex/drift-brick-terra-acorn/node_modules/srvx/dist/adapters/node.mjs:316:51)
+      at ServerResponse.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/node_modules/srvx/dist/adapters/node.mjs:320:35)
+      at ServerResponse.wrapper (node:events:639:12)
+      at ServerResponse.emit (node:events:514:28)
+      at emitCloseNT (node:_http_server:1156:10)
+      at Socket.onServerResponseClose (node:_http_server:292:5)
+      at Socket.emit (node:events:526:24)
+      at TCP.<anonymous> (node:net:362:12),
+  status: 500,
+  statusText: undefined,
+  headers: undefined,
+  data: undefined,
+  body: undefined,
+  unhandled: true
+}
+9:07:49 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+9:08:39 PM [vite] (client) hmr update /src/styles.css?direct
+9:09:31 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+9:09:31 PM [vite] (client) hmr update /src/styles.css?direct
+9:09:31 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/movie-desk.tsx
+9:09:31 PM [vite] (ssr) page reload src/components/library/movie-desk.tsx
+9:09:31 PM [vite] (ssr) program reload
+9:09:31 PM [vite] (client) hmr update /src/styles.css?direct
+9:09:31 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+9:09:31 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+9:12:41 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 33 more
+9:12:41 PM [vite] (ssr) page reload src/lib/videos/anime-title.ts
+9:12:41 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 33 more
+9:12:41 PM [vite] (ssr) page reload src/lib/videos/content-classification.ts
+9:12:41 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+9:12:41 PM [vite] (ssr) page reload src/lib/videos/twitch-clips.ts
+9:12:41 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+9:12:41 PM [vite] (ssr) page reload src/lib/videos/movie-catalog.ts
+9:12:42 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+9:12:42 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+9:12:42 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+9:12:42 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+9:12:42 PM [vite] (client) hmr invalidate /src/components/library/adult-comments.tsx Could not Fast Refresh ("supportsRemoteComments" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+9:12:42 PM [vite] (client) hmr update /src/components/library/pre-video.tsx, /src/components/library/watch-room-section.tsx, /src/components/library/player.tsx, /src/components/library/adult-image-lightbox.tsx
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })
+9:15:52 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/movie-desk.tsx
+9:15:52 PM [vite] (ssr) page reload src/components/library/movie-desk.tsx
+9:15:52 PM [vite] (ssr) program reload
+9:15:52 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/movie-desk.tsx
+9:15:52 PM [vite] (ssr) page reload src/lib/videos/movie-selection.ts
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })
+9:27:06 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-participation-panel.tsx
+9:27:06 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 34 more
+9:27:06 PM [vite] (ssr) page reload src/lib/videos/content-classification.ts
+9:27:06 PM [vite] (ssr) program reload
+9:27:06 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+9:27:06 PM [vite] (ssr) page reload src/components/library/use-movie-catalog.ts
+9:27:06 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+9:27:06 PM [vite] (ssr) page reload src/lib/videos/movie-catalog.ts
+9:27:07 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+9:27:07 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+9:27:07 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+9:27:07 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+9:27:07 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+9:27:07 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+9:27:07 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+9:27:07 PM [vite] (client) hmr invalidate /src/components/library/adult-comments.tsx Could not Fast Refresh ("supportsRemoteComments" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+9:27:07 PM [vite] (client) hmr update /src/components/library/pre-video.tsx, /src/components/library/watch-room-section.tsx, /src/components/library/player.tsx, /src/components/library/adult-image-lightbox.tsx
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })
+9:27:41 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+9:27:41 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })
+9:27:51 PM [vite] (client) [console.error] ReferenceError: lastRequest is not defined
+    at http://127.0.0.1:8080/src/components/library/room-participation-panel.tsx?t=1792718826958:49:40
+    at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=e02092d4:12902:13)
+    at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=e02092d4:851:66)
+    at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=e02092d4:6617:153)
+    at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=e02092d4:6652:55)
+    at commitPassiveMountOnFiber (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=e02092d4:7618:22)
+    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=e02092d4:7606:5)
+    at commitPassiveMountOnFiber (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=e02092d4:7672:14)
+    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=e02092d4:7606:5)
+    at commitPassiveMountOnFiber (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=e02092d4:7672:14)
+
+The above error occurred in the <RoomParticipationPanel> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, CatchBoundary.
+
+9:27:51 PM [vite] (client) [console.warn] Warning: Error in route match: //
+9:27:51 PM [vite] (client) [console.error] ReferenceError: lastRequest is not defined
+    at http://127.0.0.1:8080/src/components/library/room-participation-panel.tsx?t=1792718826958:49:40
+    at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=e02092d4:12902:13)
+    at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=e02092d4:851:66)
+    at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=e02092d4:6617:153)
+    at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=e02092d4:6652:55)
+    at reconnectPassiveEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=e02092d4:7701:6)
+    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=e02092d4:7688:5)
+    at reconnectPassiveEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=e02092d4:7713:14)
+    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=e02092d4:7688:5)
+    at reconnectPassiveEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=e02092d4:7713:14)
+
+The above error occurred in the <RoomParticipationPanel> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, CatchBoundary.
+
+9:27:51 PM [vite] (client) [console.warn] Warning: Error in route match: //
+9:28:15 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-participation-panel.tsx
+11:12:38 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/official-room-player.tsx
+11:13:13 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/official-room-player.tsx
+11:41:44 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/pre-video.tsx, /src/components/library/watch-room-section.tsx, /src/components/library/player.tsx
+11:41:44 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+11:42:43 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-invitation.tsx
+11:42:43 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+11:42:44 AM [vite] (client) hmr invalidate /src/components/library/room-invitation.tsx Could not Fast Refresh ("useRoomInvitation" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:42:44 AM [vite] (client) hmr update /src/components/library/watch-room-section.tsx
+11:43:52 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/pre-video.tsx, /src/components/library/watch-room-section.tsx, /src/components/library/player.tsx
+11:43:52 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-https-invitation.tsx
+11:52:31 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+11:58:14 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-https-invitation.tsx
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })
+AbortError: This operation was aborted
+    at new DOMException (node:internal/per_context/domexception:76:18)
+    ... 8 lines matching cause stack trace ...
+    at TCP.<anonymous> (node:net:362:12) {
+  cause: DOMException [AbortError]: This operation was aborted
+      at new DOMException (node:internal/per_context/domexception:76:18)
+      at AbortController.abort (node:internal/abort_controller:579:18)
+      at abort (file:///E:/codex/drift-brick-terra-acorn/node_modules/srvx/dist/adapters/node.mjs:316:51)
+      at ServerResponse.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/node_modules/srvx/dist/adapters/node.mjs:320:35)
+      at ServerResponse.wrapper (node:events:639:12)
+      at ServerResponse.emit (node:events:514:28)
+      at emitCloseNT (node:_http_server:1156:10)
+      at Socket.onServerResponseClose (node:_http_server:292:5)
+      at Socket.emit (node:events:526:24)
+      at TCP.<anonymous> (node:net:362:12),
+  status: 500,
+  statusText: undefined,
+  headers: undefined,
+  data: undefined,
+  body: undefined,
+  unhandled: true
+}
+10:36:40 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/invite.tsx, /src/components/library/library-app.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/live-catalog.tsx, /src/components/library/live-desk.tsx, /src/components/library/browse.tsx, /src/components/library/video-card.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx and 37 more
+10:36:40 AM [vite] (ssr) page reload src/lib/videos/types.ts
+10:36:40 AM [vite] (ssr) program reload
+10:36:40 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/invite.tsx, /src/components/library/library-app.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/live-catalog.tsx, /src/components/library/live-desk.tsx, /src/components/library/browse.tsx, /src/components/library/video-card.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx and 37 more
+10:36:40 AM [vite] (ssr) page reload src/lib/videos/types.ts
+10:36:40 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 37 more
+10:36:40 AM [vite] (ssr) page reload src/lib/remote/youtube-sweep.ts
+10:36:40 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 37 more
+10:36:40 AM [vite] (ssr) page reload src/lib/videos/follow-checkpoints.ts
+10:36:40 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 37 more
+10:36:40 AM [vite] (ssr) page reload src/lib/videos/twitch-refresh-selection.ts
+10:37:35 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/performance-scorecard.tsx
+10:37:35 AM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+10:37:35 AM [vite] (client) hmr update /src/styles.css?direct
+10:37:35 AM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+10:37:35 AM [vite] (client) hmr update /src/styles.css?direct
+10:37:35 AM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+10:37:36 AM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+10:37:37 AM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+10:37:37 AM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+10:38:02 AM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:38:02 AM [vite] (client) hmr update /src/components/library/library-app.tsx
+10:38:02 AM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:38:02 AM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+10:38:02 AM [vite] (client) hmr invalidate /src/components/library/adult-comments.tsx Could not Fast Refresh ("supportsRemoteComments" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:38:02 AM [vite] (client) hmr update /src/components/library/pre-video.tsx, /src/components/library/watch-room-section.tsx, /src/components/library/player.tsx, /src/components/library/adult-image-lightbox.tsx
+10:41:22 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 37 more
+10:41:22 AM [vite] (ssr) page reload src/lib/videos/store.ts
+10:41:22 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 37 more
+10:41:22 AM [vite] (ssr) page reload src/lib/videos/store.ts
+10:41:22 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 37 more
+10:41:22 AM [vite] (ssr) page reload src/lib/remote/youtube-sweep.ts
+10:41:22 AM [vite] (client) hmr update /src/styles.css?direct
+10:41:22 AM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+10:41:23 AM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+10:41:24 AM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:41:24 AM [vite] (client) hmr update /src/components/library/library-app.tsx
+10:41:24 AM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:41:24 AM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+10:41:25 AM [vite] (client) hmr invalidate /src/components/library/adult-comments.tsx Could not Fast Refresh ("supportsRemoteComments" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:41:25 AM [vite] (client) hmr update /src/components/library/pre-video.tsx, /src/components/library/watch-room-section.tsx, /src/components/library/player.tsx, /src/components/library/adult-image-lightbox.tsx
+10:42:37 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 37 more
+10:42:37 AM [vite] (ssr) page reload src/lib/videos/store.ts
+10:42:44 AM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:42:44 AM [vite] (client) hmr update /src/components/library/library-app.tsx
+10:42:44 AM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:42:44 AM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+10:42:44 AM [vite] (client) hmr invalidate /src/components/library/adult-comments.tsx Could not Fast Refresh ("supportsRemoteComments" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:42:44 AM [vite] (client) hmr update /src/components/library/pre-video.tsx, /src/components/library/watch-room-section.tsx, /src/components/library/player.tsx, /src/components/library/adult-image-lightbox.tsx
+10:43:49 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 37 more
+10:43:49 AM [vite] (ssr) page reload src/lib/videos/store.ts
+10:43:54 AM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:43:54 AM [vite] (client) hmr update /src/components/library/library-app.tsx
+10:43:54 AM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:43:54 AM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+10:43:54 AM [vite] (client) hmr invalidate /src/components/library/adult-comments.tsx Could not Fast Refresh ("supportsRemoteComments" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:43:54 AM [vite] (client) hmr update /src/components/library/pre-video.tsx, /src/components/library/watch-room-section.tsx, /src/components/library/player.tsx, /src/components/library/adult-image-lightbox.tsx
+10:46:18 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 37 more
+10:46:18 AM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+10:46:18 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 37 more
+10:46:18 AM [vite] (ssr) page reload src/lib/remote/youtube-sweep.ts
+10:46:18 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 37 more
+10:46:18 AM [vite] (ssr) page reload src/lib/remote/youtube-sweep.ts
+10:46:19 AM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+10:46:26 AM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:46:26 AM [vite] (client) hmr update /src/components/library/library-app.tsx
+10:46:26 AM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:46:26 AM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+10:46:26 AM [vite] (client) hmr invalidate /src/components/library/adult-comments.tsx Could not Fast Refresh ("supportsRemoteComments" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:46:26 AM [vite] (client) hmr update /src/components/library/pre-video.tsx, /src/components/library/watch-room-section.tsx, /src/components/library/player.tsx, /src/components/library/adult-image-lightbox.tsx
+10:46:33 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+10:46:33 AM [vite] (ssr) page reload src/components/library/library-app.tsx
+10:50:55 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/provider-pull-panel.tsx
+10:51:29 AM [vite] (client) hmr update /src/styles.css?direct
+10:52:06 AM [vite] (client) hmr update /src/styles.css?direct
+10:52:06 AM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+10:52:06 AM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+10:58:24 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 38 more
+10:58:24 AM [vite] (ssr) page reload src/lib/videos/store.ts
+10:58:24 AM [vite] (ssr) program reload
+10:58:24 AM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:58:24 AM [vite] (client) hmr update /src/components/library/library-app.tsx
+10:58:24 AM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:58:24 AM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+10:58:24 AM [vite] (client) hmr invalidate /src/components/library/adult-comments.tsx Could not Fast Refresh ("supportsRemoteComments" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:58:24 AM [vite] (client) hmr update /src/components/library/pre-video.tsx, /src/components/library/watch-room-section.tsx, /src/components/library/player.tsx, /src/components/library/adult-image-lightbox.tsx
+10:59:36 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/provider-pull-panel.tsx
+10:59:36 AM [vite] (ssr) page reload src/components/library/provider-pull-panel.tsx
+11:00:06 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/provider-pull-panel.tsx
+11:00:06 AM [vite] (ssr) page reload src/components/library/provider-pull-panel.tsx
+11:00:06 AM [vite] (ssr) program reload
+11:00:06 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 38 more
+11:00:06 AM [vite] (ssr) page reload src/lib/videos/recent-pull.ts
+11:00:08 AM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:00:08 AM [vite] (client) hmr update /src/components/library/library-app.tsx
+11:00:08 AM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:00:08 AM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+11:00:08 AM [vite] (client) hmr invalidate /src/components/library/adult-comments.tsx Could not Fast Refresh ("supportsRemoteComments" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:00:08 AM [vite] (client) hmr update /src/components/library/pre-video.tsx, /src/components/library/watch-room-section.tsx, /src/components/library/player.tsx, /src/components/library/adult-image-lightbox.tsx
+11:39:35 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/performance-scorecard.tsx
+11:39:35 AM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+11:39:35 AM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+11:41:38 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/invite.tsx, /src/components/library/library-app.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/live-catalog.tsx, /src/components/library/live-desk.tsx, /src/components/library/browse.tsx, /src/components/library/video-card.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx and 38 more
+11:41:38 AM [vite] (ssr) page reload src/lib/videos/types.ts
+11:41:38 AM [vite] (ssr) program reload
+11:41:38 AM [vite] (client) hmr update /src/styles.css?direct
+11:41:38 AM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+11:41:41 AM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+11:41:44 AM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:41:44 AM [vite] (client) hmr update /src/components/library/library-app.tsx
+11:41:44 AM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:41:44 AM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+11:41:44 AM [vite] (client) hmr invalidate /src/components/library/adult-comments.tsx Could not Fast Refresh ("supportsRemoteComments" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:41:44 AM [vite] (client) hmr update /src/components/library/pre-video.tsx, /src/components/library/watch-room-section.tsx, /src/components/library/player.tsx, /src/components/library/adult-image-lightbox.tsx
+11:42:17 AM [vite] (client) hmr update /src/styles.css?direct
+11:42:17 AM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+11:42:17 AM [vite] (client) hmr update /src/styles.css?direct
+11:42:17 AM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+11:42:17 AM [vite] (client) hmr update /src/styles.css?direct
+11:42:17 AM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+11:42:17 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 38 more
+11:42:17 AM [vite] (ssr) page reload src/lib/videos/twitch-retry.ts
+11:42:17 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/twitch-clips-control.tsx
+11:42:17 AM [vite] (ssr) page reload src/lib/videos/twitch-clip-refresh.ts
+11:42:17 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 38 more
+11:42:17 AM [vite] (ssr) page reload src/lib/videos/twitch-retry.ts
+11:42:17 AM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+11:42:20 AM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+11:42:20 AM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+11:42:20 AM [vite] (ssr) program reload
+11:42:20 AM [vite] (ssr) program reload
+11:42:23 AM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:42:23 AM [vite] (client) hmr update /src/components/library/library-app.tsx
+11:42:23 AM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:42:23 AM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+11:42:37 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 38 more
+11:42:37 AM [vite] (ssr) page reload src/lib/videos/store.ts
+11:42:37 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 38 more
+11:42:37 AM [vite] (ssr) page reload src/lib/videos/follow-checkpoints.ts
+11:42:42 AM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:42:42 AM [vite] (client) hmr update /src/components/library/library-app.tsx
+11:42:42 AM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:42:42 AM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+11:43:46 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/twitch-clips-control.tsx
+11:43:46 AM [vite] (ssr) page reload src/components/library/twitch-clips-control.tsx
+11:43:46 AM [vite] (client) hmr update /src/styles.css?direct
+11:43:46 AM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+11:43:47 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/twitch-clips-control.tsx
+11:43:47 AM [vite] (ssr) page reload src/components/library/twitch-clips-control.tsx
+11:43:47 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/twitch-clips-control.tsx
+11:43:47 AM [vite] (ssr) page reload src/lib/videos/twitch-clip-refresh.ts
+11:43:47 AM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+11:45:16 AM [vite] (client) hmr update /src/styles.css?direct
+11:45:16 AM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+11:45:16 AM [vite] (client) hmr update /src/styles.css?direct
+11:45:16 AM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+11:45:16 AM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+11:45:17 AM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+11:45:55 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 38 more
+11:45:55 AM [vite] (ssr) page reload src/lib/videos/store.ts
+11:45:56 AM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:45:56 AM [vite] (client) hmr update /src/components/library/library-app.tsx
+11:45:56 AM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:45:56 AM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+11:46:18 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 38 more
+11:46:18 AM [vite] (ssr) page reload src/lib/videos/store.ts
+11:46:20 AM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:46:20 AM [vite] (client) hmr update /src/components/library/library-app.tsx
+11:46:20 AM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:46:20 AM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+11:49:13 AM [vite] (client) hmr update /src/styles.css?direct
+11:49:13 AM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+11:49:13 AM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+11:49:13 AM [vite] (client) hmr update /src/styles.css?direct
+11:49:13 AM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+11:49:13 AM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+12:17:47 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+12:19:29 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+12:20:01 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+12:20:05 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+12:38:34 PM [vite] (client) hmr update /src/styles.css?direct
+12:38:34 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+12:38:34 PM [vite] (client) hmr update /src/styles.css?direct
+12:38:34 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+12:38:34 PM [vite] (client) hmr update /src/styles.css?direct
+12:38:34 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+12:38:35 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+12:38:36 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+12:38:36 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+12:39:20 PM [vite] (client) hmr update /src/styles.css?direct
+12:39:20 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+12:39:20 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+12:39:20 PM [vite] (client) hmr update /src/styles.css?direct
+12:39:20 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+12:39:20 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/invite.tsx, /src/components/library/library-app.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/live-catalog.tsx, /src/components/library/live-desk.tsx, /src/components/library/browse.tsx, /src/components/library/video-card.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx and 38 more
+12:39:20 PM [vite] (ssr) page reload src/lib/videos/types.ts
+12:39:20 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 38 more
+12:39:20 PM [vite] (ssr) page reload src/lib/videos/persist.ts
+12:39:23 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+12:39:23 PM [vite] (ssr) program reload
+12:39:25 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+12:39:25 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+12:39:25 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+12:39:25 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+12:40:12 PM [vite] (client) hmr update /src/styles.css?direct
+12:40:12 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+12:40:12 PM [vite] (client) hmr update /src/styles.css?direct
+12:40:12 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+12:40:12 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 38 more
+12:40:12 PM [vite] (ssr) page reload src/lib/videos/store.ts
+12:40:14 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+12:40:15 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+12:40:21 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+12:40:21 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+12:40:21 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+12:40:21 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+12:40:51 PM [vite] (client) hmr update /src/styles.css?direct
+12:40:51 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+12:40:51 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+12:41:20 PM [vite] (client) hmr update /src/styles.css?direct
+12:41:20 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+12:41:20 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+12:42:23 PM [vite] (client) hmr update /src/styles.css?direct
+12:42:23 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+12:42:23 PM [vite] (client) hmr update /src/styles.css?direct
+12:42:23 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+12:42:23 PM [vite] (client) hmr update /src/styles.css?direct
+12:42:23 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+12:42:23 PM [vite] (client) hmr update /src/styles.css?direct
+12:42:23 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+12:42:25 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+12:42:26 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+12:42:26 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+12:42:26 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+12:42:59 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/live-check-status.tsx
+12:42:59 PM [vite] (ssr) page reload src/components/library/live-check-status.tsx
+12:43:00 PM [vite] (client) hmr update /src/styles.css?direct
+12:43:00 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+12:43:01 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+12:43:02 PM [vite] (client) hmr update /src/styles.css?direct
+12:43:02 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+12:43:02 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+12:49:15 PM [vite] (client) hmr update /src/styles.css?direct
+12:49:15 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+12:49:15 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+12:52:31 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 38 more
+12:52:31 PM [vite] (ssr) page reload src/lib/videos/store.ts
+12:52:31 PM [vite] (ssr) program reload
+12:52:31 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/live-check-status.tsx
+12:52:31 PM [vite] (ssr) page reload src/components/library/live-check-status.tsx
+12:52:33 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+12:52:33 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+12:52:33 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+12:52:33 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+12:53:04 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 38 more
+12:53:04 PM [vite] (ssr) page reload src/lib/videos/store.ts
+12:53:06 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+12:53:06 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+12:53:06 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+12:53:06 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+12:54:52 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+12:54:53 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+12:55:25 PM [vite] (client) hmr update /src/styles.css?direct
+12:59:25 PM [vite] (client) hmr update /src/styles.css?direct
+12:59:25 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+12:59:25 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+1:02:10 PM [vite] (client) hmr update /src/styles.css?direct
+1:02:10 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+1:02:10 PM [vite] (client) hmr update /src/styles.css?direct
+1:02:10 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+1:02:11 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+1:02:11 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+1:03:28 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/live-check-status.tsx
+1:03:28 PM [vite] (ssr) page reload src/components/library/live-check-status.tsx
+1:03:28 PM [vite] (ssr) program reload
+1:05:59 PM [vite] (client) hmr update /src/styles.css?direct
+1:05:59 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+1:05:59 PM [vite] (client) hmr update /src/styles.css?direct
+1:05:59 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+5:22:39 PM [vite] (client) hmr update /src/styles.css?direct
+5:22:39 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+5:22:40 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+5:22:48 PM [vite] (client) hmr update /src/styles.css?direct
+5:22:48 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+5:22:49 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+5:23:36 PM [vite] (client) hmr update /src/styles.css?direct
+5:23:36 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+5:23:36 PM [vite] (client) hmr update /src/styles.css?direct
+5:23:36 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+5:23:36 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/invite.tsx, /src/components/library/library-app.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/live-catalog.tsx, /src/components/library/live-desk.tsx, /src/components/library/browse.tsx, /src/components/library/video-card.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx and 38 more
+5:23:36 PM [vite] (ssr) page reload src/lib/videos/types.ts
+5:23:36 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 38 more
+5:23:36 PM [vite] (ssr) page reload src/lib/videos/persist.ts
+5:23:36 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+5:23:37 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+5:23:37 PM [vite] (ssr) program reload
+5:23:38 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:23:38 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+5:23:38 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:23:38 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+5:23:50 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/live-catalog.tsx, /src/components/library/live-desk.tsx, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx and 38 more
+5:23:50 PM [vite] (ssr) page reload src/lib/videos/live-retention.ts
+5:23:52 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:23:52 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+5:23:52 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:23:52 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+5:24:24 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 38 more
+5:24:24 PM [vite] (ssr) page reload src/lib/videos/store.ts
+5:24:24 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/live-check-status.tsx
+5:24:24 PM [vite] (ssr) page reload src/components/library/live-check-status.tsx
+5:24:25 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:24:25 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+5:24:25 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:24:25 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+5:26:51 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 38 more
+5:26:51 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+5:26:52 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+5:26:52 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:26:52 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+5:26:52 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:26:52 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+5:27:36 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 38 more
+5:27:36 PM [vite] (ssr) page reload src/lib/remote/youtube-live-evidence.ts
+5:27:36 PM [vite] (ssr) program reload
+5:27:36 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:27:36 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+5:27:36 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:27:36 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+5:27:36 PM [vite] (client) hmr invalidate /src/components/library/adult-comments.tsx Could not Fast Refresh ("supportsRemoteComments" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:27:36 PM [vite] (client) hmr update /src/components/library/pre-video.tsx, /src/components/library/watch-room-section.tsx, /src/components/library/player.tsx, /src/components/library/adult-image-lightbox.tsx
+5:30:08 PM [vite] (client) hmr update /src/styles.css?direct
+5:30:08 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+5:30:09 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+5:30:22 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+5:30:22 PM [vite] (client) hmr update /src/styles.css?direct
+5:31:24 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/live-check-status.tsx
+5:31:24 PM [vite] (ssr) page reload src/components/library/live-check-status.tsx
+5:31:24 PM [vite] (ssr) program reload
+5:36:32 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 38 more
+5:36:32 PM [vite] (ssr) page reload src/lib/remote/youtube-live-evidence.ts
+5:36:32 PM [vite] (ssr) program reload
+5:36:32 PM [vite] (client) hmr update /src/styles.css?direct
+5:36:32 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+5:36:32 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/invite.tsx, /src/components/library/library-app.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/live-catalog.tsx, /src/components/library/live-desk.tsx, /src/components/library/browse.tsx, /src/components/library/video-card.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx and 38 more
+5:36:32 PM [vite] (ssr) page reload src/lib/videos/types.ts
+5:36:32 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 38 more
+5:36:32 PM [vite] (ssr) page reload src/lib/videos/persist.ts
+5:36:32 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 38 more
+5:36:32 PM [vite] (ssr) page reload src/lib/videos/store.ts
+5:36:33 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+5:36:34 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:36:34 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+5:36:34 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:36:34 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+5:37:02 PM [vite] (client) hmr update /src/styles.css?direct
+5:37:02 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+5:37:02 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 38 more
+5:37:02 PM [vite] (ssr) page reload src/lib/videos/store.ts
+5:37:04 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+5:37:05 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:37:05 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+5:37:05 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:37:05 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+5:41:56 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 38 more
+5:41:56 PM [vite] (ssr) page reload src/lib/videos/store.ts
+5:41:56 PM [vite] (ssr) program reload
+5:41:58 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:41:58 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+5:41:58 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:41:58 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+5:45:24 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 38 more
+5:45:24 PM [vite] (ssr) page reload src/lib/videos/persist.ts
+5:45:24 PM [vite] (client) hmr update /src/styles.css?direct
+5:45:24 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+5:45:25 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+5:45:27 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:45:27 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+5:45:27 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:45:27 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+5:54:29 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/live-check-status.tsx, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx and 38 more
+5:54:29 PM [vite] (ssr) page reload src/lib/videos/youtube-live-health.ts
+5:54:29 PM [vite] (ssr) program reload
+5:54:30 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/live-check-status.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx and 38 more
+5:54:30 PM [vite] (ssr) page reload src/lib/videos/youtube-quick-live.ts
+5:54:30 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 38 more
+5:54:30 PM [vite] (ssr) page reload src/lib/videos/store.ts
+5:54:30 PM [vite] (ssr) program reload
+5:54:30 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:54:30 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+5:54:30 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:54:30 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+5:55:44 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/live-check-status.tsx, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx and 38 more
+5:55:44 PM [vite] (ssr) page reload src/lib/videos/youtube-live-health.ts
+5:55:44 PM [vite] (ssr) program reload
+5:55:44 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/live-check-status.tsx
+5:55:44 PM [vite] (ssr) page reload src/components/library/live-check-status.tsx
+5:55:44 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:55:44 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+5:55:44 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:55:44 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+5:57:00 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/youtube-live-coverage-panel.tsx
+5:57:00 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 38 more
+5:57:00 PM [vite] (ssr) page reload src/lib/videos/store.ts
+5:57:00 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/live-check-status.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx and 38 more
+5:57:00 PM [vite] (ssr) page reload src/lib/videos/live-refresh-selection.ts
+5:57:00 PM [vite] (ssr) program reload
+5:57:00 PM [vite] (client) hmr update /src/styles.css?direct
+5:57:00 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+5:57:00 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/live-check-status.tsx, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx and 38 more
+5:57:00 PM [vite] (ssr) page reload src/lib/videos/youtube-live-health.ts
+5:57:01 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+5:57:01 PM [vite] (ssr) program reload
+5:57:01 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:57:01 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+5:57:01 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:57:01 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+5:57:27 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/live-check-status.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx and 38 more
+5:57:27 PM [vite] (ssr) page reload src/lib/videos/live-refresh-selection.ts
+5:57:27 PM [vite] (ssr) program reload
+5:57:27 PM [vite] (client) hmr update /src/styles.css?direct
+5:57:27 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+5:57:27 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/live-check-status.tsx, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx and 38 more
+5:57:27 PM [vite] (ssr) page reload src/lib/videos/youtube-live-health.ts
+5:57:28 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+5:57:28 PM [vite] (ssr) program reload
+5:57:28 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:57:28 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+5:57:28 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:57:28 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+6:01:52 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 39 more
+6:01:52 PM [vite] (ssr) page reload src/lib/videos/youtube-live-throughput.ts
+6:01:52 PM [vite] (ssr) program reload
+6:01:52 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/youtube-live-coverage-panel.tsx
+6:01:52 PM [vite] (ssr) page reload src/components/library/youtube-live-coverage-panel.tsx
+6:01:52 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:01:52 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+6:01:52 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:01:52 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+6:01:52 PM [vite] (client) hmr invalidate /src/components/library/adult-comments.tsx Could not Fast Refresh ("supportsRemoteComments" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:01:52 PM [vite] (client) hmr update /src/components/library/pre-video.tsx, /src/components/library/watch-room-section.tsx, /src/components/library/player.tsx, /src/components/library/adult-image-lightbox.tsx
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })
+AbortError: This operation was aborted
+    at new DOMException (node:internal/per_context/domexception:76:18)
+    ... 8 lines matching cause stack trace ...
+    at TCP.<anonymous> (node:net:362:12) {
+  cause: DOMException [AbortError]: This operation was aborted
+      at new DOMException (node:internal/per_context/domexception:76:18)
+      at AbortController.abort (node:internal/abort_controller:579:18)
+      at abort (file:///E:/codex/drift-brick-terra-acorn/node_modules/srvx/dist/adapters/node.mjs:316:51)
+      at ServerResponse.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/node_modules/srvx/dist/adapters/node.mjs:320:35)
+      at ServerResponse.wrapper (node:events:639:12)
+      at ServerResponse.emit (node:events:514:28)
+      at emitCloseNT (node:_http_server:1156:10)
+      at Socket.onServerResponseClose (node:_http_server:292:5)
+      at Socket.emit (node:events:526:24)
+      at TCP.<anonymous> (node:net:362:12),
+  status: 500,
+  statusText: undefined,
+  headers: undefined,
+  data: undefined,
+  body: undefined,
+  unhandled: true
+}
+AbortError: This operation was aborted
+    at new DOMException (node:internal/per_context/domexception:76:18)
+    ... 8 lines matching cause stack trace ...
+    at TCP.<anonymous> (node:net:362:12) {
+  cause: DOMException [AbortError]: This operation was aborted
+      at new DOMException (node:internal/per_context/domexception:76:18)
+      at AbortController.abort (node:internal/abort_controller:579:18)
+      at abort (file:///E:/codex/drift-brick-terra-acorn/node_modules/srvx/dist/adapters/node.mjs:316:51)
+      at ServerResponse.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/node_modules/srvx/dist/adapters/node.mjs:320:35)
+      at ServerResponse.wrapper (node:events:639:12)
+      at ServerResponse.emit (node:events:514:28)
+      at emitCloseNT (node:_http_server:1156:10)
+      at Socket.onServerResponseClose (node:_http_server:292:5)
+      at Socket.emit (node:events:526:24)
+      at TCP.<anonymous> (node:net:362:12),
+  status: 500,
+  statusText: undefined,
+  headers: undefined,
+  data: undefined,
+  body: undefined,
+  unhandled: true
+}
+AbortError: This operation was aborted
+    at new DOMException (node:internal/per_context/domexception:76:18)
+    ... 8 lines matching cause stack trace ...
+    at TCP.<anonymous> (node:net:362:12) {
+  cause: DOMException [AbortError]: This operation was aborted
+      at new DOMException (node:internal/per_context/domexception:76:18)
+      at AbortController.abort (node:internal/abort_controller:579:18)
+      at abort (file:///E:/codex/drift-brick-terra-acorn/node_modules/srvx/dist/adapters/node.mjs:316:51)
+      at ServerResponse.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/node_modules/srvx/dist/adapters/node.mjs:320:35)
+      at ServerResponse.wrapper (node:events:639:12)
+      at ServerResponse.emit (node:events:514:28)
+      at emitCloseNT (node:_http_server:1156:10)
+      at Socket.onServerResponseClose (node:_http_server:292:5)
+      at Socket.emit (node:events:526:24)
+      at TCP.<anonymous> (node:net:362:12),
+  status: 500,
+  statusText: undefined,
+  headers: undefined,
+  data: undefined,
+  body: undefined,
+  unhandled: true
+}
+6:04:44 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/live-check-status.tsx
+6:04:44 PM [vite] (ssr) page reload src/components/library/live-check-status.tsx
+6:04:44 PM [vite] (ssr) program reload
+6:07:00 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/youtube-live-coverage-panel.tsx
+6:07:00 PM [vite] (ssr) page reload src/components/library/youtube-live-coverage-panel.tsx
+6:07:00 PM [vite] (ssr) program reload
+6:07:00 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/live-check-status.tsx, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx and 38 more
+6:07:00 PM [vite] (ssr) page reload src/lib/videos/youtube-live-health.ts
+6:07:00 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+6:07:00 PM [vite] (client) hmr update /src/styles.css?direct
+6:07:01 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:07:01 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+6:07:01 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:07:01 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+6:08:33 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/live-check-status.tsx, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx and 38 more
+6:08:33 PM [vite] (ssr) page reload src/lib/videos/youtube-live-health.ts
+6:08:33 PM [vite] (ssr) program reload
+6:08:34 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:08:34 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+6:08:34 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:08:34 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+6:28:40 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/invite.tsx, /src/components/library/library-app.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/live-catalog.tsx, /src/components/library/live-desk.tsx, /src/components/library/browse.tsx, /src/components/library/video-card.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx and 38 more
+6:28:40 PM [vite] (ssr) page reload src/lib/videos/types.ts
+6:28:40 PM [vite] (ssr) program reload
+6:28:40 PM [vite] (client) hmr update /src/styles.css?direct
+6:28:40 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+6:28:40 PM [vite] (client) hmr update /src/styles.css?direct
+6:28:40 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+6:28:40 PM [vite] (client) hmr update /src/styles.css?direct
+6:28:40 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+6:28:41 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+6:28:41 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+6:28:41 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+6:28:41 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:28:41 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+6:28:41 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:28:41 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+6:29:07 PM [vite] (client) hmr update /src/styles.css?direct
+6:29:07 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+6:29:07 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 38 more
+6:29:07 PM [vite] (ssr) page reload src/lib/videos/follow-checkpoints.ts
+6:29:07 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+6:29:08 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:29:08 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+6:29:08 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:29:08 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+6:29:39 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/twitch-clips-control.tsx
+6:29:39 PM [vite] (ssr) page reload src/components/library/twitch-clips-control.tsx
+6:30:15 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 39 more
+6:30:16 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:30:16 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+6:30:16 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:30:16 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+6:30:20 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 39 more
+6:30:21 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/twitch-clip-coverage-panel.tsx
+6:30:22 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:30:22 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+6:30:22 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:30:22 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+6:32:33 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+6:32:33 PM [vite] (client) hmr update /src/styles.css?direct
+6:42:32 PM [vite] (client) hmr update /src/styles.css?direct
+6:42:32 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+6:42:32 PM [vite] (client) hmr update /src/styles.css?direct
+6:42:32 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+6:42:32 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 38 more
+6:42:32 PM [vite] (ssr) page reload src/lib/videos/remote-merge.ts
+6:42:32 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+6:42:34 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+6:42:34 PM [vite] (ssr) program reload
+6:42:35 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:42:35 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+6:42:35 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:42:35 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+6:43:15 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 38 more
+6:43:15 PM [vite] (ssr) page reload src/lib/videos/remote-merge.ts
+6:43:15 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 38 more
+6:43:15 PM [vite] (ssr) page reload src/lib/videos/store.ts
+6:43:17 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:43:17 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+6:43:17 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:43:17 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+6:43:45 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 38 more
+6:43:45 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 38 more
+6:43:45 PM [vite] (ssr) page reload src/lib/videos/store.ts
+6:43:45 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/twitch-clips-control.tsx
+6:43:45 PM [vite] (ssr) page reload src/components/library/twitch-clips-control.tsx
+6:43:45 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/twitch-clip-coverage-panel.tsx
+6:43:45 PM [vite] (ssr) page reload src/components/library/twitch-clip-coverage-panel.tsx
+6:43:46 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 38 more
+6:43:46 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/twitch-clip-coverage-panel.tsx
+6:43:46 PM [vite] (ssr) page reload src/components/library/twitch-clip-coverage-panel.tsx
+6:43:49 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:43:49 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+6:43:49 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:43:49 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+6:45:04 PM [vite] (client) hmr update /src/styles.css?direct
+6:45:04 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+6:45:04 PM [vite] (client) hmr update /src/styles.css?direct
+6:45:04 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+6:45:06 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+6:45:06 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+6:46:43 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 38 more
+6:46:43 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 38 more
+6:46:43 PM [vite] (ssr) page reload src/lib/videos/store.ts
+6:46:46 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:46:46 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+6:46:46 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:46:46 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+6:49:15 PM [vite] (client) hmr update /src/styles.css?direct
+6:49:15 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+6:49:15 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+6:49:15 PM [vite] (client) hmr update /src/styles.css?direct
+6:49:17 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+6:50:16 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 38 more
+6:50:16 PM [vite] (ssr) page reload src/lib/videos/twitch-clip-freshness.ts
+6:50:16 PM [vite] (ssr) program reload
+6:50:20 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:50:20 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+6:50:20 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:50:20 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+6:50:38 PM [vite] (client) hmr update /src/styles.css?direct
+6:50:38 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+6:50:39 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+6:50:40 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 38 more
+6:50:40 PM [vite] (ssr) page reload src/lib/videos/twitch-clip-freshness.ts
+6:50:44 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:50:44 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+6:50:44 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:50:44 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+11:14:13 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/invite.tsx, /src/components/library/library-app.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/live-catalog.tsx, /src/components/library/live-desk.tsx, /src/components/library/browse.tsx, /src/components/library/video-card.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx and 38 more
+11:14:13 AM [vite] (ssr) page reload src/lib/videos/types.ts
+11:14:13 AM [vite] (ssr) program reload
+11:14:13 AM [vite] (client) hmr update /src/styles.css?direct
+11:14:13 AM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+11:14:13 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+11:14:13 AM [vite] (ssr) page reload src/lib/videos/twitch-clips.ts
+11:14:13 AM [vite] (client) hmr update /src/styles.css?direct
+11:14:13 AM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+11:14:13 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 38 more
+11:14:13 AM [vite] (ssr) page reload src/lib/videos/remote-merge.ts
+11:14:13 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+11:14:13 AM [vite] (ssr) page reload src/lib/videos/twitch-clips.ts
+11:14:13 AM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+11:14:13 AM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+11:14:14 AM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:14:14 AM [vite] (client) hmr update /src/components/library/library-app.tsx
+11:14:14 AM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:14:14 AM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+11:15:31 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 38 more
+11:15:31 AM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+11:15:31 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+11:15:31 AM [vite] (ssr) page reload src/lib/videos/twitch-saved-catalog.ts
+11:15:31 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+11:15:31 AM [vite] (ssr) page reload src/components/library/use-twitch-saved-catalog.ts
+11:15:31 AM [vite] (client) hmr update /src/styles.css?direct
+11:15:31 AM [vite] (client) hmr update /src/styles.css?direct
+11:15:31 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+11:15:31 AM [vite] (ssr) page reload src/components/library/library-app.tsx
+11:15:31 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/video-card.tsx
+11:15:31 AM [vite] (ssr) page reload src/components/library/video-card.tsx
+11:15:31 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/pre-video.tsx
+11:15:31 AM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+11:15:33 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 38 more
+11:15:33 AM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+11:15:33 AM [vite] (client) hmr update /src/styles.css?direct
+11:15:33 AM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+11:15:38 AM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:15:38 AM [vite] (client) hmr update /src/components/library/library-app.tsx
+11:15:38 AM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:15:38 AM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+11:18:25 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 39 more
+11:18:25 AM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+11:18:25 AM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+11:18:25 AM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:18:25 AM [vite] (client) hmr update /src/components/library/library-app.tsx
+11:18:25 AM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:18:25 AM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+11:18:25 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 39 more
+11:18:25 AM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+11:18:25 AM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+11:18:26 AM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:18:26 AM [vite] (client) hmr update /src/components/library/library-app.tsx
+11:18:26 AM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:18:26 AM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+11:22:30 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 39 more
+11:22:30 AM [vite] (ssr) page reload src/lib/videos/twitch-content.ts
+11:22:30 AM [vite] (ssr) program reload
+11:22:30 AM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:22:30 AM [vite] (client) hmr update /src/components/library/library-app.tsx
+11:22:30 AM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:22:30 AM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+11:22:31 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 39 more
+11:22:31 AM [vite] (ssr) page reload src/lib/videos/twitch-content.ts
+11:22:31 AM [vite] (ssr) program reload
+11:22:31 AM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:22:31 AM [vite] (client) hmr update /src/components/library/library-app.tsx
+11:22:31 AM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:22:31 AM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+11:26:27 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 40 more
+11:26:27 AM [vite] (ssr) page reload src/lib/videos/twitch-content.ts
+11:26:27 AM [vite] (ssr) program reload
+11:26:28 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 40 more
+11:26:28 AM [vite] (ssr) page reload src/lib/videos/twitch-content.ts
+11:26:28 AM [vite] (ssr) program reload
+11:26:29 AM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:26:29 AM [vite] (client) hmr update /src/components/library/library-app.tsx
+11:26:29 AM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:26:29 AM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+11:27:44 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+11:27:44 AM [vite] (client) hmr update /src/styles.css?direct
+11:33:27 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 40 more
+11:33:27 AM [vite] (ssr) page reload src/lib/videos/twitch-content.ts
+11:33:27 AM [vite] (ssr) program reload
+11:33:28 AM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:33:28 AM [vite] (client) hmr update /src/components/library/library-app.tsx
+11:33:28 AM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+11:33:28 AM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx

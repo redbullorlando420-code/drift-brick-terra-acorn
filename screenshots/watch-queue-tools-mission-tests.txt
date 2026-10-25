@@ -1,0 +1,32 @@
+✔ revision 2 promotes only the newly verified hydration milestone (2.3563ms)
+✔ a later manual restore to planned remains saved (0.169ms)
+✔ revision 3 promotes the YouTube trace without undoing manual restores (0.1361ms)
+✔ revision 4 promotes artwork priority while respecting older manual restores (0.1065ms)
+✔ pre-revision plans receive the original verified completions (0.1892ms)
+✔ revision 5 promotes only verified viewer milestones and preserves later manual choices (0.769ms)
+✔ revision 6 completes the verified search budget without completing broader audits (0.1587ms)
+✔ revision 7 starts the timer audit without completing it or changing other manual choices (0.1538ms)
+✔ revision 8 completes verified timer consolidation and preserves unrelated/later manual statuses (0.2888ms)
+✔ revision 9 promotes only verified navigation and preserves later manual restores (0.28ms)
+✔ revision 10 starts enrichment work honestly without completing it or overriding blocked/later choices (0.1352ms)
+✔ revision 11 completes only verified enrichment and respects later manual restores (0.1071ms)
+✔ revision 12 completes verified virtualization without changing other or later manual choices (0.0692ms)
+✔ revision 13 completes only verified startup milestones and preserves later manual choices (0.0562ms)
+✔ revision 14 completes the verified slow-device profile without resetting other or later choices (0.0614ms)
+✔ revision 15 promotes only the verified render audit and preserves later manual status choices (0.048ms)
+✔ revision 16 promotes mobile budgets without completing physical-device soak or resetting later choices (0.0415ms)
+✔ revision 17 promotes verified keyboard browsing without changing soak or later manual choices (0.0971ms)
+✔ revision 18 promotes verified diagnostics and release gate without completing soak or resetting later choices (0.2353ms)
+✔ revision 20 completes only verified Twitch checkpoint, diagnostics and merge milestones (0.169ms)
+✔ revision 21 promotes Twitch search, mobile rail and benchmark without completing soak or resetting later choices (0.09ms)
+✔ revision 22 promotes only provider budgets while preserving soak and later manual choices (0.0695ms)
+✔ revision 23 promotes YouTube dates, formats and regressions without completing soak or resetting later choices (0.0641ms)
+✔ revision 24 promotes verified Twitch queue, retries, controls and failure recovery only once (0.0525ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 146.2837

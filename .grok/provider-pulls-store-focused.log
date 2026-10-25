@@ -1,0 +1,14 @@
+✔ cooldown stops focused, import and live work while mixed checks still service Twitch (18.6757ms)
+✔ routine Twitch and mixed refreshes share per-source budgets and do not clean on live-only checks (413.9852ms)
+✔ mixed pulls reserve donated slots for the emptier source instead of spending them twice on the dense provider (436.3797ms)
+✔ an unallocated disabled source cannot take the slots freed for an enabled source in a mixed response (372.4484ms)
+✔ sole representatives remain when a partial mixed-creator page cannot guarantee replacement of every source membership (249.5215ms)
+✔ mixed live checks report provider-specific progress and first-result YouTube batches retain all targets (1.919ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1991.5203

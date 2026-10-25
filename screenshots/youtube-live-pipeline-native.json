@@ -1,0 +1,59 @@
+{
+  "at": "2026-10-22T18:43:34.674Z",
+  "ok": true,
+  "results": [
+    {
+      "channelId": "UCLA_DiR1FfKNvjuUpBHmylQ",
+      "elapsedMs": 998,
+      "requests": 2,
+      "checked": 1,
+      "broadcasts": [
+        {
+          "id": "ROboUHfPUrU",
+          "viewers": 132
+        },
+        {
+          "id": "M3HKLzjvKPc",
+          "viewers": 190
+        }
+      ]
+    },
+    {
+      "channelId": "UCSUu1lih2RifWkKtDOJdsBA",
+      "elapsedMs": 259,
+      "requests": 1,
+      "checked": 1,
+      "broadcasts": [
+        {
+          "id": "mhJRzQsLZGg",
+          "viewers": 1500
+        },
+        {
+          "id": "cOmmvhDQ2HM",
+          "viewers": 36
+        },
+        {
+          "id": "Jm8wRjD3xVA",
+          "viewers": 272
+        }
+      ]
+    },
+    {
+      "channelId": "UCLA_DiR1FfKNvjuUpBHmylQ",
+      "elapsedMs": 287,
+      "requests": 1,
+      "checked": 1,
+      "broadcasts": [
+        {
+          "id": "M3HKLzjvKPc",
+          "viewers": 190
+        },
+        {
+          "id": "ROboUHfPUrU",
+          "viewers": 132
+        }
+      ]
+    }
+  ],
+  "limitation": "Three point-in-time metadata checks of two public channels, without playback or a personal-follow audit. Upstream availability and timings can change."
+}

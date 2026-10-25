@@ -2,6 +2,19 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { RoomQueueDelivery } from "./room-delivery.ts";
 
+test('play-next and selection retries replay acknowledgements without reapplying an intention', () => {
+  for (const type of ['next-request', 'video-request']) {
+    const guest = new RoomQueueDelivery(), host = new RoomQueueDelivery();
+    const packet = { type, requestId: type, videoId: 'current' };
+    assert.equal(guest.enqueue(packet, 0), true);
+    const receipt = host.confirm('guest', packet.requestId, 'Applied once', 1);
+    assert.equal(guest.tick(3000).resend[0], packet);
+    assert.equal(host.receiptFor('guest', packet.requestId, 3001), receipt);
+    assert.equal(guest.acknowledge(receipt.requestId), true);
+    assert.equal(guest.tick(6000).resend.length, 0);
+  }
+});
+
 test("lost queue requests retry with the same payload and expire without endless work", () => {
   const delivery = new RoomQueueDelivery();
   const packet = { type: "queue-action", requestId: "move-1", operation: { kind: "up", id: "a" } };

@@ -3,8 +3,8 @@ import { catalogTurn } from '@/lib/catalog-turn';
 import { getRating, ratingPreference } from '@/lib/media-feedback';
 import { useSessionPhase } from '@/lib/use-session-phase';
 import { useLibrary } from '@/lib/videos/store';
-import { sampleTwitchClipsAsync } from '@/lib/videos/twitch-clips';
-import { prepareTwitchCoverage, prepareTwitchCreatorScores, prepareTwitchCreatorShelves, prepareTwitchDeskIndex } from '@/lib/videos/twitch-desk-catalog';
+import { sampleTwitchClipsAsync, rankTwitchClipsAsync } from '@/lib/videos/twitch-clips';
+import { cachedTwitchDeskIndex, prepareTwitchCoverage, prepareTwitchCreatorScores, prepareTwitchCreatorShelves, prepareTwitchDeskIndex } from '@/lib/videos/twitch-desk-catalog';
 import type { FollowedChannel, LibraryVideo } from '@/lib/videos/types';
 
 const EMPTY: LibraryVideo[] = [];
@@ -34,16 +34,18 @@ function useDeskJob<S, T>(active: boolean, scope: S, prepare: (scope: S, turn: (
 export function useTwitchDeskCatalog(active: boolean, videos: LibraryVideo[], follows: FollowedChannel[],
   vods: LibraryVideo[], ordered: LibraryVideo[], seed: number, clipSeed: number, creator: string,
   favorites: Record<string, true>, likes: Record<string, true>, views: Record<string, number>, revision: number,
-  orderedReady: boolean, discoveryActive: boolean, vodsReady: boolean) {
-  const index = useDeskJob(active, videos, prepareTwitchDeskIndex, (a, b) => a === b);
+  orderedReady: boolean, discoveryActive: boolean, vodsReady: boolean, coverageActive = true, clipOrder: 'shuffle'|'newest'|'views' = 'newest') {
+  const indexJob = useDeskJob(active, videos, prepareTwitchDeskIndex, (a, b) => a === b);
+  const cached=active?cachedTwitchDeskIndex(videos):undefined;
+  const index={value:indexJob.value??cached,pending:indexJob.pending&&!cached};
   const coverageScope = useMemo(() => ({ index: index.value, follows }), [index.value, follows]);
-  const coverage = useDeskJob(active && !!index.value, coverageScope,
+  const coverage = useDeskJob(active && coverageActive && !!index.value, coverageScope,
     (scope, turn) => prepareTwitchCoverage(scope.index!, scope.follows, turn),
     (a, b) => a.index === b.index && a.follows === b.follows);
-  const clipScope = useMemo(() => ({ videos, index: index.value, clipSeed, creator }), [videos, index.value, clipSeed, creator]);
+  const clipScope = useMemo(() => ({ videos, index: index.value, clipSeed, creator, clipOrder }), [videos, index.value, clipSeed, creator, clipOrder]);
   const clips = useDeskJob(active && discoveryActive && !!index.value, clipScope,
-    (scope, turn) => sampleTwitchClipsAsync(scope.videos, scope.index!.clips, scope.clipSeed, scope.creator, turn),
-    (a, b) => a.videos === b.videos && a.creator === b.creator);
+    (scope, turn) => scope.clipOrder === 'shuffle' ? sampleTwitchClipsAsync(scope.videos, scope.index!.clips, scope.clipSeed, scope.creator, turn) : rankTwitchClipsAsync(scope.videos, scope.index!.clips, scope.creator, scope.clipOrder, turn),
+    (a, b) => a.videos === b.videos && a.creator === b.creator && a.clipOrder === b.clipOrder);
   const scoreScope = useMemo(() => ({ vods, favorites, likes, views, revision }), [vods, favorites, likes, views, revision]);
   const scores = useDeskJob(active && discoveryActive, scoreScope, (scope, turn) => prepareTwitchCreatorScores(scope.vods,
     video => ratingPreference(getRating(video.id)) * 10 + (scope.favorites[video.id] ? 8 : 0)
@@ -54,7 +56,7 @@ export function useTwitchDeskCatalog(active: boolean, videos: LibraryVideo[], fo
     (a, b) => a.videos === b.videos, !!scores.value && orderedReady && vodsReady);
   // Keep painted shelves during a taste refresh, but never across a real
   // catalog mutation. The job remains active while the replacement score builds.
-  return { liveRows: index.value?.live ?? EMPTY, clipTotal: index.value?.clips.length ?? 0,
+  return { indexPending: index.pending, vodTotal: index.value?.total ?? 0, liveRows: index.value?.live ?? EMPTY, clipTotal: index.value?.clips.length ?? 0,
     clips: clips.value ?? EMPTY, clipsPending: index.pending || clips.pending,
     coverage: coverage.value ?? EMPTY_COVERAGE, coveragePending: index.pending || coverage.pending,
     shelves: shelves.value ?? EMPTY_SHELVES, shelvesPending: scores.pending || shelves.pending };

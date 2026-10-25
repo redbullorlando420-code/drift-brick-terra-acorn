@@ -143,10 +143,14 @@ export type ProviderFailure = {
   recovery: string;
   at: number;
   retryAt?: number;
+  /** Consecutive live failures; reset by a successful live observation. */
+  attempts?: number;
   cooldownScope?: 'catalog' | 'page' | 'feed' | 'live' | 'details' | 'all';
 };
 
 export type RemoteRef = {
+  /** Exact Twitch media identity and the public shelf that supplied its subtype. */
+  twitchContent?: import('./twitch-content').TwitchContentEvidence;
   kind: RemoteKind;
   /** A post can be discovered on one provider while its media is hosted by another. */
   sourceKinds?: RemoteKind[];
@@ -156,10 +160,27 @@ export type RemoteRef = {
   channelId?: string;
   channelName?: string;
   live?: boolean;
+  /** Presentation-only: an old live observation is unconfirmed, not offline. */
+  liveUnconfirmed?: boolean;
+  /** First successful missing-broadcast observation; positive live evidence clears it. */
+  liveOfflineSince?: number;
   /** YouTube catalog evidence; omitted by feeds that expose no format. */
   youtubeType?: import('./youtube-metadata').YoutubeContentKind;
+  /** Creator-authored video keywords, fetched explicitly from the watch page. */
+  youtubeKeywords?: string[];
+  youtubeTagsCheckedAt?: number;
+  /** Compact description evidence survives when full details move to disk. */
+  youtubeTagSummary?: {
+    version: number;
+    sources: Record<string, 'video-tag' | 'hashtag' | 'chapter' | 'title' | 'description'>;
+    topics: Array<{ topic: string; reason: string }>;
+  };
   /** addedAt is the publication timestamp for YouTube; no duplicate epoch. */
   publishedSource?: import('./youtube-metadata').YoutubePublishedSource;
+  /** Exact provider calendar date; avoids shifting midnight UTC to yesterday. */
+  publishedDate?: string;
+  /** Provider display label (for example “2 days ago”); never an inferred date. */
+  publishedLabel?: string;
   viewers?: number;
   /** Epoch time of the provider response that supplied live metadata. */
   observedAt?: number;
@@ -197,9 +218,26 @@ export type TwitchPullDiagnostics = {
 };
 
 export type TwitchRetryState = { attempts: number; retryAt: number };
+export type TwitchClipDiagnostics = {
+  at: number; mode: 'recent'|'archive'; pages: number; received: number; accepted: number; duplicates: number;
+  requested?: number; maxPages?: number;
+  stopReason?: 'quota'|'page-budget'|'exhausted'|'partial-error'|'provider-hold';
+  /** Delivery does not change the original provider observation clock. */
+  cacheHit?: boolean; servedAt?: number;
+  windows: Array<{period: string; pages: number; received: number; accepted: number; duplicates: number; requested?: number; stop: 'budget'|'quota'|'exhausted'|'error'; error?: string}>;
+};
+
+export type RecentPullState = {
+  attemptedAt: number; checkedAt?: number; failures: number; retryAt?: number;
+  failure?: ProviderFailure; newestVideoId?: string;
+};
 export type FollowedChannel = {
+  youtubeLiveEvidence?: import('../remote/youtube-live-evidence').YoutubeLiveEvidence;
+  youtubeLiveVideoIds?: string[];
+  youtubeLiveKnownOverflow?: boolean;
   id: string;
   kind: FollowKind;
+  liveOfflineSince?: number;
   handle: string;
   title: string;
   channelId?: string;
@@ -208,11 +246,15 @@ export type FollowedChannel = {
   /** An unresolved word created by the legacy whitespace importer. */
   importNeedsReview?: boolean;
   importQuery?: string;
+  /** Explicit identity review; invalidated when conflicting evidence changes. */
+  identityReview?: { fingerprint: string; at: number };
   live?: boolean;
   /** Freshness ledger for provider scheduling and a truthful last-check UI. */
   lastCheckedAt?: number;
   /** Independent YouTube live-state poll rotation; does not advance the archive cursor. */
   liveCheckedAt?: number;
+  /** Recent uploads have independent rotation, success, retry and feed watermark. */
+  recentPull?: RecentPullState;
   newestPublishedAt?: number;
   /** Stable Atom upload identity used to trim routine YouTube refreshes. */
   newestVideoId?: string;
@@ -222,14 +264,24 @@ export type FollowedChannel = {
   catalogExhaustedAt?: number;
   /** Independent Twitch broadcast-shelf continuation for focused archive pulls. */
   twitchArchiveCursor?: string;
+  twitchArchiveCheckedAt?: number;
   twitchArchiveExhaustedAt?: number;
   twitchArchiveLastVideoId?: string;
   twitchArchiveDiagnostics?: TwitchPullDiagnostics;
   twitchArchiveRetry?: TwitchRetryState;
   twitchLiveRetry?: TwitchRetryState;
+  lastLiveWarning?: {at:number;message:string};
   /** All-time clip shelf continuation used by repeated focused clip pulls. */
   twitchClipCursor?: string;
   twitchClipExhaustedAt?: number;
+  twitchClipCheckedAt?: number;
+  twitchClipRecentCheckedAt?: number;
+  twitchClipRetry?: TwitchRetryState;
+  twitchClipRecentRetry?: TwitchRetryState;
+  twitchClipRecentAttemptedAt?: number;
+  twitchClipArchiveAttemptedAt?: number;
+  twitchClipDiagnostics?: TwitchClipDiagnostics;
+  lastClipFailure?: ProviderFailure;
   lastResponseCount?: number;
   /** Server-session cache telemetry; this is diagnostic metadata, not a claim
    * that the provider was contacted during this refresh. */
@@ -284,6 +336,7 @@ export type SourceId =
   | "games"
   | "shop"
   | "streaming"
+  | "stream-signal"
   | "social"
   | "watch-room"
   | "settings"
@@ -432,6 +485,9 @@ export const SYSTEM_SOURCES = new Set([
   "games",
   "shop",
   "streaming",
+  "stream-signal",
+  'stable-diffusion',
+  'remote-desktop',
   "social",
   "watch-room",
   "settings",

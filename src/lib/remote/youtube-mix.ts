@@ -14,7 +14,8 @@ export function youtubeCreatorKey(video: LibraryVideo) {
   return video.remote?.channelId || video.remote?.channelName?.trim().toLowerCase() || video.folderId;
 }
 
-type CreatorGroup = { rows: LibraryVideo[]; latest: LibraryVideo; trending: LibraryVideo };
+type CreatorGroup = { rows: LibraryVideo[]; latest: LibraryVideo; trending: LibraryVideo;
+  latestUnique: boolean; trendingUnique: boolean; finiteViews: boolean };
 type CreatorIndex = { groups: Map<string, CreatorGroup>; unknownDates: Set<LibraryVideo> };
 const indexes = new WeakMap<LibraryVideo[], CreatorIndex>();
 const createIndex = (): CreatorIndex => ({ groups: new Map(), unknownDates: new Set() });
@@ -30,12 +31,17 @@ function appendCreator(index: CreatorIndex, seen: Set<string>, video: LibraryVid
   if (!youtubePublicationTime(video) && video.addedAt > minimumDate) index.unknownDates.add(video);
   const groups = index.groups;
   const key = youtubeCreatorKey(video), group = groups.get(key);
-  if (!group) groups.set(key, { rows: [video], latest: video, trending: video });
+  if (!group) groups.set(key, { rows: [video], latest: video, trending: video,
+    latestUnique: true, trendingUnique: true, finiteViews: Number.isFinite(video.remote.views ?? 0) });
   else {
     group.rows.push(video);
-    if (publicationTime(index, video) > publicationTime(index, group.latest)) group.latest = video;
-    if ((video.remote.views ?? 0) > (group.trending.remote?.views ?? 0)
-      || (video.remote.views ?? 0) === (group.trending.remote?.views ?? 0) && publicationTime(index, video) > publicationTime(index, group.trending)) group.trending = video;
+    const published = publicationTime(index, video), latestDate = publicationTime(index, group.latest);
+    if (published > latestDate) { group.latest = video; group.latestUnique = true; }
+    else if (published === latestDate) group.latestUnique = false;
+    group.finiteViews &&= Number.isFinite(video.remote.views ?? 0);
+    const views = video.remote.views ?? 0, bestViews = group.trending.remote?.views ?? 0, bestDate = publicationTime(index, group.trending);
+    if (views > bestViews || views === bestViews && published > bestDate) { group.trending = video; group.trendingUnique = true; }
+    else if (views === bestViews && published === bestDate) group.trendingUnique = false;
   }
 }
 
@@ -136,10 +142,19 @@ function* sampleCreators(index: CreatorIndex, seed: number, limit: number, mode:
   let visited = 0, started = performance.now();
   for (const key of creators) {
     const quota = quotas.get(key)!;
+    const group = groups.get(key)!;
+    // Creator-diverse shelves often need just one card from each archive.
+    // A unique cached winner needs no historical scan. Ties still use the
+    // seeded heap so unknown dates/equal views retain exactly the same mix.
+    if (quota === 1 && (group.rows.length === 1 || mode === 'latest' && group.latestUnique
+      || mode === 'trending' && group.trendingUnique && group.finiteViews)) {
+      samples.set(key, [mode === 'trending' ? group.trending : group.latest]);
+      continue;
+    }
     const best: LibraryVideo[] = [];
     // Small bounded worst-first heap: O(rows * log(quota)), never a full
     // historical archive sort and no ranked object allocated per video.
-    for (const video of groups.get(key)!.rows) {
+    for (const video of group.rows) {
       if (++visited >= 512 || (visited % 64 === 0 && performance.now() - started >= 4)) {
         yield; visited = 0; started = performance.now();
       }

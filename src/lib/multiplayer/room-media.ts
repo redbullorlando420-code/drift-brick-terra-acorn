@@ -1,4 +1,5 @@
 import type { LibraryVideo, RemoteRef } from "../videos/types.ts";
+import { exactYoutubePublished } from '../videos/youtube-metadata.ts';
 
 export type RoomLocalMedia = { name: string; fingerprint: string; size: number; modified: number };
 export type RoomMediaDescriptor = {
@@ -13,6 +14,10 @@ export type RoomMediaDescriptor = {
   watchUrl?: string;
   poster?: string;
   duration?: number;
+  publishedDate?: string;
+  publishedLabel?: string;
+  views?: number;
+  description?: string;
   size?: number;
   local?: RoomLocalMedia;
   streamId?: string;
@@ -87,7 +92,7 @@ function providerFields(
       videoId,
       embedUrl: `https://www.youtube.com/embed/${videoId}`,
       watchUrl: `https://www.youtube.com/watch?v=${videoId}`,
-      live: Boolean(item.live),
+      live: Boolean(item.live) || urls.some(url => /^\/live\//.test(url.pathname)),
     };
   }
   const clip = urls
@@ -267,6 +272,10 @@ export function describeRoomMedia(
       typeof remote.channelName === "string" ? remote.channelName.slice(0, 200) : undefined,
     ...fields,
     poster: safePoster(video.poster),
+    publishedDate: exactYoutubePublished(remote.publishedDate),
+    publishedLabel: typeof remote.publishedLabel === 'string' ? remote.publishedLabel.slice(0,90) : undefined,
+    views: typeof remote.views === 'number' && Number.isSafeInteger(remote.views) && remote.views >= 0 ? remote.views : undefined,
+    description: typeof video.description === 'string' ? video.description.slice(0,280) : undefined,
     duration:
       typeof video.duration === "number" && Number.isFinite(video.duration) && video.duration > 0
         ? video.duration
@@ -351,6 +360,10 @@ export function resolveRoomMedia(
     channelName: typeof item.channelName === "string" ? item.channelName.slice(0, 200) : undefined,
     ...fields,
     poster: safePoster(item.poster),
+    publishedDate: exactYoutubePublished(item.publishedDate),
+    publishedLabel: typeof item.publishedLabel === 'string' ? item.publishedLabel.slice(0,90) : undefined,
+    views: typeof item.views === 'number' && Number.isSafeInteger(item.views) && item.views >= 0 ? item.views : undefined,
+    description: typeof item.description === 'string' ? item.description.slice(0,280) : undefined,
     duration:
       typeof item.duration === "number" && Number.isFinite(item.duration) && item.duration > 0
         ? item.duration
@@ -364,6 +377,10 @@ export function resolveRoomMedia(
     live: descriptor.live,
     embedUrl: descriptor.embedUrl,
     watchUrl: descriptor.watchUrl,
+    publishedDate: descriptor.publishedDate,
+    publishedSource: descriptor.publishedDate ? 'provider' : 'unknown',
+    publishedLabel: descriptor.publishedLabel,
+    views: descriptor.views,
   };
   const video: LibraryVideo = {
     id: descriptor.id,
@@ -374,8 +391,9 @@ export function resolveRoomMedia(
     mime: `video/${kind}`,
     size: 0,
     duration: descriptor.duration,
-    addedAt: 0,
+    addedAt: descriptor.publishedDate ? Date.parse(descriptor.publishedDate) : 0,
     poster: descriptor.poster,
+    description: descriptor.description,
     remote,
   };
   return { descriptor, video };

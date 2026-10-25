@@ -1,0 +1,137 @@
+{
+  "at": "2026-10-22T20:20:56.242Z",
+  "reports": [
+    {
+      "id": "VV8mzTZ_Hgk",
+      "host": "www.youtube-nocookie.com",
+      "playerResponses": [],
+      "messages": [
+        {
+          "event": "initialDelivery",
+          "info": {
+            "playerState": -1,
+            "videoData": {
+              "video_id": "VV8mzTZ_Hgk",
+              "author": "",
+              "title": "",
+              "isPlayable": false,
+              "errorCode": "auth",
+              "backgroundable": false,
+              "cpn": "WPCU_gcLjakR8ov2",
+              "isLive": false,
+              "isWindowedLive": false,
+              "isManifestless": false,
+              "allowLiveDvr": false,
+              "isListed": false,
+              "isMultiChannelAudio": false,
+              "hasProgressBarBoundaries": false,
+              "isPremiere": false,
+              "itct": "CAAQru4BIhMIt5TYw7nOlwMVg5j_BB3u1ykxygEEv7QIMg==",
+              "playerResponseCpn": "",
+              "progressBarStartPositionUtcTimeMillis": null,
+              "progressBarEndPositionUtcTimeMillis": null,
+              "paidContentOverlayDurationMs": 0,
+              "isSeekable": null
+            }
+          }
+        },
+        {
+          "event": "onReady"
+        },
+        {
+          "event": "onError",
+          "info": 150
+        }
+      ],
+      "iframeReferer": "http://127.0.0.1:8080/",
+      "frameText": "This video is unavailable\nThis video is unavailable\nWatch on YouTube"
+    },
+    {
+      "id": "VV8mzTZ_Hgk",
+      "host": "www.youtube.com",
+      "playerResponses": [],
+      "messages": [
+        {
+          "event": "initialDelivery",
+          "info": {
+            "playerState": -1,
+            "videoData": {
+              "video_id": "VV8mzTZ_Hgk",
+              "author": "",
+              "title": "",
+              "isPlayable": false,
+              "errorCode": "auth",
+              "backgroundable": false,
+              "cpn": "jJBEA9bwdUa7C_E5",
+              "isLive": false,
+              "isWindowedLive": false,
+              "isManifestless": false,
+              "allowLiveDvr": false,
+              "isListed": false,
+              "isMultiChannelAudio": false,
+              "hasProgressBarBoundaries": false,
+              "isPremiere": false,
+              "itct": "CAAQru4BIhMIicjrx7nOlwMVBJPCAR31BDrsygEE7kVs6w==",
+              "playerResponseCpn": "",
+              "progressBarStartPositionUtcTimeMillis": null,
+              "progressBarEndPositionUtcTimeMillis": null,
+              "paidContentOverlayDurationMs": 0,
+              "isSeekable": null
+            }
+          }
+        },
+        {
+          "event": "onReady"
+        },
+        {
+          "event": "onError",
+          "info": 150
+        }
+      ],
+      "iframeReferer": "http://127.0.0.1:8080/",
+      "frameText": "This video is unavailable\nThis video is unavailable\nWatch on YouTube"
+    },
+    {
+      "id": "aqz-KE-bpKQ",
+      "host": "www.youtube-nocookie.com",
+      "playerResponses": [],
+      "messages": [
+        {
+          "event": "initialDelivery",
+          "info": {
+            "playerState": 5,
+            "videoData": {
+              "video_id": "aqz-KE-bpKQ",
+              "author": "",
+              "title": "Big Buck Bunny 60fps 4K - Official Blender Foundation Short Film",
+              "isPlayable": true,
+              "errorCode": null,
+              "backgroundable": false,
+              "cpn": "c_Nl9mXttk-GbLvK",
+              "isLive": false,
+              "isWindowedLive": false,
+              "isManifestless": false,
+              "allowLiveDvr": false,
+              "isListed": false,
+              "isMultiChannelAudio": false,
+              "hasProgressBarBoundaries": false,
+              "isPremiere": false,
+              "itct": "CAAQru4BIhMI1tiOzLnOlwMVJRIVBR2sujjvygEEoQ6f1A==",
+              "playerResponseCpn": "",
+              "progressBarStartPositionUtcTimeMillis": null,
+              "progressBarEndPositionUtcTimeMillis": null,
+              "paidContentOverlayDurationMs": 0,
+              "isSeekable": null
+            }
+          }
+        },
+        {
+          "event": "onReady"
+        }
+      ],
+      "iframeReferer": "http://127.0.0.1:8080/",
+      "frameText": "Big Buck Bunny 60fps 4K - Official Blender Foundation Short Film\nBlender\nBlender\n1.25M subscribers\nWatch on"
+    }
+  ],
+  "limitation": "Isolated signed-out Chrome at the actual app origin; public player only, no account cookies or restriction bypass."
+}

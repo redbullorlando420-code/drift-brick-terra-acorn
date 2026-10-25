@@ -65,3 +65,15 @@ test('concurrency and request gap apply across independent providers', async () 
   })));
   assert.ok(peak <= 2); for (let i = 1; i < starts.length; i++) assert.ok(starts[i] - starts[i - 1] >= 19);
 });
+
+test('page priority sleeps blocked automatic work, admits explicit work and never holds an accepted response', async () => {
+  let permitted = false, gateReads = 0;
+  const calls: string[] = [];
+  const scheduler = createPullScheduler(() => ({ concurrency: 1, gapMs: 0 }), () => true, 8, { availabilityDelay: () => 0 });
+  const automatic = scheduler.run(async () => { calls.push('automatic'); permitted = false; return 3; }, { canStart: () => { gateReads++; return permitted; } });
+  await new Promise(resolve => setTimeout(resolve, 25));
+  assert.equal(calls.length, 0); assert(gateReads < 10, 'no timer loop while page priority blocks the job');
+  assert.equal(await scheduler.run(async () => { calls.push('explicit'); return 2; }), 2);
+  permitted = true; scheduler.wake(); assert.equal(await automatic, 3);
+  assert.deepEqual(calls, ['explicit', 'automatic']);
+});

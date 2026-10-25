@@ -1,0 +1,301 @@
+{
+  "description": "Synthetic, redacted public response shape fixtures; no accounts, cookies, headers or secrets.",
+  "cases": [
+    {
+      "name": "rss-upload",
+      "surface": "feed",
+      "channelId": "UC0000000000000000000000",
+      "input": "<feed><title>Fixture creator</title><yt:channelId>UC0000000000000000000000</yt:channelId><entry><yt:videoId>video000001</yt:videoId><title>Fixture upload</title></entry></feed>",
+      "expect": "pass"
+    },
+    {
+      "name": "rss-empty",
+      "surface": "feed",
+      "channelId": "UC0000000000000000000000",
+      "input": "<feed><title>Fixture creator</title></feed>",
+      "expect": "pass"
+    },
+    {
+      "name": "rss-attributes",
+      "surface": "feed",
+      "channelId": "UC0000000000000000000000",
+      "input": "<feed><entry xml:lang=\"en\"><yt:videoId>video000001</yt:videoId></entry></feed>",
+      "expect": "pass"
+    },
+    {
+      "name": "rss-consent",
+      "surface": "feed",
+      "input": "<html><title>Consent</title><body>Continue to YouTube</body></html>",
+      "expect": "reject"
+    },
+    {
+      "name": "rss-missing-id",
+      "surface": "feed",
+      "input": "<feed><entry><title>Changed renderer</title></entry></feed>",
+      "expect": "reject"
+    },
+    {
+      "name": "rss-truncated",
+      "surface": "feed",
+      "input": "<feed><entry><yt:videoId>video000001</yt:videoId></feed>",
+      "expect": "reject"
+    },
+    {
+      "name": "rss-other-creator",
+      "surface": "feed",
+      "channelId": "UC0000000000000000000000",
+      "input": "<feed><yt:channelId>UC1111111111111111111111</yt:channelId></feed>",
+      "expect": "reject"
+    },
+    {
+      "name": "catalog-grid",
+      "surface": "catalog",
+      "input": [
+        {
+          "richItemRenderer": {
+            "content": {
+              "videoRenderer": {
+                "videoId": "video000001",
+                "title": {
+                  "simpleText": "Fixture video"
+                }
+              }
+            }
+          }
+        },
+        {
+          "continuationItemRenderer": {
+            "continuationEndpoint": {
+              "continuationCommand": {
+                "token": "fixture-next"
+              }
+            }
+          }
+        }
+      ],
+      "expect": "pass"
+    },
+    {
+      "name": "catalog-lockup",
+      "surface": "catalog",
+      "input": [
+        {
+          "lockupViewModel": {
+            "contentType": "LOCKUP_CONTENT_TYPE_VIDEO",
+            "contentId": "video000002"
+          }
+        },
+        {
+          "continuationItemViewModel": {
+            "continuationCommand": {
+              "innertubeCommand": {
+                "continuationCommand": {
+                  "token": "fixture-next"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "expect": "pass"
+    },
+    {
+      "name": "catalog-empty",
+      "surface": "catalog",
+      "input": [],
+      "expect": "pass"
+    },
+    {
+      "name": "catalog-incomplete",
+      "surface": "catalog",
+      "input": [
+        {
+          "videoRenderer": {
+            "title": {
+              "simpleText": "Missing identity"
+            }
+          }
+        }
+      ],
+      "expect": "reject"
+    },
+    {
+      "name": "catalog-token-change",
+      "surface": "catalog",
+      "input": [
+        {
+          "continuationItemRenderer": {
+            "changedEndpoint": {
+              "token": "unrecognized"
+            }
+          }
+        }
+      ],
+      "expect": "reject"
+    },
+    {
+      "name": "catalog-new-renderer",
+      "surface": "catalog",
+      "input": [
+        {
+          "futureVideoRenderer": {
+            "videoId": "video000001"
+          }
+        }
+      ],
+      "expect": "reject"
+    },
+    {
+      "name": "catalog-mixed-unknown",
+      "surface": "catalog",
+      "input": [
+        {
+          "videoRenderer": {
+            "videoId": "video000001"
+          }
+        },
+        {
+          "futureVideoRenderer": {
+            "videoId": "video000002"
+          }
+        }
+      ],
+      "expect": "reject"
+    },
+    {
+      "name": "streams-grid-live",
+      "surface": "live",
+      "input": {
+        "richGridRenderer": {
+          "contents": [
+            {
+              "videoRenderer": {
+                "videoId": "video000001",
+                "thumbnailOverlays": [
+                  {
+                    "thumbnailOverlayTimeStatusRenderer": {
+                      "style": "LIVE"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "expect": "pass"
+    },
+    {
+      "name": "streams-empty-grid",
+      "surface": "live",
+      "input": {
+        "richGridRenderer": {
+          "contents": []
+        }
+      },
+      "expect": "pass"
+    },
+    {
+      "name": "streams-empty-section",
+      "surface": "live",
+      "input": {
+        "sectionListRenderer": {
+          "contents": [
+            {
+              "itemSectionRenderer": {
+                "contents": [
+                  {
+                    "messageRenderer": {
+                      "text": {
+                        "simpleText": "No streams"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "expect": "pass"
+    },
+    {
+      "name": "streams-missing-items",
+      "surface": "live",
+      "input": {
+        "richGridRenderer": {}
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "streams-navigation-shell",
+      "surface": "live",
+      "input": {},
+      "expect": "reject"
+    },
+    {
+      "name": "streams-new-renderer",
+      "surface": "live",
+      "input": {
+        "richGridRenderer": {
+          "contents": [
+            {
+              "futureLiveRenderer": {
+                "videoId": "video000001"
+              }
+            }
+          ]
+        }
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "rss-prefixless-header",
+      "surface": "feed",
+      "channelId": "UC0000000000000000000000",
+      "input": "<feed><yt:channelId>0000000000000000000000</yt:channelId><entry><yt:videoId>video000001</yt:videoId><yt:channelId>UC0000000000000000000000</yt:channelId></entry></feed>",
+      "expect": "pass"
+    },
+    {
+      "name": "streams-error-message",
+      "surface": "live",
+      "input": {
+        "sectionListRenderer": {
+          "contents": [
+            {
+              "itemSectionRenderer": {
+                "contents": [
+                  {
+                    "messageRenderer": {
+                      "text": {
+                        "simpleText": "Something went wrong. Sign in to continue."
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "expect": "reject"
+    },
+    {
+      "name": "live-lockup-without-content-type",
+      "surface": "live",
+      "input": {
+        "lockupViewModel": {
+          "contentId": "abcdefghijk",
+          "metadata": {
+            "lockupMetadataViewModel": {
+              "title": {
+                "content": "Live"
+              }
+            }
+          }
+        }
+      },
+      "expect": "pass"
+    }
+  ]
+}

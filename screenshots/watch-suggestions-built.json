@@ -1,0 +1,13 @@
+{
+  "ok": true,
+  "checks": [
+    "review submissions do not change playback, queue or its saved draft; duplicate and invalid batches report clearly, and a dropped receipt retries once with the same identity",
+    "host approvals append or prioritize without changing the stage; Undo restores the queue while resolving the request, and dismissal notifies the submitting guest",
+    "freshly timestamped stale review snapshots cannot resurrect resolved requests or overwrite the newer review policy",
+    "review mode rejects direct queue-edit packets, enforces per-connection limits, restores pending requests to rejoining guests and provides a focused mobile Requests shortcut",
+    "full live queues retain suggestions for later approval; disabling guest access rejects raw suggestions, and turning review off preserves outstanding requests without auto-queuing them",
+    "host review preference survives reload while session-only requests clear and the separately saved live queue recovers explicitly"
+  ],
+  "errors": [],
+  "limitation": "Three isolated clients using real WebRTC; provider embeds use fixtures. Physical devices and cross-network TURN are separate checks."
+}

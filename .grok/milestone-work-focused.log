@@ -1,0 +1,38 @@
+✔ focused queue is bounded, deduplicated and removable while paused (32.6175ms)
+✔ each queued creator runs exactly once, serially, with live priority and captured budgets (6.7499ms)
+✔ removing the last paused job releases its owner before accepting a new job (2.5242ms)
+✔ stop preserves the in-flight batch and prevents later creators; a fresh queue still works (19.8289ms)
+✔ global cancellation clears all remaining creators instead of restarting with a fresh revision (2.6348ms)
+✔ failed creator is not retried automatically or allowed to pin healthy waiting creators (28.1225ms)
+✔ retry budgets are exponential, bounded and independently reset by scope (3.1072ms)
+✔ fair rotation skips only the failing scope and resumes eligible creators after reload (0.4435ms)
+✔ Twitch failure taxonomy provides actionable recovery with bounded messages (0.8708ms)
+✔ actual live API respects durable cooldown and retains independent archive failures on success (301.7572ms)
+✔ actual live API rejects a global integrity error instead of retiring cached live cards (1.7056ms)
+✔ actual focused API applies finite VOD budget, legal page sizes and explicit skip-clips (827.7257ms)
+✔ actual routine API saves partial clip failure in recent scope while archive and live scopes stay healthy (5.5424ms)
+✔ unavailable creators cannot invoke HTML recovery and block the next healthy catalog (80.9418ms)
+✔ routine RSS failures remain independent and never trigger a channel HTML or archive scan (12.0326ms)
+✔ an unresolved handle is checked without HTML and cannot freeze the following confirmed archive (12.004ms)
+✔ partial catalog rejection retains full pages, the next token, and the saved creator name (34.207ms)
+✔ a first-page archive rejection still accepts a healthy recent feed without losing the diagnosis (7.6968ms)
+✔ Streams endpoints eliminate repeated Home requests, validate each channel, and never cache live answers (5.9985ms)
+✔ unrecognized or expired endpoints recover through Home; missing identity cannot confirm offline (3.201ms)
+✔ endpoint fallback cannot bypass a rate hold and duplicate checks share only in-flight work (0.8401ms)
+✔ eight live bodies overlap beside a stalled archive while archive bodies remain serial (146.5264ms)
+✔ an older parallel success cannot release a new live cooldown or start queued checks (132.8045ms)
+✔ 2,000-channel discovery rotates completely without repeating fresh offline checks or starving known live (37.4738ms)
+✔ 1,588 creators with 52 overdue broadcasts reserve three quarters of each batch for discovery (84.0582ms)
+✔ a healthy routine refresh reads RSS once and clears only its recent-pull failure (384.0045ms)
+✔ a live-only HTTP 429 does not stop a healthy creator archive (396.4014ms)
+✔ manual force crosses server guards, recovers from RSS 404, and continues the catalog (1086.1477ms)
+✔ a newly rejected forced catalog does not re-probe RSS and every following creator (527.2736ms)
+✔ a forced playlist retry resumes older public pages during the old cooldown (261.5289ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 30
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4340.2362

@@ -1,0 +1,16 @@
+✔ 23 small redacted YouTube contract fixtures recognize supported shapes and reject unreadable replacements (4.302ms)
+✔ Twitch live contract rejects malformed stream identities and viewer values, but accepts real zero-viewer and offline observations (1.2508ms)
+✔ Twitch aliased optional failures preserve verified state while critical and bubbled negatives stay unknown (0.9495ms)
+✔ Twitch whole-request failures stay within their 12-user chunk and later chunks finish (0.8363ms)
+✔ actual 100-target Twitch refresh commits healthy siblings and retries only six bad observations (57.316ms)
+✔ actual valid empty RSS feed succeeds without a channel or live fallback; malformed RSS retains checkpoints (94.0735ms)
+✔ a renamed live renderer or incomplete Streams container cannot confirm an offline observation (4.0423ms)
+✔ a partial malformed archive page retains the previous complete page and its next token (185.6886ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 925.9774

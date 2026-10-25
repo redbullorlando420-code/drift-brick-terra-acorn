@@ -6,6 +6,11 @@ export const PROVIDER_BUDGETS = {
   bodyTimeoutMs: 15_000,
   queuedRequests: 80,
   youtubeTransfers: 1,
+  /** Two lightweight RSS bodies can complete independently of archive pages. */
+  youtubeFeedTransfers: 2,
+  youtubeLiveTransfers: 8,
+  youtubeLiveWorkers: 8,
+  youtubeLiveRequestGapMs: 80,
   twitchTransfers: 6,
   adultTransfers: 6,
   refreshWorkers: 3,

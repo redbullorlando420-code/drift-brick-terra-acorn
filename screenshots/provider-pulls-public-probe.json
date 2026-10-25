@@ -1,0 +1,31 @@
+{
+  "at": "2026-10-24T15:03:53.710Z",
+  "report": [
+    {
+      "provider": "youtube",
+      "elapsedMs": 318,
+      "received": 15,
+      "refreshed": true,
+      "recent": {
+        "attemptedAt": 1792854232232,
+        "checkedAt": 1792854232232,
+        "failures": 0,
+        "newestVideoId": "mND4T0lzg_g"
+      },
+      "archivePreserved": true
+    },
+    {
+      "provider": "twitch",
+      "elapsedMs": 1478,
+      "received": 17,
+      "refreshed": true,
+      "recent": {
+        "attemptedAt": 1792854233710,
+        "checkedAt": 1792854233710,
+        "failures": 0
+      },
+      "archivePreserved": true
+    }
+  ],
+  "limitation": "Two public creators, read-only metadata. No private library changes or large-follow-list soak."
+}

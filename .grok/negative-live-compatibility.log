@@ -1,0 +1,45 @@
+✔ archive checkpoints advance only after whole accepted pages, with bounded duplicates and last VOD (10.1711ms)
+✔ a later integrity challenge keeps accepted VODs and the safe retry cursor (2.8134ms)
+✔ missing connections and first-page failures never masquerade as exhausted archives (4.0774ms)
+✔ repeated or empty advancing pages stop immediately without losing the prior position (2.7643ms)
+✔ overflowing or invalid rows hold the page checkpoint while retaining usable VODs (2.0374ms)
+✔ valid terminal shelves exhaust only after archive, highlight and upload are checked (0.4535ms)
+✔ duplicate-only forward pages may advance but the page budget stays bounded (0.5319ms)
+✔ checkpoint recovery bounds malformed data and retains exhausted timestamps (0.7779ms)
+✔ a newer local mirror wins over a longer stale disk list, including a completed cursor (1.0349ms)
+✔ actual reload normalization and library-pack import retain YouTube and Twitch positions (660.138ms)
+✔ real provider path returns partial pages, diagnoses challenges and bypasses partial-result caching (819.2493ms)
+✔ clip-page failure preserves the accepted VODs and clip continuation (576.8033ms)
+✔ follow normalization retains import review flags and original query aliases over reload (2.6608ms)
+✔ full local storage does not erase the in-session durable follow queue (0.7366ms)
+✔ real live action retains successful timestamps, bounds failed requests, backs off, recovers and reports a live-only cooldown (358.7283ms)
+✔ timeouts, server failures, network errors and body budgets never fan out into Home and HTML retries (5.8045ms)
+✔ changed Streams params recover from the same validated page; missing tabs stay one request on later checks (1.7915ms)
+✔ an incomplete selected tab cannot confirm that an existing stream is offline (2.6869ms)
+✔ cancelled waiting YouTube reads reject immediately and free bounded capacity behind a stalled body (103.9694ms)
+✔ durable per-creator live retry increases, caps, preserves provider deadlines and resets after recovery (0.5319ms)
+✔ coverage separates successful observations, latest failures, retry waits and due-only IDs (42.0823ms)
+✔ live provider cooldown restores from durable follows without confusing individual or archive retry holds (10.7669ms)
+✔ only complete creator-owned Streams catalogs supply negative evidence; Home and continuations remain unknown (19.1521ms)
+✔ fast endpoint navigation preserves evidence completeness on initial and cached checks (1.3263ms)
+✔ only exact playable known broadcasts with explicit ended metadata confirm absence (1.7576ms)
+✔ supplemental checks stay bounded and cannot turn failed or unowned watch pages into negative evidence (4.5142ms)
+✔ actual API preserves live clock and archive state for Home, partial, consent and malformed replies (780.0247ms)
+✔ complete absence ages through the hold, uncertainty never starts it, and positive evidence clears it immediately (1.2906ms)
+✔ durable evidence accepts bounded valid metadata and rejects fabricated negative sources or malformed timestamps (0.7602ms)
+✔ legacy saved broadcasts join the bounded identity ledger and uncovered watch negatives cannot start a hold (2.5594ms)
+✔ Streams endpoints eliminate repeated Home requests, validate each channel, and never cache live answers (13.2837ms)
+✔ unrecognized or expired endpoints recover through Home; missing identity cannot confirm offline (2.0123ms)
+✔ endpoint fallback cannot bypass a rate hold and duplicate checks share only in-flight work (1.5892ms)
+✔ eight live bodies overlap beside a stalled archive while archive bodies remain serial (109.943ms)
+✔ an older parallel success cannot release a new live cooldown or start queued checks (60.5388ms)
+✔ 2,000-channel discovery rotates completely without repeating fresh offline checks or starving known live (31.5692ms)
+✔ 1,588 creators with 52 overdue broadcasts reserve three quarters of each batch for discovery (3.5934ms)
+ℹ tests 37
+ℹ suites 0
+ℹ pass 37
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2607.67

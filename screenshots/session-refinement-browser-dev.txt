@@ -1,0 +1,40 @@
+desktop: studio
+desktop: recipes
+desktop: remote
+desktop: actual YouTube date
+mobile: studio
+mobile: recipes
+mobile: remote
+mobile: actual YouTube date
+[
+  {
+    "viewport": "desktop",
+    "errors": [],
+    "recipes": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\session-refinement-dev-recipes-desktop.png",
+    "studio": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\session-refinement-dev-studio-desktop.png",
+    "remote": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\session-refinement-dev-remote-desktop.png",
+    "credits": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\session-refinement-dev-credits-desktop.png",
+    "dates": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\session-refinement-dev-dates-desktop.png",
+    "generation": 2,
+    "launches": 1,
+    "revocations": 3,
+    "expectedHttpErrors": 2,
+    "actualYoutubeDate": "2005-04-23",
+    "ok": true
+  },
+  {
+    "viewport": "mobile",
+    "errors": [],
+    "recipes": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\session-refinement-dev-recipes-mobile.png",
+    "studio": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\session-refinement-dev-studio-mobile.png",
+    "remote": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\session-refinement-dev-remote-mobile.png",
+    "credits": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\session-refinement-dev-credits-mobile.png",
+    "dates": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\session-refinement-dev-dates-mobile.png",
+    "generation": 2,
+    "launches": 1,
+    "revocations": 3,
+    "expectedHttpErrors": 2,
+    "actualYoutubeDate": "2005-04-23",
+    "ok": true
+  }
+]

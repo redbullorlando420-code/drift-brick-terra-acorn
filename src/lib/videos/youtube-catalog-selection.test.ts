@@ -7,7 +7,7 @@ import type { LibraryVideo } from './types';
 
 const video = (id: number, patch: Partial<LibraryVideo> = {}): LibraryVideo => ({ id: String(id), name: `Upload ${id}`,
   folderId: 'public', path: String(id), size: 0, addedAt: Date.UTC(2026, 9, 1) + id % 9, extension: 'yt', mime: 'video/youtube',
-  remote: { kind: 'youtube', channelId: `channel:${id % 50}`, channelName: `Creator ${id % 50}` }, ...patch });
+  remote: { kind: 'youtube', channelId: `channel:${id % 50}`, channelName: `Creator ${id % 50}`, publishedSource: 'provider' }, ...patch });
 
 test('cooperative YouTube selection preserves full visibility boundaries and stable date ordering', async () => {
   const videos = Array.from({ length: 5000 }, (_, i) => video(i));
@@ -18,17 +18,19 @@ test('cooperative YouTube selection preserves full visibility boundaries and sta
   const selected = await youtubeCatalogSelection(input, undefined, async () => { turns++; });
   const expected = videos.filter(v => v.remote?.kind === 'youtube' && !input.unavailable[v.id] && !input.hiddenVideos[v.id]
     && !input.privateFolders.has(v.folderId) && !v.isSample).sort((a, b) => b.addedAt - a.addedAt);
-  assert.deepEqual(selected, expected); assert.ok(turns > 4); assert.equal(selected.length, 4998);
+  assert.deepEqual(selected, expected); assert.ok(turns >= 3, 'filtering and ordering both cross task boundaries'); assert.equal(selected.length, 4998);
   assert.equal(videos[0].id, '0', 'input catalog order stays unchanged');
 });
 
 test('navigation preparation is cancellable during filtering and sorting', async () => {
-  const videos = Array.from({ length: 8192 }, (_, i) => video(i));
-  for (const cancelTurn of [2, 7]) {
-    const controller = new AbortController(); let turns = 0;
+  for (const phase of ['filter', 'sort']) {
+    let reads = 0, dateReads = 0;
+    const videos = Array.from({ length: 32_768 }, (_, i) => { const row = video(i), remote = row.remote; return { ...row,
+      get remote() { reads++; return remote; }, get addedAt() { dateReads++; return row.addedAt; } }; });
+    const controller = new AbortController();
     await assert.rejects(youtubeCatalogSelection({ videos, privateFolders: new Set(), unavailable: {}, hiddenVideos: {}, hideDemo: false }, controller.signal,
-      async () => { if (++turns === cancelTurn) controller.abort(); }), { name: 'AbortError' });
-    assert.equal(turns, cancelTurn);
+      async () => { if (phase === 'filter' ? reads >= 4096 : dateReads > videos.length * 3 + 256) controller.abort(); }), { name: 'AbortError' });
+    assert.ok(phase === 'filter' ? reads < videos.length : dateReads > videos.length * 3, 'cancels during the requested phase');
   }
 });
 

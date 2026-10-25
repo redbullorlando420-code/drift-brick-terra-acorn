@@ -1,10 +1,11 @@
 import { forEachCatalogSlice, yieldCatalogTask } from '../catalog-work';
 import { isTwitchClip } from './twitch-clips';
+import { matchesTwitchContent, type TwitchContentFilter } from './twitch-content';
 import type { FollowedChannel, LibraryVideo } from './types';
 
 export type TwitchArchiveKey = { date: number; id: string };
 export type TwitchArchiveFilter = {
-  query: string; creator?: FollowedChannel; kind: 'all' | 'vod' | 'clip';
+  query: string; creator?: FollowedChannel; kind: TwitchContentFilter | 'vod';
   from?: number; until?: number; order: 'newest' | 'oldest'; after?: TwitchArchiveKey;
 };
 export type TwitchArchivePage = { videos: LibraryVideo[]; matched: number; hasNext: boolean; next?: TwitchArchiveKey; visited: number; maxCandidates: number; elapsedMs: number };
@@ -53,7 +54,7 @@ export async function searchTwitchArchive(videos: readonly LibraryVideo[], filte
     if (video.remote?.kind !== 'twitch' || video.remote.live || video.isSample || video.extension === 'live' || /\/(?:live|channel)$/i.test(video.path) || /:(?:live|channel)$/i.test(video.id) || /^offline\b/i.test(video.tagline ?? '')) return;
     if (filter.creator && !matchesCreator(video, filter.creator)) return;
     const clip = isTwitchClip(video);
-    if (filter.kind !== 'all' && clip !== (filter.kind === 'clip')) return;
+    if (filter.kind === 'vod' ? clip : !matchesTwitchContent(video,filter.kind)) return;
     const position = key(video);
     if (filter.from !== undefined && (!position.date || position.date < filter.from) || filter.until !== undefined && (!position.date || position.date >= filter.until)) return;
     if (tokens.length) {

@@ -1,0 +1,23 @@
+{
+  "baseline": {
+    "channels": 2000,
+    "requests": 4000,
+    "homeRequests": 2000,
+    "peakTransfers": 1,
+    "elapsedMs": 62378,
+    "simulatedLatencyMs": 8,
+    "startGapMs": 1
+  },
+  "quick": {
+    "channels": 2000,
+    "requests": 2004,
+    "homeRequests": 4,
+    "peakTransfers": 4,
+    "elapsedMs": 22404,
+    "simulatedLatencyMs": 8,
+    "startGapMs": 1
+  },
+  "speedup": 2.78,
+  "requestReductionPercent": 49.9,
+  "limitation": "Synthetic I/O benchmark: 2,000 unique channels, 8ms mocked latency, 1ms start gap; real YouTube/network latency and user pacing determine actual scan time. No public provider traffic was generated."
+}

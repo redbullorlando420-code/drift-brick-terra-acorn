@@ -16,6 +16,9 @@ const recoveryUi = process.argv.includes('--recovery-ui');
 const idleRecovery = process.argv.includes('--idle-recovery');
 const cardControls = process.argv.includes('--card-controls');
 const topicsUi = process.argv.includes('--topics-ui');
+const animeUi = process.argv.includes('--anime-ui');
+const creatorRepairUi = process.argv.includes('--creator-repair-ui');
+const creatorBrowserUi = process.argv.includes('--creator-browser-ui');
 const twitchUi = process.argv.includes('--twitch-ui');
 const twitchDiscovery = process.argv.includes('--twitch-discovery');
 const savedReload = process.argv.includes('--saved-reload');
@@ -24,6 +27,9 @@ const guideUi = process.argv.includes('--guide-ui');
 const youtubeCleanupUi = process.argv.includes('--youtube-cleanup-ui');
 const recoveryLinksUi = process.argv.includes('--recovery-links-ui');
 if (topicsUi && !searchStats) throw new Error('--topics-ui requires --search-stats for saved topic fixtures');
+if (animeUi && (!searchStats || !denseSaved)) throw new Error('--anime-ui requires --search-stats --dense-saved');
+if (creatorRepairUi && (!searchStats || !denseSaved)) throw new Error('--creator-repair-ui requires --search-stats --dense-saved');
+if (creatorBrowserUi && (!searchStats || !denseSaved)) throw new Error('--creator-browser-ui requires --search-stats --dense-saved');
 if (twitchUi && (!searchStats || !denseSaved)) throw new Error('--twitch-ui requires --search-stats --dense-saved');
 if (twitchDiscovery && !twitchUi) throw new Error('--twitch-discovery requires --twitch-ui');
 if (savedReload && (!searchStats || !denseSaved)) throw new Error('--saved-reload requires --search-stats --dense-saved');
@@ -127,7 +133,7 @@ try {
       // Wait for the first hydration to create IndexedDB, then seed compact rows
       // in small transactions. The seed is preparation, outside measured load.
       await page.waitForFunction(async () => (await indexedDB.databases()).some(db => db.name === 'reelcase'));
-      await Promise.race([page.evaluate(async ({ denseActivity, searchStats, denseSaved, recoveryUi, topicsUi, twitchDiscovery, recoveryLinksUi }) => {
+      await Promise.race([page.evaluate(async ({ denseActivity, searchStats, denseSaved, recoveryUi, topicsUi, animeUi, creatorRepairUi, creatorBrowserUi, twitchDiscovery, recoveryLinksUi }) => {
         const follows = ['youtube', 'twitch'].flatMap(kind => Array.from({ length: 180 }, (_, index) => ({ id: `${kind === 'youtube' ? 'yt' : 'tw'}:qa-${index}`, kind, handle: `qa-${index}`, title: `Gate creator ${index}` })));
         localStorage.setItem('reelcase.follows.v1', JSON.stringify({ channels: follows, savedAt: Date.now() }));
         const db = await new Promise((resolve, reject) => { const req = indexedDB.open('reelcase'); req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); });
@@ -142,10 +148,10 @@ try {
                 const youtubeType = index < 4 ? 'live' : index < 6 ? 'upcoming' : index < 106 ? 'short' : index < 206 ? 'replay' : 'upload';
                 const publishedSource = index < 106 || index >= 40_000 && index < 45_000 ? 'unknown' : index < 206 ? 'provider' : 'rss';
                 const twitchClip = twitchDiscovery && kind === 'twitch' && index >= 77_000 && index % 3 === 0;
-                if (searchStats) tx.objectStore('activity').put({ id, tags: topicsUi && index % 10 === 0 ? ['science', 'technology'] : ['science'], provenance: { tags: { science: 'manual' }, lockedFields: ['tags'], updatedAt: Date.now() } }, `metadata-enrichment:${id}`);
-                store.put({ id, folderId: `${prefix}:qa-${index % 180}`, name: `Gate archive ${index}`, path: `${prefix}/Gate archive ${index}`, extension: twitchClip ? 'clip' : prefix, mime: `video/${kind}`, size: 0, duration: twitchClip ? 60 : 420, addedAt: kind === 'youtube' && publishedSource === 'unknown' ? 0 : Date.now() - index * 60_000,
+                if (searchStats) tx.objectStore('activity').put({ id, tags: [...(topicsUi && index % 10 === 0 ? ['science', 'technology'] : ['science']), ...(animeUi && index % 2 === 0 ? index % 4 === 0 ? ['anime', 'film'] : ['anime'] : [])], provenance: { tags: { science: 'manual' }, lockedFields: creatorRepairUi && index >= 1000 && index < 41000 && index % 2 ? [] : ['tags'], updatedAt: Date.now() } }, `metadata-enrichment:${id}`);
+                store.put({ id, folderId: `${prefix}:qa-${creatorBrowserUi && kind === 'youtube' && index >= 40000 && index % 180 === 0 ? 1 : index % 180}`, name: `Gate archive ${index}`, path: `${prefix}/Gate archive ${index}`, extension: twitchClip ? 'clip' : prefix, mime: `video/${kind}`, size: 0, duration: twitchClip ? 60 : 420, addedAt: kind === 'youtube' && publishedSource === 'unknown' ? 0 : Date.now() - index * 60_000,
                   ...(topicsUi ? { genre: `Gate category ${index % 1000}` } : {}),
-                  remote: { kind, channelName: searchStats && kind === 'twitch' && index < 77_000 ? 'Dominant Twitch creator' : `Gate creator ${index % 180}`, videoId: providerId, watchUrl: `https://www.youtube.com/watch?v=${providerId}`, embedUrl: `https://www.youtube.com/embed/${providerId}`,
+                  remote: { kind, ...(creatorBrowserUi && index < 40000 ? { sourceIds: ['yt:qa-0'] } : {}), ...(creatorRepairUi && index >= 1000 && index < 41000 ? {} : { channelName: searchStats && kind === 'twitch' && index < 77_000 ? 'Dominant Twitch creator' : `Gate creator ${index % 180}` }), videoId: providerId, watchUrl: `https://www.youtube.com/watch?v=${providerId}`, embedUrl: `https://www.youtube.com/embed/${providerId}`,
                     ...(kind === 'youtube' ? { youtubeType, publishedSource, ...(index < 4 ? { live: true, observedAt: Date.now() - (index < 2 ? 0 : 86_400_000) } : {}) }
                       : twitchDiscovery && index === 79_999 ? { live: true, viewers: 20, observedAt: Date.now() } : {}) } }, `video:${id}`);
               }
@@ -176,7 +182,7 @@ try {
             tx.oncomplete = resolve; tx.onerror = () => reject(tx.error);
           });
         } finally { db.close(); }
-      }, { denseActivity, searchStats, denseSaved, recoveryUi, topicsUi, twitchDiscovery, recoveryLinksUi }), new Promise((_, reject) => { const timer = setTimeout(() => reject(new Error('Fixture preparation exceeded 120 seconds')), 120_000); timer.unref(); })]);
+      }, { denseActivity, searchStats, denseSaved, recoveryUi, topicsUi, animeUi, creatorRepairUi, creatorBrowserUi, twitchDiscovery, recoveryLinksUi }), new Promise((_, reject) => { const timer = setTimeout(() => reject(new Error('Fixture preparation exceeded 120 seconds')), 120_000); timer.unref(); })]);
       progress('reload');
       errors.length = 0;
       await page.reload({ waitUntil: 'domcontentloaded' });
@@ -399,6 +405,11 @@ try {
         checkCreators(await mix.locator('[data-video-card-open]').evaluateAll(rows => rows.map(row => row.dataset.videoCardId)));
         result.balancedTwitchVerified = true;
         result.twitchScreenshot = output.replace(/\.json$/, `-twitch-${viewport.name}.png`); await mix.scrollIntoViewIfNeeded(); await page.screenshot({ path: result.twitchScreenshot });
+        if (await page.getByRole('region',{name:'Full Twitch catalog',exact:true}).count()) throw Error('Twitch eagerly mounted its full catalog');
+        if (await page.getByRole('region',{name:'Twitch creator shelves',exact:true}).count()) throw Error('Twitch eagerly mounted recommendations');
+        result.twitchFastStartVerified = true;
+        await page.getByRole('button',{name:'Open full Twitch catalog',exact:true}).click();
+        if (twitchUi) await page.getByRole('button',{name:'Explore Twitch recommendations',exact:true}).click();
         const catalog = page.getByRole('region',{name:'Full Twitch catalog',exact:true});
         await page.waitForFunction(()=>document.querySelector('[aria-label="Full Twitch catalog"]')?.getAttribute('aria-busy')==='false');
         if (await catalog.getAttribute('data-twitch-order')!=='mix') throw Error('Complete Twitch grid did not default to creator mix');
@@ -406,6 +417,11 @@ try {
         await catalog.locator('[data-video-card-open]').first().waitFor();
         checkCreators(await catalog.locator('[data-video-card-open]').evaluateAll(rows=>rows.map(row=>row.dataset.videoCardId)));
         await catalog.getByRole('list',{name:'Media catalog · 30,000 titles',exact:true}).waitFor();
+        await page.getByRole('button',{name:'Close full Twitch catalog',exact:true}).click();
+        if(await catalog.count())throw Error('Closing the full Twitch catalog retained its grid');
+        await page.getByRole('button',{name:'Open full Twitch catalog',exact:true}).click();
+        await catalog.getByRole('list',{name:'Media catalog · 30,000 titles',exact:true}).waitFor();
+        result.twitchCatalogCloseVerified=true;
         result.fullTwitchMixVerified=true;
         result.twitchGridScreenshot=output.replace(/\.json$/,`-twitch-grid-${viewport.name}.png`); await page.screenshot({path:result.twitchGridScreenshot});
         if (twitchUi) {
@@ -477,6 +493,8 @@ try {
           if (twitchDiscovery) {
             progress('indexed clips, creator shelves and independent coverage');
             const coverage = page.locator('[data-twitch-coverage]');
+            await coverage.locator('summary').getByText('28,999 cached VODs across 180 channels · expand to review and queue deep pulls.', {exact:true}).waitFor();
+            await coverage.locator('summary').click();
             await page.waitForFunction(() => document.querySelector('[data-twitch-coverage]')?.getAttribute('aria-busy') === 'false');
             await coverage.locator('summary').getByText('28,999 cached VODs across 180 channels · expand to review and queue deep pulls.', { exact: true }).waitFor();
             const clips = page.getByRole('region', { name: 'Twitch clip discovery', exact: true });
@@ -510,7 +528,6 @@ try {
             await page.getByRole('button', { name: 'Mix Twitch creators', exact: true }).click();
             await page.waitForFunction(() => document.querySelector('[aria-label="Twitch creator shelves"]')?.getAttribute('aria-busy') === 'false');
             await creators.getByRole('heading', { name: 'Gate creator 79 · recent VODs', exact: true }).waitFor();
-            await coverage.locator('summary').click();
             await coverage.getByText(/cached VODs · \d+ confirmed clips?/).first().waitFor();
             result.twitchDiscoveryScreenshot = output.replace(/\.json$/, `-twitch-discovery-${viewport.name}.png`);
             await clips.scrollIntoViewIfNeeded(); await page.screenshot({ path: result.twitchDiscoveryScreenshot });
@@ -520,6 +537,8 @@ try {
             // Leave with all three completed snapshots; returning must rebuild
             // from the current catalog instead of retaining hidden card trees.
             await navigate('Home'); await navigate('Twitch');
+            if (await page.getByRole('region', {name:'Twitch creator shelves',exact:true}).count()) throw Error('Returning to Twitch retained hidden shelves');
+            await page.getByRole('button', {name:'Explore Twitch recommendations',exact:true}).click();
             await waitClips(); await checkClips('all');
             result.twitchDiscoveryReturnVerified = true;
           }
@@ -732,6 +751,120 @@ try {
         await page.getByRole('button', { name: 'Close connected topics', exact: true }).click();
         result.topicsUiVerified = true;
       }
+      if (creatorBrowserUi) {
+        progress('cooperative creator browser, aliases, filters, search and bounded pages');
+        await navigate('YouTube');
+        const opened = Date.now();
+        await page.getByRole('button', { name: 'Manage Gate creator 0', exact: true }).click();
+        const browser = page.locator('[data-creator-video-browser]');
+        const expectCount = async count => {
+          await page.locator('[data-creator-video-pending="false"]').waitFor({ timeout: 30000 });
+          await browser.getByText(`Creator videos · ${count.toLocaleString()}`, { exact: true }).waitFor();
+        };
+        await expectCount(40000);
+        result.creatorBrowserReadyMs = Date.now() - opened;
+        const rows = browser.locator('[data-creator-video-id]');
+        if (await rows.count() !== 24) throw Error('Creator browser did not mount one bounded page');
+        const filters = browser.locator('[aria-label="Filter creator videos"]');
+        await filters.getByRole('button', { name: 'Favorites', exact: true }).click(); await expectCount(20000);
+        await filters.getByRole('button', { name: 'Unwatched', exact: true }).click();
+        await expectCount(0);
+        await browser.getByText('No videos match this search.', { exact: true }).waitFor();
+        await filters.getByRole('button', { name: 'All', exact: true }).click(); await expectCount(40000);
+        const search = page.getByRole('textbox', { name: 'Search creator videos', exact: true });
+        await search.fill('superseded missing title');
+        const searched = Date.now(); await search.fill('Gate archive 39999'); await expectCount(1);
+        result.creatorBrowserSearchMs = Date.now() - searched;
+        if (await rows.first().getAttribute('data-creator-video-id') !== 'yt:v:qa-39999') throw Error('Creator source aliases or latest query were lost');
+        await rows.first().click();
+        await page.getByRole('button', { name: 'Close preview', exact: true }).click();
+        await filters.getByRole('button', { name: 'Favorites', exact: true }).click(); await expectCount(1);
+        await search.fill('Gate archive 39998'); await expectCount(0);
+        await browser.getByText('No videos match this search.', { exact: true }).waitFor();
+        await search.fill(''); await expectCount(20000);
+        await filters.getByRole('button', { name: 'All', exact: true }).click(); await expectCount(40000);
+        const sort = page.getByLabel('Sort creator videos', { exact: true });
+        await sort.selectOption('oldest'); await expectCount(40000);
+        if (await rows.first().getAttribute('data-creator-video-id') !== 'yt:v:qa-0') throw Error('Creator oldest order lost stable unknown-date ties');
+        await sort.selectOption('title'); await expectCount(40000);
+        if (await rows.first().getAttribute('data-creator-video-id') !== 'yt:v:qa-0') throw Error('Creator title sort failed');
+        await sort.selectOption('popular'); await expectCount(40000);
+        await sort.selectOption('newest'); await expectCount(40000);
+        const first = await rows.first().getAttribute('data-creator-video-id');
+        for (let index = 0; index < 12; index++) await browser.getByRole('button', { name: 'Next videos', exact: true }).click();
+        result.creatorBrowserMountedRows = await rows.count();
+        if (result.creatorBrowserMountedRows !== 24) throw Error('Creator pages accumulate mounted rows');
+        await browser.getByText('289–312 of 40,000', { exact: true }).waitFor();
+        for (let index = 0; index < 12; index++) await browser.getByRole('button', { name: 'Previous videos', exact: true }).click();
+        if (await rows.first().getAttribute('data-creator-video-id') !== first) throw Error('Creator backward paging changed stable order');
+        await search.fill('Gate archive 39999'); await expectCount(1);
+        await page.getByRole('button', { name: 'Manage Gate creator 1', exact: true }).click();
+        await expectCount(0);
+        await search.fill(''); await page.locator('[data-creator-video-pending="false"]').waitFor();
+        if (await rows.count() !== 24) throw Error('Changing creators did not reset the video page');
+        result.creatorBrowserScreenshot = output.replace(/\.json$/, `-creator-browser-${viewport.name}.png`);
+        await browser.scrollIntoViewIfNeeded(); await page.screenshot({ path: result.creatorBrowserScreenshot });
+        await page.getByRole('button', { name: 'Select creators', exact: true }).click();
+        await page.getByRole('button', { name: 'Select all 180 matching', exact: true }).click();
+        await page.getByRole('button', { name: 'Pull videos · 180', exact: true }).waitFor();
+        await page.getByRole('button', { name: 'Clear selection', exact: true }).click();
+        if (await page.getByRole('button', { name: 'Pull videos · 0', exact: true }).isEnabled()) throw Error('Empty creator selection still permits a pull');
+        await page.getByRole('button', { name: 'Collapse YouTube creator control', exact: true }).click();
+        if (await page.locator('[data-creator-video-browser]').count()) throw Error('Collapsed creator controls retained the catalog');
+        result.creatorBrowserUiVerified = true;
+      }
+      if (animeUi) {
+        progress('cooperative Anime catalog, filters, search, paging and tagging');
+        const opened = Date.now();
+        await navigate('Anime');
+        await page.locator('[data-anime-ready="true"]').waitFor({ timeout: 30_000 });
+        result.animeReadyMs = Date.now() - opened;
+        const filters = page.getByRole('group', { name: 'Anime shelf filters', exact: true });
+        await filters.getByRole('button', { name: /^All titles\s+40000$/ }).waitFor();
+        await filters.getByRole('button', { name: /^Continue\s+30000$/ }).waitFor();
+        const expectMatches = async count => {
+          await page.locator('[data-anime-ready="true"]').waitFor({ timeout: 30_000 });
+          await page.getByText(`${count.toLocaleString()} matching title${count === 1 ? '' : 's'}`, { exact: true }).waitFor();
+        };
+        await expectMatches(40000);
+        await filters.getByRole('button', { name: /^Films & specials\s+20000$/ }).click(); await expectMatches(20000);
+        await filters.getByRole('button', { name: /^Series\s+20000$/ }).click(); await expectMatches(20000);
+        await filters.getByRole('button', { name: /^Continue\s+30000$/ }).click(); await expectMatches(30000);
+        await filters.getByRole('button', { name: /^All titles\s+40000$/ }).click(); await expectMatches(40000);
+        const search = page.getByRole('textbox', { name: 'Search anime library', exact: true });
+        await search.fill('obsolete query without results');
+        const searched = Date.now();
+        await search.fill('Gate archive 49998'); await expectMatches(1);
+        result.animeSearchMs = Date.now() - searched;
+        const catalog = page.getByRole('region', { name: 'Anime catalog', exact: true });
+        await catalog.scrollIntoViewIfNeeded();
+        const card = catalog.locator('[data-video-card-open]').first();
+        await card.waitFor();
+        if (await card.getAttribute('data-video-card-id') !== 'yt:v:qa-49998') throw Error('Superseded Anime query replaced the latest query');
+        await card.click();
+        await page.getByRole('button', { name: 'Close preview', exact: true }).click();
+        await search.fill(''); await expectMatches(40000);
+        const grid = catalog.locator('[data-virtual-video-grid]');
+        for (let pageIndex = 0; pageIndex < 12; pageIndex++) {
+          await grid.getByRole('button', { name: /^Next page/ }).click();
+          await page.waitForFunction(() => document.querySelector('[data-anime-ready="true"] [data-grid-pending="false"]'));
+        }
+        result.animeAdmitted = Number(await grid.getAttribute('data-grid-loaded'));
+        result.animeMountedCards = await catalog.locator('[data-video-card]').count();
+        if (result.animeAdmitted < 300 || result.animeMountedCards >= 128) throw Error('Expanded Anime grid failed its bounded mounting check');
+        result.animeScreenshot = output.replace(/\.json$/, `-anime-${viewport.name}.png`);
+        await page.screenshot({ path: result.animeScreenshot });
+        const finder = page.getByRole('textbox', { name: 'Find a library title to tag as anime', exact: true });
+        await finder.fill('Gate archive 49999');
+        await page.getByRole('button', { name: 'Add #anime', exact: true }).click();
+        await page.getByRole('button', { name: 'In Anime', exact: true }).waitFor();
+        await expectMatches(40001);
+        await search.fill('Gate archive 49999'); await expectMatches(1);
+        await finder.fill('a deliberately missing title');
+        await page.getByText('No catalog titles match that search.', { exact: true }).waitFor();
+        await search.fill(''); await expectMatches(40001);
+        result.animeUiVerified = true;
+      }
       await navigate('Settings');
       if (denseSaved) {
         progress('dense saved shelves and shared controls');
@@ -880,6 +1013,69 @@ try {
       await scorecard.scrollIntoViewIfNeeded();
       result.screenshot = output.replace(/\.json$/, `-${viewport.name}.png`);
       await page.screenshot({ path: result.screenshot });
+      if (creatorRepairUi) {
+        progress('indexed creator audit, atomic failure/retry, locked tags and reload');
+        const coverage = page.locator('[data-creator-coverage]');
+        await page.locator('[data-creator-coverage-pending="false"]').waitFor({ timeout: 30_000 });
+        await coverage.getByText('40,000 safe matches', { exact: true }).waitFor({ timeout: 30_000 });
+        const readRows = () => page.evaluate(async () => {
+          const db = await new Promise((resolve, reject) => { const request = indexedDB.open('reelcase'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); });
+          try {
+            const videos = await new Promise((resolve, reject) => {
+              const request = db.transaction('remote-cache').objectStore('remote-cache').getAll(IDBKeyRange.bound('video:yt:v:qa-1000', 'video:yt:v:qa-1009'), 64);
+              request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+            });
+            const named = videos.filter(video => video.remote?.channelName);
+            const metadata = await Promise.all(named.map(video => new Promise((resolve, reject) => {
+              const request = db.transaction('activity').objectStore('activity').get(`metadata-enrichment:${video.id}`);
+              request.onsuccess = () => resolve({ id: video.id, name: video.remote.channelName, row: request.result }); request.onerror = () => reject(request.error);
+            })));
+            return { checked: videos.length, named: named.length, metadata };
+          } finally { db.close(); }
+        });
+        if ((await readRows()).named !== 0) throw Error('Creator repair fixture already has names');
+        await page.evaluate(() => {
+          const original = IDBObjectStore.prototype.put;
+          window.__creatorWriteFailure = true;
+          IDBObjectStore.prototype.put = function(value, key) {
+            if (window.__creatorWriteFailure && this.name === 'activity' && String(key).startsWith('metadata-enrichment:'))
+              throw new DOMException('Synthetic storage failure', 'QuotaExceededError');
+            return original.apply(this, arguments);
+          };
+        });
+        await coverage.getByRole('button', { name: 'Repair next 48', exact: true }).click();
+        await coverage.getByText('Latest repair · Creator names could not be saved. No repair was applied; retry when storage is available.', { exact: true }).waitFor({ timeout: 30_000 });
+        if ((await readRows()).named !== 0) throw Error('Failed creator transaction left partial names on disk');
+        await coverage.getByText('40,000 safe matches', { exact: true }).waitFor();
+        result.creatorRepairRollbackVerified = true;
+        await page.evaluate(() => { window.__creatorWriteFailure = false; });
+        const repairedAt = Date.now();
+        await coverage.getByRole('button', { name: 'Repair next 48', exact: true }).click();
+        await coverage.getByText(/^Latest repair · Repaired 48 creator identities/).waitFor({ timeout: 30_000 });
+        result.creatorRepairMs = Date.now() - repairedAt;
+        await coverage.getByText('39,952 safe matches', { exact: true }).waitFor({ timeout: 30_000 });
+        const rows = await readRows();
+        if (rows.checked !== 64 || rows.named !== 48) throw Error(`Creator repair wrote the wrong batch: ${JSON.stringify(rows)}`);
+        for (const entry of rows.metadata) {
+          const index = Number(entry.id.match(/qa-(\d+)$/)?.[1]);
+          const creator = `creator-gate-creator-${index % 180}`;
+          if (entry.name !== `Gate creator ${index % 180}` || !entry.row.tags.includes('science')) throw Error('Exact creator repair lost existing metadata');
+          if (index % 2 ? !entry.row.tags.includes(creator) || entry.row.provenance.tags[creator] !== 'provider:youtube'
+            : entry.row.tags.includes(creator) || !entry.row.provenance.lockedFields.includes('tags')) throw Error('Creator repair changed locked tags or omitted unlocked attribution');
+        }
+        result.creatorRepairScreenshot = output.replace(/\.json$/, `-creator-repair-${viewport.name}.png`);
+        await coverage.scrollIntoViewIfNeeded(); await page.screenshot({ path: result.creatorRepairScreenshot });
+        const beforeReload = await page.evaluate(() => ({ inputMs: window.__performanceGate.worstInputMs, mountedCards: window.__performanceGate.peakCards, worstInput: window.__performanceGate.worstInput }));
+        result.preReloadInputMs = Math.max(result.preReloadInputMs ?? 0, beforeReload.inputMs);
+        result.preReloadMountedCards = Math.max(result.preReloadMountedCards ?? 0, beforeReload.mountedCards);
+        result.preReloadWorstInput = beforeReload.worstInput;
+        await page.reload({ waitUntil: 'domcontentloaded' }); await page.locator('[data-home-ready="true"]').waitFor();
+        await page.getByText(/80,000 indexed/).first().waitFor({ timeout: 30_000 });
+        await navigate('Settings');
+        await page.locator('[data-creator-coverage]').getByText('39,952 safe matches', { exact: true }).waitFor({ timeout: 30_000 });
+        if ((await readRows()).named !== 48) throw Error('Creator names did not survive reload');
+        result.creatorRepairUiVerified = true;
+      }
       if (youtubeCleanupUi) {
         progress('large protected YouTube cleanup');
         const cleanup=page.locator('[data-youtube-cleanup]');
@@ -919,6 +1115,8 @@ try {
         await removed.getByRole('button', { name: 'Remove from favorites', exact: true }).click();
         await page.getByRole('button', { name: 'Clear search', exact: true }).click();
         await navigate('Twitch');
+        await page.getByRole('button', { name: 'Open full Twitch catalog', exact: true }).click();
+        if (twitchDiscovery) await page.getByRole('button', { name: 'Explore Twitch recommendations', exact: true }).click();
         const catalog = page.getByRole('region', { name: 'Full Twitch catalog', exact: true });
         await catalog.getByRole('list', { name: 'Media catalog · 30,000 titles', exact: true }).waitFor();
         if (twitchDiscovery) await page.waitForFunction(() => document.querySelector('[aria-label="Twitch creator shelves"]')?.getAttribute('aria-busy') === 'false'
@@ -1110,6 +1308,9 @@ if (recoveryUi) report.ok &&= results.every(row => row.recoveryUiVerified);
 if (idleRecovery) report.ok &&= results.every(row => row.idleRecoveryVerified);
 if (cardControls) report.ok &&= results.every(row => row.cardControlsVerified && row.cardActionsLayoutVerified && (!denseSaved || row.posterActionsLayoutVerified));
 if (topicsUi) report.ok &&= results.every(row => row.topicsUiVerified);
+if (animeUi) report.ok &&= results.every(row => row.animeUiVerified);
+if (creatorRepairUi) report.ok &&= results.every(row => row.creatorRepairUiVerified && row.creatorRepairRollbackVerified);
+if (creatorBrowserUi) report.ok &&= results.every(row => row.creatorBrowserUiVerified);
 if (twitchUi) report.ok &&= results.every(row => row.twitchSavedFiltersVerified && row.twitchActivityUpdatesVerified && row.twitchShelfContinuityVerified);
 if (savedReload) report.ok &&= results.every(row => row.savedReloadVerified);
 if (landingUi) report.ok &&= results.every(row => row.landingUiVerified && row.landingShelfControlsVerified);

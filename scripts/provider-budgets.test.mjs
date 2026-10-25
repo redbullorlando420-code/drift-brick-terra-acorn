@@ -117,7 +117,7 @@ test('actual Twitch refresh rejects oversized metadata without losing a saved cu
   const saved={id:'tw:budget-refresh',kind:'twitch',handle:'budget-refresh',title:'Budget creator',twitchArchiveCursor:cursor};
   try {
     const result=await runRefreshRemotes({channels:[saved],twitchRoutine:true});
-    assert(cancelled);assert.equal(result.videos.length,0);assert.equal(result.channels[0].twitchArchiveCursor,cursor);assert.equal(result.channels[0].twitchArchiveExhaustedAt,undefined);assert.equal(result.channels[0].lastProviderFailure.kind,'response-budget');assert.deepEqual(result.refreshedIds,[]);
+    assert(cancelled);assert.equal(result.videos.length,0);assert.equal(result.channels[0].twitchArchiveCursor,cursor);assert.equal(result.channels[0].twitchArchiveExhaustedAt,undefined);assert.equal(result.channels[0].recentPull.failure.kind,'response-budget');assert.equal(result.channels[0].lastProviderFailure,undefined);assert.deepEqual(result.refreshedIds,[]);
     assert.equal(classifyProviderFailure('youtube',new ProviderBudgetError('queue','full')).kind,'response-budget');
   }finally{globalThis.fetch=original;}
 });

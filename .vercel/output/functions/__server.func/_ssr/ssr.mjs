@@ -90,7 +90,7 @@ var HEADERS = { TSS_SHELL: "X-TSS_SHELL" };
 * the dev styles URL for route-scoped CSS collection.
 */
 async function getStartManifest(matchedRoutes) {
-	const { tsrStartManifest } = await import("../_tanstack-start-manifest_v-DtJ1yjNt.mjs");
+	const { tsrStartManifest } = await import("../_tanstack-start-manifest_v-CCP6Bts0.mjs");
 	const startManifest = tsrStartManifest();
 	let routes = startManifest.routes;
 	routes[rootRouteId];
@@ -112,43 +112,59 @@ async function getStartManifest(matchedRoutes) {
 var manifest = {
 	"01ab33bc0455dc5351da5f13e553736c0034ee0d18195c486c175d01ae271321": {
 		functionName: "youtubeCreatorProfiles_createServerFn_handler",
-		importer: () => import("./functions-B9Dw6VaV.mjs")
+		importer: () => import("./functions-Dgtkdd8d.mjs")
 	},
 	"3250c7fe9ae5ccef9fa5787d5e016af43eee3512d762581de88ac40b08152dad": {
 		functionName: "fetchAdultComments_createServerFn_handler",
-		importer: () => import("./functions-B9Dw6VaV.mjs")
+		importer: () => import("./functions-Dgtkdd8d.mjs")
 	},
 	"3b5f1e63b8dde522be6847c1ba970b2c5473d9d776f080d86a78884151898152": {
 		functionName: "refreshRemotesRequest_createServerFn_handler",
-		importer: () => import("./functions-B9Dw6VaV.mjs")
+		importer: () => import("./functions-Dgtkdd8d.mjs")
 	},
 	"3e1ecfb07abb48cc35cfe61eb295043dc59f7294405b8cd4692347582d4db1f2": {
 		functionName: "inspectRedditImage_createServerFn_handler",
-		importer: () => import("./functions-B9Dw6VaV.mjs")
+		importer: () => import("./functions-Dgtkdd8d.mjs")
 	},
 	"6be598ce27c9baf7d31cc1ee443d15104f7a057282b84764cec56bc270e4599a": {
 		functionName: "importChannelsRequest_createServerFn_handler",
-		importer: () => import("./functions-B9Dw6VaV.mjs")
+		importer: () => import("./functions-Dgtkdd8d.mjs")
+	},
+	"794a0745916e73a363fe4200a3ba342c12d8591cdc35e8b3c97b1989462159bc": {
+		functionName: "fetchYoutubePublication_createServerFn_handler",
+		importer: () => import("./youtube-publication-functions-BtGok2Qs.mjs")
 	},
 	"926b625b25b1f6c5d08281cc86b3196dbb11bcb5b683a95b5ebcf2111dc013b0": {
 		functionName: "fetchTwitchFollowing_createServerFn_handler",
-		importer: () => import("./functions-B9Dw6VaV.mjs")
+		importer: () => import("./functions-Dgtkdd8d.mjs")
+	},
+	"a9fbf7ab77502dc25415c97d05cc253be8ce3aab9920444d607b7989b3abcd3a": {
+		functionName: "searchRoomYoutube_createServerFn_handler",
+		importer: () => import("./room-search-functions-BE24wBGi.mjs")
 	},
 	"adcf396e47a4470a97261625127a3496a88d85f3f1036f72b4a0ebbfc78c1b95": {
 		functionName: "searchAdultVideosRequest_createServerFn_handler",
-		importer: () => import("./functions-B9Dw6VaV.mjs")
+		importer: () => import("./functions-Dgtkdd8d.mjs")
+	},
+	"b4c3b85db5cb6ccf616bd8c074fb3cb74c74d76727d2e997c86a1c0ee28e28d2": {
+		functionName: "fetchYoutubeVideoMetadata_createServerFn_handler",
+		importer: () => import("./youtube-publication-functions-BtGok2Qs.mjs")
 	},
 	"bcf52ff714b81b8c64a4700ab9a64674ed5afcf8786fb9b74bdc3c4557ca86bf": {
 		functionName: "searchRedtubeStars_createServerFn_handler",
-		importer: () => import("./functions-B9Dw6VaV.mjs")
+		importer: () => import("./functions-Dgtkdd8d.mjs")
 	},
 	"d1155935e3ce6be09b32b6bceaac773115bc3e7b37e165babd1a246638e36f7c": {
 		functionName: "followRemoteRequest_createServerFn_handler",
-		importer: () => import("./functions-B9Dw6VaV.mjs")
+		importer: () => import("./functions-Dgtkdd8d.mjs")
 	},
 	"dd1d1916a4839a4ceb55923d6e545e56caf6cd3f77b36275c007d928335b1d12": {
 		functionName: "resolveBooruOriginal_createServerFn_handler",
-		importer: () => import("./functions-B9Dw6VaV.mjs")
+		importer: () => import("./functions-Dgtkdd8d.mjs")
+	},
+	"e483c3dfca51219e37b04bba9ff9fcc8a0b6d8624bc8e163729cdf09c4fc0dc6": {
+		functionName: "liveRoomsRequest_createServerFn_handler",
+		importer: () => import("./functions-Dgtkdd8d.mjs")
 	}
 };
 async function getServerFnById(id, access) {
@@ -1418,7 +1434,7 @@ var getBaseManifest = getProdBaseManifest;
 var createEarlyHintsForRequest = createEarlyHintsCollector;
 async function loadEntries() {
 	const [routerEntry, startEntry, pluginAdapters] = await Promise.all([
-		import("./router-BLYzkwof.mjs").then((n) => n.t),
+		import("./router-DSOmgNM_.mjs").then((n) => n.t),
 		import("./start-jxSE7Jul.mjs"),
 		import("./empty-plugin-adapters-D9UWiqvJ.mjs")
 	]);

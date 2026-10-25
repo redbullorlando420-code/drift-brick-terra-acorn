@@ -1,0 +1,56 @@
+desktop: seed
+desktop: preview/player
+mobile: seed
+mobile: preview/player
+[
+  {
+    "viewport": "desktop",
+    "errors": [],
+    "clipBytes": 2749,
+    "readyScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-auth-built-ready-desktop.png",
+    "completeScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-auth-built-complete-desktop.png",
+    "playerScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-auth-built-player-desktop.png",
+    "setupScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-auth-built-setup-desktop.png",
+    "authScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-auth-built-auth-desktop.png",
+    "localScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-auth-built-local-desktop.png",
+    "browserAuthOptIn": true,
+    "browserRetry": true,
+    "localVideoDecodedAndSeeked": true,
+    "consentReset": true,
+    "starts": 5,
+    "cancels": 1,
+    "reads": 21,
+    "cardsDoNotPoll": true,
+    "closeStopsPolling": true,
+    "reloadRestoresStatus": true,
+    "previewAndPlayer": true,
+    "setupAndErrors": true,
+    "liveExcluded": true,
+    "ok": true
+  },
+  {
+    "viewport": "mobile",
+    "errors": [],
+    "clipBytes": 2513,
+    "readyScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-auth-built-ready-mobile.png",
+    "completeScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-auth-built-complete-mobile.png",
+    "playerScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-auth-built-player-mobile.png",
+    "setupScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-auth-built-setup-mobile.png",
+    "authScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-auth-built-auth-mobile.png",
+    "localScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\youtube-auth-built-local-mobile.png",
+    "browserAuthOptIn": true,
+    "browserRetry": true,
+    "localVideoDecodedAndSeeked": true,
+    "consentReset": true,
+    "starts": 5,
+    "cancels": 1,
+    "reads": 21,
+    "cardsDoNotPoll": true,
+    "closeStopsPolling": true,
+    "reloadRestoresStatus": true,
+    "previewAndPlayer": true,
+    "setupAndErrors": true,
+    "liveExcluded": true,
+    "ok": true
+  }
+]

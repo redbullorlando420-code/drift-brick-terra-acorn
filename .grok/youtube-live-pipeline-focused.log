@@ -1,0 +1,16 @@
+✔ healthy completions overtake a stalled first batch with at most three retained responses (2.003ms)
+✔ completed responses retain completion order across a slow consumer and can coalesce without extra requests (0.5437ms)
+✔ a failed batch does not block healthy completions and closed work is aborted without unhandled rejection (0.3675ms)
+✔ a newly reported cooldown stops refill while already accepted healthy responses drain (0.3016ms)
+✔ coalescing preserves exact successes, failures, viewer rows and the longest global cooldown (0.6219ms)
+✔ external cancellation immediately frees a queued request and never cancels unrelated work (1.1613ms)
+✔ external cancellation releases a completed response held behind hidden/viewer gates without spinning (0.368ms)
+✔ real refresh actions share eight upstream slots while healthy batches finish ahead of a stalled creator (2222.739ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2334.4261

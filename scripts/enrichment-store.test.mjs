@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { registerHooks } from 'node:module';
-const fixture = { saved: [], removed: [], viewer: false, wake: null, catalogReads: 0 };
+import { YOUTUBE_TEXT_TAG_VERSION } from '../src/lib/videos/youtube-text-tags.ts';
+const fixture = { saved: [], removed: [], creatorSaved: [], creatorSave: null, fullRemoteWrites: 0, viewer: false, wake: null, catalogReads: 0, remoteRows: new Map(), remoteSave: null };
 globalThis.__enrichmentStoreFixture = fixture;
 const asModule = source => `data:text/javascript,${encodeURIComponent(source)}`;
 const queueUrl = new URL('../src/lib/idle-queue.ts', import.meta.url).href;
@@ -15,6 +16,11 @@ export function setEnrichmentViewerOpen(open,searching=false){f.viewer=open||sea
 const names = [...readFileSync(new URL('../src/lib/videos/persist.ts', import.meta.url), 'utf8').matchAll(/export (?:async )?function (\w+)/g)].map(match => match[1]);
 const persistence = names.map(name => name === 'loadPrefs' ? 'export function loadPrefs(){return null;}'
   : name === 'saveEnrichmentRows' ? 'export async function saveEnrichmentRows(rows){globalThis.__enrichmentStoreFixture.saved.push(...structuredClone(rows));}'
+  : name === 'saveCreatorCoverageRows' ? `export async function saveCreatorCoverageRows(rows,turn,valid){
+    const f=globalThis.__enrichmentStoreFixture;await turn();await f.creatorSave?.(rows,valid);
+    if(!valid())throw new DOMException('Changed','AbortError');f.creatorSaved.push(...structuredClone(rows));}`
+  : name === 'loadCatalogVideo' ? 'export async function loadCatalogVideo(id){return globalThis.__enrichmentStoreFixture.remoteRows.get(id);}'
+  : name === 'saveRemoteSnapshot' ? 'export async function saveRemoteSnapshot(snapshot){const f=globalThis.__enrichmentStoreFixture;f.fullRemoteWrites++;await f.remoteSave?.();for(const row of snapshot.videos)f.remoteRows.set(row.id,structuredClone(row));}'
   : name === 'removeEnrichmentRows' ? 'export async function removeEnrichmentRows(ids){globalThis.__enrichmentStoreFixture.removed.push(...ids);}'
   : `export async function ${name}(){return [];}`).join('\n') + '\nexport const PHOTO_META_LS_KEY="test-photos";';
 registerHooks({ resolve(specifier, context, next) {
@@ -91,6 +97,88 @@ test('cached YouTube repair replaces saturated provider tags, preserves manual l
   const state=useLibrary.getState();assert.ok(state.tags.upgrade.includes('my-choice'));assert.ok(state.tags.upgrade.includes('machine-learning'));
   assert.ok(state.tags.upgrade.includes('technology'));assert.ok(!state.tags.upgrade.includes('obsolete0'));
   assert.deepEqual(state.tags.locked,['keep']);assert.equal(state.metadataProvenance.upgrade.tags['my-choice'],'manual');
-  assert.equal(state.metadataProvenance.upgrade.youtubeTextTagVersion,2);assert.equal(fixture.saved.length,1);
+  assert.equal(state.metadataProvenance.upgrade.youtubeTextTagVersion,YOUTUBE_TEXT_TAG_VERSION);assert.equal(fixture.saved.length,1);
   assert.equal(await useLibrary.getState().autoTagLibrary(),0);assert.equal(fixture.saved.length,1,'unchanged repair does not rewrite storage');
+});
+
+test('real creator repair returns before scans, patches only 48 names/tags, honors locks and writes only changed rows', async () => {
+  fixture.creatorSaved=[];fixture.fullRemoteWrites=0;
+  const follows=Array.from({length:1000},(_,i)=>({id:`yt:creator-${i}`,kind:'youtube',title:`Creator ${i}`,handle:String(i),channelId:`UC${i}`}));
+  const videos=Array.from({length:80_000},(_,i)=>({id:String(i),folderId:`yt:creator-${i%1000}`,name:`Title ${i}`,path:String(i),extension:'yt',mime:'video/youtube',size:0,addedAt:1,
+    get remote(){fixture.catalogReads++;return{kind:'youtube',channelId:`UC${i%1000}`,videoId:String(i)};}}));
+  const guarded=value=>new Proxy(value,{ownKeys(){throw Error('large ledger enumerated');}});
+  const tags=guarded({'0':['manual-choice'],unrelated:['keep']}), metadata=guarded({'0':{tags:{'manual-choice':'manual'},lockedFields:['tags'],updatedAt:1}});
+  useLibrary.setState({videos,follows,tags,metadataProvenance:metadata,activeId:null,previewId:null,query:''});fixture.catalogReads=0;
+  const action=useLibrary.getState().repairCreatorCoverage();
+  assert.equal(fixture.catalogReads,0,'click returns before inspecting catalog rows');
+  const result=await action;
+  assert.deepEqual(result,{processed:48,repaired:48,tagged:47,remaining:79952});
+  const state=useLibrary.getState();assert.equal(state.videos[47].remote.channelName,'Creator 47');
+  assert.equal(state.videos[48],videos[48]);assert.equal(videos[0].remote.channelName,undefined);
+  assert.deepEqual(state.tags['0'],['manual-choice']);assert.deepEqual(state.tags.unrelated,['keep']);
+  assert.ok(state.tags['1'].includes('creator-creator-1'));
+  assert.equal(state.metadataProvenance['1'].tags['creator-creator-1'],'provider:youtube');
+  assert.equal(fixture.creatorSaved.length,48);assert.equal(fixture.creatorSaved[0].enrichment,undefined);
+  assert.equal(fixture.fullRemoteWrites,0,'repair does not rewrite the full remote cache');
+  assert.equal(fixture.wake,null);
+});
+
+test('creator repair waits behind a viewer, recovers from failed storage, and rebases a concurrent manual lock', async () => {
+  fixture.creatorSaved=[];
+  const videos=[{...card('repair'),remote:{kind:'youtube',channelId:'UCexact'}}];
+  const follows=[{id:'yt:test',kind:'youtube',title:'Exact Creator',handle:'exact',channelId:'UCexact'}];
+  const tags={},metadata={};
+  useLibrary.setState({videos,follows,tags,metadataProvenance:metadata,previewId:'repair',activeId:null,query:''});
+  let attempts=0;fixture.creatorSave=()=>{if(++attempts===1)throw Error('disk full');};
+  const held=useLibrary.getState().repairCreatorCoverage();
+  await new Promise(resolve=>setTimeout(resolve,10));assert.equal(attempts,0);
+  useLibrary.setState({previewId:null});await assert.rejects(held,/disk full/);
+  assert.equal(useLibrary.getState().videos,videos);assert.equal(useLibrary.getState().tags,tags);
+  fixture.creatorSave=()=>{if(attempts++===1)useLibrary.getState().setVideoTags('repair',['manual-while-saving']);};
+  const result=await useLibrary.getState().repairCreatorCoverage();
+  assert.equal(result.repaired,1);assert.equal(result.tagged,0);
+  assert.deepEqual(useLibrary.getState().tags.repair,['manual-while-saving']);
+  assert.equal(fixture.creatorSaved.length,1);assert.equal(fixture.creatorSaved[0].enrichment,undefined);
+  fixture.creatorSave=null;
+});
+
+test('removing exact follow evidence while repair is saving prevents stale publication', async () => {
+  fixture.creatorSaved=[];
+  const videos=[{...card('removed-follow'),remote:{kind:'youtube',channelId:'UCgone'}}];
+  useLibrary.setState({videos,follows:[{id:'yt:gone',kind:'youtube',title:'Gone',handle:'gone',channelId:'UCgone'}],tags:{},metadataProvenance:{},activeId:null,previewId:null,query:''});
+  fixture.creatorSave=()=>useLibrary.setState({follows:[]});
+  const result=await useLibrary.getState().repairCreatorCoverage();
+  assert.equal(result.repaired,0);assert.equal(useLibrary.getState().videos,videos);
+  assert.equal(fixture.creatorSaved.length,0);fixture.creatorSave=null;
+});
+
+test('explicit watch metadata persists compact evidence and rechecks manual locks after asynchronous saving', async () => {
+  const id = 'yt:metadata', youtubeId = 'BaW_jenozKc';
+  const video = { ...card(id), name: 'An experiment', remote: { kind: 'youtube', videoId: youtubeId, channelName: 'Ada' } };
+  useLibrary.setState({ videos: [video], folders: [], tags: { [id]: ['unknown-choice', 'python', 'my-choice', 'obsolete'] },
+    metadataProvenance: { [id]: { tags: { 'my-choice': 'manual', obsolete: 'provider:youtube' } } }, activeId: null, previewId: null });
+  fixture.remoteRows.clear();
+  const metadata = { id: youtubeId, description: 'Machine learning with Python. #NeuralNetworks', keywords: ['Quantum circuits', 'Python'], date: '2024-05-12' };
+  await useLibrary.getState().setYoutubeMetadata(id, metadata);
+  let state = useLibrary.getState();
+  for (const tag of ['unknown-choice', 'my-choice', 'quantum-circuits', 'neuralnetworks']) assert.ok(state.tags[id].includes(tag), tag);
+  assert.ok(!state.tags[id].includes('obsolete')); assert.equal(state.metadataProvenance[id].tags['my-choice'], 'manual');
+  assert.equal(state.metadataProvenance[id].tags.python, 'legacy', 'overlapping unknown tags cannot become provider-owned');
+  assert.equal(state.videos[0].description, undefined); assert.equal(state.videos[0].remote.youtubeTagSummary.version, YOUTUBE_TEXT_TAG_VERSION);
+  assert.equal(fixture.remoteRows.get(id).description, metadata.description); assert.deepEqual(fixture.remoteRows.get(id).remote.youtubeKeywords, metadata.keywords);
+  let release, started; const saving = new Promise(resolve => { started = resolve; });
+  fixture.remoteSave = () => new Promise(resolve => { release = resolve; started(); });
+  const pending = useLibrary.getState().setYoutubeMetadata(id, { ...metadata, keywords: ['Robotics'] });
+  await saving; useLibrary.getState().setVideoTags(id, ['late-manual']); release();
+  assert.equal((await pending).locked, true); fixture.remoteSave = null;
+  state = useLibrary.getState(); assert.deepEqual(state.tags[id], ['late-manual']); assert.equal(state.metadataProvenance[id].tags['late-manual'], 'manual');
+  assert.deepEqual(fixture.remoteRows.get(id).remote.youtubeKeywords, ['Robotics']);
+  const before = state.videos;
+  fixture.remoteSave = async () => { throw Error('Disk write failed'); };
+  await assert.rejects(useLibrary.getState().setYoutubeMetadata(id, metadata), /Disk write failed/); fixture.remoteSave = null;
+  assert.equal(useLibrary.getState().videos, before); assert.deepEqual(useLibrary.getState().tags[id], ['late-manual']);
+  await assert.rejects(useLibrary.getState().setYoutubeMetadata(id, { ...metadata, id: 'abcdefghijk' }), /no longer/);
+  useLibrary.setState({ videos: [{ ...video, remote: { kind: 'youtube', watchUrl: `https://youtu.be/${youtubeId}` } }], tags: {}, metadataProvenance: {} });
+  await useLibrary.getState().setYoutubeMetadata(id, metadata);
+  assert.equal(useLibrary.getState().videos[0].remote.videoId, youtubeId, 'older URL-only imports gain their canonical ID');
 });

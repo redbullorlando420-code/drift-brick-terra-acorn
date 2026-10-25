@@ -1,0 +1,13 @@
+{
+  "production": true,
+  "decodedFrames": 11,
+  "guestSelectedFiles": 0,
+  "checks": [
+    "consent gate",
+    "local playback reaches empty phone without file copy",
+    "guest pause and resume",
+    "mobile no overflow",
+    "leave releases stream player"
+  ],
+  "errors": []
+}

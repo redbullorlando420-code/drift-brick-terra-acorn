@@ -1,0 +1,3 @@
+RustDesk 1.5.0 portable client verified. No service, password, or remote connection was started.
+Cloning into 'E:\codex\drift-brick-terra-acorn\companion\tools\stable-diffusion-webui'...
+AUTOMATIC1111 source prepared. Its Python runtime, GPU dependencies and a checkpoint are still required; no model was downloaded.

@@ -1,0 +1,13 @@
+✔ desktop launcher starts both stopped services, then waits until both are ready (484.648ms)
+✔ desktop launcher reuses ready and already-starting services without starting duplicates (773.0765ms)
+✔ desktop launcher rejects an unrelated listener instead of killing it or starting over it (374.4731ms)
+✔ desktop launcher bounds readiness failures and points to service logs (6077.9691ms)
+✔ health probes require the app identity and trusted Companion origin, not merely HTTP 200 (1233.72ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9039.9346

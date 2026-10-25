@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { memo, useDeferredValue, useEffect, useMemo, useState } from "react";
 import {
   Check,
   ChevronRight,
@@ -18,48 +18,41 @@ import { useLibrary } from "@/lib/videos/store";
 import type { FollowKind } from "@/lib/videos/types";
 import { parseFollowImport, repairYoutubeImport, resolvedFollowQueries, youtubeFollowHealth } from '@/lib/videos/follow-import';
 import { canonicalFollowHandle } from '@/lib/videos/follow-identity';
+import { importSessionEntries } from '@/lib/videos/import-session';
+import { useImportSession } from './use-import-session';
 
 type ImportCandidate = { query: string; kind: "youtube" | "twitch" };
 /** Preserve whole creator names while accepting URL and handle lists. */
 const linesToCandidates = parseFollowImport;
 
-export function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultKind?: FollowKind; lockedKind?: FollowKind }) {
+export const ConnectPanel=memo(function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultKind?: FollowKind; lockedKind?: FollowKind }) {
   const followRemoteQuery = useLibrary((s) => s.followRemoteQuery);
   const importBatch = useLibrary((s) => s.importBatch);
   const remoteBusy = useLibrary((s) => s.remoteBusy);
   const importProgress = useLibrary((s) => s.importProgress);
   const follows = useLibrary((s) => s.follows);
   const [kind, setKind] = useState<FollowKind>(lockedKind ?? defaultKind);
-  const [query, setQuery] = useState("");
+  const {session,update:editImport,flush:flushImport,notice:importSaveNotice}=useImportSession(kind);
+  const query=session.query,bulk=session.draft,twitchName=session.profile;
+  const setQuery=(value:string)=>editImport({query:value.slice(0,20000)});
+  const setBulk=(value:string)=>editImport({draft:value.slice(0,500000)});
+  const setTwitchName=(value:string)=>editImport({profile:value.slice(0,200)});
   const [discovery, setDiscovery] = useState("");
-  const [bulk, setBulk] = useState("");
-  const [twitchName, setTwitchName] = useState("");
   const [found, setFound] = useState<ImportCandidate[]>([]);
   const [finding, setFinding] = useState(false);
-  const [savedLists, setSavedLists] = useState<string[]>([]);
-  useEffect(() => {
-    try {
-      setBulk(localStorage.getItem(`reelcase.import-draft.${kind}`) ?? "");
-    } catch {
-      /* local storage unavailable */
-    }
-  }, [kind]);
   useEffect(() => { if (lockedKind) setKind(lockedKind); }, [lockedKind]);
-  useEffect(() => { try {
-    const raw: unknown = JSON.parse(localStorage.getItem(`reelcase.import-history.${kind}`) ?? '[]');
-    const saved = Array.isArray(raw) ? raw.filter((value): value is string => typeof value === 'string') : [];
-    setSavedLists(kind === 'youtube' ? repairYoutubeImport(saved, localStorage.getItem(`reelcase.import-draft.${kind}`) ?? '').queries : saved);
-  } catch { setSavedLists([]); } }, [kind]);
-  const candidates = useMemo(() => linesToCandidates(bulk, kind), [bulk, kind]);
-  const networkFollows = follows.filter((follow) => follow.kind === kind);
-  const health = useMemo(() => youtubeFollowHealth(follows), [follows]);
+  const savedLists=useMemo(()=>kind==='youtube'?repairYoutubeImport(session.saved,bulk).queries:session.saved,[kind,session.saved,bulk]);
+  const settledBulk=useDeferredValue(bulk);
+  const candidates = useMemo(() => linesToCandidates(settledBulk, kind), [settledBulk, kind]);
+  const networkFollows = useMemo(()=>follows.filter((follow) => follow.kind === kind),[follows,kind]);
+  const health = useMemo(() => kind==='youtube'?youtubeFollowHealth(follows):{verified:0,pending:0,review:0}, [follows,kind]);
+  const resolved=useMemo(()=>resolvedFollowQueries(follows,kind),[follows,kind]);
   const importPreview = useMemo(() => {
-    const resolved = resolvedFollowQueries(follows, kind);
     const already = candidates.filter(item => resolved.has(canonicalFollowHandle(kind, item.query))).length;
-    const names = candidates.filter(item => !resolved.has(canonicalFollowHandle(kind, item.query)) && !/^(?:@|https?:\/\/|(?:www\.)?youtube\.com\/|UC[\w-]{22}$)/i.test(item.query)).length;
+    const names = kind==='youtube'?candidates.filter(item => !resolved.has(canonicalFollowHandle(kind, item.query)) && !/^(?:@|https?:\/\/|(?:www\.)?youtube\.com\/|UC[\w-]{22}$)/i.test(item.query)).length:0;
     return { already, names };
-  }, [follows, kind, candidates]);
-  const recommended = (
+  }, [resolved, kind, candidates]);
+  const recommended = useMemo(()=> (
     kind === "twitch"
       ? ["Northernlion", "CohhCarnage", "LIRIK"]
       : ["@H3Podcast", "@LinusTechTips", "@MarquesBrownlee", "@Kurzgesagt"]
@@ -68,7 +61,7 @@ export function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultK
       !follows.some(
         (follow) => follow.kind === kind && follow.handle.toLowerCase() === handle.toLowerCase(),
       ),
-  );
+  ),[kind,follows]);
   const submit = async () => {
     const items = linesToCandidates(query, kind);
     if (!items.length) return;
@@ -78,6 +71,8 @@ export function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultK
       return;
     }
     try {
+      editImport({saved:importSessionEntries(kind,[items[0].query,...savedLists]),draft:bulk||query});
+      await flushImport();
       await followRemoteQuery(items[0].query, kind);
       setQuery("");
       toast.success(kind === "twitch" ? "Twitch channel added" : items[0].query.includes("list=") ? "YouTube playlist added" : "YouTube channel added");
@@ -90,12 +85,9 @@ export function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultK
     const normalized = items.map((item) => ({ ...item, query: item.query.trim().replaceAll("\\_", "_") }));
     // Save the submitted list before requesting providers. A partial outage
     // must never make a pasted collection disappear.
-    const saved = [...new Set([...normalized.map((item) => item.query), ...savedLists])].slice(0, 10000);
-    try {
-      localStorage.setItem(`reelcase.import-history.${kind}`, JSON.stringify(saved));
-      localStorage.setItem(`reelcase.import-draft.${kind}`, bulk);
-    } catch { /* Durable follows and the session queue still recover at quota. */ }
-    setSavedLists(saved);
+    const saved = importSessionEntries(kind,[...normalized.map((item) => item.query), ...savedLists]);
+    editImport({saved,draft:bulk||normalized.map(item=>item.query).join('\n')});
+    await flushImport();
     try {
       const result = await importBatch(normalized);
       setFound([]);
@@ -237,8 +229,8 @@ export function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultK
               value={bulk}
               onChange={(event) => {
                 setBulk(event.target.value);
-                try { localStorage.setItem(`reelcase.import-draft.${kind}`, event.target.value); } catch { /* Keep the editable draft usable at quota. */ }
               }}
+              maxLength={500000}
               className="mt-3 min-h-28 w-full resize-y rounded-md bg-elevated px-3 py-2.5 text-sm text-fg shadow-border outline-none transition-[box-shadow] duration-150 placeholder:text-subtle focus-visible:ring-2 focus-visible:ring-ring/50"
               placeholder={
                 kind === "twitch"
@@ -257,7 +249,7 @@ export function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultK
               </p>
               <Button
                 size="sm"
-                disabled={remoteBusy || !candidates.length}
+                disabled={remoteBusy || !candidates.length || settledBulk!==bulk}
                 onClick={() => void importItems(candidates)}
               >
                 {remoteBusy ? (
@@ -268,6 +260,7 @@ export function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultK
                 Import list
               </Button>
             </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2"><Button size="sm" variant="secondary" className="min-h-11" onClick={()=>void flushImport()}>Save draft</Button><p role="status" aria-label="Import list save status" className="text-xs text-muted">{importSaveNotice||'Drafts and submitted lists are kept on this device.'}</p></div>
             {kind === 'youtube' && <p className="mt-3 text-xs leading-5 text-muted" aria-label="YouTube subscription health">{health.verified.toLocaleString()} verified sources · {health.pending.toLocaleString()} awaiting exact channel match · {health.review.toLocaleString()} legacy fragments held for review. Review entries keep their videos and are excluded from automatic pulls.</p>}
             {kind === "twitch" && (
               <div className="mt-4 border-t border-border pt-4">
@@ -331,7 +324,7 @@ export function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultK
           </div>
         </div>
       )}
-      {savedLists.length > 0 && <div className="border-t border-border px-5 py-4 sm:px-6"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Saved import list</p><p className="mt-1 text-xs text-muted">{savedLists.length} channel entries retained locally for this service. Unverified entries resume in small batches; verified entries are skipped.</p><div className="mt-3 flex flex-wrap gap-2">{savedLists.slice(0, 12).map((handle) => <span key={handle} className="rounded-sm bg-elevated px-2 py-1 text-xs text-muted">{handle}</span>)}</div><Button className="mt-3" size="sm" variant="secondary" disabled={remoteBusy} onClick={() => void importItems(savedLists.map((query) => ({ query, kind })))}><ListPlus className="size-3.5" /> Load saved list now</Button></div>}
+      {savedLists.length > 0 && <div className="border-t border-border px-5 py-4 sm:px-6"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Saved import list</p><p className="mt-1 text-xs text-muted">{savedLists.length} channel entries retained locally for this service. Unverified entries resume in small batches; verified entries are skipped.</p><div className="mt-3 flex flex-wrap gap-2">{savedLists.slice(0, 12).map((handle) => <span key={handle} className="rounded-sm bg-elevated px-2 py-1 text-xs text-muted">{handle}</span>)}</div><Button className="mt-3 mr-2 min-h-11" size="sm" variant="secondary" onClick={()=>{setBulk(savedLists.join('\n'));void flushImport();}}>Restore saved list to editor</Button><Button className="mt-3" size="sm" variant="secondary" disabled={remoteBusy} onClick={() => void importItems(savedLists.map((query) => ({ query, kind })))}><ListPlus className="size-3.5" /> Load saved list now</Button></div>}
       <div className="flex flex-col gap-3 border-t border-border bg-elevated/30 px-5 py-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <p className="flex items-center gap-2 text-muted">
           <Check className="size-4 text-accent" /> Latest uploads and live streams appear
@@ -378,7 +371,7 @@ export function ConnectPanel({ defaultKind = "youtube", lockedKind }: { defaultK
       )}
     </section>
   );
-}
+});
 function NetworkTab({
   active,
   icon,

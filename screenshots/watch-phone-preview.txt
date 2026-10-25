@@ -1,0 +1,3 @@
+npm notice run preview:vercel-qa
+npm notice run node scripts/serve-vercel-output.mjs
+[vercel-qa] http://127.0.0.1:8082/
