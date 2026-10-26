@@ -1,3 +1,6 @@
+import { newestTopicAliases,type TopicAliasLedger } from './topic-aliases.ts';
+import { newestExposure, type ExposureLedger } from './recommendation-exposure.ts';
+import { newestRejections, type RejectionLedger } from './recommendation-rejections';
 import { normalizeYoutubeLiveEvidence } from '../remote/youtube-live-evidence';
 import { normalizeProviderCache } from '../provider-cache-metrics.ts';
 import { cleanupKey, normalizeYoutubeCleanup, retiredYoutubeKeys, type YoutubeCleanupJournal } from './youtube-cleanup.ts';
@@ -198,6 +201,7 @@ export type DurableMarks = { viewCounts: Record<string, number>; cameCounts: Rec
 export type DurableShelves = { favorites: string[]; likes: string[]; savedAt: number };
 export type DurableLinks = { links: SavedVideoLink[]; savedAt: number };
 export type DurableFeedback = {
+  recommendationRejections?: RejectionLedger;
   ratings: Record<string, number>;
   ratingHistory: Record<string, { rating: number; updatedAt: number }>;
   notes: Record<string, string>;
@@ -286,8 +290,8 @@ function readJsonLocal<T>(key: string): T | null {
 }
 
 function writeJsonLocal(key: string, value: unknown) {
-  try { localStorage.setItem(key, JSON.stringify(value)); }
-  catch { /* IndexedDB remains the durable path. */ }
+  try { localStorage.setItem(key, JSON.stringify(value)); return true; }
+  catch { return false; /* IndexedDB remains the durable path. */ }
 }
 
 function normalizeHistoryEntries(raw: unknown): HistoryEntry[] {
@@ -575,8 +579,8 @@ export function saveDurableFeedback(feedback: Omit<DurableFeedback, "savedAt">) 
   if (typeof window === "undefined") return;
   const payload: DurableFeedback = { ...feedback, savedAt: Date.now() };
   // Keep the existing media-feedback LS key as the sync mirror; IDB is the durable backup.
-  writeJsonLocal(DURABLE_FEEDBACK_LS_KEY, feedback);
-  void putActivityBlob(DURABLE_FEEDBACK_IDB_KEY, payload).catch(() => undefined);
+  const localSaved = writeJsonLocal(DURABLE_FEEDBACK_LS_KEY, feedback);
+  return putActivityBlob(DURABLE_FEEDBACK_IDB_KEY, payload).then(() => true, () => localSaved);
 }
 
 export async function restoreDurableFeedback(strict = false): Promise<Omit<DurableFeedback, "savedAt"> | null> {
@@ -588,6 +592,7 @@ export async function restoreDurableFeedback(strict = false): Promise<Omit<Durab
   if (!fromIdb && !fromLs) return null;
   const pick = <T extends Record<string, unknown>>(a?: T, b?: T): T => ({ ...(b ?? {}), ...(a ?? {}) }) as T;
   return {
+    recommendationRejections: newestRejections(fromIdb?.recommendationRejections, fromLs?.recommendationRejections),
     ratings: pick(fromIdb?.ratings as Record<string, number> | undefined, fromLs?.ratings as Record<string, number> | undefined),
     ratingHistory: pick(fromIdb?.ratingHistory as DurableFeedback["ratingHistory"] | undefined, fromLs?.ratingHistory as DurableFeedback["ratingHistory"] | undefined),
     notes: pick(fromIdb?.notes as Record<string, string> | undefined, fromLs?.notes as Record<string, string> | undefined),
@@ -1606,3 +1611,20 @@ export async function readOfflineAuditStorage(signal: AbortSignal): Promise<impo
     return { artwork, links, savedAt: saved.meta?.checkedAt };
   } finally { db.close(); }
 }
+
+/** Disposable, bounded recommendation impressions use the existing activity store. */
+const EXPOSURE_LS_KEY='reelcase.recommendation-exposure.v1';
+export function loadRecommendationExposureSync():unknown{return readJsonLocal(EXPOSURE_LS_KEY);}
+export async function restoreRecommendationExposure():Promise<ExposureLedger>{
+ let durable:unknown;try{durable=await getActivityBlob('recommendation-exposure');}catch{/* The local mirror remains usable. */}
+ return newestExposure(durable,loadRecommendationExposureSync());
+}
+export function saveRecommendationExposure(ledger:ExposureLedger):Promise<boolean>{
+ const local=writeJsonLocal(EXPOSURE_LS_KEY,ledger);
+ return putActivityBlob('recommendation-exposure',ledger).then(()=>true,()=>local);
+}
+
+const TOPIC_ALIASES_LS_KEY='reelcase.topic-aliases.v1';
+export function loadTopicAliasesSync():unknown{return readJsonLocal(TOPIC_ALIASES_LS_KEY);}
+export async function restoreTopicAliases():Promise<TopicAliasLedger>{let durable:unknown;try{durable=await getActivityBlob('topic-aliases');}catch{/* Keep the local mirror. */}return newestTopicAliases(durable,loadTopicAliasesSync());}
+export function saveTopicAliases(ledger:TopicAliasLedger):Promise<boolean>{const local=writeJsonLocal(TOPIC_ALIASES_LS_KEY,ledger);return putActivityBlob('topic-aliases',ledger).then(()=>true,()=>local);}

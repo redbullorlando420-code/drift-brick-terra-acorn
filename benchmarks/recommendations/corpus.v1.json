@@ -1,0 +1,1850 @@
+{
+  "format": "realhub-recommendation-corpus",
+  "version": 1,
+  "now": 1768478400000,
+  "seed": 417,
+  "k": 4,
+  "description": "Hand-authored synthetic ranking judgments, never real user data. Grades: 0 irrelevant, 1 exploratory, 2 relevant, 3 strong match. Operational facets alone are not interests.",
+  "items": [
+    {
+      "id": "yt-seed",
+      "source": "youtube",
+      "creator": "apex",
+      "title": "Race technique reference",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "tw-seed",
+      "source": "twitch",
+      "creator": "apex",
+      "title": "Race strategy reference",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "guide-seed",
+      "source": "local",
+      "creator": "mentor",
+      "title": "Race workshop",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing",
+        "source-youtube",
+        "format-mp4",
+        "creator-library"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "yt-race-new",
+      "source": "youtube",
+      "creator": "apex",
+      "title": "Racing braking practice",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "yt-race-other",
+      "source": "youtube",
+      "creator": "bravo",
+      "title": "Racing line fundamentals",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "yt-race-old",
+      "source": "youtube",
+      "creator": "charlie",
+      "title": "Racing classic lesson",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 400
+    },
+    {
+      "id": "yt-food",
+      "source": "youtube",
+      "creator": "delta",
+      "title": "Cooking summer soup",
+      "topics": [
+        "food"
+      ],
+      "tags": [
+        "food"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "yt-rejected",
+      "source": "youtube",
+      "creator": "echo",
+      "title": "Racing rejected suggestion",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "yt-date-unknown",
+      "source": "youtube",
+      "creator": "foxtrot",
+      "title": "Racing undated lesson",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": null
+    },
+    {
+      "id": "yt-race-fresh",
+      "source": "youtube",
+      "creator": "golf",
+      "title": "Racing pit strategy",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 1
+    },
+    {
+      "id": "yt-volume-0",
+      "source": "youtube",
+      "creator": "apex",
+      "title": "Racing archive 0",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "yt-volume-1",
+      "source": "youtube",
+      "creator": "apex",
+      "title": "Racing archive 1",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "yt-volume-2",
+      "source": "youtube",
+      "creator": "apex",
+      "title": "Racing archive 2",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "yt-volume-3",
+      "source": "youtube",
+      "creator": "apex",
+      "title": "Racing archive 3",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "yt-volume-4",
+      "source": "youtube",
+      "creator": "apex",
+      "title": "Racing archive 4",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "yt-volume-5",
+      "source": "youtube",
+      "creator": "apex",
+      "title": "Racing archive 5",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "yt-volume-6",
+      "source": "youtube",
+      "creator": "apex",
+      "title": "Racing archive 6",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "yt-volume-7",
+      "source": "youtube",
+      "creator": "apex",
+      "title": "Racing archive 7",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "yt-diverse-bravo",
+      "source": "youtube",
+      "creator": "bravo",
+      "title": "Racing technique from bravo",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "yt-diverse-charlie",
+      "source": "youtube",
+      "creator": "charlie",
+      "title": "Racing technique from charlie",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "yt-diverse-delta",
+      "source": "youtube",
+      "creator": "delta",
+      "title": "Racing technique from delta",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "yt-diverse-echo",
+      "source": "youtube",
+      "creator": "echo",
+      "title": "Racing technique from echo",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "yt-operational-0",
+      "source": "youtube",
+      "creator": "ops-0",
+      "title": "Unrelated housekeeping 0",
+      "topics": [
+        "food"
+      ],
+      "tags": [
+        "source-youtube",
+        "format-mp4",
+        "creator-library"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "yt-operational-1",
+      "source": "youtube",
+      "creator": "ops-1",
+      "title": "Unrelated housekeeping 1",
+      "topics": [
+        "food"
+      ],
+      "tags": [
+        "source-youtube",
+        "format-mp4",
+        "creator-library"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "yt-operational-2",
+      "source": "youtube",
+      "creator": "ops-2",
+      "title": "Unrelated housekeeping 2",
+      "topics": [
+        "food"
+      ],
+      "tags": [
+        "source-youtube",
+        "format-mp4",
+        "creator-library"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "yt-operational-3",
+      "source": "youtube",
+      "creator": "ops-3",
+      "title": "Unrelated housekeeping 3",
+      "topics": [
+        "food"
+      ],
+      "tags": [
+        "source-youtube",
+        "format-mp4",
+        "creator-library"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "tw-race-new",
+      "source": "twitch",
+      "creator": "apex",
+      "title": "Racing strategy workshop",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "tw-race-other",
+      "source": "twitch",
+      "creator": "bravo",
+      "title": "Racing overtaking lesson",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "tw-race-old",
+      "source": "twitch",
+      "creator": "charlie",
+      "title": "Racing archive masterclass",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 300
+    },
+    {
+      "id": "tw-food",
+      "source": "twitch",
+      "creator": "delta",
+      "title": "Cooking kitchen skills",
+      "topics": [
+        "food"
+      ],
+      "tags": [
+        "food"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "tw-rejected",
+      "source": "twitch",
+      "creator": "echo",
+      "title": "Racing disliked broadcast",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "tw-volume-0",
+      "source": "twitch",
+      "creator": "apex",
+      "title": "Racing archive session 0",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "tw-volume-1",
+      "source": "twitch",
+      "creator": "apex",
+      "title": "Racing archive session 1",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "tw-volume-2",
+      "source": "twitch",
+      "creator": "apex",
+      "title": "Racing archive session 2",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "tw-volume-3",
+      "source": "twitch",
+      "creator": "apex",
+      "title": "Racing archive session 3",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "tw-volume-4",
+      "source": "twitch",
+      "creator": "apex",
+      "title": "Racing archive session 4",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "tw-volume-5",
+      "source": "twitch",
+      "creator": "apex",
+      "title": "Racing archive session 5",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "tw-volume-6",
+      "source": "twitch",
+      "creator": "apex",
+      "title": "Racing archive session 6",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "tw-volume-7",
+      "source": "twitch",
+      "creator": "apex",
+      "title": "Racing archive session 7",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "tw-diverse-bravo",
+      "source": "twitch",
+      "creator": "bravo",
+      "title": "Racing strategy bravo",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "tw-diverse-charlie",
+      "source": "twitch",
+      "creator": "charlie",
+      "title": "Racing strategy charlie",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "tw-diverse-delta",
+      "source": "twitch",
+      "creator": "delta",
+      "title": "Racing strategy delta",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "tw-diverse-echo",
+      "source": "twitch",
+      "creator": "echo",
+      "title": "Racing strategy echo",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "tw-fresh",
+      "source": "twitch",
+      "creator": "solo",
+      "title": "Racing new practice",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 1
+    },
+    {
+      "id": "tw-old-new-import",
+      "source": "twitch",
+      "creator": "solo",
+      "title": "Racing old practice",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 500,
+      "addedDaysAgo": 0
+    },
+    {
+      "id": "tw-unknown-date",
+      "source": "twitch",
+      "creator": "solo",
+      "title": "Racing unknown practice",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": null,
+      "addedDaysAgo": 0
+    },
+    {
+      "id": "local-racing",
+      "source": "local",
+      "creator": "coach",
+      "title": "Racing simulator practice",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "local-food",
+      "source": "local",
+      "creator": "chef",
+      "title": "Cooking soup",
+      "topics": [
+        "food"
+      ],
+      "tags": [
+        "food"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "guide-operational-0",
+      "source": "local",
+      "creator": "mechanical",
+      "title": "Housekeeping file 0",
+      "topics": [
+        "food"
+      ],
+      "tags": [
+        "source-youtube",
+        "format-mp4",
+        "creator-library"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "guide-operational-1",
+      "source": "local",
+      "creator": "mechanical",
+      "title": "Housekeeping file 1",
+      "topics": [
+        "food"
+      ],
+      "tags": [
+        "source-youtube",
+        "format-mp4",
+        "creator-library"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "guide-operational-2",
+      "source": "local",
+      "creator": "mechanical",
+      "title": "Housekeeping file 2",
+      "topics": [
+        "food"
+      ],
+      "tags": [
+        "source-youtube",
+        "format-mp4",
+        "creator-library"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "guide-operational-3",
+      "source": "local",
+      "creator": "mechanical",
+      "title": "Housekeeping file 3",
+      "topics": [
+        "food"
+      ],
+      "tags": [
+        "source-youtube",
+        "format-mp4",
+        "creator-library"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "yt-racing-alias",
+      "source": "youtube",
+      "creator": "apex",
+      "title": "Racing braking alternate catalog reference",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2,
+      "canonicalId": "yt-race-new"
+    },
+    {
+      "id": "private-racing",
+      "source": "local",
+      "creator": "private-collection",
+      "title": "Racing private notes",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2,
+      "private": true
+    },
+    {
+      "id": "hidden-racing",
+      "source": "youtube",
+      "creator": "hidden-creator",
+      "title": "Racing hidden lesson",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "unavailable-racing",
+      "source": "twitch",
+      "creator": "unavailable-creator",
+      "title": "Racing unavailable replay",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "isolated-source",
+      "source": "redtube",
+      "creator": "isolated-creator",
+      "title": "Isolated provider specimen",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "tw-solo-0",
+      "source": "twitch",
+      "creator": "only-creator",
+      "title": "Racing single source 0",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "tw-solo-1",
+      "source": "twitch",
+      "creator": "only-creator",
+      "title": "Racing single source 1",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "tw-solo-2",
+      "source": "twitch",
+      "creator": "only-creator",
+      "title": "Racing single source 2",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "tw-solo-3",
+      "source": "twitch",
+      "creator": "only-creator",
+      "title": "Racing single source 3",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    },
+    {
+      "id": "tw-solo-4",
+      "source": "twitch",
+      "creator": "only-creator",
+      "title": "Racing single source 4",
+      "topics": [
+        "racing"
+      ],
+      "tags": [
+        "racing"
+      ],
+      "publishedDaysAgo": 2
+    }
+  ],
+  "cases": [
+    {
+      "id": "youtube-topic-negative",
+      "ranker": "youtube",
+      "intent": "Liked racing evidence should outrank cooking; an explicitly rejected title is forbidden.",
+      "k": 4,
+      "candidateIds": [
+        "yt-race-new",
+        "yt-race-other",
+        "yt-race-old",
+        "yt-food",
+        "yt-rejected"
+      ],
+      "eligibleIds": [
+        "yt-race-new",
+        "yt-race-other",
+        "yt-race-old",
+        "yt-food"
+      ],
+      "judgments": {
+        "yt-race-new": {
+          "relevance": 3,
+          "reason": "Recent same-creator racing lesson"
+        },
+        "yt-race-other": {
+          "relevance": 3,
+          "reason": "Same content topic across creators"
+        },
+        "yt-race-old": {
+          "relevance": 2,
+          "reason": "Older relevant evergreen lesson"
+        },
+        "yt-food": {
+          "relevance": 0,
+          "reason": "Unrelated food topic"
+        },
+        "yt-rejected": {
+          "relevance": 0,
+          "reason": "One-star explicit rejection"
+        }
+      },
+      "feedback": {
+        "ratings": {
+          "yt-seed": 5,
+          "yt-rejected": 1
+        },
+        "favorites": [
+          "yt-seed"
+        ],
+        "likes": [
+          "yt-seed"
+        ],
+        "history": [
+          "yt-seed"
+        ],
+        "watchScores": {
+          "yt-seed": 8
+        }
+      },
+      "policy": {
+        "minNdcg": 0.8,
+        "maxCreatorShare": 0.5,
+        "maxOperationalShare": 0,
+        "maxNegativeShare": 0,
+        "maxCanonicalRepeatShare": 0
+      },
+      "signalIds": [
+        "yt-seed"
+      ],
+      "negativeIds": [
+        "yt-rejected"
+      ]
+    },
+    {
+      "id": "youtube-creator-diversity",
+      "ranker": "youtube",
+      "intent": "A prolific liked creator must share the shelf with other relevant creators.",
+      "k": 6,
+      "candidateIds": [
+        "yt-volume-0",
+        "yt-volume-1",
+        "yt-volume-2",
+        "yt-volume-3",
+        "yt-volume-4",
+        "yt-volume-5",
+        "yt-volume-6",
+        "yt-volume-7",
+        "yt-diverse-bravo",
+        "yt-diverse-charlie",
+        "yt-diverse-delta",
+        "yt-diverse-echo"
+      ],
+      "eligibleIds": [
+        "yt-volume-0",
+        "yt-volume-1",
+        "yt-volume-2",
+        "yt-volume-3",
+        "yt-volume-4",
+        "yt-volume-5",
+        "yt-volume-6",
+        "yt-volume-7",
+        "yt-diverse-bravo",
+        "yt-diverse-charlie",
+        "yt-diverse-delta",
+        "yt-diverse-echo"
+      ],
+      "judgments": {
+        "yt-volume-0": {
+          "relevance": 2,
+          "reason": "Equally relevant racing lesson; several creators are available"
+        },
+        "yt-volume-1": {
+          "relevance": 2,
+          "reason": "Equally relevant racing lesson; several creators are available"
+        },
+        "yt-volume-2": {
+          "relevance": 2,
+          "reason": "Equally relevant racing lesson; several creators are available"
+        },
+        "yt-volume-3": {
+          "relevance": 2,
+          "reason": "Equally relevant racing lesson; several creators are available"
+        },
+        "yt-volume-4": {
+          "relevance": 2,
+          "reason": "Equally relevant racing lesson; several creators are available"
+        },
+        "yt-volume-5": {
+          "relevance": 2,
+          "reason": "Equally relevant racing lesson; several creators are available"
+        },
+        "yt-volume-6": {
+          "relevance": 2,
+          "reason": "Equally relevant racing lesson; several creators are available"
+        },
+        "yt-volume-7": {
+          "relevance": 2,
+          "reason": "Equally relevant racing lesson; several creators are available"
+        },
+        "yt-diverse-bravo": {
+          "relevance": 2,
+          "reason": "Equally relevant racing lesson; several creators are available"
+        },
+        "yt-diverse-charlie": {
+          "relevance": 2,
+          "reason": "Equally relevant racing lesson; several creators are available"
+        },
+        "yt-diverse-delta": {
+          "relevance": 2,
+          "reason": "Equally relevant racing lesson; several creators are available"
+        },
+        "yt-diverse-echo": {
+          "relevance": 2,
+          "reason": "Equally relevant racing lesson; several creators are available"
+        }
+      },
+      "feedback": {
+        "ratings": {
+          "yt-seed": 5
+        },
+        "favorites": [
+          "yt-seed"
+        ],
+        "likes": [
+          "yt-seed"
+        ],
+        "history": [
+          "yt-seed"
+        ],
+        "watchScores": {
+          "yt-seed": 8
+        }
+      },
+      "policy": {
+        "minNdcg": 0.8,
+        "maxCreatorShare": 0.5,
+        "maxOperationalShare": 0,
+        "maxNegativeShare": 0,
+        "maxCanonicalRepeatShare": 0
+      },
+      "signalIds": [
+        "yt-seed"
+      ]
+    },
+    {
+      "id": "youtube-operational-facets",
+      "ranker": "youtube",
+      "intent": "Mechanical source/format/creator tags are not positive topic evidence.",
+      "k": 3,
+      "candidateIds": [
+        "yt-operational-0",
+        "yt-operational-1",
+        "yt-operational-2",
+        "yt-operational-3",
+        "yt-race-new",
+        "yt-race-other",
+        "yt-race-fresh"
+      ],
+      "eligibleIds": [
+        "yt-operational-0",
+        "yt-operational-1",
+        "yt-operational-2",
+        "yt-operational-3",
+        "yt-race-new",
+        "yt-race-other",
+        "yt-race-fresh"
+      ],
+      "judgments": {
+        "yt-operational-0": {
+          "relevance": 0,
+          "reason": "Only operational facets overlap; content is unrelated"
+        },
+        "yt-operational-1": {
+          "relevance": 0,
+          "reason": "Only operational facets overlap; content is unrelated"
+        },
+        "yt-operational-2": {
+          "relevance": 0,
+          "reason": "Only operational facets overlap; content is unrelated"
+        },
+        "yt-operational-3": {
+          "relevance": 0,
+          "reason": "Only operational facets overlap; content is unrelated"
+        },
+        "yt-race-new": {
+          "relevance": 3,
+          "reason": "Real racing content evidence"
+        },
+        "yt-race-other": {
+          "relevance": 3,
+          "reason": "Real racing content evidence"
+        },
+        "yt-race-fresh": {
+          "relevance": 3,
+          "reason": "Real racing content evidence"
+        }
+      },
+      "feedback": {
+        "likes": [
+          "guide-seed"
+        ],
+        "likedTags": [
+          "racing",
+          "source-youtube",
+          "format-mp4",
+          "creator-library"
+        ]
+      },
+      "policy": {
+        "minNdcg": 0.8,
+        "maxCreatorShare": 0.5,
+        "maxOperationalShare": 0,
+        "maxNegativeShare": 0,
+        "maxCanonicalRepeatShare": 0
+      },
+      "signalIds": [
+        "guide-seed"
+      ],
+      "operationalOnlyIds": [
+        "yt-operational-0",
+        "yt-operational-1",
+        "yt-operational-2",
+        "yt-operational-3"
+      ]
+    },
+    {
+      "id": "youtube-publication-freshness",
+      "ranker": "youtube",
+      "intent": "With equally relevant topics, prefer known recent publications; unknown dates remain unmeasured.",
+      "k": 3,
+      "candidateIds": [
+        "yt-race-new",
+        "yt-race-fresh",
+        "yt-race-old",
+        "yt-date-unknown"
+      ],
+      "eligibleIds": [
+        "yt-race-new",
+        "yt-race-fresh",
+        "yt-race-old",
+        "yt-date-unknown"
+      ],
+      "judgments": {
+        "yt-race-new": {
+          "relevance": 3,
+          "reason": "Known recent racing publication"
+        },
+        "yt-race-fresh": {
+          "relevance": 3,
+          "reason": "Known recent racing publication"
+        },
+        "yt-race-old": {
+          "relevance": 2,
+          "reason": "Older relevant evergreen title"
+        },
+        "yt-date-unknown": {
+          "relevance": 2,
+          "reason": "Relevant but publication is unknown"
+        }
+      },
+      "feedback": {
+        "likedTags": [
+          "racing"
+        ]
+      },
+      "policy": {
+        "minNdcg": 0.8,
+        "maxCreatorShare": 0.5,
+        "maxOperationalShare": 0,
+        "maxNegativeShare": 0,
+        "maxCanonicalRepeatShare": 0,
+        "minFreshShare": 0.5
+      }
+    },
+    {
+      "id": "youtube-repeat-exposure",
+      "ranker": "youtube",
+      "intent": "Repeated shelf exposure is separate from watched history and should be visible as a diagnostic gap.",
+      "k": 3,
+      "candidateIds": [
+        "yt-race-new",
+        "yt-race-other",
+        "yt-race-fresh",
+        "yt-race-old",
+        "yt-date-unknown"
+      ],
+      "eligibleIds": [
+        "yt-race-new",
+        "yt-race-other",
+        "yt-race-fresh",
+        "yt-race-old",
+        "yt-date-unknown"
+      ],
+      "judgments": {
+        "yt-race-new": {
+          "relevance": 3,
+          "reason": "Relevant but exposed in the prior synthetic shelf"
+        },
+        "yt-race-other": {
+          "relevance": 3,
+          "reason": "Relevant but exposed in the prior synthetic shelf"
+        },
+        "yt-race-fresh": {
+          "relevance": 3,
+          "reason": "Fresh unseen alternative"
+        },
+        "yt-race-old": {
+          "relevance": 2,
+          "reason": "Unexposed evergreen alternative"
+        },
+        "yt-date-unknown": {
+          "relevance": 2,
+          "reason": "Unexposed undated alternative"
+        }
+      },
+      "feedback": {
+        "ratings": {
+          "yt-seed": 5
+        },
+        "favorites": [
+          "yt-seed"
+        ],
+        "likes": [
+          "yt-seed"
+        ],
+        "history": [
+          "yt-seed"
+        ],
+        "watchScores": {
+          "yt-seed": 8
+        }
+      },
+      "policy": {
+        "minNdcg": 0.8,
+        "maxCreatorShare": 0.5,
+        "maxOperationalShare": 0,
+        "maxNegativeShare": 0,
+        "maxCanonicalRepeatShare": 0,
+        "maxExposureShare": 0.5
+      },
+      "signalIds": [
+        "yt-seed"
+      ],
+      "previousShelf": [
+        "yt-race-new",
+        "yt-race-other",
+        "yt-race-fresh"
+      ]
+    },
+    {
+      "id": "twitch-topic-negative",
+      "ranker": "twitch",
+      "intent": "Observed racing preferences should guide VOD picks while a one-star broadcast is excluded.",
+      "k": 4,
+      "candidateIds": [
+        "tw-race-new",
+        "tw-race-other",
+        "tw-race-old",
+        "tw-food",
+        "tw-rejected"
+      ],
+      "eligibleIds": [
+        "tw-race-new",
+        "tw-race-other",
+        "tw-race-old",
+        "tw-food"
+      ],
+      "judgments": {
+        "tw-race-new": {
+          "relevance": 3,
+          "reason": "Same creator and real racing evidence"
+        },
+        "tw-race-other": {
+          "relevance": 3,
+          "reason": "Related racing content across creators"
+        },
+        "tw-race-old": {
+          "relevance": 2,
+          "reason": "Relevant older workshop"
+        },
+        "tw-food": {
+          "relevance": 0,
+          "reason": "Unrelated cooking"
+        },
+        "tw-rejected": {
+          "relevance": 0,
+          "reason": "Explicit one-star rejection"
+        }
+      },
+      "feedback": {
+        "ratings": {
+          "tw-seed": 5,
+          "tw-rejected": 1
+        },
+        "favorites": [
+          "tw-seed"
+        ],
+        "history": [
+          "tw-seed"
+        ],
+        "watchScores": {
+          "tw-seed": 8
+        }
+      },
+      "policy": {
+        "minNdcg": 0.8,
+        "maxCreatorShare": 0.5,
+        "maxOperationalShare": 0,
+        "maxNegativeShare": 0,
+        "maxCanonicalRepeatShare": 0
+      },
+      "signalIds": [
+        "tw-seed"
+      ],
+      "negativeIds": [
+        "tw-rejected"
+      ]
+    },
+    {
+      "id": "twitch-creator-diversity",
+      "ranker": "twitch",
+      "intent": "Measure avoidable creator concentration separately from relevance.",
+      "k": 6,
+      "candidateIds": [
+        "tw-volume-0",
+        "tw-volume-1",
+        "tw-volume-2",
+        "tw-volume-3",
+        "tw-volume-4",
+        "tw-volume-5",
+        "tw-volume-6",
+        "tw-volume-7",
+        "tw-diverse-bravo",
+        "tw-diverse-charlie",
+        "tw-diverse-delta",
+        "tw-diverse-echo"
+      ],
+      "eligibleIds": [
+        "tw-volume-0",
+        "tw-volume-1",
+        "tw-volume-2",
+        "tw-volume-3",
+        "tw-volume-4",
+        "tw-volume-5",
+        "tw-volume-6",
+        "tw-volume-7",
+        "tw-diverse-bravo",
+        "tw-diverse-charlie",
+        "tw-diverse-delta",
+        "tw-diverse-echo"
+      ],
+      "judgments": {
+        "tw-volume-0": {
+          "relevance": 2,
+          "reason": "Comparable relevant racing broadcast"
+        },
+        "tw-volume-1": {
+          "relevance": 2,
+          "reason": "Comparable relevant racing broadcast"
+        },
+        "tw-volume-2": {
+          "relevance": 2,
+          "reason": "Comparable relevant racing broadcast"
+        },
+        "tw-volume-3": {
+          "relevance": 2,
+          "reason": "Comparable relevant racing broadcast"
+        },
+        "tw-volume-4": {
+          "relevance": 2,
+          "reason": "Comparable relevant racing broadcast"
+        },
+        "tw-volume-5": {
+          "relevance": 2,
+          "reason": "Comparable relevant racing broadcast"
+        },
+        "tw-volume-6": {
+          "relevance": 2,
+          "reason": "Comparable relevant racing broadcast"
+        },
+        "tw-volume-7": {
+          "relevance": 2,
+          "reason": "Comparable relevant racing broadcast"
+        },
+        "tw-diverse-bravo": {
+          "relevance": 2,
+          "reason": "Comparable relevant racing broadcast"
+        },
+        "tw-diverse-charlie": {
+          "relevance": 2,
+          "reason": "Comparable relevant racing broadcast"
+        },
+        "tw-diverse-delta": {
+          "relevance": 2,
+          "reason": "Comparable relevant racing broadcast"
+        },
+        "tw-diverse-echo": {
+          "relevance": 2,
+          "reason": "Comparable relevant racing broadcast"
+        }
+      },
+      "feedback": {
+        "ratings": {
+          "tw-seed": 5
+        },
+        "favorites": [
+          "tw-seed"
+        ],
+        "history": [
+          "tw-seed"
+        ],
+        "watchScores": {
+          "tw-seed": 8
+        }
+      },
+      "policy": {
+        "minNdcg": 0.8,
+        "maxCreatorShare": 0.5,
+        "maxOperationalShare": 0,
+        "maxNegativeShare": 0,
+        "maxCanonicalRepeatShare": 0
+      },
+      "signalIds": [
+        "tw-seed"
+      ]
+    },
+    {
+      "id": "twitch-publication-freshness",
+      "ranker": "twitch",
+      "intent": "New ingestion is not proof of a new publication; freshness must report known/unknown separately.",
+      "k": 2,
+      "candidateIds": [
+        "tw-fresh",
+        "tw-old-new-import",
+        "tw-unknown-date"
+      ],
+      "eligibleIds": [
+        "tw-fresh",
+        "tw-old-new-import",
+        "tw-unknown-date"
+      ],
+      "judgments": {
+        "tw-fresh": {
+          "relevance": 3,
+          "reason": "Known new publication"
+        },
+        "tw-old-new-import": {
+          "relevance": 2,
+          "reason": "Old publication imported today"
+        },
+        "tw-unknown-date": {
+          "relevance": 2,
+          "reason": "Publication unknown"
+        }
+      },
+      "feedback": {},
+      "policy": {
+        "minNdcg": 0.8,
+        "maxCreatorShare": 0.5,
+        "maxOperationalShare": 0,
+        "maxNegativeShare": 0,
+        "maxCanonicalRepeatShare": 0,
+        "minFreshShare": 0.5
+      }
+    },
+    {
+      "id": "guide-mixed-topic",
+      "ranker": "guide",
+      "intent": "Saved content tags should connect relevant local, YouTube and Twitch titles.",
+      "k": 3,
+      "candidateIds": [
+        "local-racing",
+        "yt-race-new",
+        "tw-race-other",
+        "local-food"
+      ],
+      "eligibleIds": [
+        "local-racing",
+        "yt-race-new",
+        "tw-race-other",
+        "local-food"
+      ],
+      "judgments": {
+        "local-racing": {
+          "relevance": 3,
+          "reason": "Relevant local lesson"
+        },
+        "yt-race-new": {
+          "relevance": 3,
+          "reason": "Relevant YouTube lesson"
+        },
+        "tw-race-other": {
+          "relevance": 3,
+          "reason": "Relevant Twitch lesson"
+        },
+        "local-food": {
+          "relevance": 0,
+          "reason": "Unrelated food title"
+        }
+      },
+      "feedback": {
+        "likes": [
+          "guide-seed"
+        ],
+        "history": [
+          "guide-seed"
+        ]
+      },
+      "policy": {
+        "minNdcg": 0.8,
+        "maxCreatorShare": 0.5,
+        "maxOperationalShare": 0,
+        "maxNegativeShare": 0,
+        "maxCanonicalRepeatShare": 0
+      },
+      "signalIds": [
+        "guide-seed"
+      ]
+    },
+    {
+      "id": "guide-operational-facets",
+      "ranker": "guide",
+      "intent": "A shared source/format label must not outweigh a genuine content topic.",
+      "k": 3,
+      "candidateIds": [
+        "guide-operational-0",
+        "guide-operational-1",
+        "guide-operational-2",
+        "guide-operational-3",
+        "local-racing",
+        "yt-race-new",
+        "tw-race-other"
+      ],
+      "eligibleIds": [
+        "guide-operational-0",
+        "guide-operational-1",
+        "guide-operational-2",
+        "guide-operational-3",
+        "local-racing",
+        "yt-race-new",
+        "tw-race-other"
+      ],
+      "judgments": {
+        "guide-operational-0": {
+          "relevance": 0,
+          "reason": "Only mechanical labels overlap with the seed"
+        },
+        "guide-operational-1": {
+          "relevance": 0,
+          "reason": "Only mechanical labels overlap with the seed"
+        },
+        "guide-operational-2": {
+          "relevance": 0,
+          "reason": "Only mechanical labels overlap with the seed"
+        },
+        "guide-operational-3": {
+          "relevance": 0,
+          "reason": "Only mechanical labels overlap with the seed"
+        },
+        "local-racing": {
+          "relevance": 3,
+          "reason": "Real shared racing topic"
+        },
+        "yt-race-new": {
+          "relevance": 3,
+          "reason": "Real shared racing topic"
+        },
+        "tw-race-other": {
+          "relevance": 3,
+          "reason": "Real shared racing topic"
+        }
+      },
+      "feedback": {
+        "likes": [
+          "guide-seed"
+        ],
+        "history": [
+          "guide-seed"
+        ]
+      },
+      "policy": {
+        "minNdcg": 0.8,
+        "maxCreatorShare": 0.5,
+        "maxOperationalShare": 0,
+        "maxNegativeShare": 0,
+        "maxCanonicalRepeatShare": 0
+      },
+      "signalIds": [
+        "guide-seed"
+      ],
+      "operationalOnlyIds": [
+        "guide-operational-0",
+        "guide-operational-1",
+        "guide-operational-2",
+        "guide-operational-3"
+      ]
+    },
+    {
+      "id": "guide-query-canonical",
+      "ranker": "guide-query",
+      "intent": "A racing question returns real matching fields and never two references to one canonical media identity.",
+      "k": 3,
+      "candidateIds": [
+        "local-racing",
+        "yt-race-new",
+        "tw-race-other",
+        "local-food",
+        "yt-racing-alias"
+      ],
+      "eligibleIds": [
+        "local-racing",
+        "yt-race-new",
+        "tw-race-other",
+        "local-food",
+        "yt-racing-alias"
+      ],
+      "judgments": {
+        "local-racing": {
+          "relevance": 3,
+          "reason": "Explicit racing title and tag"
+        },
+        "yt-race-new": {
+          "relevance": 3,
+          "reason": "Explicit racing title and tag"
+        },
+        "tw-race-other": {
+          "relevance": 3,
+          "reason": "Explicit racing title and tag"
+        },
+        "local-food": {
+          "relevance": 0,
+          "reason": "No racing match"
+        },
+        "yt-racing-alias": {
+          "relevance": 3,
+          "reason": "Same public media identity as yt-race-new"
+        }
+      },
+      "feedback": {},
+      "policy": {
+        "minNdcg": 0.8,
+        "maxCreatorShare": 0.5,
+        "maxOperationalShare": 0,
+        "maxNegativeShare": 0,
+        "maxCanonicalRepeatShare": 0
+      },
+      "prompt": "racing"
+    },
+    {
+      "id": "guide-visibility",
+      "ranker": "guide",
+      "intent": "Private, hidden, unavailable and adult-source inputs must not leak into ordinary Guide picks.",
+      "k": 3,
+      "candidateIds": [
+        "private-racing",
+        "hidden-racing",
+        "unavailable-racing",
+        "isolated-source",
+        "local-racing",
+        "yt-race-new",
+        "tw-race-other"
+      ],
+      "eligibleIds": [
+        "local-racing",
+        "yt-race-new",
+        "tw-race-other"
+      ],
+      "judgments": {
+        "private-racing": {
+          "relevance": 0,
+          "reason": "Explicit private collection exclusion"
+        },
+        "hidden-racing": {
+          "relevance": 0,
+          "reason": "Explicitly hidden"
+        },
+        "unavailable-racing": {
+          "relevance": 0,
+          "reason": "Unavailable media exclusion"
+        },
+        "isolated-source": {
+          "relevance": 0,
+          "reason": "Adult-source isolation"
+        },
+        "local-racing": {
+          "relevance": 2,
+          "reason": "Visible public racing lesson"
+        },
+        "yt-race-new": {
+          "relevance": 2,
+          "reason": "Visible public racing lesson"
+        },
+        "tw-race-other": {
+          "relevance": 2,
+          "reason": "Visible public racing lesson"
+        }
+      },
+      "feedback": {
+        "hidden": [
+          "hidden-racing"
+        ],
+        "unavailable": [
+          "unavailable-racing"
+        ]
+      },
+      "policy": {
+        "minNdcg": 0.8,
+        "maxCreatorShare": 0.5,
+        "maxOperationalShare": 0,
+        "maxNegativeShare": 0,
+        "maxCanonicalRepeatShare": 0
+      }
+    },
+    {
+      "id": "partial-judgments",
+      "ranker": "youtube",
+      "intent": "An unjudged title is unknown evidence, never assumed irrelevant or silently counted as a pass.",
+      "k": 2,
+      "candidateIds": [
+        "yt-race-new",
+        "yt-date-unknown"
+      ],
+      "eligibleIds": [
+        "yt-race-new",
+        "yt-date-unknown"
+      ],
+      "judgments": {
+        "yt-race-new": {
+          "relevance": 3,
+          "reason": "Known relevant racing title"
+        }
+      },
+      "feedback": {
+        "likedTags": [
+          "racing"
+        ]
+      },
+      "policy": {
+        "maxCreatorShare": 1,
+        "maxOperationalShare": 0,
+        "maxNegativeShare": 0,
+        "maxCanonicalRepeatShare": 0
+      }
+    },
+    {
+      "id": "single-creator-availability",
+      "ranker": "twitch",
+      "intent": "A single-creator library cannot be accused of avoidable creator concentration.",
+      "k": 4,
+      "candidateIds": [
+        "tw-solo-0",
+        "tw-solo-1",
+        "tw-solo-2",
+        "tw-solo-3",
+        "tw-solo-4"
+      ],
+      "eligibleIds": [
+        "tw-solo-0",
+        "tw-solo-1",
+        "tw-solo-2",
+        "tw-solo-3",
+        "tw-solo-4"
+      ],
+      "judgments": {
+        "tw-solo-0": {
+          "relevance": 2,
+          "reason": "Only available relevant creator"
+        },
+        "tw-solo-1": {
+          "relevance": 2,
+          "reason": "Only available relevant creator"
+        },
+        "tw-solo-2": {
+          "relevance": 2,
+          "reason": "Only available relevant creator"
+        },
+        "tw-solo-3": {
+          "relevance": 2,
+          "reason": "Only available relevant creator"
+        },
+        "tw-solo-4": {
+          "relevance": 2,
+          "reason": "Only available relevant creator"
+        }
+      },
+      "feedback": {},
+      "policy": {
+        "minNdcg": 0.8,
+        "maxCreatorShare": 0.5,
+        "maxOperationalShare": 0,
+        "maxNegativeShare": 0,
+        "maxCanonicalRepeatShare": 0
+      }
+    },
+    {
+      "id": "cold-start-guide",
+      "ranker": "guide",
+      "intent": "Without taste evidence, these are exploratory choices, not claims about user satisfaction.",
+      "k": 3,
+      "candidateIds": [
+        "local-racing",
+        "yt-race-new",
+        "tw-race-other"
+      ],
+      "eligibleIds": [
+        "local-racing",
+        "yt-race-new",
+        "tw-race-other"
+      ],
+      "judgments": {
+        "local-racing": {
+          "relevance": 1,
+          "reason": "Exploratory local title; no personal judgment exists"
+        },
+        "yt-race-new": {
+          "relevance": 1,
+          "reason": "Exploratory YouTube title; no personal judgment exists"
+        },
+        "tw-race-other": {
+          "relevance": 1,
+          "reason": "Exploratory Twitch title; no personal judgment exists"
+        }
+      },
+      "feedback": {},
+      "policy": {
+        "minNdcg": 0.8,
+        "maxCreatorShare": 0.5,
+        "maxOperationalShare": 0,
+        "maxNegativeShare": 0,
+        "maxCanonicalRepeatShare": 0
+      }
+    },
+    {
+      "id": "empty-eligible-guide",
+      "ranker": "guide",
+      "intent": "A private/hidden-only library returns an honest empty ordinary shelf.",
+      "k": 3,
+      "candidateIds": [
+        "private-racing",
+        "hidden-racing",
+        "isolated-source"
+      ],
+      "eligibleIds": [],
+      "judgments": {
+        "private-racing": {
+          "relevance": 0,
+          "reason": "Private collection excluded"
+        },
+        "hidden-racing": {
+          "relevance": 0,
+          "reason": "Hidden title excluded"
+        },
+        "isolated-source": {
+          "relevance": 0,
+          "reason": "Adult provider excluded"
+        }
+      },
+      "feedback": {
+        "hidden": [
+          "hidden-racing"
+        ]
+      },
+      "policy": {
+        "minNdcg": 0.8,
+        "maxCreatorShare": 0.5,
+        "maxOperationalShare": 0,
+        "maxNegativeShare": 0,
+        "maxCanonicalRepeatShare": 0
+      }
+    }
+  ]
+}

@@ -13,7 +13,7 @@ test('cold selection preserves exact provenance, stable ties and the unknown-dat
  const rows=Array.from({length:15000},(_,i)=>row(i,{addedAt:i%5?base-(i%127)*1000:base+i,remote:{kind:'youtube',publishedSource:i%5?'provider':'unknown'}}));
  rows.push(row('private',{folderId:'private'}),row('demo',{isSample:true}),row('nan',{addedAt:NaN}),row('inf',{addedAt:Infinity}),row('old',{addedAt:1}),row('missing',{remote:{kind:'youtube'}}),row('tw',{remote:{kind:'twitch'}}));
  const {youtubePublicationTime}=await import('../src/lib/videos/youtube-metadata.ts');
- const expected=rows.filter(v=>v.remote.kind==='youtube'&&visible(v)).sort((a,b)=>youtubePublicationTime(b)-youtubePublicationTime(a));
+ const expected=rows.filter(v=>v.remote.kind==='youtube'&&visible(v)).sort((a,b)=>youtubePublicationTime(b)-youtubePublicationTime(a)||(a.id<b.id?-1:a.id>b.id?1:0));
  assert.deepEqual(await select(rows),expected);assert.equal(rows[0].id,'yt:0');
 });
 test('small status/metadata updates and appended uploads match a full rebuild across mixed dates and ties',async()=>{

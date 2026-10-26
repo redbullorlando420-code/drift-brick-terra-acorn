@@ -4,11 +4,12 @@ import { readFileSync } from 'node:fs';
 import { registerHooks } from 'node:module';
 
 // Exercise the real store actions with deterministic provider and disk boundaries.
-const fixture = { writes: [], removed: [], cleanupWrites: [], failCleanup: false, requests: 0, response: null, beforeResponse: null, inputs: [], responseForRequest: null };
+const fixture = { followsWrites: [], writes: [], removed: [], cleanupWrites: [], failCleanup: false, requests: 0, response: null, beforeResponse: null, inputs: [], responseForRequest: null };
 globalThis.__entryLimitFixture = fixture;
 const persistence = readFileSync(new URL('../src/lib/videos/persist.ts', import.meta.url), 'utf8');
 const names = [...persistence.matchAll(/export (?:async )?function (\w+)/g)].map(match => match[1]);
 const mockPersist = names.map(name => {
+  if (name === 'saveFollows') return 'export function saveFollows(channels) { globalThis.__entryLimitFixture.followsWrites.push(structuredClone(channels)); }';
   if (name === 'loadPrefs') return 'export function loadPrefs() { return null; }';
   if (name === 'loadFollows') return 'export function loadFollows() { return []; }';
   if (name === 'saveRemoteSnapshot') return 'export async function saveRemoteSnapshot(value) { globalThis.__entryLimitFixture.writes.push(...value.videos); }';
@@ -35,7 +36,7 @@ const { updatePullSettings, DEFAULT_PULL_SETTINGS } = await import('../src/lib/p
 const channel = { id: 'yt:test', kind: 'youtube', handle: 'Test', title: 'Test', catalogCursor: 'before' };
 const card = (id, kind = 'youtube', folderId = channel.id) => ({ id, folderId, name: 'Space documentary', path: id, extension: 'yt', mime: 'video/youtube', size: 0, addedAt: 1, remote: { kind, videoId: id, channelId: 'test' } });
 function reset(videos = []) {
-  fixture.writes = []; fixture.removed = []; fixture.cleanupWrites=[]; fixture.failCleanup=false; fixture.requests = 0; fixture.beforeResponse = null; fixture.inputs = []; fixture.responseForRequest = null;
+  fixture.followsWrites = []; fixture.writes = []; fixture.removed = []; fixture.cleanupWrites=[]; fixture.failCleanup=false; fixture.requests = 0; fixture.beforeResponse = null; fixture.inputs = []; fixture.responseForRequest = null;
   // Existing admission fixtures exercise hard caps independently of rotation.
   updatePullSettings({ ...DEFAULT_PULL_SETTINGS, youtubeMaxEntries: 2, youtubeAutoCleanup: false, twitchAutoCleanup: false, adultAutoCleanup: false });
   useLibrary.setState({ videos, tags: {}, metadataProvenance: {}, categories: {}, progress: {}, resumeProgress: {}, folders: [], follows: [channel], remoteBusy: false, refreshing: false, remoteRefreshStatus: null, youtubeRefreshStatus: null, youtubeLiveProgress: null, twitchLiveProgress: null, adultsUnlocked: true, activeId: null, previewId: null, favorites: {}, likes: {}, history: [], youtubeCleanup: { recentKeys: [], removedCount: 0, lastRemoved: 0, lastAt: 0 }, youtubeCleanupNote: '', cleanupNotes: {} });
@@ -884,7 +885,7 @@ test('real cooperative YouTube preparation updates live cards while date correct
  const initial=await prepareYoutubeSelection(useLibrary.getState(),new AbortController().signal,async()=>{}),next=[...rows];next[0]={...rows[0],name:'Updated live title',remote:{...rows[0].remote,live:true,viewers:123}};useLibrary.setState({videos:next});
  const updated=await prepareYoutubeSelection(useLibrary.getState(),new AbortController().signal,async()=>{});assert.notEqual(updated,initial);assert.equal(updated.find(v=>v.id==='stable0'),next[0]);assert.equal(updated.find(v=>v.id==='stable1'),rows[1]);
  const corrected=[...next];corrected[0]={...next[0],addedAt:base+1000,remote:{...next[0].remote,publishedSource:'watch'}};useLibrary.setState({videos:corrected});
- assert.deepEqual(await prepareYoutubeSelection(useLibrary.getState(),new AbortController().signal,async()=>{}),[...corrected].sort((a,b)=>youtubePublicationTime(b)-youtubePublicationTime(a)));
+ assert.deepEqual(await prepareYoutubeSelection(useLibrary.getState(),new AbortController().signal,async()=>{}),[...corrected].sort((a,b)=>youtubePublicationTime(b)-youtubePublicationTime(a)||(a.id<b.id?-1:a.id>b.id?1:0)));
  useLibrary.setState({hiddenVideos:{stable0:true}});assert(!(await prepareYoutubeSelection(useLibrary.getState(),new AbortController().signal,async()=>{})).some(v=>v.id==='stable0'));
  useLibrary.setState({folders:[{id:channel.id,name:'Private source',adult:true,kind:'youtube'}]});assert.equal((await prepareYoutubeSelection(useLibrary.getState(),new AbortController().signal,async()=>{})).length,0);
 });
@@ -1026,4 +1027,30 @@ test('Twitch type provenance upgrades exact legacy videos and persists through s
  await useLibrary.getState().followRemoteQuery(c.handle,'twitch',{clipLimit:0});await flush();assert.equal(twitchContentKind(useLibrary.getState().videos[0]),'highlight');assert.equal(fixture.writes.at(-1).remote.twitchContent.source,'HIGHLIGHT');
  fixture.response={channel:c,videos:[{...old,remote:{...old.remote,observedAt:3000}}]};await useLibrary.getState().followRemoteQuery(c.handle,'twitch',{clipLimit:0});await flush();
  const s=useLibrary.getState();assert.equal(twitchContentKind(s.videos[0]),'highlight');assert.equal(fixture.writes.at(-1).remote.twitchContent.videoId,'typed');assert.equal(s.favorites,favorites);assert.equal(s.likes,likes);assert.equal(s.history,history);assert.deepEqual(s.tags[old.id],['my-tag']);assert.equal(s.metadataProvenance[old.id],metadataProvenance[old.id]);
+});
+
+
+test('Twitch automatic policies persist only effective edits, skip content without deleting history, and cannot suppress explicit or live actions',async()=>{
+ reset([]);const policy=(clips=true,vods=true,priority='normal')=>({version:1,clips,vods,priority});
+ const a={id:'tw:policy_a',kind:'twitch',handle:'policy_a',title:'Policy A',channelId:'a'},b={id:'tw:policy_b',kind:'twitch',handle:'policy_b',title:'Policy B',channelId:'b'};
+ const old={...card('tw:v:policy_saved','twitch',a.id),extension:'vod'},favorites={[old.id]:true},history=[{id:old.id,at:1}];useLibrary.setState({follows:[a,b],videos:[old],favorites,history});
+ const store=useLibrary.getState();store.setTwitchPullPolicy(a.id,policy(false,false,'low'));assert.equal(fixture.followsWrites.length,1);const snapshot=useLibrary.getState().follows;
+ store.setTwitchPullPolicy(a.id,policy(false,false,'low'));assert.equal(useLibrary.getState().follows,snapshot);assert.equal(fixture.followsWrites.length,1);assert.deepEqual(fixture.followsWrites[0][0].twitchPullPolicy,policy(false,false,'low'));
+ fixture.responseForRequest=data=>({channels:data.channels.map(c=>({...c,recentPull:{attemptedAt:Date.now(),checkedAt:Date.now(),failures:0}})),videos:[],refreshedIds:data.channels.map(c=>c.id),retryAt:{}});
+ await store.refreshFollows('twitch',{scheduled:true,twitchRoutine:true});assert(fixture.inputs.every(i=>i.twitchApplyPolicy===true));assert.deepEqual(fixture.inputs.flatMap(i=>i.channels.map(c=>c.id)),[b.id]);assert.equal(useLibrary.getState().videos[0],old);assert.equal(useLibrary.getState().favorites,favorites);assert.equal(useLibrary.getState().history,history);assert.equal(useLibrary.getState().follows.find(c=>c.id===a.id).recentPull,undefined);
+ fixture.inputs=[];await store.refreshFollows('twitch',{twitchLiveOnly:true,liveSweep:true});assert(fixture.inputs.flatMap(i=>i.channels).some(c=>c.id===a.id));assert(fixture.inputs.every(i=>!i.twitchApplyPolicy));
+ fixture.inputs=[];await store.refreshFollows('twitch',{channelIds:[a.id],twitchRoutine:true});assert.deepEqual(fixture.inputs.flatMap(i=>i.channels.map(c=>c.id)),[a.id]);assert(fixture.inputs.every(i=>i.twitchApplyPolicy===false));
+ fixture.beforeResponse=()=>store.setTwitchPullPolicy(a.id,policy(false,true,'high'));await store.refreshFollows('twitch',{channelIds:[a.id],twitchRoutine:true});assert.deepEqual(useLibrary.getState().follows.find(c=>c.id===a.id).twitchPullPolicy,policy(false,true,'high'));
+ fixture.beforeResponse=null;fixture.response={channel:{...a,twitchPullPolicy:policy()},videos:[]};fixture.responseForRequest=null;await store.followRemoteQuery(a.handle,'twitch',{clipLimit:0});assert.deepEqual(useLibrary.getState().follows.find(c=>c.id===a.id).twitchPullPolicy,policy(false,true,'high'));
+});
+
+
+test('YouTube publication repairs require matching identity and preserve precision, personal signals and locks on disk',async()=>{
+ reset([]);const id='pubdate0001',old={...card('yt:'+id,'youtube','yt:publication'),addedAt:0,name:'Publication fixture',remote:{kind:'youtube',videoId:id,publishedSource:'unknown',publishedPrecision:'relative',publishedLabel:'2 days ago',publishedLabelAt:1000,watchUrl:'https://www.youtube.com/watch?v='+id}},tags={[old.id]:['my-manual-tag']},metadataProvenance={[old.id]:{tags:{'my-manual-tag':'manual'},lockedFields:['tags','category']}},favorites={[old.id]:true},history=[{id:old.id,at:1}];
+ useLibrary.setState({videos:[old],tags,metadataProvenance,favorites,history});const store=useLibrary.getState();
+ await assert.rejects(store.setYoutubePublication(old.id,'2026-10-01','another0001'),/does not match/);await assert.rejects(store.setYoutubePublication(old.id,'2026-02-30',id),/does not match/);assert.equal(fixture.writes.length,0);
+ assert.equal(await store.setYoutubePublication(old.id,'2026-10-01',id),true);let current=useLibrary.getState().videos[0];assert.equal(current.addedAt,Date.parse('2026-10-01'));assert.equal(current.remote.publishedPrecision,'day');assert.equal(current.remote.publishedLabel,undefined);assert.equal(fixture.writes.at(-1).remote.publishedPrecision,'day');
+ assert.equal(await store.setYoutubePublication(old.id,'2026-10-01T13:14:15Z',id),true);const written=fixture.writes.length;assert.equal(await store.setYoutubePublication(old.id,'2026-10-02',id),false);assert.equal(fixture.writes.length,written);assert.equal(useLibrary.getState().videos[0].addedAt,Date.parse('2026-10-01T13:14:15Z'));
+ await store.setYoutubeMetadata(old.id,{id,date:'2026-10-02',keywords:['provider-tag']});current=useLibrary.getState().videos[0];assert.equal(current.remote.publishedPrecision,'instant');assert.equal(current.addedAt,Date.parse('2026-10-01T13:14:15Z'));assert.deepEqual(useLibrary.getState().tags[old.id],['my-manual-tag']);assert.deepEqual(useLibrary.getState().metadataProvenance[old.id].lockedFields,['tags','category']);assert.equal(useLibrary.getState().favorites,favorites);assert.equal(useLibrary.getState().history,history);
+ const n=fixture.writes.length;useLibrary.setState({videos:[{...current,remote:{...current.remote,youtubeType:'upcoming'}}]});await assert.rejects(store.setYoutubePublication(old.id,'2026-10-25',id),/after this stream/);assert.equal(fixture.writes.length,n);
 });

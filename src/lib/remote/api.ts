@@ -1,3 +1,4 @@
+import { twitchPullPolicy, twitchPolicyAllows } from '../videos/twitch-pull-policy';
 import { completeKnownYoutubeEvidence, YoutubeLiveEvidenceError, youtubeHtmlLiveEvidence, type YoutubeLiveRead } from './youtube-live-evidence';
 import { validateYoutubeFeed } from './youtube-contract';
 import { walkTwitchClips, type TwitchClipNode } from './twitch-clips';
@@ -50,7 +51,7 @@ import { advanceTwitchClipCursor, decodeTwitchClipCursor, encodeTwitchClipCursor
 import { twitchContentEvidence } from '../videos/twitch-content';
 
 type FollowInput = { freshTwitchClips?: boolean; twitchClipMode?: "recent" | "archive"; query: string; kind: "auto" | FollowKind; clipLimit?: number; twitchVodLimit?: number; catalogCursor?: string; twitchArchiveCursor?: string; twitchClipCursor?: string };
-type RefreshInput = { channels: FollowedChannel[]; youtubeCatalog: boolean; youtubeBackground: boolean; youtubeLiveOnly: boolean; twitchLiveOnly: boolean; twitchRoutine: boolean; twitchContinueArchive?: boolean; forceYoutube?: boolean; youtubeVideoLimit?: number };
+type RefreshInput = { twitchApplyPolicy?: boolean; channels: FollowedChannel[]; youtubeCatalog: boolean; youtubeBackground: boolean; youtubeLiveOnly: boolean; twitchLiveOnly: boolean; twitchRoutine: boolean; twitchContinueArchive?: boolean; forceYoutube?: boolean; youtubeVideoLimit?: number };
 
 export type FollowResult = {
   channel: FollowedChannel;
@@ -177,7 +178,7 @@ function parseRefresh(data: unknown): RefreshInput {
   // Keep a sizeable saved list live after restore; the refresh worker remains
   // concurrency-limited below so this does not flood providers.
   const limit = Number(rec.youtubeVideoLimit);
-  return { channels: channels.slice(0, rec.twitchLiveOnly === true && channels.every(channel => channel.kind === 'twitch') ? 100 : 80), youtubeCatalog: rec.youtubeCatalog === true, youtubeBackground: rec.youtubeBackground === true, youtubeLiveOnly: rec.youtubeLiveOnly === true, twitchLiveOnly: rec.twitchLiveOnly === true, twitchRoutine: rec.twitchRoutine === true, twitchContinueArchive: rec.twitchContinueArchive === true && rec.youtubeLiveOnly !== true && rec.twitchLiveOnly !== true, forceYoutube: rec.forceYoutube === true && rec.youtubeCatalog === true && rec.youtubeBackground !== true && rec.youtubeLiveOnly !== true && rec.twitchLiveOnly !== true && rec.twitchRoutine !== true, youtubeVideoLimit: Number.isFinite(limit) ? Math.max(30, Math.min(500, Math.floor(limit))) : 100 };
+  return { twitchApplyPolicy: rec.twitchApplyPolicy===true, channels: channels.slice(0, rec.twitchLiveOnly === true && channels.every(channel => channel.kind === 'twitch') ? 100 : 80), youtubeCatalog: rec.youtubeCatalog === true, youtubeBackground: rec.youtubeBackground === true, youtubeLiveOnly: rec.youtubeLiveOnly === true, twitchLiveOnly: rec.twitchLiveOnly === true, twitchRoutine: rec.twitchRoutine === true, twitchContinueArchive: rec.twitchContinueArchive === true && rec.youtubeLiveOnly !== true && rec.twitchLiveOnly !== true, forceYoutube: rec.forceYoutube === true && rec.youtubeCatalog === true && rec.youtubeBackground !== true && rec.youtubeLiveOnly !== true && rec.twitchLiveOnly !== true && rec.twitchRoutine !== true, youtubeVideoLimit: Number.isFinite(limit) ? Math.max(30, Math.min(500, Math.floor(limit))) : 100 };
 }
 
 function guessKind(query: string): FollowKind {
@@ -299,6 +300,8 @@ function ytVideo(entry: {
 }): LibraryVideo {
   const rssDate = youtubePublishedTime(entry.published);
   const published = rssDate || youtubePublishedTime(entry.metadata?.published ?? '');
+  const publicationValue=rssDate?entry.published:entry.metadata?.published;
+  const publishedLabel=entry.metadata?.publishedLabel;
   const live = entry.live ?? (entry.metadata?.youtubeType === 'live' ? true : entry.metadata?.youtubeType ? false : undefined);
   return {
     id: `yt:${entry.id}`,
@@ -324,7 +327,7 @@ function ytVideo(entry: {
       channelName: entry.channelName,
       live,
       publishedSource: published ? rssDate ? 'rss' : 'provider' : 'unknown',
-      ...(/^\d{4}-\d{2}-\d{2}$/.test(entry.metadata?.published ?? '') ? { publishedDate: entry.metadata!.published } : {}),
+      ...(published?{publishedPrecision:publicationValue?.length===10?'day' as const:'instant' as const,...(publicationValue?.length===10?{publishedDate:publicationValue}:{})}:publishedLabel?{publishedPrecision:'relative' as const,publishedLabel,publishedLabelAt:Date.now()}:{}),
       ...(entry.metadata?.youtubeType ? { youtubeType: entry.metadata.youtubeType } : live ? { youtubeType: 'live' } : {}),
       ...(live ? { observedAt: Date.now(), liveOfflineSince: undefined } : {}),
       views: entry.views,
@@ -1203,14 +1206,18 @@ function twitchVideos(
 async function followTwitchUncoalesced(query: string, compact = false, clipLimit?: number, archiveCursor?: string, clipCursor?: string, focusedVodLimit?: number): Promise<FollowResult> {
   const login = twitchLogin(query);
   if (!login) throw new Error("Enter a Twitch channel.");
-  const vodLimit = compact ? TWITCH_REFRESH_VOD_LIMIT : focusedVodLimit ?? TWITCH_FOCUSED_VOD_LIMIT;
+  const vodLimit = compact ? focusedVodLimit ?? TWITCH_REFRESH_VOD_LIMIT : focusedVodLimit ?? TWITCH_FOCUSED_VOD_LIMIT;
   const clipsWanted = clipLimit ?? (compact ? TWITCH_REFRESH_CLIP_LIMIT : archiveCursor ? 0 : TWITCH_FOCUSED_CLIP_LIMIT);
   const cacheKey = `${login}:${compact ? "r" : "f"}:${vodLimit}:${clipsWanted}:${archiveCursor ?? "start"}:${clipCursor ?? "clip-start"}`;
   const cached = twitchChannelCache.get(cacheKey);
   if (cached && Date.now() - cached.at < TWITCH_CHANNEL_CACHE_TTL_MS) { cached.telemetry.hits++; return twitchCacheResult(cached, true); }
 
   const liveObservedAt=Date.now();
-  const user = await twitchArchive(login, vodLimit, compact ? undefined : archiveCursor);
+  const user = vodLimit===0 ? await (async()=>{
+     const json=await twitchGqlJson('query($login:String!){user(login:$login){id displayName profileImageURL(width:70) stream{title viewersCount previewImageURL(width:640,height:360) game{name}}}}',{login});
+     if(json.errors?.length)throw Error(json.errors.map(e=>e.message??'Provider error').join('; '));
+     return json.data?.user;
+   })() : await twitchArchive(login, vodLimit, compact ? undefined : archiveCursor);
   if (!user?.id) throw new Error(`Twitch could not resolve ${login}`);
   const clipResult = await twitchClips(login, clipsWanted, clipCursor, compact);
   const title = user.displayName ?? login;
@@ -1226,7 +1233,7 @@ async function followTwitchUncoalesced(query: string, compact = false, clipLimit
     live: Boolean(user?.stream),
     ...(user.stream!==undefined?{liveCheckedAt:liveObservedAt}:{}),
     lastCheckedAt: Date.now(),
-    twitchArchiveCheckedAt: Date.now(),
+    ...(vodLimit>0?{twitchArchiveCheckedAt:Date.now()}:{}),
     newestPublishedAt: Math.max(0, ...videos.filter((video) => !video.remote?.live).map((video) => video.addedAt)),
     lastResponseCount: videos.length,
     ...(!compact ? { twitchArchiveCursor: user.twitchArchiveCursor, twitchArchiveExhaustedAt: user.twitchArchiveExhaustedAt,
@@ -1318,13 +1325,15 @@ export async function runRefreshRemotes(dataRaw: unknown): Promise<RefreshResult
             liveCheckedIds.push(ch.id);
             return;
           }
+          if(data.twitchApplyPolicy&&!twitchPolicyAllows(ch,data.twitchContinueArchive?'archive':'recent')){channels.push(ch);return;}
+          const policy=data.twitchApplyPolicy?twitchPullPolicy(ch):undefined;
           // Scheduled Twitch work collects recent VODs and a varied clip sample
           // in addition to stream state. Keep it shallow; focused archive and
           // clip pulls carry their own resumable cursors for deeper history.
           if (data.twitchContinueArchive && ch.twitchArchiveExhaustedAt) { channels.push(ch); return; }
           const next = data.twitchContinueArchive
             ? await followTwitch(ch.handle, false, 0, ch.twitchArchiveCursor, undefined, TWITCH_REFRESH_VOD_LIMIT)
-            : await followTwitch(ch.handle, true);
+            : await followTwitch(ch.handle, true, policy&&!policy.clips?0:undefined, undefined, undefined, policy&&!policy.vods?0:undefined);
           const freshLive=(next.channel.liveCheckedAt??0)>=Math.max(ch.liveCheckedAt??0,ch.lastLiveFailure?.at??0)&&Boolean(next.channel.liveCheckedAt);
           if(freshLive)liveCheckedIds.push(ch.id);
           channels.push({ ...ch, ...next.channel, id: ch.id, ...(data.twitchContinueArchive ? { twitchArchiveCheckedAt: Date.now(), ...twitchRetryPatch(ch, 'archive', next.channel.lastProviderFailure) } : { twitchArchiveCheckedAt: ch.twitchArchiveCheckedAt, lastProviderFailure: ch.lastProviderFailure, recentPull: next.channel.lastProviderFailure ? recentPullFailure(ch, next.channel.lastProviderFailure) : recentPullSuccess(ch, next.channel) }), ...(freshLive?twitchRetryPatch(ch, 'live'):{live:ch.live,liveCheckedAt:ch.liveCheckedAt,lastLiveFailure:ch.lastLiveFailure}) });

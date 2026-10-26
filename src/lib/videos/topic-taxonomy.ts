@@ -1,0 +1,6 @@
+export const TOPICS = new Set(['racing', 'gaming', 'technology', 'news-commentary', 'music', 'film', 'anime', 'food', 'travel', 'fitness', 'learning', 'comedy', 'relaxing', 'talk', 'commentary', 'creative', 'nature', 'business', 'style', 'motors', 'horror', 'maker', 'sports', 'science', 'relationships', 'wellbeing', 'skills', 'hardware', 'legal', 'animation', 'documentary', 'history', 'true-crime', 'photography', 'art', 'design', 'family', 'animals', 'lifestyle', 'beauty', 'fashion', 'home', 'outdoors', 'space', 'environment', 'politics', 'finance']);
+export const BUILTIN_ALIASES: Record<string, string> = { funny:'comedy', laughs:'comedy', racing:'racing', simracing:'racing', tech: 'technology', coding: 'technology', programming: 'technology', cooking: 'food', recipes: 'food', automotive: 'motors', cars: 'motors', diy: 'maker', education: 'learning', meditation: 'wellbeing', football: 'sports', podcast: 'talk', photos: 'photography', photo: 'photography', artworks: 'art', documentaries: 'documentary', truecrime: 'true-crime', pets: 'animals', makeup: 'beauty', skincare: 'beauty', investing: 'finance', money: 'finance', hiking: 'outdoors' };
+export function baseCanonicalTopic(tag: string): string | undefined {
+  const clean = tag.trim().toLowerCase().replace(/^#/, '').replace(/\s+/g, '-');
+  return TOPICS.has(clean) ? clean : BUILTIN_ALIASES[clean];
+}

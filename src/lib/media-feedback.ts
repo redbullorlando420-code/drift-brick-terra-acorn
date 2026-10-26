@@ -1,13 +1,17 @@
+import { getTopicAliasRevision } from './videos/topic-aliases';
+import { canonicalTopic } from './videos/topics';
 import { recordRatingForStreak } from "./rating-streaks";
 import { restoreDurableFeedback, saveDurableFeedback } from "./videos/persist";
 import { copyCatalogRecord, yieldCatalogTask } from './catalog-work';
 import { scheduleBackgroundWork } from './interaction-budget';
 import { createKeyedSignal } from './keyed-signal';
 
+import { changeRejection, newestRejections, normalizeRejections, isRejectionLedger, EMPTY_REJECTIONS, type RecommendationRejection, type RejectionLedger } from './videos/recommendation-rejections';
+
 export type RatingLedgerEntry = { rating: number; updatedAt: number };
 export type WatchTime = { preview: number; fullscreen: number; previewEstimated?: number; fullscreenEstimated?: number };
 const EMPTY_WATCH_TIME: WatchTime = { preview: 0, fullscreen: 0 };
-export type Feedback = { ratings: Record<string, number>; ratingHistory: Record<string, RatingLedgerEntry>; notes: Record<string, string>; creatorRatings: Record<string, number>; creatorLikes: Record<string, true>; creatorFavorites?: Record<string, true>; tagLikes: Record<string, true>; tagHeartHistory: Record<string, number>; watchTime: Record<string, WatchTime> };
+export type Feedback = { recommendationRejections?: RejectionLedger; ratings: Record<string, number>; ratingHistory: Record<string, RatingLedgerEntry>; notes: Record<string, string>; creatorRatings: Record<string, number>; creatorLikes: Record<string, true>; creatorFavorites?: Record<string, true>; tagLikes: Record<string, true>; tagHeartHistory: Record<string, number>; watchTime: Record<string, WatchTime> };
 /** Explicit dislike, neutral, then progressively stronger positive signals. */
 export { ratingPreference } from './videos/ranking-core';
 export function watchTimeScore(time: WatchTime): number { return Math.min(12, Math.floor(time.preview / 30) + Math.floor(time.fullscreen / 90) * 2 + Math.floor((time.previewEstimated ?? 0) / 90) + Math.floor((time.fullscreenEstimated ?? 0) / 180)); }
@@ -16,7 +20,7 @@ let cached: Feedback | null = null;
 let signalVersion = 0;
 /** Includes ratings, hearts, durable imports and elapsed watch-time changes. */
 export function getFeedbackRevision() { read(); return signalVersion; }
-type RankingSnapshot = { ratings: Record<string, number>; heartedTags: string[]; historicTags: string[];
+type RankingSnapshot = { recommendationRejections: RejectionLedger; ratings: Record<string, number>; heartedTags: string[]; historicTags: string[];
   creatorLikes: Record<string, true>; creatorFavorites: Record<string, true>; creatorRatings: Record<string, number>; watchScores: Record<string, number> };
 let snapshot: { version: number; pending: Promise<RankingSnapshot> } | undefined;
 let changeTimer: number | undefined;
@@ -25,6 +29,11 @@ let cancelPersist: (() => void) | undefined;
 let lastRatingQueueMs = 0;
 let lastPersistMs = 0;
 let pendingWrites = 0;
+let feedbackSaveState: "saved" | "pending" | "failed" = "saved";
+let saveAttempt = 0;
+function savedState(state: typeof feedbackSaveState) { if (feedbackSaveState === state) return; feedbackSaveState = state; if (typeof window !== "undefined") window.dispatchEvent(new Event("reelcase:feedback-save")); }
+export function getFeedbackSaveState() { return feedbackSaveState; }
+export function retryFeedbackSave() { pendingWrites = 1; flush(); }
 const ratingSignal = createKeyedSignal();
 export const subscribeRating = ratingSignal.subscribe;
 // Missing ratings are common in large libraries. Remember the legacy lookup
@@ -92,7 +101,7 @@ export async function rankingFeedbackSnapshot(): Promise<RankingSnapshot> {
       watchScores[id] = watchTimeScore(feedback.watchTime[id]);
       if (++count % 512 === 0) await yieldCatalogTask();
     }
-    return { ratings, heartedTags: Object.keys(feedback.tagLikes), historicTags: Object.keys(feedback.tagHeartHistory),
+    return { recommendationRejections: normalizeRejections(feedback.recommendationRejections), ratings, heartedTags: Object.keys(feedback.tagLikes), historicTags: Object.keys(feedback.tagHeartHistory),
       creatorLikes: await copyCatalogRecord(feedback.creatorLikes, yieldCatalogTask), creatorFavorites: await copyCatalogRecord(feedback.creatorFavorites ?? {}, yieldCatalogTask),
       creatorRatings: await copyCatalogRecord(feedback.creatorRatings, yieldCatalogTask), watchScores };
   })();
@@ -112,7 +121,7 @@ export async function verifyCleanupFeedback() {
     const durable = await restoreDurableFeedback(true);
     if (!durable) return;
     const current = read();
-    cached = { ...current, ratings: { ...durable.ratings, ...current.ratings }, notes: { ...durable.notes, ...current.notes } };
+    cached = { ...current, recommendationRejections: newestRejections(durable.recommendationRejections, current.recommendationRejections), ratings: { ...durable.ratings, ...current.ratings }, notes: { ...durable.notes, ...current.notes } };
     signalVersion++; snapshot = undefined; ratingSignal.emitAll(); notifyChange();
   })();
   const pending = cleanupFeedback;
@@ -123,8 +132,8 @@ function read(): Feedback {
   if (cached) return cached;
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) ?? "{}") as Partial<Feedback>;
-    cached = { ratings: saved.ratings ?? {}, ratingHistory: saved.ratingHistory ?? {}, notes: saved.notes ?? {}, creatorRatings: saved.creatorRatings ?? {}, creatorLikes: saved.creatorLikes ?? {}, creatorFavorites: saved.creatorFavorites ?? { ...saved.creatorLikes }, tagLikes: saved.tagLikes ?? {}, tagHeartHistory: saved.tagHeartHistory ?? {}, watchTime: saved.watchTime ?? {} };
-  } catch { cached = { ratings: {}, ratingHistory: {}, notes: {}, creatorRatings: {}, creatorLikes: {}, creatorFavorites: {}, tagLikes: {}, tagHeartHistory: {}, watchTime: {} }; }
+    cached = { recommendationRejections: normalizeRejections(saved.recommendationRejections), ratings: saved.ratings ?? {}, ratingHistory: saved.ratingHistory ?? {}, notes: saved.notes ?? {}, creatorRatings: saved.creatorRatings ?? {}, creatorLikes: saved.creatorLikes ?? {}, creatorFavorites: saved.creatorFavorites ?? { ...saved.creatorLikes }, tagLikes: saved.tagLikes ?? {}, tagHeartHistory: saved.tagHeartHistory ?? {}, watchTime: saved.watchTime ?? {} };
+  } catch { cached = { recommendationRejections: EMPTY_REJECTIONS, ratings: {}, ratingHistory: {}, notes: {}, creatorRatings: {}, creatorLikes: {}, creatorFavorites: {}, tagLikes: {}, tagHeartHistory: {}, watchTime: {} }; }
   return cached;
 }
 /** Merge IndexedDB feedback backup once so QuotaExceeded on localStorage cannot erase ratings/hearts. */
@@ -135,6 +144,7 @@ export async function hydrateDurableFeedback() {
   if (!durable) return;
   const current = read();
   cached = {
+    recommendationRejections: newestRejections(durable.recommendationRejections, current.recommendationRejections),
     ratings: { ...durable.ratings, ...current.ratings },
     ratingHistory: { ...durable.ratingHistory, ...current.ratingHistory },
     notes: { ...durable.notes, ...current.notes },
@@ -154,7 +164,11 @@ function persist() {
   const started = typeof performance !== "undefined" ? performance.now() : Date.now();
   // saveDurableFeedback owns both mirrors. Serializing here too used to write
   // the same feedback archive twice for every rating and watch-time flush.
-  try { saveDurableFeedback(cached); }
+  const attempt = ++saveAttempt;
+  try {
+    Promise.resolve(saveDurableFeedback(cached)).then(ok => { if (attempt === saveAttempt) savedState(ok === false ? "failed" : "saved"); }, () => { if (attempt === saveAttempt) savedState("failed"); });
+  }
+  catch { savedState("failed"); }
   finally {
     lastPersistMs = Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - started);
     pendingWrites = 0;
@@ -195,7 +209,7 @@ if (typeof window !== "undefined") {
 function write(next: Feedback) {
   cached = next; signalVersion++; snapshot = undefined;
   if (typeof window === "undefined") return;
-  pendingWrites = 1;
+  saveAttempt++; pendingWrites = 1; savedState("pending");
   if (persistTimer) window.clearTimeout(persistTimer);
   cancelPersist?.(); cancelPersist = undefined;
   queuePersist(90);
@@ -203,7 +217,7 @@ function write(next: Feedback) {
 function writeWatchTime(next: Feedback) {
   cached = next; signalVersion++; snapshot = undefined;
   if (typeof window === "undefined") return;
-  pendingWrites = 1;
+  saveAttempt++; pendingWrites = 1; savedState("pending");
   // Playback updates arrive every few seconds. Keep one bounded save timer
   // instead of serializing the whole feedback archive on each video tick.
   if (persistTimer === undefined && !cancelPersist) queuePersist(15_000);
@@ -280,13 +294,17 @@ export function toggleTagLike(tag: string) {
   write(next); notifyChange();
 }
 /** Versioned rating/note payload used by the full library backup. */
-export function exportFeedback() { return { version: 4, ...read() }; }
+export function exportFeedback() { return { version: 5, ...read() }; }
 export function getNote(id: string): string { const value = read().notes[id]; if (typeof value === "string") return value; try { return localStorage.getItem(`reelcase.note.${id}`) ?? ""; } catch { return ""; } }
 export function setNote(id: string, note: string) { const next = read(); if (note.trim()) next.notes[id] = note.trim(); else delete next.notes[id]; write(next); }
 
 /** Merge an imported feedback payload without wiping unrelated keys. */
 export function importFeedback(partial: Partial<Feedback> & { version?: number }) {
   const next = read();
+  if (partial.recommendationRejections) {
+    const imported = normalizeRejections(partial.recommendationRejections);
+    if (isRejectionLedger(partial.recommendationRejections)) next.recommendationRejections = { ...imported, updatedAt: Math.max(Date.now(), (next.recommendationRejections?.updatedAt ?? 0) + 1) };
+  }
   if (partial.ratings) Object.assign(next.ratings, partial.ratings);
   if (partial.ratingHistory) Object.assign(next.ratingHistory, partial.ratingHistory);
   if (partial.notes) Object.assign(next.notes, partial.notes);
@@ -299,4 +317,24 @@ export function importFeedback(partial: Partial<Feedback> & { version?: number }
   write(next);
   notifyChange();
   flush();
+}
+
+/** Reuses the feedback mirror and coalesced durable save; never enters shared room state. */
+export function getRecommendationRejections(): RejectionLedger { return read().recommendationRejections ?? EMPTY_REJECTIONS; }
+export function setRecommendationRejection(entry: RecommendationRejection, remove = false) {
+  const current = getRecommendationRejections(), changed = changeRejection(current, entry, remove);
+  if (changed === current) return;
+  write({ ...read(), recommendationRejections: changed });
+  notifyChange();
+}
+
+let topicHeartRevision = -1, topicHeartAliasRevision = -1;
+let topicHearts = new Set<string>();
+export function recommendationTopicIsLiked(topic: string): boolean {
+  read();
+  if (topicHeartRevision !== signalVersion || topicHeartAliasRevision !== getTopicAliasRevision()) {
+    topicHearts = new Set(Object.keys(read().tagLikes).map(canonicalTopic).filter((value): value is string => Boolean(value)));
+    topicHeartRevision = signalVersion; topicHeartAliasRevision = getTopicAliasRevision();
+  }
+  return topicHearts.has(topic);
 }

@@ -1,0 +1,30 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "Immediately skipped recommendation cards do not create exposure; ordinary Home navigation is not tracked",
+        "A real background tab pauses dwell; only half-visible foreground cards count, duplicates count once, and the painted shelf does not reshuffle",
+        "Opening a recommendation clears its exposure instead of recording a dislike or watch impression",
+        "Reset clears only exposure and retains title ratings and explicit rejection choices",
+        "Exposure is included in the actual downloaded ZIP; import and real mirror reload restore canonical counts and timestamps",
+        "Simultaneous mirror failures show a session-only warning and retry saves the current reset; desktop/mobile presentation has no overflow or console errors"
+      ],
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "Immediately skipped recommendation cards do not create exposure; ordinary Home navigation is not tracked",
+        "A real background tab pauses dwell; only half-visible foreground cards count, duplicates count once, and the painted shelf does not reshuffle",
+        "Opening a recommendation clears its exposure instead of recording a dislike or watch impression",
+        "Reset clears only exposure and retains title ratings and explicit rejection choices",
+        "Exposure is included in the actual downloaded ZIP; import and real mirror reload restore canonical counts and timestamps",
+        "Simultaneous mirror failures show a session-only warning and retry saves the current reset; desktop/mobile presentation has no overflow or console errors"
+      ],
+      "errors": []
+    }
+  ],
+  "limitation": "Isolated synthetic catalog and controlled player; background-tab browser check, not a physical-device soak. No real user data or provider integration modified."
+}

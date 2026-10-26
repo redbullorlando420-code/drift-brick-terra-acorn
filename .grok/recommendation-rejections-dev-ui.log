@@ -1,0 +1,27 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "Title, provider-scoped creator and canonical topic choices are distinct, durably saved and reversible",
+        "Choices survive a real IndexedDB/localStorage reload, while explicit favorite protection is explained",
+        "Simultaneous quota failures in both mirrors show a session-only warning; explicit retry saves current evidence",
+        "Downloaded library pack contains all ranking feedback; importing after Undo restores the exact rejection inputs and keeps ratings/watch-time",
+        "Review mounts at most eight choices, pages correctly, and has no desktop/mobile overflow or console errors"
+      ],
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "Title, provider-scoped creator and canonical topic choices are distinct, durably saved and reversible",
+        "Choices survive a real IndexedDB/localStorage reload, while explicit favorite protection is explained",
+        "Simultaneous quota failures in both mirrors show a session-only warning; explicit retry saves current evidence",
+        "Downloaded library pack contains all ranking feedback; importing after Undo restores the exact rejection inputs and keeps ratings/watch-time",
+        "Review mounts at most eight choices, pages correctly, and has no desktop/mobile overflow or console errors"
+      ],
+      "errors": []
+    }
+  ]
+}

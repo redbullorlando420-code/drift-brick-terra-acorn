@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "checks": [
+    "Desktop host exports real room played/current/upcoming context with public canonical links and no room access or playback state",
+    "Phone guest previews and exports without gaining host import authority; preview alone leaves the live queue untouched",
+    "Preview reacts to a concurrent guest queue edit; host applies one undoable batch, deduplicates re-import and preserves the paused title, clock and automatic-next setting",
+    "Queue capacity is previewed and enforced; corrupt/oversized files and cancellation preserve the room and Undo restores the complete batch",
+    "Mobile host imports and undoes a public session in a fresh room, never stages its previous current title, and reload requires explicit re-import without restoring autoplay"
+  ],
+  "errors": []
+}

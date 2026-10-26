@@ -1,8 +1,9 @@
+import { getRecommendationExposure } from '@/lib/recommendation-exposure-store';
 import { useEffect, useMemo, useState } from "react";
 import { rankTwitchVods } from "@/lib/videos/twitch-vod-ranking";
 import { prepareTwitchRecommendationScore } from '@/lib/videos/twitch-recommendations';
 import { useLibrary } from "@/lib/videos/store";
-import { getRating, getWatchTime, watchTimeScore } from "@/lib/media-feedback";
+import { getRating, getWatchTime, watchTimeScore, getRecommendationRejections, creatorIsFavorited, recommendationTopicIsLiked } from "@/lib/media-feedback";
 import { type LibraryVideo } from "@/lib/videos/types";
 import { useSessionPhase } from "@/lib/use-session-phase";
 const EMPTY: LibraryVideo[] = [];
@@ -31,7 +32,7 @@ export function useTwitchVodRanking(
     const controller = new AbortController(),
       now = Date.now();
     void prepareTwitchRecommendationScore(videos, { tags, favorites, likes, viewCounts, rating: getRating,
-      watchScore: id => watchTimeScore(getWatchTime(id)), now }, controller.signal)
+      watchScore: id => watchTimeScore(getWatchTime(id)), now, recommendationExposure: getRecommendationExposure(), recommendationRejections: getRecommendationRejections(), creatorIsFavorited, tagIsLiked: recommendationTopicIsLiked }, controller.signal)
       .then(score => rankTwitchVods(videos, score, controller.signal))
       .then((rows) => {
         if (!controller.signal.aborted) setPacket({ scope, rows });

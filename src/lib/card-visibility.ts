@@ -46,3 +46,17 @@ export function createCardVisibilityTracker(factory: Factory) {
 export const cardVisibility = createCardVisibilityTracker((notify, options) => new IntersectionObserver(notify, options));
 // Vite swaps the module during development; old observers must not retain cards.
 import.meta.hot?.dispose(() => cardVisibility.dispose());
+
+/** One pooled half-visible observer for recommendation dwell, independent of artwork admission. */
+export function createMeaningfulVisibility(factory:(notify:(entries:readonly Pick<IntersectionObserverEntry,'target'|'isIntersecting'|'intersectionRatio'>[])=>void,options:IntersectionObserverInit)=>Observer){
+ const rows=new Map<Element,{notify:(visible:boolean)=>void;visible:boolean}>();let observer:Observer|undefined,generation=0;
+ const dispose=()=>{generation++;observer?.disconnect();observer=undefined;rows.clear();};
+ return {observe(element:Element,notify:(visible:boolean)=>void){
+  if(rows.size>=1024&&!rows.has(element))return ()=>{};
+  if(!observer){const current=generation;observer=factory(entries=>{if(current!==generation)return;for(const entry of entries){const row=rows.get(entry.target),visible=entry.isIntersecting&&entry.intersectionRatio>=0.5;if(row&&row.visible!==visible){row.visible=visible;row.notify(visible);}}},{threshold:[0,0.5]});}
+  const row={notify,visible:false};rows.set(element,row);observer.observe(element);
+  return ()=>{if(rows.get(element)!==row)return;rows.delete(element);observer?.unobserve(element);if(!rows.size)dispose();};
+ },dispose,snapshot:()=>({observed:rows.size,observers:observer?1:0})};
+}
+export const recommendationVisibility=createMeaningfulVisibility((notify,options)=>new IntersectionObserver(notify,options));
+import.meta.hot?.dispose(()=>recommendationVisibility.dispose());

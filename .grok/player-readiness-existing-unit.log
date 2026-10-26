@@ -1,0 +1,20 @@
+✔ anime scene notation preserves season/episode numbers and ignores release years and quality codes (9.2718ms)
+✔ anime shelf excludes commentary/music/merch/games and description-only mentions while accepting numbered series and manual choices (6.2118ms)
+✔ anime films, OVAs and numbered series have separate filters and natural episode order (55.4716ms)
+✔ movie-specific filters retain strict film membership, real runtimes and unknown release years (8.5295ms)
+✔ movie membership trusts manual choices but not automatically inferred generic film tags (0.6917ms)
+✔ movie and anime selection yield and cancel instead of publishing obsolete filter results (148.4173ms)
+✔ host-owned readiness and votes are one per transport identity, bounded, and pruned after departures or title consumption (2.7452ms)
+✔ guest playback and seek permissions are independent and cannot smuggle another action (0.2476ms)
+✔ clip refresh rotates across the full follow list with independent clocks, retries and exhaustion (6.4922ms)
+✔ newest/most-viewed clip windows stay bounded and never boost missing/future creation dates (29.6759ms)
+✔ actual clip-only recent requests skip VOD/live fields, ignore old cursors, deduplicate periods and retain original cache observation (708.5861ms)
+✔ actual older clip partial failure retains accepted clips and its safe cursor, with a clip-specific failure (193.4225ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1748.4485

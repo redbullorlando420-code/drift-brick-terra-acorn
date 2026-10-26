@@ -1,3 +1,7 @@
+import { getTopicAliases,isTopicAliasLedger } from './topic-aliases.ts';
+import { importTopicAliases } from '../topic-alias-store';
+import { getRecommendationExposure,importRecommendationExposure } from '../recommendation-exposure-store';
+import { isExposureLedger } from './recommendation-exposure.ts';
 import { normalizeProviderCache } from '../provider-cache-metrics.ts';
 import { mergeFollowRecovery, normalizeFollowCheckpoints } from './follow-checkpoints.ts';
 /**
@@ -303,7 +307,9 @@ export function buildLibraryPackFiles(input: LibraryPackBuildInput): Record<stri
     [`${LIBRARY_PACK_ROOT}/marks/view-counts.json`]: JSON.stringify(input.viewCounts, null, 2),
     [`${LIBRARY_PACK_ROOT}/marks/came-counts.json`]: JSON.stringify(input.cameCounts, null, 2),
     [`${LIBRARY_PACK_ROOT}/marks/shelves.json`]: JSON.stringify({ favorites: input.favorites, likes: input.likes }, null, 2),
-    [`${LIBRARY_PACK_ROOT}/marks/ratings.json`]: JSON.stringify({ ratings: feedback.ratings, ratingHistory: feedback.ratingHistory, notes: feedback.notes, creatorRatings: feedback.creatorRatings, creatorLikes: feedback.creatorLikes }, null, 2),
+    [`${LIBRARY_PACK_ROOT}/marks/ratings.json`]: JSON.stringify({ ratings: feedback.ratings, ratingHistory: feedback.ratingHistory, notes: feedback.notes, creatorRatings: feedback.creatorRatings, creatorLikes: feedback.creatorLikes, creatorFavorites: feedback.creatorFavorites, watchTime: feedback.watchTime, recommendationRejections: feedback.recommendationRejections }, null, 2),
+    [`${LIBRARY_PACK_ROOT}/marks/topic-aliases.json`]: JSON.stringify(getTopicAliases(), null, 2),
+    [`${LIBRARY_PACK_ROOT}/marks/recommendation-exposure.json`]: JSON.stringify(getRecommendationExposure(), null, 2),
     [`${LIBRARY_PACK_ROOT}/marks/tag-hearts.json`]: JSON.stringify({ tagLikes: feedback.tagLikes, tagHeartHistory: feedback.tagHeartHistory }, null, 2),
     [`${LIBRARY_PACK_ROOT}/resume/resume.json`]: JSON.stringify({ progress: input.progress, resumeProgress: input.resumeProgress }, null, 2),
     [`${LIBRARY_PACK_ROOT}/stats/engagement-summary.json`]: JSON.stringify(engagementSummary(input), null, 2),
@@ -608,6 +614,16 @@ export function applyLibraryPackFiles(
     } catch { warnings.push(`Could not parse ${name}`); }
   }
 
+  for (const [name, body] of Object.entries(files)) {
+    if (!fileEndsWith(name, "recommendation-exposure.json")) continue;
+    try { const value: unknown = JSON.parse(body); if (!isExposureLedger(value)) throw new Error("unsupported exposure ledger"); importRecommendationExposure(value); }
+    catch { warnings.push("Could not restore recent recommendation exposure from " + name); }
+  }
+  for (const [name, body] of Object.entries(files)) {
+    if (!fileEndsWith(name, "topic-aliases.json")) continue;
+    try { const value: unknown = JSON.parse(body); if (!isTopicAliasLedger(value)) throw new Error("unsupported topic aliases"); importTopicAliases(value); }
+    catch { warnings.push("Could not restore topic aliases from " + name); }
+  }
   let feedbackMerged = false;
   let feedbackPartial: Partial<DurableFeedback> = {};
   for (const [name, body] of Object.entries(files)) {

@@ -91,6 +91,7 @@ export const TitleRail = memo(function TitleRail({
   onTitleClick,
   reason,
   priority = false,
+  recommendation = false,
 }: {
   title: string;
   /** A stable reader keeps React's development prop diagnostics from walking
@@ -104,6 +105,7 @@ export const TitleRail = memo(function TitleRail({
   reason?: string;
   /** A primary rail can mount its small card window before it enters the viewport. */
   priority?: boolean;
+  recommendation?: boolean;
 }) {
   const videos = typeof source === 'function' ? source() : source;
   const shelfRef = useRef<HTMLElement>(null);
@@ -304,6 +306,7 @@ export const TitleRail = memo(function TitleRail({
           >
             <VideoCard
               video={video}
+              recommendation={recommendation}
               variant={variant}
               index={start + i}
               playedAt={playedAt?.[video.id]}

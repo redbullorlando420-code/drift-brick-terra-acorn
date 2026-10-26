@@ -1,0 +1,45 @@
+✔ exactly 100 distinct milestones with only evidenced completions cover ten workstreams with executable contracts (193.9212ms)
+✔ all prerequisite references exist, are acyclic and precede dependent work (0.3289ms)
+✔ roadmap migration appends briefs once without resetting prior manual choices or custom ideas (3.44ms)
+✔ known brief updates retain saved status while adopting the current implementation contract (0.2771ms)
+✔ copied briefs include concrete scope, dependency status, acceptance and safe execution boundaries (0.6367ms)
+✔ checked-in roadmap is reproducible and exports all 100 full briefs without completing work (5.6186ms)
+✔ legacy creator favorites survive migration, and separate likes and favorites can be toggled independently (58.7391ms)
+✔ concurrent ranking snapshots coalesce, then feedback changes invalidate the cached snapshot (48.0365ms)
+✔ watch-time evidence is bounded and included in worker snapshots without per-tick reranking events (107.1308ms)
+✔ feedback updates during a yielded snapshot never publish stale mixed evidence (91.5429ms)
+✔ scoped rejections round-trip through exported feedback; old packs preserve choices and an empty backup restores Undo (18.6771ms)
+✔ feedback save failure remains visible and retry saves current choices without changing rank inputs (10.5475ms)
+✔ topic hearts normalize aliases for protection without changing legacy raw tag heart semantics (0.8988ms)
+✔ unsupported or malformed rejection imports cannot clear the current choices (2.3856ms)
+✔ real feedback publishes only its rating key; durable hydration refreshes mounted snapshots and keeps newer session edits (45.2497ms)
+✔ cleanup verification shares its rating-backup read, rejects failures and preserves foreground ratings on retry (2.0179ms)
+✔ synthetic corpus has explicit reasoned judgments and rejects invalid versions, bounds, references and canonical cycles (9.5026ms)
+✔ graded NDCG and precision match an independently calculated two-title example, including empty wrong output (1.9807ms)
+✔ missing judgments and publication dates remain unknown, while ingestion cannot create publication freshness (3.3678ms)
+✔ canonical aliases cannot inflate relevance and are distinct from previous-shelf exposure and negative evidence (1.4527ms)
+✔ creator concentration is conditional on actual relevant availability and empty libraries are inapplicable, never perfect relevance (0.5346ms)
+✔ adversarial rankings independently trip operational-tag, creator, exposure, duplicate and explicit-negative detectors (6.4328ms)
+✔ production rankers are deterministic, offline and read-only; current artifacts match the reviewed versioned baseline (46.8645ms)
+✔ baseline comparison refuses missing/incompatible baselines, changed judgments and altered ranking orders (7.29ms)
+✔ CLI parsing rejects ambiguous modes and baseline replacement requires an explicit flag (56.0459ms)
+✔ CLI exits nonzero for the intentionally strict quality gate and a missing baseline rather than hiding unknowns (891.5224ms)
+✔ title identity covers aliases without spreading evidence to creator, topics, or providers (1.2008ms)
+✔ creator scope respects provider identity; canonical topic evidence crosses sources without mechanical tag matching (33.7306ms)
+✔ explicit title/creator favorites and hearted topics protect candidates without deleting choices (1.4384ms)
+✔ bounded ledger validates imports, keeps recent unique choices, and never silently evicts a new personal choice (5.8378ms)
+✔ Undo restores prior ranking evidence exactly and newest empty state wins over stale durable mirror (3.219ms)
+✔ real YouTube ranker applies title-only penalty; creator diversity still leaves another creator available (0.618ms)
+✔ YouTube worker reset carries negatives, supports favorites, and discards prior choices on a clean reset (1.5106ms)
+✔ Twitch scoring subtracts only explicit scopes and restores favorite score exactly (4.4783ms)
+✔ Guide personal and explicit-query orders apply choices but retain search matches and visibility boundaries (3.4421ms)
+✔ Watch Together public media and session exports cannot serialize private rejection evidence (2.0383ms)
+✔ preview recommendation scores honor the prepared negative evidence without changing visibility or tag training (9.0017ms)
+ℹ tests 37
+ℹ suites 0
+ℹ pass 37
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1636.2661

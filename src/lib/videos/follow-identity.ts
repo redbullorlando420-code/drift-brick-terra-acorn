@@ -1,3 +1,4 @@
+import { retainTwitchPullPolicy } from './twitch-pull-policy.ts';
 import type { FollowKind, FollowedChannel } from "./types";
 
 export function canonicalFollowHandle(kind: FollowKind, raw: string): string {
@@ -59,6 +60,8 @@ export function mergeResolvedFollow(rows: FollowedChannel[], resolved: FollowedC
     for (const row of rows) if (confirmedYoutubeChannelId(row) && [row.handle, row.importQuery, row.title].some(value => value && canonicalFollowHandle('youtube', value) === key)) channels.add(confirmedYoutubeChannelId(row)!);
     if (channels.size > 1) ambiguous.add(key);
   }
+  const owner=rows.find(row=>row.kind===resolved.kind && (row.id===resolved.id || row.channelId && row.channelId===resolved.channelId || !row.channelId && keys.has(canonicalFollowHandle(row.kind,row.handle))));
+  resolved=retainTwitchPullPolicy(owner,resolved);
   return [resolved, ...rows.filter(row => {
     if (row.kind !== resolved.kind) return true;
     if (row.id === resolved.id) return false;

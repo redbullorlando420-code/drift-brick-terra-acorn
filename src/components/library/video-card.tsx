@@ -1,3 +1,4 @@
+import { useRecommendationExposure } from './use-recommendation-exposure';
 import { twitchContentLabel } from '@/lib/videos/twitch-content';
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { YoutubeDownloadButton } from './youtube-download-button';
@@ -29,7 +30,7 @@ import { registerMountedCard } from "@/lib/render-budget";
 import { measureInteraction } from "@/lib/interaction-budget";
 import { watchImageSlot, isArtworkSuppressed } from "@/lib/videos/image-load-budget";
 import { pullsPaused } from '@/lib/pull-control';
-import { youtubeContentKind, youtubeDateSource, youtubePublicationTime } from '@/lib/videos/youtube-metadata';
+import { youtubeContentKind, youtubeDateSource, youtubePublicationTime, youtubePublicationPrecision, cleanYoutubePublishedLabel } from '@/lib/videos/youtube-metadata';
 
 const publishedDateFormat = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" });
 const calendarDateFormat = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
@@ -96,7 +97,7 @@ const CardDetails = memo(function CardDetails({ video, variant, playedAt, fav, r
             )}
           </p>
           {video.remote?.kind === 'youtube' && !playedAt && !live && <p className="mt-0.5 text-xs text-muted" title={`Publication source: ${youtubeDateSource(video)}`}>
-            {youtubePublicationTime(video) ? `Published ${video.remote.publishedDate ? calendarDateFormat.format(Date.parse(video.remote.publishedDate)) : publishedDateFormat.format(youtubePublicationTime(video))}` : 'Publication date unknown'}
+            {youtubePublicationTime(video) ? `Published ${calendarDateFormat.format(youtubePublicationTime(video))}` : youtubePublicationPrecision(video)==='relative' ? `Approximate: ${cleanYoutubePublishedLabel(video.remote.publishedLabel)} · exact date unknown` : 'Publication date unknown'}
           </p>}
           {rating > 0 && <p className="mt-1 flex items-center gap-1 text-xs text-accent"><Star className="size-3 fill-current" /> Your rating {rating}/5</p>}
           {viewCount > 0 && <p className="mt-1 text-xs text-subtle">Watched {viewCount} time{viewCount === 1 ? "" : "s"}</p>}
@@ -129,6 +130,7 @@ export const VideoCard = memo(function VideoCard({
   playedAt,
   className,
   animate = true,
+  recommendation = false,
 }: {
   video: LibraryVideo;
   variant?: Variant;
@@ -136,6 +138,7 @@ export const VideoCard = memo(function VideoCard({
   playedAt?: number;
   className?: string;
   animate?: boolean;
+  recommendation?: boolean;
 }) {
   const ref = useRef<HTMLButtonElement>(null);
   // Keep selectors for the mounted card's identity. A provider status update or
@@ -165,6 +168,7 @@ export const VideoCard = memo(function VideoCard({
   const { repairArtworkSource, followRemoteQuery, progress, fav, liked, tags, category, viewCount, cameCount,
     adultFolder, markCame, toggleLike, openPreview, toggleFavorite, hideVideo, setVideoTags, setQuery, setSource, sourceId } = useLibrary(librarySelector);
   const adult = adultFolder || isAdultPullKind(video.remote?.kind);
+  useRecommendationExposure(ref, video, "browse", recommendation && !adult && !video.remote?.live && !video.isSample);
   const adultPhoto = Boolean(adult && isAdultImageKind(video.remote?.kind, video.mime, video.extension));
   const hiddenAdult = adult && tags.includes("hidden");
   const duration = capturedDur ?? video.duration;
@@ -497,6 +501,7 @@ export const VideoCard = memo(function VideoCard({
       <button
         ref={ref}
         data-video-card-open
+        data-recommendation-card={recommendation && !adult && !live ? video.id : undefined}
         data-video-card-id={video.id}
         type="button"
         onMouseEnter={() => { setHovered(true); warmVideoPreview(); }}

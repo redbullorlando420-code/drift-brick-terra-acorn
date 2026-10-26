@@ -1,3 +1,5 @@
+import { createExposurePenalty,type ExposureLedger } from './recommendation-exposure.ts';
+import { createRejectionPenalty, type RejectionLedger } from './recommendation-rejections.ts';
 import { forEachCatalogSlice, yieldCatalogTask } from '../catalog-work.ts';
 import { twitchCreatorKey, isOfflineTwitchCatalogCard } from './twitch-catalog-order.ts';
 import { isTwitchClip } from './twitch-clips.ts';
@@ -10,6 +12,7 @@ const game = (video: LibraryVideo) => video.genre?.trim().toLowerCase() ?? '';
 const creator = (video: LibraryVideo) => video.folderId.startsWith('tw:') ? video.folderId.toLowerCase() : twitchCreatorKey(video);
 const vod = (video: LibraryVideo) => video.remote?.kind === 'twitch' && !video.remote.live && !video.isSample && !isTwitchClip(video) && !isOfflineTwitchCatalogCard(video);
 type Taste = {
+  recommendationExposure?: ExposureLedger; recommendationRejections?: RejectionLedger; creatorIsFavorited?: (name: string) => boolean; tagIsLiked?: (topic: string) => boolean;
   tags: Record<string, string[]>; favorites: Record<string, true>; likes: Record<string, true>; viewCounts: Record<string, number>;
   rating: (id: string) => number; watchScore: (id: string) => number; now?: number;
 };
@@ -34,6 +37,8 @@ export async function prepareTwitchRecommendationScore(videos: readonly LibraryV
     for (const word of titleTerms(video)) add(terms, word, weight / 4);
   }, turn);
   const now = taste.now ?? Date.now();
+  const rejectionPenalty = taste.recommendationRejections?.entries.length ? createRejectionPenalty(taste.recommendationRejections) : undefined;
+  const exposurePenalty = taste.recommendationExposure?.entries.length ? createExposurePenalty(taste.recommendationExposure, now) : undefined;
   return (video: LibraryVideo) => {
     const rating = taste.rating(video.id);
     if (rating === 1 || !vod(video)) return -Infinity;
@@ -45,6 +50,8 @@ export async function prepareTwitchRecommendationScore(videos: readonly LibraryV
       + Math.max(-12, Math.min(18, topicScore)) + Math.max(-8, Math.min(12, titleScore))
       + (rating >= 4 ? (rating - 3) * 2 : rating === 2 ? -18 : 0)
       + (opens || watched ? -Math.min(24, 12 + watched + Math.log2(opens + 1)) : 12)
-      + Math.max(0, 6 - age / 14) + Math.min(5, Math.log10(Math.max(0, video.remote?.views ?? 0) + 1));
+      + Math.max(0, 6 - age / 14) + Math.min(5, Math.log10(Math.max(0, video.remote?.views ?? 0) + 1))
+       - (rejectionPenalty?.(video, taste.tags[video.id], { favorite: Boolean(taste.favorites[video.id]), creatorFavorite: taste.creatorIsFavorited?.(video.remote?.channelName ?? ""), tagIsLiked: taste.tagIsLiked }) ?? 0)
+       - (exposurePenalty?.(video, { favorite: Boolean(taste.favorites[video.id]), liked: Boolean(taste.likes[video.id]), creatorFavorite: taste.creatorIsFavorited?.(video.remote?.channelName ?? ""), rating }) ?? 0);
   };
 }

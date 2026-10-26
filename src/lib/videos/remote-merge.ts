@@ -29,6 +29,9 @@ function sameRemote(left: LibraryVideo["remote"], right: LibraryVideo["remote"])
     && left.youtubeTagSummary === right.youtubeTagSummary
     && sameList(left.youtubeKeywords, right.youtubeKeywords)
     && left.publishedSource === right.publishedSource
+    && left.publishedPrecision === right.publishedPrecision
+    && left.publishedLabel === right.publishedLabel
+    && left.publishedLabelAt === right.publishedLabelAt
     && left.publishedDate === right.publishedDate
     && left.viewers === right.viewers
     && left.observedAt === right.observedAt

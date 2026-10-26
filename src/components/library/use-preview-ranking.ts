@@ -1,3 +1,7 @@
+import { getRecommendationExposure,getExposureRevision } from '@/lib/recommendation-exposure-store';
+import { createExposurePenalty } from '@/lib/videos/recommendation-exposure';
+import { canonicalTopic } from '@/lib/videos/topics';
+import { createRejectionPenalty } from '@/lib/videos/recommendation-rejections';
 import { startTransition, useEffect, useState } from "react";
 import { rankingFeedbackSnapshot } from "@/lib/media-feedback";
 import { scheduleBackgroundWork } from "@/lib/interaction-budget";
@@ -19,7 +23,7 @@ type Inputs = {
   target: LibraryVideo;
   videos: LibraryVideo[]; tags: Record<string, string[]>; adultFolders: Set<string>;
   favorites: Record<string, true>; likes: Record<string, true>; cameCounts: Record<string, number>; viewCounts: Record<string, number>;
-  unavailable: Record<string, unknown>; hidden: Record<string, unknown>; feedbackRevision: number;
+  unavailable: Record<string, unknown>; hidden: Record<string, unknown>; feedbackRevision: number; exposureRevision: number;
 };
 type Session = {
   worker: Worker; generation: number; requestId: number; inputs?: Inputs;
@@ -77,7 +81,7 @@ function sessionForPreview() {
 function sameInputs(left: Inputs | undefined, right: Inputs) {
   return left && left.target.id === right.target.id && left.videos === right.videos && left.tags === right.tags && left.unavailable === right.unavailable
     && left.favorites === right.favorites && left.likes === right.likes && left.cameCounts === right.cameCounts && left.viewCounts === right.viewCounts
-    && left.hidden === right.hidden && left.feedbackRevision === right.feedbackRevision
+    && left.hidden === right.hidden && left.feedbackRevision === right.feedbackRevision && left.exposureRevision === right.exposureRevision
     && left.adultFolders.size === right.adultFolders.size && [...right.adultFolders].every(id => left.adultFolders.has(id));
 }
 function send(session: Session, message: PreviewWorkerRequest) { session.worker.postMessage(message); }
@@ -99,6 +103,10 @@ function prepare(session: Session, inputs: Inputs) {
     const feedback = await rankingFeedbackSnapshot();
     if (cancelled) return;
     send(session, { type: "reset", generation, hearted: feedback.heartedTags });
+    const penalty = feedback.recommendationRejections.entries.length ? createRejectionPenalty(feedback.recommendationRejections) : undefined;
+    const exposureLedger = getRecommendationExposure();
+    const exposure = exposureLedger.entries.length ? createExposurePenalty(exposureLedger) : undefined;
+    const hearted = new Set(feedback.heartedTags.map(canonicalTopic).filter(Boolean));
     const creators = new Map<string, { rating: number; liked: boolean; favorite: boolean }>();
     let offset = 0;
     const next = () => {
@@ -110,15 +118,18 @@ function prepare(session: Session, inputs: Inputs) {
         const creator = item.remote?.channelName?.trim().toLowerCase() ?? "";
         let taste = creators.get(creator);
         if (!taste) { taste = { rating: feedback.creatorRatings[creator] ?? 0, liked: Boolean(feedback.creatorLikes[creator]), favorite: Boolean(feedback.creatorFavorites[creator]) }; creators.set(creator, taste); }
+        const adult = isAdultPullKind(item.remote?.kind) || inputs.adultFolders.has(item.folderId);
         rows.push({ id: item.id, folderId: item.folderId, genre: item.genre, kind: item.remote?.kind, creator,
           creatorId: item.remote?.channelId ? `${item.remote.kind}:${item.remote.channelId}` : undefined,
           identity: item.remote?.videoId ? `${item.remote.kind}:${item.remote.videoId}` : item.id,
           titleTokens: [...new Set(item.name.toLowerCase().match(/[\p{L}\p{N}]{3,}/gu) ?? [])].filter(word => !/^(?:the|and|with|for|this|that|from|video|youtube|official|full|part|episode)$/.test(word)).slice(0,16),
           format: item.remote?.kind === 'youtube' ? youtubeContentKind(item) : undefined,
           publishedAt: item.remote?.kind === 'youtube' ? youtubePublicationTime(item) : undefined,
+          exposurePenalty: (adult ? undefined : exposure)?.(item, { favorite: Boolean(inputs.favorites[item.id]), liked: Boolean(inputs.likes[item.id]), creatorFavorite: taste.favorite, rating: feedback.ratings[item.id] ?? 0 }),
+          rejectionPenalty: (adult ? undefined : penalty)?.(item, inputs.tags[item.id], { favorite: Boolean(inputs.favorites[item.id]), creatorFavorite: taste.favorite, tagIsLiked: topic => hearted.has(topic) }),
           tags: (inputs.tags[item.id] ?? EMPTY_TAGS).slice(0, 32), rating: feedback.ratings[item.id] ?? 0, creatorRating: taste.rating, creatorLiked: taste.liked, creatorFavorite: taste.favorite, favorite: Boolean(inputs.favorites[item.id]), liked: Boolean(inputs.likes[item.id]),
           marks: inputs.cameCounts[item.id] ?? 0, plays: inputs.viewCounts[item.id] ?? 0, watch: feedback.watchScores[item.id] ?? 0,
-          adult: isAdultPullKind(item.remote?.kind) || inputs.adultFolders.has(item.folderId), live: Boolean(item.remote?.live),
+          adult, live: Boolean(item.remote?.live),
           eligible: !isRemovedRedditVideo(item) && !inputs.unavailable[item.id] && !inputs.hidden[item.id] && !item.isSample && !SAMPLE_TITLE.test(`${item.name} ${creator} ${item.tagline ?? ""}`) });
         if (rows.length % 32 === 0 && performance.now() - started >= 4) break;
       }
@@ -144,7 +155,7 @@ export function usePreviewRanking(video: LibraryVideo | undefined, videos: Libra
     const session = sessionForPreview();
     const receive = (data: PreviewWorkerResult) => startTransition(() => setPacket({ id: data.id, result: data.result }));
     session.listener = receive;
-    prepare(session, { target: video, videos, tags, adultFolders, unavailable, hidden, feedbackRevision, favorites, likes, cameCounts, viewCounts });
+    prepare(session, { target: video, videos, tags, adultFolders, unavailable, hidden, feedbackRevision, exposureRevision: getExposureRevision(), favorites, likes, cameCounts, viewCounts });
     const message = { type: "rank" as const, generation: session.generation, requestId: ++session.requestId, id: video.id, seed };
     latestRequest = { session, message };
     send(session, message);

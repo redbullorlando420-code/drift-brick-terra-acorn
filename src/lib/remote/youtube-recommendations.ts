@@ -1,10 +1,14 @@
+import { createExposurePenalty,type ExposureLedger } from '../videos/recommendation-exposure.ts';
+import { createRejectionPenalty, type RejectionLedger } from '../videos/recommendation-rejections.ts';
 import { createCreatorRankedPages, type CreatorRankedRow } from './creator-ranked-pages.ts';
 import type { LibraryVideo } from "@/lib/videos/types";
 import { youtubeContentKind, youtubePublicationTime } from '../videos/youtube-metadata.ts';
 import { youtubeTagWeight } from '../videos/youtube-text-tags.ts';
-import { applyInterestMultipliers, rankingTags, confidenceAdjustedPreference, normalizeRating, ratingAdjustedScore, ratingPreference, RATING_STAR_WEIGHTS } from '../videos/ranking-core.ts';
+import { applyInterestMultipliers, reviewedRankingTags, confidenceAdjustedPreference, normalizeRating, ratingAdjustedScore, ratingPreference, RATING_STAR_WEIGHTS } from '../videos/ranking-core.ts';
 
 export type YoutubeTaste = {
+  recommendationRejections?: RejectionLedger;
+  recommendationExposure?: ExposureLedger;
   tags: Record<string, string[]>;
   history: Array<{ id: string; at: number }>;
   viewCounts: Record<string, number>;
@@ -12,6 +16,7 @@ export type YoutubeTaste = {
   likes: Record<string, true | undefined>;
   ratingOf: (id: string) => number;
   tagIsLiked: (tag: string) => boolean;
+  rejectionTopicIsLiked?: (topic: string) => boolean;
   tagHasHeartHistory: (tag: string) => boolean;
   ratingPreference: (rating: number) => number;
   watchScore: (id: string) => number;
@@ -35,6 +40,8 @@ export function createYoutubeRecommendationRanker(videos: LibraryVideo[], taste:
   const max = Number.isFinite(requested) ? Math.max(0, Math.floor(requested)) : 0;
   if (!max || !videos.length) return Object.assign((_shuffle?: (id: string) => number, _page?: { offset: number; limit: number }) => [] as LibraryVideo[], { total: 0 });
   const now = taste.now ?? Date.now();
+  const rejectionPenalty = taste.recommendationRejections?.entries.length ? createRejectionPenalty(taste.recommendationRejections) : undefined;
+  const exposurePenalty = taste.recommendationExposure?.entries.length ? createExposurePenalty(taste.recommendationExposure, now) : undefined;
   const watchedAt = new Map<string, number>();
   for (const entry of taste.history) watchedAt.set(entry.id, Math.max(watchedAt.get(entry.id) ?? 0, entry.at));
   const activeCreatorWatch = new Map<string, number>();
@@ -66,7 +73,7 @@ export function createYoutubeRecommendationRanker(videos: LibraryVideo[], taste:
     const feedback = rating === 1 ? -3 : Math.max(ratingPreference(rating), taste.favorites[video.id] ? 2 : 0, taste.likes[video.id] ? 1 : 0);
     const time = Math.max(0, Math.min(12, taste.watchScore(video.id) || 0));
     const marks = Math.max(0, Math.min(1_000_000, taste.marksOf?.(video.id) || 0));
-    const tags = rankingTags(taste.tags[video.id] ?? EMPTY_TAGS);
+    const tags = reviewedRankingTags(taste.tags[video.id] ?? EMPTY_TAGS);
     if (time || marks || tags.length) interactions.set(video.id, { watch: time, marks, tags });
     const watch = Math.min(2, time / 4 + Math.log2(1 + (taste.viewCounts[video.id] ?? 0)) * 0.35);
     const evidence = feedback + watch + (rating === 1 ? 0 : Math.min(2, Math.log2(1 + marks)));
@@ -132,7 +139,7 @@ export function createYoutubeRecommendationRanker(videos: LibraryVideo[], taste:
       favorite: Boolean(taste.favorites[video.id]), liked: Boolean(taste.likes[video.id]), topics: tagScore * 10,
       tagHearts: tags.reduce((count, tag) => count + Number((tagScores.get(tag)?.explicit ?? 0) > 0), 0),
       creatorLiked: channel.liked, creatorFavorite: channel.favorite, watch: interaction.watch, marks: interaction.marks,
-    }), creator: creator || `unknown:${video.id}`, publishedAt });
+    }) - (rejectionPenalty?.(video, taste.tags[video.id], { favorite: Boolean(taste.favorites[video.id]), creatorFavorite: channel.favorite, tagIsLiked: taste.rejectionTopicIsLiked ?? taste.tagIsLiked }) ?? 0) - (exposurePenalty?.(video, { favorite: Boolean(taste.favorites[video.id]), liked: Boolean(taste.likes[video.id]), creatorFavorite: channel.favorite, rating }) ?? 0), creator: creator || `unknown:${video.id}`, publishedAt });
   }
   // Feedback/evidence is stable between reshuffles. Compute it once, then
   // change only the seeded tie-breaker when the user asks for another mix.

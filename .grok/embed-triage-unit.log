@@ -1,0 +1,24 @@
+✔ readiness wire data is a strict bounded whitelist without telemetry, names, paths or credentials (1.2321ms)
+✔ player readiness preserves blocked/error and observed playback against incidental ready signals (0.1737ms)
+✔ manual ready and queue votes remain independent of actual blocked, buffering and playing reports (0.451ms)
+✔ title changes clear only media readiness and reject delayed or future reports from connected peers (0.1666ms)
+✔ repeated player observations do not grow participation revisions or history (3.8788ms)
+✔ queue consumption retains player observations, departure drops them and roster size stays bounded (0.8684ms)
+✔ participation state validates generation-scoped player data and remains compatible with old manual-only clients (0.6365ms)
+✔ invalid and no-op reports cannot alter manual choices or the queue, and each participant owns only their report (0.2944ms)
+✔ documented YouTube player failures have distinct causes and precise recovery without claiming a bypass (3.8812ms)
+✔ autoplay and handshake uncertainty never invent an unavailable video or provider error code (3.208ms)
+✔ duplicate errors and player clock heartbeats retain evidence identity and original observation time (3.6427ms)
+✔ ready and timeout events cannot erase a known embed error or blocked autoplay; retry and actual playback recover (0.3765ms)
+✔ diagnostics bound title count and per-title transitions while preserving independent title evidence (1.3527ms)
+✔ invalid identity, phase, time and error payloads keep the prior diagnostics untouched (0.2079ms)
+✔ diagnostic JSON rebuilds a strict public whitelist without room, local, account or arbitrary provider state (1.6629ms)
+✔ late error evidence for an earlier clock cannot rewind newer recovery or alter its attempt count (0.1661ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 212.0434

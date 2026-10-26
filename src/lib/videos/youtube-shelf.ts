@@ -1,5 +1,5 @@
 import type { LibraryVideo } from './types.ts';
-import { youtubePublicationTime } from './youtube-metadata.ts';
+import { youtubePublicationTime, compareYoutubePublication } from './youtube-metadata.ts';
 import { forEachCatalogSlice, sortCatalogRows, yieldCatalogTask } from '../catalog-work.ts';
 
 /** A bounded refresh keeps catalog positions stable and appends new rows.
@@ -22,8 +22,8 @@ export async function updateYoutubeShelfAsync(previous: LibraryVideo[], next: Li
     const isVisible = after.remote?.kind === 'youtube' && visible(after);
     if (wasVisible && isVisible && youtubePublicationTime(before) === youtubePublicationTime(after)) replacements.set(before, after);
     else {
-      // Tail additions can follow equal-date existing rows. A corrected date
-      // or newly visible interior row needs the original catalog's tie order.
+      // Corrected dates/newly visible interior rows need a full rebuild; tail
+      // additions merge by publication time and canonical identity ties.
       if (isVisible && before) { rebuild = true; return; }
       if (wasVisible) removed.add(before);
       if (isVisible) added.push(after);
@@ -31,12 +31,12 @@ export async function updateYoutubeShelfAsync(previous: LibraryVideo[], next: Li
   }, turn, 16_384);
   if (rebuild) return;
   if (!removed.size && !replacements.size && !added.length) return ordered;
-  if (added.length > 1) added = await sortCatalogRows(added, (a, b) => youtubePublicationTime(b) - youtubePublicationTime(a), turn);
+  if (added.length > 1) added = await sortCatalogRows(added, compareYoutubePublication, turn);
   const result: LibraryVideo[] = [];
   let incoming = 0;
   await forEachCatalogSlice(ordered, video => {
     if (removed.has(video)) return;
-    while (incoming < added.length && youtubePublicationTime(added[incoming]!) > youtubePublicationTime(video)) result.push(added[incoming++]!);
+    while (incoming < added.length && compareYoutubePublication(added[incoming]!,video)<0) result.push(added[incoming++]!);
     result.push(replacements.get(video) ?? video);
   }, turn, 16_384);
   for (; incoming < added.length; incoming++) result.push(added[incoming]!);
@@ -66,12 +66,12 @@ export function updateYoutubeShelf(previous: LibraryVideo[], next: LibraryVideo[
     }
   }
   if (!removed.size && !replacements.size && !added.length) return ordered;
-  added.sort((a, b) => youtubePublicationTime(b) - youtubePublicationTime(a));
+  added.sort(compareYoutubePublication);
   const result: LibraryVideo[] = [];
   let incoming = 0;
   for (const video of ordered) {
     if (removed.has(video)) continue;
-    while (incoming < added.length && youtubePublicationTime(added[incoming]!) > youtubePublicationTime(video)) result.push(added[incoming++]!);
+    while (incoming < added.length && compareYoutubePublication(added[incoming]!,video)<0) result.push(added[incoming++]!);
     result.push(replacements.get(video) ?? video);
   }
   for (; incoming < added.length; incoming++) result.push(added[incoming]!);

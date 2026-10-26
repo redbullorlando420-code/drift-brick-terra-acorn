@@ -79,7 +79,7 @@ test('publication comes from the matching video, never a pull time, relative lab
   assert.equal(youtubeWatchPublication(page({ videoDetails: { videoId: id }, microformat: { playerMicroformatRenderer: { publishDate: '2005-04-23', uploadDate: '2005-04-22' } }, recommended: { publishDate: '2026-10-18' } }), id), '2005-04-23');
   assert.equal(youtubeWatchPublication(page({ videoDetails: { videoId: 'other' }, microformat: { playerMicroformatRenderer: { publishDate: '2026-10-18' } } }), id), undefined);
   assert.equal(youtubeWatchPublication(page({ videoDetails: { videoId: id, isLiveContent: true }, microformat: { playerMicroformatRenderer: { publishDate: '2026-10-18', liveBroadcastDetails: { isLiveNow: true } } } }), id), undefined);
-  assert.equal(youtubeWatchPublication(`watch?v=${id}<meta content="2005-04-23" itemprop="datePublished">`, id), '2005-04-23');
+  assert.equal(youtubeWatchPublication(`<link rel="canonical" href="https://www.youtube.com/watch?v=${id}"><meta content="2005-04-23" itemprop="datePublished">`, id), '2005-04-23');
   for (const date of ['2 days ago', '2026-02-30', '', 'today']) assert.equal(youtubeWatchPublication(page({ videoDetails: { videoId: id }, microformat: { playerMicroformatRenderer: { publishDate: date } } }), id), undefined);
   const imported = { id, addedAt: Date.now(), remote: { kind: 'youtube' } }; assert.equal(youtubePublicationTime(imported), 0);
   const verified = { ...imported, addedAt: Date.parse('2005-04-23'), remote: { ...imported.remote, publishedSource: 'watch', publishedDate: '2005-04-23' } };

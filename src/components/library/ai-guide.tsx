@@ -1,3 +1,7 @@
+import { RecommendationExposureControl } from './recommendation-exposure-control';
+import { getRecommendationExposure } from '@/lib/recommendation-exposure-store';
+import { RecommendationButton } from './recommendation-button';
+import { getRating, creatorIsFavorited, recommendationTopicIsLiked, getRecommendationRejections } from '@/lib/media-feedback';
 import { memo, startTransition, useEffect, useMemo, useRef, useState } from 'react';
 import { Bot, LoaderCircle, RefreshCw, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -20,7 +24,9 @@ export function AiGuide() {
   const history = useBrowseLibrary(s => s.history);
   const folders=useBrowseLibrary(s=>s.folders),hidden=useBrowseLibrary(s=>s.hiddenVideos),unavailable=useBrowseLibrary(s=>s.unavailable),hideDemo=useBrowseLibrary(s=>s.hideDemo);
   const viewer = useLibrary(s => Boolean(s.activeId || s.previewId)), phase = useSessionPhase();
-  const input = useMemo(() => ({ videos, tags, favorites, likes, history,folders,hidden,unavailable,hideDemo }), [videos, tags, favorites, likes, history,folders,hidden,unavailable,hideDemo]);
+  const [feedbackRevision, setFeedbackRevision] = useState(0);
+  useEffect(() => { const refresh = () => setFeedbackRevision(value => value + 1); window.addEventListener('reelcase:rating-change', refresh); return () => window.removeEventListener('reelcase:rating-change', refresh); }, []);
+  const input = useMemo(() => ({ videos, tags, favorites, likes, history,folders,hidden,unavailable,hideDemo, recommendationExposure: getRecommendationExposure(), ratingOf: getRating, recommendationRejections: getRecommendationRejections(), creatorIsFavorited, tagIsLiked: recommendationTopicIsLiked }), [videos, tags, favorites, likes, history,folders,hidden,unavailable,hideDemo,feedbackRevision]);
   const [settled, setSettled] = useState<GuideInput>(input), [seed, setSeed] = useState(() => Date.now());
   const [packet, setPacket] = useState<{ input: GuideInput; seed: number; data: GuideSnapshot }>();
   const [failed, setFailed] = useState(false);
@@ -38,11 +44,12 @@ export function AiGuide() {
   }, [settled, seed, phase, viewer]);
   const data = packet?.input === input ? packet.data : undefined;
   const pending = !failed && (packet?.input !== input || packet.seed !== seed);
-  const mix = () => { measureInteraction('navigation'); settler.cancel(); setSettled(input); setSeed(value => value + 1); };
+  const mix = () => { setFeedbackRevision(value => value + 1); measureInteraction('navigation'); settler.cancel(); setSettled(input); setSeed(value => value + 1); };
   return <section data-guide-catalog data-guide-pending={pending} className="w-full max-w-none rounded-xl bg-surface p-5 shadow-border sm:p-6 xl:p-8">
     <p className="flex items-center gap-2 text-xs font-medium tracking-[0.16em] text-accent uppercase"><Sparkles className="size-4" />Library guide</p>
     <h1 className="mt-3 font-display text-4xl text-fg sm:text-5xl">Useful answers from local signals.</h1>
     <p className="mt-3 max-w-xl text-sm text-muted">Search your saved titles, tags, creators and topics. Matches show their evidence; personal picks use saved likes, favorites and viewing history. Your catalog and files stay on this device.</p>
+    <RecommendationExposureControl />
     <GuideQuestion input={input} seed={seed} />
     <div className="mt-6 rounded-lg bg-elevated p-5 shadow-border">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -62,10 +69,10 @@ export function AiGuide() {
 const GuidePicks = memo(function GuidePicks({ data, tags }: { data: GuideSnapshot; tags: GuideInput['tags'] }) {
   const openPreview = useLibrary(s => s.openPreview);
   return <div data-guide-picks className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{data.picks.map(video =>
-    <button key={video.id} type="button" onClick={() => openPreview(video.id)} className="min-w-0 rounded-md bg-bg/45 px-3 py-3 text-left shadow-border hover:bg-bg">
+    <RecommendationButton key={video.id} video={video} type="button" onClick={() => openPreview(video.id)} className="min-w-0 rounded-md bg-bg/45 px-3 py-3 text-left shadow-border hover:bg-bg">
       <p className="truncate text-sm font-medium text-fg">{video.name}</p>
       <p className="mt-1 truncate text-xs text-muted">{video.remote?.channelName ?? video.genre ?? 'Library pick'} · {(tags[video.id] ?? []).slice(0, 3).join(', ') || 'Fresh discovery'}</p>
-    </button>)}</div>;
+    </RecommendationButton>)}</div>;
 });
 
 const GuideLive = memo(function GuideLive({ live }: { live: GuideSnapshot['live'] }) {

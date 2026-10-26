@@ -1,3 +1,4 @@
+import { getTopicAliases,EMPTY_TOPIC_ALIASES,type TopicAliasLedger } from './topic-aliases.ts';
 import { yieldCatalogTask } from '../catalog-work';
 import type { LibraryVideo } from "./types";
 
@@ -11,7 +12,7 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 let idleTimer: ReturnType<typeof setTimeout> | undefined;
 let source: { videos: LibraryVideo[]; tags: Record<string, string[]>; categories: Record<string, string> } | undefined;
 let offset = 0;
-const pending = new Map<number, { query: string; resolve: (ids: SearchMatches | null) => void; cleanup: () => void }>();
+const pending = new Map<number, { query: string; topicAliases: TopicAliasLedger; resolve: (ids: SearchMatches | null) => void; cleanup: () => void }>();
 type SearchWorkerStatus = "idle" | "building" | "ready" | "failed";
 let status: SearchWorkerStatus = "idle";
 const listeners = new Set<(status: SearchWorkerStatus) => void>();
@@ -51,7 +52,7 @@ function release() {
 function watch() { clearTimeout(timer); timer = setTimeout(fail, 15_000); }
 function ready() {
   clearTimeout(timer); setStatus('ready');
-  for (const [requestId, request] of pending) worker?.postMessage({ type: 'search', generation, requestId, query: request.query });
+  for (const [requestId, request] of pending) worker?.postMessage({ type: 'search', generation, requestId, query: request.query, topicAliases: request.topicAliases });
   if (pending.size) watch(); else releaseWhenIdle();
 }
 function queueBatch() { const expected = generation; void yieldCatalogTask().then(() => { if (generation === expected && source && worker) sendBatch(); }); }
@@ -140,7 +141,7 @@ export const searchWorkerIndex = {
     }
     try { instance(); queueBatch(); } catch { fail(); }
   },
-  searchMatches(query: string, signal?: AbortSignal): Promise<SearchMatches | null> {
+  searchMatches(query: string, signal?: AbortSignal, reviewed = true): Promise<SearchMatches | null> {
     clearTimeout(idleTimer);
     idleTimer = undefined;
     if (signal?.aborted || status === "failed" || status === "idle") return Promise.resolve(null);
@@ -152,9 +153,9 @@ export const searchWorkerIndex = {
         resolve(null);
         if (!pending.size && status === 'ready') { clearTimeout(timer); releaseWhenIdle(); }
       };
-      pending.set(requestId, { query, resolve, cleanup: () => { signal?.removeEventListener('abort', cancel); } });
+      pending.set(requestId, { query, topicAliases: reviewed ? getTopicAliases() : EMPTY_TOPIC_ALIASES, resolve, cleanup: () => { signal?.removeEventListener('abort', cancel); } });
       signal?.addEventListener('abort', cancel, { once: true });
-      if (status === "ready") { worker?.postMessage({ type: "search", generation, requestId, query }); watch(); }
+      if (status === "ready") { worker?.postMessage({ type: "search", generation, requestId, query, topicAliases: reviewed ? getTopicAliases() : EMPTY_TOPIC_ALIASES }); watch(); }
     });
   },
   getStatus() { return status; },

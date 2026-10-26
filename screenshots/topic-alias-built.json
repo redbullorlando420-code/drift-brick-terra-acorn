@@ -1,0 +1,30 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "Explicit spelling approval joins topic counts and records supporting public title evidence without automatic merges",
+        "Ambiguous short labels require a target and acknowledgement; Undo preserves the original short tag",
+        "Real worker-backed global search finds both spellings after a reload; saved tags remain unchanged",
+        "Downloaded pack includes exact provenance; Undo separates counts and importing the pack restores approved mappings durably",
+        "Quota failures in both storage mirrors show a session-only warning and explicit retry saves the current Undo",
+        "Review mounts at most eight saved decisions, pages correctly, and fits desktop/mobile without console errors"
+      ],
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "Explicit spelling approval joins topic counts and records supporting public title evidence without automatic merges",
+        "Ambiguous short labels require a target and acknowledgement; Undo preserves the original short tag",
+        "Real worker-backed global search finds both spellings after a reload; saved tags remain unchanged",
+        "Downloaded pack includes exact provenance; Undo separates counts and importing the pack restores approved mappings durably",
+        "Quota failures in both storage mirrors show a session-only warning and explicit retry saves the current Undo",
+        "Review mounts at most eight saved decisions, pages correctly, and fits desktop/mobile without console errors"
+      ],
+      "errors": []
+    }
+  ],
+  "limitation": "Isolated synthetic public catalog and storage; no user library or external provider modified."
+}

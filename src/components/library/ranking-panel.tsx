@@ -1,3 +1,4 @@
+import { RecommendationExposureControl } from './recommendation-exposure-control';
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -99,6 +100,7 @@ export function RankingGuide({ desk }: { desk: keyof typeof pages }) {
             <p className="mt-1 text-sm leading-6 text-muted">{detail}</p>
           </div>
         ))}
+        {(desk === "YouTube" || desk === "Other") && <RecommendationExposureControl />}
         <Button
           className="h-auto min-h-11 whitespace-normal py-2"
           variant="secondary"

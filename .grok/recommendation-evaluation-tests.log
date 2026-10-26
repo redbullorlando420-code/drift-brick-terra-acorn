@@ -1,0 +1,18 @@
+✔ synthetic corpus has explicit reasoned judgments and rejects invalid versions, bounds, references and canonical cycles (6.6512ms)
+✔ graded NDCG and precision match an independently calculated two-title example, including empty wrong output (1.2027ms)
+✔ missing judgments and publication dates remain unknown, while ingestion cannot create publication freshness (1.0552ms)
+✔ canonical aliases cannot inflate relevance and are distinct from previous-shelf exposure and negative evidence (0.4998ms)
+✔ creator concentration is conditional on actual relevant availability and empty libraries are inapplicable, never perfect relevance (0.3329ms)
+✔ adversarial rankings independently trip operational-tag, creator, exposure, duplicate and explicit-negative detectors (1.6732ms)
+✔ production rankers are deterministic, offline and read-only; current artifacts match the reviewed versioned baseline (24.5792ms)
+✔ baseline comparison refuses missing/incompatible baselines, changed judgments and altered ranking orders (5.2738ms)
+✔ CLI parsing rejects ambiguous modes and baseline replacement requires an explicit flag (31.8967ms)
+✔ CLI exits nonzero for the intentionally strict quality gate and a missing baseline rather than hiding unknowns (471.4012ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 907.0048

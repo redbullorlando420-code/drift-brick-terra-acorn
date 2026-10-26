@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "checks": [
+    "A manually Ready phone remains visibly blocked on autoplay while the host continues playing and the queue stays intact",
+    "Repeated blocked/ready/buffering events do not clear the tap requirement or generate repeated readiness traffic",
+    "Only the host explicitly pauses to wait; observed guest playback and buffering cannot bypass locked playback or seeking permissions",
+    "Reload resets device observations, a new title drops the old status, stale title reports are rejected and clock-only updates send no readiness packet",
+    "Twitch ready, blocked and actual playing signals are distinct; clips honestly report that playback status is unavailable",
+    "A real local MP4 goes from waiting for the host stream to observed playback on an empty phone library over WebRTC",
+    "Departure clears the status; compact readiness reports contain no video identities, paths, clocks, tokens or device details"
+  ],
+  "errors": [],
+  "limitation": "Isolated desktop/touch-phone Chrome uses real room transport and real decoded local media; YouTube/Twitch player signals are controlled fixtures. Physical browser policies and real provider embeds remain separate checks."
+}

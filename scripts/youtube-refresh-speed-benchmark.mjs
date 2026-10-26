@@ -9,8 +9,8 @@ const {updateYoutubeShelfAsync}=await import('../src/lib/videos/youtube-shelf.ts
 const {prepareYoutubeCreatorIndex,mixYoutubeCreatorsAsync}=await import('../src/lib/remote/youtube-mix.ts');
 const tick=async()=>{},base=Date.UTC(2026,9,1),rows=Array.from({length:100000},(_,i)=>({id:'yt:'+i,folderId:'public',name:'Upload '+i,path:'',size:0,addedAt:base-i*1000,extension:'yt',mime:'video/youtube',remote:{kind:'youtube',channelId:'owner'+i%180,publishedSource:i%5?'provider':'unknown',views:i}}));
 const input={videos:rows,privateFolders:new Set(),unavailable:{},hiddenVideos:{},hideDemo:true};
-// The pre-change cold-selection algorithm, using the same cooperative helpers.
-const previous=async()=>{const selected=[];await forEachCatalogSlice(rows,v=>{if(v.remote?.kind==='youtube'&&!input.unavailable[v.id]&&!input.hiddenVideos[v.id]&&!input.privateFolders.has(v.folderId)&&!(input.hideDemo&&v.isSample))selected.push(v);},tick,4096);return sortCatalogRows(selected,(a,b)=>youtubePublicationTime(b)-youtubePublicationTime(a),tick,16384);};
+// Full-sort baseline with the current identity-tie contract and the same cooperative helpers.
+const previous=async()=>{const selected=[];await forEachCatalogSlice(rows,v=>{if(v.remote?.kind==='youtube'&&!input.unavailable[v.id]&&!input.hiddenVideos[v.id]&&!input.privateFolders.has(v.folderId)&&!(input.hideDemo&&v.isSample))selected.push(v);},tick,4096);return sortCatalogRows(selected,(a,b)=>youtubePublicationTime(b)-youtubePublicationTime(a)||(a.id<b.id?-1:a.id>b.id?1:0),tick,16384);};
 const improved=()=>youtubeCatalogSelection(input,undefined,tick);
 assert.deepEqual(await previous(),await improved());
 const samples=[];for(let i=0;i<7;i++)for(const [name,fn] of i%2?[['improved',improved],['previous',previous]]:[['previous',previous],['improved',improved]]){const start=performance.now();await fn();if(i>=2)samples.push({name,ms:performance.now()-start});}

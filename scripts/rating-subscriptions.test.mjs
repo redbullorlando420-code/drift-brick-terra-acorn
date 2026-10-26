@@ -39,7 +39,8 @@ test('real feedback publishes only its rating key; durable hydration refreshes m
     stops[0](); feedback.setRating('shared', 2); assert.deepEqual(calls, [[5, 5], [5, 5, 2], [4]]);
     assert.deepEqual(feedback.getRatingLedger().shared.rating, 2);
     assert.equal(feedback.getFeedbackDiagnostics().pendingWrites, 1);
-    assert.equal(events.length, 0, 'aggregate ranking event is deferred');
+    assert.equal(events.filter(type => type === 'reelcase:rating-change').length, 0, 'aggregate ranking event is deferred');
+    assert(events.every(type => type === 'reelcase:feedback-save'), 'only the dedicated save-status channel may update immediately');
   } finally {
     stops.forEach(stop => stop());
     for (const key of ['window', 'localStorage']) { if (saved[key]) Object.defineProperty(globalThis, key, saved[key]); else Reflect.deleteProperty(globalThis, key); }

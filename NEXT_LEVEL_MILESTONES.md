@@ -1018,7 +1018,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-027 — YouTube publication uncertainty
-Status: planned
+Status: complete
 Track: YouTube reliability
 Priority: P1
 
@@ -1056,7 +1056,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-028 — YouTube embed failure triage
-Status: planned
+Status: complete
 Track: YouTube reliability
 Priority: P1
 
@@ -1248,7 +1248,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-033 — Twitch creator pull policies
-Status: planned
+Status: complete
 Track: Twitch depth and coverage
 Priority: P1
 
@@ -1676,7 +1676,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-044 — Per-guest playback readiness
-Status: planned
+Status: complete
 Track: Watch Together collaboration
 Priority: P1
 
@@ -1790,7 +1790,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-047 — Session playlist handoff file
-Status: planned
+Status: complete
 Track: Watch Together collaboration
 Priority: P1
 
@@ -1922,7 +1922,7 @@ Complex room changes need repeatable assistive-technology verification beyond la
 
 ## Dependencies
 - next-041 — Watch Room connection state timeline [planned]
-- next-044 — Per-guest playback readiness [planned]
+- next-044 — Per-guest playback readiness [complete]
 - next-046 — Room role presets [planned]
 
 ## Start in
@@ -1944,7 +1944,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-051 — Recommendation evaluation dataset
-Status: planned
+Status: complete
 Track: Recommendations and topics
 Priority: P1
 
@@ -1982,7 +1982,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-052 — Explicit recommendation rejection reasons
-Status: planned
+Status: complete
 Track: Recommendations and topics
 Priority: P1
 
@@ -1999,7 +1999,7 @@ Disliking a title, creator or topic should have different reversible effects.
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-051 — Recommendation evaluation dataset [planned]
+- next-051 — Recommendation evaluation dataset [complete]
 
 ## Start in
 - src/lib/recommendations.ts
@@ -2020,7 +2020,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-053 — Recommendation exposure ledger
-Status: planned
+Status: complete
 Track: Recommendations and topics
 Priority: P1
 
@@ -2037,7 +2037,7 @@ Unopened repeated recommendations need measured exposure decay rather than perma
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-051 — Recommendation evaluation dataset [planned]
+- next-051 — Recommendation evaluation dataset [complete]
 
 ## Start in
 - src/lib/recommendations.ts
@@ -2058,7 +2058,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-054 — Topic alias review workflow
-Status: planned
+Status: complete
 Track: Recommendations and topics
 Priority: P1
 
@@ -2075,7 +2075,7 @@ Synonyms and misspellings need review without collapsing unrelated topics.
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-051 — Recommendation evaluation dataset [planned]
+- next-051 — Recommendation evaluation dataset [complete]
 
 ## Start in
 - src/lib/videos/topics.ts
@@ -2114,8 +2114,8 @@ Inferred tags need calibrated confidence and evidence rather than a flat suggest
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-051 — Recommendation evaluation dataset [planned]
-- next-054 — Topic alias review workflow [planned]
+- next-051 — Recommendation evaluation dataset [complete]
+- next-054 — Topic alias review workflow [complete]
 
 ## Start in
 - src/lib/videos/youtube-metadata.ts
@@ -2153,8 +2153,8 @@ Guide suggestions need traceable reasons and a useful no-evidence state.
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-051 — Recommendation evaluation dataset [planned]
-- next-052 — Explicit recommendation rejection reasons [planned]
+- next-051 — Recommendation evaluation dataset [complete]
+- next-052 — Explicit recommendation rejection reasons [complete]
 - next-055 — Tag recommendation confidence [planned]
 
 ## Start in
@@ -2193,8 +2193,8 @@ Users need temporary discovery controls without permanently rewriting their tast
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-051 — Recommendation evaluation dataset [planned]
-- next-053 — Recommendation exposure ledger [planned]
+- next-051 — Recommendation evaluation dataset [complete]
+- next-053 — Recommendation exposure ledger [complete]
 
 ## Start in
 - src/lib/recommendations.ts
@@ -2232,8 +2232,8 @@ A cross-source match needs meaningful shared topics rather than coincidental cre
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-051 — Recommendation evaluation dataset [planned]
-- next-054 — Topic alias review workflow [planned]
+- next-051 — Recommendation evaluation dataset [complete]
+- next-054 — Topic alias review workflow [complete]
 
 ## Start in
 - src/lib/recommendations.ts
@@ -2271,7 +2271,7 @@ Creator/provider diversity needs a diagnostic of actual output distributions.
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-051 — Recommendation evaluation dataset [planned]
+- next-051 — Recommendation evaluation dataset [complete]
 - next-057 — Recommendation session tuning [planned]
 - next-058 — Cross-source topic bridge audit [planned]
 
@@ -2311,7 +2311,7 @@ Ranking changes should be replayable against the same saved evidence before roll
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-051 — Recommendation evaluation dataset [planned]
+- next-051 — Recommendation evaluation dataset [complete]
 - next-059 — Recommendation fairness report [planned]
 
 ## Start in

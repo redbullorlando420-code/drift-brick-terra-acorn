@@ -112,7 +112,7 @@ test('actual RSS and archive paths retain publication provenance and format evid
     const deep=await runRefreshRemotes({channels:[follow],youtubeCatalog:true,youtubeVideoLimit:100});
     assert.equal(deep.videos.length,3);assert.deepEqual(deep.liveCheckedIds,[]);
     const dated=deep.videos.find(row=>row.remote.videoId==='datemeta001');assert.equal(dated.addedAt,published);assert.equal(dated.remote.publishedSource,'rss');assert.equal(dated.remote.youtubeType,'replay');
-    const short=deep.videos.find(row=>row.remote.videoId==='datemeta002');assert.equal(short.remote.youtubeType,'short');assert.equal(short.addedAt,0);assert.equal(short.remote.publishedSource,'unknown');
+    const short=deep.videos.find(row=>row.remote.videoId==='datemeta002');assert.equal(short.remote.youtubeType,'short');assert.equal(short.addedAt,0);assert.equal(short.remote.publishedSource,'unknown');assert.equal(short.remote.publishedPrecision,'relative');assert.equal(short.remote.publishedLabel,'2 days ago');
     assert.equal(deep.videos.find(row=>row.remote.videoId==='datemeta003').remote.youtubeType,'upcoming');
   }finally{globalThis.fetch=original;}
 });

@@ -1,3 +1,5 @@
+import { RoomSessionFilePanel } from './room-session-file-panel';
+import type { RoomSessionFile } from '@/lib/multiplayer/room-session-file';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowUp, ArrowDown, Play, Shuffle, Undo2, X, ListChecks, Copy, Download } from "lucide-react";
@@ -45,6 +47,7 @@ export const RoomQueuePanel = memo(function RoomQueuePanel({
   onLoadList,
   hostCatalog,
   preferHost,
+  currentMedia, playedMedia, onImportSession,
 }: {
   candidates: LibraryVideo[];
   queue: Array<{ id: string; video?: LibraryVideo }>;
@@ -78,6 +81,9 @@ export const RoomQueuePanel = memo(function RoomQueuePanel({
   onLoadList: (media: RoomMediaDescriptor[]) => boolean;
   hostCatalog?:RoomHostCatalog;
   preferHost?:boolean;
+  currentMedia?:RoomMediaDescriptor|null;
+  playedMedia?:RoomMediaDescriptor[];
+  onImportSession:(file:RoomSessionFile)=>boolean;
 }) {
   const [link, setLink] = useState("");
   const suggestMode = guest && reviewMode;
@@ -93,6 +99,7 @@ export const RoomQueuePanel = memo(function RoomQueuePanel({
   const publicMedia = useMemo(() => queue.flatMap(row => {
     const media = describeRoomMedia(row.video); return media ? [media] : [];
   }).filter(media => media.kind !== 'local'), [queue]);
+  const sessionMedia=useMemo(()=>queue.map(row=>describeRoomMedia(row.video)),[queue]);
   const exportedLinks = useMemo(() => roomQueueLinks(publicMedia), [publicMedia]);
   const publicCount = exportedLinks ? exportedLinks.split('\n').length : 0;
   const applySelection = (kind: RoomQueueEdit['kind']) => {
@@ -263,6 +270,7 @@ export const RoomQueuePanel = memo(function RoomQueuePanel({
         )}
         {!guest && onGuestEditing && <label className="mt-1 flex min-h-11 items-center gap-2 text-xs text-muted"><input type="checkbox" checked={guestEditing} onChange={event => onGuestEditing(event.target.checked)} aria-label="Allow guests to edit queue and select videos" />Allow guests to edit the queue and select videos</label>}
         {!guest && onReviewMode && <div className="mt-1"><label className="flex min-h-11 items-center gap-2 text-xs text-muted"><input type="checkbox" checked={reviewMode} onChange={event => onReviewMode(event.target.checked)} aria-label="Review guest additions before queuing" />Review guest additions before queuing</label><p className="text-xs leading-5 text-muted">When guest access is enabled, review mode permits public video suggestions instead of direct queue edits or video selection. Existing requests remain until approved or dismissed.</p></div>}
+      <RoomSessionFilePanel current={currentMedia} played={playedMedia} queue={sessionMedia} guest={guest} writable={writable} onImport={onImportSession}/>
       <RoomPlaylistsPanel media={publicMedia} omitted={queue.length - publicCount} canAdd={canAdd} suggesting={suggestMode} pending={guest && pending > 0} full={queue.length >= ROOM_QUEUE_LIMIT} onLoad={onLoadList} />
       {!!queue.length && <details className="mt-4 border-t border-border pt-2"><summary className="min-h-11 cursor-pointer py-3 text-sm font-medium text-fg">Save or share queue links · {publicCount}</summary>
         <p className="text-xs leading-5 text-muted">Exports upcoming public links in their confirmed order. Paste them into Add videos in any room. {queue.length - publicCount > 0 && `${queue.length - publicCount} local or unavailable title${queue.length - publicCount === 1 ? '' : 's'} omitted.`} The current video and room invitation are separate.</p>

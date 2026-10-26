@@ -8,6 +8,7 @@ export function createSearchTokenQuery(
   documentCount: () => number,
   maxBytes = 2 * 1024 * 1024,
   maxTerms = 24,
+  extraMatches?: (token: string, visit: (id: number) => void) => void,
 ) {
   const cache = new Map<string, Uint32Array>();
   let bytes = 0,
@@ -31,6 +32,7 @@ export function createSearchTokenQuery(
         postings.forEach(key, (id) => {
           marked[id] = 1;
         });
+    extraMatches?.(token, id => { if (id >= 0 && id < marked.length) marked[id] = 1; });
     let count = 0;
     for (let id = 0; id < marked.length; id++) if (marked[id]) count++;
     const rows = new Uint32Array(count);

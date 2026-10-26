@@ -1,3 +1,5 @@
+import { hydrateTopicAliases } from '../topic-alias-store';
+import { markRecommendationOpened } from '../recommendation-exposure-store';
 import { createYoutubeLiveThroughput } from './youtube-live-throughput';
 import { reconcileYoutubeKnownBroadcasts } from './youtube-live-known';
 import type { RefreshResult } from '@/lib/remote/api';
@@ -12,7 +14,7 @@ import { decodeTwitchArchiveCursor } from './twitch-archive-cursor';
 import { isRemovedRedditVideo } from './reddit-removed';
 import { selectSavedCards, selectSavedCardsAsync } from "./saved-library";
 import { updateYoutubeShelf, updateYoutubeShelfAsync } from "./youtube-shelf";
-import { youtubePublicationTime, retainYoutubeMetadata, exactYoutubePublished } from './youtube-metadata';
+import { youtubePublicationTime, retainYoutubeMetadata, exactYoutubePublished, withYoutubePublication, compareYoutubePublication } from './youtube-metadata';
 import type { YoutubeVideoMetadata } from '../remote/youtube-video-metadata';
 import { youtubeDownloadTarget } from '../youtube-download';
 import { memoizeSelector, memoizeSelectorInputs } from "./selector-cache";
@@ -58,7 +60,8 @@ import { mergeTwitchClipObservation, retainNewerTwitchClipFollow } from "./twitc
 import { canonicalFollowHandle, dedupeFollows, mergeResolvedFollow } from "./follow-identity";
 import { youtubeIdentityReviews } from "./youtube-identity-review";
 import { importedFollowStub, repairYoutubeImport, resolvedFollowQueries, reviewYoutubeImport, bindYoutubeCorrection } from './follow-import';
-import { selectTwitchRefreshBatch } from './twitch-refresh-selection';
+import { selectTwitchRefreshBatch, selectTwitchPolicyBatch } from './twitch-refresh-selection';
+import { normalizeTwitchPullPolicy, twitchPolicyAllows, twitchPullPolicy, type TwitchPullPolicy } from './twitch-pull-policy.ts';
 import { retainYoutubeLiveFollow, YOUTUBE_LIVE_HOLD_MS } from './live-retention';
 import { youtubeLiveFailure, youtubeLiveCooldown } from './youtube-live-health';
 import { classifyTwitchFailure, twitchRetryPatch } from './twitch-retry';
@@ -184,6 +187,7 @@ let navigationChanged = false;
 // libraries with stale live state forever.
 let remoteRefreshCursor = 0;
 let twitchRefreshCursor = 0;
+let twitchPolicyCursor = 0;
 let youtubeRefreshCursor = 0;
 let youtubeLiveCheckBusy = false;
 let twitchLiveCheckBusy = false;
@@ -272,7 +276,7 @@ export type LibraryState = {
   /** Backward-compatible Companion-specific entry point for reviewed metadata. */
   applyCompanionTags: (id: string, tags: string[]) => number;
   setVideoComments: (id: string, comments: NonNullable<LibraryVideo["remote"]>["comments"]) => void;
-  setYoutubePublication: (id: string, date: string) => Promise<void>;
+  setYoutubePublication: (id: string, date: string, youtubeId: string) => Promise<boolean>;
   setYoutubeMetadata: (id: string, metadata: YoutubeVideoMetadata) => Promise<{ tags: number; locked: boolean }>;
   setLocalVideoDuration: (id: string, duration: number) => Promise<void>;
   releaseVideoComments: () => void;
@@ -321,6 +325,7 @@ export type LibraryState = {
   unfollow: (id: string) => void;
   unfollowMany: (ids: string[]) => void;
   acknowledgeYoutubeIdentity: (id: string, fingerprint: string) => void;
+  setTwitchPullPolicy: (id: string, policy: TwitchPullPolicy) => void;
   updateFollowProfiles: (profiles: Array<{ id: string; thumb?: string; description?: string }>) => void;
   retainLiveRoom: (video: LibraryVideo) => Promise<boolean>;
   refreshFollows: (kind?: "twitch" | "youtube", options?: { catalog?: boolean; force?: boolean; scheduled?: boolean; youtubeLiveOnly?: boolean; twitchLiveOnly?: boolean; liveSweep?: boolean; liveDemand?: boolean; twitchRoutine?: boolean; twitchContinueArchive?: boolean; channelIds?: string[] }) => Promise<RefreshFollowsResult>;
@@ -1280,15 +1285,17 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('reelcase:video-details-changed', { detail: id }));
     });
   },
-  setYoutubePublication: async (id, date) => {
-    const video = lookupVideo(get().videos, id);
-    if (video?.remote?.kind !== 'youtube' || !/^\d{4}-\d{2}-\d{2}(?:T.*)?$/.test(date) || !Number.isFinite(Date.parse(date))) return;
-    const updated = { ...video, addedAt: Date.parse(date), remote: { ...video.remote, publishedSource: 'watch' as const, publishedDate: date.slice(0, 10) } };
-    // Persist one row before publishing the repaired ordering to the UI.
-    await saveRemoteSnapshot({ videos: [updated], folders: get().folders.filter(folder => folder.kind === 'youtube' || folder.kind === 'twitch'), checkedAt: get().remoteCheckedAt });
-    const current = get().videos, index = current.indexOf(video);
-    if (index < 0) return;
-    const next = current.slice(); next[index] = updated; set({ videos: next });
+  setYoutubePublication: async (id, date, youtubeId) => {
+    for(;;){
+      const video=lookupVideo(get().videos,id);
+      if(!video||youtubeDownloadTarget(video)?.videoId!==youtubeId)throw Error('Publication evidence does not match this saved video.');
+      const updated=withYoutubePublication({...video,remote:{...video.remote!,videoId:youtubeId}},youtubeId,date);
+      if(updated.addedAt===video.addedAt&&updated.remote?.publishedSource===video.remote?.publishedSource&&updated.remote?.publishedPrecision===video.remote?.publishedPrecision&&updated.remote?.publishedDate===video.remote?.publishedDate)return false;
+      await saveRemoteSnapshot({videos:[updated],folders:get().folders.filter(folder=>folder.kind==='youtube'||folder.kind==='twitch'),checkedAt:get().remoteCheckedAt});
+      const current=get().videos,index=current.indexOf(video);
+      if(index<0)continue;
+      const next=current.slice();next[index]=updated;set({videos:next});return true;
+    }
   },
   setYoutubeMetadata: async (id, metadata) => {
     const initial = lookupVideo(get().videos, id);
@@ -1298,13 +1305,13 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     if (!current || youtubeDownloadTarget(current)?.videoId !== metadata.id) throw new Error('This video was removed before its tags could be saved.');
     const full = withCatalogDetails(current, saved);
     const date = exactYoutubePublished(metadata.date);
-    const updated: LibraryVideo = { ...full, detailsOnDisk: false,
+    let updated: LibraryVideo = { ...full, detailsOnDisk: false,
       ...(Number.isFinite(metadata.duration) && metadata.duration! > 0 && metadata.duration! <= 31_536_000 ? { duration: metadata.duration } : {}),
       description: metadata.description === undefined ? full.description : metadata.description.slice(0, 16_000),
       remote: { ...full.remote!, videoId: metadata.id, youtubeKeywords: metadata.keywords === undefined ? full.remote?.youtubeKeywords : metadata.keywords.slice(0, 40),
         youtubeTagSummary: undefined, youtubeTagsCheckedAt: Date.now(),
-        ...(date ? { publishedSource: 'watch' as const, publishedDate: date.slice(0, 10) } : {}) },
-      ...(date ? { addedAt: Date.parse(date) } : {}) };
+      } };
+    if(date&&!full.remote?.live&&full.remote?.youtubeType!=='upcoming')updated=withYoutubePublication(updated,metadata.id,date);
     const evidence = youtubeTextTags(updated);
     updated.remote = { ...updated.remote!, youtubeTagSummary: { version: YOUTUBE_TEXT_TAG_VERSION, sources: evidence.sources, topics: evidence.descriptionTopics } };
     await saveRemoteSnapshot({ videos: [updated], folders: get().folders.filter(folder => folder.kind === 'youtube' || folder.kind === 'twitch'), checkedAt: get().remoteCheckedAt });
@@ -1470,6 +1477,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       persistNow(get);
       return;
     }
+    if (video && !isAdultVideo(video, s.folders)) markRecommendationOpened(video);
     // A microtask still runs before paint. History follows the interaction
     // lease so player/iframe mounting gets the foreground frame first.
     setPullViewerOpen(true);
@@ -1479,6 +1487,8 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   },
   openPreview: (previewId, card) => {
     if (card?.id === previewId) rememberVideo(get().videos, card);
+    const state = get(), selected = card ?? lookupVideo(state.videos, previewId);
+    if (selected && !isAdultVideo(selected, state.folders)) markRecommendationOpened(selected);
     setPullViewerOpen(true);
     measureInteraction("navigation");
     set({ previewId });
@@ -1929,6 +1939,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     set({ pullHistory: loadPullHistory() });
     await restoreDurablePrefs().catch(() => undefined);
     void hydrateDurableFeedback().catch(() => undefined);
+    void hydrateTopicAliases();
     const dedicatedFollows = await restoreDurableFollows().catch(() => loadFollows() ?? []);
     const prefsState = applyPrefs({});
     Object.assign(prefsState, await restoreEnrichmentRows({ tags: prefsState.tags ?? {}, metadataProvenance: prefsState.metadataProvenance ?? {} }).catch(() => ({ tags: prefsState.tags ?? {}, metadataProvenance: prefsState.metadataProvenance ?? {} })));
@@ -2674,6 +2685,13 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     saveFollows(get().follows);
     persistSoon(get);
   },
+  setTwitchPullPolicy: (id, raw) => {
+    const policy=normalizeTwitchPullPolicy(raw),current=get().follows.find(c=>c.id===id&&c.kind==='twitch');
+    if(!policy||!current)return;
+    const old=twitchPullPolicy(current);if(old.clips===policy.clips&&old.vods===policy.vods&&old.priority===policy.priority)return;
+    set(s=>({follows:s.follows.map(c=>c.id===id?{...c,twitchPullPolicy:policy}:c)}));
+    saveFollows(get().follows);persistSoon(get);
+  },
   updateFollowProfiles: (profiles) => {
     const byId = new Map(profiles.filter((profile) => profile.thumb || profile.description).map((profile) => [profile.id, profile]));
     if (!byId.size) return;
@@ -2729,7 +2747,9 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     const backgroundTwitchRefresh = Boolean(options?.twitchRoutine && kind === "twitch");
     const overlappingLive = Boolean(liveOnly && (get().refreshing || get().remoteBusy));
     if ((get().refreshing && !overlappingLive) || (!liveOnly && get().remoteBusy) || (options?.youtubeLiveOnly && youtubeLiveCheckBusy) || (twitchLiveOnly && twitchLiveCheckBusy)) return { wentLive: [], newVideos: [], skipped: 'busy' };
+    const applyTwitchPolicy=options?.scheduled===true&&!liveOnly&&!options.channelIds?.length;
     const allFollows = dedupeFollows(get().follows).filter(follow => (!kind || follow.kind === kind) && !(follow.kind === 'youtube' && (holdYoutube() || Boolean(liveRetryAt && liveRetryAt > Date.now())))
+      && !(applyTwitchPolicy && !twitchPolicyAllows(follow, options?.twitchContinueArchive?'archive':'recent'))
       && !(options?.twitchContinueArchive && follow.kind === 'twitch' && follow.twitchArchiveExhaustedAt)
       && !(recentQueue && !recentPullReady(follow))
       && !(follow.kind === 'twitch' && !recentQueue && (follow[twitchLiveOnly ? 'twitchLiveRetry' : 'twitchArchiveRetry']?.retryAt ?? 0) > Date.now()));
@@ -2737,6 +2757,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     const rotate = (items: FollowedChannel[], limit: number, cursor: "twitch" | "youtube" | "all") => {
       if (!items.length) return [];
       if (cursor === "twitch") {
+        if(applyTwitchPolicy){const selected=selectTwitchPolicyBatch(items,limit,twitchPolicyCursor,options?.twitchContinueArchive?'archive':'recent');twitchPolicyCursor=selected.nextCursor;return selected.channels;}
         const batch = selectTwitchRefreshBatch(items, limit, twitchRefreshCursor, twitchLiveOnly ? 'live' : recentQueue ? 'recent' : 'archive');
         twitchRefreshCursor = batch.nextCursor;
         return batch.channels;
@@ -2918,7 +2939,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         return { channels, attemptAt: Date.now() };
       },
       request: async (item, signal) => {
-        const response = await refreshRemotes({ data: { channels: item.channels, youtubeBackground: options?.scheduled === true, twitchRoutine: kind === 'twitch' }, signal });
+        const response = await refreshRemotes({ data: { channels: item.channels, youtubeBackground: options?.scheduled === true, twitchRoutine: kind === 'twitch', twitchApplyPolicy: applyTwitchPolicy }, signal });
         if (response.providerRetryAt) recentRetryAt = Math.max(recentRetryAt, response.providerRetryAt);
         return response;
       },
@@ -2966,7 +2987,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         if (completedResponse) {
           if (!completedResponse.ok) throw completedResponse.error;
           result = completedResponse.value;
-        } else result = await refreshRemotes({ data: { forceYoutube: forceYoutubeRequest, youtubeVideoLimit: getPullSettings().youtubeBatchVideos, channels: batch, youtubeCatalog: catalogQueue, youtubeBackground: options?.scheduled === true, liveDemand: options?.liveDemand === true, youtubeLiveOnly: options?.youtubeLiveOnly === true, twitchLiveOnly: options?.twitchLiveOnly === true, twitchRoutine: options?.twitchRoutine === true, twitchContinueArchive: options?.twitchContinueArchive === true } });
+        } else result = await refreshRemotes({ data: { forceYoutube: forceYoutubeRequest, youtubeVideoLimit: getPullSettings().youtubeBatchVideos, channels: batch, youtubeCatalog: catalogQueue, youtubeBackground: options?.scheduled === true, liveDemand: options?.liveDemand === true, youtubeLiveOnly: options?.youtubeLiveOnly === true, twitchLiveOnly: options?.twitchLiveOnly === true, twitchRoutine: options?.twitchRoutine === true, twitchContinueArchive: options?.twitchContinueArchive === true, twitchApplyPolicy: applyTwitchPolicy } });
       } catch (error) {
         if (getPullCancellationRevision() !== cancellation) break;
         if (error instanceof Error && error.name === 'PullPriorityDeferredError') { yieldedLiveTurn = true; break; }
@@ -3717,7 +3738,7 @@ function computeSelectYoutube(state: LibraryState): LibraryVideo[] {
   result = updated ?? state.videos.filter(video => video.remote?.kind === "youtube"
     && !state.unavailable[video.id] && !state.hiddenVideos[video.id]
     && !privateFolders.has(video.folderId) && !(state.hideDemo && video.isSample))
-    .sort((a, b) => youtubePublicationTime(b) - youtubePublicationTime(a));
+    .sort(compareYoutubePublication);
   memo.youtube = result;
   youtubeSelectorSnapshot = {
     videos: state.videos, privateFolders, unavailable: state.unavailable,

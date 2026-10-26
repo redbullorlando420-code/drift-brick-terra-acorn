@@ -1,6 +1,6 @@
 import { t as cn } from "./utils-Cq6DDHIb.mjs";
 import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
-import { Pt as ExternalLink } from "../_libs/lucide-react.mjs";
+import { Ft as ExternalLink } from "../_libs/lucide-react.mjs";
 //#region node_modules/.nitro/vite/services/ssr/assets/hub-shared-CSaQ1YXN.js
 var import_jsx_runtime = require_jsx_runtime();
 function Card({ className, ...props }) {

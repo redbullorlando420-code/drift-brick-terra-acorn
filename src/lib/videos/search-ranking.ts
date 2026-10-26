@@ -34,7 +34,7 @@ export async function rankSearchResults(input: SearchRankingInput, signal?: Abor
     if (input.sourceId === 'youtube' && video.remote?.kind !== 'youtube') return;
     if (input.sourceId === 'twitch' && video.remote?.kind !== 'twitch') return;
     const title = video.name.toLowerCase(), creator = (video.remote?.channelName ?? '').toLowerCase();
-    const tags = [...new Set([...topicsForVideo(video, input.tags[video.id]), ...(input.tags[video.id] ?? [])].map(tag => tag.toLowerCase()))];
+    const tags = [...new Set([...topicsForVideo(video, input.tags[video.id], !inAdults), ...(input.tags[video.id] ?? [])].map(tag => tag.toLowerCase()))];
     const exactTag = tags.some(tag => tag === needle || tag === bare || tag === `fetish-${bare}` || tag === `genre-${bare}`) ? 220 : 0;
     const tagHits = tags.filter(tag => terms.some(term => tag === term || tag.includes(term))).length;
     const score = exactTag + (title.includes(needle) ? 120 : 0) + (creator.includes(needle) ? 95 : 0)
@@ -48,7 +48,7 @@ export async function rankSearchResults(input: SearchRankingInput, signal?: Abor
   const sorted = await sortCatalogRows(rows, (a, b) => b.score - a.score || b.video.addedAt - a.video.addedAt || a.video.name.localeCompare(b.video.name), turn);
   const tagRows = new Map<string, { count: number; score: number }>();
   await forEachCatalogSlice(sorted.slice(0, 240), row => {
-    for (const tag of new Set([...topicsForVideo(row.video, input.tags[row.video.id]), ...(input.tags[row.video.id] ?? [])].map(tag => tag.toLowerCase()))) {
+    for (const tag of new Set([...topicsForVideo(row.video, input.tags[row.video.id], !inAdults), ...(input.tags[row.video.id] ?? [])].map(tag => tag.toLowerCase()))) {
       if (tag.length < 2 || /^(?:year|month|day|type|format|provider)-/.test(tag)) continue;
       const previous = tagRows.get(tag) ?? { count: 0, score: 0 };
       tagRows.set(tag, { count: previous.count + 1, score: previous.score + row.score });

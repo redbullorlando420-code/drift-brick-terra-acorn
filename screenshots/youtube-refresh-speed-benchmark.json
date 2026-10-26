@@ -2,59 +2,59 @@
   "ok": true,
   "fixture": "100,000 saved YouTube videos, 20% unknown publication dates interleaved with descending known dates; 20,000 Twitch rows; deterministic metadata only",
   "coldSelection": {
-    "beforeMedianMs": 35.35509999999999,
-    "afterMedianMs": 21.533399999999972,
-    "speedup": 1.641872625781346,
+    "beforeMedianMs": 62.659599999999955,
+    "afterMedianMs": 35.38070000000005,
+    "speedup": 1.77101074879807,
     "samples": [
       {
         "name": "previous",
-        "ms": 33.821500000000015
+        "ms": 58.91950000000003
       },
       {
         "name": "improved",
-        "ms": 21.088000000000022
+        "ms": 33.01170000000002
       },
       {
         "name": "improved",
-        "ms": 21.533399999999972
+        "ms": 35.909400000000005
       },
       {
         "name": "previous",
-        "ms": 35.2715
+        "ms": 72.97609999999997
       },
       {
         "name": "previous",
-        "ms": 42.015900000000045
+        "ms": 68.51240000000007
       },
       {
         "name": "improved",
-        "ms": 23.13810000000001
+        "ms": 38.5059
       },
       {
         "name": "improved",
-        "ms": 19.38680000000005
+        "ms": 35.38070000000005
       },
       {
         "name": "previous",
-        "ms": 36.705100000000016
+        "ms": 59.313499999999976
       },
       {
         "name": "previous",
-        "ms": 35.35509999999999
+        "ms": 62.659599999999955
       },
       {
         "name": "improved",
-        "ms": 22.33209999999997
+        "ms": 29.86570000000006
       }
     ]
   },
   "unrelatedTwitchRefresh": {
-    "ms": 6.612300000000005,
+    "ms": 6.9990999999999985,
     "turns": 8,
     "selectionIdentityRetained": true
   },
   "latestShelf": {
-    "ms": 0.8030999999999722,
+    "ms": 0.6041999999999916,
     "turns": 1,
     "count": 48
   },

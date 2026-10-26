@@ -1,3 +1,6 @@
+import { reviewedRankingTag } from './topic-aliases.ts';
+import { createExposurePenalty,type ExposureLedger } from './recommendation-exposure.ts';
+import { createRejectionPenalty, type RejectionLedger } from './recommendation-rejections.ts';
 import { forEachCatalogEntry, forEachCatalogSlice, sortCatalogRows } from '../catalog-work.ts';
 import { sparseRecordScan } from '../sparse-record.ts';
 import { createBoundedPicks } from './bounded-picks.ts';
@@ -10,6 +13,8 @@ import { LIBRARY_LIMITS } from '../library-limits.ts';
 import { canonicalTopic, hasTopicForScan } from './topics.ts';
 
 export type GuideInput = {
+  recommendationExposure?: ExposureLedger; ratingOf?: (id: string) => number;
+  recommendationRejections?: RejectionLedger; creatorIsFavorited?: (name: string) => boolean; tagIsLiked?: (topic: string) => boolean;
   videos: readonly LibraryVideo[];
   tags: Record<string, string[]>;
   favorites: Record<string, true>;
@@ -41,6 +46,8 @@ export function guideVisibility(input:GuideInput){
 export async function prepareGuide(input: GuideInput, seed: number, now: number, turn: () => Promise<void>): Promise<GuideSnapshot> {
   const { videos, favorites, likes, tags, history } = input;
   const allowed=guideVisibility(input);
+  const penalty = input.recommendationRejections?.entries.length ? createRejectionPenalty(input.recommendationRejections) : undefined;
+  const exposure = input.recommendationExposure?.entries.length ? createExposurePenalty(input.recommendationExposure, now) : undefined;
   const favoredTags = new Set<string>(), watched = new Set<string>(), live: LibraryVideo[] = [];
   let favoriteCount = 0, tagCount = 0;
   await forEachCatalogSlice(history, entry => { watched.add(entry.id); }, turn);
@@ -48,7 +55,7 @@ export async function prepareGuide(input: GuideInput, seed: number, now: number,
   await forEachCatalogEntry(sparseRecordScan(tags), row => { if (row) tagCount += row[1].length; }, turn);
   await forEachCatalogSlice(videos, video => {
     if(!allowed(video))return;
-    if (favorites[video.id] || likes[video.id]) for (const tag of tags[video.id] ?? []) favoredTags.add(tag);
+    if (favorites[video.id] || likes[video.id]) for (const tag of tags[video.id] ?? []) favoredTags.add(reviewedRankingTag(tag));
     if (video.remote?.kind==='twitch' && video.remote.live && hasFreshRemoteLiveState(video,now,LIBRARY_LIMITS.twitchLiveStateFreshnessMs,LIBRARY_LIMITS.youtubeLiveStateFreshnessMs)) live.push(video);
   }, turn);
   const best = createBoundedPicks<{ video: LibraryVideo; score: number; rank: number; index: number }>(12,
@@ -56,7 +63,9 @@ export async function prepareGuide(input: GuideInput, seed: number, now: number,
   await forEachCatalogSlice(videos, (video, index) => {
     if (!allowed(video) || video.remote?.live || watched.has(video.id)) return;
     let score = (favorites[video.id] ? 3 : 0) + (likes[video.id] ? 2 : 0);
-    for (const tag of tags[video.id] ?? []) if (favoredTags.has(tag)) score++;
+    for (const tag of tags[video.id] ?? []) if (favoredTags.has(reviewedRankingTag(tag))) score++;
+    score -= penalty?.(video, tags[video.id], { favorite: Boolean(favorites[video.id]), creatorFavorite: input.creatorIsFavorited?.(video.remote?.channelName ?? ""), tagIsLiked: input.tagIsLiked }) ?? 0;
+    score -= exposure?.(video, { favorite: Boolean(favorites[video.id]), liked: Boolean(likes[video.id]), creatorFavorite: input.creatorIsFavorited?.(video.remote?.channelName ?? ""), rating: input.ratingOf?.(video.id) }) ?? 0;
     best.add({ video, score, rank: shuffleRank(video.id, seed), index });
   }, turn);
   const viewers = (video: LibraryVideo) => hasFreshViewerCount(video.remote, now) ? video.remote!.viewers! : 0;
@@ -83,6 +92,8 @@ export async function answerGuideQuery(input:GuideInput,prompt:string,seed:numbe
   const terms=tokens.map(word=>word==='funny'?'comedy':canonicalTopic(word)??word);
   if(!terms.length&&!liveIntent){const snapshot=await prepareGuide({...input,provider},seed,now,turn);return {text:guideAnswer(prompt,snapshot,input.tags),picks:snapshot.picks,reasons:Object.fromEntries(snapshot.picks.map(video=>[video.id,'Based on saved tags, likes and favorites']))};}
   const allowed=guideVisibility(input),seen=new Set<string>();
+  const penalty = input.recommendationRejections?.entries.length ? createRejectionPenalty(input.recommendationRejections) : undefined;
+  const exposure = input.recommendationExposure?.entries.length ? createExposurePenalty(input.recommendationExposure, now) : undefined;
   const best=createBoundedPicks<{video:LibraryVideo;score:number;index:number;rank:number;reason:string}>(12,(a,b)=>b.score-a.score||a.rank-b.rank||a.index-b.index);
   await forEachCatalogSlice(input.videos,(video,index)=>{
     if(!allowed(video)||provider&&video.remote?.kind!==provider)return;
@@ -98,6 +109,8 @@ export async function answerGuideQuery(input:GuideInput,prompt:string,seed:numbe
     }
     if(terms.length&&matched<terms.length)return;
     seen.add(key);score+=(input.favorites[video.id]?3:0)+(input.likes[video.id]?2:0);
+    score -= penalty?.(video, input.tags[video.id], { favorite: Boolean(input.favorites[video.id]), creatorFavorite: input.creatorIsFavorited?.(video.remote?.channelName ?? ""), tagIsLiked: input.tagIsLiked }) ?? 0;
+    score -= exposure?.(video, { favorite: Boolean(input.favorites[video.id]), liked: Boolean(input.likes[video.id]), creatorFavorite: input.creatorIsFavorited?.(video.remote?.channelName ?? ""), rating: input.ratingOf?.(video.id) }) ?? 0;
     best.add({video,index,score,rank:shuffleRank(video.id,seed),reason:liveIntent?'Recently confirmed live':evidence.length?[...new Set(evidence)].join(' · '):'Saved library interests'});
   },turn);
   const matches=best.finish();

@@ -1,12 +1,13 @@
+import type { PlayerReadinessStatus } from '@/lib/multiplayer/room-player-readiness';
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Play, Pause, Volume2, VolumeX, Maximize, RefreshCw } from "lucide-react";
 import { roomSeekKey } from '@/lib/multiplayer/room-player-recovery';
 
 /** Incoming RTC media stays in the browser's bounded decoder, never a file Blob. */
-export function RoomStreamPlayer({ stream, title, playing, position, duration, onPlayback, onSeek, onResync }: {
+export function RoomStreamPlayer({ stream, title, playing, position, duration, onPlayback, onSeek, onResync, onReadiness }: {
   stream: MediaStream; title: string; playing: boolean; position: number; duration?: number;
-  onPlayback: (playing:boolean)=>void; onSeek:(position:number)=>void; onResync:()=>void;
+  onPlayback: (playing:boolean)=>void; onSeek:(position:number)=>void; onResync:()=>void;onReadiness?:(status:PlayerReadinessStatus)=>void;
 }) {
   const ref = useRef<HTMLVideoElement>(null);
   const stage = useRef<HTMLElement>(null);
@@ -26,7 +27,7 @@ export function RoomStreamPlayer({ stream, title, playing, position, duration, o
   useEffect(()=>{
     const video=ref.current;if(!video)return;
     let active=true;
-    if(playing) void video.play().catch(()=>{if(active)setNeedsPlay(true);});
+    if(playing) void video.play().catch((error:unknown)=>{if(!active||error instanceof DOMException&&error.name==="AbortError")return;const blocked=error instanceof DOMException&&error.name==="NotAllowedError";setNeedsPlay(blocked);onReadiness?.(blocked?"blocked":"error");if(!blocked)setNotice("This device could not start the host stream. Reload this player to try again.");});
     else {video.pause();setNeedsPlay(false);}
     return()=>{active=false;};
   },[stream,playing,reload]);
@@ -35,7 +36,7 @@ export function RoomStreamPlayer({ stream, title, playing, position, duration, o
   const seek=(value:number)=>{setDraft(null);onSeek(Math.max(0,Math.min(seconds??12*60*60,value)));};
   return <section ref={stage} aria-label="Shared local playback" className="flex w-full flex-col bg-bg">
     <div className="relative">
-      <video ref={ref} aria-label={`Shared local video: ${title}`} data-room-stream playsInline className="aspect-video w-full bg-bg" onPlaying={() => {setNeedsPlay(false);setWaiting(false);}} onWaiting={()=>setWaiting(true)} onStalled={()=>setWaiting(true)} onError={()=>setNotice("This device could not play the host stream. Request resync to try again.")} onVolumeChange={()=>setMuted(Boolean(ref.current?.muted))}/>
+      <video ref={ref} aria-label={`Shared local video: ${title}`} data-room-stream playsInline className="aspect-video w-full bg-bg" onPlaying={() => {setNeedsPlay(false);setWaiting(false);onReadiness?.("playing");}} onCanPlay={()=>onReadiness?.("ready")} onPause={()=>onReadiness?.("paused")} onEnded={()=>onReadiness?.("ended")} onWaiting={()=>{setWaiting(true);onReadiness?.("buffering");}} onStalled={()=>{setWaiting(true);onReadiness?.("buffering");}} onError={()=>{onReadiness?.("error");setNotice("This device could not play the host stream. Request resync to try again.");}} onVolumeChange={()=>setMuted(Boolean(ref.current?.muted))}/>
       {needsPlay && playing && <Button className="absolute bottom-4 left-4 min-h-11" onClick={() => { void ref.current?.play().catch(() => setNeedsPlay(true)); }}><Play className="size-4" />Play on this device</Button>}
     </div>
     <div className="space-y-2 border-t border-border bg-surface p-3">
@@ -47,7 +48,7 @@ export function RoomStreamPlayer({ stream, title, playing, position, duration, o
         <Button variant="ghost" size="icon" className="min-h-11 min-w-11" aria-label={muted?"Unmute this device":"Mute this device"} onClick={()=>{const video=ref.current;if(video)video.muted=!muted;}}>{muted?<VolumeX className="size-4"/>:<Volume2 className="size-4"/>}</Button>
         <Button variant="ghost" size="icon" className="min-h-11 min-w-11" aria-label="Fullscreen shared video" onClick={()=>{if(stage.current?.requestFullscreen)void stage.current.requestFullscreen().catch(()=>setNotice("Fullscreen is unavailable on this device."));else setNotice("Fullscreen is unavailable on this device.");}}><Maximize className="size-4"/></Button>
         <Button variant="ghost" size="sm" className="min-h-11" onClick={onResync}><RefreshCw className="size-3"/>Resync video</Button>
-        <Button variant="ghost" size="sm" className="min-h-11" onClick={() => setReload(value => value + 1)}><RefreshCw className="size-3" />Reload this player</Button>
+        <Button variant="ghost" size="sm" className="min-h-11" onClick={() => {onReadiness?.("loading");setReload(value => value + 1);}}><RefreshCw className="size-3" />Reload this player</Button>
       </div>
       {seconds&&<input type="range" min={0} max={seconds} step={0.25} value={Math.min(seconds,draft??position)} aria-label="Seek shared video" aria-valuetext={clock(draft??position)} className="min-h-11 w-full accent-accent" onChange={event=>setDraft(event.currentTarget.valueAsNumber)} onPointerUp={event=>seek(event.currentTarget.valueAsNumber)} onPointerCancel={()=>setDraft(null)} onKeyDown={event=>{const next=roomSeekKey(event.key,event.currentTarget.valueAsNumber,seconds);if(next!==undefined){event.preventDefault();seek(next);}}} onBlur={event=>{if(draft!==null)seek(event.currentTarget.valueAsNumber);}}/>}
       <p className="text-xs leading-5 text-muted">Play, pause and seek affect the room. Sound and fullscreen affect only this device.</p>

@@ -1,0 +1,26 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "Legacy defaults stay unchanged; independent clip/VOD choices and bounded priority save without provider reads and show deliberate policy exclusions",
+        "Both exclusions and priority survive real follow storage reload on desktop and mobile",
+        "Explicit creator refresh still reads VODs and clips through the actual adapter while preserving saved automatic policy",
+        "Default recovery persists without extra requests; no horizontal overflow or uncaught browser errors"
+      ],
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "Legacy defaults stay unchanged; independent clip/VOD choices and bounded priority save without provider reads and show deliberate policy exclusions",
+        "Both exclusions and priority survive real follow storage reload on desktop and mobile",
+        "Explicit creator refresh still reads VODs and clips through the actual adapter while preserving saved automatic policy",
+        "Default recovery persists without extra requests; no horizontal overflow or uncaught browser errors"
+      ],
+      "errors": []
+    }
+  ],
+  "limitation": "Isolated Chrome profiles, real app/store/follow storage and controlled public Twitch adapter responses. Automatic 600-creator fairness is verified separately with deterministic scheduling/store tests; no real-provider soak is claimed."
+}

@@ -1,0 +1,132 @@
+{
+  "artifact": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\recommendation-evaluation-initial.json",
+  "corpus": {
+    "version": 1,
+    "sha256": "f8635ba9ebae1d4aff675ceeef63fcafe69e1430796684d14fc9c3955d1ceab1",
+    "items": 62,
+    "cases": 16,
+    "fixedNow": 1768478400000,
+    "seed": 417
+  },
+  "quality": {
+    "pass": 81,
+    "fail": 7,
+    "unmeasured": 1,
+    "not-applicable": 10
+  },
+  "qualityGate": {
+    "ok": false,
+    "failed": 7,
+    "unmeasured": 1
+  },
+  "regression": null,
+  "sentinels": [
+    {
+      "id": "operational-tags",
+      "caseId": "guide-operational-facets",
+      "metric": "operationalOnlyShare",
+      "detected": true
+    },
+    {
+      "id": "creator-monopoly",
+      "caseId": "youtube-creator-diversity",
+      "metric": "maxCreatorShare",
+      "detected": true
+    },
+    {
+      "id": "repeat-exposure",
+      "caseId": "youtube-repeat-exposure",
+      "metric": "previousExposureShare",
+      "detected": true
+    },
+    {
+      "id": "canonical-duplicates",
+      "caseId": "guide-query-canonical",
+      "metric": "canonicalRepeatShare",
+      "detected": true
+    },
+    {
+      "id": "explicit-negative",
+      "caseId": "youtube-topic-negative",
+      "metric": "negativeShare",
+      "detected": true
+    }
+  ],
+  "findings": [
+    {
+      "id": "youtube-repeat-exposure",
+      "findings": [
+        {
+          "metric": "previousExposureShare",
+          "value": 1,
+          "limit": 0.5,
+          "status": "fail"
+        }
+      ]
+    },
+    {
+      "id": "twitch-creator-diversity",
+      "findings": [
+        {
+          "metric": "maxCreatorShare",
+          "value": 1,
+          "limit": 0.5,
+          "status": "fail"
+        }
+      ]
+    },
+    {
+      "id": "twitch-publication-freshness",
+      "findings": [
+        {
+          "metric": "ndcgAtK",
+          "value": 0.550197,
+          "limit": 0.8,
+          "status": "fail"
+        },
+        {
+          "metric": "freshShareOfKnown",
+          "value": 0,
+          "limit": 0.5,
+          "status": "fail"
+        }
+      ]
+    },
+    {
+      "id": "guide-operational-facets",
+      "findings": [
+        {
+          "metric": "ndcgAtK",
+          "value": 0,
+          "limit": 0.8,
+          "status": "fail"
+        },
+        {
+          "metric": "maxCreatorShare",
+          "value": 1,
+          "limit": 0.5,
+          "status": "fail"
+        },
+        {
+          "metric": "operationalOnlyShare",
+          "value": 1,
+          "limit": 0,
+          "status": "fail"
+        }
+      ]
+    },
+    {
+      "id": "partial-judgments",
+      "findings": [
+        {
+          "metric": "judgmentCoverage",
+          "value": null,
+          "limit": 1,
+          "status": "unmeasured",
+          "reason": "Missing judgments: yt-date-unknown"
+        }
+      ]
+    }
+  ],
+  "scope": "Synthetic relevance judgments and regression signals, not user satisfaction, provider throughput or a real-library audit."
+}

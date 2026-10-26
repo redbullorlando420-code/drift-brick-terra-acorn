@@ -1,0 +1,12 @@
+{
+  "ok": true,
+  "checks": [
+    "A non-embeddable guest video preserves the room, iframe and original evidence; repeated errors and host resyncs produce no reload or seek/play loop",
+    "Chat and acknowledged queue additions continue while the guest opens the canonical official watch page; a spoofed parent event cannot change the diagnosis",
+    "Observed error codes have distinct recovery guidance; exported diagnostics retain only bounded public title IDs, codes and transitions",
+    "Explicit device-only reload records a new attempt, and actual playback clears a separate autoplay block without changing the host pause or access settings",
+    "An exhausted handshake reports setup uncertainty without inventing a provider restriction; late readiness recovers without an automatic reload",
+    "New titles start independent evidence; clearing earlier diagnostics and reloading affect only the browser-local history and do not restore old failures"
+  ],
+  "errors": []
+}

@@ -1,4 +1,4 @@
-export type PreviewRow = { id: string; folderId: string; genre?: string; kind?: string; creator: string; tags: string[]; rating: number; creatorRating: number; creatorLiked: boolean; live: boolean; eligible: boolean; adult?: boolean; favorite?: boolean; liked?: boolean; creatorFavorite?: boolean; marks?: number; watch?: number; plays?: number; identity?: string; creatorId?: string; titleTokens?: string[]; format?: string; publishedAt?: number };
+export type PreviewRow = { exposurePenalty?: number; rejectionPenalty?: number; id: string; folderId: string; genre?: string; kind?: string; creator: string; tags: string[]; rating: number; creatorRating: number; creatorLiked: boolean; live: boolean; eligible: boolean; adult?: boolean; favorite?: boolean; liked?: boolean; creatorFavorite?: boolean; marks?: number; watch?: number; plays?: number; identity?: string; creatorId?: string; titleTokens?: string[]; format?: string; publishedAt?: number };
 import { interestMultiplier, rankingTags, confidenceAdjustedPreference, normalizeRating, ratingAdjustedScore, ratingPreference as preference, RATING_STAR_WEIGHTS } from './ranking-core.ts';
 export type PreviewRanking = { related: string[]; recommended: string[]; tagScores: Record<string, { total: number; count: number }> };
 export type PreviewCatalog = {
@@ -78,7 +78,7 @@ export function rankPreviewCatalog(catalog: PreviewCatalog, id: string, seed: nu
     const score = (base: number) => {
       const value = ratingAdjustedScore(base + d.bonus, row.rating, RATING_STAR_WEIGHTS.preview)
         + preference(row.creatorRating) * 2 + Number(row.creatorLiked) * 3 + Number(Boolean(row.creatorFavorite)) * 4;
-      return value >= 0 ? value * d.multiplier : value / d.multiplier;
+      return (value >= 0 ? value * d.multiplier : value / d.multiplier) - (row.adult ? 0 : Math.max(0, Math.min(64, row.rejectionPenalty ?? 0)) + Math.max(0, Math.min(18, row.exposurePenalty ?? 0)));
     };
     const relatedScore = score(Number(sameCreator)*14 + Number(target.live && sameCreator)*8 + Number(sameFolder)*5
       + Number(sameGenre)*4 + Number(sameKind)*(target.adult?5:2) + shared*(target.adult?6:3) + words*3 + d.hearts*2);

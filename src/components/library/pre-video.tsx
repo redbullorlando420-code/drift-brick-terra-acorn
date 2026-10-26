@@ -1,3 +1,5 @@
+import { RecommendationButton } from './recommendation-button';
+import { RecommendationChoices } from './recommendation-choices';
 import { knownTwitchContent, twitchContentLabel } from '@/lib/videos/twitch-content';
 import { OfficialRoomPlayer } from './official-room-player';
 import { usePreviewRanking } from "./use-preview-ranking";
@@ -301,6 +303,7 @@ export function PreVideo() {
               <Button variant={favorite ? "default" : "secondary"} onClick={() => toggleFavorite(video.id)}><Heart className={favorite ? "size-4 fill-current" : "size-4"} />{favorite ? "Saved" : "Save"}</Button>
               <Button variant={liked ? "default" : "secondary"} onClick={() => toggleLike(video.id)}><ThumbsUp className={liked ? "size-4 fill-current" : "size-4"} />{liked ? "Liked" : "Like"}</Button>
             </div>
+            {!previewIsAdult && <RecommendationChoices key={video.id} video={video} tags={tags} favorite={favorite} />}
             <PullPauseButton />
             {video.remote?.kind === 'youtube' && <div className="mt-4"><YoutubePublicationControl video={video} /></div>}
             {video.remote?.kind === 'youtube' && <div className="mt-4"><YoutubeTagsControl video={video} /></div>}
@@ -313,7 +316,7 @@ export function PreVideo() {
           </div>
           <aside className="min-w-0 rounded-lg bg-elevated p-5 shadow-border">
             <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Details</p>
-            <div className="mt-3 flex flex-wrap gap-2">{topicEvidence(video, tags).map((link) => <Button key={link.topic} size="sm" variant="secondary" title={link.reason} onClick={() => { openTopic(link.topic); closePreview(); }}>#{link.topic} ↔</Button>)}</div>
+            <div className="mt-3 flex flex-wrap gap-2">{topicEvidence(video, tags, !previewIsAdult).map((link) => <Button key={link.topic} size="sm" variant="secondary" title={link.reason} onClick={() => { openTopic(link.topic); closePreview(); }}>#{link.topic} ↔</Button>)}</div>
             <p className="mt-2 text-xs text-muted">Topic links explore all public sources. Hover a topic for its evidence.</p>
             <p className="mt-3 text-sm text-fg">
               {video.year ?? "New"} · {video.genre ?? "Uncategorized"}
@@ -409,7 +412,7 @@ export function PreVideo() {
             <h2 className="font-display text-2xl text-fg">{previewIsAdult ? "More Adult picks from this shelf" : "More from this shelf"}</h2>
             <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
               {related.map((item) => (
-                <button
+                <RecommendationButton video={item} surface="preview" enabled={!previewIsAdult}
                   key={item.id}
                   data-preview-pick={item.id}
                   type="button"
@@ -422,7 +425,7 @@ export function PreVideo() {
                     <span className="block aspect-video bg-bg" />
                   )}
                   <span className="block px-3 pt-2 text-sm text-fg"><span className="line-clamp-2">{item.name}</span></span><span className="block truncate px-3 pb-3 pt-1 text-xs text-muted">{item.remote?.channelName || item.genre || "From your library"}{item.duration ? ` · ${Math.floor(item.duration / 60)}:${String(Math.floor(item.duration % 60)).padStart(2,"0")}` : ""}</span>
-                </button>
+                </RecommendationButton>
               ))}
             </div>
           </section>
@@ -432,7 +435,7 @@ export function PreVideo() {
             <h2 className="font-display text-2xl text-fg">{previewIsAdult ? "More Adult picks to try next" : "More to try next"}</h2>
             <p className="mt-1 text-sm text-muted">{previewIsAdult ? "A fresh Adult-only mix based on this title’s tags, creator, source, and your saved Adult interests." : "Different picks based on this title’s topics and your saved interests, with room for other creators and less-watched videos."}</p>
             <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-              {recommended.map((item) => <button key={item.id} data-preview-pick={item.id} type="button" onClick={() => useLibrary.getState().openPreview(item.id)} className="overflow-hidden rounded-md bg-elevated text-left shadow-border hover:bg-surface">{item.poster ? <img src={item.poster} alt="" loading="lazy" className="aspect-video w-full object-cover" onError={(event) => { const fallback = item.remote?.kind === "youtube" && item.remote.videoId ? `https://i.ytimg.com/vi/${item.remote.videoId}/mqdefault.jpg` : ""; if (fallback && event.currentTarget.src !== fallback) event.currentTarget.src = fallback; else event.currentTarget.style.display = "none"; }} /> : <span className="block aspect-video bg-bg" />}<span className="block px-3 pt-2 text-sm text-fg"><span className="line-clamp-2">{item.name}</span></span><span className="block truncate px-3 pb-3 pt-1 text-xs text-muted">{item.remote?.channelName || item.genre || "From your library"}{item.duration ? ` · ${Math.floor(item.duration / 60)}:${String(Math.floor(item.duration % 60)).padStart(2,"0")}` : ""}</span></button>)}
+              {recommended.map((item) => <RecommendationButton video={item} surface="preview" enabled={!previewIsAdult} key={item.id} data-preview-pick={item.id} type="button" onClick={() => useLibrary.getState().openPreview(item.id)} className="overflow-hidden rounded-md bg-elevated text-left shadow-border hover:bg-surface">{item.poster ? <img src={item.poster} alt="" loading="lazy" className="aspect-video w-full object-cover" onError={(event) => { const fallback = item.remote?.kind === "youtube" && item.remote.videoId ? `https://i.ytimg.com/vi/${item.remote.videoId}/mqdefault.jpg` : ""; if (fallback && event.currentTarget.src !== fallback) event.currentTarget.src = fallback; else event.currentTarget.style.display = "none"; }} /> : <span className="block aspect-video bg-bg" />}<span className="block px-3 pt-2 text-sm text-fg"><span className="line-clamp-2">{item.name}</span></span><span className="block truncate px-3 pb-3 pt-1 text-xs text-muted">{item.remote?.channelName || item.genre || "From your library"}{item.duration ? ` · ${Math.floor(item.duration / 60)}:${String(Math.floor(item.duration % 60)).padStart(2,"0")}` : ""}</span></RecommendationButton>)}
             </div>
           </section>
         )}

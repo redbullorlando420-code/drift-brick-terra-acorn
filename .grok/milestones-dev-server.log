@@ -1160,3 +1160,1035 @@ AbortError: This operation was aborted
 11:33:28 AM [vite] (client) hmr update /src/components/library/library-app.tsx
 11:33:28 AM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
 11:33:28 AM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+1:04:24 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/invite.tsx, /src/components/library/library-app.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/live-catalog.tsx, /src/components/library/live-desk.tsx, /src/components/library/browse.tsx, /src/components/library/video-card.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx and 39 more
+1:04:24 PM [vite] (ssr) page reload src/lib/videos/types.ts
+1:04:24 PM [vite] (ssr) program reload
+1:04:24 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 39 more
+1:04:24 PM [vite] (ssr) page reload src/lib/videos/follow-checkpoints.ts
+1:04:24 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 39 more
+1:04:24 PM [vite] (ssr) page reload src/lib/videos/twitch-refresh-selection.ts
+1:04:24 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-overlays.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx and 39 more
+1:04:24 PM [vite] (ssr) page reload src/lib/videos/follow-identity.ts
+1:04:24 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 39 more
+1:04:24 PM [vite] (ssr) page reload src/lib/videos/twitch-clip-freshness.ts
+1:04:25 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+1:04:25 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+1:04:25 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+1:04:25 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+1:04:45 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 39 more
+1:04:45 PM [vite] (ssr) page reload src/lib/videos/store.ts
+1:04:45 PM [vite] (client) hmr update /src/styles.css?direct
+1:04:45 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+1:04:45 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+1:04:45 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+1:04:45 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+1:04:45 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+1:04:45 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+1:05:16 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/follow-manager.tsx
+1:05:16 PM [vite] (ssr) page reload src/components/library/follow-manager.tsx
+1:06:30 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 40 more
+1:06:30 PM [vite] (ssr) page reload src/lib/videos/twitch-refresh-selection.ts
+1:06:31 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+1:06:31 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+1:06:31 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+1:06:31 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+1:08:37 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+1:08:37 PM [vite] (client) hmr update /src/styles.css?direct
+1:08:45 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-overlays.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx and 40 more
+1:08:45 PM [vite] (ssr) page reload src/lib/videos/twitch-pull-policy.ts
+1:08:45 PM [vite] (ssr) program reload
+1:08:45 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/twitch-pull-policy.tsx
+1:08:45 PM [vite] (ssr) page reload src/components/library/twitch-pull-policy.tsx
+1:08:45 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+1:08:45 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+1:08:45 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+1:08:45 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+1:11:12 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-overlays.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx and 40 more
+1:11:12 PM [vite] (ssr) page reload src/lib/videos/follow-identity.ts
+1:11:12 PM [vite] (ssr) program reload
+1:11:12 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 40 more
+1:11:12 PM [vite] (ssr) page reload src/lib/videos/follow-checkpoints.ts
+1:11:12 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 40 more
+1:11:12 PM [vite] (ssr) page reload src/lib/videos/twitch-refresh-selection.ts
+1:11:12 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 40 more
+1:11:12 PM [vite] (ssr) page reload src/lib/videos/twitch-clip-freshness.ts
+1:11:12 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 40 more
+1:11:12 PM [vite] (ssr) page reload src/lib/videos/store.ts
+1:11:13 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+1:11:13 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+1:11:13 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+1:11:13 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+1:20:29 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/invite.tsx, /src/components/library/library-app.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/live-catalog.tsx, /src/components/library/live-desk.tsx, /src/components/library/browse.tsx, /src/components/library/video-card.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx and 40 more
+1:20:29 PM [vite] (ssr) page reload src/lib/videos/types.ts
+1:20:29 PM [vite] (ssr) program reload
+1:20:29 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-overlays.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx and 46 more
+1:20:29 PM [vite] (ssr) page reload src/lib/videos/youtube-metadata.ts
+1:20:29 PM [vite] (client) hmr update /src/styles.css?direct
+1:20:29 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+1:20:29 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 40 more
+1:20:29 PM [vite] (ssr) page reload src/lib/videos/remote-merge.ts
+1:20:29 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+1:20:30 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+1:20:30 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+1:20:30 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+1:20:30 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+1:21:07 PM [vite] (client) hmr update /src/styles.css?direct
+1:21:07 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 40 more
+1:21:07 PM [vite] (ssr) page reload src/lib/videos/store.ts
+1:21:07 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/youtube-publication-control.tsx
+1:21:07 PM [vite] (ssr) page reload src/components/library/youtube-publication-control.tsx
+1:21:07 PM [vite] (client) Pre-transform error: Failed to resolve import "./youtube-publication-evidence" from "src/components/library/youtube-publication-control.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: E:/codex/drift-brick-terra-acorn/src/components/library/youtube-publication-control.tsx:6:43
+  4  |  import { youtubeDownloadTarget } from "@/lib/youtube-download";
+  5  |  import { fetchYoutubePublication } from "@/lib/remote/youtube-publication-functions";
+  6  |  import { YoutubePublicationEvidence } from "./youtube-publication-evidence";
+     |                                              ^
+  7  |  var _jsxFileName = "E:/codex/drift-brick-terra-acorn/src/components/library/youtube-publication-control.tsx";
+  8  |  import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
+1:21:07 PM [vite] Internal server error: Failed to resolve import "./youtube-publication-evidence" from "src/components/library/youtube-publication-control.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: E:/codex/drift-brick-terra-acorn/src/components/library/youtube-publication-control.tsx:6:43
+  4  |  import { youtubeDownloadTarget } from "@/lib/youtube-download";
+  5  |  import { fetchYoutubePublication } from "@/lib/remote/youtube-publication-functions";
+  6  |  import { YoutubePublicationEvidence } from "./youtube-publication-evidence";
+     |                                              ^
+  7  |  var _jsxFileName = "E:/codex/drift-brick-terra-acorn/src/components/library/youtube-publication-control.tsx";
+  8  |  import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
+      at TransformPluginContext._formatLog (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:31147:39)
+      at TransformPluginContext.error (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:31144:14)
+      at normalizeUrl (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:28083:18)
+      at async file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:28153:30
+      at async Promise.all (index 5)
+      at async TransformPluginContext.transform (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:28119:4)
+      at async EnvironmentPluginContainer.transform (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:30932:14)
+      at async loadAndTransform (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:20671:26)
+1:21:07 PM [vite] (client) [console.error] [vite] Failed to reload /src/components/library/youtube-publication-control.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+1:21:07 PM [vite] (client) Pre-transform error: Failed to resolve import "./youtube-publication-evidence" from "src/components/library/youtube-publication-control.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: E:/codex/drift-brick-terra-acorn/src/components/library/youtube-publication-control.tsx:6:43
+  4  |  import { youtubeDownloadTarget } from "@/lib/youtube-download";
+  5  |  import { fetchYoutubePublication } from "@/lib/remote/youtube-publication-functions";
+  6  |  import { YoutubePublicationEvidence } from "./youtube-publication-evidence";
+     |                                              ^
+  7  |  var _jsxFileName = "E:/codex/drift-brick-terra-acorn/src/components/library/youtube-publication-control.tsx";
+  8  |  import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
+1:21:07 PM [vite] (client) Pre-transform error: Failed to resolve import "./youtube-publication-evidence" from "src/components/library/youtube-publication-control.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: E:/codex/drift-brick-terra-acorn/src/components/library/youtube-publication-control.tsx:6:43
+  4  |  import { youtubeDownloadTarget } from "@/lib/youtube-download";
+  5  |  import { fetchYoutubePublication } from "@/lib/remote/youtube-publication-functions";
+  6  |  import { YoutubePublicationEvidence } from "./youtube-publication-evidence";
+     |                                              ^
+  7  |  var _jsxFileName = "E:/codex/drift-brick-terra-acorn/src/components/library/youtube-publication-control.tsx";
+  8  |  import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
+1:21:08 PM [vite] (client) Pre-transform error: Failed to resolve import "./youtube-publication-evidence" from "src/components/library/youtube-publication-control.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: E:/codex/drift-brick-terra-acorn/src/components/library/youtube-publication-control.tsx:6:43
+  4  |  import { youtubeDownloadTarget } from "@/lib/youtube-download";
+  5  |  import { fetchYoutubePublication } from "@/lib/remote/youtube-publication-functions";
+  6  |  import { YoutubePublicationEvidence } from "./youtube-publication-evidence";
+     |                                              ^
+  7  |  var _jsxFileName = "E:/codex/drift-brick-terra-acorn/src/components/library/youtube-publication-control.tsx";
+  8  |  import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
+1:21:08 PM [vite] Internal server error: Failed to resolve import "./youtube-publication-evidence" from "src/components/library/youtube-publication-control.tsx". Does the file exist?
+  Plugin: vite:import-analysis
+  File: E:/codex/drift-brick-terra-acorn/src/components/library/youtube-publication-control.tsx:6:43
+  4  |  import { youtubeDownloadTarget } from "@/lib/youtube-download";
+  5  |  import { fetchYoutubePublication } from "@/lib/remote/youtube-publication-functions";
+  6  |  import { YoutubePublicationEvidence } from "./youtube-publication-evidence";
+     |                                              ^
+  7  |  var _jsxFileName = "E:/codex/drift-brick-terra-acorn/src/components/library/youtube-publication-control.tsx";
+  8  |  import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
+      at TransformPluginContext._formatLog (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:31147:39)
+      at TransformPluginContext.error (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:31144:14)
+      at normalizeUrl (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:28083:18)
+      at async file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:28153:30
+      at async Promise.all (index 5)
+      at async TransformPluginContext.transform (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:28119:4)
+      at async EnvironmentPluginContainer.transform (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:30932:14)
+      at async loadAndTransform (file:///E:/codex/drift-brick-terra-acorn/node_modules/vite/dist/node/chunks/node.js:20671:26)
+1:21:08 PM [vite] (client) [console.error] [vite] Failed to reload /src/components/library/library-app.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+1:21:08 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+1:21:08 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+1:21:08 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+1:21:08 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+1:21:08 PM [vite] (client) [console.error] [vite] Failed to reload /src/components/library/youtube-publication-control.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+1:21:08 PM [vite] (client) [console.error] [vite] Failed to reload /src/components/library/library-app.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above)
+1:22:04 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-overlays.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx and 45 more
+1:22:04 PM [vite] (ssr) page reload src/lib/videos/youtube-metadata.ts
+1:22:04 PM [vite] (ssr) program reload
+1:22:04 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/video-card.tsx
+1:22:04 PM [vite] (ssr) page reload src/components/library/video-card.tsx
+1:22:05 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+1:22:05 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+1:22:05 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+1:22:05 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+1:23:11 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-overlays.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx and 47 more
+1:23:11 PM [vite] (ssr) page reload src/lib/videos/youtube-metadata.ts
+1:23:11 PM [vite] (ssr) program reload
+1:23:12 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+1:23:12 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+1:23:12 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+1:23:12 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+1:24:08 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-overlays.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx and 47 more
+1:24:08 PM [vite] (ssr) page reload src/lib/videos/youtube-metadata.ts
+1:24:08 PM [vite] (ssr) program reload
+1:24:08 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/youtube-publication-control.tsx
+1:24:08 PM [vite] (ssr) page reload src/components/library/youtube-publication-control.tsx
+1:24:09 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+1:24:09 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+1:24:09 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+1:24:09 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+1:25:58 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-overlays.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx and 47 more
+1:25:58 PM [vite] (ssr) page reload src/lib/videos/youtube-metadata.ts
+1:25:58 PM [vite] (ssr) program reload
+1:25:59 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+1:25:59 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+1:25:59 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+1:25:59 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+1:28:08 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 40 more
+1:28:08 PM [vite] (ssr) page reload src/lib/videos/youtube-catalog-selection.ts
+1:28:08 PM [vite] (ssr) program reload
+1:28:09 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+1:28:09 PM [vite] (client) hmr update /src/styles.css?direct
+1:28:09 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+1:28:09 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+1:28:09 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+1:28:09 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+1:28:10 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/youtube-publication-evidence.tsx
+1:28:10 PM [vite] (ssr) page reload src/components/library/youtube-publication-evidence.tsx
+1:34:57 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-overlays.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx and 47 more
+1:34:57 PM [vite] (ssr) page reload src/lib/videos/youtube-metadata.ts
+1:34:57 PM [vite] (ssr) program reload
+1:34:57 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 40 more
+1:34:57 PM [vite] (ssr) page reload src/lib/videos/youtube-catalog-selection.ts
+1:34:57 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 40 more
+1:34:57 PM [vite] (ssr) page reload src/lib/videos/youtube-shelf.ts
+1:34:57 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 40 more
+1:34:57 PM [vite] (ssr) page reload src/lib/videos/store.ts
+1:34:57 PM [vite] (client) hmr update /src/styles.css?direct
+1:35:00 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+1:35:00 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+1:35:00 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+1:35:00 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+1:36:35 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/youtube-publication-evidence.tsx
+1:36:35 PM [vite] (ssr) page reload src/components/library/youtube-publication-evidence.tsx
+1:36:35 PM [vite] (ssr) program reload
+1:51:17 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-queue-panel.tsx
+1:51:17 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+1:52:52 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-queue-panel.tsx
+1:52:52 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+1:52:52 PM [vite] (client) hmr update /src/styles.css?direct
+1:53:53 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+1:53:53 PM [vite] (client) hmr update /src/styles.css?direct
+1:53:53 PM [vite] (client) hmr update /src/styles.css?direct
+1:53:54 PM [vite] (client) hmr update /src/styles.css?direct
+1:53:54 PM [vite] (client) hmr update /src/styles.css?direct
+2:00:18 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+2:00:18 PM [vite] (client) hmr update /src/styles.css?direct
+2:00:18 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx, /src/components/library/room-session-file-panel.tsx
+3:45:14 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-participation-panel.tsx
+3:45:32 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-participation-panel.tsx
+3:46:16 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-participation-panel.tsx
+3:46:17 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+3:46:17 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-stream-player.tsx
+3:47:47 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-participation-panel.tsx
+3:47:47 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+3:50:35 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx, /src/components/library/room-participation-panel.tsx
+3:50:35 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-participation-panel.tsx
+3:50:35 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-participation-panel.tsx
+3:50:35 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-stream-player.tsx
+3:50:36 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx, /src/components/library/room-participation-panel.tsx
+3:50:36 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-participation-panel.tsx
+3:50:36 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+3:50:36 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-participation-panel.tsx
+3:51:09 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+3:51:09 PM [vite] (client) hmr update /src/styles.css?direct
+3:54:25 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+4:59:14 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+5:00:34 PM [vite] (client) hmr update /src/styles.css?direct
+5:00:34 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+5:00:34 PM [vite] (client) hmr update /src/styles.css?direct
+5:00:35 PM [vite] (client) hmr update /src/styles.css?direct
+5:00:35 PM [vite] (client) hmr update /src/styles.css?direct
+5:01:06 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+5:05:07 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/youtube-embed-recovery.tsx
+5:05:07 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+5:05:07 PM [vite] (client) hmr update /src/styles.css?direct
+5:05:07 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/youtube-embed-recovery.tsx
+5:08:49 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+5:31:41 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+5:31:41 PM [vite] (client) hmr update /src/styles.css?direct
+5:39:41 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 40 more
+5:39:41 PM [vite] (ssr) page reload src/lib/media-feedback.ts
+5:39:41 PM [vite] (ssr) program reload
+5:39:41 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 40 more
+5:39:41 PM [vite] (ssr) page reload src/lib/videos/persist.ts
+5:39:43 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:39:43 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+5:39:43 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:39:43 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+5:40:01 PM [vite] (client) hmr update /src/styles.css?direct
+5:40:01 PM [vite] (client) hmr update /src/styles.css?direct
+5:40:01 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+5:40:01 PM [vite] (ssr) page reload src/components/library/use-youtube-ranking.ts
+5:40:01 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+5:40:01 PM [vite] (ssr) page reload src/lib/videos/twitch-recommendations.ts
+5:40:01 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+5:40:01 PM [vite] (ssr) page reload src/components/library/use-twitch-vod-ranking.ts
+5:40:01 PM [vite] (client) hmr update /src/styles.css?direct
+5:40:01 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/pre-video.tsx
+5:40:01 PM [vite] (client) hmr update /src/styles.css?direct
+5:40:01 PM [vite] (client) page reload src/lib/videos/preview-ranking.ts
+5:40:33 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/pre-video.tsx
+5:41:35 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 40 more
+5:41:35 PM [vite] (ssr) page reload src/lib/videos/persist.ts
+5:41:35 PM [vite] (ssr) program reload
+5:41:35 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 40 more
+5:41:35 PM [vite] (ssr) page reload src/lib/media-feedback.ts
+5:41:35 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx
+5:41:35 PM [vite] (ssr) page reload src/lib/videos/library-pack.ts
+5:41:35 PM [vite] (client) hmr update /src/styles.css?direct
+5:41:35 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx
+5:41:35 PM [vite] (ssr) page reload src/lib/videos/library-pack.ts
+5:41:35 PM [vite] (client) hmr update /src/styles.css?direct
+5:41:36 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:41:36 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+5:41:36 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:41:36 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+5:41:53 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 40 more
+5:41:53 PM [vite] (ssr) page reload src/lib/media-feedback.ts
+5:41:53 PM [vite] (client) hmr update /src/styles.css?direct
+5:41:53 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/pre-video.tsx
+5:41:53 PM [vite] (client) hmr update /src/styles.css?direct
+5:41:53 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+5:41:53 PM [vite] (ssr) page reload src/components/library/use-twitch-vod-ranking.ts
+5:41:53 PM [vite] (client) hmr update /src/styles.css?direct
+5:41:54 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:41:54 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+5:41:54 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:41:54 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+5:44:16 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 40 more
+5:44:16 PM [vite] (ssr) page reload src/lib/videos/recommendation-rejections.ts
+5:44:16 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 40 more
+5:44:16 PM [vite] (ssr) page reload src/lib/media-feedback.ts
+5:44:17 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:44:17 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+5:44:17 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:44:17 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+5:46:04 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 41 more
+5:46:04 PM [vite] (ssr) page reload src/lib/media-feedback.ts
+5:46:04 PM [vite] (ssr) program reload
+5:46:05 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:46:05 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+5:46:05 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:46:05 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+5:47:53 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+5:47:53 PM [vite] (client) hmr update /src/styles.css?direct
+5:48:32 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 41 more
+5:48:32 PM [vite] (ssr) page reload src/lib/media-feedback.ts
+5:48:32 PM [vite] (ssr) program reload
+5:48:33 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:48:33 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+5:48:33 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+5:48:33 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+5:50:38 PM [vite] (client) page reload src/lib/remote/youtube-recommendations.ts
+5:50:38 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+5:50:38 PM [vite] (ssr) page reload src/lib/videos/twitch-recommendations.ts
+5:50:38 PM [vite] (ssr) program reload
+5:50:38 PM [vite] (client) hmr update /src/styles.css?direct
+5:50:38 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/pre-video.tsx
+5:53:53 PM [vite] (client) page reload src/lib/remote/youtube-ranking-protocol.ts
+5:56:10 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/pre-video.tsx
+5:56:35 PM [vite] (client) page reload src/lib/videos/preview-ranking.ts
+6:06:17 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 41 more
+6:06:17 PM [vite] (ssr) page reload src/lib/videos/persist.ts
+6:06:17 PM [vite] (ssr) program reload
+6:06:18 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/video-card.tsx, /src/components/library/viewport-chart.tsx
+6:06:18 PM [vite] (ssr) page reload src/lib/card-visibility.ts
+6:06:18 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:06:18 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+6:06:18 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:06:18 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+6:06:55 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/video-card.tsx
+6:06:55 PM [vite] (ssr) page reload src/components/library/video-card.tsx
+6:06:55 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/browse.tsx
+6:06:55 PM [vite] (ssr) page reload src/components/library/browse.tsx
+6:06:55 PM [vite] (client) hmr update /src/styles.css?direct
+6:06:55 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+6:06:55 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+6:06:55 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/pre-video.tsx
+6:06:55 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 40 more
+6:06:55 PM [vite] (ssr) page reload src/lib/videos/store.ts
+6:07:33 PM [vite] (client) page reload src/lib/remote/youtube-recommendations.ts
+6:07:33 PM [vite] (client) page reload src/lib/remote/youtube-ranking-protocol.ts
+6:07:34 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+6:07:34 PM [vite] (ssr) page reload src/components/library/use-youtube-ranking.ts
+6:07:34 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+6:07:34 PM [vite] (ssr) page reload src/lib/videos/twitch-recommendations.ts
+6:07:34 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+6:07:34 PM [vite] (ssr) page reload src/components/library/use-twitch-vod-ranking.ts
+6:07:34 PM [vite] (client) hmr update /src/styles.css?direct
+6:07:34 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/pre-video.tsx
+6:07:34 PM [vite] (client) page reload src/lib/videos/preview-ranking.ts
+6:07:34 PM [vite] (client) hmr update /src/styles.css?direct
+6:07:36 PM [vite] (client) [console.error] React has detected a change in the order of Hooks called by LibraryApp. This will lead to bugs and errors if not fixed. For more information, read the Rules of Hooks: https://react.dev/link/rules-of-hooks
+
+   Previous render            Next render
+   ------------------------------------------------------
+1. useEffect                  useEffect
+2. useState                   useState
+3. useEffect                  useEffect
+4. useEffect                  useEffect
+5. useEffect                  useEffect
+6. useRef                     useRef
+7. useRef                     useRef
+8. useRef                     useRef
+9. useState                   useState
+10. useSyncExternalStore      useSyncExternalStore
+11. useEffect                 useEffect
+12. useState                  useState
+13. useState                  useState
+14. useState                  useState
+15. useState                  useState
+16. useState                  useState
+17. useState                  useState
+18. useState                  useState
+19. useState                  useState
+20. useState                  useState
+21. useState                  useState
+22. useState                  useState
+23. useState                  useState
+24. useState                  useState
+25. useState                  useState
+26. useState                  useState
+27. useState                  useState
+28. useState                  useState
+29. useState                  useState
+30. useState                  useState
+31. useState                  useState
+32. useState                  useState
+33. useState                  useState
+34. useState                  useState
+35. useState                  useState
+36. useState                  useState
+37. useState                  useState
+38. useState                  useState
+39. useState                  useState
+40. useState                  useState
+41. useState                  useState
+42. useState                  useState
+43. useState                  useState
+44. useState                  useState
+45. useState                  useState
+46. useState                  useState
+47. useState                  useState
+48. useState                  useState
+49. useState                  useState
+50. useState                  useState
+51. useState                  useState
+52. useState                  useState
+53. useState                  useState
+54. useCallback               useCallback
+55. useCallback               useCallback
+56. useSyncExternalStore      useSyncExternalStore
+57. useDebugValue             useDebugValue
+58. useCallback               useCallback
+59. useCallback               useCallback
+60. useSyncExternalStore      useSyncExternalStore
+61. useDebugValue             useDebugValue
+62. useCallback               useCallback
+63. useCallback               useCallback
+64. useSyncExternalStore      useSyncExternalStore
+65. useDebugValue             useDebugValue
+66. useCallback               useCallback
+67. useCallback               useCallback
+68. useSyncExternalStore      useSyncExternalStore
+69. useDebugValue             useDebugValue
+70. useCallback               useCallback
+71. useCallback               useCallback
+72. useSyncExternalStore      useSyncExternalStore
+73. useDebugValue             useDebugValue
+74. useCallback               useCallback
+75. useCallback               useCallback
+76. useSyncExternalStore      useSyncExternalStore
+77. useDebugValue             useDebugValue
+78. useCallback               useCallback
+79. useCallback               useCallback
+80. useSyncExternalStore      useSyncExternalStore
+81. useDebugValue             useDebugValue
+82. useCallback               useCallback
+83. useCallback               useCallback
+84. useSyncExternalStore      useSyncExternalStore
+85. useDebugValue             useDebugValue
+86. useCallback               useCallback
+87. useCallback               useCallback
+88. useSyncExternalStore      useSyncExternalStore
+89. useDebugValue             useDebugValue
+90. useCallback               useCallback
+91. useCallback               useCallback
+92. useSyncExternalStore      useSyncExternalStore
+93. useDebugValue             useDebugValue
+94. useCallback               useCallback
+95. useCallback               useCallback
+96. useSyncExternalStore      useSyncExternalStore
+97. useDebugValue             useDebugValue
+98. useCallback               useCallback
+99. useCallback               useCallback
+100. useSyncExternalStore     useSyncExternalStore
+101. useDebugValue            useDebugValue
+102. useEffect                useEffect
+103. useCallback              useCallback
+104. useCallback              useCallback
+105. useSyncExternalStore     useSyncExternalStore
+106. useDebugValue            useDebugValue
+107. useEffect                useEffect
+108. useCallback              useCallback
+109. useCallback              useCallback
+110. useSyncExternalStore     useSyncExternalStore
+111. useDebugValue            useDebugValue
+112. useCallback              useCallback
+113. useCallback              useCallback
+114. useSyncExternalStore     useSyncExternalStore
+115. useDebugValue            useDebugValue
+116. useCallback              useCallback
+117. useCallback              useCallback
+118. useSyncExternalStore     useSyncExternalStore
+119. useDebugValue            useDebugValue
+120. useCallback              useCallback
+121. useCallback              useCallback
+122. useSyncExternalStore     useSyncExternalStore
+123. useDebugValue            useDebugValue
+124. useCallback              useCallback
+125. useCallback              useCallback
+126. useSyncExternalStore     useSyncExternalStore
+127. useDebugValue            useDebugValue
+128. useCallback              useCallback
+129. useCallback              useCallback
+130. useSyncExternalStore     useSyncExternalStore
+131. useDebugValue            useDebugValue
+132. useCallback              useCallback
+133. useCallback              useCallback
+134. useSyncExternalStore     useSyncExternalStore
+135. useDebugValue            useDebugValue
+136. useCallback              useCallback
+137. useCallback              useCallback
+138. useSyncExternalStore     useSyncExternalStore
+139. useDebugValue            useDebugValue
+140. useCallback              useCallback
+141. useCallback              useCallback
+142. useSyncExternalStore     useSyncExternalStore
+143. useDebugValue            useDebugValue
+144. useCallback              useCallback
+145. useCallback              useCallback
+146. useSyncExternalStore     useSyncExternalStore
+147. useDebugValue            useDebugValue
+148. useCallback              useCallback
+149. useCallback              useCallback
+150. useCallback              useCallback
+151. useSyncExternalStore     useSyncExternalStore
+152. useDebugValue            useDebugValue
+153. useCallback              useCallback
+154. useCallback              useCallback
+155. useSyncExternalStore     useSyncExternalStore
+156. useDebugValue            useDebugValue
+157. useCallback              useCallback
+158. useCallback              useCallback
+159. useSyncExternalStore     useSyncExternalStore
+160. useDebugValue            useDebugValue
+161. useCallback              useCallback
+162. useCallback              useCallback
+163. useSyncExternalStore     useSyncExternalStore
+164. useDebugValue            useDebugValue
+165. useCallback              useCallback
+166. useCallback              useCallback
+167. useSyncExternalStore     useSyncExternalStore
+168. useDebugValue            useDebugValue
+169. useCallback              useCallback
+170. useCallback              useCallback
+171. useSyncExternalStore     useSyncExternalStore
+172. useDebugValue            useDebugValue
+173. useCallback              useCallback
+174. useCallback              useCallback
+175. useSyncExternalStore     useSyncExternalStore
+176. useDebugValue            useDebugValue
+177. useRef                   useRef
+178. useRef                   useRef
+179. useCallback              useCallback
+180. useCallback              useCallback
+181. useSyncExternalStore     useSyncExternalStore
+182. useDebugValue            useDebugValue
+183. useEffect                useEffect
+184. useMemo                  useMemo
+185. useState                 useState
+186. useState                 useState
+187. useCallback              useCallback
+188. useCallback              useCallback
+189. useSyncExternalStore     useSyncExternalStore
+190. useDebugValue            useDebugValue
+191. useEffect                useEffect
+192. useCallback              useCallback
+193. useCallback              useCallback
+194. useSyncExternalStore     useSyncExternalStore
+195. useDebugValue            useDebugValue
+196. useCallback              useCallback
+197. useCallback              useCallback
+198. useSyncExternalStore     useSyncExternalStore
+199. useDebugValue            useDebugValue
+200. useCallback              useCallback
+201. useCallback              useCallback
+202. useSyncExternalStore     useSyncExternalStore
+203. useDebugValue            useDebugValue
+204. useCallback              useCallback
+205. useCallback              useCallback
+206. useSyncExternalStore     useSyncExternalStore
+207. useDebugValue            useDebugValue
+208. useCallback              useCallback
+209. useCallback              useCallback
+210. useSyncExternalStore     useSyncExternalStore
+211. useDebugValue            useDebugValue
+212. useCallback              useCallback
+213. useCallback              useCallback
+214. useSyncExternalStore     useSyncExternalStore
+215. useDebugValue            useDebugValue
+216. useCallback              useCallback
+217. useCallback              useCallback
+218. useSyncExternalStore     useSyncExternalStore
+219. useDebugValue            useDebugValue
+220. useMemo                  useMemo
+221. useCallback              useCallback
+222. useCallback              useCallback
+223. useSyncExternalStore     useSyncExternalStore
+224. useDebugValue            useDebugValue
+225. useCallback              useCallback
+226. useCallback              useCallback
+227. useSyncExternalStore     useSyncExternalStore
+228. useDebugValue            useDebugValue
+229. useMemo                  useMemo
+230. useMemo                  useMemo
+231. useMemo                  useMemo
+232. useMemo                  useMemo
+233. useMemo                  useMemo
+234. useMemo                  useMemo
+235. useMemo                  useMemo
+236. useMemo                  useMemo
+237. useSyncExternalStore     useSyncExternalStore
+238. useCallback              useCallback
+239. useCallback              useCallback
+240. useSyncExternalStore     useSyncExternalStore
+241. useDebugValue            useDebugValue
+242. useMemo                  useMemo
+243. useState                 useState
+244. useState                 useState
+245. useState                 useState
+246. useState                 useState
+247. useEffect                useEffect
+248. useEffect                useEffect
+249. useEffect                useEffect
+250. useRef                   useRef
+251. useState                 useState
+252. useEffect                useEffect
+253. useMemo                  useMemo
+254. useState                 useState
+255. useCallback              useCallback
+256. useCallback              useCallback
+257. useSyncExternalStore     useSyncExternalStore
+258. useDebugValue            useDebugValue
+259. useCallback              useCallback
+260. useCallback              useCallback
+261. useSyncExternalStore     useSyncExternalStore
+262. useDebugValue            useDebugValue
+263. useSyncExternalStore     useSyncExternalStore
+264. useCallback              useCallback
+265. useCallback              useCallback
+266. useSyncExternalStore     useSyncExternalStore
+267. useDebugValue            useDebugValue
+268. useMemo                  useMemo
+269. useState                 useState
+270. useEffect                useEffect
+271. useCallback              useCallback
+272. useCallback              useCallback
+273. useSyncExternalStore     useSyncExternalStore
+274. useDebugValue            useDebugValue
+275. useCallback              useCallback
+276. useCallback              useCallback
+277. useSyncExternalStore     useSyncExternalStore
+278. useDebugValue            useDebugValue
+279. useSyncExternalStore     useSyncExternalStore
+280. useCallback              useCallback
+281. useCallback              useCallback
+282. useSyncExternalStore     useSyncExternalStore
+283. useDebugValue            useDebugValue
+284. useMemo                  useMemo
+285. useState                 useState
+286. useState                 useState
+287. useState                 useState
+288. useEffect                useEffect
+289. useMemo                  useMemo
+290. useMemo                  useMemo
+291. useMemo                  useMemo
+292. useState                 useState
+293. useState                 useState
+294. useState                 useState
+295. useRef                   useRef
+296. useRef                   useRef
+297. useEffect                useEffect
+298. useEffect                useEffect
+299. useEffect                useEffect
+300. useMemo                  useMemo
+301. useMemo                  useMemo
+302. useMemo                  useMemo
+303. useMemo                  useMemo
+304. useMemo                  useMemo
+305. useMemo                  useMemo
+306. useMemo                  useMemo
+307. useEffect                useEffect
+308. useEffect                useEffect
+309. useEffect                useEffect
+310. useEffect                useEffect
+311. useState                 useState
+312. useMemo                  useMemo
+313. useEffect                useEffect
+314. useEffect                useEffect
+315. useMemo                  useMemo
+316. useEffect                useEffect
+317. useCallback              useCallback
+318. useCallback              useCallback
+319. useSyncExternalStore     useSyncExternalStore
+320. useDebugValue            useDebugValue
+321. useState                 useState
+322. useState                 useState
+323. useEffect                useEffect
+324. useMemo                  useMemo
+325. useMemo                  useMemo
+326. useMemo                  useMemo
+327. useMemo                  useMemo
+328. useMemo                  useMemo
+329. useMemo                  useMemo
+330. useCallback              useCallback
+331. useCallback              useCallback
+332. useSyncExternalStore     useSyncExternalStore
+333. useDebugValue            useDebugValue
+334. useState                 useState
+335. useState                 useState
+336. useEffect                useEffect
+337. useRef                   useRef
+338. useMemo                  useMemo
+339. useMemo                  useMemo
+340. useCallback              useCallback
+341. useCallback              useCallback
+342. useSyncExternalStore     useSyncExternalStore
+343. useDebugValue            useDebugValue
+344. useState                 useState
+345. useState                 useState
+346. useEffect                useEffect
+347. useRef                   useRef
+348. useMemo                  useMemo
+349. useMemo                  useMemo
+350. useCallback              useCallback
+351. useCallback              useCallback
+352. useSyncExternalStore     useSyncExternalStore
+353. useDebugValue            useDebugValue
+354. useState                 useState
+355. useState                 useState
+356. useEffect                useEffect
+357. useMemo                  useMemo
+358. useMemo                  useMemo
+359. useSyncExternalStore     useSyncExternalStore
+360. useEffect                useEffect
+361. useEffect                useEffect
+362. useCallback              useCallback
+363. useCallback              useCallback
+364. useSyncExternalStore     useSyncExternalStore
+365. useDebugValue            useDebugValue
+366. useCallback              useCallback
+367. useCallback              useCallback
+368. useSyncExternalStore     useSyncExternalStore
+369. useDebugValue            useDebugValue
+370. useCallback              useCallback
+371. useCallback              useCallback
+372. useSyncExternalStore     useSyncExternalStore
+373. useDebugValue            useDebugValue
+374. useState                 useState
+375. useEffect                useEffect
+376. useCallback              useCallback
+377. useCallback              useCallback
+378. useSyncExternalStore     useSyncExternalStore
+379. useDebugValue            useDebugValue
+380. useState                 useState
+381. useEffect                useEffect
+382. useMemo                  useMemo
+383. useMemo                  useMemo
+384. useCallback              useCallback
+385. useCallback              useCallback
+386. useSyncExternalStore     useSyncExternalStore
+387. useDebugValue            useDebugValue
+388. useCallback              useCallback
+389. useCallback              useCallback
+390. useSyncExternalStore     useSyncExternalStore
+391. useDebugValue            useDebugValue
+392. useMemo                  useMemo
+393. useMemo                  useMemo
+394. useState                 useState
+395. useEffect                useEffect
+396. useCallback              useCallback
+397. useCallback              useCallback
+398. useSyncExternalStore     useSyncExternalStore
+399. useDebugValue            useDebugValue
+400. useMemo                  useMemo
+401. useSyncExternalStore     useSyncExternalStore
+402. useCallback              useCallback
+403. useCallback              useCallback
+404. useSyncExternalStore     useSyncExternalStore
+405. useDebugValue            useDebugValue
+406. useState                 useState
+407. useState                 useState
+408. useEffect                useEffect
+409. useEffect                useEffect
+410. useMemo                  useMemo
+411. useMemo                  useMemo
+412. useSyncExternalStore     useSyncExternalStore
+413. useCallback              useCallback
+414. useCallback              useCallback
+415. useSyncExternalStore     useSyncExternalStore
+416. useDebugValue            useDebugValue
+417. useMemo                  useMemo
+418. useState                 useState
+419. useState                 useState
+420. useState                 useState
+421. useState                 useState
+422. useEffect                useEffect
+423. useEffect                useEffect
+424. useMemo                  useMemo
+425. useCallback              useCallback
+426. useCallback              useCallback
+427. useCallback              useCallback
+428. useSyncExternalStore     useSyncExternalStore
+429. useCallback              useCallback
+430. useCallback              useCallback
+431. useSyncExternalStore     useSyncExternalStore
+432. useDebugValue            useDebugValue
+433. useMemo                  useMemo
+434. useState                 useState
+435. useEffect                useEffect
+436. useSyncExternalStore     useSyncExternalStore
+437. useCallback              useCallback
+438. useCallback              useCallback
+439. useSyncExternalStore     useSyncExternalStore
+440. useDebugValue            useDebugValue
+441. useState                 useState
+442. useEffect                useEffect
+443. useSyncExternalStore     useSyncExternalStore
+444. useCallback              useCallback
+445. useCallback              useCallback
+446. useSyncExternalStore     useSyncExternalStore
+447. useDebugValue            useDebugValue
+448. useMemo                  useMemo
+449. useState                 useState
+450. useEffect                useEffect
+451. useSyncExternalStore     useSyncExternalStore
+452. useCallback              useCallback
+453. useCallback              useCallback
+454. useSyncExternalStore     useSyncExternalStore
+455. useDebugValue            useDebugValue
+456. useMemo                  useMemo
+457. useState                 useState
+458. useEffect                useEffect
+459. useSyncExternalStore     useSyncExternalStore
+460. useCallback              useCallback
+461. useCallback              useCallback
+462. useSyncExternalStore     useSyncExternalStore
+463. useDebugValue            useDebugValue
+464. useMemo                  useMemo
+465. useState                 useState
+466. useEffect                useEffect
+467. useMemo                  useMemo
+468. useCallback              useCallback
+469. useCallback              useCallback
+470. useSyncExternalStore     useSyncExternalStore
+471. useDebugValue            useDebugValue
+472. useSyncExternalStore     useSyncExternalStore
+473. useState                 useState
+474. useEffect                useEffect
+475. useSyncExternalStore     useSyncExternalStore
+476. useCallback              useCallback
+477. useCallback              useCallback
+478. useSyncExternalStore     useSyncExternalStore
+479. useDebugValue            useDebugValue
+480. useMemo                  useMemo
+481. useState                 useState
+482. useEffect                useEffect
+483. useSyncExternalStore     useSyncExternalStore
+484. useCallback              useCallback
+485. useCallback              useCallback
+486. useSyncExternalStore     useSyncExternalStore
+487. useDebugValue            useDebugValue
+488. useMemo                  useMemo
+489. useState                 useState
+490. useEffect                useEffect
+491. useSyncExternalStore     useSyncExternalStore
+492. useCallback              useCallback
+493. useCallback              useCallback
+494. useSyncExternalStore     useSyncExternalStore
+495. useDebugValue            useDebugValue
+496. useMemo                  useMemo
+497. useState                 useState
+498. useEffect                useEffect
+499. useSyncExternalStore     useSyncExternalStore
+500. useCallback              useCallback
+501. useCallback              useCallback
+502. useSyncExternalStore     useSyncExternalStore
+503. useDebugValue            useDebugValue
+504. useState                 useState
+505. useEffect                useEffect
+506. useMemo                  useMemo
+507. useSyncExternalStore     useSyncExternalStore
+508. useCallback              useCallback
+509. useCallback              useCallback
+510. useSyncExternalStore     useSyncExternalStore
+511. useDebugValue            useDebugValue
+512. useState                 useState
+513. useEffect                useEffect
+514. useMemo                  useMemo
+515. useSyncExternalStore     useSyncExternalStore
+516. useCallback              useCallback
+517. useCallback              useCallback
+518. useSyncExternalStore     useSyncExternalStore
+519. useDebugValue            useDebugValue
+520. useState                 useState
+521. useEffect                useEffect
+522. useMemo                  useMemo
+523. useSyncExternalStore     useSyncExternalStore
+524. useCallback              useCallback
+525. useCallback              useCallback
+526. useSyncExternalStore     useSyncExternalStore
+527. useDebugValue            useDebugValue
+528. useState                 useState
+529. useEffect                useEffect
+530. useMemo                  useMemo
+531. useSyncExternalStore     useSyncExternalStore
+532. useCallback              useCallback
+533. useCallback              useCallback
+534. useSyncExternalStore     useSyncExternalStore
+535. useDebugValue            useDebugValue
+536. useState                 useState
+537. useEffect                useEffect
+538. useMemo                  useMemo
+539. useState                 useRef
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+6:07:36 PM [vite] (client) [console.error] TypeError: Cannot create property 'current' on boolean 'true'
+    at http://127.0.0.1:8080/src/components/library/use-youtube-ranking.ts?t=1792966054006:23:25
+    at updateMemo (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=e02092d4:4948:16)
+    at Object.useMemo (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=e02092d4:13274:13)
+    at exports.useMemo (http://127.0.0.1:8080/node_modules/.vite/deps/react.js?v=e02092d4:736:31)
+    at useYoutubeRanking (http://127.0.0.1:8080/src/components/library/use-youtube-ranking.ts?t=1792966054006:19:17)
+    at LibraryApp (http://127.0.0.1:8080/src/components/library/library-app.tsx?t=1792966054011:1218:25)
+    at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=e02092d4:12866:12)
+    at renderWithHooks (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=e02092d4:4213:19)
+    at updateFunctionComponent (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=e02092d4:5569:16)
+    at beginWork (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=e02092d4:6140:20)
+
+The above error occurred in the <LibraryApp> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, CatchBoundary.
+
+6:07:36 PM [vite] (client) [console.warn] Warning: Error in route match: //
+6:08:30 PM [vite] (client) hmr update /src/styles.css?direct
+6:08:30 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/recommendation-choices.tsx
+6:08:30 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/ranking-panel.tsx
+6:08:30 PM [vite] (ssr) page reload src/components/library/ranking-panel.tsx
+6:08:30 PM [vite] (ssr) program reload
+6:08:44 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/video-card.tsx
+6:08:44 PM [vite] (ssr) page reload src/components/library/video-card.tsx
+6:08:44 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx
+6:08:44 PM [vite] (ssr) page reload src/lib/videos/library-pack.ts
+6:13:33 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/video-card.tsx, /src/components/library/recommendation-button.tsx, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx and 43 more
+6:13:33 PM [vite] (ssr) page reload src/lib/recommendation-exposure-store.ts
+6:13:33 PM [vite] (ssr) program reload
+6:13:33 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:13:33 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+6:13:33 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+6:13:33 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+6:14:40 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/video-card.tsx, /src/components/library/recommendation-button.tsx
+6:14:40 PM [vite] (ssr) page reload src/lib/recommendation-exposure-dwell.ts
+6:14:40 PM [vite] (ssr) program reload
+6:14:40 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+6:14:40 PM [vite] (client) hmr update /src/styles.css?direct
+7:45:32 PM [vite] (client) page reload src/lib/videos/topics.ts
+7:45:32 PM [vite] (ssr) page reload src/lib/videos/topics.ts
+7:45:32 PM [vite] (ssr) program reload
+7:46:29 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 44 more
+7:46:29 PM [vite] (ssr) page reload src/lib/videos/persist.ts
+7:46:29 PM [vite] (ssr) program reload
+7:46:29 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+7:46:29 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+7:46:29 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+7:46:29 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+7:46:38 PM [vite] (client) page reload src/lib/videos/topic-aliases.ts
+7:46:38 PM [vite] (ssr) page reload src/lib/videos/topic-aliases.ts
+7:46:38 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 42 more
+7:46:38 PM [vite] (ssr) page reload src/lib/videos/store.ts
+7:46:39 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+7:46:39 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+7:46:39 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+7:46:39 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+7:47:53 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/topic-links.tsx
+7:48:21 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/topic-links.tsx
+7:48:21 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/light-home.tsx, /src/components/library/ranking-panel.tsx, /src/components/library/movie-runtime-repair.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 42 more
+7:48:21 PM [vite] (ssr) page reload src/lib/videos/store.ts
+7:48:21 PM [vite] (ssr) program reload
+7:48:22 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+7:48:22 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+7:48:22 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+7:48:22 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+7:49:06 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/topic-links.tsx
+7:50:14 PM [vite] (client) page reload src/lib/videos/ranking-core.ts
+7:50:14 PM [vite] (ssr) page reload src/lib/videos/ranking-core.ts
+7:50:14 PM [vite] (client) page reload src/lib/remote/youtube-recommendations.ts
+7:50:14 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+7:50:14 PM [vite] (ssr) page reload src/components/library/use-youtube-ranking.ts
+7:50:14 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/ai-guide.tsx
+7:50:14 PM [vite] (client) page reload src/lib/remote/youtube-ranking-protocol.ts
+7:50:14 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/video-grid.tsx and 43 more
+7:50:14 PM [vite] (ssr) page reload src/lib/media-feedback.ts
+7:50:14 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/topic-links.tsx
+7:51:20 PM [vite] (client) page reload src/lib/videos/topics.ts
+7:51:20 PM [vite] (ssr) page reload src/lib/videos/topics.ts
+7:51:20 PM [vite] (ssr) program reload
+7:51:20 PM [vite] (client) page reload src/lib/videos/topic-aliases.ts
+7:51:20 PM [vite] (ssr) page reload src/lib/videos/topic-aliases.ts
+7:51:20 PM [vite] (client) hmr update /src/styles.css?direct
+7:51:20 PM [vite] (client) hmr update /src/styles.css?direct
+7:51:20 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/global-search.tsx
+7:51:20 PM [vite] (ssr) page reload src/lib/videos/search-worker-index.ts
+7:51:20 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+7:51:20 PM [vite] (ssr) page reload src/lib/videos/search-index.ts
+7:52:09 PM [vite] (client) hmr update /src/styles.css?direct
+7:52:09 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+7:52:09 PM [vite] (ssr) page reload src/lib/videos/search-index.ts
+7:52:09 PM [vite] (ssr) program reload
+7:52:09 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/settings-section.tsx, /src/components/library/stats-section.tsx
+7:52:09 PM [vite] (ssr) page reload src/lib/videos/library-pack.ts
+7:52:54 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+7:52:54 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+7:52:54 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+7:52:54 PM [vite] (ssr) page reload src/lib/videos/search-ranking.ts
+7:52:54 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/pre-video.tsx
+7:52:54 PM [vite] (client) page reload src/lib/videos/topics.ts
+7:52:54 PM [vite] (ssr) page reload src/lib/videos/topics.ts
+7:52:56 PM [vite] (client) [console.error] The final argument passed to useEffect changed size between renders. The order and size of this array must remain constant.
+
+Previous: [, [object Object], true, , false, [object Object]]
+Incoming: [, [object Object], false, , false, [object Object], 0, home]
+8:00:54 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/topic-links.tsx
+8:00:54 PM [vite] (client) page reload src/lib/videos/topic-aliases.ts
+8:00:54 PM [vite] (ssr) page reload src/lib/videos/topic-aliases.ts
+8:00:54 PM [vite] (ssr) program reload
+8:01:16 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/topic-links.tsx
+8:01:33 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/topic-links.tsx
+8:07:07 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/topic-alias-review.tsx
+8:07:54 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+8:07:54 PM [vite] (client) hmr update /src/styles.css?direct
+8:15:12 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/topic-links.tsx

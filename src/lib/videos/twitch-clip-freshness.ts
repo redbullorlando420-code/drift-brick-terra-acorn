@@ -1,3 +1,4 @@
+import { retainTwitchPullPolicy } from './twitch-pull-policy.ts';
 import type { FollowedChannel } from "./types";
 import { twitchRetryPatch } from "./twitch-retry";
 export type ClipMode = "recent" | "archive";
@@ -50,7 +51,7 @@ export function mergeTwitchClipObservation(
     return { ...previous, [k.attempt]: attempt };
   const next = {
     ...previous,
-    ...incoming,
+    ...retainTwitchPullPolicy(previous,incoming),
     [k.attempt]: attempt,
     ...twitchRetryPatch(
       previous ?? {},
@@ -70,7 +71,7 @@ export function retainNewerTwitchClipFollow(
   incoming: FollowedChannel,
 ): FollowedChannel {
   if (previous.kind !== "twitch" || incoming.kind !== "twitch") return incoming;
-  let next = incoming;
+  let next = retainTwitchPullPolicy(previous,incoming);
   const keep = (fields: ReadonlyArray<keyof FollowedChannel>) => {
     if (next === incoming) next = { ...incoming };
     for (const key of fields) Object.assign(next, { [key]: previous[key] });

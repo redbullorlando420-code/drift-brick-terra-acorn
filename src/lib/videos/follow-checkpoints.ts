@@ -1,3 +1,4 @@
+import { normalizeTwitchPullPolicy } from './twitch-pull-policy.ts';
 import { decodeTwitchArchiveCursor, encodeTwitchArchiveCursor } from './twitch-archive-cursor';
 import { decodeTwitchClipCursor, encodeTwitchClipCursor } from './twitch-clip-cursor';
 import type { FollowedChannel, TwitchPullDiagnostics } from './types';
@@ -22,6 +23,7 @@ export function normalizeTwitchPullDiagnostics(raw: unknown): TwitchPullDiagnost
 /** The same compact checkpoint contract is used by reloads and backup imports. */
 export function normalizeFollowCheckpoints(row: Record<string, unknown>): Partial<FollowedChannel> {
   const out: Partial<FollowedChannel> = {};
+  const policy=normalizeTwitchPullPolicy(row.twitchPullPolicy); if(policy && row.kind==='twitch')out.twitchPullPolicy=policy;
   const clip = normalizeTwitchClipDiagnostics(row.twitchClipDiagnostics);
   if (clip) out.twitchClipDiagnostics = clip;
   const recentPull = normalizeRecentPull(row.recentPull); if (recentPull) out.recentPull = recentPull;

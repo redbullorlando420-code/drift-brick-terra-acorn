@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "titles": 80000,
+  "initialBuildMs": 342,
+  "affectedPatchMs": 86,
+  "checkpoints": 710,
+  "canonicalCount": 40000,
+  "unrelatedPostingReused": true,
+  "baseBuilds": 1,
+  "patchedTopics": [
+    "science"
+  ],
+  "fixture": "Synthetic local catalog; timings describe this machine/run, not a real-user endurance test."
+}

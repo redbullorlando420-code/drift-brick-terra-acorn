@@ -1,0 +1,27 @@
+✔ guide preserves favorite/like/tag scores, watched exclusions, stable ties and complete fresh live ordering (82.8935ms)
+✔ 100k guide entries never enter a catalog-sized sort or export a dense sparse signal tree (1187.4094ms)
+✔ guide cancellation precedes reads and also stops inside mostly removed saved ledgers (47.2891ms)
+✔ prepared answers use bounded existing picks, freshest live counts and handle an empty library (23.3849ms)
+✔ synthetic corpus has explicit reasoned judgments and rejects invalid versions, bounds, references and canonical cycles (10.1674ms)
+✔ graded NDCG and precision match an independently calculated two-title example, including empty wrong output (1.5218ms)
+✔ missing judgments and publication dates remain unknown, while ingestion cannot create publication freshness (1.5859ms)
+✔ canonical aliases cannot inflate relevance and are distinct from previous-shelf exposure and negative evidence (0.668ms)
+✔ creator concentration is conditional on actual relevant availability and empty libraries are inapplicable, never perfect relevance (0.5349ms)
+✔ adversarial rankings independently trip operational-tag, creator, exposure, duplicate and explicit-negative detectors (2.2388ms)
+✔ production rankers are deterministic, offline and read-only; current artifacts match the reviewed versioned baseline (68.6691ms)
+✔ baseline comparison refuses missing/incompatible baselines, changed judgments and altered ranking orders (23.5332ms)
+✔ CLI parsing rejects ambiguous modes and baseline replacement requires an explicit flag (97.8031ms)
+✔ CLI exits nonzero for the intentionally strict quality gate and a missing baseline rather than hiding unknowns (782.7493ms)
+✔ topic aggregates preserve privacy, hidden/demo filters, saved evidence and taste ordering (23.7083ms)
+✔ provider/genre/topic selection retains exact catalog order and related topic scores (7.3182ms)
+✔ CSV uses prepared saved/inferred totals without touching the catalog again (2.4669ms)
+✔ large topic libraries yield throughout scans and keep complete matching references and bounded gaps (369.5664ms)
+✔ cancelled topic scans never inspect the remaining catalog or produce a partial result (8.3654ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1769.1987

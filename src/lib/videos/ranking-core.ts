@@ -1,3 +1,4 @@
+import { reviewedRankingTag,getTopicAliasRevision,aliasTagsChanged } from './topic-aliases.ts';
 /** UI and workers share the original star meanings: 1 = dislike, 2 = neutral,
  * 3–5 = increasingly positive. Unrated is neutral, never a zero multiplier. */
 export function normalizeRating(value: number) {
@@ -138,4 +139,11 @@ export function rankingTags(tags: readonly string[]): string[] {
     distinct.add(clean); if (distinct.size >= 64) break;
   }
   const result = [...distinct]; preparedTags.set(tags, result); return result;
+}
+
+const reviewedTags=new WeakMap<readonly string[],{revision:number;tags:string[]}>();
+/** Public recommendation paths opt into reviewed aliases; legacy/private paths keep raw labels. */
+export function reviewedRankingTags(tags:readonly string[]):string[]{
+ const prior=reviewedTags.get(tags),revision=getTopicAliasRevision();if(prior&&!aliasTagsChanged(tags,prior.revision)){prior.revision=revision;return prior.tags;}
+ const result=[...new Set(rankingTags(tags).map(reviewedRankingTag))];reviewedTags.set(tags,{revision,tags:result});return result;
 }

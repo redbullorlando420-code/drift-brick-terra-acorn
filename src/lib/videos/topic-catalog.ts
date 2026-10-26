@@ -1,6 +1,7 @@
+import { reviewedTopic } from './topic-aliases.ts';
+import { topicPostings } from './topic-postings.ts';
 import type { Folder, LibraryVideo } from './types.ts';
 import { forEachCatalogEntry, forEachCatalogSlice, sortCatalogRows } from '../catalog-work.ts';
-import { isAdultPullKind } from './adult-sites.ts';
 import { topicEvidenceForScan } from './topics.ts';
 
 export type TopicCatalogInput = {
@@ -13,35 +14,25 @@ export type TopicCount = { count: number; providers: Set<string>; ratingTotal: n
 export type TopicFilters={text?:string;sort?:'catalog'|'newest'|'title'|'taste';evidence?:'all'|'saved'|'inferred'};
 const normalize=(text:string)=>text.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[-_#]+/g,' ');
 
-function publicTitle(input: TopicCatalogInput) {
-  const privateFolders = new Set(input.folders.filter(folder => folder.adult).map(folder => folder.id));
-  const knownFolders = new Set(input.folders.map(folder => folder.id));
-  return (video: LibraryVideo) => !privateFolders.has(video.folderId) && !isAdultPullKind(video.remote?.kind)
-    && !input.unavailable[video.id] && !input.hiddenVideos[video.id] && !(input.hideDemo && video.isSample)
-    && Boolean(knownFolders.has(video.folderId) || video.remote || video.isSample);
-}
-
 /** Only small aggregates survive the scan; no second catalog of row/topic objects. */
 export async function summarizeTopicCatalog(input: TopicCatalogInput, taste: TopicTaste, turn: () => Promise<void>) {
-  const allowed = publicTitle(input), counts = new Map<string, TopicCount>();
+  const postings = await topicPostings(input, turn), counts = new Map<string, TopicCount>();
   const sources = new Map<string, { total: number; linked: number }>(), genres = new Set<string>();
   let total = 0, saved = 0, linked = 0;
-  await forEachCatalogSlice(input.videos, video => {
-    if (!allowed(video)) return;
+  await forEachCatalogSlice(postings.eligible, ordinal => {
+    const video = input.videos[ordinal]!;
     total++;
-    const links = topicEvidenceForScan(video, input.tags[video.id]);
     const source = sources.get(video.folderId) ?? { total: 0, linked: 0 };
-    source.total++; source.linked += Number(links.length > 0); sources.set(video.folderId, source);
-    if (links.length) linked++;
-    if (links.some(link => link.saved)) saved++;
+    source.total++; source.linked += Number(postings.linked[ordinal]! > 0); sources.set(video.folderId, source);
+    if (postings.linked[ordinal]) linked++;
+    if (postings.saved[ordinal]) saved++;
     if (video.genre) genres.add(video.genre);
-    const score = links.length ? taste.score(video.id) : 0;
-    for (const link of links) {
-      const entry = counts.get(link.topic) ?? { count: 0, providers: new Set<string>(), ratingTotal: 0, saved: 0 };
-      entry.count++; entry.ratingTotal += score; entry.saved += Number(link.saved);
-      entry.providers.add(video.remote?.kind ?? 'local'); counts.set(link.topic, entry);
-    }
   }, turn, 256);
+  for (const [topic, posting] of postings.topics) {
+    let ratingTotal = 0; const providers = new Set<string>();
+    await forEachCatalogSlice(posting.all, ordinal => { const video = input.videos[ordinal]!; ratingTotal += taste.score(video.id); providers.add(video.remote?.kind ?? 'local'); }, turn, 256);
+    counts.set(topic, { count: posting.all.length, providers, ratingTotal, saved: posting.saved.length });
+  }
   const gaps: Array<{ id: string; total: number; linked: number }> = [];
   // Retain the eight largest gaps without sorting or copying the full source list.
   await forEachCatalogEntry(sources, ([id, source]) => {
@@ -63,17 +54,18 @@ export type TopicSummary = Awaited<ReturnType<typeof summarizeTopicCatalog>>;
 /** Preserve catalog order and complete results; only the visible grid mounts cards. */
 export async function selectTopicCatalog(input: TopicCatalogInput, selected: string | undefined,
   genre: string | undefined, provider: string, taste: TopicTaste, turn: () => Promise<void>, filters:TopicFilters={}) {
-  const allowed = publicTitle(input), videos: LibraryVideo[] = [];
+  const postings = await topicPostings(input, turn), videos: LibraryVideo[] = [];
   const terms=normalize((filters.text??'').trim().slice(0,200)).split(/\s+/).filter(Boolean).slice(0,12);
   const related = new Map<string, { shared: number; ratingTotal: number }>();
-  await forEachCatalogSlice(input.videos, video => {
-    if (!allowed(video) || (genre && video.genre !== genre)
+  await forEachCatalogSlice(selected ? postings.topics.get(selected)?.all ?? new Uint32Array() : postings.eligible, ordinal => {
+    const video = input.videos[ordinal]!;
+    if ((genre && video.genre !== genre)
       || (provider !== 'all' && (video.remote?.kind ?? 'local') !== provider)) return;
     const links = selected || filters.evidence && filters.evidence!=='all' ? topicEvidenceForScan(video, input.tags[video.id]) : [];
     if (selected && !links.some(link => link.topic === selected)) return;
     const relevant=selected?links.filter(link=>link.topic===selected):links;
     if(filters.evidence==='saved'&&!relevant.some(link=>link.saved)||filters.evidence==='inferred'&&(!relevant.length||relevant.some(link=>link.saved)))return;
-    if(terms.length){const text=normalize(`${video.name.slice(0,1000)} ${video.genre??''} ${video.remote?.channelName??''} ${(input.tags[video.id]??[]).slice(0,80).join(' ')}`);if(!terms.every(term=>text.includes(term)))return;}
+    if(terms.length){const text=normalize(`${video.name.slice(0,1000)} ${video.genre??''} ${video.remote?.channelName??''} ${(input.tags[video.id]??[]).slice(0,80).join(' ')} ${(input.tags[video.id]??[]).slice(0,80).map(tag=>reviewedTopic(tag)??'').join(' ')}`);if(!terms.every(term=>text.includes(term)))return;}
     videos.push(video);
     if (!selected) return;
     const score = taste.score(video.id);

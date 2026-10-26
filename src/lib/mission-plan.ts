@@ -3,9 +3,9 @@ export type MissionBrief = { track: string; priority: 'P0'|'P1'|'P2'; dependsOn:
 export type Mission = { id: string; title: string; detail: string; done: boolean; status?: MissionStatus; brief?: MissionBrief };
 
 export const MISSION_PLAN_REVISION_KEY = "reelcase.mission-plan.revision";
-export const MISSION_PLAN_REVISION = 32;
+export const MISSION_PLAN_REVISION = 41;
 
-export const NEXT_LEVEL_COMPLETED_IDS = ['next-022','next-038','next-024','next-023','next-031','next-032','next-039'] as const;
+export const NEXT_LEVEL_COMPLETED_IDS = ['next-022','next-038','next-024','next-023','next-031','next-032','next-039','next-033','next-027','next-047','next-044','next-028','next-051','next-052','next-053','next-054'] as const;
 
 /** Apply newly verified defaults once, without resetting later manual status changes. */
 export function mergeMissionPlan(saved: Mission[] | null, defaults: Mission[], previousRevision: number): Mission[] {
@@ -38,7 +38,7 @@ export function mergeMissionPlan(saved: Mission[] | null, defaults: Mission[], p
     ...saved.map((item) => {
       const current = defaultsById.get(item.id);
       if (!current) return item;
-      const promoted = current.done && ((previousRevision < 27 && ['next-022','next-038'].includes(item.id)) || (previousRevision < 28 && item.id === 'next-024') || (previousRevision < 29 && item.id === 'next-023') || (previousRevision < 30 && item.id === 'next-031') || (previousRevision < 31 && item.id === 'next-032') || (previousRevision < 32 && item.id === 'next-039') || migrateOriginalCompletions
+      const promoted = current.done && ((previousRevision < 27 && ['next-022','next-038'].includes(item.id)) || (previousRevision < 28 && item.id === 'next-024') || (previousRevision < 29 && item.id === 'next-023') || (previousRevision < 30 && item.id === 'next-031') || (previousRevision < 31 && item.id === 'next-032') || (previousRevision < 32 && item.id === 'next-039') || (previousRevision < 33 && item.id === 'next-033') || (previousRevision < 34 && item.id === 'next-027') || (previousRevision < 35 && item.id === 'next-047') || (previousRevision < 36 && item.id === 'next-044') || (previousRevision < 37 && item.id === 'next-028') || (previousRevision < 38 && item.id === 'next-051') || (previousRevision < 39 && item.id === 'next-052') || (previousRevision < 40 && item.id === 'next-053') || (previousRevision < 41 && item.id === 'next-054') || migrateOriginalCompletions
         || (migrateHydrationCompletion && item.id === "recent-saved-library-hydration")
         || (migrateYoutubeTraceCompletion && item.id === "youtube-upgrade-03")
         || (migrateYoutubeArtworkCompletion && item.id === "youtube-upgrade-05")

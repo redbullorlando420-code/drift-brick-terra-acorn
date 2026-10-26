@@ -1,3 +1,4 @@
+import { aliasLabel,aliasSearchTerms,normalizeTopicAliases,EMPTY_TOPIC_ALIASES,type TopicAliasLedger } from './topic-aliases.ts';
 /// <reference lib="webworker" />
 
 import { topicsForVideo } from "./topics";
@@ -8,7 +9,8 @@ let generation = 0;
 const byToken = new CompactPostings();
 const idsByTag = new CompactPostings();
 const documentIds: string[] = [];
-const tokenQuery = createSearchTokenQuery(byToken, () => documentIds.length);
+let activeAliases=EMPTY_TOPIC_ALIASES;
+const tokenQuery = createSearchTokenQuery(byToken, () => documentIds.length, 2*1024*1024,24,(token,visit)=>{for(const key of aliasSearchTerms(token,activeAliases)){idsByTag.forEach(key,visit);if(key===activeAliases.entries.find(row=>row.alias===aliasLabel(token))?.topic)byToken.forEach(key,visit);}});
 
 function tokens(text: string) {
   const out: string[] = [];
@@ -38,7 +40,7 @@ function tokens(text: string) {
 function search(query: string) {
   const needle = query.trim().toLowerCase().replace(/^#/, "");
   if (!needle) return [] as number[];
-  if (needle.includes("-") || /^(?:fetish|genre|meta|creator|sub|source)-/.test(needle)) {
+  if ((needle.includes("-") || /^(?:fetish|genre|meta|creator|sub|source)-/.test(needle)) && !aliasSearchTerms(needle,activeAliases).length) {
     const exact: number[] = [];
     const bare = needle.replace(/^(?:fetish|genre|meta|creator|sub|source)-/, "");
     const seen = new Set<string>();
@@ -53,7 +55,8 @@ function search(query: string) {
     }
     if (exact.length) return exact.sort((a, b) => a - b);
   }
-  const found = tokenQuery.search(tokens(needle));
+  const wanted = activeAliases.entries.some(row=>row.alias===aliasLabel(needle)) ? [aliasLabel(needle)] : tokens(needle);
+  const found = tokenQuery.search(wanted);
   const result: number[] = [],
     seen = new Set<string>();
   for (const id of found)
@@ -75,7 +78,7 @@ self.onmessage = ({
       batch: Array<{ video: LibraryVideo; tags: string[]; category?: string }>;
     }
   | { type: "continue"; generation: number }
-  | { type: "search"; generation: number; requestId: number; query: string }
+  | { type: "search"; generation: number; requestId: number; query: string; topicAliases?: TopicAliasLedger }
 >) => {
   if (data.type === "continue") {
     generation = data.generation;
@@ -107,7 +110,7 @@ self.onmessage = ({
         v.description,
         category,
         ...tags,
-        ...topicsForVideo(v, tags),
+        ...topicsForVideo(v, tags, false),
         v.remote?.channelName,
         v.remote?.channelId,
         v.remote?.kind,
@@ -120,6 +123,7 @@ self.onmessage = ({
     return;
   }
   if (data.generation === generation) {
+    const nextAliases = normalizeTopicAliases(data.topicAliases); if (JSON.stringify(nextAliases) !== JSON.stringify(activeAliases)) { activeAliases = nextAliases; tokenQuery.clear(); }
     const positions = Uint32Array.from(search(data.query));
     self.postMessage(
       {

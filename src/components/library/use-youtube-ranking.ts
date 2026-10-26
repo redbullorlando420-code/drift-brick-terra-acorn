@@ -1,4 +1,6 @@
-import { startTransition, useCallback, useEffect, useRef, useState } from 'react';
+import { getTopicAliases } from '@/lib/videos/topic-aliases';
+import { getRecommendationExposure,getExposureRevision } from '@/lib/recommendation-exposure-store';
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { youtubePublicationTime } from '@/lib/videos/youtube-metadata';
 import { rankingFeedbackSnapshot } from '@/lib/media-feedback';
 import { scheduleBackgroundWork } from '@/lib/interaction-budget';
@@ -19,7 +21,9 @@ const EMPTY_TAGS: string[] = [];
 /** Discovery scoring owns a disposable worker. Packing yields; results contain
  * only the recommendation shelf or requested page, and opening a player
  * immediately releases the worker catalog. Deep discovery reuses its scores. */
-export function useYoutubeRanking(enabled: boolean, inputs: YoutubeRankingInputs, seed: number, idle = false, deep = false) {
+export function useYoutubeRanking(enabled: boolean, sourceInputs: YoutubeRankingInputs, seed: number, idle = false, deep = false) {
+  const exposureScope = useRef<{ source: YoutubeRankingInputs; revision: number; value: YoutubeRankingInputs } | undefined>(undefined);
+  const inputs = useMemo(() => { const revision = getExposureRevision(), previous = exposureScope.current; if (previous?.source === sourceInputs && previous.revision === revision) return previous.value; const value = { ...sourceInputs }; exposureScope.current = { source: sourceInputs, revision, value }; return value; }, [sourceInputs, seed]);
   const [hidden, setHidden] = useState(false);
   useEffect(() => { const update = () => setHidden(document.visibilityState === "hidden"); update(); document.addEventListener("visibilitychange", update); return () => document.removeEventListener("visibilitychange", update); }, []);
   const viewerOpen = useLibrary(s => Boolean(s.activeId || s.previewId));
@@ -70,12 +74,12 @@ export function useYoutubeRanking(enabled: boolean, inputs: YoutubeRankingInputs
     worker.onerror = failed;
     const cancel = scheduleBackgroundWork(() => void (async () => {
       const feedback = await rankingFeedbackSnapshot(); if (!active) return;
-      send({ type: 'reset', creatorLikes: feedback.creatorLikes, creatorFavorites: feedback.creatorFavorites, creatorRatings: feedback.creatorRatings, heartedTags: feedback.heartedTags, historicTags: feedback.historicTags });
+      send({ type: 'reset', topicAliases: getTopicAliases(), recommendationExposure: getRecommendationExposure(), now: Date.now(), recommendationRejections: feedback.recommendationRejections, creatorLikes: feedback.creatorLikes, creatorFavorites: feedback.creatorFavorites, creatorRatings: feedback.creatorRatings, heartedTags: feedback.heartedTags, historicTags: feedback.historicTags });
       let chunk: YoutubeRankingRow[] = [];
       const turn = async () => { await yieldNavigationTask(controller.signal); if (!active) throw new Error('Obsolete ranking'); };
       await forEachCatalogSlice(inputs.videos, (item, index) => {
         const video: YoutubeRankingRow['video'] = { catalogOffset: index, id: item.id, folderId: item.folderId, addedAt: youtubePublicationTime(item), name: '', path: '', size: 0, extension: 'yt', mime: 'video/youtube',
-          remote: item.remote ? { kind: item.remote.kind, live: item.remote.live, youtubeType: item.remote.youtubeType, channelId: item.remote.channelId, channelName: item.remote.channelName,
+          remote: item.remote ? { videoId: item.remote.videoId, kind: item.remote.kind, live: item.remote.live, youtubeType: item.remote.youtubeType, channelId: item.remote.channelId, channelName: item.remote.channelName,
             ...(item.remote.youtubeTagSummary ? { youtubeTagSummary: { version: item.remote.youtubeTagSummary.version, sources: item.remote.youtubeTagSummary.sources, topics: [] } } : {}) } : undefined };
         chunk.push({ video, tags: inputs.tags[item.id] ?? EMPTY_TAGS, rating: feedback.ratings[item.id] ?? 0, favorite: Boolean(inputs.favorites[item.id]), liked: Boolean(inputs.likes[item.id]), marks: inputs.cameCounts[item.id] ?? 0, watch: feedback.watchScores[item.id] ?? 0, plays: inputs.viewCounts[item.id] ?? 0 });
         if (chunk.length === 512) { send({ type: 'append', rows: chunk }); chunk = []; }

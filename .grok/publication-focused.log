@@ -1,0 +1,42 @@
+✔ studio requests survive navigation, keep the submitted settings and retain a prior image on failure (2.7485ms)
+✔ studio session storage is bounded and isolates each account (0.2538ms)
+✔ duplicate interrupts are coalesced and a returned partial image is labeled honestly (0.401ms)
+✔ portable recipes round-trip only approved settings and reject unsupported files (1.5861ms)
+✔ recipe restoration is bounded and keeps valid entries when another is damaged (0.6563ms)
+✔ engine response limit cancels chunked and declared oversized bodies before buffering all data (24.4678ms)
+✔ publication comes from the matching video, never a pull time, relative label or recommended date (4.298ms)
+✔ generation sends a bounded allow-list and rejects missing/oversized prompts and bad numbers (0.6226ms)
+✔ studio restores valid settings, migrates the legacy prompt and uses actual random seeds (0.6986ms)
+✔ cancelling an approval is token/origin-bound and cannot cancel a newer request (8.9334ms)
+✔ an authenticated API failure is visible and never starts a duplicate engine (23.7779ms)
+✔ remote approval is expiring, one-use, peer/origin-bound and never supplies a password (6.1525ms)
+✔ local image API stays on the fixed loopback target and refuses non-image output (0.8646ms)
+✔ engine lifecycle launches only the installed Python with loopback and isolated caches (19.8585ms)
+✔ generation is single-flight and interrupt only applies to a request owned by the bridge (0.7833ms)
+✔ publication evidence accepts exact dates and rejects relative, scheduled-era and calendar overflow values (2.3042ms)
+✔ RSS provenance prevents synthetic-description repair from erasing a real date and survives compact/disk details (0.218ms)
+✔ shallow refreshes retain RSS dates, formats and current live evidence; exact RSS corrections win (87.649ms)
+✔ format and date-source repairs are published even when title and epoch stay equal (123.9428ms)
+✔ format evidence comes from provider fields, never video duration or title words (0.8489ms)
+✔ old and modern Shorts/lockup renderers retain format, live and upcoming evidence (1.1894ms)
+✔ cooperative groups isolate live/upcoming cards, share stable records, preserve order and cancel cleanly (5.594ms)
+✔ unknown publication dates sort last and never become creator freshness or cached-upload coverage (3.3431ms)
+✔ RSS/archive success preserves live state; a successful live check records a durable completed stream (206.2654ms)
+✔ actual RSS and archive paths retain publication provenance and format evidence with no fake current dates (26.4974ms)
+✔ actual live checks supply a separate observation signal and no publication timestamp (83.4817ms)
+✔ direct oEmbed imports keep publication unknown and explicit Shorts URLs retain their format (1.7703ms)
+✔ listing relative labels are bounded evidence, never inferred epochs; live and upcoming fields do not supply publication (4.0012ms)
+✔ exact day and timestamp precision remain distinct and UTC anchored; malformed instants are rejected (2.9657ms)
+✔ relative, unknown, scheduled and weaker day-only repairs cannot overwrite a known precise publication (1.2978ms)
+✔ selected watch repairs require matching canonical identity and can upgrade a day or relative label (2.0413ms)
+✔ HTML-only dates require the matching official canonical page, never a recommended watch link or blocked player (1.4779ms)
+✔ compact/disk/JSON export retain precision, source and label evidence, and sparse refreshes preserve approximate evidence (132.1885ms)
+✔ overlapping days and unknown labels have stable saved-order ties across JSON reload and later clocks (0.9297ms)
+ℹ tests 34
+ℹ suites 0
+ℹ pass 34
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 935.8268

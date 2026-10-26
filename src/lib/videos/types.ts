@@ -181,6 +181,9 @@ export type RemoteRef = {
   publishedDate?: string;
   /** Provider display label (for example “2 days ago”); never an inferred date. */
   publishedLabel?: string;
+  /** Precision belongs to the provider observation; relative labels never create an epoch. */
+  publishedPrecision?: 'instant' | 'day' | 'relative' | 'unknown';
+  publishedLabelAt?: number;
   viewers?: number;
   /** Epoch time of the provider response that supplied live metadata. */
   observedAt?: number;
@@ -232,6 +235,8 @@ export type RecentPullState = {
   failure?: ProviderFailure; newestVideoId?: string;
 };
 export type FollowedChannel = {
+  /** Optional user-owned automatic content settings. Legacy follows include both at normal priority. */
+  twitchPullPolicy?: import('./twitch-pull-policy').TwitchPullPolicy;
   youtubeLiveEvidence?: import('../remote/youtube-live-evidence').YoutubeLiveEvidence;
   youtubeLiveVideoIds?: string[];
   youtubeLiveKnownOverflow?: boolean;

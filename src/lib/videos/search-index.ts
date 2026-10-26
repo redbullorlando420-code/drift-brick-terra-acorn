@@ -1,3 +1,4 @@
+import { aliasLabel,aliasSearchTerms,getTopicAliases,reviewedTopic } from './topic-aliases.ts';
 import type { LibraryVideo } from "./types";
 import { topicsForVideo } from './topics';
 import { forEachCatalogSlice, yieldCatalogTask } from '../catalog-work.ts';
@@ -35,6 +36,7 @@ function haystackFor(
   video: LibraryVideo,
   tags: Record<string, string[]>,
   categories: Record<string, string>,
+  reviewed = false,
 ): string {
   const parts = [
     video.name,
@@ -45,7 +47,7 @@ function haystackFor(
     video.description ?? "",
     categories[video.id] ?? "",
     ...(tags[video.id] ?? []),
-    ...topicsForVideo(video, tags[video.id]),
+    ...topicsForVideo(video, tags[video.id], reviewed),
     video.remote?.channelName ?? "",
     video.remote?.channelId ?? "",
     video.remote?.kind ?? "",
@@ -56,18 +58,19 @@ function haystackFor(
 /** Worker-unavailable fallback: scan small tasks instead of retaining a second
  * full inverted index (and its per-document token arrays) on the UI thread. */
 export async function searchCatalog(videos: readonly LibraryVideo[], tags: Record<string, string[]>,
-  categories: Record<string, string>, query: string, signal?: AbortSignal) {
+  categories: Record<string, string>, query: string, signal?: AbortSignal, reviewed = true) {
   const needle = query.trim().toLowerCase().replace(/^#/, '');
-  const wanted = tokenize(needle), matches = new Set<string>(), exact = new Set<string>();
-  const compound = needle.includes('-') || /^(?:fetish|genre|meta|creator|sub|source)-/.test(needle);
+  const ledger = reviewed ? getTopicAliases() : undefined;
+  const wanted = ledger?.entries.some(row=>row.alias===aliasLabel(needle)) ? [aliasLabel(needle)] : tokenize(needle), matches = new Set<string>(), exact = new Set<string>();
+  const compound = (needle.includes('-') || /^(?:fetish|genre|meta|creator|sub|source)-/.test(needle)) && !aliasSearchTerms(needle,ledger??{version:1,updatedAt:0,entries:[]}).length;
   const bare = needle.replace(/^(?:fetish|genre|meta|creator|sub|source)-/, '');
   const shortcuts = new Set([needle, bare, `fetish-${bare}`, `genre-${bare}`]);
   if (!wanted.length || signal?.aborted) return matches;
   await forEachCatalogSlice(videos, video => {
     if (signal?.aborted) return;
     if (compound && (tags[video.id] ?? []).some(tag => shortcuts.has(tag.toLowerCase()))) exact.add(video.id);
-    const words = tokenize(haystackFor(video, tags, categories));
-    if (wanted.every(word => words.some(token => token === word || token.startsWith(word) || word.length >= 4 && token.includes(word)))) matches.add(video.id);
+    const words = tokenize(haystackFor(video, tags, categories, reviewed));
+    if (wanted.every(word => words.some(token => token === word || token.startsWith(word) || word.length >= 4 && token.includes(word)) || ledger && aliasSearchTerms(word,ledger).some(term=>(tags[video.id]??[]).some(tag=>tag.toLowerCase()===term) || topicsForVideo(video,tags[video.id]).includes(term)))) matches.add(video.id);
   }, async () => {
     if (signal?.aborted) throw signal.reason;
     await yieldCatalogTask();

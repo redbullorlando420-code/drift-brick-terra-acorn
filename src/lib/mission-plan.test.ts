@@ -306,3 +306,57 @@ test('revision 32 promotes verified Twitch content types without resetting manua
  const saved:Mission[]=[...current.map(row=>({...row,done:false,status:'blocked' as const})),{id:'custom-types',title:'My idea',detail:'Keep exact custom words',done:false,status:'in-progress'}];
  const migrated=mergeMissionPlan(saved,current,31);assert.deepEqual(migrated.map(m=>m.done),[false,false,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep exact custom words');assert(mergeMissionPlan(saved,current,32).every(m=>!m.done));
 });
+
+test('revision 33 promotes verified Twitch policies without resetting manual reopens or custom work',()=>{
+ const current:Mission[]=['next-032','next-039','next-033','next-034'].map(id=>({id,title:id,detail:'Verified current defaults',done:id!=='next-034',status:id!=='next-034'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'planned' as const})),{id:'custom',title:'Custom',detail:'Keep exact custom work',done:false}];
+ const migrated=mergeMissionPlan(saved,current,32);assert.deepEqual(migrated.map(m=>m.done),[false,false,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep exact custom work');assert(mergeMissionPlan(saved,current,33).every(m=>!m.done));
+});
+
+test('revision 34 promotes verified YouTube publication precision without resetting manual or custom work',()=>{
+ const current:Mission[]=['next-039','next-033','next-027','next-028'].map(id=>({id,title:id,detail:'Verified current defaults',done:id!=='next-028',status:id!=='next-028'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'planned' as const})),{id:'custom',title:'Custom',detail:'Keep exact custom work',done:false}];
+ const migrated=mergeMissionPlan(saved,current,33);assert.deepEqual(migrated.map(m=>m.done),[false,false,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep exact custom work');assert(mergeMissionPlan(saved,current,34).every(m=>!m.done));
+});
+
+test('revision 35 promotes session handoff once while preserving manual reopens, unrelated and custom work',()=>{
+ const current:Mission[]=['next-033','next-027','next-047','next-048'].map(id=>({id,title:id,detail:'Verified current defaults',done:id!=='next-048',status:id!=='next-048'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-session',title:'Custom',detail:'Keep exact custom session work',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,34);assert.deepEqual(migrated.map(m=>m.done),[false,false,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep exact custom session work');assert.equal(migrated[0].status,'blocked');assert.equal(migrated.at(-1)?.status,'in-progress');assert(mergeMissionPlan(saved,current,35).every(m=>!m.done));
+});
+
+test('revision 36 promotes observed player readiness once and preserves prior, custom and later manual choices',()=>{
+ const current:Mission[]=['next-027','next-047','next-044','next-045'].map(id=>({id,title:id,detail:'Verified current defaults',done:id!=='next-045',status:id!=='next-045'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-readiness',title:'Custom',detail:'Keep exact custom readiness work',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,35);assert.deepEqual(migrated.map(m=>m.done),[false,false,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep exact custom readiness work');assert.equal(migrated[0].status,'blocked');assert.equal(migrated.at(-1)?.status,'in-progress');assert(mergeMissionPlan(saved,current,36).every(m=>!m.done));
+});
+
+test('revision 37 promotes embed failure triage once without resetting manual reopens or custom work',()=>{
+ const current:Mission[]=['next-047','next-044','next-028','next-029'].map(id=>({id,title:id,detail:'Verified current defaults',done:id!=='next-029',status:id!=='next-029'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-triage',title:'Custom',detail:'Keep exact custom triage work',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,36);assert.deepEqual(migrated.map(m=>m.done),[false,false,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep exact custom triage work');assert.equal(migrated[0].status,'blocked');assert.equal(migrated.at(-1)?.status,'in-progress');assert(mergeMissionPlan(saved,current,37).every(m=>!m.done));
+});
+
+test('revision 38 promotes recommendation evaluation once and preserves manual reopens and custom work',()=>{
+ const current:Mission[]=['next-044','next-028','next-051','next-052'].map(id=>({id,title:id,detail:'Verified current defaults',done:id!=='next-052',status:id!=='next-052'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-evaluation',title:'Custom',detail:'Keep exact custom evaluation work',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,37);assert.deepEqual(migrated.map(m=>m.done),[false,false,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep exact custom evaluation work');assert.equal(migrated[0].status,'blocked');assert.equal(migrated.at(-1)?.status,'in-progress');assert(mergeMissionPlan(saved,current,38).every(m=>!m.done));
+});
+
+test('revision 39 promotes scoped rejection choices once while preserving manual reopens and custom work',()=>{
+ const current:Mission[]=['next-028','next-051','next-052','next-053'].map(id=>({id,title:id,detail:'Verified current defaults',done:id!=='next-053',status:id!=='next-053'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-choices',title:'Custom',detail:'Keep exact custom rejection work',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,38);assert.deepEqual(migrated.map(m=>m.done),[false,false,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep exact custom rejection work');assert.equal(migrated[0].status,'blocked');assert.equal(migrated.at(-1)?.status,'in-progress');assert(mergeMissionPlan(saved,current,39).every(m=>!m.done));
+});
+
+test('revision 40 promotes recommendation exposure once and preserves unrelated reopens and custom choices',()=>{
+ const current:Mission[]=['next-051','next-052','next-053','next-054'].map(id=>({id,title:id,detail:'Verified current defaults',done:id!=='next-054',status:id!=='next-054'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-exposure',title:'Custom',detail:'Keep exact custom exposure work',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,39);assert.deepEqual(migrated.map(m=>m.done),[false,false,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep exact custom exposure work');assert.equal(migrated[0].status,'blocked');assert.equal(migrated.at(-1)?.status,'in-progress');assert(mergeMissionPlan(saved,current,40).every(m=>!m.done));
+});
+
+test('revision 41 promotes reviewed topic aliases once without resetting unrelated reopens or custom work',()=>{
+ const current:Mission[]=['next-052','next-053','next-054','next-055'].map(id=>({id,title:id,detail:'Verified current defaults',done:id!=='next-055',status:id!=='next-055'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-alias',title:'Custom',detail:'Keep exact custom alias work',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,40);assert.deepEqual(migrated.map(m=>m.done),[false,false,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep exact custom alias work');assert.equal(migrated[0].status,'blocked');assert.equal(migrated.at(-1)?.status,'in-progress');assert(mergeMissionPlan(saved,current,41).every(m=>!m.done));
+});

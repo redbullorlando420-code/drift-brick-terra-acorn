@@ -8,7 +8,7 @@ globalThis.document = Object.assign(new EventTarget(), { visibilityState: 'visib
 const writes = [];
 globalThis.__rankingFeedbackWrites = writes;
 registerHooks({ resolve(specifier, context, next) {
-  if (specifier === './videos/persist' && context.parentURL?.endsWith('/media-feedback.ts')) return { url: 'data:text/javascript,' + encodeURIComponent('export async function restoreDurableFeedback(){return null;} export function saveDurableFeedback(value){globalThis.__rankingFeedbackWrites.push(structuredClone(value));}'), shortCircuit: true };
+  if (specifier === './videos/persist' && context.parentURL?.endsWith('/media-feedback.ts')) return { url: 'data:text/javascript,' + encodeURIComponent('export async function restoreDurableFeedback(){return null;} export function saveDurableFeedback(value){globalThis.__rankingFeedbackWrites.push(structuredClone(value)); return globalThis.__rankingFeedbackSaveResult;}'), shortCircuit: true };
   try { return next(specifier, context); } catch (error) {
     if (specifier.startsWith('.') && !/\.[a-z]+$/i.test(specifier)) return next(`${specifier}.ts`, context);
     throw error;
@@ -50,4 +50,38 @@ test('feedback updates during a yielded snapshot never publish stale mixed evide
   const result = await pending;
   assert.equal(result.creatorFavorites['during copy'], true);
   assert.equal(result.ratings['rated-1499'], 3);
+});
+
+test('scoped rejections round-trip through exported feedback; old packs preserve choices and an empty backup restores Undo', async () => {
+  const original=structuredClone(feedback.exportFeedback());
+  const entry={scope:'title',target:'youtube:private-test-id',label:'Private fixture',at:Date.now()};
+  feedback.setRecommendationRejection(entry);
+  const backup=structuredClone(feedback.exportFeedback());assert.equal(backup.version,5);assert.equal(backup.recommendationRejections.entries.length,1);
+  feedback.importFeedback({ratings:{unrelated:4}});assert.equal(feedback.getRecommendationRejections().entries.length,1);
+  feedback.setRecommendationRejection(entry,true);assert.equal(feedback.getRecommendationRejections().entries.length,0);
+  feedback.importFeedback(backup);assert.deepEqual(feedback.getRecommendationRejections().entries,backup.recommendationRejections.entries);
+  assert.deepEqual((await feedback.rankingFeedbackSnapshot()).recommendationRejections.entries,backup.recommendationRejections.entries);
+  feedback.importFeedback({...original,recommendationRejections:{version:1,updatedAt:0,entries:[]}});
+  assert.deepEqual(feedback.getRecommendationRejections().entries,[]);assert.deepEqual(writes.at(-1).recommendationRejections.entries,[]);
+});
+test('feedback save failure remains visible and retry saves current choices without changing rank inputs', async () => {
+  globalThis.__rankingFeedbackSaveResult=false;
+  feedback.setRecommendationRejection({scope:'topic',target:'technology',label:'Technology',at:Date.now()});
+  window.dispatchEvent(new Event('pagehide'));await new Promise(resolve=>setTimeout(resolve,0));
+  assert.equal(feedback.getFeedbackSaveState(),'failed');const before=structuredClone(feedback.getRecommendationRejections());
+  globalThis.__rankingFeedbackSaveResult=true;feedback.retryFeedbackSave();await new Promise(resolve=>setTimeout(resolve,0));
+  assert.equal(feedback.getFeedbackSaveState(),'saved');assert.deepEqual(feedback.getRecommendationRejections(),before);
+});
+test('topic hearts normalize aliases for protection without changing legacy raw tag heart semantics',()=>{
+  feedback.toggleTagLike('tech');assert.equal(feedback.recommendationTopicIsLiked('technology'),true);
+  assert.equal(feedback.tagIsLiked('tech'),true);feedback.toggleTagLike('tech');
+  // Technology was hearted in an earlier independent snapshot check.
+  assert.equal(feedback.recommendationTopicIsLiked('technology'),feedback.tagIsLiked('technology'));
+});
+
+test('unsupported or malformed rejection imports cannot clear the current choices',()=>{
+ const before=structuredClone(feedback.getRecommendationRejections());
+ for(const invalid of [{version:2,updatedAt:Date.now(),entries:[]},{version:1,updatedAt:NaN,entries:[]},{version:1,updatedAt:1,entries:'invalid'}]) {
+  feedback.importFeedback({recommendationRejections:invalid});assert.deepEqual(feedback.getRecommendationRejections(),before);
+ }
 });

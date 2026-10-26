@@ -1,0 +1,27 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "timezone": "America/Los_Angeles",
+      "checks": [
+        "Relative listing evidence stays approximate with no invented timestamp or automatic request; selected evidence exports correctly",
+        "Provider failure preserves previous evidence and explicit retry repairs only the matching video to day precision",
+        "A day-only watch response cannot overwrite a saved exact RSS timestamp; UTC display and export agree in different device time zones",
+        "Unknown remains visibly unknown; day precision and source survive real IndexedDB reload with stable UTC display, no console errors or overflow"
+      ],
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "timezone": "Asia/Tokyo",
+      "checks": [
+        "Relative listing evidence stays approximate with no invented timestamp or automatic request; selected evidence exports correctly",
+        "Provider failure preserves previous evidence and explicit retry repairs only the matching video to day precision",
+        "A day-only watch response cannot overwrite a saved exact RSS timestamp; UTC display and export agree in different device time zones",
+        "Unknown remains visibly unknown; day precision and source survive real IndexedDB reload with stable UTC display, no console errors or overflow"
+      ],
+      "errors": []
+    }
+  ]
+}

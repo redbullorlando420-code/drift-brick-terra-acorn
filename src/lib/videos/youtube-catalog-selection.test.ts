@@ -17,7 +17,7 @@ test('cooperative YouTube selection preserves full visibility boundaries and sta
   let turns = 0;
   const selected = await youtubeCatalogSelection(input, undefined, async () => { turns++; });
   const expected = videos.filter(v => v.remote?.kind === 'youtube' && !input.unavailable[v.id] && !input.hiddenVideos[v.id]
-    && !input.privateFolders.has(v.folderId) && !v.isSample).sort((a, b) => b.addedAt - a.addedAt);
+    && !input.privateFolders.has(v.folderId) && !v.isSample).sort((a, b) => b.addedAt - a.addedAt || (a.id<b.id?-1:a.id>b.id?1:0));
   assert.deepEqual(selected, expected); assert.ok(turns >= 3, 'filtering and ordering both cross task boundaries'); assert.equal(selected.length, 4998);
   assert.equal(videos[0].id, '0', 'input catalog order stays unchanged');
 });
