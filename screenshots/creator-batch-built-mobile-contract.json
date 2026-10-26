@@ -1,0 +1,51 @@
+{
+  "label": "OFFLINE EXAMPLE — trust flags are fixtures, not authentication",
+  "now": 10000,
+  "trust": {
+    "authenticated": true,
+    "paired": true,
+    "session": "offline_demo",
+    "origin": "http://127.0.0.1:8080",
+    "approvedOrigin": "http://127.0.0.1:8080",
+    "expiresAt": 70000
+  },
+  "observation": {
+    "version": 1,
+    "session": "offline_demo",
+    "type": "observation",
+    "seq": 1,
+    "at": 10000,
+    "ready": true,
+    "clear": true,
+    "grip": "good",
+    "danger": false
+  },
+  "intent": {
+    "version": 1,
+    "session": "offline_demo",
+    "type": "intent",
+    "id": "strategy_1",
+    "seq": 1,
+    "sentAt": 10000,
+    "expiresAt": 15000,
+    "observationSeq": 1,
+    "steps": [
+      {
+        "strategy": "overtake-clear",
+        "timeoutMs": 1000,
+        "requires": [
+          "ready",
+          "clear",
+          "grip"
+        ]
+      },
+      {
+        "strategy": "hold-line",
+        "timeoutMs": 1000,
+        "requires": [
+          "ready"
+        ]
+      }
+    ]
+  }
+}

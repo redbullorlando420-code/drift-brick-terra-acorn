@@ -1,0 +1,54 @@
+✔ parsed evidence remains a proposal; explicit remakes and sequels have separate opaque identities (3.6204ms)
+✔ explicit identity and aliases survive filename variation without mutating source marks or tags (9.7034ms)
+✔ reviewed catalogs separate remakes, absolute lanes, regular episodes and specials (0.7866ms)
+✔ public review eligibility excludes private/hidden/unavailable/live/sample/orphan/unsupported records (1.2888ms)
+✔ episodes 1,2,4 show only the observed gap at 3 and keep duplicate versions in one slot (0.5863ms)
+✔ specials, unnumbered sources and wide absolute numbering do not invent gaps (0.5423ms)
+✖ entered ranges are bounded, reversible and never mix season with absolute numbers (2.1055ms)
+✔ completed episode 2 recommends 3 when present; missing 3 explains the explicit skip to 4 (0.7175ms)
+✔ incomplete progress resumes its exact version and completion of one cut never advances to an alternate cut (0.4117ms)
+✔ threshold and next numbering lane are saved choices; specials are opt-in tails and unresolved stays manual (1.3393ms)
+✔ preferred versions require current availability, remain per-slot and can be undone durably (1.5212ms)
+✔ unavailable in-progress source asks for reconnection and never silently switches resume to another version (1.4295ms)
+✔ alias edits and mapping removal are reversible and never merge series or erase progress (0.6217ms)
+✔ strict imports strip unknown private fields and reject bad keys, graphs, limits and unsupported versions (3.8377ms)
+✔ large library review preparation remains cooperative, bounded and cancelable before source reads (228.8285ms)
+ℹ 100,003 source rows prepared across 200 boundaries with 3 reviewed bindings
+ℹ tests 15
+ℹ suites 0
+ℹ pass 14
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 464.3798
+
+✖ failing tests:
+
+test at scripts\anime-review-batch.test.mjs:44:1
+✖ entered ranges are bounded, reversible and never mix season with absolute numbers (2.1055ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [Object: null prototype] {
+  - {
+      'anime:original': {
+        aliases: [
+          'Lunar Runner'
+        ],
+        at: 100,
+  
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/anime-review-batch.test.mjs:45:202)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { 'anime:original': { id: 'anime:original', title: 'Moon Runner', release: '1998 original', aliases: [Array], ranges: [], policy: [Object], at: 100 } },
+    expected: { 'anime:original': { id: 'anime:original', title: 'Moon Runner', release: '1998 original', aliases: [Array], ranges: [], policy: [Object], at: 100 } },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

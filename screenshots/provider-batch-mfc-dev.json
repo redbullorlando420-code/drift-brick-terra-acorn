@@ -1,0 +1,29 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "fresh viewing defaults to a direct room with no hidden embedded login attempt",
+        "room-link copy works and denied clipboard access leaves a selectable direct link",
+        "full screen retains the sign-in recovery toolbar instead of isolating the iframe",
+        "sign-in opens a top-level official-room tab, remembers Direct website and unloads the embedded page",
+        "reopening after app reload creates no iframe; a normal top-level browser fixture retains its own first-party session"
+      ],
+      "errors": [],
+      "ok": true
+    },
+    {
+      "mobile": true,
+      "checks": [
+        "fresh viewing defaults to a direct room with no hidden embedded login attempt",
+        "room-link copy works and denied clipboard access leaves a selectable direct link",
+        "sign-in opens a top-level official-room tab, remembers Direct website and unloads the embedded page",
+        "reopening after app reload creates no iframe; a normal top-level browser fixture retains its own first-party session"
+      ],
+      "errors": [],
+      "ok": true
+    }
+  ],
+  "limitation": "Isolated desktop/touch-phone Chrome with controlled MFC HTML and a non-account test cookie. Verifies first-party handoff, not real MFC account authentication or cookie acceptance in another browser."
+}

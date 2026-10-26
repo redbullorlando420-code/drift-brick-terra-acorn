@@ -13,6 +13,9 @@ export function studioSettings(value: unknown, legacyPrompt = ''): StudioSetting
   };
 }
 export function studioSettingsError(settings: StudioSettings): string | undefined {
+  if (!settings || typeof settings.prompt !== 'string' || settings.prompt.length > 4000 || typeof settings.negative !== 'string' || settings.negative.length > 4000) return 'Use prompts of up to 4,000 characters.';
+  if (![256,512,768].includes(settings.size) || settings.engine !== undefined && !['a1111','comfy'].includes(settings.engine)) return 'Choose a supported engine and image size.';
+  if (settings.model !== undefined && (typeof settings.model !== 'string' || settings.model.length > 240 || /[\\/:\x00-\x1f]/.test(settings.model))) return 'Choose an engine model name without paths or credentials.';
   if (!settings.prompt.trim()) return 'Enter a prompt to describe your image.';
   if (!Number.isInteger(settings.steps) || settings.steps < 1 || settings.steps > 40) return 'Steps must be a whole number from 1 to 40.';
   if (!Number.isInteger(settings.seed) || settings.seed < -1 || settings.seed > 2147483647) return 'Seed must be −1 for random, or a whole number from 0 to 2147483647.';

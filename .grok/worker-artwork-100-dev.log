@@ -1,0 +1,44 @@
+desktop: seed 60k entries and hold unfinished artwork
+desktop: wait for loading cards
+desktop: pagehide withdraws loading cards
+desktop: pageshow resumes loading cards
+desktop: preview and player must withdraw unfinished card images
+desktop: live artwork preferences across tabs
+mobile: seed 60k entries and hold unfinished artwork
+mobile: wait for loading cards
+mobile: pagehide withdraws loading cards
+mobile: pageshow resumes loading cards
+mobile: preview and player must withdraw unfinished card images
+mobile: live artwork preferences across tabs
+{
+  "ok": true,
+  "fixture": "60k YouTube entries, intentionally held CDN responses, paused pulling, isolated desktop/mobile contexts; synthetic embeds and offline Companion",
+  "results": [
+    {
+      "viewport": "desktop",
+      "viewportCycles": 100,
+      "retainedImages": 8,
+      "ok": true,
+      "previewReadyMs": 478,
+      "starts": 32,
+      "cancelled": 0,
+      "fallbackStarts": 0,
+      "readyImages": 8,
+      "liveArtworkPreferencesVerified": true,
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "viewportCycles": 100,
+      "retainedImages": 4,
+      "ok": true,
+      "previewReadyMs": 414,
+      "starts": 4,
+      "cancelled": 0,
+      "fallbackStarts": 0,
+      "readyImages": 4,
+      "liveArtworkPreferencesVerified": true,
+      "errors": []
+    }
+  ]
+}

@@ -74,6 +74,12 @@ function pump() {
   if (interactionTimer !== undefined) { clearTimeout(interactionTimer); interactionTimer = undefined; }
   if (suspended()) { suspendActiveCards(); return; }
   const max = maxConcurrent();
+  // Revocable DOM images release their unfinished decode/network work as soon
+  // as the budget shrinks. Legacy one-shot owners must finish their own lease.
+  if(activeSlots.size>max){
+    const excess=[...activeSlots].filter(waiter=>Boolean(waiter.notify)).sort((a,b)=>Number(a.priority==='high')-Number(b.priority==='high'));
+    for(const waiter of excess){if(activeSlots.size<=max)break;activeSlots.delete(waiter);(waiter.priority==='high'?waitingHigh:waitingLow).push(waiter);waiter.notify?.(false);}
+  }
   while (activeSlots.size < max && (waitingHigh.length || waitingLow.length)) {
     // A newly visible rail can enqueue every image on the navigation click.
     // Give its controls/player a paint before starting that network burst.

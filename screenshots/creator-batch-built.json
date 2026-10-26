@@ -1,0 +1,26 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "Measured Unicode Story preview warns before export; exact 1080×1920 PNG and full caption preserve both links without marking shared, and preview URLs release on navigation",
+        "Owner-isolated replay round-trips real downloads/storage across reload, detects first checkpoint divergence, preserves the prior save on write failure, rejects malformed import, and emergency stop clears replay votes/queue and cancels a held import; seeded samples remain local",
+        "Offline strategy sequence requires fresh observations and separate acknowledgements; timeout, missing clearance, unauthenticated context, unexpected fields and malformed JSON cannot enqueue or drive; exported contract is explicitly synthetic"
+      ],
+      "errors": [],
+      "ok": true
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "Measured Unicode Story preview warns before export; exact 1080×1920 PNG and full caption preserve both links without marking shared, and preview URLs release on navigation",
+        "Owner-isolated replay round-trips real downloads/storage across reload, detects first checkpoint divergence, preserves the prior save on write failure, rejects malformed import, and emergency stop clears replay votes/queue and cancels a held import; seeded samples remain local",
+        "Offline strategy sequence requires fresh observations and separate acknowledgements; timeout, missing clearance, unauthenticated context, unexpected fields and malformed JSON cannot enqueue or drive; exported contract is explicitly synthetic"
+      ],
+      "errors": [],
+      "ok": true
+    }
+  ],
+  "limitations": "Isolated desktop/touch-phone Chrome; no external publication, real chat, native adapter, authentication or game-control connection. Replay and contract examples are simulated."
+}

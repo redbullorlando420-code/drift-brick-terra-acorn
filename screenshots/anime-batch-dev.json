@@ -1,0 +1,28 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "Owner confirmation distinguishes remakes, records aliases and separate absolute/season mappings, excludes hidden/private candidates and leaves tags, locks, ratings and per-version resume untouched",
+        "Observed episodes 1,2,4 show only gap 3; duplicate versions retain independent progress, preferred selection opens the correct source, and wide absolute/special/unresolved entries do not create false numbered gaps",
+        "Completion threshold changes exact-version resume, next recommends episode 3 when present and explains a skip when absent; specials are explicit opt-in and no automatic playback occurs",
+        "Aliases, explicit ranges, identity, policy and version choice survive reload and ZIP import; unsupported/legacy packs preserve choices, disk-only reviews export directly and dual-mirror failure has working retry",
+        "Desktop/mobile review, episode map and next-choice flows fit without horizontal overflow or uncaught errors; mobile also verifies the existing HTTP-compatible local ID fallback"
+      ],
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "Owner confirmation distinguishes remakes, records aliases and separate absolute/season mappings, excludes hidden/private candidates and leaves tags, locks, ratings and per-version resume untouched",
+        "Observed episodes 1,2,4 show only gap 3; duplicate versions retain independent progress, preferred selection opens the correct source, and wide absolute/special/unresolved entries do not create false numbered gaps",
+        "Completion threshold changes exact-version resume, next recommends episode 3 when present and explains a skip when absent; specials are explicit opt-in and no automatic playback occurs",
+        "Aliases, explicit ranges, identity, policy and version choice survive reload and ZIP import; unsupported/legacy packs preserve choices, disk-only reviews export directly and dual-mirror failure has working retry",
+        "Desktop/mobile review, episode map and next-choice flows fit without horizontal overflow or uncaught errors; mobile also verifies the existing HTTP-compatible local ID fallback"
+      ],
+      "errors": []
+    }
+  ],
+  "limitation": "Synthetic public/private anime catalog, real browser persistence and controlled artwork/player. No external anime database, real provider availability or physical-device soak verified."
+}

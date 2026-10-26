@@ -1,0 +1,3 @@
+import {writeFile} from 'node:fs/promises';
+const result={};for(const [name,path] of [['a1111','/studio/status'],['comfy','/studio/qwen/status']]){try{const response=await fetch('http://127.0.0.1:43123'+path,{headers:{Origin:'http://127.0.0.1:8080'},signal:AbortSignal.timeout(8000)});const raw=await response.json();result[name]={ok:raw.ok===true,connected:raw.connected===true,ready:raw.ready===true,busy:raw.busy===true,modelPreflight:raw.modelPreflight===true,models:Array.isArray(raw.models)?raw.models.length:0};}catch(e){result[name]={ok:false,error:'Unavailable or timed out'};}}
+await writeFile(new URL('../screenshots/studio-batch-native-status.json',import.meta.url),JSON.stringify(result,null,2));

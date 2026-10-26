@@ -1,14 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { youtubeWatchMetadata } from '../src/lib/remote/youtube-video-metadata.ts';
-import { youtubeTextTags, youtubeDescriptionTopics, YOUTUBE_TEXT_TAG_VERSION } from '../src/lib/videos/youtube-text-tags.ts';
+import { youtubeTextTags, compactYoutubeTagEvidence, youtubeDescriptionTopics, YOUTUBE_TEXT_TAG_VERSION } from '../src/lib/videos/youtube-text-tags.ts';
 import { catalogCard, withCatalogDetails } from '../src/lib/videos/catalog-card.ts';
 import { mergeRemoteCatalog } from '../src/lib/videos/remote-merge.ts';
 import { topicEvidence, hasTopicForScan } from '../src/lib/videos/topics.ts';
 
 const id = 'jNQXAC9IVRw';
 const html = data => `var ytInitialPlayerResponse = ${JSON.stringify(data)}; var recommendation = {"keywords":["wrong"]};`;
-const row = (description, keywords = []) => ({ id: `yt:${id}`, folderId: 'yt:creator', name: 'Building a neural network', path: id, extension: 'yt', mime: 'video/youtube', size: 0, addedAt: 0, description,
+const row = (description, keywords = []) => ({ id: `yt:${id}`, folderId: 'yt:creator', name: 'Building machine learning models', path: id, extension: 'yt', mime: 'video/youtube', size: 0, addedAt: 0, description,
   remote: { kind: 'youtube', videoId: id, channelName: 'Travel Music Channel', youtubeKeywords: keywords } });
 
 test('matching YouTube player supplies bounded raw keywords, description and exact date', () => {
@@ -37,15 +37,15 @@ test('compact evidence and creator keywords survive cache recovery, shallow feed
   const full = row('Learn machine learning with Python. #NeuralNetworks', ['Python', 'Neural Networks']);
   const evidence = youtubeTextTags(full);
   full.remote.youtubeTagsCheckedAt = 100;
-  full.remote.youtubeTagSummary = { version: YOUTUBE_TEXT_TAG_VERSION, sources: evidence.sources, topics: evidence.descriptionTopics };
+  full.remote.youtubeTagSummary = compactYoutubeTagEvidence(evidence);
   const card = catalogCard(full); assert.equal(card.description, undefined);
   assert.deepEqual(youtubeTextTags(card), evidence);
-  assert.ok(hasTopicForScan(card, 'technology')); assert.match(topicEvidence(card).find(link => link.topic === 'technology').reason, /Description/);
+  assert.ok(hasTopicForScan(card, 'technology')); assert.match(topicEvidence(card).find(link => link.topic === 'technology').reason, /Title.category/);
   const feed = { ...row(undefined), remote: { kind: 'youtube', videoId: id }, name: 'A new listing title' };
   const merged = mergeRemoteCatalog([card], [feed], new Map([[card.id, 0]]), [])[0];
   assert.equal(merged.remote.youtubeTagsCheckedAt, 100);
   assert.deepEqual(merged.remote.youtubeKeywords, ['Python', 'Neural Networks']);
-  assert.deepEqual(youtubeTextTags(merged).tags, evidence.tags);
+  assert(youtubeTextTags(merged).scores.every(score=>score<80),'renamed listing cannot retain a previous title anchor');
   const restored = withCatalogDetails(feed, full);
   assert.equal(restored.description, full.description); assert.equal(restored.remote.youtubeTagSummary, full.remote.youtubeTagSummary);
 });

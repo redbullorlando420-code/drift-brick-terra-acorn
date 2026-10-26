@@ -98,14 +98,17 @@ try {
       await page.screenshot({ path: output.replace('.json', `-player-${viewport.name}.png`) });
       await page.getByRole('button', { name: 'Close', exact: true }).click();
       await waitLoading();
-      // Repeated interruptions must not consume URLs or strand subscriptions.
-      for (let cycle = 0; cycle < 3; cycle++) {
+      // One hundred viewport/viewer interruptions must not consume URLs or strand subscriptions.
+      for (let cycle = 0; cycle < 100; cycle++) {
         await card.click();
         await page.getByRole('button', { name: 'Close preview', exact: true }).waitFor();
         await waitWithdrawn();
         await page.getByRole('button', { name: 'Close preview', exact: true }).click();
         await waitLoading();
       }
+      // A live cross-tab preference update must withdraw excess unfinished images.
+      await page.evaluate(()=>{localStorage.setItem('reelcase.performance-mode','low-memory');window.dispatchEvent(new StorageEvent('storage',{key:'reelcase.performance-mode'}));});
+      await page.waitForFunction(()=>[...document.querySelectorAll('[data-video-card] img')].filter(image=>!image.complete).length<=4);
       holding = false;
       for (const resolve of pending.values()) resolve();
       pending.clear();
@@ -143,7 +146,8 @@ try {
       assert.ok(previewReadyMs <= 2000); assert.equal(fallbackStarts, 0, 'pause must not blacklist or exhaust a healthy candidate');
       assert.deepEqual(errors, []);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
-      results.push({ viewport: viewport.name, ok: true, previewReadyMs, starts, cancelled, fallbackStarts, readyImages, liveArtworkPreferencesVerified: true, errors });
+      const retainedImages=await page.locator('[data-video-card] img').count();assert(retainedImages<=300,'Mounted artwork remains bounded after 100 cycles');
+      results.push({ viewport: viewport.name, viewportCycles:100, retainedImages, ok: true, previewReadyMs, starts, cancelled, fallbackStarts, readyImages, liveArtworkPreferencesVerified: true, errors });
     } catch (error) {
       results.push({ viewport: viewport.name, ok: false, error: error.message, starts, cancelled, fallbackStarts,
         images: await page.locator('[data-video-card] img').evaluateAll(images => images.map(image => ({ src: image.src, complete: image.complete, width: image.naturalWidth }))), errors });

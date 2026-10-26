@@ -1,0 +1,29 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "Capture and preview use the actual 35-row public candidate set, explain a real YouTube-to-Twitch weight change and write no tastes, history, exposure, preset or provider request",
+        "Real anonymous JSON export/import reproduces the same comparison, imported snapshots cannot apply a preset and unsupported data leaves the prior snapshot intact",
+        "Explicit acceptance saves the prior preset and a new real Guide mix uses the proposed weights without changing feedback inputs",
+        "Acceptance survives reload while the replay itself clears; rollback retains its opposite preset and recovers from both storage mirrors failing through explicit retry",
+        "Actual ZIP backup restores current/previous weights; unsupported and legacy packs preserve choices; IndexedDB alone recovers the preset without a local mirror",
+        "Desktop/mobile controls, comparison and recovery fit without overflow or uncaught console errors"
+      ],
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "Capture and preview use the actual 35-row public candidate set, explain a real YouTube-to-Twitch weight change and write no tastes, history, exposure, preset or provider request",
+        "Real anonymous JSON export/import reproduces the same comparison, imported snapshots cannot apply a preset and unsupported data leaves the prior snapshot intact",
+        "Explicit acceptance saves the prior preset and a new real Guide mix uses the proposed weights without changing feedback inputs",
+        "Acceptance survives reload while the replay itself clears; rollback retains its opposite preset and recovers from both storage mirrors failing through explicit retry",
+        "Actual ZIP backup restores current/previous weights; unsupported and legacy packs preserve choices; IndexedDB alone recovers the preset without a local mirror",
+        "Desktop/mobile controls, comparison and recovery fit without overflow or uncaught console errors"
+      ],
+      "errors": []
+    }
+  ]
+}

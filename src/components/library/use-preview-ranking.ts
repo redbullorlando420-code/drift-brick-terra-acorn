@@ -2,7 +2,7 @@ import { getRecommendationExposure,getExposureRevision } from '@/lib/recommendat
 import { createExposurePenalty } from '@/lib/videos/recommendation-exposure';
 import { canonicalTopic } from '@/lib/videos/topics';
 import { createRejectionPenalty } from '@/lib/videos/recommendation-rejections';
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 import { rankingFeedbackSnapshot } from "@/lib/media-feedback";
 import { scheduleBackgroundWork } from "@/lib/interaction-budget";
 import { isAdultPullKind } from "@/lib/videos/adult-sites";
@@ -28,12 +28,15 @@ type Inputs = {
 type Session = {
   worker: Worker; generation: number; requestId: number; inputs?: Inputs;
   cancelBuild?: () => void; listener?: (packet: PreviewWorkerResult) => void; disposeTimer?: number;
-  candidates?: Map<string, LibraryVideo>;
+  candidates?: Map<string, LibraryVideo>; deadline?:ReturnType<typeof setTimeout>; failed?:(reason:string)=>void; disposed?:boolean;
 };
 let shared: Session | undefined;
 let feedbackRevision = 0;
 let latestRequest: { session: Session; message: Extract<PreviewWorkerRequest, { type: "rank" }> } | undefined;
-function dispose(session: Session) {
+function dispose(session: Session, reason?:string) {
+  if(session.disposed)return;session.disposed=true;
+  clearTimeout(session.deadline);session.worker.onerror=session.worker.onmessageerror=null;session.worker.onmessage=null;
+  const notify=session.failed;session.failed=undefined;
   session.cancelBuild?.();
   window.clearTimeout(session.disposeTimer);
   session.worker.terminate();
@@ -43,9 +46,10 @@ function dispose(session: Session) {
   session.candidates = undefined;
   if (latestRequest?.session === session) latestRequest = undefined;
   if (shared === session) shared = undefined;
+  if(reason)notify?.(reason);
 }
 const onRatingChange = () => { feedbackRevision++; };
-const onPageHide = () => { if (shared) dispose(shared); };
+const onPageHide = () => { if (shared) dispose(shared,"Preview suggestions paused when the page closed. Retry to resume."); };
 const onVisibilityChange = () => {
   if (document.visibilityState === "hidden" && shared && !shared.listener) dispose(shared);
 };
@@ -66,7 +70,9 @@ function sessionForPreview() {
   if (shared) { window.clearTimeout(shared.disposeTimer); return shared; }
   const session: Session = { worker: new Worker(new URL("../../lib/videos/preview-ranking.worker.ts", import.meta.url), { type: "module" }), generation: 0, requestId: 0 };
   session.worker.onmessage = ({ data }: MessageEvent<PreviewWorkerResult>) => {
-    if (data.generation === session.generation && data.requestId === session.requestId) {
+    if (!session.disposed&&data?.generation === session.generation && data.requestId === session.requestId) {
+      if(!data.result||!Array.isArray(data.result.related)||!Array.isArray(data.result.recommended)||data.result.related.length>96||data.result.recommended.length>96||!data.result.tagScores||typeof data.result.tagScores!=="object"){dispose(session,"Preview suggestions returned an unreadable result.");return;}
+      clearTimeout(session.deadline);session.deadline=undefined;
       for (const id of [...data.result.related, ...data.result.recommended]) {
         const card = session.candidates?.get(id);
         if (card && session.inputs) rememberVideo(session.inputs.videos, card);
@@ -74,7 +80,8 @@ function sessionForPreview() {
       session.listener?.(data);
     }
   };
-  session.worker.onerror = () => dispose(session);
+  session.worker.onerror = event=>{event.preventDefault();dispose(session,"Preview suggestions worker stopped. Your saved feedback is unchanged.");};
+  session.worker.onmessageerror=()=>dispose(session,"Preview suggestions returned an unreadable message.");
   shared = session;
   return session;
 }
@@ -84,7 +91,11 @@ function sameInputs(left: Inputs | undefined, right: Inputs) {
     && left.hidden === right.hidden && left.feedbackRevision === right.feedbackRevision && left.exposureRevision === right.exposureRevision
     && left.adultFolders.size === right.adultFolders.size && [...right.adultFolders].every(id => left.adultFolders.has(id));
 }
-function send(session: Session, message: PreviewWorkerRequest) { session.worker.postMessage(message); }
+function send(session: Session, message: PreviewWorkerRequest) {
+  if(session.disposed)return;
+  if(message.type==="rank"||session.deadline===undefined){clearTimeout(session.deadline);session.deadline=setTimeout(()=>dispose(session,"Preview suggestions timed out. Retry when ready."),30_000);}
+  try{session.worker.postMessage(message);}catch{dispose(session,"Preview suggestions could not receive their next packet.");}
+}
 
 /** Keep one short-lived worker catalog across preview switches. Building never
  * holds a second full row array or sends a catalog-sized structured clone. */
@@ -144,16 +155,22 @@ function prepare(session: Session, inputs: Inputs) {
     // worker generation. Queue only the newest one on this complete catalog.
     if (latestRequest?.session === session) send(session, latestRequest.message);
     next();
-  })().catch(() => { if (!cancelled) dispose(session); }));
+  })().catch(() => { if (!cancelled) dispose(session,"Preview suggestions could not be prepared."); }));
 }
 
 export function usePreviewRanking(video: LibraryVideo | undefined, videos: LibraryVideo[], tags: Record<string, string[]>, adultFolders: Set<string>, unavailable: Record<string, unknown>, hidden: Record<string, unknown>, seed: number, revision: string) {
   const favorites = useLibrary(s => s.favorites), likes = useLibrary(s => s.likes), cameCounts = useLibrary(s => s.cameCounts), viewCounts = useLibrary(s => s.viewCounts);
+  const failure=useRef<{id:string;attempt:number;seed:number}|undefined>(undefined);
+  const [attempt,setAttempt]=useState(0),[pending,setPending]=useState(false),[error,setError]=useState('');
   const [packet, setPacket] = useState<{ id: string; result: PreviewRanking }>();
   useEffect(() => {
     if (!video) return;
-    const session = sessionForPreview();
-    const receive = (data: PreviewWorkerResult) => startTransition(() => setPacket({ id: data.id, result: data.result }));
+    if(failure.current?.id===video.id&&failure.current.attempt===attempt&&failure.current.seed===seed)return;
+    failure.current=undefined;
+    let session:Session;setPending(true);setError('');
+    try{session=sessionForPreview();}catch{failure.current={id:video.id,attempt,seed};setPending(false);setError("Preview suggestions worker could not start.");return;}
+    session.failed=reason=>{failure.current={id:video.id,attempt,seed};setPending(false);setError(reason);};
+    const receive = (data: PreviewWorkerResult) => {setPending(false);setError('');startTransition(() => setPacket({ id: data.id, result: data.result }));};
     session.listener = receive;
     prepare(session, { target: video, videos, tags, adultFolders, unavailable, hidden, feedbackRevision, exposureRevision: getExposureRevision(), favorites, likes, cameCounts, viewCounts });
     const message = { type: "rank" as const, generation: session.generation, requestId: ++session.requestId, id: video.id, seed };
@@ -161,11 +178,11 @@ export function usePreviewRanking(video: LibraryVideo | undefined, videos: Libra
     send(session, message);
     return () => {
       if (session.listener !== receive) return;
-      session.listener = undefined;
+      session.listener = undefined;session.failed=undefined;clearTimeout(session.deadline);session.deadline=undefined;
       // Browsing back and reopening reuses the catalog; a quiet/hidden page
       // releases it completely rather than retaining workers indefinitely.
       session.disposeTimer = window.setTimeout(() => dispose(session), 1000);
     };
-  }, [video?.id, videos, tags, adultFolders, unavailable, hidden, seed, revision, favorites, likes, cameCounts, viewCounts]);
-  return packet && packet.id === video?.id ? packet.result : EMPTY;
+  }, [video?.id, videos, tags, adultFolders, unavailable, hidden, seed, revision, favorites, likes, cameCounts, viewCounts,attempt]);
+  return { ...(packet && packet.id === video?.id ? packet.result : EMPTY),pending,error,retry:()=>setAttempt(value=>value+1) };
 }

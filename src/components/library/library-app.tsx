@@ -46,8 +46,10 @@ import { SidebarNav } from "./sidebar";
 import { DesktopSidebar, desktopSidebar } from "./desktop-sidebar";
 import { LightHome } from "./light-home";
 import { FavoriteCollections } from "./favorite-collections";
+import { SearchWorkerRecovery } from "./search-worker-recovery";
 import { TopBar } from "./top-bar";
 import { useDesktopLayout } from "@/lib/use-desktop-layout";
+import { shortcutBlocked, shortcutEnabled } from "@/lib/keyboard-commands";
 import { sidebarShortcut } from "@/lib/sidebar-state";
 import { InviteStrip } from "./invite";
 import { VideoGrid } from "./video-grid";
@@ -353,7 +355,7 @@ export function LibraryApp() {
     const shortcut = (event: KeyboardEvent) => {
       const editing = event.target instanceof Element && Boolean(event.target.closest("input,textarea,select,[contenteditable]:not([contenteditable='false'])"));
       if (useLibrary.getState().activeId || useLibrary.getState().previewId) return;
-      if (!event.repeat && sidebarShortcut(event, editing)) {
+      if (!shortcutBlocked(event) && shortcutEnabled("sidebar") && sidebarShortcut(event, editing)) {
         event.preventDefault();
         if (desktopLayout) desktopSidebar.toggle(); else setMenuOpen(current => !current);
       }
@@ -946,6 +948,7 @@ export function LibraryApp() {
     window.addEventListener("reelcase:refresh-settings", update);
     return () => window.removeEventListener("reelcase:refresh-settings", update);
   }, []);
+  const [searchAttempt,setSearchAttempt]=useState(0);
   useEffect(() => {
     const needle = query.trim().toLowerCase();
     if (!hydrated || !searchDeskActive) { searchWorkerIndex.retire(); return; }
@@ -962,7 +965,7 @@ export function LibraryApp() {
       useLibrary.setState({ searchResult: { query: needle, ids: matches, positions: result?.videos === catalogVideos ? result.positions : undefined, videos: catalogVideos, tags, categories } });
     }).catch(() => { /* Cancellation discards a superseded fallback scan. */ });
     return () => { controller.abort(); };
-  }, [catalogVideos, categories, hydrated, query, searchDeskActive, tags, aliasRevision, sourceId]);
+  }, [catalogVideos, categories, hydrated, query, searchDeskActive, tags, aliasRevision, sourceId,searchAttempt]);
   useEffect(() => {
     // Theater invitations are regular shareable links. Route them to the room
     // after saved preferences hydrate so a remembered last page cannot win.
@@ -1205,6 +1208,7 @@ export function LibraryApp() {
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar menuOpen={menuOpen} onMenu={openMobileMenu} onAddFolder={addHeaderFolder} />
         <main data-library-focus tabIndex={-1} aria-busy={navigationPending} className="w-full max-w-none flex-1 px-4 py-6 outline-none sm:px-6 xl:px-8 2xl:px-10">
+          {searchDeskActive&&Boolean(query.trim())&&<SearchWorkerRecovery onRetry={()=>{searchWorkerIndex.retry(catalogVideos,tags,categories);setSearchAttempt(value=>value+1);}}/>}
           {navigationPending ? <section role="status" aria-live="polite" className="rounded-xl bg-elevated p-6 shadow-border sm:p-8">
             <h1 className="font-display text-3xl text-fg">{navigationSourceLabel(requestedSource, folders)}</h1>
             <p className="mt-3 text-sm text-muted">Preparing your library…</p>
@@ -1288,7 +1292,7 @@ export function LibraryApp() {
                   <TitleRail title="Mixed from your creators" reason="A rotating mix across your saved creators, including older uploads." videos={youtubeMix} variant="rail" priority /><Button className="mb-5" variant="secondary" onClick={() => setHomePickShuffle(Date.now())}>Mix it up</Button><TitleRail title={youtubeFormats.format === 'short' ? 'Latest saved Shorts' : youtubeFormats.format === 'replay' ? 'Latest completed streams' : youtubeFormats.format === 'upload' ? 'Latest uploads' : 'Latest saved videos'} videos={youtubeLatest} variant="rail" />
                   {youtubeExploreVisible && <TitleRail title="More from creators you watch" reason="Unwatched public uploads from recent viewing creators, including older catalog items." videos={deeperFromWatchedCreators} variant="rail" />}
                   {!youtubeExploreVisible && <section className="mb-6 rounded-xl border border-border bg-surface p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Fast start</p><h2 className="mt-2 font-display text-2xl text-fg">Open YouTube fast, then deepen the catalog when you want it.</h2><p className="mt-1 text-sm text-muted">Recommendations, artwork-heavy discovery shelves, tag filters, and the full grid wait until requested. Your newest uploads are ready immediately.</p><Button className="mt-4" variant="secondary" onClick={() => setYoutubeExploreVisible(true)}>Explore recommendations and full catalog</Button></section>}
-                  {youtubeExploreVisible && <><TitleRail title="Trending in your tracked channels" videos={trendingYoutube} variant="rail" /><TitleRail title="New to you on YouTube" videos={freshPicks} variant="rail" /><TitleRail recommendation title="More from your rated YouTube" videos={relatedYoutube} variant="rail" /><TitleRail title="Quick picks" videos={youtubeQuick} variant="rail" /><section className="mb-6 rounded-xl border border-border bg-surface p-5"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Creator discovery</p><h2 className="mt-2 font-display text-2xl text-fg">Outside your known follows.</h2><p className="mt-1 text-sm text-muted">Discovery stays in its own shelf so saved channels never get mixed with suggestions. Follow adds a channel to your saved refresh list.</p><div className="mt-4"><TitleRail title="Explore new YouTube" videos={youtubeDiscovery} variant="rail" /></div><div className="mt-4 flex flex-wrap gap-2">{[["Kurzgesagt", "kurzgesagt"], ["Veritasium", "veritasium"], ["PBS Space Time", "pbsspacetime"]].filter(([, handle]) => !follows.some((channel) => channel.kind === "youtube" && channel.handle.toLowerCase() === handle)).map(([label, handle]) => <Button key={handle} size="sm" variant="secondary" disabled={channelRefreshing === handle} onClick={() => void (async () => { setChannelRefreshing(handle); try { await followRemoteQuery(handle, "youtube"); } finally { setChannelRefreshing(""); } })()}>{channelRefreshing === handle ? "Checking…" : `Follow ${label}`}</Button>)}</div></section><YoutubeDeepDiscovery archive={filteredYoutube} ranked={youtubeRanking.discovery} recommendations={relatedYoutube} fallback={youtubeMix} total={youtubeRanking.total} pending={youtubeRanking.pending} error={youtubeRanking.error} expanded={youtubeDeepVisible} onExpand={() => setYoutubeDeepVisible(true)} onMore={youtubeRanking.loadMore} /></>}
+                  {youtubeExploreVisible && <><TitleRail title="Trending in your tracked channels" videos={trendingYoutube} variant="rail" /><TitleRail title="New to you on YouTube" videos={freshPicks} variant="rail" /><TitleRail recommendation title="More from your rated YouTube" videos={relatedYoutube} variant="rail" /><TitleRail title="Quick picks" videos={youtubeQuick} variant="rail" /><section className="mb-6 rounded-xl border border-border bg-surface p-5"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Creator discovery</p><h2 className="mt-2 font-display text-2xl text-fg">Outside your known follows.</h2><p className="mt-1 text-sm text-muted">Discovery stays in its own shelf so saved channels never get mixed with suggestions. Follow adds a channel to your saved refresh list.</p><div className="mt-4"><TitleRail title="Explore new YouTube" videos={youtubeDiscovery} variant="rail" /></div><div className="mt-4 flex flex-wrap gap-2">{[["Kurzgesagt", "kurzgesagt"], ["Veritasium", "veritasium"], ["PBS Space Time", "pbsspacetime"]].filter(([, handle]) => !follows.some((channel) => channel.kind === "youtube" && channel.handle.toLowerCase() === handle)).map(([label, handle]) => <Button key={handle} size="sm" variant="secondary" disabled={channelRefreshing === handle} onClick={() => void (async () => { setChannelRefreshing(handle); try { await followRemoteQuery(handle, "youtube"); } finally { setChannelRefreshing(""); } })()}>{channelRefreshing === handle ? "Checking…" : `Follow ${label}`}</Button>)}</div></section><YoutubeDeepDiscovery archive={filteredYoutube} ranked={youtubeRanking.discovery} recommendations={relatedYoutube} fallback={youtubeMix} total={youtubeRanking.total} pending={youtubeRanking.pending} error={youtubeRanking.error} expanded={youtubeDeepVisible} onExpand={() => setYoutubeDeepVisible(true)} onMore={youtubeRanking.loadMore} onRetry={youtubeRanking.retry} /></>}
                   <ConnectPanel key="youtube-imports" defaultKind="youtube" lockedKind="youtube" />
                 </>
               )}

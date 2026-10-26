@@ -1,0 +1,12 @@
+✔ nearby searches reuse a ready worker; inactivity actually frees it (3.1179ms)
+✔ compact search packets reduce round trips while preserving complete metadata and positions (8.9325ms)
+✔ search index reuse checks copied catalogs cooperatively and indexes only the appended suffix (146.4653ms)
+✔ superseded search comparisons cannot publish stale positions and reordered snapshots rebuild (5.42ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 285.0356

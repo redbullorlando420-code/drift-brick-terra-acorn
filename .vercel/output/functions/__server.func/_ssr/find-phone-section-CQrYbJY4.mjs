@@ -1,5 +1,5 @@
 import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
-import { k as Search } from "../_libs/lucide-react.mjs";
+import { A as Search } from "../_libs/lucide-react.mjs";
 import { s as HubShell } from "./hub-shared-CSaQ1YXN.mjs";
 //#region node_modules/.nitro/vite/services/ssr/assets/find-phone-section-CQrYbJY4.js
 var import_jsx_runtime = require_jsx_runtime();

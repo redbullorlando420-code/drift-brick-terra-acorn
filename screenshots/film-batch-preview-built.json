@@ -1,0 +1,32 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "Empty Guide offers working public-source navigation without fabricated picks",
+        "Cold-start chooser searches real public labels; hidden/private/orphan favorites are excluded and topic selection does not change saved tastes",
+        "No-match questions offer actual topic alternatives; typing immediately removes stale answers",
+        "Personal picks quote a real public favorite title and raw tag; evidence opens the correct preview and conflicting ratings are shown",
+        "Reason-specific topic reduction saves durably, retains focus and card order, preserves tags/ratings, and affects the next prepared ranking",
+        "Undo survives dual-mirror save failures through explicit retry; refresh applies it and clears pending feedback",
+        "Desktop and mobile controls fit without horizontal overflow or uncaught console errors"
+      ],
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "Empty Guide offers working public-source navigation without fabricated picks",
+        "Cold-start chooser searches real public labels; hidden/private/orphan favorites are excluded and topic selection does not change saved tastes",
+        "No-match questions offer actual topic alternatives; typing immediately removes stale answers",
+        "Personal picks quote a real public favorite title and raw tag; evidence opens the correct preview and conflicting ratings are shown",
+        "Reason-specific topic reduction saves durably, retains focus and card order, preserves tags/ratings, and affects the next prepared ranking",
+        "Undo survives dual-mirror save failures through explicit retry; refresh applies it and clears pending feedback",
+        "Desktop and mobile controls fit without horizontal overflow or uncaught console errors"
+      ],
+      "errors": []
+    }
+  ],
+  "limitation": "Isolated synthetic public/private fixtures and controlled external player, not a real-library or physical-device soak. No external model or provider service connected."
+}

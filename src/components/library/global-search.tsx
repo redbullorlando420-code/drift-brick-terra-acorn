@@ -1,3 +1,4 @@
+import { shortcutBlocked, shortcutEnabled } from '@/lib/keyboard-commands';
 import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { FolderSearch, Search, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -80,7 +81,7 @@ export const GlobalSearch = memo(function GlobalSearch() {
     const shortcut = (event: KeyboardEvent) => {
       const editing = event.target instanceof Element && Boolean(event.target.closest('input,textarea,select,[contenteditable]:not([contenteditable="false"])'));
       const state = useLibrary.getState();
-      if (!event.repeat && !state.activeId && !state.previewId && searchEditorShortcut(event, editing)) {
+      if (!shortcutBlocked(event) && shortcutEnabled("search") && !state.activeId && !state.previewId && searchEditorShortcut(event, editing)) {
         event.preventDefault(); openEditor(); input.current?.focus();
       }
     };
@@ -195,6 +196,7 @@ export const GlobalSearch = memo(function GlobalSearch() {
       aria-expanded={panelOpen} aria-controls={panelOpen ? panelId : undefined} />
     {draft && <button type="button" aria-label="Clear search" onMouseDown={event => event.preventDefault()} onClick={clearQuery} className="absolute top-1/2 right-0 flex size-11 -translate-y-1/2 items-center justify-center text-subtle hover:text-fg"><X className="size-4" /></button>}
     </div>
+    {panelOpen&&indexStatus==='failed'&&<div role="status" className="p-3 text-xs leading-5 text-muted">Search worker stopped; suggestions use a cooperative scan.<Button variant="secondary" className="mt-2 min-h-11" onClick={()=>{const state=useLibrary.getState();searchWorkerIndex.retry(state.videos,state.tags,state.categories);}}>Retry search index</Button></div>}
     {panelOpen && <section id={panelId} aria-label="Search suggestions" className="search-suggestions-scroll mt-2 w-full overflow-y-auto">
       <div className="flex items-center justify-between gap-2 px-3"><p className="text-xs font-medium text-muted">Search suggestions</p><Button size="icon" variant="ghost" className="size-11 shrink-0" aria-label="Dismiss search suggestions" onMouseDown={event => event.preventDefault()} onClick={finish}><X className="size-4" /></Button></div>
       <div className="mb-2 flex gap-2 border-b border-border px-3 pb-2">{[['home', 'Library'], ['youtube', 'YouTube'], ['twitch', 'Twitch']].map(([id, label]) => <Button key={id} size="sm" className="min-h-11" variant="ghost" onMouseDown={event => event.preventDefault()} onClick={() => { finish(); setSource(id); }}>{label}</Button>)}</div>

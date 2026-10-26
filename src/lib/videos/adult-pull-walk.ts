@@ -1,7 +1,7 @@
 /** A large user pull consists of bounded requests, never one huge response.
  * Collect once per provider so each page doesn't rebuild the entire library. */
 export async function walkAdultPull<R extends {
-  videos: { id: string }[]; nextPage: number | null; nextOffset: number;
+  videos: { id: string }[]; nextPage: number | null; nextOffset: number; partial?:boolean;
 }>(target: number, page: number, offset: number,
   request: (page: number, offset: number, limit: number) => Promise<R>,
   check: () => Promise<void>, options: { known?: ReadonlySet<string>; refreshLimit?: number; maxRequests?: number; maxMs?: number } = {}) {
@@ -31,6 +31,7 @@ export async function walkAdultPull<R extends {
       if (rows.has(row.id)) { duplicates++; continue; }
       if (rows.size < target) rows.set(row.id, row);
     }
+    if(result.partial){error=new Error('Provider returned a partial page; accepted rows were kept and the unconsumed cursor needs retry.');break;}
     if (result.nextPage == null || (result.nextPage === page && result.nextOffset === offset)) break;
     page = result.nextPage; offset = result.nextOffset;
   }

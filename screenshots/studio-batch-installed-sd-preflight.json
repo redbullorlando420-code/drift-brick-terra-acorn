@@ -1,0 +1,31 @@
+{
+  "ok": true,
+  "version": 1,
+  "engine": "a1111",
+  "name": "v1-5-pruned-emaonly-fp16.safetensors",
+  "family": "sd1",
+  "role": "checkpoint",
+  "ready": true,
+  "checks": [
+    {
+      "label": "Weight format",
+      "state": "pass",
+      "detail": "Bounded safetensors header and tensor offsets examined; full weights were not loaded."
+    },
+    {
+      "label": "Architecture and engine",
+      "state": "pass",
+      "detail": "sd1 matches the selected engine’s fixed workflow."
+    },
+    {
+      "label": "Publisher provenance",
+      "state": "unknown",
+      "detail": "No pinned installation source is recorded; review the original model card."
+    }
+  ],
+  "bytes": 2132696762,
+  "hardware": {
+    "weightsGiB": 1.99,
+    "note": "Weight-file size is not a VRAM estimate. Runtime, precision, offloading and image size determine actual memory. Start small; hardware suitability remains unverified."
+  }
+}

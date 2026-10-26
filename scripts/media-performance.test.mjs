@@ -182,43 +182,17 @@ test('worker batches preserve search metadata and replace stale generations',asy
 });
 
 test('search client applies backpressure, rejects stale replies, and settles worker failures',async()=>{
- const original=globalThis.Worker; let worker;
- globalThis.Worker=class {
-  messages=[];
-  constructor(){worker=this;}
-  postMessage(message){this.messages.push(message);}
-  terminate(){}
- };
+ const original=globalThis.Worker; let worker,index;
+ globalThis.Worker=class {messages=[];constructor(){worker=this;}postMessage(message){this.messages.push(message);}terminate(){}};
  try {
-  const {searchWorkerIndex:index}=await import('../src/lib/videos/search-worker-index.ts');
-  const videos=Array.from({length:1200},(_,i)=>({id:String(i),name:'sample',path:'sample'}));
-  index.sync(videos,{},{});
-  await new Promise(r=>setTimeout(r,10));
-  assert.equal(worker.messages.length,1);
-  assert.ok(worker.messages[0].batch.length>0&&worker.messages[0].batch.length<=512);
-  assert.equal(worker.messages[0].done,false,'the remaining catalog must wait for acknowledgement');
-  const oldGeneration=worker.messages[0].generation;
-  const result=index.search('current');
-  index.sync(videos.slice(0,1),{},{});
-  await new Promise(r=>setTimeout(r,10));
-  const currentGeneration=worker.messages.at(-1).generation;
-  const obsolete=Array.from({length:100},()=>new AbortController());
-  const abandoned=obsolete.map(controller=>index.search('abandoned',controller.signal));
-  obsolete.forEach(controller=>controller.abort());
-  assert.ok((await Promise.all(abandoned)).every(result=>result===null));
-  worker.onmessage({data:{type:'ready',generation:oldGeneration}});
-  assert.equal(index.getStatus(),'building');
-  worker.onmessage({data:{type:'ready',generation:currentGeneration}});
-  assert.equal(worker.messages.filter(message=>message.type==='search'&&message.query==='abandoned').length,0,'cancelled typing must not flood the worker when indexing finishes');
-  const request=worker.messages.at(-1);
-  assert.equal(request.type,'search');
-  worker.onmessage({data:{type:'result',generation:currentGeneration,requestId:request.requestId,ids:['0']}});
-  assert.deepEqual(await result,['0']);
-  const activeCancel=new AbortController();const stale=index.search('stale',activeCancel.signal);
-  const staleRequest=worker.messages.at(-1);activeCancel.abort();assert.equal(await stale,null);
-  worker.onmessage({data:{type:'result',generation:currentGeneration,requestId:staleRequest.requestId,ids:['wrong']}});
-  const failed=index.search('failure'); worker.onerror(new Error('worker stopped'));
-  assert.equal(await failed,null);
-  assert.equal(index.getStatus(),'failed');
- } finally {globalThis.Worker=original;}
+  ({searchWorkerIndex:index}=await import('../src/lib/videos/search-worker-index.ts'));
+  const videos=Array.from({length:1200},(_,i)=>({id:String(i),name:'sample',path:'sample'}));index.sync(videos,{},{});await new Promise(r=>setTimeout(r,10));
+  assert.equal(worker.messages.length,1);assert.ok(worker.messages[0].batch.length>0&&worker.messages[0].batch.length<=512);assert.equal(worker.messages[0].done,false,'the remaining catalog must wait for acknowledgement');
+  const oldGeneration=worker.messages[0].generation,obsoleteResult=index.search('old generation');index.sync(videos.slice(0,1),{},{});assert.equal(await obsoleteResult,null,'superseding the catalog settles its old requests');await new Promise(r=>setTimeout(r,10));const currentGeneration=worker.messages.at(-1).generation;
+  const obsolete=Array.from({length:100},()=>new AbortController()),abandoned=obsolete.map(controller=>{const result=index.search('abandoned',controller.signal);assert(index.diagnostics().pending<=8);return result;});obsolete.forEach(controller=>controller.abort());assert.ok((await Promise.all(abandoned)).every(result=>result===null));
+  const result=index.search('current');worker.onmessage({data:{type:'ready',generation:oldGeneration}});assert.equal(index.getStatus(),'building');worker.onmessage({data:{type:'ready',generation:currentGeneration}});assert.equal(worker.messages.filter(message=>message.type==='search'&&message.query==='abandoned').length,0,'cancelled typing must not flood the worker when indexing finishes');
+  const request=worker.messages.at(-1);assert.equal(request.type,'search');assert.equal(request.query,'current');worker.onmessage({data:{type:'result',generation:currentGeneration,requestId:request.requestId,ids:['0'],positions:Uint32Array.of(0)}});assert.deepEqual(await result,['0']);
+  const activeCancel=new AbortController(),stale=index.search('stale',activeCancel.signal),staleRequest=worker.messages.at(-1);activeCancel.abort();assert.equal(await stale,null);worker.onmessage({data:{type:'result',generation:currentGeneration,requestId:staleRequest.requestId,ids:['wrong'],positions:Uint32Array.of(0)}});
+  const failed=index.search('failure');let prevented=false;worker.onerror({preventDefault(){prevented=true;}});assert.equal(await failed,null);assert(prevented);assert.equal(index.getStatus(),'failed');
+ }finally{index?.release();globalThis.Worker=original;}
 });

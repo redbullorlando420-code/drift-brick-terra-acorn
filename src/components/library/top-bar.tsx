@@ -1,3 +1,4 @@
+import { KeyboardHelp } from './keyboard-help';
 import { PullPauseButton } from './pull-pause-button';
 import { memo } from 'react';
 import { LayoutGrid, List, Menu, Upload } from 'lucide-react';
@@ -88,6 +89,7 @@ export const TopBar = memo(function TopBar({
         <HeaderClock />
         <PullPauseButton />
         <NoticeBell />
+        <KeyboardHelp />
         <div className="flex rounded-md bg-elevated p-0.5 shadow-border">
           <button
             type="button"

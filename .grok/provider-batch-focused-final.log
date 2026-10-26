@@ -1,0 +1,26 @@
+✔ exactly 100 distinct milestones with only evidenced completions cover ten workstreams with executable contracts (12.2457ms)
+✔ all prerequisite references exist, are acyclic and precede dependent work (0.264ms)
+✔ roadmap migration appends briefs once without resetting prior manual choices or custom ideas (2.221ms)
+✔ known brief updates retain saved status while adopting the current implementation contract (0.1291ms)
+✔ copied briefs include concrete scope, dependency status, acceptance and safe execution boundaries (0.3963ms)
+✔ checked-in roadmap is reproducible and exports all 100 full briefs without completing work (4.9429ms)
+✔ registry inventories all seven existing adapters with distinct search, media, paging and player support (1.1018ms)
+✔ embed capabilities allow only implemented HTTPS provider paths; MFC and images cannot become iframe players (0.6491ms)
+✔ unreadable envelopes and malformed identities fail; genuine empty containers remain distinguishable (0.5991ms)
+✔ all seven adapters execute redacted fixtures with real conversion, cursor and completeness diagnostics (44.3712ms)
+✔ malformed tube/short/image/feed payloads cannot confirm empty/exhausted catalogs (6.0861ms)
+✔ valid empty results remain empty without unnecessary fallback requests (3.2031ms)
+✔ a failing provider leaves healthy siblings intact and unknown sources cannot widen a request (1.4409ms)
+✔ later malformed archive pages retain accepted rows and retry the unconsumed page exactly once per walk (1.4336ms)
+✔ publication values reject absent, invalid and future dates and preserve only evidenced prior dates (0.1949ms)
+✔ completeness counters and report exports stay aggregate and bounded without private payloads (1.8944ms)
+✔ remembered official URLs strip tracking/secrets and reject arbitrary schemes, credentials, hosts and unsupported modes (0.5741ms)
+✔ viewing preferences persist only seven allowlisted choices; forgetting has a monotonic deletion boundary (0.2766ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 285.8267

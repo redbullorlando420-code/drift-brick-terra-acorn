@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "fullSelectedRows": 8,
+  "fullMs": 54,
+  "fullAverageMs": 7,
+  "compactRows": 20000,
+  "compactMs": 81,
+  "summaryBytes": 1021,
+  "confidenceArrayBytes": 174,
+  "retainedCandidateLimit": 28,
+  "scratchCandidateLimit": 96,
+  "cacheLimit": 512,
+  "limitation": "Synthetic CPU-only run on this machine; no provider or disk performance claim."
+}

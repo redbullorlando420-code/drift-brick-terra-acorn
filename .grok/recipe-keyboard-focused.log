@@ -1,0 +1,33 @@
+✔ studio requests survive navigation, keep the submitted settings and retain a prior image on failure (2.3132ms)
+✔ studio session storage is bounded and isolates each account (0.1443ms)
+✔ duplicate interrupts are coalesced and a returned partial image is labeled honestly (0.2631ms)
+✔ portable recipes round-trip only approved settings and reject unsupported files (1.2635ms)
+✔ recipe restoration is bounded and keeps valid entries when another is damaged (0.3207ms)
+✔ engine response limit cancels chunked and declared oversized bodies before buffering all data (15.6659ms)
+✔ publication comes from the matching video, never a pull time, relative label or recommended date (2.7215ms)
+✔ generation sends a bounded allow-list and rejects missing/oversized prompts and bad numbers (0.5571ms)
+✔ studio restores valid settings, migrates the legacy prompt and uses actual random seeds (0.253ms)
+✔ cancelling an approval is token/origin-bound and cannot cancel a newer request (4.1497ms)
+✔ an authenticated API failure is visible and never starts a duplicate engine (4.403ms)
+✔ remote approval is expiring, one-use, peer/origin-bound and never supplies a password (3.1304ms)
+✔ local image API stays on the fixed loopback target and refuses non-image output (0.6689ms)
+✔ engine lifecycle launches only the installed Python with loopback and isolated caches (6.3386ms)
+✔ generation is single-flight and interrupt only applies to a request owned by the bridge (0.3098ms)
+✔ v2 recipe records observed sampler, hash, install revision and exact bounded form settings (1.5426ms)
+✔ legacy v1 recipes and owner records survive additive v2 export without invented provenance (0.9404ms)
+✔ portable exports drop unknown secrets, instructions and server paths at every retained layer (0.8129ms)
+✔ missing model and wrong engine block loading; explicit alternatives retain honest mismatch warnings (0.1447ms)
+✔ unsupported or unknown engine parameters are shown as mapping warnings, never executed (0.1919ms)
+✔ session captures submitted model evidence and actual random seed without later form edits (1.2392ms)
+✔ Qwen recipes describe the fixed supported graph and cannot cross-load into A1111 (0.2231ms)
+✔ shortcut map is searchable, contexts are explicit, and unsupported bindings cannot be invented (0.219ms)
+✔ shortcut guards respect composition, prevented keys, repeats, text and modal focus scopes (0.2019ms)
+✔ conflict preferences are bounded allowlisted choices and default safely after corruption (0.1817ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 183.752

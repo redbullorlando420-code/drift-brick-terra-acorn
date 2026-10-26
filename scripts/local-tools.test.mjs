@@ -18,8 +18,8 @@ test('studio requests survive navigation, keep the submitted settings and retain
   const settings = { prompt: 'A tree', negative: '', steps: 20, seed: -1, size: 512 };
   const stop = session.subscribe(() => notifications++), running = session.generate(settings);
   assert.equal(session.getSnapshot().busy, true); await session.generate(settings); assert.equal(calls, 1);
-  stop(); settings.prompt = 'A changed form'; complete({ image: 'iVBORw0KGgoAAAA=', info: '{"seed":42,"sd_model_name":"local-model"}' }); await running;
-  assert.equal(notifications, 1, 'unmounted views receive no notifications');
+  const beforeUnmount=notifications;stop(); settings.prompt = 'A changed form'; complete({ image: 'iVBORw0KGgoAAAA=', info: '{"seed":42,"sd_model_name":"local-model"}' }); await running;
+  assert.equal(notifications, beforeUnmount, 'unmounted views receive no notifications');
   const result = session.getSnapshot().image; assert.equal(result.settings.prompt, 'A tree'); assert.equal(result.seed, 42); assert.equal(result.checkpoint, 'local-model'); assert.ok(result.blob.size > 0);
   const back = session.subscribe(() => notifications++); await session.generate(settings); assert.equal(session.getSnapshot().image, result); assert.match(session.getSnapshot().error, /Engine failed/);
   session.clearImage(); assert.equal(session.getSnapshot().image, null); back();
@@ -48,7 +48,7 @@ test('portable recipes round-trip only approved settings and reject unsupported 
   assert.deepEqual(parseRecipe(JSON.stringify(recipeDocument(recipe))), recipe);
   const untrusted = { ...recipeDocument(recipe), password: 'not-imported', settings: { ...recipe.settings, scripts: ['do not run'] } };
   const parsed = parseRecipe(JSON.stringify(untrusted)); assert.equal(parsed.password, undefined); assert.equal(parsed.settings.scripts, undefined);
-  for (const text of ['not json', '{}', JSON.stringify({ ...recipeDocument(recipe), version: 2 }), JSON.stringify({ ...recipeDocument(recipe), settings: { ...recipe.settings, seed: 1.5 } }), JSON.stringify({ ...recipeDocument(recipe), settings: { ...recipe.settings, size: 9999 } }), 'x'.repeat(64001)]) assert.throws(() => parseRecipe(text));
+  for (const text of ['not json', '{}', JSON.stringify({ ...recipeDocument(recipe), version: 3 }), JSON.stringify({ ...recipeDocument(recipe), settings: { ...recipe.settings, seed: 1.5 } }), JSON.stringify({ ...recipeDocument(recipe), settings: { ...recipe.settings, size: 9999 } }), 'x'.repeat(64001)]) assert.throws(() => parseRecipe(text));
   const full = { ...recipe, settings: { ...recipe.settings, prompt: '\u0000'.repeat(4000), negative: '森'.repeat(4000) } };
   assert.deepEqual(parseRecipe(JSON.stringify(recipeDocument(full))), full);
   assert.equal(generatedCheckpoint('{"sd_model_name":"verified-local-model"}'), 'verified-local-model');

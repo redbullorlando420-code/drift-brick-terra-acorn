@@ -1,0 +1,41 @@
+{
+  "ok": true,
+  "version": 1,
+  "engine": "comfy",
+  "name": "qwen_image_2.1_turbo_int8_convrot.safetensors",
+  "family": "qwen-image-2.1",
+  "role": "diffusion-model",
+  "ready": true,
+  "checks": [
+    {
+      "label": "Weight format",
+      "state": "pass",
+      "detail": "Bounded safetensors header and tensor offsets examined; full weights were not loaded."
+    },
+    {
+      "label": "Architecture and engine",
+      "state": "pass",
+      "detail": "qwen-image-2.1 matches the selected engine’s fixed workflow."
+    },
+    {
+      "label": "qwen3vl_8b_w4a8.safetensors",
+      "state": "pass",
+      "detail": "Matching component header found."
+    },
+    {
+      "label": "qwen_image_2.1_vae_bf16.safetensors",
+      "state": "pass",
+      "detail": "Matching component header found."
+    },
+    {
+      "label": "Publisher provenance",
+      "state": "unknown",
+      "detail": "No pinned installation source is recorded; review the original model card."
+    }
+  ],
+  "bytes": 7256787829,
+  "hardware": {
+    "weightsGiB": 6.76,
+    "note": "Weight-file size is not a VRAM estimate. Runtime, precision, offloading and image size determine actual memory. Start small; hardware suitability remains unverified."
+  }
+}

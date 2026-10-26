@@ -1,3 +1,4 @@
+import { decodeArtworkBitmap } from './bitmap-pool.ts';
 export type HwInfo = {
   supported: boolean;
   powerEfficient: boolean;
@@ -105,10 +106,11 @@ export function attachFrameCallback(
 
 export async function bitmapFromVideo(
   video: HTMLVideoElement,
+  signal?:AbortSignal,
 ): Promise<ImageBitmap | null> {
   try {
     if (typeof createImageBitmap === "function" && video.videoWidth) {
-      return await createImageBitmap(video);
+      return await decodeArtworkBitmap(video,signal);
     }
   } catch {
     return null;

@@ -1,3 +1,5 @@
+import {retainAdultRefreshEvidence} from '../remote/adult-quality.ts';
+import { prepareYoutubeTagReview,type YoutubeReviewBase } from './youtube-tag-review';
 import { hydrateTopicAliases } from '../topic-alias-store';
 import { markRecommendationOpened } from '../recommendation-exposure-store';
 import { createYoutubeLiveThroughput } from './youtube-live-throughput';
@@ -9,7 +11,7 @@ import { YOUTUBE_QUICK_LIVE, selectYoutubeQuickLiveChannels, type YoutubeLivePro
 import { createCompletionQueue } from '../completion-queue';
 import { mergeYoutubeLiveResults } from './youtube-live-results';
 import { loadImportSession } from './import-session-storage';
-import { youtubeTextTags, refreshYoutubeTags, YOUTUBE_TEXT_TAG_VERSION } from './youtube-text-tags';
+import { youtubeTextTags, automaticYoutubeTags, compactYoutubeTagEvidence, refreshYoutubeTags, YOUTUBE_TEXT_TAG_VERSION } from './youtube-text-tags';
 import { decodeTwitchArchiveCursor } from './twitch-archive-cursor';
 import { isRemovedRedditVideo } from './reddit-removed';
 import { selectSavedCards, selectSavedCardsAsync } from "./saved-library";
@@ -278,6 +280,7 @@ export type LibraryState = {
   setVideoComments: (id: string, comments: NonNullable<LibraryVideo["remote"]>["comments"]) => void;
   setYoutubePublication: (id: string, date: string, youtubeId: string) => Promise<boolean>;
   setYoutubeMetadata: (id: string, metadata: YoutubeVideoMetadata) => Promise<{ tags: number; locked: boolean }>;
+  acceptYoutubeTagSuggestions:(id:string,selected:string[],base:YoutubeReviewBase)=>number;
   setLocalVideoDuration: (id: string, duration: number) => Promise<void>;
   releaseVideoComments: () => void;
   autoTagLibrary: () => Promise<number>;
@@ -912,7 +915,7 @@ function compactIngestedTags(existing: string[], inferred: string[]) {
 const IGNORED_DESCRIPTION_WORDS = new Set(["about", "after", "also", "because", "being", "between", "channel", "click", "creator", "description", "from", "have", "here", "just", "more", "next", "official", "please", "really", "subscribe", "that", "this", "through", "today", "video", "watch", "with", "youtube", "your"]);
 
 function descriptionKeywordTags(video: LibraryVideo) {
-  if (video.remote?.kind === 'youtube') return youtubeTextTags(video).tags;
+  if (video.remote?.kind === 'youtube') return automaticYoutubeTags(video);
   // Keep a controlled text ceiling. Provider descriptions are the richest
   // public source for Twitch and YouTube connections, while the ceiling keeps
   // storage, exports, and derived shelves bounded.
@@ -1313,7 +1316,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       } };
     if(date&&!full.remote?.live&&full.remote?.youtubeType!=='upcoming')updated=withYoutubePublication(updated,metadata.id,date);
     const evidence = youtubeTextTags(updated);
-    updated.remote = { ...updated.remote!, youtubeTagSummary: { version: YOUTUBE_TEXT_TAG_VERSION, sources: evidence.sources, topics: evidence.descriptionTopics } };
+    updated.remote = { ...updated.remote!, youtubeTagSummary: compactYoutubeTagEvidence(evidence) };
     await saveRemoteSnapshot({ videos: [updated], folders: get().folders.filter(folder => folder.kind === 'youtube' || folder.kind === 'twitch'), checkedAt: get().remoteCheckedAt });
     const state = get(), position = state.videos.findIndex(video => video.id === id);
     if (position < 0) throw new Error('The video was removed while saving its metadata.');
@@ -1326,6 +1329,12 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       await saveEnrichmentRows([{ id, tags: enriched.tags[id] ?? [], provenance: enriched.metadataProvenance[id] ?? { tags: {} } }]);
     }
     return { tags: evidence.tags.length, locked: tagsLocked(get().metadataProvenance[id]) };
+  },
+  acceptYoutubeTagSuggestions:(id,selected,base)=>{
+    const current=get(),prepared=prepareYoutubeTagReview(lookupVideo(current.videos,id),current.tags[id],current.metadataProvenance[id],base,selected);
+    if(!prepared.reviewed)return 0;
+    set({tags:patchSparseRecord(current.tags,[[id,prepared.tags]]),metadataProvenance:patchSparseRecord(current.metadataProvenance,[[id,prepared.provenance]])});
+    saveTagEdit(id,prepared.tags);saveMetadataEdit(id,prepared.provenance);persistSoon(get);return prepared.reviewed;
   },
   setLocalVideoDuration: async (id, duration) => {
     if (!Number.isFinite(duration) || duration <= 0 || duration > 31_536_000) throw new Error('The file did not expose a valid runtime.');
@@ -1349,7 +1358,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     set((s) => ({
       tags: patchSparseRecord(s.tags, [[id, manualTags]]),
       metadataProvenance: patchSparseRecord(s.metadataProvenance, [[id,
-        { ...s.metadataProvenance[id], tags: Object.fromEntries(manualTags.map((tag) => [tag, "manual"] as const)), lockedFields: [...new Set([...(s.metadataProvenance[id]?.lockedFields ?? []), "tags"])] as Array<"tags" | "category">, updatedAt: Date.now() }]]),
+        { ...s.metadataProvenance[id], youtubeReviews:undefined, tags: Object.fromEntries(manualTags.map((tag) => [tag, "manual"] as const)), lockedFields: [...new Set([...(s.metadataProvenance[id]?.lockedFields ?? []), "tags"])] as Array<"tags" | "category">, updatedAt: Date.now() }]]),
     }));
     const state = get();
     saveTagEdit(id, state.tags[id] ?? []);
@@ -1637,7 +1646,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           }
           continueProvider=walked.latest.nextPage!=null&&!walked.error;
           const result = { ...walked.latest, videos: walked.videos,
-            providerDiagnostics: walked.latest.providerDiagnostics.map(row => ({ ...row, titles: walked.videos.length, detail: `${walked.newCount.toLocaleString()} new candidates · ${walked.refreshedCount} saved titles refreshed · ${walked.requests} requests · ${walked.duplicates.toLocaleString()} already-saved/repeated titles skipped${walked.error ? ' · stopped after a provider error; saved results are retained' : ''}` })) };
+            providerDiagnostics: walked.latest.providerDiagnostics.map(row => ({ ...row, titles: walked.videos.length, detail: row.status==='failed'?row.detail:`${walked.newCount.toLocaleString()} new candidates · ${walked.refreshedCount} saved titles refreshed · ${walked.requests} requests · ${walked.duplicates.toLocaleString()} already-saved/repeated titles skipped${walked.error ? ' · stopped after a provider error; saved results are retained' : ''}` })) };
           if (walked.error) result.providerDiagnostics.push({ provider, status: 'failed', titles: 0, detail: walked.error instanceof Error ? walked.error.message : String(walked.error) });
           await turn();
           const fetchedVideos = applyCachedAdultUrls(result.videos);
@@ -1699,12 +1708,12 @@ export const useLibrary = create<LibraryState>((set, get) => ({
             const nextMetadata = sparseRecordBuilder(base.metadataProvenance);
             const nextVideos = await copyCatalogArray(base.videos, turn);
             let batchAdded = 0;
-            await forEachCatalogSlice(videos, video => {
+            await forEachCatalogSlice(videos, (video, index) => {
               const position = positions.get(video.id);
               if (position === undefined) {
                 positions.set(video.id, nextVideos.length); nextVideos.push(catalogCard(video)); batchAdded++;
                 counts.set(video.folderId, (counts.get(video.folderId) ?? 0) + 1);
-              } else nextVideos[position] = catalogCard(video);
+              } else {video=retainAdultRefreshEvidence(base.videos[position],video,base.metadataProvenance[video.id]);videos[index]=video;nextVideos[position] = catalogCard(video);}
               const current = base.tags[video.id] ?? [];
               if (tagsLocked(base.metadataProvenance[video.id])) return;
               const inferred = inferredTags.get(video.id) ?? [];

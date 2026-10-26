@@ -15,9 +15,12 @@ let offset = 0;
 const pending = new Map<number, { query: string; topicAliases: TopicAliasLedger; resolve: (ids: SearchMatches | null) => void; cleanup: () => void }>();
 type SearchWorkerStatus = "idle" | "building" | "ready" | "failed";
 let status: SearchWorkerStatus = "idle";
+let lastFailure="";
 const listeners = new Set<(status: SearchWorkerStatus) => void>();
 function setStatus(next: SearchWorkerStatus) { status = next; listeners.forEach((listener) => listener(status)); }
-function fail() {
+function fail(reason="Search worker stopped", owner=worker, expected=generation) {
+  if(owner!==worker||expected!==generation)return;
+  generation++;lastFailure=reason;offset=0;
   clearTimeout(timer);
   clearTimeout(idleTimer);
   idleTimer = undefined;
@@ -49,13 +52,14 @@ function release() {
   pending.clear();
   setStatus("idle");
 }
-function watch() { clearTimeout(timer); timer = setTimeout(fail, 15_000); }
+function watch() { clearTimeout(timer);if(!worker)return;const owner=worker,expected=generation;timer = setTimeout(()=>fail("Search worker timed out",owner,expected), 15_000); }
+function post(message:unknown){try{worker?.postMessage(message);}catch{fail("Search worker could not receive its next packet");}}
 function ready() {
   clearTimeout(timer); setStatus('ready');
-  for (const [requestId, request] of pending) worker?.postMessage({ type: 'search', generation, requestId, query: request.query, topicAliases: request.topicAliases });
+  for (const [requestId, request] of pending) post({ type: 'search', generation, requestId, query: request.query, topicAliases: request.topicAliases });
   if (pending.size) watch(); else releaseWhenIdle();
 }
-function queueBatch() { const expected = generation; void yieldCatalogTask().then(() => { if (generation === expected && source && worker) sendBatch(); }); }
+function queueBatch() { const expected = generation; void yieldCatalogTask().then(() => { if (generation === expected && source && worker) sendBatch(); }).catch(()=>{if(generation===expected)fail("Search preparation failed");}); }
 function sendBatch() {
   if (!source || !worker) return;
   const { videos, tags, categories } = source;
@@ -78,20 +82,22 @@ function sendBatch() {
     if (characters >= 65_536 || performance.now() - started >= 2) break;
   }
   watch();
-  worker.postMessage({ type: "batch", generation, reset, done: offset >= videos.length, batch });
+  post({ type: "batch", generation, reset, done: offset >= videos.length, batch });
 }
 function instance() {
   if (!worker) {
     worker = new Worker(new URL("./search.worker.ts", import.meta.url), { type: "module" });
-    worker.onerror = fail;
-    worker.onmessageerror = fail;
+    const owner=worker;
+    worker.onerror = event=>{event.preventDefault();if(worker===owner)fail("Search worker stopped",owner);};
+    worker.onmessageerror = ()=>{if(worker===owner)fail("Search worker returned an unreadable message",owner);};
     worker.onmessage = ({ data }) => {
-      if (data.generation !== generation) return;
+      if (worker!==owner||data?.generation !== generation) return;
       if (data.type === "next") { clearTimeout(timer); queueBatch(); return; }
       if (data.type === "ready") {
         ready();
         return;
       }
+      if(data.type!=="result"||!Array.isArray(data.ids)||!(data.positions instanceof Uint32Array)||data.ids.length!==data.positions.length||data.ids.length>(source?.videos.length??0)){fail("Search worker returned an invalid result",owner);return;}
       const request = pending.get(data.requestId);
       request?.cleanup(); request?.resolve(source ? { ids: data.ids, positions: data.positions, videos: source.videos } : null);
       pending.delete(data.requestId);
@@ -104,7 +110,10 @@ export const searchWorkerIndex = {
   release,
   retire() { if (!pending.size && status === 'building') release(); else releaseWhenIdle(); },
   async search(query: string, signal?: AbortSignal): Promise<string[] | null> { return (await this.searchMatches(query, signal))?.ids ?? null; },
+  retry(videos:LibraryVideo[],tags:Record<string,string[]>,categories:Record<string,string>){if(status!=="failed")return;setStatus("idle");this.sync(videos,tags,categories);},
+  diagnostics(){return {status,generation,pending:pending.size,packed:offset,workers:worker?1:0,lastFailure};},
   sync(videos: LibraryVideo[], tags: Record<string, string[]>, categories: Record<string, string>) {
+    if(status==="failed")return;
     clearTimeout(idleTimer);
     idleTimer = undefined;
     if (source?.videos === videos && source.tags === tags && source.categories === categories) return;
@@ -114,7 +123,8 @@ export const searchWorkerIndex = {
       && tags === previous.tags
       && categories === previous.categories
       && videos.length >= previous.videos.length;
-    source = { videos, tags, categories }; offset = 0; generation++;
+    for(const request of pending.values()){request.cleanup();request.resolve(null);}pending.clear();
+    source = { videos, tags, categories }; offset = 0; generation++;lastFailure="";
     clearTimeout(timer); setStatus("building");
     if (mayReuseIndex) {
       const expected = generation;
@@ -133,13 +143,13 @@ export const searchWorkerIndex = {
           }
         }
         if (generation !== expected || !worker) return;
-        worker.postMessage({ type: 'continue', generation });
+        post({ type: 'continue', generation });
         offset = previous.videos.length;
         if (offset === videos.length) ready(); else queueBatch();
       })().catch(() => { if (generation === expected) fail(); });
       return;
     }
-    try { instance(); queueBatch(); } catch { fail(); }
+    try { instance();watch();queueBatch(); } catch { fail("Search worker could not start"); }
   },
   searchMatches(query: string, signal?: AbortSignal, reviewed = true): Promise<SearchMatches | null> {
     clearTimeout(idleTimer);
@@ -153,9 +163,10 @@ export const searchWorkerIndex = {
         resolve(null);
         if (!pending.size && status === 'ready') { clearTimeout(timer); releaseWhenIdle(); }
       };
+      if(pending.size>=8){const oldest=pending.entries().next().value;if(oldest){pending.delete(oldest[0]);oldest[1].cleanup();oldest[1].resolve(null);}}
       pending.set(requestId, { query, topicAliases: reviewed ? getTopicAliases() : EMPTY_TOPIC_ALIASES, resolve, cleanup: () => { signal?.removeEventListener('abort', cancel); } });
       signal?.addEventListener('abort', cancel, { once: true });
-      if (status === "ready") { worker?.postMessage({ type: "search", generation, requestId, query, topicAliases: reviewed ? getTopicAliases() : EMPTY_TOPIC_ALIASES }); watch(); }
+      if (status === "ready") { post({ type: "search", generation, requestId, query, topicAliases: reviewed ? getTopicAliases() : EMPTY_TOPIC_ALIASES }); watch(); }
     });
   },
   getStatus() { return status; },

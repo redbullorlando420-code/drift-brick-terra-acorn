@@ -1,0 +1,51 @@
+✖ studio requests survive navigation, keep the submitted settings and retain a prior image on failure (3.1819ms)
+✔ studio session storage is bounded and isolates each account (0.2355ms)
+✔ duplicate interrupts are coalesced and a returned partial image is labeled honestly (0.3977ms)
+✔ portable recipes round-trip only approved settings and reject unsupported files (0.8248ms)
+✔ recipe restoration is bounded and keeps valid entries when another is damaged (0.3374ms)
+✔ engine response limit cancels chunked and declared oversized bodies before buffering all data (15.95ms)
+✔ publication comes from the matching video, never a pull time, relative label or recommended date (2.402ms)
+✔ generation sends a bounded allow-list and rejects missing/oversized prompts and bad numbers (0.3827ms)
+✔ studio restores valid settings, migrates the legacy prompt and uses actual random seeds (0.3135ms)
+✔ cancelling an approval is token/origin-bound and cannot cancel a newer request (2.9066ms)
+✔ an authenticated API failure is visible and never starts a duplicate engine (4.236ms)
+✔ remote approval is expiring, one-use, peer/origin-bound and never supplies a password (1.9839ms)
+✔ local image API stays on the fixed loopback target and refuses non-image output (0.5818ms)
+✔ engine lifecycle launches only the installed Python with loopback and isolated caches (8.5564ms)
+✔ generation is single-flight and interrupt only applies to a request owned by the bridge (0.4007ms)
+✔ Hugging Face links allow only credential-free public model/file pages (1.5184ms)
+✔ safetensors rejects webpage/pickle/pointer, tensor overflow and non-checkpoint components (11.0461ms)
+✔ remote downloads pin revisions, check digests, preserve existing weights and retain bounded jobs (14.8752ms)
+✔ wrong remote checksum never enables a file and cleans its temporary data (16.0337ms)
+✔ an incompatible large model is refused after its small header, before downloading weights (14.7303ms)
+✔ local binary upload streams a checkpoint and refuses overwrites or traversal (154.2562ms)
+✔ Qwen graph uses built-in fixed nodes, model family settings and no caller workflow (0.5106ms)
+✔ Qwen generation checks the native queue, returns PNG and frees owned history/model memory (1014.0042ms)
+✔ Qwen lifecycle is loopback-only with custom/cloud nodes and pinned memory disabled (6.4509ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 23
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1355.8052
+
+✖ failing tests:
+
+test at scripts\local-tools.test.mjs:14:1
+✖ studio requests survive navigation, keep the submitted settings and retain a prior image on failure (3.1819ms)
+  AssertionError [ERR_ASSERTION]: unmounted views receive no notifications
+  
+  3 !== 1
+  
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/local-tools.test.mjs:22:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 3,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

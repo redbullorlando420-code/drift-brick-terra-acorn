@@ -25,8 +25,8 @@ test('Guide searches the full catalog tail by title and saved tags with explicit
  const rows=Array.from({length:6000},(_,i)=>video('v'+i,'Ordinary '+i));rows.push(video('tail','Retro arcade racing'));
  const input={...base(rows),tags:{tail:['keyword-strategy']}};
  const reply=await answerGuideQuery(input,'Show me retro racing strategy',1,Date.now(),async()=>{});
- assert.deepEqual(reply.picks.map(v=>v.id),['tail']);assert.match(reply.reasons.tail,/title: retro/);assert.match(reply.reasons.tail,/tag: strategy/);
- const empty=await answerGuideQuery(input,'completelymissing',1,Date.now(),async()=>{});assert.equal(empty.picks.length,0);assert.match(empty.text,/No saved titles or tags/);
+ assert.deepEqual(reply.picks.map(v=>v.id),['tail']);assert.deepEqual(reply.explanations.tail.reasons.map(reason=>[reason.kind,reason.quote]),[['title','Retro arcade racing'],['title','Retro arcade racing'],['saved-tag','keyword-strategy']]);assert.match(reply.reasons.tail,/keyword-strategy/);
+ const empty=await answerGuideQuery(input,'completelymissing',1,Date.now(),async()=>{});assert.equal(empty.picks.length,0);assert.match(empty.text,/No eligible public titles or saved tags/);
 });
 test('Guide isolates private, hidden, unavailable and Adult titles and supports racing topics',async()=>{
  const rows=[video('yes','iRacing Arcade setup'),video('private','iRacing Arcade',{folderId:'private'}),video('hidden','iRacing'),video('gone','iRacing'),video('adult','iRacing',{remote:{kind:'eporner'}})];

@@ -1,0 +1,18 @@
+{
+  "a1111": {
+    "ok": true,
+    "connected": false,
+    "ready": false,
+    "busy": false,
+    "modelPreflight": false,
+    "models": 0
+  },
+  "comfy": {
+    "ok": true,
+    "connected": false,
+    "ready": false,
+    "busy": false,
+    "modelPreflight": false,
+    "models": 1
+  }
+}

@@ -10,6 +10,7 @@ import { VirtualVideoGrid } from './virtual-video-grid';
 import { useAnimeCatalog } from './use-anime-catalog';
 import { useSettledTags } from './use-settled-tags';
 import { HubShell, Stat } from './hub-shared';
+import {AnimeReviewDesk} from './anime-review';
 
 function useAnimeQuery(value: string) {
   const [settled, setSettled] = useState(value);
@@ -75,6 +76,8 @@ export function AnimeSection() {
         <Stat label="Films & specials" value={filmCount === undefined ? '…' : filmCount + (catalog.index?.specialCount ?? 0)} />
       </section>
 
+      <AnimeReviewDesk index={catalog.index}/>
+
       <section className="mt-6 rounded-lg bg-elevated p-4 shadow-border sm:p-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -91,7 +94,7 @@ export function AnimeSection() {
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-3"><label className="text-xs text-muted">Order<select aria-label="Anime title order" value={episodeOrder ? 'episode' : 'recent'} onChange={event => setEpisodeOrder(event.target.value === 'episode')} className="ml-2 min-h-11 rounded-md border border-border bg-bg px-3 text-sm text-fg"><option value="recent">Recent additions</option><option value="episode">Series & episode order</option></select></label>{series && <Button className="min-h-11" variant="secondary" onClick={() => setSeries('')}>Clear series selection</Button>}</div>
       </section>
-      {!!catalog.index?.series.length && <section className="mt-5 rounded-lg border border-border bg-surface p-4" aria-label="Anime series browser"><h2 className="font-display text-xl text-fg">Pick a series, then watch in order.</h2><p className="mt-1 text-xs leading-5 text-muted">Season/episode numbers and fansub filenames determine order. Films and OVAs have their own filters; unnumbered titles remain searchable.</p><div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{catalog.index.series.slice(0,seriesLimit).map(group => <Button key={group.key} variant={series === group.key ? 'default' : 'secondary'} className="min-h-11 min-w-0 justify-between" aria-pressed={series === group.key} onClick={() => { setSeries(group.key); setFilter('series'); setEpisodeOrder(true); setQuery(''); }}><span className="truncate">{group.title}</span><span className="ml-2 shrink-0 text-xs">{group.count} episodes</span></Button>)}</div>{seriesLimit < catalog.index.series.length && <Button variant="ghost" className="mt-2 min-h-11" onClick={() => setSeriesLimit(value => value + 12)}>Show 12 more series</Button>}{catalog.index.seriesOverflow && <p className="mt-2 text-xs text-muted">Showing the first 512 series groups. Search still reaches every saved episode.</p>}</section>}
+      {!!catalog.index?.series.length && <section className="mt-5 rounded-lg border border-border bg-surface p-4" aria-label="Anime series browser"><h2 className="font-display text-xl text-fg">Pick a series, then watch in order.</h2><p className="mt-1 text-xs leading-5 text-muted">Reviewed identities determine approved groups. Other shortcuts use unverified season/episode parsing; review ambiguous remakes above. Films, OVAs and unnumbered titles remain searchable.</p><div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{catalog.index.series.slice(0,seriesLimit).map(group => <Button key={group.key} variant={series === group.key ? 'default' : 'secondary'} className="min-h-11 min-w-0 justify-between" aria-pressed={series === group.key} onClick={() => { setSeries(group.key); setFilter('series'); setEpisodeOrder(true); setQuery(''); }}><span className="truncate">{group.title}</span><span className="ml-2 shrink-0 text-xs">{group.count} {group.key.startsWith('anime:')?'reviewed sources':'parsed sources'}</span></Button>)}</div>{seriesLimit < catalog.index.series.length && <Button variant="ghost" className="mt-2 min-h-11" onClick={() => setSeriesLimit(value => value + 12)}>Show 12 more series</Button>}{catalog.index.seriesOverflow && <p className="mt-2 text-xs text-muted">Showing the first 512 series groups. Search still reaches every saved episode.</p>}</section>}
 
       <div data-anime-ready={!pending && !catalog.failed} aria-busy={pending && !catalog.failed}>
       {catalog.failed ? <section role="alert" className="mt-6 rounded-lg bg-elevated p-5"><p>Anime titles could not be prepared.</p><Button className="mt-3" variant="secondary" onClick={catalog.retry}>Retry Anime</Button></section>

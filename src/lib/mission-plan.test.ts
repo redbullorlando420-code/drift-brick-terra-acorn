@@ -360,3 +360,76 @@ test('revision 41 promotes reviewed topic aliases once without resetting unrelat
  const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-alias',title:'Custom',detail:'Keep exact custom alias work',done:false,status:'in-progress'}];
  const migrated=mergeMissionPlan(saved,current,40);assert.deepEqual(migrated.map(m=>m.done),[false,false,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep exact custom alias work');assert.equal(migrated[0].status,'blocked');assert.equal(migrated.at(-1)?.status,'in-progress');assert(mergeMissionPlan(saved,current,41).every(m=>!m.done));
 });
+
+test('revision 42 promotes tag confidence once and preserves unrelated reopens and custom work',()=>{
+ const current:Mission[]=['next-053','next-054','next-055','next-056'].map(id=>({id,title:id,detail:'Verified current defaults',done:id!=='next-056',status:id!=='next-056'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-confidence',title:'Custom',detail:'Keep exact confidence work',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,41);assert.deepEqual(migrated.map(m=>m.done),[false,false,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep exact confidence work');assert.equal(migrated[0].status,'blocked');assert.equal(migrated.at(-1)?.status,'in-progress');assert(mergeMissionPlan(saved,current,42).every(m=>!m.done));
+});
+
+test('revision 43 promotes grounded Guide evidence once and preserves reopens and custom instructions',()=>{
+ const current:Mission[]=['next-054','next-055','next-056','next-057'].map(id=>({id,title:id,detail:'Verified defaults',done:id!=='next-057',status:id!=='next-057'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-guide',title:'Custom',detail:'Keep exact Guide instructions',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,42);assert.deepEqual(migrated.map(m=>m.done),[false,false,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep exact Guide instructions');assert.equal(migrated[0].status,'blocked');assert.equal(migrated.at(-1)?.status,'in-progress');assert(mergeMissionPlan(saved,current,43).every(m=>!m.done));
+});
+
+test('revision 44 promotes verified session tuning once and preserves earlier reopens and custom work',()=>{
+ const current:Mission[]=['next-055','next-056','next-057','next-058'].map(id=>({id,title:id,detail:'Verified current defaults',done:id!=='next-058',status:id!=='next-058'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-session-tuning',title:'Custom',detail:'Keep exact session tuning work',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,43);assert.deepEqual(migrated.map(m=>m.done),[false,false,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep exact session tuning work');assert.equal(migrated[0].status,'blocked');assert.equal(migrated.at(-1)?.status,'in-progress');assert(mergeMissionPlan(saved,current,44).every(m=>!m.done));
+});
+
+test('revision 45 promotes verified topic bridges once without resetting reopens or custom work',()=>{
+ const current:Mission[]=['next-056','next-057','next-058','next-059'].map(id=>({id,title:id,detail:'Verified defaults',done:id!=='next-059',status:id!=='next-059'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-bridge',title:'Custom',detail:'Keep exact bridge notes',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,44);assert.deepEqual(migrated.map(m=>m.done),[false,false,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep exact bridge notes');assert.equal(migrated[0].status,'blocked');assert.equal(migrated.at(-1)?.status,'in-progress');assert(mergeMissionPlan(saved,current,45).every(m=>!m.done));
+});
+
+test('revision 46 promotes verified fairness reports once while retaining manual reopens and custom work',()=>{
+ const current:Mission[]=['next-057','next-058','next-059','next-060'].map(id=>({id,title:id,detail:'Verified defaults',done:id!=='next-060',status:id!=='next-060'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-fairness',title:'Custom',detail:'Keep exact report notes',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,45);assert.deepEqual(migrated.map(m=>m.done),[false,false,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep exact report notes');assert.equal(migrated[0].status,'blocked');assert.equal(migrated.at(-1)?.status,'in-progress');assert(mergeMissionPlan(saved,current,46).every(m=>!m.done));
+});
+
+test('revision 47 promotes verified experiment replay once and preserves manual and external work',()=>{
+ const current:Mission[]=['next-058','next-059','next-060','next-061'].map(id=>({id,title:id,detail:'Verified defaults',done:id!=='next-061',status:id!=='next-061'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-replay',title:'Custom',detail:'Keep exact experiment notes',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,46);assert.deepEqual(migrated.map(m=>m.done),[false,false,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep exact experiment notes');assert.equal(migrated[0].status,'blocked');assert.equal(migrated.at(-1)?.status,'in-progress');assert(mergeMissionPlan(saved,current,47).every(m=>!m.done));
+});
+
+test('revision 48 promotes the three verified film workflows together and preserves unrelated manual choices',()=>{
+ const current:Mission[]=['next-060','next-061','next-062','next-063','next-064'].map(id=>({id,title:id,detail:'Verified defaults',done:id!=='next-064',status:id!=='next-064'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-film',title:'Custom',detail:'Keep exact film notes',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,47);assert.deepEqual(migrated.map(m=>m.done),[false,true,true,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep exact film notes');assert.equal(migrated[0].status,'blocked');assert.equal(migrated.at(-1)?.status,'in-progress');assert(mergeMissionPlan(saved,current,48).every(m=>!m.done));
+});
+
+test('revision 49 promotes the three verified anime workflows together while preserving reopens and custom work',()=>{
+ const current:Mission[]=['next-063','next-064','next-065','next-066','next-067'].map(id=>({id,title:id,detail:'Verified defaults',done:id!=='next-067',status:id!=='next-067'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-anime',title:'Custom',detail:'Keep exact anime notes',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,48);assert.deepEqual(migrated.map(m=>m.done),[false,true,true,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep exact anime notes');assert.equal(migrated[0].status,'blocked');assert.equal(migrated.at(-1)?.status,'in-progress');assert(mergeMissionPlan(saved,current,49).every(m=>!m.done));
+});
+
+test('revision 50 promotes provider capabilities, quality and login recovery without completing privacy dependencies',()=>{
+ const current:Mission[]=['next-066','next-067','next-068','next-069','next-070'].map(id=>({id,title:id,detail:'Verified defaults',done:id!=='next-069',status:id!=='next-069'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-provider',title:'Custom',detail:'Keep exact provider notes',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,49);assert.deepEqual(migrated.map(m=>m.done),[false,true,true,false,true,false]);assert.equal(migrated.at(-1)?.detail,'Keep exact provider notes');assert.equal(migrated[0].status,'blocked');assert.equal(migrated.at(-1)?.status,'in-progress');assert(mergeMissionPlan(saved,current,50).every(m=>!m.done));
+});
+
+test('revision 51 promotes creator card, replay and offline contract delivery without changing external integration status',()=>{
+ const current:Mission[]=['next-070','next-087','next-088','next-089','next-090','next-093'].map(id=>({id,title:id,detail:'Verified defaults',done:['next-070','next-088','next-089','next-090'].includes(id),status:['next-070','next-088','next-089','next-090'].includes(id)?'complete':'planned'}));
+ const custom:Mission={id:'custom-creator',title:'Custom work',detail:'Keep exact notes',done:false,status:'blocked'};
+ const saved=[...current.map(m=>({...m,done:false,status:'in-progress' as const})),custom];
+ const migrated=mergeMissionPlan(saved,current,50);assert.deepEqual(migrated.map(m=>m.done),[false,false,true,true,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep exact notes');assert(mergeMissionPlan(saved,current,51).every(m=>!m.done));
+});
+
+test('revision 52 promotes studio compatibility, notes and lifecycle without claiming resumable downloads or output retention',()=>{
+ const done=['next-081','next-083','next-084'];const current:Mission[]=['next-080','next-081','next-082','next-083','next-084','next-085','next-086'].map(id=>({id,title:id,detail:'Current defaults',done:done.includes(id),status:done.includes(id)?'complete':'planned'}));const saved=current.map(m=>({...m,done:false,status:'in-progress' as const}));const migrated=mergeMissionPlan(saved,current,51);assert.deepEqual(migrated.map(m=>m.done),[false,true,false,true,true,false,false]);assert(mergeMissionPlan(saved,current,52).every(m=>!m.done));
+});
+
+test('revision 53 promotes verified recipes and keyboard coverage together while preserving manual reopens',()=>{
+ const done=['next-084','next-085','next-095'];const current:Mission[]=['next-084','next-085','next-086','next-094','next-095','next-096'].map(id=>({id,title:id,detail:'Current defaults',done:done.includes(id),status:done.includes(id)?'complete':'planned'}));const saved=current.map(m=>({...m,done:false,status:'blocked' as const}));const migrated=mergeMissionPlan(saved,current,52);assert.deepEqual(migrated.map(m=>m.done),[false,true,false,false,true,false]);assert(mergeMissionPlan(saved,current,53).every(m=>!m.done));
+});
+
+test('revision 54 promotes worker recovery and artwork lifecycle without changing unrelated reopens',()=>{
+ const done=['next-012','next-013','next-016'];const current:Mission[]=['next-012','next-013','next-014','next-015','next-016','next-017'].map(id=>({id,title:id,detail:'Current defaults',done:done.includes(id),status:done.includes(id)?'complete':'planned'}));const saved=current.map(m=>({...m,done:false,status:'blocked' as const}));const migrated=mergeMissionPlan(saved,current,53);assert.deepEqual(migrated.map(m=>m.done),[false,true,false,false,true,false]);assert(mergeMissionPlan(saved,current,54).every(m=>!m.done));
+});

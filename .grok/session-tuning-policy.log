@@ -1,0 +1,16 @@
+✔ session defaults are immutable, normalized and isolated from all saved taste fields (1.3837ms)
+✔ recording length boundaries, unknown duration and exact sources have explicit semantics (0.3059ms)
+✔ familiar/explore change preference ordering without changing favorites, history, tags or explicit feedback (12.0449ms)
+✔ filtering to Twitch retains legitimate cross-source saved-content affinity (0.2918ms)
+✔ balanced selection scans the full corpus, retains bounded source pools and fills missing source slots (396.167ms)
+✔ queries honor length/source constraints and never silently override a contradictory provider request (0.6035ms)
+✔ private/hidden/orphan signals stay excluded in every mode; live questions retain strict freshness (2.0619ms)
+✔ a cancelled session replacement reads no discarded catalog and cancellation also stops affinity preparation (1.9803ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 571.8463

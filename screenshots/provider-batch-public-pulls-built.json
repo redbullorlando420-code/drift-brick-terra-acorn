@@ -1,0 +1,32 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "YouTube recent checks rotate across all 16 creators in bounded two-creator responses",
+        "YouTube selected older pull resumes saved position independently of fresh checks",
+        "YouTube recent health and archive continuation persist across reload",
+        "Twitch recent checks rotate across all 16 creators in bounded two-creator responses",
+        "Twitch selected older pull resumes saved position independently of fresh checks",
+        "Twitch recent health and archive continuation persist across reload"
+      ],
+      "errors": [],
+      "requests": 26
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "YouTube recent checks rotate across all 16 creators in bounded two-creator responses",
+        "YouTube selected older pull resumes saved position independently of fresh checks",
+        "YouTube recent health and archive continuation persist across reload",
+        "Twitch recent checks rotate across all 16 creators in bounded two-creator responses",
+        "Twitch selected older pull resumes saved position independently of fresh checks",
+        "Twitch recent health and archive continuation persist across reload"
+      ],
+      "errors": [],
+      "requests": 26
+    }
+  ],
+  "limitation": "Real UI and persistence with controlled provider responses in isolated Chrome profiles. No private follows or real upstream results changed."
+}

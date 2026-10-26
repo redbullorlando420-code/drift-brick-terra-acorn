@@ -3,9 +3,10 @@ import { ExternalLink, Maximize, Pause, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { LibraryVideo } from '@/lib/videos/types';
 import { myFreeCamsRoomUrl } from '@/lib/videos/official-room';
+import {useProviderView} from './use-provider-viewing';
+import {ProviderLoginHelp,ProviderSaveNotice} from './provider-recovery';
 import { watchHiddenPage } from '@/lib/hidden-page-release';
 
-const MODE_KEY = 'reelcase.mfc.view-mode.v1';
 type Mode = 'embedded' | 'website';
 export function OfficialRoomPlayer({ video, onOpen }: { video: LibraryVideo; onOpen?: () => void }) {
   const href = myFreeCamsRoomUrl(video.remote) ?? 'https://app.myfreecams.com/';
@@ -13,29 +14,19 @@ export function OfficialRoomPlayer({ video, onOpen }: { video: LibraryVideo; onO
   const shareHref = name ? 'https://share.myfreecams.com/' + name : 'https://share.myfreecams.com/';
   const frame = useRef<HTMLElement>(null), [revision, setRevision] = useState(0);
   const [fullscreenError, setFullscreenError] = useState('');
-  const [mode, setMode] = useState<Mode>('website'), [ready, setReady] = useState(false);
-  const [copyNotice, setCopyNotice] = useState('');
+  const {mode,ready,choose:remember}=useProviderView('myfreecams',href);
   const [suspended, setSuspended] = useState(false), [saveError, setSaveError] = useState('');
-  useEffect(() => {
-    try { setMode(localStorage.getItem(MODE_KEY) === 'embedded' ? 'embedded' : 'website'); } catch { /* Direct viewing remains available when preferences cannot be read. */ }
-    setReady(true);
-  }, []);
   useEffect(() => {
     if (!ready || mode !== 'embedded' || suspended) return;
     return watchHiddenPage(() => setSuspended(true));
   }, [ready, mode, suspended]);
-  useEffect(() => setCopyNotice(''), [href]);
   const choose = (next: Mode) => {
     if (next === 'website' && document.fullscreenElement === frame.current) void document.exitFullscreen().catch(() => {});
-    setMode(next); setSuspended(false); setSaveError('');
-    try { localStorage.setItem(MODE_KEY, next); } catch { setSaveError('This browser could not save your viewing choice. It applies for this visit.'); }
+    setSuspended(false);setSaveError('');
+    try{remember(next);}catch{setSaveError('This browser could not save your viewing choice. It applies for this visit.');}
   };
   const openWebsite = () => { choose('website'); onOpen?.(); };
-  const copyLink = async () => {
-    try { await navigator.clipboard.writeText(href); setCopyNotice('Room link copied. Paste it into your usual browser to use its MFC session.'); }
-    catch { setCopyNotice('Copy is unavailable. Select the room link below and copy it manually.'); }
-  };
-  return <section ref={frame} aria-label="MyFreeCams official player" className="min-w-0 bg-surface text-fg [&:fullscreen]:h-screen [&:fullscreen]:w-screen [&:fullscreen]:overflow-y-auto">
+  return <section ref={frame} data-provider-frame="myfreecams" data-provider-running={ready&&mode==='embedded'&&!suspended} aria-label="MyFreeCams official player" className="min-w-0 bg-surface text-fg [&:fullscreen]:h-screen [&:fullscreen]:w-screen [&:fullscreen]:overflow-y-auto">
     <div className="space-y-3 border-b border-border p-3 sm:p-4">
       <div><h2 className="font-display text-lg">MyFreeCams official website</h2><p className="max-w-2xl text-xs leading-5 text-muted">Sign in on MFC’s own tab so it can use its first-party session. Your viewing choice is remembered on this device.</p></div>
       <div className="flex flex-wrap gap-2" aria-label="MyFreeCams viewing mode">
@@ -46,7 +37,7 @@ export function OfficialRoomPlayer({ video, onOpen }: { video: LibraryVideo; onO
         <a href={shareHref} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-md border border-border px-3 text-sm">Share & profile <ExternalLink className="size-4" aria-hidden="true" /></a>
       </div>
       <p className="max-w-3xl text-xs leading-5 text-muted">Inside Realhub is an embedded page, including in full screen. Browser cookie restrictions can make sign-in repeat there. Sign in on MFC opens the official room in its own tab and switches off the embedded page. The MFC session stays in that browser; signing in there may not sign in the embedded view.</p>
-      <details className="rounded-md border border-border p-3"><summary className="min-h-11 cursor-pointer text-sm font-medium">Login keeps looping?</summary><div className="mt-2 space-y-3 text-xs leading-5 text-muted"><p>Use Sign in on MFC and stay in that tab for chat and playback. If this app’s browser still loops, copy the room link into your usual Chrome, Edge or Firefox profile where you normally use MFC. Avoid a private window if you want the session remembered.</p><Button variant="secondary" className="min-h-11" onClick={()=>void copyLink()}>Copy room link</Button><label className="block">Official room link<input aria-label="Official MFC room link" className="mt-1 block min-h-11 w-full min-w-0 rounded-md border border-border bg-bg px-3 text-sm text-fg" value={href} readOnly onFocus={event=>event.currentTarget.select()}/></label>{copyNotice&&<p role="status">{copyNotice}</p>}<p>If sign-in still repeats directly on MFC, remove only MFC’s site cookies in that browser, reopen MFC and sign in again. This signs you out of MFC. Realhub cannot inspect your login, change MFC cookies or complete its confirmations for you.</p><a href="https://wiki.myfreecams.com/wiki/Technical_Information" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-2 text-accent underline">MFC sign-in and browser help <ExternalLink className="size-4" aria-hidden="true"/></a></div></details>
+      <ProviderLoginHelp provider="myfreecams" href={href} room onRecover={()=>choose('website')}/><ProviderSaveNotice/>
       {saveError && <p role="status" className="text-xs text-muted">{saveError}</p>}
     </div>
     {ready && mode === 'embedded' && !suspended ? <>

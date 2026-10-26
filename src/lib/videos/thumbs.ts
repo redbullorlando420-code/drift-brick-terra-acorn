@@ -1,13 +1,14 @@
 import { create } from "zustand";
 import type { LibraryVideo } from "./types";
 import { resolvePlayUrl } from "./sources";
+import { artworkDecodeSnapshot } from "./bitmap-pool.ts";
 import { bitmapFromVideo } from "./hw";
 import { loadCachedThumb, loadThumbCache, saveThumbCache } from "./persist";
 import { companionGetThumb } from "@/lib/companion";
 import { boundedRecord } from "../bounded-record.ts";
 import { allowAutomaticRefresh, subscribeSessionPhase } from "../session-activity.ts";
 import { getInteractionPriorityDelay } from "../interaction-budget.ts";
-import { isArtworkSuppressed, subscribeArtworkSuppression } from './image-load-budget.ts';
+import { getImageLoadBudgetSnapshot,isArtworkSuppressed, subscribeArtworkSuppression } from './image-load-budget.ts';
 import { createThumbnailQueue } from './thumbnail-queue.ts';
 import { artworkBytes, artworkUrl, binaryArtwork, releaseArtwork } from './binary-artwork';
 import { getPerformanceProfile, subscribePerformanceProfile } from '../performance-profile.ts';
@@ -82,7 +83,7 @@ export function getThumbDiagnostics() {
   return { active: queue.active, queued: queue.queued, inflight: queue.jobs, recalling: recalling.size, entries: Object.keys(s.byId).length,
     bytes: Object.values(s.byId).reduce((sum, value) => sum + artworkBytes(value), 0),
     byteLimit: getPerformanceProfile().artworkBytes, entryLimit: getPerformanceProfile().artworkEntries,
-    failures: Object.keys(s.failed).length, hits: artworkHits, misses: artworkMisses, evictions: artworkEvictions };
+    decodes:artworkDecodeSnapshot(),admission:getImageLoadBudgetSnapshot(), failures: Object.keys(s.failed).length, hits: artworkHits, misses: artworkMisses, evictions: artworkEvictions };
 }
 
 function capture(src: string, signal: AbortSignal): Promise<{ thumb: Blob | null; duration?: number }> {
@@ -94,9 +95,12 @@ function capture(src: string, signal: AbortSignal): Promise<{ thumb: Blob | null
     video.crossOrigin = "anonymous";
     video.className = "hw-video";
     let settled = false;
+    const decoder=new AbortController();
+    let releaseFrame=()=>{};
     const finish = (thumb: Blob | null, duration?: number) => {
       if (settled) return;
       settled = true;
+      decoder.abort();releaseFrame();
       window.clearTimeout(timer);
       signal.removeEventListener("abort", abort);
       video.onloadedmetadata = video.onseeked = video.onerror = null;
@@ -136,22 +140,24 @@ function capture(src: string, signal: AbortSignal): Promise<{ thumb: Blob | null
           const canvas = document.createElement("canvas");
           canvas.width = w;
           canvas.height = h;
+          releaseFrame=()=>{canvas.width=canvas.height=0;};
           const ctx = canvas.getContext("2d", { alpha: false });
           if (!ctx) {
             finish(null);
             return;
           }
-          const bitmap = await bitmapFromVideo(video);
+          let bitmap = await bitmapFromVideo(video,decoder.signal);
           try {
             if (settled || signal.aborted) return;
             if (bitmap) ctx.drawImage(bitmap, 0, 0, w, h);
             else ctx.drawImage(video, 0, 0, w, h);
+            bitmap?.close();bitmap=null;
             const duration = Number.isFinite(video.duration) ? video.duration : undefined;
             const thumb = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/jpeg", 0.74));
             if (!settled && !signal.aborted) finish(thumb, duration);
           } finally {
             bitmap?.close();
-            canvas.width = canvas.height = 0;
+            releaseFrame();
           }
         } catch {
           finish(null);

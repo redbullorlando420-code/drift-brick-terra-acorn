@@ -13,6 +13,8 @@ import { estimateProviderPayload, type ProviderCacheSample } from '../provider-c
 import { archivePageWindow } from './archive-page';
 import type { FollowedChannel, FollowKind, LibraryVideo, ProviderFailure } from "@/lib/videos/types";
 import { LIBRARY_LIMITS } from "@/lib/library-limits";
+import {adultAdapter,canPullAdult} from '@/lib/videos/adult-provider-adapters';
+import {adultRows,validateAdultAtom,adultPublication,adultPublicationFields,measureAdultQuality,emptyAdultQuality,addAdultQuality,type AdultPullQuality} from './adult-quality.ts';
 import { cachedAdultFetch } from "@/lib/remote/adult-pull-cache";
 import {
   adultDeepenQueriesForPage,
@@ -1568,6 +1570,7 @@ export type AdultPullDiagnostic = {
   status: "loaded" | "empty" | "failed";
   titles: number;
   detail: string;
+  quality?:AdultPullQuality;
 };
 
 const EPORNER_ORDERS = new Set([
@@ -1582,13 +1585,14 @@ const EPORNER_ORDERS = new Set([
 
 function parseAdultProviders(raw: unknown): AdultPullProvider[] {
   const known = new Set<AdultPullProvider>(ADULT_PULL_PROVIDERS);
-  if (raw === "all" || raw == null) return [...ADULT_PULL_PROVIDERS];
+  if (raw === "all" || raw == null) return ADULT_PULL_PROVIDERS.filter(canPullAdult);
   if (Array.isArray(raw)) {
     const out = raw.filter((p): p is AdultPullProvider => typeof p === "string" && known.has(p as AdultPullProvider));
-    return out.length ? [...new Set(out)] : [...ADULT_PULL_PROVIDERS];
+    if(!out.length||out.length!==raw.length||out.some(id=>!canPullAdult(id)))throw Error('Choose an active supported Adult pull source. Unsupported destinations are link-out only.');
+    return [...new Set(out)];
   }
-  if (typeof raw === "string" && known.has(raw as AdultPullProvider)) return [raw as AdultPullProvider];
-  return [...ADULT_PULL_PROVIDERS];
+  if (typeof raw === "string" && known.has(raw as AdultPullProvider) && canPullAdult(raw)) return [raw as AdultPullProvider];
+  throw Error('Choose an active supported Adult pull source.');
 }
 
 function parseProviderPages(raw: unknown): Partial<Record<AdultPullProvider, number>> {
@@ -1666,13 +1670,13 @@ type EpornerVideo = {
 };
 
 function epornerVideo(row: EpornerVideo): LibraryVideo | null {
-  const id = asString(row.id).trim();
+  const id = typeof row.id==='number'&&Number.isSafeInteger(row.id)&&row.id>0?String(row.id):asString(row.id).trim();
   const title = asString(row.title).trim();
   const embed = asString(row.embed).trim();
   const watch = asString(row.url).trim();
   if (!id || !title || !embed) return null;
   if (!embed.startsWith("https://www.eporner.com/embed/")) return null;
-  const added = Date.parse(asString(row.added)) || Date.now();
+  const added = adultPublication(row.added);
   const rawThumb = asString(row.default_thumb?.src);
   const thumbFallbacks = expandAdultThumbFallbacks(rawThumb);
   const thumb = thumbFallbacks[0] ?? (isUsableAdultThumb(rawThumb) ? rawThumb : "");
@@ -1694,6 +1698,7 @@ function epornerVideo(row: EpornerVideo): LibraryVideo | null {
     src: embed,
     remote: {
       kind: "eporner",
+      ...adultPublicationFields(row.added),
       videoId: id,
       channelName: "Eporner",
       views,
@@ -1736,7 +1741,7 @@ async function fetchEpornerPageOnce(query: string, order: string, page: number, 
     total_pages?: number;
     total_count?: number;
   };
-  const videos = (json.videos ?? [])
+  const videos = adultRows('eporner',json,['videos'],['id'],['title','embed'])
     .map(epornerVideo)
     .filter((v): v is LibraryVideo => v != null);
   return {
@@ -1753,7 +1758,7 @@ async function fetchEpornerPage(query: string, order: string, page: number, perP
 }> {
   try {
     const primary = await fetchEpornerPageOnce(query, order, page, perPage);
-    if (primary.videos.length) return primary;
+    return primary;
   } catch {
     // Fall through to alternate order / smaller page backup.
   }
@@ -1819,7 +1824,7 @@ function redtubeVideo(row: RedtubeVideo): LibraryVideo | null {
   const keywords = [...stars, ...tags].join(", ");
   const picked = pickRedtubeThumb(row);
   const thumb = picked.poster ?? "";
-  const added = Date.parse(asString(row.publish_date)) || Date.now();
+  const added = adultPublication(row.publish_date);
   const views = typeof row.views === "number" && Number.isFinite(row.views) ? row.views : undefined;
   const creator = stars[0] || "RedTube";
   return {
@@ -1838,6 +1843,7 @@ function redtubeVideo(row: RedtubeVideo): LibraryVideo | null {
     src: embed,
     remote: {
       kind: "redtube",
+      publishedPrecision:added?'instant':'unknown',
       videoId: id,
       channelName: creator,
       views,
@@ -1902,7 +1908,7 @@ async function fetchRedtubePage(query: string, order: string, page: number): Pro
     code?: number;
   };
   if (json.message && json.code) throw new Error(json.message);
-  const rows = json.videos ?? [];
+  const rows = adultRows('redtube',json,['videos'],['video_id'],['title','embed_url']);
   const videos = rows
     .map((row) => {
       const video = row && typeof row === "object" && "video" in row ? row.video : (row as RedtubeVideo);
@@ -1990,7 +1996,7 @@ async function fetchChaturbateRooms(query: string, maxVideos: number, offset = 0
   if (!Array.isArray(data.results) || !Number.isFinite(data.count)) throw new Error('Chaturbate returned an unreadable directory. Previous rooms were kept.');
   const checkedAt = Number(res.headers.get('x-reelcase-observed-at')) || Date.now();
   const needle = query.trim().toLowerCase();
-  const videos = data.results.map(chaturbateVideo).filter((video): video is LibraryVideo => Boolean(video))
+  const videos = adultRows('chaturbate',data,['results'],['username']).map(chaturbateVideo).filter((video): video is LibraryVideo => Boolean(video))
     .filter(video => !needle || needle === 'all' || (video.name + ' ' + (video.description ?? '') + ' ' + video.remote?.videoId).toLowerCase().includes(needle))
     .map(video => ({ ...video, remote: { ...video.remote!, observedAt: checkedAt } }));
   const totalCount = Math.max(0, Math.floor(data.count!));
@@ -2232,7 +2238,7 @@ async function fetchMyFreeCamsRooms(query: string, maxVideos: number, offset = 0
       if (!res.ok) throw new Error(`MyFreeCams public list HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
       const payload = await res.text();
       const listing = myfreecamsListing(payload);
-      if (!listing.rows && !/^\s*(?:Updated:|\[)/i.test(payload)) throw new Error('MyFreeCams returned an unreadable public list. Previous rooms were kept.');
+      if (!listing.rows && payload.trim()!=='[]' && !/^\s*Updated:[^<\r\n]*(?:<br\s*\/?>)?\s*$/i.test(payload)) throw new Error('MyFreeCams returned an unreadable public list. Previous rooms were kept.');
       if (!listing.rooms.length && listing.publicRows) {
         const states = myfreecamsStateSummary(listing.states);
         throw new Error(
@@ -2329,7 +2335,7 @@ function redditVideo(entry: string, subreddit: string): LibraryVideo | null {
   if (!shouldKeepRedditEntry(media, title)) return null;
   const flair = extractRedditFlair(entry, content);
   if (adultBlockedText(title, author, subreddit, flair, media.poster, media.src, media.watch)) return null;
-  const addedAt = Date.parse(published);
+  const addedAt = adultPublication(published);
   const poster = media.poster ?? media.thumbFallbacks?.[0];
   const isImage = media.kind === "image";
   const isVideo = media.kind === "video";
@@ -2348,13 +2354,14 @@ function redditVideo(entry: string, subreddit: string): LibraryVideo | null {
     extension: isImage ? "image" : isVideo ? "reddit" : "reddit",
     mime: isImage ? "image/jpeg" : isVideo ? "video/reddit" : "text/html",
     size: 0,
-    addedAt: Number.isFinite(addedAt) ? addedAt : Date.now(),
+    addedAt,
     tagline: `r/${subreddit}${author ? ` · u/${author}` : ""}${flair ? ` · ${flair}` : ""}${isVideo ? " · video" : isImage ? " · photo" : ""}`,
     description: `reddit, r/${subreddit}, ${subreddit.replace(/_/g, " ")}, ${title}, ${flair}, ${media.watch ?? ""}`,
     poster: poster || undefined,
     src: isImage ? media.src || poster || permalink : directMedia || undefined,
     remote: {
       kind: "reddit",
+      ...adultPublicationFields(published),
       sourceKinds: redgifsEmbed ? ["reddit", "redgifs"] : ["reddit"],
       videoId: id,
       channelName: author || `r/${subreddit}`,
@@ -2431,6 +2438,7 @@ async function fetchRedditSubRss(sub: string, sort: "hot" | "new"): Promise<Libr
     if (!xml) await new Promise((resolve) => setTimeout(resolve, 400));
   }
   if (!xml) throw new Error(failure || "empty feed");
+  validateAdultAtom(xml);
   const posts: LibraryVideo[] = [];
   for (const match of xml.matchAll(/<entry\b[^>]*>([\s\S]*?)<\/entry>/gi)) {
     const chunk = match[1] ?? "";
@@ -2444,6 +2452,7 @@ async function fetchRedditFeed(query: string, maxVideos: number, page = 1, confi
   videos: LibraryVideo[];
   totalPages: number;
   totalCount: number;
+  warning?:string;
   nextPage: number | null;
 }> {
   const configuredPages = configuredSources.length
@@ -2490,12 +2499,14 @@ async function fetchRedditFeed(query: string, maxVideos: number, page = 1, confi
           const hay = `${video.name} ${video.tagline ?? ""} ${video.description ?? ""}`.toLowerCase();
           return hay.includes(needle);
         });
+  if(errors.length&&!collected.length)throw Error('Reddit community window incomplete; previous results and cursor were kept. '+errors.length+' feeds need retry.');
   const nextPage = page + windows <= lastTotalPages * 6 ? page + windows : null;
   return {
     videos: filtered.slice(0, maxVideos),
     totalPages: lastTotalPages,
     totalCount: filtered.length,
-    nextPage,
+    nextPage:errors.length?page:nextPage,
+    ...(errors.length?{warning:'Reddit community window incomplete; healthy rows were kept and the same window needs retry.'}:{}),
   };
 }
 
@@ -2532,7 +2543,7 @@ function normalizedBooruUrl(value: string, host: (typeof BOORU_HOSTS)[number]): 
 }
 
 function booruVideo(row: BooruPost, host: (typeof BOORU_HOSTS)[number]): LibraryVideo | null {
-  const id = asString(row.id).trim();
+  const id = typeof row.id==='number'&&Number.isSafeInteger(row.id)&&row.id>0?String(row.id):asString(row.id).trim();
   const tags = asString(row.tags).trim();
   const owner = pickString(row.owner, row.creator, row.uploader).trim();
   const preview = normalizedBooruUrl(asString(row.preview_url), host);
@@ -2553,13 +2564,14 @@ function booruVideo(row: BooruPost, host: (typeof BOORU_HOSTS)[number]): Library
     extension: "image",
     mime: "image/jpeg",
     size: 0,
-    addedAt: Date.now(),
+    addedAt: adultPublication(asRecord(row)?.created_at),
     tagline: `${host.id} · photo${owner ? ` · ${owner}` : ""}`,
     description: tags.slice(0, 400),
     poster: sample || preview || undefined,
     src: image,
     remote: {
       kind: "booru",
+      ...adultPublicationFields(asRecord(row)?.created_at),
       videoId: id,
       channelName: owner || host.id,
       channelId: host.id,
@@ -2592,7 +2604,7 @@ function booruPostsFromXml(xml: string): BooruPost[] {
   for (const match of xml.matchAll(/<post\b([\s\S]*?)(?:\/>|>)/gi)) {
     const attrs = match[1] ?? "";
     const id = booruMarkupAttribute(attrs, "id");
-    if (!id) continue;
+    if (!id) throw Error('booru returned a malformed post identity; previous cursor was kept.');
     rows.push({
       id,
       preview_url: booruMarkupAttribute(attrs, "preview_url"),
@@ -2640,6 +2652,7 @@ async function fetchBooruListing(host: (typeof BOORU_HOSTS)[number], tags: strin
       if (rows.length >= limit) break;
     }
   }
+  if(!rows.length&&!/no (?:posts|images)(?: found| match)|nobody here but us/i.test(html))throw Error(host.id+' returned an unreadable public listing; previous results and cursor were kept.');
   const videos = rows.map((row) => booruVideo(row, host)).filter((video): video is LibraryVideo => video != null);
   // Detail recovery is shared by preview and player, on demand. Walking nine
   // post pages for every HTML catalog page made large pulls unnecessarily slow.
@@ -2690,16 +2703,13 @@ async function fetchBooruJson(host: (typeof BOORU_HOSTS)[number], tags: string, 
     raw = JSON.parse(body) as unknown;
   } catch {
     const rows = booruPostsFromXml(body);
-    if (rows.length) return rows.map((row) => booruVideo(row, host)).filter((video): video is LibraryVideo => video != null);
+    if(/^\s*(?:<\?xml[^>]*>\s*)?<posts\b/i.test(body)&&(/<\/posts>\s*$/i.test(body)||/<posts[^>]*\/\s*>\s*$/i.test(body)))return rows.map((row) => booruVideo(row, host)).filter((video): video is LibraryVideo => video != null);
     throw new Error(`${host.id} returned an unsupported public feed`);
   }
   const record = asRecord(raw);
   // Gelbooru-compatible servers use both a bare JSON array and wrappers such
   // as { post: [...] } / { posts: [...] }. Wrapped results are still valid.
-  const rows = Array.isArray(raw) ? raw
-    : Array.isArray(record?.post) ? record.post
-    : Array.isArray(record?.posts) ? record.posts
-    : [];
+  const rows=adultRows('booru',raw,['post','posts'],['id']);
   const out: LibraryVideo[] = [];
   for (const row of rows) {
     if (!row || typeof row !== "object") continue;
@@ -2715,7 +2725,7 @@ async function fetchBooruHost(host: (typeof BOORU_HOSTS)[number], tags: string, 
   // a valid public HTML listing rather than reporting a misleading empty pull.
   try {
     const rows = await fetchBooruJson(host, tags, limit, pid);
-    if (rows.length) return rows;
+    return rows;
   } catch {
     // Public listing fallback below preserves a scoped provider diagnostic.
   }
@@ -2786,7 +2796,7 @@ function e621TagString(tags: E621Post["tags"]): string {
 }
 
 function e621Video(row: E621Post): LibraryVideo | null {
-  const id = asString(row.id).trim();
+  const id = typeof row.id==='number'&&Number.isSafeInteger(row.id)&&row.id>0?String(row.id):asString(row.id).trim();
   if (!id) return null;
   const rating = asString(row.rating).trim().toLowerCase();
   if (rating && rating !== "e" && rating !== "explicit") return null;
@@ -2808,7 +2818,7 @@ function e621Video(row: E621Post): LibraryVideo | null {
     extension: "image",
     mime: "image/jpeg",
     size: 0,
-    addedAt: Date.now(),
+    addedAt: adultPublication(asRecord(row)?.created_at),
     tagline: `e621 · photo`,
     description: tags.slice(0, 400),
     poster: thumbs[0] || preview || sample || undefined,
@@ -2847,7 +2857,7 @@ async function fetchE621Page(tags: string, limit: number, page: number): Promise
   if (!res.ok) throw new Error(`e621 HTTP ${res.status}`);
   const json: unknown = await res.json();
   const root = asRecord(json);
-  const rows = Array.isArray(root?.posts) ? root.posts : Array.isArray(json) ? json : [];
+  const rows=adultRows('booru',json,['posts'],['id']);
   const out: LibraryVideo[] = [];
   for (const row of rows) {
     if (!row || typeof row !== "object") continue;
@@ -2861,6 +2871,7 @@ async function fetchBooruFeed(query: string, maxVideos: number, page: number): P
   videos: LibraryVideo[];
   totalPages: number;
   totalCount: number;
+  warning?:string;
 }> {
   const needle = query.trim().toLowerCase();
   const directRule34Id = rule34PostIdFromQuery(query);
@@ -2905,11 +2916,10 @@ async function fetchBooruFeed(query: string, maxVideos: number, page: number): P
       collected.push(video);
       if (collected.length >= maxVideos) break;
     }
-    if (collected.length >= maxVideos) break;
   }
   if (!collected.length && errors.length) throw new Error(`Booru unavailable (${errors.join("; ")}).`);
   // An empty explicit search is a valid provider result, not a failed all-source pull.
-  return { videos: collected, totalPages: page + (collected.length >= limit ? 1 : 0), totalCount: collected.length };
+  return { videos: collected.slice(0,maxVideos), totalPages: page + (collected.length >= limit ? 1 : 0), totalCount: collected.length,...(errors.length?{warning:'Booru host window incomplete; healthy rows were kept and the same window needs retry.'}:{}) };
 }
 
 
@@ -2984,7 +2994,7 @@ function redgifsVideo(row: RedgifsRow): LibraryVideo | null {
     extension: "redgifs",
     mime: "video/mp4",
     size: 0,
-    addedAt: Date.now(),
+    addedAt: adultPublication(row.createDate??row.created_at??row.createdAt),
     tagline: [author, ...tagList.slice(0, 8)].filter(Boolean).join(" · ").slice(0, 160) || undefined,
     description: tagList.join(", ") || title,
     poster: thumbFallbacks[0],
@@ -2993,6 +3003,7 @@ function redgifsVideo(row: RedgifsRow): LibraryVideo | null {
     src: file || embed || undefined,
     remote: {
       kind: "redgifs",
+      ...adultPublicationFields(row.createDate??row.created_at??row.createdAt),
       videoId: id,
       channelName: author || "Redgifs",
       observedAt: Date.now(),
@@ -3004,23 +3015,7 @@ function redgifsVideo(row: RedgifsRow): LibraryVideo | null {
   };
 }
 
-function collectRedgifsRows(payload: unknown): RedgifsRow[] {
-  if (Array.isArray(payload)) return payload.map(asRecord).filter((r): r is RedgifsRow => Boolean(r));
-  const root = asRecord(payload);
-  if (!root) return [];
-  for (const key of ["gifs", "items", "data", "results", "trending", "feed"]) {
-    const value = root[key];
-    if (Array.isArray(value)) return value.map(asRecord).filter((r): r is RedgifsRow => Boolean(r));
-    const nested = asRecord(value);
-    if (nested) {
-      for (const nestedKey of ["gifs", "items", "data", "results"]) {
-        const inner = nested[nestedKey];
-        if (Array.isArray(inner)) return inner.map(asRecord).filter((r): r is RedgifsRow => Boolean(r));
-      }
-    }
-  }
-  return [];
-}
+function collectRedgifsRows(payload:unknown):RedgifsRow[]{const keys=['gifs','items','data','results','trending','feed'];return adultRows('redgifs',payload,keys.flatMap(k=>[k,...['gifs','items','data','results'].map(n=>k+'.'+n)]),['id','gif_id','gifId','slug']) as RedgifsRow[];}
 
 let redgifsAuth: { token: string; expiresAt: number } | null = null;
 
@@ -3117,27 +3112,11 @@ async function fetchRedgifsViaAdultDataLink(query: string, maxVideos: number, pa
   };
 }
 
-async function fetchRedgifsFeed(query: string, maxVideos: number, page: number): Promise<{
-  videos: LibraryVideo[];
-  totalPages: number;
-  totalCount: number;
-}> {
-  // Prefer the official public temporary-token API so Redgifs shelves fill
-  // without AdultDataLink. Keep AdultDataLink as a secondary path when a key
-  // is configured and the direct feed is empty or unavailable.
-  try {
-    const direct = await fetchRedgifsDirect(query, maxVideos, page);
-    if (direct.videos.length) return direct;
-  } catch {
-    // Fall through to AdultDataLink / empty.
-  }
-  try {
-    const viaAdl = await fetchRedgifsViaAdultDataLink(query, maxVideos, page);
-    if (viaAdl.videos.length) return viaAdl;
-  } catch {
-    // Optional secondary path.
-  }
-  return { videos: [], totalPages: page, totalCount: 0 };
+async function fetchRedgifsFeed(query:string,maxVideos:number,page:number):Promise<{videos:LibraryVideo[];totalPages:number;totalCount:number}>{
+ let primary:unknown;
+ try{return await fetchRedgifsDirect(query,maxVideos,page);}catch(error){primary=error;}
+ if(adultDataLinkApiKey())return fetchRedgifsViaAdultDataLink(query,maxVideos,page);
+ throw primary;
 }
 
 function liveRoomLimit(provider: AdultPullProvider) {
@@ -3185,24 +3164,28 @@ function adultPullFailureDetail(error: unknown): string {
 async function pullProviderPages(
   provider: AdultPullProvider, query: string, order: string, startPage: number,
   maxVideos: number, redditSources: readonly RedditSourcePreference[] = [], startOffset = 0,
-): Promise<{ videos: LibraryVideo[]; page: number; nextPage: number | null; nextOffset: number; totalCount: number }> {
+): Promise<{ videos: LibraryVideo[]; page: number; nextPage: number | null; nextOffset: number; totalCount: number; quality:AdultPullQuality;warning?:string }> {
+  if(!canPullAdult(provider))throw Error('This source has no active catalog adapter.');
   if (provider === "chaturbate" || provider === "myfreecams") {
     const batch = provider === "chaturbate" ? await fetchChaturbateRooms(query, maxVideos) : await fetchMyFreeCamsRooms(query, maxVideos);
-    return { videos: batch.videos, page: 1, nextPage: null, nextOffset: 0, totalCount: batch.totalCount };
+    if('stale' in batch&&batch.stale)throw Error('Live directory is stale; previous observations were kept.');
+    return { videos: batch.videos, page: 1, nextPage: null, nextOffset: 0, totalCount: batch.totalCount,quality:measureAdultQuality(batch.videos) };
   }
   const videos: LibraryVideo[] = [], seen = new Set<string>();
+  let quality=emptyAdultQuality(),warning:string|undefined;
   let page = startPage, offset = startOffset, totalCount = 0, nextPage: number | null = page, nextOffset = offset;
   const started = Date.now();
   // A request is a small archive step, never an unbounded hidden keyword sweep.
   const maxPages = provider === 'eporner' || provider === 'reddit' || provider === 'booru' ? 1 : 4;
   for (let step = 0; step < maxPages && videos.length < maxVideos && Date.now() - started < 12_000; step++) {
     let rows: LibraryVideo[], following: number | null;
+    try{
     if (provider === 'reddit') {
       const batch = await fetchRedditFeed(query, 1000, page, redditSources);
-      rows = batch.videos; following = batch.nextPage; totalCount = batch.totalCount;
+      rows = batch.videos; following = batch.nextPage; totalCount = batch.totalCount; warning=batch.warning;
     } else if (provider === 'booru') {
       const batch = await fetchBooruFeed(query, 400, page);
-      rows = batch.videos; following = rows.length ? page + 1 : null; totalCount = batch.totalCount;
+      rows = batch.videos; following = rows.length ? page + 1 : null; totalCount = batch.totalCount; warning=batch.warning;
     } else if (provider === 'redgifs') {
       const batch = await fetchRedgifsFeed(query, LIBRARY_LIMITS.redgifsPageSize, page);
       rows = batch.videos; following = page < batch.totalPages ? page + 1 : null; totalCount = batch.totalCount;
@@ -3212,13 +3195,16 @@ async function pullProviderPages(
       const batch = provider === 'redtube' ? await fetchRedtubePage(query, sort, page) : await fetchEpornerPage(query, sort, page, LIBRARY_LIMITS.epornerPageSize);
       rows = batch.videos; following = page < batch.totalPages ? page + 1 : null; totalCount = batch.totalCount;
     }
+    }catch(error){if(!videos.length)throw error;warning=adultPullFailureDetail(error);nextPage=page;nextOffset=offset;break;}
+    quality=addAdultQuality(quality,measureAdultQuality(rows));
     const window = archivePageWindow(rows, page, offset, maxVideos - videos.length, following);
     for (const video of window.rows) if (!seen.has(video.id)) { seen.add(video.id); videos.push(video); }
-    nextPage = window.nextPage; nextOffset = window.nextOffset;
+    nextPage = warning?page:window.nextPage; nextOffset = warning?0:window.nextOffset;
+    if(warning)break;
     if (!rows.length || nextPage == null || nextPage === page) break;
     page = nextPage; offset = 0;
   }
-  return { videos, page: startPage, nextPage, nextOffset, totalCount };
+  return { videos, page: startPage, nextPage, nextOffset, totalCount,quality,...(warning?{warning}:{}) };
 }
 
 export async function runSearchAdultVideos(dataRaw: unknown): Promise<{
@@ -3232,6 +3218,7 @@ export async function runSearchAdultVideos(dataRaw: unknown): Promise<{
     providerNextPages: Partial<Record<AdultPullProvider, number | null>>;
     providerNextOffsets: Partial<Record<AdultPullProvider, number>>;
     providerDiagnostics: AdultPullDiagnostic[];
+    partial:boolean;
   }> {
     const data = parseAdultSearch(dataRaw);
     const providers = [...data.providers].sort((a, b) => (a === "reddit" ? -1 : b === "reddit" ? 1 : 0));
@@ -3274,7 +3261,9 @@ export async function runSearchAdultVideos(dataRaw: unknown): Promise<{
           detail: batch.videos.length
             ? `${batch.videos.length.toLocaleString()} titles from page ${batch.page}${batch.nextPage != null ? ` · next page ${batch.nextPage}` : ""}`
             : "The provider responded, but had no matching public results.",
+          quality:batch.quality,
         });
+        if(batch.warning){errors.push(provider+': '+batch.warning);providerDiagnostics.push({provider,status:'failed',titles:0,detail:batch.warning});}
         if (batch.nextPage != null) nextPage = nextPage == null ? batch.nextPage : Math.min(nextPage, batch.nextPage);
         continue;
       }
@@ -3303,6 +3292,7 @@ export async function runSearchAdultVideos(dataRaw: unknown): Promise<{
       providerNextPages,
       providerNextOffsets,
       providerDiagnostics,
+      partial:errors.length>0,
     };
 }
 

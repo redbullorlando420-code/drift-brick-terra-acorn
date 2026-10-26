@@ -62,7 +62,8 @@ try {
       const txt = await txtDownload, txtPath = output.replace(/\.json$/, `-${viewport.name}.txt`); await txt.saveAs(txtPath);
       const exported = readFileSync(txtPath, 'utf8'); assert.ok(exported.includes(edited));
       for (const site of ['https://x.com/', 'https://www.facebook.com/', 'https://www.instagram.com/', 'https://www.tiktok.com/']) assert.ok(exported.includes(site));
-      const pngDownload = page.waitForEvent('download'); await page.getByRole('button', { name: 'Download Story PNG', exact: true }).click();
+      await page.getByRole('button', { name: 'Review Story export', exact: true }).click();
+       const pngDownload = page.waitForEvent('download'); await page.getByRole('link', { name: 'Download Story PNG', exact: true }).click();
       const png = await pngDownload, pngPath = output.replace(/\.json$/, `-story-${viewport.name}.png`); await png.saveAs(pngPath);
       const bytes = readFileSync(pngPath); assert.equal(bytes.readUInt32BE(16), 1080); assert.equal(bytes.readUInt32BE(20), 1920); result.png = pngPath;
       await page.getByLabel('Stream title', { exact: true }).fill('Signal QA second stream');

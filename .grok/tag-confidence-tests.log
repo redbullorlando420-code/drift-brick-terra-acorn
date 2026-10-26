@@ -1,0 +1,47 @@
+✔ real store metadata actions return before catalog parsing, honor locks, save compact provider provenance, and hold during a viewer (200.1808ms)
+✔ real smart tags retain source/creator filters and manual locks without a catalog-sized click stack (1.3494ms)
+✔ manual and accepted inspection edits never enumerate the existing tag ledgers (1.6385ms)
+✔ removing a folder removes only its sparse enrichment records as well as its catalog metadata (0.963ms)
+✔ cached YouTube repair replaces saturated provider tags, preserves manual locks and saves idempotent versioned rows (3.3562ms)
+✔ real creator repair returns before scans, patches only 48 names/tags, honors locks and writes only changed rows (274.6072ms)
+✔ creator repair waits behind a viewer, recovers from failed storage, and rebases a concurrent manual lock (18.6335ms)
+✔ removing exact follow evidence while repair is saving prevents stale publication (0.9695ms)
+✔ explicit watch metadata persists compact evidence and rechecks manual locks after asynchronous saving (6.6702ms)
+✔ real YouTube confidence review accepts weak evidence explicitly and preserves it across later provider refreshes (2.0249ms)
+✔ hashtag-only YouTube titles cannot bypass review policy through automatic topic enrichment (0.4255ms)
+✔ exactly 100 distinct milestones with only evidenced completions cover ten workstreams with executable contracts (17.1747ms)
+✔ all prerequisite references exist, are acyclic and precede dependent work (0.312ms)
+✔ roadmap migration appends briefs once without resetting prior manual choices or custom ideas (4.2764ms)
+✔ known brief updates retain saved status while adopting the current implementation contract (0.1647ms)
+✔ copied briefs include concrete scope, dependency status, acceptance and safe execution boundaries (0.4407ms)
+✔ checked-in roadmap is reproducible and exports all 100 full briefs without completing work (4.442ms)
+✔ synthetic corpus has explicit reasoned judgments and rejects invalid versions, bounds, references and canonical cycles (7.3132ms)
+✔ graded NDCG and precision match an independently calculated two-title example, including empty wrong output (1.3393ms)
+✔ missing judgments and publication dates remain unknown, while ingestion cannot create publication freshness (1.1784ms)
+✔ canonical aliases cannot inflate relevance and are distinct from previous-shelf exposure and negative evidence (0.4913ms)
+✔ creator concentration is conditional on actual relevant availability and empty libraries are inapplicable, never perfect relevance (0.7517ms)
+✔ adversarial rankings independently trip operational-tag, creator, exposure, duplicate and explicit-negative detectors (3.2798ms)
+✔ production rankers are deterministic, offline and read-only; current artifacts match the reviewed versioned baseline (34.0109ms)
+✔ baseline comparison refuses missing/incompatible baselines, changed judgments and altered ranking orders (7.9278ms)
+✔ CLI parsing rejects ambiguous modes and baseline replacement requires an explicit flag (40.295ms)
+✔ CLI exits nonzero for the intentionally strict quality gate and a missing baseline rather than hiding unknowns (488.5521ms)
+✔ labeled metadata corpus calibrates confidence bands and excludes promotional high-confidence interests (19.5537ms)
+✔ distinct source masks distinguish creator, chapter, title, hashtag and prose without inflating repeated fields (0.6902ms)
+✔ compact scores survive real JSON/card reloads; browse records never contain full evidence excerpts (4.4763ms)
+✔ explicit acceptance retains exact confidence provenance and does not rewrite manual or unrelated values (3.0463ms)
+✔ changed tags, metadata, locks, unknown candidates and full tag fields refuse stale acceptance (0.8178ms)
+✔ description-only unrelated topics and hashtags cannot enter automatic topics; approved saved tags remain available to ordinary topic interpretation (18.6134ms)
+✔ malformed compact scores are conservative, lists and excerpts remain bounded (12.6474ms)
+✔ matching YouTube player supplies bounded raw keywords, description and exact date (7.0108ms)
+✔ consent pages, other videos, playability errors, invalid JSON and dates never supply tags or invented dates (0.4276ms)
+✔ creator phrases are normalized, chapters preserve order, and promotional filler cannot become suggested tags (14.1084ms)
+✔ compact evidence and creator keywords survive cache recovery, shallow feeds and on-demand details (2.8836ms)
+✔ relevant late creator tags outrank an unrelated keyword dump and compact scans avoid title tokenization (2.3819ms)
+ℹ tests 39
+ℹ suites 0
+ℹ pass 39
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1052.511

@@ -1,0 +1,12 @@
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import type { StudioSettings } from '@/lib/studio-settings';
+import type { StudioJob } from '@/lib/studio-jobs';
+export function StudioJobHistory({jobs,busy,onReuse}:{jobs:StudioJob[];busy:boolean;onReuse:(settings:StudioSettings)=>void}){
+  const [page,setPage]=useState(0);
+  return <section aria-label="Generation job history" className="mt-5 space-y-4 rounded-lg border border-border bg-surface p-5"><h2 className="text-xl font-semibold text-fg">Generation jobs</h2><p className="text-sm leading-6 text-muted">Eight recent parameter/outcome receipts per app user. Reload never resubmits a request. This bridge cannot reconnect a browser to an unfinished engine request; interrupted outcomes need a manual engine check. Native ComfyUI IDs, when returned, are references rather than reconnect permission.</p>
+    {!jobs.length&&<p className="text-sm text-muted">Your first explicit generation will appear here.</p>}
+    <ol className="space-y-3">{jobs.slice(page*4,page*4+4).map(job=><li key={job.id} data-studio-job={job.status} className="space-y-2 rounded-md border border-border bg-bg p-4"><div className="flex flex-wrap justify-between gap-2"><strong className="text-sm">{job.status}</strong><span className="text-xs text-muted">{new Date(job.updatedAt).toLocaleString()}</span></div><p className="break-words text-sm">{job.settings.prompt}</p><p className="break-words text-xs text-muted">{job.settings.engine??'a1111'} · {job.settings.model??'engine default'} · {job.settings.steps} steps · {job.settings.size} × {job.settings.size} · seed {job.output?.seed??job.settings.seed}</p><p className="text-xs leading-5 text-muted">{job.detail}</p><p className="break-all text-xs text-muted">Local intent: {job.id}{job.engineJobId?' · Engine job: '+job.engineJobId:' · Engine job ID unavailable'}</p>{job.output&&<p className="text-xs text-muted">Output preview was session-only; downloaded files and saved recipes are separate. This receipt does not restore image bytes after reload.</p>}<Button variant="secondary" disabled={busy} onClick={()=>onReuse({...job.settings})}>Load job parameters</Button></li>)}</ol>
+    {jobs.length>4&&<div className="flex gap-2"><Button variant="ghost" disabled={!page} onClick={()=>setPage(n=>n-1)}>Newer jobs</Button><Button variant="ghost" disabled={(page+1)*4>=jobs.length} onClick={()=>setPage(n=>n+1)}>Older jobs</Button></div>}
+  </section>;
+}

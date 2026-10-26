@@ -1,0 +1,131 @@
+{
+  "version": 1,
+  "scope": "Reviewed synthetic content bridges; operational strings are intentional negatives",
+  "cases": [
+    {
+      "id": "local-saved",
+      "source": "local",
+      "title": "capture.mp4",
+      "tags": [
+        "science"
+      ],
+      "want": [
+        "science"
+      ]
+    },
+    {
+      "id": "local-file-name",
+      "source": "local",
+      "title": "Physics lecture.mp4",
+      "tags": [],
+      "empty": true
+    },
+    {
+      "id": "local-category",
+      "source": "local",
+      "title": "capture",
+      "genre": "Science",
+      "tags": [],
+      "empty": true
+    },
+    {
+      "id": "youtube-title",
+      "source": "youtube",
+      "title": "Physics laboratory",
+      "tags": [],
+      "want": [
+        "science"
+      ]
+    },
+    {
+      "id": "youtube-creator",
+      "source": "youtube",
+      "title": "Weekly update",
+      "creator": "Science",
+      "tags": [],
+      "empty": true
+    },
+    {
+      "id": "youtube-hashtag",
+      "source": "youtube",
+      "title": "Weekly update #physics",
+      "tags": [],
+      "empty": true
+    },
+    {
+      "id": "youtube-file-title",
+      "source": "youtube",
+      "title": "physics.mp4",
+      "tags": [],
+      "empty": true
+    },
+    {
+      "id": "youtube-description-only",
+      "source": "youtube",
+      "title": "Weekly update",
+      "description": "Physics laboratory",
+      "tags": [],
+      "empty": true
+    },
+    {
+      "id": "twitch-category",
+      "source": "twitch",
+      "title": "Evening stream",
+      "genre": "iRacing",
+      "tags": [],
+      "want": [
+        "racing"
+      ]
+    },
+    {
+      "id": "twitch-source-labels",
+      "source": "twitch",
+      "title": "2026-10-26",
+      "tags": [
+        "provider-youtube",
+        "creator-science",
+        "format-vod",
+        "source-physics",
+        "mp4",
+        "2026-10-26"
+      ],
+      "empty": true
+    },
+    {
+      "id": "remote-url-title",
+      "source": "youtube",
+      "title": "https://example.com/science",
+      "tags": [],
+      "empty": true
+    },
+    {
+      "id": "local-unreviewed-label",
+      "source": "local",
+      "title": "capture",
+      "tags": [
+        "my-unreviewed-label"
+      ],
+      "empty": true
+    },
+    {
+      "id": "keyword-content",
+      "source": "twitch",
+      "title": "Evening update",
+      "tags": [
+        "keyword-science"
+      ],
+      "want": [
+        "science"
+      ]
+    },
+    {
+      "id": "private-provider",
+      "source": "redtube",
+      "title": "Physics laboratory",
+      "tags": [
+        "science"
+      ],
+      "empty": true
+    }
+  ]
+}

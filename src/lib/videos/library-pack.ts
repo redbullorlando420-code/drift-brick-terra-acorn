@@ -1,3 +1,11 @@
+import {getProviderViewing,importProviderViewing} from '../provider-viewing-store';
+import {getAnimeReviews,importAnimeReviews} from '../anime-review-store';
+import {getFilmReviews,importFilmReviews} from '../film-review-store';
+import {parseFilmLedger} from './film-review.ts';
+import {getGuidePreset,importGuidePreset} from '../guide-preset-store';
+import {isGuidePreset} from './guide-preset.ts';
+import {getTopicBridges,importTopicBridges} from '../topic-bridge-store';
+import {isBridgeLedger} from './topic-bridges.ts';
 import { getTopicAliases,isTopicAliasLedger } from './topic-aliases.ts';
 import { importTopicAliases } from '../topic-alias-store';
 import { getRecommendationExposure,importRecommendationExposure } from '../recommendation-exposure-store';
@@ -309,6 +317,11 @@ export function buildLibraryPackFiles(input: LibraryPackBuildInput): Record<stri
     [`${LIBRARY_PACK_ROOT}/marks/shelves.json`]: JSON.stringify({ favorites: input.favorites, likes: input.likes }, null, 2),
     [`${LIBRARY_PACK_ROOT}/marks/ratings.json`]: JSON.stringify({ ratings: feedback.ratings, ratingHistory: feedback.ratingHistory, notes: feedback.notes, creatorRatings: feedback.creatorRatings, creatorLikes: feedback.creatorLikes, creatorFavorites: feedback.creatorFavorites, watchTime: feedback.watchTime, recommendationRejections: feedback.recommendationRejections }, null, 2),
     [`${LIBRARY_PACK_ROOT}/marks/topic-aliases.json`]: JSON.stringify(getTopicAliases(), null, 2),
+    [`${LIBRARY_PACK_ROOT}/marks/provider-viewing.json`]: JSON.stringify(getProviderViewing().ledger,null,2),
+    [`${LIBRARY_PACK_ROOT}/marks/anime-reviews.json`]: JSON.stringify(getAnimeReviews().ledger,null,2),
+    [`${LIBRARY_PACK_ROOT}/marks/film-reviews.json`]: JSON.stringify(getFilmReviews().ledger,null,2),
+    [`${LIBRARY_PACK_ROOT}/marks/guide-preset.json`]: JSON.stringify(getGuidePreset(),null,2),
+    [`${LIBRARY_PACK_ROOT}/marks/topic-bridges.json`]: JSON.stringify(getTopicBridges(), null, 2),
     [`${LIBRARY_PACK_ROOT}/marks/recommendation-exposure.json`]: JSON.stringify(getRecommendationExposure(), null, 2),
     [`${LIBRARY_PACK_ROOT}/marks/tag-hearts.json`]: JSON.stringify({ tagLikes: feedback.tagLikes, tagHeartHistory: feedback.tagHeartHistory }, null, 2),
     [`${LIBRARY_PACK_ROOT}/resume/resume.json`]: JSON.stringify({ progress: input.progress, resumeProgress: input.resumeProgress }, null, 2),
@@ -623,6 +636,26 @@ export function applyLibraryPackFiles(
     if (!fileEndsWith(name, "topic-aliases.json")) continue;
     try { const value: unknown = JSON.parse(body); if (!isTopicAliasLedger(value)) throw new Error("unsupported topic aliases"); importTopicAliases(value); }
     catch { warnings.push("Could not restore topic aliases from " + name); }
+  }
+  for(const [name,body]of Object.entries(files)){
+    if(!fileEndsWith(name,'topic-bridges.json'))continue;
+    try{const value:unknown=JSON.parse(body);if(!isBridgeLedger(value))throw Error('unsupported topic bridge ledger');importTopicBridges(value);}catch{warnings.push('Could not restore topic bridges from '+name);}
+  }
+  for(const [name,body] of Object.entries(files)){
+    if(!fileEndsWith(name,'guide-preset.json'))continue;
+    try{const value:unknown=JSON.parse(body);if(!isGuidePreset(value))throw Error('unsupported Guide preset');importGuidePreset(value);}catch{warnings.push('Could not restore Guide preset from '+name);}
+  }
+  for(const [name,body] of Object.entries(files)){
+    if(!fileEndsWith(name,'film-reviews.json'))continue;
+    try{importFilmReviews(parseFilmLedger(JSON.parse(body)));}catch{warnings.push('Could not restore film reviews from '+name);}
+  }
+  for(const [name,body] of Object.entries(files)){
+    if(!fileEndsWith(name,'anime-reviews.json'))continue;
+    try{importAnimeReviews(JSON.parse(body));}catch{warnings.push('Could not restore anime reviews from '+name);}
+  }
+  for(const [name,body]of Object.entries(files)){
+    if(!fileEndsWith(name,'provider-viewing.json'))continue;
+    try{importProviderViewing(JSON.parse(body));}catch{warnings.push('Could not restore provider viewing preferences from '+name);}
   }
   let feedbackMerged = false;
   let feedbackPartial: Partial<DurableFeedback> = {};

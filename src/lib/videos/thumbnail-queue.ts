@@ -58,6 +58,12 @@ export function createThumbnailQueue(options: Options) {
       return;
     }
     const workers = Math.max(1, Math.min(4, options.workers()));
+    // Withdraw excess low-priority work on a profile reduction. Native decode
+    // slots remain counted by the shared bitmap pool until they really settle.
+    if(running.size>workers){
+      const ordered=[...running].filter(job=>!job.controller?.signal.aborted).sort((a,b)=>Number([...a.consumers.values()].includes('high'))-Number([...b.consumers.values()].includes('high')));
+      for(const job of ordered.slice(0,Math.max(0,running.size-workers)))job.controller?.abort();
+    }
     if (running.size >= workers) return;
     if (delay > 0) { timer = setTimer(wake, delay); return; }
     while (running.size < workers) {

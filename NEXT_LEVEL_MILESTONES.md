@@ -2,7 +2,7 @@
 
 ---
 
-All 100 additions start planned. Existing completion decisions are retained. P0 denotes foundational correctness/reliability risk; P1 denotes core workflow quality; P2 denotes capability and polish. Dependencies take precedence over priority.
+Status lines reflect verified defaults or the supplied in-app snapshot. Existing completion decisions are retained. P0 denotes foundational correctness/reliability risk; P1 denotes core workflow quality; P2 denotes capability and polish. Dependencies take precedence over priority.
 
 ---
 
@@ -475,7 +475,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-013 — Worker crash recovery
-Status: planned
+Status: complete
 Track: Performance at scale
 Priority: P1
 
@@ -495,8 +495,12 @@ A terminated search or inference worker must not strand loading state or retain 
 None.
 
 ## Start in
-- src/lib/videos/store.ts
-- src/components/library/library-app.tsx
+- src/lib/videos/search-worker-index.ts
+- src/components/library/search-worker-recovery.tsx
+- src/components/library/use-preview-ranking.ts
+- src/components/library/use-youtube-ranking.ts
+- src/components/library/use-library-stats.ts
+- src/components/library/use-adult-browse.ts
 
 ## Implementation
 1. Find current worker entry points and ownership; add generation-scoped error and timeout handling.
@@ -589,7 +593,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-016 — Artwork decode cancellation
-Status: planned
+Status: complete
 Track: Performance at scale
 Priority: P1
 
@@ -609,8 +613,11 @@ Navigation can leave decoded artwork alive after its cards leave the viewport.
 None.
 
 ## Start in
-- src/components/library/library-app.tsx
-- src/lib/provider-budgets.ts
+- src/lib/videos/bitmap-pool.ts
+- src/lib/videos/thumbs.ts
+- src/lib/videos/image-load-budget.ts
+- src/lib/videos/thumbnail-queue.ts
+- src/components/library/photos-section.tsx
 
 ## Implementation
 1. Locate image-slot and object-URL owners; distinguish network completion from decode retention.
@@ -2097,7 +2104,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-055 — Tag recommendation confidence
-Status: planned
+Status: complete
 Track: Recommendations and topics
 Priority: P1
 
@@ -2136,7 +2143,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-056 — AI Guide grounded explanation
-Status: planned
+Status: complete
 Track: Recommendations and topics
 Priority: P1
 
@@ -2155,7 +2162,7 @@ Guide suggestions need traceable reasons and a useful no-evidence state.
 ## Dependencies
 - next-051 — Recommendation evaluation dataset [complete]
 - next-052 — Explicit recommendation rejection reasons [complete]
-- next-055 — Tag recommendation confidence [planned]
+- next-055 — Tag recommendation confidence [complete]
 
 ## Start in
 - src/lib/recommendations.ts
@@ -2176,7 +2183,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-057 — Recommendation session tuning
-Status: planned
+Status: complete
 Track: Recommendations and topics
 Priority: P1
 
@@ -2215,7 +2222,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-058 — Cross-source topic bridge audit
-Status: planned
+Status: complete
 Track: Recommendations and topics
 Priority: P1
 
@@ -2254,7 +2261,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-059 — Recommendation fairness report
-Status: planned
+Status: complete
 Track: Recommendations and topics
 Priority: P1
 
@@ -2272,8 +2279,8 @@ Creator/provider diversity needs a diagnostic of actual output distributions.
 
 ## Dependencies
 - next-051 — Recommendation evaluation dataset [complete]
-- next-057 — Recommendation session tuning [planned]
-- next-058 — Cross-source topic bridge audit [planned]
+- next-057 — Recommendation session tuning [complete]
+- next-058 — Cross-source topic bridge audit [complete]
 
 ## Start in
 - src/lib/recommendations.ts
@@ -2294,7 +2301,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-060 — Feedback experiment replay
-Status: planned
+Status: complete
 Track: Recommendations and topics
 Priority: P1
 
@@ -2312,7 +2319,7 @@ Ranking changes should be replayable against the same saved evidence before roll
 
 ## Dependencies
 - next-051 — Recommendation evaluation dataset [complete]
-- next-059 — Recommendation fairness report [planned]
+- next-059 — Recommendation fairness report [complete]
 
 ## Start in
 - src/lib/recommendations.ts
@@ -2333,7 +2340,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-061 — Film identity review
-Status: planned
+Status: complete
 Track: Film, anime and private media
 Priority: P2
 
@@ -2371,7 +2378,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-062 — Movie cuts and editions
-Status: planned
+Status: complete
 Track: Film, anime and private media
 Priority: P2
 
@@ -2389,7 +2396,7 @@ Different cuts or resolutions of one film should be grouped without discarding c
 
 ## Dependencies
 - next-009 — File identity migration ledger [planned]
-- next-061 — Film identity review [planned]
+- next-061 — Film identity review [complete]
 
 ## Start in
 - src/lib/videos/movie-catalog.ts
@@ -2410,7 +2417,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-063 — Movie metadata provenance review
-Status: planned
+Status: complete
 Track: Film, anime and private media
 Priority: P2
 
@@ -2427,7 +2434,7 @@ Film posters and release data need safe correction when an external match is wro
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-061 — Film identity review [planned]
+- next-061 — Film identity review [complete]
 
 ## Start in
 - src/lib/videos/movie-catalog.ts
@@ -2448,7 +2455,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-064 — Anime series identity review
-Status: planned
+Status: complete
 Track: Film, anime and private media
 Priority: P2
 
@@ -2486,7 +2493,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-065 — Anime episode gap map
-Status: planned
+Status: complete
 Track: Film, anime and private media
 Priority: P2
 
@@ -2503,7 +2510,7 @@ Series browsing should show known missing episodes without inventing a complete 
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-064 — Anime series identity review [planned]
+- next-064 — Anime series identity review [complete]
 
 ## Start in
 - src/lib/videos/anime-catalog.ts
@@ -2524,7 +2531,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-066 — Anime next-episode policy
-Status: planned
+Status: complete
 Track: Film, anime and private media
 Priority: P2
 
@@ -2541,8 +2548,8 @@ Continue watching needs a user-controlled next-episode choice across specials an
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-064 — Anime series identity review [planned]
-- next-065 — Anime episode gap map [planned]
+- next-064 — Anime series identity review [complete]
+- next-065 — Anime episode gap map [complete]
 
 ## Start in
 - src/lib/videos/anime-catalog.ts
@@ -2563,7 +2570,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-067 — Adult provider capability registry
-Status: planned
+Status: complete
 Track: Film, anime and private media
 Priority: P2
 
@@ -2601,7 +2608,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-068 — Adult pull quality fixtures
-Status: planned
+Status: complete
 Track: Film, anime and private media
 Priority: P2
 
@@ -2618,7 +2625,7 @@ Provider-specific metadata regressions need source-by-source quality evidence.
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-067 — Adult provider capability registry [planned]
+- next-067 — Adult provider capability registry [complete]
 
 ## Start in
 - src/lib/remote/api.ts
@@ -2657,8 +2664,8 @@ Private labels and viewing signals need proof they cannot influence public shari
 
 ## Dependencies
 - next-043 — Guest catalog privacy review [planned]
-- next-058 — Cross-source topic bridge audit [planned]
-- next-067 — Adult provider capability registry [planned]
+- next-058 — Cross-source topic bridge audit [complete]
+- next-067 — Adult provider capability registry [complete]
 
 ## Start in
 - src/lib/videos/private-shelves.ts
@@ -2680,7 +2687,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-070 — Saved provider login guidance
-Status: planned
+Status: complete
 Track: Film, anime and private media
 Priority: P2
 
@@ -2697,7 +2704,7 @@ Embedded-site login failures need consistent first-party recovery without creden
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-067 — Adult provider capability registry [planned]
+- next-067 — Adult provider capability registry [complete]
 
 ## Start in
 - src/lib/videos/official-room.ts
@@ -3109,7 +3116,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-081 — Image model compatibility preflight
-Status: planned
+Status: complete
 Track: AI studio and creator tools
 Priority: P2
 
@@ -3130,7 +3137,9 @@ None.
 
 ## Start in
 - src/components/library/studio-model-library.tsx
-- src/lib/studio-recipes.ts
+- src/components/library/stable-diffusion-section.tsx
+- src/lib/studio-model-notes.ts
+- companion/studio-model-preflight.mjs
 
 ## Implementation
 1. Inventory supported engine/model families and validate downloaded metadata, format and required companion components.
@@ -3166,7 +3175,7 @@ Large model downloads need explicit resumable verification without retaining ent
 ## Dependencies
 - next-072 — Companion task queue recovery [planned]
 - next-073 — Approved-root change audit [planned]
-- next-081 — Image model compatibility preflight [planned]
+- next-081 — Image model compatibility preflight [complete]
 
 ## Start in
 - src/components/library/studio-model-library.tsx
@@ -3187,7 +3196,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-083 — Model card requirements notes
-Status: planned
+Status: complete
 Track: AI studio and creator tools
 Priority: P2
 
@@ -3204,7 +3213,7 @@ Users need executable setup guidance for the exact model rather than generic dow
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-081 — Image model compatibility preflight [planned]
+- next-081 — Image model compatibility preflight [complete]
 
 ## Start in
 - src/components/library/studio-model-library.tsx
@@ -3225,7 +3234,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-084 — Generation job lifecycle
-Status: planned
+Status: complete
 Track: AI studio and creator tools
 Priority: P2
 
@@ -3242,10 +3251,12 @@ Generation needs reliable queued, running, cancelled and failed states across re
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-081 — Image model compatibility preflight [planned]
+- next-081 — Image model compatibility preflight [complete]
 
 ## Start in
 - src/lib/studio-session.ts
+- src/lib/studio-jobs.ts
+- src/lib/studio-documents.ts
 - src/components/library/stable-diffusion-section.tsx
 
 ## Implementation
@@ -3263,7 +3274,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-085 — Reproducible generation recipes
-Status: planned
+Status: complete
 Track: AI studio and creator tools
 Priority: P2
 
@@ -3280,13 +3291,14 @@ A saved image needs enough provenance to reproduce its settings with an honest c
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-081 — Image model compatibility preflight [planned]
-- next-083 — Model card requirements notes [planned]
-- next-084 — Generation job lifecycle [planned]
+- next-081 — Image model compatibility preflight [complete]
+- next-083 — Model card requirements notes [complete]
+- next-084 — Generation job lifecycle [complete]
 
 ## Start in
 - src/lib/studio-recipes.ts
 - src/components/library/studio-recipes.tsx
+- src/lib/studio-session.ts
 
 ## Implementation
 1. Record model revision/hash when available, sampler, seed, dimensions and supported engine parameters.
@@ -3321,7 +3333,7 @@ Generated images and previews need bounded local retention without losing delibe
 
 ## Dependencies
 - next-002 — Storage pressure recovery [planned]
-- next-084 — Generation job lifecycle [planned]
+- next-084 — Generation job lifecycle [complete]
 
 ## Start in
 - src/lib/studio-session.ts
@@ -3380,7 +3392,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-088 — Announcement card accessibility
-Status: planned
+Status: complete
 Track: AI studio and creator tools
 Priority: P2
 
@@ -3401,6 +3413,7 @@ None.
 
 ## Start in
 - src/lib/stream-signal-card.ts
+- src/components/library/signal-story-export.tsx
 - src/components/library/stream-signal-section.tsx
 
 ## Implementation
@@ -3418,7 +3431,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-089 — Chat Plays deterministic replay
-Status: planned
+Status: complete
 Track: AI studio and creator tools
 Priority: P2
 
@@ -3439,7 +3452,9 @@ None.
 
 ## Start in
 - src/lib/stream-signal-lab.ts
+- src/lib/stream-signal-replay.ts
 - src/components/library/stream-signal-lab.tsx
+- src/components/library/stream-signal-replay.tsx
 
 ## Implementation
 1. Record a bounded seed/configuration and normalized simulated ballot/event log.
@@ -3456,7 +3471,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-090 — Local racing adapter contract
-Status: planned
+Status: complete
 Track: AI studio and creator tools
 Priority: P2
 
@@ -3473,12 +3488,14 @@ The AI Blueprint needs an implementation-ready boundary for a future authenticat
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-089 — Chat Plays deterministic replay [planned]
+- next-089 — Chat Plays deterministic replay [complete]
 
 ## Start in
-- src/lib/stream-signal.ts
+- src/lib/racing-adapter-contract.ts
+- src/components/library/racing-contract-lab.tsx
 - src/components/library/stream-signal-section.tsx
 - companion/README.md
+- docs/LOCAL_RACING_ADAPTER_CONTRACT.md
 
 ## Implementation
 1. Document versioned observation, strategic intent, acknowledgement, timeout and emergency-stop messages.
@@ -3559,7 +3576,7 @@ Optional integrations need understandable remembered consent and revocation.
 ## Dependencies
 - next-071 — Companion protocol negotiation [planned]
 - next-073 — Approved-root change audit [planned]
-- next-081 — Image model compatibility preflight [planned]
+- next-081 — Image model compatibility preflight [complete]
 
 ## Start in
 - src/lib/companion.ts
@@ -3664,7 +3681,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-095 — Keyboard command coverage map
-Status: planned
+Status: complete
 Track: Trust, accessibility and release
 Priority: P2
 
@@ -3684,6 +3701,8 @@ Keyboard access needs a discoverable map and collision tests across dialogs and 
 None.
 
 ## Start in
+- src/components/library/keyboard-help.tsx
+- src/lib/keyboard-commands.ts
 - src/components/library/library-app.tsx
 - src/components/library/player.tsx
 
@@ -3720,7 +3739,7 @@ Progress and error updates should be useful to assistive technology without beco
 
 ## Dependencies
 - next-050 — Room accessibility audit protocol [planned]
-- next-095 — Keyboard command coverage map [planned]
+- next-095 — Keyboard command coverage map [complete]
 
 ## Start in
 - src/components/library/live-check-status.tsx
@@ -3799,8 +3818,8 @@ The app needs one truthful distinction between implemented, configured and exter
 
 ## Dependencies
 - next-079 — Companion update health checklist [planned]
-- next-081 — Image model compatibility preflight [planned]
-- next-090 — Local racing adapter contract [planned]
+- next-081 — Image model compatibility preflight [complete]
+- next-090 — Local racing adapter contract [complete]
 - next-093 — Remote desktop pairing safeguards [planned]
 
 ## Start in

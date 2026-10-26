@@ -1,0 +1,43 @@
+✔ identity proposals remain unverified and remakes need distinct explicit reviewed identities (5.4971ms)
+✔ confirmation requires a real release year and a runtime strictly over ten minutes without mutating media or feedback (0.4915ms)
+✔ reviewed identity updates Movies membership, canonical title/year, genre and runtime without rewriting source records (15.2523ms)
+✔ explicit review cannot expose private, hidden, unavailable, live, sample, Twitch, adult or orphan records (2.1558ms)
+✔ public YouTube records do not need a local folder, while private provider folders and unknown local roots stay excluded (1.7933ms)
+✔ edition parsing requires explicit edition tokens; resolution alone cannot invent a new cut (0.4692ms)
+✔ grouping is explicit, same-film only, bounded and retains per-version identity, edition and runtime (0.7122ms)
+✔ ungrouping restores individual representation while keeping review, source IDs and per-version progress (1.1134ms)
+✔ preferred selection requires available reviewed membership and never compares file size or moves resume marks (1.2792ms)
+✔ poster-only correction previews locks and cannot overwrite locked title, year or source category (0.9145ms)
+✔ invalid alternate metadata preserves the last confirmed film; unlocking one field never unlocks another (0.5123ms)
+✔ Undo is durable and monotonic across identities, grouping and metadata; old mirrors cannot resurrect corrections (1.2038ms)
+✔ validation strips extraneous fields, rejects broken graphs/versions/unsafe keys and never evicts at capacity (12.4611ms)
+✔ 100k catalog processing yields, bounds reviewed groups and never mutates underlying file metadata (316.6447ms)
+✔ YouTube runtime labels survive legacy/modern imports, watch metadata and sparse refreshes (4.4847ms)
+✔ movie shelves recover connected folder/year evidence and observed runtimes while separating unknowns and exclusions (8.0831ms)
+✔ unknown movie previews stay bounded while all eligible candidates are counted (43.8849ms)
+✔ Twitch recommendations learn creator/game/title taste, prefer unwatched related VODs and reject one-star or live placeholders (4.9536ms)
+✔ ranked creator rotation retains the best matching creators even with thousands of followed archives (12.941ms)
+✔ Twitch coverage uses provider identities rather than renamed or colliding display names (0.9241ms)
+✔ Twitch archive priority survives reload and ignores a frequently refreshed live clock (0.2391ms)
+✔ actual Twitch continuation requests resume older pages, skip clips, retain checkpoints on failure and cap first at 100 (141.492ms)
+✔ local metadata-only runtime probe releases the element on success and abort without playing media (3.4154ms)
+✔ anime scene notation preserves season/episode numbers and ignores release years and quality codes (2.9688ms)
+✔ anime shelf excludes commentary/music/merch/games and description-only mentions while accepting numbered series and manual choices (1.5063ms)
+✔ anime films, OVAs and numbered series have separate filters and natural episode order (12.2653ms)
+✔ movie-specific filters retain strict film membership, real runtimes and unknown release years (4.7456ms)
+✔ movie membership trusts manual choices but not automatically inferred generic film tags (0.8609ms)
+✔ movie and anime selection yield and cancel instead of publishing obsolete filter results (82.2708ms)
+✔ host-owned readiness and votes are one per transport identity, bounded, and pruned after departures or title consumption (0.698ms)
+✔ guest playback and seek permissions are independent and cannot smuggle another action (0.1694ms)
+✔ clip refresh rotates across the full follow list with independent clocks, retries and exhaustion (3.1537ms)
+✔ newest/most-viewed clip windows stay bounded and never boost missing/future creation dates (24.665ms)
+✔ actual clip-only recent requests skip VOD/live fields, ignore old cursors, deduplicate periods and retain original cache observation (497.3413ms)
+✔ actual older clip partial failure retains accepted clips and its safe cursor, with a clip-specific failure (195.7379ms)
+ℹ tests 35
+ℹ suites 0
+ℹ pass 35
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1033.925

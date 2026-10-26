@@ -1,0 +1,1 @@
+import{n as e,o as t}from"./jsx-runtime-CfuWmoMz.js";import{b as n,y as r}from"./companion-cwUFSTic.js";var i=t(e(),1);function a(){return(0,i.useSyncExternalStore)(n,r,()=>`active`)}export{a as t};

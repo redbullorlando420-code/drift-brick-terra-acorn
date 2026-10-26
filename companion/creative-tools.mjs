@@ -38,13 +38,14 @@ export function generationPayload(body) {
   const integer = (value, min, max, fallback) => value === undefined ? fallback : Number.isInteger(value) && value >= min && value <= max ? value : (() => { throw new Error('Generation settings are outside the allowed limits.'); })();
   const width = integer(body.width, 256, 768, 512), height = integer(body.height, 256, 768, 512);
   if (width % 64 || height % 64) throw new Error('Image dimensions must be multiples of 64 between 256 and 768.');
-  return { prompt: body.prompt.trim(), negative_prompt: body.negativePrompt ?? '', steps: integer(body.steps, 1, 40, 20), width, height, seed: integer(body.seed, -1, 2147483647, -1), cfg_scale: 7, batch_size: 1, n_iter: 1, send_images: true, save_images: false };
+  return { prompt: body.prompt.trim(), negative_prompt: body.negativePrompt ?? '', steps: integer(body.steps, 1, 40, 20), width, height, seed: integer(body.seed, -1, 2147483647, -1), sampler_name: "Euler", scheduler: "Automatic", cfg_scale: 7, batch_size: 1, n_iter: 1, send_images: true, save_images: false };
 }
 export function remotePeer(value) {
   if (typeof value !== 'string' || !/^\d{9,12}$/.test(value)) throw new Error('Enter a RustDesk ID containing 9–12 digits. URLs, passwords and command arguments are not accepted.');
   return value;
 }
 export function createCreativeTools({ dir, spawnProcess = spawn, fetchLocal = fetch, now = Date.now, models }) {
+  const modelsManager = models;
   const rustdesk = process.env.RUSTDESK_PATH || join(dir, 'tools', process.platform === 'win32' ? 'rustdesk.exe' : 'rustdesk');
   let armed = null, child = null, lastLaunch = 0, generation = false, engine = null;
   const source = join(dir,'tools','stable-diffusion-webui'), python = join(source,'venv','Scripts','python.exe');
@@ -72,7 +73,7 @@ export function createCreativeTools({ dir, spawnProcess = spawn, fetchLocal = fe
       return qwen(path, method, body);
     }
     if (path === '/studio/status' && method === 'GET') {
-      try { const models = await sd('sd-models'); return { ok: true, connected: true, ready: Array.isArray(models) && models.length > 0, models: Array.isArray(models) ? models.slice(0, 50).map(row => String(row.title ?? row.model_name)) : [], busy: generation, canStart: canStart(), ownedEngine: Boolean(engine) }; }
+      try { const models = await sd('sd-models'); return { ok: true, connected: true, ready: Array.isArray(models) && models.length > 0, modelPreflight: typeof modelsManager?.preflight === 'function', models: Array.isArray(models) ? models.slice(0, 50).map(row => String(row.title ?? row.model_name)) : [], busy: generation, canStart: canStart(), ownedEngine: Boolean(engine) }; }
       catch (cause) { return { ok: true, connected: false, ready: false, models: [], canStart: canStart(), ownedEngine: Boolean(engine), ...(cause.connectionIssue ? { connectionIssue: cause.connectionIssue } : {}), note: cause.connectionIssue ? cause.message : engine ? 'Local engine is starting. Check status again shortly.' : 'Start AUTOMATIC1111 locally with --api, on 127.0.0.1:7860, and load a checkpoint.' }; }
     }
     if (path === '/studio/refresh' && method === 'POST') { await sd('refresh-checkpoints', {}); return {ok:true}; }
@@ -102,10 +103,11 @@ export function createCreativeTools({ dir, spawnProcess = spawn, fetchLocal = fe
       const payload = generationPayload(body);
       if (generation) throw new Error('A generation is already running. Wait for it or interrupt it.');
       generation = true;
-      try { if (body.model) { const models = await sd('sd-models'); if (!models.some(row => row.title === body.model)) throw Error('Choose an available checkpoint.'); payload.override_settings = { sd_model_checkpoint: body.model }; payload.override_settings_restore_afterwards = true; }
+      try { if (modelsManager?.preflight) { if (!body.model) throw Error('Select and review a model before generation.'); const review = await modelsManager.preflight({engine:'a1111',model:body.model}); if (!review.ready) throw Error('Model compatibility check failed: ' + review.checks.filter(c=>c.state==='fail').map(c=>c.detail).join(' ')); } if (body.model) { const models = await sd('sd-models'); if (!models.some(row => row.title === body.model)) throw Error('Choose an available checkpoint.'); payload.override_settings = { sd_model_checkpoint: body.model }; payload.override_settings_restore_afterwards = true; }
         const result = await sd('txt2img', payload, 10 * 60_000); const image = result.images?.[0];
         if (typeof image !== 'string' || !/^[A-Za-z0-9+/=\r\n]+$/.test(image) || !image.startsWith('iVBORw0KGgo')) throw new Error('The local API did not return a PNG image.');
-        return { ok: true, image, info: String(result.info ?? '').slice(0, 8000) };
+        let info; try { const observed = JSON.parse(String(result.info ?? '{}')); info = JSON.stringify({ sampler_name: payload.sampler_name, scheduler: payload.scheduler, cfg_scale: payload.cfg_scale, ...observed }); } catch { info = String(result.info ?? '').slice(0, 8000); }
+        return { ok: true, image, info: info.slice(0, 8000) };
       } finally { generation = false; }
     }
     if (path === '/studio/interrupt' && method === 'POST') { if (!generation) return { ok: true }; await sd('interrupt', {}, 5000); return { ok: true }; }

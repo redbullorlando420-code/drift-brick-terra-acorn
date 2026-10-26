@@ -8,9 +8,9 @@ import { useBrowseLibrary } from './use-browse-library';
 
 /** Only ranked page references reach this section. Shelf construction never
  * walks a creator's full archive while the person scrolls into discovery. */
-export const YoutubeDeepDiscovery = memo(function YoutubeDeepDiscovery({ archive, ranked, recommendations, fallback, total, pending, error, expanded, onExpand, onMore }: {
+export const YoutubeDeepDiscovery = memo(function YoutubeDeepDiscovery({ archive, ranked, recommendations, fallback, total, pending, error, expanded, onExpand, onMore, onRetry }: {
   archive: LibraryVideo[]; ranked: LibraryVideo[]; recommendations: LibraryVideo[]; fallback: LibraryVideo[]; total: number; pending: boolean; error: string;
-  expanded: boolean; onExpand: () => void; onMore: () => void;
+  expanded: boolean; onExpand: () => void; onMore: () => void; onRetry?:()=>void;
 }) {
   const [order, setOrder] = useState<'ranked' | 'newest'>('ranked');
   const tags = useBrowseLibrary(state => state.tags);
@@ -44,7 +44,7 @@ export const YoutubeDeepDiscovery = memo(function YoutubeDeepDiscovery({ archive
         {!expanded && <Button variant="secondary" onClick={onExpand}>Load creator and topic shelves</Button>}
       </div>
       {pending && <p className="mt-3 text-xs text-muted" role="status">{warming ? 'Personal scores are loading. Showing a balanced creator mix while you browse.' : 'Ranking the next discovery batch… You can keep scrolling.'}</p>}
-      {error && <p className="mt-3 text-xs text-muted" role="status">{error}</p>}
+      {error && <div className="mt-3 space-y-2"><p className="text-xs text-muted" role="status">{error}</p>{onRetry&&<Button variant="secondary" className="min-h-11" onClick={onRetry}>Retry personal ranking</Button>}</div>}
     </div>
     {expanded && order === 'ranked' && <details className="mb-5 rounded-lg border border-border p-4">
       <summary className="min-h-11 cursor-pointer text-sm font-medium text-fg">Ranked creator and topic shelves</summary>

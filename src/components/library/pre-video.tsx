@@ -1,6 +1,10 @@
+import {AnimeReviewEntry} from './anime-review';
+import {FilmReviewEntry} from './film-review';
 import { RecommendationButton } from './recommendation-button';
 import { RecommendationChoices } from './recommendation-choices';
 import { knownTwitchContent, twitchContentLabel } from '@/lib/videos/twitch-content';
+import {officialAdultUrl} from '@/lib/videos/provider-viewing';
+import {AdultProviderFrame,rememberOfficialViewing} from './provider-recovery';
 import { OfficialRoomPlayer } from './official-room-player';
 import { usePreviewRanking } from "./use-preview-ranking";
 import { YoutubeDownloadButton } from './youtube-download-button';
@@ -94,14 +98,16 @@ export function PreVideo() {
     // Provider iframes do not expose a playback clock. Count time only after
     // this full preview has remained open for a real watch interval; clicking
     // a thumbnail alone never creates a Continue entry.
-    const openedAt = Date.now();
+    let openedAt = Date.now();
     const durationHint = Math.max(video.duration ?? 0, 120);
     const savePreviewWatch = () => {
+      if(isAdultPullKind(video.remote?.kind)&&document.querySelector('[data-provider-frame="'+video.remote!.kind+'"]')?.getAttribute('data-provider-running')==='false'){openedAt=Date.now();return false;}
+
       const watched = (Date.now() - openedAt) / 1_000;
       if (watched >= 8) markProgress(video.id, Math.min(watched, durationHint * 0.94), durationHint);
     };
     const task = registerPeriodicTask({ name: 'Preview watch record', mode: 'visible', everyMs: 5_000, work: () => {
-      savePreviewWatch();
+      if(savePreviewWatch()===false)return;
       if ((Date.now() - openedAt) >= 8_000 && document.visibilityState === "visible" && document.hasFocus()) recordWatchTime(video.id, "previewEstimated", 5);
     } });
     return () => { savePreviewWatch(); task.cancel(); };
@@ -122,7 +128,7 @@ export function PreVideo() {
   const tagSourceSummary = [...new Set(Object.values(metadataProvenance?.tags ?? {}))]
     // Older/imported saved tags may have no provenance entry yet.
     .filter(source => typeof source === 'string' && Boolean(source.trim()))
-    .map((source) => source === "manual" ? "your edit" : source === "local-name" ? "local filename" : source === "companion-inspection" ? "Companion inspection" : source === "local-vision" ? "local vision" : source === "legacy" ? "saved library" : source.replace(/^provider:/, "provider · "))
+    .map((source) => source === "manual" ? "your edit" : source === "local-name" ? "local filename" : source === "companion-inspection" ? "Companion inspection" : source === "local-vision" ? "local vision" : source === "youtube-review" ? "your tag review" : source === "legacy" ? "saved library" : source.replace(/^provider:/, "provider · "))
     .join(", ");
   const creatorRating = creator ? getCreatorRating(creator) : 0;
   const creatorFavorite = creator ? creatorIsFavorited(creator) : false;
@@ -219,7 +225,7 @@ export function PreVideo() {
                   onError={() => { if (booruImage.original) booruImage.failed(); }}
                 />
               ) : embed ? (
-                <iframe
+                isAdultPullKind(video.remote?.kind)?<AdultProviderFrame video={video} src={embed} preview/>:<iframe
                   title={`${video.name} preview`}
                   src={embed}
                   className="aspect-video w-full border-0"
@@ -265,15 +271,17 @@ export function PreVideo() {
             <p className="mt-3 max-w-3xl text-sm leading-6 text-muted [overflow-wrap:anywhere]">
               {video.tagline ?? "Preview this title, tune its metadata, then start watching."}
             </p>
-            <div className="mt-5 flex flex-wrap items-start gap-2">
+            {isAdultPullKind(video.remote?.kind)&&!video.remote?.live&&<p data-adult-publication className="mt-3 text-xs text-muted">{['instant','day'].includes(video.remote?.publishedPrecision??'')&&video.addedAt>0?'Published '+(video.remote?.publishedPrecision==='day'?video.remote.publishedDate:new Date(video.addedAt).toLocaleDateString()):'Publication date unknown'}{video.addedAt>0&&!video.remote?.publishedPrecision?' · legacy saved date is unverified':''}</p>}
+            <FilmReviewEntry video={video}/><AnimeReviewEntry video={video}/><div className="mt-5 flex flex-wrap items-start gap-2">
               {!myFreeCamsRoom && <Button onClick={() => openVideo(video.id)}>
                 <Play className="size-4 fill-current" /> Watch now
               </Button>}
               <YoutubeDownloadButton video={video} />
               {!myFreeCamsRoom && video.remote?.watchUrl && (
                 <a
-                  href={video.remote.watchUrl}
-                  onClick={() => recordPlay(video.id)}
+                  href={isAdultPullKind(video.remote.kind)?officialAdultUrl(video.remote):video.remote.watchUrl}
+                  onClick={() => {if(isAdultPullKind(video.remote?.kind))rememberOfficialViewing(video);recordPlay(video.id);}}
+                  target="_blank" rel="noopener noreferrer"
                   className="inline-flex min-h-11 items-center rounded-sm bg-elevated px-3 text-sm text-fg shadow-border"
                 >
                   Open official player <ExternalLink className="ml-2 size-4" />
@@ -407,6 +415,7 @@ export function PreVideo() {
           </aside>
         </div>
         <div className="mt-8 flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-muted">Suggestions use matching creators, title topics, tags and your saved feedback.</p><Button size="sm" variant="secondary" className="min-h-11" onClick={() => setRecommendationSeed(value => (value + 1) >>> 0)}><RefreshCw className="size-4"/>Refresh suggestions</Button></div>
+        {ranked.error&&<div role="status" className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-border p-3"><p className="text-xs text-muted">{ranked.error} Existing suggestions remain available when compatible.</p><Button variant="secondary" className="min-h-11" onClick={ranked.retry}>Retry preview suggestions</Button></div>}
         {related.length > 0 && (
           <section className="mt-9" data-preview-shelf="related">
             <h2 className="font-display text-2xl text-fg">{previewIsAdult ? "More Adult picks from this shelf" : "More from this shelf"}</h2>

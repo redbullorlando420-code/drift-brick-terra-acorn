@@ -1,0 +1,61 @@
+import type {LibraryVideo,VideoMetadataProvenance} from './types.ts';
+export const FILM_LIMIT=1024,FILM_VERSION_LIMIT=4096;
+export const FILM_FIELDS=['title','year','poster','genre'] as const;
+export type FilmField=typeof FILM_FIELDS[number];
+export type FilmRecord={id:string;title:string;year:number;poster?:string;genre?:string;locks:FilmField[];origins:Partial<Record<FilmField,'owner-review'|'saved-catalog'>>;preferred?:string;at:number};
+export type FilmVersion={filmId:string;runtime:number;edition:string;grouped:boolean;at:number};
+type FilmPatch={films:Record<string,FilmRecord|null>;versions:Record<string,FilmVersion|null>};
+export type FilmLedger={version:1;updatedAt:number;films:Record<string,FilmRecord>;versions:Record<string,FilmVersion>;undo?:FilmPatch;action?:string};
+export const EMPTY_FILMS:FilmLedger={version:1,updatedAt:0,films:{},versions:{}};
+const clean=(value:unknown,max=160)=>typeof value==='string'?value.replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max):'';
+const key=(value:unknown)=>typeof value==='string'&&value.length>0&&value.length<=500&&!/[\u0000-\u001f]/.test(value)&&!['__proto__','constructor','prototype'].includes(value);
+const stamp=(value:unknown):value is number=>Number.isSafeInteger(value)&&Number(value)>=0;
+export const validFilmRuntime=(n:unknown):n is number=>typeof n==='number'&&Number.isFinite(n)&&n>600&&n<=31_536_000;
+export const validFilmYear=(n:unknown):n is number=>Number.isInteger(n)&&Number(n)>=1888&&Number(n)<=new Date().getFullYear()+1;
+export function filmPoster(value:unknown){const text=clean(value,2048);if(!text)return undefined;if(/^\/(?!\/)/.test(text)&&!text.includes('..'))return text;try{const url=new URL(text);if(url.protocol==='https:'&&!url.username&&!url.password)return url.href;}catch{/* Invalid proposal stays unapplied. */}return undefined;}
+function readFilm(raw:FilmRecord,id:string):FilmRecord{
+ if(!/^film:[a-z0-9-]{1,80}$/i.test(id)||!raw||!clean(raw.title)||!validFilmYear(raw.year)||!stamp(raw.at)||!Array.isArray(raw.locks)||raw.locks.some(f=>!FILM_FIELDS.includes(f))||raw.preferred!==undefined&&!key(raw.preferred))throw Error('Invalid film identity.');
+ if(raw.poster!==undefined&&!filmPoster(raw.poster))throw Error('Invalid film poster URL.');const origins:FilmRecord['origins']={};for(const field of FILM_FIELDS){const value=raw.origins?.[field];if(value!==undefined&&!['owner-review','saved-catalog'].includes(value))throw Error('Invalid film provenance.');if(value)origins[field]=value;}
+ return {id,title:clean(raw.title),year:raw.year,...(raw.poster?{poster:filmPoster(raw.poster)}:{}),...(clean(raw.genre,80)?{genre:clean(raw.genre,80)}:{}),locks:[...new Set(raw.locks)],origins,...(raw.preferred?{preferred:raw.preferred}:{}),at:raw.at};
+}
+function readVersion(raw:FilmVersion):FilmVersion{if(!raw||!/^film:[a-z0-9-]{1,80}$/i.test(raw.filmId)||!validFilmRuntime(raw.runtime)||!stamp(raw.at)||typeof raw.grouped!=='boolean')throw Error('Invalid reviewed film version.');return {filmId:raw.filmId,runtime:raw.runtime,edition:clean(raw.edition,80)||'Unspecified edition',grouped:raw.grouped,at:raw.at};}
+export function parseFilmLedger(raw:unknown):FilmLedger{
+ const r=raw as FilmLedger;if(!r||r.version!==1||!stamp(r.updatedAt)||!r.films||!r.versions||typeof r.films!=='object'||typeof r.versions!=='object'||Array.isArray(r.films)||Array.isArray(r.versions)||Object.keys(r.films).length>FILM_LIMIT||Object.keys(r.versions).length>FILM_VERSION_LIMIT)throw Error('Unsupported or invalid film review ledger.');
+ const films:FilmLedger['films']=Object.create(null),versions:FilmLedger['versions']=Object.create(null);for(const [id,value]of Object.entries(r.films))films[id]=readFilm(value,id);for(const [id,value]of Object.entries(r.versions)){if(!key(id))throw Error('Invalid version identity.');const v=readVersion(value);if(!films[v.filmId])throw Error('Reviewed version has no film.');versions[id]=v;}
+ let undo:FilmPatch|undefined;if(r.undo){if(!r.undo.films||!r.undo.versions||Object.keys(r.undo.films).length>1||Object.keys(r.undo.versions).length>48)throw Error('Invalid film undo record.');undo={films:Object.create(null),versions:Object.create(null)};for(const [id,v]of Object.entries(r.undo.films))undo.films[id]=v===null?null:readFilm(v,id);for(const [id,v]of Object.entries(r.undo.versions)){if(!key(id))throw Error('Invalid undo version.');undo.versions[id]=v===null?null:readVersion(v);}}
+ return {version:1,updatedAt:r.updatedAt,films,versions,...(undo?{undo}:{}),...(clean(r.action,100)?{action:clean(r.action,100)}:{})};
+}
+export function normalizeFilmLedger(raw:unknown){try{return parseFilmLedger(raw);}catch{return EMPTY_FILMS;}}
+export function newestFilms(a:unknown,b:unknown){const left=normalizeFilmLedger(a),right=normalizeFilmLedger(b);return right.updatedAt>=left.updatedAt?right:left;}
+function commit(ledger:FilmLedger,patch:FilmPatch,action:string,now:number):FilmLedger{
+ const films={...ledger.films},versions={...ledger.versions},undo:FilmPatch={films:{},versions:{}};for(const [id,v]of Object.entries(patch.films)){undo.films[id]=films[id]??null;if(v)films[id]=v;else delete films[id];}for(const [id,v]of Object.entries(patch.versions)){undo.versions[id]=versions[id]??null;if(v)versions[id]=v;else delete versions[id];}
+ if(Object.keys(films).length>FILM_LIMIT||Object.keys(versions).length>FILM_VERSION_LIMIT)throw Error('The review limit is 1,024 film identities and 4,096 source versions. Undo a recent addition before adding another.');
+ return parseFilmLedger({version:1,updatedAt:Math.max(now,ledger.updatedAt+1),films,versions,undo,action});
+}
+export function confirmFilm(ledger:FilmLedger,videoId:string,choice:{filmId:string;title:string;year:number;runtime:number;edition:string;existing?:boolean},now=Date.now()){
+ if(!key(videoId)||!validFilmRuntime(choice.runtime))throw Error('Confirm a runtime over 10 minutes.');const existing=ledger.films[choice.filmId];if(choice.existing&&!existing)throw Error('Select an existing reviewed film.');
+ const film=choice.existing?existing:readFilm({id:choice.filmId,title:choice.title,year:choice.year,locks:['title','year'],origins:{title:'owner-review',year:'owner-review'},at:now},choice.filmId);
+ return commit(ledger,{films:choice.existing?{}:{[film.id]:film},versions:{[videoId]:{filmId:film.id,runtime:choice.runtime,edition:clean(choice.edition,80)||'Unspecified edition',grouped:ledger.versions[videoId]?.filmId===film.id?ledger.versions[videoId]!.grouped:false,at:now}}},'Confirmed film identity and runtime',now);
+}
+export function groupFilmVersions(ledger:FilmLedger,ids:readonly string[],grouped:boolean,now=Date.now()){
+ if(!ids.length||ids.length>48||new Set(ids).size!==ids.length)throw Error('Select 1–48 reviewed versions.');const filmId=ledger.versions[ids[0]!]?.filmId;if(!filmId||ids.some(id=>ledger.versions[id]?.filmId!==filmId))throw Error('Only versions of the same reviewed film can group.');
+ return commit(ledger,{films:{},versions:Object.fromEntries(ids.map(id=>[id,{...ledger.versions[id]!,grouped,at:now}]))},grouped?'Grouped reviewed editions':'Ungrouped editions; individual records retained',now);
+}
+export function preferFilmVersion(ledger:FilmLedger,filmId:string,videoId:string,available:readonly string[],now=Date.now()){
+ const film=ledger.films[filmId];if(!film||ledger.versions[videoId]?.filmId!==filmId||!available.includes(videoId))throw Error('Choose an available reviewed version with verified runtime.');if(film.preferred===videoId)return ledger;return commit(ledger,{films:{[filmId]:{...film,preferred:videoId,at:now}},versions:{}},'Changed preferred film version',now);
+}
+export function lockFilmField(ledger:FilmLedger,id:string,field:FilmField,locked:boolean,now=Date.now()){
+ const film=ledger.films[id];if(!film||!FILM_FIELDS.includes(field))throw Error('Unknown film field.');if(film.locks.includes(field)===locked)return ledger;return commit(ledger,{films:{[id]:{...film,locks:locked?[...film.locks,field]:film.locks.filter(f=>f!==field),at:now}},versions:{}},(locked?'Locked ':'Unlocked ')+field,now);
+}
+export type FilmProposal=Partial<Pick<FilmRecord,FilmField>>;
+export function previewFilmFields(film:FilmRecord,proposal:FilmProposal,selected:readonly FilmField[],categoryLocked=false){return FILM_FIELDS.filter(field=>selected.includes(field)).map(field=>{const value=proposal[field],valid=field==='year'?validFilmYear(value):field==='poster'?Boolean(filmPoster(value)):Boolean(clean(value,field==='genre'?80:160));return {field,before:film[field]??'',after:field==='poster'?filmPoster(value)??'':value??'',state:film.locks.includes(field)||field==='genre'&&categoryLocked?'locked':!valid?'invalid':value===film[field]?'unchanged':'ready'};});}
+export function applyFilmFields(ledger:FilmLedger,id:string,proposal:FilmProposal,selected:readonly FilmField[],origin:'owner-review'|'saved-catalog',categoryLocked=false,now=Date.now()){
+ const film=ledger.films[id];if(!film)throw Error('Review the film identity first.');const preview=previewFilmFields(film,proposal,selected,categoryLocked);if(preview.some(row=>row.state==='invalid'))throw Error('The selected metadata proposal is invalid. Previous fields were kept.');const ready=preview.filter(row=>row.state==='ready');if(!ready.length)throw Error('No unlocked changed fields are selected.');const next={...film,origins:{...film.origins},at:now};for(const row of ready){if(row.field==='year')next.year=Number(row.after);else next[row.field]=clean(row.after,row.field==='poster'?2048:row.field==='genre'?80:160);next.origins[row.field]=origin;}
+ return commit(ledger,{films:{[id]:next},versions:{}},'Applied selected film fields: '+ready.map(r=>r.field).join(', '),now);
+}
+export function undoFilmReview(ledger:FilmLedger,now=Date.now()){return ledger.undo?commit(ledger,ledger.undo,'Undid last film review change',now):ledger;}
+export function editionEvidence(name:string){const title=name.slice(0,500).replace(/[._]/g,' ');const rows:[RegExp,string][]=[[/\b(director'?s cut)\b/i,"Director’s cut"],[/\b(extended(?: edition| cut)?)\b/i,'Extended cut'],[/\b(theatrical(?: edition| cut)?)\b/i,'Theatrical cut'],[/\b(final cut)\b/i,'Final cut'],[/\b(unrated)\b/i,'Unrated'],[/\b(remastered|remaster)\b/i,'Remastered']];return rows.find(([pattern])=>pattern.test(title))?.[1];}
+export function filmNameEvidence(video:LibraryVideo){const base=video.name.replace(/\.(mkv|mp4|avi|mov|m4v|webm)$/i,'').replace(/[._]/g,' '),year=/\b(18[89]\d|19\d{2}|20\d{2})\b/.exec(base);return {title:base.split(/\b(?:18[89]\d|19\d{2}|20\d{2}|2160p|1080p|720p|bluray|webrip|extended|theatrical|directors? cut)\b/i)[0]!.replace(/[()[\] -]+$/g,'').trim().slice(0,160),year:validFilmYear(video.year)?video.year:year?Number(year[1]):undefined,edition:editionEvidence(video.name),runtime:validFilmRuntime(video.duration)?video.duration:undefined,origin:'Saved title/year/runtime; unverified identity until owner review'};}
+export function filmVisibility(scope:{folders:readonly {id:string;adult?:boolean}[];hidden:Record<string,unknown>;unavailable:Record<string,unknown>}){const publicIds=new Set(scope.folders.filter(f=>!f.adult).map(f=>f.id)),privateIds=new Set(scope.folders.filter(f=>f.adult).map(f=>f.id));return (video:LibraryVideo)=>!scope.hidden[video.id]&&!scope.unavailable[video.id]&&!privateIds.has(video.folderId)&&!video.isSample&&!video.remote?.live&&(!video.remote?publicIds.has(video.folderId):video.remote.kind==='youtube'&&video.remote.youtubeType!=='short'&&video.remote.youtubeType!=='upcoming');}
+export function filmVideoVisible(video:LibraryVideo,scope:Parameters<typeof filmVisibility>[0]){return filmVisibility(scope)(video);}
+export function projectFilmVideo(video:LibraryVideo,ledger:FilmLedger,provenance?:VideoMetadataProvenance){const version=ledger.versions[video.id],film=version&&ledger.films[version.filmId];if(!film)return video;return {...video,name:film.title+' ('+film.year+')'+(version.edition==='Unspecified edition'?'':' · '+version.edition),year:film.year,duration:version.runtime,...(film.poster?{poster:film.poster}:{}),...(film.genre&&!provenance?.lockedFields?.includes('category')?{genre:film.genre}:{}),filmReview:{filmId:film.id,edition:version.edition,ownerReviewed:true as const}};}

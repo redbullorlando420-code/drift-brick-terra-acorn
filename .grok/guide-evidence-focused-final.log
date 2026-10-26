@@ -1,0 +1,31 @@
+✔ personal reasons cite real public positive signals and raw shared labels without mutating source fields (9.9449ms)
+✔ empty, private-only and orphan signals do not become public counts, evidence or topic choices (1.4009ms)
+✔ history-only input is honest discovery and operational facets cannot train affinity (0.268ms)
+✔ query reasons distinguish saved title, tag, creator and category with exact field quotes (0.5849ms)
+✔ contradictory feedback, favorite protection and exposure notices state actual evidence (0.6724ms)
+✔ live explanations require actual fresh confirmations rather than grace holds or viewer counts (2.0706ms)
+✔ artifact bounds limit affinity vocabulary, candidate explanations and chooser rows (74.6957ms)
+✔ empty and explicit queries honor cancellation before reading input (0.6863ms)
+✔ reviewed aliases preserve the raw supporting fields in personal explanations (1.6053ms)
+✔ guide preserves favorite/like/tag scores, watched exclusions, stable ties and complete fresh live ordering (79.1527ms)
+✔ 100k guide entries never enter a catalog-sized sort or export a dense sparse signal tree (686.4588ms)
+✔ guide cancellation precedes reads even with mostly removed saved ledgers (18.8983ms)
+✔ prepared answers use bounded existing picks, freshest live counts and handle an empty library (11.376ms)
+✔ synthetic corpus has explicit reasoned judgments and rejects invalid versions, bounds, references and canonical cycles (5.8601ms)
+✔ graded NDCG and precision match an independently calculated two-title example, including empty wrong output (0.7756ms)
+✔ missing judgments and publication dates remain unknown, while ingestion cannot create publication freshness (0.6806ms)
+✔ canonical aliases cannot inflate relevance and are distinct from previous-shelf exposure and negative evidence (0.3242ms)
+✔ creator concentration is conditional on actual relevant availability and empty libraries are inapplicable, never perfect relevance (0.1865ms)
+✔ adversarial rankings independently trip operational-tag, creator, exposure, duplicate and explicit-negative detectors (1.1763ms)
+✔ production rankers are deterministic, offline and read-only; current artifacts match the reviewed versioned baseline (28.3282ms)
+✔ baseline comparison refuses missing/incompatible baselines, changed judgments and altered ranking orders (4.3783ms)
+✔ CLI parsing rejects ambiguous modes and baseline replacement requires an explicit flag (25.9488ms)
+✔ CLI exits nonzero for the intentionally strict quality gate and a missing baseline rather than hiding unknowns (369.7127ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 990.7244

@@ -1,0 +1,32 @@
+{
+  "ok": true,
+  "fixture": "60k YouTube entries, intentionally held CDN responses, paused pulling, isolated desktop/mobile contexts; synthetic embeds and offline Companion",
+  "results": [
+    {
+      "viewport": "desktop",
+      "viewportCycles": 100,
+      "retainedImages": 8,
+      "ok": true,
+      "previewReadyMs": 478,
+      "starts": 32,
+      "cancelled": 0,
+      "fallbackStarts": 0,
+      "readyImages": 8,
+      "liveArtworkPreferencesVerified": true,
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "viewportCycles": 100,
+      "retainedImages": 4,
+      "ok": true,
+      "previewReadyMs": 414,
+      "starts": 4,
+      "cancelled": 0,
+      "fallbackStarts": 0,
+      "readyImages": 4,
+      "liveArtworkPreferencesVerified": true,
+      "errors": []
+    }
+  ]
+}

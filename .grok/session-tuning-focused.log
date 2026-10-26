@@ -1,0 +1,48 @@
+✔ personal reasons cite real public positive signals and raw shared labels without mutating source fields (13.1192ms)
+✔ empty, private-only and orphan signals do not become public counts, evidence or topic choices (1.9479ms)
+✔ history-only input is honest discovery and operational facets cannot train affinity (0.4711ms)
+✔ query reasons distinguish saved title, tag, creator and category with exact field quotes (0.8717ms)
+✔ contradictory feedback, favorite protection and exposure notices state actual evidence (0.6843ms)
+✔ live explanations require actual fresh confirmations rather than grace holds or viewer counts (2.1694ms)
+✔ artifact bounds limit affinity vocabulary, candidate explanations and chooser rows (98.743ms)
+✔ empty and explicit queries honor cancellation before reading input (1.0597ms)
+✔ reviewed aliases preserve the raw supporting fields in personal explanations (3.1099ms)
+✔ guide preserves favorite/like/tag scores, watched exclusions, stable ties and complete fresh live ordering (102.8846ms)
+✔ 100k guide entries never enter a catalog-sized sort or export a dense sparse signal tree (801.2855ms)
+✔ guide cancellation precedes reads even with mostly removed saved ledgers (17.8988ms)
+✔ prepared answers use bounded existing picks, freshest live counts and handle an empty library (13.3774ms)
+✔ synthetic corpus has explicit reasoned judgments and rejects invalid versions, bounds, references and canonical cycles (6.4936ms)
+✔ graded NDCG and precision match an independently calculated two-title example, including empty wrong output (1.1347ms)
+✔ missing judgments and publication dates remain unknown, while ingestion cannot create publication freshness (0.9314ms)
+✔ canonical aliases cannot inflate relevance and are distinct from previous-shelf exposure and negative evidence (0.5009ms)
+✔ creator concentration is conditional on actual relevant availability and empty libraries are inapplicable, never perfect relevance (0.3121ms)
+✔ adversarial rankings independently trip operational-tag, creator, exposure, duplicate and explicit-negative detectors (1.1997ms)
+✔ production rankers are deterministic, offline and read-only; current artifacts match the reviewed versioned baseline (38.154ms)
+✔ baseline comparison refuses missing/incompatible baselines, changed judgments and altered ranking orders (4.9211ms)
+✔ CLI parsing rejects ambiguous modes and baseline replacement requires an explicit flag (37.7901ms)
+✔ CLI exits nonzero for the intentionally strict quality gate and a missing baseline rather than hiding unknowns (386.4443ms)
+✔ session defaults are immutable, normalized and isolated from all saved taste fields (1.443ms)
+✔ recording length boundaries, unknown duration and exact sources have explicit semantics (0.5931ms)
+✔ familiar/explore change preference ordering without changing favorites, history, tags or explicit feedback (25.1467ms)
+✔ filtering to Twitch retains legitimate cross-source saved-content affinity (0.4797ms)
+✔ balanced selection scans the full corpus, retains bounded source pools and fills missing source slots (512.4415ms)
+✔ queries honor length/source constraints and never silently override a contradictory provider request (1.2288ms)
+✔ private/hidden/orphan signals stay excluded in every mode; live questions retain strict freshness (3.0174ms)
+✔ a cancelled session replacement reads no discarded catalog and cancellation also stops affinity preparation (2.5198ms)
+✔ prepared topic alternatives and live lists respect the selected source; empty filtered mixes explain recovery (0.6232ms)
+✔ Movies requires duration over ten minutes and actual film evidence (3.2312ms)
+✔ Anime requires content evidence and rejects topic mentions, games and commentary (1.3536ms)
+✔ Guide searches the full catalog tail by title and saved tags with explicit evidence (36.0171ms)
+✔ Guide isolates private, hidden, unavailable and Adult titles and supports racing topics (0.6838ms)
+✔ Guide live questions honor provider, freshness and cancellation (4.0011ms)
+✔ Topic Explorer combines text, selected topic, evidence, provider and stable sort (4.5295ms)
+✔ Twitch live batches make at most twelve aliases per request and isolate field failures (1.1275ms)
+✔ older offline responses cannot retire a newer live observation (0.5723ms)
+ℹ tests 40
+ℹ suites 0
+ℹ pass 40
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1164.9479

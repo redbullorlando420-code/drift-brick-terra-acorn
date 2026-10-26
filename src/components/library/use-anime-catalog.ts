@@ -5,6 +5,7 @@ import { resumeForVideo, useLibrary } from '@/lib/videos/store';
 import { prepareAnimeCatalog, prepareAnimeContinue, selectAnimeTitles, findAnimeTagTitles,
   type AnimeCatalogInput, type AnimeFilter } from '@/lib/videos/anime-catalog';
 import type { LibraryVideo } from '@/lib/videos/types';
+import {useAnimeReviews} from './use-anime-reviews';
 
 const EMPTY: LibraryVideo[] = [];
 
@@ -33,7 +34,8 @@ function useAnimeJob<S, T>(scope: S, ready: boolean, work: (scope: S, turn: () =
 
 export function useAnimeCatalog(input: AnimeCatalogInput, filter: AnimeFilter, query: string, tagQuery: string, series = '', episodeOrder = false) {
   const progress = useLibrary(state => state.progress), resumeProgress = useLibrary(state => state.resumeProgress);
-  const index = useAnimeJob(input, true, prepareAnimeCatalog);
+  const reviews=useAnimeReviews(),scope=useMemo(()=>({...input,animeLedger:reviews.ledger}),[input,reviews.ledger]);
+  const index = useAnimeJob(scope, reviews.ready, prepareAnimeCatalog);
   const continueScope = useMemo(() => ({ index: index.value, progress, resumeProgress }), [index.value, progress, resumeProgress]);
   const continuing = useAnimeJob(continueScope, !!index.value, (scope, turn) =>
     prepareAnimeContinue(scope.index!.anime, video => resumeForVideo(scope, video), turn));

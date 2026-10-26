@@ -1,0 +1,20 @@
+desktop: studio
+desktop: recipes
+mobile: studio
+mobile: recipes
+[
+  {
+    "viewport": "desktop",
+    "errors": [],
+    "recipes": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\studio-batch-existing-built-recipes-desktop.png",
+    "studio": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\studio-batch-existing-built-studio-desktop.png",
+    "ok": true
+  },
+  {
+    "viewport": "mobile",
+    "errors": [],
+    "recipes": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\studio-batch-existing-built-recipes-mobile.png",
+    "studio": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\studio-batch-existing-built-studio-mobile.png",
+    "ok": true
+  }
+]

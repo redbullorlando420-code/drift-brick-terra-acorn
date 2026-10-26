@@ -1,0 +1,1 @@
+import{_ as e}from"./index-CCa-DOtR.js";var t=e;export{t as component};

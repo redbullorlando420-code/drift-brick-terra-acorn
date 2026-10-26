@@ -1,0 +1,168 @@
+{
+  "artifact": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\fairness-evaluation.json",
+  "corpus": {
+    "version": 1,
+    "sha256": "f8635ba9ebae1d4aff675ceeef63fcafe69e1430796684d14fc9c3955d1ceab1",
+    "items": 62,
+    "cases": 16,
+    "fixedNow": 1768478400000,
+    "seed": 417
+  },
+  "quality": {
+    "pass": 84,
+    "fail": 4,
+    "unmeasured": 1,
+    "not-applicable": 10
+  },
+  "qualityGate": {
+    "ok": false,
+    "failed": 4,
+    "unmeasured": 1
+  },
+  "integrityGate": {
+    "ok": true,
+    "contractViolations": 0,
+    "undetectedSentinels": []
+  },
+  "sources": [
+    {
+      "source": "local",
+      "scope": "synthetic-case-weighted",
+      "cases": 6,
+      "eligibleSlots": 11,
+      "returnedSlots": 5,
+      "judgedReturned": 5,
+      "unjudgedReturned": 0,
+      "precisionAtK": 0.8,
+      "meanNdcgAtK": 1,
+      "measuredNdcgCases": 5,
+      "unmeasuredNdcgCases": 0
+    },
+    {
+      "source": "youtube",
+      "scope": "synthetic-case-weighted",
+      "cases": 12,
+      "eligibleSlots": 40,
+      "returnedSlots": 26,
+      "judgedReturned": 25,
+      "unjudgedReturned": 1,
+      "precisionAtK": 0.92,
+      "meanNdcgAtK": 1,
+      "measuredNdcgCases": 10,
+      "unmeasuredNdcgCases": 1
+    },
+    {
+      "source": "twitch",
+      "scope": "synthetic-case-weighted",
+      "cases": 9,
+      "eligibleSlots": 29,
+      "returnedSlots": 21,
+      "judgedReturned": 21,
+      "unjudgedReturned": 0,
+      "precisionAtK": 0.904762,
+      "meanNdcgAtK": 0.950022,
+      "measuredNdcgCases": 9,
+      "unmeasuredNdcgCases": 0
+    },
+    {
+      "source": "redtube",
+      "scope": "exclusion-only",
+      "cases": 2,
+      "eligibleSlots": 0,
+      "returnedSlots": 0,
+      "judgedReturned": 0,
+      "unjudgedReturned": 0,
+      "precisionAtK": null,
+      "meanNdcgAtK": null,
+      "measuredNdcgCases": 0,
+      "unmeasuredNdcgCases": 0
+    }
+  ],
+  "regression": null,
+  "sentinels": [
+    {
+      "id": "operational-tags",
+      "caseId": "guide-operational-facets",
+      "metric": "operationalOnlyShare",
+      "detected": true
+    },
+    {
+      "id": "creator-monopoly",
+      "caseId": "youtube-creator-diversity",
+      "metric": "maxCreatorShare",
+      "detected": true
+    },
+    {
+      "id": "repeat-exposure",
+      "caseId": "youtube-repeat-exposure",
+      "metric": "previousExposureShare",
+      "detected": true
+    },
+    {
+      "id": "canonical-duplicates",
+      "caseId": "guide-query-canonical",
+      "metric": "canonicalRepeatShare",
+      "detected": true
+    },
+    {
+      "id": "explicit-negative",
+      "caseId": "youtube-topic-negative",
+      "metric": "negativeShare",
+      "detected": true
+    }
+  ],
+  "findings": [
+    {
+      "id": "youtube-repeat-exposure",
+      "findings": [
+        {
+          "metric": "previousExposureShare",
+          "value": 1,
+          "limit": 0.5,
+          "status": "fail"
+        }
+      ]
+    },
+    {
+      "id": "twitch-creator-diversity",
+      "findings": [
+        {
+          "metric": "maxCreatorShare",
+          "value": 1,
+          "limit": 0.5,
+          "status": "fail"
+        }
+      ]
+    },
+    {
+      "id": "twitch-publication-freshness",
+      "findings": [
+        {
+          "metric": "ndcgAtK",
+          "value": 0.550197,
+          "limit": 0.8,
+          "status": "fail"
+        },
+        {
+          "metric": "freshShareOfKnown",
+          "value": 0,
+          "limit": 0.5,
+          "status": "fail"
+        }
+      ]
+    },
+    {
+      "id": "partial-judgments",
+      "findings": [
+        {
+          "metric": "judgmentCoverage",
+          "value": null,
+          "limit": 1,
+          "status": "unmeasured",
+          "reason": "Missing judgments: yt-date-unknown"
+        }
+      ]
+    }
+  ],
+  "scope": "Synthetic relevance judgments and regression signals, not user satisfaction, provider throughput or a real-library audit."
+}

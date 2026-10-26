@@ -1,0 +1,38 @@
+✔ worker preserves source strength when ranking tag evidence (3.922ms)
+✔ worker waits for all batches, preserves likes and favorites, and mixes reuse compiled scores (4.0311ms)
+✔ filtered worker shelves learn from feedback outside the candidate list (0.7948ms)
+✔ worker results retain catalog offsets so the UI resolves cards without a catalog scan (0.5774ms)
+✔ deep pages reuse scoring, interleave a skewed catalog and retain stable, duplicate-free prefixes (13.9061ms)
+✔ pages remain inside the chosen format/topic candidates while learning from the full catalog (0.4558ms)
+✔ description-only words teach less than creator tags while explicit hearts keep their full effect (11.9828ms)
+✔ recent creator viewing raises unseen older uploads from that creator (2.6019ms)
+✔ liked tags and explicit creator favorites influence ranking (1.9415ms)
+✔ a deliberately unliked tag is a negative recommendation signal (1.3573ms)
+✔ recommendations interleave creators and de-prioritize already watched videos (1.0861ms)
+✔ a single prolific archive can still fill the requested shelf with its best-ranked uploads (5.3792ms)
+✔ feedback lookups scale with unique creators and tags, and exclude other providers (12.5748ms)
+✔ cached catalog follows immutable replacements and rejects invalid limits (0.3717ms)
+✔ filtered recommendations still learn from watched videos outside the filter (0.2968ms)
+✔ reshuffling reuses scored evidence instead of reading feedback again (7.6436ms)
+✔ ratings improve candidate order even when watched discovery evidence is negative (1.0952ms)
+✔ repeating tags or adding many hearted tags cannot create unlimited ranking bonuses (0.6805ms)
+✔ video likes, favorites, creator favorites, time and private marks each improve discovery priority (0.4598ms)
+✔ 60k-title scoring reads per-title signals once and reuses them across mixes (173.3815ms)
+✔ single-topic scans match complete evidence without replacing the card cache (12.771ms)
+✔ complete-catalog scans preserve evidence without filling or replacing the resident card cache (1.0066ms)
+✔ ASMR and known game categories create explainable topic links (0.4086ms)
+✔ promotional descriptions and creator names do not invent topic links (0.1937ms)
+✔ unsupported provider topics are repaired while manual, unknown, and locked choices survive (0.2427ms)
+✔ title, description hashtags, entities and chapter phrases connect to useful topics (11.6262ms)
+✔ promotional descriptions, creator identity and links cannot invent interests (1.703ms)
+✔ inference is bounded and supports Unicode hashtags without a huge token buffer (6.9474ms)
+✔ old provider keywords leave room for better tags while manual and legacy choices survive (0.9244ms)
+✔ text cache evicts old cards and catalog placeholder descriptions do not become content tags (20.5683ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 30
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 466.3904

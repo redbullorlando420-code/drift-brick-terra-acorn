@@ -1,0 +1,30 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "On-demand audit shows real source-specific samples, excludes private/hidden titles, pages eight rows and opens actual evidence",
+        "Reason-specific pair pause preserves focus/order until refresh, removes only the cross-source preference boost, retains same-source preference and explicit search, and does not change saved tastes",
+        "Bridge pause survives a real mirror reload; Undo recovers from dual storage failures through explicit retry",
+        "Actual aggregate export omits titles/IDs; library ZIP backup restores bridge decisions and an unsupported version leaves them intact",
+        "Real photo upload and saved tags require explicit public review, reach the audit without paths/bytes/people, support audit-only pause, and clear when returning to Photos or reloading",
+        "Desktop/mobile audit fits without horizontal overflow or uncaught console errors"
+      ],
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "On-demand audit shows real source-specific samples, excludes private/hidden titles, pages eight rows and opens actual evidence",
+        "Reason-specific pair pause preserves focus/order until refresh, removes only the cross-source preference boost, retains same-source preference and explicit search, and does not change saved tastes",
+        "Bridge pause survives a real mirror reload; Undo recovers from dual storage failures through explicit retry",
+        "Actual aggregate export omits titles/IDs; library ZIP backup restores bridge decisions and an unsupported version leaves them intact",
+        "Real photo upload and saved tags require explicit public review, reach the audit without paths/bytes/people, support audit-only pause, and clear when returning to Photos or reloading",
+        "Desktop/mobile audit fits without horizontal overflow or uncaught console errors"
+      ],
+      "errors": []
+    }
+  ],
+  "limitation": "Isolated mixed-source metadata and a synthetic chosen photo, not a real-library/provider or physical-device soak. Guide-only preference suppression; photo connections are audit-only."
+}

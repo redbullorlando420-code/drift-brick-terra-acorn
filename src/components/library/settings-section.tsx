@@ -1,3 +1,7 @@
+import {hydrateProviderViewing} from '@/lib/provider-viewing-store';
+import {hydrateAnimeReviews} from '@/lib/anime-review-store';
+import {hydrateFilmReviews} from '@/lib/film-review-store';
+import {hydrateGuidePreset} from '@/lib/guide-preset-store';
 import { YoutubeTagsControl } from './youtube-tags-control';
 import { useSettingsAudit } from "./use-settings-audit";
 import { usePerformanceProfile } from './use-performance-profile';
@@ -461,7 +465,8 @@ export function SettingsSection() {
           Import merges into durable IndexedDB stores and does not wipe unrelated data unless you confirm replace-follows.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
-          <Button onClick={() => {
+          <Button onClick={async () => {
+            await Promise.all([hydrateGuidePreset(),hydrateFilmReviews(),hydrateAnimeReviews(),hydrateProviderViewing()]);
             const state = useLibrary.getState();
             downloadLibraryPackZip({
               follows: state.follows,
@@ -538,7 +543,8 @@ export function SettingsSection() {
             };
             input.click();
           }}><Upload className="size-4" /> Import library pack</Button>
-          <Button variant="secondary" onClick={() => {
+          <Button variant="secondary" onClick={async () => {
+            await Promise.all([hydrateGuidePreset(),hydrateFilmReviews(),hydrateAnimeReviews(),hydrateProviderViewing()]);
             const state = useLibrary.getState();
             const files = buildLibraryPackFiles({
               follows: state.follows,

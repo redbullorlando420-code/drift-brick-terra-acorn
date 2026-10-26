@@ -1,0 +1,29 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "Seven source capability cards drive live search explanation, archive/sort availability and explicit MFC external-player/image distinctions without adding providers",
+        "Partial pull preserves accepted metadata, poster, locked category and tags, retains the unconsumed cursor, stops retries and exports counters without private titles, IDs, URLs or credentials",
+        "Login recovery removes the real iframe, retains the exact official URL/mode across reload with no hidden embed request, and handles denied clipboard via a selectable link",
+        "Unsupported embed hosts remain disabled, MFC page view is distinct from an integrated player, canonical URLs strip token parameters, and both-mirror failure has explicit retry",
+        "Provider choices survive ZIP restore and disk-only direct Settings export; invalid/legacy packs preserve state, forgetting is explicit, and recovery URLs stay off Home"
+      ],
+      "errors": [],
+      "requests": 2
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "Seven source capability cards drive live search explanation, archive/sort availability and explicit MFC external-player/image distinctions without adding providers",
+        "Partial pull preserves accepted metadata, poster, locked category and tags, retains the unconsumed cursor, stops retries and exports counters without private titles, IDs, URLs or credentials",
+        "Login recovery removes the real iframe, retains the exact official URL/mode across reload with no hidden embed request, and handles denied clipboard via a selectable link",
+        "Unsupported embed hosts remain disabled, MFC page view is distinct from an integrated player, canonical URLs strip token parameters, and both-mirror failure has explicit retry",
+        "Provider choices survive ZIP restore and disk-only direct Settings export; invalid/legacy packs preserve state, forgetting is explicit, and recovery URLs stay off Home"
+      ],
+      "errors": [],
+      "requests": 2
+    }
+  ]
+}

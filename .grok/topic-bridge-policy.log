@@ -1,0 +1,18 @@
+✔ reviewed fixture content fields create bridges while creator/source/date/file evidence cannot (6.4506ms)
+✔ aliases preserve supported spelling but cannot reclassify formats or operational labels as content (5.8893ms)
+✔ pair pauses normalize symmetrically, reject invalid/private pairs, retain Undo timestamps and never silently evict (0.7907ms)
+✔ audit retains real field samples and counts for local, provider and explicitly reviewed photo candidates (1.0168ms)
+✔ private, unknown local, hidden, unavailable, sample and unreviewed/imported/hidden photo evidence is absent (0.257ms)
+✔ pausing a Guide bridge removes its preference boost without deleting content or affecting same-source/direct favorites (3.8705ms)
+✔ an alternate unpaused origin remains usable and unknown shared labels do not form cross-source affinity (0.3639ms)
+✔ a forged format alias cannot provide cross-source preference evidence or misleading reason quotes (0.2696ms)
+✔ photo review is bounded, immutable and explicitly cleared without persisting a library setting (0.1824ms)
+✔ 100k audit rows yield cooperatively and retain only bounded topic/source samples; cancellation precedes reads (344.0475ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 516.113

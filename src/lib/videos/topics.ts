@@ -13,6 +13,7 @@ const cache = new WeakMap<LibraryVideo, { tags: readonly string[]; aliasRevision
 const legacyCache: typeof cache = new WeakMap();
 const EMPTY: readonly string[] = [];
 const rulesByTopic = new Map(TOPIC_RULES);
+const titleEvidence=(video:LibraryVideo)=>video.remote?.kind==='youtube'?video.name.slice(0,500).replace(/#[\p{L}\p{N}_-]+/gu,''):video.name.slice(0,500);
 
 /** Single-topic catalog scans avoid building every topic/evidence array and
  * never populate the resident per-card cache for unseen catalog entries. */
@@ -20,7 +21,7 @@ export function hasTopicForScan(video: LibraryVideo, topic: string, tags: readon
   const previous = cache.get(video);
   if (previous?.tags === tags && !aliasTagsChanged(tags, previous.aliasRevision)) { previous.aliasRevision = getTopicAliasRevision(); return previous.topics.includes(topic); }
   if (tags.some(tag => canonicalTopic(tag) === topic)) return true;
-  if (rulesByTopic.get(topic)?.test(`${video.name.slice(0, 500)} ${video.genre ?? ''}`)) return true;
+  if (rulesByTopic.get(topic)?.test(`${titleEvidence(video)} ${video.genre ?? ''}`)) return true;
   return youtubeDescriptionTopics(video).some(link => link.topic === topic);
 }
 
@@ -33,7 +34,7 @@ function resolve(video: LibraryVideo, tags: readonly string[] = EMPTY, retain = 
     const topic = reviewed ? canonicalTopic(tag) : baseCanonicalTopic(tag);
     if (topic) links.set(topic, { topic, reason: `Saved tag: ${tag}`, saved: true });
   }
-  const text = `${video.name.slice(0, 500)} ${video.genre ?? ''}`;
+  const text = `${titleEvidence(video)} ${video.genre ?? ''}`;
   for (const [topic, pattern] of TOPIC_RULES) {
     const match = text.match(pattern);
     if (match && !links.has(topic)) links.set(topic, { topic, reason: `Title/category: ${match[0]}`, saved: false });

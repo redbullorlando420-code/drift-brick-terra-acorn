@@ -1,0 +1,4 @@
+npm notice run typecheck
+npm notice run tsc --noEmit
+src/components/library/film-review.tsx(56,36): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string | null'.
+  Type 'undefined' is not assignable to type 'string | null'.

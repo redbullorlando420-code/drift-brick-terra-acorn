@@ -1,0 +1,235 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "title-keyword",
+      "title": "Minecraft castle guide",
+      "description": "A castle tour.",
+      "keywords": [
+        "Minecraft"
+      ],
+      "tag": "minecraft",
+      "expected": "high",
+      "reason": "Title and creator agree on a specific game."
+    },
+    {
+      "id": "title-entity",
+      "title": "Python basics",
+      "description": "",
+      "keywords": [],
+      "tag": "python",
+      "expected": "high",
+      "reason": "A known content entity occurs in the title."
+    },
+    {
+      "id": "generic-title",
+      "title": "Unusual experiment",
+      "description": "",
+      "keywords": [],
+      "tag": "unusual",
+      "expected": "medium",
+      "reason": "One generic title word is not corroboration."
+    },
+    {
+      "id": "creator-only",
+      "title": "Quiet afternoon",
+      "description": "",
+      "keywords": [
+        "Quantum circuits"
+      ],
+      "tag": "quantum-circuits",
+      "expected": "medium",
+      "reason": "Unanchored creator phrase remains review-only."
+    },
+    {
+      "id": "unrelated-dump",
+      "title": "Quiet afternoon",
+      "description": "Music music music.",
+      "keywords": [
+        "Music"
+      ],
+      "tag": "music",
+      "expected": "medium",
+      "reason": "Description and creator claims cannot supply a title/chapter anchor."
+    },
+    {
+      "id": "hashtag-only",
+      "title": "Daily update",
+      "description": "#Travel",
+      "keywords": [],
+      "tag": "travel",
+      "expected": "low",
+      "reason": "A hashtag alone is weak evidence."
+    },
+    {
+      "id": "title-hashtag",
+      "title": "Update #Travel",
+      "description": "",
+      "keywords": [],
+      "tag": "travel",
+      "expected": "low",
+      "reason": "A title hashtag is not independent title prose."
+    },
+    {
+      "id": "repeat-hashtag",
+      "title": "Update",
+      "description": "#Travel #Travel #Travel",
+      "keywords": [],
+      "tag": "travel",
+      "expected": "low",
+      "reason": "Repeating a hashtag adds no source."
+    },
+    {
+      "id": "keyword-hashtag",
+      "title": "Daily update",
+      "description": "#Travel",
+      "keywords": [
+        "Travel"
+      ],
+      "tag": "travel",
+      "expected": "medium",
+      "reason": "A hashtag plus creator tag still lacks a content anchor."
+    },
+    {
+      "id": "prose-only",
+      "title": "Quiet afternoon",
+      "description": "Pottery pottery pottery.",
+      "keywords": [],
+      "tag": "pottery",
+      "expected": "low",
+      "reason": "Repetition of one description word is weak."
+    },
+    {
+      "id": "entity-prose",
+      "title": "Quiet afternoon",
+      "description": "Machine learning with Python.",
+      "keywords": [],
+      "tag": "machine-learning",
+      "expected": "medium",
+      "reason": "A description entity remains a suggestion without an anchor."
+    },
+    {
+      "id": "chapter-only",
+      "title": "Workshop notes",
+      "description": "00:00 Cake and decorating",
+      "keywords": [],
+      "tag": "cake-decorating",
+      "expected": "medium",
+      "reason": "A chapter phrase remains supported when stop words are normalized; one field remains review-only."
+    },
+    {
+      "id": "chapter-keyword",
+      "title": "Workshop notes",
+      "description": "00:00 Cake decorating",
+      "keywords": [
+        "Cake decorating"
+      ],
+      "tag": "cake-decorating",
+      "expected": "high",
+      "reason": "Chapter and creator keyword independently agree."
+    },
+    {
+      "id": "chapter-prose",
+      "title": "Workshop notes",
+      "description": "Cake decorating techniques explained.\n00:00 Cake decorating",
+      "keywords": [],
+      "tag": "cake-decorating",
+      "expected": "high",
+      "reason": "Chapter phrase is supported by substantive prose."
+    },
+    {
+      "id": "promo-sponsor",
+      "title": "Python basics",
+      "description": "Sponsored by a travel music brand #travel",
+      "keywords": [],
+      "tag": "travel",
+      "expected": "absent",
+      "reason": "Sponsor copy is excluded before inference."
+    },
+    {
+      "id": "promo-affiliate",
+      "title": "Python basics",
+      "description": "Affiliate links for Minecraft gaming gear",
+      "keywords": [],
+      "tag": "minecraft",
+      "expected": "absent",
+      "reason": "Affiliate copy is not content evidence."
+    },
+    {
+      "id": "promo-music-credit",
+      "title": "Python basics",
+      "description": "Music by a jazz artist",
+      "keywords": [],
+      "tag": "music",
+      "expected": "absent",
+      "reason": "Music credit is excluded."
+    },
+    {
+      "id": "promo-link",
+      "title": "Python basics",
+      "description": "https://example.test/minecraft?anime=1",
+      "keywords": [],
+      "tag": "minecraft",
+      "expected": "absent",
+      "reason": "Link paths cannot infer interests."
+    },
+    {
+      "id": "promo-follow",
+      "title": "Python basics",
+      "description": "Follow me for anime #anime",
+      "keywords": [],
+      "tag": "anime",
+      "expected": "absent",
+      "reason": "Social cross-promotion is excluded."
+    },
+    {
+      "id": "promo-discount",
+      "title": "Python basics",
+      "description": "Use code TRAVEL for a discount",
+      "keywords": [],
+      "tag": "travel",
+      "expected": "absent",
+      "reason": "Discount copy is excluded."
+    },
+    {
+      "id": "creator-spam",
+      "title": "Quiet afternoon",
+      "description": "Sponsored by a cooking brand",
+      "keywords": [
+        "Cooking"
+      ],
+      "tag": "cooking",
+      "expected": "medium",
+      "reason": "Creator-only marketing keyword stays reviewable."
+    },
+    {
+      "id": "unicode-hashtag",
+      "title": "Quiet afternoon",
+      "description": "#日本旅行",
+      "keywords": [],
+      "tag": "日本旅行",
+      "expected": "low",
+      "reason": "Unicode hashtag has the same conservative policy."
+    },
+    {
+      "id": "chapter-hashtag",
+      "title": "Quiet afternoon",
+      "description": "00:00 #Travel",
+      "keywords": [
+        "Travel"
+      ],
+      "tag": "travel",
+      "expected": "medium",
+      "reason": "Chapter hashtag does not become an independent chapter anchor."
+    },
+    {
+      "id": "title-prose",
+      "title": "Astronomy lecture",
+      "description": "We explore astronomy tonight.",
+      "keywords": [],
+      "tag": "astronomy",
+      "expected": "high",
+      "reason": "A title word is independently supported by substantive prose."
+    }
+  ]
+}

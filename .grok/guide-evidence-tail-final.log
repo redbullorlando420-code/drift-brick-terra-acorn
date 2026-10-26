@@ -1,0 +1,25 @@
+✔ personal reasons cite real public positive signals and raw shared labels without mutating source fields (7.6051ms)
+✔ empty, private-only and orphan signals do not become public counts, evidence or topic choices (1.3893ms)
+✔ history-only input is honest discovery and operational facets cannot train affinity (0.6012ms)
+✔ query reasons distinguish saved title, tag, creator and category with exact field quotes (1.3887ms)
+✔ contradictory feedback, favorite protection and exposure notices state actual evidence (0.6111ms)
+✔ live explanations require actual fresh confirmations rather than grace holds or viewer counts (2.1606ms)
+✔ artifact bounds limit affinity vocabulary, candidate explanations and chooser rows (61.1696ms)
+✔ empty and explicit queries honor cancellation before reading input (0.6871ms)
+✔ reviewed aliases preserve the raw supporting fields in personal explanations (1.6672ms)
+✔ Movies requires duration over ten minutes and actual film evidence (2.3722ms)
+✔ Anime requires content evidence and rejects topic mentions, games and commentary (0.7829ms)
+✔ Guide searches the full catalog tail by title and saved tags with explicit evidence (36.9541ms)
+✔ Guide isolates private, hidden, unavailable and Adult titles and supports racing topics (0.3955ms)
+✔ Guide live questions honor provider, freshness and cancellation (1.9186ms)
+✔ Topic Explorer combines text, selected topic, evidence, provider and stable sort (3.9646ms)
+✔ Twitch live batches make at most twelve aliases per request and isolate field failures (0.9686ms)
+✔ older offline responses cannot retire a newer live observation (0.3959ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 277.9256

@@ -1,0 +1,31 @@
+{
+  "ok": true,
+  "url": "http://127.0.0.1:8080/",
+  "note": "Isolated browser profiles; platform handoffs intercepted, no social posts sent. Local disk failure simulated. Live chat, live detection and game adapter remain unconnected.",
+  "results": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "png": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\creator-batch-existing-dev-story-desktop.png",
+      "setupScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\creator-batch-existing-dev-setup-desktop.png",
+      "blueprintScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\creator-batch-existing-dev-blueprint-desktop.png",
+      "announcementScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\creator-batch-existing-dev-announcements-desktop.png",
+      "draftsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\creator-batch-existing-dev-drafts-desktop.png",
+      "labScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\creator-batch-existing-dev-lab-desktop.png",
+      "overflow": 0,
+      "ok": true
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "png": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\creator-batch-existing-dev-story-mobile.png",
+      "setupScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\creator-batch-existing-dev-setup-mobile.png",
+      "blueprintScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\creator-batch-existing-dev-blueprint-mobile.png",
+      "announcementScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\creator-batch-existing-dev-announcements-mobile.png",
+      "draftsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\creator-batch-existing-dev-drafts-mobile.png",
+      "labScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\creator-batch-existing-dev-lab-mobile.png",
+      "overflow": 0,
+      "ok": true
+    }
+  ]
+}

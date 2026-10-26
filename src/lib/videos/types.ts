@@ -113,6 +113,8 @@ export type LibraryVideo = {
   description?: string;
   collection?: "classics" | "shorts";
   poster?: string;
+  /** Movies-only projection from the owner review sidecar; never a renamed source file. */
+  filmReview?: {filmId:string;edition:string;ownerReviewed:true};
   remote?: RemoteRef;
 };
 
@@ -124,9 +126,10 @@ export type RemoteKind = FollowKind | "eporner" | "redtube" | "chaturbate" | "my
  * search index, while this sidecar explains where each value originated and
  * prevents a later provider refresh from replacing a deliberate user edit.
  */
-export type MetadataTagSource = "manual" | "local-name" | "companion-inspection" | "local-vision" | `provider:${RemoteKind}` | "legacy";
+export type MetadataTagSource = "manual" | "local-name" | "companion-inspection" | "local-vision" | "youtube-review" | `provider:${RemoteKind}` | "legacy";
 export type VideoMetadataProvenance = {
   youtubeTextTagVersion?: number;
+  youtubeReviews?: Record<string,{version:1;score:number;signals:number;at:number}>;
   /** The latest known source for each normalized tag on the title. */
   tags: Record<string, MetadataTagSource>;
   /** A lock is set by the metadata editor and applies to the whole field. */
@@ -174,6 +177,10 @@ export type RemoteRef = {
     version: number;
     sources: Record<string, 'video-tag' | 'hashtag' | 'chapter' | 'title' | 'description'>;
     topics: Array<{ topic: string; reason: string }>;
+    /** Arrays align with sources insertion order; no full excerpts on browse cards. */
+    titleHash?: string;
+    scores?: number[];
+    signals?: number[];
   };
   /** addedAt is the publication timestamp for YouTube; no duplicate epoch. */
   publishedSource?: import('./youtube-metadata').YoutubePublishedSource;

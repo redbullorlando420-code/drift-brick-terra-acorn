@@ -30,28 +30,38 @@ export function useYoutubeRanking(enabled: boolean, sourceInputs: YoutubeRanking
   const [packet, setPacket] = useState<{ inputs: YoutubeRankingInputs; seed: number; videos: LibraryVideo[] }>();
   const [pagePacket, setPagePacket] = useState<{ inputs: YoutubeRankingInputs; seed: number; videos: LibraryVideo[]; total: number }>();
   const [pagePending, setPagePending] = useState(false);
+  const failure=useRef<{revision:number;seed:number}|undefined>(undefined);
   const [workRevision, requestWork] = useState(0);
   const [error, setError] = useState('');
   const packetRef = useRef(packet), pageRef = useRef(pagePacket), deepRef = useRef(deep), inputsRef = useRef(inputs);
   const pageDemand = useRef<YoutubePageDemand<YoutubeRankingInputs> | undefined>(undefined);
   packetRef.current = packet; pageRef.current = pagePacket; deepRef.current = deep; inputsRef.current = inputs;
+  const sendRef=useRef<((message:YoutubeRankingMessage)=>void)|undefined>(undefined);
   const workerRef = useRef<Worker | undefined>(undefined), latestSeed = useRef(seed);
   latestSeed.current = seed;
   useEffect(() => {
     if (!enabled || viewerOpen || idle || hidden) return;
+    if(failure.current?.revision===workRevision&&failure.current.seed===latestSeed.current)return;
+    failure.current=undefined;
     const demand = youtubeRankingDemand(inputs, latestSeed.current, deepRef.current, packetRef.current, pageRef.current, pageDemand.current);
-    if (!demand.build) { pageDemand.current = undefined; setPagePending(false); return; }
+    if (!demand.build&&!error) { pageDemand.current = undefined; setPagePending(false); return; }
     let worker: Worker;
     try { worker = new Worker(new URL('../../lib/remote/youtube-ranking.worker.ts', import.meta.url), { type: 'module' }); }
-    catch { setError('Personal ranking is unavailable. You can still browse newest-first.'); return; }
+    catch { failure.current={revision:workRevision,seed:latestSeed.current};setPagePending(false);setError('Personal ranking is unavailable. You can still browse newest-first.'); return; }
     setError('');
     workerRef.current = worker;
     const releaseEnrichment = holdMetadataEnrichment();
     const controller = new AbortController();
     let active = true;
-    const send = (message: YoutubeRankingMessage) => { if (active) worker.postMessage(message); };
+    let watchdog:ReturnType<typeof setTimeout>|undefined;
+    const waiting=new Set<string>();
+    const watch=()=>{clearTimeout(watchdog);watchdog=setTimeout(()=>failed(),30_000);};
+    const send = (message: YoutubeRankingMessage) => { if (!active)return;if(message.type==='mix')waiting.add('recommendations');if(message.type==='page')waiting.add('page');watch();try{worker.postMessage(message);}catch{failed();} };
+    sendRef.current=send;watch();
     worker.onmessage = ({ data }: MessageEvent<YoutubeRankingResult>) => {
-      if (!active || data.seed !== latestSeed.current) return;
+      if (!active || data?.seed !== latestSeed.current) return;
+      if(!Array.isArray(data.ids)||!Array.isArray(data.offsets)||data.ids.length!==data.offsets.length||data.ids.length>96||!['recommendations','page'].includes(data.kind)){failed();return;}
+      waiting.delete(data.kind);if(!waiting.size)clearTimeout(watchdog);else watch();
       releaseEnrichment();
       // The worker preserves source-array positions. Resolve each small page directly,
       // rather than scanning a million-entry array again for each result.
@@ -70,8 +80,8 @@ export function useYoutubeRanking(enabled: boolean, sourceInputs: YoutubeRanking
         setPagePending(false);
       } else startTransition(() => setPacket({ inputs, seed: data.seed, videos }));
     };
-    const failed = () => { active = false; controller.abort(); releaseEnrichment(); worker.terminate(); if (workerRef.current === worker) workerRef.current = undefined; setPagePending(false); setError('Personal ranking could not finish. Newest-first browsing is available.'); };
-    worker.onerror = failed;
+    const failed = () => { if(!active)return;failure.current={revision:workRevision,seed:latestSeed.current};active = false;clearTimeout(watchdog);waiting.clear();if(sendRef.current===send)sendRef.current=undefined; controller.abort(); releaseEnrichment(); worker.terminate(); if (workerRef.current === worker) workerRef.current = undefined; setPagePending(false); setError('Personal ranking could not finish. Newest-first browsing is available.'); };
+    worker.onerror = event=>{event.preventDefault();failed();};worker.onmessageerror=failed;
     const cancel = scheduleBackgroundWork(() => void (async () => {
       const feedback = await rankingFeedbackSnapshot(); if (!active) return;
       send({ type: 'reset', topicAliases: getTopicAliases(), recommendationExposure: getRecommendationExposure(), now: Date.now(), recommendationRejections: feedback.recommendationRejections, creatorLikes: feedback.creatorLikes, creatorFavorites: feedback.creatorFavorites, creatorRatings: feedback.creatorRatings, heartedTags: feedback.heartedTags, historicTags: feedback.historicTags });
@@ -80,7 +90,7 @@ export function useYoutubeRanking(enabled: boolean, sourceInputs: YoutubeRanking
       await forEachCatalogSlice(inputs.videos, (item, index) => {
         const video: YoutubeRankingRow['video'] = { catalogOffset: index, id: item.id, folderId: item.folderId, addedAt: youtubePublicationTime(item), name: '', path: '', size: 0, extension: 'yt', mime: 'video/youtube',
           remote: item.remote ? { videoId: item.remote.videoId, kind: item.remote.kind, live: item.remote.live, youtubeType: item.remote.youtubeType, channelId: item.remote.channelId, channelName: item.remote.channelName,
-            ...(item.remote.youtubeTagSummary ? { youtubeTagSummary: { version: item.remote.youtubeTagSummary.version, sources: item.remote.youtubeTagSummary.sources, topics: [] } } : {}) } : undefined };
+            ...(item.remote.youtubeTagSummary ? { youtubeTagSummary: { version: item.remote.youtubeTagSummary.version, sources: item.remote.youtubeTagSummary.sources, scores:item.remote.youtubeTagSummary.scores, signals:item.remote.youtubeTagSummary.signals, titleHash:item.remote.youtubeTagSummary.titleHash, topics: [] } } : {}) } : undefined };
         chunk.push({ video, tags: inputs.tags[item.id] ?? EMPTY_TAGS, rating: feedback.ratings[item.id] ?? 0, favorite: Boolean(inputs.favorites[item.id]), liked: Boolean(inputs.likes[item.id]), marks: inputs.cameCounts[item.id] ?? 0, watch: feedback.watchScores[item.id] ?? 0, plays: inputs.viewCounts[item.id] ?? 0 });
         if (chunk.length === 512) { send({ type: 'append', rows: chunk }); chunk = []; }
       }, turn, 4096);
@@ -93,15 +103,16 @@ export function useYoutubeRanking(enabled: boolean, sourceInputs: YoutubeRanking
         setPagePending(true); send({ type: 'page', offset: next.pageOffset ?? 0, limit: 96 });
       }
     })().catch(() => { if (active) failed(); }));
-    return () => { active = false; controller.abort(); releaseEnrichment(); cancel(); worker.terminate(); if (workerRef.current === worker) workerRef.current = undefined; };
+    return () => { active = false;clearTimeout(watchdog);waiting.clear();if(sendRef.current===send)sendRef.current=undefined;worker.onmessage=worker.onerror=worker.onmessageerror=null;controller.abort(); releaseEnrichment(); cancel(); worker.terminate(); if (workerRef.current === worker) workerRef.current = undefined; };
   }, [enabled, inputs, viewerOpen, idle, hidden, workRevision]);
   useEffect(() => {
     if (!deep) { pageDemand.current = undefined; setPagePending(false); }
+    if(failure.current?.revision===workRevision&&failure.current.seed===seed)return;
     if (!enabled || viewerOpen || idle || hidden) return;
     const worker = workerRef.current;
     if (worker) {
-      worker.postMessage({ type: 'mix', seed } satisfies YoutubeRankingMessage);
-      if (deep) { setPagePending(true); worker.postMessage({ type: 'page', offset: 0, limit: 96 } satisfies YoutubeRankingMessage); }
+      sendRef.current?.({ type: 'mix', seed });
+      if (deep) { setPagePending(true); sendRef.current?.({ type: 'page', offset: 0, limit: 96 }); }
     } else if (youtubeRankingDemand(inputsRef.current, seed, deep, packetRef.current, pageRef.current).build) requestWork(value => value + 1);
   }, [deep, enabled, seed, viewerOpen, idle, hidden]);
   const loadMore = useCallback(() => {
@@ -109,10 +120,10 @@ export function useYoutubeRanking(enabled: boolean, sourceInputs: YoutubeRanking
     if (pagePending || current?.inputs !== inputsRef.current || current.seed !== latestSeed.current || current.videos.length >= current.total) return;
     pageDemand.current = { inputs: current.inputs, seed: current.seed, offset: current.videos.length };
     setPagePending(true);
-    if (workerRef.current) workerRef.current.postMessage({ type: 'page', offset: current.videos.length, limit: 96 } satisfies YoutubeRankingMessage);
+    if (workerRef.current) sendRef.current?.({ type: 'page', offset: current.videos.length, limit: 96 });
     else requestWork(value => value + 1);
   }, [pagePending]);
-  useEffect(() => { if (!enabled) { pageDemand.current = undefined; setPacket(undefined); setPagePacket(undefined); setPagePending(false); } }, [enabled]);
+  useEffect(() => { if (!enabled) { failure.current=undefined;pageDemand.current = undefined; setPacket(undefined); setPagePacket(undefined); setPagePending(false); } }, [enabled]);
   const pageMatches = enabled && pagePacket?.inputs === inputs && pagePacket.seed === seed;
   // Keep a bounded existing shelf painted while watch/feedback scores update.
   // A format/topic/catalog change still hides incompatible results instantly.
@@ -121,6 +132,6 @@ export function useYoutubeRanking(enabled: boolean, sourceInputs: YoutubeRanking
   return {
     recommendations: recommendationMatches ? packet.videos : EMPTY,
     discovery: pageCatalogMatches ? pagePacket.videos : EMPTY, total: pageCatalogMatches ? pagePacket.total : 0,
-    pending: pagePending || Boolean(enabled && !error && (packet?.inputs !== inputs || packet.seed !== seed || deep && !pageMatches)), error, loadMore,
+    pending: pagePending || Boolean(enabled && !error && (packet?.inputs !== inputs || packet.seed !== seed || deep && !pageMatches)), error, loadMore,retry:()=>requestWork(value=>value+1),
   };
 }

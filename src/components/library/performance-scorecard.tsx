@@ -1,3 +1,4 @@
+import { searchWorkerIndex } from '@/lib/videos/search-worker-index';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { cacheMetrics } from '@/lib/cache-metrics';
@@ -27,7 +28,7 @@ function capture() {
   const now = Date.now(), catalog = useLibrary.getState(), counters = cacheMetrics.snapshot();
   const snapshot = { version: 1, capturedAt: now, catalogEntries: catalog.videos.length, sourceCount: catalog.folders.length,
     lowMemory: getPerformanceProfile().lowMemory, pullsPaused: pullsPaused(), frames: getRenderBudgetSnapshot(), interactions: getInteractionBudgetSnapshot(),
-    startup: getFirstShelfTrace(), artwork: getThumbDiagnostics(), viewer: viewerDetails.diagnostics(), counters,
+    search:searchWorkerIndex.diagnostics(),startup: getFirstShelfTrace(), artwork: getThumbDiagnostics(), viewer: viewerDetails.diagnostics(), counters,
     providers: aggregateProviderCache(catalog.follows, now), providerBudgets: PROVIDER_BUDGETS, writes: getPersistenceMemorySnapshot(), recurring: getPeriodicWorkSnapshot(),
     sources: getSourceMemorySnapshot(), feedback: getFeedbackDiagnostics(), companion: getCompanionMemorySnapshot() };
   return { ...snapshot, scorecard: buildPerformanceScorecard({ ...snapshot, now, homeReadyMs: snapshot.startup.homeReadyMs, diskErrors: counters['thumbnail-disk'].errors }) };
@@ -52,6 +53,8 @@ export function PerformanceScorecard() {
     <dl className="mt-3 grid gap-3 md:grid-cols-2">
       <CacheRow title="Catalog selectors" detail={rate(counters['catalog-selectors'].hits, counters['catalog-selectors'].misses)} note={`Immutable-input reuse since page load · last lookup ${age(counters['catalog-selectors'].lastAccessAt === undefined ? undefined : snapshot.capturedAt - counters['catalog-selectors'].lastAccessAt)} ago. Results share catalog references; heap size is not measured.`} />
       <CacheRow title="Artwork memory" detail={rate(artwork.hits, artwork.misses)} note={`${artwork.entries} / ${artwork.entryLimit} entries · ${bytes(artwork.bytes)} / ${bytes(artwork.byteLimit)} · ${artwork.evictions} evictions · ${artwork.active} decoding / ${artwork.queued} queued. Session reuse includes disk recall.`} />
+      <CacheRow title="Search worker" detail={`${snapshot.search.status} · ${snapshot.search.workers} workers · ${snapshot.search.pending} pending`} note={snapshot.search.lastFailure || "One generation-owned index. Failures release its catalog; explicit retry or cooperative search keeps browsing available."} />
+      <CacheRow title="Artwork decode lifecycle" detail={`${artwork.decodes.active} native / ${artwork.decodes.queued} queued · current limit ${artwork.decodes.limit}`} note={`${artwork.decodes.cancelled} cancelled callers · ${artwork.decodes.closedLate} obsolete bitmaps closed · peak ${artwork.decodes.peak} · ${artwork.admission.active}/${artwork.admission.max} admitted images. Native calls cannot be aborted; their slots remain counted until they settle. No image paths or buffers are recorded.`} />
       <CacheRow title="Thumbnail disk recall" detail={rate(counters['thumbnail-disk'].hits, counters['thumbnail-disk'].misses)} note={`${counters['thumbnail-disk'].errors} errors · last recalled item ${counters['thumbnail-disk'].lastEntryBytes === undefined ? 'unmeasured' : bytes(counters['thumbnail-disk'].lastEntryBytes)} · oldest observed item ${age(counters['thumbnail-disk'].oldestObservedEntryAt === undefined ? undefined : snapshot.capturedAt - counters['thumbnail-disk'].oldestObservedEntryAt)}. Observed reads only; no full disk inventory.`} />
       <CacheRow title="Viewer details" detail={`${viewer.entries} / ${viewer.maxEntries} entries · ${bytes(viewer.estimatedBytes)} / ${bytes(viewer.maxBytes)} estimated`} note={`${viewer.pending} disk reads · ${viewer.activeTranscripts} active transcript. Details leave memory when their bounded cache evicts them.`} />
       {snapshot.providers.map(provider => <CacheRow key={provider.kind} title={`${provider.kind === 'youtube' ? 'YouTube' : 'Twitch'} provider snapshots`} detail={rate(provider.hits, provider.misses)} note={`${provider.samples} saved creator samples · ${provider.uncached} unretained responses · ${provider.entries.toLocaleString()} retained entries in snapshots · ${provider.sizedSamples ? `${bytes(provider.estimatedBytes)} estimated across ${provider.sizedSamples} sized samples` : 'size unavailable until the next provider response'} · oldest sample ${age(provider.oldestAgeMs)}.`} />)}

@@ -6,11 +6,11 @@ import type { LibraryVideo } from './types.ts';
 const video=(name:string,description=''):LibraryVideo=>({id:name,name,description,folderId:'youtube:ada',path:'youtube/ada',extension:'yt',mime:'video/youtube',size:0,addedAt:0,remote:{kind:'youtube',channelName:'Gaming Travel Music Channel'}});
 
 test('title, description hashtags, entities and chapter phrases connect to useful topics', () => {
-  const row=video('Building something new','A guide to machine learning with Python. #NeuralNetworks\n00:00 Introduction\n02:10 Training neural networks\n05:22 Model evaluation');
+  const row=video('Machine learning workshop','A guide to machine learning with Python. #NeuralNetworks\n00:00 Introduction\n02:10 Training neural networks\n05:22 Model evaluation');
   const result=youtubeTextTags(row);
   for (const tag of ['neuralnetworks','machine-learning','python','training-neural-networks','model-evaluation']) assert.ok(result.tags.includes(tag),tag);
   assert.ok(topicsForVideo(row).includes('technology'));
-  assert.match(topicEvidence(row).find(link=>link.topic==='technology')!.reason,/Description\/chapter/);
+  assert.match(topicEvidence(row).find(link=>link.topic==='technology')!.reason,/Title\/category/);
   assert.equal(youtubeTextTags(row),result,'bounded cache reuses adjacent taxonomy/keyword work');
 });
 test('promotional descriptions, creator identity and links cannot invent interests', () => {

@@ -1,0 +1,32 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "errors": [],
+      "checks": [
+        "Movies uses runtime, genre, release decade, source, favorites and scoped search; trailers/episodes remain excluded",
+        "Anime groups numbered fansub episodes in season order, separates films from OVAs and excludes edits/music/recommendation videos",
+        "recent clip refresh rotates from creators 0–7 to 8–15; older pulls resume separately and live/VOD state is preserved",
+        "clip metadata updates feed most-viewed ranking, while newest ranking uses creation dates and preserves the original date when omitted",
+        "clip freshness clocks and older positions persist across reload"
+      ],
+      "ok": true,
+      "clipRequests": 17
+    },
+    {
+      "mobile": true,
+      "errors": [],
+      "checks": [
+        "Movies uses runtime, genre, release decade, source, favorites and scoped search; trailers/episodes remain excluded",
+        "Anime groups numbered fansub episodes in season order, separates films from OVAs and excludes edits/music/recommendation videos",
+        "recent clip refresh rotates from creators 0–7 to 8–15; older pulls resume separately and live/VOD state is preserved",
+        "clip metadata updates feed most-viewed ranking, while newest ranking uses creation dates and preserves the original date when omitted",
+        "clip freshness clocks and older positions persist across reload"
+      ],
+      "ok": true,
+      "clipRequests": 17
+    }
+  ],
+  "limitation": "Isolated desktop and touch-phone Chrome. Local cards are metadata fixtures, and provider responses are controlled; no personal library or real remote source was modified."
+}

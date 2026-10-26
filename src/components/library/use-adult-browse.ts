@@ -56,7 +56,7 @@ export function useAdultBrowse(enabled: boolean, inputs: AdultBrowseInputs, para
       active = false;
       clearTimeout(timeout);
       worker?.terminate();
-      enqueue.current = undefined;
+      enqueue.current = undefined;busy=queued=undefined;sent=sentSignalInputs=undefined;
       setFailed(true);
     };
     try { worker = new Worker(new URL("../../lib/videos/adult-browse.worker.ts", import.meta.url), { type: "module" }); }
@@ -66,7 +66,7 @@ export function useAdultBrowse(enabled: boolean, inputs: AdultBrowseInputs, para
       if (!active || busy || !queued) return;
       const job = queued;
       busy = job;
-      queued = undefined;
+      queued = undefined;clearTimeout(timeout);timeout=setTimeout(fail,30_000);
       try {
         if (!sent || sent.videos !== job.inputs.videos || sent.tags !== job.inputs.tags || sent.personalVideos !== job.inputs.personalVideos || sent.deepVideos !== job.inputs.deepVideos) {
           worker.postMessage({ type: 'catalog-start' });
@@ -139,5 +139,5 @@ export function useAdultBrowse(enabled: boolean, inputs: AdultBrowseInputs, para
   const result = enabled && packet?.params.source === params.source && packet.params.tag === params.tag && packet.params.view === params.view ? packet.result : undefined;
   const facets = enabled && packet?.params.source === params.source ? packet.result : undefined;
   const deepRankedIds = enabled && packet?.inputs.deepVideos === inputs.deepVideos ? packet.result.deepRankedIds : undefined;
-  return { result, facets, deepRankedIds, failed, pending: enabled && (!result || packet?.inputs !== inputs), retry: () => setAttempt(value => value + 1) };
+  return { result, facets, deepRankedIds, failed, pending: enabled && !failed && (!result || packet?.inputs !== inputs), retry: () => setAttempt(value => value + 1) };
 }

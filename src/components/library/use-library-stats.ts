@@ -61,10 +61,11 @@ export function useLibraryStats(input: Input, revision: number) {
       clearTimeout(watchdog);
     };
     const failed = () => {
+      if(controller.signal.aborted)return;
       stop();
       controller.abort();
-      cancelTurn();
-      ack?.();
+      cancelTurn();rejectTurn?.(new Error("Statistics worker stopped"));
+      ack?.();ack=undefined;
       setSnapshot((previous) => ({ ...previous, pending: false, error: true }));
     };
     const turn = async () => {
@@ -99,9 +100,10 @@ export function useLibraryStats(input: Input, revision: number) {
           failed();
           return;
         }
-        worker.onerror = failed;
+        worker.onerror = event=>{event.preventDefault();failed();};
         worker.onmessageerror = failed;
         worker.onmessage = ({ data }) => {
+          if(controller.signal.aborted)return;
           clearTimeout(watchdog);
           if (data.next) {
             const done = ack;
@@ -206,6 +208,6 @@ export function useLibraryStats(input: Input, revision: number) {
   }, [settled, viewer, visible]);
   return {
     ...snapshot,
-    pending: snapshot.pending || input !== settled.input || revision !== settled.revision,
+    pending: !snapshot.error&&(snapshot.pending || input !== settled.input || revision !== settled.revision),
   };
 }

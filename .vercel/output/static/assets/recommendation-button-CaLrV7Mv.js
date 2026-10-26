@@ -1,0 +1,1 @@
+import{n as e,o as t,t as n}from"./jsx-runtime-CfuWmoMz.js";import{r}from"./navigation-work-JmzRqzaN.js";var i=t(e(),1),a=n();function o({video:e,surface:t=`browse`,enabled:n=!0,...o}){let s=(0,i.useRef)(null);return r(s,e,t,n),(0,a.jsx)(`button`,{...o,ref:s,"data-recommendation-card":n?e.id:void 0})}export{o as t};

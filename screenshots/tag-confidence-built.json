@@ -1,0 +1,32 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "Actual metadata pull prepares high/medium/low scores and source excerpts; promotion is excluded and JSON export reflects bounded evidence",
+        "Weak suggestion requires explicit selection; acceptance preserves manual tags/category locks and exact provenance survives durable reload",
+        "Mismatched provider identity shows an error without replacing saved metadata or accepted tags",
+        "Stop ignores an in-flight response and requests no remaining videos",
+        "Editing and locking tags while provider metadata is delayed preserves the manual value and disables acceptance",
+        "Bounded eight-row review fits desktop/mobile, with clean console and no horizontal overflow"
+      ],
+      "errors": [],
+      "metadataRequests": 4
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "Actual metadata pull prepares high/medium/low scores and source excerpts; promotion is excluded and JSON export reflects bounded evidence",
+        "Weak suggestion requires explicit selection; acceptance preserves manual tags/category locks and exact provenance survives durable reload",
+        "Mismatched provider identity shows an error without replacing saved metadata or accepted tags",
+        "Stop ignores an in-flight response and requests no remaining videos",
+        "Editing and locking tags while provider metadata is delayed preserves the manual value and disables acceptance",
+        "Bounded eight-row review fits desktop/mobile, with clean console and no horizontal overflow"
+      ],
+      "errors": [],
+      "metadataRequests": 4
+    }
+  ],
+  "limitation": "Isolated synthetic public catalog and controlled provider metadata; no real user library or provider modified."
+}

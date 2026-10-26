@@ -1,0 +1,29 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "Actual mix report counts the exact eligible rows and painted slots, excludes hidden/private media and distinguishes protected-favorite exposure from novelty",
+        "Changing the diagnostic threshold preserves output order, saved preferences and provider request counts; real JSON export contains aggregates and anonymous groups only",
+        "A new generated mix reports canonical overlap with the previous output; balanced source tuning is measured as the actual 6/6 output",
+        "Question report uses the actual matched candidate set, includes recorded matches honestly and explains a single-source result without a false fairness failure",
+        "Stats retains only the latest mix/question snapshots across navigation; Clear and reload remove them without changing saved tastes",
+        "Desktop and mobile controls and reports render without horizontal overflow or uncaught errors"
+      ],
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "Actual mix report counts the exact eligible rows and painted slots, excludes hidden/private media and distinguishes protected-favorite exposure from novelty",
+        "Changing the diagnostic threshold preserves output order, saved preferences and provider request counts; real JSON export contains aggregates and anonymous groups only",
+        "A new generated mix reports canonical overlap with the previous output; balanced source tuning is measured as the actual 6/6 output",
+        "Question report uses the actual matched candidate set, includes recorded matches honestly and explains a single-source result without a false fairness failure",
+        "Stats retains only the latest mix/question snapshots across navigation; Clear and reload remove them without changing saved tastes",
+        "Desktop and mobile controls and reports render without horizontal overflow or uncaught errors"
+      ],
+      "errors": []
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 /** Outbound adult destinations. Non-embeddable sites belong in milestones. */
 
+import {canPullAdult} from './adult-provider-adapters.ts';
 import { ADULT_EXTRA_MILESTONES } from "./adult-milestones-extra";
 import { ADULT_NICHE_MILESTONES } from "./adult-milestones-niches";
 import {
@@ -763,7 +764,7 @@ export const ADULT_SOURCE_OPTIONS: { id: string; label: string; href?: string; p
       id: link.sourceId!,
       label: link.name,
       href: link.href,
-      pull: Boolean(link.embeds),
+      pull: canPullAdult(link.sourceId),
     }));
 
 import { ADULT_PULL_PROVIDERS, type AdultPullProvider } from './adult-providers';

@@ -1,0 +1,10 @@
+{
+  "eporner": {"videos":[{"id":"fixture1","title":"Public catalog fixture","embed":"https://www.eporner.com/embed/fixture1/","url":"https://www.eporner.com/video-fixture1/","length_sec":900,"default_thumb":{"src":"https://thumb.example.test/catalog.jpg"}}],"total_pages":1,"total_count":1},
+  "redtube": {"videos":[{"video":{"video_id":"100001","title":"Public catalog fixture","embed_url":"https://embed.redtube.com/?id=100001","url":"https://www.redtube.com/100001","duration":"15:00","thumb":"https://thumb.example.test/catalog.jpg"}}],"count":1},
+  "chaturbate": {"results":[{"username":"fixture_public","display_name":"Public room fixture","room_subject":"Public room fixture","num_users":12,"age":25,"image_url":"https://thumb.example.test/room.jpg","tags":["fixture"]}],"count":1},
+  "myfreecams": "Updated: fixture<br>fixture_public,0<br>",
+  "booru": [{"id":100001,"tags":"catalog fixture","preview_url":"https://thumb.example.test/preview.jpg","file_url":"https://thumb.example.test/original.jpg"}],
+  "e621": {"posts":[{"id":100001,"rating":"e","tags":{"general":["catalog","fixture"]},"file":{"url":"https://thumb.example.test/original.jpg"},"preview":{"url":"https://thumb.example.test/preview.jpg"}}]},
+  "redgifs": {"gifs":[{"id":"fixtureclip","title":"Public catalog fixture","urls":{"poster":"https://thumb.example.test/poster.jpg","hd":"https://thumb.example.test/clip.mp4"}}]},
+  "reddit": "<?xml version=\"1.0\"?><feed xmlns=\"http://www.w3.org/2005/Atom\"><entry><id>t3_fixture1</id><title>Public catalog fixture</title><author><name>/u/fixture</name></author><link href=\"https://www.reddit.com/r/fixture/comments/fixture1/catalog/\"/><content type=\"html\">&lt;img src=\"https://i.redd.it/fixture1.jpg\"/&gt;</content></entry></feed>"
+}

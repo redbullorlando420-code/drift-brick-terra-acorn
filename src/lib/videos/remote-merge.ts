@@ -88,7 +88,9 @@ function retainDurableRemoteFields(previous: LibraryVideo | undefined, incoming:
   const keepsName = Boolean(channelName && channelName !== incoming.remote.channelName);
   const keepsComments = Boolean(comments?.length && comments !== incoming.remote.comments);
   const twitch = incoming.remote.kind === 'twitch';
-  const keepsPublished = incoming.remote.kind === "youtube" && incoming.addedAt === 0 && repairLegacyYoutubeDate(previous).addedAt > 0
+  const adult=!!incoming.remote&&['eporner','redtube','reddit','booru','redgifs'].includes(incoming.remote.kind);
+  const keepsAdultPublished=adult&&incoming.addedAt===0&&['instant','day'].includes(previous.remote.publishedPrecision??'')&&previous.addedAt>0;
+  const keepsPublished = keepsAdultPublished || incoming.remote.kind === "youtube" && incoming.addedAt === 0 && repairLegacyYoutubeDate(previous).addedAt > 0
     || twitch && (!Number.isFinite(incoming.addedAt) || incoming.addedAt <= 0) && previous.addedAt > 0;
   const keepsViews = (incoming.remote.kind === 'youtube' || twitch) && incoming.remote.views === undefined && previous.remote.views !== undefined;
   const keepsDuration = (incoming.remote.kind === 'youtube' || twitch) && (!Number.isFinite(incoming.duration) || (incoming.duration ?? 0) <= 0) && (previous.duration ?? 0) > 0;
@@ -109,6 +111,7 @@ function retainDurableRemoteFields(previous: LibraryVideo | undefined, incoming:
     ...(keepsYear ? { year: previous.year } : {}),
     remote: {
       ...incoming.remote,
+      ...(keepsAdultPublished?{publishedPrecision:previous.remote.publishedPrecision,publishedDate:previous.remote.publishedDate}:{}),
       ...(keepsName ? { channelName } : {}),
       ...(keepsComments ? { comments } : {}),
       ...(keepsViews ? { views: previous.remote.views } : {}),

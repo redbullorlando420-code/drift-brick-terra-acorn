@@ -32,7 +32,8 @@ import {
   type AdultPullProvider,
 } from "@/lib/videos/adult-sites";
 import { ADULT_SOURCE_FILTERS, countAdultBySource } from "@/lib/videos/adult-filter";
-import { ADULT_PROVIDER_ADAPTERS } from "@/lib/videos/adult-provider-adapters";
+import {ProviderCapabilityPanel,ProviderViewingDesk,ProviderQualityDetails} from './provider-recovery';
+import {adultSelectionCapabilities,canPullAdult,adultAdapter} from '@/lib/videos/adult-provider-adapters';
 import { rankAdultTags } from "@/lib/videos/adult-rank";
 import { selectAdultRemote, useLibrary } from "@/lib/videos/store";
 import { scheduleBackgroundWork } from "@/lib/interaction-budget";
@@ -44,7 +45,7 @@ const ORDERS: { id: string; label: string }[] = [
   { id: "top-rated", label: "Top rated" },
 ];
 
-const PROVIDER_CHOICES: { id: AdultPullProvider[] | "all"; label: string }[] = [
+const ALL_PROVIDER_CHOICES: { id: AdultPullProvider[] | "all"; label: string }[] = [
   { id: "all", label: "All pull sources" },
   { id: ["eporner", "redtube"], label: "Videos (Eporner + RedTube)" },
   { id: ["chaturbate", "myfreecams"], label: "Live cams" },
@@ -57,6 +58,8 @@ const PROVIDER_CHOICES: { id: AdultPullProvider[] | "all"; label: string }[] = [
   { id: ["eporner"], label: "Eporner only" },
   { id: ["redtube"], label: "RedTube only" },
 ];
+
+const PROVIDER_CHOICES=ALL_PROVIDER_CHOICES.filter(choice=>choice.id==='all'||choice.id.every(canPullAdult));
 
 const FETISH_EXPLORER_GROUPS: Array<{ label: string; tags: readonly string[] }> = [
   { label: "Featured", tags: ADULT_FEATURED_FETISH_TAGS },
@@ -415,6 +418,7 @@ export const AdultPanel = memo(function AdultPanel({
   const [query, setQuery] = useState("");
   const [order, setOrder] = useState("top-weekly");
   const [providers, setProviders] = useState<AdultPullProvider[] | "all">("all");
+  const selectedCapabilities=useMemo(()=>adultSelectionCapabilities(providers),[providers]);
   const [localTag, setLocalTag] = useState("all");
   const [facetQuery, setFacetQuery] = useState("");
   const deferredFacetQuery = useDeferredValue(facetQuery);
@@ -685,7 +689,7 @@ export const AdultPanel = memo(function AdultPanel({
       </details>
 
       <details data-milestone-section="sources" onToggle={event => toggleMilestone("sources", event.currentTarget.open)} className="rounded-xl bg-elevated shadow-border">
-        <summary className="cursor-pointer list-none p-5 [&::-webkit-details-marker]:hidden"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Adult sites</p><h2 className="mt-2 font-display text-2xl text-fg sm:text-3xl">Embed-ready pull sources</h2><p className="mt-2 text-xs text-muted">Collapse this section to focus on the catalog.</p></summary>
+        <summary className="cursor-pointer list-none p-5 [&::-webkit-details-marker]:hidden"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Adult sites</p><h2 className="mt-2 font-display text-2xl text-fg sm:text-3xl">Integrated pull sources</h2><p className="mt-2 text-xs text-muted">Collapse this section to focus on the catalog.</p></summary>
         {openMilestones.sources && (
         <div className="px-5 pb-5">
         <p className="mt-2 max-w-2xl text-sm text-muted">
@@ -694,7 +698,7 @@ export const AdultPanel = memo(function AdultPanel({
         </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {ADULT_EMBED_LINKS.map((site) => (
-            <SiteCard key={site.name} {...site} />
+            <SiteCard key={site.name} {...site} badge={adultAdapter(site.sourceId)?.player==='external'?'Official site':adultAdapter(site.sourceId)?.player==='image'?'Image viewer':adultAdapter(site.sourceId)?.player==='mixed'?'Mixed media':'Provider embed'} />
           ))}
         </div>
         </div>
@@ -924,9 +928,10 @@ export const AdultPanel = memo(function AdultPanel({
               onKeyDown={(e) => {
                 if (e.key === "Enter") runSearch(false);
               }}
-              placeholder="Search adult feeds (empty = all)"
+              placeholder={selectedCapabilities.directoryOnly?'Filter public rooms by name or topic':'Search adult feeds (empty = all)'}
               className="pl-9"
               aria-label="Search adult feed"
+              aria-describedby="adult-provider-query-help"
             />
           </div>
           <div className="flex flex-wrap gap-2">
@@ -935,6 +940,7 @@ export const AdultPanel = memo(function AdultPanel({
                 key={o.id}
                 size="sm"
                 variant={order === o.id ? "default" : "secondary"}
+                disabled={!selectedCapabilities.order}
                 onClick={() => setOrder(o.id)}
               >
                 {o.label}
@@ -952,25 +958,23 @@ export const AdultPanel = memo(function AdultPanel({
           <Button
             variant="secondary"
             onClick={() => runSearch(true)}
-            disabled={remoteBusy || !adultVideos.length}
+            disabled={remoteBusy || !adultVideos.length || !selectedCapabilities.archive}
           >
             Load more
           </Button>
           <Button
             variant="secondary"
             onClick={() => runSearch(false, true)}
-            disabled={remoteBusy}
+            disabled={remoteBusy || !selectedCapabilities.archive}
             title="Resume each provider from its saved archive cursor"
+            aria-disabled={!selectedCapabilities.archive}
           >
             Continue archive
           </Button>
         </div>
+        <p id="adult-provider-query-help" className="mt-3 text-xs leading-5 text-muted">{selectedCapabilities.directoryOnly?'This filters the fetched public room directory, not a full-site search. Archive and sort controls do not apply to live rosters.':selectedCapabilities.query==='feed-filter'?'Search filters the fetched public community window, not all Reddit.':'Source-specific search and paging use the existing adapters. The selected sources may use different search/sort rules.'}</p>{selectedCapabilities.directoryOnly&&<Button className="mt-2 min-h-11" variant="secondary" onClick={()=>setSource('live')}>Open Live directory paging</Button>}
+        <ProviderCapabilityPanel/><ProviderViewingDesk/>
         <p className="mt-2 text-xs text-muted">Pull cap: {pullSettings.adultBatchVideos.toLocaleString()} new entries · unused capacity rolls to the next provider when a source is empty, unavailable, or mostly duplicates. Change pace and catalog target in Settings.</p>
-        <details className="mt-3 rounded-md border border-border bg-bg/35 p-3">
-          <summary className="cursor-pointer text-xs font-medium text-fg">Provider adapter platform · active and planned sources</summary>
-          <p className="mt-2 text-xs leading-5 text-muted">Each adapter needs a documented public API, public feed, or permitted embed before it can enter the catalog. This keeps unsupported sites as safe link-outs until their source contract is implemented.</p>
-          <div className="mt-3 flex flex-wrap gap-2">{ADULT_PROVIDER_ADAPTERS.map((adapter) => <span key={adapter.id} className="rounded-xs bg-elevated px-2 py-1 text-xs text-muted">{adapter.label} · {adapter.status} · {adapter.capabilities.join(", ")}</span>)}</div>
-        </details>
         <div className="mt-4 rounded-md bg-bg/40 p-3">
           <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">RedTube creator search</p>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -1046,6 +1050,7 @@ export const AdultPanel = memo(function AdultPanel({
             </div>
           </div>
         )}
+        {adultPullStatus&&<ProviderQualityDetails diagnostics={adultPullStatus.diagnostics}/>}
         {useCustomRedditSources && redditSources.length > 0 && (
           <p className="mt-1 text-xs text-muted">
             Reddit pull scope · {selectedRedditSources.length} saved communities · {redditSources.length} priority override{redditSources.length === 1 ? "" : "s"} · photos, animated GIFs, video posts, and live comment threads stay attached to each post.

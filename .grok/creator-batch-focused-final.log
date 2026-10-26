@@ -1,0 +1,33 @@
+✔ Story layout keeps default full text in fixed safe regions and every text pairing exceeds 4.5:1 (12.9439ms)
+✔ long Unicode fits or emits exact field warnings; full caption retains all content and validated destinations (5.1355ms)
+✔ recording replays normalized ballots, duplicate/invalid/late rejection, whole sequences and fresh resource checks identically (3.3588ms)
+✔ replay detects the first divergent checkpoint, stops verification and exposes expected/actual values (0.4779ms)
+✔ malformed and out-of-order replay events are rejected before replacing a recording (0.5298ms)
+✔ seeded sample ballots are reproducible and recordings reserve emergency-stop capacity without eviction (6.1689ms)
+✔ emergency stop clears votes and pending moves in live recording and partially advanced replay (0.4641ms)
+✔ offline contract queues only strategic work; dispatch and acknowledgement are separate and each next step requires a new observation (1.0317ms)
+✔ unauthenticated, unpaired, expired, mismatched and unapproved transport contexts never enqueue an intent (0.323ms)
+✔ message JSON cannot grant authentication; unknown versions, fields, commands and duplicate identities fail closed (0.6054ms)
+✔ stale/future observations and intents are rejected; every dispatch rechecks freshness, grip and clearance (0.7548ms)
+✔ queue, sequence lengths, receipts and logs stay bounded; queue pressure never partially admits a sequence (2.7343ms)
+✔ timeout, disconnect, unsafe telemetry, backwards clock and local emergency stop clear active and queued work (0.3182ms)
+✔ exactly 100 distinct milestones with only evidenced completions cover ten workstreams with executable contracts (13.2238ms)
+✔ all prerequisite references exist, are acyclic and precede dependent work (0.2019ms)
+✔ roadmap migration appends briefs once without resetting prior manual choices or custom ideas (2.6961ms)
+✔ known brief updates retain saved status while adopting the current implementation contract (0.1462ms)
+✔ copied briefs include concrete scope, dependency status, acceptance and safe execution boundaries (0.4434ms)
+✔ checked-in roadmap is reproducible and exports all 100 full briefs without completing work (6.9383ms)
+✔ pack generation keeps both stream links, all four editable drafts, short X text and manual-only sharing (3.7985ms)
+✔ channel validation rejects spoofed domains, credentials, non-HTTPS and video links; owner namespaces cannot overlap (0.558ms)
+✔ ballots use latest valid normalized viewer vote, deduplicate IDs, preserve invalid replacements, and reject late messages (2.3261ms)
+✔ whole-sequence ties are deterministic regardless of arrival order; overflow rejects all moves (0.3465ms)
+✔ controller checks resources for every move, interrupts a blocked sequence, and emergency stop clears everything (0.3243ms)
+✔ simulator retains bounded logs, replay IDs and viewer entries under sustained messages (8.8466ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 187.8341

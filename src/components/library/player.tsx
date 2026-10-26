@@ -1,3 +1,5 @@
+import {officialAdultUrl} from '@/lib/videos/provider-viewing';
+import {AdultProviderFrame,rememberOfficialViewing} from './provider-recovery';
 import { OfficialRoomPlayer } from './official-room-player';
 import { youtubeEmbedUrl } from "@/lib/videos/youtube-embed";
 import { registerPeriodicTask } from '@/lib/periodic-work';
@@ -53,6 +55,8 @@ import { measureInteraction } from "@/lib/interaction-budget";
 import { lookupVideo } from "@/lib/videos/video-lookup";
 import { useVideoDetails } from './use-video-details';
 import { useViewerInitialFocus } from './viewer-dialog';
+import { shortcutBlocked } from '@/lib/keyboard-commands';
+import { KeyboardHelpButton } from './keyboard-help';
 import { playerShortcutAllowed } from '@/lib/viewer-accessibility';
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
@@ -301,6 +305,7 @@ export function Player({ playlist }: { playlist: string[] }) {
     const durationHint = Math.max(video.duration ?? 0, 120);
     const heartbeat = () => {
       if (document.visibilityState === "hidden") return;
+      if(isAdultPullKind(video.remote?.kind)&&document.querySelector('[data-provider-frame="'+video.remote!.kind+'"]')?.getAttribute('data-provider-running')==='false'){remoteStartedAt.current=Date.now();return;}
       const elapsed = Math.max(2, (Date.now() - remoteStartedAt.current) / 1000);
       markProgress(video.id, Math.min(elapsed, durationHint * 0.94), durationHint);
       if (elapsed >= 8 && document.hasFocus()) recordWatchTime(video.id, "fullscreenEstimated", 5);
@@ -364,8 +369,9 @@ export function Player({ playlist }: { playlist: string[] }) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (shortcutBlocked(e, {editing:false,allowViewer:true})) return;
       const interactive = e.target instanceof Element && Boolean(e.target.closest(
-        'button,a[href],input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role="button"],[role="slider"],[role="menu"],[role="menuitem"],[role="combobox"],[role="listbox"]',
+        'button,a[href],input,textarea,select,iframe,video,audio,[contenteditable]:not([contenteditable="false"]),[role="button"],[role="slider"],[role="menu"],[role="menuitem"],[role="combobox"],[role="listbox"]',
       ));
       if (!playerShortcutAllowed({ key: e.key, interactive, modified: e.altKey || e.ctrlKey || e.metaKey,
         prevented: e.defaultPrevented, provider: Boolean(embedRef.current) })) return;
@@ -458,6 +464,7 @@ export function Player({ playlist }: { playlist: string[] }) {
   return (
     <div
       ref={wrapRef}
+      data-player-keyboard={officialPlayer ? "provider" : "local"}
       className={cn("fixed inset-0 z-50 flex flex-col bg-bg", officialPlayer && "overflow-hidden", twitchSideMode && "p-4 sm:p-6")}
       onMouseMove={reveal}
       onTouchStart={reveal}
@@ -468,7 +475,7 @@ export function Player({ playlist }: { playlist: string[] }) {
         <AdultImageLightbox video={video} tags={tags} />
       ) : embedSrc ? (
         <>
-        <iframe
+        {isAdultPullKind(remote?.kind)?<AdultProviderFrame video={video} src={embedSrc}/>:<iframe
           ref={embedRef}
           key={`embed:${video.id}`}
           title={video.name}
@@ -477,7 +484,7 @@ export function Player({ playlist }: { playlist: string[] }) {
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
           allowFullScreen
           referrerPolicy="strict-origin-when-cross-origin"
-        />
+        />}
         {remote?.kind === 'youtube' && <section aria-label="YouTube playback help" className="order-3 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-surface px-4 py-3 text-sm sm:px-6">
           <p className="min-w-0 flex-1 text-xs leading-5 text-muted">YouTube asking you to sign in or verify your age? Use your eligible browser session to download, then watch the saved copy here.</p>
           <Button size="sm" variant="secondary" className="min-h-11" onClick={() => openYoutubeDownload(video)}>Use browser sign-in</Button>
@@ -632,17 +639,18 @@ export function Player({ playlist }: { playlist: string[] }) {
           </DropdownMenu>
           <PullPauseButton />
           <YoutubeDownloadButton video={video} />
+          <KeyboardHelpButton />
           <Button variant="ghost" size="icon" aria-label="Close" onClick={closePlayer}>
             <X className="size-5" />
           </Button>
-          {remote?.watchUrl && <a href={remote.watchUrl} target="_blank" rel="noreferrer" className="hidden items-center gap-1 text-xs text-accent hover:text-fg sm:inline-flex">Open official player <ExternalLink className="size-3" /></a>}
+          {remote?.watchUrl && <a href={isAdultPullKind(remote.kind)?officialAdultUrl(remote):remote.watchUrl} onClick={()=>{if(isAdultPullKind(remote.kind))rememberOfficialViewing(video);}} target="_blank" rel="noreferrer" className="hidden items-center gap-1 text-xs text-accent hover:text-fg sm:inline-flex">Open official player <ExternalLink className="size-3" /></a>}
           {remote && isAdultPullKind(remote.kind) && (remote.watchUrl || remote.embedUrl) && (
             <Button
               variant="ghost"
               size="sm"
               title="Requires local Companion + yt-dlp"
               onClick={() => {
-                const url = remote.watchUrl || remote.embedUrl || "";
+                const url = officialAdultUrl(remote) || "";
                 void requestAdultOfflineSave(url).then((result) => {
                   if (result.ok) toast.success(result.detail);
                   else toast.error(result.needs?.length ? `${result.error} (${result.needs.join(", ")})` : result.error);

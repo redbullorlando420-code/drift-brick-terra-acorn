@@ -129,7 +129,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Worker crash recovery",
         "A terminated search or inference worker must not strand loading state or retain catalog copies.",
-        "src/lib/videos/store.ts|src/components/library/library-app.tsx",
+        "src/lib/videos/search-worker-index.ts|src/components/library/search-worker-recovery.tsx|src/components/library/use-preview-ranking.ts|src/components/library/use-youtube-ranking.ts|src/components/library/use-library-stats.ts|src/components/library/use-adult-browse.ts",
         "Find current worker entry points and ownership; add generation-scoped error and timeout handling.|Restart once on explicit retry or use a bounded cooperative fallback; cancel superseded jobs.|Release old message buffers and show which work failed without clearing saved results.",
         "Kill a worker mid-query and verify loading resolves to a clear retry state.|Retry returns the correct latest query only and does not duplicate retained indexes.",
         [],
@@ -153,7 +153,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Artwork decode cancellation",
         "Navigation can leave decoded artwork alive after its cards leave the viewport.",
-        "src/components/library/library-app.tsx|src/lib/provider-budgets.ts",
+        "src/lib/videos/bitmap-pool.ts|src/lib/videos/thumbs.ts|src/lib/videos/image-load-budget.ts|src/lib/videos/thumbnail-queue.ts|src/components/library/photos-section.tsx",
         "Locate image-slot and object-URL owners; distinguish network completion from decode retention.|Cancel or release obsolete decode jobs and apply the current low-memory profile to in-flight results.|Add lifecycle counters to existing diagnostics without per-image polling.",
         "Navigate away while decodes are held; late completion retains no obsolete bitmap or URL.|Repeat 100 viewport cycles and show bounded decode jobs and retained artwork entries.",
         [],
@@ -716,7 +716,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Image model compatibility preflight",
         "A Hugging Face download is not necessarily compatible with the configured image engine.",
-        "src/components/library/studio-model-library.tsx|src/lib/studio-recipes.ts",
+        "src/components/library/studio-model-library.tsx|src/components/library/stable-diffusion-section.tsx|src/lib/studio-model-notes.ts|companion/studio-model-preflight.mjs",
         "Inventory supported engine/model families and validate downloaded metadata, format and required companion components.|Show a compatibility checklist before selecting a checkpoint, including architecture and estimated hardware needs.|Keep incompatible or incomplete models visible with exact missing requirements instead of enabling generation.",
         "An unsupported Qwen-family artifact cannot be mislabeled as an AUTOMATIC1111-compatible checkpoint.|Valid compatible models remain selectable after reload and failure leaves the previous working model selected.",
         [],
@@ -740,7 +740,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Generation job lifecycle",
         "Generation needs reliable queued, running, cancelled and failed states across reconnects.",
-        "src/lib/studio-session.ts|src/components/library/stable-diffusion-section.tsx",
+        "src/lib/studio-session.ts|src/lib/studio-jobs.ts|src/lib/studio-documents.ts|src/components/library/stable-diffusion-section.tsx",
         "Map engine job identifiers and define a bounded local session record for parameters and outcomes.|Reconnect by verified job identity where supported; otherwise show an interrupted state without resubmission.|Cancel explicitly and keep completed output references separate from transient progress.",
         "Reload while an engine request is held; the app cannot launch a duplicate generation silently.|Engine disconnect and cancellation preserve the previous completed images and input prompt.",
         [81],
@@ -748,7 +748,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Reproducible generation recipes",
         "A saved image needs enough provenance to reproduce its settings with an honest compatibility warning.",
-        "src/lib/studio-recipes.ts|src/components/library/studio-recipes.tsx",
+        "src/lib/studio-recipes.ts|src/components/library/studio-recipes.tsx|src/lib/studio-session.ts",
         "Record model revision/hash when available, sampler, seed, dimensions and supported engine parameters.|Preview a recipe before loading it and map only fields supported by the current engine.|Export a portable recipe excluding local paths, tokens and private server configuration.",
         "Loading a recipe with a missing model prompts for a compatible choice rather than silently substituting.|Replaying a deterministic supported fixture reproduces settings; pixel identity is not claimed across different engines.",
         [81, 83, 84],
@@ -772,7 +772,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Announcement card accessibility",
         "Story cards need readable exports and a text alternative at mobile sharing sizes.",
-        "src/lib/stream-signal-card.ts|src/components/library/stream-signal-section.tsx",
+        "src/lib/stream-signal-card.ts|src/components/library/signal-story-export.tsx|src/components/library/stream-signal-section.tsx",
         "Measure card text fit for long creator names, titles and messages at 1080×1920.|Add bounded wrapping/overflow warnings and a plain-text alt/caption export.|Verify contrast and safe placement while explaining that link stickers are added inside the platform.",
         "Long Unicode titles fit or trigger an explicit warning before export.|The downloaded PNG has exact dimensions and the text export contains both verified stream links.",
         [],
@@ -780,7 +780,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Chat Plays deterministic replay",
         "The simulator needs reproducible event replay before it can inform a future local controller.",
-        "src/lib/stream-signal-lab.ts|src/components/library/stream-signal-lab.tsx",
+        "src/lib/stream-signal-lab.ts|src/lib/stream-signal-replay.ts|src/components/library/stream-signal-lab.tsx|src/components/library/stream-signal-replay.tsx",
         "Record a bounded seed/configuration and normalized simulated ballot/event log.|Replay voting windows, duplicate rejection, sequence votes and resource checks deterministically.|Show divergence details and ensure emergency stop clears votes and pending moves during replay.",
         "Replaying the same event set produces identical ballots, tie-breaks and execution order.|Malformed or late events are rejected and no simulated input is labeled connected to real chat or a game.",
         [],
@@ -788,7 +788,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Local racing adapter contract",
         "The AI Blueprint needs an implementation-ready boundary for a future authenticated local game adapter.",
-        "src/lib/stream-signal.ts|src/components/library/stream-signal-section.tsx|companion/README.md",
+        "src/lib/racing-adapter-contract.ts|src/components/library/racing-contract-lab.tsx|src/components/library/stream-signal-section.tsx|companion/README.md|docs/LOCAL_RACING_ADAPTER_CONTRACT.md",
         "Document versioned observation, strategic intent, acknowledgement, timeout and emergency-stop messages.|Define authenticated local pairing, allowed commands and stale-observation rejection; keep continuous driving control local.|Provide an offline contract validator and simulator example, explicitly separating it from a real installed-game integration.",
         "Invalid, stale or unauthenticated intents fail the contract validator and cannot enqueue actions.|Documentation states that no real iRacing control is complete until a separate permitted adapter is implemented and tested.",
         [89],
@@ -836,7 +836,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Keyboard command coverage map",
         "Keyboard access needs a discoverable map and collision tests across dialogs and players.",
-        "src/components/library/library-app.tsx|src/components/library/player.tsx",
+        "src/components/library/keyboard-help.tsx|src/lib/keyboard-commands.ts|src/components/library/library-app.tsx|src/components/library/player.tsx",
         "Inventory existing shortcuts, focus scopes and native provider key handling.|Add a searchable shortcut help view with context-sensitive availability and user-editable conflicts where supported.|Test shortcuts while typing, in nested dialogs and on virtualized card windows.",
         "Text inputs and native player controls retain their expected keys.|Every displayed command is reachable with visible focus and closing help restores the originating control.",
         [],
@@ -963,7 +963,7 @@ export function formatNextLevelRoadmap(missions: readonly Mission[] = NEXT_LEVEL
   return (
     [
       "# Realhub — 100 next-level milestones",
-      "All 100 additions start planned. Existing completion decisions are retained. P0 denotes foundational correctness/reliability risk; P1 denotes core workflow quality; P2 denotes capability and polish. Dependencies take precedence over priority.",
+      "Status lines reflect verified defaults or the supplied in-app snapshot. Existing completion decisions are retained. P0 denotes foundational correctness/reliability risk; P1 denotes core workflow quality; P2 denotes capability and polish. Dependencies take precedence over priority.",
       "This file is generated from verified defaults. Use the current in-app status when executing; later manual status decisions remain local.",
       ...missions.map((m) => formatMissionBrief(m, missions)),
     ].join("\n\n---\n\n") + "\n"

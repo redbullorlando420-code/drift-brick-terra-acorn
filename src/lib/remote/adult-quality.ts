@@ -1,0 +1,28 @@
+import type {LibraryVideo,VideoMetadataProvenance,RemoteRef} from '../videos/types.ts';
+export type AdultPullQuality={pages:number;received:number;accepted:number;duplicates:number;publicationRecords:number;missingTitle:number;missingDate:number;missingArtwork:number;invalidRows:number};
+export const emptyAdultQuality=():AdultPullQuality=>({pages:0,received:0,accepted:0,duplicates:0,publicationRecords:0,missingTitle:0,missingDate:0,missingArtwork:0,invalidRows:0});
+export function adultRows(provider:string,payload:unknown,paths:readonly string[],idKeys:readonly string[],required:readonly string[]=[]):Record<string,unknown>[]{
+ let rows:unknown=Array.isArray(payload)?payload:undefined;const root=payload&&typeof payload==='object'?payload as Record<string,unknown>:{};
+ for(const path of paths){let at:unknown=root;for(const key of path.split('.'))at=at&&typeof at==='object'?(at as Record<string,unknown>)[key]:undefined;if(Array.isArray(at)){rows=at;break;}}
+ if(!Array.isArray(rows)||rows.length>5000)throw Error(provider+' returned an unreadable public catalog; previous results and cursor were kept.');
+ const out:Record<string,unknown>[]=[];
+ for(const raw of rows){const value=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw as Record<string,unknown>:undefined;const row=provider==='redtube'&&value?.video&&typeof value.video==='object'?value.video as Record<string,unknown>:value;
+  if(!row||required.some(k=>typeof row[k]!=='string'||!String(row[k]).trim())||!idKeys.some(k=>(typeof row[k]==='string'&&String(row[k]).trim().length>0)||(typeof row[k]==='number'&&Number.isFinite(row[k])&&Number(row[k])>0)))throw Error(provider+' returned a malformed source identity; previous results and cursor were kept.');out.push(row);
+ }
+ return out;
+}
+export function validateAdultAtom(xml:string){if(!/^\s*(?:<\?xml[^>]*>\s*)?<feed\b/i.test(xml)||!/<\/feed>\s*$/i.test(xml))throw Error('reddit returned an unreadable public Atom feed; previous results and cursor were kept.');const opened=(xml.match(/<entry\b/gi)??[]).length,entries=[...xml.matchAll(/<entry\b[^>]*>([\s\S]*?)<\/entry>/gi)];if(opened!==entries.length||opened>5000||entries.some(m=>!/<id>[^<]+<\/id>/i.test(m[1]??'')||!/<title[^>]*>[\s\S]+?<\/title>/i.test(m[1]??'')))throw Error('reddit returned a malformed Atom entry; previous results and cursor were kept.');}
+export function adultPublication(value:unknown,now=Date.now()):number{const n=typeof value==='number'?(value<1e12?value*1000:value):typeof value==='string'&&value.trim()?Date.parse(value):NaN;return Number.isFinite(n)&&n>=Date.UTC(1970,0,1)&&n<=now?n:0;}
+export function adultPublicationFields(value:unknown):Pick<RemoteRef,'publishedPrecision'|'publishedDate'>{if(!adultPublication(value))return {publishedPrecision:'unknown'};const day=typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value);return {publishedPrecision:day?'day':'instant',...(day?{publishedDate:value}:{})};}
+/** Completeness is measured on returned adapter records, not a claimed census
+ * of the provider. Reports contain counters only, never titles, URLs or tags. */
+export function measureAdultQuality(rows:readonly LibraryVideo[]):AdultPullQuality{const q=emptyAdultQuality(),seen=new Set<string>();q.pages=1;q.received=rows.length;for(const row of rows){if(!row.id||!row.remote){q.invalidRows++;continue;}if(seen.has(row.id)){q.duplicates++;continue;}seen.add(row.id);q.accepted++;if(!row.remote.live)q.publicationRecords++;if(!row.name.trim())q.missingTitle++;if(!row.remote.live&&(!Number.isFinite(row.addedAt)||row.addedAt<=0||row.remote.publishedPrecision==='unknown'))q.missingDate++;if(!row.poster&&!row.remote.previewUrl)q.missingArtwork++;}return q;}
+export function adultQualityRates(q:AdultPullQuality){const rate=(n:number,d:number)=>d>0?Math.max(0,Math.min(1,n/d)):null;return {duplicates:rate(q.duplicates,q.received),missingTitle:rate(q.missingTitle,q.accepted),missingDate:rate(q.missingDate,q.publicationRecords??q.accepted),missingArtwork:rate(q.missingArtwork,q.accepted)};}
+export function addAdultQuality(a:AdultPullQuality,b:AdultPullQuality){const out=emptyAdultQuality();for(const key of Object.keys(out) as Array<keyof AdultPullQuality>)out[key]=Math.min(1_000_000,a[key]+b[key]);return out;}
+export function retainAdultRefreshEvidence(previous:LibraryVideo|undefined,incoming:LibraryVideo,metadata?:VideoMetadataProvenance){
+ if(!previous?.remote||!incoming.remote||previous.id!==incoming.id||previous.remote.kind!==incoming.remote.kind)return incoming;
+ const date=!incoming.remote.live&&incoming.addedAt===0&&['instant','day'].includes(previous.remote.publishedPrecision??'')&&previous.addedAt>0,poster=!incoming.poster&&!!previous.poster,category=metadata?.lockedFields?.includes('category');
+ if(!date&&!poster&&!category)return incoming;
+ return {...incoming,...(date?{addedAt:previous.addedAt,remote:{...incoming.remote,publishedPrecision:previous.remote.publishedPrecision,publishedDate:previous.remote.publishedDate}}:{}),...(poster?{poster:previous.poster}:{}),...(category?{genre:previous.genre}:{})};
+}
+export function redactedAdultQuality(rows:readonly {provider:string;status:string;quality?:AdultPullQuality}[]){const known=new Set(['eporner','redtube','chaturbate','myfreecams','reddit','booru','redgifs']);return {version:1,scope:'returned adapter records only',providers:rows.filter(r=>known.has(r.provider)&&r.quality).slice(-64).map(r=>({provider:r.provider,status:['loaded','empty','failed'].includes(r.status)?r.status:'failed',rates:adultQualityRates(r.quality!),quality:Object.fromEntries(Object.keys(emptyAdultQuality()).map(k=>[k,Math.max(0,Math.min(1_000_000,Math.floor(Number(r.quality?.[k as keyof AdultPullQuality])||0)))]))}))};}

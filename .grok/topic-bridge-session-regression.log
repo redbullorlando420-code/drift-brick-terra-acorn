@@ -1,0 +1,31 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "Draft controls leave painted cards and applied settings unchanged until Apply",
+        "Applied Explore and balanced sources produce four real outside-interest matches per source without private signals or focus loss",
+        "Familiar changes actual ranking; strict local/long filters exclude unknown and short videos in both personal picks and explicit questions, including provider conflicts",
+        "Every duration range is usable, Any restores unknown durations, and changed inputs remove stale answers immediately",
+        "Applied settings survive app navigation and are independent in a second tab",
+        "Reset and real reload restore defaults, retain saved tags/locks/favorites/ratings/feedback, and add no provider requests",
+        "Desktop/mobile controls and cards render without overflow or uncaught console errors"
+      ],
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "Draft controls leave painted cards and applied settings unchanged until Apply",
+        "Applied Explore and balanced sources produce four real outside-interest matches per source without private signals or focus loss",
+        "Familiar changes actual ranking; strict local/long filters exclude unknown and short videos in both personal picks and explicit questions, including provider conflicts",
+        "Every duration range is usable, Any restores unknown durations, and changed inputs remove stale answers immediately",
+        "Applied settings survive app navigation and are independent in a second tab",
+        "Reset and real reload restore defaults, retain saved tags/locks/favorites/ratings/feedback, and add no provider requests",
+        "Desktop/mobile controls and cards render without overflow or uncaught console errors"
+      ],
+      "errors": []
+    }
+  ]
+}

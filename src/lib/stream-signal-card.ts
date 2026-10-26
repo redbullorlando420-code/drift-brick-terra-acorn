@@ -1,38 +1,80 @@
-import type { SignalPack } from './stream-signal';
+import { validateSignalProfile, type SignalPack } from './stream-signal.ts';
 
-function lines(ctx: CanvasRenderingContext2D, text: string, width: number, maximum: number) {
-  const result: string[] = []; let line = '';
-  for (const char of [...text.replace(/\s+/g, ' ')]) {
-    if (ctx.measureText(line + char).width > width && line) { result.push(line.trim()); line = char; } else line += char;
+export const STORY_SIZE = { width: 1080, height: 1920 } as const;
+export const STORY_COLORS = { background: '#151721', paper: '#c7bceb', ink: '#242235', light: '#f2eefb', action: '#d8efa0' } as const;
+type Measure = (text: string, size: number, weight: number) => number;
+export type StoryField = { key: string; label: string; text: string; lines: string[]; size: number; weight: number; x: number; y: number; lineHeight: number; shortened: boolean };
+export type StoryLayout = { fields: StoryField[]; warnings: string[]; contrast: Array<{ label: string; ratio: number }>; width: 1080; height: 1920 };
+function graphemes(text: string): string[] {
+  return typeof Intl.Segmenter === 'function' ? [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text)].map(row => row.segment) : Array.from(text);
+}
+function wrap(text: string, width: number, size: number, weight: number, measure: Measure) {
+  const rows: string[] = []; let current = '';
+  for (const char of graphemes(text.replace(/\s+/gu, ' ').trim())) {
+    if (current && measure(current + char, size, weight) > width) { rows.push(current.trim()); current = char; } else current += char;
   }
-  if (line) result.push(line.trim());
-  if (result.length > maximum) { result.length = maximum; let last = result[maximum - 1]!; while (last && ctx.measureText(last + '…').width > width) last = [...last].slice(0, -1).join(''); result[maximum - 1] = last + '…'; }
-  return result;
+  if (current) rows.push(current.trim());
+  return rows;
 }
-/** User initiated, local canvas export: no remote artwork, credentials or
- * image server. The transparent sticker space is deliberate; pixels are not links. */
-export async function createSignalStoryCard(pack: SignalPack): Promise<Blob> {
-  await document.fonts.ready;
-  const canvas = document.createElement('canvas'); canvas.width = 1080; canvas.height = 1920;
-  const ctx = canvas.getContext('2d'); if (!ctx) throw Error('Your browser could not create the Story image.');
+export function storyContrast(a: string, b: string) {
+  const luminance = (hex: string) => [1, 3, 5].map(start => parseInt(hex.slice(start, start + 2), 16) / 255).map(c => c <= .04045 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4).reduce((sum, c, i) => sum + c * [.2126, .7152, .0722][i]!, 0);
+  const x = luminance(a), y = luminance(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05);
+}
+/** One measured layout drives preview and PNG. Text stays in fixed safe regions;
+ * shortened grapheme sequences are disclosed before the download action. */
+export function layoutSignalStory(pack: SignalPack, measure: Measure): StoryLayout {
+  if (Object.keys(validateSignalProfile(pack.profile)).length) throw Error('Correct this pack’s channel links and details before exporting its Story.');
+  const p = pack.profile, warnings: string[] = [];
+  const fit = (key: string, label: string, text: string, x: number, y: number, width: number, max: number, size: number, minimum: number, weight: number, lineHeight: number): StoryField => {
+    let rows = wrap(text, width, size, weight, measure);
+    while (size > minimum && (rows.length > max || rows.some(row => measure(row, size, weight) > width))) { size -= 2; rows = wrap(text, width, size, weight, measure); }
+    const shortened = rows.length > max || rows.some(row => measure(row, size, weight) > width);
+    if (shortened) {
+      rows = rows.slice(0, max).map((row, i) => {
+        const chars = graphemes(row), suffix = i === max - 1 || measure(row, size, weight) > width ? '…' : '';
+        while (chars.length && measure(chars.join('') + suffix, size, weight) > width) chars.pop();
+        return chars.join('') + suffix;
+      });
+      warnings.push(label + ' is shortened in the image. The caption keeps its full text.');
+    }
+    return { key, label, text, lines: rows, size, weight, x, y, lineHeight, shortened };
+  };
+  const fields = [
+    fit('creator', 'Creator name', p.creator, 112, 320, 850, 2, 84, 58, 800, 92),
+    fit('title', 'Stream title', p.title, 152, 755, 770, 3, 64, 40, 700, 76),
+    fit('game', 'Game or category', p.game, 152, 1040, 770, 2, 42, 30, 500, 52),
+    fit('message', 'Community message', p.message, 112, 1260, 850, 4, 36, 28, 500, 46),
+    fit('twitch', 'Twitch link', 'TWITCH  ' + p.twitch.replace('https://', ''), 112, 1530, 850, 2, 29, 25, 600, 36),
+    fit('youtube', 'YouTube link', 'YOUTUBE  ' + p.youtube.replace('https://', ''), 112, 1640, 850, 2, 29, 25, 600, 36),
+  ];
+  return { ...STORY_SIZE, fields, warnings, contrast: [
+    { label: 'Main text on lavender', ratio: storyContrast(STORY_COLORS.ink, STORY_COLORS.paper) },
+    { label: 'Title on dark panel', ratio: storyContrast(STORY_COLORS.light, STORY_COLORS.ink) },
+    { label: 'Category on dark panel', ratio: storyContrast(STORY_COLORS.paper, STORY_COLORS.ink) },
+    { label: 'Lime label on dark panel', ratio: storyContrast(STORY_COLORS.action, STORY_COLORS.ink) },
+  ] };
+}
+export function signalStoryCaption(pack: SignalPack) {
+  if (Object.keys(validateSignalProfile(pack.profile)).length) throw Error('Use valid stream channel links before exporting a caption.');
   const p = pack.profile;
-  ctx.fillStyle = '#151721'; ctx.fillRect(0, 0, 1080, 1920);
-  ctx.fillStyle = '#c7bceb'; ctx.fillRect(56, 56, 968, 1808);
-  ctx.fillStyle = '#242235'; ctx.font = '600 30px Figtree, sans-serif'; ctx.fillText('STREAM SIGNAL / LIVE ANNOUNCEMENT', 112, 150);
-  ctx.fillStyle = '#242235'; ctx.font = '800 84px Figtree, sans-serif';
-  lines(ctx, p.creator, 850, 2).forEach((line, i) => ctx.fillText(line, 112, 320 + i * 92));
-  ctx.font = '600 36px Figtree, sans-serif'; ctx.fillText('IS GOING LIVE', 112, 525);
-  ctx.fillStyle = '#242235'; ctx.fillRect(112, 590, 856, 570);
-  ctx.fillStyle = '#d8efa0'; ctx.font = '600 30px Figtree, sans-serif'; ctx.fillText('ON THE GRID', 152, 660);
-  ctx.fillStyle = '#f2eefb'; ctx.font = '700 64px Figtree, sans-serif';
-  lines(ctx, p.title, 770, 3).forEach((line, i) => ctx.fillText(line, 152, 755 + i * 76));
-  ctx.fillStyle = '#c7bceb'; ctx.font = '500 42px Figtree, sans-serif';
-  lines(ctx, p.game, 770, 2).forEach((line, i) => ctx.fillText(line, 152, 1040 + i * 52));
-  ctx.fillStyle = '#242235'; ctx.font = '500 36px Figtree, sans-serif';
-  lines(ctx, p.message, 850, 4).forEach((line, i) => ctx.fillText(line, 112, 1260 + i * 46));
-  ctx.font = '600 29px Figtree, sans-serif';
-  lines(ctx, `TWITCH  ${p.twitch.replace('https://', '')}`, 850, 2).forEach((line, i) => ctx.fillText(line, 112, 1530 + i * 36));
-  lines(ctx, `YOUTUBE  ${p.youtube.replace('https://', '')}`, 850, 2).forEach((line, i) => ctx.fillText(line, 112, 1640 + i * 36));
-  ctx.font = '500 26px Figtree, sans-serif'; ctx.fillText('Join the community. Watch the next lap.', 112, 1780);
-  return new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(Error('Could not encode the PNG.')), 'image/png'));
+  return p.creator + ' is going live!\n' + p.title + '\nPlaying ' + p.game + '\n\n' + p.message + '\n\nTwitch: ' + p.twitch + '\nYouTube: ' + p.youtube
+    + '\n\nImage description: A lavender Stream Signal announcement card with the creator, stream title, game and community message. The full announcement and both stream destinations are above.\n\nUpload the PNG in Instagram, then add Stickers → Link using a stream URL. Pixels are not clickable links. For a feed post, use a profile link where available. Sharing remains manual.\n';
 }
+export async function prepareSignalStoryCard(pack: SignalPack) {
+  await document.fonts.ready;
+  const canvas = document.createElement('canvas'); Object.assign(canvas, STORY_SIZE);
+  const ctx = canvas.getContext('2d'); if (!ctx) throw Error('Your browser could not create the Story image.');
+  const layout = layoutSignalStory(pack, (text, size, weight) => { ctx.font = weight + ' ' + size + 'px Figtree, sans-serif'; return ctx.measureText(text).width; });
+  ctx.fillStyle = STORY_COLORS.background; ctx.fillRect(0, 0, 1080, 1920);
+  ctx.fillStyle = STORY_COLORS.paper; ctx.fillRect(56, 56, 968, 1808);
+  const text = (value: string, x: number, y: number, size: number, weight: number, color: string) => { ctx.fillStyle = color; ctx.font = weight + ' ' + size + 'px Figtree, sans-serif'; ctx.fillText(value, x, y); };
+  text('STREAM SIGNAL / LIVE ANNOUNCEMENT', 112, 150, 30, 600, STORY_COLORS.ink);
+  text('IS GOING LIVE', 112, 525, 36, 600, STORY_COLORS.ink);
+  ctx.fillStyle = STORY_COLORS.ink; ctx.fillRect(112, 590, 856, 570);
+  text('ON THE GRID', 152, 660, 30, 600, STORY_COLORS.action);
+  for (const f of layout.fields) f.lines.forEach((line, index) => text(line, f.x, f.y + index * f.lineHeight, f.size, f.weight, f.key === 'title' ? STORY_COLORS.light : f.key === 'game' ? STORY_COLORS.paper : STORY_COLORS.ink));
+  text('Join the community. Watch the next lap.', 112, 1780, 26, 500, STORY_COLORS.ink);
+  const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(Error('Could not encode the PNG.')), 'image/png'));
+  return { blob, layout, caption: signalStoryCaption(pack) };
+}
+export async function createSignalStoryCard(pack: SignalPack): Promise<Blob> { return (await prepareSignalStoryCard(pack)).blob; }

@@ -1,0 +1,2501 @@
+{
+  "report": {
+    "format": "realhub-recommendation-evaluation",
+    "version": 1,
+    "corpus": {
+      "version": 1,
+      "sha256": "f8635ba9ebae1d4aff675ceeef63fcafe69e1430796684d14fc9c3955d1ceab1",
+      "items": 62,
+      "cases": 16,
+      "fixedNow": 1768478400000,
+      "seed": 417
+    },
+    "scope": "Synthetic relevance judgments and regression signals, not user satisfaction, provider throughput or a real-library audit.",
+    "method": {
+      "relevance": "NDCG uses graded gains 2^grade-1 and unique canonical eligible candidates; incomplete judgments produce null.",
+      "precision": "Grade >= 2 among judged returned slots; fill is measured separately. Missing judgments are never negative votes.",
+      "freshness": "Publication age only, <=30 days; unknown dates are excluded from the denominator and counted separately.",
+      "diversity": "Maximum share by source+creator; the limit is inapplicable with fewer than two relevant creators.",
+      "exposure": "Previous synthetic shelf overlap is distinct from viewing history; no production exposure ledger is created."
+    },
+    "quality": {
+      "pass": 84,
+      "fail": 4,
+      "unmeasured": 1,
+      "not-applicable": 10
+    },
+    "sourceSummary": [
+      {
+        "source": "local",
+        "scope": "synthetic-case-weighted",
+        "cases": 6,
+        "eligibleSlots": 11,
+        "returnedSlots": 5,
+        "judgedReturned": 5,
+        "unjudgedReturned": 0,
+        "precisionAtK": 0.8,
+        "meanNdcgAtK": 1,
+        "measuredNdcgCases": 5,
+        "unmeasuredNdcgCases": 0
+      },
+      {
+        "source": "youtube",
+        "scope": "synthetic-case-weighted",
+        "cases": 12,
+        "eligibleSlots": 40,
+        "returnedSlots": 26,
+        "judgedReturned": 25,
+        "unjudgedReturned": 1,
+        "precisionAtK": 0.92,
+        "meanNdcgAtK": 1,
+        "measuredNdcgCases": 10,
+        "unmeasuredNdcgCases": 1
+      },
+      {
+        "source": "twitch",
+        "scope": "synthetic-case-weighted",
+        "cases": 9,
+        "eligibleSlots": 29,
+        "returnedSlots": 21,
+        "judgedReturned": 21,
+        "unjudgedReturned": 0,
+        "precisionAtK": 0.904762,
+        "meanNdcgAtK": 0.950022,
+        "measuredNdcgCases": 9,
+        "unmeasuredNdcgCases": 0
+      },
+      {
+        "source": "redtube",
+        "scope": "exclusion-only",
+        "cases": 2,
+        "eligibleSlots": 0,
+        "returnedSlots": 0,
+        "judgedReturned": 0,
+        "unjudgedReturned": 0,
+        "precisionAtK": null,
+        "meanNdcgAtK": null,
+        "measuredNdcgCases": 0,
+        "unmeasuredNdcgCases": 0
+      }
+    ],
+    "contractViolations": 0,
+    "cases": [
+      {
+        "id": "youtube-topic-negative",
+        "ranker": "youtube",
+        "intent": "Liked racing evidence should outrank cooking; an explicitly rejected title is forbidden.",
+        "top": [
+          "yt-race-new",
+          "yt-race-other",
+          "yt-race-old",
+          "yt-food"
+        ],
+        "metrics": {
+          "ndcgAtK": 1,
+          "relevantReturned": 3,
+          "precisionAtK": 0.75,
+          "judgedReturned": 4,
+          "unjudgedReturned": 0,
+          "missingJudgmentIds": [],
+          "idealRelevant": 3,
+          "returned": 4,
+          "requested": 4,
+          "fillableSlots": 4,
+          "fillRate": 1,
+          "maxCreatorShare": 0.25,
+          "distinctCreators": 4,
+          "availableRelevantCreators": 3,
+          "canonicalRepeatShare": 0,
+          "previousExposureShare": null,
+          "negativeShare": 0,
+          "operationalOnlyShare": 0,
+          "knownPublicationReturned": 4,
+          "unknownPublicationReturned": 0,
+          "freshShareOfKnown": 0.75,
+          "meanKnownPublicationAgeDays": 101.5,
+          "providerShare": {
+            "youtube": 1
+          }
+        },
+        "perSource": [
+          {
+            "source": "local",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          },
+          {
+            "source": "youtube",
+            "candidates": 5,
+            "eligible": 4,
+            "returned": 4,
+            "ndcgAtK": 1,
+            "relevantReturned": 3,
+            "precisionAtK": 0.75,
+            "judgedReturned": 4,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 3,
+            "knownPublicationReturned": 4,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": 0.75
+          },
+          {
+            "source": "twitch",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          },
+          {
+            "source": "redtube",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          }
+        ],
+        "checks": [
+          {
+            "metric": "fillRate",
+            "value": 1,
+            "limit": 1,
+            "status": "pass"
+          },
+          {
+            "metric": "ndcgAtK",
+            "value": 1,
+            "limit": 0.8,
+            "status": "pass"
+          },
+          {
+            "metric": "maxCreatorShare",
+            "value": 0.25,
+            "limit": 0.5,
+            "status": "pass"
+          },
+          {
+            "metric": "operationalOnlyShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "negativeShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "canonicalRepeatShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          }
+        ],
+        "violations": []
+      },
+      {
+        "id": "youtube-creator-diversity",
+        "ranker": "youtube",
+        "intent": "A prolific liked creator must share the shelf with other relevant creators.",
+        "top": [
+          "yt-volume-2",
+          "yt-diverse-bravo",
+          "yt-diverse-charlie",
+          "yt-diverse-echo",
+          "yt-diverse-delta",
+          "yt-volume-3"
+        ],
+        "metrics": {
+          "ndcgAtK": 1,
+          "relevantReturned": 6,
+          "precisionAtK": 1,
+          "judgedReturned": 6,
+          "unjudgedReturned": 0,
+          "missingJudgmentIds": [],
+          "idealRelevant": 6,
+          "returned": 6,
+          "requested": 6,
+          "fillableSlots": 6,
+          "fillRate": 1,
+          "maxCreatorShare": 0.333333,
+          "distinctCreators": 5,
+          "availableRelevantCreators": 5,
+          "canonicalRepeatShare": 0,
+          "previousExposureShare": null,
+          "negativeShare": 0,
+          "operationalOnlyShare": 0,
+          "knownPublicationReturned": 6,
+          "unknownPublicationReturned": 0,
+          "freshShareOfKnown": 1,
+          "meanKnownPublicationAgeDays": 2,
+          "providerShare": {
+            "youtube": 1
+          }
+        },
+        "perSource": [
+          {
+            "source": "local",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          },
+          {
+            "source": "youtube",
+            "candidates": 12,
+            "eligible": 12,
+            "returned": 6,
+            "ndcgAtK": 1,
+            "relevantReturned": 6,
+            "precisionAtK": 1,
+            "judgedReturned": 6,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 6,
+            "knownPublicationReturned": 6,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": 1
+          },
+          {
+            "source": "twitch",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          },
+          {
+            "source": "redtube",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          }
+        ],
+        "checks": [
+          {
+            "metric": "fillRate",
+            "value": 1,
+            "limit": 1,
+            "status": "pass"
+          },
+          {
+            "metric": "ndcgAtK",
+            "value": 1,
+            "limit": 0.8,
+            "status": "pass"
+          },
+          {
+            "metric": "maxCreatorShare",
+            "value": 0.333333,
+            "limit": 0.5,
+            "status": "pass"
+          },
+          {
+            "metric": "operationalOnlyShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "negativeShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "canonicalRepeatShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          }
+        ],
+        "violations": []
+      },
+      {
+        "id": "youtube-operational-facets",
+        "ranker": "youtube",
+        "intent": "Mechanical source/format/creator tags are not positive topic evidence.",
+        "top": [
+          "yt-race-other",
+          "yt-race-new",
+          "yt-race-fresh"
+        ],
+        "metrics": {
+          "ndcgAtK": 1,
+          "relevantReturned": 3,
+          "precisionAtK": 1,
+          "judgedReturned": 3,
+          "unjudgedReturned": 0,
+          "missingJudgmentIds": [],
+          "idealRelevant": 3,
+          "returned": 3,
+          "requested": 3,
+          "fillableSlots": 3,
+          "fillRate": 1,
+          "maxCreatorShare": 0.333333,
+          "distinctCreators": 3,
+          "availableRelevantCreators": 3,
+          "canonicalRepeatShare": 0,
+          "previousExposureShare": null,
+          "negativeShare": 0,
+          "operationalOnlyShare": 0,
+          "knownPublicationReturned": 3,
+          "unknownPublicationReturned": 0,
+          "freshShareOfKnown": 1,
+          "meanKnownPublicationAgeDays": 1.666667,
+          "providerShare": {
+            "youtube": 1
+          }
+        },
+        "perSource": [
+          {
+            "source": "local",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          },
+          {
+            "source": "youtube",
+            "candidates": 7,
+            "eligible": 7,
+            "returned": 3,
+            "ndcgAtK": 1,
+            "relevantReturned": 3,
+            "precisionAtK": 1,
+            "judgedReturned": 3,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 3,
+            "knownPublicationReturned": 3,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": 1
+          },
+          {
+            "source": "twitch",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          },
+          {
+            "source": "redtube",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          }
+        ],
+        "checks": [
+          {
+            "metric": "fillRate",
+            "value": 1,
+            "limit": 1,
+            "status": "pass"
+          },
+          {
+            "metric": "ndcgAtK",
+            "value": 1,
+            "limit": 0.8,
+            "status": "pass"
+          },
+          {
+            "metric": "maxCreatorShare",
+            "value": 0.333333,
+            "limit": 0.5,
+            "status": "pass"
+          },
+          {
+            "metric": "operationalOnlyShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "negativeShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "canonicalRepeatShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          }
+        ],
+        "violations": []
+      },
+      {
+        "id": "youtube-publication-freshness",
+        "ranker": "youtube",
+        "intent": "With equally relevant topics, prefer known recent publications; unknown dates remain unmeasured.",
+        "top": [
+          "yt-race-new",
+          "yt-race-fresh",
+          "yt-date-unknown"
+        ],
+        "metrics": {
+          "ndcgAtK": 1,
+          "relevantReturned": 3,
+          "precisionAtK": 1,
+          "judgedReturned": 3,
+          "unjudgedReturned": 0,
+          "missingJudgmentIds": [],
+          "idealRelevant": 3,
+          "returned": 3,
+          "requested": 3,
+          "fillableSlots": 3,
+          "fillRate": 1,
+          "maxCreatorShare": 0.333333,
+          "distinctCreators": 3,
+          "availableRelevantCreators": 4,
+          "canonicalRepeatShare": 0,
+          "previousExposureShare": null,
+          "negativeShare": 0,
+          "operationalOnlyShare": 0,
+          "knownPublicationReturned": 2,
+          "unknownPublicationReturned": 1,
+          "freshShareOfKnown": 1,
+          "meanKnownPublicationAgeDays": 1.5,
+          "providerShare": {
+            "youtube": 1
+          }
+        },
+        "perSource": [
+          {
+            "source": "local",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          },
+          {
+            "source": "youtube",
+            "candidates": 4,
+            "eligible": 4,
+            "returned": 3,
+            "ndcgAtK": 1,
+            "relevantReturned": 3,
+            "precisionAtK": 1,
+            "judgedReturned": 3,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 3,
+            "knownPublicationReturned": 2,
+            "unknownPublicationReturned": 1,
+            "freshShareOfKnown": 1
+          },
+          {
+            "source": "twitch",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          },
+          {
+            "source": "redtube",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          }
+        ],
+        "checks": [
+          {
+            "metric": "fillRate",
+            "value": 1,
+            "limit": 1,
+            "status": "pass"
+          },
+          {
+            "metric": "ndcgAtK",
+            "value": 1,
+            "limit": 0.8,
+            "status": "pass"
+          },
+          {
+            "metric": "maxCreatorShare",
+            "value": 0.333333,
+            "limit": 0.5,
+            "status": "pass"
+          },
+          {
+            "metric": "operationalOnlyShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "negativeShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "canonicalRepeatShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "freshShareOfKnown",
+            "value": 1,
+            "limit": 0.5,
+            "status": "pass"
+          }
+        ],
+        "violations": []
+      },
+      {
+        "id": "youtube-repeat-exposure",
+        "ranker": "youtube",
+        "intent": "Repeated shelf exposure is separate from watched history and should be visible as a diagnostic gap.",
+        "top": [
+          "yt-race-new",
+          "yt-race-other",
+          "yt-race-fresh"
+        ],
+        "metrics": {
+          "ndcgAtK": 1,
+          "relevantReturned": 3,
+          "precisionAtK": 1,
+          "judgedReturned": 3,
+          "unjudgedReturned": 0,
+          "missingJudgmentIds": [],
+          "idealRelevant": 3,
+          "returned": 3,
+          "requested": 3,
+          "fillableSlots": 3,
+          "fillRate": 1,
+          "maxCreatorShare": 0.333333,
+          "distinctCreators": 3,
+          "availableRelevantCreators": 5,
+          "canonicalRepeatShare": 0,
+          "previousExposureShare": 1,
+          "negativeShare": 0,
+          "operationalOnlyShare": 0,
+          "knownPublicationReturned": 3,
+          "unknownPublicationReturned": 0,
+          "freshShareOfKnown": 1,
+          "meanKnownPublicationAgeDays": 1.666667,
+          "providerShare": {
+            "youtube": 1
+          }
+        },
+        "perSource": [
+          {
+            "source": "local",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          },
+          {
+            "source": "youtube",
+            "candidates": 5,
+            "eligible": 5,
+            "returned": 3,
+            "ndcgAtK": 1,
+            "relevantReturned": 3,
+            "precisionAtK": 1,
+            "judgedReturned": 3,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 3,
+            "knownPublicationReturned": 3,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": 1
+          },
+          {
+            "source": "twitch",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          },
+          {
+            "source": "redtube",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          }
+        ],
+        "checks": [
+          {
+            "metric": "fillRate",
+            "value": 1,
+            "limit": 1,
+            "status": "pass"
+          },
+          {
+            "metric": "ndcgAtK",
+            "value": 1,
+            "limit": 0.8,
+            "status": "pass"
+          },
+          {
+            "metric": "maxCreatorShare",
+            "value": 0.333333,
+            "limit": 0.5,
+            "status": "pass"
+          },
+          {
+            "metric": "operationalOnlyShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "negativeShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "canonicalRepeatShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "previousExposureShare",
+            "value": 1,
+            "limit": 0.5,
+            "status": "fail"
+          }
+        ],
+        "violations": []
+      },
+      {
+        "id": "twitch-topic-negative",
+        "ranker": "twitch",
+        "intent": "Observed racing preferences should guide VOD picks while a one-star broadcast is excluded.",
+        "top": [
+          "tw-race-new",
+          "tw-race-other",
+          "tw-race-old",
+          "tw-food"
+        ],
+        "metrics": {
+          "ndcgAtK": 1,
+          "relevantReturned": 3,
+          "precisionAtK": 0.75,
+          "judgedReturned": 4,
+          "unjudgedReturned": 0,
+          "missingJudgmentIds": [],
+          "idealRelevant": 3,
+          "returned": 4,
+          "requested": 4,
+          "fillableSlots": 4,
+          "fillRate": 1,
+          "maxCreatorShare": 0.25,
+          "distinctCreators": 4,
+          "availableRelevantCreators": 3,
+          "canonicalRepeatShare": 0,
+          "previousExposureShare": null,
+          "negativeShare": 0,
+          "operationalOnlyShare": 0,
+          "knownPublicationReturned": 4,
+          "unknownPublicationReturned": 0,
+          "freshShareOfKnown": 0.75,
+          "meanKnownPublicationAgeDays": 76.5,
+          "providerShare": {
+            "twitch": 1
+          }
+        },
+        "perSource": [
+          {
+            "source": "local",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          },
+          {
+            "source": "youtube",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          },
+          {
+            "source": "twitch",
+            "candidates": 5,
+            "eligible": 4,
+            "returned": 4,
+            "ndcgAtK": 1,
+            "relevantReturned": 3,
+            "precisionAtK": 0.75,
+            "judgedReturned": 4,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 3,
+            "knownPublicationReturned": 4,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": 0.75
+          },
+          {
+            "source": "redtube",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          }
+        ],
+        "checks": [
+          {
+            "metric": "fillRate",
+            "value": 1,
+            "limit": 1,
+            "status": "pass"
+          },
+          {
+            "metric": "ndcgAtK",
+            "value": 1,
+            "limit": 0.8,
+            "status": "pass"
+          },
+          {
+            "metric": "maxCreatorShare",
+            "value": 0.25,
+            "limit": 0.5,
+            "status": "pass"
+          },
+          {
+            "metric": "operationalOnlyShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "negativeShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "canonicalRepeatShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          }
+        ],
+        "violations": []
+      },
+      {
+        "id": "twitch-creator-diversity",
+        "ranker": "twitch",
+        "intent": "Measure avoidable creator concentration separately from relevance.",
+        "top": [
+          "tw-volume-0",
+          "tw-volume-1",
+          "tw-volume-2",
+          "tw-volume-3",
+          "tw-volume-4",
+          "tw-volume-5"
+        ],
+        "metrics": {
+          "ndcgAtK": 1,
+          "relevantReturned": 6,
+          "precisionAtK": 1,
+          "judgedReturned": 6,
+          "unjudgedReturned": 0,
+          "missingJudgmentIds": [],
+          "idealRelevant": 6,
+          "returned": 6,
+          "requested": 6,
+          "fillableSlots": 6,
+          "fillRate": 1,
+          "maxCreatorShare": 1,
+          "distinctCreators": 1,
+          "availableRelevantCreators": 5,
+          "canonicalRepeatShare": 0,
+          "previousExposureShare": null,
+          "negativeShare": 0,
+          "operationalOnlyShare": 0,
+          "knownPublicationReturned": 6,
+          "unknownPublicationReturned": 0,
+          "freshShareOfKnown": 1,
+          "meanKnownPublicationAgeDays": 2,
+          "providerShare": {
+            "twitch": 1
+          }
+        },
+        "perSource": [
+          {
+            "source": "local",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          },
+          {
+            "source": "youtube",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          },
+          {
+            "source": "twitch",
+            "candidates": 12,
+            "eligible": 12,
+            "returned": 6,
+            "ndcgAtK": 1,
+            "relevantReturned": 6,
+            "precisionAtK": 1,
+            "judgedReturned": 6,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 6,
+            "knownPublicationReturned": 6,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": 1
+          },
+          {
+            "source": "redtube",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          }
+        ],
+        "checks": [
+          {
+            "metric": "fillRate",
+            "value": 1,
+            "limit": 1,
+            "status": "pass"
+          },
+          {
+            "metric": "ndcgAtK",
+            "value": 1,
+            "limit": 0.8,
+            "status": "pass"
+          },
+          {
+            "metric": "maxCreatorShare",
+            "value": 1,
+            "limit": 0.5,
+            "status": "fail"
+          },
+          {
+            "metric": "operationalOnlyShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "negativeShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "canonicalRepeatShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          }
+        ],
+        "violations": []
+      },
+      {
+        "id": "twitch-publication-freshness",
+        "ranker": "twitch",
+        "intent": "New ingestion is not proof of a new publication; freshness must report known/unknown separately.",
+        "top": [
+          "tw-old-new-import",
+          "tw-unknown-date"
+        ],
+        "metrics": {
+          "ndcgAtK": 0.550197,
+          "relevantReturned": 2,
+          "precisionAtK": 1,
+          "judgedReturned": 2,
+          "unjudgedReturned": 0,
+          "missingJudgmentIds": [],
+          "idealRelevant": 2,
+          "returned": 2,
+          "requested": 2,
+          "fillableSlots": 2,
+          "fillRate": 1,
+          "maxCreatorShare": 1,
+          "distinctCreators": 1,
+          "availableRelevantCreators": 1,
+          "canonicalRepeatShare": 0,
+          "previousExposureShare": null,
+          "negativeShare": 0,
+          "operationalOnlyShare": 0,
+          "knownPublicationReturned": 1,
+          "unknownPublicationReturned": 1,
+          "freshShareOfKnown": 0,
+          "meanKnownPublicationAgeDays": 500,
+          "providerShare": {
+            "twitch": 1
+          }
+        },
+        "perSource": [
+          {
+            "source": "local",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          },
+          {
+            "source": "youtube",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          },
+          {
+            "source": "twitch",
+            "candidates": 3,
+            "eligible": 3,
+            "returned": 2,
+            "ndcgAtK": 0.550197,
+            "relevantReturned": 2,
+            "precisionAtK": 1,
+            "judgedReturned": 2,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 2,
+            "knownPublicationReturned": 1,
+            "unknownPublicationReturned": 1,
+            "freshShareOfKnown": 0
+          },
+          {
+            "source": "redtube",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          }
+        ],
+        "checks": [
+          {
+            "metric": "fillRate",
+            "value": 1,
+            "limit": 1,
+            "status": "pass"
+          },
+          {
+            "metric": "ndcgAtK",
+            "value": 0.550197,
+            "limit": 0.8,
+            "status": "fail"
+          },
+          {
+            "metric": "maxCreatorShare",
+            "value": 1,
+            "limit": 0.5,
+            "status": "not-applicable",
+            "reason": "Fewer than two relevant creators are available."
+          },
+          {
+            "metric": "operationalOnlyShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "negativeShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "canonicalRepeatShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "freshShareOfKnown",
+            "value": 0,
+            "limit": 0.5,
+            "status": "fail"
+          }
+        ],
+        "violations": []
+      },
+      {
+        "id": "guide-mixed-topic",
+        "ranker": "guide",
+        "intent": "Saved content tags should connect relevant local, YouTube and Twitch titles.",
+        "top": [
+          "tw-race-other",
+          "yt-race-new",
+          "local-racing"
+        ],
+        "metrics": {
+          "ndcgAtK": 1,
+          "relevantReturned": 3,
+          "precisionAtK": 1,
+          "judgedReturned": 3,
+          "unjudgedReturned": 0,
+          "missingJudgmentIds": [],
+          "idealRelevant": 3,
+          "returned": 3,
+          "requested": 3,
+          "fillableSlots": 3,
+          "fillRate": 1,
+          "maxCreatorShare": 0.333333,
+          "distinctCreators": 3,
+          "availableRelevantCreators": 3,
+          "canonicalRepeatShare": 0,
+          "previousExposureShare": null,
+          "negativeShare": 0,
+          "operationalOnlyShare": 0,
+          "knownPublicationReturned": 3,
+          "unknownPublicationReturned": 0,
+          "freshShareOfKnown": 1,
+          "meanKnownPublicationAgeDays": 2,
+          "providerShare": {
+            "local": 0.333333,
+            "twitch": 0.333333,
+            "youtube": 0.333333
+          }
+        },
+        "perSource": [
+          {
+            "source": "local",
+            "candidates": 2,
+            "eligible": 2,
+            "returned": 1,
+            "ndcgAtK": 1,
+            "relevantReturned": 1,
+            "precisionAtK": 1,
+            "judgedReturned": 1,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 1,
+            "knownPublicationReturned": 1,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": 1
+          },
+          {
+            "source": "youtube",
+            "candidates": 1,
+            "eligible": 1,
+            "returned": 1,
+            "ndcgAtK": 1,
+            "relevantReturned": 1,
+            "precisionAtK": 1,
+            "judgedReturned": 1,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 1,
+            "knownPublicationReturned": 1,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": 1
+          },
+          {
+            "source": "twitch",
+            "candidates": 1,
+            "eligible": 1,
+            "returned": 1,
+            "ndcgAtK": 1,
+            "relevantReturned": 1,
+            "precisionAtK": 1,
+            "judgedReturned": 1,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 1,
+            "knownPublicationReturned": 1,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": 1
+          },
+          {
+            "source": "redtube",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          }
+        ],
+        "checks": [
+          {
+            "metric": "fillRate",
+            "value": 1,
+            "limit": 1,
+            "status": "pass"
+          },
+          {
+            "metric": "ndcgAtK",
+            "value": 1,
+            "limit": 0.8,
+            "status": "pass"
+          },
+          {
+            "metric": "maxCreatorShare",
+            "value": 0.333333,
+            "limit": 0.5,
+            "status": "pass"
+          },
+          {
+            "metric": "operationalOnlyShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "negativeShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "canonicalRepeatShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          }
+        ],
+        "violations": []
+      },
+      {
+        "id": "guide-operational-facets",
+        "ranker": "guide",
+        "intent": "A shared source/format label must not outweigh a genuine content topic.",
+        "top": [
+          "tw-race-other",
+          "yt-race-new",
+          "local-racing"
+        ],
+        "metrics": {
+          "ndcgAtK": 1,
+          "relevantReturned": 3,
+          "precisionAtK": 1,
+          "judgedReturned": 3,
+          "unjudgedReturned": 0,
+          "missingJudgmentIds": [],
+          "idealRelevant": 3,
+          "returned": 3,
+          "requested": 3,
+          "fillableSlots": 3,
+          "fillRate": 1,
+          "maxCreatorShare": 0.333333,
+          "distinctCreators": 3,
+          "availableRelevantCreators": 3,
+          "canonicalRepeatShare": 0,
+          "previousExposureShare": null,
+          "negativeShare": 0,
+          "operationalOnlyShare": 0,
+          "knownPublicationReturned": 3,
+          "unknownPublicationReturned": 0,
+          "freshShareOfKnown": 1,
+          "meanKnownPublicationAgeDays": 2,
+          "providerShare": {
+            "local": 0.333333,
+            "twitch": 0.333333,
+            "youtube": 0.333333
+          }
+        },
+        "perSource": [
+          {
+            "source": "local",
+            "candidates": 5,
+            "eligible": 5,
+            "returned": 1,
+            "ndcgAtK": 1,
+            "relevantReturned": 1,
+            "precisionAtK": 1,
+            "judgedReturned": 1,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 1,
+            "knownPublicationReturned": 1,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": 1
+          },
+          {
+            "source": "youtube",
+            "candidates": 1,
+            "eligible": 1,
+            "returned": 1,
+            "ndcgAtK": 1,
+            "relevantReturned": 1,
+            "precisionAtK": 1,
+            "judgedReturned": 1,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 1,
+            "knownPublicationReturned": 1,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": 1
+          },
+          {
+            "source": "twitch",
+            "candidates": 1,
+            "eligible": 1,
+            "returned": 1,
+            "ndcgAtK": 1,
+            "relevantReturned": 1,
+            "precisionAtK": 1,
+            "judgedReturned": 1,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 1,
+            "knownPublicationReturned": 1,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": 1
+          },
+          {
+            "source": "redtube",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          }
+        ],
+        "checks": [
+          {
+            "metric": "fillRate",
+            "value": 1,
+            "limit": 1,
+            "status": "pass"
+          },
+          {
+            "metric": "ndcgAtK",
+            "value": 1,
+            "limit": 0.8,
+            "status": "pass"
+          },
+          {
+            "metric": "maxCreatorShare",
+            "value": 0.333333,
+            "limit": 0.5,
+            "status": "pass"
+          },
+          {
+            "metric": "operationalOnlyShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "negativeShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "canonicalRepeatShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          }
+        ],
+        "violations": []
+      },
+      {
+        "id": "guide-query-canonical",
+        "ranker": "guide-query",
+        "intent": "A racing question returns real matching fields and never two references to one canonical media identity.",
+        "top": [
+          "tw-race-other",
+          "yt-race-new",
+          "local-racing"
+        ],
+        "metrics": {
+          "ndcgAtK": 1,
+          "relevantReturned": 3,
+          "precisionAtK": 1,
+          "judgedReturned": 3,
+          "unjudgedReturned": 0,
+          "missingJudgmentIds": [],
+          "idealRelevant": 3,
+          "returned": 3,
+          "requested": 3,
+          "fillableSlots": 3,
+          "fillRate": 1,
+          "maxCreatorShare": 0.333333,
+          "distinctCreators": 3,
+          "availableRelevantCreators": 3,
+          "canonicalRepeatShare": 0,
+          "previousExposureShare": null,
+          "negativeShare": 0,
+          "operationalOnlyShare": 0,
+          "knownPublicationReturned": 3,
+          "unknownPublicationReturned": 0,
+          "freshShareOfKnown": 1,
+          "meanKnownPublicationAgeDays": 2,
+          "providerShare": {
+            "local": 0.333333,
+            "twitch": 0.333333,
+            "youtube": 0.333333
+          }
+        },
+        "perSource": [
+          {
+            "source": "local",
+            "candidates": 2,
+            "eligible": 2,
+            "returned": 1,
+            "ndcgAtK": 1,
+            "relevantReturned": 1,
+            "precisionAtK": 1,
+            "judgedReturned": 1,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 1,
+            "knownPublicationReturned": 1,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": 1
+          },
+          {
+            "source": "youtube",
+            "candidates": 2,
+            "eligible": 2,
+            "returned": 1,
+            "ndcgAtK": 1,
+            "relevantReturned": 1,
+            "precisionAtK": 1,
+            "judgedReturned": 1,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 1,
+            "knownPublicationReturned": 1,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": 1
+          },
+          {
+            "source": "twitch",
+            "candidates": 1,
+            "eligible": 1,
+            "returned": 1,
+            "ndcgAtK": 1,
+            "relevantReturned": 1,
+            "precisionAtK": 1,
+            "judgedReturned": 1,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 1,
+            "knownPublicationReturned": 1,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": 1
+          },
+          {
+            "source": "redtube",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          }
+        ],
+        "checks": [
+          {
+            "metric": "fillRate",
+            "value": 1,
+            "limit": 1,
+            "status": "pass"
+          },
+          {
+            "metric": "ndcgAtK",
+            "value": 1,
+            "limit": 0.8,
+            "status": "pass"
+          },
+          {
+            "metric": "maxCreatorShare",
+            "value": 0.333333,
+            "limit": 0.5,
+            "status": "pass"
+          },
+          {
+            "metric": "operationalOnlyShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "negativeShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "canonicalRepeatShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          }
+        ],
+        "violations": []
+      },
+      {
+        "id": "guide-visibility",
+        "ranker": "guide",
+        "intent": "Private, hidden, unavailable and adult-source inputs must not leak into ordinary Guide picks.",
+        "top": [
+          "tw-race-other",
+          "yt-race-new",
+          "local-racing"
+        ],
+        "metrics": {
+          "ndcgAtK": 1,
+          "relevantReturned": 3,
+          "precisionAtK": 1,
+          "judgedReturned": 3,
+          "unjudgedReturned": 0,
+          "missingJudgmentIds": [],
+          "idealRelevant": 3,
+          "returned": 3,
+          "requested": 3,
+          "fillableSlots": 3,
+          "fillRate": 1,
+          "maxCreatorShare": 0.333333,
+          "distinctCreators": 3,
+          "availableRelevantCreators": 3,
+          "canonicalRepeatShare": 0,
+          "previousExposureShare": null,
+          "negativeShare": 0,
+          "operationalOnlyShare": 0,
+          "knownPublicationReturned": 3,
+          "unknownPublicationReturned": 0,
+          "freshShareOfKnown": 1,
+          "meanKnownPublicationAgeDays": 2,
+          "providerShare": {
+            "local": 0.333333,
+            "twitch": 0.333333,
+            "youtube": 0.333333
+          }
+        },
+        "perSource": [
+          {
+            "source": "local",
+            "candidates": 2,
+            "eligible": 1,
+            "returned": 1,
+            "ndcgAtK": 1,
+            "relevantReturned": 1,
+            "precisionAtK": 1,
+            "judgedReturned": 1,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 1,
+            "knownPublicationReturned": 1,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": 1
+          },
+          {
+            "source": "youtube",
+            "candidates": 2,
+            "eligible": 1,
+            "returned": 1,
+            "ndcgAtK": 1,
+            "relevantReturned": 1,
+            "precisionAtK": 1,
+            "judgedReturned": 1,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 1,
+            "knownPublicationReturned": 1,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": 1
+          },
+          {
+            "source": "twitch",
+            "candidates": 2,
+            "eligible": 1,
+            "returned": 1,
+            "ndcgAtK": 1,
+            "relevantReturned": 1,
+            "precisionAtK": 1,
+            "judgedReturned": 1,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 1,
+            "knownPublicationReturned": 1,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": 1
+          },
+          {
+            "source": "redtube",
+            "candidates": 1,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          }
+        ],
+        "checks": [
+          {
+            "metric": "fillRate",
+            "value": 1,
+            "limit": 1,
+            "status": "pass"
+          },
+          {
+            "metric": "ndcgAtK",
+            "value": 1,
+            "limit": 0.8,
+            "status": "pass"
+          },
+          {
+            "metric": "maxCreatorShare",
+            "value": 0.333333,
+            "limit": 0.5,
+            "status": "pass"
+          },
+          {
+            "metric": "operationalOnlyShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "negativeShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "canonicalRepeatShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          }
+        ],
+        "violations": []
+      },
+      {
+        "id": "partial-judgments",
+        "ranker": "youtube",
+        "intent": "An unjudged title is unknown evidence, never assumed irrelevant or silently counted as a pass.",
+        "top": [
+          "yt-race-new",
+          "yt-date-unknown"
+        ],
+        "metrics": {
+          "ndcgAtK": null,
+          "relevantReturned": 1,
+          "precisionAtK": 1,
+          "judgedReturned": 1,
+          "unjudgedReturned": 1,
+          "missingJudgmentIds": [
+            "yt-date-unknown"
+          ],
+          "idealRelevant": 1,
+          "returned": 2,
+          "requested": 2,
+          "fillableSlots": 2,
+          "fillRate": 1,
+          "maxCreatorShare": 0.5,
+          "distinctCreators": 2,
+          "availableRelevantCreators": 1,
+          "canonicalRepeatShare": 0,
+          "previousExposureShare": null,
+          "negativeShare": 0,
+          "operationalOnlyShare": 0,
+          "knownPublicationReturned": 1,
+          "unknownPublicationReturned": 1,
+          "freshShareOfKnown": 1,
+          "meanKnownPublicationAgeDays": 2,
+          "providerShare": {
+            "youtube": 1
+          }
+        },
+        "perSource": [
+          {
+            "source": "local",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          },
+          {
+            "source": "youtube",
+            "candidates": 2,
+            "eligible": 2,
+            "returned": 2,
+            "ndcgAtK": null,
+            "relevantReturned": 1,
+            "precisionAtK": 1,
+            "judgedReturned": 1,
+            "unjudgedReturned": 1,
+            "missingJudgmentIds": [
+              "yt-date-unknown"
+            ],
+            "idealRelevant": 1,
+            "knownPublicationReturned": 1,
+            "unknownPublicationReturned": 1,
+            "freshShareOfKnown": 1
+          },
+          {
+            "source": "twitch",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          },
+          {
+            "source": "redtube",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          }
+        ],
+        "checks": [
+          {
+            "metric": "fillRate",
+            "value": 1,
+            "limit": 1,
+            "status": "pass"
+          },
+          {
+            "metric": "maxCreatorShare",
+            "value": 0.5,
+            "limit": 1,
+            "status": "not-applicable",
+            "reason": "Fewer than two relevant creators are available."
+          },
+          {
+            "metric": "operationalOnlyShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "negativeShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "canonicalRepeatShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "judgmentCoverage",
+            "value": null,
+            "limit": 1,
+            "status": "unmeasured",
+            "reason": "Missing judgments: yt-date-unknown"
+          }
+        ],
+        "violations": []
+      },
+      {
+        "id": "single-creator-availability",
+        "ranker": "twitch",
+        "intent": "A single-creator library cannot be accused of avoidable creator concentration.",
+        "top": [
+          "tw-solo-0",
+          "tw-solo-1",
+          "tw-solo-2",
+          "tw-solo-3"
+        ],
+        "metrics": {
+          "ndcgAtK": 1,
+          "relevantReturned": 4,
+          "precisionAtK": 1,
+          "judgedReturned": 4,
+          "unjudgedReturned": 0,
+          "missingJudgmentIds": [],
+          "idealRelevant": 4,
+          "returned": 4,
+          "requested": 4,
+          "fillableSlots": 4,
+          "fillRate": 1,
+          "maxCreatorShare": 1,
+          "distinctCreators": 1,
+          "availableRelevantCreators": 1,
+          "canonicalRepeatShare": 0,
+          "previousExposureShare": null,
+          "negativeShare": 0,
+          "operationalOnlyShare": 0,
+          "knownPublicationReturned": 4,
+          "unknownPublicationReturned": 0,
+          "freshShareOfKnown": 1,
+          "meanKnownPublicationAgeDays": 2,
+          "providerShare": {
+            "twitch": 1
+          }
+        },
+        "perSource": [
+          {
+            "source": "local",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          },
+          {
+            "source": "youtube",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          },
+          {
+            "source": "twitch",
+            "candidates": 5,
+            "eligible": 5,
+            "returned": 4,
+            "ndcgAtK": 1,
+            "relevantReturned": 4,
+            "precisionAtK": 1,
+            "judgedReturned": 4,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 4,
+            "knownPublicationReturned": 4,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": 1
+          },
+          {
+            "source": "redtube",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          }
+        ],
+        "checks": [
+          {
+            "metric": "fillRate",
+            "value": 1,
+            "limit": 1,
+            "status": "pass"
+          },
+          {
+            "metric": "ndcgAtK",
+            "value": 1,
+            "limit": 0.8,
+            "status": "pass"
+          },
+          {
+            "metric": "maxCreatorShare",
+            "value": 1,
+            "limit": 0.5,
+            "status": "not-applicable",
+            "reason": "Fewer than two relevant creators are available."
+          },
+          {
+            "metric": "operationalOnlyShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "negativeShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "canonicalRepeatShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          }
+        ],
+        "violations": []
+      },
+      {
+        "id": "cold-start-guide",
+        "ranker": "guide",
+        "intent": "Without taste evidence, these are exploratory choices, not claims about user satisfaction.",
+        "top": [
+          "tw-race-other",
+          "yt-race-new",
+          "local-racing"
+        ],
+        "metrics": {
+          "ndcgAtK": 1,
+          "relevantReturned": 0,
+          "precisionAtK": 0,
+          "judgedReturned": 3,
+          "unjudgedReturned": 0,
+          "missingJudgmentIds": [],
+          "idealRelevant": 0,
+          "returned": 3,
+          "requested": 3,
+          "fillableSlots": 3,
+          "fillRate": 1,
+          "maxCreatorShare": 0.333333,
+          "distinctCreators": 3,
+          "availableRelevantCreators": 0,
+          "canonicalRepeatShare": 0,
+          "previousExposureShare": null,
+          "negativeShare": 0,
+          "operationalOnlyShare": 0,
+          "knownPublicationReturned": 3,
+          "unknownPublicationReturned": 0,
+          "freshShareOfKnown": 1,
+          "meanKnownPublicationAgeDays": 2,
+          "providerShare": {
+            "local": 0.333333,
+            "twitch": 0.333333,
+            "youtube": 0.333333
+          }
+        },
+        "perSource": [
+          {
+            "source": "local",
+            "candidates": 1,
+            "eligible": 1,
+            "returned": 1,
+            "ndcgAtK": 1,
+            "relevantReturned": 0,
+            "precisionAtK": 0,
+            "judgedReturned": 1,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 1,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": 1
+          },
+          {
+            "source": "youtube",
+            "candidates": 1,
+            "eligible": 1,
+            "returned": 1,
+            "ndcgAtK": 1,
+            "relevantReturned": 0,
+            "precisionAtK": 0,
+            "judgedReturned": 1,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 1,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": 1
+          },
+          {
+            "source": "twitch",
+            "candidates": 1,
+            "eligible": 1,
+            "returned": 1,
+            "ndcgAtK": 1,
+            "relevantReturned": 0,
+            "precisionAtK": 0,
+            "judgedReturned": 1,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 1,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": 1
+          },
+          {
+            "source": "redtube",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          }
+        ],
+        "checks": [
+          {
+            "metric": "fillRate",
+            "value": 1,
+            "limit": 1,
+            "status": "pass"
+          },
+          {
+            "metric": "ndcgAtK",
+            "value": 1,
+            "limit": 0.8,
+            "status": "pass"
+          },
+          {
+            "metric": "maxCreatorShare",
+            "value": 0.333333,
+            "limit": 0.5,
+            "status": "not-applicable",
+            "reason": "Fewer than two relevant creators are available."
+          },
+          {
+            "metric": "operationalOnlyShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "negativeShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          },
+          {
+            "metric": "canonicalRepeatShare",
+            "value": 0,
+            "limit": 0,
+            "status": "pass"
+          }
+        ],
+        "violations": []
+      },
+      {
+        "id": "empty-eligible-guide",
+        "ranker": "guide",
+        "intent": "A private/hidden-only library returns an honest empty ordinary shelf.",
+        "top": [],
+        "metrics": {
+          "ndcgAtK": null,
+          "relevantReturned": 0,
+          "precisionAtK": null,
+          "judgedReturned": 0,
+          "unjudgedReturned": 0,
+          "missingJudgmentIds": [],
+          "idealRelevant": 0,
+          "returned": 0,
+          "requested": 3,
+          "fillableSlots": 0,
+          "fillRate": null,
+          "maxCreatorShare": null,
+          "distinctCreators": 0,
+          "availableRelevantCreators": 0,
+          "canonicalRepeatShare": null,
+          "previousExposureShare": null,
+          "negativeShare": null,
+          "operationalOnlyShare": null,
+          "knownPublicationReturned": 0,
+          "unknownPublicationReturned": 0,
+          "freshShareOfKnown": null,
+          "meanKnownPublicationAgeDays": null,
+          "providerShare": {}
+        },
+        "perSource": [
+          {
+            "source": "local",
+            "candidates": 1,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          },
+          {
+            "source": "youtube",
+            "candidates": 1,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          },
+          {
+            "source": "twitch",
+            "candidates": 0,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          },
+          {
+            "source": "redtube",
+            "candidates": 1,
+            "eligible": 0,
+            "returned": 0,
+            "ndcgAtK": null,
+            "relevantReturned": 0,
+            "precisionAtK": null,
+            "judgedReturned": 0,
+            "unjudgedReturned": 0,
+            "missingJudgmentIds": [],
+            "idealRelevant": 0,
+            "knownPublicationReturned": 0,
+            "unknownPublicationReturned": 0,
+            "freshShareOfKnown": null
+          }
+        ],
+        "checks": [
+          {
+            "metric": "fillRate",
+            "value": null,
+            "limit": 1,
+            "status": "not-applicable",
+            "reason": "No eligible candidates exist."
+          },
+          {
+            "metric": "ndcgAtK",
+            "value": null,
+            "limit": 0.8,
+            "status": "not-applicable",
+            "reason": "No eligible candidates exist."
+          },
+          {
+            "metric": "maxCreatorShare",
+            "value": null,
+            "limit": 0.5,
+            "status": "not-applicable",
+            "reason": "Fewer than two relevant creators are available."
+          },
+          {
+            "metric": "operationalOnlyShare",
+            "value": null,
+            "limit": 0,
+            "status": "not-applicable",
+            "reason": "No eligible candidates exist."
+          },
+          {
+            "metric": "negativeShare",
+            "value": null,
+            "limit": 0,
+            "status": "not-applicable",
+            "reason": "No eligible candidates exist."
+          },
+          {
+            "metric": "canonicalRepeatShare",
+            "value": null,
+            "limit": 0,
+            "status": "not-applicable",
+            "reason": "No eligible candidates exist."
+          }
+        ],
+        "violations": []
+      }
+    ],
+    "implementation": {
+      "files": [
+        {
+          "path": "src/lib/videos/guide-picks.ts",
+          "sha256": "22042cb17f7480db07527c18a0ce6574b34285130624115a8e57a81b647634fb"
+        },
+        {
+          "path": "src/lib/videos/guide-evidence.ts",
+          "sha256": "3629401aed7befe55c98aee875180bc7c478e231e93f912daeb27916cdcc8624"
+        },
+        {
+          "path": "src/lib/videos/recommendation-session.ts",
+          "sha256": "7e3998a25bcf1bdc9e3ca45f3c997d0dbbff7892ca0a093a89801273f6f3f251"
+        },
+        {
+          "path": "src/lib/remote/youtube-recommendations.ts",
+          "sha256": "58342802762962b09b5c267916e032341ccf9a853d7820f6db0bea6c7b7e9f27"
+        },
+        {
+          "path": "src/lib/remote/creator-ranked-pages.ts",
+          "sha256": "40c27d9f3c94dcfe871b923ce5cfd68c9792087a60567e45abdcaa0026f95470"
+        },
+        {
+          "path": "src/lib/videos/twitch-recommendations.ts",
+          "sha256": "7f69f97709497de48060f42ee375476900c7cfeb63f317a683a62c96ff0eb467"
+        },
+        {
+          "path": "src/lib/videos/twitch-vod-ranking.ts",
+          "sha256": "572b06565a8146313bccc90591c11e2833ff5bc5fd3a1c403379dcbd872ca381"
+        },
+        {
+          "path": "src/lib/videos/ranking-core.ts",
+          "sha256": "889bb3c725d52c2c1c7c3400452f545f500ef6829d409d7fb4f752be908b8c2f"
+        }
+      ]
+    },
+    "sentinels": [
+      {
+        "id": "operational-tags",
+        "caseId": "guide-operational-facets",
+        "metric": "operationalOnlyShare",
+        "detected": true
+      },
+      {
+        "id": "creator-monopoly",
+        "caseId": "youtube-creator-diversity",
+        "metric": "maxCreatorShare",
+        "detected": true
+      },
+      {
+        "id": "repeat-exposure",
+        "caseId": "youtube-repeat-exposure",
+        "metric": "previousExposureShare",
+        "detected": true
+      },
+      {
+        "id": "canonical-duplicates",
+        "caseId": "guide-query-canonical",
+        "metric": "canonicalRepeatShare",
+        "detected": true
+      },
+      {
+        "id": "explicit-negative",
+        "caseId": "youtube-topic-negative",
+        "metric": "negativeShare",
+        "detected": true
+      }
+    ],
+    "coverage": {
+      "rankers": [
+        "YouTube personalized shelf",
+        "Twitch VOD score plus VOD ordering",
+        "Guide personal picks",
+        "Guide explicit topic query"
+      ],
+      "sources": [
+        "local",
+        "youtube",
+        "twitch"
+      ],
+      "notEvaluated": [
+        "Real user satisfaction",
+        "Optional remote AI wording",
+        "Live ordering and player behavior",
+        "Photo/adult recommendation quality",
+        "Provider retrieval throughput"
+      ],
+      "excludedSourceProbe": "Synthetic adult/private input tests isolation only, not adult ranking quality."
+    }
+  },
+  "integrityGate": {
+    "ok": true,
+    "contractViolations": 0,
+    "undetectedSentinels": []
+  },
+  "regression": null,
+  "qualityGate": {
+    "ok": false,
+    "failed": 4,
+    "unmeasured": 1
+  }
+}

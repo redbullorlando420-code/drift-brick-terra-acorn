@@ -19,8 +19,8 @@
       "exposure": "Previous synthetic shelf overlap is distinct from viewing history; no production exposure ledger is created."
     },
     "quality": {
-      "pass": 81,
-      "fail": 7,
+      "pass": 84,
+      "fail": 4,
       "unmeasured": 1,
       "not-applicable": 10
     },
@@ -30,11 +30,11 @@
         "scope": "synthetic-case-weighted",
         "cases": 6,
         "eligibleSlots": 11,
-        "returnedSlots": 7,
-        "judgedReturned": 7,
+        "returnedSlots": 5,
+        "judgedReturned": 5,
         "unjudgedReturned": 0,
-        "precisionAtK": 0.428571,
-        "meanNdcgAtK": 0.8,
+        "precisionAtK": 0.8,
+        "meanNdcgAtK": 1,
         "measuredNdcgCases": 5,
         "unmeasuredNdcgCases": 0
       },
@@ -43,11 +43,11 @@
         "scope": "synthetic-case-weighted",
         "cases": 12,
         "eligibleSlots": 40,
-        "returnedSlots": 25,
-        "judgedReturned": 24,
+        "returnedSlots": 26,
+        "judgedReturned": 25,
         "unjudgedReturned": 1,
-        "precisionAtK": 0.916667,
-        "meanNdcgAtK": 0.9,
+        "precisionAtK": 0.92,
+        "meanNdcgAtK": 1,
         "measuredNdcgCases": 10,
         "unmeasuredNdcgCases": 1
       },
@@ -56,11 +56,11 @@
         "scope": "synthetic-case-weighted",
         "cases": 9,
         "eligibleSlots": 29,
-        "returnedSlots": 20,
-        "judgedReturned": 20,
+        "returnedSlots": 21,
+        "judgedReturned": 21,
         "unjudgedReturned": 0,
-        "precisionAtK": 0.9,
-        "meanNdcgAtK": 0.838911,
+        "precisionAtK": 0.904762,
+        "meanNdcgAtK": 0.950022,
         "measuredNdcgCases": 9,
         "unmeasuredNdcgCases": 0
       },
@@ -1391,14 +1391,14 @@
         "ranker": "guide",
         "intent": "A shared source/format label must not outweigh a genuine content topic.",
         "top": [
-          "guide-operational-1",
-          "guide-operational-0",
-          "guide-operational-3"
+          "tw-race-other",
+          "yt-race-new",
+          "local-racing"
         ],
         "metrics": {
-          "ndcgAtK": 0,
-          "relevantReturned": 0,
-          "precisionAtK": 0,
+          "ndcgAtK": 1,
+          "relevantReturned": 3,
+          "precisionAtK": 1,
           "judgedReturned": 3,
           "unjudgedReturned": 0,
           "missingJudgmentIds": [],
@@ -1407,19 +1407,21 @@
           "requested": 3,
           "fillableSlots": 3,
           "fillRate": 1,
-          "maxCreatorShare": 1,
-          "distinctCreators": 1,
+          "maxCreatorShare": 0.333333,
+          "distinctCreators": 3,
           "availableRelevantCreators": 3,
           "canonicalRepeatShare": 0,
           "previousExposureShare": null,
           "negativeShare": 0,
-          "operationalOnlyShare": 1,
+          "operationalOnlyShare": 0,
           "knownPublicationReturned": 3,
           "unknownPublicationReturned": 0,
           "freshShareOfKnown": 1,
           "meanKnownPublicationAgeDays": 2,
           "providerShare": {
-            "local": 1
+            "local": 0.333333,
+            "twitch": 0.333333,
+            "youtube": 0.333333
           }
         },
         "perSource": [
@@ -1427,15 +1429,15 @@
             "source": "local",
             "candidates": 5,
             "eligible": 5,
-            "returned": 3,
-            "ndcgAtK": 0,
-            "relevantReturned": 0,
-            "precisionAtK": 0,
-            "judgedReturned": 3,
+            "returned": 1,
+            "ndcgAtK": 1,
+            "relevantReturned": 1,
+            "precisionAtK": 1,
+            "judgedReturned": 1,
             "unjudgedReturned": 0,
             "missingJudgmentIds": [],
             "idealRelevant": 1,
-            "knownPublicationReturned": 3,
+            "knownPublicationReturned": 1,
             "unknownPublicationReturned": 0,
             "freshShareOfKnown": 1
           },
@@ -1443,33 +1445,33 @@
             "source": "youtube",
             "candidates": 1,
             "eligible": 1,
-            "returned": 0,
-            "ndcgAtK": 0,
-            "relevantReturned": 0,
-            "precisionAtK": null,
-            "judgedReturned": 0,
+            "returned": 1,
+            "ndcgAtK": 1,
+            "relevantReturned": 1,
+            "precisionAtK": 1,
+            "judgedReturned": 1,
             "unjudgedReturned": 0,
             "missingJudgmentIds": [],
             "idealRelevant": 1,
-            "knownPublicationReturned": 0,
+            "knownPublicationReturned": 1,
             "unknownPublicationReturned": 0,
-            "freshShareOfKnown": null
+            "freshShareOfKnown": 1
           },
           {
             "source": "twitch",
             "candidates": 1,
             "eligible": 1,
-            "returned": 0,
-            "ndcgAtK": 0,
-            "relevantReturned": 0,
-            "precisionAtK": null,
-            "judgedReturned": 0,
+            "returned": 1,
+            "ndcgAtK": 1,
+            "relevantReturned": 1,
+            "precisionAtK": 1,
+            "judgedReturned": 1,
             "unjudgedReturned": 0,
             "missingJudgmentIds": [],
             "idealRelevant": 1,
-            "knownPublicationReturned": 0,
+            "knownPublicationReturned": 1,
             "unknownPublicationReturned": 0,
-            "freshShareOfKnown": null
+            "freshShareOfKnown": 1
           },
           {
             "source": "redtube",
@@ -1497,21 +1499,21 @@
           },
           {
             "metric": "ndcgAtK",
-            "value": 0,
+            "value": 1,
             "limit": 0.8,
-            "status": "fail"
+            "status": "pass"
           },
           {
             "metric": "maxCreatorShare",
-            "value": 1,
+            "value": 0.333333,
             "limit": 0.5,
-            "status": "fail"
+            "status": "pass"
           },
           {
             "metric": "operationalOnlyShare",
-            "value": 1,
+            "value": 0,
             "limit": 0,
-            "status": "fail"
+            "status": "pass"
           },
           {
             "metric": "negativeShare",
@@ -2399,7 +2401,35 @@
       "files": [
         {
           "path": "src/lib/videos/guide-picks.ts",
-          "sha256": "d4d0ff787e74420fd9adfa1046d13f6515becd8b63fc18752f793cb2013519d0"
+          "sha256": "71d58eec9d7c9787af2f0a546f43b97ddbe5a0c9f8f736540042738355a95aea"
+        },
+        {
+          "path": "src/lib/videos/guide-evidence.ts",
+          "sha256": "973dbe4bc9bd7c28b3d39064494edd155d80b1130869862672f17ccec510c0ce"
+        },
+        {
+          "path": "src/lib/videos/guide-affinity.ts",
+          "sha256": "ba4795a3374bd52a1edda7dd7d5195138a531c9b1e7f3f57f44db10ecb23eddf"
+        },
+        {
+          "path": "src/lib/videos/recommendation-report.ts",
+          "sha256": "26f0965e773b5306f62716808321e5464eee7dbe2d726c63ba8122c9d3c751a9"
+        },
+        {
+          "path": "src/lib/videos/guide-preset.ts",
+          "sha256": "44ca4f27e3e95ca40f7b6c6efcf1507b95cae734bcd191f45738bab6e0afe98c"
+        },
+        {
+          "path": "src/lib/videos/guide-experiment.ts",
+          "sha256": "487fedd4025f3a1fae592f108cd8a57dd83b2de3a89d59c81ec913629f101458"
+        },
+        {
+          "path": "src/lib/videos/topic-bridges.ts",
+          "sha256": "193d0951fc7f448349a60be5b521f82fa3bf67d83717db1ca8690bd693e2716f"
+        },
+        {
+          "path": "src/lib/videos/recommendation-session.ts",
+          "sha256": "65422d496f7d60b317658c9262588ce2e4bdd78e68babc0b65db376d73ed90ea"
         },
         {
           "path": "src/lib/remote/youtube-recommendations.ts",
@@ -2488,7 +2518,7 @@
   },
   "qualityGate": {
     "ok": false,
-    "failed": 7,
+    "failed": 4,
     "unmeasured": 1
   }
 }

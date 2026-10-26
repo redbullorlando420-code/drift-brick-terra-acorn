@@ -25,7 +25,7 @@ export function createQwenEngine({dir,models,validate,spawnProcess=spawn,fetchLo
     if(!route.startsWith('/studio/qwen/'))return null;
     if(route==='/studio/qwen/status'&&method==='GET'){
       const names=await available(),components=['text_encoders/qwen3vl_8b_w4a8.safetensors','vae/qwen_image_2.1_vae_bf16.safetensors'].every(f=>existsSync(join(source,'models',f)));let connected=false;try{await api('/system_stats');connected=true;}catch{}
-      return {ok:true,connected,ready:connected&&components&&names.length>0,models:names,busy:!!generation,canStart:canStart(),ownedEngine:!!engine,note:!canStart()?'Run Install-Qwen.cmd to prepare the isolated ComfyUI runtime.':!components||!names.length?'Install the Qwen 2.1 bundle below; it includes the matching encoder and VAE.':connected?'Qwen-Image 2.1 · local ComfyUI · one image at a time.':'Start the Qwen engine, then check again after it finishes loading.'};
+      return {ok:true,connected,ready:connected&&components&&names.length>0,modelPreflight:typeof models.preflight==='function',models:names,busy:!!generation,canStart:canStart(),ownedEngine:!!engine,note:!canStart()?'Run Install-Qwen.cmd to prepare the isolated ComfyUI runtime.':!components||!names.length?'Install the Qwen 2.1 bundle below; it includes the matching encoder and VAE.':connected?'Qwen-Image 2.1 · local ComfyUI · one image at a time.':'Start the Qwen engine, then check again after it finishes loading.'};
     }
     if(route==='/studio/qwen/start'&&method==='POST'){
       if(!canStart())throw Error('Finish Install-Qwen.cmd first.');if(engine)return {ok:true,note:'Qwen engine is already starting or running.'};
@@ -40,6 +40,7 @@ export function createQwenEngine({dir,models,validate,spawnProcess=spawn,fetchLo
     if(route==='/studio/qwen/interrupt'&&method==='POST'){if(generation){generation.cancelled=true;if(generation.id){await api('/queue',{delete:[generation.id]});await api('/interrupt',{prompt_id:generation.id});}}return {ok:true};}
     if(route==='/studio/qwen/generate'&&method==='POST'){
       if(generation)throw Error('A Qwen image is already generating.');const settings=validate(body),names=await available(),model=body.model||names.find(n=>n.includes('turbo'))||names[0];if(!names.includes(model))throw Error('Select an installed Qwen 2.1 diffusion model.');
+      if(models.preflight){const review=await models.preflight({engine:'comfy',model});if(!review.ready)throw Error('Model compatibility check failed: '+review.checks.filter(c=>c.state==='fail').map(c=>c.detail).join(' '));}
       const seed=settings.seed<0?randomInt(2147483647):settings.seed,run={id:null,cancelled:false,completed:false};generation=run;
       try{
         const queue=await api('/queue');if(queue.queue_running?.length||queue.queue_pending?.length)throw Error('The local Qwen queue is busy. Wait for the current engine work.');
@@ -51,7 +52,7 @@ export function createQwenEngine({dir,models,validate,spawnProcess=spawn,fetchLo
           if(!['temp','output'].includes(image.type)||typeof image.filename!=='string')throw Error('Invalid generated image reference.');
           const response=await fetchLocal('http://127.0.0.1:8189/view?'+new URLSearchParams({filename:image.filename,subfolder:image.subfolder??'',type:image.type}),{signal:AbortSignal.timeout(10000),redirect:'error'});
           if(!response.ok||Number(response.headers.get('content-length'))>10_000_000)throw Error('Image preview exceeded its budget.');let size=0,parts=[];for await(const chunk of response.body){size+=chunk.length;if(size>10_000_000)throw Error('Image preview exceeded its budget.');parts.push(chunk);}const png=Buffer.concat(parts);if(png.subarray(0,8).toString('hex')!=='89504e470d0a1a0a')throw Error('Qwen returned a non-PNG image.');
-          run.completed=true;return {ok:true,image:png.toString('base64'),info:JSON.stringify({seed,sd_model_name:model})};
+          run.completed=true;return {ok:true,engineJobId:run.id,image:png.toString('base64'),info:JSON.stringify({seed,sd_model_name:model,sampler_name:"euler",scheduler:"simple",cfg_scale:model.includes("turbo")?1:4,denoising_strength:1})};
         }
         run.cancelled=true;await api('/queue',{delete:[run.id]}).catch(()=>{});await api('/interrupt',{prompt_id:run.id}).catch(()=>{});throw Error('Qwen generation timed out and was interrupted.');
       }finally{if(!run.completed&&run.id){await api('/queue',{delete:[run.id]}).catch(()=>{});await api('/interrupt',{prompt_id:run.id}).catch(()=>{});}generation=null;if(run.id)await api('/history',{delete:[run.id]}).catch(()=>{});await api('/free',{unload_models:true,free_memory:true}).catch(()=>{});}

@@ -1,0 +1,22 @@
+✔ real store metadata actions return before catalog parsing, honor locks, save compact provider provenance, and hold during a viewer (109.9737ms)
+✔ real smart tags retain source/creator filters and manual locks without a catalog-sized click stack (0.8527ms)
+✔ manual and accepted inspection edits never enumerate the existing tag ledgers (1.1158ms)
+✔ removing a folder removes only its sparse enrichment records as well as its catalog metadata (0.3685ms)
+✔ cached YouTube repair replaces saturated provider tags, preserves manual locks and saves idempotent versioned rows (1.7346ms)
+✔ real creator repair returns before scans, patches only 48 names/tags, honors locks and writes only changed rows (161.3147ms)
+✔ creator repair waits behind a viewer, recovers from failed storage, and rebases a concurrent manual lock (21.2546ms)
+✔ removing exact follow evidence while repair is saving prevents stale publication (0.7928ms)
+✔ explicit watch metadata persists compact evidence and rechecks manual locks after asynchronous saving (7.0215ms)
+✔ matching YouTube player supplies bounded raw keywords, description and exact date (11.5993ms)
+✔ consent pages, other videos, playability errors, invalid JSON and dates never supply tags or invented dates (1.1188ms)
+✔ creator phrases are normalized, chapters preserve order, and promotional filler cannot become suggested tags (11.0998ms)
+✔ compact evidence and creator keywords survive cache recovery, shallow feeds and on-demand details (3.6968ms)
+✔ relevant late creator tags outrank an unrelated keyword dump and compact scans avoid title tokenization (1.4171ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 778.4275

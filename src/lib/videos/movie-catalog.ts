@@ -2,6 +2,7 @@ import { forEachCatalogEntry, forEachCatalogSlice, sortCatalogRows } from '../ca
 import { isClassicVideo } from './types.ts';
 import type { Folder, LibraryVideo, VideoMetadataProvenance } from './types';
 import { movieEvidence, movieIdentityEvidence } from './content-classification.ts';
+import {projectFilmVideo,type FilmLedger} from './film-review.ts';
 
 const GENRES = ['Comedy', 'Action', 'Horror', 'Drama', 'Documentary', 'Science Fiction', 'Thriller', 'Romance', 'Animation'];
 const GENRE_PATTERNS = new Map(GENRES.map(genre => [genre.toLowerCase(), new RegExp('\\b' + genre + '\\b', 'i')]));
@@ -13,6 +14,7 @@ export type MovieCatalogScope = {
   tags?: Record<string, string[]>;
   metadataProvenance?: Record<string, VideoMetadataProvenance>;
   progress?: Record<string, { d: number }>;
+  filmLedger?:FilmLedger;
 };
 export type MovieCatalog = {
   videos: LibraryVideo[];
@@ -23,6 +25,7 @@ export type MovieCatalog = {
   candidates: LibraryVideo[];
   awaitingRuntime: number;
   features: LibraryVideo[]; shorts: LibraryVideo[]; documentaries: LibraryVideo[];
+  filmGroups?:Array<{filmId:string;versions:LibraryVideo[]}>;
 };
 
 /** Visibility and shelf membership are prepared once per immutable snapshot.
@@ -35,16 +38,20 @@ export async function prepareMovieCatalog(scope: MovieCatalogScope, turn: () => 
   const genres = new Map(GENRES.map(genre => [genre.toLowerCase(), { genre, videos: [] as LibraryVideo[] }]));
   const types = new Map<string, LibraryVideo[]>();
   const candidates: LibraryVideo[] = [], features: LibraryVideo[] = [], shorts: LibraryVideo[] = [], documentaries: LibraryVideo[] = []; let awaitingRuntime = 0;
+  const filmGroups=new Map<string,LibraryVideo[]>();
   await forEachCatalogSlice(scope.videos, video => {
     if (privateFolders.has(video.folderId) || scope.hidden[video.id] || scope.unavailable[video.id]) return;
     const observed = scope.progress?.[video.id]?.d;
     if (!(Number.isFinite(video.duration) && video.duration! > 0) && Number.isFinite(observed) && observed! > 0 && observed! <= 31_536_000) video = { ...video, duration: observed };
+    const version=scope.filmLedger?.versions[video.id],reviewed=version&&scope.filmLedger?.films[version.filmId]&&!video.isSample&&!video.remote?.live&&(!video.remote?folderNames.has(video.folderId):video.remote.kind==='youtube'&&!['short','upcoming'].includes(video.remote.youtubeType??''));
+    if(reviewed)video=projectFilmVideo(video,scope.filmLedger!,scope.metadataProvenance?.[video.id]);
     const folder = folderNames.get(video.folderId);
-    if (!movieEvidence(video,scope.tags?.[video.id],folder,scope.metadataProvenance?.[video.id])) {
+    if (!reviewed&&!movieEvidence(video,scope.tags?.[video.id],folder,scope.metadataProvenance?.[video.id])) {
       if (!(Number.isFinite(video.duration) && video.duration! > 0) && movieIdentityEvidence(video,scope.tags?.[video.id],folder,scope.metadataProvenance?.[video.id])) { awaitingRuntime++; if (candidates.length < 96) candidates.push(video); }
       return;
     }
     videos.push(video);
+    if(reviewed&&version.grouped){const rows=filmGroups.get(version.filmId);if(rows)rows.push(video);else filmGroups.set(version.filmId,[video]);}
     if (isClassicVideo(video)) { classics.push(video); classicSet.add(video); }
     (video.duration! >= 2400 ? features : shorts).push(video);
     const labels = (scope.tags?.[video.id] ?? []).map(tag => tag.toLowerCase().replace(/^#|^genre-/g,'').replace(/[-_]+/g,' '));
@@ -59,7 +66,7 @@ export async function prepareMovieCatalog(scope: MovieCatalogScope, turn: () => 
   const typeRows: MovieCatalog['types'] = [];
   await forEachCatalogEntry(types, ([type, videos]) => { typeRows.push({ type, videos }); }, turn);
   const sortedTypes = await sortCatalogRows(typeRows, (a, b) => b.videos.length - a.videos.length || a.type.localeCompare(b.type), turn);
-  return { videos, classics, classicSet, genres: [...genres.values()].filter(shelf => shelf.videos.length), types: sortedTypes.slice(0, 10), candidates, awaitingRuntime, features, shorts, documentaries };
+  return { videos, classics, classicSet, genres: [...genres.values()].filter(shelf => shelf.videos.length), types: sortedTypes.slice(0, 10), candidates, awaitingRuntime, features, shorts, documentaries,filmGroups:[...filmGroups].map(([filmId,versions])=>({filmId,versions})) };
 }
 
 export function movieShuffleRank(id: string, seed: number) {

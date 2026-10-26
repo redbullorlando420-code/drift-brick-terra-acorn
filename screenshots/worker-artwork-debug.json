@@ -1,0 +1,41 @@
+{
+  "ok": false,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "checks": [
+        "Search crash releases its worker, cooperative fallback remains usable, changed queries do not auto-restart, explicit retry builds only the latest query"
+      ],
+      "searchScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\worker-artwork-debug-desktop-search-recovery.png",
+      "ok": false,
+      "error": "locator.waitFor: Timeout 25000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Retry preview suggestions', exact: true }) to be visible\u001b[22m\n\n    at E:\\codex\\drift-brick-terra-acorn\\scripts\\worker-artwork-browser-check.mjs:37:479",
+      "workerState": {
+        "mode": "",
+        "workers": [
+          {
+            "kind": "http://127.0.0.1:8080/src/lib/videos/search.worker.ts?worker_file&type=module",
+            "dead": true,
+            "last": "search"
+          },
+          {
+            "kind": "http://127.0.0.1:8080/src/lib/videos/search.worker.ts?worker_file&type=module",
+            "dead": false,
+            "last": "search"
+          },
+          {
+            "kind": "http://127.0.0.1:8080/src/lib/videos/preview-ranking.worker.ts?worker_file&type=module",
+            "dead": true,
+            "last": "append"
+          },
+          {
+            "kind": "http://127.0.0.1:8080/src/lib/videos/preview-ranking.worker.ts?worker_file&type=module",
+            "dead": false,
+            "last": "ready"
+          }
+        ]
+      }
+    }
+  ],
+  "limitations": "Isolated desktop/mobile Chrome, real workers with deliberate error events and held native bitmap promises. No real provider or physical phone is claimed."
+}

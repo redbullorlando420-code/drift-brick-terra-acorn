@@ -1,0 +1,155 @@
+{
+  "ok": true,
+  "version": 1,
+  "cases": 24,
+  "matched": 24,
+  "highConfidencePrecision": 1,
+  "highConfidenceCases": 5,
+  "results": [
+    {
+      "id": "title-keyword",
+      "expected": "high",
+      "actual": "high",
+      "score": 96
+    },
+    {
+      "id": "title-entity",
+      "expected": "high",
+      "actual": "high",
+      "score": 85
+    },
+    {
+      "id": "generic-title",
+      "expected": "medium",
+      "actual": "medium",
+      "score": 60
+    },
+    {
+      "id": "creator-only",
+      "expected": "medium",
+      "actual": "medium",
+      "score": 55
+    },
+    {
+      "id": "unrelated-dump",
+      "expected": "medium",
+      "actual": "medium",
+      "score": 70
+    },
+    {
+      "id": "hashtag-only",
+      "expected": "low",
+      "actual": "low",
+      "score": 40
+    },
+    {
+      "id": "title-hashtag",
+      "expected": "low",
+      "actual": "low",
+      "score": 40
+    },
+    {
+      "id": "repeat-hashtag",
+      "expected": "low",
+      "actual": "low",
+      "score": 40
+    },
+    {
+      "id": "keyword-hashtag",
+      "expected": "medium",
+      "actual": "medium",
+      "score": 55
+    },
+    {
+      "id": "prose-only",
+      "expected": "low",
+      "actual": "low",
+      "score": 35
+    },
+    {
+      "id": "entity-prose",
+      "expected": "medium",
+      "actual": "medium",
+      "score": 60
+    },
+    {
+      "id": "chapter-only",
+      "expected": "medium",
+      "actual": "medium",
+      "score": 75
+    },
+    {
+      "id": "chapter-keyword",
+      "expected": "high",
+      "actual": "high",
+      "score": 88
+    },
+    {
+      "id": "chapter-prose",
+      "expected": "high",
+      "actual": "high",
+      "score": 82
+    },
+    {
+      "id": "promo-sponsor",
+      "expected": "absent",
+      "actual": "absent",
+      "score": null
+    },
+    {
+      "id": "promo-affiliate",
+      "expected": "absent",
+      "actual": "absent",
+      "score": null
+    },
+    {
+      "id": "promo-music-credit",
+      "expected": "absent",
+      "actual": "absent",
+      "score": null
+    },
+    {
+      "id": "promo-link",
+      "expected": "absent",
+      "actual": "absent",
+      "score": null
+    },
+    {
+      "id": "promo-follow",
+      "expected": "absent",
+      "actual": "absent",
+      "score": null
+    },
+    {
+      "id": "promo-discount",
+      "expected": "absent",
+      "actual": "absent",
+      "score": null
+    },
+    {
+      "id": "creator-spam",
+      "expected": "medium",
+      "actual": "medium",
+      "score": 55
+    },
+    {
+      "id": "unicode-hashtag",
+      "expected": "low",
+      "actual": "low",
+      "score": 40
+    },
+    {
+      "id": "chapter-hashtag",
+      "expected": "medium",
+      "actual": "medium",
+      "score": 55
+    },
+    {
+      "id": "title-prose",
+      "expected": "high",
+      "actual": "high",
+      "score": 90
+    }
+  ],
+  "limitation": "Small reviewed synthetic English/Unicode adversarial fixture set; evidence scores are not probabilities or broad language accuracy claims."
+}

@@ -96,3 +96,17 @@ yt-dlp is **not** bundled — install it yourself. No torrent / *arr stack.
 
 
 For streamed Hugging Face model imports and the isolated Qwen-Image 2.1 engine, see [STUDIO_MODELS.md](../STUDIO_MODELS.md).
+
+
+## Future racing adapter boundary
+
+Stream Signal includes an offline version-1 strategy/observation/acknowledgement validator. See [the local racing adapter contract](../docs/LOCAL_RACING_ADAPTER_CONTRACT.md) for transport pairing, exact-origin checks, expiry, fresh observations, staged conditions and emergency-stop requirements. Companion does not currently implement this adapter, receive game commands or control iRacing Arcade. The exported trust flags are synthetic fixtures; they cannot authenticate a service.
+
+
+## Image model compatibility preflight
+
+The studio now reviews bounded safetensors headers before selecting or generating with a model. Both AUTOMATIC1111 and Qwen generation recheck compatibility in Companion. Restart Companion after updating these source files to load the new `/studio/models/preflight` endpoint and `modelPreflight` status flag. This does not install an engine or a model. See [studio readiness and recovery](../docs/STUDIO_MODEL_READINESS.md) for supported structures, component requirements, saved model notes, job interruption and verification limits. Existing engines remain explicitly started by the user.
+
+### Recipe parameter provenance
+
+The updated studio bridge pins its supported sampler profile and returns bounded parameter observations for recipe version 2. Restart Companion to activate this source update. Saved recipes review exact model choices and warn about missing/unmatched evidence; no automatic model substitution or generation occurs. See [Recipes and keyboard workflow](../docs/RECIPES_AND_KEYBOARD.md).

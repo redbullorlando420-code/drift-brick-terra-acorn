@@ -1,0 +1,20 @@
+✔ registry inventories all seven existing adapters with distinct search, media, paging and player support (1.0545ms)
+✔ embed capabilities allow only implemented HTTPS provider paths; MFC and images cannot become iframe players (0.485ms)
+✔ unreadable envelopes and malformed identities fail; genuine empty containers remain distinguishable (0.6712ms)
+✔ all seven adapters execute redacted fixtures with real conversion, cursor and completeness diagnostics (43.5853ms)
+✔ malformed tube/short/image/feed payloads cannot confirm empty/exhausted catalogs (5.9894ms)
+✔ valid empty results remain empty without unnecessary fallback requests (2.1141ms)
+✔ a failing provider leaves healthy siblings intact and unknown sources cannot widen a request (1.0893ms)
+✔ later malformed archive pages retain accepted rows and retry the unconsumed page exactly once per walk (0.8517ms)
+✔ publication values reject absent, invalid and future dates and preserve only evidenced prior dates (0.2027ms)
+✔ completeness counters and report exports stay aggregate and bounded without private payloads (1.5419ms)
+✔ remembered official URLs strip tracking/secrets and reject arbitrary schemes, credentials, hosts and unsupported modes (0.5817ms)
+✔ viewing preferences persist only seven allowlisted choices; forgetting has a monotonic deletion boundary (0.3787ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 260.1735

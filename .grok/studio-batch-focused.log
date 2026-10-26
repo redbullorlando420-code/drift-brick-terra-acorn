@@ -1,0 +1,45 @@
+✔ studio requests survive navigation, keep the submitted settings and retain a prior image on failure (2.6046ms)
+✔ studio session storage is bounded and isolates each account (0.2283ms)
+✔ duplicate interrupts are coalesced and a returned partial image is labeled honestly (0.3476ms)
+✔ portable recipes round-trip only approved settings and reject unsupported files (1.3588ms)
+✔ recipe restoration is bounded and keeps valid entries when another is damaged (0.4443ms)
+✔ engine response limit cancels chunked and declared oversized bodies before buffering all data (18.3323ms)
+✔ publication comes from the matching video, never a pull time, relative label or recommended date (2.105ms)
+✔ generation sends a bounded allow-list and rejects missing/oversized prompts and bad numbers (0.5289ms)
+✔ studio restores valid settings, migrates the legacy prompt and uses actual random seeds (0.3302ms)
+✔ cancelling an approval is token/origin-bound and cannot cancel a newer request (4.3745ms)
+✔ an authenticated API failure is visible and never starts a duplicate engine (5.7902ms)
+✔ remote approval is expiring, one-use, peer/origin-bound and never supplies a password (2.3336ms)
+✔ local image API stays on the fixed loopback target and refuses non-image output (0.5453ms)
+✔ engine lifecycle launches only the installed Python with loopback and isolated caches (9.0503ms)
+✔ generation is single-flight and interrupt only applies to a request owned by the bridge (0.496ms)
+✔ Hugging Face links allow only credential-free public model/file pages (2.0676ms)
+✔ safetensors rejects webpage/pickle/pointer, tensor overflow and non-checkpoint components (12.9878ms)
+✔ remote downloads pin revisions, check digests, preserve existing weights and retain bounded jobs (19.7763ms)
+✔ wrong remote checksum never enables a file and cleans its temporary data (16.9721ms)
+✔ an incompatible large model is refused after its small header, before downloading weights (14.5552ms)
+✔ local binary upload streams a checkpoint and refuses overwrites or traversal (153.5566ms)
+✔ Qwen graph uses built-in fixed nodes, model family settings and no caller workflow (0.436ms)
+✔ Qwen generation checks the native queue, returns PNG and frees owned history/model memory (1015.0814ms)
+✔ Qwen lifecycle is loopback-only with custom/cloud nodes and pinned memory disabled (8.8336ms)
+✔ preflight recognizes complete SD1/SDXL headers and leaves incomplete/SD2/component artifacts unverified (28.1936ms)
+✔ Qwen requires actual architecture evidence plus matching encoder and VAE; filenames alone cannot enable generation (20.169ms)
+✔ format/path errors are bounded, missing files stay visible, changed headers invalidate the cache and source fields are allowlisted (10.1725ms)
+✔ generation revalidates compatibility in Companion before any engine request and preserves the selected file on rejection (8.204ms)
+✔ requirements notes retain canonical role/family/source data while dropping executable and credential fields (1.3671ms)
+✔ reviewed requirements never grant model compatibility and notes distinguish every supported artifact role (0.2736ms)
+✔ requirements ledger preserves unrelated notes, is bounded without eviction, and rejects malformed/future storage (7.0592ms)
+✔ job intent is saved before submission and running/completed states keep parameters separate from output bytes (2.0889ms)
+✔ reload recovers unfinished receipts as interrupted without contacting or resubmitting the engine (0.5518ms)
+✔ an intent save failure prevents generation and a later explicit retry can recover (1.2577ms)
+✔ cancel-before-submit cannot launch work and duplicate cancel requests are coalesced (0.3181ms)
+✔ disconnect and cancellation preserve the prior completed image, with honest unknown or partial outcomes (0.2357ms)
+✔ job history stays bounded, rejects damaged parameters, and exports no unexpected response objects (0.7795ms)
+ℹ tests 37
+ℹ suites 0
+ℹ pass 37
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1378.3103

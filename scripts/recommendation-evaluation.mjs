@@ -43,6 +43,13 @@ export function parseEvaluationArgs(args) {
 }
 const rankerFiles = [
   "src/lib/videos/guide-picks.ts",
+  "src/lib/videos/guide-evidence.ts",
+  "src/lib/videos/guide-affinity.ts",
+  "src/lib/videos/recommendation-report.ts",
+  "src/lib/videos/guide-preset.ts",
+  "src/lib/videos/guide-experiment.ts",
+  "src/lib/videos/topic-bridges.ts",
+  "src/lib/videos/recommendation-session.ts",
   "src/lib/remote/youtube-recommendations.ts",
   "src/lib/remote/creator-ranked-pages.ts",
   "src/lib/videos/twitch-recommendations.ts",

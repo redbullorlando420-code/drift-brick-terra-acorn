@@ -2192,3 +2192,24 @@ Incoming: [, [object Object], false, , false, [object Object], 0, home]
 8:07:54 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
 8:07:54 PM [vite] (client) hmr update /src/styles.css?direct
 8:15:12 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/topic-links.tsx
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })

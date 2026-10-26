@@ -1,3 +1,8 @@
+import {newestProviderViewing,type ProviderViewing} from './provider-viewing.ts';
+import {newestAnimeReviews,type AnimeReviewLedger} from './anime-review.ts';
+import {newestFilms,type FilmLedger} from './film-review.ts';
+import {newestGuidePreset,type GuidePreset} from './guide-preset.ts';
+import {newestBridges,type BridgeLedger} from './topic-bridges.ts';
 import { newestTopicAliases,type TopicAliasLedger } from './topic-aliases.ts';
 import { newestExposure, type ExposureLedger } from './recommendation-exposure.ts';
 import { newestRejections, type RejectionLedger } from './recommendation-rejections';
@@ -1628,3 +1633,28 @@ const TOPIC_ALIASES_LS_KEY='reelcase.topic-aliases.v1';
 export function loadTopicAliasesSync():unknown{return readJsonLocal(TOPIC_ALIASES_LS_KEY);}
 export async function restoreTopicAliases():Promise<TopicAliasLedger>{let durable:unknown;try{durable=await getActivityBlob('topic-aliases');}catch{/* Keep the local mirror. */}return newestTopicAliases(durable,loadTopicAliasesSync());}
 export function saveTopicAliases(ledger:TopicAliasLedger):Promise<boolean>{const local=writeJsonLocal(TOPIC_ALIASES_LS_KEY,ledger);return putActivityBlob('topic-aliases',ledger).then(()=>true,()=>local);}
+
+const BRIDGES_LS_KEY='reelcase.topic-bridges.v1';
+export function loadTopicBridgesSync():unknown{return readJsonLocal(BRIDGES_LS_KEY);}
+export async function restoreTopicBridges():Promise<BridgeLedger>{let saved:unknown;try{saved=await getActivityBlob('topic-bridges');}catch{/* The local mirror remains available. */}return newestBridges(saved,loadTopicBridgesSync());}
+export function saveTopicBridges(ledger:BridgeLedger):Promise<boolean>{const local=writeJsonLocal(BRIDGES_LS_KEY,ledger);return putActivityBlob('topic-bridges',ledger).then(()=>true,()=>local);}
+
+const GUIDE_PRESET_LS_KEY='reelcase.guide-preset.v1';
+export function loadGuidePresetSync():unknown{return readJsonLocal(GUIDE_PRESET_LS_KEY);}
+export async function restoreGuidePreset():Promise<GuidePreset>{let saved:unknown;try{saved=await getActivityBlob('guide-preset');}catch{/* Keep the local mirror. */}return newestGuidePreset(saved,loadGuidePresetSync());}
+export function saveGuidePreset(ledger:GuidePreset):Promise<boolean>{const local=writeJsonLocal(GUIDE_PRESET_LS_KEY,ledger);return putActivityBlob('guide-preset',ledger).then(()=>true,()=>local);}
+
+const FILMS_LS_KEY='reelcase.film-reviews.v1';
+export function loadFilmReviewsSync():unknown{return readJsonLocal(FILMS_LS_KEY);}
+export async function restoreFilmReviews():Promise<FilmLedger>{let saved:unknown;try{saved=await getActivityBlob('film-reviews');}catch{/* Keep the local mirror. */}return newestFilms(saved,loadFilmReviewsSync());}
+export function saveFilmReviews(ledger:FilmLedger):Promise<boolean>{const local=writeJsonLocal(FILMS_LS_KEY,ledger);return putActivityBlob('film-reviews',ledger).then(()=>true,()=>local);}
+
+const ANIME_REVIEWS_LS_KEY='reelcase.anime-reviews.v1';
+export function loadAnimeReviewsSync():unknown{return readJsonLocal(ANIME_REVIEWS_LS_KEY);}
+export async function restoreAnimeReviews():Promise<AnimeReviewLedger>{let saved:unknown;try{saved=await getActivityBlob('anime-reviews');}catch{/* Keep the local mirror. */}return newestAnimeReviews(saved,loadAnimeReviewsSync());}
+export function saveAnimeReviews(ledger:AnimeReviewLedger):Promise<boolean>{const local=writeJsonLocal(ANIME_REVIEWS_LS_KEY,ledger);return putActivityBlob('anime-reviews',ledger).then(()=>true,()=>local);}
+
+const PROVIDER_VIEWING_LS_KEY='reelcase.provider-viewing.v1';
+export function loadProviderViewingSync():unknown{return readJsonLocal(PROVIDER_VIEWING_LS_KEY);}
+export async function restoreProviderViewing():Promise<ProviderViewing>{let saved:unknown;try{saved=await getActivityBlob('provider-viewing');}catch{/* Keep the local mirror. */}return newestProviderViewing(saved,loadProviderViewingSync());}
+export function saveProviderViewing(ledger:ProviderViewing):Promise<boolean>{const local=writeJsonLocal(PROVIDER_VIEWING_LS_KEY,ledger);return putActivityBlob('provider-viewing',ledger).then(()=>true,()=>local);}

@@ -31,14 +31,14 @@ export function Billboard({ video }: { video: LibraryVideo }) {
   const toggleFavorite = useLibrary((s) => s.toggleFavorite);
   const fav = useLibrary((s) => Boolean(s.favorites[video.id]));
   const [artIndex, setArtIndex] = useState(0);
-  const artwork = [thumb, video.poster, video.remote?.previewUrl, ...adultThumbCandidatesForVideo(video)]
+  const artwork = (video.filmReview?.ownerReviewed ? [video.poster, thumb, video.remote?.previewUrl, ...adultThumbCandidatesForVideo(video)] : [thumb, video.poster, video.remote?.previewUrl, ...adultThumbCandidatesForVideo(video)])
     .filter((url, index, all): url is string => Boolean(url) && all.indexOf(url) === index);
   const art = artwork[artIndex];
 
   useEffect(() => {
     return request(video, { priority: 'high' });
   }, [request, video]);
-  useEffect(() => setArtIndex(0), [video.id]);
+  useEffect(() => setArtIndex(0), [video.id,video.poster]);
 
   return (
     <section className="relative mb-8 overflow-hidden rounded-xl bg-elevated shadow-border">

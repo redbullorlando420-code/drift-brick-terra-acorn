@@ -85,7 +85,7 @@ test('removing a folder removes only its sparse enrichment records as well as it
 test('cached YouTube repair replaces saturated provider tags, preserves manual locks and saves idempotent versioned rows', async () => {
   fixture.saved=[];
   const stale=Array.from({length:30},(_,i)=>`obsolete${i}`);
-  const row={...card('upgrade'),name:'A practical lesson',description:'Machine learning with Python\n01:30 Training neural networks #NeuralNetworks'};
+  const row={...card('upgrade'),name:'Machine learning practical lesson',description:'Machine learning with Python\n01:30 Training neural networks #NeuralNetworks'};
   const current=['my-choice',...stale];
   useLibrary.setState({videos:[row,{...row,id:'locked'}],tags:{upgrade:current,locked:['keep']},metadataProvenance:{
     upgrade:{tags:{'my-choice':'manual',...Object.fromEntries(stale.map(tag=>[tag,'provider:youtube']))}},
@@ -161,8 +161,9 @@ test('explicit watch metadata persists compact evidence and rechecks manual lock
   const metadata = { id: youtubeId, description: 'Machine learning with Python. #NeuralNetworks', keywords: ['Quantum circuits', 'Python'], date: '2024-05-12' };
   await useLibrary.getState().setYoutubeMetadata(id, metadata);
   let state = useLibrary.getState();
-  for (const tag of ['unknown-choice', 'my-choice', 'quantum-circuits', 'neuralnetworks']) assert.ok(state.tags[id].includes(tag), tag);
-  assert.ok(!state.tags[id].includes('obsolete')); assert.equal(state.metadataProvenance[id].tags['my-choice'], 'manual');
+  for (const tag of ['unknown-choice', 'my-choice']) assert.ok(state.tags[id].includes(tag), tag);
+  for(const tag of ['quantum-circuits','neuralnetworks'])assert(!state.tags[id].includes(tag),'uncorroborated metadata stays review-only');
+   assert.ok(!state.tags[id].includes('obsolete')); assert.equal(state.metadataProvenance[id].tags['my-choice'], 'manual');
   assert.equal(state.metadataProvenance[id].tags.python, 'legacy', 'overlapping unknown tags cannot become provider-owned');
   assert.equal(state.videos[0].description, undefined); assert.equal(state.videos[0].remote.youtubeTagSummary.version, YOUTUBE_TEXT_TAG_VERSION);
   assert.equal(fixture.remoteRows.get(id).description, metadata.description); assert.deepEqual(fixture.remoteRows.get(id).remote.youtubeKeywords, metadata.keywords);
@@ -181,4 +182,23 @@ test('explicit watch metadata persists compact evidence and rechecks manual lock
   useLibrary.setState({ videos: [{ ...video, remote: { kind: 'youtube', watchUrl: `https://youtu.be/${youtubeId}` } }], tags: {}, metadataProvenance: {} });
   await useLibrary.getState().setYoutubeMetadata(id, metadata);
   assert.equal(useLibrary.getState().videos[0].remote.videoId, youtubeId, 'older URL-only imports gain their canonical ID');
+});
+
+test('real YouTube confidence review accepts weak evidence explicitly and preserves it across later provider refreshes',async()=>{
+ const id='yt:confidence',youtubeId='BaW_jenozKc',row={...card(id),name:'Python workshop',remote:{kind:'youtube',videoId:youtubeId,channelName:'Ada'}};
+ const favorites={unrelated:true},history=[{videoId:'other',at:1}];useLibrary.setState({videos:[row],folders:[],tags:{[id]:['my-choice']},metadataProvenance:{[id]:{tags:{'my-choice':'manual'},lockedFields:['category']}},favorites,history,activeId:null,previewId:null});
+ await useLibrary.getState().setYoutubeMetadata(id,{id:youtubeId,description:'#Travel',keywords:['Travel']});
+ let state=useLibrary.getState(),video=state.videos[0];assert(!state.tags[id].includes('travel'));assert(state.tags[id].includes('python'));
+ const base={tags:state.tags[id],provenance:state.metadataProvenance[id],summary:video.remote.youtubeTagSummary,checkedAt:video.remote.youtubeTagsCheckedAt};
+ assert.equal(state.acceptYoutubeTagSuggestions(id,['travel'],base),1);state=useLibrary.getState();assert.equal(state.metadataProvenance[id].tags.travel,'youtube-review');assert.equal(state.metadataProvenance[id].youtubeReviews.travel.score,55);assert.equal(state.metadataProvenance[id].tags['my-choice'],'manual');assert.deepEqual(state.metadataProvenance[id].lockedFields,['category']);
+ await state.setYoutubeMetadata(id,{id:youtubeId,description:'Different description',keywords:[]});state=useLibrary.getState();assert(state.tags[id].includes('travel'));assert.equal(state.metadataProvenance[id].tags.travel,'youtube-review');assert.equal(state.favorites,favorites);assert.equal(state.history,history);
+ assert.throws(()=>state.acceptYoutubeTagSuggestions(id,['travel'],base),/changed/);
+ state.setVideoTags(id,['late-manual']);assert.throws(()=>useLibrary.getState().acceptYoutubeTagSuggestions(id,['travel'],base),/locked/);assert.deepEqual(useLibrary.getState().tags[id],['late-manual']);
+});
+
+test('hashtag-only YouTube titles cannot bypass review policy through automatic topic enrichment',async()=>{
+ const id='yt:hash-policy',youtubeId='BaW_jenozKc',row={...card(id),name:'Update #Travel',remote:{kind:'youtube',videoId:youtubeId,channelName:'Ada'}};
+ useLibrary.setState({videos:[row],folders:[],tags:{},metadataProvenance:{},activeId:null,previewId:null});
+ await useLibrary.getState().setYoutubeMetadata(id,{id:youtubeId,description:'#Travel #Travel',keywords:['Travel']});
+ assert(!useLibrary.getState().tags[id].includes('travel'));assert.deepEqual(useLibrary.getState().videos[0].remote.youtubeTagSummary.topics,[]);
 });

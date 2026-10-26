@@ -1,0 +1,30 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "Actual selection is separate from candidate review; incompatible Qwen and unreadable/future reports cannot replace the prior model or enable generation",
+        "Reviewed note import/export is plain allowlisted data; revisions remain unverified until pinned, explicit saves survive reload, dual-write failure preserves the prior note and another owner’s records stay separate",
+        "Job intents persist before submission; reload recovers interruption without resubmission, engine-busy blocks duplicates, cancellation/disconnect retain completed output, and dual-storage failure prevents an unsaved request",
+        "Qwen remains blocked with missing components and uses the Qwen route only after review; returned native job identity is retained separately from the local intent"
+      ],
+      "errors": [],
+      "generations": 6,
+      "ok": true
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "Actual selection is separate from candidate review; incompatible Qwen and unreadable/future reports cannot replace the prior model or enable generation",
+        "Reviewed note import/export is plain allowlisted data; revisions remain unverified until pinned, explicit saves survive reload, dual-write failure preserves the prior note and another owner’s records stay separate",
+        "Job intents persist before submission; reload recovers interruption without resubmission, engine-busy blocks duplicates, cancellation/disconnect retain completed output, and dual-storage failure prevents an unsaved request",
+        "Qwen remains blocked with missing components and uses the Qwen route only after review; returned native job identity is retained separately from the local intent"
+      ],
+      "errors": [],
+      "generations": 6,
+      "ok": true
+    }
+  ],
+  "limitations": "Isolated desktop/touch-phone Chrome with synthetic Companion responses. Actual header inspection is separately recorded; no real model download, GPU generation or engine restart was performed."
+}

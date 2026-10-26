@@ -1,0 +1,276 @@
+✖ guide preserves favorite/like/tag scores, watched exclusions, stable ties and complete fresh live ordering (63.7321ms)
+✔ 100k guide entries never enter a catalog-sized sort or export a dense sparse signal tree (947.1908ms)
+✖ guide cancellation precedes reads and also stops inside mostly removed saved ledgers (18.2002ms)
+✖ prepared answers use bounded existing picks, freshest live counts and handle an empty library (6.8281ms)
+✔ synthetic corpus has explicit reasoned judgments and rejects invalid versions, bounds, references and canonical cycles (8.4038ms)
+✔ graded NDCG and precision match an independently calculated two-title example, including empty wrong output (1.1461ms)
+✔ missing judgments and publication dates remain unknown, while ingestion cannot create publication freshness (1.1214ms)
+✔ canonical aliases cannot inflate relevance and are distinct from previous-shelf exposure and negative evidence (0.5685ms)
+✔ creator concentration is conditional on actual relevant availability and empty libraries are inapplicable, never perfect relevance (0.3363ms)
+✔ adversarial rankings independently trip operational-tag, creator, exposure, duplicate and explicit-negative detectors (1.6831ms)
+✖ production rankers are deterministic, offline and read-only; current artifacts match the reviewed versioned baseline (61.8487ms)
+✔ baseline comparison refuses missing/incompatible baselines, changed judgments and altered ranking orders (8.4579ms)
+✖ CLI parsing rejects ambiguous modes and baseline replacement requires an explicit flag (58.6455ms)
+✔ CLI exits nonzero for the intentionally strict quality gate and a missing baseline rather than hiding unknowns (412.5621ms)
+✔ exposure imports reject unsupported/malformed/future rows, cap counts and expire old observations (2.9231ms)
+✔ repeated shelves count at most once per 30 minutes, with bounded count and transparent seven-day half life (0.4489ms)
+✔ long browsing retains only 2,048 recent identities and never builds a catalog-sized impression graph (58.7849ms)
+✔ canonical identity matches aliases; favorite, like, creator favorite and new high rating all bypass novelty reduction (0.255ms)
+✔ opening and reset recover original ranking inputs and whole-ledger timestamps prevent stale mirror resurrection (3.1616ms)
+✔ real YouTube ranking and its worker reduce unopened repeats without removing them or overriding favorites (3.8205ms)
+✔ Twitch VOD and Guide scores apply exposure independently from title ratings and explicit rejection evidence (28.9325ms)
+✔ preview penalties stay soft and public; private/adult recommendation order and taste training remain unchanged (4.112ms)
+✔ offscreen and quickly skipped cards never count; blur/context changes require a fresh continuous two seconds (0.6619ms)
+✔ occlusion, unmount and stale callbacks cannot create impressions; dwell rows and timers are bounded (0.9902ms)
+✔ one shared meaningful-visibility observer requires half of each card, releases nodes and rejects stale generations (0.425ms)
+✔ public room descriptors and session files omit all exposure evidence (0.7598ms)
+✔ title identity covers aliases without spreading evidence to creator, topics, or providers (1.0125ms)
+✔ creator scope respects provider identity; canonical topic evidence crosses sources without mechanical tag matching (34.2641ms)
+✔ explicit title/creator favorites and hearted topics protect candidates without deleting choices (0.575ms)
+✔ bounded ledger validates imports, keeps recent unique choices, and never silently evicts a new personal choice (2.1589ms)
+✔ Undo restores prior ranking evidence exactly and newest empty state wins over stale durable mirror (4.4421ms)
+✔ real YouTube ranker applies title-only penalty; creator diversity still leaves another creator available (0.7123ms)
+✔ YouTube worker reset carries negatives, supports favorites, and discards prior choices on a clean reset (1.7279ms)
+✔ Twitch scoring subtracts only explicit scopes and restores favorite score exactly (3.8909ms)
+✔ Guide personal and explicit-query orders apply choices but retain search matches and visibility boundaries (4.3682ms)
+✔ Watch Together public media and session exports cannot serialize private rejection evidence (1.7116ms)
+✔ preview recommendation scores honor the prepared negative evidence without changing visibility or tag training (4.7712ms)
+✔ review validation protects built-ins and operational labels, rejects unsupported ledgers and bounds retained decisions (4.8551ms)
+✔ candidate evidence counts saved public labels once per title and excludes private, hidden, provider and creator facets (17.0786ms)
+✔ approval, reload and Undo update only affected topic postings and preserve locked/manual labels exactly (9.3962ms)
+✔ ambiguous short labels remain distinct until explicit manual review; Undo restores distinct topic counts (1.8017ms)
+✔ unrelated cached topic evidence retains its identity, affected evidence refreshes, and legacy/private interpretation stays separate (0.9853ms)
+✔ public fallback search joins reviewed spelling with canonical labels and reverses cleanly (50.3796ms)
+✔ actual search worker adds/removes alias tag postings without another document batch and honors a private/raw request (11.3468ms)
+✔ public YouTube, Guide and Twitch recommendation inputs use approved spelling evidence and recover after Undo (8.1047ms)
+✔ YouTube worker reset receives alias snapshot and does not retain it after a raw reset (1.6409ms)
+✔ interrupted affected-topic patch leaves prior postings complete and can be retried (0.9075ms)
+✔ alias provenance never enters public room media or Watch Together session files (0.914ms)
+✔ an active consumer recovers from an earlier cancelled shared preparation (0.451ms)
+✔ concurrent active consumers share one staged affected-topic patch (2.6722ms)
+ℹ tests 50
+ℹ suites 0
+ℹ pass 45
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1256.1569
+
+✖ failing tests:
+
+test at scripts\guide-picks.test.mjs:11:1
+✖ guide preserves favorite/like/tag scores, watched exclusions, stable ties and complete fresh live ordering (63.7321ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    [
+      {
+        addedAt: 1792985322563,
+        extension: 'mp4',
+        folderId: 'folder',
+  ...
+        genre: 'Science',
+  +     id: 'video:791',
+  -     id: 'video:2710',
+        mime: 'video/mp4',
+  +     name: 'Title 791',
+  +     path: '791',
+  -     name: 'Title 2710',
+  -     path: '2710',
+        size: 0
+      },
+      {
+        addedAt: 1792985322563,
+        extension: 'mp4',
+        folderId: 'folder',
+        genre: 'Science',
+  +     id: 'video:47',
+  -     id: 'video:2687',
+        mime: 'video/mp4',
+  +     name: 'Title 47',
+  +     path: '47',
+  -     name: 'Title 2687',
+  -     path: '2687',
+        size: 0
+      },
+      {
+        addedAt: 1792985322563,
+        extension: 'mp4',
+        folderId: 'folder',
+        genre: 'Science',
+  +     id: 'video:2710',
+  -     id: 'video:2215',
+        mime: 'video/mp4',
+  +     name: 'Title 2710',
+  +     path: '2710',
+  -     name: 'Title 2215',
+  -     path: '2215',
+        size: 0
+      },
+      {
+        addedAt: 1792985322563,
+        extension: 'mp4',
+        folderId: 'folder',
+        genre: 'Science',
+  +     id: 'video:221',
+  -     id: 'video:109',
+        mime: 'video/mp4',
+  +     name: 'Title 221',
+  +     path: '221',
+  -     name: 'Title 109',
+  -     path: '109',
+        size: 0
+      },
+      {
+        addedAt: 1792985322563,
+        extension: 'mp4',
+        folderId: 'folder',
+        genre: 'Science',
+  +     id: 'video:611',
+  -     id: 'video:1021',
+        mime: 'video/mp4',
+  +     name: 'Title 611',
+  +     path: '611',
+  -     name: 'Title 1021',
+  -     path: '1021',
+        size: 0
+      },
+      {
+        addedAt: 1792985322563,
+        extension: 'mp4',
+        folderId: 'folder',
+        genre: 'Science',
+  +     id: 'video:1382',
+  -     id: 'video:50',
+        mime: 'video/mp4',
+  +     name: 'Title 1382',
+  +     path: '1382',
+  -     name: 'Title 50',
+  -     path: '50',
+        size: 0
+      },
+      {
+        addedAt: 1792985322563,
+        extension: 'mp4',
+        folderId: 'folder',
+        genre: 'Science',
+  +     id: 'video:2687',
+  -     id: 'video:2387',
+        mime: 'video/mp4',
+  +     name: 'Title 2687',
+  +     path: '2687',
+  -     name: 'Title 2387',
+  -     path: '2387',
+        size: 0
+      },
+      {
+        addedAt: 1792985322563,
+        extension: 'mp4',
+        folderId: 'folder',
+        genre: 'Science',
+  +     id: 'video:2215',
+  -     id: 'video:1865',
+        mime: 'video/mp4',
+  +     name: 'Title 2215',
+  +     path: '2215',
+  -     name: 'Title 1865',
+  -     path: '1865',
+        size: 0
+      },
+      {
+        addedAt: 1792985322563,
+        extension: 'mp4',
+        folderId: 'folder',
+        genre: 'Science',
+  +     id: 'video:17',
+  -     id: 'video:250',
+        mime: 'video/mp4',
+  +     name: 'Title 17',
+  +     path: '17',
+  -     name: 'Title 250',
+  -     path: '250',
+        size: 0
+      }
+    ]
+  
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/guide-picks.test.mjs:25:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ { id: 'video:5', name: 'Title 5', folderId: 'folder', extension: 'mp4', path: '5', size: 0, mime: 'video/mp4', addedAt: 1792985322563, genre: 'Science' }, { id: 'video:1', name: 'Title 1', folderId: 'folder', extension: 'mp4', path: '1', size: 0, mime: 'video/mp4', addedAt: 1792985322563, genre: 'Science' }, { id: 'video:7', name: 'Title 7', folderId: 'folder', extension: 'mp4', path: '7', size: 0, mime: 'video/mp4', addedAt: 1792985322563, genre: 'Science' }, { id: 'video:791', name: 'Title 791', folderId: 'folder', extension: 'mp4', path: '791', size: 0, mime: 'video/mp4', addedAt: 1792985322563, genre: 'Science' }, { id: 'video:47', name: 'Title 47', folderId: 'folder', extension: 'mp4', path: '47', size: 0, mime: 'video/mp4', addedAt: 1792985322563, genre: 'Science' }, { id: 'video:2710', name: 'Title 2710', folderId: 'folder', extension: 'mp4', path: '2710', size: 0, mime: 'video/mp4', addedAt: 1792985322563, genre: 'Science' }, { id: 'video:221', name: 'Title 221', folderId: 'folder', extension: 'mp4', path: '221', size: 0, mime: 'video/mp4', addedAt: 1792985322563, genre: 'Science' }, { id: 'video:611', name: 'Title 611', folderId: 'folder', extension: 'mp4', path: '611', size: 0, mime: 'video/mp4', addedAt: 1792985322563, genre: 'Science' }, { id: 'video:1382', name: 'Title 1382', folderId: 'folder', extension: 'mp4', path: '1382', size: 0, mime: 'video/mp4', addedAt: 1792985322563, genre: 'Science' }, { id: 'video:2687', name: 'Title 2687', folderId: 'folder', extension: 'mp4', path: '2687', size: 0, mime: 'video/mp4', addedAt: 1792985322563, genre: 'Science' }, { id: 'video:2215', name: 'Title 2215', folderId: 'folder', extension: 'mp4', path: '2215', size: 0, mime: 'video/mp4', addedAt: 1792985322563, genre: 'Science' }, { id: 'video:17', name: 'Title 17', folderId: 'folder', extension: 'mp4', path: '17', size: 0, mime: 'video/mp4', addedAt: 1792985322563, genre: 'Science' } ],
+    expected: [ { id: 'video:5', name: 'Title 5', folderId: 'folder', extension: 'mp4', path: '5', size: 0, mime: 'video/mp4', addedAt: 1792985322563, genre: 'Science' }, { id: 'video:1', name: 'Title 1', folderId: 'folder', extension: 'mp4', path: '1', size: 0, mime: 'video/mp4', addedAt: 1792985322563, genre: 'Science' }, { id: 'video:7', name: 'Title 7', folderId: 'folder', extension: 'mp4', path: '7', size: 0, mime: 'video/mp4', addedAt: 1792985322563, genre: 'Science' }, { id: 'video:2710', name: 'Title 2710', folderId: 'folder', extension: 'mp4', path: '2710', size: 0, mime: 'video/mp4', addedAt: 1792985322563, genre: 'Science' }, { id: 'video:2687', name: 'Title 2687', folderId: 'folder', extension: 'mp4', path: '2687', size: 0, mime: 'video/mp4', addedAt: 1792985322563, genre: 'Science' }, { id: 'video:2215', name: 'Title 2215', folderId: 'folder', extension: 'mp4', path: '2215', size: 0, mime: 'video/mp4', addedAt: 1792985322563, genre: 'Science' }, { id: 'video:109', name: 'Title 109', folderId: 'folder', extension: 'mp4', path: '109', size: 0, mime: 'video/mp4', addedAt: 1792985322563, genre: 'Science' }, { id: 'video:1021', name: 'Title 1021', folderId: 'folder', extension: 'mp4', path: '1021', size: 0, mime: 'video/mp4', addedAt: 1792985322563, genre: 'Science' }, { id: 'video:50', name: 'Title 50', folderId: 'folder', extension: 'mp4', path: '50', size: 0, mime: 'video/mp4', addedAt: 1792985322563, genre: 'Science' }, { id: 'video:2387', name: 'Title 2387', folderId: 'folder', extension: 'mp4', path: '2387', size: 0, mime: 'video/mp4', addedAt: 1792985322563, genre: 'Science' }, { id: 'video:1865', name: 'Title 1865', folderId: 'folder', extension: 'mp4', path: '1865', size: 0, mime: 'video/mp4', addedAt: 1792985322563, genre: 'Science' }, { id: 'video:250', name: 'Title 250', folderId: 'folder', extension: 'mp4', path: '250', size: 0, mime: 'video/mp4', addedAt: 1792985322563, genre: 'Science' } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at scripts\guide-picks.test.mjs:45:1
+✖ guide cancellation precedes reads and also stops inside mostly removed saved ledgers (18.2002ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/guide-picks.test.mjs:51:27)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /replaced/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at scripts\guide-picks.test.mjs:54:1
+✖ prepared answers use bounded existing picks, freshest live counts and handle an empty library (6.8281ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /science, tech/. Input:
+  
+  'Local recommendations for “Something funny”:\n' +
+    '1. Title 7 — Available in your public library; no saved content preference matched.\n' +
+    '2. Title 1 — Available in your public library; no saved content preference matched.\n' +
+    '\n' +
+    'Prepared locally from eligible public fields; discovery picks are labeled separately.'
+  
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/guide-picks.test.mjs:58:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Local recommendations for “Something funny”:\n1. Title 7 — Available in your public library; no saved content preference matched.\n2. Title 1 — Available in your public library; no saved content preference matched.\n\nPrepared locally from eligible public fields; discovery picks are labeled separately.',
+    expected: /science, tech/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at scripts\recommendation-evaluation.test.mjs:149:1
+✖ production rankers are deterministic, offline and read-only; current artifacts match the reviewed versioned baseline (61.8487ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/recommendation-evaluation.test.mjs:162:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts\recommendation-evaluation.test.mjs:186:1
+✖ CLI parsing rejects ambiguous modes and baseline replacement requires an explicit flag (58.6455ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/recommendation-evaluation.test.mjs:215:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

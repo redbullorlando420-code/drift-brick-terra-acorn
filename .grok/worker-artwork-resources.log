@@ -1,0 +1,25 @@
+✔ base64 disk records decode losslessly and blob URL ownership is released exactly once (49.5681ms)
+✔ provider URLs and already binary records do not create extra copies (0.3901ms)
+✔ source changes cancel queued near-view artwork without consuming a slot (3.135ms)
+✔ visible artwork gets the next slot ahead of near-view artwork (0.4328ms)
+✔ nearby cards leave capacity for visible cards without exceeding the budget (0.6645ms)
+✔ hidden tabs hold visible requests and restore capacity on visibility change (0.5229ms)
+✔ opening a viewer pauses queued artwork without waking or rerendering every card (0.5205ms)
+✔ closing a viewer refills every available visible-artwork slot (0.7164ms)
+✔ unfinished card leases revoke on preview open and refill together without marking loads failed (0.7143ms)
+✔ unmount, abort and completion cannot resume cancelled card leases or retain callbacks (1.0188ms)
+✔ even visible images yield behind foreground input without cancelling healthy URLs (300.6349ms)
+✔ hidden and page-hidden cards release active admission and resume only when both gates allow it (3.8227ms)
+✔ a paused thumbnail queue is bounded, holds no wake timers, and shares one input timer (3.2373ms)
+✔ viewer pauses abort running decoders and resume live cards without treating the pause as failure (1.9183ms)
+✔ visible cards go ahead of nearby cards and duplicate cards share the same job (0.5253ms)
+✔ rapid pause/resume waits for decoder cleanup before granting replacement workers (0.5403ms)
+✔ a cancelled card cannot erase a fresh request with the same video ID (0.4878ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 500.3099

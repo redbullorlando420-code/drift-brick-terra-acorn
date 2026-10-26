@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "simulator": "battle-v1",
+  "config": {
+    "seed": 42,
+    "seconds": 120
+  },
+  "events": [
+    {
+      "event": {
+        "type": "start",
+        "at": 26,
+        "seconds": 120
+      },
+      "checksum": "44d6d7cfbb14c4a7"
+    },
+    {
+      "event": {
+        "type": "ballot",
+        "at": 53,
+        "viewer": "viewer_1",
+        "id": "recorded_1",
+        "text": "defend then attack then heal"
+      },
+      "checksum": "b3fd356b59930195"
+    },
+    {
+      "event": {
+        "type": "ballot",
+        "at": 75,
+        "viewer": "viewer_1",
+        "id": "recorded_1",
+        "text": "defend then attack then heal"
+      },
+      "checksum": "55fff2f1444aeeb9"
+    },
+    {
+      "event": {
+        "type": "ballot",
+        "at": 109,
+        "viewer": "viewer_1",
+        "id": "recorded_2",
+        "text": "invalid"
+      },
+      "checksum": "ef93f1871a3ab4ad"
+    },
+    {
+      "event": {
+        "type": "close",
+        "at": 130
+      },
+      "checksum": "e9d73edfa63b2cc5"
+    },
+    {
+      "event": {
+        "type": "step",
+        "at": 152
+      },
+      "checksum": "a5f4fbac37199eae"
+    },
+    {
+      "event": {
+        "type": "step",
+        "at": 175
+      },
+      "checksum": "a9b4df4e2cd180ea"
+    },
+    {
+      "event": {
+        "type": "step",
+        "at": 197
+      },
+      "checksum": "786271b72187c167"
+    }
+  ]
+}

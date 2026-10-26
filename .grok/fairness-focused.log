@@ -1,0 +1,41 @@
+✔ personal reasons cite real public positive signals and raw shared labels without mutating source fields (19.2986ms)
+✔ empty, private-only and orphan signals do not become public counts, evidence or topic choices (1.7809ms)
+✔ history-only input is honest discovery and operational facets cannot train affinity (0.484ms)
+✔ query reasons distinguish saved title, tag, creator and category with exact field quotes (0.9893ms)
+✔ contradictory feedback, favorite protection and exposure notices state actual evidence (0.7011ms)
+✔ live explanations require actual fresh confirmations rather than grace holds or viewer counts (2.1106ms)
+✔ artifact bounds limit affinity vocabulary, candidate explanations and chooser rows (119.6597ms)
+✔ empty and explicit queries honor cancellation before reading input (0.9683ms)
+✔ reviewed aliases preserve the raw supporting fields in personal explanations (1.9362ms)
+✔ guide preserves favorite/like/tag scores, watched exclusions, stable ties and complete fresh live ordering (101.8996ms)
+✔ 100k guide entries never enter a catalog-sized sort or export a dense sparse signal tree (922.3326ms)
+✔ guide cancellation precedes reads even with mostly removed saved ledgers (20.3191ms)
+✔ prepared answers use bounded existing picks, freshest live counts and handle an empty library (10.047ms)
+✔ a single-source library is constrained without inventing provider diversity failure (2.4917ms)
+✔ dominance finds avoidable concentration and a diagnostic threshold never edits ranking or signals (1.0426ms)
+✔ balanced policy compares actual slots with eligible capacity and explains pool exhaustion (0.5121ms)
+✔ creator IDs are provider scoped; normalized fallback names work and local folders are not credits (0.3085ms)
+✔ novelty uses valid exposure even for protected favorites, and repetitions use canonical media identity (1.7281ms)
+✔ exports allow aggregate fields only and never media keys, creator labels, prompts, tags or file paths (0.3611ms)
+✔ reports count exactly personal eligibility and filter private, hidden, missing, live, history and duration rows (9.0574ms)
+✔ question availability uses the actual query/provider and includes recorded matches, not the full library (2.0711ms)
+✔ 100k candidates keep 4096 creator counters, 12 output rows and unknown overflow capacity (570.5552ms)
+✔ cancelled preparation never reads a discarded catalog and empty output is unmeasured (0.8342ms)
+✔ volatile reports retain two shelves, previous canonical keys, no-op publication and explicit clear (0.4479ms)
+✔ session defaults are immutable, normalized and isolated from all saved taste fields (1.6677ms)
+✔ recording length boundaries, unknown duration and exact sources have explicit semantics (0.5315ms)
+✔ familiar/explore change preference ordering without changing favorites, history, tags or explicit feedback (25.4643ms)
+✔ filtering to Twitch retains legitimate cross-source saved-content affinity (0.5489ms)
+✔ balanced selection scans the full corpus, retains bounded source pools and fills missing source slots (649.3733ms)
+✔ queries honor length/source constraints and never silently override a contradictory provider request (0.4901ms)
+✔ private/hidden/orphan signals stay excluded in every mode; live questions retain strict freshness (3.2594ms)
+✔ a cancelled session replacement reads no discarded catalog and cancellation also stops affinity preparation (2.3606ms)
+✔ prepared topic alternatives and live lists respect the selected source; empty filtered mixes explain recovery (0.6079ms)
+ℹ tests 33
+ℹ suites 0
+ℹ pass 33
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1273.357

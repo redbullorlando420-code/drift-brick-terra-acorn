@@ -1,3 +1,5 @@
+import { decodeArtworkBitmap } from '@/lib/videos/bitmap-pool';
+import {clearReviewedPhotos,setReviewedPhotos} from '@/lib/reviewed-photo-bridges';
 import { getPerformanceProfile } from '@/lib/performance-profile';
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Download, EyeOff, Images, RefreshCw, Star, ChevronLeft, ChevronRight, Maximize2 } from "lucide-react";
@@ -20,6 +22,7 @@ type LocalPhoto = {
   people: string[];
   tags: string[];
   album: string;
+  bridgeAuditEligible: boolean;
   favorite: boolean;
   hidden: boolean;
   rating: number;
@@ -94,6 +97,8 @@ export function PhotosSection() {
     try { return localStorage.getItem("reelcase.photos.rating-queue") ?? ""; } catch { return ""; }
   });
   const [photos, setPhotos] = useState<LocalPhoto[]>([]);
+  const [photoAuditAck,setPhotoAuditAck]=useState(false);
+  useEffect(()=>{clearReviewedPhotos();},[]);
   const [showHiddenPhotos, setShowHiddenPhotos] = useState(false);
   const [selectedPerson, setSelectedPerson] = useState("All photos");
   const [selectedAlbum, setSelectedAlbum] = useState(() => {
@@ -278,6 +283,7 @@ export function PhotosSection() {
         if (!urls?.[index]) photoUrls.current.add(url);
         return {
         id,
+        bridgeAuditEligible: !paths,
         name: file.name,
         path,
         url,
@@ -322,12 +328,7 @@ export function PhotosSection() {
       upscalePreviewRef.current = "";
     }
   }, []);
-  useEffect(() => {
-    // Metadata writes used to serialize every photo after every streamed batch.
-    // Coalescing into one idle-sized save keeps scrolling and image decode work
-    // ahead of storage work for big folders.
-    if (metadataWriteTimer.current) clearTimeout(metadataWriteTimer.current);
-    metadataWriteTimer.current = setTimeout(() => {
+  const flushPhotoMetadata=()=>{if(metadataWriteTimer.current)clearTimeout(metadataWriteTimer.current);
       try {
         const nextMeta = { ...photoMetadata(), ...Object.fromEntries(photos.map(({ id, path, people, tags, album, favorite, hidden, rating, width, height, vision, visionModel }) => [id, { path, people, tags, album, favorite, hidden, rating, width, height, vision, visionModel }])) };
         const photoSources = useLibrary.getState().folders
@@ -341,11 +342,19 @@ export function PhotosSection() {
           }));
         persistPhotoMetadata(nextMeta, photoSources);
       } catch { /* quota */ }
-    }, 650);
+    metadataWriteTimer.current=null;
+  };
+  useEffect(() => {
+    // Metadata writes used to serialize every photo after every streamed batch.
+    // Coalescing into one idle-sized save keeps scrolling and image decode work
+    // ahead of storage work for big folders.
+    if (metadataWriteTimer.current) clearTimeout(metadataWriteTimer.current);
+    metadataWriteTimer.current = setTimeout(flushPhotoMetadata,650);
     return () => { if (metadataWriteTimer.current) clearTimeout(metadataWriteTimer.current); };
   }, [photos]);
   useEffect(() => {
     let cancelled = false;
+    const controller=new AbortController();
     const waiting = photos.filter((photo) => photo.file && (!photo.width || !photo.height));
     if (!waiting.length) return;
     setPhotoMetadataProgress({ total: waiting.length, done: 0, startedAt: performance.now(), running: true });
@@ -356,7 +365,7 @@ export function PhotosSection() {
         const chunk = waiting.slice(start, start + 8);
         const dimensions = await Promise.all(chunk.map(async (photo) => {
           try {
-            const bitmap = await createImageBitmap(photo.file!);
+            const bitmap = await decodeArtworkBitmap(photo.file!,controller.signal);
             const result = { id: photo.id, width: bitmap.width, height: bitmap.height };
             bitmap.close();
             return result;
@@ -373,7 +382,7 @@ export function PhotosSection() {
       }
       if (!cancelled) setPhotoMetadataProgress((current) => ({ ...current, running: false }));
     })();
-    return () => { cancelled = true; };
+    return () => { cancelled = true; controller.abort(); };
   }, [photos.length]);
   useEffect(() => { try { localStorage.setItem("reelcase.photos.sort", photoSort); } catch { /* storage unavailable */ } }, [photoSort]);
   useEffect(() => { try { localStorage.setItem("reelcase.photos.favorites-only", String(favoritesOnly)); } catch { /* storage unavailable */ } }, [favoritesOnly]);
@@ -446,6 +455,9 @@ export function PhotosSection() {
     setPhotoFolders((folders) => (folders.includes(first) ? folders : [...folders, first]));
     addPhotos(files, first);
   };
+  useEffect(()=>setPhotoAuditAck(false),[photos,selectedPhotoIds]);
+  const auditPhotoSelection=photos.filter(photo=>selectedPhotoIds.has(photo.id)&&!photo.hidden&&photo.bridgeAuditEligible);
+  const reviewPhotoTopics=()=>{if(!photoAuditAck||auditPhotoSelection.length!==selectedPhotoIds.size||auditPhotoSelection.length>48)return;flushPhotoMetadata();setReviewedPhotos(auditPhotoSelection.map((photo,index)=>({id:'reviewed-photo:'+index,name:photo.name,tags:photo.tags,reviewed:true,direct:true,hidden:false})));useLibrary.getState().setQuery('');useLibrary.getState().setSource('assistant');};
   const people = useMemo(() => [...new Set(photos.flatMap((photo) => photo.people))], [photos]);
   const albums = useMemo(() => [...new Set(photos.map((photo) => photo.album))], [photos]);
   const photoTags = useMemo(() => [...new Set(photos.flatMap((photo) => photo.tags))].sort(), [photos]);
@@ -742,7 +754,7 @@ export function PhotosSection() {
         </div>
         <div className="flex flex-wrap gap-2 border-t border-border pt-3"><span className="self-center text-xs text-muted">Albums</span><Button size="sm" variant={selectedAlbum === "All albums" ? "default" : "secondary"} onClick={() => { setSelectedAlbum("All albums"); localStorage.removeItem("reelcase.photos.source-filter"); }}>All albums</Button>{albums.map((album) => <Button key={album} size="sm" variant={selectedAlbum === album ? "default" : "secondary"} onClick={() => { setSelectedAlbum(album); localStorage.setItem("reelcase.photos.source-filter", album); }}>{album}</Button>)}</div>
         <div className="flex flex-wrap gap-2"><span className="self-center text-xs text-muted">Tags</span><Button size="sm" variant={selectedTag === "All tags" ? "default" : "secondary"} onClick={() => setSelectedTag("All tags")}>All tags</Button><Button size="sm" variant={selectedTag === "auto-tagged" ? "default" : "secondary"} disabled={!visionProcessed} onClick={() => setSelectedTag("auto-tagged")}>Auto-tagged · {visionProcessed}</Button>{photoTags.filter((tag) => tag !== "auto-tagged").slice(0, 16).map((tag) => <Button key={tag} size="sm" variant={selectedTag === tag ? "default" : "secondary"} onClick={() => setSelectedTag(tag)}>#{tag}</Button>)}</div>
-        {selectedPhotoIds.size > 0 && <div className="flex flex-wrap items-center gap-2 rounded-sm bg-bg/45 p-3"><span className="text-sm font-medium text-fg">{selectedPhotoIds.size} selected</span><Button size="sm" variant="secondary" onClick={() => applyTagToSelected("favorite-set")}>Tag set</Button><Button size="sm" variant="secondary" onClick={() => { photos.filter((photo) => selectedPhotoIds.has(photo.id)).forEach(downloadPhoto); }}>Download selected</Button><Button size="sm" variant="ghost" onClick={() => setSelectedPhotoIds(new Set())}>Clear selection</Button></div>}
+        {selectedPhotoIds.size > 0 && <div className="flex flex-wrap items-center gap-2 rounded-sm bg-bg/45 p-3"><span className="text-sm font-medium text-fg">{selectedPhotoIds.size} selected</span><Button size="sm" variant="secondary" onClick={() => applyTagToSelected("favorite-set")}>Tag set</Button><Button size="sm" variant="secondary" onClick={() => { photos.filter((photo) => selectedPhotoIds.has(photo.id)).forEach(downloadPhoto); }}>Download selected</Button><Button size="sm" variant="ghost" onClick={() => setSelectedPhotoIds(new Set())}>Clear selection</Button><div className="w-full border-t border-border pt-3"><label className="flex min-h-11 items-center gap-3 text-xs text-fg"><input type="checkbox" checked={photoAuditAck} onChange={event=>setPhotoAuditAck(event.target.checked)} aria-label="Confirm selected photos are suitable for public topic connections"/>I reviewed these visible photos as suitable for public topic connections.</label><p className="mt-1 text-xs leading-5 text-muted">Only photos chosen directly here qualify; imported source photos and hidden photos stay excluded. Review up to 48 saved tag sets. Image bytes, paths and people labels stay out of the audit. This review clears on reload or when you return to Photos.</p><Button className="mt-2 min-h-11" variant="secondary" disabled={!photoAuditAck||!auditPhotoSelection.length||auditPhotoSelection.length!==selectedPhotoIds.size||auditPhotoSelection.length>48} onClick={reviewPhotoTopics}>Audit selected photo topics</Button></div></div>}
         {photoFolders.length > 0 && (
           <p className="text-xs text-muted">Sources · {photoFolders.join(" · ")}</p>
         )}

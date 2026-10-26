@@ -1,0 +1,16 @@
+[
+  {
+    "viewport": "desktop",
+    "errors": [],
+    "recipes": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\recipe-keyboard-local-tools-dev-recipes-desktop.png",
+    "studio": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\recipe-keyboard-local-tools-dev-studio-desktop.png",
+    "ok": true
+  },
+  {
+    "viewport": "mobile",
+    "errors": [],
+    "recipes": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\recipe-keyboard-local-tools-dev-recipes-mobile.png",
+    "studio": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\recipe-keyboard-local-tools-dev-studio-mobile.png",
+    "ok": true
+  }
+]

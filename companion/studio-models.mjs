@@ -1,3 +1,4 @@
+import { createModelPreflight } from './studio-model-preflight.mjs';
 import { mkdir, readdir, open, rename, unlink, stat, writeFile, readFile } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
 import { join, basename } from 'node:path';
@@ -35,6 +36,7 @@ export async function validateWeights(file, role) {
 }
 export function createStudioModels({ dir, fetchRemote = fetch }) {
   let job = null, controller = null;
+  const compatibility = createModelPreflight({dir});
   const comfy = join(dir,'tools','comfyui','models'), a1111 = join(dir,'tools','stable-diffusion-webui','models','Stable-diffusion');
   const folder = role => role === 'checkpoints' ? a1111 : join(comfy,role);
   async function inspect(source) {
@@ -101,6 +103,7 @@ export function createStudioModels({ dir, fetchRemote = fetch }) {
   }
   async function action(route,method,body={}) {
     if(route==='/studio/models'&&method==='GET')return list();
+    if(route==='/studio/models/preflight'&&method==='POST')return compatibility.preflight(body);
     if(route==='/studio/models/inspect'&&method==='POST')return {ok:true,...await inspect(body.url)};
     if(route==='/studio/models/cancel'&&method==='POST'){controller?.abort();return {ok:true};}
     if(route==='/studio/models/install'&&method==='POST') {
@@ -131,5 +134,5 @@ export function createStudioModels({ dir, fetchRemote = fetch }) {
     }catch(error){req.resume();result={ok:false,error:error.message};}
     if(!res.destroyed){res.writeHead(result.ok?200:400,{'Content-Type':'application/json'});res.end(JSON.stringify(result));}
   }
-  return {action,list,upload,shutdown:()=>controller?.abort()};
+  return {action,list,upload,preflight:compatibility.preflight,shutdown:()=>controller?.abort()};
 }
